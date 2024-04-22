@@ -12,7 +12,6 @@ import { JointUIService } from "../../service/joint-ui/joint-ui.service";
 import { NzModalModule, NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { Overlay } from "@angular/cdk/overlay";
 import * as joint from "jointjs";
-import { ResultPanelToggleService } from "../../service/result-panel-toggle/result-panel-toggle.service";
 import { marbles } from "rxjs-marbles";
 import {
   mockCommentBox,
@@ -58,7 +57,6 @@ describe("WorkflowEditorComponent", () => {
           WorkflowUtilService,
           UndoRedoService,
           DragDropService,
-          ResultPanelToggleService,
           ValidationWorkflowService,
           WorkflowActionService,
           NzContextMenuService,
@@ -157,7 +155,6 @@ describe("WorkflowEditorComponent", () => {
           WorkflowUtilService,
           WorkflowActionService,
           UndoRedoService,
-          ResultPanelToggleService,
           ValidationWorkflowService,
           DragDropService,
           NzModalService,

@@ -8,7 +8,6 @@ import { DragDropService } from "../../service/drag-drop/drag-drop.service";
 import { DynamicSchemaService } from "../../service/dynamic-schema/dynamic-schema.service";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { fromJointPaperEvent, JointUIService, linkPathStrokeColor } from "../../service/joint-ui/joint-ui.service";
-import { ResultPanelToggleService } from "../../service/result-panel-toggle/result-panel-toggle.service";
 import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
 import { OperatorInfo } from "../../service/workflow-graph/model/operator-group";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
@@ -77,7 +76,6 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     private workflowActionService: WorkflowActionService,
     private dynamicSchemaService: DynamicSchemaService,
     private dragDropService: DragDropService,
-    private resultPanelToggleService: ResultPanelToggleService,
     private validationWorkflowService: ValidationWorkflowService,
     private jointUIService: JointUIService,
     private workflowStatusService: WorkflowStatusService,
@@ -382,10 +380,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
    */
   private handleWindowResize(): void {
     // when the window is resized (limit to at most one event every 30ms).
-    merge(
-      fromEvent(window, "resize").pipe(auditTime(30)),
-      this.resultPanelToggleService.getToggleChangeStream().pipe(auditTime(30))
-    )
+    merge(fromEvent(window, "resize").pipe(auditTime(30)))
       .pipe(untilDestroyed(this))
       .subscribe(() => this.paper.setDimensions(this.editorWrapper.offsetWidth, this.editorWrapper.offsetHeight));
   }

@@ -6,7 +6,6 @@ import { UserService } from "../../common/service/user/user.service";
 import { WorkflowPersistService } from "../../common/service/workflow-persist/workflow-persist.service";
 import { Workflow } from "../../common/type/workflow";
 import { OperatorMetadataService } from "../service/operator-metadata/operator-metadata.service";
-import { ResultPanelToggleService } from "../service/result-panel-toggle/result-panel-toggle.service";
 import { UndoRedoService } from "../service/undo-redo/undo-redo.service";
 import { WorkflowCacheService } from "../service/workflow-cache/workflow-cache.service";
 import { WorkflowActionService } from "../service/workflow-graph/model/workflow-action.service";
@@ -43,7 +42,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   @ViewChild("codeEditor", { read: ViewContainerRef }) vc!: ViewContainerRef;
   constructor(
     private userService: UserService,
-    private resultPanelToggleService: ResultPanelToggleService,
     // list additional services in constructor so they are initialized even if no one use them directly
     private schemaPropagationService: SchemaPropagationService,
     private operatorReuseCacheStatus: OperatorReuseCacheStatusService,
@@ -111,8 +109,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
 
     this.registerLoadOperatorMetadata();
 
-    this.registerResultPanelToggleHandler();
-
     this.codeEditorService.vc = this.vc;
   }
 
@@ -126,13 +122,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     this.workflowActionService.destroySharedModel();
     this.workflowWebsocketService.closeWebsocket();
     this.vc.clear();
-  }
-
-  registerResultPanelToggleHandler() {
-    this.resultPanelToggleService
-      .getToggleChangeStream()
-      .pipe(untilDestroyed(this))
-      .subscribe(value => (this.showResultPanel = value));
   }
 
   registerAutoCacheWorkFlow(): void {

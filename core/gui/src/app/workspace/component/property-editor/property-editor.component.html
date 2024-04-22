@@ -18,7 +18,7 @@
     [ngClass]="{'shadow':  !width}">
     <li
       nz-menu-item
-      (click)="width = 0;"
+      (click)="width = 0; height = 65;"
       *ngIf="width">
       <span
         nz-icon
@@ -38,8 +38,9 @@
       id="divider"></li>
     <li
       nz-menu-item
-      (click)="width = 280;"
-      *ngIf="!width">
+      (click)="width = 280; height = 300"
+      *ngIf="!width"
+      nz-tooltip="Property Editor">
       <span
         nz-icon
         nzType="form"></span>

@@ -14,8 +14,6 @@ import { v4 as uuid } from "uuid";
 import { IndexableObject } from "../../types/result-table.interface";
 import { isDefined } from "../../../common/util/predicate";
 
-export const DEFAULT_PAGE_SIZE = 5;
-
 /**
  * WorkflowResultService manages the result data of a workflow execution.
  */
@@ -193,9 +191,6 @@ class OperatorPaginationResultService {
   }
 
   public selectTuple(tupleIndex: number, pageSize: number): Observable<IndexableObject> {
-    if (pageSize !== DEFAULT_PAGE_SIZE) {
-      throw new Error("only support fixed page size right now");
-    }
     // calculate the page index
     // remember that page index starts from 1
     const pageIndex = Math.floor(tupleIndex / pageSize) + 1;
@@ -203,9 +198,6 @@ class OperatorPaginationResultService {
   }
 
   public selectPage(pageIndex: number, pageSize: number): Observable<PaginatedResultEvent> {
-    if (pageSize !== DEFAULT_PAGE_SIZE) {
-      throw new Error("only support fixed page size right now");
-    }
     // update currently selected page
     this.currentPageIndex = pageIndex;
     // first fetch from frontend result cache
