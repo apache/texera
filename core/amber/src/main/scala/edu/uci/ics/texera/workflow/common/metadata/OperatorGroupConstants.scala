@@ -35,9 +35,12 @@ object OperatorGroupConstants {
       List(
         GroupInfo(MODELTRAINING_GROUP),
         GroupInfo(MODELEAPPLY_GROUP),
-        GroupInfo(MODELEVALUATION_GROUP, List(
-          GroupInfo(TEST_GROUP)
-        ))
+        GroupInfo(
+          MODELEVALUATION_GROUP,
+          List(
+            GroupInfo(TEST_GROUP)
+          )
+        )
       )
     ),
     GroupInfo(JOIN_GROUP),
