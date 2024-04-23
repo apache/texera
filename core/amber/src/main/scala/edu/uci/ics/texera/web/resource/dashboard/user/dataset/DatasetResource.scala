@@ -142,6 +142,23 @@ object DatasetResource {
     )
   }
 
+  // the format of dataset version name is: v{#n} - {user provided dataset version name}. e.g. v10 - new version
+  private def generateDatasetVersionName(ctx: DSLContext, did: UInteger, userProvidedVersionName: String): String = {
+    val numberOfExistingVersions = ctx
+      .selectFrom(DATASET_VERSION)
+      .where(DATASET_VERSION.DID.eq(did))
+      .fetch()
+      .size()
+
+    val res = if (userProvidedVersionName == "") {
+      "v" + (numberOfExistingVersions + 1).toString
+    } else {
+      "v" + (numberOfExistingVersions + 1).toString + " - " + userProvidedVersionName
+    }
+
+    res
+  }
+
   // this function retrieve the latest DatasetVersion from DB
   // the latest here means the one with latest creation time
   // read access will be checked
@@ -171,11 +188,11 @@ object DatasetResource {
   // it returns the created dataset version if creation succeed, else return None
   // concurrency control is performed here: the thread has to have the lock in order to create the new version
   private def createNewDatasetVersion(
-      ctx: DSLContext,
-      did: UInteger,
-      uid: UInteger,
-      versionName: String,
-      multiPart: FormDataMultiPart
+                                       ctx: DSLContext,
+                                       did: UInteger,
+                                       uid: UInteger,
+                                       userProvidedVersionName: String,
+                                       multiPart: FormDataMultiPart
   ): Option[DashboardDatasetVersion] = {
 
     // Acquire or Create the lock for dataset of {did}
@@ -196,6 +213,7 @@ object DatasetResource {
       // for file:remove, the value would be filepath1,filepath2
       val fields = multiPart.getFields().keySet().iterator()
 
+      val versionName = generateDatasetVersionName(ctx, did, userProvidedVersionName)
       val commitHash = GitVersionControlLocalFileStorage.withCreateVersion(
         datasetPath,
         versionName,

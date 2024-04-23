@@ -58,11 +58,12 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
       ? [
           // Fields when isCreatingVersion is true
           {
-            key: "name",
+            key: "describe the new version",
             type: "input",
+            defaultValue: "",
             templateOptions: {
               label: "Name",
-              required: true,
+              required: false,
             },
           },
         ]
@@ -85,12 +86,12 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
             },
           },
           {
-            key: "versionName",
+            key: "versionDescription",
             type: "input",
-            defaultValue: "v1",
+            defaultValue: "",
             templateOptions: {
-              label: "Initial Version Name",
-              required: true,
+              label: "Version Description",
+              required: false,
             },
           },
         ];
