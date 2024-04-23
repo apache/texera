@@ -12,8 +12,8 @@ from typing import Optional
 from fs.base import FS
 from loguru import logger
 from core.models import Operator, SourceOperator
-from core.models.r_executor import RSeuratSourceExecutor, RSeuratOperator
-
+# from core.models.r_executor import RSeuratSourceExecutor, RSeuratOperator
+from core.models.r_executor import RSerializeExecutor, RSerializeSourceExecutor
 
 class ExecutorManager:
     def __init__(self):
@@ -110,9 +110,9 @@ class ExecutorManager:
 
     def initialize_r_executor(self, code, is_source: bool):
         if is_source:
-            self.executor = RSeuratSourceExecutor(code)
+            self.executor = RSerializeSourceExecutor(code)
         else:
-            self.executor = RSeuratOperator(code)
+            self.executor = RSerializeExecutor(code)
         logger.info("successfully initialized R executor")
 
     def initialize_executor(self, code: str, is_source: bool) -> None:
