@@ -19,31 +19,34 @@ object OperatorGroupConstants {
   final val MODELEVALUATION_GROUP = "Model Evaluation"
   final val MODELEAPPLY_GROUP = "Model Apply"
 
+  final val TEST_GROUP = "Test L3"
+
   /**
     * The order of the groups to show up in the frontend operator panel.
     * The order numbers are relative.
     */
   final val OperatorGroupOrderList: List[GroupInfo] = List(
-    GroupInfo(INPUT_GROUP, 0, null),
-    GroupInfo(DATABASE_GROUP, 1, null),
-    GroupInfo(SEARCH_GROUP, 2, null),
-    GroupInfo(CLEANING_GROUP, 3, null),
+    GroupInfo(INPUT_GROUP),
+    GroupInfo(DATABASE_GROUP),
+    GroupInfo(SEARCH_GROUP),
+    GroupInfo(CLEANING_GROUP),
     GroupInfo(
       MACHINE_LEARNING_GROUP,
-      4,
       List(
-        GroupInfo(MODELTRAINING_GROUP, 101, null),
-        GroupInfo(MODELEAPPLY_GROUP, 102, null),
-        GroupInfo(MODELEVALUATION_GROUP, 103, null)
+        GroupInfo(MODELTRAINING_GROUP),
+        GroupInfo(MODELEAPPLY_GROUP),
+        GroupInfo(MODELEVALUATION_GROUP, List(
+          GroupInfo(TEST_GROUP)
+        ))
       )
     ),
-    GroupInfo(JOIN_GROUP, 5, null),
-    GroupInfo(SET_GROUP, 6, null),
-    GroupInfo(AGGREGATE_GROUP, 7, null),
-    GroupInfo(SORT_GROUP, 8, null),
-    GroupInfo(UTILITY_GROUP, 9, null),
-    GroupInfo(API_GROUP, 10, null),
-    GroupInfo(UDF_GROUP, 11, null),
-    GroupInfo(VISUALIZATION_GROUP, 12, null)
+    GroupInfo(JOIN_GROUP),
+    GroupInfo(SET_GROUP),
+    GroupInfo(AGGREGATE_GROUP),
+    GroupInfo(SORT_GROUP),
+    GroupInfo(UTILITY_GROUP),
+    GroupInfo(API_GROUP),
+    GroupInfo(UDF_GROUP),
+    GroupInfo(VISUALIZATION_GROUP)
   )
 }
