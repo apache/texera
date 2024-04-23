@@ -69,7 +69,12 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     const operatorType = this.workflowActionService.getTexeraGraph().getOperator(currentOperatorId).operatorType;
 
     console.log(operatorType);
-    this.changeLanguage(operatorType === "PythonUDFV2" ? "python" : "java");
+    if (operatorType === "RUDFSource" || operatorType ==="RUDF") {
+      this.changeLanguage("r")
+    }else{
+      this.changeLanguage(operatorType === "PythonUDFV2" ? "python" : "java");
+    }
+
   }
 
   ngAfterViewInit() {

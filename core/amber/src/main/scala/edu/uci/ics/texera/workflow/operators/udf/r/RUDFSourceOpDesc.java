@@ -87,8 +87,8 @@ public class RUDFSourceOpDesc extends SourceOperatorDescriptor {
     @Override
     public OperatorInfo operatorInfo() {
         return new OperatorInfo(
-                "1-out Python UDF",
-                "User-defined function operator in Python script",
+                "1-out R UDF",
+                "User-defined function operator in R script",
                 OperatorGroupConstants.UDF_GROUP(),
                 asScala(new ArrayList<InputPort>()).toList(),
                 asScala(singletonList(new OutputPort(new PortIdentity(0, false), "", false))).toList(),
@@ -103,7 +103,7 @@ public class RUDFSourceOpDesc extends SourceOperatorDescriptor {
     public Schema sourceSchema() {
         Schema.Builder outputSchemaBuilder = Schema.builder();
 
-        // for any pythonUDFType, it can add custom output columns (attributes).
+        // for any UDFType, it can add custom output columns (attributes).
         if (columns != null) {
             outputSchemaBuilder.add(asScala(columns)).build();
         }
