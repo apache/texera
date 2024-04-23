@@ -12,7 +12,7 @@ from typing import Optional
 from fs.base import FS
 from loguru import logger
 from core.models import Operator, SourceOperator
-from core.models.r_executor import RDplyrExecutor
+from core.models.r_executor import RSeuratSourceExecutor, RSeuratOperator
 
 
 class ExecutorManager:
@@ -109,7 +109,10 @@ class ExecutorManager:
         )
 
     def initialize_r_executor(self, code, is_source: bool):
-        self.executor = RDplyrExecutor(code)
+        if is_source:
+            self.executor = RSeuratSourceExecutor(code)
+        else:
+            self.executor = RSeuratOperator(code)
         logger.info("successfully initialized R executor")
 
     def initialize_executor(self, code: str, is_source: bool) -> None:
