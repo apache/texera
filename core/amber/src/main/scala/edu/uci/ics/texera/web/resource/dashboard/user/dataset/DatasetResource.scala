@@ -143,7 +143,11 @@ object DatasetResource {
   }
 
   // the format of dataset version name is: v{#n} - {user provided dataset version name}. e.g. v10 - new version
-  private def generateDatasetVersionName(ctx: DSLContext, did: UInteger, userProvidedVersionName: String): String = {
+  private def generateDatasetVersionName(
+      ctx: DSLContext,
+      did: UInteger,
+      userProvidedVersionName: String
+  ): String = {
     val numberOfExistingVersions = ctx
       .selectFrom(DATASET_VERSION)
       .where(DATASET_VERSION.DID.eq(did))
@@ -188,11 +192,11 @@ object DatasetResource {
   // it returns the created dataset version if creation succeed, else return None
   // concurrency control is performed here: the thread has to have the lock in order to create the new version
   private def createNewDatasetVersion(
-                                       ctx: DSLContext,
-                                       did: UInteger,
-                                       uid: UInteger,
-                                       userProvidedVersionName: String,
-                                       multiPart: FormDataMultiPart
+      ctx: DSLContext,
+      did: UInteger,
+      uid: UInteger,
+      userProvidedVersionName: String,
+      multiPart: FormDataMultiPart
   ): Option[DashboardDatasetVersion] = {
 
     // Acquire or Create the lock for dataset of {did}
