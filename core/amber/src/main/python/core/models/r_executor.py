@@ -45,7 +45,7 @@ class RSerializeExecutor(TableOperator):
     _object_to_arrow = robjects.r(
         """
         library(arrow)
-        object_to_arrow <- function(object) { 
+        function(object) { 
             serialized <- serialize(object, connection = NULL)
             df <- data.frame(object = I(list(serialized)))
             return (arrow::arrow_table(df))   
@@ -55,7 +55,7 @@ class RSerializeExecutor(TableOperator):
     _arrow_to_object = robjects.r(
         """
         library(arrow)
-        arrow_to_object <- function(arrowTable) { 
+        function(arrowTable) { 
             unserialized <- unserialize(unlist((as.data.frame(arrowTable))$object))
             return (unserialized)
         }
@@ -85,7 +85,7 @@ class RSerializeSourceExecutor(SourceOperator):
     _object_to_arrow = robjects.r(
         """
         library(arrow)
-        object_to_arrow <- function(object) { 
+        function(object) { 
             serialized <- serialize(object, connection = NULL)
             df <- data.frame(object = I(list(serialized)))
             return (arrow::arrow_table(df))   

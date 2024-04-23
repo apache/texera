@@ -27,16 +27,6 @@ from proto.edu.uci.ics.amber.engine.common import (
     ActorCommand,
 )
 
-import os
-
-# Adjust the path according to your x86 R installation
-os.environ["R_HOME"] = "/home/kevin/miniconda3/envs/texera/lib/R"
-os.environ["PATH"] = (
-    "/home/kevin/miniconda3/envs/texera/lib:" + os.environ["PATH"]
-)  # Adjust as
-# necessary
-
-
 class NetworkReceiver(Runnable, Stoppable):
     """
     Receive and deserialize messages.
