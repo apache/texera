@@ -2,7 +2,20 @@ package edu.uci.ics.texera.web.resource.dashboard.user.quota
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource.{Dataset, File, MongoStorage, Workflow, deleteMongoCollection, getUserAccessedFiles, getUserAccessedWorkflow, getUserCreatedDataset, getUserCreatedFile, getUserCreatedWorkflow, getUserDatasetSize, getUserMongoDBSize}
+import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource.{
+  Dataset,
+  File,
+  MongoStorage,
+  Workflow,
+  deleteMongoCollection,
+  getUserAccessedFiles,
+  getUserAccessedWorkflow,
+  getUserCreatedDataset,
+  getUserCreatedFile,
+  getUserCreatedWorkflow,
+  getUserDatasetSize,
+  getUserMongoDBSize
+}
 import org.jooq.types.UInteger
 
 import java.util
@@ -32,7 +45,7 @@ object UserQuotaResource {
       userId: UInteger,
       datasetId: UInteger,
       datasetName: String
-                    )
+  )
 
   case class Workflow(
       userId: UInteger,
@@ -52,9 +65,10 @@ object UserQuotaResource {
 
     val walk = Files.walk(path)
     try {
-      walk.filter(Files.isRegularFile(_))
-          .mapToLong(p => Files.readAttributes(p, classOf[BasicFileAttributes]).size())
-          .sum()
+      walk
+        .filter(Files.isRegularFile(_))
+        .mapToLong(p => Files.readAttributes(p, classOf[BasicFileAttributes]).size())
+        .sum()
     } finally {
       walk.close()
     }
@@ -62,7 +76,7 @@ object UserQuotaResource {
 
   def getUserDatasetSize(uid: UInteger): Long = {
     val datasetFolder = "./user-resources/datasets"
-    getFolderSize(datasetFolder )
+    getFolderSize(datasetFolder)
   }
 
   def getUserCreatedDataset(uid: UInteger): List[Dataset] = {
