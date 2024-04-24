@@ -1,0 +1,19 @@
+<nz-collapse
+  [nzBordered]="false"
+  class="operator-second-title-wrap">
+  <ng-container *ngFor="let operatorSchema of operators">
+    <nz-collapse-panel
+      *ngIf="operatorSchema.name"
+      [nzHeader]="operatorSchema.name"
+      class="operator-second-title">
+      <ng-container *ngIf="operatorSchema.operator?.length > 0">
+        <texera-recursive-collapse [operators]="operatorSchema.operator"></texera-recursive-collapse>
+      </ng-container>
+    </nz-collapse-panel>
+    <ng-container *ngIf="!operatorSchema.name">
+      <div class="texera-operator-label">
+        <texera-operator-label [operator]="operatorSchema"></texera-operator-label>
+      </div>
+    </ng-container>
+  </ng-container>
+</nz-collapse>

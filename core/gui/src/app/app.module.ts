@@ -134,6 +134,7 @@ import { NzNoAnimationModule } from "ng-zorro-antd/core/no-animation";
 import { TreeModule } from "@ali-hm/angular-tree-component";
 import { EnvironmentComponent } from "./workspace/component/left-panel/environment/environment.component";
 import { FileSelectionComponent } from "./workspace/component/file-selection/file-selection.component";
+import { RecursiveCollapseComponent } from "./workspace/component/left-panel/operator-menu/recursive-collapse/recursive-collapse.component";
 
 registerLocaleData(en);
 
@@ -217,6 +218,7 @@ registerLocaleData(en);
     WorkflowRuntimeStatisticsComponent,
     FlarumComponent,
     HighlightSearchTermsPipe,
+    RecursiveCollapseComponent,
   ],
   imports: [
     BrowserModule,

@@ -151,30 +151,43 @@ export function getGroupNamesSorted(groupInfoList: ReadonlyArray<GroupInfo>): st
 /**
  * returns a new empty map from the group name to a list of OperatorSchema
  */
-export function getOperatorGroupMap(
-  operatorMetadata: OperatorMetadata
-): Map<string, ReadonlyArray<OperatorSchema> | { name: string; operator: ReadonlyArray<OperatorSchema> }[]> {
+export function getOperatorGroupMap(operatorMetadata: OperatorMetadata): any {
+  console.log("operatorMetadata", operatorMetadata);
   const groupInfo = operatorMetadata.groups.map(groupInfo => groupInfo);
+  console.log("groupInfo", groupInfo);
+
+  const processGroup = (groupItems: any[]): any => {
+    return groupItems.map(groupItem => {
+      if (groupItem.children) {
+        // If there is a child group, recursively process the child group
+        const childGroups = processGroup(groupItem.children);
+        return {
+          name: groupItem.groupName,
+          operator: childGroups,
+        };
+      } else {
+        // If there is no child group, return the operator in the group
+        const operators = operatorMetadata.operators.filter(
+          x => x.additionalMetadata.operatorGroupName === groupItem.groupName
+        );
+        return {
+          name: groupItem.groupName,
+          operator: operators,
+        };
+      }
+    });
+  };
+
   const operatorGroupMap = new Map<
     string,
     ReadonlyArray<OperatorSchema> | { name: string; operator: ReadonlyArray<OperatorSchema> }[]
   >();
-  groupInfo.forEach(item => {
-    if (item.children) {
-      const secondLevelGroupMap: { name: string; operator: ReadonlyArray<OperatorSchema> }[] = [];
-      item.children.forEach(child => {
-        const operators = operatorMetadata.operators.filter(
-          x => x.additionalMetadata.operatorGroupName === child.groupName
-        );
-        secondLevelGroupMap.push({ name: child.groupName, operator: operators });
-      });
-      operatorGroupMap.set(item.groupName, secondLevelGroupMap);
-    } else {
-      const operators = operatorMetadata.operators.filter(
-        x => x.additionalMetadata.operatorGroupName === item.groupName
-      );
-      operatorGroupMap.set(item.groupName, operators);
-    }
+
+  const topLevelGroups = processGroup(operatorMetadata.groups as any);
+  topLevelGroups.forEach((group: any) => {
+    operatorGroupMap.set(group.name, group.operator);
   });
+
+  console.log("operatorGroupMap", operatorGroupMap);
   return operatorGroupMap;
 }

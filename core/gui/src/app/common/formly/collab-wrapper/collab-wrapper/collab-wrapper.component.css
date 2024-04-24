@@ -6,7 +6,7 @@
   outline: transparent;
   overflow: visible;
   position: relative;
-  : 1pt;
+  :1pt;
 }
 
 :host ::ng-deep .ql-editor > p {

@@ -18,7 +18,20 @@
     </nz-auto-option>
   </nz-autocomplete>
 </div>
+
 <nz-collapse
+  id="operator-menu"
+  [nzBordered]="false"
+  nzAccordion>
+  <nz-collapse-panel
+    *ngFor="let groupName of groupNamesOrdered"
+    [nzHeader]="groupName"
+    class="operator-submenu-title">
+    <texera-recursive-collapse [operators]="operatorGroupMap.get(groupName)"></texera-recursive-collapse>
+  </nz-collapse-panel>
+</nz-collapse>
+
+<!-- <nz-collapse
   id="operator-menu"
   [nzBordered]="false"
   nzAccordion>
@@ -48,4 +61,4 @@
       </ng-container>
     </nz-collapse>
   </nz-collapse-panel>
-</nz-collapse>
+</nz-collapse> -->

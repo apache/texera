@@ -113,7 +113,7 @@ export class NzModalCommentBoxComponent {
     btn.setAttribute("hidden", "hidden");
   }
   public replyToComment(creatorName: string, content: string) {
-    this.inputValue += "@" + creatorName + ":\"" + content + "\"\n";
+    this.inputValue += "@" + creatorName + ':"' + content + '"\n';
   }
   toRelative(datetime: string): string {
     return formatDate(new Date(datetime), "MM/dd/yyyy, hh:mm:ss a z", this.locale);
