@@ -204,6 +204,11 @@ object DatasetResource {
     val filesToRemove = mutable.ListBuffer[java.nio.file.Path]()
 
     val fields = multiPart.getFields.keySet.iterator() // Get all field names
+
+    // for multipart, each file-related operation's key starts with file:
+    // the operation is either upload or remove
+    // for file:upload, the file path will be suffixed to it, e.g. file:upload:a/b/c.csv The value will be the file content
+    // for file:remove, the value would be filepath1,filepath2
     while (fields.hasNext) {
       val fieldName = fields.next()
       val bodyPart = multiPart.getField(fieldName) // Get the body part for the field
