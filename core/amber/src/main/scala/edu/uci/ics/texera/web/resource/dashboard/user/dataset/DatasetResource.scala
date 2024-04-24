@@ -72,6 +72,7 @@ import javax.ws.rs.{
   QueryParam
 }
 import javax.ws.rs.core.{MediaType, Response, StreamingOutput}
+import scala.collection.mutable
 import scala.jdk.CollectionConverters._
 
 object DatasetResource {
@@ -187,6 +188,57 @@ object DatasetResource {
     latestVersion
   }
 
+  // add file(s) to a dataset, a new version will be created
+  def applyDatasetOperations(
+      did: UInteger,
+      uid: UInteger,
+      datasetOperation: DatasetOperation
+  ): Option[DashboardDatasetVersion] = {
+    applyDatasetOperation(context, did, uid, "", datasetOperation)
+  }
+
+  case class DatasetOperation(
+      filesToAdd: Map[java.nio.file.Path, InputStream],
+      filesToRemove: List[java.nio.file.Path]
+  )
+
+  private def parseUserUploadedFormToDatasetOperations(
+      did: UInteger,
+      multiPart: FormDataMultiPart
+  ): DatasetOperation = {
+    val datasetPath = PathUtils.getDatasetPath(did) // Obtain dataset base path
+
+    // Mutable collections for constructing DatasetOperation
+    val filesToAdd = mutable.Map[java.nio.file.Path, InputStream]()
+    val filesToRemove = mutable.ListBuffer[java.nio.file.Path]()
+
+    val fields = multiPart.getFields.keySet.iterator() // Get all field names
+    while (fields.hasNext) {
+      val fieldName = fields.next()
+      val bodyPart = multiPart.getField(fieldName) // Get the body part for the field
+
+      if (fieldName.startsWith(FILE_OPERATION_UPLOAD_PREFIX)) {
+        // Determine the relative file path and resolve it with the dataset base path
+        val filePath = datasetPath.resolve(fieldName.substring(FILE_OPERATION_UPLOAD_PREFIX.length))
+        val inputStream =
+          bodyPart.getValueAs(classOf[InputStream]) // Get input stream from multipart
+        filesToAdd.put(filePath, inputStream) // Add to the map for uploads
+      } else if (fieldName.startsWith(FILE_OPERATION_REMOVE_PREFIX)) {
+        val filePathsValue =
+          bodyPart.getValueAs(classOf[String]) // Get the file paths as a comma-separated string
+        val filePaths = filePathsValue.split(",") // Split into individual file paths
+        filePaths.foreach { filePath =>
+          val normalizedFilePath = filePath.stripPrefix("/") // Normalize path
+          val physicalFilePath = datasetPath.resolve(normalizedFilePath) // Convert to full path
+          filesToRemove += physicalFilePath // Add to the list for removals
+        }
+      }
+    }
+
+    // Return a new DatasetOperation with the map and list
+    DatasetOperation(filesToAdd.toMap, filesToRemove.toList)
+  }
+
   // this function create a new dataset version
   // the dataset is identified by did, the file changes/removals are contained in multiPart form
   // it returns the created dataset version if creation succeed, else return None
@@ -198,7 +250,17 @@ object DatasetResource {
       userProvidedVersionName: String,
       multiPart: FormDataMultiPart
   ): Option[DashboardDatasetVersion] = {
+    val datasetOperation = parseUserUploadedFormToDatasetOperations(did, multiPart)
+    applyDatasetOperation(ctx, did, uid, versionName, datasetOperation)
+  }
 
+  private def applyDatasetOperation(
+      ctx: DSLContext,
+      did: UInteger,
+      uid: UInteger,
+      versionName: String,
+      datasetOperation: DatasetOperation
+  ): Option[DashboardDatasetVersion] = {
     // Acquire or Create the lock for dataset of {did}
     val lock = DatasetResource.datasetLocks.getOrElseUpdate(did, new ReentrantLock())
 
@@ -207,53 +269,33 @@ object DatasetResource {
     }
     lock.lock()
     try {
-      val datasetPath = Paths.get(PathUtils.getDatasetPath(did).toString)
+      val datasetPath = PathUtils.getDatasetPath(did)
 
-      // this is used to check if file operation happens
-      var fileOperationHappens = false
-      // for multipart, each file-related operation's key starts with file:
-      // the operation is either upload or remove
-      // for file:upload, the file path will be suffixed to it, e.g. file:upload:a/b/c.csv The value will be the file content
-      // for file:remove, the value would be filepath1,filepath2
-      val fields = multiPart.getFields().keySet().iterator()
+      if (datasetOperation.filesToAdd.isEmpty && datasetOperation.filesToRemove.isEmpty) {
+        return None
+      }
 
       val versionName = generateDatasetVersionName(ctx, did, userProvidedVersionName)
       val commitHash = GitVersionControlLocalFileStorage.withCreateVersion(
         datasetPath,
         versionName,
         () => {
-          while (fields.hasNext) {
-            val fieldName = fields.next()
-            val bodyPart = multiPart.getField(fieldName)
+          datasetOperation.filesToAdd.foreach {
+            case (filePath, fileStream) => {
+              GitVersionControlLocalFileStorage.writeFileToRepo(datasetPath, filePath, fileStream)
+            }
+          }
 
-            if (fieldName.startsWith(FILE_OPERATION_UPLOAD_PREFIX)) {
-              //        val contentDisposition = bodyPart.getContentDisposition
-              //        val contentType = bodyPart.getMediaType.toString
-              val filePath =
-                datasetPath.resolve(fieldName.substring(FILE_OPERATION_UPLOAD_PREFIX.length))
-              // TODO: be careful with the string operation here
-              val value: InputStream = bodyPart.getValueAs(classOf[InputStream])
-              GitVersionControlLocalFileStorage.writeFileToRepo(datasetPath, filePath, value)
-              fileOperationHappens = true
-            } else if (fieldName.startsWith(FILE_OPERATION_REMOVE_PREFIX)) {
-              val filePathsValue = bodyPart.getValueAs(classOf[String])
-              val filePaths = filePathsValue.split(",")
-              filePaths.foreach { filePath =>
-                val normalizedFilePath = filePath.stripPrefix("/")
-                GitVersionControlLocalFileStorage.removeFileFromRepo(
-                  datasetPath,
-                  datasetPath.resolve(normalizedFilePath)
-                )
-              }
-              fileOperationHappens = true
+          datasetOperation.filesToRemove.foreach { filePath =>
+            {
+              GitVersionControlLocalFileStorage.removeFileFromRepo(
+                datasetPath,
+                filePath
+              )
             }
           }
         }
       )
-
-      if (!fileOperationHappens) {
-        return None
-      }
 
       // create the DatasetVersion that persists in the DB
       val datasetVersion = new DatasetVersion()

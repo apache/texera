@@ -1,0 +1,50 @@
+.centered-container {
+  display: flex;
+  flex-direction: column; /* Arrange children vertically */
+  align-items: center; /* Center horizontally */
+  justify-content: center; /* Center vertically */
+  text-align: center; /* Optional: centers text within the elements */
+}
+
+.datasets-container {
+  background-color: white;
+  /* Add other styling as needed, such as padding or margins */
+}
+
+.dataset-id-container {
+  background-color: grey;
+  color: white; /* Assuming you want the text to be white */
+  width: 35px; /* You can adjust the size as needed */
+  height: 35px; /* Make sure height and width are the same to create a circle */
+  border-radius: 50%; /* This makes the div circular */
+  display: flex; /* Using flexbox to center content */
+  justify-content: center; /* Center horizontally */
+  align-items: center; /* Center vertically */
+  font-size: 14px; /* Adjust the font size as needed */
+  margin-left: 5px; /* If you want to center the circle in its container */
+  /* Additional styles for better appearance */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Optional: Adds subtle shadow */
+  overflow: hidden; /* Ensures content doesn't spill outside the circle */
+}
+
+.auto-option-content {
+  width: 100%;
+  height: 50%;
+  display: flex;
+  //align-items: center; /* Aligns items vertically in the center */
+  justify-content: space-between;
+}
+
+.dataset-name {
+  //flex-shrink: 0; /* Prevents the name from shrinking */
+  //margin-left: 8px; /* Adds some space if needed */
+  margin-left: 10px;
+  flex-grow: 1; /* This will make the name take up the remaining space */
+}
+
+.dataset-option-link-btn {
+  margin-right: 5px;
+  //width: 20%;
+  //height: 90%;
+  //text-align: center;
+}
