@@ -68,7 +68,7 @@ export class UserQuotaComponent {
         copiedFiles.sort((a, b) => b.fileSize - a.fileSize);
         this.topFiveFiles = copiedFiles.slice(0, 5);
       });
-    
+
     this.UserService.getDatasetSize(this.userId)
       .pipe(untilDestroyed(this))
       .subscribe(datasetSize => {

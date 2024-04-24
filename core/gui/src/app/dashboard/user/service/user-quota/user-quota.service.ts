@@ -51,5 +51,4 @@ export class UserQuotaService {
   public deleteMongoDBCollection(collectionName: string): Observable<void> {
     return this.http.delete<void>(`${USER_DELETE_MONGODB_COLLECTION_NAME}/${collectionName}`);
   }
-
 }
