@@ -58,7 +58,7 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
       ? [
           // Fields when isCreatingVersion is true
           {
-            key: "name",
+            key: "versionDescription",
             type: "input",
             defaultValue: "",
             templateOptions: {
@@ -86,7 +86,7 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
             },
           },
           {
-            key: "versionName",
+            key: "versionDescription",
             type: "input",
             defaultValue: "",
             templateOptions: {
@@ -136,13 +136,13 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
 
     this.isUploading = true;
     if (this.isCreatingVersion && this.baseVersion) {
-      const versionName = this.form.get("name")?.value;
+      const versionName = this.form.get("versionDescription")?.value;
       this.datasetService
         .createDatasetVersion(this.baseVersion?.did, versionName, this.removedFilePaths, this.newUploadFiles)
         .pipe(untilDestroyed(this))
         .subscribe({
           next: res => {
-            this.notificationService.success(`Version '${versionName}' Created`);
+            this.notificationService.success("Version Created");
             this.datasetOrVersionCreationID.emit(res.dvid);
             this.isUploading = false;
           },
@@ -161,7 +161,7 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
         creationTime: undefined,
         versionHierarchy: undefined,
       };
-      const initialVersionName = this.form.get("versionName")?.value;
+      const initialVersionName = this.form.get("versionDescription")?.value;
 
       // do the name sanitization
 
