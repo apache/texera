@@ -29,8 +29,6 @@ export class ResultExportationComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    // TODO: retrieve all datasets
-    console.log("start init!");
     this.datasetService
       .retrieveAccessibleDatasets()
       .pipe(untilDestroyed(this))
