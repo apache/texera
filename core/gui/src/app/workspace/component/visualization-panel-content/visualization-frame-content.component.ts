@@ -1,4 +1,4 @@
-import { AfterContentInit, Component, inject } from "@angular/core";
+import { AfterContentInit, Component, Input, inject } from "@angular/core";
 import { DomSanitizer } from "@angular/platform-browser";
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
 import { auditTime, filter } from "rxjs/operators";
@@ -12,7 +12,8 @@ import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
   styleUrls: ["./visualization-frame-content.component.scss"],
 })
 export class VisualizationFrameContentComponent implements AfterContentInit {
-  operatorId: string = inject(NZ_MODAL_DATA).operatorId;
+  // operatorId: string = inject(NZ_MODAL_DATA).operatorId;
+  @Input() operatorId?: string;
   // progressive visualization update and redraw interval in milliseconds
   public static readonly UPDATE_INTERVAL_MS = 2000;
   htmlData: any = "";
