@@ -2,17 +2,7 @@ package edu.uci.ics.texera.web.resource.dashboard.user.quota
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource.{
-  File,
-  MongoStorage,
-  Workflow,
-  deleteMongoCollection,
-  getUserAccessedFiles,
-  getUserAccessedWorkflow,
-  getUserCreatedFile,
-  getUserCreatedWorkflow,
-  getUserMongoDBSize
-}
+import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource.{Dataset, File, MongoStorage, Workflow, deleteMongoCollection, getUserAccessedFiles, getUserAccessedWorkflow, getUserCreatedDataset, getUserCreatedFile, getUserCreatedWorkflow, getUserDatasetSize, getUserMongoDBSize}
 import org.jooq.types.UInteger
 
 import java.util
@@ -23,6 +13,8 @@ import edu.uci.ics.texera.web.storage.MongoDatabaseManager
 import io.dropwizard.auth.Auth
 
 import scala.jdk.CollectionConverters.IterableHasAsScala
+import java.nio.file.{Files, Paths}
+import java.nio.file.attribute.BasicFileAttributes
 
 object UserQuotaResource {
   final private lazy val context = SqlServer.createDSLContext()
@@ -36,6 +28,12 @@ object UserQuotaResource {
       description: String
   )
 
+  case class Dataset(
+      userId: UInteger,
+      datasetId: UInteger,
+      datasetName: String
+                    )
+
   case class Workflow(
       userId: UInteger,
       workflowId: UInteger,
@@ -48,6 +46,51 @@ object UserQuotaResource {
       pointer: String,
       eid: UInteger
   )
+
+  def getFolderSize(folder: String): Long = {
+    val path = Paths.get(folder)
+
+    val walk = Files.walk(path)
+    try {
+      walk.filter(Files.isRegularFile(_))
+          .mapToLong(p => Files.readAttributes(p, classOf[BasicFileAttributes]).size())
+          .sum()
+    } finally {
+      walk.close()
+    }
+  }
+
+  def getUserDatasetSize(uid: UInteger): Long = {
+    val datasetFolder = "./user-resources/datasets"
+    getFolderSize(datasetFolder )
+  }
+
+  def getUserCreatedDataset(uid: UInteger): List[Dataset] = {
+    val userDatasetEntries = context
+      .select(
+        DATASET.OWNER_UID,
+        DATASET.DID,
+        DATASET.NAME
+      )
+      .from(
+        DATASET
+      )
+      .where(
+        DATASET.OWNER_UID.eq(uid)
+      )
+      .fetch()
+
+    userDatasetEntries
+      .map(datasetRecord => {
+        Dataset(
+          datasetRecord.get(DATASET.OWNER_UID),
+          datasetRecord.get(DATASET.DID),
+          datasetRecord.get(DATASET.NAME)
+        )
+      })
+      .asScala
+      .toList
+  }
 
   def getCollectionName(result: String): String = {
 
@@ -225,6 +268,20 @@ class UserQuotaResource {
   @Produces(Array(MediaType.APPLICATION_JSON))
   def getCreatedFile(@Auth current_user: SessionUser): List[File] = {
     getUserCreatedFile(current_user.getUid)
+  }
+
+  @GET
+  @Path("/dataset_size")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def getDatasetSize(@Auth current_user: SessionUser): Long = {
+    getUserDatasetSize(current_user.getUid)
+  }
+
+  @GET
+  @Path("/uploaded_dataset")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def getCreatedDataset(@Auth current_user: SessionUser): List[Dataset] = {
+    getUserCreatedDataset(current_user.getUid)
   }
 
   @GET

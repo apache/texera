@@ -2,13 +2,15 @@ import { HttpClient, HttpHeaders, HttpParams } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
 import { AppSettings } from "../../../common/app-setting";
-import { Role, User, File, Workflow, MongoExecution } from "../../../common/type/user";
+import { Role, User, File, Dataset, Workflow, MongoExecution } from "../../../common/type/user";
 
 export const USER_BASE_URL = `${AppSettings.getApiEndpoint()}/admin/user`;
 export const USER_LIST_URL = `${USER_BASE_URL}/list`;
 export const USER_UPDATE_URL = `${USER_BASE_URL}/update`;
 export const USER_ADD_URL = `${USER_BASE_URL}/add`;
 export const USER_CREATED_FILES = `${USER_BASE_URL}/uploaded_files`;
+export const USER_DATASE_SIZE = `${USER_BASE_URL}/dataset_size`;
+export const USER_UPLOADED_DATASETS = `${USER_BASE_URL}/uploaded_dataset`;
 export const USER_CREATED_WORKFLOWS = `${USER_BASE_URL}/created_workflows`;
 export const USER_ACCESS_WORKFLOWS = `${USER_BASE_URL}/access_workflows`;
 export const USER_ACCESS_FILES = `${USER_BASE_URL}/access_files`;
@@ -41,6 +43,15 @@ export class AdminUserService {
   public getUploadedFiles(uid: number): Observable<ReadonlyArray<File>> {
     let params = new HttpParams().set("user_id", uid.toString());
     return this.http.get<ReadonlyArray<File>>(`${USER_CREATED_FILES}`, { params: params });
+  }
+
+  public getDatasetSize(uid: number): Observable<number> {
+    return this.http.get<number>(`${USER_DATASE_SIZE}`);
+  }
+
+  public getUploadedDatasets(uid: number): Observable<ReadonlyArray<Dataset>> {
+    let params = new HttpParams().set("user_id", uid.toString());
+    return this.http.get<ReadonlyArray<Dataset>>(`${USER_UPLOADED_DATASETS}`, { params: params });
   }
 
   public getCreatedWorkflows(uid: number): Observable<ReadonlyArray<Workflow>> {
