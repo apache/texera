@@ -15,10 +15,8 @@ import edu.uci.ics.texera.Utils.retry
 import edu.uci.ics.texera.web.model.websocket.request.ResultExportRequest
 import edu.uci.ics.texera.web.model.websocket.response.ResultExportResponse
 import edu.uci.ics.texera.web.resource.GoogleResource
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{
-  DatasetOperation,
-  applyDatasetOperations
-}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.createNewDatasetVersionByAddingFiles
+
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.PathUtils
 import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowVersionResource
@@ -107,10 +105,10 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
     request.datasetIds.foreach(did => {
       val datasetPath = PathUtils.getDatasetPath(UInteger.valueOf(did))
       val filePath = datasetPath.resolve(fileName)
-      applyDatasetOperations(
+      createNewDatasetVersionByAddingFiles(
         UInteger.valueOf(did),
         uid,
-        DatasetOperation(Map(filePath -> new ByteArrayInputStream(stream.toByteArray)), List())
+        Map(filePath -> new ByteArrayInputStream(stream.toByteArray))
       )
     })
     UserFileResource.saveFile(

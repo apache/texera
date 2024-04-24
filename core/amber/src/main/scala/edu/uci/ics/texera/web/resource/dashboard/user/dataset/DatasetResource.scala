@@ -37,7 +37,7 @@ import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{
   ERR_DATASET_CREATION_FAILED_MESSAGE,
   ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE,
   context,
-  createNewDatasetVersion,
+  createNewDatasetVersionFromFormData,
   getDashboardDataset,
   getDatasetByID,
   getDatasetLatestVersion,
@@ -187,16 +187,8 @@ object DatasetResource {
     latestVersion
   }
 
-  // add file(s) to a dataset, a new version will be created
-  def applyDatasetOperations(
-      did: UInteger,
-      uid: UInteger,
-      datasetOperation: DatasetOperation
-  ): Option[DashboardDatasetVersion] = {
-    applyDatasetOperation(context, did, uid, "", datasetOperation)
-  }
-
-  case class DatasetOperation(
+  // DatasetOperation defines the operations that will be applied when creating a new dataset version
+  private case class DatasetOperation(
       filesToAdd: Map[java.nio.file.Path, InputStream],
       filesToRemove: List[java.nio.file.Path]
   )
@@ -238,11 +230,23 @@ object DatasetResource {
     DatasetOperation(filesToAdd.toMap, filesToRemove.toList)
   }
 
-  // this function create a new dataset version
-  // the dataset is identified by did, the file changes/removals are contained in multiPart form
-  // it returns the created dataset version if creation succeed, else return None
-  // concurrency control is performed here: the thread has to have the lock in order to create the new version
-  private def createNewDatasetVersion(
+  // add file(s) to a dataset, a new version will be created
+  def createNewDatasetVersionByAddingFiles(
+      did: UInteger,
+      uid: UInteger,
+      filesToAdd: Map[java.nio.file.Path, InputStream]
+  ): Option[DashboardDatasetVersion] = {
+    applyDatasetOperationToCreateNewVersion(
+      context,
+      did,
+      uid,
+      "",
+      DatasetOperation(filesToAdd, List())
+    )
+  }
+
+  // create a new dataset version using the form data from frontend
+  def createNewDatasetVersionFromFormData(
       ctx: DSLContext,
       did: UInteger,
       uid: UInteger,
@@ -250,10 +254,19 @@ object DatasetResource {
       multiPart: FormDataMultiPart
   ): Option[DashboardDatasetVersion] = {
     val datasetOperation = parseUserUploadedFormToDatasetOperations(did, multiPart)
-    applyDatasetOperation(ctx, did, uid, userProvidedVersionName, datasetOperation)
+    applyDatasetOperationToCreateNewVersion(
+      ctx,
+      did,
+      uid,
+      userProvidedVersionName,
+      datasetOperation
+    )
   }
 
-  private def applyDatasetOperation(
+  // apply the dataset operation to create a new dataset version
+  // it returns the created dataset version if creation succeed, else return None
+  // concurrency control is performed here: the thread has to have the lock in order to create the new version
+  private def applyDatasetOperationToCreateNewVersion(
       ctx: DSLContext,
       did: UInteger,
       uid: UInteger,
@@ -408,7 +421,8 @@ class DatasetResource {
       GitVersionControlLocalFileStorage.initRepo(datasetPath)
 
       // create the initial version of the dataset
-      val createdVersion = createNewDatasetVersion(ctx, did, uid, initialVersionName, files)
+      val createdVersion =
+        createNewDatasetVersionFromFormData(ctx, did, uid, initialVersionName, files)
 
       createdVersion match {
         case Some(_) =>
@@ -545,7 +559,8 @@ class DatasetResource {
         throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
       }
       // create the version
-      val createdVersion = createNewDatasetVersion(ctx, did, uid, versionName, multiPart)
+      val createdVersion =
+        createNewDatasetVersionFromFormData(ctx, did, uid, versionName, multiPart)
 
       createdVersion match {
         case None =>
