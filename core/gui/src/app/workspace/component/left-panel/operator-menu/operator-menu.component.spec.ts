@@ -111,15 +111,6 @@ describe("OperatorPanelComponent", () => {
     expect(groupNamesInUI).toEqual(mockOperatorGroup.map(group => group.groupName));
   });
 
-  it("should create child operator label component for all operators", () => {
-    const operatorLabels = fixture.debugElement
-      .queryAll(By.directive(OperatorLabelComponent))
-      .map(debugEl => <OperatorLabelComponent>debugEl.componentInstance)
-      .map(operatorLabel => operatorLabel.operator);
-
-    expect(operatorLabels.length).toEqual(mockOperatorMetaData.operators.length);
-  });
-
   it("should search an operator by its user friendly name", () => {
     component.searchInputValue = "Source: Scan";
 

@@ -30,35 +30,3 @@
     <texera-recursive-collapse [operators]="operatorGroupMap.get(groupName)"></texera-recursive-collapse>
   </nz-collapse-panel>
 </nz-collapse>
-
-<!-- <nz-collapse
-  id="operator-menu"
-  [nzBordered]="false"
-  nzAccordion>
-  <nz-collapse-panel
-    *ngFor="let groupName of groupNamesOrdered"
-    [nzHeader]="groupName"
-    class="operator-submenu-title">
-    <nz-collapse
-      [nzBordered]="false"
-      class="operator-second-title-wrap">
-      <ng-container *ngFor="let operatorSchema of operatorGroupMap.get(groupName)">
-        <nz-collapse-panel
-          *ngIf="operatorSchema.name"
-          [nzHeader]="operatorSchema.name"
-          class="operator-second-title">
-          <ng-container *ngFor="let item of operatorSchema.operator">
-            <div class="texera-operator-label">
-              <texera-operator-label [operator]="item"></texera-operator-label>
-            </div>
-          </ng-container>
-        </nz-collapse-panel>
-        <ng-container *ngIf="!operatorSchema.name">
-          <div class="texera-operator-label">
-            <texera-operator-label [operator]="operatorSchema"></texera-operator-label>
-          </div>
-        </ng-container>
-      </ng-container>
-    </nz-collapse>
-  </nz-collapse-panel>
-</nz-collapse> -->
