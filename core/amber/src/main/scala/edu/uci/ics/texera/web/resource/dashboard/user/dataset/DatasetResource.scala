@@ -251,14 +251,14 @@ object DatasetResource {
       multiPart: FormDataMultiPart
   ): Option[DashboardDatasetVersion] = {
     val datasetOperation = parseUserUploadedFormToDatasetOperations(did, multiPart)
-    applyDatasetOperation(ctx, did, uid, versionName, datasetOperation)
+    applyDatasetOperation(ctx, did, uid, userProvidedVersionName, datasetOperation)
   }
 
   private def applyDatasetOperation(
       ctx: DSLContext,
       did: UInteger,
       uid: UInteger,
-      versionName: String,
+      userProvidedVersionName: String,
       datasetOperation: DatasetOperation
   ): Option[DashboardDatasetVersion] = {
     // Acquire or Create the lock for dataset of {did}
@@ -281,18 +281,15 @@ object DatasetResource {
         versionName,
         () => {
           datasetOperation.filesToAdd.foreach {
-            case (filePath, fileStream) => {
+            case (filePath, fileStream) =>
               GitVersionControlLocalFileStorage.writeFileToRepo(datasetPath, filePath, fileStream)
-            }
           }
 
           datasetOperation.filesToRemove.foreach { filePath =>
-            {
-              GitVersionControlLocalFileStorage.removeFileFromRepo(
-                datasetPath,
-                filePath
-              )
-            }
+            GitVersionControlLocalFileStorage.removeFileFromRepo(
+              datasetPath,
+              filePath
+            )
           }
         }
       )
