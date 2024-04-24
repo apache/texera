@@ -21,7 +21,6 @@ import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{
 }
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.PathUtils
 import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource
-import edu.uci.ics.texera.web.resource.dashboard.user.project.ProjectResource
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowVersionResource
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
