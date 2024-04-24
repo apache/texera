@@ -3,11 +3,13 @@ package edu.uci.ics.texera.web.service
 import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.getOperatorAndWorkerInfoFromError
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   FaultToleranceConfig,
   StateRestoreConfig
 }
 import edu.uci.ics.amber.engine.common.AmberConfig
+import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ChannelMarkerIdentity,
   ExecutionIdentity,
@@ -198,6 +200,13 @@ class WorkflowService(
     )
     val errorHandler: Throwable => Unit = { t =>
       {
+        val fromActorOpt = t match {
+          case ex: WorkflowRuntimeException =>
+            ex.relatedWorkerId
+          case other =>
+            None
+        }
+        val (operatorId, workerId) = getOperatorAndWorkerInfoFromError(fromActorOpt)
         logger.error("error during execution", t)
         executionStateStore.statsStore.updateState(stats =>
           stats.withEndTimeStamp(System.currentTimeMillis())
@@ -209,7 +218,8 @@ class WorkflowService(
               Timestamp(Instant.now),
               t.toString,
               getStackTraceWithAllCauses(t),
-              "unknown operator"
+              operatorId,
+              workerId
             )
           )
         }

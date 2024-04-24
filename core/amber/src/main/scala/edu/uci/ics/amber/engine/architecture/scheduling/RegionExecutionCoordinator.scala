@@ -11,7 +11,6 @@ import edu.uci.ics.amber.engine.architecture.controller.execution.{
   OperatorExecution,
   WorkflowExecution
 }
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.InitializeExecutorHandler.InitializeExecutor
@@ -19,6 +18,7 @@ import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, 
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AssignPortHandler.AssignPort
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenExecutorHandler.OpenExecutor
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
+import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
@@ -97,13 +97,6 @@ class RegionExecutionCoordinator(
       .flatMap(_ => connectChannels(region.getLinks))
       .flatMap(_ => openOperators(operatorsToInit))
       .flatMap(_ => sendStarts(region))
-      .rescue {
-        case err: Throwable =>
-          // this call may come from client or worker(by execution completed)
-          // thus we need to force it to send error to client.
-          asyncRPCClient.sendToClient(FatalError(err, None))
-          Future.Unit
-      }
       .unit
   }
   private def buildOperator(
@@ -139,6 +132,9 @@ class RegionExecutionCoordinator(
                   ),
                   workerId
                 )
+                .onFailure { t =>
+                  throw new WorkflowRuntimeException(t, Some(workerId))
+                }
             }
           })
           .toSeq

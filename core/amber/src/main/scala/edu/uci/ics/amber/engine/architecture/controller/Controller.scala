@@ -182,7 +182,9 @@ class Controller(
       case e: Throwable =>
         val failedWorker = actorRefMappingService.findActorVirtualIdentity(sender())
         logger.error(s"Encountered fatal error from $failedWorker, amber is shutting done.", e)
-        cp.asyncRPCServer.execute(FatalError(e, failedWorker), actorId)
+        cp.asyncRPCClient.sendToClient(
+          FatalError(e, failedWorker)
+        ) // only place to actively report fatal error
         Stop
     }
 
