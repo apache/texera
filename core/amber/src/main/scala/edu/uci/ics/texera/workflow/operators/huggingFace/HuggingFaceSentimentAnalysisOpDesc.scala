@@ -32,7 +32,7 @@ class HuggingFaceSentimentAnalysisOpDesc extends PythonOperatorDescriptor {
        |
        |    @overrides
        |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-       |        encoded_input = self.tokenizer(tuple_["text"], return_tensors='pt')
+       |        encoded_input = self.tokenizer(tuple_["$attribute"], return_tensors='pt')
        |        output = self.model(**encoded_input)
        |        scores = softmax(output[0][0].detach().numpy())
        |        ranking = np.argsort(scores)[::-1]
