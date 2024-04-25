@@ -5,16 +5,13 @@ import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.Controller.WorkflowRecoveryStatus
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
   ExecutionStatsUpdate,
-  WorkerAssignmentUpdate
-}
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.{
   FatalError,
-  getOperatorAndWorkerInfoFromError
+  WorkerAssignmentUpdate
 }
 import edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.client.AmberClient
-import edu.uci.ics.amber.error.ErrorUtils.getStackTraceWithAllCauses
+import edu.uci.ics.amber.error.ErrorUtils.{getOperatorFromActorIdOpt, getStackTraceWithAllCauses}
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.Utils.maptoStatusCode
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowRuntimeStatistics
@@ -271,7 +268,7 @@ class ExecutionStatsService(
       client
         .registerCallback[FatalError]((evt: FatalError) => {
           client.shutdown()
-          val (operatorId, workerId) = getOperatorAndWorkerInfoFromError(evt.fromActor)
+          val (operatorId, workerId) = getOperatorFromActorIdOpt(evt.fromActor)
           stateStore.statsStore.updateState(stats =>
             stats.withEndTimeStamp(System.currentTimeMillis())
           )

@@ -4,15 +4,15 @@ import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{AllForOneStrategy, Props, SupervisorStrategy}
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkAck
-import edu.uci.ics.amber.engine.architecture.controller.Controller.{
-  ReplayStatusUpdate,
-  WorkflowRecoveryStatus
-}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.execution.OperatorExecution
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   FaultToleranceConfig,
   StateRestoreConfig
+}
+import edu.uci.ics.amber.engine.architecture.controller.Controller.{
+  ReplayStatusUpdate,
+  WorkflowRecoveryStatus
 }
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.ambermessage.{
