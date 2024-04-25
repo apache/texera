@@ -120,7 +120,7 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
 
     ResultExportResponse(
       "success",
-      s"File saved to User Dashboard as $fileName"
+      s"File saved to User Dashboard as $fileName to Datasets ${request.datasetIds.mkString(",")}"
     )
   }
 
