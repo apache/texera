@@ -7,7 +7,7 @@ import com.fasterxml.jackson.annotation.{
 }
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.engine.common.workflow.OutputPort
@@ -97,9 +97,8 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
         workflowId,
         executionId,
         this.operatorIdentifier,
-        OpExecInitInfo((_, _, _) =>
+        OpExecInitInfo((_, _) =>
           new AsterixDBSourceOpExec(
-            sourceSchema(),
             host,
             port,
             database,
@@ -121,12 +120,16 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
             regexSearchByColumn.orNull,
             regex.orNull,
             filterCondition.getOrElse(false),
-            filterPredicates
+            filterPredicates,
+            () => sourceSchema()
           )
         )
       )
-      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
+      .withPropagateSchema(
+        SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> sourceSchema()))
+      )
 
   override def sourceSchema(): Schema = {
     if (this.host == null || this.port == null || this.database == null || this.table == null)
@@ -139,7 +142,7 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
     OperatorInfo(
       "AsterixDB Source",
       "Read data from a AsterixDB instance",
-      OperatorGroupConstants.SOURCE_GROUP,
+      OperatorGroupConstants.DATABASE_GROUP,
       inputPorts = List.empty,
       outputPorts = List(OutputPort())
     )
@@ -149,7 +152,7 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
   override def querySchema: Schema = {
     updatePort()
 
-    val sb: Schema.Builder = Schema.newBuilder()
+    val sb: Schema.Builder = Schema.builder()
 
     // query dataset's Datatype from Metadata.`Datatype`
     val datasetDataType = queryAsterixDB(

@@ -20,79 +20,79 @@ class TupleSpec extends AnyFlatSpec {
 
   it should "create a tuple with capitalized attributeName" in {
 
-    val schema = Schema.newBuilder().add(capitalizedStringAttribute).build()
-    val tuple = Tuple.newBuilder(schema).add(capitalizedStringAttribute, "string-value").build()
+    val schema = Schema.builder().add(capitalizedStringAttribute).build()
+    val tuple = Tuple.builder(schema).add(capitalizedStringAttribute, "string-value").build()
     assert(tuple.getField("COL-string").asInstanceOf[String] == "string-value")
 
   }
 
   it should "create a tuple with capitalized attributeName, using addSequentially" in {
-    val schema = Schema.newBuilder().add(capitalizedStringAttribute).build()
-    val tuple = Tuple.newBuilder(schema).addSequentially(Array("string-value")).build()
+    val schema = Schema.builder().add(capitalizedStringAttribute).build()
+    val tuple = Tuple.builder(schema).addSequentially(Array("string-value")).build()
     assert(tuple.getField("COL-string").asInstanceOf[String] == "string-value")
   }
 
   it should "create a tuple using new builder, based on another tuple using old builder" in {
-    val schema = Schema.newBuilder().add(stringAttribute).build()
-    val inputTuple = Tuple.newBuilder(schema).addSequentially(Array("string-value")).build()
-    val newTuple = Tuple.newBuilder(inputTuple.getSchema).add(inputTuple).build()
+    val schema = Schema.builder().add(stringAttribute).build()
+    val inputTuple = Tuple.builder(schema).addSequentially(Array("string-value")).build()
+    val newTuple = Tuple.builder(inputTuple.getSchema).add(inputTuple).build()
 
-    assert(newTuple.size == inputTuple.size)
+    assert(newTuple.length == inputTuple.length)
   }
 
   it should "fail when unknown attribute is added to tuple" in {
-    val schema = Schema.newBuilder().add(stringAttribute).build()
+    val schema = Schema.builder().add(stringAttribute).build()
     assertThrows[TupleBuildingException] {
-      Tuple.newBuilder(schema).add(integerAttribute, 1)
+      Tuple.builder(schema).add(integerAttribute, 1)
     }
   }
 
   it should "fail when tuple does not conform to complete schema" in {
-    val schema = Schema.newBuilder().add(stringAttribute).add(integerAttribute).build()
+    val schema = Schema.builder().add(stringAttribute).add(integerAttribute).build()
     assertThrows[TupleBuildingException] {
-      Tuple.newBuilder(schema).add(integerAttribute, 1).build()
+      Tuple.builder(schema).add(integerAttribute, 1).build()
     }
   }
 
   it should "fail when entire tuple passed in has extra attributes" in {
     val inputSchema =
-      Schema.newBuilder().add(stringAttribute).add(integerAttribute).add(boolAttribute).build()
+      Schema.builder().add(stringAttribute).add(integerAttribute).add(boolAttribute).build()
     val inputTuple = Tuple
-      .newBuilder(inputSchema)
+      .builder(inputSchema)
       .add(integerAttribute, 1)
       .add(stringAttribute, "string-attr")
       .add(boolAttribute, true)
       .build()
 
-    val outputSchema = Schema.newBuilder().add(stringAttribute).add(integerAttribute).build()
+    val outputSchema = Schema.builder().add(stringAttribute).add(integerAttribute).build()
     assertThrows[TupleBuildingException] {
-      Tuple.newBuilder(outputSchema).add(inputTuple).build()
+      Tuple.builder(outputSchema).add(inputTuple).build()
     }
   }
 
   it should "not fail when entire tuple passed in has extra attributes and strictSchemaMatch is false" in {
     val inputSchema =
-      Schema.newBuilder().add(stringAttribute).add(integerAttribute).add(boolAttribute).build()
+      Schema.builder().add(stringAttribute).add(integerAttribute).add(boolAttribute).build()
     val inputTuple = Tuple
-      .newBuilder(inputSchema)
+      .builder(inputSchema)
       .add(integerAttribute, 1)
       .add(stringAttribute, "string-attr")
       .add(boolAttribute, true)
       .build()
 
-    val outputSchema = Schema.newBuilder().add(stringAttribute).add(integerAttribute).build()
-    val outputTuple = Tuple.newBuilder(outputSchema).add(inputTuple, false).build()
+    val outputSchema = Schema.builder().add(stringAttribute).add(integerAttribute).build()
+    val outputTuple = Tuple.builder(outputSchema).add(inputTuple, false).build()
 
     // This is the important test. Input tuple has 3 attributes but output tuple has only 2
     // It's because of isStrictSchemaMatch=false
-    assert(outputTuple.size == 2);
+    assert(outputTuple.length == 2);
   }
 
   it should "produce identical strings" in {
     val inputSchema =
-      Schema.newBuilder().add(stringAttribute).add(integerAttribute).add(boolAttribute).build()
+      Schema.builder().add(stringAttribute).add(integerAttribute).add(boolAttribute).build()
     val inputTuple = Tuple
-      .newBuilder(inputSchema)
+      .builder(inputSchema)
       .add(integerAttribute, 1)
       .add(stringAttribute, "string-attr")
       .add(boolAttribute, true)
@@ -107,7 +107,7 @@ class TupleSpec extends AnyFlatSpec {
   it should "calculate hash" in {
     val inputSchema =
       Schema
-        .newBuilder()
+        .builder()
         .add(integerAttribute)
         .add(stringAttribute)
         .add(boolAttribute)
@@ -118,7 +118,7 @@ class TupleSpec extends AnyFlatSpec {
         .build()
 
     val inputTuple = Tuple
-      .newBuilder(inputSchema)
+      .builder(inputSchema)
       .add(integerAttribute, 922323)
       .add(stringAttribute, "string-attr")
       .add(boolAttribute, true)
@@ -130,7 +130,7 @@ class TupleSpec extends AnyFlatSpec {
     assert(inputTuple.hashCode() == -1335416166)
 
     val inputTuple2 = Tuple
-      .newBuilder(inputSchema)
+      .builder(inputSchema)
       .add(integerAttribute, 0)
       .add(stringAttribute, "")
       .add(boolAttribute, false)
@@ -142,7 +142,7 @@ class TupleSpec extends AnyFlatSpec {
     assert(inputTuple2.hashCode() == -1409761483)
 
     val inputTuple3 = Tuple
-      .newBuilder(inputSchema)
+      .builder(inputSchema)
       .add(integerAttribute, null)
       .add(stringAttribute, null)
       .add(boolAttribute, null)
@@ -154,7 +154,7 @@ class TupleSpec extends AnyFlatSpec {
     assert(inputTuple3.hashCode() == 1742810335)
 
     val inputTuple4 = Tuple
-      .newBuilder(inputSchema)
+      .builder(inputSchema)
       .add(integerAttribute, -3245763)
       .add(stringAttribute, "\n\r\napple")
       .add(boolAttribute, true)
@@ -166,7 +166,7 @@ class TupleSpec extends AnyFlatSpec {
     assert(inputTuple4.hashCode() == -592643630)
 
     val inputTuple5 = Tuple
-      .newBuilder(inputSchema)
+      .builder(inputSchema)
       .add(integerAttribute, Int.MaxValue)
       .add(stringAttribute, new String())
       .add(boolAttribute, true)

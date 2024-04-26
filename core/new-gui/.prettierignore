@@ -1,6 +1,0 @@
-# Ignore artifacts:
-dist
-build
-coverage
-node_modules
-**/environments/version.ts

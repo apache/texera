@@ -3,7 +3,7 @@ package edu.uci.ics.texera.workflow.operators.udf.python
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
@@ -12,7 +12,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.{PartitionInfo, UnknownPartition}
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIdentity}
 
-import scala.jdk.CollectionConverters.IterableHasAsJava
 import scala.util.{Success, Try}
 
 class PythonUDFOpDescV2 extends LogicalOp {
@@ -75,25 +74,57 @@ class PythonUDFOpDescV2 extends LogicalOp {
       opInfo.inputPorts.map(_ => None)
     }
 
+    val propagateSchema = (inputSchemas: Map[PortIdentity, Schema]) => {
+      //    Preconditions.checkArgument(schemas.length == 1)
+      val inputSchema = inputSchemas(operatorInfo.inputPorts.head.id)
+      val outputSchemaBuilder = Schema.builder()
+      // keep the same schema from input
+      if (retainInputColumns) outputSchemaBuilder.add(inputSchema)
+      // for any pythonUDFType, it can add custom output columns (attributes).
+      if (outputColumns != null) {
+        if (retainInputColumns) { // check if columns are duplicated
+
+          for (column <- outputColumns) {
+            if (inputSchema.containsAttribute(column.getName))
+              throw new RuntimeException("Column name " + column.getName + " already exists!")
+          }
+        }
+        outputSchemaBuilder.add(outputColumns).build()
+      }
+      Map(operatorInfo.outputPorts.head.id -> outputSchemaBuilder.build())
+    }
+
     if (workers > 1)
       PhysicalOp
-        .oneToOnePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecInitInfo(code))
+        .oneToOnePhysicalOp(
+          workflowId,
+          executionId,
+          operatorIdentifier,
+          OpExecInitInfo(code, "python")
+        )
         .withDerivePartition(_ => UnknownPartition())
-        .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-        .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+        .withInputPorts(operatorInfo.inputPorts)
+        .withOutputPorts(operatorInfo.outputPorts)
         .withPartitionRequirement(partitionRequirement)
         .withIsOneToManyOp(true)
         .withParallelizable(true)
         .withSuggestedWorkerNum(workers)
+        .withPropagateSchema(SchemaPropagationFunc(propagateSchema))
     else
       PhysicalOp
-        .manyToOnePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecInitInfo(code))
+        .manyToOnePhysicalOp(
+          workflowId,
+          executionId,
+          operatorIdentifier,
+          OpExecInitInfo(code, "python")
+        )
         .withDerivePartition(_ => UnknownPartition())
-        .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-        .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+        .withInputPorts(operatorInfo.inputPorts)
+        .withOutputPorts(operatorInfo.outputPorts)
         .withPartitionRequirement(partitionRequirement)
         .withIsOneToManyOp(true)
         .withParallelizable(false)
+        .withPropagateSchema(SchemaPropagationFunc(propagateSchema))
   }
 
   override def operatorInfo: OperatorInfo = {
@@ -134,7 +165,7 @@ class PythonUDFOpDescV2 extends LogicalOp {
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     //    Preconditions.checkArgument(schemas.length == 1)
     val inputSchema = schemas(0)
-    val outputSchemaBuilder = Schema.newBuilder
+    val outputSchemaBuilder = Schema.builder()
     // keep the same schema from input
     if (retainInputColumns) outputSchemaBuilder.add(inputSchema)
     // for any pythonUDFType, it can add custom output columns (attributes).
@@ -146,9 +177,9 @@ class PythonUDFOpDescV2 extends LogicalOp {
             throw new RuntimeException("Column name " + column.getName + " already exists!")
         }
       }
-      outputSchemaBuilder.add(outputColumns.asJava).build
+      outputSchemaBuilder.add(outputColumns).build()
     }
-    outputSchemaBuilder.build
+    outputSchemaBuilder.build()
   }
 
   override def runtimeReconfiguration(

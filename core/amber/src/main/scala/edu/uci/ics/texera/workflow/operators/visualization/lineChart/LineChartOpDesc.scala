@@ -35,7 +35,7 @@ class LineChartOpDesc extends VisualizationOperator with PythonOperatorDescripto
   var lines: util.List[LineConfig] = _
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    Schema.newBuilder.add(new Attribute("html-content", AttributeType.STRING)).build
+    Schema.builder().add(new Attribute("html-content", AttributeType.STRING)).build()
   }
 
   override def operatorInfo: OperatorInfo =
@@ -48,7 +48,7 @@ class LineChartOpDesc extends VisualizationOperator with PythonOperatorDescripto
     )
 
   def createPlotlyFigure(): String = {
-    val linesCode = lines.asScala
+    val linesPart = lines.asScala
       .map { lineConf =>
         val colorPart = if (lineConf.color != "") {
           s"line={'color':'${lineConf.color}'}, marker={'color':'${lineConf.color}'}, "
@@ -70,11 +70,10 @@ class LineChartOpDesc extends VisualizationOperator with PythonOperatorDescripto
             $namePart
           ))"""
       }
-      .mkString("\n")
 
     s"""
        |        fig = go.Figure()
-       |        $linesCode
+       |        ${linesPart.mkString("\n        ")}
        |        fig.update_layout(title='$title',
        |                   xaxis_title='$xLabel',
        |                   yaxis_title='$yLabel')

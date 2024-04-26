@@ -129,4 +129,6 @@ abstract class SequentialRecordStorage[T >: Null <: AnyRef] {
   def getReader(fileName: String): SequentialRecordReader[T]
 
   def deleteStorage(): Unit
+
+  def containsFolder(folderName: String): Boolean
 }

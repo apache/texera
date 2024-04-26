@@ -1,0 +1,18 @@
+#minimap-button {
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  z-index: 4;
+}
+
+#mini-map {
+  height: 200px;
+  width: 300px;
+}
+
+#mini-map-navigator {
+  border: 1px solid #797a79;
+  position: absolute;
+  cursor: move;
+  z-index: 1;
+}

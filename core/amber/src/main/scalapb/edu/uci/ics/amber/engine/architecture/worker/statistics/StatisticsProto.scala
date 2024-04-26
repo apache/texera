@@ -7,24 +7,34 @@ package edu.uci.ics.amber.engine.architecture.worker.statistics
 
 object StatisticsProto extends _root_.scalapb.GeneratedFileObject {
   lazy val dependencies: Seq[_root_.scalapb.GeneratedFileObject] = Seq(
+    edu.uci.ics.amber.engine.common.workflow.WorkflowProto,
     scalapb.options.ScalapbProto
   )
   lazy val messagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] =
     Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]](
-      edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
+      edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping,
+      edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics,
+      edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerMetrics
     )
   private lazy val ProtoBytes: _root_.scala.Array[Byte] =
       scalapb.Encoding.fromBase64(scala.collection.immutable.Seq(
   """Cj1lZHUvdWNpL2ljcy9hbWJlci9lbmdpbmUvYXJjaGl0ZWN0dXJlL3dvcmtlci9zdGF0aXN0aWNzLnByb3RvEixlZHUudWNpL
-  mljcy5hbWJlci5lbmdpbmUuYXJjaGl0ZWN0dXJlLndvcmtlchoVc2NhbGFwYi9zY2FsYXBiLnByb3RvItcDChBXb3JrZXJTdGF0a
-  XN0aWNzEnEKDHdvcmtlcl9zdGF0ZRgBIAEoDjI5LmVkdS51Y2kuaWNzLmFtYmVyLmVuZ2luZS5hcmNoaXRlY3R1cmUud29ya2VyL
-  ldvcmtlclN0YXRlQhPiPxASC3dvcmtlclN0YXRl8AEBUgt3b3JrZXJTdGF0ZRJAChFpbnB1dF90dXBsZV9jb3VudBgCIAEoA0IU4
-  j8REg9pbnB1dFR1cGxlQ291bnRSD2lucHV0VHVwbGVDb3VudBJDChJvdXRwdXRfdHVwbGVfY291bnQYAyABKANCFeI/EhIQb3V0c
-  HV0VHVwbGVDb3VudFIQb3V0cHV0VHVwbGVDb3VudBJJChRkYXRhX3Byb2Nlc3NpbmdfdGltZRgEIAEoA0IX4j8UEhJkYXRhUHJvY
-  2Vzc2luZ1RpbWVSEmRhdGFQcm9jZXNzaW5nVGltZRJSChdjb250cm9sX3Byb2Nlc3NpbmdfdGltZRgFIAEoA0Ia4j8XEhVjb250c
-  m9sUHJvY2Vzc2luZ1RpbWVSFWNvbnRyb2xQcm9jZXNzaW5nVGltZRIqCglpZGxlX3RpbWUYBiABKANCDeI/ChIIaWRsZVRpbWVSC
-  GlkbGVUaW1lKlMKC1dvcmtlclN0YXRlEhEKDVVOSU5JVElBTElaRUQQABIJCgVSRUFEWRABEgsKB1JVTk5JTkcQAhIKCgZQQVVTR
-  UQQAxINCglDT01QTEVURUQQBEIJ4j8GSABYAHgBYgZwcm90bzM="""
+  mljcy5hbWJlci5lbmdpbmUuYXJjaGl0ZWN0dXJlLndvcmtlchouZWR1L3VjaS9pY3MvYW1iZXIvZW5naW5lL2NvbW1vbi93b3JrZ
+  mxvdy5wcm90bxoVc2NhbGFwYi9zY2FsYXBiLnByb3RvIqEBChVQb3J0VHVwbGVDb3VudE1hcHBpbmcSVgoHcG9ydF9pZBgBIAEoC
+  zItLmVkdS51Y2kuaWNzLmFtYmVyLmVuZ2luZS5jb21tb24uUG9ydElkZW50aXR5Qg7iPwsSBnBvcnRJZPABAVIGcG9ydElkEjAKC
+  3R1cGxlX2NvdW50GAIgASgDQg/iPwwSCnR1cGxlQ291bnRSCnR1cGxlQ291bnQi8AMKEFdvcmtlclN0YXRpc3RpY3MShQEKEWluc
+  HV0X3R1cGxlX2NvdW50GAEgAygLMkMuZWR1LnVjaS5pY3MuYW1iZXIuZW5naW5lLmFyY2hpdGVjdHVyZS53b3JrZXIuUG9ydFR1c
+  GxlQ291bnRNYXBwaW5nQhTiPxESD2lucHV0VHVwbGVDb3VudFIPaW5wdXRUdXBsZUNvdW50EogBChJvdXRwdXRfdHVwbGVfY291b
+  nQYAiADKAsyQy5lZHUudWNpLmljcy5hbWJlci5lbmdpbmUuYXJjaGl0ZWN0dXJlLndvcmtlci5Qb3J0VHVwbGVDb3VudE1hcHBpb
+  mdCFeI/EhIQb3V0cHV0VHVwbGVDb3VudFIQb3V0cHV0VHVwbGVDb3VudBJJChRkYXRhX3Byb2Nlc3NpbmdfdGltZRgDIAEoA0IX4
+  j8UEhJkYXRhUHJvY2Vzc2luZ1RpbWVSEmRhdGFQcm9jZXNzaW5nVGltZRJSChdjb250cm9sX3Byb2Nlc3NpbmdfdGltZRgEIAEoA
+  0Ia4j8XEhVjb250cm9sUHJvY2Vzc2luZ1RpbWVSFWNvbnRyb2xQcm9jZXNzaW5nVGltZRIqCglpZGxlX3RpbWUYBSABKANCDeI/C
+  hIIaWRsZVRpbWVSCGlkbGVUaW1lIooCCg1Xb3JrZXJNZXRyaWNzEnEKDHdvcmtlcl9zdGF0ZRgBIAEoDjI5LmVkdS51Y2kuaWNzL
+  mFtYmVyLmVuZ2luZS5hcmNoaXRlY3R1cmUud29ya2VyLldvcmtlclN0YXRlQhPiPxASC3dvcmtlclN0YXRl8AEBUgt3b3JrZXJTd
+  GF0ZRKFAQoRd29ya2VyX3N0YXRpc3RpY3MYAiABKAsyPi5lZHUudWNpLmljcy5hbWJlci5lbmdpbmUuYXJjaGl0ZWN0dXJlLndvc
+  mtlci5Xb3JrZXJTdGF0aXN0aWNzQhjiPxUSEHdvcmtlclN0YXRpc3RpY3PwAQFSEHdvcmtlclN0YXRpc3RpY3MqUwoLV29ya2VyU
+  3RhdGUSEQoNVU5JTklUSUFMSVpFRBAAEgkKBVJFQURZEAESCwoHUlVOTklORxACEgoKBlBBVVNFRBADEg0KCUNPTVBMRVRFRBAEQ
+  gniPwZIAFgAeAFiBnByb3RvMw=="""
       ).mkString)
   lazy val scalaDescriptor: _root_.scalapb.descriptors.FileDescriptor = {
     val scalaProto = com.google.protobuf.descriptor.FileDescriptorProto.parseFrom(ProtoBytes)
@@ -33,6 +43,7 @@ object StatisticsProto extends _root_.scalapb.GeneratedFileObject {
   lazy val javaDescriptor: com.google.protobuf.Descriptors.FileDescriptor = {
     val javaProto = com.google.protobuf.DescriptorProtos.FileDescriptorProto.parseFrom(ProtoBytes)
     com.google.protobuf.Descriptors.FileDescriptor.buildFrom(javaProto, _root_.scala.Array(
+      edu.uci.ics.amber.engine.common.workflow.WorkflowProto.javaDescriptor,
       scalapb.options.ScalapbProto.javaDescriptor
     ))
   }

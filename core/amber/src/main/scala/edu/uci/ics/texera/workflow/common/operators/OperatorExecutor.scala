@@ -1,33 +1,27 @@
 package edu.uci.ics.texera.workflow.common.operators
 
-import edu.uci.ics.amber.engine.architecture.worker.PauseManager
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
-import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted}
-import edu.uci.ics.amber.engine.common.tuple.ITuple
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
-trait OperatorExecutor extends IOperatorExecutor {
+trait OperatorExecutor {
 
-  override def processTuple(
-      tuple: Either[ITuple, InputExhausted],
-      input: Int,
-      pauseManager: PauseManager,
-      asyncRPCClient: AsyncRPCClient
-  ): Iterator[(ITuple, Option[PortIdentity])] = {
-    processTexeraTuple(
-      tuple.asInstanceOf[Either[Tuple, InputExhausted]],
-      input,
-      pauseManager,
-      asyncRPCClient
-    ).map(t => (t, Option.empty))
+  def open(): Unit = {}
+
+  def close(): Unit = {}
+
+  def processTupleMultiPort(
+      tuple: Tuple,
+      port: Int
+  ): Iterator[(TupleLike, Option[PortIdentity])] = {
+    processTuple(tuple, port).map(t => (t, None))
   }
 
-  def processTexeraTuple(
-      tuple: Either[Tuple, InputExhausted],
-      input: Int,
-      pauseManager: PauseManager,
-      asyncRPCClient: AsyncRPCClient
-  ): Iterator[Tuple]
+  def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike]
+
+  def onFinishMultiPort(port: Int): Iterator[(TupleLike, Option[PortIdentity])] = {
+    onFinish(port).map(t => (t, None))
+  }
+  def onFinish(port: Int): Iterator[TupleLike] = Iterator.empty
 
 }

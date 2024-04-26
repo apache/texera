@@ -1,0 +1,38 @@
+#formly-title {
+  position: relative;
+
+  h3 {
+    font-weight: bold;
+    margin: 0;
+    display: inline-block;
+  }
+
+  button {
+    position: absolute;
+    top: 45%;
+    transform: translateY(-55%);
+  }
+}
+
+.operator-version {
+  text-align: right;
+  position: relative;
+  right: -5%;
+  top: 30px;
+  font-size: 0.5em;
+  color: gray;
+}
+
+::ng-deep {
+  // overwrite the color of the Formly error message box
+  .property-editor-form {
+    [role="alert"] {
+      color: #856404;
+      background-color: #fff3cd;
+      border-color: #ffeeba;
+    }
+    nz-input-number {
+      width: 100%;
+    }
+  }
+}

@@ -1,0 +1,19 @@
+<texera-user-avatar
+  [googleAvatar]="user?.googleAvatar || '' "
+  [nzDropdownMenu]="menu"
+  [userColor]="user?.color || ''"
+  [userName]="user?.name || ''"
+  nz-button
+  nz-dropdown
+  nzPlacement="bottomRight"
+  nzTrigger="click">
+</texera-user-avatar>
+<nz-dropdown-menu #menu="nzDropdownMenu">
+  <ul nz-menu>
+    <li
+      (click)="onClickLogout()"
+      nz-menu-item>
+      Sign Out
+    </li>
+  </ul>
+</nz-dropdown-menu>

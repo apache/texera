@@ -1,5 +1,5 @@
 package edu.uci.ics.texera.workflow.operators.source.apis.twitter
-import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor
+import edu.uci.ics.amber.engine.common.SourceOperatorExecutor
 import io.github.redouane59.twitter.TwitterClient
 import io.github.redouane59.twitter.signature.TwitterCredentials
 

@@ -1,0 +1,25 @@
+{
+  "compileOnSave": false,
+  "compilerOptions": {
+    "paths": {
+      "path": ["./node_modules/path-browserify"]
+    },
+    "strict": true,
+    "skipLibCheck": true,
+    "outDir": "./dist/out-tsc",
+    "sourceMap": true,
+    "declaration": false,
+    "moduleResolution": "node",
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "target": "ES2022",
+    "typeRoots": ["node_modules/@types"],
+    "lib": ["ES2022", "dom"],
+    "module": "esnext",
+    "baseUrl": "./",
+    "useDefineForClassFields": false,
+  },
+  "angularCompilerOptions": {
+    "strictTemplates": true
+  }
+}

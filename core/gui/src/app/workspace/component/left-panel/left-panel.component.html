@@ -1,0 +1,66 @@
+<div
+  cdkDrag
+  cdkDragBoundary="body"
+  id="left-container"
+  class="box"
+  nz-resizable
+  [nzMinWidth]="230"
+  [nzMinHeight]="300"
+  [nzMaxWidth]="window.innerWidth*0.9"
+  [nzMaxHeight]="window.innerHeight*0.85"
+  [style.width.px]="width"
+  [style.height.px]="height"
+  (nzResize)="onResize($event)">
+  <ul
+    nz-menu
+    id="dock"
+    [ngClass]="{'shadow':  !width}"
+    cdkDropList
+    (cdkDropListDropped)="onDrop($event)">
+    <li
+      nz-menu-item
+      (click)="openFrame(0)"
+      *ngIf="width">
+      <span
+        nz-icon
+        nzType="minus"></span>
+    </li>
+    <li
+      nz-menu-item
+      nzSelected
+      cdkDragHandle
+      *ngIf="!width">
+      <span
+        nz-icon
+        nzType="drag"></span>
+    </li>
+    <li
+      nz-menu-divider
+      id="divider"></li>
+    <ng-container *ngFor="let i of order">
+      <li
+        nz-menu-item
+        cdkDrag
+        nzTooltipPlacement="right"
+        nz-tooltip="{{items[i].title}}"
+        nzSelected="{{currentComponent === items[i].component}}"
+        *ngIf="items[i].enabled"
+        (click)="openFrame(i)">
+        <span
+          nz-icon
+          nzType="{{items[i].icon}}"></span>
+      </li>
+    </ng-container>
+  </ul>
+  <div
+    id="content"
+    [hidden]="!currentComponent">
+    <h4
+      id="title"
+      cdkDragHandle>
+      {{title}}
+    </h4>
+    <ng-container *ngComponentOutlet="currentComponent;"></ng-container>
+    <nz-resize-handles [nzDirections]="['right', 'bottom', 'bottomRight']"></nz-resize-handles>
+  </div>
+</div>

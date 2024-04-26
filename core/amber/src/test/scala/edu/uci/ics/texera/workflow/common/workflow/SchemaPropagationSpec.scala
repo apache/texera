@@ -46,7 +46,7 @@ class SchemaPropagationSpec extends AnyFlatSpec with BeforeAndAfter {
     // testingData  ----> mlTrainingOp--<
     // inferenceData ---------------------> mlInferenceOp --> inferenceSink
 
-    val dataSchema = Schema.newBuilder().add("dataCol", AttributeType.INTEGER).build()
+    val dataSchema = Schema.builder().add("dataCol", AttributeType.INTEGER).build()
     val trainingScan = new TempTestSourceOpDesc() {
       override def operatorIdentifier: OperatorIdentity = OperatorIdentity("trainingScan")
       override def sourceSchema(): Schema = dataSchema
@@ -62,8 +62,8 @@ class SchemaPropagationSpec extends AnyFlatSpec with BeforeAndAfter {
       override def sourceSchema(): Schema = dataSchema
     }
 
-    val mlModelSchema = Schema.newBuilder().add("model", AttributeType.STRING).build()
-    val mlVizSchema = Schema.newBuilder().add("visualization", AttributeType.STRING).build()
+    val mlModelSchema = Schema.builder().add("model", AttributeType.STRING).build()
+    val mlVizSchema = Schema.builder().add("visualization", AttributeType.STRING).build()
 
     val mlTrainingOp = new LogicalOp() {
       override def operatorIdentifier: OperatorIdentity = OperatorIdentity("mlTrainingOp")
@@ -178,7 +178,7 @@ class SchemaPropagationSpec extends AnyFlatSpec with BeforeAndAfter {
     )
 
     val ctx = new WorkflowContext()
-    val logicalPlan = LogicalPlan(operators, links, List())
+    val logicalPlan = LogicalPlan(operators, links)
     logicalPlan.propagateWorkflowSchema(ctx, None)
     val schemaResult = logicalPlan.getInputSchemaMap
 

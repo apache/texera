@@ -1,0 +1,61 @@
+:host {
+  display: block;
+  height: 100%;
+  width: 100%;
+  position: fixed;
+  z-index: 3;
+}
+
+#right-container {
+  position: fixed;
+  top: 90px;
+  right: 15px;
+  user-select: none;
+  background: white;
+}
+
+#title {
+  padding: 5px 9px;
+  border-bottom: 1px solid #e0e0e0;
+  position: absolute;
+  top: 0;
+  background: white;
+  width: 100%;
+  z-index: 2;
+}
+
+#content {
+  height: 100%;
+  overflow-y: auto;
+  padding-top: 38px;
+}
+
+#property-editor {
+  padding: 0 15px;
+}
+
+#property-buttons {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 4;
+}
+
+#divider {
+  margin: 0;
+}
+
+.ant-menu-item {
+  margin: 0 !important;
+  height: 32px;
+  line-height: 32px;
+  padding: 0 9px;
+}
+
+.shadow {
+  border-radius: 5px;
+  box-shadow:
+    0 3px 1px -2px #0003,
+    0 2px 2px #00000024,
+    0 1px 5px #0000001f;
+}

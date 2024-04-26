@@ -6,7 +6,7 @@ import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.http.response.SchemaPropagationResponse
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.workflow.common.WorkflowContext
-import edu.uci.ics.texera.workflow.common.workflow.LogicalPlan
+import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, PhysicalPlan}
 import io.dropwizard.auth.Auth
 import org.jooq.types.UInteger
 
@@ -37,10 +37,31 @@ class SchemaPropagationResource extends LazyLogging {
 
     val logicalPlan = LogicalPlan(logicalPlanPojo)
 
-    // ignore errors during propagation. errors are reported through EditingTimeCompilationRequest
-    logicalPlan.propagateWorkflowSchema(context, errorList = None)
-    val responseContent = logicalPlan.getInputSchemaMap
-      .map(e => (e._1.id, e._2.map(s => s.map(o => o.getAttributesScala))))
+    // the PhysicalPlan with topology expanded.
+    val physicalPlan = PhysicalPlan(context, logicalPlan)
+
+    // Extract physical input schemas, excluding internal ports
+    val physicalInputSchemas = physicalPlan.operators.map { physicalOp =>
+      physicalOp.id -> physicalOp.inputPorts.values
+        .filterNot(_._1.id.internal)
+        .map {
+          case (port, _, schema) => port.id -> schema.toOption
+        }
+    }
+
+    // Group the physical input schemas by their logical operator ID and consolidate the schemas
+    val logicalInputSchemas = physicalInputSchemas
+      .groupBy(_._1.logicalOpId)
+      .view
+      .mapValues(_.flatMap(_._2).toList.sortBy(_._1.id).map(_._2))
+      .toMap
+
+    // Prepare the response content by extracting attributes from the schemas,
+    // ignoring errors (errors are reported through EditingTimeCompilationRequest)
+    val responseContent = logicalInputSchemas.map {
+      case (logicalOpId, schemas) =>
+        logicalOpId.id -> schemas.map(_.map(_.getAttributes))
+    }
     SchemaPropagationResponse(0, responseContent, null)
 
   }

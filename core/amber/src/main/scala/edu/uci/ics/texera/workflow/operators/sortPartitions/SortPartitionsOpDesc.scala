@@ -43,47 +43,36 @@ class SortPartitionsOpDesc extends LogicalOp {
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
-  ): PhysicalOp = {
-    val inputSchema =
-      operatorInfo.inputPorts.map(inputPort => inputPortToSchemaMapping(inputPort.id)).head
-    val partitionRequirement = List(
-      Option(
-        RangePartition(
-          List(inputSchema.getIndex(sortAttributeName)),
-          domainMin,
-          domainMax
-        )
-      )
-    )
-
+  ): PhysicalOp =
     PhysicalOp
       .oneToOnePhysicalOp(
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((idx, _, operatorConfig) => {
-          new SortPartitionOpExec(
-            sortAttributeName,
-            idx,
-            domainMin,
-            domainMax,
-            operatorConfig.workerConfigs.length
-          )
-        })
+        OpExecInitInfo(opExecFunc =
+          (idx, workerCount) =>
+            new SortPartitionOpExec(
+              sortAttributeName,
+              idx,
+              domainMin,
+              domainMax,
+              workerCount
+            )
+        )
       )
-      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
-      .withPartitionRequirement(partitionRequirement)
-
-  }
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
+      .withPartitionRequirement(
+        List(Option(RangePartition(List(sortAttributeName), domainMin, domainMax)))
+      )
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
       "Sort Partitions",
       "Sort Partitions",
-      OperatorGroupConstants.UTILITY_GROUP,
+      OperatorGroupConstants.SORT_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort())
+      outputPorts = List(OutputPort(blocking = true))
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {

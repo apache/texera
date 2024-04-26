@@ -1,0 +1,65 @@
+#search-box input {
+  width: 100%;
+  font-size: 11px;
+  padding: 0px;
+  margin: 0;
+}
+
+.ant-table-thead > tr > th {
+  padding: 0px;
+}
+
+nz-table th {
+  text-align: center;
+}
+
+.version-sample {
+  flex-grow: 2;
+  text-align: center;
+}
+
+.ant-btn {
+  border: 0;
+  background-color: transparent;
+}
+
+.workflow-snapshot {
+  float: left;
+  display: inline;
+  border: 1px solid #343a40;
+  width: 170px;
+  height: 95px;
+}
+
+#exection-history-table {
+  width: 100%;
+  height: 100%;
+  font-size: 11px;
+  padding: 0px;
+  margin: 0;
+}
+
+.bookmark-icon:hover {
+  cursor: pointer;
+}
+
+.rename-icon:hover {
+  color: #007bff;
+}
+
+.ant-table-cell {
+  font-size: 11px;
+  padding: 0px;
+  min-width: 50px;
+  box-sizing: border-box;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 0;
+}
+
+.ant-table {
+  width: 100%;
+  table-layout: fixed;
+}

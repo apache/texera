@@ -1,0 +1,38 @@
+#result {
+  position: absolute;
+  bottom: 0;
+}
+
+#git-commit-id {
+  position: fixed;
+  left: 5px;
+  bottom: 5px;
+  font-size: 0.4em;
+  color: gray;
+  z-index: 5;
+}
+
+texera-menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  width: 100%;
+  background-color: white;
+}
+
+texera-mini-map {
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  z-index: 3;
+  user-select: none;
+}
+
+texera-workflow-editor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}

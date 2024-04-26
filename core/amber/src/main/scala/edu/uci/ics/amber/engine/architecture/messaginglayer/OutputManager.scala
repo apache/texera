@@ -1,17 +1,19 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager.{
+  DPOutputIterator,
   getBatchSize,
   toPartitioner
 }
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners._
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings._
-import edu.uci.ics.amber.engine.common.AmberConfig
+import edu.uci.ics.amber.engine.architecture.worker.DataProcessor.{FinalizeExecutor, FinalizePort}
+import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.tuple.ITuple
+import edu.uci.ics.amber.engine.common.tuple.amber.{SchemaEnforceable, TupleLike}
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
-import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
-import org.jooq.exception.MappingException
+import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 
 import scala.collection.mutable
 
@@ -33,18 +35,7 @@ object OutputManager {
         BroadcastPartitioner(broadcastPartitioning)
       case _ => throw new RuntimeException(s"partitioning $partitioning not supported")
     }
-
-    // if reshape is enabled, wrap the original partitioner in a reshape partitioner
-    if (AmberConfig.reshapeSkewHandlingEnabled) {
-      partitioner match {
-        case p @ (_: RoundRobinPartitioner | _: HashBasedShufflePartitioner |
-            _: RangeBasedShufflePartitioner) =>
-          new ReshapePartitioner(p)
-        case other => other
-      }
-    } else {
-      partitioner
-    }
+    partitioner
   }
 
   def getBatchSize(partitioning: Partitioning): Int = {
@@ -57,21 +48,52 @@ object OutputManager {
       case _                                => throw new RuntimeException(s"partitioning $partitioning not supported")
     }
   }
+
+  class DPOutputIterator extends Iterator[(TupleLike, Option[PortIdentity])] {
+    val queue = new mutable.ListBuffer[(TupleLike, Option[PortIdentity])]
+    @transient var outputIter: Iterator[(TupleLike, Option[PortIdentity])] = Iterator.empty
+
+    def setTupleOutput(outputIter: Iterator[(TupleLike, Option[PortIdentity])]): Unit = {
+      if (outputIter != null) {
+        this.outputIter = outputIter
+      } else {
+        this.outputIter = Iterator.empty
+      }
+    }
+
+    override def hasNext: Boolean = outputIter.hasNext || queue.nonEmpty
+
+    override def next(): (TupleLike, Option[PortIdentity]) = {
+      if (outputIter.hasNext) {
+        outputIter.next()
+      } else {
+        queue.remove(0)
+      }
+    }
+
+    def appendSpecialTupleToEnd(tuple: TupleLike): Unit = {
+      queue.append((tuple, None))
+    }
+  }
 }
 
 /** This class is a container of all the transfer partitioners.
   *
-  * @param selfID         ActorVirtualIdentity of self.
-  * @param dataOutputPort DataOutputPort
+  * @param actorId         ActorVirtualIdentity of self.
+  * @param outputGateway DataOutputPort
   */
 class OutputManager(
-    selfID: ActorVirtualIdentity,
-    dataOutputPort: NetworkOutputGateway
-) {
+    val actorId: ActorVirtualIdentity,
+    outputGateway: NetworkOutputGateway
+) extends AmberLogging {
 
-  val partitioners = mutable.HashMap[PhysicalLink, Partitioner]()
+  val outputIterator: DPOutputIterator = new DPOutputIterator()
+  private val partitioners: mutable.Map[PhysicalLink, Partitioner] =
+    mutable.HashMap[PhysicalLink, Partitioner]()
 
-  val networkOutputBuffers =
+  private val ports: mutable.HashMap[PortIdentity, WorkerPort] = mutable.HashMap()
+
+  private val networkOutputBuffers =
     mutable.HashMap[(PhysicalLink, ActorVirtualIdentity), NetworkOutputBuffer]()
 
   /**
@@ -85,27 +107,34 @@ class OutputManager(
     val partitioner = toPartitioner(partitioning)
     partitioners.update(link, partitioner)
     partitioner.allReceivers.foreach(receiver => {
-      val buffer = new NetworkOutputBuffer(receiver, dataOutputPort, getBatchSize(partitioning))
+      val buffer = new NetworkOutputBuffer(receiver, outputGateway, getBatchSize(partitioning))
       networkOutputBuffers.update((link, receiver), buffer)
-      dataOutputPort.addOutputChannel(ChannelIdentity(selfID, receiver, isControl = false))
+      outputGateway.addOutputChannel(ChannelIdentity(actorId, receiver, isControl = false))
     })
   }
 
   /**
     * Push one tuple to the downstream, will be batched by each transfer partitioning.
     * Should ONLY be called by DataProcessor.
-    * @param tuple ITuple to be passed.
+    * @param tupleLike TupleLike to be passed.
+    * @param outputPortId Optionally specifies the output port from which the tuple should be emitted.
+    *                     If None, the tuple is broadcast to all output ports.
     */
   def passTupleToDownstream(
-      tuple: ITuple,
-      outputPort: PhysicalLink
+      tupleLike: SchemaEnforceable,
+      outputPortId: Option[PortIdentity] = None
   ): Unit = {
-    val partitioner =
-      partitioners.getOrElse(outputPort, throw new MappingException("output port not found"))
-    val it = partitioner.getBucketIndex(tuple)
-    it.foreach(bucketIndex =>
-      networkOutputBuffers((outputPort, partitioner.allReceivers(bucketIndex))).addTuple(tuple)
-    )
+    (outputPortId match {
+      case Some(portId) => partitioners.filter(_._1.fromPortId == portId) // send to a specific port
+      case None         => partitioners // send to all ports
+    }).foreach {
+      case (link, partitioner) =>
+        // Enforce schema based on the port's schema
+        val tuple = tupleLike.enforceSchema(getPort(link.fromPortId).schema)
+        partitioner.getBucketIndex(tuple).foreach { bucketIndex =>
+          networkOutputBuffers((link, partitioner.allReceivers(bucketIndex))).addTuple(tuple)
+        }
+    }
   }
 
   /**
@@ -123,7 +152,7 @@ class OutputManager(
       case Some(channelIds) =>
         networkOutputBuffers
           .filter(out => {
-            val channel = ChannelIdentity(selfID, out._1._2, isControl = false)
+            val channel = ChannelIdentity(actorId, out._1._2, isControl = false)
             channelIds.contains(channel)
           })
           .values
@@ -141,6 +170,32 @@ class OutputManager(
       kv._2.flush()
       kv._2.noMore()
     })
+  }
+
+  def addPort(portId: PortIdentity, schema: Schema): Unit = {
+    // each port can only be added and initialized once.
+    if (this.ports.contains(portId)) {
+      return
+    }
+    this.ports(portId) = WorkerPort(schema)
+
+  }
+
+  def getPort(portId: PortIdentity): WorkerPort = ports(portId)
+
+  def hasUnfinishedOutput: Boolean = outputIterator.hasNext
+
+  def finalizeOutput(): Unit = {
+    this.ports.keys
+      .foreach(outputPortId =>
+        outputIterator.appendSpecialTupleToEnd(FinalizePort(outputPortId, input = false))
+      )
+    outputIterator.appendSpecialTupleToEnd(FinalizeExecutor())
+  }
+
+  def getSingleOutputPortIdentity: PortIdentity = {
+    assert(ports.size == 1)
+    ports.head._1
   }
 
 }

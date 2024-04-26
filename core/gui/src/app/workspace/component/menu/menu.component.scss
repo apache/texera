@@ -1,0 +1,108 @@
+#menu-container {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  width: 100%;
+}
+
+#logo {
+  display: inline-block;
+  vertical-align: top;
+}
+
+#menu-content {
+  display: inline-block;
+  width: calc(100% - 140px);
+}
+
+.workflow-name {
+  margin-top: 1px;
+  padding: 2px 8px;
+  font-size: 18px;
+  border: none;
+
+  &:hover {
+    box-shadow: 0 0 0 1px rgb(202, 202, 202);
+  }
+
+  &:focus {
+    box-shadow: 0 0 0 2px #007bff;
+  }
+}
+
+#menu-user {
+  height: 36px;
+  margin: 1px;
+  border-bottom: 1px solid #cacaca;
+  display: flex;
+}
+
+#metadata {
+  width: 100%;
+}
+
+#user-icon {
+  width: 120px;
+}
+
+#button-groups {
+  text-align: center;
+  margin: 3px 5px;
+}
+
+#user-buttons {
+  float: left;
+}
+
+#execution-buttons {
+  float: right;
+}
+
+i {
+  display: inline-flex;
+  align-content: center;
+  justify-content: center;
+}
+
+[nz-button] {
+  width: 32px;
+  padding: 0;
+}
+
+#save-state {
+  font-size: 10px;
+  color: royalblue;
+  font-style: italic;
+}
+
+#run-button {
+  padding-left: 10px;
+  width: 140px;
+  text-align: left;
+}
+
+#expanded-utilities {
+  display: inline-block;
+  @media screen and (max-width: 1024px) {
+    display: none;
+  }
+}
+
+#expanded-utilities {
+  display: inline-block;
+  @media screen and (max-width: 960px) {
+    display: none;
+  }
+}
+
+#utilities-dropdown-button {
+  @media screen and (min-width: 961px) {
+    display: none;
+  }
+}
+
+texera-user-icon {
+  margin-left: 10px;
+}
+
+texera-coeditor-user-icon {
+  margin-left: -10px;
+}

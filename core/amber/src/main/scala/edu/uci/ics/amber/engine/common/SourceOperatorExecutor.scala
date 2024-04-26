@@ -1,0 +1,47 @@
+package edu.uci.ics.amber.engine.common
+
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
+import edu.uci.ics.amber.engine.common.workflow.PortIdentity
+import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.DatasetFileDesc
+import edu.uci.ics.texera.workflow.common.tuple.Tuple
+
+import java.io.{FileInputStream, InputStream}
+
+trait SourceOperatorExecutor extends OperatorExecutor {
+  override def open(): Unit = {}
+
+  override def close(): Unit = {}
+  override def processTupleMultiPort(
+      tuple: Tuple,
+      port: Int
+  ): Iterator[(TupleLike, Option[PortIdentity])] = Iterator()
+
+  override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = Iterator.empty
+
+  def produceTuple(): Iterator[TupleLike]
+
+  override def onFinishMultiPort(port: Int): Iterator[(TupleLike, Option[PortIdentity])] = {
+    // We assume there is only one input port for source operators. The current assumption
+    // makes produceTuple to be invoked on each input port finish.
+    // We should move this to onFinishAllPorts later.
+    produceTuple().map(t => (t, Option.empty))
+  }
+
+  // this function create the input stream accordingly:
+  // - if filePath is set, create the stream from the file
+  // - if fileDesc is set, create the stream via JGit call
+  def createInputStream(filePath: String, fileDesc: DatasetFileDesc): InputStream = {
+    if (filePath != null && fileDesc != null) {
+      throw new RuntimeException(
+        "File Path and Dataset File Descriptor cannot present at the same time."
+      )
+    }
+    if (filePath != null) {
+      new FileInputStream(filePath)
+    } else {
+      // create stream from dataset file desc
+      fileDesc.fileInputStream()
+    }
+  }
+}

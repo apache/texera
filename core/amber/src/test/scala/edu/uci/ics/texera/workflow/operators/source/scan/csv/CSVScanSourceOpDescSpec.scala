@@ -32,7 +32,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     parallelCsvScanSourceOpDesc.setContext(workflowContext)
     val inferredSchema: Schema = parallelCsvScanSourceOpDesc.inferSchema()
 
-    assert(inferredSchema.getAttributes.size() == 14)
+    assert(inferredSchema.getAttributes.length == 14)
     assert(inferredSchema.getAttribute("Order ID").getType == AttributeType.INTEGER)
     assert(inferredSchema.getAttribute("Unit Price").getType == AttributeType.DOUBLE)
 
@@ -48,7 +48,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
     val inferredSchema: Schema = parallelCsvScanSourceOpDesc.inferSchema()
 
-    assert(inferredSchema.getAttributes.size() == 14)
+    assert(inferredSchema.getAttributes.length == 14)
     assert(inferredSchema.getAttribute("column-10").getType == AttributeType.DOUBLE)
     assert(inferredSchema.getAttribute("column-7").getType == AttributeType.INTEGER)
   }
@@ -62,7 +62,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
     val inferredSchema: Schema = csvScanSourceOpDesc.inferSchema()
 
-    assert(inferredSchema.getAttributes.size() == 14)
+    assert(inferredSchema.getAttributes.length == 14)
     assert(inferredSchema.getAttribute("Order ID").getType == AttributeType.INTEGER)
     assert(inferredSchema.getAttribute("Unit Price").getType == AttributeType.DOUBLE)
   }
@@ -76,7 +76,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
     val inferredSchema: Schema = csvScanSourceOpDesc.inferSchema()
 
-    assert(inferredSchema.getAttributes.size() == 14)
+    assert(inferredSchema.getAttributes.length == 14)
     assert(inferredSchema.getAttribute("column-10").getType == AttributeType.DOUBLE)
     assert(inferredSchema.getAttribute("column-7").getType == AttributeType.INTEGER)
   }
@@ -91,7 +91,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
     val inferredSchema: Schema = csvScanSourceOpDesc.inferSchema()
 
-    assert(inferredSchema.getAttributes.size() == 14)
+    assert(inferredSchema.getAttributes.length == 14)
     assert(inferredSchema.getAttribute("column-10").getType == AttributeType.DOUBLE)
     assert(inferredSchema.getAttribute("column-7").getType == AttributeType.INTEGER)
   }

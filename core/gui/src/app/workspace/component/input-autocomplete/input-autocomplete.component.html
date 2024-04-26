@@ -1,0 +1,18 @@
+<input
+  nz-input
+  [readOnly]="isFileSelectionEnabled"
+  required
+  [formControl]="formControl"
+  [formlyAttributes]="field"
+  (click)="isFileSelectionEnabled && onClickOpenFileSelectionModal()" />
+<div
+  class="alert alert-danger"
+  role="alert"
+  *ngIf="props.showError && formControl.errors">
+  <formly-validation-message [field]="field"></formly-validation-message>
+</div>
+<nz-autocomplete
+  [nzDataSource]="suggestions"
+  nzBackfill
+  #auto>
+</nz-autocomplete>

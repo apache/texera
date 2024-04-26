@@ -3,6 +3,7 @@ from loguru import logger
 from core.architecture.handlers.control.add_partitioning_handler import (
     AddPartitioningHandler,
 )
+from core.architecture.handlers.control.assign_port_handler import AssignPortHandler
 from core.architecture.handlers.control.debug_command_handler import (
     WorkerDebugCommandHandler,
 )
@@ -10,15 +11,14 @@ from core.architecture.handlers.control.evaluate_expression_handler import (
     EvaluateExpressionHandler,
 )
 from core.architecture.handlers.control.control_handler_base import ControlHandler
-from core.architecture.handlers.control.initialize_operator_logic_handler import (
-    InitializeOperatorLogicHandler,
+from core.architecture.handlers.control.initialize_executor_handler import (
+    InitializeExecutorHandler,
 )
-from core.architecture.handlers.control.modify_operator_logic_handler import (
-    ModifyOperatorLogicHandler,
+from core.architecture.handlers.control.update_executor_handler import (
+    UpdateExecutorHandler,
 )
-from core.architecture.handlers.control.monitoring_handler import MonitoringHandler
 from core.architecture.handlers.control.no_op_handler import NoOpHandler
-from core.architecture.handlers.control.open_operator_handler import OpenOperatorHandler
+from core.architecture.handlers.control.open_executor_handler import OpenExecutorHandler
 from core.architecture.handlers.control.pause_worker_handler import PauseWorkerHandler
 from core.architecture.handlers.control.query_current_input_tuple_handler import (
     QueryCurrentInputTupleHandler,
@@ -31,8 +31,8 @@ from core.architecture.handlers.control.replay_current_tuple_handler import (
 )
 from core.architecture.handlers.control.resume_worker_handler import ResumeWorkerHandler
 from core.architecture.handlers.control.start_worker_handler import StartWorkerHandler
-from core.architecture.handlers.control.update_input_linking_handler import (
-    UpdateInputLinkingHandler,
+from core.architecture.handlers.control.add_input_channel_handler import (
+    AddInputChannelHandler,
 )
 from core.architecture.handlers.control.scheduler_time_slot_event_handler import (
     SchedulerTimeSlotEventHandler,
@@ -62,16 +62,16 @@ class AsyncRPCServer:
         self.register(StartWorkerHandler())
         self.register(PauseWorkerHandler())
         self.register(ResumeWorkerHandler())
-        self.register(OpenOperatorHandler())
+        self.register(OpenExecutorHandler())
+        self.register(AssignPortHandler())
         self.register(AddPartitioningHandler())
-        self.register(UpdateInputLinkingHandler())
+        self.register(AddInputChannelHandler())
         self.register(QueryStatisticsHandler())
         self.register(QueryCurrentInputTupleHandler())
-        self.register(InitializeOperatorLogicHandler())
-        self.register(ModifyOperatorLogicHandler())
+        self.register(InitializeExecutorHandler())
+        self.register(UpdateExecutorHandler())
         self.register(ReplayCurrentTupleHandler())
         self.register(EvaluateExpressionHandler())
-        self.register(MonitoringHandler())
         self.register(SchedulerTimeSlotEventHandler())
         self.register(WorkerDebugCommandHandler())
 

@@ -4,6 +4,8 @@ version := "0.1-SNAPSHOT"
 
 scalaVersion := "2.13.12"
 
+enablePlugins(JavaAppPackaging)
+
 semanticdbEnabled := true
 semanticdbVersion := scalafixSemanticdb.revision
 
@@ -124,8 +126,6 @@ val googleServiceDependencies = Seq(
   "com.google.api-client" % "google-api-client" % "2.2.0" exclude ("com.google.guava", "guava"),
   "com.google.apis" % "google-api-services-sheets" % "v4-rev612-1.25.0" exclude ("com.google.guava", "guava"),
   "com.google.apis" % "google-api-services-drive" % "v3-rev197-1.25.0" exclude ("com.google.guava", "guava"),
-  "com.google.apis" % "google-api-services-gmail" % "v1-rev20230925-2.0.0",
-  "com.google.auth" % "google-auth-library-oauth2-http" % "1.19.0",
   "com.sun.mail" % "javax.mail" % "1.6.2"
 )
 
@@ -142,10 +142,10 @@ val arrowDependencies = Seq(
 /////////////////////////////////////////////////////////////////////////////
 // MongoDB related
 val mongoDbDependencies = Seq(
-  // https://mvnrepository.com/artifact/org.mongodb/mongo-java-driver
-  "org.mongodb" % "mongo-java-driver" % "3.12.12",
-  // https://mvnrepository.com/artifact/org.apache.commons/commons-jcs3-core/3.0
-  "org.apache.commons" % "commons-jcs3-core" % "3.1"
+  // https://mvnrepository.com/artifact/org.mongodb/mongodb-driver-sync
+  "org.mongodb" % "mongodb-driver-sync" % "5.0.0",
+  // https://mvnrepository.com/artifact/org.apache.commons/commons-jcs3-core
+  "org.apache.commons" % "commons-jcs3-core" % "3.2"
 )
 
 libraryDependencies ++= akkaDependencies
@@ -186,6 +186,9 @@ libraryDependencies += "org.scalamock" %% "scalamock" % "5.2.0" % Test
 libraryDependencies += "ch.vorburger.mariaDB4j" % "mariaDB4j" % "2.4.0" % Test
 // https://www.scalatest.org/getting_started_with_fun_suite
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.15" % Test
+// JUnit related dependencies
+libraryDependencies += "junit" % "junit" % "4.13.2" % Test // JUnit dependency for Java tests
+libraryDependencies += "com.novocode" % "junit-interface" % "0.11" % Test // SBT interface for JUnit
 
 /////////////////////////////////////////////////////////////////////////////
 // Workflow version control related
@@ -278,5 +281,9 @@ libraryDependencies += "org.apache.commons" % "commons-vfs2" % "2.9.0"
 // For supporting MultiDict
 // https://mvnrepository.com/artifact/org.scala-lang.modules/scala-collection-contrib
 libraryDependencies += "org.scala-lang.modules" %% "scala-collection-contrib" % "0.3.0"
+
+// For supporting deepcopy
+// https://mvnrepository.com/artifact/io.github.kostaskougios/cloning
+libraryDependencies += "io.github.kostaskougios" % "cloning" % "1.10.3"
 
 

@@ -1,0 +1,32 @@
+{
+  "tasksRunnerOptions": {
+    "default": {
+      "runner": "@nrwl/nx-cloud",
+      "options": {
+        "cacheableOperations": [
+          "build",
+          "lint"
+        ],
+        "runtimeCacheInputs": [
+          "node -v",
+          "yarn run nodecat ./src/environments/environment.prod.ts"
+        ],
+        "accessToken": "Njk2ODE5NjMtMmRjNy00NjNmLWEwMDAtZGVkZTMwMmMwM2M2fHJlYWQtd3JpdGU=",
+        "parallel": 1
+      }
+    }
+  },
+  "cli": {
+    "analytics": false,
+    "defaultCollection": "@nrwl/angular"
+  },
+  "generators": {
+    "@schematics/angular:component": {
+      "prefix": "texera",
+      "style": "scss"
+    },
+    "@schematics/angular:directive": {
+      "prefix": "texera"
+    }
+  }
+}

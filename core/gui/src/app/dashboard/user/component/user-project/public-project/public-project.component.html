@@ -1,0 +1,38 @@
+<nz-table
+  #rowSelectionTable
+  [nzData]="publicProjectEntries"
+  [nzPageSize]="5">
+  <thead>
+    <tr>
+      <th
+        [nzChecked]="checked"
+        [nzIndeterminate]="indeterminate"
+        (nzCheckedChange)="onAllChecked($event)"></th>
+      <th>ID</th>
+      <th>Name</th>
+      <th>Owner</th>
+      <th>Creation Time</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr *ngFor="let data of rowSelectionTable.data">
+      <td
+        [nzChecked]="checkedList.has(data.pid)"
+        [nzDisabled]="disabledList.has(data.pid)"
+        (nzCheckedChange)="onItemChecked(data.pid, $event)"></td>
+      <td>{{ data.pid }}</td>
+      <td>{{ data.name }}</td>
+      <td>{{ data.owner }}</td>
+      <td>{{ data.creationTime | date: "yyyy-MM-dd HH:mm" }}</td>
+    </tr>
+  </tbody>
+</nz-table>
+Selected {{ checkedList.size }} items
+<button
+  style="float: right"
+  nz-button
+  nzType="primary"
+  [disabled]="checkedList.size === 0"
+  (click)="addPublicProjects()">
+  Confirm
+</button>

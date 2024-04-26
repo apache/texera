@@ -1,0 +1,120 @@
+<ul nz-menu>
+  <li
+    nz-menu-item
+    *ngIf="(operatorMenuService.effectivelyHighlightedOperators.value.length > 0 ||
+  operatorMenuService.effectivelyHighlightedCommentBoxes.value.length > 0)"
+    (click)="onCopy()">
+    <span
+      nz-icon
+      nzType="copy"
+      nzTheme="outline"></span
+    >copy
+  </li>
+  <li
+    nz-menu-item
+    *ngIf="(operatorMenuService.effectivelyHighlightedOperators.value.length > 0 ||
+  operatorMenuService.effectivelyHighlightedCommentBoxes.value.length > 0) &&
+  isWorkflowModifiable"
+    (click)="onCut()">
+    <span
+      nz-icon
+      nzType="scissor"
+      nzTheme="outline"></span
+    >cut
+  </li>
+  <li
+    nz-menu-item
+    *ngIf="(operatorMenuService.effectivelyHighlightedOperators.value.length === 0 &&
+  operatorMenuService.effectivelyHighlightedCommentBoxes.value.length === 0) &&
+  isWorkflowModifiable"
+    (click)="onPaste()">
+    <span
+      nz-icon
+      nzType="snippets"
+      nzTheme="outline"></span
+    >paste
+  </li>
+  <li
+    nz-menu-item
+    *ngIf="operatorMenuService.isDisableOperator && operatorMenuService.isDisableOperatorClickable"
+    (click)="operatorMenuService.disableHighlightedOperators()">
+    <span
+      nz-icon
+      nzType="stop"
+      nzTheme="outline"></span
+    >disable
+  </li>
+  <li
+    nz-menu-item
+    *ngIf="!operatorMenuService.isDisableOperator && operatorMenuService.isDisableOperatorClickable"
+    (click)="operatorMenuService.disableHighlightedOperators()">
+    <span
+      nz-icon
+      nzType="stop"
+      nzTheme="twotone"></span
+    >enable
+  </li>
+  <li
+    nz-menu-item
+    *ngIf="(operatorMenuService.isToViewResult && operatorMenuService.isToViewResultClickable)"
+    (click)="operatorMenuService.viewResultHighlightedOperators()">
+    <span
+      nz-icon
+      nzType="eye"
+      nzTheme="outline"></span
+    >view result
+  </li>
+  <li
+    nz-menu-item
+    *ngIf="(! operatorMenuService.isToViewResult && operatorMenuService.isToViewResultClickable)"
+    (click)="operatorMenuService.viewResultHighlightedOperators()">
+    <span
+      nz-icon
+      nzType="eye-invisible"
+      nzTheme="twotone"></span
+    >remove view result
+  </li>
+  <li
+    nz-menu-item
+    *ngIf="(operatorMenuService.isMarkForReuse && operatorMenuService.isReuseResultClickable)"
+    (click)="operatorMenuService.reuseResultHighlightedOperator()">
+    <span
+      nz-icon
+      nzType="database"
+      nzTheme="outline"></span
+    >reuse result
+  </li>
+  <li
+    nz-menu-item
+    *ngIf="(! operatorMenuService.isMarkForReuse && operatorMenuService.isReuseResultClickable)"
+    (click)="operatorMenuService.reuseResultHighlightedOperator()">
+    <span
+      nz-icon
+      nzType="eye-invisible"
+      nzTheme="twotone"></span
+    >remove reusing result
+  </li>
+  <li
+    nz-menu-item
+    *ngIf="(operatorMenuService.effectivelyHighlightedOperators.value.length > 0 ||
+  operatorMenuService.effectivelyHighlightedCommentBoxes.value.length > 0) &&
+  isWorkflowModifiable"
+    (click)="onDelete()">
+    <span
+      nz-icon
+      nzType="delete"
+      nzTheme="outline"></span
+    >delete
+  </li>
+
+  <li
+    nz-menu-item
+    *ngIf="operatorMenuService.effectivelyHighlightedOperators.value.length === 1 && isWorkflowModifiable"
+    (click)="operatorMenuService.executeUpToOperator()">
+    <span
+      nz-icon
+      nzType="play-circle"
+      nzTheme="outline"></span>
+    execute to this operator
+  </li>
+</ul>

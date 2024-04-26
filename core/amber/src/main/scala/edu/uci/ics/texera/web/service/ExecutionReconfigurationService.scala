@@ -1,8 +1,9 @@
 package edu.uci.ics.texera.web.service
 
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ReconfigureHandler.Reconfigure
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ModifyLogicHandler.ModifyLogic
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ModifyOperatorLogicHandler.WorkerModifyLogicComplete
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateExecutorHandler.UpdateExecutorCompleted
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.texera.web.SubscriptionManager
@@ -24,9 +25,9 @@ class ExecutionReconfigurationService(
 ) extends SubscriptionManager {
 
   // monitors notification from the engine that a reconfiguration on a worker is completed
-  client.registerCallback[WorkerModifyLogicComplete]((evt: WorkerModifyLogicComplete) => {
+  client.registerCallback[UpdateExecutorCompleted]((evt: UpdateExecutorCompleted) => {
     stateStore.reconfigurationStore.updateState(old => {
-      old.copy(completedReconfigurations = old.completedReconfigurations + evt.workerID)
+      old.copy(completedReconfigurations = old.completedReconfigurations + evt.workerId)
     })
   })
 
@@ -99,21 +100,12 @@ class ExecutionReconfigurationService(
         client.sendAsync(ModifyLogic(reconfig._1, reconfig._2))
       })
     } else {
-      val epochMarkers = FriesReconfigurationAlgorithm.scheduleReconfigurations(
-        workflow.physicalPlan,
-        workflow.regionPlan,
-        reconfigurations,
-        reconfigurationId
+      client.sendAsync(Reconfigure(reconfigurations, reconfigurationId))
+
+      // clear all un-scheduled reconfigurations, start a new reconfiguration ID
+      stateStore.reconfigurationStore.updateState(_ =>
+        ExecutionReconfigurationStore(Some(reconfigurationId))
       )
-      epochMarkers.foreach(epoch => {
-        client.sendAsync(epoch)
-      })
     }
-
-    // clear all un-scheduled reconfigurations, start a new reconfiguration ID
-    stateStore.reconfigurationStore.updateState(old =>
-      ExecutionReconfigurationStore(Some(reconfigurationId))
-    )
   }
-
 }

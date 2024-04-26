@@ -8,6 +8,7 @@ import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIden
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
+import edu.uci.ics.texera.workflow.common.workflow.HashPartition
 
 class DifferenceOpDesc extends LogicalOp {
 
@@ -20,22 +21,24 @@ class DifferenceOpDesc extends LogicalOp {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _, _) => new DifferenceOpExec())
+        OpExecInitInfo((_, _) => new DifferenceOpExec())
       )
-      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
+      .withPartitionRequirement(List(Option(HashPartition()), Option(HashPartition())))
+      .withDerivePartition(_ => HashPartition())
   }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
       "Difference",
       "find the set difference of two inputs",
-      OperatorGroupConstants.UTILITY_GROUP,
+      OperatorGroupConstants.SET_GROUP,
       inputPorts = List(
         InputPort(PortIdentity(), displayName = "left"),
         InputPort(PortIdentity(1), displayName = "right")
       ),
-      outputPorts = List(OutputPort())
+      outputPorts = List(OutputPort(blocking = true))
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {

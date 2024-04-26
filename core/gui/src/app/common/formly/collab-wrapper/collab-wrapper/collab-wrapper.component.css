@@ -1,0 +1,19 @@
+:host ::ng-deep .ql-clipboard {
+  max-height: 0;
+}
+
+:host ::ng-deep .ql-editor {
+  outline: transparent;
+  overflow: visible;
+  position: relative;
+  : 1pt;
+}
+
+:host ::ng-deep .ql-editor > p {
+  margin-bottom: 0;
+  box-sizing: border-box;
+}
+
+:host ::ng-deep .ql-container {
+  overflow: visible;
+}

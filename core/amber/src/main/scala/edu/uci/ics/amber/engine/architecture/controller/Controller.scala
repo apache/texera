@@ -8,48 +8,57 @@ import edu.uci.ics.amber.engine.architecture.controller.Controller.{
   ReplayStatusUpdate,
   WorkflowRecoveryStatus
 }
+import edu.uci.ics.amber.engine.architecture.controller.execution.OperatorExecution
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
-  WorkerReplayLoggingConfig,
-  WorkerStateRestoreConfig
+  FaultToleranceConfig,
+  StateRestoreConfig
 }
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
-import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowFIFOMessage}
+import edu.uci.ics.amber.engine.common.ambermessage.{
+  ChannelMarkerPayload,
+  ControlPayload,
+  WorkflowFIFOMessage
+}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.ExecutionStatsUpdate
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
-import edu.uci.ics.amber.engine.common.AmberConfig
+import edu.uci.ics.amber.engine.common.{AmberConfig, CheckpointState, SerializedState}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CLIENT, CONTROLLER, SELF}
+import edu.uci.ics.texera.workflow.common.WorkflowContext
+import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
+import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 
 import scala.concurrent.duration.DurationInt
 
 object ControllerConfig {
   def default: ControllerConfig =
     ControllerConfig(
-      monitoringIntervalMs = Option(AmberConfig.monitoringIntervalInMs),
-      skewDetectionIntervalMs = Option(AmberConfig.reshapeSkewDetectionIntervalInMs),
       statusUpdateIntervalMs = Option(AmberConfig.getStatusUpdateIntervalInMs),
-      workerRestoreConfMapping = _ => None,
-      workerLoggingConfMapping = _ => None
+      stateRestoreConfOpt = None,
+      faultToleranceConfOpt = None
     )
 }
 
 final case class ControllerConfig(
-    monitoringIntervalMs: Option[Long],
-    skewDetectionIntervalMs: Option[Long],
     statusUpdateIntervalMs: Option[Long],
-    workerRestoreConfMapping: ActorVirtualIdentity => Option[WorkerStateRestoreConfig],
-    workerLoggingConfMapping: ActorVirtualIdentity => Option[WorkerReplayLoggingConfig]
+    stateRestoreConfOpt: Option[StateRestoreConfig],
+    faultToleranceConfOpt: Option[FaultToleranceConfig]
 )
 
 object Controller {
 
   def props(
-      workflow: Workflow,
+      workflowContext: WorkflowContext,
+      physicalPlan: PhysicalPlan,
+      opResultStorage: OpResultStorage,
       controllerConfig: ControllerConfig = ControllerConfig.default
   ): Props =
     Props(
       new Controller(
-        workflow,
+        workflowContext,
+        physicalPlan,
+        opResultStorage,
         controllerConfig
       )
     )
@@ -59,17 +68,20 @@ object Controller {
 }
 
 class Controller(
-    val workflow: Workflow,
-    val controllerConfig: ControllerConfig
+    workflowContext: WorkflowContext,
+    physicalPlan: PhysicalPlan,
+    opResultStorage: OpResultStorage,
+    controllerConfig: ControllerConfig
 ) extends WorkflowActor(
-      controllerConfig.workerLoggingConfMapping(CONTROLLER),
+      controllerConfig.faultToleranceConfOpt,
       CONTROLLER
     ) {
 
   actorRefMappingService.registerActorRef(CLIENT, context.parent)
   val controllerTimerService = new ControllerTimerService(controllerConfig, actorService)
-  val cp = new ControllerProcessor(
-    workflow,
+  var cp = new ControllerProcessor(
+    workflowContext,
+    opResultStorage,
     controllerConfig,
     actorId,
     logManager.sendCommitted
@@ -90,11 +102,9 @@ class Controller(
   )
 
   override def initState(): Unit = {
-    cp.setupActorService(actorService)
-    cp.setupTimerService(controllerTimerService)
-    cp.setupActorRefService(actorRefMappingService)
-    cp.setupLogManager(logManager)
-    val controllerRestoreConf = controllerConfig.workerRestoreConfMapping(CONTROLLER)
+    attachRuntimeServicesToCPState()
+    cp.workflowScheduler.updateSchedule(physicalPlan)
+    val controllerRestoreConf = controllerConfig.stateRestoreConfOpt
     if (controllerRestoreConf.isDefined) {
       globalReplayManager.markRecoveryStatus(CONTROLLER, isRecovering = true)
       setupReplay(
@@ -121,10 +131,12 @@ class Controller(
       cp.inputGateway.tryPickChannel match {
         case Some(channel) =>
           val msg = channel.take
-          logManager.withFaultTolerant(msg.channelId, Some(msg)) {
+          val msgToLog = Some(msg).filter(_.payload.isInstanceOf[ControlPayload])
+          logManager.withFaultTolerant(msg.channelId, msgToLog) {
             msg.payload match {
-              case payload: ControlPayload => cp.processControlPayload(msg.channelId, payload)
-              case p                       => throw new RuntimeException(s"controller cannot handle $p")
+              case payload: ControlPayload      => cp.processControlPayload(msg.channelId, payload)
+              case marker: ChannelMarkerPayload => // skip marker
+              case p                            => throw new RuntimeException(s"controller cannot handle $p")
             }
           }
         case None =>
@@ -174,4 +186,40 @@ class Controller(
         Stop
     }
 
+  private def attachRuntimeServicesToCPState(): Unit = {
+    cp.setupActorService(actorService)
+    cp.setupTimerService(controllerTimerService)
+    cp.setupActorRefService(actorRefMappingService)
+    cp.setupLogManager(logManager)
+    cp.setupTransferService(transferService)
+  }
+
+  override def loadFromCheckpoint(chkpt: CheckpointState): Unit = {
+    val cpState: ControllerProcessor = chkpt.load(SerializedState.CP_STATE_KEY)
+    val outputMessages: Array[WorkflowFIFOMessage] = chkpt.load(SerializedState.OUTPUT_MSG_KEY)
+    cp = cpState
+    cp.outputHandler = logManager.sendCommitted
+    attachRuntimeServicesToCPState()
+    // revive all workers.
+    cp.workflowExecution.getRunningRegionExecutions.foreach { regionExecution =>
+      regionExecution.getAllOperatorExecutions.foreach {
+        case (opId, opExecution) =>
+          val op = physicalPlan.getOperator(opId)
+          op.build(
+            actorService,
+            OperatorExecution(), //use dummy value here
+            regionExecution.region.resourceConfig.get.operatorConfigs(opId),
+            controllerConfig.stateRestoreConfOpt,
+            controllerConfig.faultToleranceConfOpt
+          )
+      }
+    }
+    outputMessages.foreach(transferService.send)
+    cp.asyncRPCClient.sendToClient(
+      ExecutionStatsUpdate(
+        cp.workflowExecution.getAllRegionExecutionsStats
+      )
+    )
+    globalReplayManager.markRecoveryStatus(CONTROLLER, isRecovering = false)
+  }
 }

@@ -13,7 +13,7 @@ class PythonTableReducerOpDesc extends PythonOperatorDescriptor {
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Preconditions.checkArgument(lambdaAttributeUnits.nonEmpty)
-    val outputSchemaBuilder = Schema.newBuilder
+    val outputSchemaBuilder = Schema.builder()
     for (unit <- lambdaAttributeUnits) {
       outputSchemaBuilder.add(unit.attributeName, unit.attributeType)
     }

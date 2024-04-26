@@ -8,26 +8,21 @@ import edu.uci.ics.amber.engine.common.AmberLogging
 class DataProcessorRPCHandlerInitializer(val dp: DataProcessor)
     extends AsyncRPCHandlerInitializer(dp.asyncRPCClient, dp.asyncRPCServer)
     with AmberLogging
-    with OpenOperatorHandler
+    with InitializeExecutorHandler
+    with OpenExecutorHandler
     with PauseHandler
     with AddPartitioningHandler
-    with QueryAndRemoveBreakpointsHandler
     with QueryCurrentInputTupleHandler
     with QueryStatisticsHandler
     with ResumeHandler
     with StartHandler
-    with UpdateInputLinkingHandler
-    with AssignLocalBreakpointHandler
+    with AssignPortHandler
+    with AddInputChannelHandler
     with ShutdownDPThreadHandler
-    with MonitoringHandler
-    with SendImmutableStateHandler
-    with AcceptImmutableStateHandler
-    with SharePartitionHandler
-    with PauseSkewMitigationHandler
-    with SchedulerTimeSlotEventHandler
     with FlushNetworkBufferHandler
-    with ModifyOperatorLogicHandler
-    with RetrieveStateHandler {
+    with UpdateExecutorHandler
+    with RetrieveStateHandler
+    with PrepareCheckpointHandler
+    with FinalizeCheckpointHandler {
   val actorId: ActorVirtualIdentity = dp.actorId
-  var lastReportTime = 0L
 }

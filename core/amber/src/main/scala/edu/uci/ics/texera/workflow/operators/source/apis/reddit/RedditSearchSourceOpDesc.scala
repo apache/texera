@@ -107,13 +107,14 @@ class RedditSearchSourceOpDesc extends PythonSourceOperatorDescriptor {
     OperatorInfo(
       "Reddit Search",
       "Search for recent posts with python-wrapped Reddit API, PRAW",
-      OperatorGroupConstants.SOURCE_GROUP,
+      OperatorGroupConstants.API_GROUP,
       inputPorts = List.empty,
       outputPorts = List(OutputPort())
     )
   override def asSource() = true
   override def sourceSchema(): Schema =
-    Schema.newBuilder
+    Schema
+      .builder()
       .add(
         new Attribute("id", AttributeType.STRING),
         new Attribute("name", AttributeType.STRING),
@@ -133,5 +134,5 @@ class RedditSearchSourceOpDesc extends PythonSourceOperatorDescriptor {
         new Attribute("author_name", AttributeType.STRING),
         new Attribute("subreddit", AttributeType.STRING)
       )
-      .build
+      .build()
 }

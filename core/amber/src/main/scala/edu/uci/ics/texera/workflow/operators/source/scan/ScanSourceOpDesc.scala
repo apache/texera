@@ -4,7 +4,9 @@ import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyD
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.common.workflow.OutputPort
-import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileAccessResource
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.DatasetFileDesc
+import edu.uci.ics.texera.web.resource.dashboard.user.environment.EnvironmentResource.getEnvironmentDatasetFilePathAndVersion
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
@@ -34,6 +36,9 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
   var filePath: Option[String] = None
 
   @JsonIgnore
+  var datasetFileDesc: Option[DatasetFileDesc] = None
+
+  @JsonIgnore
   var fileTypeName: Option[String] = None
 
   @JsonProperty()
@@ -49,9 +54,8 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
   var offset: Option[Int] = None
 
   override def sourceSchema(): Schema = {
-    if (filePath.isEmpty) return null
+    if (filePath.isEmpty && datasetFileDesc.isEmpty) return null
     inferSchema()
-
   }
 
   override def setContext(workflowContext: WorkflowContext): Unit = {
@@ -62,18 +66,13 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
     }
 
     if (getContext.userId.isDefined) {
-      // if context has a valid user ID, the fileName will be in the following format:
-      //    ownerName/fileName
-      // resolve fileName to be the actual file path.
-      val splitNames = fileName.get.split("/")
-      filePath = UserFileAccessResource
-        .getFilePath(
-          email = splitNames.apply(0),
-          fileName = splitNames.apply(1),
-          getContext.userId.get,
-          UInteger.valueOf(getContext.workflowId.id)
-        )
-
+      val environmentEid = WorkflowResource.getEnvironmentEidOfWorkflow(
+        UInteger.valueOf(workflowContext.workflowId.id)
+      )
+      // if user system is defined, a datasetFileDesc will be initialized, which is the handle of reading file from the dataset
+      datasetFileDesc = Some(
+        getEnvironmentDatasetFilePathAndVersion(getContext.userId.get, environmentEid, fileName.get)
+      )
     } else {
       // otherwise, the fileName will be inputted by user, which is the filePath.
       filePath = fileName
@@ -85,13 +84,27 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
     OperatorInfo(
       userFriendlyName = s"${fileTypeName.get} File Scan",
       operatorDescription = s"Scan data from a ${fileTypeName.get} file",
-      OperatorGroupConstants.SOURCE_GROUP,
+      OperatorGroupConstants.INPUT_GROUP,
       inputPorts = List.empty,
       outputPorts = List(OutputPort())
     )
   }
 
   def inferSchema(): Schema
+
+  // resolve the file path based on whether the user system is enabled
+  // it will check for the presence of the given filePath/Desc
+  def determineFilePathOrDesc(): (String, DatasetFileDesc) = {
+    if (getContext.userId.isDefined) {
+      val fileDesc = datasetFileDesc.getOrElse(
+        throw new RuntimeException("Dataset file descriptor is not provided.")
+      )
+      (null, fileDesc)
+    } else {
+      val filepath = filePath.getOrElse(throw new RuntimeException("File path is not provided."))
+      (filepath, null)
+    }
+  }
 
   override def equals(that: Any): Boolean =
     EqualsBuilder.reflectionEquals(this, that, "context", "filePath")

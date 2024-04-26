@@ -1,0 +1,96 @@
+<div class="section-container subsection-grid-container">
+  <nz-card class="section-title">
+    <h2 class="page-title">Results</h2>
+    <div class="d-inline-block">
+      <a
+        [nzDropdownMenu]="menu"
+        nz-dropdown>
+        <button
+          nz-button
+          title="Sort">
+          <i
+            nz-icon
+            nzTheme="outline"
+            nzType="sort-ascending"></i>
+        </button>
+      </a>
+      <nz-dropdown-menu #menu="nzDropdownMenu">
+        <ul
+          nz-menu
+          nzSelectable>
+          <li
+            (click)="ascSort()"
+            nz-menu-item>
+            A -> Z
+          </li>
+          <li
+            (click)="dscSort()"
+            nz-menu-item>
+            Z -> A
+          </li>
+          <li
+            (click)="timeSortDesc()"
+            nz-menu-item>
+            Newest
+          </li>
+          <li
+            (click)="timeSortAsc()"
+            nz-menu-item>
+            Oldest
+          </li>
+          <li
+            (click)="sizeSort()"
+            nz-menu-item>
+            By Size (Descending)
+          </li>
+        </ul>
+      </nz-dropdown-menu>
+    </div>
+  </nz-card>
+
+  <div class="section-search-bar">
+    <nz-input-group
+      [nzSuffix]="suffixIconSearch"
+      class="texera-dashboard-user-file-search-box-input">
+      <input
+        (keyup.enter)="isTyping = false"
+        (ngModelChange)="searchInputOnChange($event)"
+        [(ngModel)]="userFileSearchValue"
+        [nzAutocomplete]="auto"
+        nz-input
+        nzBackdrop="false"
+        placeholder="Search Workflow Result Files..."
+        type="text" />
+      <ng-template #suffixIconSearch>
+        <i
+          nz-icon
+          nzType="search"></i>
+      </ng-template>
+      <nz-autocomplete
+        #auto
+        [nzDataSource]="filteredFilenames"
+        [nzDefaultActiveFirstOption]="false"
+        nzBackfill></nz-autocomplete>
+    </nz-input-group>
+  </div>
+
+  <nz-card class="section-list-container">
+    <!-- itemSize: the height (px) of each list item,
+      this MUST be approximately the same as list item size set in CSS,
+      .file-list-item sets the item size to be 70px, with additional paddings/margins it's approximately 80px
+    -->
+    <cdk-virtual-scroll-viewport
+      class="virtual-scroll-container"
+      itemSize="80">
+      <nz-list>
+        <texera-user-file-list-item
+          *cdkVirtualFor="let entry of getFileArray()"
+          [entry]="entry"
+          (deleted)="deleteFile(entry.file.fid)"
+          (refresh)="ngOnInit()"
+          [editable]="true"
+          [uid]="uid"></texera-user-file-list-item>
+      </nz-list>
+    </cdk-virtual-scroll-viewport>
+  </nz-card>
+</div>
