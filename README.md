@@ -20,12 +20,12 @@
 </p>
 </p>
 <p align="center">
-  <img alt="Static Badge" src="https://img.shields.io/badge/Users-287-blue">
+  <img alt="Static Badge" src="https://img.shields.io/badge/Users-332-blue">
   <img alt="Static Badge" src="https://img.shields.io/badge/Projects-86-blue">
-  <img alt="Static Badge" src="https://img.shields.io/badge/Workflows-1,635-blue">
-  <img alt="Static Badge" src="https://img.shields.io/badge/Executions-22K-blue">
-  <img alt="Static Badge" src="https://img.shields.io/badge/Workflow_Versions-273K-blue">
-  <img alt="Static Badge" src="https://img.shields.io/badge/Deployments-4-blue">
+  <img alt="Static Badge" src="https://img.shields.io/badge/Workflows-2,257-blue">
+  <img alt="Static Badge" src="https://img.shields.io/badge/Executions-31K-blue">
+  <img alt="Static Badge" src="https://img.shields.io/badge/Workflow_Versions-357K-blue">
+  <img alt="Static Badge" src="https://img.shields.io/badge/Deployments-7-blue">
   <img alt="Static Badge" src="https://img.shields.io/badge/Largest_Deployment-100_nodes,_400_cores-green">
 </p>
 
