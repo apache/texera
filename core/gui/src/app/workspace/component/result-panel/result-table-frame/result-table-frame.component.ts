@@ -97,7 +97,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     this.resizeService.currentSize.pipe(untilDestroyed(this)).subscribe(size => {
       this.adjustPageSizeBasedOnPanelSize(size.height);
       let currentPageNum: number = Math.ceil(this.totalNumTuples / this.pageSize);
-      while (this.currentPageIndex > currentPageNum) {
+      while (this.currentPageIndex > currentPageNum && this.currentPageIndex > 1) {
         this.currentPageIndex -= 1;
       }
     });
@@ -198,6 +198,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       .selectPage(this.currentPageIndex, this.pageSize)
       .pipe(untilDestroyed(this))
       .subscribe(pageData => {
+        console.log(pageData);
         if (this.currentPageIndex === pageData.pageIndex) {
           this.setupResultTable(pageData.table, paginatedResultService.getCurrentTotalNumTuples());
         }
