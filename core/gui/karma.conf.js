@@ -31,9 +31,9 @@ module.exports = function(config) {
     autoWatch: true,
     browsers: ["ChromeHeadlessDocker"],
     singleRun: false,
-    captureTimeout: 60000,
+    captureTimeout: 90000,
     browserDisconnectTimeout: 10000,
     browserDisconnectTolerance: 3,
-    browserNoActivityTimeout: 60000
+    browserNoActivityTimeout: 90000
   });
 };
