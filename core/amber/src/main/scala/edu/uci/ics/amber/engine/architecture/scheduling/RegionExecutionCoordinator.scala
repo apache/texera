@@ -18,7 +18,6 @@ import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, 
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AssignPortHandler.AssignPort
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenExecutorHandler.OpenExecutor
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
-import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
@@ -132,9 +131,6 @@ class RegionExecutionCoordinator(
                   ),
                   workerId
                 )
-                .onFailure { t =>
-                  throw new WorkflowRuntimeException(t, Some(workerId))
-                }
             }
           })
           .toSeq

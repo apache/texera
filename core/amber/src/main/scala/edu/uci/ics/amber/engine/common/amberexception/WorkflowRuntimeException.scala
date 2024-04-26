@@ -25,4 +25,6 @@ class WorkflowRuntimeException(
     this(null: String)
   }
 
+  override def toString: String = message
+
 }
