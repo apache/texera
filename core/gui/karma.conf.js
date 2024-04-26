@@ -32,8 +32,8 @@ module.exports = function(config) {
     browsers: ["ChromeHeadlessDocker"],
     singleRun: false,
     captureTimeout: 90000,
-    browserDisconnectTimeout: 10000,
-    browserDisconnectTolerance: 3,
+    browserDisconnectTimeout: 20000,
+    browserDisconnectTolerance: 1,
     browserNoActivityTimeout: 90000
   });
 };
