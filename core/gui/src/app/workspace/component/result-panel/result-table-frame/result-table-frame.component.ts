@@ -198,7 +198,6 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       .selectPage(this.currentPageIndex, this.pageSize)
       .pipe(untilDestroyed(this))
       .subscribe(pageData => {
-        console.log(pageData);
         if (this.currentPageIndex === pageData.pageIndex) {
           this.setupResultTable(pageData.table, paginatedResultService.getCurrentTotalNumTuples());
         }
