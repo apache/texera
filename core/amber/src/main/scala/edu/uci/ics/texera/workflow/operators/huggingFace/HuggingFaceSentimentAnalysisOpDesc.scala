@@ -13,6 +13,30 @@ class HuggingFaceSentimentAnalysisOpDesc extends PythonOperatorDescriptor {
   @AutofillAttributeName
   var attribute: String = _
 
+  @JsonProperty(
+    value = "Positive result attribute",
+    required = true,
+    defaultValue = "huggingface_sentiment_positive"
+  )
+  @JsonPropertyDescription("column name of the sentiment analysis result (positive)")
+  var resultAttributePositive: String = _
+
+  @JsonProperty(
+    value = "Neutral result attribute",
+    required = true,
+    defaultValue = "huggingface_sentiment_neutral"
+  )
+  @JsonPropertyDescription("column name of the sentiment analysis result (neutral)")
+  var resultAttributeNeutral: String = _
+
+  @JsonProperty(
+    value = "Negative result attribute",
+    required = true,
+    defaultValue = "huggingface_sentiment_negative"
+  )
+  @JsonPropertyDescription("column name of the sentiment analysis result (negative)")
+  var resultAttributeNegative: String = _
+
   override def generatePythonCode(): String = {
     s"""from pytexera import *
        |from transformers import pipeline
@@ -36,8 +60,9 @@ class HuggingFaceSentimentAnalysisOpDesc extends PythonOperatorDescriptor {
        |        output = self.model(**encoded_input)
        |        scores = softmax(output[0][0].detach().numpy())
        |        ranking = np.argsort(scores)[::-1]
+       |        labels = {"positive": "$resultAttributePositive", "neutral": "$resultAttributeNeutral", "negative": "$resultAttributeNegative"}
        |        for i in range(scores.shape[0]):
-       |            label = f"huggingface_sentiment_{self.config.id2label[ranking[i]]}"
+       |            label = labels[self.config.id2label[ranking[i]]]
        |            score = scores[ranking[i]]
        |            tuple_[label] = np.round(float(score), 4)
        |        yield tuple_""".stripMargin
@@ -49,16 +74,23 @@ class HuggingFaceSentimentAnalysisOpDesc extends PythonOperatorDescriptor {
       "Analyzing Sentiments with a Twitter-Based Model from Hugging Face",
       OperatorGroupConstants.MACHINE_LEARNING_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort())
+      outputPorts = List(OutputPort()),
+      supportReconfiguration = true
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
+    if (resultAttributePositive == null || resultAttributePositive.trim.isEmpty)
+      return null
+    if (resultAttributeNeutral == null || resultAttributeNeutral.trim.isEmpty)
+      return null
+    if (resultAttributeNegative == null || resultAttributeNegative.trim.isEmpty)
+      return null
     Schema
       .builder()
       .add(schemas(0))
-      .add("huggingface_sentiment_positive", AttributeType.DOUBLE)
-      .add("huggingface_sentiment_neutral", AttributeType.DOUBLE)
-      .add("huggingface_sentiment_negative", AttributeType.DOUBLE)
+      .add(resultAttributePositive, AttributeType.DOUBLE)
+      .add(resultAttributeNeutral, AttributeType.DOUBLE)
+      .add(resultAttributeNegative, AttributeType.DOUBLE)
       .build()
   }
 }
