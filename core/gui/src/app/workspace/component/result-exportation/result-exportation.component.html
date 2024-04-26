@@ -1,0 +1,29 @@
+<div class="centered-container">
+  <input
+    [(ngModel)]="inputDatasetName"
+    (input)="onUserInputDatasetName($event)"
+    type="text"
+    nz-input
+    name="datasetName"
+    placeholder="Search for dataset by name..."
+    [nzAutocomplete]="auto" />
+  <nz-autocomplete #auto>
+    <nz-auto-option
+      *ngFor="let dataset of filteredUserAccessibleDatasets"
+      [nzLabel]="dataset.dataset.name">
+      <div class="auto-option-content">
+        <div class="dataset-id-container">{{dataset.dataset.did?.toString()}}</div>
+
+        <span class="dataset-name">{{ dataset.dataset.name }}</span>
+
+        <button
+          nz-button
+          nzType="primary"
+          class="dataset-option-link-btn"
+          (click)="onClickSaveResultFileToDatasets(dataset)">
+          Save
+        </button>
+      </div>
+    </nz-auto-option>
+  </nz-autocomplete>
+</div>

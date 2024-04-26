@@ -99,6 +99,7 @@ export type ResultExportRequest = Readonly<{
   workflowName: string;
   operatorId: string;
   operatorName: string;
+  datasetIds: ReadonlyArray<number>;
 }>;
 
 export type ResultExportResponse = Readonly<{
