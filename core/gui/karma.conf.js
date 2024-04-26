@@ -19,9 +19,15 @@ module.exports = function(config) {
       }
     },
     customLaunchers: {
-      ChromeHeadlessDocker: {
+      ChromeHeadlessCustom: {
         base: 'ChromeHeadless',
-        flags: ['--no-sandbox'],
+        flags: [
+          '--no-sandbox',
+          '--headless',
+          '--disable-gpu',
+          '--disable-translate',
+          '--disable-extensions'
+        ],
       },
     },
     reporters: ["progress", "kjhtml"],
@@ -29,7 +35,7 @@ module.exports = function(config) {
     colors: true,
     logLevel: config.LOG_DEBUG,
     autoWatch: true,
-    browsers: ["ChromeHeadlessDocker"],
+    browsers: ["ChromeHeadlessCustom"],
     singleRun: false,
     captureTimeout: 90000,
     browserDisconnectTimeout: 20000,
