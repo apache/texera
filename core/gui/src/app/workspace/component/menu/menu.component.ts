@@ -27,6 +27,9 @@ import { OperatorMenuService } from "../../service/operator-menu/operator-menu.s
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
 import { Subscription, timer } from "rxjs";
 import { isDefined } from "../../../common/util/predicate";
+import { FileSelectionComponent } from "../file-selection/file-selection.component";
+import { NzModalService } from "ng-zorro-antd/modal";
+import { ResultExportationComponent } from "../result-exportation/result-exportation.component";
 
 /**
  * MenuComponent is the top level menu bar that shows
@@ -95,7 +98,8 @@ export class MenuComponent implements OnInit {
     private userProjectService: UserProjectService,
     private notificationService: NotificationService,
     public operatorMenu: OperatorMenuService,
-    public coeditorPresenceService: CoeditorPresenceService
+    public coeditorPresenceService: CoeditorPresenceService,
+    private modalService: NzModalService
   ) {
     workflowWebsocketService
       .subscribeToEvent("ExecutionDurationUpdateEvent")
@@ -326,7 +330,15 @@ export class MenuComponent implements OnInit {
    *
    */
   public onClickExportExecutionResult(exportType: string): void {
-    this.workflowResultExportService.exportWorkflowExecutionResult(exportType, this.currentWorkflowName);
+    const modal = this.modalService.create({
+      nzTitle: "Export Result and Save to a Dataset",
+      nzContent: ResultExportationComponent,
+      nzData: {
+        exportType: exportType,
+        workflowName: this.currentWorkflowName,
+      },
+      nzFooter: null,
+    });
   }
 
   /**
