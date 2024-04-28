@@ -33,6 +33,13 @@ class ImageVisualizerOpDesc extends VisualizationOperator with PythonOperatorDes
       outputPorts = List(OutputPort())
     )
 
+  def createBinaryData(): String = {
+    assert(binaryContent.nonEmpty)
+    s"""
+       |        binary_image_data = tuple_['$binaryContent']
+       |""".stripMargin
+  }
+
   override def generatePythonCode(): String = {
     val finalCode = s"""
                        |from pytexera import *
@@ -56,7 +63,8 @@ class ImageVisualizerOpDesc extends VisualizationOperator with PythonOperatorDes
                        |
                        |    @overrides
                        |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-                       |        self.images_html.append(self.encode_image_to_html(tuple_["$binaryContent"]))
+                       |        ${createBinaryData()}
+                       |        self.images_html.append(self.encode_image_to_html(binary_image_data))
                        |        yield
                        |
                        |    @overrides
