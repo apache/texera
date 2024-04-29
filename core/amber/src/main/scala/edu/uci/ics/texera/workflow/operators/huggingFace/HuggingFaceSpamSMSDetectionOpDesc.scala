@@ -59,7 +59,7 @@ class HuggingFaceSpamSMSDetectionOpDesc extends PythonOperatorDescriptor {
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     if (
       resultAttributeSpam == null || resultAttributeSpam.trim.isEmpty ||
-        resultAttributeScore == null || resultAttributeScore.trim.isEmpty
+      resultAttributeScore == null || resultAttributeScore.trim.isEmpty
     )
       return null
     Schema
