@@ -5,5 +5,6 @@ case class ResultExportRequest(
     workflowId: Int,
     workflowName: String,
     operatorId: String,
-    operatorName: String
+    operatorName: String,
+    datasetIds: Array[Int]
 ) extends TexeraWebSocketRequest
