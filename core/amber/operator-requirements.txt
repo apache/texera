@@ -5,4 +5,4 @@ pillow
 pybase64
 torch
 datasets
-sklearn
+scikit-learn
