@@ -1,9 +1,10 @@
 import { Component, inject, OnChanges } from "@angular/core";
 import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
 import { trimDisplayJsonData } from "src/app/common/util/json";
-import { DEFAULT_PAGE_SIZE, WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
+import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
 import { PRETTY_JSON_TEXT_LIMIT } from "./result-table-frame/result-table-frame.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { PanelResizeService } from "../../service/workflow-result/panel-resize/panel-resize.service";
 
 /**
  *
@@ -22,7 +23,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 @Component({
   selector: "texera-row-modal-content",
   templateUrl: "./result-panel-modal.component.html",
-  styleUrls: ["./result-panel.component.scss"],
+  styleUrls: ["./result-panel-model.component.scss"],
 })
 export class RowModalComponent implements OnChanges {
   // Index of current displayed row in currentResult
@@ -32,7 +33,8 @@ export class RowModalComponent implements OnChanges {
 
   constructor(
     public modal: NzModalRef<any, number>,
-    private workflowResultService: WorkflowResultService
+    private workflowResultService: WorkflowResultService,
+    private resizeService: PanelResizeService
   ) {
     this.ngOnChanges();
   }
@@ -40,7 +42,7 @@ export class RowModalComponent implements OnChanges {
   ngOnChanges(): void {
     this.workflowResultService
       .getPaginatedResultService(this.operatorId)
-      ?.selectTuple(this.rowIndex, DEFAULT_PAGE_SIZE)
+      ?.selectTuple(this.rowIndex, this.resizeService.pageSize)
       .pipe(untilDestroyed(this))
       .subscribe(res => {
         this.currentDisplayRowData = trimDisplayJsonData(res, PRETTY_JSON_TEXT_LIMIT);
