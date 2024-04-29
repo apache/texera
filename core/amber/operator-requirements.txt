@@ -3,3 +3,6 @@ plotly
 praw
 pillow
 pybase64
+torch
+datasets
+sklearn
