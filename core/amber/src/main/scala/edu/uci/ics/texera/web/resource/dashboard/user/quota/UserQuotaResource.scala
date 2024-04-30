@@ -2,7 +2,18 @@ package edu.uci.ics.texera.web.resource.dashboard.user.quota
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource.{ File, MongoStorage, Workflow, deleteMongoCollection, getUserAccessedFiles, getUserAccessedWorkflow, getUserCreatedDatasetCount, getUserCreatedFile, getUserCreatedWorkflow, getUserMongoDBSize}
+import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource.{
+  File,
+  MongoStorage,
+  Workflow,
+  deleteMongoCollection,
+  getUserAccessedFiles,
+  getUserAccessedWorkflow,
+  getUserCreatedDatasetCount,
+  getUserCreatedFile,
+  getUserCreatedWorkflow,
+  getUserMongoDBSize
+}
 import org.jooq.types.UInteger
 
 import java.util
@@ -46,7 +57,6 @@ object UserQuotaResource {
       eid: UInteger
   )
 
-
   def getUserCreatedDatasetCount(uid: UInteger): Int = {
     val count = context
       .selectCount()
@@ -56,7 +66,6 @@ object UserQuotaResource {
 
     count
   }
-
 
   def getCollectionName(result: String): String = {
 
