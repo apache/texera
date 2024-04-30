@@ -2,12 +2,12 @@ import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
 import { AppSettings } from "src/app/common/app-setting";
-import { File, Dataset, Workflow, MongoExecution } from "src/app/common/type/user";
+import { File, Workflow, MongoExecution } from "src/app/common/type/user";
 
 export const USER_BASE_URL = `${AppSettings.getApiEndpoint()}/quota`;
 export const USER_CREATED_FILES = `${USER_BASE_URL}/uploaded_files`;
-export const USER_UPLOADED_DATASETS = `${USER_BASE_URL}/uploaded_dataset`;
-export const USER_DATASE_SIZE = `${USER_BASE_URL}/dataset_size`;
+export const USER_UPLOADED_DATASET_COUNT = `${USER_BASE_URL}/number_of_datasets`;
+export const USER_UPLOADED_DATASE_SIZE = `${USER_BASE_URL}/dataset_size`;
 export const USER_CREATED_WORKFLOWS = `${USER_BASE_URL}/created_workflows`;
 export const USER_ACCESS_WORKFLOWS = `${USER_BASE_URL}/access_workflows`;
 export const USER_ACCESS_FILES = `${USER_BASE_URL}/access_files`;
@@ -24,12 +24,12 @@ export class UserQuotaService {
     return this.http.get<ReadonlyArray<File>>(`${USER_CREATED_FILES}`);
   }
 
-  public getDatasetSize(uid: number): Observable<number> {
-    return this.http.get<number>(`${USER_DATASE_SIZE}`);
+  public getTotalUploadedDatasetSize(uid: number): Observable<number> {
+    return this.http.get<number>(`${USER_UPLOADED_DATASE_SIZE}`);
   }
 
-  public getUploadedDatasets(uid: number): Observable<ReadonlyArray<Dataset>> {
-    return this.http.get<ReadonlyArray<Dataset>>(`${USER_UPLOADED_DATASETS}`);
+  public getTotalUploadedDatasetCount(uid: number): Observable<number> {
+    return this.http.get<number>(`${USER_UPLOADED_DATASET_COUNT}`);
   }
 
   public getCreatedWorkflows(uid: number): Observable<ReadonlyArray<Workflow>> {

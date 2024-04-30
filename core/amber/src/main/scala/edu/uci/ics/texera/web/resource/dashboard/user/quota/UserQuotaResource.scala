@@ -2,7 +2,7 @@ package edu.uci.ics.texera.web.resource.dashboard.user.quota
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource.{Dataset, File, MongoStorage, Workflow, deleteMongoCollection, getUserAccessedFiles, getUserAccessedWorkflow, getUserCreatedDataset, getUserCreatedFile, getUserCreatedWorkflow, getUserMongoDBSize}
+import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource.{ File, MongoStorage, Workflow, deleteMongoCollection, getUserAccessedFiles, getUserAccessedWorkflow, getUserCreatedDatasetCount, getUserCreatedFile, getUserCreatedWorkflow, getUserMongoDBSize}
 import org.jooq.types.UInteger
 
 import java.util
@@ -47,32 +47,16 @@ object UserQuotaResource {
   )
 
 
-  def getUserCreatedDataset(uid: UInteger): List[Dataset] = {
-    val userDatasetEntries = context
-      .select(
-        DATASET.OWNER_UID,
-        DATASET.DID,
-        DATASET.NAME
-      )
-      .from(
-        DATASET
-      )
-      .where(
-        DATASET.OWNER_UID.eq(uid)
-      )
-      .fetch()
+  def getUserCreatedDatasetCount(uid: UInteger): Int = {
+    val count = context
+      .selectCount()
+      .from(DATASET)
+      .where(DATASET.OWNER_UID.eq(uid))
+      .fetchOne(0, classOf[Int])
 
-    userDatasetEntries
-      .map(datasetRecord => {
-        Dataset(
-          datasetRecord.get(DATASET.OWNER_UID),
-          datasetRecord.get(DATASET.DID),
-          datasetRecord.get(DATASET.NAME)
-        )
-      })
-      .asScala
-      .toList
+    count
   }
+
 
   def getCollectionName(result: String): String = {
 
@@ -260,10 +244,10 @@ class UserQuotaResource {
   }
 
   @GET
-  @Path("/uploaded_dataset")
+  @Path("/number_of_datasets")
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def getCreatedDataset(@Auth current_user: SessionUser): List[Dataset] = {
-    getUserCreatedDataset(current_user.getUid)
+  def getCreatedDatasetCount(@Auth current_user: SessionUser): Int = {
+    getUserCreatedDatasetCount(current_user.getUid)
   }
 
   @GET

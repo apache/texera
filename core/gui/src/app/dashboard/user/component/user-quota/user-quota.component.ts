@@ -1,6 +1,6 @@
 import { Component, inject } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { File, Dataset, Workflow, MongoExecution, MongoWorkflow } from "../../../../common/type/user";
+import { File, Workflow, MongoExecution, MongoWorkflow } from "../../../../common/type/user";
 import { UserFileService } from "../../service/user-file/user-file.service";
 import { NzTableSortFn } from "ng-zorro-antd/table";
 import { UserQuotaService } from "../../service/user-quota/user-quota.service";
@@ -21,9 +21,9 @@ export class UserQuotaComponent {
 
   totalFileSize: number = 0;
   totalMongoSize: number = 0;
-  totalDatasetSize: number = 0;
+  totalUploadedDatasetSize: number = 0;
+  totalUploadedDatasetCount: number = 0;
   createdFiles: ReadonlyArray<File> = [];
-  uploadedDatasets: ReadonlyArray<Dataset> = [];
   createdWorkflows: ReadonlyArray<Workflow> = [];
   accessFiles: ReadonlyArray<number> = [];
   accessWorkflows: ReadonlyArray<number> = [];
@@ -69,16 +69,16 @@ export class UserQuotaComponent {
         this.topFiveFiles = copiedFiles.slice(0, 5);
       });
 
-    this.UserService.getDatasetSize(this.userId)
+    this.UserService.getTotalUploadedDatasetSize(this.userId)
       .pipe(untilDestroyed(this))
       .subscribe(datasetSize => {
-        this.totalDatasetSize = datasetSize;
+        this.totalUploadedDatasetSize = datasetSize;
       });
 
-    this.UserService.getUploadedDatasets(this.userId)
+    this.UserService.getTotalUploadedDatasetCount(this.userId)
       .pipe(untilDestroyed(this))
-      .subscribe(datasetList => {
-        this.uploadedDatasets = datasetList;
+      .subscribe(datasetCount => {
+        this.totalUploadedDatasetCount = datasetCount;
       });
 
     this.UserService.getCreatedWorkflows(this.userId)
