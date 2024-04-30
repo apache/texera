@@ -2,32 +2,18 @@ package edu.uci.ics.texera.web.resource.dashboard.user.quota
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource.{
-  Dataset,
-  File,
-  MongoStorage,
-  Workflow,
-  deleteMongoCollection,
-  getUserAccessedFiles,
-  getUserAccessedWorkflow,
-  getUserCreatedDataset,
-  getUserCreatedFile,
-  getUserCreatedWorkflow,
-  getUserDatasetSize,
-  getUserMongoDBSize
-}
+import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource.{Dataset, File, MongoStorage, Workflow, deleteMongoCollection, getUserAccessedFiles, getUserAccessedWorkflow, getUserCreatedDataset, getUserCreatedFile, getUserCreatedWorkflow, getUserMongoDBSize}
 import org.jooq.types.UInteger
 
 import java.util
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import edu.uci.ics.texera.web.model.jooq.generated.Tables._
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.DatasetStatisticsUtils.getUserDatasetSize
 import edu.uci.ics.texera.web.storage.MongoDatabaseManager
 import io.dropwizard.auth.Auth
 
 import scala.jdk.CollectionConverters.IterableHasAsScala
-import java.nio.file.{Files, Paths}
-import java.nio.file.attribute.BasicFileAttributes
 
 object UserQuotaResource {
   final private lazy val context = SqlServer.createDSLContext()
@@ -60,24 +46,6 @@ object UserQuotaResource {
       eid: UInteger
   )
 
-  def getFolderSize(folder: String): Long = {
-    val path = Paths.get(folder)
-
-    val walk = Files.walk(path)
-    try {
-      walk
-        .filter(Files.isRegularFile(_))
-        .mapToLong(p => Files.readAttributes(p, classOf[BasicFileAttributes]).size())
-        .sum()
-    } finally {
-      walk.close()
-    }
-  }
-
-  def getUserDatasetSize(uid: UInteger): Long = {
-    val datasetFolder = "./user-resources/datasets"
-    getFolderSize(datasetFolder)
-  }
 
   def getUserCreatedDataset(uid: UInteger): List[Dataset] = {
     val userDatasetEntries = context
