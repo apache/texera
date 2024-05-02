@@ -28,9 +28,9 @@ abstract class SklearnOp extends PythonOperatorDescriptor {
        |        if port == 0:
        |            self.model = model.fit(table.drop("$target", axis=1), table["$target"])
        |        else:
-       |            auc = predictions = self.model.predict(table.drop("$target", axis=1))
+       |            auc = accuracy_score(table["$target"], self.model.predict(table.drop("$target", axis=1)))
        |            print("Accuracy:", auc)
-       |            yield {"name" : $operatorName,
+       |            yield {"name" : "$operatorName",
        |                   "accuracy" : auc,
        |                   "model" : self.model}""".stripMargin
 
