@@ -46,7 +46,7 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
     @JsonPropertyDescription("Input your code here")
     public String code;
 
-    @JsonProperty(required = true)
+    @JsonProperty(required = true, defaultValue = "1")
     @JsonSchemaTitle("Worker count")
     @JsonPropertyDescription("Specify how many parallel workers to lunch")
     public Integer workers = 1;
