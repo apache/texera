@@ -13,7 +13,8 @@ from fs.base import FS
 from loguru import logger
 from core.models import Operator, SourceOperator
 # from core.models.r_executor import RSeuratSourceExecutor, RSeuratOperator
-from core.models.r_executor import RSerializeExecutor, RSerializeSourceExecutor
+from core.models.RSerializeExecutor import RSerializeExecutor, RSerializeSourceExecutor
+from core.models.RDplyrExecutor import RDplyrExecutor
 
 class ExecutorManager:
     def __init__(self):
