@@ -31,7 +31,7 @@ import edu.uci.ics.texera.workflow.operators.regex.RegexOpDesc
 import edu.uci.ics.texera.workflow.operators.reservoirsampling.ReservoirSamplingOpDesc
 import edu.uci.ics.texera.workflow.operators.sentiment.SentimentAnalysisOpDesc
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
-import edu.uci.ics.texera.workflow.operators.sklearn.{SklearnKNNOp, SklearnLPOp, SklearnLRCVOp, SklearnLROp, SklearnPAOp, SklearnPredictionOp, SklearnRRCVOp, SklearnRROp, SklearnSDGOp}
+import edu.uci.ics.texera.workflow.operators.sklearn.{SklearnKNNOp, SklearnLPOp, SklearnLRCVOp, SklearnLROp, SklearnLSVMOp, SklearnNCOp, SklearnPAOp, SklearnPredictionOp, SklearnRRCVOp, SklearnRROp, SklearnSDGOp, SklearnSVMOp}
 import edu.uci.ics.texera.workflow.operators.sort.SortOpDesc
 import edu.uci.ics.texera.workflow.operators.sortPartitions.SortPartitionsOpDesc
 import edu.uci.ics.texera.workflow.operators.source.apis.reddit.RedditSearchSourceOpDesc
@@ -173,6 +173,9 @@ trait StateTransferFunc
     new Type(value = classOf[SklearnPAOp], name = "PA"),
     new Type(value = classOf[SklearnLPOp], name = "LP"),
     new Type(value = classOf[SklearnKNNOp], name = "KNN"),
+    new Type(value = classOf[SklearnNCOp], name = "NC"),
+    new Type(value = classOf[SklearnSVMOp], name = "SVM"),
+    new Type(value = classOf[SklearnLSVMOp], name = "LSVM"),
     new Type(value = classOf[SklearnPredictionOp], name = "Prediction"),
     new Type(
       value = classOf[HuggingFaceSentimentAnalysisOpDesc],
