@@ -7,7 +7,6 @@ import { ResultTableFrameComponent } from "./result-table-frame/result-table-fra
 import { ConsoleFrameComponent } from "./console-frame/console-frame.component";
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
 import { PanelResizeService } from "../../service/workflow-result/panel-resize/panel-resize.service";
-import { VisualizationFrameComponent } from "./visualization-frame/visualization-frame.component";
 import { filter } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { isPythonUdf, isSink } from "../../service/workflow-graph/model/workflow-graph";
@@ -218,6 +217,8 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
         component: VisualizationFrameContentComponent,
         componentInputs: { operatorId },
       });
+
+      // this.extractAttributes();
     }
   }
 
@@ -258,5 +259,22 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
       this.height = height!;
       this.resizeService.changePanelSize(this.width, this.height);
     });
+  }
+
+  extractAttributes() {
+    let element = document.getElementById("result-container");
+    if (element?.children) {
+      console.log(element.children);
+      const elements = element.getElementsByTagName('*');
+      
+      for (let i = 0; i < elements.length; i++) {
+        const elem = elements[i];
+        console.log(`Element: ${elem.tagName}`);
+        for (let j = 0; j < elem.attributes.length; j++) {
+          const attr = elem.attributes[j];
+          console.log(`Attribute: ${attr.name} = ${attr.value}`);
+        }
+      }
+    }
   }
 }
