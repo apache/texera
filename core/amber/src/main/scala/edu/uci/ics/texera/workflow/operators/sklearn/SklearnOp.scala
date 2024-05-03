@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.sklearn
 
-import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
+import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
@@ -17,8 +17,9 @@ abstract class SklearnOp extends PythonOperatorDescriptor {
   @AutofillAttributeName
   var target: String = _
 
-  override def generatePythonCode(): String = model +
-    s"""$modelImport
+  override def generatePythonCode(): String =
+    model +
+      s"""$modelImport
        |from pytexera import *
        |from sklearn.metrics import accuracy_score
        |class ProcessTableOperator(UDFTableOperator):
@@ -33,13 +34,15 @@ abstract class SklearnOp extends PythonOperatorDescriptor {
        |                   "accuracy" : auc,
        |                   "model" : self.model}""".stripMargin
 
-
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
       operatorName,
       "Skleanr " + operatorName + " Operator",
       OperatorGroupConstants.MACHINE_LEARNING_GROUP,
-      inputPorts = List(InputPort(PortIdentity(), "training"),InputPort(PortIdentity(1), "testing",dependencies = List(PortIdentity()))),
+      inputPorts = List(
+        InputPort(PortIdentity(), "training"),
+        InputPort(PortIdentity(1), "testing", dependencies = List(PortIdentity()))
+      ),
       outputPorts = List(OutputPort()),
       supportReconfiguration = true
     )
