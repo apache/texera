@@ -8,7 +8,7 @@ import java.nio.file.{Files, Path}
 import java.nio.file.attribute.BasicFileAttributes
 
 object DatasetStatisticsUtils {
-   private def getFolderSize(folderPath: Path): Long = {
+  private def getFolderSize(folderPath: Path): Long = {
     val walk = Files.walk(folderPath)
     try {
       walk
