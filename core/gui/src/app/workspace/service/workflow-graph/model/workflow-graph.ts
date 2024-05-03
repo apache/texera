@@ -811,14 +811,12 @@ export class WorkflowGraph {
     if (!this.hasOperator(operatorID)) {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
     }
-    //
-    // const previousProperty = this.getSharedOperatorType(operatorID).get(
-    //   "operatorProperties"
-    // ) as YType<OperatorPropertiesType>;
+
+    const previousProperty = this.getSharedOperatorType(operatorID).get(
+      "operatorProperties"
+    ) as YType<OperatorPropertiesType>;
     // set the new copy back to the operator ID map
-    // TODO: we temporarily disable this due to Yjs update causing issues in Formly.
-    this.getSharedOperatorType(operatorID).set("operatorProperties", createYTypeFromObject(newProperty));
-    // updateYTypeFromObject(previousProperty, newProperty);
+    updateYTypeFromObject(previousProperty, newProperty);
   }
 
   public setPortProperty(operatorPortID: LogicalPort, newProperty: object) {
