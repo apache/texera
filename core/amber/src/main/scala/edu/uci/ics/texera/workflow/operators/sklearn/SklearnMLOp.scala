@@ -1,16 +1,21 @@
 package edu.uci.ics.texera.workflow.operators.sklearn
 
-import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
+import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 
-abstract class SklearnOp extends PythonOperatorDescriptor {
-  val modelImport = "from sklearn.dummy import DummyClassifier"
-  val model = "DummyClassifier()"
-  val operatorName = "Dummy Classifier"
+abstract class SklearnMLOp extends PythonOperatorDescriptor {
+  @JsonIgnore
+  var modelImport = "from sklearn.dummy import DummyClassifier"
+
+  @JsonIgnore
+  var model = "DummyClassifier()"
+
+  @JsonIgnore
+  var operatorName = "Dummy Classifier"
 
   @JsonProperty(value = "target", required = true)
   @JsonPropertyDescription("column in your dataset corresponding to target")
@@ -18,8 +23,7 @@ abstract class SklearnOp extends PythonOperatorDescriptor {
   var target: String = _
 
   override def generatePythonCode(): String =
-    model +
-      s"""$modelImport
+    s"""$modelImport
        |from pytexera import *
        |from sklearn.metrics import accuracy_score
        |class ProcessTableOperator(UDFTableOperator):
@@ -47,12 +51,11 @@ abstract class SklearnOp extends PythonOperatorDescriptor {
       supportReconfiguration = true
     )
 
-  override def getOutputSchema(schemas: Array[Schema]): Schema = {
+  override def getOutputSchema(schemas: Array[Schema]): Schema =
     Schema
       .builder()
       .add("name", AttributeType.STRING)
       .add("accuracy", AttributeType.DOUBLE)
       .add("model", AttributeType.BINARY)
       .build()
-  }
 }

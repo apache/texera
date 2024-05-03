@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.sklearn
 
-class SklearnLROp extends SklearnOp {
-  override val modelImport = "from sklearn.linear_model import LogisticRegression"
-  override val model = "LogisticRegression()"
-  override val operatorName = "Logistic Regression"
+class SklearnLROp extends SklearnMLOp {
+  modelImport = "from sklearn.linear_model import LogisticRegression"
+  model = "LogisticRegression()"
+  operatorName = "Logistic Regression"
 }
