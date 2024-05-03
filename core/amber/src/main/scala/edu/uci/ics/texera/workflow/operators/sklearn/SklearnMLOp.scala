@@ -9,13 +9,10 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 
 abstract class SklearnMLOp extends PythonOperatorDescriptor {
   @JsonIgnore
-  var modelImport = "from sklearn.dummy import DummyClassifier"
+  var model = "from sklearn.dummy import DummyClassifier"
 
   @JsonIgnore
-  var model = "DummyClassifier()"
-
-  @JsonIgnore
-  var operatorName = "Dummy Classifier"
+  var name = "Dummy Classifier"
 
   @JsonProperty(value = "target", required = true)
   @JsonPropertyDescription("column in your dataset corresponding to target")
@@ -23,25 +20,25 @@ abstract class SklearnMLOp extends PythonOperatorDescriptor {
   var target: String = _
 
   override def generatePythonCode(): String =
-    s"""$modelImport
+    s"""$model
        |from pytexera import *
        |from sklearn.metrics import accuracy_score
        |class ProcessTableOperator(UDFTableOperator):
        |    @overrides
        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
        |        if port == 0:
-       |            self.model = $model.fit(table.drop("$target", axis=1), table["$target"])
+       |            self.model = ${model.split(" ").last}().fit(table.drop("$target", axis=1), table["$target"])
        |        else:
        |            auc = accuracy_score(table["$target"], self.model.predict(table.drop("$target", axis=1)))
        |            print("Accuracy:", auc)
-       |            yield {"name" : "$operatorName",
+       |            yield {"name" : "$name",
        |                   "accuracy" : auc,
        |                   "model" : self.model}""".stripMargin
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
-      operatorName,
-      "Skleanr " + operatorName + " Operator",
+      name,
+      "Skleanr " + name + " Operator",
       OperatorGroupConstants.MACHINE_LEARNING_GROUP,
       inputPorts = List(
         InputPort(PortIdentity(), "training"),
