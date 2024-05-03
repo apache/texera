@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils
 
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.getUserCreatedDatasetList
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.PathUtils.DATASETS_ROOT
 import org.jooq.types.UInteger
 
@@ -7,7 +8,7 @@ import java.nio.file.{Files, Path}
 import java.nio.file.attribute.BasicFileAttributes
 
 object DatasetStatisticsUtils {
-  def getFolderSize(folderPath: Path): Long = {
+   private def getFolderSize(folderPath: Path): Long = {
     val walk = Files.walk(folderPath)
     try {
       walk
@@ -20,6 +21,11 @@ object DatasetStatisticsUtils {
   }
 
   def getUserDatasetSize(uid: UInteger): Long = {
-    getFolderSize(DATASETS_ROOT);
+    val datasetIDs = getUserCreatedDatasetList(uid)
+
+    datasetIDs.dids.map { did =>
+      val datasetPath = DATASETS_ROOT.resolve(did.toString)
+      getFolderSize(datasetPath)
+    }.sum
   }
 }

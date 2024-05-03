@@ -46,7 +46,8 @@ export class AdminUserService {
   }
 
   public getTotalUploadedDatasetSize(uid: number): Observable<number> {
-    return this.http.get<number>(`${USER_UPLOADED_DATASE_SIZE}`);
+    let params = new HttpParams().set("user_id", uid.toString());
+    return this.http.get<number>(`${USER_UPLOADED_DATASE_SIZE}`, { params: params });
   }
 
   public getTotalUploadedDatasetCount(uid: number): Observable<number> {
