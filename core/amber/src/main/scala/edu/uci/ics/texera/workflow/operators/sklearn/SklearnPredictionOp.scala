@@ -30,8 +30,8 @@ class SklearnPredictionOp extends PythonOperatorDescriptor {
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema =
-    Schema
-      .builder()
+    Schema.builder()
+      .add(schemas(0))
       .add("prediction", AttributeType.STRING)
       .build()
 }

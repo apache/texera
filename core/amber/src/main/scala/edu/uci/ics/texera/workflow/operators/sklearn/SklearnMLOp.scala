@@ -14,7 +14,7 @@ abstract class SklearnMLOp extends PythonOperatorDescriptor {
   @JsonIgnore
   var name = "Dummy Classifier"
 
-  @JsonProperty(value = "target", required = true)
+  @JsonProperty(value = "Target Attribute", required = true)
   @JsonPropertyDescription("column in your dataset corresponding to target")
   @AutofillAttributeName
   var target: String = _
@@ -22,17 +22,29 @@ abstract class SklearnMLOp extends PythonOperatorDescriptor {
   override def generatePythonCode(): String =
     s"""$model
        |from pytexera import *
-       |from sklearn.metrics import accuracy_score
+       |from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
        |class ProcessTableOperator(UDFTableOperator):
        |    @overrides
        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
        |        if port == 0:
-       |            self.model = ${model.split(" ").last}().fit(table.drop("$target", axis=1), table["$target"])
+       |            self.model = ${model
+      .split(" ")
+      .last}().fit(table.drop("$target", axis=1), table["$target"])
        |        else:
-       |            auc = accuracy_score(table["$target"], self.model.predict(table.drop("$target", axis=1)))
+       |            predictions = self.model.predict(table.drop("$target", axis=1))
+       |            auc = accuracy_score(table["$target"], predictions)
+       |            f1 = f1_score(table["$target"], predictions, average='micro')
+       |            precision = precision_score(table["$target"], predictions, average='micro')
+       |            recall = recall_score(table["$target"], predictions, average='micro')
        |            print("Accuracy:", auc)
+       |            print("F1:", f1)
+       |            print("Precision:", precision)
+       |            print("Recall:", recall)
        |            yield {"name" : "$name",
        |                   "accuracy" : auc,
+       |                   "f1" : f1,
+       |                   "precision" : precision,
+       |                   "recall" : recall,
        |                   "model" : self.model}""".stripMargin
 
   override def operatorInfo: OperatorInfo =
@@ -53,6 +65,9 @@ abstract class SklearnMLOp extends PythonOperatorDescriptor {
       .builder()
       .add("name", AttributeType.STRING)
       .add("accuracy", AttributeType.DOUBLE)
+      .add("f1", AttributeType.DOUBLE)
+      .add("precision", AttributeType.DOUBLE)
+      .add("recall", AttributeType.DOUBLE)
       .add("model", AttributeType.BINARY)
       .build()
 }
