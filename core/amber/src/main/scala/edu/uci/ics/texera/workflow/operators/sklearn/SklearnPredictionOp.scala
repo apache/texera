@@ -19,7 +19,7 @@ class SklearnPredictionOp extends PythonOperatorDescriptor {
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
-      "Prediction",
+      "Sklearn Prediction",
       "Skleanr Prediction Operator",
       OperatorGroupConstants.MACHINE_LEARNING_GROUP,
       inputPorts = List(
