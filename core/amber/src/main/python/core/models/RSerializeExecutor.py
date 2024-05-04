@@ -3,7 +3,9 @@ import rpy2.robjects as robjects
 from rpy2_arrow.arrow import rarrow_to_py_table, converter as arrow_converter
 from rpy2.robjects import default_converter
 from rpy2.robjects.conversion import localconverter as local_converter
-from core.models import ArrowTableTupleProvider, Tuple
+
+from typing import Iterator, List, Mapping, Optional, Union, MutableMapping
+from core.models import ArrowTableTupleProvider, Tuple, TupleLike, Table, TableLike
 from core.models.operator import SourceOperator, TableOperator
 
 class RSerializeExecutor(TableOperator):
