@@ -152,27 +152,19 @@ export function getGroupNamesSorted(groupInfoList: ReadonlyArray<GroupInfo>): st
  * returns a new empty map from the group name to a list of OperatorSchema
  */
 export function getOperatorGroupMap(operatorMetadata: OperatorMetadata): any {
-  console.log("operatorMetadata", operatorMetadata);
-  const groupInfo = operatorMetadata.groups.map(groupInfo => groupInfo);
-  console.log("groupInfo", groupInfo);
-
   const processGroup = (groupItems: any[]): any => {
     return groupItems.map(groupItem => {
       if (groupItem.children) {
-        // If there is a child group, recursively process the child group
-        const childGroups = processGroup(groupItem.children);
         return {
           name: groupItem.groupName,
-          operator: childGroups,
+          operator: processGroup(groupItem.children)
         };
       } else {
-        // If there is no child group, return the operator in the group
-        const operators = operatorMetadata.operators.filter(
-          x => x.additionalMetadata.operatorGroupName === groupItem.groupName
-        );
         return {
           name: groupItem.groupName,
-          operator: operators,
+          operator: operatorMetadata.operators.filter(
+            x => x.additionalMetadata.operatorGroupName === groupItem.groupName
+          )
         };
       }
     });
