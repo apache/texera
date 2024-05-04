@@ -37,6 +37,11 @@ class HuggingFaceIrisLogisticRegressionOpDesc extends PythonOperatorDescriptor {
   )
   var predictionProbabilityName: String = _
 
+  /**
+   *  Python code to apply a pre-trained liner regression model on the Iris dataset.
+   *  For more info about the model, see https://huggingface.co/sadhaklal/logistic-regression-iris.
+   *  @return a String representation of the executable Python source code.
+   */
   override def generatePythonCode(): String = {
     s"""from pytexera import *
        |import numpy as np
@@ -46,7 +51,6 @@ class HuggingFaceIrisLogisticRegressionOpDesc extends PythonOperatorDescriptor {
        |
        |class ProcessTupleOperator(UDFOperatorV2):
        |    def open(self):
-       |        self.device = torch.device("cpu")
        |        class LinearModel(nn.Module, PyTorchModelHubMixin):
        |            def __init__(self):
        |                super().__init__()
@@ -57,21 +61,19 @@ class HuggingFaceIrisLogisticRegressionOpDesc extends PythonOperatorDescriptor {
        |                return out
        |
        |        self.model = LinearModel.from_pretrained("sadhaklal/logistic-regression-iris")
-       |        self.model.to(self.device)
+       |        self.model.eval()
        |
        |    @overrides
        |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-       |        X_means = [3.72666667, 1.17619048]
-       |        X_stds = [1.72528903, 0.73788937]
+       |        training_features_means = [3.72666667, 1.17619048]
+       |        training_features_stds = [1.72528903, 0.73788937]
        |        length = tuple_["$petalLengthCmAttribute"]
        |        width = tuple_["$petalWidthCmAttribute"]
-       |        X_new = np.array([[length, width]])
-       |        X_new = ((X_new - X_means) / X_stds)
-       |        X_new = torch.from_numpy(X_new).float()
-       |        self.model.eval()
-       |        X_new = X_new.to(self.device)
+       |        features = np.array([[length, width]])
+       |        features = ((features - training_features_means) / training_features_stds)
+       |        features = torch.from_numpy(features).float()
        |        with torch.no_grad():
-       |            logits = self.model(X_new)
+       |            logits = self.model(features)
        |        proba = torch.sigmoid(logits.squeeze())
        |        preds = (proba > 0.5).long()
        |        tuple_["$predictionProbabilityName"] = float(proba)
