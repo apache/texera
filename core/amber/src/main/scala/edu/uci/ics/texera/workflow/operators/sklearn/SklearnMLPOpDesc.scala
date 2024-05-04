@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.sklearn
 
-class SklearnMLPOp extends SklearnMLOpDesc {
+class SklearnMLPOpDesc extends SklearnMLOpDesc {
   model = "from sklearn.neural_network import MLPClassifier"
   name = "Multi-layer Perceptron"
 }
