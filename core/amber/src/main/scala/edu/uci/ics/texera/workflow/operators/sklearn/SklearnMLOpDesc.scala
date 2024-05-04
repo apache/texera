@@ -53,8 +53,7 @@ abstract class SklearnMLOpDesc extends PythonOperatorDescriptor {
         InputPort(PortIdentity(), "training"),
         InputPort(PortIdentity(1), "testing", dependencies = List(PortIdentity()))
       ),
-      outputPorts = List(OutputPort()),
-      supportReconfiguration = true
+      outputPorts = List(OutputPort())
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema =

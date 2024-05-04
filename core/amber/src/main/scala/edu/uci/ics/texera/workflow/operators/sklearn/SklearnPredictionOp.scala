@@ -27,7 +27,6 @@ class SklearnPredictionOp extends PythonOperatorDescriptor {
         InputPort(PortIdentity(1), "testing", dependencies = List(PortIdentity()))
       ),
       outputPorts = List(OutputPort()),
-      supportReconfiguration = true
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema =
