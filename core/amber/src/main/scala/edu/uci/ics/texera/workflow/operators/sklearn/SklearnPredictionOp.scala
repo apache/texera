@@ -14,7 +14,8 @@ class SklearnPredictionOp extends PythonOperatorDescriptor {
        |        if port == 0:
        |            self.model = tuple_["model"]
        |        else:
-       |            yield {"prediction": str(self.model.predict([tuple_])[0])}""".stripMargin
+       |            tuple_["prediction"] = str(self.model.predict([tuple_])[0])
+       |            yield tuple_""".stripMargin
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
@@ -30,7 +31,8 @@ class SklearnPredictionOp extends PythonOperatorDescriptor {
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema =
-    Schema.builder()
+    Schema
+      .builder()
       .add(schemas(0))
       .add("prediction", AttributeType.STRING)
       .build()
