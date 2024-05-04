@@ -1,4 +1,3 @@
-import { JSONSchema7 } from "json-schema";
 import { CustomJSONSchema7 } from "./custom-json-schema.interface";
 
 /**
@@ -46,7 +45,6 @@ export interface OperatorSchema
 export interface GroupInfo
   extends Readonly<{
     groupName: string;
-    groupOrder: number;
     children?: GroupInfo[] | null;
   }> {}
 

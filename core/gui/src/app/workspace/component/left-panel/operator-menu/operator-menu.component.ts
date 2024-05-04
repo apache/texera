@@ -30,7 +30,7 @@ export class OperatorMenuComponent implements OnInit {
   // a list of all operator's schema
   public operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
   // a list of group names, sorted based on the groupOrder from OperatorMetadata
-  public groupNamesOrdered: ReadonlyArray<string> = [];
+  public groupNames: ReadonlyArray<GroupInfo> = [];
   // a map of group name to a list of operator schema of this group
   public operatorGroupMap = new Map<string, any>();
 
@@ -131,21 +131,10 @@ export class OperatorMenuComponent implements OnInit {
         .filter(operatorSchema => operatorSchema.operatorType != "Dummy"),
     };
     this.operatorSchemaList = operatorMetadata.operators;
-    this.groupNamesOrdered = getGroupNamesSorted(operatorMetadata.groups);
+    this.groupNames = operatorMetadata.groups;
     this.operatorGroupMap = getOperatorGroupMap(operatorMetadata);
     this.fuse.setCollection(this.operatorSchemaList);
   }
-}
-
-/**
- * generates a list of group names sorted by the order
- * slice() will make a copy of the list, because we don't want to sort the original list
- */
-export function getGroupNamesSorted(groupInfoList: ReadonlyArray<GroupInfo>): string[] {
-  return groupInfoList
-    .slice()
-    .sort((a, b) => a.groupOrder - b.groupOrder)
-    .map(groupInfo => groupInfo.groupName);
 }
 
 /**
@@ -180,6 +169,5 @@ export function getOperatorGroupMap(operatorMetadata: OperatorMetadata): any {
     operatorGroupMap.set(group.name, group.operator);
   });
 
-  console.log("operatorGroupMap", operatorGroupMap);
   return operatorGroupMap;
 }

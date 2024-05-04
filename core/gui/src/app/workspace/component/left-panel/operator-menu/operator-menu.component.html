@@ -23,9 +23,9 @@
   [nzBordered]="false"
   nzAccordion>
   <nz-collapse-panel
-    *ngFor="let groupName of groupNamesOrdered"
-    [nzHeader]="groupName"
+    *ngFor="let groupName of groupNames"
+    [nzHeader]="groupName.groupName"
     class="operator-submenu-title">
-    <texera-recursive-collapse [operators]="operatorGroupMap.get(groupName)"></texera-recursive-collapse>
+    <texera-recursive-collapse [operators]="operatorGroupMap.get(groupName.groupName)"></texera-recursive-collapse>
   </nz-collapse-panel>
 </nz-collapse>
