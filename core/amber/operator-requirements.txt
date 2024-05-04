@@ -4,5 +4,3 @@ praw
 pillow
 pybase64
 torch
-datasets
-scikit-learn
