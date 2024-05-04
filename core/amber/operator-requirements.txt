@@ -3,5 +3,4 @@ plotly
 praw
 pillow
 pybase64
-transformers
 torch
