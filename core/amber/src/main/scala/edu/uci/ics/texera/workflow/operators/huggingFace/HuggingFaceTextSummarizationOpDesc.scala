@@ -7,9 +7,9 @@ import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttribute
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 
-class HuggingFaceTextSummaryOpDesc extends PythonOperatorDescriptor {
+class HuggingFaceTextSummarizationOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "attribute", required = true)
-  @JsonPropertyDescription("column to perform text summary on")
+  @JsonPropertyDescription("attribute to perform text summarization on")
   @AutofillAttributeName
   var attribute: String = _
 
@@ -18,14 +18,14 @@ class HuggingFaceTextSummaryOpDesc extends PythonOperatorDescriptor {
     required = false,
     defaultValue = "summary"
   )
-  @JsonPropertyDescription("column name of the text summary result")
+  @JsonPropertyDescription("attribute name of the text summary result")
   var resultAttribute: String = _
 
   override def generatePythonCode(): String = {
-    s"""from pytexera import *
+    s"""
        |from transformers import BertTokenizerFast, EncoderDecoderModel
-       |import numpy as np
        |import torch
+       |from pytexera import *
        |
        |class ProcessTupleOperator(UDFOperatorV2):
        |
@@ -51,17 +51,16 @@ class HuggingFaceTextSummaryOpDesc extends PythonOperatorDescriptor {
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
-      "Hugging Face Text Summary",
+      "Hugging Face Text Summarization",
       "Summarize the given text content with a mini2bert pre-trained model from Hugging Face",
       OperatorGroupConstants.MACHINE_LEARNING_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort()),
-      supportReconfiguration = true
+      outputPorts = List(OutputPort())
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     if (resultAttribute == null || resultAttribute.trim.isEmpty)
-      return null
+      throw new RuntimeException("Result attribute name should be given")
     Schema
       .builder()
       .add(schemas(0))
