@@ -31,10 +31,15 @@ import static scala.jdk.javaapi.CollectionConverters.asScala;
 
 
 public class RUDFSourceOpDesc extends SourceOperatorDescriptor {
-
-    @JsonProperty(required = true, defaultValue =
-            "some source code")
-    @JsonSchemaTitle("R script")
+    @JsonProperty(
+        required = true,
+        defaultValue =
+            "# Input: None\n" +
+            "# Output/Return: Any R Object\n" +
+            "function() {\n\n" +
+            "}"
+    )
+    @JsonSchemaTitle("R Source UDF Script")
     @JsonPropertyDescription("Input your code here")
     public String code;
 
