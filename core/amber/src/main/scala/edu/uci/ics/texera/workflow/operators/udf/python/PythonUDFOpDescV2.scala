@@ -45,7 +45,7 @@ class PythonUDFOpDescV2 extends LogicalOp {
   @JsonPropertyDescription("Input your code here")
   var code: String = ""
 
-  @JsonProperty(required = true)
+  @JsonProperty(required = true, defaultValue = "1")
   @JsonSchemaTitle("Worker count")
   @JsonPropertyDescription("Specify how many parallel workers to lunch")
   var workers: Int = Int.box(1)
