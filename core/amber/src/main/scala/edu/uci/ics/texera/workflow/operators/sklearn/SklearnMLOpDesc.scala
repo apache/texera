@@ -21,8 +21,8 @@ abstract class SklearnMLOpDesc extends PythonOperatorDescriptor {
 
   override def generatePythonCode(): String =
     s"""$model
-       |from pytexera import *
        |from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+       |from pytexera import *
        |class ProcessTableOperator(UDFTableOperator):
        |    @overrides
        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
