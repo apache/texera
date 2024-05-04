@@ -41,24 +41,24 @@ class RSerializeExecutor(TableOperator):
             r_code (str): R code to be executed.
         """
         super().__init__()
+        # Use the local converter from rpy2 to load in the R function given by the user
         with local_converter(default_converter):
             self._func = robjects.r(r_code)
 
-    def process_table(self, table, port):
+    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
         """
-        Process the input table using the provided R function.
+        Process an input Table using the provided R function. The Table is represented as a
+        pandas.DataFrame.
 
-        Args:
-            table (pandas.DataFrame): Input table.
-            port: Port identifier.
-
-        Yields:
-            Tuple: Processed tuples.
+        :param table: Table, a table to be processed.
+        :param port: int, input port index of the current Tuple. Currently unused in R-UDF
+        :return: Iterator[Optional[TableLike]], producing one TableLike object at a
+        time, or None.
         """
         input_pyarrow_table = pa.Table.from_pandas(table)
         with local_converter(arrow_converter):
             input_object = RSerializeExecutor._arrow_to_object(input_pyarrow_table)
-            output_object = self._func(input_object)
+            output_object = self._func(input_object, port)
             output_rarrow_table = RSerializeExecutor._object_to_arrow(output_object)
             output_pyarrow_table = rarrow_to_py_table(output_rarrow_table)
 
@@ -94,15 +94,16 @@ class RSerializeSourceExecutor(SourceOperator):
             r_code (str): R code to be executed.
         """
         super().__init__()
+        # Use the local converter from rpy2 to load in the R function given by the user
         with local_converter(default_converter):
             self._func = robjects.r(r_code)
 
-    def produce(self):
+    def produce(self) -> Iterator[Union[TupleLike, TableLike, None]]:
         """
-        Produce data using the provided R function.
+        Produce Tuples or Tables using the provided R function. Used by the source operator only.
 
-        Yields:
-            Tuple: Produced tuples.
+        :return: Iterator[Union[TupleLike, TableLike, None]], producing
+            one TupleLike object, one TableLike object, or None, at a time.
         """
         with local_converter(arrow_converter):
             output_obj = self._func()
