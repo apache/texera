@@ -36,10 +36,7 @@ abstract class SklearnMLOpDesc extends PythonOperatorDescriptor {
        |            f1 = f1_score(table["$target"], predictions, average='micro')
        |            precision = precision_score(table["$target"], predictions, average='micro')
        |            recall = recall_score(table["$target"], predictions, average='micro')
-       |            print("Accuracy:", auc)
-       |            print("F1:", f1)
-       |            print("Precision:", precision)
-       |            print("Recall:", recall)
+       |            print("Accuracy:", auc, ", F1:", f1, ", Precision:", precision, ", Recall:", recall)
        |            yield {"name" : "$name",
        |                   "accuracy" : auc,
        |                   "f1" : f1,
@@ -50,7 +47,7 @@ abstract class SklearnMLOpDesc extends PythonOperatorDescriptor {
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
       name,
-      "Skleanr " + name + " Operator",
+      "Sklearn " + name + " Operator",
       OperatorGroupConstants.MACHINE_LEARNING_GROUP,
       inputPorts = List(
         InputPort(PortIdentity(), "training"),
