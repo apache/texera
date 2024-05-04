@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.sklearn
 
-class SklearnPCOp extends SklearnMLOp {
+class SklearnPCOp extends SklearnMLOpDesc {
   model = "from sklearn.calibration import CalibratedClassifierCV"
   name = "Probability Calibration"
 }

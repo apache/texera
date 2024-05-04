@@ -7,15 +7,15 @@ import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, Oper
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 
-abstract class SklearnMLOp extends PythonOperatorDescriptor {
+abstract class SklearnMLOpDesc extends PythonOperatorDescriptor {
   @JsonIgnore
-  var model = "from sklearn.dummy import DummyClassifier"
+  var model = ""
 
   @JsonIgnore
-  var name = "Dummy Classifier"
+  var name = ""
 
   @JsonProperty(value = "Target Attribute", required = true)
-  @JsonPropertyDescription("column in your dataset corresponding to target")
+  @JsonPropertyDescription("attribute in your dataset corresponding to target")
   @AutofillAttributeName
   var target: String = _
 
