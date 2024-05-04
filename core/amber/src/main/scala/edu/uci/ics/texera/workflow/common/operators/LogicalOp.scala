@@ -35,8 +35,9 @@ import edu.uci.ics.texera.workflow.operators.intervalJoin.IntervalJoinOpDesc
 import edu.uci.ics.texera.workflow.operators.keywordSearch.KeywordSearchOpDesc
 import edu.uci.ics.texera.workflow.operators.limit.LimitOpDesc
 import edu.uci.ics.texera.workflow.operators.huggingFace.{
-  HuggingFaceIrisLogisticRegressionOpDesc,
-  HuggingFaceSentimentAnalysisOpDesc
+  HuggingFaceSentimentAnalysisOpDesc,
+  HuggingFaceTextSummarizationOpDesc,
+  HuggingFaceIrisLogisticRegressionOpDesc
 }
 import edu.uci.ics.texera.workflow.operators.projection.ProjectionOpDesc
 import edu.uci.ics.texera.workflow.operators.randomksampling.RandomKSamplingOpDesc
@@ -188,6 +189,10 @@ trait StateTransferFunc
     new Type(
       value = classOf[HuggingFaceSentimentAnalysisOpDesc],
       name = "HuggingFaceSentimentAnalysis"
+    ),
+    new Type(
+      value = classOf[HuggingFaceTextSummarizationOpDesc],
+      name = "HuggingFaceTextSummarization"
     ),
     new Type(
       value = classOf[HuggingFaceIrisLogisticRegressionOpDesc],
