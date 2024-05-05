@@ -14,7 +14,7 @@ class HuggingFaceSpamSMSDetectionOpDesc extends PythonOperatorDescriptor {
   var attribute: String = _
 
   @JsonProperty(
-    value = "spam result attribute",
+    value = "Spam result attribute",
     required = true,
     defaultValue = "is_spam"
   )
@@ -22,27 +22,27 @@ class HuggingFaceSpamSMSDetectionOpDesc extends PythonOperatorDescriptor {
   var resultAttributeSpam: String = _
 
   @JsonProperty(
-    value = "Neutral result attribute",
+    value = "Score result attribute",
     required = true,
     defaultValue = "score"
   )
-  @JsonPropertyDescription("column name of score for classification")
-  var resultAttributeScore: String = _
+  @JsonPropertyDescription("column name of Probability for classification")
+  var resultAttributeProbability: String = _
 
   override def generatePythonCode(): String = {
-    s"""from pytexera import *
-       |from transformers import pipeline
+    s"""from transformers import pipeline
+       |from pytexera import *
        |
        |class ProcessTupleOperator(UDFOperatorV2):
        |
        |    def open(self):
-       |        self.pipe = pipeline("text-classification", model="mrm8488/bert-tiny-finetuned-sms-spam-detection")
+       |        self.pipeline = pipeline("text-classification", model="mrm8488/bert-tiny-finetuned-sms-spam-detection")
        |
        |    @overrides
        |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-       |        result = self.pipe(tuple_["$attribute"])[0]
+       |        result = self.pipeline(tuple_["$attribute"])[0]
        |        tuple_["$resultAttributeSpam"] = (result["label"] == "LABEL_1")
-       |        tuple_["$resultAttributeScore"] = result["score"]
+       |        tuple_["$resultAttributeProbability"] = result["score"]
        |        yield tuple_""".stripMargin
   }
 
@@ -52,21 +52,15 @@ class HuggingFaceSpamSMSDetectionOpDesc extends PythonOperatorDescriptor {
       "Spam Detection by SMS Spam Detection Model from Hugging Face",
       OperatorGroupConstants.MACHINE_LEARNING_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort()),
-      supportReconfiguration = true
+      outputPorts = List(OutputPort())
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    if (
-      resultAttributeSpam == null || resultAttributeSpam.trim.isEmpty ||
-      resultAttributeScore == null || resultAttributeScore.trim.isEmpty
-    )
-      return null
     Schema
       .builder()
       .add(schemas(0))
       .add(resultAttributeSpam, AttributeType.BOOLEAN)
-      .add(resultAttributeScore, AttributeType.DOUBLE)
+      .add(resultAttributeProbability, AttributeType.DOUBLE)
       .build()
   }
 }
