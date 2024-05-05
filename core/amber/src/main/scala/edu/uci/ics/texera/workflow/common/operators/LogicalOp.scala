@@ -59,7 +59,7 @@ import edu.uci.ics.texera.workflow.operators.sklearn.{
   SklearnLinearSVMOpDesc,
   SklearnLogisticRegressionCVOpDesc,
   SklearnLogisticRegressionOpDesc,
-  SklearnMLPOpDesc,
+  SklearnMultiLayerPerceptronOpDesc,
   SklearnMultinomialNaiveBayesOpDesc,
   SklearnNearestCentroidOpDesc,
   SklearnPassiveAggressiveOpDesc,
@@ -229,7 +229,7 @@ trait StateTransferFunc
     new Type(value = classOf[SklearnLinearSVMOpDesc], name = "SklearnLinearSVM"),
     new Type(value = classOf[SklearnDecisionTreeOpDesc], name = "SklearnDecisionTree"),
     new Type(value = classOf[SklearnExtraTreeOpDesc], name = "SklearnExtraTree"),
-    new Type(value = classOf[SklearnMLPOpDesc], name = "SklearnMLP"),
+    new Type(value = classOf[SklearnMultiLayerPerceptronOpDesc], name = "SklearnMultiLayerPerceptron"),
     new Type(
       value = classOf[SklearnProbabilityCalibrationOpDesc],
       name = "SklearnProbabilityCalibration"
