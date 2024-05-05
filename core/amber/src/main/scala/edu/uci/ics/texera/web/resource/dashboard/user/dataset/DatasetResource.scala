@@ -187,32 +187,6 @@ object DatasetResource {
     latestVersion
   }
 
-  // this function retrieves the total counts of dataset that belongs to the user
-  def getUserCreatedDatasetCount(uid: UInteger): Int = {
-    val count = context
-      .selectCount()
-      .from(DATASET)
-      .where(DATASET.OWNER_UID.eq(uid))
-      .fetchOne(0, classOf[Int])
-
-    count
-  }
-
-  // this function would return a list of dataset ids that belongs to the user
-  def getUserCreatedDatasetList(uid: UInteger): DatasetIDs = {
-    val datasetIDs = context
-      .select(
-        DATASET.DID
-      )
-      .from(DATASET)
-      .where(DATASET.OWNER_UID.eq(uid))
-      .fetch()
-
-    val idsList: List[UInteger] = datasetIDs.asScala.map(_.getValue(DATASET.DID)).toList
-
-    DatasetIDs(idsList)
-  }
-
   // DatasetOperation defines the operations that will be applied when creating a new dataset version
   private case class DatasetOperation(
       filesToAdd: Map[java.nio.file.Path, InputStream],
