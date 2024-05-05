@@ -37,7 +37,7 @@ class SklearnPredictionOpDesc extends PythonOperatorDescriptor {
         InputPort(PortIdentity(), "model"),
         InputPort(PortIdentity(1), "testing", dependencies = List(PortIdentity()))
       ),
-      outputPorts = List(OutputPort()),
+      outputPorts = List(OutputPort())
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema =

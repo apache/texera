@@ -1,10 +1,20 @@
 package edu.uci.ics.texera.workflow.common.operators
 
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type
-import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription, JsonSubTypes, JsonTypeInfo}
+import com.fasterxml.jackson.annotation.{
+  JsonIgnore,
+  JsonProperty,
+  JsonPropertyDescription,
+  JsonSubTypes,
+  JsonTypeInfo
+}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
-import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, OperatorIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ExecutionIdentity,
+  OperatorIdentity,
+  WorkflowIdentity
+}
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.web.OPversion
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorInfo, PropertyNameConstants}
@@ -24,18 +34,50 @@ import edu.uci.ics.texera.workflow.operators.intersect.IntersectOpDesc
 import edu.uci.ics.texera.workflow.operators.intervalJoin.IntervalJoinOpDesc
 import edu.uci.ics.texera.workflow.operators.keywordSearch.KeywordSearchOpDesc
 import edu.uci.ics.texera.workflow.operators.limit.LimitOpDesc
-import edu.uci.ics.texera.workflow.operators.huggingFace.{HuggingFaceSentimentAnalysisOpDesc, HuggingFaceTextSummarizationOpDesc}
+import edu.uci.ics.texera.workflow.operators.huggingFace.{
+  HuggingFaceSentimentAnalysisOpDesc,
+  HuggingFaceTextSummarizationOpDesc
+}
 import edu.uci.ics.texera.workflow.operators.projection.ProjectionOpDesc
 import edu.uci.ics.texera.workflow.operators.randomksampling.RandomKSamplingOpDesc
 import edu.uci.ics.texera.workflow.operators.regex.RegexOpDesc
 import edu.uci.ics.texera.workflow.operators.reservoirsampling.ReservoirSamplingOpDesc
 import edu.uci.ics.texera.workflow.operators.sentiment.SentimentAnalysisOpDesc
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
-import edu.uci.ics.texera.workflow.operators.sklearn.{SklearnAdaptiveBoostingOpDesc, SklearnBaggingOpDesc, SklearnBernoulliNaiveBayesOpDesc, SklearnComplementNaiveBayesOpDesc, SklearnDecisionTreeOpDesc, SklearnDummyClassifierOpDesc, SklearnExtraTreeOpDesc, SklearnExtraTreesOpDesc, SklearnGradientBoostingOpDesc, SklearnKNNOpDesc, SklearnLinearSVMOpDesc, SklearnLogisticRegressionCVOpDesc, SklearnLogisticRegressionOpDesc, SklearnMLPOpDesc, SklearnMultinomialNaiveBayesOpDesc, SklearnNearestCentroidOpDesc, SklearnPassiveAggressiveOpDesc, SklearnPerceptronOpDesc, SklearnPredictionOpDesc, SklearnProbabilityCalibrationOpDesc, SklearnRandomForestOpDesc, SklearnRidgeCVOpDesc, SklearnRidgeOpDesc, SklearnSDGOpDesc, SklearnSVMOpDesc}
+import edu.uci.ics.texera.workflow.operators.sklearn.{
+  SklearnAdaptiveBoostingOpDesc,
+  SklearnBaggingOpDesc,
+  SklearnBernoulliNaiveBayesOpDesc,
+  SklearnComplementNaiveBayesOpDesc,
+  SklearnDecisionTreeOpDesc,
+  SklearnDummyClassifierOpDesc,
+  SklearnExtraTreeOpDesc,
+  SklearnExtraTreesOpDesc,
+  SklearnGradientBoostingOpDesc,
+  SklearnKNNOpDesc,
+  SklearnLinearSVMOpDesc,
+  SklearnLogisticRegressionCVOpDesc,
+  SklearnLogisticRegressionOpDesc,
+  SklearnMLPOpDesc,
+  SklearnMultinomialNaiveBayesOpDesc,
+  SklearnNearestCentroidOpDesc,
+  SklearnPassiveAggressiveOpDesc,
+  SklearnPerceptronOpDesc,
+  SklearnPredictionOpDesc,
+  SklearnProbabilityCalibrationOpDesc,
+  SklearnRandomForestOpDesc,
+  SklearnRidgeCVOpDesc,
+  SklearnRidgeOpDesc,
+  SklearnSDGOpDesc,
+  SklearnSVMOpDesc
+}
 import edu.uci.ics.texera.workflow.operators.sort.SortOpDesc
 import edu.uci.ics.texera.workflow.operators.sortPartitions.SortPartitionsOpDesc
 import edu.uci.ics.texera.workflow.operators.source.apis.reddit.RedditSearchSourceOpDesc
-import edu.uci.ics.texera.workflow.operators.source.apis.twitter.v2.{TwitterFullArchiveSearchSourceOpDesc, TwitterSearchSourceOpDesc}
+import edu.uci.ics.texera.workflow.operators.source.apis.twitter.v2.{
+  TwitterFullArchiveSearchSourceOpDesc,
+  TwitterSearchSourceOpDesc
+}
 import edu.uci.ics.texera.workflow.operators.source.fetcher.URLFetcherOpDesc
 import edu.uci.ics.texera.workflow.operators.source.scan.FileScanSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.scan.csv.CSVScanSourceOpDesc
@@ -50,7 +92,12 @@ import edu.uci.ics.texera.workflow.operators.symmetricDifference.SymmetricDiffer
 import edu.uci.ics.texera.workflow.operators.typecasting.TypeCastingOpDesc
 import edu.uci.ics.texera.workflow.operators.udf.java.JavaUDFOpDesc
 import edu.uci.ics.texera.workflow.operators.udf.python.source.PythonUDFSourceOpDescV2
-import edu.uci.ics.texera.workflow.operators.udf.python.{DualInputPortsPythonUDFOpDescV2, PythonLambdaFunctionOpDesc, PythonTableReducerOpDesc, PythonUDFOpDescV2}
+import edu.uci.ics.texera.workflow.operators.udf.python.{
+  DualInputPortsPythonUDFOpDescV2,
+  PythonLambdaFunctionOpDesc,
+  PythonTableReducerOpDesc,
+  PythonUDFOpDescV2
+}
 import edu.uci.ics.texera.workflow.operators.union.UnionOpDesc
 import edu.uci.ics.texera.workflow.operators.unneststring.UnnestStringOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.boxPlot.BoxPlotOpDesc
@@ -166,7 +213,10 @@ trait StateTransferFunc
     new Type(value = classOf[JavaUDFOpDesc], name = "JavaUDF"),
     new Type(value = classOf[SortOpDesc], name = "Sort"),
     new Type(value = classOf[SklearnLogisticRegressionOpDesc], name = "SklearnLogisticRegression"),
-    new Type(value = classOf[SklearnLogisticRegressionCVOpDesc], name = "SklearnLogisticRegressionCV"),
+    new Type(
+      value = classOf[SklearnLogisticRegressionCVOpDesc],
+      name = "SklearnLogisticRegressionCV"
+    ),
     new Type(value = classOf[SklearnRidgeOpDesc], name = "SklearnRidge"),
     new Type(value = classOf[SklearnRidgeCVOpDesc], name = "SklearnRidgeCV"),
     new Type(value = classOf[SklearnSDGOpDesc], name = "SklearnSDG"),
@@ -179,15 +229,27 @@ trait StateTransferFunc
     new Type(value = classOf[SklearnDecisionTreeOpDesc], name = "SklearnDecisionTree"),
     new Type(value = classOf[SklearnExtraTreeOpDesc], name = "SklearnExtraTree"),
     new Type(value = classOf[SklearnMLPOpDesc], name = "SklearnMLP"),
-    new Type(value = classOf[SklearnProbabilityCalibrationOpDesc], name = "SklearnProbabilityCalibration"),
+    new Type(
+      value = classOf[SklearnProbabilityCalibrationOpDesc],
+      name = "SklearnProbabilityCalibration"
+    ),
     new Type(value = classOf[SklearnRandomForestOpDesc], name = "SklearnRandomForest"),
     new Type(value = classOf[SklearnBaggingOpDesc], name = "SklearnBagging"),
     new Type(value = classOf[SklearnGradientBoostingOpDesc], name = "SklearnGradientBoosting"),
     new Type(value = classOf[SklearnAdaptiveBoostingOpDesc], name = "SklearnAdaptiveBoosting"),
     new Type(value = classOf[SklearnExtraTreesOpDesc], name = "SklearnExtraTrees"),
-    new Type(value = classOf[SklearnMultinomialNaiveBayesOpDesc], name = "SklearnMultinomialNaiveBayes"),
-    new Type(value = classOf[SklearnComplementNaiveBayesOpDesc], name = "SklearnComplementNaiveBayes"),
-    new Type(value = classOf[SklearnBernoulliNaiveBayesOpDesc], name = "SklearnBernoulliNaiveBayes"),
+    new Type(
+      value = classOf[SklearnMultinomialNaiveBayesOpDesc],
+      name = "SklearnMultinomialNaiveBayes"
+    ),
+    new Type(
+      value = classOf[SklearnComplementNaiveBayesOpDesc],
+      name = "SklearnComplementNaiveBayes"
+    ),
+    new Type(
+      value = classOf[SklearnBernoulliNaiveBayesOpDesc],
+      name = "SklearnBernoulliNaiveBayes"
+    ),
     new Type(value = classOf[SklearnDummyClassifierOpDesc], name = "SklearnDummyClassifier"),
     new Type(value = classOf[SklearnPredictionOpDesc], name = "SklearnPrediction"),
     new Type(
