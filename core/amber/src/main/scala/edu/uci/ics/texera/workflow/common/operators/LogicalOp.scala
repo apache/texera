@@ -263,13 +263,12 @@ trait StateTransferFunc
       name = "HuggingFaceSentimentAnalysis"
     ),
     new Type(
-<<<<<<< HEAD
-      value = classOf[HuggingFaceSpamSMSDetectionOpDesc],
-      name = "HuggingFaceSpamSMSDetection"
-=======
       value = classOf[HuggingFaceTextSummarizationOpDesc],
       name = "HuggingFaceTextSummarization"
->>>>>>> master
+    ),
+    new Type(
+      value = classOf[HuggingFaceSpamSMSDetectionOpDesc],
+      name = "HuggingFaceSpamSMSDetection"
     )
   )
 )
