@@ -31,7 +31,7 @@ import edu.uci.ics.texera.workflow.operators.regex.RegexOpDesc
 import edu.uci.ics.texera.workflow.operators.reservoirsampling.ReservoirSamplingOpDesc
 import edu.uci.ics.texera.workflow.operators.sentiment.SentimentAnalysisOpDesc
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
-import edu.uci.ics.texera.workflow.operators.sklearn.{SklearnAdaBoostOpDesc, SklearnBaggingOpDesc, SklearnDecisionTreeOpDesc, SklearnExtraTreeOpDesc, SklearnGradientBoostingOpDesc, SklearnKNNOpDesc, SklearnLinearSVMOpDesc, SklearnLogisticRegressionCVOpDesc, SklearnLogisticRegressionOpDesc, SklearnMLPOpDesc, SklearnNearestCentroidOpDesc, SklearnPassiveAggressiveOpDesc, SklearnPerceptronOpDesc, SklearnPredictionOpDesc, SklearnProbabilityCalibrationOpDesc, SklearnRandomForestOpDesc, SklearnRidgeCVOpDesc, SklearnRidgeOpDesc, SklearnSDGOpDesc, SklearnSVMOpDesc}
+import edu.uci.ics.texera.workflow.operators.sklearn.{SklearnAdaptiveBoostingOpDesc, SklearnBaggingOpDesc, SklearnDecisionTreeOpDesc, SklearnExtraTreeOpDesc, SklearnGradientBoostingOpDesc, SklearnKNNOpDesc, SklearnLinearSVMOpDesc, SklearnLogisticRegressionCVOpDesc, SklearnLogisticRegressionOpDesc, SklearnMLPOpDesc, SklearnNearestCentroidOpDesc, SklearnPassiveAggressiveOpDesc, SklearnPerceptronOpDesc, SklearnPredictionOpDesc, SklearnProbabilityCalibrationOpDesc, SklearnRandomForestOpDesc, SklearnRidgeCVOpDesc, SklearnRidgeOpDesc, SklearnSDGOpDesc, SklearnSVMOpDesc}
 import edu.uci.ics.texera.workflow.operators.sort.SortOpDesc
 import edu.uci.ics.texera.workflow.operators.sortPartitions.SortPartitionsOpDesc
 import edu.uci.ics.texera.workflow.operators.source.apis.reddit.RedditSearchSourceOpDesc
@@ -180,10 +180,10 @@ trait StateTransferFunc
     new Type(value = classOf[SklearnExtraTreeOpDesc], name = "SklearnExtraTree"),
     new Type(value = classOf[SklearnMLPOpDesc], name = "SklearnMLP"),
     new Type(value = classOf[SklearnProbabilityCalibrationOpDesc], name = "SklearnProbabilityCalibration"),
-    new Type(value = classOf[SklearnAdaBoostOpDesc], name = "SklearnAdaBoost"),
     new Type(value = classOf[SklearnRandomForestOpDesc], name = "SklearnRandomForest"),
     new Type(value = classOf[SklearnBaggingOpDesc], name = "SklearnBagging"),
     new Type(value = classOf[SklearnGradientBoostingOpDesc], name = "SklearnGradientBoosting"),
+    new Type(value = classOf[SklearnAdaptiveBoostingOpDesc], name = "SklearnAdaptiveBoosting"),
     new Type(value = classOf[SklearnPredictionOpDesc], name = "SklearnPrediction"),
     new Type(
       value = classOf[HuggingFaceSentimentAnalysisOpDesc],

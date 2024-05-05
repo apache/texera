@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.sklearn
 
-class SklearnAdaBoostOpDesc extends SklearnMLOpDesc {
+class SklearnAdaptiveBoostingOpDesc extends SklearnMLOpDesc {
   model = "from sklearn.ensemble import AdaBoostClassifier"
-  name = "AdaBoost"
+  name = "Adaptive Boosting"
 }
