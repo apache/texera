@@ -18,6 +18,13 @@
     </nz-auto-option>
   </nz-autocomplete>
 </div>
+
+<ng-container *ngTemplateOutlet="itemTemplate; context: { $implicit: item }"></ng-container>
+
+<ng-template #itemTemplate let-item>
+  <div>{{ item.name }}</div>
+</ng-template>
+
 <nz-collapse
   id="operator-menu"
   [nzBordered]="false"

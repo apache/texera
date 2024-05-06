@@ -27,6 +27,8 @@ import { NzAutocompleteOptionComponent } from "ng-zorro-antd/auto-complete";
   styleUrls: ["operator-menu.component.scss"],
 })
 export class OperatorMenuComponent implements OnInit {
+
+  public opList = new Map<string, Array<OperatorSchema>>();
   // a list of all operator's schema
   public operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
   // a list of group names, sorted based on the groupOrder from OperatorMetadata
@@ -133,6 +135,14 @@ export class OperatorMenuComponent implements OnInit {
     this.operatorSchemaList = operatorMetadata.operators;
     this.groupNames = operatorMetadata.groups;
     this.operatorGroupMap = getOperatorGroupMap(operatorMetadata);
+
+    operatorMetadata.operators.forEach(x => {
+      const group = x.additionalMetadata.operatorGroupName;
+      const list = this.opList.get(group) || [];
+      list.push(x);
+      this.opList.set(group, list);
+    });
+
     this.fuse.setCollection(this.operatorSchemaList);
   }
 }
