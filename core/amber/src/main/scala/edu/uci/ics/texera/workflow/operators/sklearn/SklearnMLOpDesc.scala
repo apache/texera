@@ -8,20 +8,28 @@ import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 
 abstract class SklearnMLOpDesc extends PythonOperatorDescriptor {
+
+
   @JsonIgnore
   var model = ""
 
   @JsonIgnore
   var name = ""
 
+
   @JsonProperty(value = "Target Attribute", required = true)
   @JsonPropertyDescription("attribute in your dataset corresponding to target")
   @AutofillAttributeName
   var target: String = _
 
+  @JsonProperty(value = "Is classification?", defaultValue = "true", required = true)
+  @JsonPropertyDescription("is the model a classification?")
+  var classification: Boolean = true
+
   override def generatePythonCode(): String =
     s"""$model
-       |from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+       |from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, mean_absolute_error, r2_score
+       |import pandas as pd
        |from pytexera import *
        |class ProcessTableOperator(UDFTableOperator):
        |    @overrides
@@ -32,17 +40,26 @@ abstract class SklearnMLOpDesc extends PythonOperatorDescriptor {
       .last}().fit(table.drop("$target", axis=1), table["$target"])
        |        else:
        |            predictions = self.model.predict(table.drop("$target", axis=1))
-       |            auc = accuracy_score(table["$target"], predictions)
-       |            f1 = f1_score(table["$target"], predictions, average='micro')
-       |            precision = precision_score(table["$target"], predictions, average='micro')
-       |            recall = recall_score(table["$target"], predictions, average='micro')
-       |            print("Accuracy:", auc, ", F1:", f1, ", Precision:", precision, ", Recall:", recall)
-       |            yield {"name" : "$name",
+       |            if ${if(classification)"True" else "False"}:
+       |                auc = accuracy_score(table["$target"], predictions)
+       |                f1 = f1_score(table["$target"], predictions, average='micro')
+       |                precision = precision_score(table["$target"], predictions, average='micro')
+       |                recall = recall_score(table["$target"], predictions, average='micro')
+       |                print("Accuracy:", auc, ", F1:", f1, ", Precision:", precision, ", Recall:", recall)
+       |                yield {"name" : "$name",
        |                   "accuracy" : auc,
        |                   "f1" : f1,
        |                   "precision" : precision,
        |                   "recall" : recall,
-       |                   "model" : self.model}""".stripMargin
+       |                   "model" : self.model}
+       |            else:
+       |                mae = mean_absolute_error(table["$target"], predictions)
+       |                r2 = r2_score(table["$target"], predictions)
+       |                print("MAE:", mae, "R2:", r2)
+       |                yield {"name" : "$name",
+       |                  "mae": mae,
+       |                  "r2": r2}
+       |                   """.stripMargin
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
@@ -56,14 +73,22 @@ abstract class SklearnMLOpDesc extends PythonOperatorDescriptor {
       outputPorts = List(OutputPort())
     )
 
-  override def getOutputSchema(schemas: Array[Schema]): Schema =
-    Schema
+  override def getOutputSchema(schemas: Array[Schema]): Schema = {
+    val builder = Schema
       .builder()
       .add("name", AttributeType.STRING)
-      .add("accuracy", AttributeType.DOUBLE)
-      .add("f1", AttributeType.DOUBLE)
-      .add("precision", AttributeType.DOUBLE)
-      .add("recall", AttributeType.DOUBLE)
-      .add("model", AttributeType.BINARY)
-      .build()
+      if (classification){
+        builder.add("accuracy", AttributeType.DOUBLE)
+          .add("f1", AttributeType.DOUBLE)
+          .add("precision", AttributeType.DOUBLE)
+          .add("recall", AttributeType.DOUBLE)
+          .add("model", AttributeType.BINARY)
+
+      }else {
+        builder.add("mae", AttributeType.DOUBLE)
+        builder.add("r2", AttributeType.DOUBLE)
+      }
+    builder.build()
+
+  }
 }
