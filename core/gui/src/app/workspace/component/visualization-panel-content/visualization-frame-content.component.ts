@@ -1,9 +1,8 @@
-import { AfterContentInit, Component, inject } from "@angular/core";
+import { AfterContentInit, Component, Input } from "@angular/core";
 import { DomSanitizer } from "@angular/platform-browser";
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
 import { auditTime, filter } from "rxjs/operators";
 import { untilDestroyed, UntilDestroy } from "@ngneat/until-destroy";
-import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
 
 @UntilDestroy()
 @Component({
@@ -12,7 +11,8 @@ import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
   styleUrls: ["./visualization-frame-content.component.scss"],
 })
 export class VisualizationFrameContentComponent implements AfterContentInit {
-  operatorId: string = inject(NZ_MODAL_DATA).operatorId;
+  // operatorId: string = inject(NZ_MODAL_DATA).operatorId;
+  @Input() operatorId?: string;
   // progressive visualization update and redraw interval in milliseconds
   public static readonly UPDATE_INTERVAL_MS = 2000;
   htmlData: any = "";
@@ -49,6 +49,21 @@ export class VisualizationFrameContentComponent implements AfterContentInit {
     if (!data) {
       return;
     }
-    this.htmlData = this.sanitizer.bypassSecurityTrustHtml(Object(data[0])["html-content"]); // this line bypasses angular security
+
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(Object(data[0])["html-content"], "text/html");
+
+    doc.documentElement.style.height = "100%";
+    doc.body.style.height = "100%";
+
+    const firstDiv = doc.body.querySelector("div");
+    if (firstDiv) {
+      firstDiv.style.height = "100%";
+    }
+
+    const serializer = new XMLSerializer();
+    const newHtmlString = serializer.serializeToString(doc);
+
+    this.htmlData = this.sanitizer.bypassSecurityTrustHtml(newHtmlString); // this line bypasses angular security
   }
 }
