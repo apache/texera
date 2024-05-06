@@ -37,6 +37,7 @@ import edu.uci.ics.texera.workflow.operators.limit.LimitOpDesc
 import edu.uci.ics.texera.workflow.operators.huggingFace.{
   HuggingFaceSentimentAnalysisOpDesc,
   HuggingFaceTextSummarizationOpDesc,
+  HuggingFaceSpamSMSDetectionOpDesc,
   HuggingFaceIrisLogisticRegressionOpDesc
 }
 import edu.uci.ics.texera.workflow.operators.projection.ProjectionOpDesc
@@ -45,6 +46,34 @@ import edu.uci.ics.texera.workflow.operators.regex.RegexOpDesc
 import edu.uci.ics.texera.workflow.operators.reservoirsampling.ReservoirSamplingOpDesc
 import edu.uci.ics.texera.workflow.operators.sentiment.SentimentAnalysisOpDesc
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
+import edu.uci.ics.texera.workflow.operators.sklearn.{
+  SklearnAdaptiveBoostingOpDesc,
+  SklearnBaggingOpDesc,
+  SklearnBernoulliNaiveBayesOpDesc,
+  SklearnComplementNaiveBayesOpDesc,
+  SklearnDecisionTreeOpDesc,
+  SklearnDummyClassifierOpDesc,
+  SklearnExtraTreeOpDesc,
+  SklearnExtraTreesOpDesc,
+  SklearnGaussianNaiveBayesOpDesc,
+  SklearnGradientBoostingOpDesc,
+  SklearnKNNOpDesc,
+  SklearnLinearSVMOpDesc,
+  SklearnLogisticRegressionCVOpDesc,
+  SklearnLogisticRegressionOpDesc,
+  SklearnMultiLayerPerceptronOpDesc,
+  SklearnMultinomialNaiveBayesOpDesc,
+  SklearnNearestCentroidOpDesc,
+  SklearnPassiveAggressiveOpDesc,
+  SklearnPerceptronOpDesc,
+  SklearnPredictionOpDesc,
+  SklearnProbabilityCalibrationOpDesc,
+  SklearnRandomForestOpDesc,
+  SklearnRidgeCVOpDesc,
+  SklearnRidgeOpDesc,
+  SklearnSDGOpDesc,
+  SklearnSVMOpDesc
+}
 import edu.uci.ics.texera.workflow.operators.sort.SortOpDesc
 import edu.uci.ics.texera.workflow.operators.sortPartitions.SortPartitionsOpDesc
 import edu.uci.ics.texera.workflow.operators.source.apis.reddit.RedditSearchSourceOpDesc
@@ -186,6 +215,50 @@ trait StateTransferFunc
     new Type(value = classOf[TablesPlotOpDesc], name = "TablesPlot"),
     new Type(value = classOf[JavaUDFOpDesc], name = "JavaUDF"),
     new Type(value = classOf[SortOpDesc], name = "Sort"),
+    new Type(value = classOf[SklearnLogisticRegressionOpDesc], name = "SklearnLogisticRegression"),
+    new Type(
+      value = classOf[SklearnLogisticRegressionCVOpDesc],
+      name = "SklearnLogisticRegressionCV"
+    ),
+    new Type(value = classOf[SklearnRidgeOpDesc], name = "SklearnRidge"),
+    new Type(value = classOf[SklearnRidgeCVOpDesc], name = "SklearnRidgeCV"),
+    new Type(value = classOf[SklearnSDGOpDesc], name = "SklearnSDG"),
+    new Type(value = classOf[SklearnPassiveAggressiveOpDesc], name = "SklearnPassiveAggressive"),
+    new Type(value = classOf[SklearnPerceptronOpDesc], name = "SklearnPerceptron"),
+    new Type(value = classOf[SklearnKNNOpDesc], name = "SklearnKNN"),
+    new Type(value = classOf[SklearnNearestCentroidOpDesc], name = "SklearnNearestCentroid"),
+    new Type(value = classOf[SklearnSVMOpDesc], name = "SklearnSVM"),
+    new Type(value = classOf[SklearnLinearSVMOpDesc], name = "SklearnLinearSVM"),
+    new Type(value = classOf[SklearnDecisionTreeOpDesc], name = "SklearnDecisionTree"),
+    new Type(value = classOf[SklearnExtraTreeOpDesc], name = "SklearnExtraTree"),
+    new Type(
+      value = classOf[SklearnMultiLayerPerceptronOpDesc],
+      name = "SklearnMultiLayerPerceptron"
+    ),
+    new Type(
+      value = classOf[SklearnProbabilityCalibrationOpDesc],
+      name = "SklearnProbabilityCalibration"
+    ),
+    new Type(value = classOf[SklearnRandomForestOpDesc], name = "SklearnRandomForest"),
+    new Type(value = classOf[SklearnBaggingOpDesc], name = "SklearnBagging"),
+    new Type(value = classOf[SklearnGradientBoostingOpDesc], name = "SklearnGradientBoosting"),
+    new Type(value = classOf[SklearnAdaptiveBoostingOpDesc], name = "SklearnAdaptiveBoosting"),
+    new Type(value = classOf[SklearnExtraTreesOpDesc], name = "SklearnExtraTrees"),
+    new Type(value = classOf[SklearnGaussianNaiveBayesOpDesc], name = "SklearnGaussianNaiveBayes"),
+    new Type(
+      value = classOf[SklearnMultinomialNaiveBayesOpDesc],
+      name = "SklearnMultinomialNaiveBayes"
+    ),
+    new Type(
+      value = classOf[SklearnComplementNaiveBayesOpDesc],
+      name = "SklearnComplementNaiveBayes"
+    ),
+    new Type(
+      value = classOf[SklearnBernoulliNaiveBayesOpDesc],
+      name = "SklearnBernoulliNaiveBayes"
+    ),
+    new Type(value = classOf[SklearnDummyClassifierOpDesc], name = "SklearnDummyClassifier"),
+    new Type(value = classOf[SklearnPredictionOpDesc], name = "SklearnPrediction"),
     new Type(
       value = classOf[HuggingFaceSentimentAnalysisOpDesc],
       name = "HuggingFaceSentimentAnalysis"
@@ -193,6 +266,10 @@ trait StateTransferFunc
     new Type(
       value = classOf[HuggingFaceTextSummarizationOpDesc],
       name = "HuggingFaceTextSummarization"
+    ),
+    new Type(
+      value = classOf[HuggingFaceSpamSMSDetectionOpDesc],
+      name = "HuggingFaceSpamSMSDetection"
     ),
     new Type(
       value = classOf[HuggingFaceIrisLogisticRegressionOpDesc],
