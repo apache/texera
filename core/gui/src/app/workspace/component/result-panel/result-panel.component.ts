@@ -217,8 +217,6 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
         component: VisualizationFrameContentComponent,
         componentInputs: { operatorId },
       });
-
-      // this.extractAttributes();
     }
   }
 
@@ -259,22 +257,5 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
       this.height = height!;
       this.resizeService.changePanelSize(this.width, this.height);
     });
-  }
-
-  extractAttributes() {
-    let element = document.getElementById("result-container");
-    if (element?.children) {
-      console.log(element.children);
-      const elements = element.getElementsByTagName('*');
-      
-      for (let i = 0; i < elements.length; i++) {
-        const elem = elements[i];
-        console.log(`Element: ${elem.tagName}`);
-        for (let j = 0; j < elem.attributes.length; j++) {
-          const attr = elem.attributes[j];
-          console.log(`Attribute: ${attr.name} = ${attr.value}`);
-        }
-      }
-    }
   }
 }
