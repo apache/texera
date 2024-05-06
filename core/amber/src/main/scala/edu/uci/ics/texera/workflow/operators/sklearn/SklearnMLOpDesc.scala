@@ -16,15 +16,15 @@ abstract class SklearnMLOpDesc extends PythonOperatorDescriptor {
   @JsonIgnore
   var name = ""
 
+  @JsonIgnore
+  var classification: Boolean = true
+
 
   @JsonProperty(value = "Target Attribute", required = true)
   @JsonPropertyDescription("attribute in your dataset corresponding to target")
   @AutofillAttributeName
   var target: String = _
 
-  @JsonProperty(value = "Is classification?", defaultValue = "true", required = true)
-  @JsonPropertyDescription("is the model a classification?")
-  var classification: Boolean = true
 
   override def generatePythonCode(): String =
     s"""$model
@@ -55,7 +55,7 @@ abstract class SklearnMLOpDesc extends PythonOperatorDescriptor {
        |            else:
        |                mae = mean_absolute_error(table["$target"], predictions)
        |                r2 = r2_score(table["$target"], predictions)
-       |                print("MAE:", mae, "R2:", r2)
+       |                print("MAE:", mae, ", R2:", r2)
        |                yield {"name" : "$name",
        |                  "mae": mae,
        |                  "r2": r2}
