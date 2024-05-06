@@ -36,7 +36,8 @@ import edu.uci.ics.texera.workflow.operators.keywordSearch.KeywordSearchOpDesc
 import edu.uci.ics.texera.workflow.operators.limit.LimitOpDesc
 import edu.uci.ics.texera.workflow.operators.huggingFace.{
   HuggingFaceSentimentAnalysisOpDesc,
-  HuggingFaceTextSummarizationOpDesc
+  HuggingFaceTextSummarizationOpDesc,
+  HuggingFaceSpamSMSDetectionOpDesc
 }
 import edu.uci.ics.texera.workflow.operators.projection.ProjectionOpDesc
 import edu.uci.ics.texera.workflow.operators.randomksampling.RandomKSamplingOpDesc
@@ -264,6 +265,10 @@ trait StateTransferFunc
     new Type(
       value = classOf[HuggingFaceTextSummarizationOpDesc],
       name = "HuggingFaceTextSummarization"
+    ),
+    new Type(
+      value = classOf[HuggingFaceSpamSMSDetectionOpDesc],
+      name = "HuggingFaceSpamSMSDetection"
     )
   )
 )
