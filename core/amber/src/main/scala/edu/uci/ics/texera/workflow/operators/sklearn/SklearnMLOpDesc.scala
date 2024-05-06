@@ -9,7 +9,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 
 abstract class SklearnMLOpDesc extends PythonOperatorDescriptor {
 
-
   @JsonIgnore
   var model = ""
 
@@ -19,12 +18,10 @@ abstract class SklearnMLOpDesc extends PythonOperatorDescriptor {
   @JsonIgnore
   var classification: Boolean = true
 
-
   @JsonProperty(value = "Target Attribute", required = true)
   @JsonPropertyDescription("attribute in your dataset corresponding to target")
   @AutofillAttributeName
   var target: String = _
-
 
   override def generatePythonCode(): String =
     s"""$model
@@ -40,7 +37,7 @@ abstract class SklearnMLOpDesc extends PythonOperatorDescriptor {
       .last}().fit(table.drop("$target", axis=1), table["$target"])
        |        else:
        |            predictions = self.model.predict(table.drop("$target", axis=1))
-       |            if ${if(classification)"True" else "False"}:
+       |            if ${if (classification) "True" else "False"}:
        |                auc = accuracy_score(table["$target"], predictions)
        |                f1 = f1_score(table["$target"], predictions, average='micro')
        |                precision = precision_score(table["$target"], predictions, average='micro')
@@ -58,7 +55,8 @@ abstract class SklearnMLOpDesc extends PythonOperatorDescriptor {
        |                print("MAE:", mae, ", R2:", r2)
        |                yield {"name" : "$name",
        |                  "mae": mae,
-       |                  "r2": r2}
+       |                  "r2": r2,
+       |                  "model" : self.model}
        |                   """.stripMargin
 
   override def operatorInfo: OperatorInfo =
@@ -77,17 +75,20 @@ abstract class SklearnMLOpDesc extends PythonOperatorDescriptor {
     val builder = Schema
       .builder()
       .add("name", AttributeType.STRING)
-      if (classification){
-        builder.add("accuracy", AttributeType.DOUBLE)
-          .add("f1", AttributeType.DOUBLE)
-          .add("precision", AttributeType.DOUBLE)
-          .add("recall", AttributeType.DOUBLE)
-          .add("model", AttributeType.BINARY)
+    if (classification) {
+      builder
+        .add("accuracy", AttributeType.DOUBLE)
+        .add("f1", AttributeType.DOUBLE)
+        .add("precision", AttributeType.DOUBLE)
+        .add("recall", AttributeType.DOUBLE)
+        .add("model", AttributeType.BINARY)
 
-      }else {
-        builder.add("mae", AttributeType.DOUBLE)
-        builder.add("r2", AttributeType.DOUBLE)
-      }
+    } else {
+      builder
+        .add("mae", AttributeType.DOUBLE)
+        .add("r2", AttributeType.DOUBLE)
+        .add("model", AttributeType.BINARY)
+    }
     builder.build()
 
   }
