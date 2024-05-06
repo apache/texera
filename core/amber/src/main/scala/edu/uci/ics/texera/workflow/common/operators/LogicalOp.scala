@@ -35,10 +35,10 @@ import edu.uci.ics.texera.workflow.operators.intervalJoin.IntervalJoinOpDesc
 import edu.uci.ics.texera.workflow.operators.keywordSearch.KeywordSearchOpDesc
 import edu.uci.ics.texera.workflow.operators.limit.LimitOpDesc
 import edu.uci.ics.texera.workflow.operators.huggingFace.{
+  HuggingFaceIrisLogisticRegressionOpDesc,
   HuggingFaceSentimentAnalysisOpDesc,
-  HuggingFaceTextSummarizationOpDesc,
   HuggingFaceSpamSMSDetectionOpDesc,
-  HuggingFaceIrisLogisticRegressionOpDesc
+  HuggingFaceTextSummarizationOpDesc
 }
 import edu.uci.ics.texera.workflow.operators.projection.ProjectionOpDesc
 import edu.uci.ics.texera.workflow.operators.randomksampling.RandomKSamplingOpDesc
@@ -58,6 +58,7 @@ import edu.uci.ics.texera.workflow.operators.sklearn.{
   SklearnGaussianNaiveBayesOpDesc,
   SklearnGradientBoostingOpDesc,
   SklearnKNNOpDesc,
+  SklearnLinearRegressionOpDesc,
   SklearnLinearSVMOpDesc,
   SklearnLogisticRegressionCVOpDesc,
   SklearnLogisticRegressionOpDesc,
@@ -229,6 +230,7 @@ trait StateTransferFunc
     new Type(value = classOf[SklearnNearestCentroidOpDesc], name = "SklearnNearestCentroid"),
     new Type(value = classOf[SklearnSVMOpDesc], name = "SklearnSVM"),
     new Type(value = classOf[SklearnLinearSVMOpDesc], name = "SklearnLinearSVM"),
+    new Type(value = classOf[SklearnLinearRegressionOpDesc], name = "SklearnLinearRegression"),
     new Type(value = classOf[SklearnDecisionTreeOpDesc], name = "SklearnDecisionTree"),
     new Type(value = classOf[SklearnExtraTreeOpDesc], name = "SklearnExtraTree"),
     new Type(
