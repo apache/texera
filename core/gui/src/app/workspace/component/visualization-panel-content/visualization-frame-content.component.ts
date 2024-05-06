@@ -51,14 +51,14 @@ export class VisualizationFrameContentComponent implements AfterContentInit {
     }
 
     const parser = new DOMParser();
-    const doc = parser.parseFromString(Object(data[0])["html-content"], 'text/html');
+    const doc = parser.parseFromString(Object(data[0])["html-content"], "text/html");
 
-    doc.documentElement.style.height = '100%';
-    doc.body.style.height = '100%';
+    doc.documentElement.style.height = "100%";
+    doc.body.style.height = "100%";
 
-    const firstDiv = doc.body.querySelector('div');
+    const firstDiv = doc.body.querySelector("div");
     if (firstDiv) {
-      firstDiv.style.height = '100%';
+      firstDiv.style.height = "100%";
     }
 
     const serializer = new XMLSerializer();
