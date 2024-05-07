@@ -41,7 +41,9 @@ class ScatterplotOpDesc extends VisualizationOperator with PythonOperatorDescrip
 
   @JsonProperty(required = false)
   @JsonSchemaTitle("Color-Column")
-  @JsonPropertyDescription("Dots will be assigned different colors based on their values of this column")
+  @JsonPropertyDescription(
+    "Dots will be assigned different colors based on their values of this column"
+  )
   @AutofillAttributeName
   private val colorColumn: String = ""
 
@@ -62,17 +64,21 @@ class ScatterplotOpDesc extends VisualizationOperator with PythonOperatorDescrip
 
   def manipulateTable(): String = {
     assert(xColumn.nonEmpty && yColumn.nonEmpty)
+    val colorColExpr = if (colorColumn.nonEmpty) { s"`$colorColumn`" }
+    else { "" }
     s"""
        |        # drops rows with missing values pertaining to relevant columns
-       |        table.dropna(subset=['$xColumn', '$yColumn', '$colorColumn'], inplace = True)
+       |        table.dropna(subset=['$xColumn', '$yColumn', $colorColExpr], inplace = True)
        |
        |""".stripMargin
   }
 
   def createPlotlyFigure(): String = {
     assert(xColumn.nonEmpty && yColumn.nonEmpty)
+    val colorColExpr = if (colorColumn.nonEmpty) { s"color='$colorColumn'" }
+    else { "" }
     s"""
-           |        fig = go.Figure(px.scatter(table, x='$xColumn', y='$yColumn', color='$colorColumn'))
+           |        fig = go.Figure(px.scatter(table, x='$xColumn', y='$yColumn', $colorColExpr))
            |""".stripMargin
   }
 
