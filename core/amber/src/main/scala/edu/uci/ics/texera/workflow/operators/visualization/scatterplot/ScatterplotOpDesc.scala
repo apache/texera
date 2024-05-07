@@ -64,7 +64,7 @@ class ScatterplotOpDesc extends VisualizationOperator with PythonOperatorDescrip
 
   def manipulateTable(): String = {
     assert(xColumn.nonEmpty && yColumn.nonEmpty)
-    val colorColExpr = if (colorColumn.nonEmpty) { s"`$colorColumn`" }
+    val colorColExpr = if (colorColumn.nonEmpty) { s"'$colorColumn'" }
     else { "" }
     s"""
        |        # drops rows with missing values pertaining to relevant columns
