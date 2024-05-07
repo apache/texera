@@ -21,23 +21,22 @@
 
 <div id = "spacer"></div>
 
-<ng-container *ngTemplateOutlet="itemTemplate; context: { $implicit: groupNames }"></ng-container>
+<ng-container *ngTemplateOutlet="menuTemplate; context: { $implicit: groupNames }"></ng-container>
 
-<ng-template #itemTemplate let-groupNames>
+<ng-template #menuTemplate let-groupNames>
   <nz-collapse
-    id="operator-menu"
     [nzBordered]="false"
     nzAccordion>
     <nz-collapse-panel
       *ngFor="let groupname of groupNames"
       [nzHeader]="groupname.groupName"
       class="operator-submenu-title">
-      <ng-container *ngFor="let operatorSchema of opList.get(groupname.groupName)">
-        <div class="texera-operator-label">
+      <div class="indent">
+        <ng-container *ngTemplateOutlet="menuTemplate; context: { $implicit: groupname.children }"></ng-container>
+        <div *ngFor="let operatorSchema of opList.get(groupname.groupName)" class="texera-operator-label">
           <texera-operator-label [operator]="operatorSchema"></texera-operator-label>
         </div>
-      </ng-container>
-      <ng-container *ngTemplateOutlet="itemTemplate; context: { $implicit: groupname.children }"></ng-container>
+      </div>
     </nz-collapse-panel>
   </nz-collapse>
 </ng-template>
