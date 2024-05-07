@@ -1,37 +1,22 @@
-import { Component, OnInit } from "@angular/core";
+import { Component } from "@angular/core";
 import Fuse from "fuse.js";
 import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
-import { GroupInfo, OperatorMetadata, OperatorSchema } from "../../../types/operator-schema.interface";
+import { GroupInfo, OperatorSchema } from "../../../types/operator-schema.interface";
 import { DragDropService } from "../../../service/drag-drop/drag-drop.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowUtilService } from "../../../service/workflow-graph/util/workflow-util.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzAutocompleteOptionComponent } from "ng-zorro-antd/auto-complete";
 
-/**
- * OperatorMenuComponent is a panel that shows the operators.
- *
- * This component gets all the operator metadata from OperatorMetaDataService,
- *  and then displays the operators, which are grouped using their group name from the metadata.
- *
- * Clicking a group name reveals the operators in the group, each operator is a sub-component: OperatorLabelComponent,
- *  this is implemented using Angular Material's expansion panel component: https://material.angular.io/components/expansion/overview
- *
- * OperatorMenuComponent also includes a search box, which uses fuse.js to support fuzzy search on operator names.
- *
- */
 @UntilDestroy()
 @Component({
   selector: "texera-operator-menu",
   templateUrl: "operator-menu.component.html",
   styleUrls: ["operator-menu.component.scss"],
 })
-export class OperatorMenuComponent implements OnInit {
+export class OperatorMenuComponent {
 
   public opList = new Map<string, Array<OperatorSchema>>();
-  // a list of all operator's schema
-  public operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
-  // a list of group names, sorted based on the groupOrder from OperatorMetadata
   public groupNames: ReadonlyArray<GroupInfo> = [];
 
   // input value of the search input box
@@ -65,19 +50,21 @@ export class OperatorMenuComponent implements OnInit {
     this.workflowActionService
       .getWorkflowModificationEnabledStream()
       .pipe(untilDestroyed(this))
-      .subscribe(canModify => {
-        this.canModify = canModify;
-      });
-  }
-
-  ngOnInit() {
-    // subscribe to the operator metadata changed observable and process it
-    // the operator metadata will be fetched asynchronously on application init
-    //   after the data is fetched, it will be passed through this observable
+      .subscribe(canModify => this.canModify = canModify);
     this.operatorMetadataService
       .getOperatorMetadata()
       .pipe(untilDestroyed(this))
-      .subscribe(value => this.processOperatorMetadata(value));
+      .subscribe(operatorMetadata => {
+        const ops = operatorMetadata.operators.filter(operatorSchema => operatorSchema.operatorType !== "PythonUDF" && operatorSchema.operatorType !== "Dummy");
+        this.groupNames = operatorMetadata.groups;
+        ops.forEach(x => {
+          const group = x.additionalMetadata.operatorGroupName;
+          const list = this.opList.get(group) || [];
+          list.push(x);
+          this.opList.set(group, list);
+        });
+        this.fuse.setCollection(ops);
+      });
   }
 
   /**
@@ -114,31 +101,5 @@ export class OperatorMenuComponent implements OnInit {
       this.searchInputValue = "";
       this.autocompleteOptions = [];
     }, 0);
-  }
-
-  /**
-   * populate the class variables based on the operator metadata fetched from the backend:
-   *  - sort the group names based on the group order
-   *  - put the operators into the hashmap of group names
-   *
-   * @param operatorMetadata metadata of all operators
-   */
-  private processOperatorMetadata(operatorMetadata: OperatorMetadata): void {
-    operatorMetadata = {
-      ...operatorMetadata,
-      operators: operatorMetadata.operators
-        .filter(operatorSchema => operatorSchema.operatorType != "PythonUDF")
-        .filter(operatorSchema => operatorSchema.operatorType != "Dummy"),
-    };
-    this.operatorSchemaList = operatorMetadata.operators;
-    this.groupNames = operatorMetadata.groups;
-
-    operatorMetadata.operators.forEach(x => {
-      const group = x.additionalMetadata.operatorGroupName;
-      const list = this.opList.get(group) || [];
-      list.push(x);
-      this.opList.set(group, list);
-    });
-    this.fuse.setCollection(this.operatorSchemaList);
   }
 }
