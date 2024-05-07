@@ -23,12 +23,22 @@
 
 <ng-container *ngTemplateOutlet="menuTemplate; context: { $implicit: groupNames }"></ng-container>
 
-<ng-template #menuTemplate let-groupNames>
-  <nz-collapse nzBordered="false" nzExpandIconPosition="right" nzAccordion>
-    <nz-collapse-panel *ngFor="let groupname of groupNames" [nzHeader]="groupname.groupName" class="operator-group">
+<ng-template
+  #menuTemplate
+  let-groupNames>
+  <nz-collapse
+    nzBordered="false"
+    nzExpandIconPosition="right"
+    nzAccordion>
+    <nz-collapse-panel
+      *ngFor="let groupname of groupNames"
+      [nzHeader]="groupname.groupName"
+      class="operator-group">
       <div class="indent">
         <ng-container *ngTemplateOutlet="menuTemplate; context: { $implicit: groupname.children }"></ng-container>
-        <div *ngFor="let operatorSchema of opList.get(groupname.groupName)" class="operator-label">
+        <div
+          *ngFor="let operatorSchema of opList.get(groupname.groupName)"
+          class="operator-label">
           <texera-operator-label [operator]="operatorSchema"></texera-operator-label>
         </div>
       </div>

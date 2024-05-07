@@ -15,7 +15,6 @@ import { NzAutocompleteOptionComponent } from "ng-zorro-antd/auto-complete";
   styleUrls: ["operator-menu.component.scss"],
 })
 export class OperatorMenuComponent {
-
   public opList = new Map<string, Array<OperatorSchema>>();
   public groupNames: ReadonlyArray<GroupInfo> = [];
 
@@ -50,12 +49,14 @@ export class OperatorMenuComponent {
     this.workflowActionService
       .getWorkflowModificationEnabledStream()
       .pipe(untilDestroyed(this))
-      .subscribe(canModify => this.canModify = canModify);
+      .subscribe(canModify => (this.canModify = canModify));
     this.operatorMetadataService
       .getOperatorMetadata()
       .pipe(untilDestroyed(this))
       .subscribe(operatorMetadata => {
-        const ops = operatorMetadata.operators.filter(operatorSchema => operatorSchema.operatorType !== "PythonUDF" && operatorSchema.operatorType !== "Dummy");
+        const ops = operatorMetadata.operators.filter(
+          operatorSchema => operatorSchema.operatorType !== "PythonUDF" && operatorSchema.operatorType !== "Dummy"
+        );
         this.groupNames = operatorMetadata.groups;
         ops.forEach(x => {
           const group = x.additionalMetadata.operatorGroupName;

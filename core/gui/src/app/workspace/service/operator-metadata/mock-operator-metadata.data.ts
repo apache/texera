@@ -282,9 +282,9 @@ export const mockOperatorSchemaList: ReadonlyArray<OperatorSchema> = [
 ];
 
 export const mockOperatorGroup: ReadonlyArray<GroupInfo> = [
-  { groupName: "Source"},
-  { groupName: "Analysis"},
-  { groupName: "View Results"},
+  { groupName: "Source" },
+  { groupName: "Analysis" },
+  { groupName: "View Results" },
 ];
 
 export const mockOperatorMetaData: OperatorMetadata = {

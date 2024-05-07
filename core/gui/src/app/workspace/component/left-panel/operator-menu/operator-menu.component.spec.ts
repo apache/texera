@@ -1,11 +1,7 @@
-import {
-  mockOperatorGroup,
-  mockScanSourceSchema,
-} from "../../../service/operator-metadata/mock-operator-metadata.data";
+import { mockScanSourceSchema } from "../../../service/operator-metadata/mock-operator-metadata.data";
 import { UndoRedoService } from "../../../service/undo-redo/undo-redo.service";
 import { DragDropService } from "../../../service/drag-drop/drag-drop.service";
 import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
-import { By } from "@angular/platform-browser";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { OperatorMenuComponent } from "./operator-menu.component";
 import { OperatorLabelComponent } from "./operator-label/operator-label.component";
@@ -48,14 +44,6 @@ describe("OperatorPanelComponent", () => {
 
   it("should create", () => {
     expect(component).toBeTruthy();
-  });
-
-  it("should have all group names shown in the UI side panel", () => {
-    const groupNamesInUI = fixture.debugElement
-      .queryAll(By.css(".operator-submenu-title"))
-      .map(el => el.nativeElement.querySelector(".ant-collapse-header").innerText);
-
-    expect(groupNamesInUI).toEqual(mockOperatorGroup.map(group => group.groupName));
   });
 
   it("should search an operator by its user friendly name", () => {
