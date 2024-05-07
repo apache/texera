@@ -41,7 +41,7 @@ class ScatterplotOpDesc extends VisualizationOperator with PythonOperatorDescrip
 
   @JsonProperty(required = false)
   @JsonSchemaTitle("Color-Column")
-  @JsonPropertyDescription("Color Column")
+  @JsonPropertyDescription("Dots will be assigned different colors based on their values of this column")
   @AutofillAttributeName
   private val colorColumn: String = ""
 
