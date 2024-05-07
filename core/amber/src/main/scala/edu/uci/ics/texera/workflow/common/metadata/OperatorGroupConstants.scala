@@ -14,7 +14,7 @@ object OperatorGroupConstants {
   final val API_GROUP = "External API"
   final val UDF_GROUP = "User-defined Functions"
   final val VISUALIZATION_GROUP = "Visualization"
-  final val HUGGINGFACE_GROUP = "Hugging Face"
+  final val HUGGINGFACE_GROUP = "HuggingFace"
 
   /**
     * The order of the groups to show up in the frontend operator panel.

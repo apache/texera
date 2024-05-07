@@ -214,7 +214,7 @@ registerLocaleData(en);
     PortPropertyEditFrameComponent,
     WorkflowRuntimeStatisticsComponent,
     FlarumComponent,
-    HighlightSearchTermsPipe
+    HighlightSearchTermsPipe,
   ],
   imports: [
     BrowserModule,
