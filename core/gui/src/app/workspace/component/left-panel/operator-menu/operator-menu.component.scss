@@ -11,21 +11,23 @@
   }
 }
 
-.operator-submenu-title {
+.operator-group {
   background-color: #fff;
 }
 
-.texera-operator-label {
+.indent {
+  padding-left: 22px;
+}
+
+.operator-label {
+  padding-left: 7px;
   padding-right: 0;
   margin: 0 !important;
   height: 32px;
-  background-color: transparent;
 }
 
 #spacer {
   margin-top: 32px;
 }
 
-.indent {
-  padding-left: 30px;
-}
+

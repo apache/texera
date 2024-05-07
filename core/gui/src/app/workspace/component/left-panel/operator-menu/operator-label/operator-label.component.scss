@@ -3,6 +3,7 @@
 }
 
 .operator-label {
+  white-space: nowrap;
   width: 100%;
   height: 32px;
   line-height: 32px;
@@ -13,7 +14,7 @@
   transition:
     border-color 0.3s,
     color 0.3s;
-  overflow: hidden;
+  overflow-x: hidden;
   &:hover {
     border-color: rgba(64, 169, 255, 1);
     > .text {
