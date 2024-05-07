@@ -15,6 +15,14 @@
   background-color: #fff;
 }
 
+.operator-group:last-child {
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.operator-group .operator-group {
+  border: none;
+}
+
 .indent {
   padding-left: 22px;
 }

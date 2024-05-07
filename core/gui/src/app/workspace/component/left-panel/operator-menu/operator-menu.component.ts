@@ -33,8 +33,6 @@ export class OperatorMenuComponent implements OnInit {
   public operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
   // a list of group names, sorted based on the groupOrder from OperatorMetadata
   public groupNames: ReadonlyArray<GroupInfo> = [];
-  // a map of group name to a list of operator schema of this group
-  public operatorGroupMap = new Map<string, any>();
 
   // input value of the search input box
   public searchInputValue: string = "";
@@ -134,7 +132,6 @@ export class OperatorMenuComponent implements OnInit {
     };
     this.operatorSchemaList = operatorMetadata.operators;
     this.groupNames = operatorMetadata.groups;
-    this.operatorGroupMap = getOperatorGroupMap(operatorMetadata);
 
     operatorMetadata.operators.forEach(x => {
       const group = x.additionalMetadata.operatorGroupName;
@@ -142,43 +139,6 @@ export class OperatorMenuComponent implements OnInit {
       list.push(x);
       this.opList.set(group, list);
     });
-    console.log(this.opList)
-
     this.fuse.setCollection(this.operatorSchemaList);
   }
-}
-
-/**
- * returns a new empty map from the group name to a list of OperatorSchema
- */
-export function getOperatorGroupMap(operatorMetadata: OperatorMetadata): any {
-  const processGroup = (groupItems: any[]): any => {
-    return groupItems.map(groupItem => {
-      if (groupItem.children) {
-        return {
-          name: groupItem.groupName,
-          operator: processGroup(groupItem.children)
-        };
-      } else {
-        return {
-          name: groupItem.groupName,
-          operator: operatorMetadata.operators.filter(
-            x => x.additionalMetadata.operatorGroupName === groupItem.groupName
-          )
-        };
-      }
-    });
-  };
-
-  const operatorGroupMap = new Map<
-    string,
-    ReadonlyArray<OperatorSchema> | { name: string; operator: ReadonlyArray<OperatorSchema> }[]
-  >();
-
-  const topLevelGroups = processGroup(operatorMetadata.groups as any);
-  topLevelGroups.forEach((group: any) => {
-    operatorGroupMap.set(group.name, group.operator);
-  });
-
-  return operatorGroupMap;
 }

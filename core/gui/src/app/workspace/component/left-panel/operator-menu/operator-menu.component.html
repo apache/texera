@@ -19,19 +19,13 @@
   </nz-autocomplete>
 </div>
 
-<div id = "spacer"></div>
+<div id="spacer"></div>
 
 <ng-container *ngTemplateOutlet="menuTemplate; context: { $implicit: groupNames }"></ng-container>
 
 <ng-template #menuTemplate let-groupNames>
-  <nz-collapse
-    [nzBordered]="false"
-    nzExpandIconPosition="right"
-    nzAccordion>
-    <nz-collapse-panel
-      *ngFor="let groupname of groupNames"
-      [nzHeader]="groupname.groupName"
-      class="operator-group">
+  <nz-collapse nzBordered="false" nzExpandIconPosition="right" nzAccordion>
+    <nz-collapse-panel *ngFor="let groupname of groupNames" [nzHeader]="groupname.groupName" class="operator-group">
       <div class="indent">
         <ng-container *ngTemplateOutlet="menuTemplate; context: { $implicit: groupname.children }"></ng-container>
         <div *ngFor="let operatorSchema of opList.get(groupname.groupName)" class="operator-label">
@@ -41,4 +35,3 @@
     </nz-collapse-panel>
   </nz-collapse>
 </ng-template>
-
