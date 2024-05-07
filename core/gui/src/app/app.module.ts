@@ -53,7 +53,6 @@ import { PropertyEditorComponent } from "./workspace/component/property-editor/p
 import { TypeCastingDisplayComponent } from "./workspace/component/property-editor/typecasting-display/type-casting-display.component";
 import { ResultPanelComponent } from "./workspace/component/result-panel/result-panel.component";
 import { VisualizationFrameContentComponent } from "./workspace/component/visualization-panel-content/visualization-frame-content.component";
-import { VisualizationFrameComponent } from "./workspace/component/result-panel/visualization-frame/visualization-frame.component";
 import { WorkflowEditorComponent } from "./workspace/component/workflow-editor/workflow-editor.component";
 import { WorkspaceComponent } from "./workspace/component/workspace.component";
 import { NzCardModule } from "ng-zorro-antd/card";
@@ -169,7 +168,6 @@ registerLocaleData(en);
     PresetWrapperComponent,
     MultiSchemaTypeComponent,
     NullTypeComponent,
-    VisualizationFrameComponent,
     VisualizationFrameContentComponent,
     CodeareaCustomTemplateComponent,
     CodeEditorComponent,
