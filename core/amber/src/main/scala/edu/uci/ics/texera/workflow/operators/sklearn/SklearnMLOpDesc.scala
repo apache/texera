@@ -63,7 +63,7 @@ abstract class SklearnMLOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       name,
       "Sklearn " + name + " Operator",
-      OperatorGroupConstants.MACHINE_LEARNING_GROUP,
+      OperatorGroupConstants.SKLEARN_GROUP,
       inputPorts = List(
         InputPort(PortIdentity(), "training"),
         InputPort(PortIdentity(1), "testing", dependencies = List(PortIdentity()))
@@ -81,15 +81,11 @@ abstract class SklearnMLOpDesc extends PythonOperatorDescriptor {
         .add("f1", AttributeType.DOUBLE)
         .add("precision", AttributeType.DOUBLE)
         .add("recall", AttributeType.DOUBLE)
-        .add("model", AttributeType.BINARY)
-
     } else {
       builder
         .add("mae", AttributeType.DOUBLE)
         .add("r2", AttributeType.DOUBLE)
-        .add("model", AttributeType.BINARY)
     }
-    builder.build()
-
+    builder.add("model", AttributeType.BINARY).build()
   }
 }

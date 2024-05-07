@@ -142,6 +142,7 @@ export class OperatorMenuComponent implements OnInit {
       list.push(x);
       this.opList.set(group, list);
     });
+    console.log(this.opList)
 
     this.fuse.setCollection(this.operatorSchemaList);
   }
