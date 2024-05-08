@@ -6,6 +6,8 @@ import { File, Workflow, MongoExecution } from "src/app/common/type/user";
 
 export const USER_BASE_URL = `${AppSettings.getApiEndpoint()}/quota`;
 export const USER_CREATED_FILES = `${USER_BASE_URL}/uploaded_files`;
+export const USER_UPLOADED_DATASET_COUNT = `${USER_BASE_URL}/number_of_datasets`;
+export const USER_UPLOADED_DATASE_SIZE = `${USER_BASE_URL}/dataset_size`;
 export const USER_CREATED_WORKFLOWS = `${USER_BASE_URL}/created_workflows`;
 export const USER_ACCESS_WORKFLOWS = `${USER_BASE_URL}/access_workflows`;
 export const USER_ACCESS_FILES = `${USER_BASE_URL}/access_files`;
@@ -20,6 +22,14 @@ export class UserQuotaService {
 
   public getUploadedFiles(uid: number): Observable<ReadonlyArray<File>> {
     return this.http.get<ReadonlyArray<File>>(`${USER_CREATED_FILES}`);
+  }
+
+  public getTotalUploadedDatasetSize(uid: number): Observable<number> {
+    return this.http.get<number>(`${USER_UPLOADED_DATASE_SIZE}`);
+  }
+
+  public getTotalUploadedDatasetCount(uid: number): Observable<number> {
+    return this.http.get<number>(`${USER_UPLOADED_DATASET_COUNT}`);
   }
 
   public getCreatedWorkflows(uid: number): Observable<ReadonlyArray<Workflow>> {
