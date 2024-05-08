@@ -72,7 +72,7 @@ class HuggingFaceSentimentAnalysisOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Hugging Face Sentiment Analysis",
       "Analyzing Sentiments with a Twitter-Based Model from Hugging Face",
-      OperatorGroupConstants.MACHINE_LEARNING_GROUP,
+      OperatorGroupConstants.HUGGINGFACE_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort()),
       supportReconfiguration = true

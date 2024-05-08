@@ -32,7 +32,7 @@ class SklearnPredictionOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Sklearn Prediction",
       "Skleanr Prediction Operator",
-      OperatorGroupConstants.MACHINE_LEARNING_GROUP,
+      OperatorGroupConstants.SKLEARN_GROUP,
       inputPorts = List(
         InputPort(PortIdentity(), "model"),
         InputPort(PortIdentity(1), "testing", dependencies = List(PortIdentity()))

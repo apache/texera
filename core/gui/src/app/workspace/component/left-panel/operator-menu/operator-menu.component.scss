@@ -11,22 +11,29 @@
   }
 }
 
-.operator-submenu-title {
+.operator-group {
   background-color: #fff;
-  border-bottom: 1px solid #e0e0e0 !important;
 }
 
-.operator-submenu {
+.operator-group:last-child {
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.operator-group .operator-group {
   border: none;
 }
 
-.texera-operator-label {
-  padding-left: 30px;
+.indent {
+  padding-left: 10px;
+}
+
+.operator-label {
+  padding-left: 7px;
   padding-right: 0;
   margin: 0 !important;
   height: 32px;
 }
 
-#operator-menu {
+#spacer {
   margin-top: 32px;
 }
