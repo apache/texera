@@ -15,9 +15,8 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{
   DatasetVersion
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset.DATASET
+import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetVersion.DATASET_VERSION
-import edu.uci.ics.texera.web.resource.dashboard.DashboardResource
-import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.SearchQueryParams
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetAccessResource.{
   getDatasetUserAccessPrivilege,
   userHasReadAccess,
@@ -71,7 +70,9 @@ import javax.ws.rs.{
   QueryParam
 }
 import javax.ws.rs.core.{MediaType, Response, StreamingOutput}
+import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters._
 
 object DatasetResource {
@@ -597,25 +598,47 @@ class DatasetResource {
   def listDatasets(
       @Auth user: SessionUser
   ): List[DashboardDataset] = {
-    val result = DashboardResource.searchAllResources(
-      user,
-      SearchQueryParams(resourceType = "dataset")
-    )
-    var accessibleDatasets = result.results.map(_.dataset.get)
-    val publicDatasets = retrievePublicDatasets(context)
-
-    publicDatasets.forEach { publicDataset =>
-      if (!accessibleDatasets.exists(_.dataset.getDid == publicDataset.getDid)) {
-        val dashboardDataset = DashboardDataset(
-          isOwner = false,
-          dataset = publicDataset,
-          accessPrivilege = DatasetUserAccessPrivilege.READ
+    val uid = user.getUid
+    withTransaction(context)(ctx => {
+      // we first retrieve all datasets user have the direct access to
+      var accessibleDatasets =
+        ListBuffer.from(
+          ctx
+            .selectFrom(
+              DATASET
+                .leftJoin(DATASET_USER_ACCESS)
+                .on(DATASET_USER_ACCESS.DID.eq(DATASET.DID))
+                .where(
+                  DATASET_USER_ACCESS.UID.eq(uid)
+                )
+            )
+            .fetch()
+            .map(datasetAndAccess => {
+              val dataset = datasetAndAccess.into(classOf[Dataset])
+              val datasetAccess = datasetAndAccess.into(classOf[DatasetUserAccess])
+              DashboardDataset(
+                isOwner = dataset.getOwnerUid == uid,
+                dataset = dataset,
+                accessPrivilege = datasetAccess.getPrivilege
+              )
+            })
         )
-        accessibleDatasets = accessibleDatasets :+ dashboardDataset
-      }
-    }
 
-    accessibleDatasets
+      // then we fetch the public datasets and merge it as a part of the result if not exist
+      val publicDatasets = retrievePublicDatasets(context)
+      publicDatasets.forEach { publicDataset =>
+        if (!accessibleDatasets.exists(_.dataset.getDid == publicDataset.getDid)) {
+          val dashboardDataset = DashboardDataset(
+            isOwner = false,
+            dataset = publicDataset,
+            accessPrivilege = DatasetUserAccessPrivilege.READ
+          )
+          accessibleDatasets = accessibleDatasets :+ dashboardDataset
+        }
+      }
+
+      accessibleDatasets.toList
+    })
   }
 
   @GET
