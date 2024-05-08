@@ -50,7 +50,7 @@ class HuggingFaceSpamSMSDetectionOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Hugging Face Spam Detection",
       "Spam Detection by SMS Spam Detection Model from Hugging Face",
-      OperatorGroupConstants.MACHINE_LEARNING_GROUP,
+      OperatorGroupConstants.HUGGINGFACE_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
     )
