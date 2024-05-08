@@ -6,20 +6,12 @@ import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, Oper
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
-import edu.uci.ics.texera.workflow.operators.visualization.{
-  VisualizationConstants,
-  VisualizationOperator
-}
+import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstants, VisualizationOperator}
 
 import java.util
 import scala.jdk.CollectionConverters.ListHasAsScala
 
 class LineChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
-
-  @JsonProperty(value = "title", required = false, defaultValue = "Line Chart")
-  @JsonSchemaTitle("Plot Title")
-  @JsonPropertyDescription("The value for the plot tile")
-  var title: String = ""
 
   @JsonProperty(value = "yLabel", required = false, defaultValue = "Y Axis")
   @JsonSchemaTitle("Y Label")
@@ -74,9 +66,9 @@ class LineChartOpDesc extends VisualizationOperator with PythonOperatorDescripto
     s"""
        |        fig = go.Figure()
        |        ${linesPart.mkString("\n        ")}
-       |        fig.update_layout(title='$title',
-       |                   xaxis_title='$xLabel',
-       |                   yaxis_title='$yLabel')
+       |        fig.update_layout(margin=dict(t=0, b=60, l=0, r=0),
+       |                          xaxis_title='$xLabel',
+       |                          yaxis_title='$yLabel')
        |""".stripMargin
   }
 
