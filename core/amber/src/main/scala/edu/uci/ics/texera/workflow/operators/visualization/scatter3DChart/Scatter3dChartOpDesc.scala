@@ -74,7 +74,7 @@ class Scatter3dChartOpDesc extends VisualizationOperator with PythonOperatorDesc
        |                yaxis_title='Y: $y',
        |                zaxis_title='Z: $z'
        |            ),
-       |            margin=dict(t=0, b=30, l=0, r=0)
+       |            margin=dict(t=0, b=0, l=0, r=0)
        |        )
        |""".stripMargin
   }

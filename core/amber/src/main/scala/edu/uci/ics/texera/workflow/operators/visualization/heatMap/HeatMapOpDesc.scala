@@ -51,7 +51,7 @@ class HeatMapOpDesc extends VisualizationOperator with PythonOperatorDescriptor 
     assert(value.nonEmpty)
     s"""
        |        heatmap = go.Heatmap(z=table["$value"],x=table["$x"],y=table["$y"])
-       |        layout = go.Layout(margin=dict(l=0, r=0, b=30, t=0))
+       |        layout = go.Layout(margin=dict(l=0, r=0, b=0, t=0))
        |        fig = go.Figure(data=[heatmap], layout=layout)
        |""".stripMargin
   }

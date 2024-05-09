@@ -108,7 +108,7 @@ class BubbleChartOpDesc extends VisualizationOperator with PythonOperatorDescrip
         |        if table.empty:
         |            yield {'html-content': self.render_error("No valid rows left (every row has at least 1 missing value).")}
         |            return
-        |        fig.update_layout(margin=dict(l=0, r=0, b=60, t=0))
+        |        fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
         |        html = plotly.io.to_html(fig, include_plotlyjs = 'cdn', auto_play = False)
         |        yield {'html-content':html}
         |""".stripMargin
