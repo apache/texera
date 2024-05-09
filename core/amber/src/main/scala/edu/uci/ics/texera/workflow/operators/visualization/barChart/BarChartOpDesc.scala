@@ -24,11 +24,6 @@ import edu.uci.ics.texera.workflow.operators.visualization.{
 """)
 class BarChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
 
-  @JsonProperty(defaultValue = "Bar Graph Visual")
-  @JsonSchemaTitle("Title")
-  @JsonPropertyDescription("Add a title to your visualization")
-  var title: String = ""
-
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Value Column")
   @JsonPropertyDescription("the value associated with each category")
@@ -84,41 +79,42 @@ class BarChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor
       isCategoryColumn = "True"
 
     val finalCode = s"""
-                        |from pytexera import *
-                        |
-                        |import plotly.express as px
-                        |import pandas as pd
-                        |import plotly.graph_objects as go
-                        |import plotly.io
-                        |import json
-                        |import pickle
-                        |import plotly
-                        |
-                        |class ProcessTableOperator(UDFTableOperator):
-                        |
-                        |    # Generate custom error message as html string
-                        |    def render_error(self, error_msg) -> str:
-                        |        return '''<h1>Bar chart is not available.</h1>
-                        |                  <p>Reason is: {} </p>
-                        |               '''.format(error_msg)
-                        |
-                        |    @overrides
-                        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-                        |        ${manipulateTable()}
-                        |        if not table.empty and '$fields' != '$value':
-                        |           if $isHorizontalOrientation:
-                        |               fig = go.Figure(px.bar(table, y='$fields', x='$value', color="$categoryColumn" if $isCategoryColumn else None, orientation = 'h', title='$title'))
-                        |           else:
-                        |               fig = go.Figure(px.bar(table, y='$value', x='$fields', color="$categoryColumn" if $isCategoryColumn else None, title='$title'))
-                        |           html = plotly.io.to_html(fig, include_plotlyjs = 'cdn', auto_play = False)
-                        |           # use latest plotly lib in html
-                        |           #html = html.replace('https://cdn.plot.ly/plotly-2.3.1.min.js', 'https://cdn.plot.ly/plotly-2.18.2.min.js')
-                        |        elif '$fields' == '$value':
-                        |           html = self.render_error('Fields should not have the same value.')
-                        |        elif table.empty:
-                        |           html = self.render_error('Table should not have any empty/null values or fields.')
-                        |        yield {'html-content':html}
-                        |        """.stripMargin
+                       |from pytexera import *
+                       |
+                       |import plotly.express as px
+                       |import pandas as pd
+                       |import plotly.graph_objects as go
+                       |import plotly.io
+                       |import json
+                       |import pickle
+                       |import plotly
+                       |
+                       |class ProcessTableOperator(UDFTableOperator):
+                       |
+                       |    # Generate custom error message as html string
+                       |    def render_error(self, error_msg) -> str:
+                       |        return '''<h1>Bar chart is not available.</h1>
+                       |                  <p>Reason is: {} </p>
+                       |               '''.format(error_msg)
+                       |
+                       |    @overrides
+                       |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+                       |        ${manipulateTable()}
+                       |        if not table.empty and '$fields' != '$value':
+                       |           if $isHorizontalOrientation:
+                       |               fig = go.Figure(px.bar(table, y='$fields', x='$value', color="$categoryColumn" if $isCategoryColumn else None, orientation = 'h'))
+                       |           else:
+                       |               fig = go.Figure(px.bar(table, y='$value', x='$fields', color="$categoryColumn" if $isCategoryColumn else None))
+                       |           fig.update_layout(margin=dict(l=0, r=0, t=0, b=0))
+                       |           html = plotly.io.to_html(fig, include_plotlyjs = 'cdn', auto_play = False)
+                       |           # use latest plotly lib in html
+                       |           #html = html.replace('https://cdn.plot.ly/plotly-2.3.1.min.js', 'https://cdn.plot.ly/plotly-2.18.2.min.js')
+                       |        elif '$fields' == '$value':
+                       |           html = self.render_error('Fields should not have the same value.')
+                       |        elif table.empty:
+                       |           html = self.render_error('Table should not have any empty/null values or fields.')
+                       |        yield {'html-content':html}
+                       |        """.stripMargin
     finalCode
   }
 
