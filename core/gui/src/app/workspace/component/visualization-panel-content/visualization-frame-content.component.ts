@@ -53,8 +53,8 @@ export class VisualizationFrameContentComponent implements AfterContentInit {
     const parser = new DOMParser();
     const doc = parser.parseFromString(Object(data[0])["html-content"], "text/html");
 
-    if (doc.documentElement.style.height) doc.documentElement.style.height = "100%";
-    if (doc.body.style.height) doc.body.style.height = "100%";
+    doc.documentElement.style.height = "100%";
+    doc.body.style.height = "95%";
 
     const firstDiv = doc.body.querySelector("div");
     if (firstDiv) firstDiv.style.height = "100%";
