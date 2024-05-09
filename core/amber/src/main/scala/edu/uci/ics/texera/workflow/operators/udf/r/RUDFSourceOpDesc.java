@@ -35,7 +35,7 @@ public class RUDFSourceOpDesc extends SourceOperatorDescriptor {
         required = true,
         defaultValue =
             "# Input: None\n" +
-            "# Output/Return: Any R Object\n" +
+            "# Output/Return: Table-like object that can be split into tuples\n" +
             "function() {\n\n" +
             "}"
     )
