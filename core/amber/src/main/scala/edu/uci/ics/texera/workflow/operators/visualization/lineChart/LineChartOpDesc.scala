@@ -66,7 +66,7 @@ class LineChartOpDesc extends VisualizationOperator with PythonOperatorDescripto
     s"""
        |        fig = go.Figure()
        |        ${linesPart.mkString("\n        ")}
-       |        fig.update_layout(margin=dict(t=0, b=60, l=0, r=0),
+       |        fig.update_layout(margin=dict(t=0, b=0, l=0, r=0),
        |                          xaxis_title='$xLabel',
        |                          yaxis_title='$yLabel')
        |""".stripMargin
