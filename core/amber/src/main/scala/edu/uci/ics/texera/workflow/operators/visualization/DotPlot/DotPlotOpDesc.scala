@@ -38,7 +38,7 @@ class DotPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor 
        |
        |        fig.update_traces(marker=dict(size=12, line=dict(width=2, color='DarkSlateGrey')))
        |
-       |        fig.update_layout(margin=dict(t=0, b=60, l=0, r=0))
+       |        fig.update_layout(margin=dict(t=0, b=0, l=0, r=0))
        |""".stripMargin
   }
 
