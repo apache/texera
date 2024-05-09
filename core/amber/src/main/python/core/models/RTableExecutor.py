@@ -8,44 +8,34 @@ from typing import Iterator, List, Mapping, Optional, Union, MutableMapping
 from core.models import ArrowTableTupleProvider, Tuple, TupleLike, Table, TableLike
 from core.models.operator import SourceOperator, TableOperator
 
-class RSerializeExecutor(TableOperator):
+class RTableExecutor(TableOperator):
     """
-    An operator that serializes/deserializes objects using R code.
+    An executor that can execute R code on Arrow tables.
     """
 
     is_source = False
 
-    _object_to_arrow = robjects.r(
-        """
-        library(arrow)
-        object_to_arrow <- function(object) { 
-            serialized <- serialize(object, connection = NULL)
-            df <- data.frame(object = I(list(serialized)))
-            return (arrow::arrow_table(df))   
-        }
-        """
+    _arrow_to_r_dataframe = robjects.r(
+        "arrow_to_r_dataframe <- function(table) { return (as.data.frame(table)) }"
     )
-    _arrow_to_object = robjects.r(
+
+    _r_dataframe_to_arrow = robjects.r(
         """
         library(arrow)
-        arrow_to_object <- function(arrowTable) { 
-            unserialized <- unserialize(unlist((as.data.frame(arrowTable))$object))
-            return (unserialized)
-        }
+        r_dataframe_to_arrow <- function(df) { return (arrow::as_arrow_table(df)) }
         """
     )
 
     def __init__(self, r_code: str):
         """
-        Initialize the RSerializeExecutor with R code.
+        Initialize the RTableExecutor with R code.
 
         Args:
             r_code (str): R code to be executed.
         """
         super().__init__()
-        # Use the local converter from rpy2 to load in the R function given by the user
         with local_converter(default_converter):
-            self._func = robjects.r(r_code)
+            self._func: typing.Callable[[pa.Table], pa.Table] = robjects.r(r_code)
 
     def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
         """
@@ -59,9 +49,9 @@ class RSerializeExecutor(TableOperator):
         """
         input_pyarrow_table = pa.Table.from_pandas(table)
         with local_converter(arrow_converter):
-            input_object = RSerializeExecutor._arrow_to_object(input_pyarrow_table)
-            output_object = self._func(input_object, port)
-            output_rarrow_table = RSerializeExecutor._object_to_arrow(output_object)
+            input_r_dataframe = RTableExecutor._arrow_to_r_dataframe(input_pyarrow_table)
+            output_r_dataframe = self._func(input_r_dataframe, port)
+            output_rarrow_table = RTableExecutor._r_dataframe_to_arrow(output_r_dataframe)
             output_pyarrow_table = rarrow_to_py_table(output_rarrow_table)
 
         for field_accessor in ArrowTableTupleProvider(output_pyarrow_table):
@@ -69,28 +59,44 @@ class RSerializeExecutor(TableOperator):
                 {name: field_accessor for name in output_pyarrow_table.column_names}
             )
 
-
-class RSerializeSourceExecutor(SourceOperator):
+class RTableSourceExecutor(SourceOperator):
     """
-    A source operator that serializes objects using R code.
+    A source operator that produces an R Table or Table-like object using R code.
     """
 
     is_source = True
 
-    _object_to_arrow = robjects.r(
-        """
-        library(arrow)
-        object_to_arrow <- function(object) { 
-            serialized <- serialize(object, connection = NULL)
-            df <- data.frame(object = I(list(serialized)))
-            return (arrow::arrow_table(df))   
-        }
-        """
-    )
+    _output_table_checker = robjects.r("""
+    output_table_checker <- function(x) {
+      is_dataframe <- FALSE
+      
+      # Check if object is already a data frame
+      if (is.data.frame(x)) {
+        is_dataframe <- TRUE
+      } else {
+        # Attempt to convert to data frame
+        tryCatch({
+          as.data.frame(x)
+          is_dataframe <- TRUE
+        }, error = function(e) {
+          is_dataframe <- FALSE
+        })
+      }
+      
+      return(is_dataframe)
+    } 
+    """)
+
+    _source_output_to_arrow = robjects.r("""
+    library(arrow)
+    function(source_output) {
+        return (arrow::as_arrow_table(as.data.frame(source_output)))
+    }
+    """)
 
     def __init__(self, r_code: str):
         """
-        Initialize the RSerializeSourceExecutor with R code.
+        Initialize the RTableSourceExecutor with R code.
 
         Args:
             r_code (str): R code to be executed.
@@ -109,8 +115,11 @@ class RSerializeSourceExecutor(SourceOperator):
         """
         with local_converter(arrow_converter):
             output_obj = self._func()
-            output_rarrow_table = RSerializeSourceExecutor._object_to_arrow(output_obj)
-            output_pyarrow_table = rarrow_to_py_table(output_rarrow_table)
+            if (RTableSourceExecutor._output_table_checker(output_obj)):
+                output_rarrow_table = RTableSourceExecutor._source_output_to_arrow(output_obj)
+                output_pyarrow_table = rarrow_to_py_table(output_rarrow_table)
+            else:
+                raise TypeError("Output type of R Source UDF is not convertable to Table")
 
         for field_accessor in ArrowTableTupleProvider(output_pyarrow_table):
             yield Tuple(
