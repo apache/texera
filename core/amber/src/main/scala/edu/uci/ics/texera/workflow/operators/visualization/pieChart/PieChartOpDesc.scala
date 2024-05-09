@@ -36,11 +36,6 @@ class PieChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor
   @AutofillAttributeName
   var name: String = ""
 
-//  @JsonProperty(value = "title", required = false, defaultValue = "PieChart Visualization")
-//  @JsonSchemaTitle("Title")
-//  @JsonPropertyDescription("the title of this pie chart")
-//  var title: String = "PieChart Visualization"
-
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Schema.builder().add(new Attribute("html-content", AttributeType.STRING)).build()
   }
