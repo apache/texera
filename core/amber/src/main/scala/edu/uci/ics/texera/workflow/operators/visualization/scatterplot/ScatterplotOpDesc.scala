@@ -39,6 +39,14 @@ class ScatterplotOpDesc extends VisualizationOperator with PythonOperatorDescrip
   @AutofillAttributeName
   private val yColumn: String = ""
 
+  @JsonProperty(required = false)
+  @JsonSchemaTitle("Color-Column")
+  @JsonPropertyDescription(
+    "Dots will be assigned different colors based on their values of this column"
+  )
+  @AutofillAttributeName
+  private val colorColumn: String = ""
+
   override def chartType: String = VisualizationConstants.HTML_VIZ
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
@@ -56,15 +64,19 @@ class ScatterplotOpDesc extends VisualizationOperator with PythonOperatorDescrip
 
   def manipulateTable(): String = {
     assert(xColumn.nonEmpty && yColumn.nonEmpty)
+    val colorColExpr = if (colorColumn.nonEmpty) { s"'$colorColumn'" }
+    else { "" }
     s"""
        |        # drops rows with missing values pertaining to relevant columns
-       |        table.dropna(subset=['$xColumn', '$yColumn'], inplace = True)
+       |        table.dropna(subset=['$xColumn', '$yColumn', $colorColExpr], inplace = True)
        |
        |""".stripMargin
   }
 
   def createPlotlyFigure(): String = {
     assert(xColumn.nonEmpty && yColumn.nonEmpty)
+    val colorColExpr = if (colorColumn.nonEmpty) { s"color='$colorColumn'" }
+    else { "" }
     s"""
            |        fig = go.Figure(px.scatter(table, x='$xColumn', y='$yColumn'))
            |        fig.update_layout(margin=dict(l=0, r=0, t=0, b=0))
@@ -85,7 +97,7 @@ class ScatterplotOpDesc extends VisualizationOperator with PythonOperatorDescrip
            |class ProcessTableOperator(UDFTableOperator):
            |
            |    def render_error(self, error_msg):
-           |        return '''<h1>TreeMap is not available.</h1>
+           |        return '''<h1>Scatter Plot is not available.</h1>
            |                  <p>Reasons are: {} </p>
            |               '''.format(error_msg)
            |

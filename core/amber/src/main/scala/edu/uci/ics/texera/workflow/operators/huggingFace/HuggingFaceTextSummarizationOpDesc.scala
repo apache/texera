@@ -53,7 +53,7 @@ class HuggingFaceTextSummarizationOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Hugging Face Text Summarization",
       "Summarize the given text content with a mini2bert pre-trained model from Hugging Face",
-      OperatorGroupConstants.MACHINE_LEARNING_GROUP,
+      OperatorGroupConstants.HUGGINGFACE_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
     )

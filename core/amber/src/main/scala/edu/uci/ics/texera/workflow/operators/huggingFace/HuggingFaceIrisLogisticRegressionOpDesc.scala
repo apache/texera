@@ -85,7 +85,7 @@ class HuggingFaceIrisLogisticRegressionOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Hugging Face Iris Logistic Regression",
       "Predict whether an iris is an Iris-setosa using a pre-trained logistic regression model",
-      OperatorGroupConstants.MACHINE_LEARNING_GROUP,
+      OperatorGroupConstants.HUGGINGFACE_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
     )

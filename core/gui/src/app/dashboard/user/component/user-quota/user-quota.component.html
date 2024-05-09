@@ -41,12 +41,19 @@
           margin-top: 10px;
         }
       </style>
-
       <nz-tab nzTitle="Quota Table">
         <div class="info-container">
           <div class="info-box">
             <h2 class="info-heading">Files Uploaded</h2>
             <p class="info-content">{{ this.createdFiles.length }}</p>
+          </div>
+          <div class="info-box">
+            <h2 class="info-heading">Datasets Uploaded</h2>
+            <p class="info-content">{{ this.totalUploadedDatasetCount }}</p>
+          </div>
+          <div class="info-box">
+            <h2 class="info-heading">Total Size of Datasets</h2>
+            <p class="info-content">{{ convertFileSize(this.totalUploadedDatasetSize) }}</p>
           </div>
           <div class="info-box">
             <h2 class="info-heading">Workflows Created</h2>
