@@ -140,7 +140,7 @@ abstract class RegionPlanGenerator(
 
     // create cache writer and link
     val matWriterPhysicalOp: PhysicalOp =
-      createMatWriter(fromOp.id.logicalOpId)
+      createMatWriter(physicalLink)
     val sourceToWriterLink =
       PhysicalLink(
         fromOp.id,
@@ -154,7 +154,7 @@ abstract class RegionPlanGenerator(
 
     // create cache reader and link
     val matReaderPhysicalOp: PhysicalOp =
-      createMatReader(matWriterPhysicalOp.id.logicalOpId)
+      createMatReader(matWriterPhysicalOp.id.logicalOpId, physicalLink)
     val readerToDestLink =
       PhysicalLink(
         matReaderPhysicalOp.id,
@@ -170,14 +170,15 @@ abstract class RegionPlanGenerator(
   }
 
   def createMatReader(
-      matWriterLogicalOpId: OperatorIdentity
+      matWriterLogicalOpId: OperatorIdentity,
+      physicalLink: PhysicalLink
   ): PhysicalOp = {
     val matReader = new CacheSourceOpDesc(
       matWriterLogicalOpId,
       opResultStorage: OpResultStorage
     )
     matReader.setContext(workflowContext)
-    matReader.setOperatorId("cacheSource_" + matWriterLogicalOpId.id)
+    matReader.setOperatorId(s"cacheSource_${getMatIdFromPhysicalLink(physicalLink)}")
 
     matReader
       .getPhysicalOp(
@@ -189,11 +190,11 @@ abstract class RegionPlanGenerator(
   }
 
   def createMatWriter(
-      fromLogicalOpId: OperatorIdentity
+      physicalLink: PhysicalLink
   ): PhysicalOp = {
     val matWriter = new ProgressiveSinkOpDesc()
     matWriter.setContext(workflowContext)
-    matWriter.setOperatorId("materialized_" + fromLogicalOpId.id)
+    matWriter.setOperatorId(s"materialized_${getMatIdFromPhysicalLink(physicalLink)}")
 
     // expect exactly one input port and one output port
 
@@ -210,5 +211,11 @@ abstract class RegionPlanGenerator(
     )
 
   }
+
+  private def getMatIdFromPhysicalLink(physicalLink: PhysicalLink) =
+    s"${physicalLink.fromOpId.logicalOpId}_${physicalLink.fromOpId.layerName}_" +
+      s"${physicalLink.fromPortId.id}_" +
+      s"${physicalLink.toOpId.logicalOpId}_${physicalLink.toOpId.layerName}_" +
+      s"${physicalLink.toPortId.id}"
 
 }
