@@ -26,7 +26,6 @@ abstract class SklearnMLOpDesc extends PythonOperatorDescriptor {
   override def generatePythonCode(): String =
     s"""$model
        |from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, mean_absolute_error, r2_score
-       |import pandas as pd
        |from pytexera import *
        |class ProcessTableOperator(UDFTableOperator):
        |    @overrides
@@ -66,9 +65,10 @@ abstract class SklearnMLOpDesc extends PythonOperatorDescriptor {
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
-   Schema
+    Schema
       .builder()
       .add("model_name", AttributeType.STRING)
-      .add("model", AttributeType.BINARY).build()
+      .add("model", AttributeType.BINARY)
+      .build()
   }
 }
