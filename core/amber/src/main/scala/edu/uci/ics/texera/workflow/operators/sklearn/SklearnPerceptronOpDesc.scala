@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.sklearn
 
 class SklearnPerceptronOpDesc extends SklearnMLOpDesc {
-  model = "from sklearn.linear_model import Perceptron"
-  modelName = "Linear Perceptron"
+  modelImportStatement = "from sklearn.linear_model import Perceptron"
+  modelUserFriendlyName = "Linear Perceptron"
 }

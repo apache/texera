@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.sklearn
 
 class SklearnDecisionTreeOpDesc extends SklearnMLOpDesc {
-  model = "from sklearn.tree import DecisionTreeClassifier"
-  modelName = "Decision Tree"
+  modelImportStatement = "from sklearn.tree import DecisionTreeClassifier"
+  modelUserFriendlyName = "Decision Tree"
 }

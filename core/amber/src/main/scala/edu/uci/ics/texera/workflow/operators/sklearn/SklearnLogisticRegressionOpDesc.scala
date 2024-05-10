@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.sklearn
 
 class SklearnLogisticRegressionOpDesc extends SklearnMLOpDesc {
-  model = "from sklearn.linear_model import LogisticRegression"
-  modelName = "Logistic Regression"
+  modelImportStatement = "from sklearn.linear_model import LogisticRegression"
+  modelUserFriendlyName = "Logistic Regression"
 }

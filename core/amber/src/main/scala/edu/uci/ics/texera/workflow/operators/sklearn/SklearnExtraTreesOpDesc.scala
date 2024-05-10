@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.sklearn
 
 class SklearnExtraTreesOpDesc extends SklearnMLOpDesc {
-  model = "from sklearn.ensemble import ExtraTreesClassifier"
-  modelName = "Extra Trees"
+  modelImportStatement = "from sklearn.ensemble import ExtraTreesClassifier"
+  modelUserFriendlyName = "Extra Trees"
 }

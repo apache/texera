@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.sklearn
 
 class SklearnGaussianNaiveBayesOpDesc extends SklearnMLOpDesc {
-  model = "from sklearn.naive_bayes import GaussianNB"
-  modelName = "Gaussian Naive Bayes"
+  modelImportStatement = "from sklearn.naive_bayes import GaussianNB"
+  modelUserFriendlyName = "Gaussian Naive Bayes"
 }
