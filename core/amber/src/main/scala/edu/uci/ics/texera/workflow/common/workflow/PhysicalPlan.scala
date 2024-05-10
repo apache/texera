@@ -11,11 +11,10 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import org.jgrapht.alg.connectivity.BiconnectivityInspector
-import org.jgrapht.alg.shortestpath.AllDirectedPaths
-import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
+import org.jgrapht.graph.DirectedMultigraph
 import org.jgrapht.traverse.TopologicalOrderIterator
 
-import scala.jdk.CollectionConverters.{IteratorHasAsScala, ListHasAsScala, SetHasAsScala}
+import scala.jdk.CollectionConverters.{IteratorHasAsScala, SetHasAsScala}
 
 object PhysicalPlan {
 
@@ -70,14 +69,14 @@ case class PhysicalPlan(
     operators.map(o => (o.id, o)).toMap
 
   // the dag will be re-computed again once it reaches the coordinator.
-  @transient lazy val dag: DirectedAcyclicGraph[PhysicalOpIdentity, DefaultEdge] = {
-    val jgraphtDag = new DirectedAcyclicGraph[PhysicalOpIdentity, DefaultEdge](classOf[DefaultEdge])
+  @transient lazy val dag: DirectedMultigraph[PhysicalOpIdentity, PhysicalLink] = {
+    val jgraphtDag = new DirectedMultigraph[PhysicalOpIdentity, PhysicalLink](classOf[PhysicalLink])
     operatorMap.foreach(op => jgraphtDag.addVertex(op._1))
-    links.foreach(l => jgraphtDag.addEdge(l.fromOpId, l.toOpId))
+    links.foreach(l => jgraphtDag.addEdge(l.fromOpId, l.toOpId, l))
     jgraphtDag
   }
 
-  @transient lazy val maxChains: Set[Set[PhysicalLink]] = this.getMaxChains
+//  @transient lazy val maxChains: Set[Set[PhysicalLink]] = this.getMaxChains
 
   def getSourceOperatorIds: Set[PhysicalOpIdentity] =
     operatorMap.keys.filter(op => dag.inDegreeOf(op) == 0).toSet
@@ -256,7 +255,7 @@ case class PhysicalPlan(
     */
   def getNonBridgeNonBlockingLinks: Set[PhysicalLink] = {
     val bridges =
-      new BiconnectivityInspector[PhysicalOpIdentity, DefaultEdge](this.dag).getBridges.asScala
+      new BiconnectivityInspector[PhysicalOpIdentity, PhysicalLink](this.dag).getBridges.asScala
         .map { edge =>
           {
             val fromOpId = this.dag.getEdgeSource(edge)
@@ -275,45 +274,48 @@ case class PhysicalPlan(
     * searching for an optimal physical plan. A maximal chain is a chain that is not a sub-path of any other chain.
     * A maximal chain can cover the optimizations of all its sub-chains, so finding only maximal chains is adequate for
     * optimization purposes. Note the definition of a chain has nothing to do with that of a connected component.
+    * The current implementation assumes a DirectedAcyclicGraph and is incompatible with DirectedMultigraph, so this
+    * optimization is disabled.
     *
     * @return All the maximal chains of this physical plan, where each chain is represented as a set of links.
     */
-  private def getMaxChains: Set[Set[PhysicalLink]] = {
-    val dijkstra = new AllDirectedPaths[PhysicalOpIdentity, DefaultEdge](this.dag)
-    val chains = this.dag
-      .vertexSet()
-      .asScala
-      .flatMap { ancestor =>
-        {
-          this.dag.getDescendants(ancestor).asScala.flatMap { descendant =>
-            {
-              dijkstra
-                .getAllPaths(ancestor, descendant, true, Integer.MAX_VALUE)
-                .asScala
-                .filter(path =>
-                  path.getLength > 1 &&
-                    path.getVertexList.asScala
-                      .filter(v => v != path.getStartVertex && v != path.getEndVertex)
-                      .forall(v => this.dag.inDegreeOf(v) == 1 && this.dag.outDegreeOf(v) == 1)
-                )
-                .map(path =>
-                  path.getEdgeList.asScala
-                    .map { edge =>
-                      {
-                        val fromOpId = this.dag.getEdgeSource(edge)
-                        val toOpId = this.dag.getEdgeTarget(edge)
-                        links.find(l => l.fromOpId == fromOpId && l.toOpId == toOpId)
-                      }
-                    }
-                    .flatMap(_.toList)
-                    .toSet
-                )
-                .toSet
-            }
-          }
-        }
-      }
-    chains.filter(s1 => chains.forall(s2 => s1 == s2 || !s1.subsetOf(s2))).toSet
-  }
+//  private def getMaxChains: Set[Set[PhysicalLink]] = {
+//    val dijkstra = new AllDirectedPaths[PhysicalOpIdentity, PhysicalLink](this.dag)
+//    val chains = this.dag
+//      .vertexSet()
+//      .asScala
+//      .flatMap { ancestor =>
+//        {
+//          this.dag.
+//          this.dag.getDescendants(ancestor).asScala.flatMap { descendant =>
+//            {
+//              dijkstra
+//                .getAllPaths(ancestor, descendant, true, Integer.MAX_VALUE)
+//                .asScala
+//                .filter(path =>
+//                  path.getLength > 1 &&
+//                    path.getVertexList.asScala
+//                      .filter(v => v != path.getStartVertex && v != path.getEndVertex)
+//                      .forall(v => this.dag.inDegreeOf(v) == 1 && this.dag.outDegreeOf(v) == 1)
+//                )
+//                .map(path =>
+//                  path.getEdgeList.asScala
+//                    .map { edge =>
+//                      {
+//                        val fromOpId = this.dag.getEdgeSource(edge)
+//                        val toOpId = this.dag.getEdgeTarget(edge)
+//                        links.find(l => l.fromOpId == fromOpId && l.toOpId == toOpId)
+//                      }
+//                    }
+//                    .flatMap(_.toList)
+//                    .toSet
+//                )
+//                .toSet
+//            }
+//          }
+//        }
+//      }
+//    chains.filter(s1 => chains.forall(s2 => s1 == s2 || !s1.subsetOf(s2))).toSet
+//  }
 
 }

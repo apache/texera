@@ -8,7 +8,7 @@ import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 import org.jgrapht.alg.connectivity.BiconnectivityInspector
-import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph, DirectedPseudograph}
+import org.jgrapht.graph.{DirectedAcyclicGraph, DirectedPseudograph}
 
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.{CollectionHasAsScala, IteratorHasAsScala}
@@ -56,7 +56,7 @@ class CostBasedRegionPlanGenerator(
     val matEdgesRemovedDAG = matEdges.foldLeft(physicalPlan) { (currentPlan, linkToRemove) =>
       currentPlan.removeLink(linkToRemove)
     }
-    val connectedComponents = new BiconnectivityInspector[PhysicalOpIdentity, DefaultEdge](
+    val connectedComponents = new BiconnectivityInspector[PhysicalOpIdentity, PhysicalLink](
       matEdgesRemovedDAG.dag
     ).getConnectedComponents.asScala.toSet
     connectedComponents.zipWithIndex.map {
@@ -203,11 +203,12 @@ class CostBasedRegionPlanGenerator(
           val allBlockingEdges =
             currentState ++ physicalPlan.getNonMaterializedBlockingAndDependeeLinks
           // Generate and enqueue all neighbour states that haven't been visited
-          val edgesInChainWithBlockingEdge = physicalPlan.maxChains
-            .filter(chain => chain.intersect(allBlockingEdges).nonEmpty)
-            .flatten
+          // optimization on chains temporarily disabled due to parallel edges.
+//          val edgesInChainWithBlockingEdge = physicalPlan.maxChains
+//            .filter(chain => chain.intersect(allBlockingEdges).nonEmpty)
+//            .flatten
           val candidateEdges = originalNonBlockingEdges
-            .diff(edgesInChainWithBlockingEdge)
+//            .diff(edgesInChainWithBlockingEdge)
             .diff(currentState)
           if (AmberConfig.useGlobalSearch) {
             candidateEdges.foreach { link =>
