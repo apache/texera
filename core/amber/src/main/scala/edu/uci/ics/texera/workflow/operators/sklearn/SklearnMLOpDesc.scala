@@ -13,7 +13,7 @@ abstract class SklearnMLOpDesc extends PythonOperatorDescriptor {
   var model = ""
 
   @JsonIgnore
-  var name = ""
+  var modelName = ""
 
   @JsonIgnore
   var classification: Boolean = true
@@ -38,31 +38,25 @@ abstract class SklearnMLOpDesc extends PythonOperatorDescriptor {
        |        else:
        |            predictions = self.model.predict(table.drop("$target", axis=1))
        |            if ${if (classification) "True" else "False"}:
-       |                auc = accuracy_score(table["$target"], predictions)
-       |                f1 = f1_score(table["$target"], predictions, average='micro')
-       |                precision = precision_score(table["$target"], predictions, average='micro')
-       |                recall = recall_score(table["$target"], predictions, average='micro')
-       |                print("Accuracy:", auc, ", F1:", f1, ", Precision:", precision, ", Recall:", recall)
-       |                yield {"name" : "$name",
-       |                   "accuracy" : auc,
-       |                   "f1" : f1,
-       |                   "precision" : precision,
-       |                   "recall" : recall,
-       |                   "model" : self.model}
+       |                accuracy = accuracy_score(table["$target"], predictions)
+       |                f1s = f1_score(table["$target"], predictions, average=None)
+       |                precisions = precision_score(table["$target"], predictions, average=None)
+       |                recalls = recall_score(table["$target"], predictions, average=None)
+       |                print("Overall Accuracy:", accuracy)
+       |                for i, feature in enumerate(table.drop("$target", axis=1).columns):
+       |                    print(feature, " - F1:", f1s[i], ", Precision:", precisions[i], ", Recall:", recalls[i])
+       |                yield {"model_name" : "$modelName", "model" : self.model}
        |            else:
        |                mae = mean_absolute_error(table["$target"], predictions)
        |                r2 = r2_score(table["$target"], predictions)
        |                print("MAE:", mae, ", R2:", r2)
-       |                yield {"name" : "$name",
-       |                  "mae": mae,
-       |                  "r2": r2,
-       |                  "model" : self.model}
+       |                yield {"model_name" : "$modelName", "model" : self.model}
        |                   """.stripMargin
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
-      name,
-      "Sklearn " + name + " Operator",
+      modelName,
+      "Sklearn " + modelName + " Operator",
       OperatorGroupConstants.SKLEARN_GROUP,
       inputPorts = List(
         InputPort(PortIdentity(), "training"),
@@ -72,20 +66,9 @@ abstract class SklearnMLOpDesc extends PythonOperatorDescriptor {
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    val builder = Schema
+   Schema
       .builder()
-      .add("name", AttributeType.STRING)
-    if (classification) {
-      builder
-        .add("accuracy", AttributeType.DOUBLE)
-        .add("f1", AttributeType.DOUBLE)
-        .add("precision", AttributeType.DOUBLE)
-        .add("recall", AttributeType.DOUBLE)
-    } else {
-      builder
-        .add("mae", AttributeType.DOUBLE)
-        .add("r2", AttributeType.DOUBLE)
-    }
-    builder.add("model", AttributeType.BINARY).build()
+      .add("model_name", AttributeType.STRING)
+      .add("model", AttributeType.BINARY).build()
   }
 }
