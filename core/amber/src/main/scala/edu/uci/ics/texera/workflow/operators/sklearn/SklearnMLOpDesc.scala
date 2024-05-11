@@ -9,11 +9,9 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 
 abstract class SklearnMLOpDesc extends PythonOperatorDescriptor {
 
-  @JsonIgnore
-  var modelImportStatement = ""
+  def getImportStatements = ""
 
-  @JsonIgnore
-  var modelUserFriendlyName = ""
+  def getUserFriendlyModelName = ""
 
   @JsonIgnore
   var classification: Boolean = true
@@ -24,7 +22,7 @@ abstract class SklearnMLOpDesc extends PythonOperatorDescriptor {
   var target: String = _
 
   override def generatePythonCode(): String =
-    s"""$modelImportStatement
+    s"""$getImportStatements
        |from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, mean_absolute_error, r2_score
        |import numpy as np
        |from pytexera import *
@@ -34,7 +32,7 @@ abstract class SklearnMLOpDesc extends PythonOperatorDescriptor {
        |        Y = table["$target"]
        |        X = table.drop("$target", axis=1)
        |        if port == 0:
-       |            self.model = ${modelImportStatement.split(" ").last}().fit(X, Y)
+       |            self.model = ${getImportStatements.split(" ").last}().fit(X, Y)
        |        else:
        |            predictions = self.model.predict(X)
        |            if ${if (classification) "True"
@@ -47,17 +45,17 @@ abstract class SklearnMLOpDesc extends PythonOperatorDescriptor {
        |                recalls = recall_score(Y, predictions, average=None)
        |                for i, class_name in enumerate(np.unique(Y)):
        |                    print("Class", repr(class_name), " - F1:", f1s[i], ", Precision:", precisions[i], ", Recall:", recalls[i])
-       |                yield {"model_name" : "$modelUserFriendlyName", "model" : self.model}
+       |                yield {"model_name" : "$getUserFriendlyModelName", "model" : self.model}
        |            else:
        |                mae = mean_absolute_error(Y, predictions)
        |                r2 = r2_score(Y, predictions)
        |                print("MAE:", mae, ", R2:", r2)
-       |                yield {"model_name" : "$modelUserFriendlyName", "model" : self.model}""".stripMargin
+       |                yield {"model_name" : "$getUserFriendlyModelName", "model" : self.model}""".stripMargin
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
-      modelUserFriendlyName,
-      "Sklearn " + modelUserFriendlyName + " Operator",
+      getUserFriendlyModelName,
+      "Sklearn " + getUserFriendlyModelName + " Operator",
       OperatorGroupConstants.SKLEARN_GROUP,
       inputPorts = List(
         InputPort(PortIdentity(), "training"),
