@@ -9,10 +9,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 
 abstract class SklearnMLOpDesc extends PythonOperatorDescriptor {
 
-  def getImportStatements = ""
-
-  def getUserFriendlyModelName = ""
-
   @JsonIgnore
   var classification: Boolean = true
 
@@ -20,6 +16,10 @@ abstract class SklearnMLOpDesc extends PythonOperatorDescriptor {
   @JsonPropertyDescription("attribute in your dataset corresponding to target")
   @AutofillAttributeName
   var target: String = _
+
+  def getImportStatements = ""
+
+  def getUserFriendlyModelName = ""
 
   override def generatePythonCode(): String =
     s"""$getImportStatements
