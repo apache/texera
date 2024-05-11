@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.sklearn
 
 class SklearnRandomForestOpDesc extends SklearnMLOpDesc {
-  model = "from sklearn.ensemble import RandomForestClassifier"
-  name = "Random Forest"
+  override def getImportStatements = "from sklearn.ensemble import RandomForestClassifier"
+  override def getUserFriendlyModelName = "Random Forest"
 }

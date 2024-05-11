@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.sklearn
 
 class SklearnGradientBoostingOpDesc extends SklearnMLOpDesc {
-  model = "from sklearn.ensemble import GradientBoostingClassifier"
-  name = "Gradient Boosting"
+  override def getImportStatements = "from sklearn.ensemble import GradientBoostingClassifier"
+  override def getUserFriendlyModelName = "Gradient Boosting"
 }
