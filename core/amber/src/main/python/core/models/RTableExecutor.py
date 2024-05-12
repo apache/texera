@@ -66,6 +66,7 @@ class RTableSourceExecutor(SourceOperator):
 
     is_source = True
 
+    # Currently unused, may use in future?
     _output_table_checker = robjects.r("""
     output_table_checker <- function(x) {
       is_dataframe <- FALSE
@@ -115,11 +116,8 @@ class RTableSourceExecutor(SourceOperator):
         """
         with local_converter(arrow_converter):
             output_obj = self._func()
-            if (RTableSourceExecutor._output_table_checker(output_obj)):
-                output_rarrow_table = RTableSourceExecutor._source_output_to_arrow(output_obj)
-                output_pyarrow_table = rarrow_to_py_table(output_rarrow_table)
-            else:
-                raise TypeError("Output type of R Source UDF is not convertable to Table")
+            output_rarrow_table = RTableSourceExecutor._source_output_to_arrow(output_obj)
+            output_pyarrow_table = rarrow_to_py_table(output_rarrow_table)
 
         for field_accessor in ArrowTableTupleProvider(output_pyarrow_table):
             yield Tuple(
