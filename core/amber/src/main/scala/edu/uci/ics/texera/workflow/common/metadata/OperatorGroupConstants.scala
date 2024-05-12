@@ -12,10 +12,13 @@ object OperatorGroupConstants {
   final val SORT_GROUP = "Sort"
   final val UTILITY_GROUP = "Utilities"
   final val API_GROUP = "External API"
-  final val UDF_GROUP = "User-defined Functions"
   final val VISUALIZATION_GROUP = "Visualization"
   final val HUGGINGFACE_GROUP = "Hugging Face"
   final val SKLEARN_GROUP = "Sklearn"
+  final val UDF_GROUP = "User-defined Functions"
+  final val PYTHON_GROUP = "Python"
+  final val JAVA_GROUP = "Java"
+
 
   /**
     * The order of the groups to show up in the frontend operator panel.
@@ -25,15 +28,11 @@ object OperatorGroupConstants {
     GroupInfo(INPUT_GROUP),
     GroupInfo(DATABASE_GROUP),
     GroupInfo(SEARCH_GROUP),
-    GroupInfo(CLEANING_GROUP),
+    GroupInfo(CLEANING_GROUP, List(GroupInfo(JOIN_GROUP), GroupInfo(AGGREGATE_GROUP), GroupInfo(SORT_GROUP))),
     GroupInfo(MACHINE_LEARNING_GROUP, List(GroupInfo(SKLEARN_GROUP), GroupInfo(HUGGINGFACE_GROUP))),
-    GroupInfo(JOIN_GROUP),
-    GroupInfo(SET_GROUP),
-    GroupInfo(AGGREGATE_GROUP),
-    GroupInfo(SORT_GROUP),
     GroupInfo(UTILITY_GROUP),
     GroupInfo(API_GROUP),
-    GroupInfo(UDF_GROUP),
+    GroupInfo(UDF_GROUP, List(GroupInfo(PYTHON_GROUP), GroupInfo(JAVA_GROUP))),
     GroupInfo(VISUALIZATION_GROUP)
   )
 }
