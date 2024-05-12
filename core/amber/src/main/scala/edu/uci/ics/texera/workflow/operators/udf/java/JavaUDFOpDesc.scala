@@ -144,7 +144,7 @@ class JavaUDFOpDesc extends LogicalOp {
     OperatorInfo(
       "Java UDF",
       "User-defined function operator in Java script",
-      OperatorGroupConstants.UDF_GROUP,
+      OperatorGroupConstants.JAVA_GROUP,
       inputPortInfo,
       outputPortInfo,
       dynamicInputPorts = true,

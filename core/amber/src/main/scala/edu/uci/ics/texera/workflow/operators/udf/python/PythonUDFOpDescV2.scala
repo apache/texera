@@ -152,7 +152,7 @@ class PythonUDFOpDescV2 extends LogicalOp {
     OperatorInfo(
       "Python UDF",
       "User-defined function operator in Python script",
-      OperatorGroupConstants.UDF_GROUP,
+      OperatorGroupConstants.PYTHON_GROUP,
       inputPortInfo,
       outputPortInfo,
       dynamicInputPorts = true,
