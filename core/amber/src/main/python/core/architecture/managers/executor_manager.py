@@ -13,32 +13,6 @@ from fs.base import FS
 from loguru import logger
 from core.models import Operator, SourceOperator
 
-def _get_R_HOME_env_var():
-    """
-    Read python_udf.conf file and read the R_HOME property to
-    configure which version of R to use
-    """
-    orig_dir = os.getcwd()
-    target_dir = os.path.join(orig_dir, "src", "main", "resources")
-    os.chdir(target_dir)
-
-    with open("./python_udf.conf", "r") as file:
-        os.chdir(orig_dir)
-        for line in file:
-            line = line.strip()
-            if "R_HOME" in line:
-                _, R_HOME = line.split("=")
-                R_HOME = R_HOME.strip().strip("\"")
-                return R_HOME
-
-R_HOME = _get_R_HOME_env_var()
-if R_HOME:
-    logger.info("initializing R environment variable with " + R_HOME)
-    os.environ["R_HOME"] = R_HOME
-else:
-    logger.info("WARNING: R environment variable was not found in python_conf.udf")
-
-
 class ExecutorManager:
     def __init__(self):
         self.executor: Optional[Operator] = None
@@ -133,11 +107,8 @@ class ExecutorManager:
         )
 
     def initialize_r_executor(self, code, is_source: bool):
-        # Have to import these classes in this function because the R-UDF classes
-        # import rpy2, which require os.environ["R_HOME"] to be configured first to work
         # from core.models.RSerializeExecutor import RSerializeExecutor, RSerializeSourceExecutor
         from core.models.RTableExecutor import RTableSourceExecutor, RTableExecutor
-
         if is_source:
             self.executor = RTableSourceExecutor(code)
         else:
