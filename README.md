@@ -92,7 +92,7 @@ The following is a workflow formulated using the Texera GUI in a Web browser, wh
 * (4/2021) Why Do People Oppose Mask Wearing? A Comprehensive Analysis of US Tweets During the COVID-19 Pandemic, Lu He, Changyang He, Tera Leigh Reynolds, Qiushi Bai, Yicong Huang, Chen Li, Kai Zheng, and Yunan Chen, in JAMIA 2021 [PDF](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7989302/pdf/ocab047.pdf).
 
 ## Videos
-
+* [dkNET Webinar "Texera: A Scalable Cloud Computing Platform for Sharing Data & Workflow-based Analysis" 04/26/2024](https://www.youtube.com/watch?v=B81iMFS5fPc)
 * [Texera demo in VLDB 2020](https://www.youtube.com/watch?v=SP-XiDADbw0)
 * [Amber engine presentation in VLDB 2020](https://www.youtube.com/watch?v=T5ShFRfHmgI)
 * See [Texera in action](https://www.youtube.com/watch?v=NXfynBUwdVg). 
