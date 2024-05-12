@@ -17,8 +17,10 @@ abstract class SklearnMLOpDesc extends PythonOperatorDescriptor {
   @AutofillAttributeName
   var target: String = _
 
+  @JsonIgnore
   def getImportStatements = ""
 
+  @JsonIgnore
   def getUserFriendlyModelName = ""
 
   override def generatePythonCode(): String =
