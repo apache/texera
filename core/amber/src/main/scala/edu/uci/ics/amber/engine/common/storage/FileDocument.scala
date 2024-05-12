@@ -3,7 +3,7 @@ import org.apache.commons.vfs2.{FileObject, VFS}
 import java.io.{File, InputStream, FileOutputStream, IOException}
 import java.net.URI
 
-class FileDocument(val uri: URI) extends VirtualDocument[_] {
+class FileDocument(val uri: URI) extends VirtualDocument[AnyRef] {
   val file: FileObject = VFS.getManager.resolveFile(uri.toString)
 
   override def writeWithStream(inputStream: InputStream): Unit = {
