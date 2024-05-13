@@ -44,7 +44,7 @@ class PythonLambdaFunctionOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Python Lambda Function",
       "Modify or add a new column with more ease",
-      OperatorGroupConstants.UDF_GROUP,
+      OperatorGroupConstants.PYTHON_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort()),
       supportReconfiguration = true

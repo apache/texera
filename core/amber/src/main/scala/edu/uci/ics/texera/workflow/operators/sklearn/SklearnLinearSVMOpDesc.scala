@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.sklearn
 
 class SklearnLinearSVMOpDesc extends SklearnMLOpDesc {
-  model = "from sklearn.svm import LinearSVC"
-  name = "Linear Support Vector Machine"
+  override def getImportStatements = "from sklearn.svm import LinearSVC"
+  override def getUserFriendlyModelName = "Linear Support Vector Machine"
 }
