@@ -30,7 +30,7 @@ trait WorkerStateUpdatedHandler {
         )
       sendToClient(
         ExecutionStatsUpdate(
-          cp.workflowExecution.getRunningRegionExecutions.flatMap(_.getStats).toMap
+          cp.workflowExecution.getAllRegionExecutionsStats
         )
       )
     }

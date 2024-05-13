@@ -9,6 +9,7 @@ import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import org.jgrapht.graph.DirectedAcyclicGraph
+import org.jgrapht.util.SupplierUtil
 
 import java.util
 import scala.collection.mutable.ArrayBuffer
@@ -23,7 +24,12 @@ object LogicalPlan {
       links: List[LogicalLink]
   ): DirectedAcyclicGraph[OperatorIdentity, LogicalLink] = {
     val workflowDag =
-      new DirectedAcyclicGraph[OperatorIdentity, LogicalLink](classOf[LogicalLink])
+      new DirectedAcyclicGraph[OperatorIdentity, LogicalLink](
+        null, // vertexSupplier
+        SupplierUtil.createSupplier(classOf[LogicalLink]), // edgeSupplier
+        false, // weighted
+        true // allowMultipleEdges
+      )
     operatorList.foreach(op => workflowDag.addVertex(op.operatorIdentifier))
     links.foreach(l =>
       workflowDag.addEdge(

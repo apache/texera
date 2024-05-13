@@ -1,21 +1,75 @@
 <div
-  [hidden]="!showResultPanel"
-  class="texera-workspace-result-panel-body">
-  <nz-tabset
-    [nzSize]="'small'"
-    [nzTabPosition]="'left'">
-    <div *ngIf="frameComponentConfigs.size === 0">
-      <nz-tab nzTitle="Result">
-        <div style="text-align: center">
-          <h4>No results available to display.</h4>
-        </div>
-      </nz-tab>
-    </div>
-
-    <div *ngFor="let config of frameComponentConfigs | keyvalue">
-      <nz-tab nzTitle="{{config.key}}">
-        <ng-container *ngComponentOutlet="config.value.component;inputs: config.value.componentInputs"></ng-container>
-      </nz-tab>
-    </div>
-  </nz-tabset>
+  class="texera-workspace-result-panel-body"
+  id="result-container"
+  cdkDrag
+  cdkDragBoundary="body"
+  nz-resizable
+  [nzMinWidth]="300"
+  [nzMinHeight]="200"
+  [nzMaxWidth]="window.innerWidth"
+  [nzMaxHeight]="window.innerHeight"
+  [style.width.px]="width"
+  [style.height.px]="height"
+  (nzResize)="onResize($event)">
+  <ul
+    nz-menu
+    id="result-buttons"
+    [ngClass]="{'shadow':  !width}">
+    <li
+      nz-menu-item
+      (click)="closePanel()"
+      *ngIf="width">
+      <span
+        nz-icon
+        nzType="minus"></span>
+    </li>
+    <li
+      nz-menu-item
+      nzSelected="{{!width}}"
+      cdkDragHandle
+      *ngIf="!width">
+      <span
+        nz-icon
+        nzType="drag"></span>
+    </li>
+    <li
+      nz-menu-divider
+      id="divider"></li>
+    <li
+      nz-menu-item
+      (click)="openPanel()"
+      *ngIf="!width"
+      nz-tooltip="Result Panel">
+      <span
+        nz-icon
+        nzType="border"></span>
+    </li>
+  </ul>
+  <div id="content">
+    <h4
+      id="title"
+      cdkDragHandle
+      *ngIf="width">
+      Result Panel
+    </h4>
+    <nz-tabset
+      [nzSize]="'small'"
+      [nzTabPosition]="'left'">
+      <div *ngIf="frameComponentConfigs.size === 0">
+        <nz-tab nzTitle="Result">
+          <div style="text-align: center">
+            <h4>No results available to display.</h4>
+          </div>
+        </nz-tab>
+      </div>
+      <div *ngFor="let config of frameComponentConfigs | keyvalue">
+        <nz-tab nzTitle="{{config.key}}">
+          <ng-container *ngComponentOutlet="config.value.component;inputs: config.value.componentInputs"></ng-container>
+        </nz-tab>
+      </div>
+    </nz-tabset>
+  </div>
+  <nz-resize-handles
+    *ngIf="width"
+    [nzDirections]="['right', 'bottom', 'bottomRight']"></nz-resize-handles>
 </div>

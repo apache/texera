@@ -24,7 +24,7 @@ class PythonTableReducerOpDesc extends PythonOperatorDescriptor {
     OperatorInfo(
       "Python Table Reducer",
       "Reduce Table to Tuple",
-      OperatorGroupConstants.UDF_GROUP,
+      OperatorGroupConstants.PYTHON_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
     )

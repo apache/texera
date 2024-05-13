@@ -15,9 +15,8 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{
   DatasetVersion
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset.DATASET
+import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetVersion.DATASET_VERSION
-import edu.uci.ics.texera.web.resource.dashboard.DashboardResource
-import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.SearchQueryParams
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetAccessResource.{
   getDatasetUserAccessPrivilege,
   userHasReadAccess,
@@ -37,7 +36,7 @@ import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{
   ERR_DATASET_CREATION_FAILED_MESSAGE,
   ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE,
   context,
-  createNewDatasetVersion,
+  createNewDatasetVersionFromFormData,
   getDashboardDataset,
   getDatasetByID,
   getDatasetLatestVersion,
@@ -55,7 +54,6 @@ import org.jooq.types.UInteger
 import java.io.{InputStream, OutputStream}
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
-import java.nio.file.Paths
 import java.util
 import java.util.concurrent.locks.ReentrantLock
 import javax.annotation.security.RolesAllowed
@@ -72,6 +70,9 @@ import javax.ws.rs.{
   QueryParam
 }
 import javax.ws.rs.core.{MediaType, Response, StreamingOutput}
+import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
+import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters._
 
 object DatasetResource {
@@ -142,6 +143,27 @@ object DatasetResource {
     )
   }
 
+  // the format of dataset version name is: v{#n} - {user provided dataset version name}. e.g. v10 - new version
+  private def generateDatasetVersionName(
+      ctx: DSLContext,
+      did: UInteger,
+      userProvidedVersionName: String
+  ): String = {
+    val numberOfExistingVersions = ctx
+      .selectFrom(DATASET_VERSION)
+      .where(DATASET_VERSION.DID.eq(did))
+      .fetch()
+      .size()
+
+    val res = if (userProvidedVersionName == "") {
+      "v" + (numberOfExistingVersions + 1).toString
+    } else {
+      "v" + (numberOfExistingVersions + 1).toString + " - " + userProvidedVersionName
+    }
+
+    res
+  }
+
   // this function retrieve the latest DatasetVersion from DB
   // the latest here means the one with latest creation time
   // read access will be checked
@@ -166,18 +188,97 @@ object DatasetResource {
     latestVersion
   }
 
-  // this function create a new dataset version
-  // the dataset is identified by did, the file changes/removals are contained in multiPart form
-  // it returns the created dataset version if creation succeed, else return None
-  // concurrency control is performed here: the thread has to have the lock in order to create the new version
-  private def createNewDatasetVersion(
+  // DatasetOperation defines the operations that will be applied when creating a new dataset version
+  private case class DatasetOperation(
+      filesToAdd: Map[java.nio.file.Path, InputStream],
+      filesToRemove: List[java.nio.file.Path]
+  )
+
+  private def parseUserUploadedFormToDatasetOperations(
+      did: UInteger,
+      multiPart: FormDataMultiPart
+  ): DatasetOperation = {
+    val datasetPath = PathUtils.getDatasetPath(did) // Obtain dataset base path
+
+    // Mutable collections for constructing DatasetOperation
+    val filesToAdd = mutable.Map[java.nio.file.Path, InputStream]()
+    val filesToRemove = mutable.ListBuffer[java.nio.file.Path]()
+
+    val fields = multiPart.getFields.keySet.iterator() // Get all field names
+
+    // for multipart, each file-related operation's key starts with file:
+    // the operation is either upload or remove
+    // for file:upload, the file path will be suffixed to it, e.g. file:upload:a/b/c.csv The value will be the file content
+    // for file:remove, the value would be filepath1,filepath2
+    while (fields.hasNext) {
+      val fieldName = fields.next()
+      val bodyPart = multiPart.getField(fieldName) // Get the body part for the field
+
+      if (fieldName.startsWith(FILE_OPERATION_UPLOAD_PREFIX)) {
+        // Determine the relative file path and resolve it with the dataset base path
+        val filePath = datasetPath.resolve(fieldName.substring(FILE_OPERATION_UPLOAD_PREFIX.length))
+        val inputStream =
+          bodyPart.getValueAs(classOf[InputStream]) // Get input stream from multipart
+        filesToAdd.put(filePath, inputStream) // Add to the map for uploads
+      } else if (fieldName.startsWith(FILE_OPERATION_REMOVE_PREFIX)) {
+        val filePathsValue =
+          bodyPart.getValueAs(classOf[String]) // Get the file paths as a comma-separated string
+        val filePaths = filePathsValue.split(",") // Split into individual file paths
+        filePaths.foreach { filePath =>
+          val normalizedFilePath = filePath.stripPrefix("/") // Normalize path
+          val physicalFilePath = datasetPath.resolve(normalizedFilePath) // Convert to full path
+          filesToRemove += physicalFilePath // Add to the list for removals
+        }
+      }
+    }
+
+    // Return a new DatasetOperation with the map and list
+    DatasetOperation(filesToAdd.toMap, filesToRemove.toList)
+  }
+
+  // add file(s) to a dataset, a new version will be created
+  def createNewDatasetVersionByAddingFiles(
+      did: UInteger,
+      uid: UInteger,
+      filesToAdd: Map[java.nio.file.Path, InputStream]
+  ): Option[DashboardDatasetVersion] = {
+    applyDatasetOperationToCreateNewVersion(
+      context,
+      did,
+      uid,
+      "",
+      DatasetOperation(filesToAdd, List())
+    )
+  }
+
+  // create a new dataset version using the form data from frontend
+  def createNewDatasetVersionFromFormData(
       ctx: DSLContext,
       did: UInteger,
       uid: UInteger,
-      versionName: String,
+      userProvidedVersionName: String,
       multiPart: FormDataMultiPart
   ): Option[DashboardDatasetVersion] = {
+    val datasetOperation = parseUserUploadedFormToDatasetOperations(did, multiPart)
+    applyDatasetOperationToCreateNewVersion(
+      ctx,
+      did,
+      uid,
+      userProvidedVersionName,
+      datasetOperation
+    )
+  }
 
+  // apply the dataset operation to create a new dataset version
+  // it returns the created dataset version if creation succeed, else return None
+  // concurrency control is performed here: the thread has to have the lock in order to create the new version
+  private def applyDatasetOperationToCreateNewVersion(
+      ctx: DSLContext,
+      did: UInteger,
+      uid: UInteger,
+      userProvidedVersionName: String,
+      datasetOperation: DatasetOperation
+  ): Option[DashboardDatasetVersion] = {
     // Acquire or Create the lock for dataset of {did}
     val lock = DatasetResource.datasetLocks.getOrElseUpdate(did, new ReentrantLock())
 
@@ -186,52 +287,30 @@ object DatasetResource {
     }
     lock.lock()
     try {
-      val datasetPath = Paths.get(PathUtils.getDatasetPath(did).toString)
+      val datasetPath = PathUtils.getDatasetPath(did)
 
-      // this is used to check if file operation happens
-      var fileOperationHappens = false
-      // for multipart, each file-related operation's key starts with file:
-      // the operation is either upload or remove
-      // for file:upload, the file path will be suffixed to it, e.g. file:upload:a/b/c.csv The value will be the file content
-      // for file:remove, the value would be filepath1,filepath2
-      val fields = multiPart.getFields().keySet().iterator()
+      if (datasetOperation.filesToAdd.isEmpty && datasetOperation.filesToRemove.isEmpty) {
+        return None
+      }
 
+      val versionName = generateDatasetVersionName(ctx, did, userProvidedVersionName)
       val commitHash = GitVersionControlLocalFileStorage.withCreateVersion(
         datasetPath,
         versionName,
         () => {
-          while (fields.hasNext) {
-            val fieldName = fields.next()
-            val bodyPart = multiPart.getField(fieldName)
+          datasetOperation.filesToAdd.foreach {
+            case (filePath, fileStream) =>
+              GitVersionControlLocalFileStorage.writeFileToRepo(datasetPath, filePath, fileStream)
+          }
 
-            if (fieldName.startsWith(FILE_OPERATION_UPLOAD_PREFIX)) {
-              //        val contentDisposition = bodyPart.getContentDisposition
-              //        val contentType = bodyPart.getMediaType.toString
-              val filePath =
-                datasetPath.resolve(fieldName.substring(FILE_OPERATION_UPLOAD_PREFIX.length))
-              // TODO: be careful with the string operation here
-              val value: InputStream = bodyPart.getValueAs(classOf[InputStream])
-              GitVersionControlLocalFileStorage.writeFileToRepo(datasetPath, filePath, value)
-              fileOperationHappens = true
-            } else if (fieldName.startsWith(FILE_OPERATION_REMOVE_PREFIX)) {
-              val filePathsValue = bodyPart.getValueAs(classOf[String])
-              val filePaths = filePathsValue.split(",")
-              filePaths.foreach { filePath =>
-                val normalizedFilePath = filePath.stripPrefix("/")
-                GitVersionControlLocalFileStorage.removeFileFromRepo(
-                  datasetPath,
-                  datasetPath.resolve(normalizedFilePath)
-                )
-              }
-              fileOperationHappens = true
-            }
+          datasetOperation.filesToRemove.foreach { filePath =>
+            GitVersionControlLocalFileStorage.removeFileFromRepo(
+              datasetPath,
+              filePath
+            )
           }
         }
       )
-
-      if (!fileOperationHappens) {
-        return None
-      }
 
       // create the DatasetVersion that persists in the DB
       val datasetVersion = new DatasetVersion()
@@ -348,7 +427,8 @@ class DatasetResource {
       GitVersionControlLocalFileStorage.initRepo(datasetPath)
 
       // create the initial version of the dataset
-      val createdVersion = createNewDatasetVersion(ctx, did, uid, initialVersionName, files)
+      val createdVersion =
+        createNewDatasetVersionFromFormData(ctx, did, uid, initialVersionName, files)
 
       createdVersion match {
         case Some(_) =>
@@ -485,7 +565,8 @@ class DatasetResource {
         throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
       }
       // create the version
-      val createdVersion = createNewDatasetVersion(ctx, did, uid, versionName, multiPart)
+      val createdVersion =
+        createNewDatasetVersionFromFormData(ctx, did, uid, versionName, multiPart)
 
       createdVersion match {
         case None =>
@@ -517,25 +598,47 @@ class DatasetResource {
   def listDatasets(
       @Auth user: SessionUser
   ): List[DashboardDataset] = {
-    val result = DashboardResource.searchAllResources(
-      user,
-      SearchQueryParams(resourceType = "dataset")
-    )
-    var accessibleDatasets = result.results.map(_.dataset.get)
-    val publicDatasets = retrievePublicDatasets(context)
-
-    publicDatasets.forEach { publicDataset =>
-      if (!accessibleDatasets.exists(_.dataset.getDid == publicDataset.getDid)) {
-        val dashboardDataset = DashboardDataset(
-          isOwner = false,
-          dataset = publicDataset,
-          accessPrivilege = DatasetUserAccessPrivilege.READ
+    val uid = user.getUid
+    withTransaction(context)(ctx => {
+      // we first retrieve all datasets user have the direct access to
+      var accessibleDatasets =
+        ListBuffer.from(
+          ctx
+            .selectFrom(
+              DATASET
+                .leftJoin(DATASET_USER_ACCESS)
+                .on(DATASET_USER_ACCESS.DID.eq(DATASET.DID))
+                .where(
+                  DATASET_USER_ACCESS.UID.eq(uid)
+                )
+            )
+            .fetch()
+            .map(datasetAndAccess => {
+              val dataset = datasetAndAccess.into(classOf[Dataset])
+              val datasetAccess = datasetAndAccess.into(classOf[DatasetUserAccess])
+              DashboardDataset(
+                isOwner = dataset.getOwnerUid == uid,
+                dataset = dataset,
+                accessPrivilege = datasetAccess.getPrivilege
+              )
+            })
         )
-        accessibleDatasets = accessibleDatasets :+ dashboardDataset
-      }
-    }
 
-    accessibleDatasets
+      // then we fetch the public datasets and merge it as a part of the result if not exist
+      val publicDatasets = retrievePublicDatasets(context)
+      publicDatasets.forEach { publicDataset =>
+        if (!accessibleDatasets.exists(_.dataset.getDid == publicDataset.getDid)) {
+          val dashboardDataset = DashboardDataset(
+            isOwner = false,
+            dataset = publicDataset,
+            accessPrivilege = DatasetUserAccessPrivilege.READ
+          )
+          accessibleDatasets = accessibleDatasets :+ dashboardDataset
+        }
+      }
+
+      accessibleDatasets.toList
+    })
   }
 
   @GET

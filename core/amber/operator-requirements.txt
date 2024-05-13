@@ -3,3 +3,5 @@ plotly
 praw
 pillow
 pybase64
+torch
+scikit-learn

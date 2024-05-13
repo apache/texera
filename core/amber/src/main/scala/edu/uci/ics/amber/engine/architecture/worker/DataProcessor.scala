@@ -69,12 +69,11 @@ class DataProcessor(
     inputGateway.getChannel(channelId).getQueuedCredit
   }
 
-  /** provide API for actor to get stats of this executor
-    *
-    * @return (input tuple count, output tuple count)
+  /**
+    * provide API for actor to get stats of this operator
     */
   def collectStatistics(): WorkerStatistics =
-    statisticsManager.getStatistics(stateManager.getCurrentState, executor)
+    statisticsManager.getStatistics(executor)
 
   /**
     * process currentInputTuple through executor logic.
@@ -82,13 +81,16 @@ class DataProcessor(
     */
   private[this] def processInputTuple(tuple: Tuple): Unit = {
     try {
+      val portIdentity: PortIdentity =
+        this.inputGateway.getChannel(inputManager.currentChannelId).getPortId
       outputManager.outputIterator.setTupleOutput(
         executor.processTupleMultiPort(
           tuple,
-          this.inputGateway.getChannel(inputManager.currentChannelId).getPortId.id
+          portIdentity.id
         )
       )
-      statisticsManager.increaseInputTupleCount()
+
+      statisticsManager.increaseInputTupleCount(portIdentity)
 
     } catch safely {
       case e =>
@@ -154,7 +156,11 @@ class DataProcessor(
       case FinalizePort(portId, input) =>
         asyncRPCClient.send(PortCompleted(portId, input), CONTROLLER)
       case schemaEnforceable: SchemaEnforceable =>
-        statisticsManager.increaseOutputTupleCount()
+        if (outputPortOpt.isEmpty) {
+          statisticsManager.increaseOutputTupleCount(outputManager.getSingleOutputPortIdentity)
+        } else {
+          statisticsManager.increaseOutputTupleCount(outputPortOpt.get)
+        }
         outputManager.passTupleToDownstream(schemaEnforceable, outputPortOpt)
 
       case other => // skip for now

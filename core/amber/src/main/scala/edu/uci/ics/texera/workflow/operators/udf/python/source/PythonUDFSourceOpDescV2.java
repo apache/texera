@@ -46,7 +46,7 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
     @JsonPropertyDescription("Input your code here")
     public String code;
 
-    @JsonProperty(required = true)
+    @JsonProperty(required = true, defaultValue = "1")
     @JsonSchemaTitle("Worker count")
     @JsonPropertyDescription("Specify how many parallel workers to lunch")
     public Integer workers = 1;
@@ -97,7 +97,7 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
         return new OperatorInfo(
                 "1-out Python UDF",
                 "User-defined function operator in Python script",
-                OperatorGroupConstants.UDF_GROUP(),
+                OperatorGroupConstants.PYTHON_GROUP(),
                 asScala(new ArrayList<InputPort>()).toList(),
                 asScala(singletonList(new OutputPort(new PortIdentity(0, false), "", false))).toList(),
                 false,

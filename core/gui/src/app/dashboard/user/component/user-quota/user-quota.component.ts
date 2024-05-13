@@ -21,6 +21,8 @@ export class UserQuotaComponent {
 
   totalFileSize: number = 0;
   totalMongoSize: number = 0;
+  totalUploadedDatasetSize: number = 0;
+  totalUploadedDatasetCount: number = 0;
   createdFiles: ReadonlyArray<File> = [];
   createdWorkflows: ReadonlyArray<Workflow> = [];
   accessFiles: ReadonlyArray<number> = [];
@@ -65,6 +67,18 @@ export class UserQuotaComponent {
         const copiedFiles = [...fileList];
         copiedFiles.sort((a, b) => b.fileSize - a.fileSize);
         this.topFiveFiles = copiedFiles.slice(0, 5);
+      });
+
+    this.UserService.getTotalUploadedDatasetSize(this.userId)
+      .pipe(untilDestroyed(this))
+      .subscribe(datasetSize => {
+        this.totalUploadedDatasetSize = datasetSize;
+      });
+
+    this.UserService.getTotalUploadedDatasetCount(this.userId)
+      .pipe(untilDestroyed(this))
+      .subscribe(datasetCount => {
+        this.totalUploadedDatasetCount = datasetCount;
       });
 
     this.UserService.getCreatedWorkflows(this.userId)

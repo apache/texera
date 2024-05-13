@@ -7,6 +7,7 @@
       <texera-sort-button (sortMethodChange)="sortMethod = $event; search()"></texera-sort-button>
       <button
         (click)="onClickCreateNewWorkflowFromDashboard()"
+        [disabled]="accessLevel === 'READ'"
         nz-button
         title="Create a new workflow"
         nz-tooltip="Create a new workflow"
@@ -19,6 +20,7 @@
       </button>
       <nz-upload [nzBeforeUpload]="onClickUploadExistingWorkflowFromLocal">
         <button
+          [disabled]="accessLevel === 'READ'"
           nz-button
           title="Upload ZIP/JSON file as workflow"
           nz-tooltip="Upload ZIP/JSON file as workflow"
@@ -73,6 +75,7 @@
 
       <button
         *ngIf="pid !== undefined"
+        [disabled]="accessLevel === 'READ'"
         (click)="onClickOpenAddWorkflow()"
         nz-button
         title="Add workflow(s) to project"
@@ -86,6 +89,7 @@
       </button>
       <button
         *ngIf="pid !== undefined"
+        [disabled]="accessLevel === 'READ'"
         (click)="onClickOpenRemoveWorkflow()"
         nz-button
         title="Remove workflow(s) from project"

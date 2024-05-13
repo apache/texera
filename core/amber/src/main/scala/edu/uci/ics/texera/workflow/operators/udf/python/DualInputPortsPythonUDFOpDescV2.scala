@@ -45,7 +45,7 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
   @JsonPropertyDescription("Input your code here")
   var code: String = ""
 
-  @JsonProperty(required = true)
+  @JsonProperty(required = true, defaultValue = "1")
   @JsonSchemaTitle("Worker count")
   @JsonPropertyDescription("Specify how many parallel workers to lunch")
   var workers: Int = Int.box(1)
@@ -113,7 +113,7 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
     OperatorInfo(
       "2-in Python UDF",
       "User-defined function operator in Python script",
-      OperatorGroupConstants.UDF_GROUP,
+      OperatorGroupConstants.PYTHON_GROUP,
       inputPorts = List(
         InputPort(PortIdentity(), displayName = "model", allowMultiLinks = true),
         InputPort(

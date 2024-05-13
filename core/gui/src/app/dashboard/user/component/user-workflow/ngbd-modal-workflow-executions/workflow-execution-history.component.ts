@@ -42,8 +42,8 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
     "",
     "Avatar",
     "Name (ID)",
-    "Starting Time",
-    "Last Status Updated Time",
+    "Execution Start Time",
+    "Execution Completion Time",
     "Status",
     "Runtime Statistics",
     "",
@@ -52,8 +52,8 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
   public executionTooltip: Record<string, string> = {
     "Name (ID)": "Execution Name",
     Username: "The User Who Ran This Execution",
-    "Starting Time": "Starting Time of Workflow Execution",
-    "Last Status Updated Time": "Latest Status Updated Time of Workflow Execution",
+    "Execution Start Time": "Start Time of Workflow Execution",
+    "Execution Completion Time": "Latest Status Updated Time of Workflow Execution",
     Status: "Current Status of Workflow Execution",
     "Runtime Statistics": "Runtime Statistics of Workflow Execution",
     "Group Bookmarking": "Mark or Unmark the Selected Entries",
@@ -65,10 +65,10 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
     "": "0%",
     "Name (ID)": "7%",
     "Workflow Version Sample": "10%",
-    Avatar: "6%",
-    "Starting Time": "8%",
-    "Last Status Updated Time": "10.5%",
-    Status: "3%",
+    Avatar: "5.5%",
+    "Execution Start Time": "9%",
+    "Execution Completion Time": "10.5%",
+    Status: "2.5%",
     "Runtime Statistics": "6%",
   };
 
@@ -106,7 +106,7 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
     ["failed", 4],
     ["killed", 5],
   ]);
-  public showORhide: boolean[] = [false, false, false, false];
+  public showORhide: boolean[] = [false, false, false, true];
   public avatarColors: { [key: string]: string } = {};
   public checked: boolean = false;
   public setOfEid = new Set<number>();
@@ -245,6 +245,8 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
       .pipe(untilDestroyed(this))
       .subscribe(workflowExecutions => {
         this.allExecutionEntries = workflowExecutions;
+        console.log(this.allExecutionEntries);
+        this.dscSort("Execution Start Time");
         this.updatePaginatedExecutions();
       });
   }
@@ -380,13 +382,13 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
       this.workflowExecutionsDisplayedList = this.workflowExecutionsDisplayedList
         ?.slice()
         .sort((exe1, exe2) => exe1.userName.toLowerCase().localeCompare(exe2.userName.toLowerCase()));
-    } else if (type === "Starting Time") {
+    } else if (type === "Execution Start Time") {
       this.workflowExecutionsDisplayedList = this.workflowExecutionsDisplayedList
         ?.slice()
         .sort((exe1, exe2) =>
           exe1.startingTime > exe2.startingTime ? 1 : exe2.startingTime > exe1.startingTime ? -1 : 0
         );
-    } else if (type == "Last Status Updated Time") {
+    } else if (type == "Execution Completion Time") {
       this.workflowExecutionsDisplayedList = this.workflowExecutionsDisplayedList
         ?.slice()
         .sort((exe1, exe2) =>
@@ -407,13 +409,13 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
       this.workflowExecutionsDisplayedList = this.workflowExecutionsDisplayedList
         ?.slice()
         .sort((exe1, exe2) => exe2.userName.toLowerCase().localeCompare(exe1.userName.toLowerCase()));
-    } else if (type === "Starting Time") {
+    } else if (type === "Execution Start Time") {
       this.workflowExecutionsDisplayedList = this.workflowExecutionsDisplayedList
         ?.slice()
         .sort((exe1, exe2) =>
           exe1.startingTime < exe2.startingTime ? 1 : exe2.startingTime < exe1.startingTime ? -1 : 0
         );
-    } else if (type == "Last Status Updated Time") {
+    } else if (type == "Execution Completion Time") {
       this.workflowExecutionsDisplayedList = this.workflowExecutionsDisplayedList
         ?.slice()
         .sort((exe1, exe2) =>
