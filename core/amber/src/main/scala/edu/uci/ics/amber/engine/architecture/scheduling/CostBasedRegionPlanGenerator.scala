@@ -203,7 +203,6 @@ class CostBasedRegionPlanGenerator(
           val allBlockingEdges =
             currentState ++ physicalPlan.getNonMaterializedBlockingAndDependeeLinks
           // Generate and enqueue all neighbour states that haven't been visited
-          // optimization on chains temporarily disabled due to parallel edges.
           val edgesInChainWithBlockingEdge = physicalPlan.maxChains
             .filter(chain => chain.intersect(allBlockingEdges).nonEmpty)
             .flatten
