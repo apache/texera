@@ -73,10 +73,10 @@ case class PhysicalPlan(
   // the dag will be re-computed again once it reaches the coordinator.
   @transient lazy val dag: DirectedAcyclicGraph[PhysicalOpIdentity, PhysicalLink] = {
     val jgraphtDag = new DirectedAcyclicGraph[PhysicalOpIdentity, PhysicalLink](
-      null,
-      SupplierUtil.createSupplier(classOf[PhysicalLink]),
-      false,
-      true
+      null, // vertexSupplier
+      SupplierUtil.createSupplier(classOf[PhysicalLink]), // edgeSupplier
+      false, // weighted
+      true // allowMultipleEdges
     )
     operatorMap.foreach(op => jgraphtDag.addVertex(op._1))
     links.foreach(l => jgraphtDag.addEdge(l.fromOpId, l.toOpId, l))

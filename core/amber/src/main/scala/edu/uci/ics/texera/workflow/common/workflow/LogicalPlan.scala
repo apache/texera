@@ -25,10 +25,10 @@ object LogicalPlan {
   ): DirectedAcyclicGraph[OperatorIdentity, LogicalLink] = {
     val workflowDag =
       new DirectedAcyclicGraph[OperatorIdentity, LogicalLink](
-        null,
-        SupplierUtil.createSupplier(classOf[LogicalLink]),
-        false,
-        true
+        null, // vertexSupplier
+        SupplierUtil.createSupplier(classOf[LogicalLink]), // edgeSupplier
+        false, // weighted
+        true // allowMultipleEdges
       )
     operatorList.foreach(op => workflowDag.addVertex(op.operatorIdentifier))
     links.foreach(l =>
