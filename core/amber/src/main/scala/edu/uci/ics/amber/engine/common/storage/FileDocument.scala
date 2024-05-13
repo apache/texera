@@ -6,9 +6,18 @@ import java.net.URI
 class FileDocument(val uri: URI) extends VirtualDocument[AnyRef] {
   val file: FileObject = VFS.getManager.resolveFile(uri.toString)
 
+  // append content in the inputStream to the FileDocument
   override def writeWithStream(inputStream: InputStream): Unit = {
-    // Open output stream in append mode
-    val outStream = file.getContent.getOutputStream()
+    // Ensure the file and its parent directories exist
+    if (!file.exists()) {
+      val parentDir = file.getParent
+      if (parentDir != null && !parentDir.exists()) {
+        parentDir.createFolder() // Create all necessary parent directories
+      }
+      file.createFile()
+    }
+    // append mode
+    val outStream = file.getContent.getOutputStream(true)
     try {
       val buffer = new Array[Byte](1024)
       var len = inputStream.read(buffer)
