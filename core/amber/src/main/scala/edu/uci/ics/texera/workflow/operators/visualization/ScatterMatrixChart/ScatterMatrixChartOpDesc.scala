@@ -57,7 +57,7 @@ class ScatterMatrixChartOpDesc extends VisualizationOperator with PythonOperator
     val list_Attributes = selectedAttributes.map(attribute => s""""$attribute"""").mkString(",")
     s"""
        |        fig = px.scatter_matrix(table, dimensions=[$list_Attributes], color='$color')
-       |        fig.update_layout(margin=dict(t=0, b=60, l=0, r=0))
+       |        fig.update_layout(margin=dict(t=0, b=0, l=0, r=0))
        |""".stripMargin
   }
 
