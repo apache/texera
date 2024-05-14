@@ -42,7 +42,7 @@ abstract class VirtualDocument[T >: Null <: AnyRef] {
     throw new UnsupportedOperationException("write method is not supported")
 
   /**
-    * overwrite the file content with an opened input stream
+    * append the file content with an opened input stream
     * @param inputStream the data source input stream
     */
   def writeWithStream(inputStream: InputStream): Unit =
