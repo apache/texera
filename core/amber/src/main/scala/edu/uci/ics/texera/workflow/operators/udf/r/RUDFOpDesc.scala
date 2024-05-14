@@ -16,12 +16,12 @@ import scala.util.{Success, Try}
 
 class RUDFOpDesc extends LogicalOp {
   @JsonProperty(
-      required = true,
-      defaultValue =
-          "# Input: Table, port\n" +
-          "# Output/Return: Table-like object that can be split into tuples\n" +
-          "function(input, port) {\n\n" +
-          "}"
+    required = true,
+    defaultValue =
+      "# Input: Table, port\n" +
+        "# Output/Return: Table-like object that can be split into tuples\n" +
+        "function(input, port) {\n\n" +
+        "}"
   )
   @JsonSchemaTitle("R UDF Script")
   @JsonPropertyDescription("Input your code here")

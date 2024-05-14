@@ -46,7 +46,7 @@ class PythonWorkflowWorker(
   val config: Config = ConfigFactory.load("udf")
   val pythonENVPath: String = config.getString("python.path").trim
   val RENVPath: String = config.getString("r.path")
-  
+
   // Python process
   private var pythonServerProcess: Process = _
 
