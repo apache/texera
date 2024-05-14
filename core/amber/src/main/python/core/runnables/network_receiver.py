@@ -27,6 +27,7 @@ from proto.edu.uci.ics.amber.engine.common import (
     ActorCommand,
 )
 
+
 class NetworkReceiver(Runnable, Stoppable):
     """
     Receive and deserialize messages.

@@ -1,7 +1,6 @@
 import importlib
 import inspect
 import sys
-import os
 import typing
 from cached_property import cached_property
 
@@ -12,6 +11,7 @@ from typing import Optional
 from fs.base import FS
 from loguru import logger
 from core.models import Operator, SourceOperator
+
 
 class ExecutorManager:
     def __init__(self):
@@ -101,14 +101,16 @@ class ExecutorManager:
         """
 
         return (
-            inspect.isclass(cls)
-            and issubclass(cls, Operator)
-            and not inspect.isabstract(cls)
+                inspect.isclass(cls)
+                and issubclass(cls, Operator)
+                and not inspect.isabstract(cls)
         )
 
     def initialize_r_executor(self, code, is_source: bool):
-        # from core.models.RSerializeExecutor import RSerializeExecutor, RSerializeSourceExecutor
+        # from core.models.RSerializeExecutor import (RSerializeExecutor,
+                                                # RSerializeSourceExecutor)
         from core.models.RTableExecutor import RTableSourceExecutor, RTableExecutor
+
         if is_source:
             self.executor = RTableSourceExecutor(code)
         else:
@@ -130,7 +132,7 @@ class ExecutorManager:
         self.executor = executor()
         self.executor.is_source = is_source
         assert (
-            isinstance(self.executor, SourceOperator) == self.executor.is_source
+                isinstance(self.executor, SourceOperator) == self.executor.is_source
         ), "Please use SourceOperator API for source operators."
 
     def update_executor(self, code: str, is_source: bool) -> None:
@@ -148,7 +150,7 @@ class ExecutorManager:
         self.executor = executor()
         self.executor.is_source = is_source
         assert (
-            isinstance(self.executor, SourceOperator) == self.executor.is_source
+                isinstance(self.executor, SourceOperator) == self.executor.is_source
         ), "Please use SourceOperator API for source operators."
         # overwrite the internal state
         self.executor.__dict__ = original_internal_state
