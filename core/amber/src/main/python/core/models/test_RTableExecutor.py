@@ -146,7 +146,7 @@ class TestRTableExecutor:
         assert output_tbl == Table(target_tuples_simple)
 
     def test_udf_operator_simple(
-            self, source_executor_simple, udf_executor_simple, target_tuples_simple
+        self, source_executor_simple, udf_executor_simple, target_tuples_simple
     ):
         source_operator = RTableSourceExecutor(source_executor_simple)
         input_tbl = Table([tup for tup in source_operator.produce()])
@@ -165,10 +165,10 @@ class TestRTableExecutor:
         assert output_tbl == input_tbl
 
     def test_udf_executor_simple_extract_row(
-            self,
-            source_executor_simple,
-            udf_executor_simple_extract_row,
-            target_tuples_simple,
+        self,
+        source_executor_simple,
+        udf_executor_simple_extract_row,
+        target_tuples_simple,
     ):
         source_operator = RTableSourceExecutor(source_executor_simple)
         input_tbl = Table([tup for tup in source_operator.produce()])
@@ -185,10 +185,10 @@ class TestRTableExecutor:
         assert output_tbl == Table([target_tuple])
 
     def test_udf_executor_simple_update_row(
-            self,
-            source_executor_simple,
-            udf_executor_simple_update_row,
-            target_tuples_simple,
+        self,
+        source_executor_simple,
+        udf_executor_simple_update_row,
+        target_tuples_simple,
     ):
         source_operator = RTableSourceExecutor(source_executor_simple)
         input_tbl = Table([tup for tup in source_operator.produce()])
@@ -212,10 +212,7 @@ class TestRTableExecutor:
         )
 
     def test_udf_executor_simple_add_row(
-            self,
-            source_executor_simple,
-            udf_executor_simple_add_row,
-            target_tuples_simple
+        self, source_executor_simple, udf_executor_simple_add_row, target_tuples_simple
     ):
         source_operator = RTableSourceExecutor(source_executor_simple)
         input_tbl = Table([tup for tup in source_operator.produce()])
@@ -245,7 +242,7 @@ class TestRTableExecutor:
             output = [out for out in output]
 
     def test_source_executor_df_like_type(
-            self, source_executor_df_like_type, target_tuples_like_type
+        self, source_executor_df_like_type, target_tuples_like_type
     ):
         source_operator = RTableSourceExecutor(source_executor_df_like_type)
         output = source_operator.produce()
@@ -260,10 +257,10 @@ class TestRTableExecutor:
         assert output_tbl == Table(target_tuples_like_type)
 
     def test_udf_executor_df_like_type(
-            self,
-            source_executor_df_like_type,
-            udf_executor_df_like_type,
-            target_tuples_like_type,
+        self,
+        source_executor_df_like_type,
+        udf_executor_df_like_type,
+        target_tuples_like_type,
     ):
         source_operator = RTableSourceExecutor(source_executor_df_like_type)
         input_tbl = Table([tup for tup in source_operator.produce()])
@@ -282,10 +279,10 @@ class TestRTableExecutor:
         assert output_tbl == input_tbl
 
     def test_udf_executor_df_like_type_add_row(
-            self,
-            source_executor_df_like_type,
-            udf_executor_df_like_type_add_row,
-            target_tuples_like_type,
+        self,
+        source_executor_df_like_type,
+        udf_executor_df_like_type_add_row,
+        target_tuples_like_type,
     ):
         source_operator = RTableSourceExecutor(source_executor_df_like_type)
         input_tbl = Table([tup for tup in source_operator.produce()])
@@ -307,9 +304,7 @@ class TestRTableExecutor:
         assert output_tbl == Table(target_tuples_like_type + [target_tuple])
 
     def test_udf_executor_df_like_type_add_col(
-            self,
-            source_executor_df_like_type,
-            udf_executor_df_like_type_add_col
+        self, source_executor_df_like_type, udf_executor_df_like_type_add_col
     ):
         source_operator = RTableSourceExecutor(source_executor_df_like_type)
         input_tbl = Table([tup for tup in source_operator.produce()])

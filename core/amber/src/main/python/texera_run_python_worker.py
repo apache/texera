@@ -29,6 +29,7 @@ if __name__ == "__main__":
     # Setting R_HOME environment variable for R-UDF usage
     if r_path:
         import os
+
         os.environ["R_HOME"] = r_path
 
     PythonWorker(
