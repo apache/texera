@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.sklearn
 
 class SklearnRidgeOpDesc extends SklearnMLOpDesc {
-  model = "from sklearn.linear_model import RidgeClassifier"
-  name = "Ridge Regression"
+  override def getImportStatements = "from sklearn.linear_model import RidgeClassifier"
+  override def getUserFriendlyModelName = "Ridge Regression"
 }

@@ -1,5 +1,3 @@
-<!-- class="texera-workspace-result-panel-body" -->
-
 <div
   class="texera-workspace-result-panel-body"
   id="result-container"
@@ -64,7 +62,6 @@
           </div>
         </nz-tab>
       </div>
-
       <div *ngFor="let config of frameComponentConfigs | keyvalue">
         <nz-tab nzTitle="{{config.key}}">
           <ng-container *ngComponentOutlet="config.value.component;inputs: config.value.componentInputs"></ng-container>
