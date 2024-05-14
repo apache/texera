@@ -107,8 +107,6 @@ class ExecutorManager:
         )
 
     def initialize_r_executor(self, code, is_source: bool):
-        # from core.models.RSerializeExecutor import (RSerializeExecutor,
-                                                # RSerializeSourceExecutor)
         from core.models.RTableExecutor import RTableSourceExecutor, RTableExecutor
 
         if is_source:
