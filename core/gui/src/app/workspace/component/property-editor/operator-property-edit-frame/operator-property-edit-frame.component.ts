@@ -22,7 +22,8 @@ import {
   AttributeTypeConstRule,
   AttributeTypeEnumRule,
   AttributeTypeRuleSet,
-  CustomJSONSchema7, hideTypes,
+  CustomJSONSchema7,
+  hideTypes,
 } from "../../../types/custom-json-schema.interface";
 import { isDefined } from "../../../../common/util/predicate";
 import { ExecutionState, OperatorState, OperatorStatistics } from "src/app/workspace/types/execute-workflow.interface";
@@ -33,7 +34,8 @@ import {
   SchemaPropagationService,
 } from "../../../service/dynamic-schema/schema-propagation/schema-propagation.service";
 import {
-  createOutputFormChangeEventStream, createShouldHideFieldFunc,
+  createOutputFormChangeEventStream,
+  createShouldHideFieldFunc,
   setChildTypeDependency,
   setHideExpression,
 } from "src/app/common/formly/formly-utils";
@@ -424,7 +426,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
             mapSource.hideType,
             mapSource.hideExpectedValue,
             mapSource.hideOnNull
-          )
+          ),
         };
       }
 
