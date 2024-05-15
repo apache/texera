@@ -11,7 +11,6 @@ class DotPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
   it should "generate Plotly figure code in Python" in {
     opDesc.countAttribute = "count_attribute"
-    opDesc.title = "Styled Categorical Dot Plot"
     val expectedFigureCode =
       s"""
          |        table = table.groupby(['count_attribute'])['count_attribute'].count().reset_index(name='counts')
@@ -20,8 +19,7 @@ class DotPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
          |
          |        fig.update_traces(marker=dict(size=12, line=dict(width=2, color='DarkSlateGrey')))
          |
-         |        fig.update_layout(title='Styled Categorical Dot Plot',
-         |                          xaxis_title='Counts',
+         |        fig.update_layout(xaxis_title='Counts',
          |                          yaxis_title='count_attribute',
          |                          yaxis=dict(showline=True, showgrid=False, showticklabels=True),
          |                          xaxis=dict(showline=True, showgrid=True, showticklabels=True),

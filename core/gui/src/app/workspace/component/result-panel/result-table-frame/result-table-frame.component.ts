@@ -90,7 +90,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
           return;
         }
         let columnCount = this.currentColumns?.length;
-        if (columnCount) this.widthPercent = (1 / columnCount) * 100 + '%';
+        if (columnCount) this.widthPercent = (1 / columnCount) * 100 + "%";
         this.isFrontPagination = false;
         this.totalNumTuples = opUpdate.totalNumTuples;
         if (opUpdate.dirtyPageIndices.includes(this.currentPageIndex)) {
