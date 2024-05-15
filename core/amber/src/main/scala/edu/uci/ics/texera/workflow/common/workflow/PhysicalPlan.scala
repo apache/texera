@@ -12,8 +12,9 @@ import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import org.jgrapht.alg.connectivity.BiconnectivityInspector
 import org.jgrapht.alg.shortestpath.AllDirectedPaths
-import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
+import org.jgrapht.graph.DirectedAcyclicGraph
 import org.jgrapht.traverse.TopologicalOrderIterator
+import org.jgrapht.util.SupplierUtil
 
 import scala.jdk.CollectionConverters.{IteratorHasAsScala, ListHasAsScala, SetHasAsScala}
 
@@ -70,10 +71,15 @@ case class PhysicalPlan(
     operators.map(o => (o.id, o)).toMap
 
   // the dag will be re-computed again once it reaches the coordinator.
-  @transient lazy val dag: DirectedAcyclicGraph[PhysicalOpIdentity, DefaultEdge] = {
-    val jgraphtDag = new DirectedAcyclicGraph[PhysicalOpIdentity, DefaultEdge](classOf[DefaultEdge])
+  @transient lazy val dag: DirectedAcyclicGraph[PhysicalOpIdentity, PhysicalLink] = {
+    val jgraphtDag = new DirectedAcyclicGraph[PhysicalOpIdentity, PhysicalLink](
+      null, // vertexSupplier
+      SupplierUtil.createSupplier(classOf[PhysicalLink]), // edgeSupplier
+      false, // weighted
+      true // allowMultipleEdges
+    )
     operatorMap.foreach(op => jgraphtDag.addVertex(op._1))
-    links.foreach(l => jgraphtDag.addEdge(l.fromOpId, l.toOpId))
+    links.foreach(l => jgraphtDag.addEdge(l.fromOpId, l.toOpId, l))
     jgraphtDag
   }
 
@@ -256,7 +262,7 @@ case class PhysicalPlan(
     */
   def getNonBridgeNonBlockingLinks: Set[PhysicalLink] = {
     val bridges =
-      new BiconnectivityInspector[PhysicalOpIdentity, DefaultEdge](this.dag).getBridges.asScala
+      new BiconnectivityInspector[PhysicalOpIdentity, PhysicalLink](this.dag).getBridges.asScala
         .map { edge =>
           {
             val fromOpId = this.dag.getEdgeSource(edge)
@@ -279,7 +285,7 @@ case class PhysicalPlan(
     * @return All the maximal chains of this physical plan, where each chain is represented as a set of links.
     */
   private def getMaxChains: Set[Set[PhysicalLink]] = {
-    val dijkstra = new AllDirectedPaths[PhysicalOpIdentity, DefaultEdge](this.dag)
+    val dijkstra = new AllDirectedPaths[PhysicalOpIdentity, PhysicalLink](this.dag)
     val chains = this.dag
       .vertexSet()
       .asScala

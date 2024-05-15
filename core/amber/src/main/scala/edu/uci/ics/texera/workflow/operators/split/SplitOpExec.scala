@@ -9,11 +9,10 @@ import scala.util.Random
 
 class SplitOpExec(
     k: Int,
-    worker: Int,
-    getSeed: Int => Int
+    seed: Int
 ) extends OperatorExecutor {
 
-  lazy val random = new Random(getSeed(worker))
+  lazy val random = new Random(seed)
 
   override def processTupleMultiPort(
       tuple: Tuple,
