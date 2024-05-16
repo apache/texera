@@ -6,7 +6,7 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.SchemaPropagationFunc;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo;
-import edu.uci.ics.amber.engine.common.AmberUtils;
+import edu.uci.ics.amber.engine.common.AmberRuntime;
 import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity;
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity;
 import edu.uci.ics.amber.engine.common.workflow.InputPort;
@@ -19,6 +19,7 @@ import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils;
 
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
+import edu.uci.ics.texera.workflow.operators.util.OperatorDescriptorUtils;
 import scala.Tuple2;
 import scala.collection.immutable.Map;
 
@@ -64,7 +65,7 @@ public class TypeCastingOpDesc extends MapOpDesc {
                             javaMap.put(operatorInfo().outputPorts().head().id(), outputSchema);
 
                             // Convert the Java Map to a Scala immutable Map
-                            return AmberUtils.toImmutableMap(javaMap);
+                            return OperatorDescriptorUtils.toImmutableMap(javaMap);
                         })
                 );
     }

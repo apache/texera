@@ -7,7 +7,7 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.SchemaPropagationFunc;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo;
-import edu.uci.ics.amber.engine.common.AmberUtils;
+import edu.uci.ics.amber.engine.common.AmberRuntime;
 import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity;
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity;
 import edu.uci.ics.amber.engine.common.workflow.InputPort;
@@ -18,6 +18,7 @@ import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
+import edu.uci.ics.texera.workflow.operators.util.OperatorDescriptorUtils;
 import scala.Option;
 import scala.collection.immutable.Map;
 
@@ -67,7 +68,7 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
             javaMap.put(operatorInfo().outputPorts().head().id(), sourceSchema());
 
             // Convert the Java Map to a Scala immutable Map
-            return AmberUtils.toImmutableMap(javaMap);
+            return OperatorDescriptorUtils.toImmutableMap(javaMap);
         });
         PhysicalOp physicalOp = PhysicalOp.sourcePhysicalOp(
                         workflowId,
