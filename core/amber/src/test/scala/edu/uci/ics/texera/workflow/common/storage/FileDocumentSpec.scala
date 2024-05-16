@@ -30,6 +30,7 @@ class FileDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfter {
     val contentStream = new ByteArrayInputStream(initialContent.getBytes)
     // Write initial content to file
     fileDocument.writeWithStream(contentStream)
+    contentStream.close()
   }
 
   after {
@@ -109,5 +110,18 @@ class FileDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfter {
         }
       }
       .futureValue
+  }
+
+  it should "handle multiple remove calls gracefully" in {
+    // Remove the file for the first time
+    fileDocument.remove()
+    Files.exists(Paths.get(tempFileURI)) should be(false)
+
+    // Attempt to remove the file again and catch the exception
+    val exception = intercept[RuntimeException] {
+      fileDocument.remove()
+    }
+
+    exception.getMessage should include(s"File $tempFileURI doesn't exist")
   }
 }

@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.common.storage
 import org.apache.commons.vfs2.{FileObject, VFS}
 
-import java.io.InputStream
+import java.io.{InputStream, OutputStreamWriter}
 import java.net.URI
 import java.util.concurrent.locks.ReentrantReadWriteLock
 
@@ -12,7 +12,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock
   * - n reader at a time: multiple threads of current JVM can acquire the read lock
   * @param uri the identifier of the file. If file doesn't physically exist, FileDocument will create the file during the constructing phase.
   */
-class FileDocument(val uri: URI) extends VirtualDocument[AnyRef] {
+class FileDocument(val uri: URI) extends VirtualDocument[String] {
   val file: FileObject = VFS.getManager.resolveFile(uri.toString)
   val lock = new ReentrantReadWriteLock()
 
@@ -27,7 +27,7 @@ class FileDocument(val uri: URI) extends VirtualDocument[AnyRef] {
   }
 
   // Utility function to wrap code block with write lock
-  private def withWriteLock[T](block: => T): T = {
+  private def withWriteLock(block: => Unit): Unit = {
     lock.writeLock().lock()
     try {
       block
@@ -55,21 +55,38 @@ class FileDocument(val uri: URI) extends VirtualDocument[AnyRef] {
     withWriteLock {
       val outStream = file.getContent.getOutputStream(true)
       try {
+        // create a buffer for reading from inputStream
         val buffer = new Array[Byte](1024)
-        var len = inputStream.read(buffer)
-        while (len != -1) {
-          outStream.write(buffer, 0, len)
-          len = inputStream.read(buffer)
-        }
+        // create an Iterator to repeatedly call inputStream.read, and direct buffered data to file
+        Iterator
+          .continually(inputStream.read(buffer))
+          .takeWhile(_ != -1)
+          .foreach(outStream.write(buffer, 0, _))
       } finally {
         outStream.close()
-        inputStream.close()
+      }
+    }
+
+  /**
+    * Append the content in the given string to the FileDocument. This method is THREAD-SAFE
+    * @param item the content to append
+    */
+  override def writeItem(item: String): Unit =
+    withWriteLock {
+      val outStream = file.getContent.getOutputStream(true)
+      val writer = new OutputStreamWriter(outStream)
+      try {
+        writer.write(item)
+        writer.flush()
+      } finally {
+        writer.close()
+        outStream.close()
       }
     }
 
   /**
     * Read content in the file document as the InputStream. This method is THREAD-SAFE
-    *  @return the input stream of content in the FileDocument
+    *  @return the input stream of content in the FileDocument. Due to the constraint of getInputStream, there may be only 1 input/output stream at any time
     */
   override def asInputStream(): InputStream =
     withReadLock {
