@@ -23,54 +23,54 @@ abstract class VirtualDocument[T >: Null <: AnyRef] {
     * @return data item of type T
     */
   def getItem(i: Int): T =
-    throw new UnsupportedOperationException("readItem method is not supported")
+    throw new NotImplementedError("getItem method is not implemented")
 
   /**
     * get a iterator that iterates all indexed items
     * @return an iterator that return data item of type T
     */
-  def get(): Iterator[T] = throw new UnsupportedOperationException("read method is not supported")
+  def get(): Iterator[T] = throw new NotImplementedError("get method is not implemented")
 
   /**
     * append one data item to the document
     * @param item the data item
     */
-  def writeItem(item: T): Unit =
-    throw new UnsupportedOperationException("writeItem method is not supported")
+  def setItem(item: T): Unit =
+    throw new NotImplementedError("setItem method is not implemented")
 
   /**
-    * write ith item
+    * set ith item
     * @param item the data item
     */
-  def writeItem(i: Int, item: T): Unit =
-    throw new UnsupportedOperationException("writeItem method is not supported")
+  def setItem(i: Int, item: T): Unit =
+    throw new NotImplementedError("setItem method is not implemented")
 
   /**
     * append data items from the iterator to the document
     * @param items iterator for the data item
     */
   def write(items: Iterator[T]): Unit =
-    throw new UnsupportedOperationException("write method is not supported")
+    throw new NotImplementedError("write method is not implemented")
 
   /**
     * append the file content with an opened input stream
     * @param inputStream the data source input stream
     */
   def write(inputStream: InputStream): Unit =
-    throw new UnsupportedOperationException("writeWithStream method is not supported")
+    throw new NotImplementedError("write method is not implemented")
 
   /**
     * convert document as an input stream
     * @return the input stream
     */
   def asInputStream(): InputStream =
-    throw new UnsupportedOperationException("asInputStream method is not supported")
+    throw new NotImplementedError("asInputStream method is not implemented")
 
   /**
     * convert document as a File
-    * @return
+    * @return the file
     */
-  def asFile(): File = throw new UnsupportedOperationException("asFile method is not supported")
+  def asFile(): File = throw new NotImplementedError("asFile method is not implemented")
 
   /**
     * physically remove current document
