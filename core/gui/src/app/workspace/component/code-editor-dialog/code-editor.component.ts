@@ -69,14 +69,13 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     const operatorType = this.workflowActionService.getTexeraGraph().getOperator(currentOperatorId).operatorType;
 
     console.log(operatorType);
-    if (operatorType === "RUDFSource" || operatorType ==="RUDF") {
-      this.changeLanguage("r")
-    }else if (operatorType === "PythonUDFV2" || operatorType === "PythonUDFSourceV2"){
+    if (operatorType === "RUDFSource" || operatorType === "RUDF") {
+      this.changeLanguage("r");
+    } else if (operatorType === "PythonUDFV2" || operatorType === "PythonUDFSourceV2") {
       this.changeLanguage("python");
-    }else{
+    } else {
       this.changeLanguage("java");
     }
-
   }
 
   ngAfterViewInit() {
@@ -93,7 +92,6 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     ).get("code") as YText;
 
     console.log("added this code ", this.code);
-
 
     this.workflowVersionService
       .getDisplayParticularVersionStream()
