@@ -23,6 +23,7 @@ class DotPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
          |                          yaxis_title='count_attribute',
          |                          yaxis=dict(showline=True, showgrid=False, showticklabels=True),
          |                          xaxis=dict(showline=True, showgrid=True, showticklabels=True),
+         |                          margin=dict(t=0, b=0, l=0, r=0),
          |                          height=800)
          |""".stripMargin
 
