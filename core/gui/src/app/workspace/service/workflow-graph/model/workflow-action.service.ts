@@ -787,6 +787,12 @@ export class WorkflowActionService {
     this.setWorkflowMetadata({ ...this.workflowMetadata, name: newName });
   }
 
+  public clearWorkflow(): void {
+    this.destroySharedModel();
+    this.setWorkflowMetadata(undefined);
+    this.reloadWorkflow(undefined);
+  }
+
   /**
    * Need to quit shared-editing room at first.
    */
@@ -841,6 +847,17 @@ export class WorkflowActionService {
             const offsetY = movedElement.newPosition.y - movedElement.oldPosition.y;
             this.jointGraphWrapper.setListenPositionChange(false);
             this.undoRedoService.setListenJointCommand(false);
+            // Persistence and shared-editing syncing for comment boxes have different interfaces.
+            // Setting positions inside commentBoxes here only for persistence.
+            // Syncing uses elementPositionMap.
+            selectedElements
+              .filter(elementID => elementID.includes("commentBox"))
+              .forEach(elementID => {
+                this.texeraGraph.sharedModel.commentBoxMap
+                  .get(elementID)
+                  ?.set("commentBoxPosition", this.jointGraphWrapper.getElementPosition(elementID));
+              });
+            // Move other highlighted operators.
             selectedElements
               .filter(elementID => elementID !== movedElement.elementID)
               .forEach(elementID => {
@@ -849,12 +866,6 @@ export class WorkflowActionService {
                   elementID,
                   this.jointGraphWrapper.getElementPosition(elementID)
                 );
-                // The position of comment box is included in its object, so we only set it here for persistence.
-                if (elementID.includes("commentBox")) {
-                  this.texeraGraph.sharedModel.commentBoxMap
-                    .get(elementID)
-                    ?.set("commentBoxPosition", this.jointGraphWrapper.getElementPosition(elementID));
-                }
               });
             this.jointGraphWrapper.setListenPositionChange(true);
             this.undoRedoService.setListenJointCommand(true);

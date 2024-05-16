@@ -38,7 +38,7 @@ class JavaUDFOpDesc extends LogicalOp {
   @JsonPropertyDescription("Input your code here")
   var code: String = ""
 
-  @JsonProperty(required = true)
+  @JsonProperty(required = true, defaultValue = "1")
   @JsonSchemaTitle("Worker count")
   @JsonPropertyDescription("Specify how many parallel workers to lunch")
   var workers: Int = Int.box(1)
@@ -144,7 +144,7 @@ class JavaUDFOpDesc extends LogicalOp {
     OperatorInfo(
       "Java UDF",
       "User-defined function operator in Java script",
-      OperatorGroupConstants.UDF_GROUP,
+      OperatorGroupConstants.JAVA_GROUP,
       inputPortInfo,
       outputPortInfo,
       dynamicInputPorts = true,

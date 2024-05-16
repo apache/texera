@@ -40,7 +40,8 @@
           nz-button
           nzType="primary"
           [disabled]="!workflowVersionService.modificationEnabledBeforeTempWorkflow"
-          (click)="revertToVersion()">
+          (click)="revertToVersion()"
+          style="width: 160px">
           Restore this version
         </button>
         <span *ngIf="!displayParticularWorkflowVersion"> {{autoSaveState}} </span>

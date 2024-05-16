@@ -18,25 +18,30 @@
     </nz-auto-option>
   </nz-autocomplete>
 </div>
-<nz-collapse
-  id="operator-menu"
-  [nzBordered]="false"
-  nzAccordion>
-  <nz-collapse-panel
-    *ngFor="let groupName of groupNamesOrdered"
-    [nzHeader]="groupName"
-    class="operator-submenu-title">
-    <ul
-      class="operator-submenu"
-      nz-menu
-      [nzInlineIndent]="0"
-      nzSelectable="false">
-      <li
-        *ngFor="let operatorSchema of operatorGroupMap.get(groupName)"
-        class="texera-operator-label"
-        nz-menu-item>
-        <texera-operator-label [operator]="operatorSchema"></texera-operator-label>
-      </li>
-    </ul>
-  </nz-collapse-panel>
-</nz-collapse>
+
+<div id="spacer"></div>
+
+<ng-container *ngTemplateOutlet="menuTemplate; context: { $implicit: groupNames }"></ng-container>
+
+<ng-template
+  #menuTemplate
+  let-groupNames>
+  <nz-collapse
+    nzBordered="false"
+    nzExpandIconPosition="right"
+    nzAccordion>
+    <nz-collapse-panel
+      *ngFor="let groupname of groupNames"
+      [nzHeader]="groupname.groupName"
+      class="operator-group">
+      <div class="indent">
+        <ng-container *ngTemplateOutlet="menuTemplate; context: { $implicit: groupname.children }"></ng-container>
+        <div
+          *ngFor="let operatorSchema of opList.get(groupname.groupName)"
+          class="operator-label">
+          <texera-operator-label [operator]="operatorSchema"></texera-operator-label>
+        </div>
+      </div>
+    </nz-collapse-panel>
+  </nz-collapse>
+</ng-template>
