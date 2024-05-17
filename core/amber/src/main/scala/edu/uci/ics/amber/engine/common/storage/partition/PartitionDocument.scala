@@ -40,7 +40,7 @@ class PartitionDocument(val uri: URI, val numOfPartition: Int)
     * @param i index starting from 0
     * @return FileDocument corresponds to the certain partition
     */
-  override def readItem(i: Int): FileDocument = {
+  override def getItem(i: Int): FileDocument = {
     new FileDocument(getPartitionURI(i))
   }
 
@@ -49,7 +49,7 @@ class PartitionDocument(val uri: URI, val numOfPartition: Int)
     * This method is THREAD-UNSAFE, as multiple threads can get the iterator and loop through all partitions. But the returned FileDocument is thread-safe
     *  @return an iterator that return the FileDocument corresponds to the certain partition
     */
-  override def read(): Iterator[FileDocument] =
+  override def get(): Iterator[FileDocument] =
     new Iterator[FileDocument] {
       private var i: Int = 0
 
@@ -66,11 +66,12 @@ class PartitionDocument(val uri: URI, val numOfPartition: Int)
     }
 
   /**
-    * Remove all partitions. This method is THREAD-UNSAFE.
+    * Remove all partitions.
+    * This method is THREAD-UNSAFE. But FileDocument's remove is thread-safe
     */
   override def remove(): Unit = {
     for (i <- 0 until numOfPartition) {
-      readItem(i).remove()
+      getItem(i).remove()
     }
   }
 }

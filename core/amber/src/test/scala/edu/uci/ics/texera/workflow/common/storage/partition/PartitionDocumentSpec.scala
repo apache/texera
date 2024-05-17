@@ -30,18 +30,16 @@ class PartitionDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfte
 
   "PartitionDocument" should "write and read content correctly for each partition" in {
     // Write to each partition
-    val iterator = partitionDocument.read()
+    val iterator = partitionDocument.get()
     var i = 0
     while (iterator.hasNext) {
-      val content = s"Content for partition $i"
-      val stream = new ByteArrayInputStream(content.getBytes)
-      iterator.next().writeWithStream(stream)
+      iterator.next().setItem(s"Content for partition $i")
       i += 1
     }
 
     // Verify each partition's content
     for (i <- 0 until numOfPartitions) {
-      val doc = partitionDocument.readItem(i)
+      val doc = partitionDocument.getItem(i)
       val content = Using(doc.asInputStream()) { inStream =>
         new String(inStream.readAllBytes())
       }.getOrElse(fail("Failed to read from the partition"))

@@ -51,7 +51,7 @@ class FileDocument(val uri: URI) extends VirtualDocument[String] {
     * Append the content in the inputStream to the FileDocument. This method is THREAD-SAFE
     * @param inputStream the data source input stream
     */
-  override def writeWithStream(inputStream: InputStream): Unit =
+  override def write(inputStream: InputStream): Unit =
     withWriteLock {
       val outStream = file.getContent.getOutputStream(true)
       try {
@@ -71,7 +71,7 @@ class FileDocument(val uri: URI) extends VirtualDocument[String] {
     * Append the content in the given string to the FileDocument. This method is THREAD-SAFE
     * @param item the content to append
     */
-  override def writeItem(item: String): Unit =
+  override def setItem(item: String): Unit =
     withWriteLock {
       val outStream = file.getContent.getOutputStream(true)
       val writer = new OutputStreamWriter(outStream)
