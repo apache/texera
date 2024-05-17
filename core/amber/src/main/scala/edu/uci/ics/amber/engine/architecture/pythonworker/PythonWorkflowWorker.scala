@@ -43,9 +43,9 @@ class PythonWorkflowWorker(
     .resolve("src")
     .resolve("main")
     .resolve("python")
-  val config: Config = ConfigFactory.load("udf").trim
+  val config: Config = ConfigFactory.load("udf")
   val pythonENVPath: String = config.getString("python.path").trim
-  val RENVPath: String = config.getString("r.path")
+  val RENVPath: String = config.getString("r.path").trim
 
   // Python process
   private var pythonServerProcess: Process = _
