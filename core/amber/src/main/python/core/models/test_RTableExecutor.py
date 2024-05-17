@@ -7,6 +7,84 @@ from core.models.RTableExecutor import RTableSourceExecutor, RTableExecutor
 
 class TestRTableExecutor:
     @pytest.fixture
+    def source_executor_empty(self):
+        return """
+        function() {
+            df <- data.frame(
+                col1 = character(),
+                col2 = numeric(),
+                col3 = logical()
+                )
+            return (df)
+        }
+        """
+
+    @pytest.fixture
+    def udf_executor_empty_return(self):
+        return """
+        function(input, port) {
+            return (input)
+        }
+        """
+
+    @pytest.fixture
+    def udf_executor_empty_add_row(self):
+        return """
+        function(input, port) {
+            new_row <- data.frame(
+                col1 = "TEST",
+                col2 = 12.3,
+                col3 = TRUE
+              )
+            input <- rbind(input, new_row)
+            return (input)
+        }
+        """
+
+    @pytest.fixture
+    def source_executor_null_values(self):
+        return """
+        function() {
+            df <- data.frame(
+                col1 = character(),
+                col2 = numeric(),
+                col3 = logical()
+                )
+            df[1:3,] <- NA
+            return (df)
+        }
+        """
+
+    @pytest.fixture
+    def udf_executor_null_values_return(self):
+        return """
+        function(input, port) {
+            return (input)
+        }
+        """
+
+    @pytest.fixture
+    def udf_executor_null_values_add_row(self):
+        return """
+        function(input, port) {
+            new_row <- data.frame(
+                col1 = NA,
+                col2 = NA,
+                col3 = NA
+              )
+            input <- rbind(input, new_row)
+            return (input)
+        }
+        """
+
+    @pytest.fixture
+    def target_tuples_null_values(self):
+        tuple_1 = Tuple({"col1": None, "col2": None, "col3": None})
+        tuple_2 = Tuple({"col1": None, "col2": None, "col3": None})
+        tuple_3 = Tuple({"col1": None, "col2": None, "col3": None})
+        return [tuple_1, tuple_2, tuple_3]
+
+    @pytest.fixture
     def pandas_target_df_simple(self):
         data = {
             "Name": ["Alice", "Bob", "Charlie"],
@@ -132,9 +210,99 @@ class TestRTableExecutor:
         }
         """
 
-    def test_source_operator_simple(self, source_executor_simple, target_tuples_simple):
-        source_operator = RTableSourceExecutor(source_executor_simple)
-        output = source_operator.produce()
+    def test_source_executor_empty(self, source_executor_empty):
+        source_executor = RTableSourceExecutor(source_executor_empty)
+        output = source_executor.produce()
+        tuples = [tup for tup in output]
+        assert len(tuples) == 0
+
+        output_tbl = Table(tuples)
+        assert output_tbl == Table([])
+
+    def test_udf_executor_empty_return(
+        self, source_executor_empty, udf_executor_empty_return
+    ):
+        source_executor = RTableSourceExecutor(source_executor_empty)
+        input_tbl = Table([tup for tup in source_executor.produce()])
+
+        udf_executor = RTableExecutor(udf_executor_empty_return)
+        output = udf_executor.process_table(input_tbl, 0)
+
+        tuples = [tup for tup in output]
+        assert len(tuples) == 0
+
+        output_tbl = Table(tuples)
+        assert output_tbl == Table([])
+        assert output_tbl == input_tbl
+
+    def test_udf_executor_empty_add_row(
+        self, source_executor_empty, udf_executor_empty_add_row
+    ):
+        source_executor = RTableSourceExecutor(source_executor_empty)
+        input_tbl = Table([tup for tup in source_executor.produce()])
+
+        udf_executor = RTableExecutor(udf_executor_empty_add_row)
+        output = udf_executor.process_table(input_tbl, 0)
+
+        tuples = [tup for tup in output]
+        target_tuple = Tuple({"col1": "TEST", "col2": 12.3, "col3": True})
+        assert len(tuples) == 1
+
+        output_tbl = Table(tuples)
+        assert output_tbl == Table([target_tuple])
+
+    def test_source_executor_null_values(
+        self, source_executor_null_values, target_tuples_null_values
+    ):
+        source_executor = RTableSourceExecutor(source_executor_null_values)
+        output = source_executor.produce()
+        tuples = [tup for tup in output]
+        assert len(tuples) == 3
+
+        output_tbl = Table(tuples)
+        assert output_tbl == Table(target_tuples_null_values)
+
+    def test_udf_executor_null_values_return(
+        self,
+        source_executor_null_values,
+        udf_executor_null_values_return,
+        target_tuples_null_values,
+    ):
+        source_executor = RTableSourceExecutor(source_executor_null_values)
+        input_tbl = Table([tup for tup in source_executor.produce()])
+
+        udf_executor = RTableExecutor(udf_executor_null_values_return)
+        output = udf_executor.process_table(input_tbl, 0)
+
+        tuples = [tup for tup in output]
+        assert len(tuples) == 3
+
+        output_tbl = Table(tuples)
+        assert output_tbl == Table(target_tuples_null_values)
+
+    def test_udf_executor_null_values_add_row(
+        self,
+        source_executor_null_values,
+        udf_executor_null_values_add_row,
+        target_tuples_null_values,
+    ):
+        source_executor = RTableSourceExecutor(source_executor_null_values)
+        input_tbl = Table([tup for tup in source_executor.produce()])
+
+        udf_executor = RTableExecutor(udf_executor_null_values_add_row)
+        output = udf_executor.process_table(input_tbl, 0)
+
+        tuples = [tup for tup in output]
+        target_tuple = Tuple({"col1": None, "col2": None, "col3": None})
+        assert len(tuples) == 4
+        assert tuples[3] == target_tuple
+
+        output_tbl = Table(tuples)
+        assert output_tbl == Table(target_tuples_null_values + [target_tuple])
+
+    def test_source_executor_simple(self, source_executor_simple, target_tuples_simple):
+        source_executor = RTableSourceExecutor(source_executor_simple)
+        output = source_executor.produce()
 
         tuples = [tup for tup in output]
         assert len(tuples) == 3
@@ -145,14 +313,14 @@ class TestRTableExecutor:
         output_tbl = Table(tuples)
         assert output_tbl == Table(target_tuples_simple)
 
-    def test_udf_operator_simple(
+    def test_udf_executor_simple(
         self, source_executor_simple, udf_executor_simple, target_tuples_simple
     ):
-        source_operator = RTableSourceExecutor(source_executor_simple)
-        input_tbl = Table([tup for tup in source_operator.produce()])
+        source_executor = RTableSourceExecutor(source_executor_simple)
+        input_tbl = Table([tup for tup in source_executor.produce()])
 
-        udf_operator = RTableExecutor(udf_executor_simple)
-        output = udf_operator.process_table(input_tbl, 0)
+        udf_executor = RTableExecutor(udf_executor_simple)
+        output = udf_executor.process_table(input_tbl, 0)
 
         tuples = [tup for tup in output]
         assert len(tuples) == 3
@@ -170,11 +338,11 @@ class TestRTableExecutor:
         udf_executor_simple_extract_row,
         target_tuples_simple,
     ):
-        source_operator = RTableSourceExecutor(source_executor_simple)
-        input_tbl = Table([tup for tup in source_operator.produce()])
+        source_executor = RTableSourceExecutor(source_executor_simple)
+        input_tbl = Table([tup for tup in source_executor.produce()])
 
-        udf_operator = RTableExecutor(udf_executor_simple_extract_row)
-        output = udf_operator.process_table(input_tbl, 0)
+        udf_executor = RTableExecutor(udf_executor_simple_extract_row)
+        output = udf_executor.process_table(input_tbl, 0)
 
         tuples = [tup for tup in output]
         target_tuple = Tuple({"Name": "Bob", "Age": 30, "City": "Los Angeles"})
@@ -190,11 +358,11 @@ class TestRTableExecutor:
         udf_executor_simple_update_row,
         target_tuples_simple,
     ):
-        source_operator = RTableSourceExecutor(source_executor_simple)
-        input_tbl = Table([tup for tup in source_operator.produce()])
+        source_executor = RTableSourceExecutor(source_executor_simple)
+        input_tbl = Table([tup for tup in source_executor.produce()])
 
-        udf_operator = RTableExecutor(udf_executor_simple_update_row)
-        output = udf_operator.process_table(input_tbl, 0)
+        udf_executor = RTableExecutor(udf_executor_simple_update_row)
+        output = udf_executor.process_table(input_tbl, 0)
 
         tuples = [tup for tup in output]
         target_tuple = Tuple({"Name": "Bob", "Age": 18, "City": "Los Angeles"})
@@ -214,11 +382,11 @@ class TestRTableExecutor:
     def test_udf_executor_simple_add_row(
         self, source_executor_simple, udf_executor_simple_add_row, target_tuples_simple
     ):
-        source_operator = RTableSourceExecutor(source_executor_simple)
-        input_tbl = Table([tup for tup in source_operator.produce()])
+        source_executor = RTableSourceExecutor(source_executor_simple)
+        input_tbl = Table([tup for tup in source_executor.produce()])
 
-        udf_operator = RTableExecutor(udf_executor_simple_add_row)
-        output = udf_operator.process_table(input_tbl, 0)
+        udf_executor = RTableExecutor(udf_executor_simple_add_row)
+        output = udf_executor.process_table(input_tbl, 0)
 
         tuples = [tup for tup in output]
         target_tuple = Tuple({"Name": "Test", "Age": 0, "City": "Irvine"})
@@ -235,17 +403,17 @@ class TestRTableExecutor:
             [tup for tup in target_tuples_simple] + [target_tuple]
         )
 
-    def test_source_operator_fail(self, source_executor_df_fail):
-        source_operator = RTableSourceExecutor(source_executor_df_fail)
+    def test_source_executor_fail(self, source_executor_df_fail):
+        source_executor = RTableSourceExecutor(source_executor_df_fail)
         with pytest.raises(rpy2.rinterface_lib.embedded.RRuntimeError) as _:
-            output = source_operator.produce()
+            output = source_executor.produce()
             output = [out for out in output]
 
     def test_source_executor_df_like_type(
         self, source_executor_df_like_type, target_tuples_like_type
     ):
-        source_operator = RTableSourceExecutor(source_executor_df_like_type)
-        output = source_operator.produce()
+        source_executor = RTableSourceExecutor(source_executor_df_like_type)
+        output = source_executor.produce()
 
         tuples = [tup for tup in output]
         assert len(tuples) == 2
@@ -262,11 +430,11 @@ class TestRTableExecutor:
         udf_executor_df_like_type,
         target_tuples_like_type,
     ):
-        source_operator = RTableSourceExecutor(source_executor_df_like_type)
-        input_tbl = Table([tup for tup in source_operator.produce()])
+        source_executor = RTableSourceExecutor(source_executor_df_like_type)
+        input_tbl = Table([tup for tup in source_executor.produce()])
 
-        udf_operator = RTableExecutor(udf_executor_df_like_type)
-        output = udf_operator.process_table(input_tbl, 0)
+        udf_executor = RTableExecutor(udf_executor_df_like_type)
+        output = udf_executor.process_table(input_tbl, 0)
 
         tuples = [tup for tup in output]
         assert len(tuples) == 2
@@ -284,11 +452,11 @@ class TestRTableExecutor:
         udf_executor_df_like_type_add_row,
         target_tuples_like_type,
     ):
-        source_operator = RTableSourceExecutor(source_executor_df_like_type)
-        input_tbl = Table([tup for tup in source_operator.produce()])
+        source_executor = RTableSourceExecutor(source_executor_df_like_type)
+        input_tbl = Table([tup for tup in source_executor.produce()])
 
-        udf_operator = RTableExecutor(udf_executor_df_like_type_add_row)
-        output = udf_operator.process_table(input_tbl, 0)
+        udf_executor = RTableExecutor(udf_executor_df_like_type_add_row)
+        output = udf_executor.process_table(input_tbl, 0)
 
         tuples = [tup for tup in output]
         target_tuple = Tuple({"C.1": 4, "C.2": 5, "C.3": 6})
@@ -306,11 +474,11 @@ class TestRTableExecutor:
     def test_udf_executor_df_like_type_add_col(
         self, source_executor_df_like_type, udf_executor_df_like_type_add_col
     ):
-        source_operator = RTableSourceExecutor(source_executor_df_like_type)
-        input_tbl = Table([tup for tup in source_operator.produce()])
+        source_executor = RTableSourceExecutor(source_executor_df_like_type)
+        input_tbl = Table([tup for tup in source_executor.produce()])
 
-        udf_operator = RTableExecutor(udf_executor_df_like_type_add_col)
-        output = udf_operator.process_table(input_tbl, 0)
+        udf_executor = RTableExecutor(udf_executor_df_like_type_add_col)
+        output = udf_executor.process_table(input_tbl, 0)
 
         tuples = [tup for tup in output]
         target_tuples = [
