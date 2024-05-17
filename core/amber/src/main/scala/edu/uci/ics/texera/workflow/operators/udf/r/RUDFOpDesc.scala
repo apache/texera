@@ -18,7 +18,7 @@ class RUDFOpDesc extends LogicalOp {
   @JsonProperty(
     required = true,
     defaultValue =
-        "function(table, port) {\n\n" +
+      "function(table, port) {\n\n" +
         "}"
   )
   @JsonSchemaTitle("R UDF Script")
