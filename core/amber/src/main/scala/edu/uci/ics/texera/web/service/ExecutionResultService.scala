@@ -8,7 +8,7 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
   ExecutionStateUpdate,
   FatalError
 }
-import edu.uci.ics.amber.engine.common.AmberConfig
+import edu.uci.ics.amber.engine.common.{AmberConfig, AmberRuntime}
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.texera.workflow.common.IncrementalOutputMode.{SET_DELTA, SET_SNAPSHOT}
@@ -32,7 +32,7 @@ import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{
   KILLED,
   RUNNING
 }
-import edu.uci.ics.texera.web.{SubscriptionManager, TexeraWebApplication}
+import edu.uci.ics.texera.web.SubscriptionManager
 import edu.uci.ics.texera.workflow.common.IncrementalOutputMode
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
@@ -192,7 +192,7 @@ class ExecutionResultService(
         {
           if (newState.state == RUNNING) {
             if (resultUpdateCancellable == null || resultUpdateCancellable.isCancelled) {
-              resultUpdateCancellable = TexeraWebApplication
+              resultUpdateCancellable = AmberRuntime
                 .scheduleRecurringCallThroughActorSystem(
                   2.seconds,
                   resultPullingFrequency.seconds

@@ -5,7 +5,7 @@ import com.google.common.base.Preconditions;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.SchemaPropagationFunc;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo;
-import edu.uci.ics.amber.engine.common.AmberUtils;
+import edu.uci.ics.amber.engine.common.AmberRuntime;
 import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity;
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity;
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity;
@@ -21,6 +21,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import edu.uci.ics.texera.workflow.operators.sink.SinkOpDesc;
 import edu.uci.ics.texera.workflow.operators.sink.storage.SinkStorageReader;
 import edu.uci.ics.texera.workflow.operators.sink.storage.SinkStorageWriter;
+import edu.uci.ics.texera.workflow.operators.util.OperatorDescriptorUtils;
 import scala.Option;
 import scala.Tuple2;
 import scala.collection.immutable.Map;
@@ -97,7 +98,7 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
                             // set schema for the storage
                             getStorage().setSchema(outputSchema);
                             // Convert the Java Map to a Scala immutable Map
-                            return AmberUtils.toImmutableMap(javaMap);
+                            return OperatorDescriptorUtils.toImmutableMap(javaMap);
                         })
                 );
     }
