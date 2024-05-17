@@ -2,10 +2,12 @@ package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PortCompletedHandler.PortCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.QueryWorkerStatisticsHandler.ControllerInitiateQueryStatistics
 import edu.uci.ics.amber.engine.architecture.scheduling.GlobalPortIdentity
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
+import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
@@ -56,7 +58,16 @@ trait PortCompletedHandler {
                 else operatorExecution.isOutputPortCompleted(msg.portId)
 
               if (isPortCompleted) {
-                cp.workflowExecutionCoordinator.executeNextRegions(cp.actorService)
+                cp.workflowExecutionCoordinator
+                  .executeNextRegions(cp.actorService)
+                  // Since this message is sent from a worker, any exception from the above code will be returned to that worker.
+                  // Additionally, a fatal error is sent to the client, indicating that the region cannot be scheduled.
+                  .onFailure {
+                    case err: WorkflowRuntimeException =>
+                      sendToClient(FatalError(err, err.relatedWorkerId))
+                    case other =>
+                      sendToClient(FatalError(other, None))
+                  }
               } else {
                 // if the port is not completed yet, do nothing
                 Future(())
