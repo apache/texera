@@ -8,7 +8,6 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.BeforeAndAfter
 import org.scalatest.matchers.should.Matchers
 
-import java.io.ByteArrayInputStream
 import scala.util.Using
 
 class PartitionDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfter {
