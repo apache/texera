@@ -2,7 +2,7 @@ import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
 import { AppSettings } from "src/app/common/app-setting";
-import { File, Workflow, MongoExecution } from "src/app/common/type/user";
+import { Dataset,File, Workflow, MongoExecution } from "src/app/common/type/user";
 
 export const USER_BASE_URL = `${AppSettings.getApiEndpoint()}/quota`;
 export const USER_CREATED_FILES = `${USER_BASE_URL}/uploaded_files`;
@@ -24,8 +24,8 @@ export class UserQuotaService {
     return this.http.get<ReadonlyArray<File>>(`${USER_CREATED_FILES}`);
   }
 
-  public getTotalUploadedDatasetSize(uid: number): Observable<number> {
-    return this.http.get<number>(`${USER_UPLOADED_DATASE_SIZE}`);
+  public getTotalUploadedDatasetSize(uid: number): Observable<ReadonlyArray<Dataset>> {
+    return this.http.get<ReadonlyArray<Dataset>>(`${USER_UPLOADED_DATASE_SIZE}`);
   }
 
   public getTotalUploadedDatasetCount(uid: number): Observable<number> {

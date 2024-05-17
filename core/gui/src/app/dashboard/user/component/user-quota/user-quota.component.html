@@ -12,35 +12,6 @@
   </nz-card>
   <div>
     <nz-tabset nzCentered>
-      <style>
-        .info-container {
-          display: flex;
-          flex-wrap: wrap;
-          justify-content: center;
-        }
-
-        .info-box {
-          background-color: #f4f4f4;
-          padding: 40px;
-          margin: 10px;
-          width: 375px;
-          height: 135px;
-          border-radius: 5px;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-          font-family: Arial, sans-serif;
-          text-align: center;
-        }
-
-        .info-heading {
-          font-weight: bold;
-          font-size: 18px;
-        }
-
-        .info-content {
-          font-size: 24px;
-          margin-top: 10px;
-        }
-      </style>
       <nz-tab nzTitle="Quota Table">
         <div class="info-container">
           <div class="info-box">
@@ -51,9 +22,14 @@
             <h2 class="info-heading">Datasets Uploaded</h2>
             <p class="info-content">{{ this.totalUploadedDatasetCount }}</p>
           </div>
-          <div class="info-box">
+          <div class="info-box"
+              (mouseenter)="showPieChart()"
+              (mouseleave)="hidePieChart()">
             <h2 class="info-heading">Total Size of Datasets</h2>
             <p class="info-content">{{ convertFileSize(this.totalUploadedDatasetSize) }}</p>
+            <!-- Floating Pie Chart Container -->
+            <!-- <div class="pie-chart-popup" *ngIf="showChart"> -->
+            <!-- </div> -->
           </div>
           <div class="info-box">
             <h2 class="info-heading">Workflows Created</h2>
@@ -76,6 +52,7 @@
             <p class="info-content">{{ convertFileSize(this.totalMongoSize) }}</p>
           </div>
         </div>
+        <div id="sizePieChart"></div>
       </nz-tab>
       <nz-tab nzTitle="Result Cache">
         <nz-collapse>

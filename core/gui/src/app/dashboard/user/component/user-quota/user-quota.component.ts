@@ -1,19 +1,32 @@
-import { Component, inject } from "@angular/core";
+import { Component, OnInit, inject } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { File, Workflow, MongoExecution, MongoWorkflow } from "../../../../common/type/user";
+import { Dataset, File, Workflow, MongoExecution, MongoWorkflow } from "../../../../common/type/user";
 import { UserFileService } from "../../service/user-file/user-file.service";
 import { NzTableSortFn } from "ng-zorro-antd/table";
 import { UserQuotaService } from "../../service/user-quota/user-quota.service";
 import { AdminUserService } from "../../../admin/service/admin-user.service";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
+import * as Plotly from "plotly.js-basic-dist-min";
 
 type UserServiceType = AdminUserService | UserQuotaService;
 
 @UntilDestroy()
 @Component({
   templateUrl: "./user-quota.component.html",
+  styleUrls: ["./user-quota.component.scss"]
 })
-export class UserQuotaComponent {
+export class UserQuotaComponent implements OnInit{
+
+  showChart: boolean = false;
+
+  showPieChart(): void {
+    this.showChart = true;
+  }
+
+  hidePieChart(): void {
+    this.showChart = false;
+  }
+
   readonly userId: number;
   backgroundColor: String = "white";
   textColor: String = "Black";
@@ -29,8 +42,11 @@ export class UserQuotaComponent {
   accessWorkflows: ReadonlyArray<number> = [];
   topFiveFiles: ReadonlyArray<File> = [];
   mongodbExecutions: ReadonlyArray<MongoExecution> = [];
+  datasetList: ReadonlyArray<Dataset> = [];
   mongodbWorkflows: Array<MongoWorkflow> = [];
   UserService: UserServiceType;
+  pieChartWidth= 450;
+  pieChartHeight = 450;
 
   timer = setInterval(() => {}, 1000); // 1 second interval
 
@@ -50,7 +66,27 @@ export class UserQuotaComponent {
       this.UserService = this.regularUserService;
       this.dynamicHeight = "";
     }
+    
+  }
+  ngOnInit(): void {
     this.refreshData();
+  }
+  generatePieChart(dataToDisplay: Array<[string, ...number[]]>, title: string, chart: string) {
+    var data = [
+      {
+        values: dataToDisplay.map(d => d[1]),
+        labels: dataToDisplay.map(d => d[0]),
+        type: "pie" as const,
+      },
+    ];
+    var layout = {
+      height: this.pieChartHeight,
+      width: this.pieChartWidth,
+      title: {
+        text: title,
+      },
+    };
+    Plotly.newPlot(chart, data, layout);
   }
 
   refreshData() {
@@ -71,8 +107,16 @@ export class UserQuotaComponent {
 
     this.UserService.getTotalUploadedDatasetSize(this.userId)
       .pipe(untilDestroyed(this))
-      .subscribe(datasetSize => {
-        this.totalUploadedDatasetSize = datasetSize;
+      .subscribe(datasetList => {
+        this.datasetList = datasetList;
+        let totalDatasetSize = 0;
+        let pieChartData: Array<[string, ...number[]]> = [];
+        this.datasetList.forEach(dataset => {
+          totalDatasetSize += dataset.size;
+          pieChartData.push([dataset.name, dataset.size]);
+        });
+        this.generatePieChart(pieChartData, "Dataset Size Distribution", "sizePieChart");
+        this.totalUploadedDatasetSize = totalDatasetSize;
       });
 
     this.UserService.getTotalUploadedDatasetCount(this.userId)

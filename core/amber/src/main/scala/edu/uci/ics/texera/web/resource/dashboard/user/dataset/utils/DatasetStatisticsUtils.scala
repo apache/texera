@@ -3,6 +3,7 @@ package edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset.DATASET
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{DatasetIDs}
+import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource.{Dataset}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.PathUtils.DATASETS_ROOT
 import org.jooq.types.UInteger
 import scala.jdk.CollectionConverters._
@@ -24,18 +25,23 @@ object DatasetStatisticsUtils {
   }
 
   // this function would return a list of dataset ids that belongs to the user
-  private def getUserCreatedDatasetList(uid: UInteger): DatasetIDs = {
-    val datasetIDs = context
+  private def getUserCreatedDatasetList(uid: UInteger): List[Dataset] = {
+    val result = context
       .select(
-        DATASET.DID
+        DATASET.DID,
+        DATASET.NAME
       )
       .from(DATASET)
       .where(DATASET.OWNER_UID.eq(uid))
       .fetch()
 
-    val idsList: List[UInteger] = datasetIDs.asScala.map(_.getValue(DATASET.DID)).toList
-
-    DatasetIDs(idsList)
+    result.asScala.map(record =>
+      Dataset(
+        did = record.getValue(DATASET.DID),
+        name = record.getValue(DATASET.NAME),
+        size = 0
+      )
+    ).toList
   }
   private def getFolderSize(folderPath: Path): Long = {
     val walk = Files.walk(folderPath)
@@ -49,12 +55,13 @@ object DatasetStatisticsUtils {
     }
   }
 
-  def getUserDatasetSize(uid: UInteger): Long = {
-    val datasetIDs = getUserCreatedDatasetList(uid)
+  def getUserDatasetSize(uid: UInteger): List[Dataset] = {
+    val datasetList = getUserCreatedDatasetList(uid)
 
-    datasetIDs.dids.map { did =>
-      val datasetPath = DATASETS_ROOT.resolve(did.toString)
-      getFolderSize(datasetPath)
-    }.sum
+    datasetList.map { dataset =>
+      val datasetPath = DATASETS_ROOT.resolve(dataset.did.toString)
+      val size = getFolderSize(datasetPath)
+      dataset.copy(size = size)
+    }
   }
 }

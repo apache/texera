@@ -2,7 +2,7 @@ import { HttpClient, HttpHeaders, HttpParams } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
 import { AppSettings } from "../../../common/app-setting";
-import { Role, User, File, Workflow, MongoExecution } from "../../../common/type/user";
+import { Dataset, Role, User, File, Workflow, MongoExecution } from "../../../common/type/user";
 
 export const USER_BASE_URL = `${AppSettings.getApiEndpoint()}/admin/user`;
 export const USER_LIST_URL = `${USER_BASE_URL}/list`;
@@ -45,9 +45,14 @@ export class AdminUserService {
     return this.http.get<ReadonlyArray<File>>(`${USER_CREATED_FILES}`, { params: params });
   }
 
-  public getTotalUploadedDatasetSize(uid: number): Observable<number> {
+  // public getTotalUploadedDatasetSize(uid: number): Observable<number> {
+    
+  //   return this.http.get<number>(`${USER_UPLOADED_DATASE_SIZE}`, { params: params });
+  // }
+
+  public getTotalUploadedDatasetSize(uid: number): Observable<ReadonlyArray<Dataset>> {
     let params = new HttpParams().set("user_id", uid.toString());
-    return this.http.get<number>(`${USER_UPLOADED_DATASE_SIZE}`, { params: params });
+    return this.http.get<ReadonlyArray<Dataset>>(`${USER_UPLOADED_DATASE_SIZE}`, { params: params });
   }
 
   public getTotalUploadedDatasetCount(uid: number): Observable<number> {

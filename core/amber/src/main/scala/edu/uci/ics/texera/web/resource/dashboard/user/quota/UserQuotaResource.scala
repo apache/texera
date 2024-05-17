@@ -2,27 +2,14 @@ package edu.uci.ics.texera.web.resource.dashboard.user.quota
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource.{
-  File,
-  MongoStorage,
-  Workflow,
-  deleteMongoCollection,
-  getUserAccessedFiles,
-  getUserAccessedWorkflow,
-  getUserCreatedFile,
-  getUserCreatedWorkflow,
-  getUserMongoDBSize
-}
+import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource.{Dataset, File, MongoStorage, Workflow, deleteMongoCollection, getUserAccessedFiles, getUserAccessedWorkflow, getUserCreatedFile, getUserCreatedWorkflow, getUserMongoDBSize}
 import org.jooq.types.UInteger
 
 import java.util
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import edu.uci.ics.texera.web.model.jooq.generated.Tables._
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.DatasetStatisticsUtils.{
-  getUserCreatedDatasetCount,
-  getUserDatasetSize
-}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.DatasetStatisticsUtils.{getUserCreatedDatasetCount, getUserDatasetSize}
 import edu.uci.ics.texera.web.storage.MongoDatabaseManager
 import io.dropwizard.auth.Auth
 
@@ -44,6 +31,12 @@ object UserQuotaResource {
       userId: UInteger,
       workflowId: UInteger,
       workflowName: String
+  )
+
+  case class Dataset(
+      did: UInteger,
+      name: String,
+      size: Long
   )
 
   case class MongoStorage(
@@ -234,7 +227,7 @@ class UserQuotaResource {
   @GET
   @Path("/dataset_size")
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def getDatasetSize(@Auth current_user: SessionUser): Long = {
+  def getDatasetSize(@Auth current_user: SessionUser): List[Dataset] = {
     getUserDatasetSize(current_user.getUid)
   }
 

@@ -42,6 +42,13 @@ export interface Workflow
     workflowName: string;
   }> {}
 
+export interface Dataset 
+ extends Readonly<{
+  did: number;
+  name: string;
+  size: number;
+}> {}
+
 export interface MongoWorkflow {
   workflowName: string;
   executions: MongoExecution[];
