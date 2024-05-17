@@ -20,4 +20,7 @@ object ControllerEvent {
 
   case class WorkerAssignmentUpdate(workerMapping: Map[String, Seq[String]])
       extends ControlCommand[Unit]
+
+  final case class FatalError(e: Throwable, fromActor: Option[ActorVirtualIdentity] = None)
+      extends ControlCommand[Unit]
 }

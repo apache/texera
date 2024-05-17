@@ -60,7 +60,7 @@ class DataProcessor(
   // inner dependencies
   private val initializer = new DataProcessorRPCHandlerInitializer(this)
   val pauseManager: PauseManager = wire[PauseManager]
-  val stateManager: WorkerStateManager = new WorkerStateManager()
+  val stateManager: WorkerStateManager = new WorkerStateManager(actorId)
   val inputManager: InputManager = new InputManager(actorId)
   val outputManager: OutputManager = new OutputManager(actorId, outputGateway)
   val channelMarkerManager: ChannelMarkerManager = new ChannelMarkerManager(actorId, inputGateway)

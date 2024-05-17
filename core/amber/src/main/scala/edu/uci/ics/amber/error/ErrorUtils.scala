@@ -3,6 +3,7 @@ package edu.uci.ics.amber.error
 import com.google.protobuf.timestamp.Timestamp
 import edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessage
 import edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessageType.ERROR
+import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 import java.time.Instant
@@ -47,6 +48,18 @@ object ErrorUtils {
     } else {
       message
     }
+  }
+
+  def getOperatorFromActorIdOpt(
+      actorIdOpt: Option[ActorVirtualIdentity]
+  ): (String, String) = {
+    var operatorId = "unknown operator"
+    var workerId = ""
+    if (actorIdOpt.isDefined) {
+      operatorId = VirtualIdentityUtils.getPhysicalOpId(actorIdOpt.get).logicalOpId.id
+      workerId = actorIdOpt.get.name
+    }
+    (operatorId, workerId)
   }
 
 }
