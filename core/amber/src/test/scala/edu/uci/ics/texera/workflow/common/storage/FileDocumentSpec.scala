@@ -123,4 +123,17 @@ class FileDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfter {
 
     exception.getMessage should include(s"File $tempFileURI doesn't exist")
   }
+
+  it should "correctly write and read a large amount of data" in {
+    // Generate a large string of 20,000 characters
+    val largeContent = "A" * 20000
+    fileDocument.setItem(largeContent)
+
+    // Read back the content
+    val content = Using(fileDocument.asInputStream()) { inStream =>
+      new String(inStream.readAllBytes())
+    }.getOrElse(fail("Failed to read from the FileDocument"))
+
+    content should be(initialContent + largeContent)
+  }
 }
