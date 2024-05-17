@@ -11,7 +11,6 @@ import edu.uci.ics.amber.engine.architecture.controller.execution.{
   OperatorExecution,
   WorkflowExecution
 }
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.InitializeExecutorHandler.InitializeExecutor
@@ -97,13 +96,6 @@ class RegionExecutionCoordinator(
       .flatMap(_ => connectChannels(region.getLinks))
       .flatMap(_ => openOperators(operatorsToInit))
       .flatMap(_ => sendStarts(region))
-      .rescue {
-        case err: Throwable =>
-          // this call may come from client or worker(by execution completed)
-          // thus we need to force it to send error to client.
-          asyncRPCClient.sendToClient(FatalError(err, None))
-          Future.Unit
-      }
       .unit
   }
   private def buildOperator(

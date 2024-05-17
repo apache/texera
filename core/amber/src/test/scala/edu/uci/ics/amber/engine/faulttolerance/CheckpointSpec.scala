@@ -17,7 +17,7 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.StateRestoreConfig
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessor
 import edu.uci.ics.amber.engine.common.{
-  AmberUtils,
+  AmberRuntime,
   CheckpointState,
   CheckpointSupport,
   SourceOperatorExecutor
@@ -72,9 +72,9 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
   )
 
   override def beforeAll(): Unit = {
-    system = ActorSystem("Amber", AmberUtils.akkaConfig)
+    system = ActorSystem("Amber", AmberRuntime.akkaConfig)
     system.actorOf(Props[SingleNodeListener](), "cluster-info")
-    AmberUtils.serde = SerializationExtension(system)
+    AmberRuntime.serde = SerializationExtension(system)
   }
 
   "Default controller state" should "be serializable" in {
