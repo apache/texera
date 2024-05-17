@@ -117,7 +117,6 @@ class ExecutorManager:
         :param output_schema: the raw mapping of output schema, name -> type_str.
         :return:
         """
-        executor: type(Operator) = self.load_executor_definition(code)
         if language == "r":
             # Have to import it here and not at the top in case R_HOME from udf.conf
             # is not defined, otherwise an error will occur
@@ -130,6 +129,7 @@ class ExecutorManager:
             else:
                 self.executor = RTableExecutor(code)
         else:
+            executor: type(Operator) = self.load_executor_definition(code)
             self.executor = executor()
             self.executor.is_source = is_source
         assert (
