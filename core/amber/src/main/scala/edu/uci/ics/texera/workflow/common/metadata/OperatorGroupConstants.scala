@@ -18,6 +18,7 @@ object OperatorGroupConstants {
   final val UDF_GROUP = "User-defined Functions"
   final val PYTHON_GROUP = "Python"
   final val JAVA_GROUP = "Java"
+  final val R_GROUP = "R"
 
   /**
     * The order of the groups to show up in the frontend operator panel.

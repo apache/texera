@@ -166,7 +166,9 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
       );
     }
     this.editor = editor;
-    // this.connectLanguageServer();
+    if (this.language == "python") {
+      this.connectLanguageServer();
+    }
   }
 
   private connectLanguageServer() {

@@ -175,7 +175,6 @@ export class WorkflowGraph {
    */
   public getSharedOperatorType(operatorID: string): YType<OperatorPredicate> {
     this.assertOperatorExists(operatorID);
-    console.log(this.sharedModel.operatorIDMap.get(operatorID));
     return this.sharedModel.operatorIDMap.get(operatorID) as YType<OperatorPredicate>;
   }
 

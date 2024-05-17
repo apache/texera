@@ -23,7 +23,6 @@ def init_loguru_logger(stream_log_level) -> None:
 
 if __name__ == "__main__":
     _, worker_id, output_port, logger_level, r_path = sys.argv
-    print("SYS ARGV", sys.argv)
     init_loguru_logger(logger_level)
 
     # Setting R_HOME environment variable for R-UDF usage

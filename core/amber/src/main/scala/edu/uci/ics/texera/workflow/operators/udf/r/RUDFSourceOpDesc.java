@@ -34,8 +34,6 @@ public class RUDFSourceOpDesc extends SourceOperatorDescriptor {
     @JsonProperty(
         required = true,
         defaultValue =
-            "# Input: None\n" +
-            "# Output/Return: Table-like object that can be split into tuples\n" +
             "function() {\n\n" +
             "}"
     )
@@ -94,12 +92,12 @@ public class RUDFSourceOpDesc extends SourceOperatorDescriptor {
         return new OperatorInfo(
                 "1-out R UDF",
                 "User-defined function operator in R script",
-                OperatorGroupConstants.UDF_GROUP(),
+                OperatorGroupConstants.R_GROUP(),
                 asScala(new ArrayList<InputPort>()).toList(),
                 asScala(singletonList(new OutputPort(new PortIdentity(0, false), "", false))).toList(),
                 false,
                 false,
-                true,
+                false,
                 false
         );
     }

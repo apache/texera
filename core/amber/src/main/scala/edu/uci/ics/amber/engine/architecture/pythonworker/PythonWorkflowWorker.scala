@@ -43,7 +43,7 @@ class PythonWorkflowWorker(
     .resolve("src")
     .resolve("main")
     .resolve("python")
-  val config: Config = ConfigFactory.load("udf")
+  val config: Config = ConfigFactory.load("udf").trim
   val pythonENVPath: String = config.getString("python.path").trim
   val RENVPath: String = config.getString("r.path")
 

@@ -17,13 +17,13 @@ class RTableExecutor(TableOperator):
     is_source = False
 
     _arrow_to_r_dataframe = robjects.r(
-        "arrow_to_r_dataframe <- function(table) { return (as.data.frame(table)) }"
+        "function(table) { return (as.data.frame(table)) }"
     )
 
     _r_dataframe_to_arrow = robjects.r(
         """
         library(arrow)
-        r_dataframe_to_arrow <- function(df) { return (arrow::as_arrow_table(df)) }
+        function(df) { return (arrow::as_arrow_table(df)) }
         """
     )
 
@@ -40,8 +40,8 @@ class RTableExecutor(TableOperator):
 
     def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
         """
-        Process an input Table using the provided R function. T
-        he Table is represented as a pandas.DataFrame.
+        Process an input Table using the provided R function.
+        The Table is represented as a pandas.DataFrame.
 
         :param table: Table, a table to be processed.
         :param port: int, input port index of the current Tuple.
@@ -72,28 +72,6 @@ class RTableSourceExecutor(SourceOperator):
     """
 
     is_source = True
-
-    # Currently unused, may use in future?
-    _output_table_checker = robjects.r(
-        """
-    output_table_checker <- function(x) {
-      is_dataframe <- FALSE
-      # Check if object is already a data frame
-      if (is.data.frame(x)) {
-        is_dataframe <- TRUE
-      } else {
-        # Attempt to convert to data frame
-        tryCatch({
-          as.data.frame(x)
-          is_dataframe <- TRUE
-        }, error = function(e) {
-          is_dataframe <- FALSE
-        })
-      }
-      return(is_dataframe)
-    }
-    """
-    )
     _source_output_to_arrow = robjects.r(
         """
     library(arrow)
@@ -117,16 +95,16 @@ class RTableSourceExecutor(SourceOperator):
 
     def produce(self) -> Iterator[Union[TupleLike, TableLike, None]]:
         """
-        Produce Tuples or Tables using the provided R function.
+        Produce Table using the provided R function.
         Used by the source operator only.
 
         :return: Iterator[Union[TupleLike, TableLike, None]], producing
             one TupleLike object, one TableLike object, or None, at a time.
         """
         with local_converter(arrow_converter):
-            output_obj = self._func()
+            output_table = self._func()
             output_rarrow_table = RTableSourceExecutor._source_output_to_arrow(
-                output_obj
+                output_table
             )
             output_pyarrow_table = rarrow_to_py_table(output_rarrow_table)
 

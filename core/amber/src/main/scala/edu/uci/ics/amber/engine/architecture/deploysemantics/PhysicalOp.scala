@@ -214,7 +214,7 @@ case class PhysicalOp(
     outputPorts.forall(port => port._2._2.isEmpty)
   }
 
-  def isPythonOperator: Boolean = {
+  def isPythonBased: Boolean = {
     opExecInitInfo match {
       case opExecInfo: OpExecInitInfoWithCode =>
         val (_, language) = opExecInfo.codeGen(0, 0)
@@ -530,7 +530,7 @@ case class PhysicalOp(
       val locationPreference = this.locationPreference.getOrElse(new RoundRobinPreference())
       val preferredAddress = locationPreference.getPreferredLocation(addressInfo, this, workerIndex)
 
-      val workflowWorker = if (this.isPythonOperator) {
+      val workflowWorker = if (this.isPythonBased) {
         PythonWorkflowWorker.props(workerConfig)
       } else {
         WorkflowWorker.props(

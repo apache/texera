@@ -307,7 +307,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   registerOnFormChangeHandler(): void {
     this.operatorPropertyChangeStream.pipe(untilDestroyed(this)).subscribe(formData => {
       // set the operator property to be the new form data
-      console.log("changing to : ", formData);
       if (this.currentOperatorId) {
         this.listeningToChange = false;
         this.typeInferenceOnLambdaFunction(formData);

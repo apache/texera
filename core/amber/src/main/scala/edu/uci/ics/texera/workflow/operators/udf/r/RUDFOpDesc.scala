@@ -18,9 +18,7 @@ class RUDFOpDesc extends LogicalOp {
   @JsonProperty(
     required = true,
     defaultValue =
-      "# Input: Table, port\n" +
-        "# Output/Return: Table-like object that can be split into tuples\n" +
-        "function(input, port) {\n\n" +
+        "function(table, port) {\n\n" +
         "}"
   )
   @JsonSchemaTitle("R UDF Script")
@@ -133,23 +131,21 @@ class RUDFOpDesc extends LogicalOp {
     OperatorInfo(
       "R UDF",
       "User-defined function operator in R script",
-      OperatorGroupConstants.UDF_GROUP,
+      OperatorGroupConstants.R_GROUP,
       inputPortInfo,
       outputPortInfo,
-      dynamicInputPorts = true,
-      dynamicOutputPorts = true,
-      supportReconfiguration = true,
-      allowPortCustomization = true
+      dynamicInputPorts = false,
+      dynamicOutputPorts = false,
+      supportReconfiguration = false,
+      allowPortCustomization = false
     )
   }
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    //    Preconditions.checkArgument(schemas.length == 1)
     val inputSchema = schemas(0)
     val outputSchemaBuilder = Schema.Builder()
     // keep the same schema from input
     if (retainInputColumns) outputSchemaBuilder.add(inputSchema)
-    // for any javaUDFType, it can add custom output columns (attributes).
     if (outputColumns != null) {
       if (retainInputColumns) { // check if columns are duplicated
 
