@@ -1,19 +1,18 @@
 package edu.uci.ics.texera.web
 
-import akka.actor.{ActorSystem, Cancellable}
 import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.github.dirkraft.dropwizard.fileassets.FileAssetsBundle
 import com.github.toastshaman.dropwizard.auth.jwt.JwtAuthFilter
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
-import edu.uci.ics.amber.engine.common.{AmberConfig, AmberUtils}
+import edu.uci.ics.amber.engine.common.AmberRuntime.scheduleRecurringCallThroughActorSystem
+import edu.uci.ics.amber.engine.common.{AmberConfig, AmberRuntime}
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.Utils.{maptoStatusCode, objectMapper}
-import edu.uci.ics.texera.web.TexeraWebApplication.scheduleRecurringCallThroughActorSystem
 import edu.uci.ics.texera.web.auth.JwtAuth.jwtConsumer
 import edu.uci.ics.texera.web.auth.{
   GuestAuthFilter,
@@ -68,8 +67,7 @@ import org.glassfish.jersey.media.multipart.MultiPartFeature
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 
 import java.time.Duration
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.concurrent.duration.DurationInt
 import org.apache.commons.jcs3.access.exception.InvalidArgumentException
 
 import java.net.URI
@@ -93,20 +91,15 @@ object TexeraWebApplication {
       conf: ControllerConfig,
       errorHandler: Throwable => Unit
   ): AmberClient = {
-    new AmberClient(actorSystem, workflowContext, physicalPlan, opResultStorage, conf, errorHandler)
+    new AmberClient(
+      AmberRuntime.actorSystem,
+      workflowContext,
+      physicalPlan,
+      opResultStorage,
+      conf,
+      errorHandler
+    )
   }
-
-  def scheduleCallThroughActorSystem(delay: FiniteDuration)(call: => Unit): Cancellable = {
-    actorSystem.scheduler.scheduleOnce(delay)(call)
-  }
-
-  def scheduleRecurringCallThroughActorSystem(initialDelay: FiniteDuration, delay: FiniteDuration)(
-      call: => Unit
-  ): Cancellable = {
-    actorSystem.scheduler.scheduleWithFixedDelay(initialDelay, delay)(() => call)
-  }
-
-  private var actorSystem: ActorSystem = _
 
   type OptionMap = Map[Symbol, Any]
   def parseArgs(args: Array[String]): OptionMap = {
@@ -133,7 +126,7 @@ object TexeraWebApplication {
     discardUncommittedChangesOfAllDatasets()
 
     // start actor system master node
-    actorSystem = AmberUtils.startActorMaster(clusterMode)
+    AmberRuntime.startActorMaster(clusterMode)
 
     // start web server
     new TexeraWebApplication().run(

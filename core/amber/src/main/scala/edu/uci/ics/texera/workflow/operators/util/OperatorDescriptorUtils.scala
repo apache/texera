@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.util
 
 import scala.collection.mutable
+import scala.jdk.CollectionConverters._
 
 object OperatorDescriptorUtils {
 
@@ -21,6 +22,12 @@ object OperatorDescriptorUtils {
       goalPerWorker(worker) = goalPerWorker(worker) + 1
     }
     goalPerWorker.toList
+  }
+
+  def toImmutableMap[K, V](
+      javaMap: java.util.Map[K, V]
+  ): scala.collection.immutable.Map[K, V] = {
+    javaMap.asScala.toMap
   }
 
 }

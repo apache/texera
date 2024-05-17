@@ -3,6 +3,7 @@ package edu.uci.ics.texera.web
 import java.time.{LocalDateTime, Duration => JDuration}
 import akka.actor.Cancellable
 import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.engine.common.AmberRuntime
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.texera.web.workflowruntimestate.{ExecutionMetadataStore, WorkflowAggregatedState}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.RUNNING
@@ -32,10 +33,9 @@ class WorkflowLifecycleManager(id: String, cleanUpTimeout: Int, cleanUpCallback:
       logger.info(
         s"[$id] workflow state clean up will start at ${LocalDateTime.now().plus(JDuration.ofSeconds(cleanUpTimeout))}"
       )
-      cleanUpExecution =
-        TexeraWebApplication.scheduleCallThroughActorSystem(cleanUpTimeout.seconds) {
-          cleanUp()
-        }
+      cleanUpExecution = AmberRuntime.scheduleCallThroughActorSystem(cleanUpTimeout.seconds) {
+        cleanUp()
+      }
     }
   }
 

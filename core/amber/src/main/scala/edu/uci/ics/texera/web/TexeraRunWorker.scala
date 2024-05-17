@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.web
 
-import edu.uci.ics.amber.engine.common.AmberUtils
+import edu.uci.ics.amber.engine.common.AmberRuntime
 import org.apache.commons.jcs3.access.exception.InvalidArgumentException
 
 import scala.annotation.tailrec
@@ -25,7 +25,7 @@ object TexeraRunWorker {
   def main(args: Array[String]): Unit = {
     val argMap = parseArgs(args)
     // start actor system worker node
-    AmberUtils.startActorWorker(argMap.get(Symbol("serverAddr")).asInstanceOf[Option[String]])
+    AmberRuntime.startActorWorker(argMap.get(Symbol("serverAddr")).asInstanceOf[Option[String]])
   }
 
 }

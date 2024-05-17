@@ -2,7 +2,6 @@ package edu.uci.ics.texera.web;
 
 import com.mysql.cj.jdbc.MysqlDataSource;
 import edu.uci.ics.amber.engine.common.AmberConfig;
-import edu.uci.ics.amber.engine.common.AmberUtils;
 import org.jooq.DSLContext;
 import org.jooq.SQLDialect;
 import org.jooq.impl.DSL;
