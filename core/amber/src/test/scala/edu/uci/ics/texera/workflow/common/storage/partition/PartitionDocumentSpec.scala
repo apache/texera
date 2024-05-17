@@ -21,7 +21,7 @@ class PartitionDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfte
     val buffer = new ByteArrayOutputStream()
     val data = new Array[Byte](1024)
     var nRead = 0
-    while ( {
+    while ({
       nRead = inputStream.read(data, 0, data.length)
       nRead != -1
     }) {
