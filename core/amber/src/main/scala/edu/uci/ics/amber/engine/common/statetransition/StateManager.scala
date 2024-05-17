@@ -5,28 +5,39 @@ import edu.uci.ics.amber.engine.common.statetransition.StateManager.{
   InvalidStateException,
   InvalidTransitionException
 }
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 object StateManager {
 
-  case class InvalidStateException(message: String) extends WorkflowRuntimeException(message)
+  case class InvalidStateException(msg: String, actorId: ActorVirtualIdentity)
+      extends WorkflowRuntimeException(msg, Some(actorId))
 
-  case class InvalidTransitionException(message: String) extends WorkflowRuntimeException(message)
+  case class InvalidTransitionException(msg: String, actorId: ActorVirtualIdentity)
+      extends WorkflowRuntimeException(msg, Some(actorId))
 }
 
-class StateManager[T](stateTransitionGraph: Map[T, Set[T]], initialState: T) extends Serializable {
+class StateManager[T](
+    actorId: ActorVirtualIdentity,
+    stateTransitionGraph: Map[T, Set[T]],
+    initialState: T
+) extends Serializable {
 
   private var currentState: T = initialState
 
   def assertState(state: T): Unit = {
     if (currentState != state) {
-      throw InvalidStateException(s"except state = $state but current state = $currentState")
+      throw InvalidStateException(
+        s"except state = $state but current state = $currentState",
+        actorId
+      )
     }
   }
 
   def assertState(states: T*): Unit = {
     if (!states.contains(currentState)) {
       throw InvalidStateException(
-        s"except state in [${states.mkString(",")}] but current state = $currentState"
+        s"except state in [${states.mkString(",")}] but current state = $currentState",
+        actorId
       )
     }
   }
@@ -51,7 +62,7 @@ class StateManager[T](stateTransitionGraph: Map[T, Set[T]], initialState: T) ext
     }
 
     if (!stateTransitionGraph.getOrElse(currentState, Set()).contains(state)) {
-      throw InvalidTransitionException(s"cannot transit from $currentState to $state")
+      throw InvalidTransitionException(s"cannot transit from $currentState to $state", actorId)
     }
     currentState = state
   }
