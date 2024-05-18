@@ -14,8 +14,8 @@ import java.net.URI
   * @param uri the id of this partition document. Note that this URI does not physically corresponds to a file.
   * @param numOfPartition number of partitions
   */
-class PartitionDocument(val uri: URI, val numOfPartition: Int)
-    extends VirtualDocument[FileDocument] {
+class PartitionDocument[T >: Null <: AnyRef](val uri: URI, val numOfPartition: Int)
+    extends VirtualDocument[FileDocument[T]] {
 
   /**
     * Utility functions to generate the partition URI by index
@@ -40,7 +40,7 @@ class PartitionDocument(val uri: URI, val numOfPartition: Int)
     * @param i index starting from 0
     * @return FileDocument corresponds to the certain partition
     */
-  override def getItem(i: Int): FileDocument = {
+  override def getItem(i: Int): FileDocument[T] = {
     new FileDocument(getPartitionURI(i))
   }
 
@@ -49,17 +49,17 @@ class PartitionDocument(val uri: URI, val numOfPartition: Int)
     * This method is THREAD-UNSAFE, as multiple threads can get the iterator and loop through all partitions. But the returned FileDocument is thread-safe
     *  @return an iterator that return the FileDocument corresponds to the certain partition
     */
-  override def get(): Iterator[FileDocument] =
-    new Iterator[FileDocument] {
+  override def get(): Iterator[FileDocument[T]] =
+    new Iterator[FileDocument[T]] {
       private var i: Int = 0
 
       override def hasNext: Boolean = i < numOfPartition
 
-      override def next(): FileDocument = {
+      override def next(): FileDocument[T] = {
         if (!hasNext) {
           throw new NoSuchElementException("No more partitions")
         }
-        val document = new FileDocument(getPartitionURI(i))
+        val document = new FileDocument[T](getPartitionURI(i))
         i += 1
         document
       }
