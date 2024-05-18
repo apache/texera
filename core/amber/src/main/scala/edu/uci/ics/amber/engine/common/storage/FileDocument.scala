@@ -3,13 +3,12 @@ import com.twitter.chill.{Input, KryoPool, ScalaKryoInstantiator}
 import edu.uci.ics.amber.engine.common.storage.FileDocument.kryoPool
 import org.apache.commons.vfs2.{FileObject, VFS}
 
-import java.io.{ByteArrayInputStream, DataInputStream, InputStream, OutputStreamWriter}
+import java.io.InputStream
 import java.net.URI
 import java.util.concurrent.locks.ReentrantReadWriteLock
-import scala.collection.mutable.ArrayBuffer
 
 object FileDocument {
-  // Initialize KryoPool
+  // Initialize KryoPool as a static object
   private val kryoPool = KryoPool.withByteArrayOutputStream(10, new ScalaKryoInstantiator)
 }
 
@@ -18,6 +17,9 @@ object FileDocument {
   * All methods are THREAD-SAFE implemented using read-write lock:
   * - 1 writer at a time: only 1 thread of current JVM can acquire the write lock
   * - n reader at a time: multiple threads of current JVM can acquire the read lock
+  *
+  * The type parameter T is used to specify the iterable data item stored in the File. FileDocument provides easy ways of setting/iterating these data items
+  *
   * @param uri the identifier of the file. If file doesn't physically exist, FileDocument will create the file during the constructing phase.
   */
 class FileDocument[T >: Null <: AnyRef](val uri: URI) extends VirtualDocument[T] {
@@ -57,6 +59,7 @@ class FileDocument[T >: Null <: AnyRef](val uri: URI) extends VirtualDocument[T]
 
   /**
     * Append the content in the inputStream to the FileDocument. This method is THREAD-SAFE
+    * This method will NOT do any serialization. So the it is invalid to use getItem and iterator to get T from the document.
     * @param inputStream the data source input stream
     */
   override def append(inputStream: InputStream): Unit =
@@ -77,7 +80,7 @@ class FileDocument[T >: Null <: AnyRef](val uri: URI) extends VirtualDocument[T]
 
   /**
     * Append the content in the given object to the FileDocument. This method is THREAD-SAFE
-    *
+    * Each record will be stored as <len of bytes><serialized bytes>.
     * @param item the content to append
     */
   override def append(item: T): Unit =
@@ -85,6 +88,7 @@ class FileDocument[T >: Null <: AnyRef](val uri: URI) extends VirtualDocument[T]
       val outStream = file.getContent.getOutputStream(true)
       val dataOutStream = new java.io.DataOutputStream(outStream)
       try {
+        // write the length and the raw bytes in
         val serializedBytes = kryoPool.toBytesWithClass(item)
         dataOutStream.writeInt(serializedBytes.length)
         dataOutStream.write(serializedBytes)
@@ -93,7 +97,6 @@ class FileDocument[T >: Null <: AnyRef](val uri: URI) extends VirtualDocument[T]
         outStream.close()
       }
     }
-
 
   /**
     * get the ith data item. The returned value will be deserialized using kyro

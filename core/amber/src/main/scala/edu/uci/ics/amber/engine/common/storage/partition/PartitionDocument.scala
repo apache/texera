@@ -11,6 +11,7 @@ import java.net.URI
   * PartitionDocument only support getting the FileDocument that corresponds to the single partition either by index or by iterator.
   * To write over the partition, you should get the FileDocument first, then call write-related methods over it. FileDocument guarantees the thread-safe read/write.
   *
+  * The Type parameter T is used to specify the type of data item stored in the partition
   * @param uri the id of this partition document. Note that this URI does not physically corresponds to a file.
   * @param numOfPartition number of partitions
   */
