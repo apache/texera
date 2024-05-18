@@ -20,24 +20,46 @@ class TestRTableExecutor:
         """
 
     @pytest.fixture
-    def udf_executor_empty_return(self):
+    def source_executor_NA(self):
+        # This should work with no issues
+        # since you can store NA in a data.frame
+        # and then convert the data.frame to Arrow Table with
+        # one Tuple with value Tuple({"source_output": None})
         return """
-        function(input, port) {
-            return (input)
+        function() {
+            return (NA)
+        }
+        """
+
+    @pytest.fixture
+    def udf_executor_return_NA(self):
+        # This should fail since the conversion back
+        # to Arrow will be impossible
+        return """
+        function(table, port) {
+            return (NA)
+        }
+        """
+
+    @pytest.fixture
+    def udf_executor_simple_return(self):
+        return """
+        function(table, port) {
+            return (table)
         }
         """
 
     @pytest.fixture
     def udf_executor_empty_add_row(self):
         return """
-        function(input, port) {
+        function(table, port) {
             new_row <- data.frame(
                 col1 = "TEST",
                 col2 = 12.3,
                 col3 = TRUE
               )
-            input <- rbind(input, new_row)
-            return (input)
+            table <- rbind(table, new_row)
+            return (table)
         }
         """
 
@@ -58,22 +80,22 @@ class TestRTableExecutor:
     @pytest.fixture
     def udf_executor_null_values_return(self):
         return """
-        function(input, port) {
-            return (input)
+        function(table, port) {
+            return (table)
         }
         """
 
     @pytest.fixture
     def udf_executor_null_values_add_row(self):
         return """
-        function(input, port) {
+        function(table, port) {
             new_row <- data.frame(
                 col1 = NA,
                 col2 = NA,
                 col3 = NA
               )
-            input <- rbind(input, new_row)
-            return (input)
+            table <- rbind(table, new_row)
+            return (table)
         }
         """
 
@@ -115,18 +137,10 @@ class TestRTableExecutor:
         """
 
     @pytest.fixture
-    def udf_executor_simple(self):
-        return """
-        function(input, port) {
-            return (input)
-        }
-        """
-
-    @pytest.fixture
     def udf_executor_simple_extract_row(self):
         return """
-        function(input, port) {
-            bob_row <- input[input$Name == "Bob", ]
+        function(table, port) {
+            bob_row <- table[table$Name == "Bob", ]
             return (bob_row)
         }
         """
@@ -134,18 +148,18 @@ class TestRTableExecutor:
     @pytest.fixture
     def udf_executor_simple_update_row(self):
         return """
-        function(input, port) {
-            input[input$Name == "Bob", "Age"] <- 18
-            return (input)
+        function(table, port) {
+            table[table$Name == "Bob", "Age"] <- 18
+            return (table)
         }
         """
 
     @pytest.fixture
     def udf_executor_simple_add_row(self):
         return """
-        function(input, port) {
+        function(table, port) {
             new_row <- list(Name = "Test", Age = 0, City = "Irvine")
-            new_df <- rbind(input, new_row)
+            new_df <- rbind(table, new_row)
             return (new_df)
         }
         """
@@ -179,34 +193,26 @@ class TestRTableExecutor:
         """
 
     @pytest.fixture
-    def udf_executor_df_like_type(self):
-        return """
-        function(input, port) {
-            return (input)
-        }
-        """
-
-    @pytest.fixture
     def udf_executor_df_like_type_add_row(self):
         return """
-        function(input, port) {
+        function(table, port) {
             # Adding a new row
             new_row <- c(4, 5, 6)
-            input <- rbind(input, new_row)
+            table <- rbind(table, new_row)
 
-            return (input)
+            return (table)
         }
         """
 
     @pytest.fixture
     def udf_executor_df_like_type_add_col(self):
         return """
-        function(input, port) {
+        function(table, port) {
             # Adding a new col
             new_col <- c("AAA", "BBB")
-            input <- cbind(input, new_col)
+            table <- cbind(table, new_col)
 
-            return (input)
+            return (table)
         }
         """
 
@@ -219,13 +225,34 @@ class TestRTableExecutor:
         output_tbl = Table(tuples)
         assert output_tbl == Table([])
 
-    def test_udf_executor_empty_return(
-        self, source_executor_empty, udf_executor_empty_return
+    def test_source_executor_NA(self, source_executor_NA):
+        source_executor = RTableSourceExecutor(source_executor_NA)
+        output = source_executor.produce()
+        tuples = [tup for tup in output]
+        assert len(tuples) == 1
+
+        output_tbl = Table(tuples)
+        assert output_tbl == Table([Tuple({"source_output": None})])
+
+    def test_udf_executor_return_NA_fail(
+        self, source_executor_empty, udf_executor_return_NA
     ):
         source_executor = RTableSourceExecutor(source_executor_empty)
         input_tbl = Table([tup for tup in source_executor.produce()])
 
-        udf_executor = RTableExecutor(udf_executor_empty_return)
+        with pytest.raises(rpy2.rinterface_lib.embedded.RRuntimeError) as _:
+            udf_executor = RTableExecutor(udf_executor_return_NA)
+            output = udf_executor.process_table(input_tbl, 0)
+            tuples = [out for out in output]
+            assert tuples is None
+
+    def test_udf_executor_empty_return(
+        self, source_executor_empty, udf_executor_simple_return
+    ):
+        source_executor = RTableSourceExecutor(source_executor_empty)
+        input_tbl = Table([tup for tup in source_executor.produce()])
+
+        udf_executor = RTableExecutor(udf_executor_simple_return)
         output = udf_executor.process_table(input_tbl, 0)
 
         tuples = [tup for tup in output]
@@ -314,12 +341,12 @@ class TestRTableExecutor:
         assert output_tbl == Table(target_tuples_simple)
 
     def test_udf_executor_simple(
-        self, source_executor_simple, udf_executor_simple, target_tuples_simple
+        self, source_executor_simple, udf_executor_simple_return, target_tuples_simple
     ):
         source_executor = RTableSourceExecutor(source_executor_simple)
         input_tbl = Table([tup for tup in source_executor.produce()])
 
-        udf_executor = RTableExecutor(udf_executor_simple)
+        udf_executor = RTableExecutor(udf_executor_simple_return)
         output = udf_executor.process_table(input_tbl, 0)
 
         tuples = [tup for tup in output]
@@ -427,13 +454,13 @@ class TestRTableExecutor:
     def test_udf_executor_df_like_type(
         self,
         source_executor_df_like_type,
-        udf_executor_df_like_type,
+        udf_executor_simple_return,
         target_tuples_like_type,
     ):
         source_executor = RTableSourceExecutor(source_executor_df_like_type)
         input_tbl = Table([tup for tup in source_executor.produce()])
 
-        udf_executor = RTableExecutor(udf_executor_df_like_type)
+        udf_executor = RTableExecutor(udf_executor_simple_return)
         output = udf_executor.process_table(input_tbl, 0)
 
         tuples = [tup for tup in output]
