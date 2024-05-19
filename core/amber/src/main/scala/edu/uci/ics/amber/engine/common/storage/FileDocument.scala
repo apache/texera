@@ -1,5 +1,5 @@
 package edu.uci.ics.amber.engine.common.storage
-import com.twitter.chill.{Input, KryoPool, ScalaKryoInstantiator}
+import com.twitter.chill.{KryoPool, ScalaKryoInstantiator}
 import edu.uci.ics.amber.engine.common.storage.FileDocument.kryoPool
 import org.apache.commons.vfs2.{FileObject, VFS}
 
