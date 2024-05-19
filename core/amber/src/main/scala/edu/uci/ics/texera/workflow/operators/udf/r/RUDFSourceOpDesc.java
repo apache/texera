@@ -62,7 +62,7 @@ public class RUDFSourceOpDesc extends SourceOperatorDescriptor {
             javaMap.put(operatorInfo().outputPorts().head().id(), sourceSchema());
 
             // Convert the Java Map to a Scala immutable Map
-            return AmberRuntime.toImmutableMap(javaMap);
+            return OperatorDescriptorUtils.toImmutableMap(javaMap);
         });
         PhysicalOp physicalOp = PhysicalOp.sourcePhysicalOp(
                         workflowId,
