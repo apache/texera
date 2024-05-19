@@ -62,7 +62,7 @@ class FileDocument[T >: Null <: AnyRef](val uri: URI) extends VirtualDocument[T]
     * This method will NOT do any serialization. So the it is invalid to use getItem and iterator to get T from the document.
     * @param inputStream the data source input stream
     */
-  override def append(inputStream: InputStream): Unit =
+  override def appendStream(inputStream: InputStream): Unit =
     withWriteLock {
       val outStream = file.getContent.getOutputStream(true)
       try {

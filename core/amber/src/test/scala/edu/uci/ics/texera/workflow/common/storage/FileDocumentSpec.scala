@@ -29,7 +29,7 @@ class FileDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfter {
 
     val contentStream = new ByteArrayInputStream(initialContent.getBytes)
     // Write initial content to file
-    fileDocument.append(contentStream)
+    fileDocument.appendStream(contentStream)
     contentStream.close()
   }
 
@@ -65,7 +65,7 @@ class FileDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfter {
   }
 
   it should "allow writing to the file" in {
-    fileDocument.append(newContent)
+    fileDocument.appendStream(new ByteArrayInputStream(newContent.getBytes))
 
     // Read back the content
     val content = Using(fileDocument.asInputStream()) { inStream =>
@@ -87,7 +87,7 @@ class FileDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfter {
       Future {
         val contentStream = new ByteArrayInputStream(s"Content from thread".getBytes)
         // multiple document of the same URI try to do write here
-        new FileDocument(tempFileURI).append(contentStream)
+        new FileDocument(tempFileURI).appendStream(contentStream)
       }
     }
     Future
@@ -104,7 +104,7 @@ class FileDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfter {
   it should "handle concurrent reads and writes safely" in {
     Future {
       val contentStream = new ByteArrayInputStream(newContent.getBytes)
-      fileDocument.append(contentStream)
+      fileDocument.appendStream(contentStream)
     }
 
     val readers: Seq[Future[String]] = (1 to 5).map { _ =>
@@ -141,7 +141,7 @@ class FileDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfter {
   it should "correctly write and read a large amount of data" in {
     // Generate a large string of 20,000 characters
     val largeContent = "A" * 20000
-    fileDocument.append(largeContent)
+    fileDocument.appendStream(new ByteArrayInputStream(largeContent.getBytes))
 
     // Read back the content
     val content = Using(fileDocument.asInputStream()) { inStream =>

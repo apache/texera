@@ -57,7 +57,7 @@ abstract class VirtualDocument[T >: Null <: AnyRef] {
     * append the file content with an opened input stream
     * @param inputStream the data source input stream
     */
-  def append(inputStream: InputStream): Unit =
+  def appendStream(inputStream: InputStream): Unit =
     throw new NotImplementedError("append method is not implemented")
 
   /**
