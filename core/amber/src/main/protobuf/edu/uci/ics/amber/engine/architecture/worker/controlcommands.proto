@@ -60,7 +60,8 @@ message LinkOrdinal {
 
 message InitializeExecutorV2 {
     string code = 1;
-    bool is_source = 2;
+    string language = 2;
+    bool is_source = 3;
 }
 
 message UpdateExecutorV2 {

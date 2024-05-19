@@ -52,6 +52,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
 
   changeLanguage(newLanguage: string) {
     this.language = newLanguage;
+    console.log("change to ", newLanguage);
     if (this.editor) {
       monaco.editor.setModelLanguage(this.editor.getModel(), newLanguage);
     }
@@ -66,7 +67,15 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   ) {
     const currentOperatorId = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0];
     const operatorType = this.workflowActionService.getTexeraGraph().getOperator(currentOperatorId).operatorType;
-    this.changeLanguage(operatorType === "JavaUDF" ? "java" : "python");
+
+    console.log(operatorType);
+    if (operatorType === "RUDFSource" || operatorType === "RUDF") {
+      this.changeLanguage("r");
+    } else if (operatorType === "PythonUDFV2" || operatorType === "PythonUDFSourceV2") {
+      this.changeLanguage("python");
+    } else {
+      this.changeLanguage("java");
+    }
   }
 
   ngAfterViewInit() {
@@ -81,6 +90,8 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
         .getSharedOperatorType(this.operatorID)
         .get("operatorProperties") as YType<Readonly<{ [key: string]: any }>>
     ).get("code") as YText;
+
+    console.log("added this code ", this.code);
 
     this.workflowVersionService
       .getDisplayParticularVersionStream()
@@ -155,7 +166,9 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
       );
     }
     this.editor = editor;
-    this.connectLanguageServer();
+    if (this.language == "python") {
+      this.connectLanguageServer();
+    }
   }
 
   private connectLanguageServer() {
