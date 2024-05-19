@@ -24,6 +24,7 @@ import com.twitter.util.Promise
 import java.nio.charset.Charset
 
 private class AmberProducer(
+    actorId: ActorVirtualIdentity,
     outputPort: NetworkOutputGateway,
     promise: Promise[Int]
 ) extends NoOpFlightProducer {
@@ -42,7 +43,7 @@ private class AmberProducer(
           case returnInvocation: ReturnInvocationV2 =>
             outputPort.sendTo(
               to = pythonControlMessage.tag,
-              payload = returnInvocationToV1(returnInvocation)
+              payload = returnInvocationToV1(actorId, returnInvocation)
             )
 
           case controlInvocation: ControlInvocationV2 =>
@@ -133,7 +134,7 @@ class PythonProxyServer(
   val allocator: BufferAllocator =
     new RootAllocator().newChildAllocator("flight-server", 0, Long.MaxValue);
 
-  val producer: FlightProducer = new AmberProducer(outputPort, promise)
+  val producer: FlightProducer = new AmberProducer(actorId, outputPort, promise)
 
   val location: Location = (() => {
     Location.forGrpcInsecure("localhost", portNumber.intValue())
