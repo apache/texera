@@ -30,7 +30,7 @@ trait ModifyLogicHandler {
       val opExecution = cp.workflowExecution.getRunningRegionExecutions
         .map(_.getOperatorExecution(msg.newOp.id))
         .head
-      val workerCommand = if (operator.isPythonOperator) {
+      val workerCommand = if (operator.isPythonBased) {
         UpdatePythonExecutor(
           msg.newOp.getPythonCode,
           isSource = operator.isSourceOperator

@@ -43,8 +43,10 @@ class PythonWorkflowWorker(
     .resolve("src")
     .resolve("main")
     .resolve("python")
-  val config: Config = ConfigFactory.load("python_udf")
+  val config: Config = ConfigFactory.load("udf")
   val pythonENVPath: String = config.getString("python.path").trim
+  val RENVPath: String = config.getString("r.path").trim
+
   // Python process
   private var pythonServerProcess: Process = _
 
@@ -151,7 +153,8 @@ class PythonWorkflowWorker(
         udfEntryScriptPath,
         workerConfig.workerId.name,
         Integer.toString(pythonProxyServer.getPortNumber.get()),
-        config.getString("python.log.streamHandler.level")
+        config.getString("python.log.streamHandler.level"),
+        RENVPath
       )
     ).run(BasicIO.standard(false))
   }

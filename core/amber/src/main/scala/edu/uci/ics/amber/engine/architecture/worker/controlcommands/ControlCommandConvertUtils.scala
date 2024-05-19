@@ -51,8 +51,10 @@ object ControlCommandConvertUtils {
       case QueryCurrentInputTuple() =>
         QueryCurrentInputTupleV2()
       case InitializeExecutor(_, opExecInitInfo, isSource) =>
+        val (code, language) = opExecInitInfo.asInstanceOf[OpExecInitInfoWithCode].codeGen(0, 0)
         InitializeExecutorV2(
-          opExecInitInfo.asInstanceOf[OpExecInitInfoWithCode].codeGen(0, 0)._1,
+          code,
+          language,
           isSource
         )
       case ReplayCurrentTuple() =>
