@@ -1,10 +1,15 @@
 package edu.uci.ics.amber.engine.architecture.controller.execution
 
+import edu.uci.ics.amber.engine.architecture.controller.execution.ExecutionUtils.aggregateStates
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerExecution
-import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState._
+import edu.uci.ics.amber.engine.architecture.worker.statistics.{PortTupleCountMapping, WorkerState}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
-import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, WorkflowAggregatedState}
+import edu.uci.ics.texera.web.workflowruntimestate.{
+  OperatorMetrics,
+  OperatorStatistics,
+  WorkflowAggregatedState
+}
 
 import java.util
 import scala.jdk.CollectionConverters._
@@ -44,40 +49,48 @@ case class OperatorExecution() {
   def getWorkerIds: Set[ActorVirtualIdentity] = workerExecutions.keys.asScala.toSet
 
   def getState: WorkflowAggregatedState = {
-    val workerStates = workerExecutions.values.asScala.map(_.getState).toArray
-    if (workerStates.isEmpty) {
-      return WorkflowAggregatedState.UNINITIALIZED
-    }
-    if (workerStates.forall(_ == COMPLETED)) {
-      return WorkflowAggregatedState.COMPLETED
-    }
-    if (workerStates.contains(RUNNING)) {
-      return WorkflowAggregatedState.RUNNING
-    }
-    val unCompletedWorkerStates = workerStates.filter(_ != COMPLETED)
-    if (unCompletedWorkerStates.forall(_ == UNINITIALIZED)) {
-      WorkflowAggregatedState.UNINITIALIZED
-    } else if (unCompletedWorkerStates.forall(_ == PAUSED)) {
-      WorkflowAggregatedState.PAUSED
-    } else if (unCompletedWorkerStates.forall(_ == READY)) {
-      WorkflowAggregatedState.READY
-    } else {
-      WorkflowAggregatedState.UNKNOWN
-    }
+    val workerStates = workerExecutions.values.asScala.map(_.getState)
+    aggregateStates(
+      workerStates,
+      WorkerState.COMPLETED,
+      WorkerState.RUNNING,
+      WorkerState.UNINITIALIZED,
+      WorkerState.PAUSED,
+      WorkerState.READY
+    )
   }
 
-  def getStats: OperatorRuntimeStats =
-    OperatorRuntimeStats(
+  private[this] def computeOperatorPortStats(
+      workerPortStats: Iterable[PortTupleCountMapping]
+  ): Seq[PortTupleCountMapping] = {
+    workerPortStats
+      .map(_.portId)
+      .toSet
+      .map { portId =>
+        PortTupleCountMapping(
+          portId,
+          workerPortStats.filter(_.portId == portId).map(_.tupleCount).sum
+        )
+      }
+      .toSeq
+  }
+
+  def getStats: OperatorMetrics = {
+    val workerRawStats = workerExecutions.values.asScala.map(_.getStats)
+    val inputPortStats = workerRawStats.flatMap(_.inputTupleCount)
+    val outputPortStats = workerRawStats.flatMap(_.outputTupleCount)
+    OperatorMetrics(
       getState,
-      inputCount = workerExecutions.values.asScala.map(_.getStats).map(_.inputTupleCount).sum,
-      outputCount = workerExecutions.values.asScala.map(_.getStats).map(_.outputTupleCount).sum,
-      getWorkerIds.size,
-      dataProcessingTime =
-        workerExecutions.values.asScala.map(_.getStats).map(_.dataProcessingTime).sum,
-      controlProcessingTime =
-        workerExecutions.values.asScala.map(_.getStats).map(_.controlProcessingTime).sum,
-      idleTime = workerExecutions.values.asScala.map(_.getStats).map(_.idleTime).sum
+      OperatorStatistics(
+        inputCount = computeOperatorPortStats(inputPortStats),
+        outputCount = computeOperatorPortStats(outputPortStats),
+        getWorkerIds.size,
+        dataProcessingTime = workerRawStats.map(_.dataProcessingTime).sum,
+        controlProcessingTime = workerRawStats.map(_.controlProcessingTime).sum,
+        idleTime = workerRawStats.map(_.idleTime).sum
+      )
     )
+  }
 
   def isInputPortCompleted(portId: PortIdentity): Boolean = {
     workerExecutions

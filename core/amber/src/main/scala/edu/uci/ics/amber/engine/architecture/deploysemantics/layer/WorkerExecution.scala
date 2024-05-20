@@ -15,9 +15,7 @@ case class WorkerExecution() extends Serializable {
     mutable.HashMap()
 
   private var state: WorkerState = UNINITIALIZED
-  // TODO: move stats onto ports, and make this as an aggregation func.
-  // TODO: separate state from stats
-  private var stats: WorkerStatistics = WorkerStatistics(UNINITIALIZED, 0, 0, 0, 0, 0)
+  private var stats: WorkerStatistics = WorkerStatistics(Seq(), Seq(), 0, 0, 0)
 
   def getState: WorkerState = state
 
@@ -46,5 +44,4 @@ case class WorkerExecution() extends Serializable {
     outputPortExecutions(portId)
 
   }
-
 }

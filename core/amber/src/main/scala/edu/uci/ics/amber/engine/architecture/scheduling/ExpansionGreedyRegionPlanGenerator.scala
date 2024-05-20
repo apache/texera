@@ -8,7 +8,7 @@ import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 import org.jgrapht.alg.connectivity.BiconnectivityInspector
-import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
+import org.jgrapht.graph.DirectedAcyclicGraph
 
 import scala.annotation.tailrec
 import scala.collection.mutable
@@ -64,7 +64,7 @@ class ExpansionGreedyRegionPlanGenerator(
     */
   private def createRegions(physicalPlan: PhysicalPlan): Set[Region] = {
     val dependeeLinksRemovedDAG = physicalPlan.getDependeeLinksRemovedDAG
-    val connectedComponents = new BiconnectivityInspector[PhysicalOpIdentity, DefaultEdge](
+    val connectedComponents = new BiconnectivityInspector[PhysicalOpIdentity, PhysicalLink](
       dependeeLinksRemovedDAG.dag
     ).getConnectedComponents.asScala.toSet
     connectedComponents.zipWithIndex.map {

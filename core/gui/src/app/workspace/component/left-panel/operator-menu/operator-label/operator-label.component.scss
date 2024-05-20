@@ -1,22 +1,17 @@
 .disable-drag-drop {
-  color: rgb(151, 151, 151);
-  &:hover {
-    border-color: rgb(217, 217, 217);
-  }
+  color: grey;
 }
 
 .operator-label {
-  width: 100%;
+  white-space: nowrap;
   height: 32px;
-  line-height: 32px;
-  display: flex;
-  align-content: center;
+  line-height: 30px;
   border-radius: 3px;
   border: 1px solid rgba(0, 0, 0, 0);
   transition:
     border-color 0.3s,
     color 0.3s;
-  overflow: hidden;
+  overflow-x: hidden;
   &:hover {
     border-color: rgba(64, 169, 255, 1);
     > .text {

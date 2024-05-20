@@ -35,8 +35,8 @@ message ControlReturnV2 {
   oneof value {
     ControlException control_exception = 1;
 
-    WorkerStatistics worker_statistics = 2;
-    WorkerState worker_state = 3;
+    WorkerState worker_state = 2;
+    WorkerMetrics worker_metrics = 3;
     CurrentInputTupleInfo current_input_tuple_info = 4;
     EvaluatedValue evaluated_value = 5;
   }

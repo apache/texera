@@ -47,6 +47,16 @@ public interface IWorkflowExecutions extends Serializable {
     public UInteger getUid();
 
     /**
+     * Setter for <code>texera_db.workflow_executions.environment_eid</code>.
+     */
+    public void setEnvironmentEid(UInteger value);
+
+    /**
+     * Getter for <code>texera_db.workflow_executions.environment_eid</code>.
+     */
+    public UInteger getEnvironmentEid();
+
+    /**
      * Setter for <code>texera_db.workflow_executions.status</code>.
      */
     public void setStatus(Byte value);
@@ -125,16 +135,6 @@ public interface IWorkflowExecutions extends Serializable {
      * Getter for <code>texera_db.workflow_executions.log_location</code>.
      */
     public String getLogLocation();
-
-    /**
-     * Setter for <code>texera_db.workflow_executions.environment_eid</code>.
-     */
-    public void setEnvironmentEid(UInteger value);
-
-    /**
-     * Getter for <code>texera_db.workflow_executions.environment_eid</code>.
-     */
-    public UInteger getEnvironmentEid();
 
     // -------------------------------------------------------------------------
     // FROM and INTO

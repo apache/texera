@@ -23,6 +23,7 @@ import {
   AttributeTypeEnumRule,
   AttributeTypeRuleSet,
   CustomJSONSchema7,
+  hideTypes,
 } from "../../../types/custom-json-schema.interface";
 import { isDefined } from "../../../../common/util/predicate";
 import { ExecutionState, OperatorState, OperatorStatistics } from "src/app/workspace/types/execute-workflow.interface";
@@ -34,6 +35,7 @@ import {
 } from "../../../service/dynamic-schema/schema-propagation/schema-propagation.service";
 import {
   createOutputFormChangeEventStream,
+  createShouldHideFieldFunc,
   setChildTypeDependency,
   setHideExpression,
 } from "src/app/common/formly/formly-utils";
@@ -366,7 +368,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       mapSource: CustomJSONSchema7
     ): FormlyFieldConfig => {
       // apply the overridden css style if applicable
-      mappedField.expressionProperties = {
+      mappedField.expressions = {
         "templateOptions.attributes": () => {
           if (
             isDefined(mappedField) &&
@@ -382,7 +384,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
       // Disable dummy operator for user
       if (mappedField.key === "dummyOperator") {
-        mappedField.expressionProperties = {
+        mappedField.expressions = {
+          ...mappedField.expressions,
           "templateOptions.disabled": () => true,
           "templateOptions.readonly": () => true,
         };
@@ -390,20 +393,40 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
       // Disable dummy property and value fields for user
       if (mappedField.key === "dummyProperty" || mappedField.key === "dummyValue") {
-        mappedField.expressionProperties = {
+        mappedField.expressions = {
+          ...mappedField.expressions,
           "templateOptions.readonly": () => true,
           "templateOptions.disabled": () => true,
         };
       }
 
-      // Disable dummy property list for all operators
+      // Disable dummy property list for all operators, except for dummy operator.
       if (mappedField.key === "dummyPropertyList") {
-        mappedField.hide = true;
-        mappedField.expressionProperties = {
+        mappedField.hide = this.currentOperatorSchema?.operatorType !== "Dummy";
+        mappedField.expressions = {
+          ...mappedField.expressions,
           "templateOptions.disabled": () => true,
           "templateOptions.readonly": () => true,
           "templateOptions.canRemove": () => false,
           "templateOptions.canAdd": () => false,
+        };
+      }
+
+      // conditionally hide the field according to the schema
+      if (
+        isDefined(mapSource.hideExpectedValue) &&
+        isDefined(mapSource.hideTarget) &&
+        isDefined(mapSource.hideType) &&
+        hideTypes.includes(mapSource.hideType)
+      ) {
+        mappedField.expressions = {
+          ...mappedField.expressions,
+          hide: createShouldHideFieldFunc(
+            mapSource.hideTarget,
+            mapSource.hideType,
+            mapSource.hideExpectedValue,
+            mapSource.hideOnNull
+          ),
         };
       }
 

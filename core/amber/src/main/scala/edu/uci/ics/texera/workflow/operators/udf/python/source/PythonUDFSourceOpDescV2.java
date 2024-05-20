@@ -7,7 +7,7 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.SchemaPropagationFunc;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo;
-import edu.uci.ics.amber.engine.common.AmberUtils;
+import edu.uci.ics.amber.engine.common.AmberRuntime;
 import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity;
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity;
 import edu.uci.ics.amber.engine.common.workflow.InputPort;
@@ -18,6 +18,7 @@ import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
+import edu.uci.ics.texera.workflow.operators.util.OperatorDescriptorUtils;
 import scala.Option;
 import scala.collection.immutable.Map;
 
@@ -46,7 +47,7 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
     @JsonPropertyDescription("Input your code here")
     public String code;
 
-    @JsonProperty(required = true)
+    @JsonProperty(required = true, defaultValue = "1")
     @JsonSchemaTitle("Worker count")
     @JsonPropertyDescription("Specify how many parallel workers to lunch")
     public Integer workers = 1;
@@ -67,7 +68,7 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
             javaMap.put(operatorInfo().outputPorts().head().id(), sourceSchema());
 
             // Convert the Java Map to a Scala immutable Map
-            return AmberUtils.toImmutableMap(javaMap);
+            return OperatorDescriptorUtils.toImmutableMap(javaMap);
         });
         PhysicalOp physicalOp = PhysicalOp.sourcePhysicalOp(
                         workflowId,
@@ -97,7 +98,7 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
         return new OperatorInfo(
                 "1-out Python UDF",
                 "User-defined function operator in Python script",
-                OperatorGroupConstants.UDF_GROUP(),
+                OperatorGroupConstants.PYTHON_GROUP(),
                 asScala(new ArrayList<InputPort>()).toList(),
                 asScala(singletonList(new OutputPort(new PortIdentity(0, false), "", false))).toList(),
                 false,

@@ -1,19 +1,20 @@
-import { ChangeDetectorRef, Component, OnInit, Type } from "@angular/core";
+import { ChangeDetectorRef, Component, OnInit, Type, HostListener, OnDestroy } from "@angular/core";
 import { merge } from "rxjs";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
-import { ResultPanelToggleService } from "../../service/result-panel-toggle/result-panel-toggle.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { ExecutionState, ExecutionStateInfo } from "../../types/execute-workflow.interface";
 import { ResultTableFrameComponent } from "./result-table-frame/result-table-frame.component";
 import { ConsoleFrameComponent } from "./console-frame/console-frame.component";
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
-import { VisualizationFrameComponent } from "./visualization-frame/visualization-frame.component";
+import { PanelResizeService } from "../../service/workflow-result/panel-resize/panel-resize.service";
 import { filter } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { isPythonUdf, isSink } from "../../service/workflow-graph/model/workflow-graph";
 import { WorkflowVersionService } from "../../../dashboard/user/service/workflow-version/workflow-version.service";
 import { ErrorFrameComponent } from "./error-frame/error-frame.component";
 import { WorkflowConsoleService } from "../../service/workflow-console/workflow-console.service";
+import { NzResizeEvent } from "ng-zorro-antd/resizable";
+import { VisualizationFrameContentComponent } from "../visualization-panel-content/visualization-frame-content.component";
 
 /**
  * ResultPanelComponent is the bottom level area that displays the
@@ -25,29 +26,51 @@ import { WorkflowConsoleService } from "../../service/workflow-console/workflow-
   templateUrl: "./result-panel.component.html",
   styleUrls: ["./result-panel.component.scss"],
 })
-export class ResultPanelComponent implements OnInit {
+export class ResultPanelComponent implements OnInit, OnDestroy {
   frameComponentConfigs: Map<string, { component: Type<any>; componentInputs: {} }> = new Map();
+  protected readonly window = window;
+  id = -1;
+  width = 800;
+  height = 300;
+  prevWidth = 800;
+  prevHeight = 300;
+  maxWidth = window.innerWidth;
+  maxHeight = window.innerHeight;
 
   // the highlighted operator ID for display result table / visualization / breakpoint
   currentOperatorId?: string | undefined;
 
-  showResultPanel: boolean = false;
   previewWorkflowVersion: boolean = false;
 
   constructor(
     private executeWorkflowService: ExecuteWorkflowService,
-    private resultPanelToggleService: ResultPanelToggleService,
     private workflowActionService: WorkflowActionService,
     private workflowResultService: WorkflowResultService,
     private workflowVersionService: WorkflowVersionService,
     private changeDetectorRef: ChangeDetectorRef,
-    private workflowConsoleService: WorkflowConsoleService
-  ) {}
+    private workflowConsoleService: WorkflowConsoleService,
+    private resizeService: PanelResizeService
+  ) {
+    const width = localStorage.getItem("result-panel-width");
+    if (width) this.width = Number(width);
+    this.height = Number(localStorage.getItem("result-panel-height")) || this.height;
+    this.resizeService.changePanelSize(this.width, this.height);
+  }
 
   ngOnInit(): void {
+    const style = localStorage.getItem("result-panel-style");
+    if (style) document.getElementById("result-container")!.style.cssText = style;
+
     this.registerAutoRerenderResultPanel();
     this.registerAutoOpenResultPanel();
     this.handleResultPanelForVersionPreview();
+  }
+
+  @HostListener("window:beforeunload")
+  ngOnDestroy(): void {
+    localStorage.setItem("result-panel-width", String(this.width));
+    localStorage.setItem("result-panel-height", String(this.height));
+    localStorage.setItem("result-panel-style", document.getElementById("result-container")!.style.cssText);
   }
 
   handleResultPanelForVersionPreview() {
@@ -67,10 +90,7 @@ export class ResultPanelComponent implements OnInit {
         const currentlyHighlighted = this.workflowActionService
           .getJointGraphWrapper()
           .getCurrentHighlightedOperatorIDs();
-        // display panel on abort (to show possible error messages)
-        if (event.current.state === ExecutionState.Failed) {
-          this.resultPanelToggleService.openResultPanel();
-        }
+
         // display panel when execution is completed and highlight sink to show results
         // condition must be (Running -> Completed) to prevent cases like
         //   (Uninitialized -> Completed) (a completed workflow is reloaded)
@@ -87,7 +107,6 @@ export class ResultPanelComponent implements OnInit {
               this.workflowActionService.getJointGraphWrapper().unhighlightOperators(...currentlyHighlighted);
               this.workflowActionService.getJointGraphWrapper().highlightOperators(activeSinkOperators[0]);
             }
-            this.resultPanelToggleService.openResultPanel();
           }
         }
 
@@ -105,7 +124,6 @@ export class ResultPanelComponent implements OnInit {
               this.workflowActionService.getJointGraphWrapper().unhighlightOperators(...currentlyHighlighted);
               this.workflowActionService.getJointGraphWrapper().highlightOperators(activePythonUDFOperators[0]);
             }
-            this.resultPanelToggleService.openResultPanel();
           }
         }
       });
@@ -118,7 +136,6 @@ export class ResultPanelComponent implements OnInit {
         .pipe(filter(event => ResultPanelComponent.needRerenderOnStateChange(event))),
       this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream(),
-      this.resultPanelToggleService.getToggleChangeStream(),
       this.workflowResultService.getResultInitiateStream()
     )
       .pipe(untilDestroyed(this))
@@ -156,12 +173,6 @@ export class ResultPanelComponent implements OnInit {
       }
     } else {
       this.frameComponentConfigs.delete("Static Error");
-    }
-
-    // current result panel is closed or there is no operator highlighted, do nothing
-    this.showResultPanel = this.resultPanelToggleService.isResultPanelOpen();
-    if (!this.showResultPanel || !this.currentOperatorId) {
-      return;
     }
 
     if (this.currentOperatorId) {
@@ -203,7 +214,7 @@ export class ResultPanelComponent implements OnInit {
     } else if (resultService) {
       // display visualization result
       this.frameComponentConfigs.set("Result", {
-        component: VisualizationFrameComponent,
+        component: VisualizationFrameContentComponent,
         componentInputs: { operatorId },
       });
     }
@@ -225,5 +236,26 @@ export class ResultPanelComponent implements OnInit {
 
     // transition from uninitialized / completed to anything else indicates a new execution of the workflow
     return event.previous.state === ExecutionState.Uninitialized || event.previous.state === ExecutionState.Completed;
+  }
+
+  openPanel() {
+    this.height = this.prevHeight;
+    this.width = this.prevWidth;
+  }
+
+  closePanel() {
+    this.prevHeight = this.height;
+    this.prevWidth = this.width;
+    this.height = 32.5;
+    this.width = 0;
+  }
+
+  onResize({ width, height }: NzResizeEvent) {
+    cancelAnimationFrame(this.id);
+    this.id = requestAnimationFrame(() => {
+      this.width = width!;
+      this.height = height!;
+      this.resizeService.changePanelSize(this.width, this.height);
+    });
   }
 }

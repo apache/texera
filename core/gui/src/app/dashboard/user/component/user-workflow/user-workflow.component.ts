@@ -1,7 +1,7 @@
 import { AfterViewInit, Component, Input, ViewChild } from "@angular/core";
 import { Router } from "@angular/router";
 import { NzModalService } from "ng-zorro-antd/modal";
-import { firstValueFrom } from "rxjs";
+import { firstValueFrom, of } from "rxjs";
 import {
   DEFAULT_WORKFLOW_NAME,
   WorkflowPersistService,
@@ -21,8 +21,8 @@ import { SearchResultsComponent } from "../search-results/search-results.compone
 import { SearchService } from "../../service/search.service";
 import { SortMethod } from "../../type/sort-method";
 import { isDefined } from "../../../../common/util/predicate";
-
-export const ROUTER_WORKFLOW_CREATE_NEW_URL = "/";
+import { UserProjectService } from "../../service/user-project/user-project.service";
+import { map, mergeMap, tap } from "rxjs/operators";
 /**
  * Saved-workflow-section component contains information and functionality
  * of the saved workflows section and is re-used in the user projects section when a project is clicked
@@ -56,6 +56,7 @@ export const ROUTER_WORKFLOW_CREATE_NEW_URL = "/";
   styleUrls: ["user-workflow.component.scss"],
 })
 export class UserWorkflowComponent implements AfterViewInit {
+  public ROUTER_WORKFLOW_BASE_URL = "workflow";
   private _searchResultsComponent?: SearchResultsComponent;
   @ViewChild(SearchResultsComponent) get searchResultsComponent(): SearchResultsComponent {
     if (this._searchResultsComponent) {
@@ -81,12 +82,14 @@ export class UserWorkflowComponent implements AfterViewInit {
 
   // receive input from parent components (UserProjectSection), if any
   @Input() public pid?: number = undefined;
+  @Input() public accessLevel?: string = undefined;
   public sortMethod = SortMethod.EditTimeDesc;
   lastSortMethod: SortMethod | null = null;
 
   constructor(
     private userService: UserService,
     private workflowPersistService: WorkflowPersistService,
+    private userProjectService: UserProjectService,
     private notificationService: NotificationService,
     private modalService: NzModalService,
     private router: Router,
@@ -186,7 +189,43 @@ export class UserWorkflowComponent implements AfterViewInit {
    * create a new workflow. will redirect to a pre-emptied workspace
    */
   public onClickCreateNewWorkflowFromDashboard(): void {
-    this.router.navigate([`${ROUTER_WORKFLOW_CREATE_NEW_URL}`], { queryParams: { pid: this.pid } }).then(null);
+    const emptyWorkflowContent: WorkflowContent = {
+      operators: [],
+      commentBoxes: [],
+      groups: [],
+      links: [],
+      operatorPositions: {},
+    };
+    let localPid = this.pid;
+    this.workflowPersistService
+      .createWorkflow(emptyWorkflowContent, DEFAULT_WORKFLOW_NAME)
+      .pipe(
+        tap(createdWorkflow => {
+          if (!createdWorkflow.workflow.wid) {
+            throw new Error("Workflow creation failed.");
+          }
+        }),
+        mergeMap(createdWorkflow => {
+          // Check if localPid is defined; if so, add the workflow to the project
+          if (localPid) {
+            return this.userProjectService.addWorkflowToProject(localPid, createdWorkflow.workflow.wid!).pipe(
+              // Regardless of the project addition outcome, pass the wid downstream
+              map(() => createdWorkflow.workflow.wid)
+            );
+          } else {
+            // If there's no localPid, skip adding to the project and directly pass the wid downstream
+            return of(createdWorkflow.workflow.wid);
+          }
+        }),
+        untilDestroyed(this)
+      )
+      .subscribe({
+        next: (wid: number | undefined) => {
+          // Use the wid here for navigation
+          this.router.navigate([this.ROUTER_WORKFLOW_BASE_URL, wid]).then(null);
+        },
+        error: (err: unknown) => this.notificationService.error("Workflow creation failed"),
+      });
   }
 
   /**

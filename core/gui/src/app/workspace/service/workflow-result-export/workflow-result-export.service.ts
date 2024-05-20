@@ -60,7 +60,11 @@ export class WorkflowResultExportService {
   /**
    * export the workflow execution result according the export type
    */
-  exportWorkflowExecutionResult(exportType: string, workflowName: string): void {
+  exportWorkflowExecutionResult(
+    exportType: string,
+    workflowName: string,
+    datasetIds: ReadonlyArray<number> = []
+  ): void {
     if (!environment.exportExecutionResultEnabled || !this.hasResultToExport) {
       return;
     }
@@ -86,6 +90,7 @@ export class WorkflowResultExportService {
           workflowName,
           operatorId,
           operatorName,
+          datasetIds,
         });
       });
   }

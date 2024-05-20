@@ -3,6 +3,7 @@ package edu.uci.ics.texera.workflow.operators.visualization.scatterplot
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
+import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
@@ -29,12 +30,22 @@ class ScatterplotOpDesc extends VisualizationOperator with PythonOperatorDescrip
   @JsonProperty(required = true)
   @JsonSchemaTitle("X-Column")
   @JsonPropertyDescription("X Column")
-  var xColumn: String = ""
+  @AutofillAttributeName
+  private val xColumn: String = ""
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Y-Column")
   @JsonPropertyDescription("Y Column")
-  var yColumn: String = ""
+  @AutofillAttributeName
+  private val yColumn: String = ""
+
+  @JsonProperty(required = false)
+  @JsonSchemaTitle("Color-Column")
+  @JsonPropertyDescription(
+    "Dots will be assigned different colors based on their values of this column"
+  )
+  @AutofillAttributeName
+  private val colorColumn: String = ""
 
   override def chartType: String = VisualizationConstants.HTML_VIZ
 
@@ -53,17 +64,21 @@ class ScatterplotOpDesc extends VisualizationOperator with PythonOperatorDescrip
 
   def manipulateTable(): String = {
     assert(xColumn.nonEmpty && yColumn.nonEmpty)
+    val colorColExpr = if (colorColumn.nonEmpty) { s"'$colorColumn'" }
+    else { "" }
     s"""
        |        # drops rows with missing values pertaining to relevant columns
-       |        table.dropna(subset=['$xColumn', '$yColumn'], inplace = True)
+       |        table.dropna(subset=['$xColumn', '$yColumn', $colorColExpr], inplace = True)
        |
        |""".stripMargin
   }
 
   def createPlotlyFigure(): String = {
     assert(xColumn.nonEmpty && yColumn.nonEmpty)
+    val colorColExpr = if (colorColumn.nonEmpty) { s"color='$colorColumn'" }
+    else { "" }
     s"""
-           |        fig = go.Figure(px.scatter(table, x='$xColumn', y='$yColumn'))
+           |        fig = go.Figure(px.scatter(table, x='$xColumn', y='$yColumn', $colorColExpr))
            |""".stripMargin
   }
 
@@ -81,7 +96,7 @@ class ScatterplotOpDesc extends VisualizationOperator with PythonOperatorDescrip
            |class ProcessTableOperator(UDFTableOperator):
            |
            |    def render_error(self, error_msg):
-           |        return '''<h1>TreeMap is not available.</h1>
+           |        return '''<h1>Scatter Plot is not available.</h1>
            |                  <p>Reasons are: {} </p>
            |               '''.format(error_msg)
            |

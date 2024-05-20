@@ -1,10 +1,10 @@
 import { Component, Input, OnChanges, OnInit } from "@angular/core";
 import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/model/workflow-action.service";
 import {
+  AttributeType,
   SchemaAttribute,
   SchemaPropagationService,
 } from "src/app/workspace/service/dynamic-schema/schema-propagation/schema-propagation.service";
-import { OperatorPredicate } from "src/app/workspace/types/workflow-common.interface";
 import { filter, map } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
@@ -29,6 +29,7 @@ export class TypeCastingDisplayComponent implements OnInit, OnChanges {
 
   ngOnInit(): void {
     this.registerTypeCastingPropertyChangeHandler();
+    this.registerInputSchemaChangeHandler();
   }
 
   // invoke on first init and every time the input binding is changed
@@ -43,7 +44,7 @@ export class TypeCastingDisplayComponent implements OnInit, OnChanges {
       return;
     }
     this.displayTypeCastingSchemaInformation = true;
-    this.updateComponent(op);
+    this.rerender();
   }
 
   registerTypeCastingPropertyChangeHandler(): void {
@@ -56,33 +57,39 @@ export class TypeCastingDisplayComponent implements OnInit, OnChanges {
         map(event => event.operator)
       )
       .pipe(untilDestroyed(this))
-      .subscribe(op => {
-        this.updateComponent(op);
+      .subscribe(_ => {
+        this.rerender();
       });
   }
 
-  updateComponent(op: OperatorPredicate): void {
+  private registerInputSchemaChangeHandler() {
+    this.schemaPropagationService
+      .getOperatorInputSchemaChangedStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(_ => {
+        this.rerender();
+      });
+  }
+
+  rerender(): void {
     if (!this.currentOperatorId) {
       return;
     }
     this.schemaToDisplay = [];
     const inputSchema = this.schemaPropagationService.getOperatorInputSchema(this.currentOperatorId);
 
-    const castTypeMap =
-      op.operatorProperties["typeCastingUnits"] ??
-      [].reduce(
-        (map_: { [x: string]: any }, castTo: { attribute: string; resultType: string }) => (
-          (map_[castTo.attribute] = castTo.resultType), map_
-        ),
-        {}
-      );
+    const operatorPredicate = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
 
+    const castUnits: ReadonlyArray<{ attribute: string; resultType: AttributeType }> =
+      operatorPredicate.operatorProperties["typeCastingUnits"] ?? [];
+
+    const castTypeMap: Map<string, AttributeType> = new Map(castUnits.map(unit => [unit.attribute, unit.resultType]));
     inputSchema?.forEach(schema =>
       schema?.forEach(attr => {
-        if (attr.attributeName in castTypeMap) {
+        if (castTypeMap.has(attr.attributeName)) {
           const castedAttr: Partial<SchemaAttribute> = {
             attributeName: attr.attributeName,
-            attributeType: castTypeMap[attr.attributeName],
+            attributeType: castTypeMap.get(attr.attributeName),
           };
           this.schemaToDisplay.push(castedAttr);
         } else {

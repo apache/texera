@@ -16,7 +16,8 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
 import edu.uci.ics.texera.web.resource.dashboard.user.environment.EnvironmentResource
 import edu.uci.ics.texera.web.resource.dashboard.user.environment.EnvironmentResource.{
   createEnvironment,
-  doesWorkflowHaveEnvironment
+  doesWorkflowHaveEnvironment,
+  copyEnvironment
 }
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasReadAccess
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource._
@@ -85,6 +86,18 @@ object WorkflowResource {
   def getEnvironmentEidOfWorkflow(wid: UInteger): UInteger = {
     val environmentOfWorkflow = environmentOfWorkflowDao.fetchByWid(wid)
     environmentOfWorkflow.get(0).getEid
+  }
+
+  def createEnvironmentForWorkflow(uid: UInteger, wid: UInteger, workflowName: String) = {
+    // create an environment, and associate this environment to this workflow
+    val createdEnvironment = createEnvironment(
+      context,
+      uid,
+      "Environment of Workflow #%d %s".format(wid.intValue(), workflowName),
+      "Runtime Environment of Workflow #%d %s".format(wid.intValue(), workflowName)
+    )
+
+    environmentOfWorkflowDao.insert(new EnvironmentOfWorkflow(createdEnvironment.getEid, wid))
   }
   case class DashboardWorkflow(
       isOwner: Boolean,
@@ -300,16 +313,16 @@ class WorkflowResource extends LazyLogging {
     val uid = user.getUid
 
     if (workflowOfUserExists(workflow.getWid, user.getUid)) {
-      WorkflowVersionResource.insertVersion(workflow, insertNewFlag = false)
+      WorkflowVersionResource.insertVersion(workflow, insertingNewWorkflow = false)
       // current user reading
       workflowDao.update(workflow)
     } else {
       if (!WorkflowAccessResource.hasReadAccess(workflow.getWid, user.getUid)) {
         // not owner and not access record --> new record
         insertWorkflow(workflow, user)
-        WorkflowVersionResource.insertVersion(workflow, insertNewFlag = true)
+        WorkflowVersionResource.insertVersion(workflow, insertingNewWorkflow = true)
       } else if (WorkflowAccessResource.hasWriteAccess(workflow.getWid, user.getUid)) {
-        WorkflowVersionResource.insertVersion(workflow, insertNewFlag = false)
+        WorkflowVersionResource.insertVersion(workflow, insertingNewWorkflow = false)
         // not owner but has write access
         workflowDao.update(workflow)
       } else {
@@ -322,14 +335,7 @@ class WorkflowResource extends LazyLogging {
     // check if the runtime environment of this workflow exists, if not, create one
     if (!doesWorkflowHaveEnvironment(context, wid)) {
       // create an environment, and associate this environment to this workflow
-      val createdEnvironment = createEnvironment(
-        context,
-        uid,
-        "Environment of Workflow #%d %s".format(wid.intValue(), workflow.getName),
-        "Runtime Environment of Workflow #%d %s".format(wid.intValue(), workflow.getName)
-      )
-
-      environmentOfWorkflowDao.insert(new EnvironmentOfWorkflow(createdEnvironment.getEid, wid))
+      createEnvironmentForWorkflow(uid, wid, workflow.getName)
     }
     workflowDao.fetchOneByWid(wid)
   }
@@ -360,7 +366,7 @@ class WorkflowResource extends LazyLogging {
     val addToProject = workflowIDs.pid.nonEmpty
     // then start a transaction and do the duplication
     try {
-      context.transaction { _ =>
+      context.transaction { txConfig =>
         for (wid <- workflowIDs.wids) {
           val workflow: Workflow = workflowDao.fetchOneByWid(wid)
           workflow.getContent
@@ -389,7 +395,10 @@ class WorkflowResource extends LazyLogging {
               throw new BadRequestException("Workflow already exists in the project")
             }
           }
-
+          // also duplicate the environment
+          val eid = getEnvironmentEidOfWorkflow(wid)
+          val newEid = getEnvironmentEidOfWorkflow(newWorkflow.workflow.getWid)
+          copyEnvironment(txConfig, eid, newEid)
           resultWorkflows += newWorkflow
         }
       }
@@ -417,7 +426,9 @@ class WorkflowResource extends LazyLogging {
       throw new BadRequestException("Cannot create a new workflow with a provided id.")
     } else {
       insertWorkflow(workflow, user)
-      WorkflowVersionResource.insertVersion(workflow, insertNewFlag = true)
+      WorkflowVersionResource.insertVersion(workflow, insertingNewWorkflow = true)
+      // create an environment, and associate this environment to this workflow
+      createEnvironmentForWorkflow(user.getUid, workflow.getWid, workflow.getName)
       DashboardWorkflow(
         isOwner = true,
         WorkflowUserAccessPrivilege.WRITE.toString,

@@ -105,20 +105,33 @@ class ExecutorManager:
             and not inspect.isabstract(cls)
         )
 
-    def initialize_executor(self, code: str, is_source: bool) -> None:
+    def initialize_executor(self, code: str, is_source: bool, language: str) -> None:
         """
         Initialize the executor with the given code. The output schema is
         decided by the user.
 
-        :param code: The string version of python code, containing one Operator
+        :param code: The string version of the code, containing one Operator
             class declaration.
         :param is_source: Indicating if the operator is used as a source operator.
+        :param language: The language of the operator code.
         :param output_schema: the raw mapping of output schema, name -> type_str.
         :return:
         """
-        executor: type(Operator) = self.load_executor_definition(code)
-        self.executor = executor()
-        self.executor.is_source = is_source
+        if language == "r":
+            # Have to import it here and not at the top in case R_HOME from udf.conf
+            # is not defined, otherwise an error will occur
+            # If R_HOME is not defined and rpy2 cannot find the
+            # R_HOME environment variable, an error will occur here
+            from core.models.RTableExecutor import RTableSourceExecutor, RTableExecutor
+
+            if is_source:
+                self.executor = RTableSourceExecutor(code)
+            else:
+                self.executor = RTableExecutor(code)
+        else:
+            executor: type(Operator) = self.load_executor_definition(code)
+            self.executor = executor()
+            self.executor.is_source = is_source
         assert (
             isinstance(self.executor, SourceOperator) == self.executor.is_source
         ), "Please use SourceOperator API for source operators."

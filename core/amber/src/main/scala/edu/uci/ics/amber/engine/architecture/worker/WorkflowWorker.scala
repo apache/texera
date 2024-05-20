@@ -4,7 +4,6 @@ import akka.actor.Props
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkAck
 import edu.uci.ics.amber.engine.architecture.controller.Controller.ReplayStatusUpdate
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.messaginglayer.WorkerTimerService
 import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker._
@@ -13,7 +12,6 @@ import edu.uci.ics.amber.engine.common.actormessage.{ActorCommand, Backpressure}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
-import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.common.virtualidentity.{ChannelIdentity, ChannelMarkerIdentity}
 
 import java.net.URI
@@ -102,10 +100,6 @@ class WorkflowWorker(
     super.preRestart(reason, message)
     logger.error(s"Encountered fatal error, worker is shutting done.", reason)
     postStop()
-    dp.asyncRPCClient.send(
-      FatalError(reason, Some(workerConfig.workerId)),
-      CONTROLLER
-    )
   }
 
   override def receive: Receive = {

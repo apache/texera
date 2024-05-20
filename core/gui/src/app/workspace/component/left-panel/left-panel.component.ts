@@ -18,7 +18,7 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
   protected readonly window = window;
   currentComponent: Type<any> | null = null;
   title = "Operators";
-  width = 230;
+  width = 300;
   height = Math.max(300, window.innerHeight * 0.6);
   id = -1;
   currentIndex = 0;
@@ -70,8 +70,13 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
   }
 
   openFrame(i: number) {
-    if (!i) this.width = 0;
-    else if (!this.width) this.width = 230;
+    if (!i) {
+      this.width = 0;
+      this.height = 65;
+    } else if (!this.width) {
+      this.width = 230;
+      this.height = 300;
+    }
     this.title = this.items[i].title;
     this.currentComponent = this.items[i].component;
     this.currentIndex = i;

@@ -8,12 +8,13 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   StateRestoreConfig
 }
 import edu.uci.ics.amber.engine.common.AmberConfig
+import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ChannelMarkerIdentity,
   ExecutionIdentity,
   WorkflowIdentity
 }
-import edu.uci.ics.amber.error.ErrorUtils.getStackTraceWithAllCauses
+import edu.uci.ics.amber.error.ErrorUtils.{getOperatorFromActorIdOpt, getStackTraceWithAllCauses}
 import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
 import edu.uci.ics.texera.web.model.websocket.request.WorkflowExecuteRequest
 import edu.uci.ics.texera.web.service.WorkflowService.mkWorkflowStateId
@@ -192,8 +193,19 @@ class WorkflowService(
     }
 
     val executionStateStore = new ExecutionStateStore()
+    // assign execution id to find the execution from DB in case the constructor fails.
+    executionStateStore.metadataStore.updateState(state =>
+      state.withExecutionId(workflowContext.executionId)
+    )
     val errorHandler: Throwable => Unit = { t =>
       {
+        val fromActorOpt = t match {
+          case ex: WorkflowRuntimeException =>
+            ex.relatedWorkerId
+          case other =>
+            None
+        }
+        val (operatorId, workerId) = getOperatorFromActorIdOpt(fromActorOpt)
         logger.error("error during execution", t)
         executionStateStore.statsStore.updateState(stats =>
           stats.withEndTimeStamp(System.currentTimeMillis())
@@ -205,7 +217,8 @@ class WorkflowService(
               Timestamp(Instant.now),
               t.toString,
               getStackTraceWithAllCauses(t),
-              "unknown operator"
+              operatorId,
+              workerId
             )
           )
         }
