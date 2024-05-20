@@ -1,9 +1,18 @@
 package edu.uci.ics.texera.workflow.operators.sklearn
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaInt, JsonSchemaString, JsonSchemaTitle}
+import com.kjetland.jackson.jsonSchema.annotations.{
+  JsonSchemaInject,
+  JsonSchemaInt,
+  JsonSchemaString,
+  JsonSchemaTitle
+}
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIdentity}
-import edu.uci.ics.texera.workflow.common.metadata.annotations.{AutofillAttributeName, CommonOpDescAnnotation, HideAnnotation}
+import edu.uci.ics.texera.workflow.common.metadata.annotations.{
+  AutofillAttributeName,
+  CommonOpDescAnnotation,
+  HideAnnotation
+}
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
@@ -14,7 +23,7 @@ abstract class SklearnMLOpDesc extends PythonOperatorDescriptor {
   var classification: Boolean = true
 
   @JsonSchemaTitle("Target Attribute")
-  @JsonPropertyDescription("Attribute in your dataset corresponding to target")
+  @JsonPropertyDescription("Attribute in your dataset corresponding to target.")
   @JsonProperty(required = true)
   @AutofillAttributeName
   var target: String = _
@@ -25,16 +34,21 @@ abstract class SklearnMLOpDesc extends PythonOperatorDescriptor {
   var countVectorizer: Boolean = false
 
   @JsonSchemaTitle("Text Attribute")
-  @JsonPropertyDescription("Attribute in your dataset with text to vectorize")
+  @JsonPropertyDescription("Attribute in your dataset with text to vectorize.")
   @JsonProperty(required = true)
   @JsonSchemaInject(
     strings = Array(
-      new JsonSchemaString(path = CommonOpDescAnnotation.autofill, value = CommonOpDescAnnotation.attributeName),
+      new JsonSchemaString(
+        path = CommonOpDescAnnotation.autofill,
+        value = CommonOpDescAnnotation.attributeName
+      ),
       new JsonSchemaString(path = HideAnnotation.hideTarget, value = "countVectorizer"),
       new JsonSchemaString(path = HideAnnotation.hideType, value = HideAnnotation.Type.equals),
-      new JsonSchemaString(path = HideAnnotation.hideExpectedValue, value = "false"),
+      new JsonSchemaString(path = HideAnnotation.hideExpectedValue, value = "false")
     ),
-    ints = Array(new JsonSchemaInt(path = CommonOpDescAnnotation.autofillAttributeOnPort, value = 0))
+    ints = Array(
+      new JsonSchemaInt(path = CommonOpDescAnnotation.autofillAttributeOnPort, value = 0)
+    )
   )
   var text: String = _
 
@@ -68,9 +82,12 @@ abstract class SklearnMLOpDesc extends PythonOperatorDescriptor {
        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
        |        Y = table["$target"]
        |        X = table.drop("$target", axis=1)
-       |        X = ${if (countVectorizer) "X['"+text+"']" else "X"}
+       |        X = ${if (countVectorizer) "X['" + text + "']" else "X"}
        |        if port == 0:
-       |            self.model = make_pipeline(${if (countVectorizer) "CountVectorizer()," else ""} ${if (tfidfTransformer) "TfidfTransformer()," else ""} ${getImportStatements.split(" ").last}()).fit(X, Y)
+       |            self.model = make_pipeline(${if (countVectorizer) "CountVectorizer(),"
+    else ""} ${if (tfidfTransformer) "TfidfTransformer()," else ""} ${getImportStatements
+      .split(" ")
+      .last}()).fit(X, Y)
        |        else:
        |            predictions = self.model.predict(X)
        |            if ${if (classification) "True"
