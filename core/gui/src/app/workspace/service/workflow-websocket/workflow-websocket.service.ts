@@ -67,8 +67,10 @@ export class WorkflowWebsocketService {
   public openWebsocket(wId: number) {
     const websocketUrl =
       getWebsocketUrl(WorkflowWebsocketService.TEXERA_WEBSOCKET_ENDPOINT, "") +
+      "?wid=" +
+      wId +
       (environment.userSystemEnabled && AuthService.getAccessToken() !== null
-        ? "?access-token=" + AuthService.getAccessToken()
+        ? "&access-token=" + AuthService.getAccessToken()
         : "");
     this.websocket = webSocket<TexeraWebsocketEvent | TexeraWebsocketRequest>(websocketUrl);
     // setup reconnection logic
