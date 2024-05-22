@@ -36,7 +36,16 @@ class WorkflowWebsocketResource extends LazyLogging {
 
   @OnOpen
   def myOnOpen(session: Session, config: EndpointConfig): Unit = {
-    SessionState.setState(session.getId, new SessionState(session))
+    val sessionState = new SessionState(session)
+    SessionState.setState(session.getId, sessionState)
+    val wid = session.getRequestParameterMap.get("wid").get(0).toLong
+    // hack to refresh frontend run button state
+    sessionState.send(WorkflowStateEvent("Uninitialized"))
+    val workflowState =
+      WorkflowService.getOrCreate(WorkflowIdentity(wid))
+    sessionState.subscribe(workflowState)
+    sessionState.send(ClusterStatusUpdateEvent(ClusterListener.numWorkerNodesInCluster))
+    sessionState.send(RegisterWorkflowIdResponse("workflowId registered"))
     logger.info("connection open")
   }
 
@@ -56,14 +65,6 @@ class WorkflowWebsocketResource extends LazyLogging {
     val executionStateOpt = workflowStateOpt.flatMap(x => Option(x.executionService.getValue))
     try {
       request match {
-        case registerWorkflowIdRequest: RegisterWorkflowIdRequest =>
-          // hack to refresh frontend run button state
-          sessionState.send(WorkflowStateEvent("Uninitialized"))
-          val workflowState =
-            WorkflowService.getOrCreate(WorkflowIdentity(registerWorkflowIdRequest.workflowId))
-          sessionState.subscribe(workflowState)
-          sessionState.send(ClusterStatusUpdateEvent(ClusterListener.numWorkerNodesInCluster))
-          sessionState.send(RegisterWorkflowIdResponse("workflowId registered"))
         case heartbeat: HeartBeatRequest =>
           sessionState.send(HeartBeatResponse())
         case paginationRequest: ResultPaginationRequest =>
