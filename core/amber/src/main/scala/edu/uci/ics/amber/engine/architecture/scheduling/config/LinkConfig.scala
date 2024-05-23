@@ -1,22 +1,8 @@
 package edu.uci.ics.amber.engine.architecture.scheduling.config
-import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.{
-  BroadcastPartitioning,
-  HashBasedShufflePartitioning,
-  OneToOnePartitioning,
-  Partitioning,
-  RangeBasedShufflePartitioning,
-  RoundRobinPartitioning
-}
+import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.{BroadcastPartitioning, HashBasedShufflePartitioning, OneToOnePartitioning, Partitioning, RangeBasedShufflePartitioning, RoundRobinPartitioning}
 import edu.uci.ics.amber.engine.common.AmberConfig.defaultBatchSize
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.texera.workflow.common.workflow.{
-  BroadcastPartition,
-  HashPartition,
-  PartitionInfo,
-  RangePartition,
-  SinglePartition,
-  UnknownPartition
-}
+import edu.uci.ics.texera.workflow.common.workflow.{BroadcastPartition, HashPartition, OneToOnePartition, PartitionInfo, RangePartition, SinglePartition, UnknownPartition}
 
 case object LinkConfig {
   def toPartitioning(
@@ -42,7 +28,10 @@ case object LinkConfig {
 
       case SinglePartition() =>
         assert(toWorkerIds.size == 1)
-        OneToOnePartitioning(defaultBatchSize, Seq(toWorkerIds.head).toSeq)
+        OneToOnePartitioning(defaultBatchSize, Seq(toWorkerIds.head))
+
+      case OneToOnePartition() =>
+        OneToOnePartitioning(defaultBatchSize, toWorkerIds)
 
       case BroadcastPartition() =>
         BroadcastPartitioning(defaultBatchSize, toWorkerIds)
