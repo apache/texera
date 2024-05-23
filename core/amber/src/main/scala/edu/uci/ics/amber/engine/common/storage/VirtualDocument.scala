@@ -32,13 +32,6 @@ abstract class VirtualDocument[T >: Null <: AnyRef] {
   def get(): Iterator[T] = throw new NotImplementedError("get method is not implemented")
 
   /**
-    * append one data item to the document
-    * @param item the data item
-    */
-  def setItem(item: T): Unit =
-    throw new NotImplementedError("setItem method is not implemented")
-
-  /**
     * set ith item
     * @param item the data item
     */
@@ -46,18 +39,26 @@ abstract class VirtualDocument[T >: Null <: AnyRef] {
     throw new NotImplementedError("setItem method is not implemented")
 
   /**
+    * append one data item to the document
+    *
+    * @param item the data item
+    */
+  def append(item: T): Unit =
+    throw new NotImplementedError("setItem method is not implemented")
+
+  /**
     * append data items from the iterator to the document
     * @param items iterator for the data item
     */
-  def write(items: Iterator[T]): Unit =
-    throw new NotImplementedError("write method is not implemented")
+  def append(items: Iterator[T]): Unit =
+    throw new NotImplementedError("append method is not implemented")
 
   /**
     * append the file content with an opened input stream
     * @param inputStream the data source input stream
     */
-  def write(inputStream: InputStream): Unit =
-    throw new NotImplementedError("write method is not implemented")
+  def appendStream(inputStream: InputStream): Unit =
+    throw new NotImplementedError("append method is not implemented")
 
   /**
     * convert document as an input stream
