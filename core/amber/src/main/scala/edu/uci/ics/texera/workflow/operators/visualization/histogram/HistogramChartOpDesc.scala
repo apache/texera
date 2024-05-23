@@ -13,11 +13,6 @@ import edu.uci.ics.texera.workflow.operators.visualization.{
 }
 
 class HistogramChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
-  @JsonProperty(required = false, defaultValue = "Histogram Chart")
-  @JsonSchemaTitle("Title")
-  @JsonPropertyDescription("Add a title to your histogram chart.")
-  var title: String = "Histogram Chart"
-
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Value Column")
   @JsonPropertyDescription("Column for counting values.")
@@ -36,13 +31,6 @@ class HistogramChartOpDesc extends VisualizationOperator with PythonOperatorDesc
   @AutofillAttributeName
   var separateBy: String = ""
 
-  /**
-    * This method is to be implemented to generate the actual Python source code
-    * based on operators predicates.
-    *
-    * @return a String representation of the executable Python source code.
-    */
-
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
       "Histogram Chart",
@@ -60,7 +48,8 @@ class HistogramChartOpDesc extends VisualizationOperator with PythonOperatorDesc
     if (separateBy.nonEmpty) categoryParam = s", facet_col = '$separateBy'"
 
     s"""
-       |        fig = px.histogram(table, x = '$value', title = '$title', text_auto = True $colorParam $categoryParam)
+       |        fig = px.histogram(table, x = '$value', text_auto = True $colorParam $categoryParam)
+       |        fig.update_layout(margin=dict(l=0, r=0, t=0, b=0))
        |""".stripMargin
   }
 

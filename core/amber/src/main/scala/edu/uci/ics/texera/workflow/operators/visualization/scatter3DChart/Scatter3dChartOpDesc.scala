@@ -20,11 +20,6 @@ import edu.uci.ics.texera.workflow.operators.visualization.{
 }
 """)
 class Scatter3dChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
-  @JsonProperty(value = "title", required = true, defaultValue = "Scatter3D Chart")
-  @JsonSchemaTitle("Plot Title")
-  @JsonPropertyDescription("The value for the plot title")
-  var title: String = "Scatter3D Chart"
-
   @JsonProperty(value = "x", required = true)
   @JsonSchemaTitle("X Column")
   @JsonPropertyDescription("Data column for the x-axis")
@@ -74,13 +69,12 @@ class Scatter3dChartOpDesc extends VisualizationOperator with PythonOperatorDesc
        |        )])
        |        fig.update_traces(marker=dict(size=5, opacity=0.8))
        |        fig.update_layout(
-       |            title='$title',
        |            scene=dict(
        |                xaxis_title='X: $x',
        |                yaxis_title='Y: $y',
        |                zaxis_title='Z: $z'
        |            ),
-       |            margin=dict(t=40, b=30, l=10, r=10)
+       |            margin=dict(t=0, b=0, l=0, r=0)
        |        )
        |""".stripMargin
   }

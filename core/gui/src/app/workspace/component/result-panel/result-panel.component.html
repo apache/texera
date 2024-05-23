@@ -39,7 +39,7 @@
       nz-menu-item
       (click)="openPanel()"
       *ngIf="!width"
-      nz-tooltip="Result Panel">
+      nz-tooltip="Result Panel: {{operatorTitle}}">
       <span
         nz-icon
         nzType="border"></span>
@@ -50,7 +50,7 @@
       id="title"
       cdkDragHandle
       *ngIf="width">
-      Result Panel
+      Result Panel: {{operatorTitle}}
     </h4>
     <nz-tabset
       [nzSize]="'small'"

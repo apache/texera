@@ -23,11 +23,6 @@ import edu.uci.ics.texera.workflow.operators.visualization.{
 """)
 class BoxPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
 
-  @JsonProperty(defaultValue = "Box Plot Visual")
-  @JsonSchemaTitle("Title")
-  @JsonPropertyDescription("Add a title to your visualization")
-  var title: String = ""
-
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Value Column")
   @JsonPropertyDescription("Data Column for Boxplot")
@@ -77,9 +72,7 @@ class BoxPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor 
        |        else:
        |            fig = px.box(table, y='$value',boxmode="overlay", points='all')
        |        fig.update_traces(quartilemethod="${quertiletype.getQuartiletype}", jitter=0, col=1)
-       |
-       |
-       |
+       |        fig.update_layout(margin=dict(t=0, b=0, l=0, r=0))
        |""".stripMargin
   }
 

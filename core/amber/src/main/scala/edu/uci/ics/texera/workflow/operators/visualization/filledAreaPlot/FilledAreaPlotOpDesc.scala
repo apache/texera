@@ -15,11 +15,6 @@ import edu.uci.ics.texera.workflow.operators.visualization.{
 class FilledAreaPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
 
   @JsonProperty(required = true)
-  @JsonSchemaTitle("Title")
-  @JsonPropertyDescription("Title of our plot")
-  var title: String = ""
-
-  @JsonProperty(required = true)
   @JsonSchemaTitle("X-axis Attribute")
   @JsonPropertyDescription("The attribute for your x-axis")
   @AutofillAttributeName
@@ -74,7 +69,7 @@ class FilledAreaPlotOpDesc extends VisualizationOperator with PythonOperatorDesc
     val lineGroupArg = if (lineGroup.nonEmpty) s""", line_group="$lineGroup"""" else ""
 
     s"""
-             |            fig = px.area(table, x="$x", y="$y", title="$title"$colorArg$facetColumnArg$lineGroupArg)
+             |            fig = px.area(table, x="$x", y="$y"$colorArg$facetColumnArg$lineGroupArg)
              |""".stripMargin
   }
 
@@ -121,6 +116,7 @@ class FilledAreaPlotOpDesc extends VisualizationOperator with PythonOperatorDesc
          |
          |        if error == "":
          |            ${createPlotlyFigure()}
+         |            fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
          |
          |            html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
          |            yield {'html-content': html}

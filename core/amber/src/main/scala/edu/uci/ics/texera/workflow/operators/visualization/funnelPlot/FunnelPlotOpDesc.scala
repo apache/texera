@@ -20,10 +20,6 @@ import edu.uci.ics.texera.workflow.operators.visualization.{
 }
 """)
 class FunnelPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
-  @JsonProperty(value = "title", required = true, defaultValue = "Funnel Plot")
-  @JsonSchemaTitle("Plot Title")
-  @JsonPropertyDescription("The value for the plot title")
-  var title: String = "Funnel Plot"
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("X Column")
@@ -63,12 +59,11 @@ class FunnelPlotOpDesc extends VisualizationOperator with PythonOperatorDescript
     s"""
        |        fig = go.Figure(px.funnel(table, x ="$x", y = "$y"$colorArg))
        |        fig.update_layout(
-       |            title='$title',
        |            scene=dict(
        |                xaxis_title='X: $x',
        |                yaxis_title='Y: $y',
        |            ),
-       |            margin=dict(t=40, b=30, l=10, r=10)
+       |            margin=dict(t=0, b=0, l=0, r=0)
        |        )
        |""".stripMargin
   }

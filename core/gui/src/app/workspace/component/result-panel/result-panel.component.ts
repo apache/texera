@@ -36,6 +36,7 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
   prevHeight = 300;
   maxWidth = window.innerWidth;
   maxHeight = window.innerHeight;
+  operatorTitle = "";
 
   // the highlighted operator ID for display result table / visualization / breakpoint
   currentOperatorId?: string | undefined;
@@ -142,6 +143,7 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
       .subscribe(_ => {
         this.rerenderResultPanel();
         this.changeDetectorRef.detectChanges();
+        this.registerOperatorDisplayNameChangeHandler();
       });
   }
 
@@ -217,6 +219,24 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
         component: VisualizationFrameContentComponent,
         componentInputs: { operatorId },
       });
+    }
+  }
+
+  private registerOperatorDisplayNameChangeHandler(): void {
+    if (this.currentOperatorId) {
+      const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
+      this.operatorTitle = operator.customDisplayName ?? "";
+      this.workflowActionService
+        .getTexeraGraph()
+        .getOperatorDisplayNameChangedStream()
+        .pipe(untilDestroyed(this))
+        .subscribe(({ operatorID, newDisplayName }) => {
+          console.log(operatorID);
+          console.log(this.currentOperatorId);
+          if (operatorID === this.currentOperatorId) {
+            this.operatorTitle = newDisplayName;
+          }
+        });
     }
   }
 

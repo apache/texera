@@ -25,7 +25,8 @@
         <th
           *ngFor="let column of currentColumns; let i = index"
           ngClass="header-size"
-          style="text-align: center">
+          style="text-align: center"
+          nzWidth="widthPercent">
           {{ column.header }}
         </th>
       </tr>

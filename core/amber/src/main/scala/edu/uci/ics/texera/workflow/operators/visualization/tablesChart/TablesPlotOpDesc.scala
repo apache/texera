@@ -69,6 +69,7 @@ class TablesPlotOpDesc extends VisualizationOperator with PythonOperatorDescript
 
        |
        |        ${createPlotlyFigure()}
+       |        fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
        |        html_content = plotly.io.to_html(fig, include_plotlyjs='cdn')
        |        yield {'html-content': html_content}
     """.stripMargin
