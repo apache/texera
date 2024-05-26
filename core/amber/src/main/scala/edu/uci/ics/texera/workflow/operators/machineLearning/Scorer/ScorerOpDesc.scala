@@ -1,9 +1,17 @@
 package edu.uci.ics.texera.workflow.operators.machineLearning.Scorer
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaString, JsonSchemaTitle}
+import com.kjetland.jackson.jsonSchema.annotations.{
+  JsonSchemaInject,
+  JsonSchemaString,
+  JsonSchemaTitle
+}
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIdentity}
-import edu.uci.ics.texera.workflow.common.metadata.annotations.{AutofillAttributeName, AutofillAttributeNameOnPort1, HideAnnotation}
+import edu.uci.ics.texera.workflow.common.metadata.annotations.{
+  AutofillAttributeName,
+  AutofillAttributeNameOnPort1,
+  HideAnnotation
+}
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
@@ -80,8 +88,7 @@ class ScorerOpDesc extends PythonOperatorDescriptor {
       regressionMetrics.foreach(metric => {
         outputSchemaBuilder.add(new Attribute(metric.getName(), AttributeType.DOUBLE))
       })
-    }
-    else {
+    } else {
       classificationMetrics.foreach(metric => {
         outputSchemaBuilder.add(new Attribute(metric.getName(), AttributeType.DOUBLE))
       })
@@ -99,11 +106,12 @@ class ScorerOpDesc extends PythonOperatorDescriptor {
     scorer.getName()
   }
 
-  private def getEachScorerName(scorer: Any): String = scorer match {
-    case s: classificationMetricsFnc => getClassificationScorerName(s)
-    case s: regressionMetricsFnc => getRegressionScorerName(s)
-    case _ => throw new IllegalArgumentException("Unknown scorer type")
-  }
+  private def getEachScorerName(scorer: Any): String =
+    scorer match {
+      case s: classificationMetricsFnc => getClassificationScorerName(s)
+      case s: regressionMetricsFnc     => getRegressionScorerName(s)
+      case _                           => throw new IllegalArgumentException("Unknown scorer type")
+    }
 
   private def getSelectedScorers(): String = {
     // Return a string of scorers using the getEachScorerName() method
