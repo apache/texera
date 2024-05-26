@@ -122,59 +122,29 @@ class ScorerOpDesc extends PythonOperatorDescriptor {
          |from pytexera import *
          |import pandas as pd
          |import numpy as np
-         |from sklearn.metrics import accuracy_score
-         |from sklearn.metrics import precision_score
-         |from sklearn.metrics import confusion_matrix
-         |from sklearn.metrics import recall_score
-         |from sklearn.metrics import f1_score
-         |from sklearn.metrics import mean_squared_error
-         |from sklearn.metrics import root_mean_squared_error
-         |from sklearn.metrics import mean_absolute_error
-         |from sklearn.metrics import r2_score
+         |from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, mean_squared_error, root_mean_squared_error, mean_absolute_error, r2_score
          |import json
          |
          |
          |def classification_scorers(y_true, y_pred, scorer_list, labels):
-         |  result = dict()
-         |
-         |  for scorer in scorer_list:
-         |    result[scorer] = [ None ] * len(labels)
+         |  result = {scorer: [None] * len(labels) for scorer in scorer_list}
+         |  metrics_func = {'Precision Score': precision_score, 'Recall Score': recall_score, 'F1 Score': f1_score}
          |
          |  for scorer in scorer_list:
          |    prediction = None
          |    if scorer == 'Accuracy':
          |      result['Accuracy'][len(labels) - 1] = accuracy_score(y_true, y_pred)
-         |
-         |    elif scorer == 'Precision Score':
-         |      for i in range(len(labels)):
-         |        if labels[i] != 'Overall':
-         |          prediction = precision_score(y_true, y_pred, average = None, labels = [labels[i]])
-         |          result['Precision Score'][i] = prediction[0]
+         |    else:
+         |      for i, label in enumerate(labels):
+         |        if label != 'Overall':
+         |          prediction = metrics_func[scorer](y_true, y_pred, average=None, labels=[label])
+         |          result[scorer][i] = prediction[0]
          |        else:
-         |          result['Precision Score'][i] = precision_score(y_true, y_pred, average = 'macro')
+         |          result[scorer][i] = metrics_func[scorer](y_true, y_pred, average='macro')
          |
-         |    elif scorer == 'Recall Score':
-         |      for i in range(len(labels)):
-         |        if labels[i] != 'Overall':
-         |          prediction = recall_score(y_true, y_pred, average = None, labels = [labels[i]])
-         |          result['Recall Score'][i] = prediction[0]
-         |        else:
-         |          result['Recall Score'][i] = recall_score(y_true, y_pred, average = 'macro')
-         |
-         |    elif scorer == 'F1 Score':
-         |      for i in range(len(labels)):
-         |        if labels[i] != 'Overall':
-         |          prediction = f1_score(y_true, y_pred, average = None, labels = [labels[i]])
-         |          result['F1 Score'][i] = prediction[0]
-         |        else:
-         |          result['F1 Score'][i] = f1_score(y_true, y_pred, average = 'macro')
-         |
-         |  for i in range(len(labels)):
-         |    if type(labels[i]) != str:
-         |      labels[i] = ('class_' + str(labels[i]))
-         |
+         |  # if the label is not a string, convert it to string
+         |  labels = ['class_' + str(label) if type(label) != str else label for label in labels]
          |  result['Label'] = labels
-         |
          |  result_df = pd.DataFrame(result)
          |
          |  return result_df
@@ -185,21 +155,15 @@ class ScorerOpDesc extends PythonOperatorDescriptor {
          |  for scorer in scorer_list:
          |    if scorer == 'MSE':
          |      result['MSE'] = mean_squared_error(y_true, y_pred)
-         |
          |    elif scorer == 'RMSE':
          |      result['RMSE'] = root_mean_squared_error(y_true, y_pred)
-         |
          |    elif scorer == "MAE":
          |      result['MAE'] = mean_absolute_error(y_true, y_pred)
-         |
          |    elif scorer == 'R2':
          |      result['R2'] = r2_score(y_true, y_pred)
          |
-         |  # convert list/dict to dataframe
-         |  label = ['Overall']
-         |  label_df = pd.DataFrame(label, columns=['Label'])
          |  result_df = pd.DataFrame(result, index=[0])
-         |  result_df = pd.concat([label_df, result_df], axis=1)
+         |  result_df['Label'] = ['Overall']
          |
          |  return result_df
          |
@@ -225,15 +189,14 @@ class ScorerOpDesc extends PythonOperatorDescriptor {
          |        if $is_regression:
          |          result = regression_scorers(y_true, y_pred, scorer_list)
          |        else:
+         |          # calculate the number of unique labels
          |          labels = list(set(y_true))
          |          labels.append('Overall')
+         |          # align the type of y_true and y_pred(str)
          |          y_true_str = y_true.astype(str)
          |          result = classification_scorers(y_true_str, y_pred, scorer_list, labels)
          |
-         |
          |        yield result
-         |
-         |
          |""".stripMargin
     finalcode
   }
