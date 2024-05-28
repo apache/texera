@@ -44,7 +44,6 @@ export class AdminUserService {
     return this.http.get<ReadonlyArray<File>>(`${USER_CREATED_FILES}`, { params: params });
   }
 
-
   public getCreatedDatasets(uid: number): Observable<ReadonlyArray<Dataset>> {
     let params = new HttpParams().set("user_id", uid.toString());
     return this.http.get<ReadonlyArray<Dataset>>(`${USER_CREATED_DATASETS}`, { params: params });

@@ -2,7 +2,7 @@ import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
 import { AppSettings } from "src/app/common/app-setting";
-import { Dataset,File, Workflow, MongoExecution } from "src/app/common/type/user";
+import { Dataset, File, Workflow, MongoExecution } from "src/app/common/type/user";
 
 export const USER_BASE_URL = `${AppSettings.getApiEndpoint()}/quota`;
 export const USER_CREATED_FILES = `${USER_BASE_URL}/uploaded_files`;

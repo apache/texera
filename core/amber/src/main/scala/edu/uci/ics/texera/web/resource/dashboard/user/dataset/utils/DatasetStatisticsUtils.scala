@@ -35,14 +35,16 @@ object DatasetStatisticsUtils {
       .where(DATASET.OWNER_UID.eq(uid))
       .fetch()
 
-    result.asScala.map(record =>
-      Dataset(
-        did = record.getValue(DATASET.DID),
-        name = record.getValue(DATASET.NAME),
-        creationTime = record.getValue(DATASET.CREATION_TIME).getTime(),
-        size = 0
+    result.asScala
+      .map(record =>
+        Dataset(
+          did = record.getValue(DATASET.DID),
+          name = record.getValue(DATASET.NAME),
+          creationTime = record.getValue(DATASET.CREATION_TIME).getTime(),
+          size = 0
+        )
       )
-    ).toList
+      .toList
   }
   private def getFolderSize(folderPath: Path): Long = {
     val walk = Files.walk(folderPath)

@@ -2,14 +2,25 @@ package edu.uci.ics.texera.web.resource.dashboard.user.quota
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource.{Dataset, File, MongoStorage, Workflow, deleteMongoCollection, getUserAccessedFiles, getUserAccessedWorkflow, getUserCreatedFile, getUserCreatedWorkflow, getUserMongoDBSize}
+import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource.{
+  Dataset,
+  File,
+  MongoStorage,
+  Workflow,
+  deleteMongoCollection,
+  getUserAccessedFiles,
+  getUserAccessedWorkflow,
+  getUserCreatedFile,
+  getUserCreatedWorkflow,
+  getUserMongoDBSize
+}
 import org.jooq.types.UInteger
 
 import java.util
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import edu.uci.ics.texera.web.model.jooq.generated.Tables._
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.DatasetStatisticsUtils.{getUserCreatedDatasetCount, getUserCreatedDatasets}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.DatasetStatisticsUtils.getUserCreatedDatasets
 import edu.uci.ics.texera.web.storage.MongoDatabaseManager
 import io.dropwizard.auth.Auth
 

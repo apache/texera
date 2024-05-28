@@ -14,7 +14,6 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   font-family: Arial, sans-serif;
   text-align: center;
-  
 }
 
 .info-heading {
@@ -26,26 +25,25 @@
   font-size: 24px;
   margin-top: 10px;
 }
-  
+
 .charts-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  grid-template-rows: auto auto;         
-  gap: 50px;                             
-  margin: 80px;                       
+  grid-template-rows: auto auto;
+  gap: 50px;
+  margin: 80px;
 
   > div {
-      display: flex;                     
-      justify-content: center;          
-      align-items: center;              
-      background: #fff;
-      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-      padding: 10px;
-      height: 100%;                     
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #fff;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    padding: 10px;
+    height: 100%;
 
-      &:hover {
-          box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
-      }
+    &:hover {
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+    }
   }
 }
-

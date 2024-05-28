@@ -13,9 +13,9 @@ type UserServiceType = AdminUserService | UserQuotaService;
 @UntilDestroy()
 @Component({
   templateUrl: "./user-quota.component.html",
-  styleUrls: ["./user-quota.component.scss"]
+  styleUrls: ["./user-quota.component.scss"],
 })
-export class UserQuotaComponent implements OnInit{
+export class UserQuotaComponent implements OnInit {
   readonly userId: number;
   backgroundColor: String = "white";
   textColor: String = "Black";
@@ -34,9 +34,9 @@ export class UserQuotaComponent implements OnInit{
   datasetList: ReadonlyArray<Dataset> = [];
   mongodbWorkflows: Array<MongoWorkflow> = [];
   UserService: UserServiceType;
-  pieChartWidth= 450;
+  pieChartWidth = 450;
   pieChartHeight = 450;
-  lineChartWidth= 600;
+  lineChartWidth = 600;
   lineChartHeight = 450;
 
   constructor(
@@ -55,7 +55,6 @@ export class UserQuotaComponent implements OnInit{
       this.UserService = this.regularUserService;
       this.dynamicHeight = "";
     }
-    
   }
   ngOnInit(): void {
     this.refreshData();
@@ -97,7 +96,6 @@ export class UserQuotaComponent implements OnInit{
   }
 
   aggregateData(data: Array<[string, number]>, numGroup: number) {
-
     data = this.filterOutdatedData(data);
 
     if (data.length < 8) {
@@ -123,24 +121,29 @@ export class UserQuotaComponent implements OnInit{
       const currentDate = new Date(date);
       if (currentDate < nextDate) {
         sum += value;
-      }
-      else {
-        aggData.push([currentGroupStartDate.toISOString().split('T')[0], sum]);
+      } else {
+        aggData.push([currentGroupStartDate.toISOString().split("T")[0], sum]);
         currentGroupStartDate = new Date(nextDate);
         nextDate.setDate(currentGroupStartDate.getDate() + daysPerGroup);
         sum = value;
       }
     });
-    aggData.push([currentGroupStartDate.toISOString().split('T')[0], sum]);
+    aggData.push([currentGroupStartDate.toISOString().split("T")[0], sum]);
     return aggData;
   }
 
-  generateLineChart(dataToDisplay: Array<[string, number]>, x_label: string, y_label: string, title: string, chart: string) {
+  generateLineChart(
+    dataToDisplay: Array<[string, number]>,
+    x_label: string,
+    y_label: string,
+    title: string,
+    chart: string
+  ) {
     var data = [
       {
         x: dataToDisplay.map(d => d[0]),
         y: dataToDisplay.map(d => d[1]),
-        type: 'scatter' as const,
+        type: "scatter" as const,
       },
     ];
 
@@ -148,7 +151,7 @@ export class UserQuotaComponent implements OnInit{
     const maxY = Math.max(...yValues);
     const minY = Math.min(...yValues);
     const yRange = maxY - minY;
-    
+
     var layout = {
       height: this.lineChartHeight,
       width: this.lineChartWidth,
@@ -160,19 +163,18 @@ export class UserQuotaComponent implements OnInit{
       },
       yaxis: {
         title: y_label,
-        rangemode: 'tozero' as const,
+        rangemode: "tozero" as const,
         zeroline: true,
         zerolinewidth: 2,
-        zerolinecolor: '#000',
-        range: [0, 'auto'],
-        tickmode: yRange <= 5 ? 'linear' as const: undefined,
+        zerolinecolor: "#000",
+        range: [0, "auto"],
+        tickmode: yRange <= 5 ? ("linear" as const) : undefined,
         dtick: yRange <= 5 ? 1 : undefined,
       },
     };
-    
+
     Plotly.newPlot(chart, data, layout);
   }
-
 
   refreshData() {
     this.UserService.getUploadedFiles(this.userId)
@@ -213,7 +215,7 @@ export class UserQuotaComponent implements OnInit{
           lineChartDataArray.push([date, count]);
         });
         lineChartDataArray = this.aggregateData(lineChartDataArray, 5);
-        this.generateLineChart(lineChartDataArray, 'Date', 'Count', 'Dataset Upload Overview', 'datasetLineChart');
+        this.generateLineChart(lineChartDataArray, "Date", "Count", "Dataset Upload Overview", "datasetLineChart");
         this.totalUploadedDatasetSize = totalDatasetSize;
       });
 
@@ -235,7 +237,7 @@ export class UserQuotaComponent implements OnInit{
           lineChartDataArray.push([date, count]);
         });
         lineChartDataArray = this.aggregateData(lineChartDataArray, 5);
-        this.generateLineChart(lineChartDataArray, "Date", "Count", "Workflow Upload Overview", "workflowLineChart")
+        this.generateLineChart(lineChartDataArray, "Date", "Count", "Workflow Upload Overview", "workflowLineChart");
       });
 
     this.UserService.getAccessFiles(this.userId)
