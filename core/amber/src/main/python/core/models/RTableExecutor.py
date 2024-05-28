@@ -44,7 +44,7 @@ class RTableExecutor(TableOperator):
         """
         library(arrow)
         function(df) {
-            unserialized <- unserialize(unlist(df)$object))
+            unserialized <- unserialize(unlist(df$object))
             return (unserialized)
         }
         """
@@ -128,11 +128,11 @@ class RTableExecutor(TableOperator):
                 serialized_objects_dataframe = RTableExecutor._serialized_list_to_df(
                     serialized_objects_list
                 )
-                output_rarrow_table = RTableExecutor._source_output_to_arrow(
+                output_rarrow_table = RTableExecutor._r_dataframe_to_arrow(
                     serialized_objects_dataframe
                 )
             else:
-                output_rarrow_table = RTableExecutor._source_output_to_arrow(output)
+                output_rarrow_table = RTableExecutor._r_dataframe_to_arrow(output)
             output_pyarrow_table = rarrow_to_py_table(output_rarrow_table)
 
         for field_accessor in ArrowTableTupleProvider(output_pyarrow_table):
