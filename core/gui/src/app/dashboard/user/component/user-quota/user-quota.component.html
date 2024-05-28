@@ -22,14 +22,9 @@
             <h2 class="info-heading">Datasets Uploaded</h2>
             <p class="info-content">{{ this.totalUploadedDatasetCount }}</p>
           </div>
-          <div class="info-box"
-              (mouseenter)="showPieChart()"
-              (mouseleave)="hidePieChart()">
+          <div class="info-box">
             <h2 class="info-heading">Total Size of Datasets</h2>
             <p class="info-content">{{ convertFileSize(this.totalUploadedDatasetSize) }}</p>
-            <!-- Floating Pie Chart Container -->
-            <!-- <div class="pie-chart-popup" *ngIf="showChart"> -->
-            <!-- </div> -->
           </div>
           <div class="info-box">
             <h2 class="info-heading">Workflows Created</h2>
@@ -52,7 +47,20 @@
             <p class="info-content">{{ convertFileSize(this.totalMongoSize) }}</p>
           </div>
         </div>
-        <div id="sizePieChart"></div>
+        <nz-card
+          class="section-title"
+          [style.backgroundColor]="backgroundColor">
+          <h2
+            class="page-title"
+            [style.color]="textColor">
+            Diagram
+          </h2>
+        </nz-card>
+        <div class="charts-grid">
+          <div id="sizePieChart"></div>
+          <div id="datasetLineChart"></div>
+          <div id="workflowLineChart"></div>
+        </div>
       </nz-tab>
       <nz-tab nzTitle="Result Cache">
         <nz-collapse>

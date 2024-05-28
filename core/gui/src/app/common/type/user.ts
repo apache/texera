@@ -40,12 +40,15 @@ export interface Workflow
     userId: number;
     workflowId: number;
     workflowName: string;
+    creationTime: number;
+    lastModifiedTime: number;
   }> {}
 
 export interface Dataset 
  extends Readonly<{
   did: number;
   name: string;
+  creationTime: number;
   size: number;
 }> {}
 

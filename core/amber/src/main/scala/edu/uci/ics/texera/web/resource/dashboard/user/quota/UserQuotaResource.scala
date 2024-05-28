@@ -9,7 +9,7 @@ import java.util
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import edu.uci.ics.texera.web.model.jooq.generated.Tables._
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.DatasetStatisticsUtils.{getUserCreatedDatasetCount, getUserDatasetSize}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.DatasetStatisticsUtils.{getUserCreatedDatasetCount, getUserCreatedDatasets}
 import edu.uci.ics.texera.web.storage.MongoDatabaseManager
 import io.dropwizard.auth.Auth
 
@@ -30,12 +30,15 @@ object UserQuotaResource {
   case class Workflow(
       userId: UInteger,
       workflowId: UInteger,
-      workflowName: String
+      workflowName: String,
+      creationTime: Long,
+      lastModifiedTime: Long
   )
 
   case class Dataset(
       did: UInteger,
       name: String,
+      creationTime: Long,
       size: Long
   )
 
@@ -102,7 +105,9 @@ object UserQuotaResource {
       .select(
         WORKFLOW_OF_USER.UID,
         WORKFLOW_OF_USER.WID,
-        WORKFLOW.NAME
+        WORKFLOW.NAME,
+        WORKFLOW.CREATION_TIME,
+        WORKFLOW.LAST_MODIFIED_TIME
       )
       .from(
         WORKFLOW_OF_USER
@@ -123,7 +128,9 @@ object UserQuotaResource {
         Workflow(
           workflowRecord.get(WORKFLOW_OF_USER.UID),
           workflowRecord.get(WORKFLOW_OF_USER.WID),
-          workflowRecord.get(WORKFLOW.NAME)
+          workflowRecord.get(WORKFLOW.NAME),
+          workflowRecord.get(WORKFLOW.CREATION_TIME).getTime(),
+          workflowRecord.get(WORKFLOW.LAST_MODIFIED_TIME).getTime()
         )
       })
       .asScala
@@ -225,17 +232,10 @@ class UserQuotaResource {
   }
 
   @GET
-  @Path("/dataset_size")
+  @Path("/created_datasets")
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def getDatasetSize(@Auth current_user: SessionUser): List[Dataset] = {
-    getUserDatasetSize(current_user.getUid)
-  }
-
-  @GET
-  @Path("/number_of_datasets")
-  @Produces(Array(MediaType.APPLICATION_JSON))
-  def getCreatedDatasetCount(@Auth current_user: SessionUser): Int = {
-    getUserCreatedDatasetCount(current_user.getUid)
+  def getCreatedDatasets(@Auth current_user: SessionUser): List[Dataset] = {
+    getUserCreatedDatasets(current_user.getUid)
   }
 
   @GET

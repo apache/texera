@@ -2,7 +2,6 @@ package edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset.DATASET
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{DatasetIDs}
 import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource.{Dataset}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.PathUtils.DATASETS_ROOT
 import org.jooq.types.UInteger
@@ -29,7 +28,8 @@ object DatasetStatisticsUtils {
     val result = context
       .select(
         DATASET.DID,
-        DATASET.NAME
+        DATASET.NAME,
+        DATASET.CREATION_TIME
       )
       .from(DATASET)
       .where(DATASET.OWNER_UID.eq(uid))
@@ -39,6 +39,7 @@ object DatasetStatisticsUtils {
       Dataset(
         did = record.getValue(DATASET.DID),
         name = record.getValue(DATASET.NAME),
+        creationTime = record.getValue(DATASET.CREATION_TIME).getTime(),
         size = 0
       )
     ).toList
@@ -55,9 +56,8 @@ object DatasetStatisticsUtils {
     }
   }
 
-  def getUserDatasetSize(uid: UInteger): List[Dataset] = {
+  def getUserCreatedDatasets(uid: UInteger): List[Dataset] = {
     val datasetList = getUserCreatedDatasetList(uid)
-
     datasetList.map { dataset =>
       val datasetPath = DATASETS_ROOT.resolve(dataset.did.toString)
       val size = getFolderSize(datasetPath)
