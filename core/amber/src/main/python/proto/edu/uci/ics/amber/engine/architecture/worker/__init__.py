@@ -106,7 +106,8 @@ class LinkOrdinal(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class InitializeExecutorV2(betterproto.Message):
     code: str = betterproto.string_field(1)
-    is_source: bool = betterproto.bool_field(2)
+    language: str = betterproto.string_field(2)
+    is_source: bool = betterproto.bool_field(3)
 
 
 @dataclass(eq=False, repr=False)

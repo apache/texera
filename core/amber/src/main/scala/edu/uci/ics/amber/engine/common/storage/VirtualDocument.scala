@@ -11,52 +11,67 @@ import java.net.URI
   */
 abstract class VirtualDocument[T >: Null <: AnyRef] {
 
+  /**
+    * get the URI of corresponding document
+    * @return the URI of the document
+    */
   def getURI: URI
 
   /**
-    * read ith item and return
+    * find ith item and return
     * @param i index starting from 0
     * @return data item of type T
     */
-  def readItem(i: Int): T =
-    throw new UnsupportedOperationException("readItem method is not supported")
+  def getItem(i: Int): T =
+    throw new NotImplementedError("getItem method is not implemented")
 
   /**
-    * iterate over whole document using iterator
+    * get a iterator that iterates all indexed items
     * @return an iterator that return data item of type T
     */
-  def read(): Iterator[T] = throw new UnsupportedOperationException("read method is not supported")
+  def get(): Iterator[T] = throw new NotImplementedError("get method is not implemented")
+
+  /**
+    * set ith item
+    * @param item the data item
+    */
+  def setItem(i: Int, item: T): Unit =
+    throw new NotImplementedError("setItem method is not implemented")
 
   /**
     * append one data item to the document
+    *
     * @param item the data item
     */
-  def writeItem(item: T): Unit =
-    throw new UnsupportedOperationException("writeItem method is not supported")
+  def append(item: T): Unit =
+    throw new NotImplementedError("setItem method is not implemented")
 
   /**
     * append data items from the iterator to the document
     * @param items iterator for the data item
     */
-  def write(items: Iterator[T]): Unit =
-    throw new UnsupportedOperationException("write method is not supported")
+  def append(items: Iterator[T]): Unit =
+    throw new NotImplementedError("append method is not implemented")
 
   /**
-    * overwrite the file content with an opened input stream
+    * append the file content with an opened input stream
     * @param inputStream the data source input stream
     */
-  def writeWithStream(inputStream: InputStream): Unit =
-    throw new UnsupportedOperationException("writeWithStream method is not supported")
+  def appendStream(inputStream: InputStream): Unit =
+    throw new NotImplementedError("append method is not implemented")
 
   /**
-    * read the document as an input stream
-    *
+    * convert document as an input stream
     * @return the input stream
     */
   def asInputStream(): InputStream =
-    throw new UnsupportedOperationException("asInputStream method is not supported")
+    throw new NotImplementedError("asInputStream method is not implemented")
 
-  def asFile(): File = throw new UnsupportedOperationException("asFile method is not supported")
+  /**
+    * convert document as a File
+    * @return the file
+    */
+  def asFile(): File = throw new NotImplementedError("asFile method is not implemented")
 
   /**
     * physically remove current document

@@ -26,3 +26,5 @@ bidict==0.22.0
 cached_property
 psutil
 transformers
+rpy2==3.5.11
+rpy2-arrow==0.0.8
