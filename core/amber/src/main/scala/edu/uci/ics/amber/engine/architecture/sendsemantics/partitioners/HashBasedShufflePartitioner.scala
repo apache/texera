@@ -8,7 +8,7 @@ case class HashBasedShufflePartitioner(partitioning: HashBasedShufflePartitionin
     extends Partitioner {
 
   override def getBucketIndex(tuple: Tuple): Iterator[Int] = {
-    val numBuckets = partitioning.receivers.length
+    val numBuckets = partitioning.channels.length
     val partialTuple =
       if (partitioning.hashAttributeNames.isEmpty) tuple
       else tuple.getPartialTuple(partitioning.hashAttributeNames.toList)
@@ -16,5 +16,5 @@ case class HashBasedShufflePartitioner(partitioning: HashBasedShufflePartitionin
     Iterator(index)
   }
 
-  override def allReceivers: Seq[ActorVirtualIdentity] = partitioning.receivers
+  override def allReceivers: Seq[ActorVirtualIdentity] = partitioning.channels.map(_.toWorkerId)
 }

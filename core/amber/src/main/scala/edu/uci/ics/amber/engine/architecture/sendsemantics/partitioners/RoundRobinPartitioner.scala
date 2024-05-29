@@ -8,9 +8,9 @@ case class RoundRobinPartitioner(partitioning: RoundRobinPartitioning) extends P
   var roundRobinIndex = 0
 
   override def getBucketIndex(tuple: Tuple): Iterator[Int] = {
-    roundRobinIndex = (roundRobinIndex + 1) % partitioning.receivers.length
+    roundRobinIndex = (roundRobinIndex + 1) % partitioning.channels.length
     Iterator(roundRobinIndex)
   }
 
-  override def allReceivers: Seq[ActorVirtualIdentity] = partitioning.receivers
+  override def allReceivers: Seq[ActorVirtualIdentity] = partitioning.channels.map(_.toWorkerId)
 }

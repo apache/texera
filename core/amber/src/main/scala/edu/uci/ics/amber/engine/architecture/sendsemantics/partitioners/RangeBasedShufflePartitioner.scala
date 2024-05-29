@@ -9,7 +9,7 @@ case class RangeBasedShufflePartitioner(partitioning: RangeBasedShufflePartition
     extends Partitioner {
 
   private val keysPerReceiver =
-    ((partitioning.rangeMax - partitioning.rangeMin) / partitioning.receivers.length) + 1
+    ((partitioning.rangeMax - partitioning.rangeMin) / partitioning.channels.length) + 1
 
   override def getBucketIndex(tuple: Tuple): Iterator[Int] = {
     // Do range partitioning only on the first attribute in `rangeAttributeNames`.
@@ -30,11 +30,11 @@ case class RangeBasedShufflePartitioner(partitioning: RangeBasedShufflePartition
       return Iterator(0)
     }
     if (fieldVal > partitioning.rangeMax) {
-      return Iterator(partitioning.receivers.length - 1)
+      return Iterator(partitioning.channels.length - 1)
     }
     Iterator(((fieldVal - partitioning.rangeMin) / keysPerReceiver).toInt)
   }
 
-  override def allReceivers: Seq[ActorVirtualIdentity] = partitioning.receivers
+  override def allReceivers: Seq[ActorVirtualIdentity] = partitioning.channels.map(_.toWorkerId)
 
 }
