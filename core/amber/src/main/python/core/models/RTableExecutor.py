@@ -40,7 +40,7 @@ class RTableExecutor(TableOperator):
         """
     )
 
-    _object_r_dataframe_to_arrow = robjects.r(
+    _object_r_dataframe_to_object = robjects.r(
         """
         library(arrow)
         function(df) {
@@ -116,7 +116,7 @@ class RTableExecutor(TableOperator):
                 input_pyarrow_table
             )
             if RTableExecutor._dataframe_has_raw_bytes(input_r_dataframe):
-                input_r_dataframe = RTableExecutor._object_r_dataframe_to_arrow(
+                input_r_dataframe = RTableExecutor._object_r_dataframe_to_object(
                     input_r_dataframe
                 )
 
@@ -168,14 +168,15 @@ class RTableSourceExecutor(SourceOperator):
         """
     function(output_list) {
         object_list <- list()
-        cnt <- 1
+        idx <- 1
+        colNames <- colnames(output_list)
         for (object in output_list) {
             serialized <- serialize(object, connection = NULL)
-            bytes_df <- data.frame(object = I(list(serialized)))
-            assign("colStr", sprintf("object%d", cnt))
-            assign(paste(colStr), bytes_df)
+            bytes <- I(list(serialized))
+            assign("colStr", colNames[[idx]]) # colStr <- colNames[[idx]]
+            assign(paste(colStr), bytes) # eval(colStr) = bytes
             object_list <- append(object_list, mget(colStr))
-            cnt <- cnt + 1
+            idx <- idx + 1
         }
         return (object_list)
     }

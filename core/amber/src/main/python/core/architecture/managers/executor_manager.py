@@ -123,11 +123,15 @@ class ExecutorManager:
             # If R_HOME is not defined and rpy2 cannot find the
             # R_HOME environment variable, an error will occur here
             from core.models.RTableExecutor import RTableSourceExecutor, RTableExecutor
-
+            from core.models.RSerializeExecutor import RSerializeSourceExecutor, RSerializeExecutor
+            # if is_source:
+            #     self.executor = RTableSourceExecutor(code)
+            # else:
+            #     self.executor = RTableExecutor(code)
             if is_source:
-                self.executor = RTableSourceExecutor(code)
+                self.executor = RSerializeSourceExecutor(code)
             else:
-                self.executor = RTableExecutor(code)
+                self.executor = RSerializeExecutor(code)
         else:
             executor: type(Operator) = self.load_executor_definition(code)
             self.executor = executor()
