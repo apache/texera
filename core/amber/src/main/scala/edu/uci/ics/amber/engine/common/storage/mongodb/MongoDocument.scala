@@ -29,22 +29,32 @@ class MongoDocument[T >: Null <: AnyRef](
     new MongoDBBufferedItemWriter[T](commitBatchSize, id, toDocument)
   }
 
-  private[this] def mkTIterable(cursor: MongoCursor[Document]): Iterable[T] = {
+  private[this] def mkTIterator(cursor: MongoCursor[Document]): Iterator[T] = {
     new Iterator[T] {
       override def hasNext: Boolean = cursor.hasNext
 
       override def next(): T = fromDocument(cursor.next())
-    }.iterator.to(Iterable)
+    }.iterator
   }
 
   override def get(): Iterator[T] = {
     val cursor = collectionMgr.accessDocuments.sort(Sorts.ascending("_id")).cursor()
-    mkTIterable(cursor).iterator
+    mkTIterator(cursor)
   }
 
-  override def getAll(): Iterable[T] = {
-    val cursor = collectionMgr.accessDocuments.sort(Sorts.ascending("_id")).cursor()
-    mkTIterable(cursor)
+  override def getRange(from: Int, until: Int): Iterator[T] = {
+    val cursor =
+      collectionMgr.accessDocuments
+        .sort(Sorts.ascending("_id"))
+        .limit(until - from)
+        .skip(from)
+        .cursor()
+    mkTIterator(cursor)
+  }
+
+  override def getAfter(offset: Int): Iterator[T] = {
+    val cursor = collectionMgr.accessDocuments.sort(Sorts.ascending("_id")).skip(offset).cursor()
+    mkTIterator(cursor)
   }
 
   override def getItem(i: Int): T = {
@@ -59,5 +69,9 @@ class MongoDocument[T >: Null <: AnyRef](
       throw new RuntimeException(f"Index $i out of bounds")
     }
     fromDocument(cursor.next())
+  }
+
+  override def getCount: Long = {
+    collectionMgr.getCount
   }
 }

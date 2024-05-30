@@ -17,9 +17,9 @@ class MemoryDocument[T >: Null <: AnyRef] extends VirtualDocument[T] with Buffer
       results.clear()
     }
 
-  override def getAll(): Iterable[T] =
+  override def get(): Iterator[T] =
     synchronized {
-      results
+      results.to(Iterator)
     }
 
   override def getItem(i: Int): T =

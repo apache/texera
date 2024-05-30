@@ -9,6 +9,8 @@ import org.bson.Document
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
+import scala.collection.mutable.ListBuffer
+
 class MongoDocumentSpec extends AnyFlatSpec with BeforeAndAfter {
 
   var mongoDocumentForTuple: MongoDocument[Tuple] = _
@@ -52,9 +54,56 @@ class MongoDocumentSpec extends AnyFlatSpec with BeforeAndAfter {
     writer.close()
 
     // now verify by reading them out
-    val tuples = mongoDocumentForTuple.getAll()
+    val tuples = mongoDocumentForTuple.get().to(Iterable)
 
     // check if tuples have inputTuple1 and inputTuple2
-    assert(tuples.toList.toSet == Set(inputTuple1, inputTuple2))
+    assert(tuples.toList == List(inputTuple1, inputTuple2))
+  }
+
+  it should "fetch the correct tuples with order" in {
+    val tupleBuffer: ListBuffer[Tuple] = ListBuffer()
+    val numOfTuples = 1000
+    val tuplesStartIdx = 200
+    val tuplesEndIdx = 500
+    val tupleIndexOffset = 25
+
+    for (i <- 0 until numOfTuples) {
+      tupleBuffer += Tuple
+        .builder(inputSchema)
+        .add(integerAttribute, i)
+        .add(stringAttribute, f"string-attr$i")
+        .add(boolAttribute, i % 2 == 0)
+        .build()
+    }
+
+    val writer: BufferedItemWriter[Tuple] = mongoDocumentForTuple.write()
+    writer.open()
+    for (i <- 0 until numOfTuples) {
+      writer.putOne(tupleBuffer.apply(i))
+    }
+
+    for (i <- 0 until tuplesStartIdx) {
+      writer.removeOne(tupleBuffer.apply(i))
+    }
+
+    for (i <- tuplesEndIdx until numOfTuples) {
+      writer.removeOne(tupleBuffer.apply(i))
+    }
+
+    writer.close()
+
+    assert(mongoDocumentForTuple.getCount == tuplesEndIdx - tuplesStartIdx)
+    assert(
+      mongoDocumentForTuple.get().toList == tupleBuffer.toList.slice(tuplesStartIdx, tuplesEndIdx)
+    )
+    assert(
+      mongoDocumentForTuple.getAfter(tupleIndexOffset).toList == tupleBuffer.toList
+        .slice(tuplesStartIdx + tupleIndexOffset, tuplesEndIdx)
+    )
+    assert(
+      mongoDocumentForTuple
+        .getRange(tupleIndexOffset, tuplesEndIdx - tuplesStartIdx)
+        .toList == tupleBuffer.toList.slice(tuplesStartIdx + tupleIndexOffset, tuplesEndIdx)
+    )
   }
 }

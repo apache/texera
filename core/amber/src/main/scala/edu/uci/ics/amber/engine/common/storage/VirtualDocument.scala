@@ -31,7 +31,13 @@ abstract class VirtualDocument[T >: Null <: AnyRef] {
     */
   def get(): Iterator[T] = throw new NotImplementedError("get method is not implemented")
 
-  def getAll(): Iterable[T] = throw new NotImplementedError("getAll method is not implemented")
+  def getRange(from: Int, to: Int): Iterator[T] =
+    throw new NotImplementedError("getRange method is not implemented")
+
+  def getAfter(offset: Int): Iterator[T] =
+    throw new NotImplementedError("getAfter method is not implemented")
+
+  def getCount: Long = throw new NotImplementedError("getCount method is not implemented")
 
   /**
     * set ith item
