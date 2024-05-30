@@ -31,12 +31,17 @@ abstract class VirtualDocument[T >: Null <: AnyRef] {
     */
   def get(): Iterator[T] = throw new NotImplementedError("get method is not implemented")
 
+  def getAll(): Iterable[T] = throw new NotImplementedError("getAll method is not implemented")
+
   /**
     * set ith item
     * @param item the data item
     */
   def setItem(i: Int, item: T): Unit =
     throw new NotImplementedError("setItem method is not implemented")
+
+  def write(): BufferedItemWriter[T] =
+    throw new NotImplementedError("write method is not implemented")
 
   /**
     * append one data item to the document
