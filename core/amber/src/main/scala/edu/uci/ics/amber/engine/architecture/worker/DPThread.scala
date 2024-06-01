@@ -178,7 +178,7 @@ class DPThread(
         logManager.withFaultTolerant(channelId, msgToLog) {
           msgOpt match {
             case None =>
-              dp.continueDataProcessing()
+              dp.continueDataProcessing(logManager)
             case Some(msg) =>
               msg.payload match {
                 case payload: ControlPayload =>

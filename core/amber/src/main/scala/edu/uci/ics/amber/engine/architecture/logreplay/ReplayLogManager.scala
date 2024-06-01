@@ -6,11 +6,13 @@ import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage.SequentialRecordWriter
 import edu.uci.ics.amber.engine.common.storage.{EmptyRecordStorage, SequentialRecordStorage}
 import edu.uci.ics.amber.engine.common.virtualidentity.{ChannelIdentity, ChannelMarkerIdentity}
+import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 
 //In-mem formats:
 sealed trait ReplayLogRecord
 
 case class MessageContent(message: WorkflowFIFOMessage) extends ReplayLogRecord
+case class OutputRecord(portIdOpt: Option[PortIdentity]) extends ReplayLogRecord
 case class ProcessingStep(channelId: ChannelIdentity, step: Long) extends ReplayLogRecord
 case class ReplayDestination(id: ChannelMarkerIdentity) extends ReplayLogRecord
 case object TerminateSignal extends ReplayLogRecord
@@ -44,6 +46,8 @@ trait ReplayLogManager {
 
   def getStep: Long = cursor.getStep
 
+  def getLogger:ReplayLogger
+
   def markAsReplayDestination(id: ChannelMarkerIdentity): Unit
 
   def withFaultTolerant(
@@ -76,6 +80,8 @@ class EmptyReplayLogManagerImpl(
   override def terminate(): Unit = {}
 
   override def markAsReplayDestination(id: ChannelMarkerIdentity): Unit = {}
+
+  def getLogger:ReplayLogger = new EmptyReplayLogger()
 }
 
 class ReplayLogManagerImpl(handler: Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit)
@@ -84,6 +90,8 @@ class ReplayLogManagerImpl(handler: Either[MainThreadDelegateMessage, WorkflowFI
   private val replayLogger = new ReplayLoggerImpl()
 
   private var writer: AsyncReplayLogWriter = _
+
+  def getLogger:ReplayLogger = replayLogger
 
   override def withFaultTolerant(
       channelId: ChannelIdentity,

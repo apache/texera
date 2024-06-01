@@ -161,12 +161,21 @@ class WorkflowService(
       convertToJson(req.engineVersion)
     )
 
+    if (AmberConfig.faultToleranceLogRootFolder.isDefined) {
+      val writeLocation = AmberConfig.faultToleranceLogRootFolder.get.resolve(
+        s"${workflowContext.workflowId}/${workflowContext.executionId}/"
+      )
+      controllerConf = controllerConf.copy(faultToleranceConfOpt =
+        Some(FaultToleranceConfig(writeTo = writeLocation))
+      )
+    }
+
     if (AmberConfig.isUserSystemEnabled) {
       // enable only if we have mysql
+      val writeLocation = AmberConfig.faultToleranceLogRootFolder.get.resolve(
+        s"${workflowContext.workflowId}/${workflowContext.executionId}/"
+      )
       if (AmberConfig.faultToleranceLogRootFolder.isDefined) {
-        val writeLocation = AmberConfig.faultToleranceLogRootFolder.get.resolve(
-          s"${workflowContext.workflowId}/${workflowContext.executionId}/"
-        )
         ExecutionsMetadataPersistService.tryUpdateExistingExecution(workflowContext.executionId) {
           execution => execution.setLogLocation(writeLocation.toString)
         }

@@ -7,21 +7,14 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PortComp
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerStateUpdatedHandler.WorkerStateUpdated
 import edu.uci.ics.amber.engine.architecture.logreplay.ReplayLogManager
-import edu.uci.ics.amber.engine.architecture.messaginglayer.{
-  InputManager,
-  OutputManager,
-  WorkerTimerService
-}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.{InputManager, OutputManager, WorkerTimerService}
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessor.{FinalizeExecutor, FinalizePort}
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import edu.uci.ics.amber.engine.architecture.worker.managers.SerializationManager
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
-import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
-  COMPLETED,
-  READY,
-  RUNNING
-}
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{COMPLETED, READY, RUNNING}
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
+import edu.uci.ics.amber.engine.common.SourceOperatorExecutor
 import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.tuple.amber.{SchemaEnforceable, SpecialTupleLike, TupleLike}
@@ -81,8 +74,9 @@ class DataProcessor(
     */
   private[this] def processInputTuple(tuple: Tuple): Unit = {
     try {
-      val portIdentity: PortIdentity =
+      val portIdentity: PortIdentity = {
         this.inputGateway.getChannel(inputManager.currentChannelId).getPortId
+      }
       outputManager.outputIterator.setTupleOutput(
         executor.processTupleMultiPort(
           tuple,
@@ -120,7 +114,7 @@ class DataProcessor(
   /** transfer one tuple from iterator to downstream.
     * this function is only called by the DP thread
     */
-  private[this] def outputOneTuple(): Unit = {
+  private[this] def outputOneTuple(logManager: ReplayLogManager): Unit = {
     adaptiveBatchingMonitor.startAdaptiveBatching()
     var out: (TupleLike, Option[PortIdentity]) = null
     try {
@@ -161,16 +155,19 @@ class DataProcessor(
         } else {
           statisticsManager.increaseOutputTupleCount(outputPortOpt.get)
         }
+        if(!executor.isInstanceOf[SourceOperatorExecutor]){
+          logManager.getLogger.writeOutputLog(outputPortOpt)
+        }
         outputManager.passTupleToDownstream(schemaEnforceable, outputPortOpt)
 
       case other => // skip for now
     }
   }
 
-  def continueDataProcessing(): Unit = {
+  def continueDataProcessing(logManager:ReplayLogManager): Unit = {
     val dataProcessingStartTime = System.nanoTime()
     if (outputManager.hasUnfinishedOutput) {
-      outputOneTuple()
+      outputOneTuple(logManager)
     } else {
       processInputTuple(inputManager.getNextTuple)
     }

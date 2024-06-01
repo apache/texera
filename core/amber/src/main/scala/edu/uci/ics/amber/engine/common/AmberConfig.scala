@@ -32,7 +32,7 @@ object AmberConfig {
   val loggingQueueSizeInterval: Int = getConfSource.getInt("constants.logging-queue-size-interval")
   val MAX_RESOLUTION_ROWS: Int = getConfSource.getInt("constants.max-resolution-rows")
   val MAX_RESOLUTION_COLUMNS: Int = getConfSource.getInt("constants.max-resolution-columns")
-  val numWorkerPerOperatorByDefault: Int = getConfSource.getInt("constants.num-worker-per-operator")
+  def numWorkerPerOperatorByDefault: Int = getConfSource.getInt("constants.num-worker-per-operator")
   val getStatusUpdateIntervalInMs: Long = getConfSource.getLong("constants.status-update-interval")
 
   // Flow control related configuration
@@ -57,7 +57,7 @@ object AmberConfig {
   // Fault tolerance configuration
   val faultToleranceLogFlushIntervalInMs: Long =
     getConfSource.getLong("fault-tolerance.log-flush-interval-ms")
-  val faultToleranceLogRootFolder: Option[URI] = {
+  def faultToleranceLogRootFolder: Option[URI] = {
     var locationStr = getConfSource.getString("fault-tolerance.log-storage-uri").trim
     if (locationStr.isEmpty) {
       None
@@ -70,7 +70,7 @@ object AmberConfig {
       Some(new URI(locationStr))
     }
   }
-  val isFaultToleranceEnabled: Boolean = faultToleranceLogRootFolder.nonEmpty
+  def isFaultToleranceEnabled: Boolean = faultToleranceLogRootFolder.nonEmpty
 
   // Region plan generator
   val enableCostBasedRegionPlanGenerator: Boolean =

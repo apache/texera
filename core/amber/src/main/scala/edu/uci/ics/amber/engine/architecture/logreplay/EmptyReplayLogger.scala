@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.logreplay
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.virtualidentity.{ChannelIdentity, ChannelMarkerIdentity}
+import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 
 class EmptyReplayLogger extends ReplayLogger {
 
@@ -15,4 +16,5 @@ class EmptyReplayLogger extends ReplayLogger {
       channelId: ChannelIdentity,
       msg: Option[WorkflowFIFOMessage]
   ): Unit = {}
+  override def writeOutputLog(portIdOpt: Option[PortIdentity]): Unit = {}
 }

@@ -23,6 +23,13 @@ object ExecutionsMetadataPersistService extends LazyLogging {
     context.configuration
   )
 
+  private var executionId = 0
+
+  def getAndIncrementEID(): Int = {
+    executionId += 1
+    executionId
+  }
+
   /**
     * This method inserts a new entry of a workflow execution in the database and returns the generated eId
     *
@@ -37,7 +44,7 @@ object ExecutionsMetadataPersistService extends LazyLogging {
       executionName: String,
       environmentVersion: String
   ): ExecutionIdentity = {
-    if (!AmberConfig.isUserSystemEnabled) return DEFAULT_EXECUTION_ID
+    if (!AmberConfig.isUserSystemEnabled) return ExecutionIdentity(getAndIncrementEID())
     // first retrieve the latest version of this workflow
     val vid = getLatestVersion(UInteger.valueOf(workflowId.id))
     val newExecution = new WorkflowExecutions()
