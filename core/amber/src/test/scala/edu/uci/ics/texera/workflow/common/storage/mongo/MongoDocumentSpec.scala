@@ -25,7 +25,7 @@ class MongoDocumentSpec extends AnyFlatSpec with BeforeAndAfter {
   val id: String = "testID"
 
   before {
-    val tupleFromDocument: Document => Tuple = fromDocument(Seq(inputSchema))
+    val tupleFromDocument: Document => Tuple = fromDocument(inputSchema)
     mongoDocumentForTuple = new MongoDocument[Tuple](id, Tuple.toDocument, tupleFromDocument)
   }
 

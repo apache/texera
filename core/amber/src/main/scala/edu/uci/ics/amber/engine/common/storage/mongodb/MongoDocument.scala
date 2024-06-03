@@ -3,7 +3,6 @@ package edu.uci.ics.amber.engine.common.storage.mongodb
 import com.mongodb.client.MongoCursor
 import com.mongodb.client.model.Sorts
 import edu.uci.ics.amber.engine.common.AmberConfig
-import edu.uci.ics.amber.engine.common.storage.mongodb.MongoDBStorable.ToDocument
 import edu.uci.ics.amber.engine.common.storage.{BufferedItemWriter, VirtualDocument}
 import edu.uci.ics.texera.web.storage.{MongoCollectionManager, MongoDatabaseManager}
 import org.bson.Document
@@ -12,7 +11,7 @@ import java.net.URI
 
 class MongoDocument[T >: Null <: AnyRef](
     id: String,
-    toDocument: ToDocument,
+    toDocument: T => Document,
     fromDocument: Document => T
 ) extends VirtualDocument[T] {
 

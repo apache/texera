@@ -1,15 +1,15 @@
 package edu.uci.ics.amber.engine.common.storage.mongodb
 
 import edu.uci.ics.amber.engine.common.storage.BufferedItemWriter
-import edu.uci.ics.amber.engine.common.storage.mongodb.MongoDBStorable.ToDocument
 import edu.uci.ics.texera.web.storage.{MongoCollectionManager, MongoDatabaseManager}
+import org.bson.Document
 
 import scala.collection.mutable
 
 class MongoDBBufferedItemWriter[T >: Null <: AnyRef](
     _bufferSize: Int,
     id: String,
-    toDocument: ToDocument
+    toDocument: T => Document
 ) extends BufferedItemWriter[T] {
   override val bufferSize: Int = _bufferSize
 

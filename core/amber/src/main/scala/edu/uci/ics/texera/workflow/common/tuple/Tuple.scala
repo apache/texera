@@ -4,8 +4,6 @@ import com.fasterxml.jackson.annotation.{JsonCreator, JsonIgnore, JsonProperty}
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.databind.JsonNode
 import com.google.common.base.Preconditions.checkNotNull
-import edu.uci.ics.amber.engine.common.storage.mongodb.MongoDBStorable
-import edu.uci.ics.amber.engine.common.storage.mongodb.MongoDBStorable.ToDocument
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.engine.common.tuple.amber.SeqTupleLike
 import edu.uci.ics.texera.Utils
@@ -110,8 +108,7 @@ case class Tuple @JsonCreator() (
 }
 
 object Tuple {
-  val toDocument: ToDocument = (input: Any) => {
-    val tuple = input.asInstanceOf[Tuple]
+  val toDocument: Tuple => Document = (tuple: Tuple) => {
     val doc = new Document()
     tuple.schema.getAttributeNames.foreach { attrName =>
       doc.put(attrName, tuple.getField(attrName))
@@ -119,9 +116,8 @@ object Tuple {
     doc
   }
 
-  val fromDocument: Seq[Any] => Document => Tuple = (params: Seq[Any]) =>
+  val fromDocument: Schema => Document => Tuple = (schema: Schema) =>
     (doc: Document) => {
-      val schema = params.head.asInstanceOf[Schema]
       document2Tuple(doc, schema)
     }
 
