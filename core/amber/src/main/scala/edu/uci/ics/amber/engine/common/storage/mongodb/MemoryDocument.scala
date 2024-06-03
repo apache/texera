@@ -28,9 +28,9 @@ class MemoryDocument[T >: Null <: AnyRef] extends VirtualDocument[T] with Buffer
       results.apply(i)
     }
 
-  override def getRange(from: Int, to: Int): Iterator[T] =
+  override def getRange(from: Int, until: Int): Iterator[T] =
     synchronized {
-      results.slice(from, to).to(Iterator)
+      results.slice(from, until).to(Iterator)
     }
 
   override def getAfter(offset: Int): Iterator[T] =
