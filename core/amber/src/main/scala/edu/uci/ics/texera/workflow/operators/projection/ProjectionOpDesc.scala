@@ -1,6 +1,8 @@
 package edu.uci.ics.texera.workflow.operators.projection
 
+import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp.oneToOnePhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
@@ -9,48 +11,38 @@ import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.common.metadata._
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
-import edu.uci.ics.texera.workflow.common.workflow.{
-  BroadcastPartition,
-  HashPartition,
-  PartitionInfo,
-  RangePartition,
-  SinglePartition,
-  UnknownPartition
-}
+import edu.uci.ics.texera.workflow.common.workflow.{BroadcastPartition, HashPartition, PartitionInfo, RangePartition, SinglePartition, UnknownPartition}
+
 
 class ProjectionOpDesc extends MapOpDesc {
+
+  @JsonProperty(required = true)
+  @JsonSchemaTitle("Drop Or Keep The Selected Attributes")
+  @JsonPropertyDescription("Choose to drop or keep the selected attributes")
+  var dropOption: DropOption = DropOption.keep
 
   var attributes: List[AttributeUnit] = List()
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
-  ): PhysicalOp = {
+  ):
+    PhysicalOp = {
     oneToOnePhysicalOp(
       workflowId,
       executionId,
       operatorIdentifier,
-      OpExecInitInfo((_, _) => new ProjectionOpExec(attributes))
+      OpExecInitInfo((_, _) => new ProjectionOpExec(attributes, dropOption))
     )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withDerivePartition(derivePartition())
       .withPropagateSchema(SchemaPropagationFunc(inputSchemas => {
-        if (attributes == null) attributes = List()
-        val inputSchema = inputSchemas(operatorInfo.inputPorts.head.id)
-        val outputSchema = Schema
-          .builder()
-          .add(
-            attributes
-              .map(attribute =>
-                new Attribute(
-                  attribute.getAlias,
-                  inputSchema.getAttribute(attribute.getOriginalAttribute).getType
-                )
-              )
+        Map(
+          operatorInfo.outputPorts.head.id -> getOutputSchema(
+            Array(inputSchemas(operatorInfo.inputPorts.head.id))
           )
-          .build()
-        Map(operatorInfo.outputPorts.head.id -> outputSchema)
+        )
       }))
   }
 
@@ -74,7 +66,7 @@ class ProjectionOpDesc extends MapOpDesc {
   override def operatorInfo: OperatorInfo = {
     OperatorInfo(
       "Projection",
-      "Keeps the column",
+      "Keeps or drops the column",
       OperatorGroupConstants.CLEANING_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
@@ -84,14 +76,26 @@ class ProjectionOpDesc extends MapOpDesc {
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Preconditions.checkArgument(schemas.length == 1)
     Preconditions.checkArgument(attributes.nonEmpty)
+    if (dropOption == DropOption.keep) {
+      Schema
+        .builder()
+        .add(attributes.map { attribute =>
+          val originalType = schemas.head.getAttribute(attribute.getOriginalAttribute).getType
+          new Attribute(attribute.getAlias, originalType)
+        })
+        .build()
+    }
+    else{
+      val outputSchemaBuilder= Schema.builder()
+      val inputSchema = schemas(0)
+      outputSchemaBuilder.add(inputSchema)
+      for (attribute <- attributes) {
+        outputSchemaBuilder.removeIfExists(attribute.getOriginalAttribute)
+      }
+      outputSchemaBuilder.build()
 
-    Schema
-      .builder()
-      .add(attributes.map { attribute =>
-        val originalType = schemas.head.getAttribute(attribute.getOriginalAttribute).getType
-        new Attribute(attribute.getAlias, originalType)
-      })
-      .build()
+
+    }
 
   }
 }
