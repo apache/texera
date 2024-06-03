@@ -1,12 +1,13 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.DPInputQueueElement
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
+  DPInputQueueElement,
+  MainThreadDelegateMessage
+}
 import edu.uci.ics.amber.engine.architecture.logreplay.ReplayLogManager
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{READY, UNINITIALIZED}
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.actormessage.{ActorCommand, Backpressure}
-import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.{
   ChannelMarkerPayload,
   ControlPayload,
@@ -14,7 +15,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.{
   WorkflowFIFOMessage
 }
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
-import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
+import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
 import edu.uci.ics.amber.error.ErrorUtils.safely
 
 import java.util.concurrent.{
@@ -85,10 +86,10 @@ class DPThread(
               logger.info("DP Thread exits")
             case err: Throwable =>
               logger.error("DP Thread exists unexpectedly", err)
-              dp.asyncRPCClient.send(
-                FatalError(new WorkflowRuntimeException("DP Thread exists unexpectedly", err)),
-                CONTROLLER
-              )
+              dp.outputHandler(Left(MainThreadDelegateMessage((worker) => {
+                // notify main thread
+                throw err
+              })))
           }
           dp.statisticsManager.updateTotalExecutionTime(System.nanoTime())
           endFuture.complete(())

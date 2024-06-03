@@ -11,10 +11,7 @@ import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.Replay
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.WorkerDebugCommandHandler.WorkerDebugCommand
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
 import edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.Value.Empty
-import edu.uci.ics.amber.engine.architecture.worker.controlreturns.{
-  ControlException,
-  ControlReturnV2
-}
+import edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddInputChannelHandler.AddInputChannel
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AssignPortHandler.AssignPort
@@ -25,7 +22,9 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatist
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ResumeHandler.ResumeWorker
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerMetrics
+import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 
 object ControlCommandConvertUtils {
@@ -52,8 +51,10 @@ object ControlCommandConvertUtils {
       case QueryCurrentInputTuple() =>
         QueryCurrentInputTupleV2()
       case InitializeExecutor(_, opExecInitInfo, isSource) =>
+        val (code, language) = opExecInitInfo.asInstanceOf[OpExecInitInfoWithCode].codeGen(0, 0)
         InitializeExecutorV2(
-          opExecInitInfo.asInstanceOf[OpExecInitInfoWithCode].codeGen(0, 0)._1,
+          code,
+          language,
           isSource
         )
       case ReplayCurrentTuple() =>
@@ -89,13 +90,15 @@ object ControlCommandConvertUtils {
   }
 
   def controlReturnToV1(
+      actorId: ActorVirtualIdentity,
       controlReturnV2: ControlReturnV2
   ): Any = {
     controlReturnV2.value match {
       case Empty                                          => ()
       case _: ControlReturnV2.Value.CurrentInputTupleInfo => null
-      case exp: ControlReturnV2.Value.ControlException    => ControlException(exp.value.msg)
-      case _                                              => controlReturnV2.value.value
+      case exp: ControlReturnV2.Value.ControlException =>
+        new WorkflowRuntimeException(exp.value.msg, Some(actorId))
+      case _ => controlReturnV2.value.value
     }
   }
 

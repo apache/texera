@@ -91,6 +91,16 @@ jobs:
     steps:
       - name: Checkout Texera
         uses: actions/checkout@v2
+      - name: Set up R for R-UDF
+        uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: '4.3.3'
+      - name: Install R dependencies for R-UDF
+        run: |
+          Rscript -e 'install.packages("dplyr", repos = "http://cran.rstudio.com/")'
+          Rscript -e 'install.packages("arrow", version = "14.0.0.1", repos = "http://cran.rstudio.com/")'
+          Rscript -e 'install.packages("reticulate", version = "1.36.1", repos = "http://cran.rstudio.com/")'
+
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
         with:

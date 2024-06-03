@@ -76,6 +76,7 @@ class GanttChartOpDesc extends VisualizationOperator with PythonOperatorDescript
     s"""
         |        fig = px.timeline(table, x_start='$start', x_end='$finish', y='$task' $colorSetting)
         |        fig.update_yaxes(autorange='reversed')
+        |        fig.update_layout(margin=dict(t=0, b=0, l=0, r=0))
         |""".stripMargin
 
   }
