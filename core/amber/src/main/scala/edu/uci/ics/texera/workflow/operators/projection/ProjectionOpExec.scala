@@ -7,13 +7,16 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 import scala.collection.mutable
 
-class ProjectionOpExec(attributeUnits: List[AttributeUnit],dropOption: DropOption) extends MapOpExec {
+class ProjectionOpExec(
+    attributeUnits: List[AttributeUnit],
+    dropOption: DropOption = DropOption.keep
+) extends MapOpExec {
 
   setMapFunc(project)
   def project(tuple: Tuple): TupleLike = {
     Preconditions.checkArgument(attributeUnits.nonEmpty)
     val fields = mutable.LinkedHashMap[String, Any]()
-    if (dropOption == DropOption.drop){
+    if (dropOption == DropOption.drop) {
       val allAttribute = tuple.schema.getAttributeNames
       val selectedAttributes = attributeUnits.map(_.getAlias)
       val keepAttributes = allAttribute.diff(selectedAttributes)
@@ -27,10 +30,7 @@ class ProjectionOpExec(attributeUnits: List[AttributeUnit],dropOption: DropOptio
 
       TupleLike(fields.toSeq: _*)
 
-    }
-
-    else
-    {
+    } else {
       attributeUnits.foreach { attributeUnit =>
         val alias = attributeUnit.getAlias
         if (fields.contains(alias)) {

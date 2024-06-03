@@ -11,8 +11,14 @@ import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.common.metadata._
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
-import edu.uci.ics.texera.workflow.common.workflow.{BroadcastPartition, HashPartition, PartitionInfo, RangePartition, SinglePartition, UnknownPartition}
-
+import edu.uci.ics.texera.workflow.common.workflow.{
+  BroadcastPartition,
+  HashPartition,
+  PartitionInfo,
+  RangePartition,
+  SinglePartition,
+  UnknownPartition
+}
 
 class ProjectionOpDesc extends MapOpDesc {
 
@@ -26,8 +32,7 @@ class ProjectionOpDesc extends MapOpDesc {
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
-  ):
-    PhysicalOp = {
+  ): PhysicalOp = {
     oneToOnePhysicalOp(
       workflowId,
       executionId,
@@ -84,16 +89,14 @@ class ProjectionOpDesc extends MapOpDesc {
           new Attribute(attribute.getAlias, originalType)
         })
         .build()
-    }
-    else{
-      val outputSchemaBuilder= Schema.builder()
+    } else {
+      val outputSchemaBuilder = Schema.builder()
       val inputSchema = schemas(0)
       outputSchemaBuilder.add(inputSchema)
       for (attribute <- attributes) {
         outputSchemaBuilder.removeIfExists(attribute.getOriginalAttribute)
       }
       outputSchemaBuilder.build()
-
 
     }
 
