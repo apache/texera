@@ -1,7 +1,7 @@
-package edu.uci.ics.texera.workflow.common.storage.mongo
+package edu.uci.ics.texera.workflow.common.storage
 
 import edu.uci.ics.amber.engine.common.storage.BufferedItemWriter
-import edu.uci.ics.amber.engine.common.storage.mongodb.{MemoryDocument, MongoDocument}
+import edu.uci.ics.amber.engine.common.storage.mongodb.MemoryDocument
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalatest.BeforeAndAfter
