@@ -44,6 +44,8 @@ import edu.uci.ics.texera.workflow.operators.machineLearning.sklearnAdvanced.KNN
   SklearnAdvancedKNNClassifierTrainerOpDesc,
   SklearnAdvancedKNNRegressorTrainerOpDesc
 }
+import edu.uci.ics.texera.workflow.operators.machineLearning.sklearnAdvanced.SVCTrainer.SklearnAdvancedSVCTrainerOpDesc
+import edu.uci.ics.texera.workflow.operators.machineLearning.sklearnAdvanced.SVRTrainer.SVCTrainer.SklearnAdvancedSVRTrainerOpDesc
 import edu.uci.ics.texera.workflow.operators.projection.ProjectionOpDesc
 import edu.uci.ics.texera.workflow.operators.randomksampling.RandomKSamplingOpDesc
 import edu.uci.ics.texera.workflow.operators.regex.RegexOpDesc
@@ -291,6 +293,14 @@ trait StateTransferFunc
     new Type(
       value = classOf[SklearnAdvancedKNNRegressorTrainerOpDesc],
       name = "KNNRegressorTrainer"
+    ),
+    new Type(
+      value = classOf[SklearnAdvancedSVCTrainerOpDesc],
+      name = "SVCTrainer"
+    ),
+    new Type(
+      value = classOf[SklearnAdvancedSVRTrainerOpDesc],
+      name = "SVRTrainer"
     )
   )
 )
