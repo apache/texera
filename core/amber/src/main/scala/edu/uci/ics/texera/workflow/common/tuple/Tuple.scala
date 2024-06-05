@@ -8,6 +8,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType
 import edu.uci.ics.amber.engine.common.tuple.amber.SeqTupleLike
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.workflow.common.tuple.Tuple.checkSchemaMatchesFields
+import edu.uci.ics.texera.workflow.common.tuple.TupleUtils.document2Tuple
 import edu.uci.ics.texera.workflow.common.tuple.exception.TupleBuildingException
 import org.bson.Document
 import org.ehcache.sizeof.SizeOf
@@ -107,6 +108,18 @@ case class Tuple @JsonCreator() (
 }
 
 object Tuple {
+  val toDocument: Tuple => Document = (tuple: Tuple) => {
+    val doc = new Document()
+    tuple.schema.getAttributeNames.foreach { attrName =>
+      doc.put(attrName, tuple.getField(attrName))
+    }
+    doc
+  }
+
+  val fromDocument: Schema => Document => Tuple = (schema: Schema) =>
+    (doc: Document) => {
+      document2Tuple(doc, schema)
+    }
 
   /**
     * Validates that the provided attributes match the provided fields in type and order.
