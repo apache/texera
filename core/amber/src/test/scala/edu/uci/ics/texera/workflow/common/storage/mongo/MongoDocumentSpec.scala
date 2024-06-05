@@ -101,5 +101,5 @@ class MongoDocumentSpec extends AnyFlatSpec with BeforeAndAfter {
         .toList == tupleBuffer.toList.slice(tuplesStartIdx + tupleIndexOffset, tuplesEndIdx)
     )
   }
-  */
+   */
 }
