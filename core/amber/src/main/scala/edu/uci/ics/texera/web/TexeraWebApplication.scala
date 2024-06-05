@@ -44,7 +44,6 @@ import edu.uci.ics.texera.web.resource.dashboard.user.project.{
 }
 import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource
 import edu.uci.ics.texera.web.resource.dashboard.user.discussion.UserDiscussionResource
-import edu.uci.ics.texera.web.resource.dashboard.user.environment.EnvironmentResource
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.{
   WorkflowAccessResource,
   WorkflowExecutionsResource,
@@ -254,7 +253,6 @@ class TexeraWebApplication
     environment.jersey.register(classOf[WorkflowVersionResource])
     environment.jersey.register(classOf[DatasetResource])
     environment.jersey.register(classOf[DatasetAccessResource])
-    environment.jersey.register(classOf[EnvironmentResource])
     environment.jersey.register(classOf[ProjectResource])
     environment.jersey.register(classOf[ProjectAccessResource])
     environment.jersey.register(classOf[WorkflowExecutionsResource])

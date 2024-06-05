@@ -4,11 +4,11 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { debounceTime } from "rxjs/operators";
 import { map } from "rxjs";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
-import { EnvironmentService } from "../../../dashboard/service/user/environment/environment.service";
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { FileSelectionComponent } from "../file-selection/file-selection.component";
 import { environment } from "../../../../environments/environment";
+import {DatasetService} from "../../../dashboard/user/service/user-dataset/dataset.service";
 
 @UntilDestroy()
 @Component({
@@ -22,45 +22,34 @@ export class InputAutoCompleteComponent extends FieldType<FieldTypeConfig> {
 
   constructor(
     private modalService: NzModalService,
-    public environmentService: EnvironmentService,
     public workflowActionService: WorkflowActionService,
-    public workflowPersistService: WorkflowPersistService
+    public workflowPersistService: WorkflowPersistService,
+    public datasetService: DatasetService
   ) {
     super();
   }
 
   onClickOpenFileSelectionModal(): void {
-    const wid = this.workflowActionService.getWorkflowMetadata()?.wid;
-    if (wid) {
-      this.workflowPersistService
-        .retrieveWorkflowEnvironment(wid)
-        .pipe(untilDestroyed(this))
-        .subscribe(env => {
-          // then we fetch the file list inorder to do the autocomplete, perform auto-complete based on the current input
-          const eid = env.eid;
-          if (eid) {
-            this.environmentService
-              .getDatasetsFileNodeList(eid)
-              .pipe(untilDestroyed(this))
-              .subscribe(fileNodes => {
-                const modal = this.modalService.create({
-                  nzTitle: "Please select one file from datasets",
-                  nzContent: FileSelectionComponent,
-                  nzFooter: null,
-                  nzData: {
-                    fileTreeNodes: fileNodes,
-                  },
-                });
-                // Handle the selection from the modal
-                modal.afterClose.pipe(untilDestroyed(this)).subscribe(result => {
-                  if (result) {
-                    this.formControl.setValue(result); // Assuming 'result' is the selected value
-                  }
-                });
-              });
+
+    this.datasetService
+      .retrieveAccessibleDatasets()
+      .pipe(untilDestroyed(this))
+      .subscribe(datasets => {
+        const modal = this.modalService.create({
+          nzTitle: "Please select one file from datasets",
+          nzContent: FileSelectionComponent,
+          nzFooter: null,
+          nzData: {
+            datasets: datasets,
+          },
+        });
+        // Handle the selection from the modal
+        modal.afterClose.pipe(untilDestroyed(this)).subscribe(result => {
+          if (result) {
+            this.formControl.setValue(result); // Assuming 'result' is the selected value
           }
         });
-    }
+      })
   }
 
   get isFileSelectionEnabled(): boolean {

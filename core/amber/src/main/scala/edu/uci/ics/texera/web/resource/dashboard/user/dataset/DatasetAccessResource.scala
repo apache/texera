@@ -6,8 +6,6 @@ import edu.uci.ics.texera.web.model.common.AccessEntry
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.USER
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowUserAccess.WORKFLOW_USER_ACCESS
-import edu.uci.ics.texera.web.model.jooq.generated.tables.EnvironmentOfWorkflow.ENVIRONMENT_OF_WORKFLOW
-import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetOfEnvironment.DATASET_OF_ENVIRONMENT
 import edu.uci.ics.texera.web.model.jooq.generated.enums.{
   DatasetUserAccessPrivilege,
   WorkflowUserAccessPrivilege
@@ -72,18 +70,8 @@ object DatasetAccessResource {
       did: UInteger,
       uid: UInteger
   ): Boolean = {
-    ctx
-      .select()
-      .from(WORKFLOW_USER_ACCESS)
-      .join(ENVIRONMENT_OF_WORKFLOW)
-      .on(ENVIRONMENT_OF_WORKFLOW.WID.eq(WORKFLOW_USER_ACCESS.WID))
-      .join(DATASET_OF_ENVIRONMENT)
-      .on(ENVIRONMENT_OF_WORKFLOW.EID.eq(DATASET_OF_ENVIRONMENT.EID))
-      .where(DATASET_OF_ENVIRONMENT.DID.eq(did))
-      .and(WORKFLOW_USER_ACCESS.UID.eq(uid))
-      .and(WORKFLOW_USER_ACCESS.PRIVILEGE.eq(WorkflowUserAccessPrivilege.WRITE))
-      .fetch()
-      .isNotEmpty
+    // TODO: fix this
+    false
   }
 
   def userHasWorkflowReadAccessThroughEnvironment(
@@ -91,21 +79,8 @@ object DatasetAccessResource {
       did: UInteger,
       uid: UInteger
   ): Boolean = {
-    ctx
-      .select()
-      .from(WORKFLOW_USER_ACCESS)
-      .join(ENVIRONMENT_OF_WORKFLOW)
-      .on(ENVIRONMENT_OF_WORKFLOW.WID.eq(WORKFLOW_USER_ACCESS.WID))
-      .join(DATASET_OF_ENVIRONMENT)
-      .on(ENVIRONMENT_OF_WORKFLOW.EID.eq(DATASET_OF_ENVIRONMENT.EID))
-      .where(DATASET_OF_ENVIRONMENT.DID.eq(did))
-      .and(WORKFLOW_USER_ACCESS.UID.eq(uid))
-      .and(
-        WORKFLOW_USER_ACCESS.PRIVILEGE
-          .in(WorkflowUserAccessPrivilege.READ, WorkflowUserAccessPrivilege.WRITE)
-      )
-      .fetch()
-      .isNotEmpty
+    // TODO: fix this
+    false
   }
 
   def getDatasetUserAccessPrivilege(

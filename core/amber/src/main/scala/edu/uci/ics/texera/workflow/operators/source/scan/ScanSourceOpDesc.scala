@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.common.workflow.OutputPort
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.DatasetFileDesc
-import edu.uci.ics.texera.web.resource.dashboard.user.environment.EnvironmentResource.getEnvironmentDatasetFilePathAndVersion
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
@@ -66,13 +65,9 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
     }
 
     if (getContext.userId.isDefined) {
-      val environmentEid = WorkflowResource.getEnvironmentEidOfWorkflow(
-        UInteger.valueOf(workflowContext.workflowId.id)
-      )
       // if user system is defined, a datasetFileDesc will be initialized, which is the handle of reading file from the dataset
-      datasetFileDesc = Some(
-        getEnvironmentDatasetFilePathAndVersion(getContext.userId.get, environmentEid, fileName.get)
-      )
+      // TODO: add a parser to parse the path
+      datasetFileDesc = None
     } else {
       // otherwise, the fileName will be inputted by user, which is the filePath.
       filePath = fileName

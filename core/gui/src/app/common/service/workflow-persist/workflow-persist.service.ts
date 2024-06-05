@@ -191,10 +191,4 @@ export class WorkflowPersistService {
   public retrieveWorkflowIDs(): Observable<number[]> {
     return this.http.get<number[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_ID_URL}`);
   }
-
-  public retrieveWorkflowEnvironment(wid: number): Observable<Environment> {
-    return this.http.get<Environment>(
-      `${AppSettings.getApiEndpoint()}/${WORKFLOW_BASE_URL}/${wid}/${WORKFLOW_ENVIRONMENT}`
-    );
-  }
 }
