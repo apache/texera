@@ -32,7 +32,7 @@ export class InputAutoCompleteComponent extends FieldType<FieldTypeConfig> {
   onClickOpenFileSelectionModal(): void {
 
     this.datasetService
-      .retrieveAccessibleDatasets()
+      .retrieveAccessibleDatasets(true)
       .pipe(untilDestroyed(this))
       .subscribe(datasets => {
         const modal = this.modalService.create({

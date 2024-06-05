@@ -1,5 +1,5 @@
 import { Injectable } from "@angular/core";
-import { HttpClient } from "@angular/common/http";
+import {HttpClient, HttpParams} from "@angular/common/http";
 import { map } from "rxjs/operators";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { Dataset, DatasetVersion } from "../../../../common/type/dataset";
@@ -73,8 +73,12 @@ export class DatasetService {
     );
   }
 
-  public retrieveAccessibleDatasets(): Observable<DashboardDataset[]> {
-    return this.http.get<DashboardDataset[]>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}`);
+  public retrieveAccessibleDatasets(includeVersions: boolean = false): Observable<DashboardDataset[]> {
+    let params = new HttpParams();
+    if(includeVersions) {
+      params = params.set('includeVersions', 'true')
+    }
+    return this.http.get<DashboardDataset[]>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}`, {params: params});
   }
 
   public createDatasetVersion(
@@ -97,7 +101,7 @@ export class DatasetService {
 
     return this.http
       .post<{
-        datasetVersion: DatasetVersion;
+        datasetVersion: Data\setVersion;
         fileNodes: FileNode[];
       }>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/version/create`, formData)
       .pipe(

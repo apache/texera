@@ -217,10 +217,11 @@ export function parseFileUploadItemToTreeNodes(fileUploadItems: FileUploadItem[]
 // datasetName is an optional parameter, when given, the datasetName should be the prefix of every parentDir
 export function parseFileNodesToTreeNodes(
   fileNodes: FileNode[],
-  datasetName: string = ""
+  datasetName: string = "",
+  versionName: string = "",
 ): DatasetVersionFileTreeNode[] {
   // Ensure datasetName is formatted correctly as a path prefix
-  const datasetPrefix = datasetName ? `/${datasetName}` : "";
+  let prefix = datasetName ? `/${datasetName}` : "";
 
   return fileNodes.map(fileNode => {
     // Split the path to work with its segments
@@ -230,7 +231,7 @@ export function parseFileNodesToTreeNodes(
     // Construct the parentDir
     // If there are remaining segments, join them as the path, prefixed by the datasetPrefix
     // Otherwise, use the datasetPrefix directly (or just "/" if datasetName is empty)
-    const parentDir = splitPath.length > 0 ? `${datasetPrefix}/${splitPath.join("/")}` : datasetPrefix || "/";
+    const parentDir = splitPath.length > 0 ? `${prefix}/${splitPath.join("/")}` : prefix || "/";
 
     // Define the new tree node
     const treeNode: DatasetVersionFileTreeNode = {
