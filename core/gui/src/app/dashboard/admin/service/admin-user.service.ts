@@ -2,7 +2,8 @@ import { HttpClient, HttpHeaders, HttpParams } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
 import { AppSettings } from "../../../common/app-setting";
-import { Dataset, Role, User, File, Workflow, MongoExecution } from "../../../common/type/user";
+import { Role, User, File, Workflow, MongoExecution } from "../../../common/type/user";
+import { DatasetQuota } from "src/app/common/type/datasetQuota";
 
 export const USER_BASE_URL = `${AppSettings.getApiEndpoint()}/admin/user`;
 export const USER_LIST_URL = `${USER_BASE_URL}/list`;
@@ -44,9 +45,9 @@ export class AdminUserService {
     return this.http.get<ReadonlyArray<File>>(`${USER_CREATED_FILES}`, { params: params });
   }
 
-  public getCreatedDatasets(uid: number): Observable<ReadonlyArray<Dataset>> {
+  public getCreatedDatasets(uid: number): Observable<ReadonlyArray<DatasetQuota>> {
     let params = new HttpParams().set("user_id", uid.toString());
-    return this.http.get<ReadonlyArray<Dataset>>(`${USER_CREATED_DATASETS}`, { params: params });
+    return this.http.get<ReadonlyArray<DatasetQuota>>(`${USER_CREATED_DATASETS}`, { params: params });
   }
 
   public getCreatedWorkflows(uid: number): Observable<ReadonlyArray<Workflow>> {

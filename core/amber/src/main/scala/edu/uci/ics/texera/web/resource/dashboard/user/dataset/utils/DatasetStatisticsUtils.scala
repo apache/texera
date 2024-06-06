@@ -2,7 +2,7 @@ package edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset.DATASET
-import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource.{Dataset}
+import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource.{DatasetQuota}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.PathUtils.DATASETS_ROOT
 import org.jooq.types.UInteger
 import scala.jdk.CollectionConverters._
@@ -24,7 +24,7 @@ object DatasetStatisticsUtils {
   }
 
   // this function would return a list of dataset ids that belongs to the user
-  private def getUserCreatedDatasetList(uid: UInteger): List[Dataset] = {
+  private def getUserCreatedDatasetList(uid: UInteger): List[DatasetQuota] = {
     val result = context
       .select(
         DATASET.DID,
@@ -37,7 +37,7 @@ object DatasetStatisticsUtils {
 
     result.asScala
       .map(record =>
-        Dataset(
+        DatasetQuota(
           did = record.getValue(DATASET.DID),
           name = record.getValue(DATASET.NAME),
           creationTime = record.getValue(DATASET.CREATION_TIME).getTime(),
@@ -58,7 +58,7 @@ object DatasetStatisticsUtils {
     }
   }
 
-  def getUserCreatedDatasets(uid: UInteger): List[Dataset] = {
+  def getUserCreatedDatasets(uid: UInteger): List[DatasetQuota] = {
     val datasetList = getUserCreatedDatasetList(uid)
     datasetList.map { dataset =>
       val datasetPath = DATASETS_ROOT.resolve(dataset.did.toString)

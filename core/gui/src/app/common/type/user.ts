@@ -44,14 +44,6 @@ export interface Workflow
     lastModifiedTime: number;
   }> {}
 
-export interface Dataset
-  extends Readonly<{
-    did: number;
-    name: string;
-    creationTime: number;
-    size: number;
-  }> {}
-
 export interface MongoWorkflow {
   workflowName: string;
   executions: MongoExecution[];

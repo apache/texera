@@ -2,7 +2,8 @@ import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
 import { AppSettings } from "src/app/common/app-setting";
-import { Dataset, File, Workflow, MongoExecution } from "src/app/common/type/user";
+import { File, Workflow, MongoExecution } from "src/app/common/type/user";
+import { DatasetQuota } from "src/app/common/type/datasetQuota";
 
 export const USER_BASE_URL = `${AppSettings.getApiEndpoint()}/quota`;
 export const USER_CREATED_FILES = `${USER_BASE_URL}/uploaded_files`;
@@ -23,8 +24,8 @@ export class UserQuotaService {
     return this.http.get<ReadonlyArray<File>>(`${USER_CREATED_FILES}`);
   }
 
-  public getCreatedDatasets(uid: number): Observable<ReadonlyArray<Dataset>> {
-    return this.http.get<ReadonlyArray<Dataset>>(`${USER_CREATED_DATASETS}`);
+  public getCreatedDatasets(uid: number): Observable<ReadonlyArray<DatasetQuota>> {
+    return this.http.get<ReadonlyArray<DatasetQuota>>(`${USER_CREATED_DATASETS}`);
   }
 
   public getCreatedWorkflows(uid: number): Observable<ReadonlyArray<Workflow>> {

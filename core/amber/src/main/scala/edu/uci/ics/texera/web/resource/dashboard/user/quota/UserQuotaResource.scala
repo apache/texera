@@ -3,7 +3,7 @@ package edu.uci.ics.texera.web.resource.dashboard.user.quota
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource.{
-  Dataset,
+  DatasetQuota,
   File,
   MongoStorage,
   Workflow,
@@ -46,7 +46,7 @@ object UserQuotaResource {
       lastModifiedTime: Long
   )
 
-  case class Dataset(
+  case class DatasetQuota(
       did: UInteger,
       name: String,
       creationTime: Long,
@@ -245,7 +245,7 @@ class UserQuotaResource {
   @GET
   @Path("/created_datasets")
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def getCreatedDatasets(@Auth current_user: SessionUser): List[Dataset] = {
+  def getCreatedDatasets(@Auth current_user: SessionUser): List[DatasetQuota] = {
     getUserCreatedDatasets(current_user.getUid)
   }
 

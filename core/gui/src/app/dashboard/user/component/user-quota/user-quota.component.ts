@@ -1,6 +1,7 @@
 import { Component, OnInit, inject } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { Dataset, File, Workflow, MongoExecution, MongoWorkflow } from "../../../../common/type/user";
+import { File, Workflow, MongoExecution, MongoWorkflow } from "../../../../common/type/user";
+import { DatasetQuota } from "src/app/common/type/datasetQuota";
 import { UserFileService } from "../../service/user-file/user-file.service";
 import { NzTableSortFn } from "ng-zorro-antd/table";
 import { UserQuotaService } from "../../service/user-quota/user-quota.service";
@@ -31,13 +32,13 @@ export class UserQuotaComponent implements OnInit {
   accessWorkflows: ReadonlyArray<number> = [];
   topFiveFiles: ReadonlyArray<File> = [];
   mongodbExecutions: ReadonlyArray<MongoExecution> = [];
-  datasetList: ReadonlyArray<Dataset> = [];
+  datasetList: ReadonlyArray<DatasetQuota> = [];
   mongodbWorkflows: Array<MongoWorkflow> = [];
   UserService: UserServiceType;
-  pieChartWidth = 450;
-  pieChartHeight = 450;
-  lineChartWidth = 600;
-  lineChartHeight = 450;
+  DEFAULT_PIE_CHART_WIDTH = 450;
+  DEFAULT_PIE_CHART_HEIGHT = 450;
+  DEFAULT_LINE_CHART_WIDTH = 600;
+  DEFAULT_LINE_CHART_HEIGHT = 450;
 
   constructor(
     private adminUserService: AdminUserService,
@@ -59,6 +60,7 @@ export class UserQuotaComponent implements OnInit {
   ngOnInit(): void {
     this.refreshData();
   }
+  /* takes in an array of tuple ('label', 'value') and generates the corresponding pie chart */
   generatePieChart(dataToDisplay: Array<[string, ...number[]]>, title: string, chart: string) {
     var data = [
       {
@@ -68,8 +70,8 @@ export class UserQuotaComponent implements OnInit {
       },
     ];
     var layout = {
-      height: this.pieChartHeight,
-      width: this.pieChartWidth,
+      height: this.DEFAULT_PIE_CHART_HEIGHT,
+      width: this.DEFAULT_PIE_CHART_WIDTH,
       title: {
         text: title,
       },
@@ -153,8 +155,8 @@ export class UserQuotaComponent implements OnInit {
     const yRange = maxY - minY;
 
     var layout = {
-      height: this.lineChartHeight,
-      width: this.lineChartWidth,
+      height: this.DEFAULT_LINE_CHART_HEIGHT,
+      width: this.DEFAULT_LINE_CHART_WIDTH,
       title: {
         text: title,
       },
