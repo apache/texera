@@ -10,9 +10,8 @@
 
 .console-list-container {
   position: fixed;
-  height: calc(100% - 130px);
-  min-height: 20px;
-  width: calc(100% - 130px);
+  height: calc(100% - 140px);
+  width: calc(100% - 160px);
   border: 1px solid #e8e8e8;
   border-radius: 2px;
   overflow: auto;
@@ -88,6 +87,6 @@
 
 .console-input-container {
   position: fixed;
-  bottom: 20px;
-  left: 125px;
+  bottom: 22px;
+  left: 139px;
 }
