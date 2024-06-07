@@ -35,8 +35,7 @@ object DatasetAccessResource {
   def userHasReadAccess(ctx: DSLContext, did: UInteger, uid: UInteger): Boolean = {
     userHasWriteAccess(ctx, did, uid) ||
     datasetIsPublic(ctx, did) ||
-    getDatasetUserAccessPrivilege(ctx, did, uid) == DatasetUserAccessPrivilege.READ ||
-    userHasWorkflowReadAccessThroughEnvironment(ctx, did, uid)
+    getDatasetUserAccessPrivilege(ctx, did, uid) == DatasetUserAccessPrivilege.READ
   }
 
   def userOwnDataset(ctx: DSLContext, did: UInteger, uid: UInteger): Boolean = {
@@ -51,8 +50,7 @@ object DatasetAccessResource {
 
   def userHasWriteAccess(ctx: DSLContext, did: UInteger, uid: UInteger): Boolean = {
     userOwnDataset(ctx, did, uid) ||
-    getDatasetUserAccessPrivilege(ctx, did, uid) == DatasetUserAccessPrivilege.WRITE ||
-    userHasWorkflowWriteAccessThroughEnvironment(ctx, did, uid)
+    getDatasetUserAccessPrivilege(ctx, did, uid) == DatasetUserAccessPrivilege.WRITE
   }
 
   def datasetIsPublic(ctx: DSLContext, did: UInteger): Boolean = {
@@ -63,24 +61,6 @@ object DatasetAccessResource {
         .where(DATASET.DID.eq(did))
         .fetchOneInto(classOf[Boolean])
     ).getOrElse(false)
-  }
-
-  def userHasWorkflowWriteAccessThroughEnvironment(
-      ctx: DSLContext,
-      did: UInteger,
-      uid: UInteger
-  ): Boolean = {
-    // TODO: fix this
-    false
-  }
-
-  def userHasWorkflowReadAccessThroughEnvironment(
-      ctx: DSLContext,
-      did: UInteger,
-      uid: UInteger
-  ): Boolean = {
-    // TODO: fix this
-    false
   }
 
   def getDatasetUserAccessPrivilege(

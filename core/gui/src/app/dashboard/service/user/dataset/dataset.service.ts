@@ -1,5 +1,5 @@
 import { Injectable } from "@angular/core";
-import {HttpClient, HttpParams} from "@angular/common/http";
+import { HttpClient, HttpParams } from "@angular/common/http";
 import { map } from "rxjs/operators";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { Dataset, DatasetVersion } from "../../../../common/type/dataset";
@@ -12,6 +12,7 @@ import { UserFileUploadService } from "../file/user-file-upload.service";
 import {
   DatasetVersionFileTree,
   DatasetVersionFileTreeNode,
+  parseDatasetRootNode,
   parseFileNodesToTreeNodes,
 } from "../../../../common/type/datasetVersionFileTree";
 import { FileNode } from "../../../../common/type/fileNode";
@@ -75,12 +76,23 @@ export class DatasetService {
 
   public retrieveAccessibleDatasets(includeVersions: boolean = false): Observable<DashboardDataset[]> {
     let params = new HttpParams();
-    if(includeVersions) {
-      params = params.set('includeVersions', 'true')
+    if (includeVersions) {
+      params = params.set("includeVersions", "true");
     }
-    return this.http.get<DashboardDataset[]>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}`, {params: params});
-  }
 
+    return this.http
+      .get<DashboardDataset[]>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}`, { params: params })
+      .pipe(
+        map(datasets => {
+          return datasets.map(dataset => {
+            if (includeVersions) {
+              dataset.datasetRootFileNode = parseDatasetRootNode(dataset);
+            }
+            return dataset;
+          });
+        })
+      );
+  }
   public createDatasetVersion(
     did: number,
     newVersion: string,
@@ -101,7 +113,7 @@ export class DatasetService {
 
     return this.http
       .post<{
-        datasetVersion: Data\setVersion;
+        datasetVersion: DatasetVersion;
         fileNodes: FileNode[];
       }>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/version/create`, formData)
       .pipe(

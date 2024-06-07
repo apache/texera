@@ -8,7 +8,8 @@ import { WorkflowPersistService } from "../../../common/service/workflow-persist
 import { NzModalService } from "ng-zorro-antd/modal";
 import { FileSelectionComponent } from "../file-selection/file-selection.component";
 import { environment } from "../../../../environments/environment";
-import {DatasetService} from "../../../dashboard/user/service/user-dataset/dataset.service";
+import { DatasetService } from "../../../dashboard/user/service/user-dataset/dataset.service";
+import { DatasetVersionFileTreeNode } from "../../../common/type/datasetVersionFileTree";
 
 @UntilDestroy()
 @Component({
@@ -30,17 +31,18 @@ export class InputAutoCompleteComponent extends FieldType<FieldTypeConfig> {
   }
 
   onClickOpenFileSelectionModal(): void {
-
     this.datasetService
       .retrieveAccessibleDatasets(true)
       .pipe(untilDestroyed(this))
       .subscribe(datasets => {
+        let datasetRootFileNodes: DatasetVersionFileTreeNode[] = [];
+        datasets.forEach(dataset => datasetRootFileNodes.push(dataset.datasetRootFileNode));
         const modal = this.modalService.create({
           nzTitle: "Please select one file from datasets",
           nzContent: FileSelectionComponent,
           nzFooter: null,
           nzData: {
-            datasets: datasets,
+            datasetRootFileNodes: datasetRootFileNodes,
           },
         });
         // Handle the selection from the modal
@@ -49,7 +51,7 @@ export class InputAutoCompleteComponent extends FieldType<FieldTypeConfig> {
             this.formControl.setValue(result); // Assuming 'result' is the selected value
           }
         });
-      })
+      });
   }
 
   get isFileSelectionEnabled(): boolean {

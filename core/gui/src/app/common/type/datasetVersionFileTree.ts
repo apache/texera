@@ -1,5 +1,6 @@
 import { FileUploadItem } from "../../dashboard/type/dashboard-file.interface";
 import { FileNode } from "./fileNode";
+import { DashboardDataset } from "../../dashboard/user/type/dashboard-dataset.interface";
 
 export interface DatasetVersionFileTree {
   [key: string]: DatasetVersionFileTree | string;
@@ -10,12 +11,10 @@ export interface DatasetVersionFileTreeNode {
   type: "file" | "directory";
   children?: DatasetVersionFileTreeNode[]; // Only populated if 'type' is 'directory'
   parentDir: string;
+  did?: number;
+  dvid?: number;
 }
 
-export interface EnvironmentDatasetFileNodes {
-  datasetName: string;
-  fileNodes: DatasetVersionFileTreeNode[];
-}
 export function getFullPathFromFileTreeNode(node: DatasetVersionFileTreeNode): string {
   if (node.parentDir == "/") {
     // make sure the files/directory located at the root layer has '/' as the prefix
@@ -213,15 +212,52 @@ export function parseFileUploadItemToTreeNodes(fileUploadItems: FileUploadItem[]
   return root.children ?? []; // Return the top-level nodes (excluding the root)
 }
 
+export function parseDatasetRootNode(dataset: DashboardDataset): DatasetVersionFileTreeNode {
+  const did = dataset.dataset.did;
+  const datasetNode: DatasetVersionFileTreeNode = {
+    name: dataset.dataset.name,
+    type: "directory",
+    parentDir: "/",
+    children: [],
+    did: did, // Assuming the dataset has an id property
+  };
+
+  dataset.versions.forEach(version => {
+    const dvid = version.datasetVersion.dvid;
+    const versionNode: DatasetVersionFileTreeNode = {
+      name: version.datasetVersion.name,
+      type: "directory",
+      parentDir: `/${dataset.dataset.name}`,
+      children: parseFileNodesToTreeNodes(
+        version.fileNodes,
+        dataset.dataset.name,
+        did,
+        version.datasetVersion.name,
+        dvid
+      ),
+      dvid: dvid, // Assuming the datasetVersion has an id property
+    };
+    datasetNode.children!.push(versionNode);
+  });
+
+  return datasetNode;
+}
+
 // parse the file nodes passed by the backend to tree nodes that are displayable in frontend
 // datasetName is an optional parameter, when given, the datasetName should be the prefix of every parentDir
 export function parseFileNodesToTreeNodes(
   fileNodes: FileNode[],
   datasetName: string = "",
+  did: number = 0,
   versionName: string = "",
+  dvid: number = 0
 ): DatasetVersionFileTreeNode[] {
   // Ensure datasetName is formatted correctly as a path prefix
   let prefix = datasetName ? `/${datasetName}` : "";
+  // Append versionName to the prefix if provided
+  if (versionName) {
+    prefix += `/${versionName}`;
+  }
 
   return fileNodes.map(fileNode => {
     // Split the path to work with its segments
@@ -229,8 +265,8 @@ export function parseFileNodesToTreeNodes(
     const name = splitPath.pop() || ""; // Get the last segment as the name
 
     // Construct the parentDir
-    // If there are remaining segments, join them as the path, prefixed by the datasetPrefix
-    // Otherwise, use the datasetPrefix directly (or just "/" if datasetName is empty)
+    // If there are remaining segments, join them as the path, prefixed by the combined prefix
+    // Otherwise, use the combined prefix directly (or just "/" if both datasetName and versionName are empty)
     const parentDir = splitPath.length > 0 ? `${prefix}/${splitPath.join("/")}` : prefix || "/";
 
     // Define the new tree node
@@ -238,11 +274,13 @@ export function parseFileNodesToTreeNodes(
       name,
       type: fileNode.isFile ? "file" : "directory",
       parentDir,
+      did,
+      dvid,
     };
 
     // Recursively process children if it's a directory
     if (!fileNode.isFile && fileNode.children) {
-      treeNode.children = parseFileNodesToTreeNodes(fileNode.children, datasetName);
+      treeNode.children = parseFileNodesToTreeNodes(fileNode.children, datasetName, did, versionName, dvid);
     }
 
     return treeNode;

@@ -2,8 +2,8 @@ import { Component, inject } from "@angular/core";
 import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
 import { UntilDestroy } from "@ngneat/until-destroy";
 import { DatasetVersionFileTreeNode, getFullPathFromFileTreeNode } from "../../../common/type/datasetVersionFileTree";
-import {DashboardDataset} from "../../../dashboard/user/type/dashboard-dataset.interface";
-import {DatasetService} from "../../../dashboard/user/service/user-dataset/dataset.service";
+import { DashboardDataset } from "../../../dashboard/user/type/dashboard-dataset.interface";
+import { DatasetService } from "../../../dashboard/user/service/user-dataset/dataset.service";
 
 @UntilDestroy()
 @Component({
@@ -12,19 +12,17 @@ import {DatasetService} from "../../../dashboard/user/service/user-dataset/datas
   styleUrls: ["file-selection.component.scss"],
 })
 export class FileSelectionComponent {
-  readonly datasets: ReadonlyArray<DashboardDataset> = inject(NZ_MODAL_DATA).datasets;
-  suggestedFileTreeNodes: DatasetVersionFileTreeNode[] = [...this.fileTreeNodes];
+  readonly datasetRootFileNodes: ReadonlyArray<DatasetVersionFileTreeNode> = inject(NZ_MODAL_DATA).datasetRootFileNodes;
+  suggestedFileTreeNodes: DatasetVersionFileTreeNode[] = [...this.datasetRootFileNodes];
   filterText: string = "";
 
-  constructor(
-    private modalRef: NzModalRef,
-    public datasetService: DatasetService) {}
+  constructor(private modalRef: NzModalRef) {}
 
   filterFileTreeNodes() {
     const filterText = this.filterText.trim().toLowerCase();
 
     if (!filterText) {
-      this.suggestedFileTreeNodes = [...this.fileTreeNodes];
+      this.suggestedFileTreeNodes = [...this.datasetRootFileNodes];
     } else {
       const filterNodes = (node: DatasetVersionFileTreeNode): DatasetVersionFileTreeNode | null => {
         // For 'file' type nodes, check if the node's name matches the filter text.
@@ -52,7 +50,7 @@ export class FileSelectionComponent {
         return node;
       };
 
-      this.suggestedFileTreeNodes = this.fileTreeNodes
+      this.suggestedFileTreeNodes = this.datasetRootFileNodes
         .map(filterNodes)
         .filter(node => node !== null) as DatasetVersionFileTreeNode[];
     }

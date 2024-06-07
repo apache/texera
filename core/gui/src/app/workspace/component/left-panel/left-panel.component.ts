@@ -36,7 +36,7 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
       title: "Time Travel",
       icon: "clock-circle",
       enabled: environment.userSystemEnabled && environment.timetravelEnabled,
-    }
+    },
   ];
 
   order = Array.from({ length: this.items.length - 1 }, (_, index) => index + 1);
