@@ -22,10 +22,10 @@ import edu.uci.ics.texera.workflow.common.workflow.{
 
 class ProjectionOpDesc extends MapOpDesc {
 
-  @JsonProperty(required = true)
-  @JsonSchemaTitle("Drop Or Keep The Selected Attributes")
-  @JsonPropertyDescription("Choose to drop or keep the selected attributes")
-  var dropOption: DropOption = DropOption.keep
+  @JsonProperty(required = true, defaultValue = "false")
+  @JsonSchemaTitle("Drop Option")
+  @JsonPropertyDescription("check to drop the selected attributes")
+  var isDrop: Boolean = false
 
   var attributes: List[AttributeUnit] = List()
 
@@ -37,7 +37,7 @@ class ProjectionOpDesc extends MapOpDesc {
       workflowId,
       executionId,
       operatorIdentifier,
-      OpExecInitInfo((_, _) => new ProjectionOpExec(attributes, dropOption))
+      OpExecInitInfo((_, _) => new ProjectionOpExec(attributes, isDrop))
     )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
@@ -81,7 +81,7 @@ class ProjectionOpDesc extends MapOpDesc {
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Preconditions.checkArgument(schemas.length == 1)
     Preconditions.checkArgument(attributes.nonEmpty)
-    if (dropOption == DropOption.keep) {
+    if (!isDrop) {
       Schema
         .builder()
         .add(attributes.map { attribute =>

@@ -9,36 +9,37 @@ import scala.collection.mutable
 
 class ProjectionOpExec(
     attributeUnits: List[AttributeUnit],
-    dropOption: DropOption = DropOption.keep
+    dropOption: Boolean = false
 ) extends MapOpExec {
 
   setMapFunc(project)
   def project(tuple: Tuple): TupleLike = {
     Preconditions.checkArgument(attributeUnits.nonEmpty)
+    var selectedUnits: List[AttributeUnit] = List()
     val fields = mutable.LinkedHashMap[String, Any]()
-    if (dropOption == DropOption.drop) {
+    if (dropOption) {
       val allAttribute = tuple.schema.getAttributeNames
-      val selectedAttributes = attributeUnits.map(_.getAlias)
+      val selectedAttributes = attributeUnits.map(_.getOriginalAttribute)
       val keepAttributes = allAttribute.diff(selectedAttributes)
-      keepAttributes.foreach { attribute =>
-        val alias = attribute
-        if (fields.contains(alias)) {
-          throw new RuntimeException("have duplicated attribute name/alias")
-        }
-        fields(alias) = tuple.getField[Any](attribute)
-      }
 
-      TupleLike(fields.toSeq: _*)
+      keepAttributes.foreach { attribute =>
+        val newList = List(
+          new AttributeUnit(attribute, attribute)
+        )
+        selectedUnits = selectedUnits ::: newList
+      }
 
     } else {
-      attributeUnits.foreach { attributeUnit =>
-        val alias = attributeUnit.getAlias
-        if (fields.contains(alias)) {
-          throw new RuntimeException("have duplicated attribute name/alias")
-        }
-        fields(alias) = tuple.getField[Any](attributeUnit.getOriginalAttribute)
-      }
 
+      selectedUnits = attributeUnits
+    }
+
+    selectedUnits.foreach { attributeUnit =>
+      val alias = attributeUnit.getAlias
+      if (fields.contains(alias)) {
+        throw new RuntimeException("have duplicated attribute name/alias")
+      }
+      fields(alias) = tuple.getField[Any](attributeUnit.getOriginalAttribute)
     }
 
     TupleLike(fields.toSeq: _*)
