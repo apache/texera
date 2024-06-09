@@ -15,8 +15,8 @@ import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, Oper
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 
-class ScorerOpDesc extends PythonOperatorDescriptor {
-  @JsonProperty(required = false, defaultValue = "false")
+class MachineLearningScorerOpDesc extends PythonOperatorDescriptor {
+  @JsonProperty(required = true, defaultValue = "false")
   @JsonSchemaTitle("Regression")
   @JsonPropertyDescription(
     "Choose to solve a regression task"
@@ -25,7 +25,7 @@ class ScorerOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Actual Value")
-  @JsonPropertyDescription("Specify the label column")
+  @JsonPropertyDescription("Specify the label attribute")
   @AutofillAttributeName
   var actualValueColumn: String = ""
 
@@ -61,25 +61,26 @@ class ScorerOpDesc extends PythonOperatorDescriptor {
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
-      "Scorer",
+      "Machine Learning Scorer",
       "Scorer for machine learning models",
-      OperatorGroupConstants.MODEL_PERFORMANCE_GROUP,
+      OperatorGroupConstants.MACHINE_LEARNING_GENERAL_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
     )
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     val outputSchemaBuilder = Schema.builder()
-    outputSchemaBuilder.add(new Attribute("Label", AttributeType.STRING))
-
-    if (isRegression) {
-      regressionMetrics.foreach(metric => {
-        outputSchemaBuilder.add(new Attribute(metric.getName(), AttributeType.DOUBLE))
-      })
-    } else {
-      classificationMetrics.foreach(metric => {
-        outputSchemaBuilder.add(new Attribute(metric.getName(), AttributeType.DOUBLE))
-      })
+    if (!isRegression) {
+      outputSchemaBuilder.add(new Attribute("Class", AttributeType.STRING))
     }
+
+    val metrics = if (isRegression) {
+      regressionMetrics.map(_.getName())
+    } else {
+      classificationMetrics.map(_.getName())
+    }
+    metrics.foreach(metricName => {
+      outputSchemaBuilder.add(new Attribute(metricName, AttributeType.DOUBLE))
+    })
 
     outputSchemaBuilder.build()
   }
@@ -116,30 +117,27 @@ class ScorerOpDesc extends PythonOperatorDescriptor {
       s"""
          |from pytexera import *
          |import pandas as pd
-         |import numpy as np
          |from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, mean_squared_error, root_mean_squared_error, mean_absolute_error, r2_score
-         |import json
-         |
          |
          |def classification_scorers(y_true, y_pred, scorer_list, labels):
+         |  if 'Accuracy' in scorer_list:
+         |    labels.insert(0, 'Overall')
          |  result = {scorer: [None] * len(labels) for scorer in scorer_list}
          |  metrics_func = {'Precision Score': precision_score, 'Recall Score': recall_score, 'F1 Score': f1_score}
          |
          |  for scorer in scorer_list:
          |    prediction = None
          |    if scorer == 'Accuracy':
-         |      result['Accuracy'][len(labels) - 1] = accuracy_score(y_true, y_pred)
+         |      result['Accuracy'][0] = accuracy_score(y_true, y_pred)
          |    else:
          |      for i, label in enumerate(labels):
          |        if label != 'Overall':
          |          prediction = metrics_func[scorer](y_true, y_pred, average=None, labels=[label])
          |          result[scorer][i] = prediction[0]
-         |        else:
-         |          result[scorer][i] = metrics_func[scorer](y_true, y_pred, average='macro')
          |
          |  # if the label is not a string, convert it to string
          |  labels = ['class_' + str(label) if type(label) != str else label for label in labels]
-         |  result['Label'] = labels
+         |  result['Class'] = labels
          |  result_df = pd.DataFrame(result)
          |
          |  return result_df
@@ -147,18 +145,11 @@ class ScorerOpDesc extends PythonOperatorDescriptor {
          |
          |def regression_scorers(y_true, y_pred, scorer_list):
          |  result = dict()
+         |  metrics_func = {'MSE': mean_squared_error, 'RMSE': root_mean_squared_error, 'MAE': mean_absolute_error, 'R2': r2_score}
          |  for scorer in scorer_list:
-         |    if scorer == 'MSE':
-         |      result['MSE'] = mean_squared_error(y_true, y_pred)
-         |    elif scorer == 'RMSE':
-         |      result['RMSE'] = root_mean_squared_error(y_true, y_pred)
-         |    elif scorer == "MAE":
-         |      result['MAE'] = mean_absolute_error(y_true, y_pred)
-         |    elif scorer == 'R2':
-         |      result['R2'] = r2_score(y_true, y_pred)
+         |    result[scorer] = metrics_func[scorer](y_true, y_pred)
          |
          |  result_df = pd.DataFrame(result, index=[0])
-         |  result_df['Label'] = ['Overall']
          |
          |  return result_df
          |
@@ -176,7 +167,6 @@ class ScorerOpDesc extends PythonOperatorDescriptor {
          |      else:
          |        # calculate the number of unique labels
          |        labels = list(set(y_true))
-         |        labels.append('Overall')
          |        # align the type of y_true and y_pred(str)
          |        y_true_str = y_true.astype(str)
          |        result = classification_scorers(y_true_str, y_pred, scorer_list, labels)
