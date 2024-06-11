@@ -7,13 +7,34 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 import scala.collection.mutable
 
-class ProjectionOpExec(attributeUnits: List[AttributeUnit]) extends MapOpExec {
+class ProjectionOpExec(
+    attributeUnits: List[AttributeUnit],
+    dropOption: Boolean = false
+) extends MapOpExec {
 
   setMapFunc(project)
   def project(tuple: Tuple): TupleLike = {
     Preconditions.checkArgument(attributeUnits.nonEmpty)
+    var selectedUnits: List[AttributeUnit] = List()
     val fields = mutable.LinkedHashMap[String, Any]()
-    attributeUnits.foreach { attributeUnit =>
+    if (dropOption) {
+      val allAttribute = tuple.schema.getAttributeNames
+      val selectedAttributes = attributeUnits.map(_.getOriginalAttribute)
+      val keepAttributes = allAttribute.diff(selectedAttributes)
+
+      keepAttributes.foreach { attribute =>
+        val newList = List(
+          new AttributeUnit(attribute, attribute)
+        )
+        selectedUnits = selectedUnits ::: newList
+      }
+
+    } else {
+
+      selectedUnits = attributeUnits
+    }
+
+    selectedUnits.foreach { attributeUnit =>
       val alias = attributeUnit.getAlias
       if (fields.contains(alias)) {
         throw new RuntimeException("have duplicated attribute name/alias")

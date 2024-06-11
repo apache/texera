@@ -1,6 +1,8 @@
 package edu.uci.ics.texera.workflow.operators.projection
 
+import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp.oneToOnePhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
@@ -20,6 +22,11 @@ import edu.uci.ics.texera.workflow.common.workflow.{
 
 class ProjectionOpDesc extends MapOpDesc {
 
+  @JsonProperty(required = true, defaultValue = "false")
+  @JsonSchemaTitle("Drop Option")
+  @JsonPropertyDescription("check to drop the selected attributes")
+  var isDrop: Boolean = false
+
   var attributes: List[AttributeUnit] = List()
 
   override def getPhysicalOp(
@@ -30,27 +37,17 @@ class ProjectionOpDesc extends MapOpDesc {
       workflowId,
       executionId,
       operatorIdentifier,
-      OpExecInitInfo((_, _) => new ProjectionOpExec(attributes))
+      OpExecInitInfo((_, _) => new ProjectionOpExec(attributes, isDrop))
     )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withDerivePartition(derivePartition())
       .withPropagateSchema(SchemaPropagationFunc(inputSchemas => {
-        if (attributes == null) attributes = List()
-        val inputSchema = inputSchemas(operatorInfo.inputPorts.head.id)
-        val outputSchema = Schema
-          .builder()
-          .add(
-            attributes
-              .map(attribute =>
-                new Attribute(
-                  attribute.getAlias,
-                  inputSchema.getAttribute(attribute.getOriginalAttribute).getType
-                )
-              )
+        Map(
+          operatorInfo.outputPorts.head.id -> getOutputSchema(
+            Array(inputSchemas(operatorInfo.inputPorts.head.id))
           )
-          .build()
-        Map(operatorInfo.outputPorts.head.id -> outputSchema)
+        )
       }))
   }
 
@@ -74,7 +71,7 @@ class ProjectionOpDesc extends MapOpDesc {
   override def operatorInfo: OperatorInfo = {
     OperatorInfo(
       "Projection",
-      "Keeps the column",
+      "Keeps or drops the column",
       OperatorGroupConstants.CLEANING_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
@@ -84,14 +81,24 @@ class ProjectionOpDesc extends MapOpDesc {
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Preconditions.checkArgument(schemas.length == 1)
     Preconditions.checkArgument(attributes.nonEmpty)
+    if (!isDrop) {
+      Schema
+        .builder()
+        .add(attributes.map { attribute =>
+          val originalType = schemas.head.getAttribute(attribute.getOriginalAttribute).getType
+          new Attribute(attribute.getAlias, originalType)
+        })
+        .build()
+    } else {
+      val outputSchemaBuilder = Schema.builder()
+      val inputSchema = schemas(0)
+      outputSchemaBuilder.add(inputSchema)
+      for (attribute <- attributes) {
+        outputSchemaBuilder.removeIfExists(attribute.getOriginalAttribute)
+      }
+      outputSchemaBuilder.build()
 
-    Schema
-      .builder()
-      .add(attributes.map { attribute =>
-        val originalType = schemas.head.getAttribute(attribute.getOriginalAttribute).getType
-        new Attribute(attribute.getAlias, originalType)
-      })
-      .build()
+    }
 
   }
 }
