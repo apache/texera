@@ -85,55 +85,51 @@ class MachineLearningScorerOpDesc extends PythonOperatorDescriptor {
     outputSchemaBuilder.build()
   }
 
-  private def getClassificationScorerName(scorer: classificationMetricsFnc): String = {
-    // Directly return the name of the scorer using the getName() method
-    scorer.getName()
-  }
-  private def getRegressionScorerName(scorer: regressionMetricsFnc): String = {
-    // Directly return the name of the scorer using the getName() method
-    scorer.getName()
-  }
+//  private def getClassificationScorerName(scorer: classificationMetricsFnc): String = {
+//    // Directly return the name of the scorer using the getName() method
+//    scorer.getName()
+//  }
+//  private def getRegressionScorerName(scorer: regressionMetricsFnc): String = {
+//    // Directly return the name of the scorer using the getName() method
+//    scorer.getName()
+//  }
 
-  private def getEachScorerName(scorer: Any): String =
-    scorer match {
-      case s: classificationMetricsFnc => getClassificationScorerName(s)
-      case s: regressionMetricsFnc     => getRegressionScorerName(s)
-      case _                           => throw new IllegalArgumentException("Unknown scorer type")
+  private def getMetricName(metric: Any): String =
+    metric match {
+      case m: regressionMetricsFnc     => m.getName()
+      case m: classificationMetricsFnc => m.getName()
+      case _                           => throw new IllegalArgumentException("Unknown metric type")
     }
 
-  private def getSelectedScorers(): String = {
-    // Return a string of scorers using the getEachScorerName() method
-    var scorers: List[_] = List()
-    if (isRegression) scorers = regressionMetrics
-    else scorers = classificationMetrics
-
-    scorers.map(scorer => getEachScorerName(scorer)).mkString("'", "','", "'")
+  private def getSelectedMetrics(): String = {
+    // Return a string of metrics using the getEachScorerName() method
+    val metric = if (isRegression) regressionMetrics else classificationMetrics
+    metric.map(metric => getMetricName(metric)).mkString("'", "','", "'")
   }
 
   override def generatePythonCode(): String = {
-    var is_regression = "False"
-    if (isRegression) is_regression = "True"
+    val isRegressionStr = if (isRegression) "True" else "False"
     val finalcode =
       s"""
          |from pytexera import *
          |import pandas as pd
          |from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, mean_squared_error, root_mean_squared_error, mean_absolute_error, r2_score
          |
-         |def classification_scorers(y_true, y_pred, scorer_list, labels):
-         |  if 'Accuracy' in scorer_list:
+         |def classification_metrics(y_true, y_pred, metric_list, labels):
+         |  if 'Accuracy' in metric_list:
          |    labels.insert(0, 'Overall')
-         |  result = {scorer: [None] * len(labels) for scorer in scorer_list}
+         |  result = {metric: [None] * len(labels) for metric in metric_list}
          |  metrics_func = {'Precision Score': precision_score, 'Recall Score': recall_score, 'F1 Score': f1_score}
          |
-         |  for scorer in scorer_list:
+         |  for metric in metric_list:
          |    prediction = None
-         |    if scorer == 'Accuracy':
+         |    if metric == 'Accuracy':
          |      result['Accuracy'][0] = accuracy_score(y_true, y_pred)
          |    else:
          |      for i, label in enumerate(labels):
          |        if label != 'Overall':
-         |          prediction = metrics_func[scorer](y_true, y_pred, average=None, labels=[label])
-         |          result[scorer][i] = prediction[0]
+         |          prediction = metrics_func[metric](y_true, y_pred, average=None, labels=[label])
+         |          result[metric][i] = prediction[0]
          |
          |  # if the label is not a string, convert it to string
          |  labels = ['class_' + str(label) if type(label) != str else label for label in labels]
@@ -143,11 +139,11 @@ class MachineLearningScorerOpDesc extends PythonOperatorDescriptor {
          |  return result_df
          |
          |
-         |def regression_scorers(y_true, y_pred, scorer_list):
+         |def regression_metrics(y_true, y_pred, metric_list):
          |  result = dict()
          |  metrics_func = {'MSE': mean_squared_error, 'RMSE': root_mean_squared_error, 'MAE': mean_absolute_error, 'R2': r2_score}
-         |  for scorer in scorer_list:
-         |    result[scorer] = metrics_func[scorer](y_true, y_pred)
+         |  for metric in metric_list:
+         |    result[metric] = metrics_func[metric](y_true, y_pred)
          |
          |  result_df = pd.DataFrame(result, index=[0])
          |
@@ -160,16 +156,16 @@ class MachineLearningScorerOpDesc extends PythonOperatorDescriptor {
          |      y_true = table['$actualValueColumn']
          |      y_pred = table['$predictValueColumn']
          |
-         |      scorer_list = [${getSelectedScorers()}]
+         |      metric_list = [${getSelectedMetrics()}]
          |
-         |      if $is_regression:
-         |        result = regression_scorers(y_true, y_pred, scorer_list)
+         |      if $isRegressionStr:
+         |        result = regression_metrics(y_true, y_pred, metric_list)
          |      else:
          |        # calculate the number of unique labels
          |        labels = list(set(y_true))
          |        # align the type of y_true and y_pred(str)
          |        y_true_str = y_true.astype(str)
-         |        result = classification_scorers(y_true_str, y_pred, scorer_list, labels)
+         |        result = classification_metrics(y_true_str, y_pred, metric_list, labels)
          |
          |      yield result
          |""".stripMargin
