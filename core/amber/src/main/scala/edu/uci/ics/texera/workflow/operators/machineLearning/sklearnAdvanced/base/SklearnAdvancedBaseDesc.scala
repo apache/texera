@@ -49,22 +49,22 @@ abstract class SklearnMLOperatorDescriptor[T <: ParamClass] extends PythonOperat
   }
 
   def getParameter(paraList: List[HyperParameters[T]]): List[String] = {
-    var str1 = ""; var str2 = ""; var str3 = ""
+    var workflowParam = ""; var portParam = ""; var paramString = ""
     for (ele <- paraList) {
       if (ele.parametersSource) {
-        str1 = str1 + String.format("%s = {},", ele.parameter.getName)
-        str2 =
-          str2 + String.format("%s(table['%s'].values[i]),", ele.parameter.getType, ele.attribute)
-        str3 = str3 + String.format(
+        workflowParam = workflowParam + String.format("%s = {},", ele.parameter.getName)
+        portParam =
+          portParam + String.format("%s(table['%s'].values[i]),", ele.parameter.getType, ele.attribute)
+        paramString = paramString + String.format(
           "%s = %s(table['%s'].values[i]),",
           ele.parameter.getName,
           ele.parameter.getType,
           ele.attribute
         )
       } else {
-        str1 = str1 + String.format("%s = {},", ele.parameter.getName)
-        str2 = str2 + String.format("%s ('%s'),", ele.parameter.getType, ele.value)
-        str3 = str3 + String.format(
+        workflowParam = workflowParam + String.format("%s = {},", ele.parameter.getName)
+        portParam = portParam + String.format("%s ('%s'),", ele.parameter.getType, ele.value)
+        paramString = paramString + String.format(
           "%s = %s ('%s'),",
           ele.parameter.getName,
           ele.parameter.getType,
@@ -72,7 +72,7 @@ abstract class SklearnMLOperatorDescriptor[T <: ParamClass] extends PythonOperat
         )
       }
     }
-    List(String.format("\"%s\".format(%s)", str1, str2), str3)
+    List(String.format("\"%s\".format(%s)", workflowParam, portParam), paramString)
   }
 
   override def generatePythonCode(): String = {
@@ -92,17 +92,16 @@ abstract class SklearnMLOperatorDescriptor[T <: ParamClass] extends PythonOperat
          |
          |  @overrides
          |  def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-         |    global dataset
          |    model_list = []
          |    para_list = []
          |    features = [$listFeatures]
          |
          |    if port == 0:
-         |      dataset = table
+         |      self.dataset = table
          |
          |    if port == 1 :
-         |      y_train = dataset["$groundTruthAttribute"]
-         |      X_train = dataset[features]
+         |      y_train = self.dataset["$groundTruthAttribute"]
+         |      X_train = self.dataset[features]
          |      loop_times = ${getLoopTimes(paraList)}
          |
          |      for i in range(loop_times):
@@ -112,7 +111,7 @@ abstract class SklearnMLOperatorDescriptor[T <: ParamClass] extends PythonOperat
          |        para_str = ${paramString}
          |        para_list.append(para_str)
          |
-         |      data = dict({})
+         |      data = dict()
          |      data["Model"]= model_list
          |      data["Parameters"] =para_list
          |
@@ -132,13 +131,11 @@ abstract class SklearnMLOperatorDescriptor[T <: ParamClass] extends PythonOperat
       inputPorts = List(
         InputPort(
           PortIdentity(0),
-          displayName = "dataset",
-          allowMultiLinks = true
+          displayName = "training",
         ),
         InputPort(
           PortIdentity(1),
           displayName = "parameter",
-          allowMultiLinks = true,
           dependencies = List(PortIdentity(0))
         )
       ),
