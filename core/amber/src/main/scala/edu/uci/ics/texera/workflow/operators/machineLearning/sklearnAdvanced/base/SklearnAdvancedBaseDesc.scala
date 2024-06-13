@@ -54,7 +54,11 @@ abstract class SklearnMLOperatorDescriptor[T <: ParamClass] extends PythonOperat
       if (ele.parametersSource) {
         workflowParam = workflowParam + String.format("%s = {},", ele.parameter.getName)
         portParam =
-          portParam + String.format("%s(table['%s'].values[i]),", ele.parameter.getType, ele.attribute)
+          portParam + String.format(
+            "%s(table['%s'].values[i]),",
+            ele.parameter.getType,
+            ele.attribute
+          )
         paramString = paramString + String.format(
           "%s = %s(table['%s'].values[i]),",
           ele.parameter.getName,
@@ -131,7 +135,7 @@ abstract class SklearnMLOperatorDescriptor[T <: ParamClass] extends PythonOperat
       inputPorts = List(
         InputPort(
           PortIdentity(0),
-          displayName = "training",
+          displayName = "training"
         ),
         InputPort(
           PortIdentity(1),
