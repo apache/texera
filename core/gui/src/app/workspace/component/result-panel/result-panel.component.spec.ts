@@ -55,7 +55,7 @@ describe("ResultPanelComponent", () => {
       state: ExecutionState.Completed,
     });
     fixture.detectChanges();
-    const resultPanelDiv = fixture.debugElement.query(By.css(".texera-workspace-result-panel-body"));
+    const resultPanelDiv = fixture.debugElement.query(By.css("#result-container"));
     const resultPanelHtmlElement: HTMLElement = resultPanelDiv.nativeElement;
     expect(resultPanelHtmlElement).toBeTruthy();
   });

@@ -1,5 +1,4 @@
 <div
-  class="texera-workspace-result-panel-body"
   id="result-container"
   cdkDrag
   cdkDragBoundary="body"
@@ -45,11 +44,12 @@
         nzType="border"></span>
     </li>
   </ul>
-  <div id="content">
+  <div
+    id="content"
+    *ngIf="width">
     <h4
       id="title"
-      cdkDragHandle
-      *ngIf="width">
+      cdkDragHandle>
       Result Panel: {{operatorTitle}}
     </h4>
     <nz-tabset
