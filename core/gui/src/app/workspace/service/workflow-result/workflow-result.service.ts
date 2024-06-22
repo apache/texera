@@ -36,7 +36,7 @@ export class WorkflowResultService {
       this.handleResultUpdate(event.updates);
       this.handleTableStatsUpdate(event.tableStats);
       this.handleSinkStorageModeUpdate(event.sinkStorageMode);
-    }); 
+    });
     this.wsService
       .subscribeToEvent("WorkflowAvailableResultEvent")
       .subscribe(event => this.handleCleanResultCache(event));
@@ -59,7 +59,9 @@ export class WorkflowResultService {
     return this.resultUpdateStream;
   }
 
-  public getResultTableStats(): Observable<[Record<string, Record<string, Record<string, number>>>, Record<string, Record<string, Record<string, number>>>]> {
+  public getResultTableStats(): Observable<
+    [Record<string, Record<string, Record<string, number>>>, Record<string, Record<string, Record<string, number>>>]
+  > {
     return this.resultTableStats.pipe(pairwise());
   }
 

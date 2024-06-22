@@ -9,8 +9,8 @@ import { isWebPaginationUpdate } from "../../../types/execute-workflow.interface
 import { IndexableObject, TableColumn } from "../../../types/result-table.interface";
 import { RowModalComponent } from "../result-panel-modal.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
-import { style } from '@angular/animations';
+import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
+import { style } from "@angular/animations";
 
 export const TABLE_COLUMN_TEXT_LIMIT = 100;
 export const PRETTY_JSON_TEXT_LIMIT = 50000;
@@ -59,13 +59,11 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     private modalService: NzModalService,
     private workflowActionService: WorkflowActionService,
     private workflowResultService: WorkflowResultService,
-    private resizeService: PanelResizeService, 
-    private sanitizer: DomSanitizer,
+    private resizeService: PanelResizeService,
+    private sanitizer: DomSanitizer
   ) {}
 
-  
   ngOnChanges(changes: SimpleChanges): void {
-
     this.operatorId = changes.operatorId?.currentValue;
     if (this.operatorId) {
       const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.operatorId);
@@ -118,15 +116,15 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
             this.prevTableStats = this.tableStats;
           }
         }
-      })
+      });
 
-    this.workflowResultService.getSinkStorageMode()
+    this.workflowResultService
+      .getSinkStorageMode()
       .pipe(untilDestroyed(this))
       .subscribe(sinkStorageMode => {
         this.sinkStorageMode = sinkStorageMode;
         this.adjustPageSizeBasedOnPanelSize(this.panelHeight);
       });
-
 
     this.resizeService.currentSize.pipe(untilDestroyed(this)).subscribe(size => {
       this.panelHeight = size.height;
@@ -136,13 +134,15 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
         this.currentPageIndex -= 1;
       }
     });
-
   }
 
-  checkKeys(currentStats: Record<string, Record<string, number>>, prevStats: Record<string, Record<string, number>>): boolean {
+  checkKeys(
+    currentStats: Record<string, Record<string, number>>,
+    prevStats: Record<string, Record<string, number>>
+  ): boolean {
     let firstSet = Object.keys(currentStats);
     let secondSet = Object.keys(prevStats);
-    
+
     if (firstSet.length != secondSet.length) {
       return false;
     }
@@ -152,24 +152,24 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
         return false;
       }
     }
- 
+
     return true;
   }
 
   compare(field: string, stats: string): SafeHtml {
-    let current = this.tableStats[field][stats]
-    let previous = this.prevTableStats[field][stats]
+    let current = this.tableStats[field][stats];
+    let previous = this.prevTableStats[field][stats];
     let currentStr = "";
     let previousStr = "";
 
     if (typeof current === "number" && typeof previous === "number") {
-      currentStr = current.toFixed(2)
+      currentStr = current.toFixed(2);
       previousStr = previous !== undefined ? previous.toFixed(2) : currentStr;
     } else {
       currentStr = current.toLocaleString();
       previousStr = previous !== undefined ? previous.toLocaleString() : currentStr;
     }
-    let styledValue = '';
+    let styledValue = "";
 
     for (let i = 0; i < currentStr.length; i++) {
       const char = currentStr[i];
@@ -189,18 +189,18 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     const rowHeight = 36;
     let extra: number;
 
-    if (this.sinkStorageMode == "mongodb"){
-        extra = Math.floor((panelHeight - 88 - 170) / rowHeight);
+    if (this.sinkStorageMode == "mongodb") {
+      extra = Math.floor((panelHeight - 88 - 170) / rowHeight);
     } else {
-        extra = Math.floor((panelHeight - 170) / rowHeight);
+      extra = Math.floor((panelHeight - 170) / rowHeight);
     }
 
-    if (extra < 0){
-        extra = 0;
+    if (extra < 0) {
+      extra = 0;
     }
     this.pageSize = 1 + extra;
     this.resizeService.pageSize = this.pageSize;
-}
+  }
 
   /**
    * Callback function for table query params changed event
