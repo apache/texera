@@ -232,7 +232,7 @@ class ExecutionResultService(
       workflowStateStore.resultStore.registerDiffHandler((oldState, newState) => {
         val buf = mutable.HashMap[String, WebResultUpdate]()
         var allTableStats = mutable.Map[String, Map[String, Map[String, Any]]]()
-        
+
         newState.resultInfo
           .filter(info => {
             // only update those operators with changing tuple count.
