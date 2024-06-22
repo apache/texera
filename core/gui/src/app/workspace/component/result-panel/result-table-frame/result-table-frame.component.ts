@@ -1,4 +1,4 @@
-import { Component, Input, OnChanges, OnInit, SimpleChanges, AfterViewInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
+import { Component, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { NzTableQueryParams } from "ng-zorro-antd/table";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
@@ -31,8 +31,6 @@ export const PRETTY_JSON_TEXT_LIMIT = 50000;
 })
 export class ResultTableFrameComponent implements OnInit, OnChanges {
   @Input() operatorId?: string;
-  @ViewChild('statsRow') statsRow!: ElementRef;
-  private resizeObserver: ResizeObserver | null = null;
   // display result table
   currentColumns?: TableColumn[];
   currentResult: IndexableObject[] = [];
@@ -64,29 +62,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     private resizeService: PanelResizeService, 
     private sanitizer: DomSanitizer,
   ) {}
-  
-  ngAfterViewInit(): void {
-    this.setupResizeObserver();
-  }
 
-  setupResizeObserver(): void {
-    this.resizeObserver = new ResizeObserver(entries => {
-      for (const entry of entries) {
-        if (entry.target === this.statsRow.nativeElement) {
-          this.adjustPageSizeBasedOnPanelSize(this.panelHeight);
-        }
-      }
-    });
-
-    // start observe
-    this.resizeObserver.observe(this.statsRow.nativeElement);
-  }
-
-  ngOnDestroy(): void {
-    if (this.resizeObserver) {
-      this.resizeObserver.disconnect();
-    }
-  }
   
   ngOnChanges(changes: SimpleChanges): void {
 
