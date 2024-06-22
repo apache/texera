@@ -1,4 +1,4 @@
-import { Component, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
+import { Component, Input, OnChanges, OnInit, SimpleChanges, AfterViewInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { NzTableQueryParams } from "ng-zorro-antd/table";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
@@ -9,6 +9,8 @@ import { isWebPaginationUpdate } from "../../../types/execute-workflow.interface
 import { IndexableObject, TableColumn } from "../../../types/result-table.interface";
 import { RowModalComponent } from "../result-panel-modal.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { style } from '@angular/animations';
 
 export const TABLE_COLUMN_TEXT_LIMIT = 100;
 export const PRETTY_JSON_TEXT_LIMIT = 50000;
@@ -29,7 +31,8 @@ export const PRETTY_JSON_TEXT_LIMIT = 50000;
 })
 export class ResultTableFrameComponent implements OnInit, OnChanges {
   @Input() operatorId?: string;
-
+  @ViewChild('statsRow') statsRow!: ElementRef;
+  private resizeObserver: ResizeObserver | null = null;
   // display result table
   currentColumns?: TableColumn[];
   currentResult: IndexableObject[] = [];
@@ -47,17 +50,46 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   currentPageIndex: number = 1;
   totalNumTuples: number = 0;
   pageSize = 5;
+  panelHeight = 0;
+  tableStats: Record<string, Record<string, number>> = {};
+  prevTableStats: Record<string, Record<string, number>> = {};
   widthPercent: string = "";
+  sinkStorageMode: string = "";
 
   constructor(
     private executeWorkflowService: ExecuteWorkflowService,
     private modalService: NzModalService,
     private workflowActionService: WorkflowActionService,
     private workflowResultService: WorkflowResultService,
-    private resizeService: PanelResizeService
+    private resizeService: PanelResizeService, 
+    private sanitizer: DomSanitizer,
   ) {}
+  
+  ngAfterViewInit(): void {
+    this.setupResizeObserver();
+  }
 
+  setupResizeObserver(): void {
+    this.resizeObserver = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        if (entry.target === this.statsRow.nativeElement) {
+          this.adjustPageSizeBasedOnPanelSize(this.panelHeight);
+        }
+      }
+    });
+
+    // start observe
+    this.resizeObserver.observe(this.statsRow.nativeElement);
+  }
+
+  ngOnDestroy(): void {
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+    }
+  }
+  
   ngOnChanges(changes: SimpleChanges): void {
+
     this.operatorId = changes.operatorId?.currentValue;
     if (this.operatorId) {
       const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.operatorId);
@@ -66,6 +98,9 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
         this.totalNumTuples = paginatedResultService.getCurrentTotalNumTuples();
         this.currentPageIndex = paginatedResultService.getCurrentPageIndex();
         this.changePaginatedResultData();
+
+        this.tableStats = paginatedResultService.getStats();
+        this.prevTableStats = this.tableStats;
       }
     }
   }
@@ -90,21 +125,106 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
           this.changePaginatedResultData();
         }
       });
+
+    this.workflowResultService
+      .getResultTableStats()
+      .pipe(untilDestroyed(this))
+      .subscribe(([prevStats, currentStats]) => {
+        if (!this.operatorId) {
+          return;
+        }
+
+        if (currentStats[this.operatorId]) {
+          this.tableStats = currentStats[this.operatorId];
+          if (prevStats[this.operatorId] && this.checkKeys(this.tableStats, prevStats[this.operatorId])) {
+            this.prevTableStats = prevStats[this.operatorId];
+          } else {
+            this.prevTableStats = this.tableStats;
+          }
+        }
+      })
+
+    this.workflowResultService.getSinkStorageMode()
+      .pipe(untilDestroyed(this))
+      .subscribe(sinkStorageMode => {
+        this.sinkStorageMode = sinkStorageMode;
+        this.adjustPageSizeBasedOnPanelSize(this.panelHeight);
+      });
+
+
     this.resizeService.currentSize.pipe(untilDestroyed(this)).subscribe(size => {
+      this.panelHeight = size.height;
       this.adjustPageSizeBasedOnPanelSize(size.height);
       let currentPageNum: number = Math.ceil(this.totalNumTuples / this.pageSize);
       while (this.currentPageIndex > currentPageNum && this.currentPageIndex > 1) {
         this.currentPageIndex -= 1;
       }
     });
+
+  }
+
+  checkKeys(currentStats: Record<string, Record<string, number>>, prevStats: Record<string, Record<string, number>>): boolean {
+    let firstSet = Object.keys(currentStats);
+    let secondSet = Object.keys(prevStats);
+    
+    if (firstSet.length != secondSet.length) {
+      return false;
+    }
+
+    for (let i = 0; i < firstSet.length; i++) {
+      if (firstSet[i] != secondSet[i]) {
+        return false;
+      }
+    }
+ 
+    return true;
+  }
+
+  compare(field: string, stats: string): SafeHtml {
+    let current = this.tableStats[field][stats]
+    let previous = this.prevTableStats[field][stats]
+    let currentStr = "";
+    let previousStr = "";
+
+    if (typeof current === "number" && typeof previous === "number") {
+      currentStr = current.toFixed(2)
+      previousStr = previous !== undefined ? previous.toFixed(2) : currentStr;
+    } else {
+      currentStr = current.toLocaleString();
+      previousStr = previous !== undefined ? previous.toLocaleString() : currentStr;
+    }
+    let styledValue = '';
+
+    for (let i = 0; i < currentStr.length; i++) {
+      const char = currentStr[i];
+      const prevChar = previousStr[i];
+
+      if (char !== prevChar) {
+        styledValue += `<span style="color: red">${char}</span>`;
+      } else {
+        styledValue += `<span style="color: black">${char}</span>`;
+      }
+    }
+
+    return this.sanitizer.bypassSecurityTrustHtml(styledValue);
   }
 
   private adjustPageSizeBasedOnPanelSize(panelHeight: number) {
     const rowHeight = 36;
-    let extra: number = Math.floor((panelHeight - 170) / rowHeight);
+    let extra: number;
+
+    if (this.sinkStorageMode == "mongodb"){
+        extra = Math.floor((panelHeight - 88 - 170) / rowHeight);
+    } else {
+        extra = Math.floor((panelHeight - 170) / rowHeight);
+    }
+
+    if (extra < 0){
+        extra = 0;
+    }
     this.pageSize = 1 + extra;
     this.resizeService.pageSize = this.pageSize;
-  }
+}
 
   /**
    * Callback function for table query params changed event
