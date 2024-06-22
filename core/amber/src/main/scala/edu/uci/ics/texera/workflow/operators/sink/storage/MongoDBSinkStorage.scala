@@ -121,11 +121,17 @@ class MongoDBSinkStorage(id: String) extends SinkStorageReader {
 
       stats match {
         case Some((minValue, maxValue, meanValue, newCount)) =>
-          val (prevMin, prevMax, prevMean) = previousNumStats.getOrElse(field, (Double.MaxValue, Double.MinValue, 0.0))
+          val (prevMin, prevMax, prevMean) =
+            previousNumStats.getOrElse(field, (Double.MaxValue, Double.MinValue, 0.0))
 
-          val newMin = if (minValue != null) Math.min(prevMin, minValue.toString.toDouble) else prevMin
-          val newMax = if (maxValue != null) Math.max(prevMax, maxValue.toString.toDouble) else prevMax
-          val newMean = if (meanValue != null) (prevMean * offset + meanValue.toString.toDouble * newCount) / (offset + newCount) else prevMean
+          val newMin =
+            if (minValue != null) Math.min(prevMin, minValue.toString.toDouble) else prevMin
+          val newMax =
+            if (maxValue != null) Math.max(prevMax, maxValue.toString.toDouble) else prevMax
+          val newMean =
+            if (meanValue != null)
+              (prevMean * offset + meanValue.toString.toDouble * newCount) / (offset + newCount)
+            else prevMean
 
           previousNumStats(field) = (newMin, newMax, newMean)
           previousCount.update(field, offset + newCount)
@@ -134,7 +140,8 @@ class MongoDBSinkStorage(id: String) extends SinkStorageReader {
           fieldResult("max") = newMax
           fieldResult("mean") = newMean
         case _ =>
-          val (prevMin, prevMax, prevMean) = previousNumStats.getOrElse(field, (Double.MaxValue, Double.MinValue, 0.0))
+          val (prevMin, prevMax, prevMean) =
+            previousNumStats.getOrElse(field, (Double.MaxValue, Double.MinValue, 0.0))
           fieldResult("min") = prevMin
           fieldResult("max") = prevMax
           fieldResult("mean") = prevMean
@@ -156,7 +163,10 @@ class MongoDBSinkStorage(id: String) extends SinkStorageReader {
 
       stats match {
         case Some((minValue: java.util.Date, maxValue: java.util.Date, count: Long)) =>
-          val (prevMin, prevMax) = previousDateStats.getOrElse(field, (new java.util.Date(Long.MaxValue), new java.util.Date(Long.MinValue)))
+          val (prevMin, prevMax) = previousDateStats.getOrElse(
+            field,
+            (new java.util.Date(Long.MaxValue), new java.util.Date(Long.MinValue))
+          )
 
           val newMin = if (minValue != null && minValue.before(prevMin)) minValue else prevMin
           val newMax = if (maxValue != null && maxValue.after(prevMax)) maxValue else prevMax
@@ -168,7 +178,10 @@ class MongoDBSinkStorage(id: String) extends SinkStorageReader {
           previousCount.update(field, offset + count)
 
         case _ =>
-          val (prevMin, prevMax) = previousDateStats.getOrElse(field, (new java.util.Date(Long.MaxValue), new java.util.Date(Long.MinValue)))
+          val (prevMin, prevMax) = previousDateStats.getOrElse(
+            field,
+            (new java.util.Date(Long.MaxValue), new java.util.Date(Long.MinValue))
+          )
           fieldResult("min") = prevMin
           fieldResult("max") = prevMax
       }
@@ -205,8 +218,10 @@ class MongoDBSinkStorage(id: String) extends SinkStorageReader {
         case 2 => {
           fieldResult("firstCat") = if (top2(0) != null) top2(0) else "NULL"
           fieldResult("secondCat") = if (top2(1) != null) top2(1) else "NULL"
-          val first = (previousCatStats(field)(top2(0)).toDouble / (offset + newCount).toDouble) * 100
-          val second = (previousCatStats(field)(top2(1)).toDouble / (offset + newCount).toDouble) * 100
+          val first =
+            (previousCatStats(field)(top2(0)).toDouble / (offset + newCount).toDouble) * 100
+          val second =
+            (previousCatStats(field)(top2(1)).toDouble / (offset + newCount).toDouble) * 100
           fieldResult("firstPercent") = first
           fieldResult("secondPercent") = second
           fieldResult("other") = (100 - first - second)
@@ -215,7 +230,8 @@ class MongoDBSinkStorage(id: String) extends SinkStorageReader {
         case 1 => {
           fieldResult("firstCat") = if (top2(0) != null) top2(0) else "NULL"
           fieldResult("secondCat") = ""
-          fieldResult("firstPercent") = (previousCatStats(field)(top2(0)).toDouble / (offset + newCount).toDouble) * 100
+          fieldResult("firstPercent") =
+            (previousCatStats(field)(top2(0)).toDouble / (offset + newCount).toDouble) * 100
           fieldResult("secondPercent") = 0
           fieldResult("other") = 0
           fieldResult("reachedLimit") = if (reachedLimit) 1 else 0

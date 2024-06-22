@@ -7,12 +7,9 @@ import org.bson.Document
 import java.util.concurrent.TimeUnit
 import scala.jdk.CollectionConverters.SeqHasAsJava
 import com.mongodb.client.model.Aggregates._
-import com.mongodb.client.model.Accumulators._
 
 import scala.collection.mutable
 import scala.jdk.CollectionConverters._
-import scala.util.Try
-import org.bson._
 
 class MongoCollectionManager(collection: MongoCollection[Document]) {
 
@@ -41,18 +38,21 @@ class MongoCollectionManager(collection: MongoCollection[Document]) {
     var categoricalFields: Set[String] = Set()
     var dateFields: Set[String] = Set()
 
-    collection.find().limit(10).forEach(doc => {
-      val keys = doc.keySet()
-      keys.forEach ( key => {
-        doc.get(key) match {
-          case _: java.lang.String => categoricalFields += key
-          case _: java.lang.Integer | _: java.lang.Long => numericFields += key
-          case _: java.lang.Float | _: java.lang.Double => numericFields += key
-          case _: java.util.Date => dateFields += key
-          case _ => None
-        }
+    collection
+      .find()
+      .limit(10)
+      .forEach(doc => {
+        val keys = doc.keySet()
+        keys.forEach(key => {
+          doc.get(key) match {
+            case _: java.lang.String                      => categoricalFields += key
+            case _: java.lang.Integer | _: java.lang.Long => numericFields += key
+            case _: java.lang.Float | _: java.lang.Double => numericFields += key
+            case _: java.util.Date                        => dateFields += key
+            case _                                        => None
+          }
+        })
       })
-    })
 
     Array(numericFields.toArray, categoricalFields.toArray, dateFields.toArray)
   }
@@ -85,16 +85,19 @@ class MongoCollectionManager(collection: MongoCollection[Document]) {
   }
 
   def calculateNumericStats(fieldName: String, offset: Long): Option[(Any, Any, Any, Long)] = {
-    val fieldAsNumber = new Document("$convert", new Document("input", "$" + fieldName).append("to", "double"))
+    val fieldAsNumber =
+      new Document("$convert", new Document("input", "$" + fieldName).append("to", "double"))
     val projection = new Document(fieldName, fieldAsNumber)
     val pipeline = java.util.Arrays.asList(
       new Document("$skip", offset.toInt),
       new Document("$project", projection),
-      new Document("$group", new Document("_id", null)
-        .append("minValue", new Document("$min", "$" + fieldName))
-        .append("maxValue", new Document("$max", "$" + fieldName))
-        .append("meanValue", new Document("$avg", "$" + fieldName))
-        .append("count", new Document("$sum", 1))
+      new Document(
+        "$group",
+        new Document("_id", null)
+          .append("minValue", new Document("$min", "$" + fieldName))
+          .append("maxValue", new Document("$max", "$" + fieldName))
+          .append("meanValue", new Document("$avg", "$" + fieldName))
+          .append("count", new Document("$sum", 1))
       )
     )
     val result = collection.aggregate(pipeline).iterator()
@@ -110,16 +113,19 @@ class MongoCollectionManager(collection: MongoCollection[Document]) {
   }
 
   def calculateDateStats(fieldName: String, offset: Long): Option[(Any, Any, Any)] = {
-    val fieldAsDate = new Document("$convert", new Document("input", "$" + fieldName).append("to", "date"))
+    val fieldAsDate =
+      new Document("$convert", new Document("input", "$" + fieldName).append("to", "date"))
     val projection = new Document(fieldName, fieldAsDate)
 
     val pipeline = java.util.Arrays.asList(
       new Document("$skip", offset.toInt),
       new Document("$project", projection),
-      new Document("$group", new Document("_id", null)
-        .append("minValue", new Document("$min", "$" + fieldName))
-        .append("maxValue", new Document("$max", "$" + fieldName))
-        .append("count", new Document("$sum", 1))
+      new Document(
+        "$group",
+        new Document("_id", null)
+          .append("minValue", new Document("$min", "$" + fieldName))
+          .append("maxValue", new Document("$max", "$" + fieldName))
+          .append("count", new Document("$sum", 1))
       )
     )
 
@@ -127,7 +133,11 @@ class MongoCollectionManager(collection: MongoCollection[Document]) {
     if (result.hasNext) {
       val doc = result.next()
       Some(
-        (doc.get("minValue"), doc.get("maxValue"), doc.get("count").asInstanceOf[Number].longValue())
+        (
+          doc.get("minValue"),
+          doc.get("maxValue"),
+          doc.get("count").asInstanceOf[Number].longValue()
+        )
       )
     } else {
       None
@@ -137,9 +147,12 @@ class MongoCollectionManager(collection: MongoCollection[Document]) {
   def calculateCategoricalStats(fieldName: String, offset: Long): (Map[String, Int], Boolean) = {
     val pipeline = java.util.Arrays.asList(
       new Document("$skip", offset.toInt),
-      group("$" + fieldName, java.util.Arrays.asList(
-        com.mongodb.client.model.Accumulators.sum("count", 1)
-      )),
+      group(
+        "$" + fieldName,
+        java.util.Arrays.asList(
+          com.mongodb.client.model.Accumulators.sum("count", 1)
+        )
+      ),
       sort(com.mongodb.client.model.Sorts.descending("count")),
       limit(1000)
     )
