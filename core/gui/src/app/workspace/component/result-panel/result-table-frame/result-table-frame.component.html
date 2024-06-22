@@ -68,7 +68,7 @@
               <div class="statsLine">
                 <h5 class="leftAlign">
                   {{tableStats[column.header]['firstCat']}}
-                  <span *ngIf="tableStats[column.header]['reachedLimit'] == 1"> (approximate)</span>
+                  <span *ngIf="tableStats[column.header]['reachedLimit'] === 1"> (approximate)</span>
                 </h5>
                 <h5 class="rightAlign"><span [innerHTML]="compare(column.header, 'firstPercent')"></span>%</h5>
               </div>
@@ -78,7 +78,7 @@
               <div class="statsLine">
                 <h5 class="leftAlign">
                   {{tableStats[column.header]['secondCat']}}
-                  <span *ngIf="tableStats[column.header]['reachedLimit'] == 1"> (approximate)</span>
+                  <span *ngIf="tableStats[column.header]['reachedLimit'] === 1"> (approximate)</span>
                 </h5>
                 <h5 class="rightAlign"><span [innerHTML]="compare(column.header, 'secondPercent')"></span>%</h5>
               </div>
@@ -88,7 +88,7 @@
               <div class="statsLine">
                 <h5 class="leftAlign">
                   Other
-                  <span *ngIf="tableStats[column.header]['reachedLimit'] == 1"> (approximate)</span>
+                  <span *ngIf="tableStats[column.header]['reachedLimit'] === 1"> (approximate)</span>
                 </h5>
                 <h5 class="rightAlign"><span [innerHTML]="compare(column.header, 'other')"></span>%</h5>
               </div>
