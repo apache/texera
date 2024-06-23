@@ -62,7 +62,7 @@ The following is a workflow formulated using the Texera GUI in a Web browser, wh
 ![Sample Texera Workflow](https://user-images.githubusercontent.com/12926365/171459157-1792971d-a31f-49e7-ab98-6f3b9ead9f5b.png)
 
 ## Publications (Computer Science):
-* (3/2024) Demonstration of Udon: Line-by-line Debugging of User-Defined Functions in Data Workflows, Yicong Huang, Zuozhi Wang, and Chen Li, in SIGMOD 2024, **Best Demo Runner Up Award🏆**, [PDF](https://dl.acm.org/doi/10.1145/3626246.3654756). 
+* (3/2024) Demonstration of Udon: Line-by-line Debugging of User-Defined Functions in Data Workflows, Yicong Huang, Zuozhi Wang, and Chen Li, in SIGMOD 2024, **🏆Best Demo Runner Up Award**, [PDF](https://dl.acm.org/doi/10.1145/3626246.3654756). 
 * (2/2024) Data Science Tasks Implemented with Scripts versus GUI-Based Workflows: The Good, the Bad, and the Ugly, Alexander K Taylor, Yicong Huang, Junheng Hao, Xinyuan Lin, Xiusi Chen, Wei Wang, and Chen Li, in DataPlat Workshop at ICDE 2024 [PDF](https://ieeexplore.ieee.org/abstract/document/10555112). 
 * (8/2023) Building a Collaborative Data Analytics System: Opportunities and Challenges, Zuozhi Wang, Chen Li, in Tutorial at VLDB 2023 [PDF](https://www.vldb.org/pvldb/vol16/p3898-wang.pdf), [Slides](https://chenli.ics.uci.edu/files/vldb2023-texera-tutorial.pdf).
 * (8/2023) Udon: Efficient Debugging of User-Defined Functions in Big Data Systems with Line-by-Line Control, Yicong Huang, Zuozhi Wang, and Chen Li, in SIGMOD 2024 [PDF](https://dl.acm.org/doi/10.1145/3626712).
