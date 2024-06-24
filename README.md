@@ -93,8 +93,8 @@ The following is a workflow formulated using the Texera GUI in a Web browser, wh
 
 ## Education
 
-* [Data Science for All] (https://ds4all.ics.uci.edu/)
-* [ICS 80] (https://canvas.eee.uci.edu/courses/63639/pages/syllabus)
+* [Data Science for All](https://ds4all.ics.uci.edu/)
+* [ICS 80](https://canvas.eee.uci.edu/courses/63639/pages/syllabus)
 
 ## Videos
 * [dkNET Webinar "Texera: A Scalable Cloud Computing Platform for Sharing Data & Workflow-based Analysis" 04/26/2024](https://www.youtube.com/watch?v=B81iMFS5fPc)
