@@ -1,16 +1,19 @@
 import pickle
-
+import datetime
 import pyarrow as pa
 import rpy2.robjects as robjects
-from rpy2_arrow.arrow import (rarrow_to_py_array, pyarrow_to_r_array,
-                              rarrow_to_py_table, converter as arrow_converter)
+from rpy2_arrow.arrow import (
+    rarrow_to_py_array,
+    pyarrow_to_r_array,
+    rarrow_to_py_table,
+    converter as arrow_converter,
+)
 from rpy2.robjects import default_converter
 from rpy2.robjects.conversion import localconverter as local_converter
-from rpy2.rinterface import ByteSexpVector
 from typing import Iterator, List, Mapping, Optional, Union, MutableMapping
-from core.models import ArrowTableTupleProvider, Tuple, TupleLike, Table, TableLike
+from core.models import Tuple, TupleLike, TableLike
 from core.models.operator import SourceOperator, TupleOperatorV2
-import traceback
+
 
 class RTupleExecutor(TupleOperatorV2):
     """
@@ -25,35 +28,59 @@ class RTupleExecutor(TupleOperatorV2):
         if isinstance(value, robjects.vectors.IntVector):
             return int(value[0])
         if isinstance(value, robjects.vectors.FloatVector):
-            return float(value[0])
+            if isinstance(value, robjects.vectors.POSIXct):
+                return next(value.iter_localized_datetime())
+            else:
+                return float(value[0])
         if isinstance(value, robjects.vectors.ComplexVector):
             return complex(value[0])
         if isinstance(value, robjects.vectors.StrVector):
             return str(value[0])
-        if isinstance(value, robjects.vectors.ByteSexpVector):
-            return bytes(value)
-        if isinstance(value, robjects.vectors.ListVector):
-            try:
-                if isinstance(value[0], robjects.vectors.ByteSexpVector):
-                    # print("VALUE", value)
-                    # print("VALUE TYPE", type(value))
-                    # print("VALUE[0]", value[0])
-                    # print("VALUE[0] TYPE", type(value[0]))
-                    # return pickle.loads(value[0])
-                    return bytes(value[0])
-            except (IndexError, ValueError) as e:
-                print(traceback.format_exc())
-                raise e
-            return {key: _convert_r_to_py(value.rx2(key)) for key in value.names}
+        # if isinstance(value, robjects.vectors.ByteSexpVector):
+        #     return value
         return value
 
-    _pyarrow_array_to_r_list = robjects.r("""
+    def _tuple_to_r_input_METHOD1(input_tuple):
+        input_schema = input_tuple._schema.as_arrow_schema()
+        has_binary = False
+        for field in input_schema:
+            if field.type == pa.binary():
+                has_binary = True
+                break
+
+        input_dict = input_tuple.as_dict()
+        if has_binary:
+            input_r_list = {}
+            for k, v in input_dict.items():
+                if isinstance(v, bytes):
+                    input_r_list[k] = pickle.loads(
+                        v[10:]
+                    )  # Need to manually do deserialization?
+                elif isinstance(v, datetime.datetime):
+                    input_r_list[k] = robjects.vectors.POSIXct.sexp_from_datetime(
+                        [v]
+                    )
+                else:
+                    input_r_list[k] = v
+            input_r_list = robjects.vectors.ListVector(input_r_list)
+        else:
+            input_pyarrow_array = pa.array(
+                [input_dict], type=pa.struct(input_schema)
+            )
+            input_r_list = RTupleExecutor._pyarrow_array_to_r_list(
+                input_pyarrow_array
+            )
+        return input_r_list
+
+    _pyarrow_array_to_r_list = robjects.r(
+        """
         function(pyarrow_StructArray) {
             StructArray_as_df <- pyarrow_StructArray$as_vector()
             StructArray_as_list <- as.list(StructArray_as_df)
             return (StructArray_as_list)
         }
-        """)
+        """
+    )
 
     def __init__(self, r_code: str):
         """
@@ -76,29 +103,34 @@ class RTupleExecutor(TupleOperatorV2):
         :return: Iterator[Optional[TupleLike]], producing one TupleLike object at a
             time, or None.
         """
-        input_dict = tuple_.as_dict()
-        input_schema = tuple_._schema.as_arrow_schema()
-        input_pyarrow_array = pa.array([input_dict], type=pa.struct(input_schema))
-        # TODO: Write the code to output the tuple from whatever is returned from R
-            # Don't have to worry about serialization
-        # TODO: deal with converting raw bytes and complex R type to StructArray in R?
-        # TODO: Very close 6:47 PM June 1, 2024
-            # TODO 1) Get the input python tuple DONE
-            # TODO 2) Convert the input python dict into an R list
-            # TODO 3) When converting python dict -> R list, loop over the list and unserialize if any columns are binary
-                # TODO 3a) POTENTIAL ISSUE, Python's pickling/serialization may not matchup correct with R's serialization
-                # TODO 3b) POTENTIAL ISSUE, How do you store an object in an R List?
+        # // ADD PROPERTY TO DIFFERENTIATE BETWEEN TABLE AND TUPLE API in RUDF
+        # One way:
+        # can detect if the tuple has binary in its schema or not
+        # if no binary, use rpy2-arrow to do conversion
+        # if binary, use rpy2 ListVector to convert dictionary
+
+        # Second way:
+        # detect if tuple has binary
+        # for every column that is NOT binary, can create subtuple/partial tuple
+        # ex: a,b,c and c is binary, can create a subtuple of (a,b) and convert (a,b) with rpy2-arrow
+        # c will be converted via regular rpy2, then add c to (a,b) in the R side
+        # see tuple.py get_partial_tuple()
+
         with local_converter(arrow_converter):
-            # Converted the input_pyarrow_array to an R array
-            input_r_list = RTupleExecutor._pyarrow_array_to_r_list(input_pyarrow_array)
+            input_r_list = RTupleExecutor._tuple_to_r_input(tuple_)
             output_r_list = self._func(input_r_list, port)
             # Convert R List to Python Dictionary (mapped to rpy2 types)
-            output_python_dict = {key: output_r_list.rx2(key) for key in output_r_list.names}
+            output_python_dict = {
+                key: output_r_list.rx2(key) for key in output_r_list.names
+            }
             # Convert Python Dictionary's values (change values to base Python types)
-            output_python_dict = {key: RTupleExecutor._convert_r_to_py(value)
-                                  for key, value in output_python_dict.items()}
+            output_python_dict = {
+                key: RTupleExecutor._convert_r_to_py(value)
+                for key, value in output_python_dict.items()
+            }
 
         yield Tuple(output_python_dict)
+
 
 class RSourceTupleExecutor(SourceOperator):
     """
@@ -113,15 +145,16 @@ class RSourceTupleExecutor(SourceOperator):
         if isinstance(value, robjects.vectors.IntVector):
             return int(value[0])
         if isinstance(value, robjects.vectors.FloatVector):
-            return float(value[0])
+            if isinstance(value, robjects.vectors.POSIXct):
+                return next(value.iter_localized_datetime())
+            else:
+                return float(value[0])
         if isinstance(value, robjects.vectors.ComplexVector):
             return complex(value[0])
         if isinstance(value, robjects.vectors.StrVector):
             return str(value[0])
-        if isinstance(value, robjects.vectors.ByteSexpVector):
-            return bytes(value)
-        if isinstance(value, robjects.vectors.ListVector):
-            return {key: _convert_r_to_py(value.rx2(key)) for key in value.names}
+        # if isinstance(value, robjects.vectors.ByteSexpVector):
+        #     return value
         return value
 
     def __init__(self, r_code: str):
@@ -147,10 +180,13 @@ class RSourceTupleExecutor(SourceOperator):
             # R List
             output_r_list = self._func()
             # Convert R List to Python Dictionary (mapped to rpy2 types)
-            output_python_dict = {key: output_r_list.rx2(key) for key in output_r_list.names}
+            output_python_dict = {
+                key: output_r_list.rx2(key) for key in output_r_list.names
+            }
             # Convert Python Dictionary's values (change values to base Python types)
-            output_python_dict = {key: RSourceTupleExecutor._convert_r_to_py(value)
-                                  for key, value in output_python_dict.items()} # HERE I HAVE THE PYTHON BYTES ALREADY
-            print(output_python_dict)
+            output_python_dict = {
+                key: RSourceTupleExecutor._convert_r_to_py(value)
+                for key, value in output_python_dict.items()
+            }
 
         yield Tuple(output_python_dict)
