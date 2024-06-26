@@ -27,67 +27,6 @@ class RTableExecutor(TableOperator):
         """
     )
 
-    _dataframe_has_raw_bytes = robjects.r(
-        """
-        function(df) {
-            df_types <- lapply(df, class)
-            if (length(df_types) == 1 && !is.null(df_types$object)) {
-                return (df_types$object == "AsIs")
-            } else {
-                return (FALSE)
-            }
-        }
-        """
-    )
-
-    _object_r_dataframe_to_object = robjects.r(
-        """
-        library(arrow)
-        function(df) {
-            unserialized <- unserialize(unlist(df$object))
-            return (unserialized)
-        }
-        """
-    )
-
-    _check_output_is_list = robjects.r(
-        """
-        function(output_object) {
-          return (inherits(output_object, "list"))
-        }
-        """
-    )
-
-    _serialize_objects_in_list = robjects.r(
-        """
-        function(output_list) {
-            object_list <- list()
-            cnt <- 1
-            for (object in output_list) {
-                serialized <- serialize(object, connection = NULL)
-                bytes_df <- data.frame(object = I(list(serialized)))
-                assign("colStr", sprintf("object%d", cnt))
-                assign(paste(colStr), bytes_df)
-                object_list <- append(object_list, mget(colStr))
-                cnt <- cnt + 1
-            }
-            return (object_list)
-        }
-        """
-    )
-
-    _serialized_list_to_df = robjects.r(
-        """
-        function(serialized_list) {
-            object_df <- data.frame()
-            for (serialized_object in serialized_list) {
-                object_df <- rbind(object_df, serialized_object)
-            }
-            return (object_df)
-        }
-        """
-    )
-
     def __init__(self, r_code: str):
         """
         Initialize the RTableExecutor with R code.
@@ -115,24 +54,10 @@ class RTableExecutor(TableOperator):
             input_r_dataframe = RTableExecutor._arrow_to_r_dataframe(
                 input_pyarrow_table
             )
-            if RTableExecutor._dataframe_has_raw_bytes(input_r_dataframe):
-                input_r_dataframe = RTableExecutor._object_r_dataframe_to_object(
-                    input_r_dataframe
-                )
-
-            output = self._func(input_r_dataframe, port)
-            if RTableExecutor._check_output_is_list(output):
-                serialized_objects_list = RTableExecutor._serialize_objects_in_list(
-                    output
-                )
-                serialized_objects_dataframe = RTableExecutor._serialized_list_to_df(
-                    serialized_objects_list
-                )
-                output_rarrow_table = RTableExecutor._r_dataframe_to_arrow(
-                    serialized_objects_dataframe
-                )
-            else:
-                output_rarrow_table = RTableExecutor._r_dataframe_to_arrow(output)
+            output_r_dataframe = self._func(input_r_dataframe, port)
+            output_rarrow_table = RTableExecutor._r_dataframe_to_arrow(
+                output_r_dataframe
+            )
             output_pyarrow_table = rarrow_to_py_table(output_rarrow_table)
 
         for field_accessor in ArrowTableTupleProvider(output_pyarrow_table):
@@ -156,45 +81,6 @@ class RTableSourceExecutor(SourceOperator):
     """
     )
 
-    _check_output_is_list = robjects.r(
-        """
-    function(output_object) {
-      return (inherits(output_object, "list"))
-    }
-    """
-    )
-
-    _serialize_objects_in_list = robjects.r(
-        """
-    function(output_list) {
-        object_list <- list()
-        idx <- 1
-        colNames <- colnames(output_list)
-        for (object in output_list) {
-            serialized <- serialize(object, connection = NULL)
-            bytes <- I(list(serialized))
-            assign("colStr", colNames[[idx]]) # colStr <- colNames[[idx]]
-            assign(paste(colStr), bytes) # eval(colStr) = bytes
-            object_list <- append(object_list, mget(colStr))
-            idx <- idx + 1
-        }
-        return (object_list)
-    }
-    """
-    )
-
-    _serialized_list_to_df = robjects.r(
-        """
-        function(serialized_list) {
-            object_df <- data.frame()
-            for (serialized_object in serialized_list) {
-                object_df <- rbind(object_df, serialized_object)
-            }
-            return (object_df)
-        }
-        """
-    )
-
     def __init__(self, r_code: str):
         """
         Initialize the RTableSourceExecutor with R code.
@@ -216,21 +102,10 @@ class RTableSourceExecutor(SourceOperator):
             one TupleLike object, one TableLike object, or None, at a time.
         """
         with local_converter(arrow_converter):
-            output = self._func()
-            if RTableSourceExecutor._check_output_is_list(output):
-                serialized_objects_list = (
-                    RTableSourceExecutor._serialize_objects_in_list(output)
-                )
-                serialized_objects_dataframe = (
-                    RTableSourceExecutor._serialized_list_to_df(serialized_objects_list)
-                )
-                output_rarrow_table = RTableSourceExecutor._source_output_to_arrow(
-                    serialized_objects_dataframe
-                )
-            else:
-                output_rarrow_table = RTableSourceExecutor._source_output_to_arrow(
-                    output
-                )
+            output_table = self._func()
+            output_rarrow_table = RTableSourceExecutor._source_output_to_arrow(
+                output_table
+            )
             output_pyarrow_table = rarrow_to_py_table(output_rarrow_table)
 
         for field_accessor in ArrowTableTupleProvider(output_pyarrow_table):
