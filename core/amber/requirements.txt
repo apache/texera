@@ -1,5 +1,5 @@
 wheel
-numpy
+numpy<2.0
 pandas
 flake8
 black==24.3.0
