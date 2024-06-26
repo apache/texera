@@ -100,7 +100,9 @@ class InputManager:
             for field_accessor in ArrowTableTupleProvider(payload.frame):
                 yield Tuple(
                     {name: field_accessor for name in payload.frame.column_names},
-                    schema=self._ports[self._channels[self._current_channel_id].port_id].get_schema()
+                    schema=self._ports[
+                        self._channels[self._current_channel_id].port_id
+                    ].get_schema(),
                 )
 
         elif isinstance(payload, EndOfUpstream):
