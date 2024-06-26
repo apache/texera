@@ -100,8 +100,8 @@ jobs:
           cache-version: 2
           extra-packages: |
             dplyr
-            arrow=14.0.0.1
-            reticulate=1.36.1
+            arrow
+            reticulate
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
         with:
