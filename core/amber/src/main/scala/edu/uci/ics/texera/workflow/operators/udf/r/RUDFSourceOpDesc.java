@@ -47,6 +47,11 @@ public class RUDFSourceOpDesc extends SourceOperatorDescriptor {
     @JsonPropertyDescription("Specify how many parallel workers to lunch")
     public Integer workers = 1;
 
+    @JsonProperty(required = true, defaultValue = "false")
+    @JsonSchemaTitle("Use Tuple API?")
+    @JsonPropertyDescription("Check this box to use Tuple API, leave unchecked to use Table API")
+    public Boolean useTupleAPI = false;
+
     @JsonProperty()
     @JsonSchemaTitle("Columns")
     @JsonPropertyDescription("The columns of the source")
@@ -54,7 +59,8 @@ public class RUDFSourceOpDesc extends SourceOperatorDescriptor {
 
     @Override
     public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId) {
-        OpExecInitInfo exec = OpExecInitInfo.apply(code, "r");
+        String r_operator_type = useTupleAPI ? "r-tuple" : "r-table";
+        OpExecInitInfo exec = OpExecInitInfo.apply(code, r_operator_type);
         Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.");
         SchemaPropagationFunc func = SchemaPropagationFunc.apply((Function<Map<PortIdentity, Schema>, Map<PortIdentity, Schema>> & Serializable) inputSchemas -> {
             // Initialize a Java HashMap

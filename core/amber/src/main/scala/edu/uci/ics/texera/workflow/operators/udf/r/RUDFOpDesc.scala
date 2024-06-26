@@ -18,7 +18,7 @@ class RUDFOpDesc extends LogicalOp {
   @JsonProperty(
     required = true,
     defaultValue =
-      "function(tuple, port) {\n\n" +
+      "function(tuple_or_table, port) {\n\n" +
         "}"
   )
   @JsonSchemaTitle("R UDF Script")
@@ -29,6 +29,11 @@ class RUDFOpDesc extends LogicalOp {
   @JsonSchemaTitle("Worker count")
   @JsonPropertyDescription("Specify how many parallel workers to lunch")
   var workers: Int = Int.box(1)
+
+  @JsonProperty(required = true, defaultValue = "false")
+  @JsonSchemaTitle("Use Tuple API?")
+  @JsonPropertyDescription("Check this box to use Tuple API, leave unchecked to use Table API")
+  var useTupleAPI = false
 
   @JsonProperty(required = true, defaultValue = "true")
   @JsonSchemaTitle("Retain input columns")
@@ -73,13 +78,17 @@ class RUDFOpDesc extends LogicalOp {
       Map(operatorInfo.outputPorts.head.id -> outputSchemaBuilder.build())
     }
 
+    var r_operator_type = "r-table"
+    if (useTupleAPI) {
+      r_operator_type = "r-tuple"
+    }
     if (workers > 1)
       PhysicalOp
         .oneToOnePhysicalOp(
           workflowId,
           executionId,
           operatorIdentifier,
-          OpExecInitInfo(code, "r")
+          OpExecInitInfo(code, r_operator_type)
         )
         .withDerivePartition(_ => UnknownPartition())
         .withInputPorts(operatorInfo.inputPorts)
@@ -95,7 +104,7 @@ class RUDFOpDesc extends LogicalOp {
           workflowId,
           executionId,
           operatorIdentifier,
-          OpExecInitInfo(code, "r")
+          OpExecInitInfo(code, r_operator_type)
         )
         .withDerivePartition(_ => UnknownPartition())
         .withInputPorts(operatorInfo.inputPorts)
