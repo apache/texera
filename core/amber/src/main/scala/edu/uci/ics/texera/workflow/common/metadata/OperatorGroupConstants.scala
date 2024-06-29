@@ -35,7 +35,7 @@ object OperatorGroupConstants {
     GroupInfo(MACHINE_LEARNING_GROUP, List(GroupInfo(SKLEARN_GROUP), GroupInfo(HUGGINGFACE_GROUP))),
     GroupInfo(UTILITY_GROUP),
     GroupInfo(API_GROUP),
-    GroupInfo(UDF_GROUP, List(GroupInfo(PYTHON_GROUP), GroupInfo(JAVA_GROUP))),
+    GroupInfo(UDF_GROUP, List(GroupInfo(PYTHON_GROUP), GroupInfo(JAVA_GROUP), GroupInfo(R_GROUP))),
     GroupInfo(VISUALIZATION_GROUP)
   )
 }
