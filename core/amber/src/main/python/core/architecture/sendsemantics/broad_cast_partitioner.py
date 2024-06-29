@@ -19,7 +19,7 @@ class BroadcastPartitioner(Partitioner):
         super().__init__(set_one_of(Partitioning, partitioning))
         self.batch_size = partitioning.batch_size
         self.batch: list[Tuple] = list()
-        self.receivers: List[ActorVirtualIdentity] = partitioning.receivers
+        self.receivers: List[ActorVirtualIdentity] = partitioning.channels
 
     @overrides
     def add_tuple_to_batch(

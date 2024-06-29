@@ -39,9 +39,8 @@ from proto.edu.uci.ics.amber.engine.common import (
 
 
 class OutputManager:
-    def __init__(
-        self,
-    ):
+    def __init__(self, worker_id):
+        self.worker_id = worker_id
         self._partitioners: OrderedDict[PhysicalLink, Partitioning] = OrderedDict()
         self._partitioning_to_partitioner: dict[
             type(Partitioning), type(Partitioner)
@@ -78,7 +77,7 @@ class OutputManager:
         the_partitioning = get_one_of(partitioning)
         logger.debug(f"adding {the_partitioning}")
         partitioner: type = self._partitioning_to_partitioner[type(the_partitioning)]
-        self._partitioners.update({tag: partitioner(the_partitioning) if not isinstance(partitioner, OneToOnePartitioner) else partitioner(the_partitioning, worker_id)})
+        self._partitioners.update({tag: partitioner(the_partitioning) if partitioner != OneToOnePartitioner else partitioner(the_partitioning, self.worker_id)})
 
     def tuple_to_batch(
         self, tuple_: Tuple

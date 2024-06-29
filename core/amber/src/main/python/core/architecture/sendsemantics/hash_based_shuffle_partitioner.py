@@ -21,7 +21,7 @@ class HashBasedShufflePartitioner(Partitioner):
         logger.debug(f"got {partitioning}")
         self.batch_size = partitioning.batch_size
         self.receivers: List[typing.Tuple[ActorVirtualIdentity, List[Tuple]]] = [
-            (receiver, list()) for receiver in partitioning.receivers
+            (receiver, list()) for receiver in partitioning.channels
         ]
         self.hash_attribute_names = partitioning.hash_attribute_names
 

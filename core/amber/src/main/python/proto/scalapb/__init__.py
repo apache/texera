@@ -143,14 +143,14 @@ class ScalaPbOptions(betterproto.Message):
     java_conversions: bool = betterproto.bool_field(23)
     """Enable java conversions for this file."""
 
-    aux_message_options: List["ScalaPbOptionsAuxMessageOptions"] = (
-        betterproto.message_field(18)
-    )
+    aux_message_options: List[
+        "ScalaPbOptionsAuxMessageOptions"
+    ] = betterproto.message_field(18)
     """List of message options to apply to some messages."""
 
-    aux_field_options: List["ScalaPbOptionsAuxFieldOptions"] = (
-        betterproto.message_field(19)
-    )
+    aux_field_options: List[
+        "ScalaPbOptionsAuxFieldOptions"
+    ] = betterproto.message_field(19)
     """List of message options to apply to some fields."""
 
     aux_enum_options: List["ScalaPbOptionsAuxEnumOptions"] = betterproto.message_field(
@@ -158,9 +158,9 @@ class ScalaPbOptions(betterproto.Message):
     )
     """List of message options to apply to some enums."""
 
-    aux_enum_value_options: List["ScalaPbOptionsAuxEnumValueOptions"] = (
-        betterproto.message_field(22)
-    )
+    aux_enum_value_options: List[
+        "ScalaPbOptionsAuxEnumValueOptions"
+    ] = betterproto.message_field(22)
     """List of enum value options to apply to some enum values."""
 
     preprocessors: List[str] = betterproto.string_field(24)

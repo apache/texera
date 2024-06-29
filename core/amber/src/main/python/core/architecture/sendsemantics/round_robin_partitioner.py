@@ -19,7 +19,7 @@ class RoundRobinPartitioner(Partitioner):
         super().__init__(set_one_of(Partitioning, partitioning))
         self.batch_size = partitioning.batch_size
         self.receivers: List[typing.Tuple[ActorVirtualIdentity, List[Tuple]]] = [
-            (receiver, list()) for receiver in partitioning.receivers
+            (receiver, list()) for receiver in partitioning.channels
         ]
         self.round_robin_index = 0
 
