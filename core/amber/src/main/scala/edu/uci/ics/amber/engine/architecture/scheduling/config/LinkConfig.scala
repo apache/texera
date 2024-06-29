@@ -21,7 +21,7 @@ import edu.uci.ics.texera.workflow.common.workflow.{
 
 case object LinkConfig {
   def toPartitioning(
-                      fromWorkerIds: List[ActorVirtualIdentity],
+      fromWorkerIds: List[ActorVirtualIdentity],
       toWorkerIds: List[ActorVirtualIdentity],
       partitionInfo: PartitionInfo
   ): Partitioning = {
