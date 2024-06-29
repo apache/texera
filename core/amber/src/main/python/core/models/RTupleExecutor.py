@@ -1,6 +1,8 @@
 import pickle
 import datetime
 import pyarrow as pa
+import rpy2
+import rpy2.rinterface as rinterface
 import rpy2.robjects as robjects
 from rpy2_arrow.arrow import converter as arrow_converter
 from rpy2.robjects import default_converter
@@ -17,15 +19,14 @@ class RTupleExecutor(TupleOperatorV2):
 
     is_source = False
 
-    # _pyarrow_array_to_r_list = robjects.r(
-    #     """
-    #     function(pyarrow_StructArray) {
-    #         StructArray_as_df <- pyarrow_StructArray$as_vector()
-    #         StructArray_as_list <- as.list(StructArray_as_df)
-    #         return (StructArray_as_list)
-    #     }
-    #     """
-    # )
+    _combine_binary_and_nonbinary_lists = robjects.r(
+        """
+        function(nonbinary_list, binary_list) {
+            nonbinary_list <- as.list(nonbinary_list$as_vector())
+            return (c(nonbinary_list, binary_list))
+        }
+        """
+    )
 
     def _convert_r_to_py(value):
         if isinstance(value, robjects.vectors.BoolVector):
@@ -112,24 +113,19 @@ class RTupleExecutor(TupleOperatorV2):
 
         with local_converter(arrow_converter):
             # TODO: use for method 2
-
-            # TODO: preserve column order after doing conversion
             input_schema = tuple_._schema.as_arrow_schema()
+            input_fields = [field.name for field in input_schema]
             nonbinary_fields = [
                 field.name for field in input_schema if field.type != pa.binary()
             ]
             binary_fields = [
                 field.name for field in input_schema if field.type == pa.binary()
             ]
-            # for field in input_schema:
-            #     if field.type != pa.binary():
-            #         nonbinary_fields.append(field.name)
-            #     else:
-            #         binary_fields.append(field.name)
-            partial_tuple = tuple_.get_partial_tuple(nonbinary_fields)
-            partial_tuple_schema = partial_tuple._schema.as_arrow_schema()
+
+            nonbinary_tuple = tuple_.get_partial_tuple(nonbinary_fields)
+            nonbinary_tuple_schema = nonbinary_tuple._schema.as_arrow_schema()
             nonbinary_pyarrow_array = pa.array(
-                [partial_tuple.as_dict()], type=pa.struct(partial_tuple_schema)
+                [nonbinary_tuple.as_dict()], type=pa.struct(nonbinary_tuple_schema)
             )
 
             binary_tuple = tuple_.get_partial_tuple(binary_fields)
@@ -142,43 +138,104 @@ class RTupleExecutor(TupleOperatorV2):
                 else:
                     binary_r_list[k] = v
             binary_r_list = robjects.vectors.ListVector(binary_r_list)
-            combine_lists_rcode = robjects.r(
-                """
-                function(nonbinary_list, binary_list) {
-                    nonbinary_list <- as.list(nonbinary_list$as_vector())
-                    return (c(nonbinary_list, binary_list)) # returns R list
-                    # make sure to preserve order
-                }
-            """
+
+            input_r_list = RTupleExecutor._combine_binary_and_nonbinary_lists(
+                nonbinary_pyarrow_array, binary_r_list
             )
-            input_r_list = combine_lists_rcode(nonbinary_pyarrow_array, binary_r_list)
-            # TODO: preserve column order after doing conversion
-            # TODO **********************
-            # TODO: use for method 1 ->
-            #  input_r_list = RTupleExecutor._tuple_to_r_input_METHOD1(tuple_)
-            output_r_list = self._func(input_r_list, port)
-            # output = next(output_r_list)
-            # Convert R List to Python Dictionary (mapped to rpy2 types)
-            output_python_dict = {
-                key: output_r_list.rx2(key) for key in output_r_list.names
-            }
-            # Convert Python Dictionary's values (change values to base Python types)
-            output_python_dict = {
-                key: RTupleExecutor._convert_r_to_py(value)
-                for key, value in output_python_dict.items()
-            }
-            # TODO: implement generator (multiple tuples) and test performance
-            # TODO: try using generator yield, if doesn't work use List of lists
-            # TODO: test performance of both methods with multiple tuples
-            # user can return 0, 1, or more than 1 tuple
-            # should support return of NULL/None (no tuples)
-            # Ideas:
-            # Use lists of lists
-            # 0 tuple = empty list, 1 tuple = 1 element, more than 1 tuples =
-            # more than 1 element
-            # assume output is a list of lists, like a generator
-            # then for loop over it and do conversion and yield each Tuple
-            yield Tuple(output_python_dict)
+            output_r_generator = self._func(input_r_list, port)
+            while True:
+                output_r_tuple = output_r_generator()
+                if (
+                    isinstance(output_r_tuple, rinterface.SexpSymbol)
+                    and str(output_r_tuple) == ".__exhausted__."
+                ):
+                    break
+                if isinstance(output_r_tuple.names, rpy2.rinterface_lib.sexp.NULLType):
+                    yield None
+                    break
+
+                diff_fields = [
+                    field_name
+                    for field_name in output_r_tuple.names
+                    if field_name not in input_fields
+                ]
+                # Convert R List to Python Dictionary (mapped to rpy2 types)
+                output_python_dict = {
+                    key: output_r_tuple.rx2(key) for key in output_r_tuple.names
+                }
+                # Convert Python Dictionary's values (change values to base Python types)
+                output_python_dict = {
+                    key: RTupleSourceExecutor._convert_r_to_py(value)
+                    for key, value in output_python_dict.items()
+                }
+
+                yield Tuple(output_python_dict)
+
+        # --- Lists of list implementation ---
+        # with local_converter(arrow_converter):
+        #     # TODO: use for method 2
+        #     input_schema = tuple_._schema.as_arrow_schema()
+        #     input_fields = [
+        #         field.name for field in input_schema
+        #     ]
+        #     nonbinary_fields = [
+        #         field.name for field in input_schema if field.type != pa.binary()
+        #     ]
+        #     binary_fields = [
+        #         field.name for field in input_schema if field.type == pa.binary()
+        #     ]
+        #
+        #     nonbinary_tuple = tuple_.get_partial_tuple(nonbinary_fields)
+        #     nonbinary_tuple_schema = nonbinary_tuple._schema.as_arrow_schema()
+        #     nonbinary_pyarrow_array = pa.array(
+        #         [nonbinary_tuple.as_dict()], type=pa.struct(nonbinary_tuple_schema)
+        #     )
+        #
+        #     binary_tuple = tuple_.get_partial_tuple(binary_fields)
+        #     binary_r_list = {}
+        #     for k, v in binary_tuple.as_dict().items():
+        #         if isinstance(v, bytes):
+        #             binary_r_list[k] = pickle.loads(v[10:])
+        #         elif isinstance(v, datetime.datetime):
+        #             binary_r_list[k] = robjects.vectors.POSIXct.sexp_from_datetime([v])
+        #         else:
+        #             binary_r_list[k] = v
+        #     binary_r_list = robjects.vectors.ListVector(binary_r_list)
+        #     combine_lists_rcode = robjects.r(
+        #         """
+        #         function(nonbinary_list, binary_list) {
+        #             nonbinary_list <- as.list(nonbinary_list$as_vector())
+        #             return (c(nonbinary_list, binary_list)) # returns R list
+        #             # make sure to preserve order
+        #         }
+        #         """
+        #     )
+        #     input_r_list = combine_lists_rcode(nonbinary_pyarrow_array, binary_r_list)
+        #     # TODO: use for method 1 -> input_r_list = RTupleExecutor._tuple_to_r_input_METHOD1(tuple_)
+        #     output_r_list = self._func(input_r_list, port)
+        #     for output_r_tuple in output_r_list:
+        #         diff_fields = [field_name for field_name in output_r_tuple.names if field_name not in input_fields]
+        #         # Convert R List to Python Dictionary (mapped to rpy2 types)
+        #         output_python_dict = {
+        #             key: output_r_tuple.rx2(key) for key in (input_fields + diff_fields)
+        #         }
+        #         # Convert Python Dictionary's values (change values to base Python types)
+        #         output_python_dict = {
+        #             key: RTupleExecutor._convert_r_to_py(value)
+        #             for key, value in output_python_dict.items()
+        #         }
+        #         # TODO: implement generator (multiple tuples) and test performance
+        #         # TODO: try using generator yield, if doesn't work use List of lists
+        #         # TODO: test performance of both methods with multiple tuples
+        #         # user can return 0, 1, or more than 1 tuple
+        #         # should support return of NULL/None (no tuples)
+        #         # Ideas:
+        #         # Use lists of lists
+        #         # 0 tuple = empty list, 1 tuple = 1 element, more than 1 tuples =
+        #         # more than 1 element
+        #         # assume output is a list of lists, like a generator
+        #         # then for loop over it and do conversion and yield each Tuple
+        #         yield Tuple(output_python_dict)
 
 
 class RTupleSourceExecutor(SourceOperator):
@@ -225,16 +282,53 @@ class RTupleSourceExecutor(SourceOperator):
             one TupleLike object, one TableLike object, or None, at a time.
         """
         with local_converter(arrow_converter):
-            # R List
-            output_r_list = self._func()
-            # Convert R List to Python Dictionary (mapped to rpy2 types)
-            output_python_dict = {
-                key: output_r_list.rx2(key) for key in output_r_list.names
-            }
-            # Convert Python Dictionary's values (change values to base Python types)
-            output_python_dict = {
-                key: RTupleSourceExecutor._convert_r_to_py(value)
-                for key, value in output_python_dict.items()
-            }
+            output_r_generator = self._func()
+            while True:
+                output_r_tuple = output_r_generator()
+                # If generator is exhausted
+                if (
+                    isinstance(output_r_tuple, rinterface.SexpSymbol)
+                    and str(output_r_tuple) == ".__exhausted__."
+                ):
+                    break
 
-        yield Tuple(output_python_dict)
+                # If 0 tuples (empty list or NULL) was returned
+                if isinstance(output_r_tuple.names, rpy2.rinterface_lib.sexp.NULLType):
+                    yield None
+                    break
+
+                # Convert R List to Python Dictionary (mapped to rpy2 types)
+                output_python_dict = {
+                    key: output_r_tuple.rx2(key) for key in output_r_tuple.names
+                }
+                # Convert Python Dictionary's values (change values to base Python types)
+                output_python_dict = {
+                    key: RTupleSourceExecutor._convert_r_to_py(value)
+                    for key, value in output_python_dict.items()
+                }
+
+                yield Tuple(output_python_dict)
+
+            # ---- List of lists implementation ---- #
+            # R List
+            # output_r_list = self._func()
+            # if output_r_list is not None:
+            #     # TODO: check for 0, 1 tuple or list of tuples
+            #     # 0 tuples => list()
+            #     # 1 tuple => list(list())
+            #     # more than 1 => list(list, list, list, ...)
+            #     # TODO: find some way to differentiate them
+            #     for output_r_tuple in output_r_list:
+            #         # Convert R List to Python Dictionary (mapped to rpy2 types)
+            #         output_python_dict = {
+            #             key: output_r_tuple.rx2(key) for key in output_r_tuple.names
+            #         }
+            #         # Convert Python Dictionary's values (change values to base Python types)
+            #         output_python_dict = {
+            #             key: RTupleSourceExecutor._convert_r_to_py(value)
+            #             for key, value in output_python_dict.items()
+            #         }
+            #
+            #         yield Tuple(output_python_dict)
+            # else:
+            #     yield None
