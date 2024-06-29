@@ -231,8 +231,7 @@ class ExecutionResultService(
     addSubscription(
       workflowStateStore.resultStore.registerDiffHandler((oldState, newState) => {
         val buf = mutable.HashMap[String, WebResultUpdate]()
-        var allTableStats = mutable.Map[String, Map[String, Map[String, Any]]]()
-
+        val allTableStats = mutable.Map[String, Map[String, Map[String, Any]]]()
         newState.resultInfo
           .filter(info => {
             // only update those operators with changing tuple count.
@@ -247,11 +246,10 @@ class ExecutionResultService(
                 oldInfo.tupleCount,
                 info.tupleCount
               )
-
               if (
                 AmberConfig.sinkStorageMode.toLowerCase == "mongodb" && !opId.id.startsWith("sink")
               ) {
-                val sinkMgr = sinkOperators(opId).getStorage()
+                val sinkMgr = sinkOperators(opId).getStorage
                 if (oldState.resultInfo.isEmpty) {
                   val fields = sinkMgr.getAllFields()
                   tableFields.update(

@@ -3,11 +3,9 @@ package edu.uci.ics.texera.web.storage
 import com.mongodb.client.model.{IndexOptions, Indexes}
 import com.mongodb.client.{FindIterable, MongoCollection, MongoCursor}
 import org.bson.Document
-
 import java.util.concurrent.TimeUnit
 import scala.jdk.CollectionConverters.SeqHasAsJava
 import com.mongodb.client.model.Aggregates._
-
 import scala.collection.mutable
 import scala.jdk.CollectionConverters._
 
