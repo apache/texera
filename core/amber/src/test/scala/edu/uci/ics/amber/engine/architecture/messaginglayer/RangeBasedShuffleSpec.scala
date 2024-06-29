@@ -2,14 +2,14 @@ package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners.RangeBasedShufflePartitioner
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 
 class RangeBasedShuffleSpec extends AnyFlatSpec with MockFactory {
-
+  val identifier = ActorVirtualIdentity("batch producer mock")
   val fakeID1: ActorVirtualIdentity = ActorVirtualIdentity("rec1")
   val fakeID2: ActorVirtualIdentity = ActorVirtualIdentity("rec2")
   val fakeID3: ActorVirtualIdentity = ActorVirtualIdentity("rec3")
@@ -21,7 +21,13 @@ class RangeBasedShuffleSpec extends AnyFlatSpec with MockFactory {
   val partitioning: RangeBasedShufflePartitioning =
     RangeBasedShufflePartitioning(
       400,
-      List(fakeID1, fakeID2, fakeID3, fakeID4, fakeID5),
+      List(
+        ChannelIdentity(identifier, fakeID1, isControl = false),
+        ChannelIdentity(identifier, fakeID2, isControl = false),
+        ChannelIdentity(identifier, fakeID3, isControl = false),
+        ChannelIdentity(identifier, fakeID4, isControl = false),
+        ChannelIdentity(identifier, fakeID5, isControl = false)
+      ),
       Seq("Attr1"),
       -400,
       600
@@ -63,7 +69,13 @@ class RangeBasedShuffleSpec extends AnyFlatSpec with MockFactory {
     val partitioning2: RangeBasedShufflePartitioning =
       RangeBasedShufflePartitioning(
         400,
-        List(fakeID1, fakeID2, fakeID3, fakeID4, fakeID5),
+        List(
+          ChannelIdentity(identifier, fakeID1, isControl = false),
+          ChannelIdentity(identifier, fakeID2, isControl = false),
+          ChannelIdentity(identifier, fakeID3, isControl = false),
+          ChannelIdentity(identifier, fakeID4, isControl = false),
+          ChannelIdentity(identifier, fakeID5, isControl = false)
+        ),
         Seq("Attr2"),
         -400,
         600
@@ -79,7 +91,13 @@ class RangeBasedShuffleSpec extends AnyFlatSpec with MockFactory {
     val partitioning3: RangeBasedShufflePartitioning =
       RangeBasedShufflePartitioning(
         400,
-        List(fakeID1, fakeID2, fakeID3, fakeID4, fakeID5),
+        List(
+          ChannelIdentity(identifier, fakeID1, isControl = false),
+          ChannelIdentity(identifier, fakeID2, isControl = false),
+          ChannelIdentity(identifier, fakeID3, isControl = false),
+          ChannelIdentity(identifier, fakeID4, isControl = false),
+          ChannelIdentity(identifier, fakeID5, isControl = false)
+        ),
         Seq("Attr3"),
         -400,
         600

@@ -30,9 +30,7 @@ case object LinkConfig {
         HashBasedShufflePartitioning(
           defaultBatchSize,
           fromWorkerIds.flatMap(fromId =>
-            toWorkerIds.map(toId =>
-              ChannelIdentity(fromId, toId, isControl = false)
-            )
+            toWorkerIds.map(toId => ChannelIdentity(fromId, toId, isControl = false))
           ),
           hashAttributeNames
         )
@@ -41,9 +39,7 @@ case object LinkConfig {
         RangeBasedShufflePartitioning(
           defaultBatchSize,
           fromWorkerIds.flatMap(fromId =>
-            toWorkerIds.map(toId =>
-              ChannelIdentity(fromId, toId, isControl = false)
-            )
+            toWorkerIds.map(toId => ChannelIdentity(fromId, toId, isControl = false))
           ),
           rangeAttributeNames,
           rangeMin,
@@ -52,16 +48,30 @@ case object LinkConfig {
 
       case SinglePartition() =>
         assert(toWorkerIds.size == 1)
-        OneToOnePartitioning(defaultBatchSize, fromWorkerIds.map(fromWorkerId => ChannelIdentity(fromWorkerId, toWorkerIds.head, isControl = false)))
+        OneToOnePartitioning(
+          defaultBatchSize,
+          fromWorkerIds.map(fromWorkerId =>
+            ChannelIdentity(fromWorkerId, toWorkerIds.head, isControl = false)
+          )
+        )
 
       case OneToOnePartition() =>
-        OneToOnePartitioning(defaultBatchSize, fromWorkerIds.zip(toWorkerIds).map(x=> ChannelIdentity(x._1, x._2, isControl = false)))
+        OneToOnePartitioning(
+          defaultBatchSize,
+          fromWorkerIds.zip(toWorkerIds).map(x => ChannelIdentity(x._1, x._2, isControl = false))
+        )
 
       case BroadcastPartition() =>
-        BroadcastPartitioning(defaultBatchSize,fromWorkerIds.zip(toWorkerIds).map(x=> ChannelIdentity(x._1, x._2, isControl = false)))
+        BroadcastPartitioning(
+          defaultBatchSize,
+          fromWorkerIds.zip(toWorkerIds).map(x => ChannelIdentity(x._1, x._2, isControl = false))
+        )
 
       case UnknownPartition() =>
-        RoundRobinPartitioning(defaultBatchSize, fromWorkerIds.zip(toWorkerIds).map(x=> ChannelIdentity(x._1, x._2, isControl = false)))
+        RoundRobinPartitioning(
+          defaultBatchSize,
+          fromWorkerIds.zip(toWorkerIds).map(x => ChannelIdentity(x._1, x._2, isControl = false))
+        )
 
       case _ =>
         throw new UnsupportedOperationException()

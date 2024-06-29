@@ -4,7 +4,8 @@ import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOn
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
-case class OneToOnePartitioner(partitioning: OneToOnePartitioning, actorId: ActorVirtualIdentity) extends Partitioner {
+case class OneToOnePartitioner(partitioning: OneToOnePartitioning, actorId: ActorVirtualIdentity)
+    extends Partitioner {
 
   private val targetWorker = partitioning.channels.filter(_.fromWorkerId == actorId).head.toWorkerId
 

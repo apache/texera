@@ -20,7 +20,6 @@ object OutputManager {
 
   final case class FlushNetworkBuffer() extends ControlCommand[Unit]
 
-
   def getBatchSize(partitioning: Partitioning): Int = {
     partitioning match {
       case p: OneToOnePartitioning          => p.batchSize
@@ -73,7 +72,8 @@ class OutputManager(
   // create a corresponding partitioner for the given partitioning policy
   def toPartitioner(partitioning: Partitioning): Partitioner = {
     val partitioner = partitioning match {
-      case oneToOnePartitioning: OneToOnePartitioning => OneToOnePartitioner(oneToOnePartitioning, actorId)
+      case oneToOnePartitioning: OneToOnePartitioning =>
+        OneToOnePartitioner(oneToOnePartitioning, actorId)
       case roundRobinPartitioning: RoundRobinPartitioning =>
         RoundRobinPartitioner(roundRobinPartitioning)
       case hashBasedShufflePartitioning: HashBasedShufflePartitioning =>

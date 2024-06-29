@@ -73,8 +73,8 @@ final case class RangePartition(rangeAttributeNames: List[String], rangeMin: Lon
 final case class SinglePartition() extends PartitionInfo {}
 
 /**
- * Represent the input stream is not partitioned and all data are on a single node.
- */
+  * Represent the input stream is not partitioned and all data are on a single node.
+  */
 final case class OneToOnePartition() extends PartitionInfo {}
 
 /**
