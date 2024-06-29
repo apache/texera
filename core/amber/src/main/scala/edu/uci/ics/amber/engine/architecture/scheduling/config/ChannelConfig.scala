@@ -5,11 +5,11 @@ import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.common.workflow.{
   BroadcastPartition,
   HashPartition,
+  OneToOnePartition,
   PartitionInfo,
   RangePartition,
   SinglePartition,
-  UnknownPartition,
-  OneToOnePartition
+  UnknownPartition
 }
 
 case object ChannelConfig {
