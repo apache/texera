@@ -9,7 +9,15 @@ import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.{
 }
 import edu.uci.ics.amber.engine.common.AmberConfig.defaultBatchSize
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
-import edu.uci.ics.texera.workflow.common.workflow.{BroadcastPartition, HashPartition, OneToOnePartition, PartitionInfo, RangePartition, SinglePartition, UnknownPartition}
+import edu.uci.ics.texera.workflow.common.workflow.{
+  BroadcastPartition,
+  HashPartition,
+  OneToOnePartition,
+  PartitionInfo,
+  RangePartition,
+  SinglePartition,
+  UnknownPartition
+}
 
 case object LinkConfig {
   def toPartitioning(
