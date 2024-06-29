@@ -20,6 +20,7 @@ import scala.collection.mutable
 object OutputManager {
 
   final case class FlushNetworkBuffer() extends ControlCommand[Unit]
+
   // create a corresponding partitioner for the given partitioning policy
   def toPartitioner(partitioning: Partitioning): Partitioner = {
     val partitioner = partitioning match {
