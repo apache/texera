@@ -80,13 +80,6 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
         }
         const opUpdate = update[this.operatorId];
         if (!opUpdate || !isWebPaginationUpdate(opUpdate)) {
-          // clear result panel if currently display results
-          if (this.totalNumTuples > 0) {
-            this.totalNumTuples = 0;
-            this.currentPageIndex = 1;
-            this.currentColumns = undefined;
-            this.currentResult = [];
-          }
           return;
         }
         let columnCount = this.currentColumns?.length;
