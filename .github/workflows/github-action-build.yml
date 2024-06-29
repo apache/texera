@@ -1,6 +1,6 @@
 name: build
 
-on:
+on:a
   push:
     branches:
       - 'ci-enable/**'
