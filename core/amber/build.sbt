@@ -1,4 +1,4 @@
-aname := "texera"
+name := "texera"
 organization := "edu.uci.ics"
 version := "0.1-SNAPSHOT"
 
