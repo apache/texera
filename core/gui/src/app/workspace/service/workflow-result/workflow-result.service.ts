@@ -6,10 +6,11 @@ import {
   WebPaginationUpdate,
   WebResultUpdate,
   WorkflowResultUpdate,
+  WorkflowResultTableStats,
 } from "../../types/execute-workflow.interface";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import { PaginatedResultEvent, WorkflowAvailableResultEvent } from "../../types/workflow-websocket.interface";
-import { map, Observable, of, Subject } from "rxjs";
+import { map, Observable, of, pairwise, ReplaySubject, startWith, Subject, BehaviorSubject } from "rxjs";
 import { v4 as uuid } from "uuid";
 import { IndexableObject } from "../../types/result-table.interface";
 import { isDefined } from "../../../common/util/predicate";
@@ -26,13 +27,20 @@ export class WorkflowResultService {
 
   // event stream of operator result update, undefined indicates the operator result is cleared
   private resultUpdateStream = new Subject<Record<string, WebResultUpdate | undefined>>();
+  private resultTableStats = new ReplaySubject<Record<string, Record<string, Record<string, number>>>>(1);
   private resultInitiateStream = new Subject<string>();
+  private sinkStorageModeSubject = new BehaviorSubject<string>("");
 
   constructor(private wsService: WorkflowWebsocketService) {
-    this.wsService.subscribeToEvent("WebResultUpdateEvent").subscribe(event => this.handleResultUpdate(event.updates));
+    this.wsService.subscribeToEvent("WebResultUpdateEvent").subscribe(event => {
+      this.handleResultUpdate(event.updates);
+      this.handleTableStatsUpdate(event.tableStats);
+      this.handleSinkStorageModeUpdate(event.sinkStorageMode);
+    });
     this.wsService
       .subscribeToEvent("WorkflowAvailableResultEvent")
       .subscribe(event => this.handleCleanResultCache(event));
+    this.resultTableStats.next({});
   }
 
   public hasAnyResult(operatorID: string): boolean {
@@ -49,6 +57,12 @@ export class WorkflowResultService {
 
   public getResultUpdateStream(): Observable<Record<string, WebResultUpdate | undefined>> {
     return this.resultUpdateStream;
+  }
+
+  public getResultTableStats(): Observable<
+    [Record<string, Record<string, Record<string, number>>>, Record<string, Record<string, Record<string, number>>>]
+  > {
+    return this.resultTableStats.pipe(pairwise());
   }
 
   public getResultInitiateStream(): Observable<string> {
@@ -123,6 +137,22 @@ export class WorkflowResultService {
     this.resultUpdateStream.next(event);
   }
 
+  private handleTableStatsUpdate(event: WorkflowResultTableStats): void {
+    Object.keys(event).forEach(operatorID => {
+      const paginatedResultService = this.getOrInitPaginatedResultService(operatorID);
+      paginatedResultService.handleStatsUpdate(event[operatorID]);
+    });
+    this.resultTableStats.next(event);
+  }
+
+  private handleSinkStorageModeUpdate(sinkStorageMode: string): void {
+    this.sinkStorageModeSubject.next(sinkStorageMode);
+  }
+
+  public getSinkStorageMode(): BehaviorSubject<string> {
+    return this.sinkStorageModeSubject;
+  }
+
   private getOrInitPaginatedResultService(operatorID: string): OperatorPaginationResultService {
     let service = this.getPaginatedResultService(operatorID);
     if (!service) {
@@ -170,6 +200,8 @@ export class OperatorResultService {
 class OperatorPaginationResultService {
   private pendingRequests: Map<string, Subject<PaginatedResultEvent>> = new Map();
   private resultCache: Map<number, ReadonlyArray<object>> = new Map();
+  private prevStatsCache: Record<string, Record<string, number>> = {};
+  private statsCache: Record<string, Record<string, number>> = {};
   private currentPageIndex: number = 1;
   private currentTotalNumTuples: number = 0;
 
@@ -180,6 +212,14 @@ class OperatorPaginationResultService {
     this.workflowWebsocketService
       .subscribeToEvent("PaginatedResultEvent")
       .subscribe(event => this.handlePaginationResult(event));
+  }
+
+  public getStats(): Record<string, Record<string, number>> {
+    return this.statsCache;
+  }
+
+  public getPrevStats(): Record<string, Record<string, number>> {
+    return this.prevStatsCache;
   }
 
   public getCurrentPageIndex(): number {
@@ -237,6 +277,16 @@ class OperatorPaginationResultService {
     update.dirtyPageIndices.forEach(dirtyPage => {
       this.resultCache.delete(dirtyPage);
     });
+  }
+
+  public handleStatsUpdate(statsUpdate: Record<string, Record<string, number>>): void {
+    if (!this.statsCache) {
+      this.statsCache = statsUpdate;
+      this.prevStatsCache = statsUpdate;
+    } else {
+      this.prevStatsCache = this.statsCache;
+      this.statsCache = statsUpdate;
+    }
   }
 
   private handlePaginationResult(res: PaginatedResultEvent): void {
