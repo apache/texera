@@ -21,7 +21,6 @@ object OutputManager {
   final case class FlushNetworkBuffer() extends ControlCommand[Unit]
 
 
-
   def getBatchSize(partitioning: Partitioning): Int = {
     partitioning match {
       case p: OneToOnePartitioning          => p.batchSize
