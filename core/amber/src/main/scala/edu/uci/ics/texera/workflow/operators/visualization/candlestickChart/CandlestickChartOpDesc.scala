@@ -7,7 +7,10 @@ import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, Oper
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
-import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstants, VisualizationOperator}
+import edu.uci.ics.texera.workflow.operators.visualization.{
+  VisualizationConstants,
+  VisualizationOperator
+}
 
 class CandlestickChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
 
@@ -83,7 +86,6 @@ class CandlestickChartOpDesc extends VisualizationOperator with PythonOperatorDe
        |        yield {'html-content': html}
        |""".stripMargin
   }
-
 
   override def chartType(): String = VisualizationConstants.HTML_VIZ
 }
