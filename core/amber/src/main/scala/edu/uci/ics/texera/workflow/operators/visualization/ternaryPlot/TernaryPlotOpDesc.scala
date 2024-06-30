@@ -13,11 +13,11 @@ import edu.uci.ics.texera.workflow.operators.visualization.{
 }
 
 /**
- * Visualization Operator for Ternary Plots
- * Uses 3 user-specified quantitative data fields (that sum to 1)
- * Optionally can categorize points using distinct colors for an
- *  additional user-specified categorical data field
- */
+  * Visualization Operator for Ternary Plots
+  * Uses 3 user-specified quantitative data fields (that sum to 1)
+  * Optionally can categorize points using distinct colors for an
+  *  additional user-specified categorical data field
+  */
 
 class TernaryPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
 
