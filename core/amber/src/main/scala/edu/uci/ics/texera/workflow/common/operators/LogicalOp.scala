@@ -41,6 +41,7 @@ import edu.uci.ics.texera.workflow.operators.huggingFace.{
   HuggingFaceSpamSMSDetectionOpDesc,
   HuggingFaceTextSummarizationOpDesc
 }
+import edu.uci.ics.texera.workflow.operators.visualization.quiverPlot.QuiverPlotOpDesc
 import edu.uci.ics.texera.workflow.operators.projection.ProjectionOpDesc
 import edu.uci.ics.texera.workflow.operators.randomksampling.RandomKSamplingOpDesc
 import edu.uci.ics.texera.workflow.operators.regex.RegexOpDesc
@@ -257,6 +258,7 @@ trait StateTransferFunc
       value = classOf[SklearnMultinomialNaiveBayesOpDesc],
       name = "SklearnMultinomialNaiveBayes"
     ),
+    new Type(value = classOf[QuiverPlotOpDesc], name = "QuiverPlot"),
     new Type(
       value = classOf[SklearnComplementNaiveBayesOpDesc],
       name = "SklearnComplementNaiveBayes"
