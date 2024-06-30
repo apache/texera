@@ -161,9 +161,9 @@ class RTupleExecutor(TupleOperatorV2):
                 ]
                 # Convert R List to Python Dictionary (mapped to rpy2 types)
                 output_python_dict = {
-                    key: output_r_tuple.rx2(key) for key in output_r_tuple.names
+                    key: output_r_tuple.rx2(key) for key in (input_fields + diff_fields)
                 }
-                # Convert Python Dictionary's values (change values to base Python types)
+                # Convert Python Dict's values (change values to base Python types)
                 output_python_dict = {
                     key: RTupleSourceExecutor._convert_r_to_py(value)
                     for key, value in output_python_dict.items()
@@ -197,7 +197,9 @@ class RTupleExecutor(TupleOperatorV2):
         #         if isinstance(v, bytes):
         #             binary_r_list[k] = pickle.loads(v[10:])
         #         elif isinstance(v, datetime.datetime):
-        #             binary_r_list[k] = robjects.vectors.POSIXct.sexp_from_datetime([v])
+        #             binary_r_list[k] = robjects.vectors.POSIXct.sexp_from_datetime([
+        #             v
+        #             ])
         #         else:
         #             binary_r_list[k] = v
         #     binary_r_list = robjects.vectors.ListVector(binary_r_list)
@@ -211,15 +213,18 @@ class RTupleExecutor(TupleOperatorV2):
         #         """
         #     )
         #     input_r_list = combine_lists_rcode(nonbinary_pyarrow_array, binary_r_list)
-        #     # TODO: use for method 1 -> input_r_list = RTupleExecutor._tuple_to_r_input_METHOD1(tuple_)
+        #     # TODO: use for method 1 ->
+        #      input_r_list = RTupleExecutor._tuple_to_r_input_METHOD1(tuple_)
         #     output_r_list = self._func(input_r_list, port)
         #     for output_r_tuple in output_r_list:
-        #         diff_fields = [field_name for field_name in output_r_tuple.names if field_name not in input_fields]
+        #         diff_fields = [field_name for field_name in output_r_tuple.names
+        #         if field_name not in input_fields]
         #         # Convert R List to Python Dictionary (mapped to rpy2 types)
         #         output_python_dict = {
-        #             key: output_r_tuple.rx2(key) for key in (input_fields + diff_fields)
+        #             key: output_r_tuple.rx2(key)
+        #             for key in (input_fields + diff_fields)
         #         }
-        #         # Convert Python Dictionary's values (change values to base Python types)
+        #         # Convert Python Dict's values (change values to base Python types)
         #         output_python_dict = {
         #             key: RTupleExecutor._convert_r_to_py(value)
         #             for key, value in output_python_dict.items()
@@ -301,7 +306,7 @@ class RTupleSourceExecutor(SourceOperator):
                 output_python_dict = {
                     key: output_r_tuple.rx2(key) for key in output_r_tuple.names
                 }
-                # Convert Python Dictionary's values (change values to base Python types)
+                # Convert Python Dict's values (change values to base Python types)
                 output_python_dict = {
                     key: RTupleSourceExecutor._convert_r_to_py(value)
                     for key, value in output_python_dict.items()
@@ -323,7 +328,7 @@ class RTupleSourceExecutor(SourceOperator):
             #         output_python_dict = {
             #             key: output_r_tuple.rx2(key) for key in output_r_tuple.names
             #         }
-            #         # Convert Python Dictionary's values (change values to base Python types)
+            #         # Convert Python Dict's values (change values to base Python types)
             #         output_python_dict = {
             #             key: RTupleSourceExecutor._convert_r_to_py(value)
             #             for key, value in output_python_dict.items()
