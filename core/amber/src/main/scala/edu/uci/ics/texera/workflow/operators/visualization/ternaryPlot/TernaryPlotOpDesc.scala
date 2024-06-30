@@ -42,12 +42,12 @@ class TernaryPlotOpDesc extends VisualizationOperator with PythonOperatorDescrip
   // Adds annotations for enabling color and selecting its associated data field
   @JsonProperty(value = "colorEnabled", defaultValue = "false")
   @JsonSchemaTitle("Categorize by Color")
-  @JsonPropertyDescription("Color points using a categorical data field")
+  @JsonPropertyDescription("Optionally color points using a data field")
   var colorEnabled: Boolean = false
 
   @JsonProperty(value = "colorDataField", required = false)
   @JsonSchemaTitle("Color Data Field")
-  @JsonPropertyDescription("Specify the categorical data field to color")
+  @JsonPropertyDescription("Specify the data field to color")
   @AutofillAttributeName var colorDataField: String = ""
 
   // Information about this operator
