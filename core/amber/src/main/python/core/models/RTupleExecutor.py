@@ -328,7 +328,7 @@ class RTupleSourceExecutor(SourceOperator):
             #         output_python_dict = {
             #             key: output_r_tuple.rx2(key) for key in output_r_tuple.names
             #         }
-            #         # Convert Python Dict's values (change values to base Python types)
+            #         # Convert Py Dict's values (change values to base Python types)
             #         output_python_dict = {
             #             key: RTupleSourceExecutor._convert_r_to_py(value)
             #             for key, value in output_python_dict.items()
