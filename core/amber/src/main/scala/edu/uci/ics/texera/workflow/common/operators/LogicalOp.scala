@@ -41,41 +41,42 @@ import edu.uci.ics.texera.workflow.operators.huggingFace.{
   HuggingFaceSpamSMSDetectionOpDesc,
   HuggingFaceTextSummarizationOpDesc
 }
+import edu.uci.ics.texera.workflow.operators.visualization.quiverPlot.QuiverPlotOpDesc
 import edu.uci.ics.texera.workflow.operators.projection.ProjectionOpDesc
 import edu.uci.ics.texera.workflow.operators.randomksampling.RandomKSamplingOpDesc
 import edu.uci.ics.texera.workflow.operators.regex.RegexOpDesc
 import edu.uci.ics.texera.workflow.operators.reservoirsampling.ReservoirSamplingOpDesc
 import edu.uci.ics.texera.workflow.operators.sentiment.SentimentAnalysisOpDesc
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
-import edu.uci.ics.texera.workflow.operators.sklearn.{
-  SklearnAdaptiveBoostingOpDesc,
-  SklearnBaggingOpDesc,
-  SklearnBernoulliNaiveBayesOpDesc,
-  SklearnComplementNaiveBayesOpDesc,
-  SklearnDecisionTreeOpDesc,
-  SklearnDummyClassifierOpDesc,
-  SklearnExtraTreeOpDesc,
-  SklearnExtraTreesOpDesc,
-  SklearnGaussianNaiveBayesOpDesc,
-  SklearnGradientBoostingOpDesc,
-  SklearnKNNOpDesc,
-  SklearnLinearRegressionOpDesc,
-  SklearnLinearSVMOpDesc,
-  SklearnLogisticRegressionCVOpDesc,
-  SklearnLogisticRegressionOpDesc,
-  SklearnMultiLayerPerceptronOpDesc,
-  SklearnMultinomialNaiveBayesOpDesc,
-  SklearnNearestCentroidOpDesc,
-  SklearnPassiveAggressiveOpDesc,
-  SklearnPerceptronOpDesc,
-  SklearnPredictionOpDesc,
-  SklearnProbabilityCalibrationOpDesc,
-  SklearnRandomForestOpDesc,
-  SklearnRidgeCVOpDesc,
-  SklearnRidgeOpDesc,
-  SklearnSDGOpDesc,
-  SklearnSVMOpDesc
-}
+//import edu.uci.ics.texera.workflow.operators.sklearn.{
+//  SklearnAdaptiveBoostingOpDesc,
+//  SklearnBaggingOpDesc,
+//  SklearnBernoulliNaiveBayesOpDesc,
+//  SklearnComplementNaiveBayesOpDesc,
+//  SklearnDecisionTreeOpDesc,
+//  SklearnDummyClassifierOpDesc,
+//  SklearnExtraTreeOpDesc,
+//  SklearnExtraTreesOpDesc,
+//  SklearnGaussianNaiveBayesOpDesc,
+//  SklearnGradientBoostingOpDesc,
+//  SklearnKNNOpDesc,
+//  SklearnLinearRegressionOpDesc,
+//  SklearnLinearSVMOpDesc,
+//  SklearnLogisticRegressionCVOpDesc,
+//  SklearnLogisticRegressionOpDesc,
+//  SklearnMultiLayerPerceptronOpDesc,
+//  SklearnMultinomialNaiveBayesOpDesc,
+//  SklearnNearestCentroidOpDesc,
+//  SklearnPassiveAggressiveOpDesc,
+//  SklearnPerceptronOpDesc,
+//  SklearnPredictionOpDesc,
+//  SklearnProbabilityCalibrationOpDesc,
+//  SklearnRandomForestOpDesc,
+//  SklearnRidgeCVOpDesc,
+//  SklearnRidgeOpDesc,
+//  SklearnSDGOpDesc,
+//  SklearnSVMOpDesc
+//}
 import edu.uci.ics.texera.workflow.operators.sort.SortOpDesc
 import edu.uci.ics.texera.workflow.operators.sortPartitions.SortPartitionsOpDesc
 import edu.uci.ics.texera.workflow.operators.source.apis.reddit.RedditSearchSourceOpDesc
@@ -129,14 +130,14 @@ import edu.uci.ics.texera.workflow.operators.visualization.funnelPlot.FunnelPlot
 import edu.uci.ics.texera.workflow.operators.visualization.tablesChart.TablesPlotOpDesc
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
 import org.apache.zookeeper.KeeperException.UnimplementedException
-import edu.uci.ics.texera.workflow.operators.machineLearning.Scorer.MachineLearningScorerOpDesc
+
 
 import java.util.UUID
 import scala.collection.mutable
 import scala.util.Try
 
 trait StateTransferFunc
-    extends ((OperatorExecutor, OperatorExecutor) => Unit)
+  extends ((OperatorExecutor, OperatorExecutor) => Unit)
     with java.io.Serializable
 
 @JsonTypeInfo(
@@ -220,53 +221,53 @@ trait StateTransferFunc
     new Type(value = classOf[JavaUDFOpDesc], name = "JavaUDF"),
     new Type(value = classOf[RUDFOpDesc], name = "RUDF"),
     new Type(value = classOf[RUDFSourceOpDesc], name = "RUDFSource"),
-    new Type(value = classOf[MachineLearningScorerOpDesc], name = "Scorer"),
     new Type(value = classOf[SortOpDesc], name = "Sort"),
-    new Type(value = classOf[SklearnLogisticRegressionOpDesc], name = "SklearnLogisticRegression"),
-    new Type(
-      value = classOf[SklearnLogisticRegressionCVOpDesc],
-      name = "SklearnLogisticRegressionCV"
-    ),
-    new Type(value = classOf[SklearnRidgeOpDesc], name = "SklearnRidge"),
-    new Type(value = classOf[SklearnRidgeCVOpDesc], name = "SklearnRidgeCV"),
-    new Type(value = classOf[SklearnSDGOpDesc], name = "SklearnSDG"),
-    new Type(value = classOf[SklearnPassiveAggressiveOpDesc], name = "SklearnPassiveAggressive"),
-    new Type(value = classOf[SklearnPerceptronOpDesc], name = "SklearnPerceptron"),
-    new Type(value = classOf[SklearnKNNOpDesc], name = "SklearnKNN"),
-    new Type(value = classOf[SklearnNearestCentroidOpDesc], name = "SklearnNearestCentroid"),
-    new Type(value = classOf[SklearnSVMOpDesc], name = "SklearnSVM"),
-    new Type(value = classOf[SklearnLinearSVMOpDesc], name = "SklearnLinearSVM"),
-    new Type(value = classOf[SklearnLinearRegressionOpDesc], name = "SklearnLinearRegression"),
-    new Type(value = classOf[SklearnDecisionTreeOpDesc], name = "SklearnDecisionTree"),
-    new Type(value = classOf[SklearnExtraTreeOpDesc], name = "SklearnExtraTree"),
-    new Type(
-      value = classOf[SklearnMultiLayerPerceptronOpDesc],
-      name = "SklearnMultiLayerPerceptron"
-    ),
-    new Type(
-      value = classOf[SklearnProbabilityCalibrationOpDesc],
-      name = "SklearnProbabilityCalibration"
-    ),
-    new Type(value = classOf[SklearnRandomForestOpDesc], name = "SklearnRandomForest"),
-    new Type(value = classOf[SklearnBaggingOpDesc], name = "SklearnBagging"),
-    new Type(value = classOf[SklearnGradientBoostingOpDesc], name = "SklearnGradientBoosting"),
-    new Type(value = classOf[SklearnAdaptiveBoostingOpDesc], name = "SklearnAdaptiveBoosting"),
-    new Type(value = classOf[SklearnExtraTreesOpDesc], name = "SklearnExtraTrees"),
-    new Type(value = classOf[SklearnGaussianNaiveBayesOpDesc], name = "SklearnGaussianNaiveBayes"),
-    new Type(
-      value = classOf[SklearnMultinomialNaiveBayesOpDesc],
-      name = "SklearnMultinomialNaiveBayes"
-    ),
-    new Type(
-      value = classOf[SklearnComplementNaiveBayesOpDesc],
-      name = "SklearnComplementNaiveBayes"
-    ),
-    new Type(
-      value = classOf[SklearnBernoulliNaiveBayesOpDesc],
-      name = "SklearnBernoulliNaiveBayes"
-    ),
-    new Type(value = classOf[SklearnDummyClassifierOpDesc], name = "SklearnDummyClassifier"),
-    new Type(value = classOf[SklearnPredictionOpDesc], name = "SklearnPrediction"),
+//    new Type(value = classOf[SklearnLogisticRegressionOpDesc], name = "SklearnLogisticRegression"),
+//    new Type(
+//      value = classOf[SklearnLogisticRegressionCVOpDesc],
+//      name = "SklearnLogisticRegressionCV"
+//    ),
+//    new Type(value = classOf[SklearnRidgeOpDesc], name = "SklearnRidge"),
+//    new Type(value = classOf[SklearnRidgeCVOpDesc], name = "SklearnRidgeCV"),
+//    new Type(value = classOf[SklearnSDGOpDesc], name = "SklearnSDG"),
+//    new Type(value = classOf[SklearnPassiveAggressiveOpDesc], name = "SklearnPassiveAggressive"),
+//    new Type(value = classOf[SklearnPerceptronOpDesc], name = "SklearnPerceptron"),
+//    new Type(value = classOf[SklearnKNNOpDesc], name = "SklearnKNN"),
+//    new Type(value = classOf[SklearnNearestCentroidOpDesc], name = "SklearnNearestCentroid"),
+//    new Type(value = classOf[SklearnSVMOpDesc], name = "SklearnSVM"),
+//    new Type(value = classOf[SklearnLinearSVMOpDesc], name = "SklearnLinearSVM"),
+//    new Type(value = classOf[SklearnLinearRegressionOpDesc], name = "SklearnLinearRegression"),
+//    new Type(value = classOf[SklearnDecisionTreeOpDesc], name = "SklearnDecisionTree"),
+//    new Type(value = classOf[SklearnExtraTreeOpDesc], name = "SklearnExtraTree"),
+//    new Type(
+//      value = classOf[SklearnMultiLayerPerceptronOpDesc],
+//      name = "SklearnMultiLayerPerceptron"
+//    ),
+//    new Type(
+//      value = classOf[SklearnProbabilityCalibrationOpDesc],
+//      name = "SklearnProbabilityCalibration"
+//    ),
+//    new Type(value = classOf[SklearnRandomForestOpDesc], name = "SklearnRandomForest"),
+//    new Type(value = classOf[SklearnBaggingOpDesc], name = "SklearnBagging"),
+//    new Type(value = classOf[SklearnGradientBoostingOpDesc], name = "SklearnGradientBoosting"),
+//    new Type(value = classOf[SklearnAdaptiveBoostingOpDesc], name = "SklearnAdaptiveBoosting"),
+//    new Type(value = classOf[SklearnExtraTreesOpDesc], name = "SklearnExtraTrees"),
+//    new Type(value = classOf[SklearnGaussianNaiveBayesOpDesc], name = "SklearnGaussianNaiveBayes"),
+//    new Type(
+//      value = classOf[SklearnMultinomialNaiveBayesOpDesc],
+//      name = "SklearnMultinomialNaiveBayes"
+//    ),
+//    new Type(
+//      value = classOf[SklearnComplementNaiveBayesOpDesc],
+//      name = "SklearnComplementNaiveBayes"
+//    ),
+//    new Type(
+//      value = classOf[SklearnBernoulliNaiveBayesOpDesc],
+//      name = "SklearnBernoulliNaiveBayes"
+//    ),
+//    new Type(value = classOf[SklearnDummyClassifierOpDesc], name = "SklearnDummyClassifier"),
+//    new Type(value = classOf[SklearnPredictionOpDesc], name = "SklearnPrediction"),
+    new Type(value = classOf[QuiverPlotOpDesc], name = "QuiverPlot"),
     new Type(
       value = classOf[HuggingFaceSentimentAnalysisOpDesc],
       name = "HuggingFaceSentimentAnalysis"
@@ -303,17 +304,17 @@ abstract class LogicalOp extends PortDescriptor with Serializable {
   def operatorIdentifier: OperatorIdentity = OperatorIdentity(operatorId)
 
   def getPhysicalOp(
-      workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity
-  ): PhysicalOp = {
+                     workflowId: WorkflowIdentity,
+                     executionId: ExecutionIdentity
+                   ): PhysicalOp = {
     throw new UnimplementedException()
   }
 
   // a logical operator corresponds multiple physical operators (a small DAG)
   def getPhysicalPlan(
-      workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity
-  ): PhysicalPlan = {
+                       workflowId: WorkflowIdentity,
+                       executionId: ExecutionIdentity
+                     ): PhysicalPlan = {
     new PhysicalPlan(
       operators = Set(getPhysicalOp(workflowId, executionId)),
       links = Set.empty
@@ -351,11 +352,11 @@ abstract class LogicalOp extends PortDescriptor with Serializable {
   }
 
   def runtimeReconfiguration(
-      workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      oldOpDesc: LogicalOp,
-      newOpDesc: LogicalOp
-  ): Try[(PhysicalOp, Option[StateTransferFunc])] = {
+                              workflowId: WorkflowIdentity,
+                              executionId: ExecutionIdentity,
+                              oldOpDesc: LogicalOp,
+                              newOpDesc: LogicalOp
+                            ): Try[(PhysicalOp, Option[StateTransferFunc])] = {
     throw new UnsupportedOperationException(
       "operator " + getClass.getSimpleName + " does not support reconfiguration"
     )
