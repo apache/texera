@@ -63,11 +63,12 @@ class TernaryPlotOpDesc extends VisualizationOperator with PythonOperatorDescrip
   // Registers chart type as a visualization operator
   override def chartType: String = VisualizationConstants.HTML_VIZ
 
-  //
+  // Adds html-content to output schema
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Schema.builder().add(new Attribute("html-content", AttributeType.STRING)).build()
   }
 
+  // Reformats table to be usable for plot creation
   def manipulateTable(): String = {
     // Check for any empty data field names
     assert(firstVariable.nonEmpty && secondVariable.nonEmpty && thirdVariable.nonEmpty)
@@ -77,6 +78,7 @@ class TernaryPlotOpDesc extends VisualizationOperator with PythonOperatorDescrip
        |""".stripMargin
   }
 
+  // Creates ternary plot figure
   def createPlotlyFigure(): String = {
     s"""
        |        if '$colorEnabled' == 'true' and '$colorDataField' != "":
@@ -87,7 +89,7 @@ class TernaryPlotOpDesc extends VisualizationOperator with PythonOperatorDescrip
   }
 
   override def generatePythonCode(): String = {
-    var finalCode =
+    val finalCode =
       s"""
          |from pytexera import *
          |
