@@ -368,3 +368,6 @@ abstract class LogicalOp extends PortDescriptor with Serializable {
   var dummyPropertyList: List[DummyProperties] = List()
 
 }
+
+
+//0629
