@@ -10,8 +10,7 @@ public enum SklearnAdvancedKNNParameters implements ParamClass {
     algorithm("algorithm", "str"),
     leaf_size("leaf_size", "int"),
     metric("metric", "int"),
-    metric_params("metric_params", "str"),
-    ;
+    metric_params("metric_params", "str");
 
     private final String name;
     private final String type;

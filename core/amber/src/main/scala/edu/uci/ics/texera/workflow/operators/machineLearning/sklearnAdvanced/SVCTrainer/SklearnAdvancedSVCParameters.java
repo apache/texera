@@ -9,8 +9,7 @@ public enum SklearnAdvancedSVCParameters implements ParamClass {
     degree("degree", "int"),
     coef0("coef0", "float"),
     tol("tol", "float"),
-    probability("probability", "'True'==")
-    ;
+    probability("probability", "(lambda value: value.lower() == \"true\")");
 
     private final String name;
     private final String type;

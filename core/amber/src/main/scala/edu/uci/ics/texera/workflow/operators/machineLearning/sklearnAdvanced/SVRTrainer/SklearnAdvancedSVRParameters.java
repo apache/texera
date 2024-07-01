@@ -9,12 +9,11 @@ public enum SklearnAdvancedSVRParameters implements ParamClass {
     degree("degree", "int"),
     coef0("coef0", "float"),
     tol("tol", "float"),
-    probability("shrinking", "'True'=="),
-    verbose("verbose", "'True'=="),
+    probability("shrinking", "(lambda value: value.lower() == \"true\")"),
+    verbose("verbose", "(lambda value: value.lower() == \"true\")"),
     epsilon("epsilon", "float"),
     cache_size("cache_size", "int"),
-    max_iter("max_iter", "int")
-    ;
+    max_iter("max_iter", "int");
 
     private final String name;
     private final String type;
