@@ -45,7 +45,6 @@ class WorkflowWebsocketResource extends LazyLogging {
       WorkflowService.getOrCreate(WorkflowIdentity(wid))
     sessionState.subscribe(workflowState)
     sessionState.send(ClusterStatusUpdateEvent(ClusterListener.numWorkerNodesInCluster))
-    sessionState.send(RegisterWorkflowIdResponse("workflowId registered"))
     logger.info("connection open")
   }
 
