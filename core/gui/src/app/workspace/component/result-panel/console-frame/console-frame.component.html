@@ -108,17 +108,13 @@
             </nz-tag>
           </div>
           <div
-            nz-col
-            nzSpan="10">
+            nzcol
+            nz-span="12">
             <nz-tag
               *ngIf="showTimestamp"
               class="timestamp-tag">
               {{(entry.timestamp.seconds * 1000 + entry.timestamp.nanos * 0.000001) | date : "M-d-yy, HH:mm:ss.SSS"}}
             </nz-tag>
-          </div>
-          <div
-            nz-col
-            nzSpan="2">
             <nz-tag
               *ngIf="entry.workerId"
               class="worker-tag"
@@ -135,36 +131,41 @@
 <nz-input-group
   *ngIf="consoleInputEnabled"
   nzCompact
-  [nzAddOnBefore]="addOnBeforeTemplate">
-  <button
-    (click)="onClickSkipTuples()"
-    [disabled]="true"
-    nzSize="small"
-    nz-tooltip
-    nzTooltipTitle="Skip the faulty Tuple"
-    nz-button>
-    <span
-      nz-icon
-      nzType="delete-row"
-      nzTheme="outline"></span>
-  </button>
+  [nzAddOnBefore]="addOnBeforeTemplate"
+  class="console-input-container">
+  <div>
+    <button
+      (click)="onClickSkipTuples()"
+      [disabled]="true"
+      nzSize="small"
+      nz-tooltip
+      nzTooltipTitle="Skip the faulty Tuple"
+      nz-button>
+      <span
+        nz-icon
+        nzType="delete-row"
+        nzTheme="outline"></span>
+    </button>
 
-  <button
-    (click)="onClickRetryTuples()"
-    [disabled]="false"
-    nzSize="small"
-    nz-tooltip
-    nzTooltipTitle="Retry the faulty Tuple"
-    nz-button>
-    <span
-      nz-icon
-      nzType="redo"
-      nzTheme="outline">
-    </span>
-  </button>
+    <button
+      (click)="onClickRetryTuples()"
+      [disabled]="false"
+      nzSize="small"
+      nz-tooltip
+      nzTooltipTitle="Retry the faulty Tuple"
+      nz-button>
+      <span
+        nz-icon
+        nzType="redo"
+        nzTheme="outline">
+      </span>
+    </button>
+  </div>
+
   <input
     type="text"
     nz-input
+    style="width: calc(100% - 160px)"
     [(ngModel)]="command"
     (keyup.enter)="submitDebugCommand()" />
 </nz-input-group>

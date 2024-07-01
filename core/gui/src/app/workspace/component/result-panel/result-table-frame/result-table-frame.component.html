@@ -25,8 +25,75 @@
         <th
           *ngFor="let column of currentColumns; let i = index"
           ngClass="header-size"
-          style="text-align: center">
+          style="text-align: center"
+          nzWidth="widthPercent">
           {{ column.header }}
+        </th>
+      </tr>
+      <tr
+        *ngIf="tableStats && prevTableStats && sinkStorageMode === 'mongodb'"
+        #statsRow
+        class="custom-stats-row">
+        <th *ngFor="let column of currentColumns">
+          <div class="statsHeader">
+            <ng-container
+              *ngIf="tableStats[column.header] && prevTableStats[column.header] && tableStats[column.header]['min'] !== undefined">
+              <div class="statsLine">
+                <h5 class="leftAlign">Min</h5>
+                <h5 class="rightAlign">
+                  <span [innerHTML]="compare(column.header, 'min')"></span>
+                </h5>
+              </div>
+            </ng-container>
+            <ng-container
+              *ngIf="tableStats[column.header] && prevTableStats[column.header] && tableStats[column.header]['mean'] !== undefined">
+              <div class="statsLine">
+                <h5 class="leftAlign">Average</h5>
+                <h5 class="rightAlign">
+                  <span [innerHTML]="compare(column.header, 'mean')"></span>
+                </h5>
+              </div>
+            </ng-container>
+            <ng-container
+              *ngIf="tableStats[column.header] && prevTableStats[column.header] && tableStats[column.header]['max'] !== undefined">
+              <div class="statsLine">
+                <h5 class="leftAlign">Max</h5>
+                <h5 class="rightAlign">
+                  <span [innerHTML]="compare(column.header, 'max')"></span>
+                </h5>
+              </div>
+            </ng-container>
+            <ng-container
+              *ngIf="tableStats[column.header] && prevTableStats[column.header] && tableStats[column.header]['firstPercent'] !== undefined">
+              <div class="statsLine">
+                <h5 class="leftAlign">
+                  {{tableStats[column.header]['firstCat']}}
+                  <span *ngIf="tableStats[column.header]['reachedLimit'] === 1"> (approximate)</span>
+                </h5>
+                <h5 class="rightAlign"><span [innerHTML]="compare(column.header, 'firstPercent')"></span>%</h5>
+              </div>
+            </ng-container>
+            <ng-container
+              *ngIf="tableStats[column.header] && prevTableStats[column.header] && tableStats[column.header]['secondPercent'] !== undefined">
+              <div class="statsLine">
+                <h5 class="leftAlign">
+                  {{tableStats[column.header]['secondCat']}}
+                  <span *ngIf="tableStats[column.header]['reachedLimit'] === 1"> (approximate)</span>
+                </h5>
+                <h5 class="rightAlign"><span [innerHTML]="compare(column.header, 'secondPercent')"></span>%</h5>
+              </div>
+            </ng-container>
+            <ng-container
+              *ngIf="tableStats[column.header] && prevTableStats[column.header] && tableStats[column.header]['other'] !== undefined">
+              <div class="statsLine">
+                <h5 class="leftAlign">
+                  Other
+                  <span *ngIf="tableStats[column.header]['reachedLimit'] === 1"> (approximate)</span>
+                </h5>
+                <h5 class="rightAlign"><span [innerHTML]="compare(column.header, 'other')"></span>%</h5>
+              </div>
+            </ng-container>
+          </div>
         </th>
       </tr>
     </thead>
