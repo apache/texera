@@ -127,6 +127,7 @@ import edu.uci.ics.texera.workflow.operators.visualization.scatter3DChart.Scatte
 import edu.uci.ics.texera.workflow.operators.visualization.ScatterMatrixChart.ScatterMatrixChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.funnelPlot.FunnelPlotOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.tablesChart.TablesPlotOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.distPlot.DistPlotOpDesc
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
 import org.apache.zookeeper.KeeperException.UnimplementedException
 
@@ -211,6 +212,7 @@ trait StateTransferFunc
     new Type(value = classOf[DummyOpDesc], name = "Dummy"),
     new Type(value = classOf[BoxPlotOpDesc], name = "BoxPlot"),
     new Type(value = classOf[HistogramChartOpDesc], name = "Histogram"),
+    new Type(value = classOf[DistPlotOpDesc], name = "DistributionPlot"),
     new Type(value = classOf[ScatterMatrixChartOpDesc], name = "ScatterMatrixChart"),
     new Type(value = classOf[HeatMapOpDesc], name = "HeatMap"),
     new Type(value = classOf[Scatter3dChartOpDesc], name = "Scatter3DChart"),
