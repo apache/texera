@@ -96,7 +96,7 @@ class FigureFactoryTableOpDesc extends VisualizationOperator with PythonOperator
   """.stripMargin
   }
 
-  override def operatorInfo: OperatorInfo =
+  override def operatorInfo: OperatorInfo = {
     OperatorInfo(
       "FigureFactoryTable",
       "Visualize data in a figure factory table",
@@ -104,6 +104,7 @@ class FigureFactoryTableOpDesc extends VisualizationOperator with PythonOperator
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
     )
+  }
 
   override def chartType(): String = VisualizationConstants.HTML_VIZ
 
