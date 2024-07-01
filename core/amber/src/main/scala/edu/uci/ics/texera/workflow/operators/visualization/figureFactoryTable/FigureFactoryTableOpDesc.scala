@@ -91,7 +91,7 @@ class FigureFactoryTableOpDesc extends VisualizationOperator with PythonOperator
        |
        |        ${createFigureFactoryTablePlotlyFigure()}
        |        fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
-       |        html_content = plotly.io.to_html(fig, include_plotlyjs='cdn')
+       |        html_content = plotly.io.to_html(fig, include_plotlyjs='cdn', include_mathjax='cdn')
        |        yield {'html-content': html_content}
   """.stripMargin
   }
