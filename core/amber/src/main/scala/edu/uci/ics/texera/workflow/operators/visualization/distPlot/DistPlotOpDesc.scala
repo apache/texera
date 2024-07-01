@@ -34,7 +34,7 @@ class DistPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor
 
   @JsonProperty(required = true, defaultValue = "rug")
   @JsonSchemaTitle("Distribution Type")
-  @JsonPropertyDescription("Distribution type (rug, box, violin).") // box, violin, rug
+  @JsonPropertyDescription("Distribution type (rug, box, violin).")
   var marginal: String = ""
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
@@ -49,7 +49,6 @@ class DistPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
     )
-
 
   def createPlotlyFigure(): String = {
     s"""
