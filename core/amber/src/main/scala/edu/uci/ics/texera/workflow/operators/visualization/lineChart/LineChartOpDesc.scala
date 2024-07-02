@@ -54,12 +54,12 @@ class LineChartOpDesc extends VisualizationOperator with PythonOperatorDescripto
         val namePart = if (lineConf.name != "") {
           s"name='${lineConf.name}'"
         } else {
-          s"name='${lineConf.yValue}'"
+          s"name='${lineConf.yAxis}'"
         }
 
         s"""fig.add_trace(go.Scatter(
-            x=table['${lineConf.xValue}'],
-            y=table['${lineConf.yValue}'],
+            x=table['${lineConf.xAxis}'],
+            y=table['${lineConf.yAxis}'],
             mode='${lineConf.mode.getModeInPlotly}',
             $colorPart
             $namePart

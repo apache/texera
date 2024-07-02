@@ -2,7 +2,6 @@ package edu.uci.ics.texera.workflow.operators.visualization.continuousErrorBands
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
@@ -12,31 +11,23 @@ import edu.uci.ics.texera.workflow.operators.visualization.{
   VisualizationOperator
 }
 
+import java.util
+import scala.jdk.CollectionConverters.ListHasAsScala
+
 class ContinuousErrorBandsOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
 
-  @JsonProperty(required = true)
-  @JsonSchemaTitle("X-Axis")
-  @JsonPropertyDescription("Attribute used for x-axis")
-  @AutofillAttributeName
-  var xAxis: String = ""
+  @JsonProperty(value = "xLabel", required = false, defaultValue = "X Axis")
+  @JsonSchemaTitle("X Label")
+  @JsonPropertyDescription("Label used for x axis")
+  var xLabel: String = ""
 
-  @JsonProperty(required = true)
-  @JsonSchemaTitle("Y-Axis")
-  @JsonPropertyDescription("Attribute used for y-axis")
-  @AutofillAttributeName
-  var yAxis: String = ""
+  @JsonProperty(value = "yLabel", required = false, defaultValue = "Y Axis")
+  @JsonSchemaTitle("Y Label")
+  @JsonPropertyDescription("Label used for y axis")
+  var yLabel: String = ""
 
-  @JsonProperty(required = true)
-  @JsonSchemaTitle("Y-Axis Upper Bound")
-  @JsonPropertyDescription("Represents upper bound error of y-values")
-  @AutofillAttributeName
-  var yUpper: String = ""
-
-  @JsonProperty(required = true)
-  @JsonSchemaTitle("Y-Axis Lower Bound")
-  @JsonPropertyDescription("Represents lower bound error of y-values")
-  @AutofillAttributeName
-  var yLower: String = ""
+  @JsonProperty(value = "bands", required = true)
+  var bands: util.List[BandConfig] = _
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Schema.builder().add(new Attribute("html-content", AttributeType.STRING)).build()
@@ -52,40 +43,62 @@ class ContinuousErrorBandsOpDesc extends VisualizationOperator with PythonOperat
     )
 
   def createPlotlyFigure(): String = {
+    val bandsPart = bands.asScala
+      .map { bandConf =>
+        val colorPart = if (bandConf.color != "") {
+          s"line={'color':'${bandConf.color}'}, marker={'color':'${bandConf.color}'}, "
+        } else {
+          ""
+        }
+
+        val fillColorPart = if (bandConf.fillColor != "") {
+          s"fillcolor='${bandConf.fillColor}', "
+        } else {
+          ""
+        }
+
+        val namePart = if (bandConf.name != "") {
+          s"name='${bandConf.name}'"
+        } else {
+          s"name='${bandConf.yAxis}'"
+        }
+
+        s"""fig.add_trace(go.Scatter(
+            x=table['${bandConf.xAxis}'],
+            y=table['${bandConf.yUpper}'],
+            mode='lines',
+            marker=dict(color="#444"),
+            line=dict(width=0),
+            showlegend=False,
+            $namePart
+          ))
+        fig.add_trace(go.Scatter(
+            x=table['${bandConf.xAxis}'],
+            y=table['${bandConf.yLower}'],
+            mode='lines',
+            marker=dict(color="#444"),
+            line=dict(width=0),
+            fill='tonexty',
+            showlegend=False,
+            $fillColorPart
+            $namePart
+          ))
+        fig.add_trace(go.Scatter(
+            x=table['${bandConf.xAxis}'],
+            y=table['${bandConf.yAxis}'],
+            mode='${bandConf.mode.getModeInPlotly}',
+            $colorPart
+            $namePart
+          ))"""
+      }
+
     s"""
-       |        fig = go.Figure([
-       |          go.Scatter(
-       |            name='Line 1',
-       |            x=table['$xAxis'],
-       |            y=table['$yAxis'],
-       |            mode='lines',
-       |            line=dict(color='rgb(31, 119, 180)'),
-       |          ),
-       |          go.Scatter(
-       |            name='Upper Bound',
-       |            x=table['$xAxis'],
-       |            y=table['$yUpper'],
-       |            mode='lines',
-       |            marker=dict(color="#444"),
-       |            line=dict(width=0),
-       |            showlegend=False
-       |          ),
-       |          go.Scatter(
-       |            name='Lower Bound',
-       |            x=table['$xAxis'],
-       |            y=table['$yLower'],
-       |            marker=dict(color="#444"),
-       |            line=dict(width=0),
-       |            mode='lines',
-       |            fillcolor='rgba(68, 68, 68, 0.3)',
-       |            fill='tonexty',
-       |            showlegend=False
-       |          )
-       |        ])
-       |        fig.update_layout(
-       |          yaxis_title='$yAxis',
-       |          hovermode="x"
-       |        )
+       |        fig = go.Figure()
+       |        ${bandsPart.mkString("\n        ")}
+       |        fig.update_layout(margin=dict(t=0, b=0, l=0, r=0),
+       |                          xaxis_title='$xLabel',
+       |                          yaxis_title='$yLabel',
+       |                          hovermode="x")
        |""".stripMargin
   }
 
