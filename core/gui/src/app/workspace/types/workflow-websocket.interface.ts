@@ -22,11 +22,6 @@ import { ConsoleUpdateEvent } from "./workflow-common.interface";
  * 2. value is the payload this request/event needs
  */
 
-export interface RegisterWorkflowIdRequest
-  extends Readonly<{
-    workflowId: number;
-  }> {}
-
 export interface WorkflowExecuteRequest
   extends Readonly<{
     executionName: string;
@@ -38,11 +33,6 @@ export interface ReplayExecutionInfo
   extends Readonly<{
     eid: number;
     interaction: string;
-  }> {}
-
-export interface RegisterWIdEvent
-  extends Readonly<{
-    message: string;
   }> {}
 
 export interface WorkflowFatalError
@@ -180,7 +170,6 @@ export type WorkflowStateInfo = Readonly<{
 }>;
 
 export type TexeraWebsocketRequestTypeMap = {
-  RegisterWorkflowIdRequest: RegisterWorkflowIdRequest;
   EditingTimeCompilationRequest: LogicalPlan;
   HeartBeatRequest: {};
   ModifyLogicRequest: ModifyOperatorLogic;
@@ -198,7 +187,6 @@ export type TexeraWebsocketRequestTypeMap = {
 };
 
 export type TexeraWebsocketEventTypeMap = {
-  RegisterWorkflowIdResponse: RegisterWIdEvent;
   HeartBeatResponse: {};
   WorkflowStateEvent: WorkflowStateInfo;
   OperatorStatisticsUpdateEvent: OperatorStatsUpdate;

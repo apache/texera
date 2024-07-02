@@ -13,6 +13,7 @@ object OperatorGroupConstants {
   final val API_GROUP = "External API"
   final val VISUALIZATION_GROUP = "Visualization"
   final val MACHINE_LEARNING_GROUP = "Machine Learning"
+  final val ADVANCED_SKLEARN_GROUP = "Advanced Sklearn"
   final val HUGGINGFACE_GROUP = "Hugging Face"
   final val SKLEARN_GROUP = "Sklearn"
   final val UDF_GROUP = "User-defined Functions"
@@ -37,6 +38,7 @@ object OperatorGroupConstants {
       MACHINE_LEARNING_GROUP,
       List(
         GroupInfo(SKLEARN_GROUP),
+        GroupInfo(ADVANCED_SKLEARN_GROUP),
         GroupInfo(HUGGINGFACE_GROUP),
         GroupInfo(MACHINE_LEARNING_GENERAL_GROUP)
       )
