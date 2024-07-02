@@ -4,46 +4,13 @@ import edu.uci.ics.texera.Utils.withTransaction
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.enums.DatasetUserAccessPrivilege
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  DatasetDao,
-  DatasetUserAccessDao,
-  DatasetVersionDao
-}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{
-  Dataset,
-  DatasetUserAccess,
-  DatasetVersion
-}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{DatasetDao, DatasetUserAccessDao, DatasetVersionDao}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{Dataset, DatasetUserAccess, DatasetVersion}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset.DATASET
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetVersion.DATASET_VERSION
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetAccessResource.{
-  getDatasetUserAccessPrivilege,
-  userHasReadAccess,
-  userHasWriteAccess,
-  userOwnDataset
-}
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{
-  DATASET_IS_PRIVATE,
-  DATASET_IS_PUBLIC,
-  DashboardDataset,
-  DashboardDatasetVersion,
-  DatasetDescriptionModification,
-  DatasetIDs,
-  DatasetNameModification,
-  DatasetVersionRootFileNodes,
-  DatasetVersions,
-  ERR_DATASET_CREATION_FAILED_MESSAGE,
-  ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE,
-  context,
-  createNewDatasetVersionFromFormData,
-  getDashboardDataset,
-  getDatasetByID,
-  getDatasetLatestVersion,
-  getDatasetVersionHashByID,
-  getDatasetVersions,
-  retrievePublicDatasets
-}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetAccessResource.{getDatasetUserAccessPrivilege, userHasReadAccess, userHasWriteAccess, userOwnDataset}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{DATASET_IS_PRIVATE, DATASET_IS_PUBLIC, DashboardDataset, DashboardDatasetVersion, DatasetDescriptionModification, DatasetIDs, DatasetNameModification, DatasetVersionRootFileNodes, DatasetVersions, ERR_DATASET_CREATION_FAILED_MESSAGE, ERR_DATASET_NAME_ALREADY_EXISTS, ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE, context, createNewDatasetVersionFromFormData, getDashboardDataset, getDatasetByID, getDatasetLatestVersion, getDatasetVersionHashByID, getDatasetVersions, getUserDatasets, retrievePublicDatasets}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.FileNode
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.service.GitVersionControlLocalFileStorage
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.PathUtils
@@ -59,18 +26,7 @@ import java.nio.charset.StandardCharsets
 import java.util
 import java.util.concurrent.locks.ReentrantLock
 import javax.annotation.security.RolesAllowed
-import javax.ws.rs.{
-  BadRequestException,
-  Consumes,
-  ForbiddenException,
-  GET,
-  NotFoundException,
-  POST,
-  Path,
-  PathParam,
-  Produces,
-  QueryParam
-}
+import javax.ws.rs.{BadRequestException, Consumes, ForbiddenException, GET, NotFoundException, POST, Path, PathParam, Produces, QueryParam}
 import javax.ws.rs.core.{MediaType, Response, StreamingOutput}
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable
@@ -94,6 +50,7 @@ object DatasetResource {
   val ERR_DATASET_VERSION_NOT_FOUND_MESSAGE = "The version of the dataset not found"
   val ERR_DATASET_CREATION_FAILED_MESSAGE =
     "Dataset creation is failed. Please make sure to upload files in order to create the initial version of dataset"
+  val ERR_DATASET_NAME_ALREADY_EXISTS = "A dataset with the same name already exists."
 
   def sanitizePath(input: String): String = {
     // Define the characters you want to remove
@@ -103,10 +60,7 @@ object DatasetResource {
 
   // this function get the dataset from DB identified by did,
   // read access will be checked
-  private def getDatasetByID(ctx: DSLContext, did: UInteger, uid: UInteger): Dataset = {
-    if (!userHasReadAccess(ctx, did, uid)) {
-      throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-    }
+  private def getDatasetByID(ctx: DSLContext, did: UInteger): Dataset = {
     val datasetDao = new DatasetDao(ctx.configuration())
     val dataset = datasetDao.fetchOneByDid(did)
     if (dataset == null) {
@@ -119,13 +73,8 @@ object DatasetResource {
   // read access will be checked
   private def getDatasetVersionHashByID(
       ctx: DSLContext,
-      did: UInteger,
       dvid: UInteger,
-      uid: UInteger
   ): String = {
-    if (!userHasReadAccess(ctx, did, uid)) {
-      throw new ForbiddenException("User has no read access to this dataset")
-    }
     val datasetVersionDao = new DatasetVersionDao(ctx.configuration())
     val version = datasetVersionDao.fetchOneByDvid(dvid)
     if (version == null) {
@@ -141,7 +90,7 @@ object DatasetResource {
       throw new ForbiddenException()
     }
 
-    val targetDataset = getDatasetByID(ctx, did, uid)
+    val targetDataset = getDatasetByID(ctx, did)
     val userAccessPrivilege = getDatasetUserAccessPrivilege(ctx, did, uid)
 
     DashboardDataset(
@@ -196,6 +145,18 @@ object DatasetResource {
     }
 
     latestVersion
+  }
+
+  def getDatasetFile(
+      did: UInteger,
+      dvid: UInteger,
+      uid: UInteger,
+      fileRelativePath: java.nio.file.Path): InputStream = {
+    val versionHash = getDatasetVersionHashByID(context, dvid)
+    val datasetPath = PathUtils.getDatasetPath(did)
+    GitVersionControlLocalFileStorage
+      .retrieveFileContentOfVersionAsInputStream(
+        PathUtils.getDatasetPath(did), versionHash, datasetPath.resolve(fileRelativePath))
   }
 
   // DatasetOperation defines the operations that will be applied when creating a new dataset version
@@ -277,6 +238,16 @@ object DatasetResource {
       userProvidedVersionName,
       datasetOperation
     )
+  }
+
+  // Private method to get user datasets
+  private def getUserDatasets(ctx: DSLContext, uid: UInteger): List[Dataset] = {
+    ctx
+      .selectFrom(DATASET)
+      .where(DATASET.OWNER_UID.eq(uid))
+      .fetchInto(classOf[Dataset])
+      .asScala
+      .toList
   }
 
   private def getDatasetVersions(
@@ -411,6 +382,12 @@ class DatasetResource {
       val uid = user.getUid
       val datasetOfUserDao: DatasetUserAccessDao = new DatasetUserAccessDao(ctx.configuration())
 
+      // do the name duplication check
+      val existingDatasets = getUserDatasets(ctx, uid)
+      if (existingDatasets.exists(_.getName == datasetName)) {
+        throw new BadRequestException(ERR_DATASET_NAME_ALREADY_EXISTS)
+      }
+
       val dataset: Dataset = new Dataset()
       dataset.setName(datasetName)
       dataset.setDescription(datasetDescription)
@@ -501,7 +478,7 @@ class DatasetResource {
         throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
       }
 
-      val existedDataset = getDatasetByID(ctx, did, uid)
+      val existedDataset = getDatasetByID(ctx, did)
       existedDataset.setName(name)
       datasetDao.update(existedDataset)
       Response.ok().build()
@@ -526,7 +503,7 @@ class DatasetResource {
         throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
       }
 
-      val existedDataset = getDatasetByID(ctx, did, uid)
+      val existedDataset = getDatasetByID(ctx, did)
       existedDataset.setDescription(description)
       datasetDao.update(existedDataset)
       Response.ok().build()
@@ -547,7 +524,7 @@ class DatasetResource {
         throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
       }
 
-      val existedDataset = getDatasetByID(ctx, did, uid)
+      val existedDataset = getDatasetByID(ctx, did)
       if (existedDataset.getIsPublic == DATASET_IS_PUBLIC) {
         existedDataset.setIsPublic(DATASET_IS_PRIVATE)
       } else {
@@ -736,7 +713,7 @@ class DatasetResource {
       }
 
       val targetDatasetPath = PathUtils.getDatasetPath(did)
-      val versionCommitHash = getDatasetVersionHashByID(ctx, did, dvid, uid)
+      val versionCommitHash = getDatasetVersionHashByID(ctx, dvid)
 
       val fileTree = GitVersionControlLocalFileStorage.retrieveRootFileNodesOfVersion(
         targetDatasetPath,
@@ -762,7 +739,7 @@ class DatasetResource {
 
       val decodedPath = URLDecoder.decode(path, StandardCharsets.UTF_8.name()).stripPrefix("/")
       val targetDatasetPath = PathUtils.getDatasetPath(did)
-      val versionCommitHash = getDatasetVersionHashByID(ctx, did, dvid, uid)
+      val versionCommitHash = getDatasetVersionHashByID(ctx, dvid)
 
       val streamingOutput = new StreamingOutput() {
         override def write(output: OutputStream): Unit = {

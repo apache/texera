@@ -57,7 +57,6 @@ export class FileSelectionComponent {
   }
 
   onFileTreeNodeSelected(node: DatasetVersionFileTreeNode) {
-    const selectedNodePath = getFullPathFromFileTreeNode(node);
-    this.modalRef.close(selectedNodePath);
+    this.modalRef.close(node);
   }
 }

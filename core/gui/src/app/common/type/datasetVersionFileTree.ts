@@ -15,14 +15,39 @@ export interface DatasetVersionFileTreeNode {
   dvid?: number;
 }
 
-export function getFullPathFromFileTreeNode(node: DatasetVersionFileTreeNode): string {
-  if (node.parentDir == "/") {
-    // make sure the files/directory located at the root layer has '/' as the prefix
-    return node.parentDir + node.name;
+export function pruneFilePath(path: string): string {
+  // Split the path by '/'
+  const segments = path.split('/');
+
+  // Remove the first segment
+  segments.shift();
+
+  // Join the remaining segments back into a path
+  return '/' + segments.join('/');
+}
+
+export function getFullPathFromFileTreeNode(node: DatasetVersionFileTreeNode, embedIDs: boolean = false): string {
+  const parts = node.parentDir.split('/').filter(Boolean);
+  let embeddedPath = parts.join('/');
+
+  if (embedIDs) {
+    const didPart = node.did !== undefined ? `did:${node.did}` : '';
+    const dvidPart = node.dvid !== undefined ? `_dvid:${node.dvid}` : '';
+
+    if (didPart || dvidPart) {
+      embeddedPath = `${didPart}${dvidPart}/${embeddedPath}`;
+    }
+  }
+
+  if (embeddedPath === "") {
+    // This means the original parentDir was "/"
+    return `/${node.name}`;
   } else {
-    return node.parentDir + "/" + node.name;
+    return `/${embeddedPath}/${node.name}`;
   }
 }
+
+
 
 export function getPathsFromTreeNode(node: DatasetVersionFileTreeNode): string[] {
   // Helper function to recursively gather paths

@@ -4,6 +4,7 @@
   required
   [formControl]="formControl"
   [formlyAttributes]="field"
+  [value]="displayFilePath"
   (click)="isFileSelectionEnabled && onClickOpenFileSelectionModal()" />
 <div
   class="alert alert-danger"
@@ -11,8 +12,3 @@
   *ngIf="props.showError && formControl.errors">
   <formly-validation-message [field]="field"></formly-validation-message>
 </div>
-<nz-autocomplete
-  [nzDataSource]="suggestions"
-  nzBackfill
-  #auto>
-</nz-autocomplete>
