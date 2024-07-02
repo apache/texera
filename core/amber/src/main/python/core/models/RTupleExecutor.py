@@ -117,8 +117,8 @@ class RTupleExecutor(TupleOperatorV2):
             while True:
                 output_r_tuple: rpy2.robjects.ListVector = output_r_generator()
                 if (
-                        isinstance(output_r_tuple, rinterface.SexpSymbol)
-                        and str(output_r_tuple) == ".__exhausted__."
+                    isinstance(output_r_tuple, rinterface.SexpSymbol)
+                    and str(output_r_tuple) == ".__exhausted__."
                 ):
                     break
                 if isinstance(output_r_tuple.names, rpy2.rinterface_lib.sexp.NULLType):
@@ -174,8 +174,8 @@ class RTupleSourceExecutor(SourceOperator):
             while True:
                 output_r_tuple: rpy2.robjetcs.ListVector = output_r_generator()
                 if (
-                        isinstance(output_r_tuple, rinterface.SexpSymbol)
-                        and str(output_r_tuple) == ".__exhausted__."
+                    isinstance(output_r_tuple, rinterface.SexpSymbol)
+                    and str(output_r_tuple) == ".__exhausted__."
                 ):
                     break
                 if isinstance(output_r_tuple.names, rpy2.rinterface_lib.sexp.NULLType):
