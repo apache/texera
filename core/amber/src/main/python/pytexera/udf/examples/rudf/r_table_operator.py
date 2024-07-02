@@ -14,23 +14,23 @@ function() {
 
 r_table_source_like_objects = """
 function() {
-    # Works with R lists, R vectors, R matrices, 
+    # Works with R lists, R vectors, R matrices,
     # or anything that can converted to a data.frame
-    
+
     # Matrix
     mdat <- matrix(c(1,2,3, 11,12,13), nrow = 2, ncol = 3, byrow = TRUE,
         dimnames = list(c("row1", "row2"),
         c("col1", "col2", "col3")))
-    
+
     # List
     lst <- list(col1 = c(1,2), col2 = c(2,12), col3 = c(3,13))
-    
+
     # Vectors
     col1_vec <- c(1,11)
     col2_vec <- c(2,12)
     col3_vec <- c(3,13)
     df_from_vec <- data.frame(col1_vec, col2_vec, col3_vec)
-    
+
     return (mdat)
 }
 """
@@ -68,5 +68,3 @@ function(table, port) {
     return (first_row)
 }
 """
-
-
