@@ -7,9 +7,10 @@ import edu.uci.ics.texera.web.model.jooq.generated.enums.DatasetUserAccessPrivil
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{DatasetDao, DatasetUserAccessDao, DatasetVersionDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{Dataset, DatasetUserAccess, DatasetVersion}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset.DATASET
+import edu.uci.ics.texera.web.model.jooq.generated.tables.User.USER
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetVersion.DATASET_VERSION
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetAccessResource.{getDatasetUserAccessPrivilege, userHasReadAccess, userHasWriteAccess, userOwnDataset}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetAccessResource.{getDatasetUserAccessPrivilege, getOwner, userHasReadAccess, userHasWriteAccess, userOwnDataset}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{DATASET_IS_PRIVATE, DATASET_IS_PUBLIC, DashboardDataset, DashboardDatasetVersion, DatasetDescriptionModification, DatasetIDs, DatasetNameModification, DatasetVersionRootFileNodes, DatasetVersions, ERR_DATASET_CREATION_FAILED_MESSAGE, ERR_DATASET_NAME_ALREADY_EXISTS, ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE, context, createNewDatasetVersionFromFormData, getDashboardDataset, getDatasetByID, getDatasetLatestVersion, getDatasetVersionHashByID, getDatasetVersions, getUserDatasets, retrievePublicDatasets}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.FileNode
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.service.GitVersionControlLocalFileStorage
@@ -95,6 +96,7 @@ object DatasetResource {
 
     DashboardDataset(
       targetDataset,
+      getOwner(ctx, did).getEmail,
       userAccessPrivilege,
       targetDataset.getOwnerUid == uid,
       List()
@@ -333,13 +335,31 @@ object DatasetResource {
     }
   }
 
-  def retrievePublicDatasets(ctx: DSLContext): util.List[Dataset] = {
-    val datasetDao = new DatasetDao(ctx.configuration())
-    datasetDao.fetchByIsPublic(DATASET_IS_PUBLIC)
+  private def retrievePublicDatasets(ctx: DSLContext): util.List[DashboardDataset] = {
+    ctx
+      .select()
+      .from(
+        DATASET
+          .leftJoin(USER).on(USER.UID.eq(DATASET.OWNER_UID))
+      )
+      .where(DATASET.IS_PUBLIC.eq(DATASET_IS_PUBLIC))
+      .fetch()
+      .map(record => {
+        val dataset = record.into(DATASET).into(classOf[Dataset])
+        val ownerEmail = record.into(USER).getEmail
+        DashboardDataset(
+          isOwner = false,
+          dataset = dataset,
+          accessPrivilege = DatasetUserAccessPrivilege.READ,
+          versions = List(),
+          ownerEmail = ownerEmail
+        )
+      })
   }
 
   case class DashboardDataset(
       dataset: Dataset,
+      ownerEmail: String,
       accessPrivilege: EnumType,
       isOwner: Boolean,
       versions: List[DashboardDatasetVersion]
@@ -432,6 +452,7 @@ class DatasetResource {
           createdDataset.getDescription,
           createdDataset.getCreationTime
         ),
+        user.getEmail,
         DatasetUserAccessPrivilege.WRITE,
         isOwner = true,
         versions = List()
@@ -592,23 +613,24 @@ class DatasetResource {
       var accessibleDatasets =
         ListBuffer.from(
           ctx
-            .selectFrom(
+            .select()
+            .from(
               DATASET
-                .leftJoin(DATASET_USER_ACCESS)
-                .on(DATASET_USER_ACCESS.DID.eq(DATASET.DID))
-                .where(
-                  DATASET_USER_ACCESS.UID.eq(uid)
-                )
+                .leftJoin(DATASET_USER_ACCESS).on(DATASET_USER_ACCESS.DID.eq(DATASET.DID))
+                .leftJoin(USER).on(USER.UID.eq(DATASET.OWNER_UID))
             )
+            .where(DATASET_USER_ACCESS.UID.eq(uid))
             .fetch()
-            .map(datasetAndAccess => {
-              val dataset = datasetAndAccess.into(classOf[Dataset])
-              val datasetAccess = datasetAndAccess.into(classOf[DatasetUserAccess])
+            .map(record => {
+              val dataset = record.into(DATASET).into(classOf[Dataset])
+              val datasetAccess = record.into(DATASET_USER_ACCESS).into(classOf[DatasetUserAccess])
+              val ownerEmail = record.into(USER).getEmail
               DashboardDataset(
                 isOwner = dataset.getOwnerUid == uid,
                 dataset = dataset,
                 accessPrivilege = datasetAccess.getPrivilege,
-                versions = List()
+                versions = List(),
+                ownerEmail = ownerEmail
               )
             })
         )
@@ -616,10 +638,11 @@ class DatasetResource {
       // then we fetch the public datasets and merge it as a part of the result if not exist
       val publicDatasets = retrievePublicDatasets(context)
       publicDatasets.forEach { publicDataset =>
-        if (!accessibleDatasets.exists(_.dataset.getDid == publicDataset.getDid)) {
+        if (!accessibleDatasets.exists(_.dataset.getDid == publicDataset.dataset.getDid)) {
           val dashboardDataset = DashboardDataset(
             isOwner = false,
-            dataset = publicDataset,
+            dataset = publicDataset.dataset,
+            ownerEmail = publicDataset.ownerEmail,
             accessPrivilege = DatasetUserAccessPrivilege.READ,
             versions = List()
           )
@@ -635,6 +658,7 @@ class DatasetResource {
           DashboardDataset(
             isOwner = dataset.isOwner,
             dataset = dataset.dataset,
+            ownerEmail = dataset.ownerEmail,
             accessPrivilege = dataset.accessPrivilege,
             versions = getDatasetVersions(ctx, did, uid).map { version =>
               DashboardDatasetVersion(

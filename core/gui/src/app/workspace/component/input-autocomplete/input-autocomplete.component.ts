@@ -15,32 +15,27 @@ import {DatasetVersionFileTreeNode, getFullPathFromFileTreeNode} from "../../../
   styleUrls: ["input-autocomplete.component.scss"],
 })
 export class InputAutoCompleteComponent extends FieldType<FieldTypeConfig> {
-  // the autocomplete selection list
-  public displayFilePath: string = "";
-
   constructor(
     private modalService: NzModalService,
     public workflowActionService: WorkflowActionService,
     public datasetService: DatasetService
   ) {
     super();
-    // const rawPath = this.formControl.getRawValue();
-    // this.displayFilePath = rawPath as string
   }
 
   onClickOpenFileSelectionModal(): void {
     this.datasetService
       .retrieveAccessibleDatasets(true)
       .pipe(untilDestroyed(this))
-      .subscribe(datasets => {
-        let datasetRootFileNodes: DatasetVersionFileTreeNode[] = [];
-        datasets.forEach(dataset => datasetRootFileNodes.push(dataset.datasetRootFileNode));
+      .subscribe(response => {
+        const fileNodes = response.fileNodes;
+        console.log(fileNodes)
         const modal = this.modalService.create({
           nzTitle: "Please select one file from datasets",
           nzContent: FileSelectionComponent,
           nzFooter: null,
           nzData: {
-            datasetRootFileNodes: datasetRootFileNodes,
+            datasetRootFileNodes: fileNodes,
           },
         });
         // Handle the selection from the modal
@@ -48,8 +43,6 @@ export class InputAutoCompleteComponent extends FieldType<FieldTypeConfig> {
           const node: DatasetVersionFileTreeNode = fileNode as DatasetVersionFileTreeNode;
           // embed the IDs into the file path for the operator to capture the information
           this.formControl.setValue(getFullPathFromFileTreeNode(node, true));
-          // when display the file path to the users, don't show the embedded IDs
-          this.displayFilePath = getFullPathFromFileTreeNode(node, false)
         });
       });
   }

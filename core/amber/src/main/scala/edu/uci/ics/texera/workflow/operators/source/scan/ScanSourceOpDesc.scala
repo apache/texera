@@ -66,7 +66,6 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
 
     if (getContext.userId.isDefined) {
       // if user system is defined, a datasetFileDesc will be initialized, which is the handle of reading file from the dataset
-      // TODO: add a parser to parse the path
       datasetFile = Some(new DatasetFileDocument(getContext.userId.get, Paths.get(fileName.get)))
     } else {
       // otherwise, the fileName will be inputted by user, which is the filePath.

@@ -4,9 +4,9 @@ import { DatasetVersionFileTreeNode } from "../../../common/type/datasetVersionF
 
 export interface DashboardDataset {
   isOwner: boolean;
+  ownerEmail: string;
   dataset: Dataset;
   accessPrivilege: "READ" | "WRITE" | "NONE";
-  datasetRootFileNode: DatasetVersionFileTreeNode;
   versions: {
     datasetVersion: DatasetVersion;
     fileNodes: FileNode[];

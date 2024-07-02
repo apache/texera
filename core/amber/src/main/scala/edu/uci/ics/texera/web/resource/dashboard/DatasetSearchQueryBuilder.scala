@@ -5,14 +5,10 @@ import org.jooq.{Condition, GroupField, Record, TableLike}
 import org.jooq.types.UInteger
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{DATASET, DATASET_USER_ACCESS}
 import edu.uci.ics.texera.web.model.jooq.generated.enums.DatasetUserAccessPrivilege
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Dataset
+import edu.uci.ics.texera.web.model.jooq.generated.tables.User.USER
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{Dataset, User}
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.DashboardClickableFileEntry
-import edu.uci.ics.texera.web.resource.dashboard.FulltextSearchQueryUtils.{
-  getContainsFilter,
-  getDateFilter,
-  getFullTextSearchFilter,
-  getSubstringSearchFilter
-}
+import edu.uci.ics.texera.web.resource.dashboard.FulltextSearchQueryUtils.{getContainsFilter, getDateFilter, getFullTextSearchFilter, getSubstringSearchFilter}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.DashboardDataset
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
@@ -35,8 +31,8 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder {
       params: DashboardResource.SearchQueryParams
   ): TableLike[_] = {
     DATASET
-      .leftJoin(DATASET_USER_ACCESS)
-      .on(DATASET_USER_ACCESS.DID.eq(DATASET.DID))
+      .leftJoin(DATASET_USER_ACCESS).on(DATASET_USER_ACCESS.DID.eq(DATASET.DID))
+      .leftJoin(USER).on(USER.UID.eq(DATASET.OWNER_UID))
       .where(
         DATASET_USER_ACCESS.UID.eq(uid)
       )
@@ -73,9 +69,10 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder {
       record: Record
   ): DashboardResource.DashboardClickableFileEntry = {
     val dataset = record.into(DATASET).into(classOf[Dataset])
-
+    val owner = record.into(USER).into(classOf[User])
     val dd = DashboardDataset(
       dataset,
+      owner.getEmail,
       record
         .get(
           DATASET_USER_ACCESS.PRIVILEGE,

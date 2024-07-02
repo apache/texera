@@ -12,7 +12,7 @@ import { UserFileUploadService } from "../file/user-file-upload.service";
 import {
   DatasetVersionFileTree,
   DatasetVersionFileTreeNode,
-  parseDatasetRootNode,
+  parseDatasetRootNodes,
   parseFileNodesToTreeNodes,
 } from "../../../../common/type/datasetVersionFileTree";
 import { FileNode } from "../../../../common/type/fileNode";
@@ -74,7 +74,7 @@ export class DatasetService {
     );
   }
 
-  public retrieveAccessibleDatasets(includeVersions: boolean = false): Observable<DashboardDataset[]> {
+  public retrieveAccessibleDatasets(includeVersions: boolean = false): Observable<{datasets: DashboardDataset[], fileNodes: DatasetVersionFileTreeNode[]}> {
     let params = new HttpParams();
     if (includeVersions) {
       params = params.set("includeVersions", "true");
@@ -84,12 +84,13 @@ export class DatasetService {
       .get<DashboardDataset[]>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}`, { params: params })
       .pipe(
         map(datasets => {
-          return datasets.map(dataset => {
-            if (includeVersions) {
-              dataset.datasetRootFileNode = parseDatasetRootNode(dataset);
+          if (!includeVersions) {
+            return {
+              fileNodes: [], datasets: datasets,
             }
-            return dataset;
-          });
+          }
+          return {
+            fileNodes: parseDatasetRootNodes(datasets), datasets: datasets};
         })
       );
   }
