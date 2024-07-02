@@ -174,6 +174,7 @@ class ExecutionResultService(
     mutable.HashMap[OperatorIdentity, ProgressiveSinkOpDesc]()
   private val resultPullingFrequency = AmberConfig.executionResultPollingInSecs
   private var resultUpdateCancellable: Cancellable = _
+  var tableFields: mutable.Map[String, Map[String, Iterable[String]]] = mutable.Map()
 
   def attachToExecution(
       stateStore: ExecutionStateStore,
@@ -230,6 +231,7 @@ class ExecutionResultService(
     addSubscription(
       workflowStateStore.resultStore.registerDiffHandler((oldState, newState) => {
         val buf = mutable.HashMap[String, WebResultUpdate]()
+        val allTableStats = mutable.Map[String, Map[String, Map[String, Any]]]()
         newState.resultInfo
           .filter(info => {
             // only update those operators with changing tuple count.
@@ -244,8 +246,37 @@ class ExecutionResultService(
                 oldInfo.tupleCount,
                 info.tupleCount
               )
+              if (
+                AmberConfig.sinkStorageMode.toLowerCase == "mongodb" && !opId.id.startsWith("sink")
+              ) {
+                val sinkMgr = sinkOperators(opId).getStorage
+                if (oldState.resultInfo.isEmpty) {
+                  val fields = sinkMgr.getAllFields()
+                  tableFields.update(
+                    opId.id,
+                    Map(
+                      "numericFields" -> fields(0),
+                      "catFields" -> fields(1),
+                      "dateFields" -> fields(2)
+                    )
+                  )
+                }
+                val tableCatStats = sinkMgr.getCatColStats(tableFields(opId.id)("catFields"))
+                val tableDateStats = sinkMgr.getDateColStats(tableFields(opId.id)("dateFields"))
+                val tableNumericStats =
+                  sinkMgr.getNumericColStats(tableFields(opId.id)("numericFields"))
+                val allStats = tableNumericStats ++ tableCatStats ++ tableDateStats
+                if (tableNumericStats.nonEmpty || tableCatStats.nonEmpty || tableDateStats.nonEmpty)
+                  allTableStats(opId.id) = allStats
+              }
           }
-        Iterable(WebResultUpdateEvent(buf.toMap))
+        Iterable(
+          WebResultUpdateEvent(
+            buf.toMap,
+            allTableStats.toMap,
+            AmberConfig.sinkStorageMode.toLowerCase
+          )
+        )
       })
     )
 
