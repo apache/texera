@@ -60,11 +60,11 @@ class ContinuousErrorBandsOpDesc extends VisualizationOperator with PythonOperat
         val namePart = if (bandConf.name != "") {
           s"name='${bandConf.name}'"
         } else {
-          s"name='${bandConf.yAxis}'"
+          s"name='${bandConf.yValue}'"
         }
 
         s"""fig.add_trace(go.Scatter(
-            x=table['${bandConf.xAxis}'],
+            x=table['${bandConf.xValue}'],
             y=table['${bandConf.yUpper}'],
             mode='lines',
             marker=dict(color="#444"),
@@ -73,7 +73,7 @@ class ContinuousErrorBandsOpDesc extends VisualizationOperator with PythonOperat
             $namePart
           ))
         fig.add_trace(go.Scatter(
-            x=table['${bandConf.xAxis}'],
+            x=table['${bandConf.xValue}'],
             y=table['${bandConf.yLower}'],
             mode='lines',
             marker=dict(color="#444"),
@@ -84,8 +84,8 @@ class ContinuousErrorBandsOpDesc extends VisualizationOperator with PythonOperat
             $namePart
           ))
         fig.add_trace(go.Scatter(
-            x=table['${bandConf.xAxis}'],
-            y=table['${bandConf.yAxis}'],
+            x=table['${bandConf.xValue}'],
+            y=table['${bandConf.yValue}'],
             mode='${bandConf.mode.getModeInPlotly}',
             $colorPart
             $namePart
