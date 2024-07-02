@@ -93,8 +93,8 @@ The following is a workflow formulated using the Texera GUI in a Web browser, wh
 
 ## Education
 
-* [Data Science for All](https://ds4all.ics.uci.edu/) (a course in spring 2024 to teach 42 UCI undergraduates, mostly not from CS, data science and AI/ML)
-* [ICS 80](https://canvas.eee.uci.edu/courses/63639/pages/syllabus) (an NSF-funded summer program to teach high-school students data science and AI/ML)
+* [Data Science for All](https://ds4all.ics.uci.edu/) (an NSF-funded summer program to teach high-school students data science and AI/ML)
+* [ICS 80](https://canvas.eee.uci.edu/courses/63639/pages/syllabus) (a Spring 2024 course at UCI, teaching 42 undergraduates, most of whom are not computer science majors, to learn data science and AI/ML)
 
 ## Videos
 * [dkNET Webinar "Texera: A Scalable Cloud Computing Platform for Sharing Data & Workflow-based Analysis" 04/26/2024](https://www.youtube.com/watch?v=B81iMFS5fPc)
@@ -117,7 +117,7 @@ To try our collaborative data analytics in _Demonstration of Collaborative and I
 
 This project is supported by the <a href="http://www.nsf.gov">National Science Foundation</a> under the awards [III 1745673](https://www.nsf.gov/awardsearch/showAward?AWD_ID=1745673), [III 2107150](https://www.nsf.gov/awardsearch/showAward?AWD_ID=2107150), AWS Research Credits, and Google Cloud Platform Education Programs.
 
-* <a href="https://www.niddk.nih.gov/"><img src="https://github.com/Texera/texera/assets/17627829/d279897a-3efb-41c1-b2d3-8fd20c800ad7" alt="NIH NIDDK" height="30"/></a> This project is supported by NIH NIDDK.
+* <a href="https://www.niddk.nih.gov/"><img src="https://github.com/Texera/texera/assets/17627829/d279897a-3efb-41c1-b2d3-8fd20c800ad7" alt="NIH NIDDK" height="30"/></a> This project is supported by an <a href="https://reporter.nih.gov/project-details/10818244">NIH NIDDK</a> award.
 
 
 * <a href="http://www.yourkit.com"><img src="https://www.yourkit.com/images/yklogo.png" alt="Yourkit" height="30"/></a>  [Yourkit](https://www.yourkit.com/) has given an open source license to use their profiler in this project. 

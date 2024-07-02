@@ -1,7 +1,6 @@
 package edu.uci.ics.texera.workflow.common.operators
 
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type
-
 import com.fasterxml.jackson.annotation.{
   JsonIgnore,
   JsonProperty,
@@ -41,6 +40,12 @@ import edu.uci.ics.texera.workflow.operators.huggingFace.{
   HuggingFaceSpamSMSDetectionOpDesc,
   HuggingFaceTextSummarizationOpDesc
 }
+import edu.uci.ics.texera.workflow.operators.machineLearning.sklearnAdvanced.KNNTrainer.{
+  SklearnAdvancedKNNClassifierTrainerOpDesc,
+  SklearnAdvancedKNNRegressorTrainerOpDesc
+}
+import edu.uci.ics.texera.workflow.operators.machineLearning.sklearnAdvanced.SVCTrainer.SklearnAdvancedSVCTrainerOpDesc
+import edu.uci.ics.texera.workflow.operators.machineLearning.sklearnAdvanced.SVRTrainer.SVCTrainer.SklearnAdvancedSVRTrainerOpDesc
 import edu.uci.ics.texera.workflow.operators.projection.ProjectionOpDesc
 import edu.uci.ics.texera.workflow.operators.randomksampling.RandomKSamplingOpDesc
 import edu.uci.ics.texera.workflow.operators.regex.RegexOpDesc
@@ -130,6 +135,7 @@ import edu.uci.ics.texera.workflow.operators.visualization.tablesChart.TablesPlo
 import edu.uci.ics.texera.workflow.operators.visualization.distPlot.DistPlotOpDesc
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
 import org.apache.zookeeper.KeeperException.UnimplementedException
+import edu.uci.ics.texera.workflow.operators.machineLearning.Scorer.MachineLearningScorerOpDesc
 
 import java.util.UUID
 import scala.collection.mutable
@@ -221,6 +227,7 @@ trait StateTransferFunc
     new Type(value = classOf[JavaUDFOpDesc], name = "JavaUDF"),
     new Type(value = classOf[RUDFOpDesc], name = "RUDF"),
     new Type(value = classOf[RUDFSourceOpDesc], name = "RUDFSource"),
+    new Type(value = classOf[MachineLearningScorerOpDesc], name = "Scorer"),
     new Type(value = classOf[SortOpDesc], name = "Sort"),
     new Type(value = classOf[SklearnLogisticRegressionOpDesc], name = "SklearnLogisticRegression"),
     new Type(
@@ -282,6 +289,22 @@ trait StateTransferFunc
     new Type(
       value = classOf[HuggingFaceIrisLogisticRegressionOpDesc],
       name = "HuggingFaceIrisLogisticRegression"
+    ),
+    new Type(
+      value = classOf[SklearnAdvancedKNNClassifierTrainerOpDesc],
+      name = "KNNClassifierTrainer"
+    ),
+    new Type(
+      value = classOf[SklearnAdvancedKNNRegressorTrainerOpDesc],
+      name = "KNNRegressorTrainer"
+    ),
+    new Type(
+      value = classOf[SklearnAdvancedSVCTrainerOpDesc],
+      name = "SVCTrainer"
+    ),
+    new Type(
+      value = classOf[SklearnAdvancedSVRTrainerOpDesc],
+      name = "SVRTrainer"
     )
   )
 )

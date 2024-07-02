@@ -15,3 +15,37 @@ th.header-size {
   font-size: 14px;
   padding: 2px;
 }
+
+.custom-stats-row th {
+  background-color: #ccc;
+  border-bottom: 1px solid #ccc;
+  border-top: 1px solid #ccc;
+  border-left: 1px solid #ccc;
+  height: 88px;
+}
+
+.custom-stats-row th:first-child {
+  border-left: none; /* To remove the left border from the first column */
+}
+
+.statsHeader {
+  max-height: 70px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+.statsLine {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.leftAlign {
+  text-align: left;
+  margin-right: 10px;
+}
+
+.rightAlign {
+  text-align: right;
+}
