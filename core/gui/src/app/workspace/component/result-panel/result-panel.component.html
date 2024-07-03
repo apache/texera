@@ -1,11 +1,10 @@
 <div
-  class="texera-workspace-result-panel-body"
   id="result-container"
   cdkDrag
   cdkDragBoundary="body"
   nz-resizable
   [nzMinWidth]="300"
-  [nzMinHeight]="200"
+  [nzMinHeight]="250"
   [nzMaxWidth]="window.innerWidth"
   [nzMaxHeight]="window.innerHeight"
   [style.width.px]="width"
@@ -39,18 +38,19 @@
       nz-menu-item
       (click)="openPanel()"
       *ngIf="!width"
-      nz-tooltip="Result Panel">
+      nz-tooltip="Result Panel: {{operatorTitle}}">
       <span
         nz-icon
         nzType="border"></span>
     </li>
   </ul>
-  <div id="content">
+  <div
+    id="content"
+    *ngIf="width">
     <h4
       id="title"
-      cdkDragHandle
-      *ngIf="width">
-      Result Panel
+      cdkDragHandle>
+      Result Panel: {{operatorTitle}}
     </h4>
     <nz-tabset
       [nzSize]="'small'"

@@ -13,10 +13,6 @@ import edu.uci.ics.texera.workflow.operators.visualization.{
 }
 
 class HeatMapOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
-  @JsonProperty(defaultValue = "HeatMap", required = true)
-  @JsonSchemaTitle("Title")
-  @JsonPropertyDescription("Add a title to your visualization")
-  var title: String = ""
 
   @JsonProperty(value = "x", required = true)
   @JsonSchemaTitle("Value X Column")
@@ -55,7 +51,7 @@ class HeatMapOpDesc extends VisualizationOperator with PythonOperatorDescriptor 
     assert(value.nonEmpty)
     s"""
        |        heatmap = go.Heatmap(z=table["$value"],x=table["$x"],y=table["$y"])
-       |        layout = go.Layout(title='$title')
+       |        layout = go.Layout(margin=dict(l=0, r=0, b=0, t=0))
        |        fig = go.Figure(data=[heatmap], layout=layout)
        |""".stripMargin
   }

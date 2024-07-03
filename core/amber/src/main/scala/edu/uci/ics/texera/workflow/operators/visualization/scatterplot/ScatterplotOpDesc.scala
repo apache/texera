@@ -78,7 +78,8 @@ class ScatterplotOpDesc extends VisualizationOperator with PythonOperatorDescrip
     val colorColExpr = if (colorColumn.nonEmpty) { s"color='$colorColumn'" }
     else { "" }
     s"""
-           |        fig = go.Figure(px.scatter(table, x='$xColumn', y='$yColumn', $colorColExpr))
+           |        fig = go.Figure(px.scatter(table, x='$xColumn', y='$yColumn'))
+           |        fig.update_layout(margin=dict(l=0, r=0, t=0, b=0))
            |""".stripMargin
   }
 
