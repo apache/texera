@@ -49,12 +49,12 @@ class ScatterplotOpDesc extends VisualizationOperator with PythonOperatorDescrip
 
   @JsonProperty(required = false, defaultValue = "false")
   @JsonSchemaTitle("log scale X")
-  @JsonPropertyDescription("values in X-column is log scaled")
+  @JsonPropertyDescription("values in X-column is log-scaled")
   var xLogScale: Boolean = false
 
   @JsonProperty(required = false, defaultValue = "false")
   @JsonSchemaTitle("log scale Y")
-  @JsonPropertyDescription("values in Y-column is log scaled")
+  @JsonPropertyDescription("values in Y-column is log-scaled")
   var yLogScale: Boolean = false
 
   @JsonProperty(required = false)
