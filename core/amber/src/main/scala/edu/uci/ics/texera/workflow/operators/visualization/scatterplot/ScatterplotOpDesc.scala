@@ -95,9 +95,9 @@ class ScatterplotOpDesc extends VisualizationOperator with PythonOperatorDescrip
     else { "" }
     var argDetails = if (xLogScale) ", log_x=True" else ""
     argDetails = argDetails + (if (yLogScale) ", log_y=True" else "")
-    argDetails = argDetails + (if (hoverName.nonEmpty) s""", hover_name="$hoverName"""" else "")
+    argDetails = argDetails + (if (hoverName.nonEmpty) s""", hover_name='$hoverName'""" else "")
     s"""
-           |        fig = go.Figure(px.scatter(table, x='$xColumn', y='$yColumn'))
+           |        fig = go.Figure(px.scatter(table, x='$xColumn', y='$yColumn'$argDetails))
            |        fig.update_layout(margin=dict(l=0, r=0, t=0, b=0))
            |""".stripMargin
   }
