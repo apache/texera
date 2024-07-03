@@ -36,10 +36,6 @@ public class RUDFSourceOpDesc extends SourceOperatorDescriptor {
         required = true,
         defaultValue =
             "# If using Table API:\n" +
-            "# function() {\n" +
-            "# }\n" +
-            "\n" +
-            "# Table API Example:\n" +
             "# function() { \n" +
             "#   return (data.frame(Column_Here = \"Value_Here\")) \n" +
             "# }\n" +
@@ -47,12 +43,7 @@ public class RUDFSourceOpDesc extends SourceOperatorDescriptor {
             "# If using Tuple API:\n" +
             "# library(coro)\n" +
             "# coro::generator(function() {\n" +
-            "# })\n" +
-            "\n" +
-            "# Tuple API Example:\n" +
-            "# library(coro)\n" +
-            "# coro::generator(function() {\n" +
-            "#   yield (list(Column_Here = \"Value_Here\"))\n" +
+            "#   yield (list(text= \"hello world!\"))\n" +
             "# })"
     )
     @JsonSchemaTitle("R Source UDF Script")

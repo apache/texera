@@ -19,20 +19,11 @@ class RUDFOpDesc extends LogicalOp {
     required = true,
     defaultValue =
       "# If using Table API:\n" +
-        "# function(table, port) {\n" +
-        "# }\n" +
-        "\n" +
-        "# Table API Example:\n" +
         "# function(table, port) { \n" +
         "#   return (table) \n" +
         "# }\n" +
         "\n" +
         "# If using Tuple API:\n" +
-        "# library(coro)\n" +
-        "# coro::generator(function(tuple, port) {\n" +
-        "# })\n" +
-        "\n" +
-        "# Tuple API Example:\n" +
         "# library(coro)\n" +
         "# coro::generator(function(tuple, port) {\n" +
         "#   yield (tuple)\n" +
