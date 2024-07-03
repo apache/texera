@@ -9,7 +9,9 @@
 }
 
 .console-list-container {
-  height: 200px;
+  position: fixed;
+  height: calc(100% - 140px);
+  width: calc(100% - 160px);
   border: 1px solid #e8e8e8;
   border-radius: 2px;
   overflow: auto;
@@ -81,4 +83,10 @@
       text-align: end;
     }
   }
+}
+
+.console-input-container {
+  position: fixed;
+  bottom: 22px;
+  left: 139px;
 }

@@ -38,11 +38,6 @@ class ScatterMatrixChartOpDesc extends VisualizationOperator with PythonOperator
   @AutofillAttributeName
   var color: String = ""
 
-  @JsonProperty(value = "title", required = true, defaultValue = "Scatter Matrix Chart")
-  @JsonSchemaTitle("Title")
-  @JsonPropertyDescription("the title of the matrix chart")
-  var title: String = "Scatter Matrix Chart"
-
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Schema.builder().add(new Attribute("html-content", AttributeType.STRING)).build()
   }
@@ -62,11 +57,7 @@ class ScatterMatrixChartOpDesc extends VisualizationOperator with PythonOperator
     val list_Attributes = selectedAttributes.map(attribute => s""""$attribute"""").mkString(",")
     s"""
        |        fig = px.scatter_matrix(table, dimensions=[$list_Attributes], color='$color')
-       |        fig.update_layout(
-       |        title='$title',
-       |        width=800,
-       |        height=800
-       |        )
+       |        fig.update_layout(margin=dict(t=0, b=0, l=0, r=0))
        |""".stripMargin
   }
 
