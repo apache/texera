@@ -2,37 +2,19 @@ import pickle
 import datetime
 import pyarrow as pa
 import rpy2
-import rpy2.rinterface as rinterface
+
+# import rpy2.rinterface as rinterface
 import rpy2.robjects as robjects
 from rpy2_arrow.arrow import converter as arrow_converter
 from rpy2.robjects import default_converter
 from rpy2.robjects.conversion import localconverter as local_converter
+import RUDFUtils
 from typing import Iterator, Optional, Union
 from core.models import Tuple, TupleLike, TableLike
 from core.models.operator import SourceOperator, TupleOperatorV2
 import warnings
 
 warnings.filterwarnings(action="ignore", category=UserWarning, module=r"rpy2*")
-
-
-def _convert_r_to_py(value: rpy2.robjects):
-    """
-    :param value: A value that is from one of rpy2's many types (from rpy2.robjects)
-    :return: A Python representation of the value, if convertable.
-        If not, it returns the value itself
-    """
-    if isinstance(value, robjects.vectors.BoolVector):
-        return bool(value[0])
-    if isinstance(value, robjects.vectors.IntVector):
-        return int(value[0])
-    if isinstance(value, robjects.vectors.FloatVector):
-        if isinstance(value, robjects.vectors.POSIXct):
-            return next(value.iter_localized_datetime())
-        else:
-            return float(value[0])
-    if isinstance(value, robjects.vectors.StrVector):
-        return str(value[0])
-    return value
 
 
 class RTupleExecutor(TupleOperatorV2):
@@ -115,30 +97,12 @@ class RTupleExecutor(TupleOperatorV2):
             )
 
             while True:
-                output_r_tuple: rpy2.robjects.ListVector = output_r_generator()
-                if (
-                    isinstance(output_r_tuple, rinterface.SexpSymbol)
-                    and str(output_r_tuple) == ".__exhausted__."
-                ):
+                output_py_tuple: Tuple = RUDFUtils.extract_tuple_from_r(
+                    output_r_generator, False, input_fields
+                )
+                yield output_py_tuple if output_py_tuple is not None else None
+                if output_py_tuple is None:
                     break
-                if isinstance(output_r_tuple.names, rpy2.rinterface_lib.sexp.NULLType):
-                    yield None
-                    break
-
-                diff_fields: list[str] = [
-                    field_name
-                    for field_name in output_r_tuple.names
-                    if field_name not in input_fields
-                ]
-
-                output_python_dict: dict[str, object] = {
-                    key: output_r_tuple.rx2(key) for key in (input_fields + diff_fields)
-                }
-                output_python_dict: dict[str, object] = {
-                    key: _convert_r_to_py(value)
-                    for key, value in output_python_dict.items()
-                }
-                yield Tuple(output_python_dict)
 
 
 class RTupleSourceExecutor(SourceOperator):
@@ -163,7 +127,9 @@ class RTupleSourceExecutor(SourceOperator):
 
     def produce(self) -> Iterator[Union[TupleLike, TableLike, None]]:
         """
-        Produce Tuples using the provided R function.
+        Produce Tuples using the provided R generator returned by the UDF.
+        The returned R generator is an iterator
+        that yields R Lists (R's representation of Tuple)
         Used by the source operator only.
 
         :return: Iterator[Union[TupleLike, TableLike, None]], producing
@@ -172,22 +138,9 @@ class RTupleSourceExecutor(SourceOperator):
         with local_converter(arrow_converter):
             output_r_generator: rpy2.robjects.SignatureTranslatedFunction = self._func()
             while True:
-                output_r_tuple: rpy2.robjetcs.ListVector = output_r_generator()
-                if (
-                    isinstance(output_r_tuple, rinterface.SexpSymbol)
-                    and str(output_r_tuple) == ".__exhausted__."
-                ):
+                output_py_tuple: Tuple = RUDFUtils.extract_tuple_from_r(
+                    output_r_generator, True
+                )
+                yield output_py_tuple if output_py_tuple is not None else None
+                if output_py_tuple is None:
                     break
-                if isinstance(output_r_tuple.names, rpy2.rinterface_lib.sexp.NULLType):
-                    yield None
-                    break
-
-                output_python_dict = {
-                    key: output_r_tuple.rx2(key) for key in output_r_tuple.names
-                }
-
-                output_python_dict: dict[str, object] = {
-                    key: _convert_r_to_py(value)
-                    for key, value in output_python_dict.items()
-                }
-                yield Tuple(output_python_dict)
