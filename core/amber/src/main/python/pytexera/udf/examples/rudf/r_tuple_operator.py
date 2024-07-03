@@ -13,9 +13,9 @@ r_tuple_source_one_tuple = """
 library(coro)
 coro::generator(function() {
     yield (list(
-            col1 = 1L, # R integer
-            col2 = "A", # R string
-            col3 = TRUE, # R logical (boolean)
+            attr1 = 1L, # R integer
+            attr2 = "A", # R string
+            attr3 = TRUE, # R logical (boolean)
             ))
     })
 """
@@ -25,9 +25,9 @@ library(coro)
 coro::generator(function() {
     for (i in 1:5) {
         yield (list(
-            col1 = 1L, # R integer
-            col2 = "A", # R string
-            col3 = TRUE, # R logical (boolean)
+            attr1 = 1L, # R integer
+            attr2 = "A", # R string
+            attr3 = TRUE, # R logical (boolean)
             ))
     })
 """

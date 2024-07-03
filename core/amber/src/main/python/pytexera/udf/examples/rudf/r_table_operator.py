@@ -64,7 +64,7 @@ function(table, port) {
     #       Pulse = c(100L, 150L, 120L),
     #       Duration = c(60, 30, 45)
     # )
-    first_row <- table[1,]
-    return (first_row)
+    tuple <- table[1,]
+    return (tuple)
 }
 """
