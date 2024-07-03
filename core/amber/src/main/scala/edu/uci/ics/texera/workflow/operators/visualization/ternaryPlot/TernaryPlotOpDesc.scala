@@ -13,33 +13,33 @@ import edu.uci.ics.texera.workflow.operators.visualization.{
 }
 
 /**
-  * Visualization Operator for Ternary Plots
-  * Uses 3 user-specified quantitative data fields (that sum to 1)
-  * Optionally can categorize points using distinct colors for an
-  *  additional user-specified categorical data field
+  * Visualization Operator for Ternary Plots.
+  *
+  * This operator uses three data fields to construct a ternary plot.
+  * The points can optionally be color coded using a data field.
   */
 
 class TernaryPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
 
-  // Adds annotations for the first variable
+  // Add annotations for the first variable
   @JsonProperty(value = "firstVariable", required = true)
   @JsonSchemaTitle("Variable 1")
   @JsonPropertyDescription("First variable data field")
   @AutofillAttributeName var firstVariable: String = ""
 
-  // Adds annotations for the second variable
+  // Add annotations for the second variable
   @JsonProperty(value = "secondVariable", required = true)
   @JsonSchemaTitle("Variable 2")
   @JsonPropertyDescription("Second variable data field")
   @AutofillAttributeName var secondVariable: String = ""
 
-  // Adds annotations for the third variable
+  // Add annotations for the third variable
   @JsonProperty(value = "thirdVariable", required = true)
   @JsonSchemaTitle("Variable 3")
   @JsonPropertyDescription("Third variable data field")
   @AutofillAttributeName var thirdVariable: String = ""
 
-  // Adds annotations for enabling color and selecting its associated data field
+  // Add annotations for enabling color and selecting its associated data field
   @JsonProperty(value = "colorEnabled", defaultValue = "false")
   @JsonSchemaTitle("Categorize by Color")
   @JsonPropertyDescription("Optionally color points using a data field")
@@ -50,7 +50,10 @@ class TernaryPlotOpDesc extends VisualizationOperator with PythonOperatorDescrip
   @JsonPropertyDescription("Specify the data field to color")
   @AutofillAttributeName var colorDataField: String = ""
 
-  // Information about this operator
+  // Register chart type as a visualization operator
+  override def chartType: String = VisualizationConstants.HTML_VIZ
+
+  // OperatorInfo instance describing ternary plot
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
       userFriendlyName = "Ternary Plot",
@@ -60,25 +63,22 @@ class TernaryPlotOpDesc extends VisualizationOperator with PythonOperatorDescrip
       outputPorts = List(OutputPort())
     )
 
-  // Registers chart type as a visualization operator
-  override def chartType: String = VisualizationConstants.HTML_VIZ
-
-  // Adds html-content to output schema
+  /** Returns the output schema set as html-content */
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Schema.builder().add(new Attribute("html-content", AttributeType.STRING)).build()
   }
 
-  // Reformats table to be usable for plot creation
+  /** Returns a Python string that drops any tuples with missing values */
   def manipulateTable(): String = {
     // Check for any empty data field names
     assert(firstVariable.nonEmpty && secondVariable.nonEmpty && thirdVariable.nonEmpty)
     s"""
-       |        # Removes any tuples that contain missing values
+       |        # Remove any tuples that contain missing values
        |        table.dropna(subset=['$firstVariable', '$secondVariable', '$thirdVariable'], inplace = True)
        |""".stripMargin
   }
 
-  // Creates ternary plot figure
+  /** Returns a Python string that creates the ternary plot figure */
   def createPlotlyFigure(): String = {
     s"""
        |        if '$colorEnabled' == 'true' and '$colorDataField' != "":
@@ -88,6 +88,7 @@ class TernaryPlotOpDesc extends VisualizationOperator with PythonOperatorDescrip
        |""".stripMargin
   }
 
+  /** Returns a Python string that yields the html content of the ternary plot */
   override def generatePythonCode(): String = {
     val finalCode =
       s"""
