@@ -2,8 +2,6 @@ import pickle
 import datetime
 import pyarrow as pa
 import rpy2
-
-# import rpy2.rinterface as rinterface
 import rpy2.robjects as robjects
 from rpy2_arrow.arrow import converter as arrow_converter
 from rpy2.robjects import default_converter
