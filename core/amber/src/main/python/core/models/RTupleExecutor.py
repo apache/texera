@@ -6,9 +6,8 @@ import rpy2.robjects as robjects
 from rpy2_arrow.arrow import converter as arrow_converter
 from rpy2.robjects import default_converter
 from rpy2.robjects.conversion import localconverter as local_converter
-import RUDFUtils
 from typing import Iterator, Optional, Union
-from core.models import Tuple, TupleLike, TableLike
+from core.models import Tuple, TupleLike, TableLike, RUDFUtils
 from core.models.operator import SourceOperator, TupleOperatorV2
 import warnings
 
