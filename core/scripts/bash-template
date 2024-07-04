@@ -40,27 +40,27 @@ realpath () {
   if [[ "x$CHECK_CYGWIN" == "x" ]]; then
     echo "$TARGET_FILE"
   else
-    echo $(cygwinpath "$TARGET_FILE")
+    echo $(winpath "$TARGET_FILE")
   fi
 )
 }
 
 # TODO - Do we need to detect msys?
 
-# Uses uname to detect if we're in the odd cygwin environment.
-is_cygwin() {
+# Uses uname to detect if we're in the windows environment.
+is_win() {
   local os=$(uname -s)
   case "$os" in
-    CYGWIN*) return 0 ;;
+    CYGWIN*|MINGW64*) return 0 ;;
     *)  return 1 ;;
   esac
 }
 
 # This can fix cygwin style /cygdrive paths so we get the
 # windows style paths.
-cygwinpath() {
+winpath() {
   local file="$1"
-  if is_cygwin; then
+  if is_win; then
     echo $(cygpath -w $file)
   else
     echo $file
@@ -71,7 +71,7 @@ cygwinpath() {
 make_url() {
   url="$1"
   local nospaces=${url// /%20}
-  if is_cygwin; then
+  if is_win; then
     echo "/${nospaces//\\//}"
   else
     echo "$nospaces"
@@ -80,7 +80,7 @@ make_url() {
 
 # This crazy function reads in a vanilla "linux" classpath string (only : are separators, and all /),
 # and returns a classpath with windows style paths, and ; separators.
-fixCygwinClasspath() {
+fixWinClasspath() {
   OLDIFS=$IFS
   IFS=":"
   read -a classpath_members <<< "$1"
@@ -88,7 +88,7 @@ fixCygwinClasspath() {
   IFS=$OLDIFS
   for i in "${!classpath_members[@]}"
   do
-    fixed_members[i]=$(cygpath -w "${classpath_members[i]}")
+    fixed_members[i]=$(winpath "${classpath_members[i]}")
   done
   IFS=";"
   echo "${fixed_members[*]}"
@@ -98,8 +98,8 @@ fixCygwinClasspath() {
 # Fix the classpath we use for cygwin.
 fix_classpath() {
   cp="$1"
-  if is_cygwin; then
-    echo "$(fixCygwinClasspath "$cp")"
+  if is_win; then
+    echo "$(fixWinClasspath "$cp")"
   else
     echo "$cp"
   fi
@@ -229,7 +229,7 @@ run() {
   argumentCount=$#
 
   #check for jline terminal fixes on cygwin
-  if is_cygwin; then
+  if is_win; then
     stty -icanon min 1 -echo > /dev/null 2>&1
     addJava "-Djline.terminal=jline.UnixTerminal"
     addJava "-Dsbt.cygwin=true"
@@ -271,7 +271,7 @@ run() {
     "${residual_args[@]}"
 
   local exit_code=$?
-  if is_cygwin; then
+  if is_win; then
     stty icanon echo > /dev/null 2>&1
   fi
   exit $exit_code
@@ -370,7 +370,7 @@ declare -r classpath_file="${conf_dir}/classpaths.txt"
 
 ${{template_declares}}
 
-echo "-classpath $(fixCygwinClasspath "$app_classpath")" > "$classpath_file"
+echo "-classpath $(fix_classpath "$app_classpath")" > "$classpath_file"
 # java_cmd is overrode in process_args when -java-home is used
 declare java_cmd=$(get_java_cmd)
 
