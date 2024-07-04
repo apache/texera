@@ -94,7 +94,7 @@ class ScatterplotOpDesc extends VisualizationOperator with PythonOperatorDescrip
     val colorColExpr = if (colorColumn.nonEmpty) { s"color='$colorColumn'" }
     else { "" }
     var argDetails = ""
-    if (xLogScale)  argDetails = argDetails + ", log_x=True"
+    if (xLogScale) argDetails = argDetails + ", log_x=True"
     if (yLogScale) argDetails = argDetails + ", log_y=True"
     if (hoverName.nonEmpty) argDetails = argDetails + s""", hover_name='$hoverName'"""
     s"""
