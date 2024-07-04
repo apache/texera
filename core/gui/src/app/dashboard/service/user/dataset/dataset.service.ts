@@ -60,19 +60,22 @@ export class DatasetService {
 
   public retrieveDatasetVersionSingleFile(path: string): Observable<Blob> {
     const encodedPath = encodeURIComponent(path);
-    return this.http.get(
-      `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/file?path=${encodedPath}`,
-      { responseType: "blob" }
-    );
+    return this.http.get(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/file?path=${encodedPath}`, {
+      responseType: "blob",
+    });
   }
 
-  public retrieveAccessibleDatasets(includeVersions: boolean = false): Observable<{datasets: DashboardDataset[], fileNodes: DatasetFileNode[]}> {
+  public retrieveAccessibleDatasets(
+    includeVersions: boolean = false
+  ): Observable<{ datasets: DashboardDataset[]; fileNodes: DatasetFileNode[] }> {
     let params = new HttpParams();
     if (includeVersions) {
       params = params.set("includeFileNodes", "true");
     }
-    return this.http
-      .get<{datasets: DashboardDataset[], fileNodes: DatasetFileNode[]}>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}`, { params: params });
+    return this.http.get<{ datasets: DashboardDataset[]; fileNodes: DatasetFileNode[] }>(
+      `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}`,
+      { params: params }
+    );
   }
   public createDatasetVersion(
     did: number,

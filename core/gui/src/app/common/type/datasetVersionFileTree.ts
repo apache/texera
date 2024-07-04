@@ -16,13 +16,13 @@ export interface DatasetFileNode {
 
 export function pruneFilePath(path: string): string {
   // Split the path by '/'
-  const segments = path.split('/');
+  const segments = path.split("/");
 
   // Remove the first segment
   segments.shift();
 
   // Join the remaining segments back into a path
-  return '/' + segments.join('/');
+  return "/" + segments.join("/");
 }
 
 export function getFullPathFromDatasetFileNode(node: DatasetFileNode): string {
@@ -131,7 +131,6 @@ export class DatasetVersionFileTreeManager {
     });
   }
 
-
   removeNode(targetNode: DatasetFileNode): void {
     if (targetNode.parentDir === "" && targetNode.name === "/") {
       // Can't remove root
@@ -187,4 +186,3 @@ export class DatasetVersionFileTreeManager {
     return this.root.children ?? [];
   }
 }
-

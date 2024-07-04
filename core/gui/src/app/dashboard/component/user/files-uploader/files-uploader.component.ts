@@ -26,10 +26,7 @@ export class FilesUploaderComponent {
   @Output()
   removingFilePaths = new EventEmitter<string[]>();
 
-  newUploadNodeToFileItems: Map<DatasetFileNode, FileUploadItem> = new Map<
-    DatasetFileNode,
-    FileUploadItem
-  >();
+  newUploadNodeToFileItems: Map<DatasetFileNode, FileUploadItem> = new Map<DatasetFileNode, FileUploadItem>();
   newUploadFileTreeManager: DatasetVersionFileTreeManager = new DatasetVersionFileTreeManager();
   newUploadFileTreeNodes: DatasetFileNode[] = [];
 

@@ -8,7 +8,12 @@ import edu.uci.ics.texera.web.model.jooq.generated.enums.DatasetUserAccessPrivil
 import edu.uci.ics.texera.web.model.jooq.generated.tables.User.USER
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{Dataset, User}
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.DashboardClickableFileEntry
-import edu.uci.ics.texera.web.resource.dashboard.FulltextSearchQueryUtils.{getContainsFilter, getDateFilter, getFullTextSearchFilter, getSubstringSearchFilter}
+import edu.uci.ics.texera.web.resource.dashboard.FulltextSearchQueryUtils.{
+  getContainsFilter,
+  getDateFilter,
+  getFullTextSearchFilter,
+  getSubstringSearchFilter
+}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.DashboardDataset
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
@@ -31,8 +36,10 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder {
       params: DashboardResource.SearchQueryParams
   ): TableLike[_] = {
     DATASET
-      .leftJoin(DATASET_USER_ACCESS).on(DATASET_USER_ACCESS.DID.eq(DATASET.DID))
-      .leftJoin(USER).on(USER.UID.eq(DATASET.OWNER_UID))
+      .leftJoin(DATASET_USER_ACCESS)
+      .on(DATASET_USER_ACCESS.DID.eq(DATASET.DID))
+      .leftJoin(USER)
+      .on(USER.UID.eq(DATASET.OWNER_UID))
       .where(
         DATASET_USER_ACCESS.UID.eq(uid)
       )

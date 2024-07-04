@@ -3,19 +3,24 @@ package edu.uci.ics.amber.engine.common.storage
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource
 import org.jooq.types.UInteger
 
-import java.io.{File, FileInputStream, FileNotFoundException, InputStream, OutputStream, FileOutputStream}
+import java.io.{File, InputStream, FileOutputStream}
 import java.net.URI
-import java.nio.file.{Files, Path, Paths}
+import java.nio.file.{Files, Path}
 
 class DatasetFileDocument(uid: UInteger, fileFullPath: Path) extends VirtualDocument[Nothing] {
 
-  private val (dataset, datasetVersion, fileRelativePath) = DatasetResource.resolveFilePath(fileFullPath)
+  private val (dataset, datasetVersion, fileRelativePath) =
+    DatasetResource.resolveFilePath(fileFullPath)
 
   private var tempFile: Option[File] = None
 
-  override def getURI: URI = throw new UnsupportedOperationException("The URI cannot be acquired because the file is not physically located")
+  override def getURI: URI =
+    throw new UnsupportedOperationException(
+      "The URI cannot be acquired because the file is not physically located"
+    )
 
-  override def asInputStream(): InputStream = DatasetResource.getDatasetFile(dataset.getDid, datasetVersion.getDvid, uid, fileRelativePath)
+  override def asInputStream(): InputStream =
+    DatasetResource.getDatasetFile(dataset.getDid, datasetVersion.getDvid, uid, fileRelativePath)
 
   override def asFile(): File = {
     tempFile match {
@@ -45,7 +50,7 @@ class DatasetFileDocument(uid: UInteger, fileFullPath: Path) extends VirtualDocu
   override def remove(): Unit = {
     tempFile match {
       case Some(file) => Files.delete(file.toPath)
-      case None => // Do nothing
+      case None       => // Do nothing
     }
   }
 }

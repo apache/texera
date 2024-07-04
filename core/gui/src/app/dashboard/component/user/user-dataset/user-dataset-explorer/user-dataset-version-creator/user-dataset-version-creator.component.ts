@@ -7,7 +7,7 @@ import { Dataset, DatasetVersion } from "../../../../../../common/type/dataset";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "../../../../../../common/service/notification/notification.service";
 import sanitize from "sanitize-filename";
-import {HttpErrorResponse} from "@angular/common/http";
+import { HttpErrorResponse } from "@angular/common/http";
 
 @UntilDestroy()
 @Component({
@@ -178,7 +178,7 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
             this.isUploading = false;
           },
           error: (res: HttpErrorResponse) => {
-            console.log(res)
+            console.log(res);
             this.notificationService.error(`Dataset ${ds.name} creation failed: ${res.error.message}`);
             this.isUploading = false;
           },

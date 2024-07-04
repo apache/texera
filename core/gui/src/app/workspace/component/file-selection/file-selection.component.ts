@@ -33,9 +33,7 @@ export class FileSelectionComponent {
 
         // If the node is a directory, recurse into its children, if any.
         if (node.type === "directory" && node.children) {
-          const filteredChildren = node.children
-            .map(filterNodes)
-            .filter(child => child !== null) as DatasetFileNode[];
+          const filteredChildren = node.children.map(filterNodes).filter(child => child !== null) as DatasetFileNode[];
 
           if (filteredChildren.length > 0) {
             // If any children match, return the current directory node with filtered children.

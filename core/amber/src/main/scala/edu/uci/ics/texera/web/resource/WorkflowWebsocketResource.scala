@@ -63,7 +63,8 @@ class WorkflowWebsocketResource extends LazyLogging {
       .get(classOf[User].getName)
       .map(_.asInstanceOf[User].getEmail)
     val user = session.getUserProperties.asScala
-      .get(classOf[User].getName).map(_.asInstanceOf[User])
+      .get(classOf[User].getName)
+      .map(_.asInstanceOf[User])
 
     val sessionState = SessionState.getState(session.getId)
     val workflowStateOpt = sessionState.getCurrentWorkflowState
