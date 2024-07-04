@@ -86,10 +86,7 @@ class RUDFOpDesc extends LogicalOp {
       Map(operatorInfo.outputPorts.head.id -> outputSchemaBuilder.build())
     }
 
-    var r_operator_type = "r-table"
-    if (useTupleAPI) {
-      r_operator_type = "r-tuple"
-    }
+    val r_operator_type = if (useTupleAPI) "r-tuple" else "r-table" 
     if (workers > 1)
       PhysicalOp
         .oneToOnePhysicalOp(
