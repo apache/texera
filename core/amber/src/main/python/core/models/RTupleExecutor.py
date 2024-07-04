@@ -69,15 +69,18 @@ class RTupleExecutor(TupleOperatorV2):
                 [non_binary_tuple.as_dict()], type=pa.struct(non_binary_tuple_schema)
             )
 
-            binary_tuple: Tuple = tuple_.get_partial_tuple(binary_fields)
             binary_r_list: dict[str, object] = {}
-            for k, v in binary_tuple.as_dict().items():
-                if isinstance(v, bytes):
-                    binary_r_list[k] = pickle.loads(v[10:])
-                elif isinstance(v, datetime.datetime):
-                    binary_r_list[k] = robjects.vectors.POSIXct.sexp_from_datetime([v])
-                else:
-                    binary_r_list[k] = v
+            if binary_fields:
+                binary_tuple: Tuple = tuple_.get_partial_tuple(binary_fields)
+                for k, v in binary_tuple.as_dict().items():
+                    if isinstance(v, bytes):
+                        binary_r_list[k] = pickle.loads(v[10:])
+                    elif isinstance(v, datetime.datetime):
+                        binary_r_list[k] = robjects.vectors.POSIXct.sexp_from_datetime(
+                            [v]
+                        )
+                    else:
+                        binary_r_list[k] = v
 
             binary_r_list: rpy2.robjects.ListVector = robjects.vectors.ListVector(
                 binary_r_list
