@@ -29,7 +29,7 @@ export class InputAutoCompleteComponent extends FieldType<FieldTypeConfig> {
       .pipe(untilDestroyed(this))
       .subscribe(response => {
         const fileNodes = response.fileNodes;
-        console.log(fileNodes);
+        console.log("fileNodes: ", fileNodes);
         const modal = this.modalService.create({
           nzTitle: "Please select one file from datasets",
           nzContent: FileSelectionComponent,

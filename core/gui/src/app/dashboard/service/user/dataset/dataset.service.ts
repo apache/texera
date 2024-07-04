@@ -69,7 +69,7 @@ export class DatasetService {
   public retrieveAccessibleDatasets(includeVersions: boolean = false): Observable<{datasets: DashboardDataset[], fileNodes: DatasetFileNode[]}> {
     let params = new HttpParams();
     if (includeVersions) {
-      params = params.set("includeVersions", "true");
+      params = params.set("includeFileNodes", "true");
     }
     return this.http
       .get<{datasets: DashboardDataset[], fileNodes: DatasetFileNode[]}>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}`, { params: params });

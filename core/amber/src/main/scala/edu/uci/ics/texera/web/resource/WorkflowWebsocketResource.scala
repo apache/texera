@@ -63,7 +63,7 @@ class WorkflowWebsocketResource extends LazyLogging {
       .get(classOf[User].getName)
       .map(_.asInstanceOf[User].getEmail)
     val user = session.getUserProperties.asScala
-      .get(classOf[User].getName).asInstanceOf[User]
+      .get(classOf[User].getName).map(_.asInstanceOf[User])
 
     val sessionState = SessionState.getState(session.getId)
     val workflowStateOpt = sessionState.getCurrentWorkflowState
@@ -78,7 +78,7 @@ class WorkflowWebsocketResource extends LazyLogging {
           )
         case resultExportRequest: ResultExportRequest =>
           workflowStateOpt.foreach(state =>
-            sessionState.send(state.exportService.exportResult(user, resultExportRequest))
+            sessionState.send(state.exportService.exportResult(user.get, resultExportRequest))
           )
         case modifyLogicRequest: ModifyLogicRequest =>
           if (workflowStateOpt.isDefined) {
