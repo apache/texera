@@ -6,15 +6,12 @@ export interface DatasetVersionFileTree {
   [key: string]: DatasetVersionFileTree | string;
 }
 
-export interface DatasetVersionFileTreeNode {
+export interface DatasetFileNode {
   name: string;
-
   type: "file" | "directory";
-  children?: DatasetVersionFileTreeNode[]; // Only populated if 'type' is 'directory'
+  children?: DatasetFileNode[]; // Only populated if 'type' is 'directory'
   parentDir: string;
   ownerEmail?: string;
-  did?: number;
-  dvid?: number;
 }
 
 export function pruneFilePath(path: string): string {
@@ -28,32 +25,13 @@ export function pruneFilePath(path: string): string {
   return '/' + segments.join('/');
 }
 
-export function getFullPathFromFileTreeNode(node: DatasetVersionFileTreeNode, embedIDs: boolean = false): string {
-  const parts = node.parentDir.split('/').filter(Boolean);
-  let embeddedPath = parts.join('/');
-
-  if (embedIDs) {
-    const didPart = node.did !== undefined ? `did:${node.did}` : '';
-    const dvidPart = node.dvid !== undefined ? `_dvid:${node.dvid}` : '';
-
-    if (didPart || dvidPart) {
-      embeddedPath = `${didPart}${dvidPart}/${embeddedPath}`;
-    }
-  }
-
-  if (embeddedPath === "") {
-    // This means the original parentDir was "/"
-    return `/${node.name}`;
-  } else {
-    return `/${embeddedPath}/${node.name}`;
-  }
+export function getFullPathFromDatasetFileNode(node: DatasetFileNode): string {
+  return `${node.parentDir}/${node.name}`;
 }
 
-
-
-export function getPathsFromTreeNode(node: DatasetVersionFileTreeNode): string[] {
+export function getPathsFromTreeNode(node: DatasetFileNode): string[] {
   // Helper function to recursively gather paths
-  const gatherPaths = (node: DatasetVersionFileTreeNode, currentPath: string): string[] => {
+  const gatherPaths = (node: DatasetFileNode, currentPath: string): string[] => {
     // Base case: if the node is a file, return its path
     if (node.type === "file") {
       return [currentPath];
@@ -75,15 +53,15 @@ export function getPathsFromTreeNode(node: DatasetVersionFileTreeNode): string[]
 
 // This class convert a list of DatasetVersionTreeNode into a hash map, recursively containing all the paths
 export class DatasetVersionFileTreeManager {
-  private root: DatasetVersionFileTreeNode = { name: "/", type: "directory", children: [], parentDir: "" };
-  private treeNodesMap: Map<string, DatasetVersionFileTreeNode> = new Map<string, DatasetVersionFileTreeNode>();
+  private root: DatasetFileNode = { name: "/", type: "directory", children: [], parentDir: "" };
+  private treeNodesMap: Map<string, DatasetFileNode> = new Map<string, DatasetFileNode>();
 
-  constructor(nodes: DatasetVersionFileTreeNode[] = []) {
+  constructor(nodes: DatasetFileNode[] = []) {
     this.treeNodesMap.set("/", this.root);
     if (nodes.length > 0) this.initializeWithRootNodes(nodes);
   }
 
-  private updateTreeMapWithPath(path: string): DatasetVersionFileTreeNode {
+  private updateTreeMapWithPath(path: string): DatasetFileNode {
     const pathParts = path.startsWith("/") ? path.slice(1).split("/") : path.split("/");
     let currentPath = "/";
     let currentNode = this.root;
@@ -94,7 +72,7 @@ export class DatasetVersionFileTreeManager {
 
       if (!this.treeNodesMap.has(currentPath)) {
         const isLastPart = index === pathParts.length - 1;
-        const newNode: DatasetVersionFileTreeNode = {
+        const newNode: DatasetFileNode = {
           name: part,
           type: isLastPart ? "file" : "directory",
           parentDir: previousPath.endsWith("/") ? previousPath.slice(0, -1) : previousPath, // Store the full path for parentDir
@@ -110,7 +88,7 @@ export class DatasetVersionFileTreeManager {
     return currentNode;
   }
 
-  private removeNodeAndDescendants(node: DatasetVersionFileTreeNode): void {
+  private removeNodeAndDescendants(node: DatasetFileNode): void {
     if (node.type === "directory" && node.children) {
       node.children.forEach(child => {
         const childPath =
@@ -123,17 +101,17 @@ export class DatasetVersionFileTreeManager {
     node.children = [];
   }
 
-  addNodeWithPath(path: string): DatasetVersionFileTreeNode {
+  addNodeWithPath(path: string): DatasetFileNode {
     return this.updateTreeMapWithPath(path);
   }
 
-  initializeWithRootNodes(rootNodes: DatasetVersionFileTreeNode[]) {
+  initializeWithRootNodes(rootNodes: DatasetFileNode[]) {
     // Clear existing nodes in map except the root
     this.treeNodesMap.clear();
     this.treeNodesMap.set("/", this.root);
 
     // Helper function to add nodes recursively
-    const addNodeRecursively = (node: DatasetVersionFileTreeNode, parentDir: string) => {
+    const addNodeRecursively = (node: DatasetFileNode, parentDir: string) => {
       const nodePath = parentDir === "/" ? `/${node.name}` : `${parentDir}/${node.name}`;
       this.treeNodesMap.set(nodePath, node);
 
@@ -153,14 +131,15 @@ export class DatasetVersionFileTreeManager {
     });
   }
 
-  removeNode(targetNode: DatasetVersionFileTreeNode): void {
+
+  removeNode(targetNode: DatasetFileNode): void {
     if (targetNode.parentDir === "" && targetNode.name === "/") {
       // Can't remove root
       return;
     }
 
     // Queue for BFS
-    const queue: DatasetVersionFileTreeNode[] = [this.root];
+    const queue: DatasetFileNode[] = [this.root];
 
     while (queue.length > 0) {
       const node = queue.shift()!;
@@ -174,7 +153,7 @@ export class DatasetVersionFileTreeManager {
         node.children = node.children.filter(child => child !== targetNode);
 
         // Construct the full path of the target node to remove it from the map
-        const pathToRemove = getFullPathFromFileTreeNode(targetNode);
+        const pathToRemove = getFullPathFromDatasetFileNode(targetNode);
         this.treeNodesMap.delete(pathToRemove);
 
         return; // Node found and removed, exit the function
@@ -204,113 +183,8 @@ export class DatasetVersionFileTreeManager {
     }
   }
 
-  getRootNodes(): DatasetVersionFileTreeNode[] {
+  getRootNodes(): DatasetFileNode[] {
     return this.root.children ?? [];
   }
 }
 
-export function parseDatasetRootNodes(datasets: DashboardDataset[]): DatasetVersionFileTreeNode[] {
-  const ownerNodesMap: Map<string, DatasetVersionFileTreeNode> = new Map();
-
-  datasets.forEach(dataset => {
-    const ownerEmail = dataset.ownerEmail;
-    const did = dataset.dataset.did;
-
-    // Check if the owner node already exists, if not create it
-    if (!ownerNodesMap.has(ownerEmail)) {
-      const userNode: DatasetVersionFileTreeNode = {
-        name: ownerEmail,
-        type: "directory",
-        parentDir: "/",
-        children: [],
-        ownerEmail: ownerEmail,
-      };
-      ownerNodesMap.set(ownerEmail, userNode);
-    }
-
-    // Get the existing owner node
-    const ownerNode = ownerNodesMap.get(ownerEmail)!;
-
-    // Create the dataset node
-    const datasetNode: DatasetVersionFileTreeNode = {
-      name: dataset.dataset.name,
-      type: "directory",
-      parentDir: `/${ownerEmail}`,
-      children: [],
-      did: did,
-      ownerEmail: ownerEmail,
-    };
-
-    dataset.versions.forEach(version => {
-      const dvid = version.datasetVersion.dvid;
-      const versionNode: DatasetVersionFileTreeNode = {
-        name: version.datasetVersion.name,
-        type: "directory",
-        parentDir: `/${dataset.dataset.name}`,
-        ownerEmail: ownerEmail,
-        children: parseFileNodesToTreeNodes(
-            version.fileNodes,
-            ownerEmail,
-            dataset.dataset.name,
-            did,
-            version.datasetVersion.name,
-            dvid
-        ),
-        dvid: dvid,
-      };
-      datasetNode.children!.push(versionNode);
-    });
-
-    ownerNode.children!.push(datasetNode);
-  });
-
-  // Return an array of owner nodes
-  return Array.from(ownerNodesMap.values());
-}
-
-
-// parse the file nodes passed by the backend to tree nodes that are displayable in frontend
-// datasetName is an optional parameter, when given, the datasetName should be the prefix of every parentDir
-export function parseFileNodesToTreeNodes(
-  fileNodes: FileNode[],
-  ownerEmail: string = "",
-  datasetName: string = "",
-  did: number = 0,
-  versionName: string = "",
-  dvid: number = 0
-): DatasetVersionFileTreeNode[] {
-  // Ensure datasetName is formatted correctly as a path prefix
-  let prefix = datasetName ? `/${datasetName}` : "";
-  // Append versionName to the prefix if provided
-  if (versionName) {
-    prefix += `/${versionName}`;
-  }
-
-  return fileNodes.map(fileNode => {
-    // Split the path to work with its segments
-    const splitPath = fileNode.path.split("/");
-    const name = splitPath.pop() || ""; // Get the last segment as the name
-
-    // Construct the parentDir
-    // If there are remaining segments, join them as the path, prefixed by the combined prefix
-    // Otherwise, use the combined prefix directly (or just "/" if both datasetName and versionName are empty)
-    const parentDir = splitPath.length > 0 ? `${prefix}/${splitPath.join("/")}` : prefix || "/";
-
-    // Define the new tree node
-    const treeNode: DatasetVersionFileTreeNode = {
-      name,
-      type: fileNode.isFile ? "file" : "directory",
-      parentDir,
-      ownerEmail,
-      did,
-      dvid,
-    };
-
-    // Recursively process children if it's a directory
-    if (!fileNode.isFile && fileNode.children) {
-      treeNode.children = parseFileNodesToTreeNodes(fileNode.children, ownerEmail, datasetName, did, versionName, dvid);
-    }
-
-    return treeNode;
-  });
-}

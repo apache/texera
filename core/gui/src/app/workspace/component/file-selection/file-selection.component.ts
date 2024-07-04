@@ -1,7 +1,7 @@
 import { Component, inject } from "@angular/core";
 import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
 import { UntilDestroy } from "@ngneat/until-destroy";
-import { DatasetVersionFileTreeNode, getFullPathFromFileTreeNode } from "../../../common/type/datasetVersionFileTree";
+import { DatasetFileNode, getFullPathFromDatasetFileNode } from "../../../common/type/datasetVersionFileTree";
 import { DashboardDataset } from "../../../dashboard/user/type/dashboard-dataset.interface";
 import { DatasetService } from "../../../dashboard/user/service/user-dataset/dataset.service";
 
@@ -12,8 +12,8 @@ import { DatasetService } from "../../../dashboard/user/service/user-dataset/dat
   styleUrls: ["file-selection.component.scss"],
 })
 export class FileSelectionComponent {
-  readonly datasetRootFileNodes: ReadonlyArray<DatasetVersionFileTreeNode> = inject(NZ_MODAL_DATA).datasetRootFileNodes;
-  suggestedFileTreeNodes: DatasetVersionFileTreeNode[] = [...this.datasetRootFileNodes];
+  readonly datasetRootFileNodes: ReadonlyArray<DatasetFileNode> = inject(NZ_MODAL_DATA).datasetRootFileNodes;
+  suggestedFileTreeNodes: DatasetFileNode[] = [...this.datasetRootFileNodes];
   filterText: string = "";
 
   constructor(private modalRef: NzModalRef) {}
@@ -24,7 +24,7 @@ export class FileSelectionComponent {
     if (!filterText) {
       this.suggestedFileTreeNodes = [...this.datasetRootFileNodes];
     } else {
-      const filterNodes = (node: DatasetVersionFileTreeNode): DatasetVersionFileTreeNode | null => {
+      const filterNodes = (node: DatasetFileNode): DatasetFileNode | null => {
         // For 'file' type nodes, check if the node's name matches the filter text.
         // Directories are not filtered out by name, but their children are filtered recursively.
         if (node.type === "file" && !node.name.toLowerCase().includes(filterText)) {
@@ -35,7 +35,7 @@ export class FileSelectionComponent {
         if (node.type === "directory" && node.children) {
           const filteredChildren = node.children
             .map(filterNodes)
-            .filter(child => child !== null) as DatasetVersionFileTreeNode[];
+            .filter(child => child !== null) as DatasetFileNode[];
 
           if (filteredChildren.length > 0) {
             // If any children match, return the current directory node with filtered children.
@@ -52,11 +52,11 @@ export class FileSelectionComponent {
 
       this.suggestedFileTreeNodes = this.datasetRootFileNodes
         .map(filterNodes)
-        .filter(node => node !== null) as DatasetVersionFileTreeNode[];
+        .filter(node => node !== null) as DatasetFileNode[];
     }
   }
 
-  onFileTreeNodeSelected(node: DatasetVersionFileTreeNode) {
+  onFileTreeNodeSelected(node: DatasetFileNode) {
     this.modalRef.close(node);
   }
 }

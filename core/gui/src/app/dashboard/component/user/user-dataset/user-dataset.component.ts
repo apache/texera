@@ -57,10 +57,10 @@ export class UserDatasetComponent implements OnInit {
 
   private reloadDashboardDatasetEntries(): void {
     this.datasetService
-      .listDatasets()
+      .retrieveAccessibleDatasets()
       .pipe(untilDestroyed(this))
-      .subscribe(datasetEntries => {
-        this.dashboardUserDatasetEntries = datasetEntries;
+      .subscribe(response => {
+        this.dashboardUserDatasetEntries = response.datasets;
       });
   }
 

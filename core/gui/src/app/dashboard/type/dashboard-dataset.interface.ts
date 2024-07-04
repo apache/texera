@@ -1,6 +1,5 @@
 import { Dataset, DatasetVersion } from "../../../common/type/dataset";
-import { FileNode } from "../../../common/type/fileNode";
-import { DatasetVersionFileTreeNode } from "../../../common/type/datasetVersionFileTree";
+import { DatasetFileNode } from "../../../common/type/datasetVersionFileTree";
 
 export interface DashboardDataset {
   isOwner: boolean;
@@ -9,6 +8,6 @@ export interface DashboardDataset {
   accessPrivilege: "READ" | "WRITE" | "NONE";
   versions: {
     datasetVersion: DatasetVersion;
-    fileNodes: FileNode[];
+    fileNodes: DatasetFileNode[];
   }[];
 }

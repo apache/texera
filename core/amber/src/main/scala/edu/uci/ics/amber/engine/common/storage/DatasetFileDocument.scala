@@ -9,22 +9,13 @@ import java.nio.file.{Files, Path, Paths}
 
 class DatasetFileDocument(uid: UInteger, fileFullPath: Path) extends VirtualDocument[Nothing] {
 
-  // Extract did, dvid, datasetName, versionName, and fileRelativePath from the file path
-  // The format is /did:123_dvid:456/datasetName/versionName/a/b/c/d
-  private val pattern = """/did:(\d+)_dvid:(\d+)/([^/]+)/([^/]+)/(.+)""".r
-  private val (did, dvid, datasetName, versionName, fileRelativePath) = fileFullPath.toString match {
-    case pattern(didStr, dvidStr, datasetStr, versionStr, pathStr) =>
-      (Some(didStr.toInt), Some(dvidStr.toInt), datasetStr, versionStr, Paths.get(pathStr))
-    case _ => (None, None, "", "", fileFullPath)
-  }
+  private val (dataset, datasetVersion, fileRelativePath) = DatasetResource.resolveFilePath(fileFullPath)
 
   private var tempFile: Option[File] = None
 
-  require(did.isDefined && dvid.isDefined, "given file path is not valid")
-
   override def getURI: URI = throw new UnsupportedOperationException("The URI cannot be acquired because the file is not physically located")
 
-  override def asInputStream(): InputStream = DatasetResource.getDatasetFile(UInteger.valueOf(did.get), UInteger.valueOf(dvid.get), uid, fileRelativePath)
+  override def asInputStream(): InputStream = DatasetResource.getDatasetFile(dataset.getDid, datasetVersion.getDvid, uid, fileRelativePath)
 
   override def asFile(): File = {
     tempFile match {

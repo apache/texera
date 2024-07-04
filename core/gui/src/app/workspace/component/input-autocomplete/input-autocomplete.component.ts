@@ -6,7 +6,7 @@ import { NzModalService } from "ng-zorro-antd/modal";
 import { FileSelectionComponent } from "../file-selection/file-selection.component";
 import { environment } from "../../../../environments/environment";
 import { DatasetService } from "../../../dashboard/user/service/user-dataset/dataset.service";
-import {DatasetVersionFileTreeNode, getFullPathFromFileTreeNode} from "../../../common/type/datasetVersionFileTree";
+import {DatasetFileNode, getFullPathFromDatasetFileNode} from "../../../common/type/datasetVersionFileTree";
 
 @UntilDestroy()
 @Component({
@@ -29,7 +29,7 @@ export class InputAutoCompleteComponent extends FieldType<FieldTypeConfig> {
       .pipe(untilDestroyed(this))
       .subscribe(response => {
         const fileNodes = response.fileNodes;
-        console.log(fileNodes)
+        console.log(fileNodes);
         const modal = this.modalService.create({
           nzTitle: "Please select one file from datasets",
           nzContent: FileSelectionComponent,
@@ -40,9 +40,9 @@ export class InputAutoCompleteComponent extends FieldType<FieldTypeConfig> {
         });
         // Handle the selection from the modal
         modal.afterClose.pipe(untilDestroyed(this)).subscribe(fileNode => {
-          const node: DatasetVersionFileTreeNode = fileNode as DatasetVersionFileTreeNode;
-          // embed the IDs into the file path for the operator to capture the information
-          this.formControl.setValue(getFullPathFromFileTreeNode(node, true));
+          const node: DatasetFileNode = fileNode as DatasetFileNode;
+          console.log(node);
+          this.formControl.setValue(getFullPathFromDatasetFileNode(node));
         });
       });
   }

@@ -131,7 +131,7 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
     this.isLoading = true;
     if (this.did && this.dvid && this.filePath != "") {
       this.datasetService
-        .retrieveDatasetVersionSingleFile(this.did, this.dvid, this.filePath)
+        .retrieveDatasetVersionSingleFile(this.filePath)
         .pipe(untilDestroyed(this))
         .subscribe({
           next: blob => {
