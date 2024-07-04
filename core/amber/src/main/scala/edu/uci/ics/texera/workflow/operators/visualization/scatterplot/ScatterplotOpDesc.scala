@@ -47,6 +47,22 @@ class ScatterplotOpDesc extends VisualizationOperator with PythonOperatorDescrip
   @AutofillAttributeName
   private val colorColumn: String = ""
 
+  @JsonProperty(required = false, defaultValue = "false")
+  @JsonSchemaTitle("log scale X")
+  @JsonPropertyDescription("values in X-column is log-scaled")
+  var xLogScale: Boolean = false
+
+  @JsonProperty(required = false, defaultValue = "false")
+  @JsonSchemaTitle("log scale Y")
+  @JsonPropertyDescription("values in Y-column is log-scaled")
+  var yLogScale: Boolean = false
+
+  @JsonProperty(required = false)
+  @JsonSchemaTitle("Hover column")
+  @JsonPropertyDescription("column value to display when a dot is hovered over")
+  @AutofillAttributeName
+  var hoverName: String = ""
+
   override def chartType: String = VisualizationConstants.HTML_VIZ
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
@@ -77,8 +93,12 @@ class ScatterplotOpDesc extends VisualizationOperator with PythonOperatorDescrip
     assert(xColumn.nonEmpty && yColumn.nonEmpty)
     val colorColExpr = if (colorColumn.nonEmpty) { s"color='$colorColumn'" }
     else { "" }
+    var argDetails = ""
+    if (xLogScale) argDetails = argDetails + ", log_x=True"
+    if (yLogScale) argDetails = argDetails + ", log_y=True"
+    if (hoverName.nonEmpty) argDetails = argDetails + s""", hover_name='$hoverName'"""
     s"""
-           |        fig = go.Figure(px.scatter(table, x='$xColumn', y='$yColumn'))
+           |        fig = go.Figure(px.scatter(table, x='$xColumn', y='$yColumn'$argDetails))
            |        fig.update_layout(margin=dict(l=0, r=0, t=0, b=0))
            |""".stripMargin
   }
