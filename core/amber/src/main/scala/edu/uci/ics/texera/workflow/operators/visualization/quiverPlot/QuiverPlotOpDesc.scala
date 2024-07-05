@@ -57,7 +57,6 @@ class QuiverPlotOpDesc extends VisualizationOperator with PythonOperatorDescript
   @JsonPropertyDescription("y coordinates of points")
   var pointsY: java.util.List[java.lang.Double] = new java.util.ArrayList[java.lang.Double]()
 
-
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Schema.builder().add(new Attribute("html-content", AttributeType.STRING)).build()
   }
