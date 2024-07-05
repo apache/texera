@@ -61,13 +61,16 @@ class RTupleExecutor(TupleOperatorV2):
                 field.name for field in input_schema if field.type == pa.binary()
             ]
 
-            non_binary_tuple: Tuple = tuple_.get_partial_tuple(non_binary_fields)
-            non_binary_tuple_schema: pa.Schema = (
-                non_binary_tuple._schema.as_arrow_schema()
-            )
-            non_binary_pyarrow_array: pa.StructArray = pa.array(
-                [non_binary_tuple.as_dict()], type=pa.struct(non_binary_tuple_schema)
-            )
+            non_binary_pyarrow_array: pa.StructArray = pa.array([], type=pa.struct([]))
+            if non_binary_fields:
+                non_binary_tuple: Tuple = tuple_.get_partial_tuple(non_binary_fields)
+                non_binary_tuple_schema: pa.Schema = (
+                    non_binary_tuple._schema.as_arrow_schema()
+                )
+                non_binary_pyarrow_array: pa.StructArray = pa.array(
+                    [non_binary_tuple.as_dict()],
+                    type=pa.struct(non_binary_tuple_schema),
+                )
 
             binary_r_list: dict[str, object] = {}
             if binary_fields:
