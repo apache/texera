@@ -23,35 +23,40 @@ import edu.uci.ics.texera.workflow.operators.visualization.{
 """)
 class QuiverPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
 
+  //property panel variable: 4 requires: {x,y,u,v}, 2 optional: {x,y} for specific points
+
   @JsonProperty(value = "x", required = true)
   @JsonSchemaTitle("x")
-  @JsonPropertyDescription("column for the x coordinate")
+  @JsonPropertyDescription("column for the x-coordinate of the starting point")
   @AutofillAttributeName var x: String = ""
 
   @JsonProperty(value = "y", required = true)
   @JsonSchemaTitle("y")
-  @JsonPropertyDescription("column for the y coordinate")
+  @JsonPropertyDescription("column for the y-coordinate of the starting point")
   @AutofillAttributeName var y: String = ""
 
   @JsonProperty(value = "u", required = true)
   @JsonSchemaTitle("u")
-  @JsonPropertyDescription("column for the u component")
+  @JsonPropertyDescription("column for the vector component in the x-direction")
   @AutofillAttributeName var u: String = ""
 
   @JsonProperty(value = "v", required = true)
   @JsonSchemaTitle("v")
-  @JsonPropertyDescription("column for the v component")
+  @JsonPropertyDescription("column for the vector component in the y-direction")
   @AutofillAttributeName var v: String = ""
 
-  @JsonProperty(value = "pointx", required = false)
-  @JsonSchemaTitle("x coordinate")
-  @JsonPropertyDescription("x coordinate of point")
-  var pointX: java.lang.Double = null
+  //The list to holds all the x coordinates of the user's input
+  @JsonProperty(value = "pointsX", required = false)
+  @JsonSchemaTitle("x coordinates")
+  @JsonPropertyDescription("x coordinates of points")
+  var pointsX: java.util.List[java.lang.Double] = new java.util.ArrayList[java.lang.Double]()
 
-  @JsonProperty(value = "pointy", required = false)
-  @JsonSchemaTitle("y coordinate")
-  @JsonPropertyDescription("y coordinate of point")
-  var pointY: java.lang.Double = null
+  //The list to holds all the y coordinates of the user's input
+  @JsonProperty(value = "pointsY", required = false)
+  @JsonSchemaTitle("y coordinates")
+  @JsonPropertyDescription("y coordinates of points")
+  var pointsY: java.util.List[java.lang.Double] = new java.util.ArrayList[java.lang.Double]()
+
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Schema.builder().add(new Attribute("html-content", AttributeType.STRING)).build()
@@ -66,6 +71,7 @@ class QuiverPlotOpDesc extends VisualizationOperator with PythonOperatorDescript
       outputPorts = List(OutputPort())
     )
 
+  //data cleaning for missing value
   def manipulateTable(): String = {
     s"""
        |        table = table.dropna() #remove missing values
@@ -73,9 +79,9 @@ class QuiverPlotOpDesc extends VisualizationOperator with PythonOperatorDescript
   }
 
   override def generatePythonCode(): String = {
-    val pointXStr = if (pointX != null) pointX.toString else "None"
-    val pointYStr = if (pointY != null) pointY.toString else "None"
-
+    //change the list into string
+    val pointsXStr = if (!pointsX.isEmpty) pointsX.toArray.mkString("[", ", ", "]") else "None"
+    val pointsYStr = if (!pointsY.isEmpty) pointsY.toArray.mkString("[", ", ", "]") else "None"
     val finalCode = s"""
                        |from pytexera import *
                        |import pandas as pd
@@ -112,11 +118,9 @@ class QuiverPlotOpDesc extends VisualizationOperator with PythonOperatorDescript
                        |                scale=0.1
                        |            )
                        |            #add the point into the quiver plot if the point exist
-                       |            if $pointXStr != "None" and $pointYStr != "None":
-                       |                       fig.add_trace(go.Scatter(x=[$pointXStr], y=[$pointYStr],
-                       |                       mode='markers',
-                       |                       marker=dict(size=12),
-                       |                       name='point'))
+                       |            #if the user have some input for points
+                       |            if $pointsXStr != "None" and $pointsYStr != "None":
+                       |              fig.add_trace(go.Scatter(x=$pointsXStr, y=$pointsYStr,mode='markers',marker=dict(size=12),name='points'))
                        |            html = fig.to_html(include_plotlyjs='cdn', full_html=False)
                        |        except Exception as e:
                        |            yield {'html-content': self.render_error(f"Plotly error: {str(e)}")}
