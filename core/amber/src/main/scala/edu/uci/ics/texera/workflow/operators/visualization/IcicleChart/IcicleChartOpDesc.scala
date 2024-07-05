@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.operators.visualization.IcicleChart
+package edu.uci.ics.texera.workflow.operators.visualization.icicleChart
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
@@ -54,7 +54,6 @@ class IcicleChartOpDesc extends VisualizationOperator with PythonOperatorDescrip
     hierarchy.map(_.attributeName).mkString("'", "','", "'")
 
   def manipulateTable(): String = {
-    assert(value.nonEmpty)
     val attributes = getIcicleAttributesInPython
     s"""
        |        table['$value'] = table[table['$value'] > 0]['$value'] # remove non-positive numbers from the data
