@@ -87,7 +87,7 @@ export class DatasetService {
     formData.append("versionName", newVersion);
 
     if (removedFilePaths.length > 0) {
-      const removedFilesString = removedFilePaths.join(",");
+      const removedFilesString = JSON.stringify(removedFilePaths);
       formData.append("file:remove", removedFilesString);
     }
 

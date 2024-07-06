@@ -5,7 +5,7 @@ import { UserFileUploadService } from "../../../service/user/file/user-file-uplo
 import {
   DatasetVersionFileTreeManager,
   DatasetFileNode,
-  getPathsFromTreeNode,
+  getPathsUnderOrEqualDatasetFileNode,
 } from "../../../../common/type/datasetVersionFileTree";
 import { environment } from "../../../../../environments/environment";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
@@ -103,7 +103,7 @@ export class FilesUploaderComponent {
 
   onPreviouslyUploadedFileDeleted(node: DatasetFileNode) {
     this.removeFileTreeNode(node, true);
-    const paths = getPathsFromTreeNode(node);
+    const paths = getPathsUnderOrEqualDatasetFileNode(node);
     this.removingFilePaths.emit(paths);
   }
 

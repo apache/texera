@@ -29,26 +29,19 @@ export function getFullPathFromDatasetFileNode(node: DatasetFileNode): string {
   return `${node.parentDir}/${node.name}`;
 }
 
-export function getPathsFromTreeNode(node: DatasetFileNode): string[] {
+export function getPathsUnderOrEqualDatasetFileNode(node: DatasetFileNode): string[] {
   // Helper function to recursively gather paths
-  const gatherPaths = (node: DatasetFileNode, currentPath: string): string[] => {
+  const gatherPaths = (node: DatasetFileNode): string[] => {
     // Base case: if the node is a file, return its path
     if (node.type === "file") {
-      return [currentPath];
+      return [getFullPathFromDatasetFileNode(node)];
     }
 
     // Recursive case: if the node is a directory, explore its children
-    let paths = node.children ? node.children.flatMap(child => gatherPaths(child, currentPath + "/" + child.name)) : [];
-
-    // Include the directory's own path if it's not the root
-    if (node.name !== "/") {
-      paths.unshift(currentPath);
-    }
-
-    return paths;
+    return node.children ? node.children.flatMap(child => gatherPaths(child)) : [];
   };
 
-  return gatherPaths(node, node.parentDir === "/" ? "/" + node.name : node.parentDir + "/" + node.name);
+  return gatherPaths(node);
 }
 
 // This class convert a list of DatasetVersionTreeNode into a hash map, recursively containing all the paths

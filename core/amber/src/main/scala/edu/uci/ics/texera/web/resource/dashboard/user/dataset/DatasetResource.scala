@@ -63,6 +63,7 @@ import org.apache.commons.lang3.StringUtils
 import org.glassfish.jersey.media.multipart.{FormDataMultiPart, FormDataParam}
 import org.jooq.{DSLContext, EnumType}
 import org.jooq.types.UInteger
+import play.api.libs.json.Json
 
 import java.io.{InputStream, OutputStream}
 import java.net.URLDecoder
@@ -308,7 +309,6 @@ object DatasetResource {
       filesToRemove: List[java.nio.file.Path]
   )
 
-  // TODO: fix parsing logic
   private def parseUserUploadedFormToDatasetOperations(
       did: UInteger,
       multiPart: FormDataMultiPart
@@ -338,12 +338,13 @@ object DatasetResource {
       } else if (fieldName.startsWith(FILE_OPERATION_REMOVE_PREFIX)) {
         val filePathsValue =
           bodyPart.getValueAs(classOf[String]) // Get the file paths as a comma-separated string
-        val filePaths = filePathsValue.split(",") // Split into individual file paths
-        filePaths.foreach { filePath =>
-          val normalizedFilePath = filePath.stripPrefix("/") // Normalize path
-          val physicalFilePath = datasetPath.resolve(normalizedFilePath) // Convert to full path
-          filesToRemove += physicalFilePath // Add to the list for removals
-        }
+        Json
+          .parse(filePathsValue)
+          .as[List[String]]
+          .foreach(pathStr => {
+            val (_, _, fileRelativePath) = resolveFilePath(Paths.get(pathStr))
+            filesToRemove += datasetPath.resolve(fileRelativePath)
+          })
       }
     }
 

@@ -178,7 +178,6 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
             this.isUploading = false;
           },
           error: (res: HttpErrorResponse) => {
-            console.log(res);
             this.notificationService.error(`Dataset ${ds.name} creation failed: ${res.error.message}`);
             this.isUploading = false;
           },

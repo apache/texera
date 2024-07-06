@@ -39,8 +39,6 @@ class DatasetFileNode(
     }
     "/" + pathComponents.mkString("/")
   }
-
-  // Add other methods or logic as necessary
 }
 
 object DatasetFileNode {
@@ -74,6 +72,15 @@ object DatasetFileNode {
 
         physicalNodes.foreach(node => addNodeToTree(versionNode, node, ownerEmail))
     }
+
+    // Sorting function to sort children of a node alphabetically in descending order
+    def sortChildren(node: DatasetFileNode): Unit = {
+      node.children = Some(node.getChildren.sortBy(_.getName)(Ordering.String.reverse))
+      node.getChildren.foreach(sortChildren)
+    }
+
+    // Apply the sorting to the root node
+    sortChildren(rootNode)
 
     rootNode.getChildren
   }
