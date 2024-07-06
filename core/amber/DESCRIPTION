@@ -1,0 +1,16 @@
+Package: Texera-R-UDF
+Title: Required Libraries for R UDF
+Version: 1.0.0
+Authors@R: person("Texera", "Team", role = c("aut","cre"))
+Description: Below are the required libraries that should be installed to your R installation
+    before you begin to use/develop R UDF. Additionally, the version of R that you should be using
+    is also listed below. This package should also be used by the GitHub Actions Workflow files.
+URL: https://github.com/Texera/texera/
+BugReports: https://github.com/Texera/texera/
+Depends: R (>= 4.3.3)
+Imports:
+    arrow (>= 14.0.0.1),
+    coro (>= 1.0.4),
+    dplyr,
+    reticulate
+License: GPL (>= 2)
