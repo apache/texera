@@ -7,7 +7,7 @@ from rpy2_arrow.arrow import converter as arrow_converter
 from rpy2.robjects import default_converter
 from rpy2.robjects.conversion import localconverter as local_converter
 from typing import Iterator, Optional, Union
-from core.models import Tuple, TupleLike, TableLike, RUDFUtils
+from core.models import Tuple, TupleLike, TableLike, r_utils
 from core.models.operator import SourceOperator, TupleOperatorV2
 import warnings
 
@@ -100,7 +100,7 @@ class RTupleExecutor(TupleOperatorV2):
             )
 
             while True:
-                output_py_tuple: Tuple = RUDFUtils.extract_tuple_from_r(
+                output_py_tuple: Tuple = r_utils.extract_tuple_from_r(
                     output_r_generator, False, input_fields
                 )
                 yield output_py_tuple if output_py_tuple is not None else None
@@ -141,7 +141,7 @@ class RTupleSourceExecutor(SourceOperator):
         with local_converter(arrow_converter):
             output_r_generator: rpy2.robjects.SignatureTranslatedFunction = self._func()
             while True:
-                output_py_tuple: Tuple = RUDFUtils.extract_tuple_from_r(
+                output_py_tuple: Tuple = r_utils.extract_tuple_from_r(
                     output_r_generator, True
                 )
                 yield output_py_tuple if output_py_tuple is not None else None
