@@ -45,18 +45,6 @@ class QuiverPlotOpDesc extends VisualizationOperator with PythonOperatorDescript
   @JsonPropertyDescription("column for the vector component in the y-direction")
   @AutofillAttributeName var v: String = ""
 
-  //The list to holds all the x coordinates of the user's input
-  @JsonProperty(value = "pointsX", required = false)
-  @JsonSchemaTitle("x coordinates")
-  @JsonPropertyDescription("x coordinates of points")
-  var pointsX: java.util.List[java.lang.Double] = new java.util.ArrayList[java.lang.Double]()
-
-  //The list to holds all the y coordinates of the user's input
-  @JsonProperty(value = "pointsY", required = false)
-  @JsonSchemaTitle("y coordinates")
-  @JsonPropertyDescription("y coordinates of points")
-  var pointsY: java.util.List[java.lang.Double] = new java.util.ArrayList[java.lang.Double]()
-
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Schema.builder().add(new Attribute("html-content", AttributeType.STRING)).build()
   }
@@ -78,9 +66,6 @@ class QuiverPlotOpDesc extends VisualizationOperator with PythonOperatorDescript
   }
 
   override def generatePythonCode(): String = {
-    //change the list into string
-    val pointsXStr = if (!pointsX.isEmpty) pointsX.toArray.mkString("[", ", ", "]") else "None"
-    val pointsYStr = if (!pointsY.isEmpty) pointsY.toArray.mkString("[", ", ", "]") else "None"
     val finalCode = s"""
                        |from pytexera import *
                        |import pandas as pd
@@ -112,14 +97,10 @@ class QuiverPlotOpDesc extends VisualizationOperator with PythonOperatorDescript
                        |        try:
                        |            #graph the quiver plot
                        |            fig = ff.create_quiver(
-                       |                table['x'], table['y'],
-                       |                table['u'], table['v'],
+                       |                table['${x}'], table['${y}'],
+                       |                table['${u}'], table['${v}'],
                        |                scale=0.1
                        |            )
-                       |            #add the point into the quiver plot if the point exist
-                       |            #if the user have some input for points
-                       |            if $pointsXStr != "None" and $pointsYStr != "None":
-                       |              fig.add_trace(go.Scatter(x=$pointsXStr, y=$pointsYStr,mode='markers',marker=dict(size=12),name='points'))
                        |            html = fig.to_html(include_plotlyjs='cdn', full_html=False)
                        |        except Exception as e:
                        |            yield {'html-content': self.render_error(f"Plotly error: {str(e)}")}
