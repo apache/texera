@@ -23,7 +23,7 @@ import edu.uci.ics.texera.workflow.operators.visualization.{
 """)
 class QuiverPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
 
-  //property panel variable: 4 requires: {x,y,u,v}, 2 optional: {x,y} for specific points
+  //property panel variable: 4 requires: {x,y,u,v}, all columns should only contain numerical data
 
   @JsonProperty(value = "x", required = true)
   @JsonSchemaTitle("x")
@@ -93,6 +93,13 @@ class QuiverPlotOpDesc extends VisualizationOperator with PythonOperatorDescript
                        |            return
                        |
                        |        ${manipulateTable()}
+                       |
+                       |        def type_check(value):
+                       |            return isinstance(value,(int,float))
+                       |        for col in required_columns:
+                       |            if not table[col].apply(type_check).all():
+                       |                yield {"html-content": "Type error: All columns should only contain numerical data"}
+                       |                return
                        |
                        |        try:
                        |            #graph the quiver plot
