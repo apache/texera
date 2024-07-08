@@ -147,8 +147,9 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
             this.datasetOrVersionCreationID.emit(res.dvid);
             this.isUploading = false;
           },
-          error: (res: HttpErrorResponse) => {
-            this.notificationService.error(`Version creation failed: ${res.error.message}`);
+          error: (res: unknown) => {
+            const err = res as HttpErrorResponse;
+            this.notificationService.error(`Version creation failed: ${err.error.message}`);
             this.isUploading = false;
           },
         });
@@ -177,8 +178,9 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
             this.datasetOrVersionCreationID.emit(res.dataset.did);
             this.isUploading = false;
           },
-          error: (res: HttpErrorResponse) => {
-            this.notificationService.error(`Dataset ${ds.name} creation failed: ${res.error.message}`);
+          error: (res: unknown) => {
+            const err = res as HttpErrorResponse;
+            this.notificationService.error(`Dataset ${ds.name} creation failed: ${err.error.message}`);
             this.isUploading = false;
           },
         });
