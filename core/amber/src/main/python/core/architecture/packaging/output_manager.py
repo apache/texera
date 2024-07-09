@@ -39,7 +39,7 @@ from proto.edu.uci.ics.amber.engine.common import (
 
 
 class OutputManager:
-    def __init__(self, worker_id):
+    def __init__(self, worker_id: ActorVirtualIdentity):
         self.worker_id = worker_id
         self._partitioners: OrderedDict[PhysicalLink, Partitioning] = OrderedDict()
         self._partitioning_to_partitioner: dict[
