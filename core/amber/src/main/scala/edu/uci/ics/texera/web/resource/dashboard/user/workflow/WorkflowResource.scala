@@ -498,9 +498,9 @@ class WorkflowResource extends LazyLogging {
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/update/description")
   def updateWorkflowDescription(
-                                 workflow: Workflow,
-                                 @Auth sessionUser: SessionUser
-                               ): Unit = {
+      workflow: Workflow,
+      @Auth sessionUser: SessionUser
+  ): Unit = {
     val wid = workflow.getWid
     val description = workflow.getDescription
     val user = sessionUser.getUser
