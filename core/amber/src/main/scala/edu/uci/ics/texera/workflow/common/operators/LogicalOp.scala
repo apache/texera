@@ -142,6 +142,7 @@ import edu.uci.ics.texera.workflow.operators.visualization.ternaryPlot.TernaryPl
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
 import org.apache.zookeeper.KeeperException.UnimplementedException
 import edu.uci.ics.texera.workflow.operators.machineLearning.Scorer.MachineLearningScorerOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.contourPlot.ContourPlotOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.figureFactoryTable.FigureFactoryTableOpDesc
 
 import java.util.UUID
@@ -177,6 +178,7 @@ trait StateTransferFunc
     new Type(value = classOf[ProgressiveSinkOpDesc], name = "SimpleSink"),
     new Type(value = classOf[CandlestickChartOpDesc], name = "CandlestickChart"),
     new Type(value = classOf[SplitOpDesc], name = "Split"),
+    new Type(value = classOf[ContourPlotOpDesc], name = "ContourPlot"),
     new Type(value = classOf[RegexOpDesc], name = "Regex"),
     new Type(value = classOf[SpecializedFilterOpDesc], name = "Filter"),
     new Type(value = classOf[SentimentAnalysisOpDesc], name = "SentimentAnalysis"),
