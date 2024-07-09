@@ -98,10 +98,7 @@ jobs:
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
           cache-version: 2
-          packages: |
-            dplyr
-            arrow
-            reticulate
+          working-directory: "./core/amber"
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
         with:
