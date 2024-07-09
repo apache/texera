@@ -111,6 +111,7 @@ import edu.uci.ics.texera.workflow.operators.udf.python.{
 import edu.uci.ics.texera.workflow.operators.udf.r.{RUDFOpDesc, RUDFSourceOpDesc}
 import edu.uci.ics.texera.workflow.operators.union.UnionOpDesc
 import edu.uci.ics.texera.workflow.operators.unneststring.UnnestStringOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.candlestickChart.CandlestickChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.boxPlot.BoxPlotOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.barChart.BarChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.htmlviz.HtmlVizOpDesc
@@ -175,6 +176,7 @@ trait StateTransferFunc
       name = "TwitterSearch"
     ),
     new Type(value = classOf[ProgressiveSinkOpDesc], name = "SimpleSink"),
+    new Type(value = classOf[CandlestickChartOpDesc], name = "CandlestickChart"),
     new Type(value = classOf[SplitOpDesc], name = "Split"),
     new Type(value = classOf[ContourPlotOpDesc], name = "ContourPlot"),
     new Type(value = classOf[RegexOpDesc], name = "Regex"),
