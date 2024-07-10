@@ -493,6 +493,29 @@ class WorkflowResource extends LazyLogging {
     }
   }
 
+  @POST
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Path("/update/description")
+  def updateWorkflowDescription(
+      workflow: Workflow,
+      @Auth sessionUser: SessionUser
+  ): Unit = {
+    val wid = workflow.getWid
+    val description = workflow.getDescription
+    val user = sessionUser.getUser
+
+    if (!WorkflowAccessResource.hasWriteAccess(wid, user.getUid)) {
+      throw new ForbiddenException("No sufficient access privilege.")
+    } else if (!workflowOfUserExists(wid, user.getUid)) {
+      throw new BadRequestException("The workflow does not exist.")
+    } else {
+      val userWorkflow = workflowDao.fetchOneByWid(wid)
+      userWorkflow.setDescription(description)
+      workflowDao.update(userWorkflow)
+    }
+  }
+
   @GET
   @Path("/{wid}/environment")
   def retrieveWorkflowEnvironment(
