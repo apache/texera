@@ -11,7 +11,7 @@ from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
     Partitioning,
     BroadcastPartitioning,
 )
-from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity
+from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, ChannelIdentity
 
 
 class BroadcastPartitioner(Partitioner):
@@ -19,7 +19,7 @@ class BroadcastPartitioner(Partitioner):
         super().__init__(set_one_of(Partitioning, partitioning))
         self.batch_size = partitioning.batch_size
         self.batch: list[Tuple] = list()
-        self.receivers: List[ActorVirtualIdentity] = partitioning.channels
+        self.receivers: List[ChannelIdentity] = partitioning.channels
 
     @overrides
     def add_tuple_to_batch(
