@@ -2,10 +2,10 @@ import { Component, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzTableFilterFn, NzTableSortFn } from "ng-zorro-antd/table";
 import { NzModalService } from "ng-zorro-antd/modal";
-import { AdminUserService } from "../../../user/service/admin/user/admin-user.service";
-import { Role, User } from "../../../../common/type/user";
-import { UserService } from "../../../../common/service/user/user.service";
-import { UserQuotaComponent } from "src/app/dashboard/user/component/user-quota/user-quota.component";
+import { AdminUserService } from "../../../service/admin/user/admin-user.service";
+import { Role, User } from "../../../../../common/type/user";
+import { UserService } from "../../../../../common/service/user/user.service";
+import { UserQuotaComponent } from "../../user-quota/user-quota.component";
 
 @UntilDestroy()
 @Component({
