@@ -1,7 +1,7 @@
 import { Component, OnDestroy, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { AdminExecutionService } from "../../../user/service/admin/execution/admin-execution.service";
-import { Execution } from "../../../../common/type/execution";
+import { AdminExecutionService } from "../../../service/admin/execution/admin-execution.service";
+import { Execution } from "../../../../../common/type/execution";
 import { NzTableFilterFn, NzTableSortFn } from "ng-zorro-antd/table";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { WorkflowExecutionHistoryComponent } from "../../user-workflow/ngbd-modal-workflow-executions/workflow-execution-history.component";
