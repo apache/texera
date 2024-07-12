@@ -1,5 +1,5 @@
 import { Component, OnInit } from "@angular/core";
-import { AdminGmailService } from "../../service/admin-gmail/admin-gmail.service";
+import { GmailService } from "../../../../common/service/gmail/gmail.service";
 import { FormBuilder, FormGroup, Validators } from "@angular/forms";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 @UntilDestroy()
@@ -12,7 +12,7 @@ export class GmailComponent implements OnInit {
   public validateForm!: FormGroup;
   public email: String | undefined;
   constructor(
-    private gmailAuthService: AdminGmailService,
+    private gmailAuthService: GmailService,
     private formBuilder: FormBuilder
   ) {}
 
