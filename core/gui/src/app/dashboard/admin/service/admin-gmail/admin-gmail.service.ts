@@ -1,11 +1,11 @@
 import { Injectable } from "@angular/core";
 import { HttpClient, HttpErrorResponse } from "@angular/common/http";
-import { AppSettings } from "../../../common/app-setting";
-import { NotificationService } from "../../../common/service/notification/notification.service";
+import { AppSettings } from "../../../../common/app-setting";
+import { NotificationService } from "../../../../common/service/notification/notification.service";
 @Injectable({
   providedIn: "root",
 })
-export class GmailService {
+export class AdminGmailService {
   public client: any;
   constructor(
     private http: HttpClient,
