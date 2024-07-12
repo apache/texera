@@ -4,7 +4,7 @@ import { File, Workflow, MongoExecution, MongoWorkflow } from "../../../../commo
 import { UserFileService } from "../../service/user-file/user-file.service";
 import { NzTableSortFn } from "ng-zorro-antd/table";
 import { UserQuotaService } from "../../service/user-quota/user-quota.service";
-import { AdminUserService } from "../../../admin/service/admin-user.service";
+import { AdminUserService } from "../../service/admin/user/admin-user.service";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
 
 type UserServiceType = AdminUserService | UserQuotaService;

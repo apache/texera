@@ -4,7 +4,7 @@ import { ShareAccessService } from "../../service/share-access/share-access.serv
 import { ShareAccess } from "../../type/share-access.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { UserService } from "../../../../common/service/user/user.service";
-import { GmailService } from "../../../admin/service/gmail.service";
+import { GmailService } from "../../../../common/service/gmail/gmail.service";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { HttpErrorResponse } from "@angular/common/http";

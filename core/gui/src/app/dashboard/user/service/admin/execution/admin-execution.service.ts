@@ -1,8 +1,8 @@
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
-import { AppSettings } from "../../../common/app-setting";
-import { Execution } from "../../../common/type/execution";
+import { AppSettings } from "../../../../../common/app-setting";
+import { Execution } from "../../../../../common/type/execution";
 
 export const WORKFLOW_BASE_URL = `${AppSettings.getApiEndpoint()}/admin/execution`;
 
