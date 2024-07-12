@@ -1,6 +1,6 @@
 ﻿import { Injectable } from "@angular/core";
 import { CanActivate, Router } from "@angular/router";
-import { UserService } from "../../../common/service/user/user.service";
+import { UserService } from "../../../../../common/service/user/user.service";
 
 /**
  * AuthGuardService is a service can tell the router whether

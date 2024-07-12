@@ -83,6 +83,7 @@ The following is a workflow formulated using the Texera GUI in a Web browser, wh
 
 
 ## Publications (Interdisciplinary):
+* (7/2024) Brain image data processing using collaborative data workflows on Texera, Yunyan Ding, Yicong Huang, Pan Gao, Andy Thai, Atchuth Naveen Chilaparasetti, M. Gopi, Xiangmin Xu, and Chen Li, in Frontiers Neural Circuits [PDF](https://doi.org/10.3389/fncir.2024.1398884).
 * (1/2024) Wording Matters: the Effect of Linguistic Characteristics and Political Ideology on Resharing of COVID-19 Vaccine Tweets, Judith Borghouts, Yicong Huang, Suellen Hopfer, Chen Li, and Gloria Mark, in TOCHI 2024 [PDF](https://dl.acm.org/doi/pdf/10.1145/3637876).
 * (1/2024) How the experience of California wildfires shape Twitter climate change framings, Jessie W. Y. Ko, Shengquan Ni, Alexander Taylor, Xiusi Chen, Yicong Huang, Avinash Kumar, Sadeem Alsudais, Zuozhi Wang, Xiaozhen Liu, Wei Wang, Chen Li, and Suellen Hopfer, in Climatic Change 2024 [PDF](https://link.springer.com/content/pdf/10.1007/s10584-023-03668-0.pdf).
 * (11/2023) The Marketing and Perceptions of Non-Tobacco Blunt Wraps on Twitter, Joshua U. Rhee, Yicong Huang, Aurash J. Soroosh, Sadeem Alsudais, Shengquan Ni, Avinash Kumar, Jacob Paredes, Chen Li, and David S. Timberlake, in Substance Use & Misuse 2023 [PDF](https://www.tandfonline.com/doi/epdf/10.1080/10826084.2023.2280572?needAccess=true).
