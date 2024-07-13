@@ -263,13 +263,19 @@ class ExecutionResultService(
                     )
                   }
                 }
-                if (tableFields.contains(opId.id) && tableFields(opId.id).contains("catFields") &&
-                  tableFields(opId.id).contains("dateFields") && tableFields(opId.id).contains("numericFields")) {
+                if (
+                  tableFields.contains(opId.id) && tableFields(opId.id).contains("catFields") &&
+                  tableFields(opId.id).contains("dateFields") && tableFields(opId.id)
+                    .contains("numericFields")
+                ) {
                   val tableCatStats = sinkMgr.getCatColStats(tableFields(opId.id)("catFields"))
                   val tableDateStats = sinkMgr.getDateColStats(tableFields(opId.id)("dateFields"))
-                  val tableNumericStats = sinkMgr.getNumericColStats(tableFields(opId.id)("numericFields"))
+                  val tableNumericStats =
+                    sinkMgr.getNumericColStats(tableFields(opId.id)("numericFields"))
                   val allStats = tableNumericStats ++ tableCatStats ++ tableDateStats
-                  if (tableNumericStats.nonEmpty || tableCatStats.nonEmpty || tableDateStats.nonEmpty) {
+                  if (
+                    tableNumericStats.nonEmpty || tableCatStats.nonEmpty || tableDateStats.nonEmpty
+                  ) {
                     allTableStats(opId.id) = allStats
                   }
                 }
