@@ -252,22 +252,27 @@ class ExecutionResultService(
                 val sinkMgr = sinkOperators(opId).getStorage
                 if (oldState.resultInfo.isEmpty) {
                   val fields = sinkMgr.getAllFields()
-                  tableFields.update(
-                    opId.id,
-                    Map(
-                      "numericFields" -> fields(0),
-                      "catFields" -> fields(1),
-                      "dateFields" -> fields(2)
+                  if (fields.length >= 3) {
+                    tableFields.update(
+                      opId.id,
+                      Map(
+                        "numericFields" -> fields(0),
+                        "catFields" -> fields(1),
+                        "dateFields" -> fields(2)
+                      )
                     )
-                  )
+                  }
                 }
-                val tableCatStats = sinkMgr.getCatColStats(tableFields(opId.id)("catFields"))
-                val tableDateStats = sinkMgr.getDateColStats(tableFields(opId.id)("dateFields"))
-                val tableNumericStats =
-                  sinkMgr.getNumericColStats(tableFields(opId.id)("numericFields"))
-                val allStats = tableNumericStats ++ tableCatStats ++ tableDateStats
-                if (tableNumericStats.nonEmpty || tableCatStats.nonEmpty || tableDateStats.nonEmpty)
-                  allTableStats(opId.id) = allStats
+                if (tableFields.contains(opId.id) && tableFields(opId.id).contains("catFields") &&
+                  tableFields(opId.id).contains("dateFields") && tableFields(opId.id).contains("numericFields")) {
+                  val tableCatStats = sinkMgr.getCatColStats(tableFields(opId.id)("catFields"))
+                  val tableDateStats = sinkMgr.getDateColStats(tableFields(opId.id)("dateFields"))
+                  val tableNumericStats = sinkMgr.getNumericColStats(tableFields(opId.id)("numericFields"))
+                  val allStats = tableNumericStats ++ tableCatStats ++ tableDateStats
+                  if (tableNumericStats.nonEmpty || tableCatStats.nonEmpty || tableDateStats.nonEmpty) {
+                    allTableStats(opId.id) = allStats
+                  }
+                }
               }
           }
         Iterable(
