@@ -253,12 +253,21 @@ class ExecutionResultService(
                 if (oldState.resultInfo.isEmpty) {
                   val fields = sinkMgr.getAllFields()
                   if (fields.length >= 3) {
+                    // The fields array for MongoDB operators should contain three arrays:
+                    // 1. numericFields: An array of numeric field names
+                    // 2. catFields: An array of categorical field names
+                    // 3. dateFields: An array of date field names
+                    val NumericFieldsArray = "numericFields"
+                    val CategoricalFieldsArray = "categoricalFields"
+                    val DateFieldsArray = "dateFields"
+
+                    // Update tableFields with extracted fields
                     tableFields.update(
                       opId.id,
                       Map(
-                        "numericFields" -> fields(0),
-                        "catFields" -> fields(1),
-                        "dateFields" -> fields(2)
+                        NumericFieldsArray -> fields(0),
+                        CategoricalFieldsArray -> fields(1),
+                        DateFieldsArray -> fields(2)
                       )
                     )
                   }
