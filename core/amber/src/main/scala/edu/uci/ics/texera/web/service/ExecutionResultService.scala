@@ -258,7 +258,7 @@ class ExecutionResultService(
                     // 2. catFields: An array of categorical field names
                     // 3. dateFields: An array of date field names
                     val NumericFieldsArray = "numericFields"
-                    val CategoricalFieldsArray = "categoricalFields"
+                    val CategoricalFieldsArray = "catFields"
                     val DateFieldsArray = "dateFields"
 
                     // Update tableFields with extracted fields
