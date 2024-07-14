@@ -70,7 +70,11 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
 
     if (operatorType === "RUDFSource" || operatorType === "RUDF") {
       this.changeLanguage("r");
-    } else if (operatorType === "PythonUDFV2" || operatorType === "PythonUDFSourceV2" || operatorType === "DualInputPortsPythonUDFV2") {
+    } else if (
+      operatorType === "PythonUDFV2" ||
+      operatorType === "PythonUDFSourceV2" ||
+      operatorType === "DualInputPortsPythonUDFV2"
+    ) {
       this.changeLanguage("python");
     } else {
       this.changeLanguage("java");
