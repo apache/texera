@@ -122,8 +122,9 @@ object TexeraWebApplication {
 
     val clusterMode = argMap.get(Symbol("cluster")).asInstanceOf[Option[Boolean]].getOrElse(false)
 
-    // Do the uncommitted changes cleanup of datasets
-    discardUncommittedChangesOfAllDatasets()
+    // TODO: figure out a safety way of calling discardUncommittedChangesOfAllDatasets
+    // Currently in kubernetes, multiple pods calling this function can result into thread competition
+    // discardUncommittedChangesOfAllDatasets()
 
     // start actor system master node
     AmberRuntime.startActorMaster(clusterMode)

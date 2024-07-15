@@ -252,22 +252,42 @@ class ExecutionResultService(
                 val sinkMgr = sinkOperators(opId).getStorage
                 if (oldState.resultInfo.isEmpty) {
                   val fields = sinkMgr.getAllFields()
-                  tableFields.update(
-                    opId.id,
-                    Map(
-                      "numericFields" -> fields(0),
-                      "catFields" -> fields(1),
-                      "dateFields" -> fields(2)
+                  if (fields.length >= 3) {
+                    // The fields array for MongoDB operators should contain three arrays:
+                    // 1. numericFields: An array of numeric field names
+                    // 2. catFields: An array of categorical field names
+                    // 3. dateFields: An array of date field names
+                    val NumericFieldsNamesArray = "numericFields"
+                    val CategoricalFieldsNamesArray = "catFields"
+                    val DateFieldsNamesArray = "dateFields"
+
+                    // Update tableFields with extracted fields
+                    tableFields.update(
+                      opId.id,
+                      Map(
+                        NumericFieldsNamesArray -> fields(0),
+                        CategoricalFieldsNamesArray -> fields(1),
+                        DateFieldsNamesArray -> fields(2)
+                      )
                     )
-                  )
+                  }
                 }
-                val tableCatStats = sinkMgr.getCatColStats(tableFields(opId.id)("catFields"))
-                val tableDateStats = sinkMgr.getDateColStats(tableFields(opId.id)("dateFields"))
-                val tableNumericStats =
-                  sinkMgr.getNumericColStats(tableFields(opId.id)("numericFields"))
-                val allStats = tableNumericStats ++ tableCatStats ++ tableDateStats
-                if (tableNumericStats.nonEmpty || tableCatStats.nonEmpty || tableDateStats.nonEmpty)
-                  allTableStats(opId.id) = allStats
+                if (
+                  tableFields.contains(opId.id) && tableFields(opId.id).contains("catFields") &&
+                  tableFields(opId.id).contains("dateFields") && tableFields(opId.id)
+                    .contains("numericFields")
+                ) {
+                  val tableCatStats = sinkMgr.getCatColStats(tableFields(opId.id)("catFields"))
+                  val tableDateStats = sinkMgr.getDateColStats(tableFields(opId.id)("dateFields"))
+                  val tableNumericStats =
+                    sinkMgr.getNumericColStats(tableFields(opId.id)("numericFields"))
+                  val allStats = tableNumericStats ++ tableCatStats ++ tableDateStats
+                  if (
+                    tableNumericStats.nonEmpty || tableCatStats.nonEmpty || tableDateStats.nonEmpty
+                  ) {
+                    allTableStats(opId.id) = allStats
+                  }
+                }
               }
           }
         Iterable(
