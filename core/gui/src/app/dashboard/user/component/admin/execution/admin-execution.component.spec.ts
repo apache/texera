@@ -1,6 +1,6 @@
 import { ComponentFixture, inject, TestBed, waitForAsync } from "@angular/core/testing";
 import { AdminExecutionComponent } from "./admin-execution.component";
-import { AdminExecutionService } from "../../../user/service/admin/execution/admin-execution.service";
+import { AdminExecutionService } from "../../../service/admin/execution/admin-execution.service";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { NzModalModule } from "ng-zorro-antd/modal";
