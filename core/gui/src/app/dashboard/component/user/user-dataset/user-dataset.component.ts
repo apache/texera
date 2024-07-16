@@ -4,8 +4,6 @@ import { UserService } from "../../../../common/service/user/user.service";
 import { Router } from "@angular/router";
 import { SearchService } from "../../../service/user/search.service";
 import { DatasetService } from "../../../service/user/dataset/dataset.service";
-import { DashboardEntry } from "../../../type/dashboard-entry";
-import { SortMethod } from "../../../type/sort-method";
 import { DashboardDataset } from "../../../type/dashboard-dataset.interface";
 import Fuse from "fuse.js";
 

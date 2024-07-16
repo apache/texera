@@ -4,15 +4,11 @@ import {
   Component,
   EventEmitter,
   Input,
-  OnChanges,
-  OnInit,
   Output,
-  SimpleChanges,
   ViewChild,
 } from "@angular/core";
 import {
   DatasetVersionFileTreeNode,
-  getFullPathFromFileTreeNode,
 } from "../../../../../../common/type/datasetVersionFileTree";
 import { ITreeOptions, TREE_ACTIONS } from "@ali-hm/angular-tree-component";
 
