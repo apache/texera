@@ -35,6 +35,6 @@ case class RangeBasedShufflePartitioner(partitioning: RangeBasedShufflePartition
     Iterator(((fieldVal - partitioning.rangeMin) / keysPerReceiver).toInt)
   }
 
-  override def allReceivers: Seq[ActorVirtualIdentity] = partitioning.channels.map(_.toWorkerId)
+  override def allReceivers: Seq[ActorVirtualIdentity] = partitioning.channels.map(_.toWorkerId).distinct
 
 }
