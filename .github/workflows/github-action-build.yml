@@ -107,6 +107,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           if [ -f core/amber/requirements.txt ]; then pip install -r core/amber/requirements.txt; fi
+          if [ -f core/amber/r-requirements.txt ]; then pip install -r core/amber/r-requirements.txt; fi
           if [ -f core/amber/operator-requirements.txt ]; then pip install -r core/amber/operator-requirements.txt; fi
       - name: Lint with flake8 and black
         run: |
