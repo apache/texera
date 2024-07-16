@@ -4,16 +4,16 @@ import { HttpClient } from "@angular/common/http";
 import next from "ajv/dist/vocabularies/next";
 import { Observable, of, throwError } from "rxjs";
 import { catchError, filter, map } from "rxjs/operators";
-import { AppSettings } from "../../../../common/app-setting";
-import { DatasetOfEnvironment, DatasetOfEnvironmentDetails, Environment } from "../../../../common/type/environment";
+import { AppSettings } from "../../../common/app-setting";
+import { DatasetOfEnvironment, DatasetOfEnvironmentDetails, Environment } from "../../../common/type/environment";
 import { DashboardDataset } from "../../type/dashboard-dataset.interface";
 import { DATASET_BASE_URL, DATASET_VERSION_BASE_URL } from "../user-dataset/dataset.service";
 import {
   DatasetVersionFileTreeNode,
   EnvironmentDatasetFileNodes,
   parseFileNodesToTreeNodes,
-} from "../../../../common/type/datasetVersionFileTree";
-import { FileNode } from "../../../../common/type/fileNode";
+} from "../../../common/type/datasetVersionFileTree";
+import { FileNode } from "../../../common/type/fileNode";
 
 export const ENVIRONMENT_BASE_URL = "environment";
 export const ENVIRONMENT_CREATE_URL = ENVIRONMENT_BASE_URL + "/create";

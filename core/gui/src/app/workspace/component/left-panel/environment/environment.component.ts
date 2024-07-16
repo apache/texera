@@ -1,4 +1,4 @@
-import { EnvironmentService } from "../../../../dashboard/user/service/user-environment/environment.service";
+import { EnvironmentService } from "../../../../dashboard/service/user-environment/environment.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { Component, Input, OnInit } from "@angular/core";
