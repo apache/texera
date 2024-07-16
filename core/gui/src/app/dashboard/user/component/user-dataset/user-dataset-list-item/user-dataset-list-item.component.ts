@@ -1,12 +1,12 @@
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { Component, EventEmitter, Input, Output } from "@angular/core";
-import { DashboardEntry } from "../../../type/dashboard-entry";
+import { DashboardEntry } from "../../../../type/dashboard-entry";
 import { Dataset } from "../../../../../common/type/dataset";
 import { DatasetService } from "../../../service/user-dataset/dataset.service";
 import { ShareAccessComponent } from "../../share-access/share-access.component";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { NzModalService } from "ng-zorro-antd/modal";
-import { DashboardDataset } from "../../../type/dashboard-dataset.interface";
+import { DashboardDataset } from "../../../../type/dashboard-dataset.interface";
 
 @UntilDestroy()
 @Component({

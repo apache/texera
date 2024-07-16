@@ -1,5 +1,5 @@
 import { Component, EventEmitter, Input, Output } from "@angular/core";
-import { DashboardFile } from "../../../type/dashboard-file.interface";
+import { DashboardFile } from "../../../../type/dashboard-file.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { UserFileService } from "../../../service/user-file/user-file.service";

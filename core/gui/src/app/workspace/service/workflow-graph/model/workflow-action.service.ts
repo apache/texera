@@ -4,7 +4,7 @@ import * as joint from "jointjs";
 import { BehaviorSubject, merge, Observable, Subject } from "rxjs";
 import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
 import { mapToRecord, recordToMap } from "../../../../common/util/map";
-import { WorkflowMetadata } from "../../../../dashboard/user/type/workflow-metadata.interface";
+import { WorkflowMetadata } from "../../../../dashboard/type/workflow-metadata.interface";
 import {
   Comment,
   CommentBox,

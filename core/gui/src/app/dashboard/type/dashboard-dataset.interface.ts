@@ -1,4 +1,4 @@
-import { Dataset } from "../../../common/type/dataset";
+import { Dataset } from "../../common/type/dataset";
 
 export interface DashboardDataset {
   isOwner: boolean;

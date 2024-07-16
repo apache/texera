@@ -4,11 +4,11 @@ import { ActivatedRoute, Router } from "@angular/router";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { NgbdModalAddProjectFileComponent } from "./ngbd-modal-add-project-file/ngbd-modal-add-project-file.component";
 import { NgbdModalRemoveProjectFileComponent } from "./ngbd-modal-remove-project-file/ngbd-modal-remove-project-file.component";
-import { DashboardFile } from "../../../type/dashboard-file.interface";
+import { DashboardFile } from "../../../../type/dashboard-file.interface";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { UserFileService } from "../../../service/user-file/user-file.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { DashboardProject } from "../../../type/dashboard-project.interface";
+import { DashboardProject } from "../../../../type/dashboard-project.interface";
 import { isDefined } from "../../../../../common/util/predicate";
 
 export const ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";

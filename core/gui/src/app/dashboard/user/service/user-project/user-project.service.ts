@@ -2,9 +2,9 @@ import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
 import { AppSettings } from "../../../../common/app-setting";
-import { DashboardWorkflow } from "../../type/dashboard-workflow.interface";
-import { DashboardFile } from "../../type/dashboard-file.interface";
-import { DashboardProject } from "../../type/dashboard-project.interface";
+import { DashboardWorkflow } from "../../../type/dashboard-workflow.interface";
+import { DashboardFile } from "../../../type/dashboard-file.interface";
+import { DashboardProject } from "../../../type/dashboard-project.interface";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 
 export const USER_PROJECT_BASE_URL = `${AppSettings.getApiEndpoint()}/project`;

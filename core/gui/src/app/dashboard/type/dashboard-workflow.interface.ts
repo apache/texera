@@ -1,4 +1,4 @@
-import { Workflow } from "../../../common/type/workflow";
+import { Workflow } from "../../common/type/workflow";
 
 export interface DashboardWorkflow {
   isOwner: boolean;

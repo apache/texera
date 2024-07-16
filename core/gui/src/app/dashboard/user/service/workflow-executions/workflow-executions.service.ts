@@ -2,8 +2,8 @@ import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
 import { AppSettings } from "../../../../common/app-setting";
 import { HttpClient } from "@angular/common/http";
-import { WorkflowExecutionsEntry } from "../../type/workflow-executions-entry";
-import { WorkflowRuntimeStatistics } from "../../type/workflow-runtime-statistics";
+import { WorkflowExecutionsEntry } from "../../../type/workflow-executions-entry";
+import { WorkflowRuntimeStatistics } from "../../../type/workflow-runtime-statistics";
 
 export const WORKFLOW_EXECUTIONS_API_BASE_URL = `${AppSettings.getApiEndpoint()}/executions`;
 

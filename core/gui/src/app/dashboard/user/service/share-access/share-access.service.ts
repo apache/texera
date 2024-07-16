@@ -2,7 +2,7 @@ import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
 import { AppSettings } from "../../../../common/app-setting";
-import { ShareAccess } from "../../type/share-access.interface";
+import { ShareAccess } from "../../../type/share-access.interface";
 export const BASE = `${AppSettings.getApiEndpoint()}/access`;
 @Injectable({
   providedIn: "root",

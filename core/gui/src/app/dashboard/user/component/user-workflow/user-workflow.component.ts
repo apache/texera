@@ -8,7 +8,7 @@ import {
 } from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { NgbdModalAddProjectWorkflowComponent } from "../user-project/user-project-section/ngbd-modal-add-project-workflow/ngbd-modal-add-project-workflow.component";
 import { NgbdModalRemoveProjectWorkflowComponent } from "../user-project/user-project-section/ngbd-modal-remove-project-workflow/ngbd-modal-remove-project-workflow.component";
-import { DashboardEntry } from "../../type/dashboard-entry";
+import { DashboardEntry } from "../../../type/dashboard-entry";
 import { UserService } from "../../../../common/service/user/user.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
@@ -19,7 +19,7 @@ import { FileSaverService } from "../../service/user-file/file-saver.service";
 import { FiltersComponent } from "../filters/filters.component";
 import { SearchResultsComponent } from "../search-results/search-results.component";
 import { SearchService } from "../../service/search.service";
-import { SortMethod } from "../../type/sort-method";
+import { SortMethod } from "../../../type/sort-method";
 import { isDefined } from "../../../../common/util/predicate";
 import { UserProjectService } from "../../service/user-project/user-project.service";
 import { map, mergeMap, tap } from "rxjs/operators";

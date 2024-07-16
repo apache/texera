@@ -1,6 +1,6 @@
 import { Component, OnInit } from "@angular/core";
 import { UserProjectService } from "../../service/user-project/user-project.service";
-import { DashboardProject } from "../../type/dashboard-project.interface";
+import { DashboardProject } from "../../../type/dashboard-project.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { UserService } from "../../../../common/service/user/user.service";

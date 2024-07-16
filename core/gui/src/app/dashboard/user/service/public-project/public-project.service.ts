@@ -2,7 +2,7 @@ import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
 import { AppSettings } from "../../../../common/app-setting";
-import { PublicProject } from "../../type/dashboard-project.interface";
+import { PublicProject } from "../../../type/dashboard-project.interface";
 
 export const USER_BASE_URL = `${AppSettings.getApiEndpoint()}/public/project`;
 

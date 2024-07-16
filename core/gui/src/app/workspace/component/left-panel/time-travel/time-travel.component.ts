@@ -1,7 +1,7 @@
 import { Component, OnDestroy, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
-import { WorkflowExecutionsEntry } from "../../../../dashboard/user/type/workflow-executions-entry";
+import { WorkflowExecutionsEntry } from "../../../../dashboard/type/workflow-executions-entry";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { WorkflowVersionService } from "../../../../dashboard/user/service/workflow-version/workflow-version.service";
 import {

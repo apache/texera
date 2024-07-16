@@ -1,10 +1,10 @@
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
-import { SearchResult } from "../type/search-result";
+import { SearchResult } from "../../type/search-result";
 import { AppSettings } from "src/app/common/app-setting";
-import { SearchFilterParameters, toQueryStrings } from "../type/search-filter-parameters";
-import { SortMethod } from "../type/sort-method";
+import { SearchFilterParameters, toQueryStrings } from "../../type/search-filter-parameters";
+import { SortMethod } from "../../type/sort-method";
 
 const DASHBOARD_SEARCH_URL = "dashboard/search";
 

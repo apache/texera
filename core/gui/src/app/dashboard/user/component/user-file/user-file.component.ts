@@ -1,7 +1,7 @@
 import { Component, OnInit } from "@angular/core";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { UserFileService } from "../../service/user-file/user-file.service";
-import { DashboardFile, SortMethod } from "../../type/dashboard-file.interface";
+import { DashboardFile, SortMethod } from "../../../type/dashboard-file.interface";
 import { UserService } from "../../../../common/service/user/user.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import Fuse from "fuse.js";

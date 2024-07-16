@@ -3,7 +3,7 @@ import { Observable } from "rxjs";
 import { AppSettings } from "../../../../common/app-setting";
 import { HttpClient } from "@angular/common/http";
 import html2canvas from "html2canvas";
-import { WorkflowSnapshotEntry } from "../../type/workflow-snapshot-entry";
+import { WorkflowSnapshotEntry } from "../../../type/workflow-snapshot-entry";
 
 export const WORKFLOW_SNAPSHOT_API_BASE_URL = `${AppSettings.getApiEndpoint()}/snapshot`;
 export const WORKFLOW_SNAPSHOT_UPLOAD_URL = `${WORKFLOW_SNAPSHOT_API_BASE_URL}/upload`;

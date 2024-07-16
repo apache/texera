@@ -5,9 +5,9 @@ import { NotificationService } from "../../../../common/service/notification/not
 import { Dataset, DatasetVersion } from "../../../../common/type/dataset";
 import { AppSettings } from "../../../../common/app-setting";
 import { Observable } from "rxjs";
-import { SearchFilterParameters, toQueryStrings } from "../../type/search-filter-parameters";
-import { DashboardDataset } from "../../type/dashboard-dataset.interface";
-import { FileUploadItem } from "../../type/dashboard-file.interface";
+import { SearchFilterParameters, toQueryStrings } from "../../../type/search-filter-parameters";
+import { DashboardDataset } from "../../../type/dashboard-dataset.interface";
+import { FileUploadItem } from "../../../type/dashboard-file.interface";
 import { UserFileUploadService } from "../user-file/user-file-upload.service";
 import {
   DatasetVersionFileTree,

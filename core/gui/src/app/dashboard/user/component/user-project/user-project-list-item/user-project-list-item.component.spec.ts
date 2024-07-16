@@ -3,7 +3,7 @@ import { UserProjectListItemComponent } from "./user-project-list-item.component
 import { HttpClient, HttpHandler } from "@angular/common/http";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { UserProjectService } from "../../../service/user-project/user-project.service";
-import { DashboardProject } from "../../../type/dashboard-project.interface";
+import { DashboardProject } from "../../../../type/dashboard-project.interface";
 
 describe("UserProjectListItemComponent", () => {
   let component: UserProjectListItemComponent;

@@ -1,11 +1,11 @@
 import { Component, ViewChild } from "@angular/core";
-import { DashboardEntry } from "../../type/dashboard-entry";
+import { DashboardEntry } from "../../../type/dashboard-entry";
 import { SearchService } from "../../service/search.service";
 import { FiltersComponent } from "../filters/filters.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { firstValueFrom } from "rxjs";
 import { SearchResultsComponent } from "../search-results/search-results.component";
-import { SortMethod } from "../../type/sort-method";
+import { SortMethod } from "../../../type/sort-method";
 
 @UntilDestroy()
 @Component({

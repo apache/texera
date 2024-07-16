@@ -6,7 +6,7 @@ import { Observable, of, throwError } from "rxjs";
 import { catchError, filter, map } from "rxjs/operators";
 import { AppSettings } from "../../../../common/app-setting";
 import { DatasetOfEnvironment, DatasetOfEnvironmentDetails, Environment } from "../../../../common/type/environment";
-import { DashboardDataset } from "../../type/dashboard-dataset.interface";
+import { DashboardDataset } from "../../../type/dashboard-dataset.interface";
 import { DATASET_BASE_URL, DATASET_VERSION_BASE_URL } from "../user-dataset/dataset.service";
 import {
   DatasetVersionFileTreeNode,

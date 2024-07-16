@@ -9,7 +9,7 @@ import {
   getFullPathFromFileTreeNode,
 } from "../../../../common/type/datasetVersionFileTree";
 import { DatasetService } from "../../../../dashboard/user/service/user-dataset/dataset.service";
-import { DashboardDataset } from "../../../../dashboard/user/type/dashboard-dataset.interface";
+import { DashboardDataset } from "../../../../dashboard/type/dashboard-dataset.interface";
 import { DatasetOfEnvironmentDetails, Environment } from "../../../../common/type/environment";
 import { DatasetVersion } from "../../../../common/type/dataset";
 import { map, Observable, of } from "rxjs";

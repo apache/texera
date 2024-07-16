@@ -1,9 +1,9 @@
 import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
-import { SearchResult } from "../type/search-result";
-import { SearchFilterParameters, searchTestEntries } from "../type/search-filter-parameters";
-import { DashboardEntry } from "../type/dashboard-entry";
-import { SortMethod } from "../type/sort-method";
+import { SearchResult } from "../../type/search-result";
+import { SearchFilterParameters, searchTestEntries } from "../../type/search-filter-parameters";
+import { DashboardEntry } from "../../type/dashboard-entry";
+import { SortMethod } from "../../type/sort-method";
 
 @Injectable({
   providedIn: "root",

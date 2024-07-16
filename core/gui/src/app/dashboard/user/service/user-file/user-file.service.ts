@@ -2,7 +2,7 @@ import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
 import { AppSettings } from "../../../../common/app-setting";
-import { DashboardFile } from "../../type/dashboard-file.interface";
+import { DashboardFile } from "../../../type/dashboard-file.interface";
 export const USER_FILE_BASE_URL = `${AppSettings.getApiEndpoint()}/user/file`;
 
 @Injectable({

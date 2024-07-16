@@ -1,5 +1,5 @@
 import { Component, EventEmitter, Output } from "@angular/core";
-import { SortMethod } from "../../type/sort-method";
+import { SortMethod } from "../../../type/sort-method";
 
 @Component({
   selector: "texera-sort-button",

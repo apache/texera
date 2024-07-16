@@ -2,7 +2,7 @@ import { Component, inject, OnInit } from "@angular/core";
 import { forkJoin, Observable } from "rxjs";
 import { concatMap } from "rxjs/operators";
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
-import { DashboardWorkflow } from "src/app/dashboard/user/type/dashboard-workflow.interface";
+import { DashboardWorkflow } from "../../../../../type/dashboard-workflow.interface";
 import { UserProjectService } from "src/app/dashboard/user/service/user-project/user-project.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";

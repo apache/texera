@@ -17,7 +17,7 @@ import { NzButtonModule } from "ng-zorro-antd/button";
 import { NzSelectModule } from "ng-zorro-antd/select";
 import { ScrollingModule } from "@angular/cdk/scrolling";
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
-import { DashboardEntry } from "../../type/dashboard-entry";
+import { DashboardEntry } from "../../../type/dashboard-entry";
 import { SearchResultsComponent } from "../search-results/search-results.component";
 import { UserService } from "../../../../common/service/user/user.service";
 import { StubUserService } from "../../../../common/service/user/stub-user.service";
