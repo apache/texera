@@ -1,14 +1,14 @@
 import { Component, OnInit } from "@angular/core";
-import { GmailService } from "../../service/gmail.service";
+import { GmailService } from "../../../../../common/service/gmail/gmail.service";
 import { FormBuilder, FormGroup, Validators } from "@angular/forms";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 @UntilDestroy()
 @Component({
   selector: "texera-gmail",
-  templateUrl: "./gmail.component.html",
-  styleUrls: ["./gmail.component.scss"],
+  templateUrl: "./admin-gmail.component.html",
+  styleUrls: ["./admin-gmail.component.scss"],
 })
-export class GmailComponent implements OnInit {
+export class AdminGmailComponent implements OnInit {
   public validateForm!: FormGroup;
   public email: String | undefined;
   constructor(
