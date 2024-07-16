@@ -1,9 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
-import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager.{
-  DPOutputIterator,
-  getBatchSize
-}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager.{DPOutputIterator, getBatchSize, toPartitioner}
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners._
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings._
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessor.{FinalizeExecutor, FinalizePort}
@@ -19,6 +16,24 @@ import scala.collection.mutable
 object OutputManager {
 
   final case class FlushNetworkBuffer() extends ControlCommand[Unit]
+
+  // create a corresponding partitioner for the given partitioning policy
+  def toPartitioner(partitioning: Partitioning): Partitioner = {
+    val partitioner = partitioning match {
+      case oneToOnePartitioning: OneToOnePartitioning =>
+        OneToOnePartitioner(oneToOnePartitioning, actorId)
+      case roundRobinPartitioning: RoundRobinPartitioning =>
+        RoundRobinPartitioner(roundRobinPartitioning)
+      case hashBasedShufflePartitioning: HashBasedShufflePartitioning =>
+        HashBasedShufflePartitioner(hashBasedShufflePartitioning)
+      case rangeBasedShufflePartitioning: RangeBasedShufflePartitioning =>
+        RangeBasedShufflePartitioner(rangeBasedShufflePartitioning)
+      case broadcastPartitioning: BroadcastPartitioning =>
+        BroadcastPartitioner(broadcastPartitioning)
+      case _ => throw new RuntimeException(s"partitioning $partitioning not supported")
+    }
+    partitioner
+  }
 
   def getBatchSize(partitioning: Partitioning): Int = {
     partitioning match {
@@ -68,24 +83,6 @@ class OutputManager(
     val actorId: ActorVirtualIdentity,
     outputGateway: NetworkOutputGateway
 ) extends AmberLogging {
-
-  // create a corresponding partitioner for the given partitioning policy
-  def toPartitioner(partitioning: Partitioning): Partitioner = {
-    val partitioner = partitioning match {
-      case oneToOnePartitioning: OneToOnePartitioning =>
-        OneToOnePartitioner(oneToOnePartitioning, actorId)
-      case roundRobinPartitioning: RoundRobinPartitioning =>
-        RoundRobinPartitioner(roundRobinPartitioning)
-      case hashBasedShufflePartitioning: HashBasedShufflePartitioning =>
-        HashBasedShufflePartitioner(hashBasedShufflePartitioning)
-      case rangeBasedShufflePartitioning: RangeBasedShufflePartitioning =>
-        RangeBasedShufflePartitioner(rangeBasedShufflePartitioning)
-      case broadcastPartitioning: BroadcastPartitioning =>
-        BroadcastPartitioner(broadcastPartitioning)
-      case _ => throw new RuntimeException(s"partitioning $partitioning not supported")
-    }
-    partitioner
-  }
 
   val outputIterator: DPOutputIterator = new DPOutputIterator()
   private val partitioners: mutable.Map[PhysicalLink, Partitioner] =
