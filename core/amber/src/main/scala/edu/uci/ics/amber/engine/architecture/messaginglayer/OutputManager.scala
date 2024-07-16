@@ -18,7 +18,7 @@ object OutputManager {
   final case class FlushNetworkBuffer() extends ControlCommand[Unit]
 
   // create a corresponding partitioner for the given partitioning policy
-  def toPartitioner(partitioning: Partitioning): Partitioner = {
+  def toPartitioner(partitioning: Partitioning, actorId: ActorVirtualIdentity): Partitioner = {
     val partitioner = partitioning match {
       case oneToOnePartitioning: OneToOnePartitioning =>
         OneToOnePartitioner(oneToOnePartitioning, actorId)
@@ -101,7 +101,7 @@ class OutputManager(
       link: PhysicalLink,
       partitioning: Partitioning
   ): Unit = {
-    val partitioner = toPartitioner(partitioning)
+    val partitioner = toPartitioner(partitioning, actorId)
     partitioners.update(link, partitioner)
     partitioner.allReceivers.foreach(receiver => {
       val buffer = new NetworkOutputBuffer(receiver, outputGateway, getBatchSize(partitioning))
