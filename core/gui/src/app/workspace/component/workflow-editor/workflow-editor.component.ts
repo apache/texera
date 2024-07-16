@@ -17,7 +17,7 @@ import { LogicalPort, OperatorLink } from "../../types/workflow-common.interface
 import { auditTime, filter, map, takeUntil } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
-import { WorkflowVersionService } from "../../../dashboard/user/service/workflow-version/workflow-version.service";
+import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
 import { OperatorMenuService } from "../../service/operator-menu/operator-menu.service";
 import { NzContextMenuService } from "ng-zorro-antd/dropdown";
 import { ActivatedRoute, Router } from "@angular/router";

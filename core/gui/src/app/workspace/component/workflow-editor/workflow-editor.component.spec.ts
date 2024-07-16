@@ -30,7 +30,7 @@ import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { tap } from "rxjs/operators";
 import { UserService } from "src/app/common/service/user/user.service";
 import { StubUserService } from "src/app/common/service/user/stub-user.service";
-import { WorkflowVersionService } from "src/app/dashboard/user/service/workflow-version/workflow-version.service";
+import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
 import { of } from "rxjs";
 import { NzContextMenuService, NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { RouterTestingModule } from "@angular/router/testing";

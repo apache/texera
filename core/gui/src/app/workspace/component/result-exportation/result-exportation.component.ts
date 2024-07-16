@@ -2,8 +2,8 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { Component, inject, Input, OnInit } from "@angular/core";
 import { environment } from "../../../../environments/environment";
 import { WorkflowResultExportService } from "../../service/workflow-result-export/workflow-result-export.service";
-import { DashboardDataset } from "../../../dashboard/user/type/dashboard-dataset.interface";
-import { DatasetService } from "../../../dashboard/user/service/user-dataset/dataset.service";
+import { DashboardDataset } from "../../../dashboard/type/dashboard-dataset.interface";
+import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.service";
 import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
 
 @UntilDestroy()

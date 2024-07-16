@@ -1,7 +1,7 @@
 import { AfterViewInit, Component, ComponentRef, ElementRef, OnDestroy, ViewChild } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
-import { WorkflowVersionService } from "src/app/dashboard/user/service/workflow-version/workflow-version.service";
+import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
 import { YText } from "yjs/dist/src/types/YText";
 import { MonacoBinding } from "y-monaco";
 import { Subject } from "rxjs";

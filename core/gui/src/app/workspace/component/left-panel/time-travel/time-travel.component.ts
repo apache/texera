@@ -1,13 +1,13 @@
 import { Component, OnDestroy, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
-import { WorkflowExecutionsEntry } from "../../../../dashboard/user/type/workflow-executions-entry";
+import { WorkflowExecutionsEntry } from "../../../../dashboard/type/workflow-executions-entry";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
-import { WorkflowVersionService } from "../../../../dashboard/user/service/workflow-version/workflow-version.service";
+import { WorkflowVersionService } from "../../../../dashboard/service/user/workflow-version/workflow-version.service";
 import {
   WORKFLOW_EXECUTIONS_API_BASE_URL,
   WorkflowExecutionsService,
-} from "../../../../dashboard/user/service/workflow-executions/workflow-executions.service";
+} from "../../../../dashboard/service/user/workflow-executions/workflow-executions.service";
 import { HttpClient } from "@angular/common/http";
 import { Observable, timer } from "rxjs";
 import { map } from "rxjs/operators";

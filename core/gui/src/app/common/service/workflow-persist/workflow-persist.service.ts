@@ -4,10 +4,10 @@ import { Observable, throwError } from "rxjs";
 import { filter, map, catchError } from "rxjs/operators";
 import { AppSettings } from "../../app-setting";
 import { Workflow, WorkflowContent } from "../../type/workflow";
-import { DashboardWorkflow } from "../../../dashboard/user/type/dashboard-workflow.interface";
+import { DashboardWorkflow } from "../../../dashboard/type/dashboard-workflow.interface";
 import { WorkflowUtilService } from "../../../workspace/service/workflow-graph/util/workflow-util.service";
 import { NotificationService } from "../notification/notification.service";
-import { SearchFilterParameters, toQueryStrings } from "src/app/dashboard/user/type/search-filter-parameters";
+import { SearchFilterParameters, toQueryStrings } from "../../../dashboard/type/search-filter-parameters";
 import { Environment } from "../../type/environment";
 
 export const WORKFLOW_BASE_URL = "workflow";

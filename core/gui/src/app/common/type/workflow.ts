@@ -1,4 +1,4 @@
-import { WorkflowMetadata } from "../../dashboard/user/type/workflow-metadata.interface";
+import { WorkflowMetadata } from "../../dashboard/type/workflow-metadata.interface";
 import { PlainGroup } from "../../workspace/service/workflow-graph/model/operator-group";
 import { OperatorLink, OperatorPredicate, Point, CommentBox } from "../../workspace/types/workflow-common.interface";
 

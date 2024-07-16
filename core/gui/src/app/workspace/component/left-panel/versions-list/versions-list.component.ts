@@ -1,8 +1,8 @@
 import { Component, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
-import { WorkflowVersionService } from "../../../../dashboard/user/service/workflow-version/workflow-version.service";
-import { WorkflowVersionCollapsableEntry } from "../../../../dashboard/user/type/workflow-version-entry";
+import { WorkflowVersionService } from "../../../../dashboard/service/user/workflow-version/workflow-version.service";
+import { WorkflowVersionCollapsableEntry } from "../../../../dashboard/type/workflow-version-entry";
 import { ActivatedRoute } from "@angular/router";
 
 @UntilDestroy()
