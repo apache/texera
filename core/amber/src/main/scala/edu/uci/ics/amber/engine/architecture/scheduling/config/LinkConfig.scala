@@ -58,19 +58,25 @@ case object LinkConfig {
       case OneToOnePartition() =>
         OneToOnePartitioning(
           defaultBatchSize,
-          fromWorkerIds.zip(toWorkerIds).map(x => ChannelIdentity(x._1, x._2, isControl = false))
+          fromWorkerIds.zip(toWorkerIds).map { case (fromWorkerId, toWorkerId) =>
+            ChannelIdentity(fromWorkerId, toWorkerId, isControl = false)
+          }
         )
 
       case BroadcastPartition() =>
         BroadcastPartitioning(
           defaultBatchSize,
-          fromWorkerIds.zip(toWorkerIds).map(x => ChannelIdentity(x._1, x._2, isControl = false))
+          fromWorkerIds.zip(toWorkerIds).map { case (fromWorkerId, toWorkerId) =>
+            ChannelIdentity(fromWorkerId, toWorkerId, isControl = false)
+          }
         )
 
       case UnknownPartition() =>
         RoundRobinPartitioning(
           defaultBatchSize,
-          fromWorkerIds.zip(toWorkerIds).map(x => ChannelIdentity(x._1, x._2, isControl = false))
+          fromWorkerIds.zip(toWorkerIds).map { case (fromWorkerId, toWorkerId) =>
+            ChannelIdentity(fromWorkerId, toWorkerId, isControl = false)
+          }
         )
 
       case _ =>
