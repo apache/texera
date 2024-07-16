@@ -1,15 +1,6 @@
 import { UntilDestroy } from "@ngneat/until-destroy";
-import {
-  AfterViewInit,
-  Component,
-  EventEmitter,
-  Input,
-  Output,
-  ViewChild,
-} from "@angular/core";
-import {
-  DatasetVersionFileTreeNode,
-} from "../../../../../../common/type/datasetVersionFileTree";
+import { AfterViewInit, Component, EventEmitter, Input, Output, ViewChild } from "@angular/core";
+import { DatasetVersionFileTreeNode } from "../../../../../../common/type/datasetVersionFileTree";
 import { ITreeOptions, TREE_ACTIONS } from "@ali-hm/angular-tree-component";
 
 @UntilDestroy()
