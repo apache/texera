@@ -77,8 +77,8 @@ import { NgbdModalRemoveProjectFileComponent } from "./dashboard/user/component/
 import { PresetWrapperComponent } from "./common/formly/preset-wrapper/preset-wrapper.component";
 import { NzModalCommentBoxComponent } from "./workspace/component/workflow-editor/comment-box-modal/nz-modal-comment-box.component";
 import { NzCommentModule } from "ng-zorro-antd/comment";
-import { AdminUserComponent } from "./dashboard/component/admin/user/admin-user.component";
-import { AdminExecutionComponent } from "./dashboard/component/admin/execution/admin-execution.component";
+import { AdminUserComponent } from "./dashboard/user/component/admin/user/admin-user.component";
+import { AdminExecutionComponent } from "./dashboard/user/component/admin/execution/admin-execution.component";
 import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
 import { AdminGuardService } from "./dashboard/user/service/admin/guard/admin-guard.service";
 import { ContextMenuComponent } from "./workspace/component/workflow-editor/context-menu/context-menu/context-menu.component";
@@ -102,7 +102,7 @@ import { UserFileListItemComponent } from "./dashboard/user/component/user-file/
 import { SearchComponent } from "./dashboard/user/component/search/search.component";
 import { SearchResultsComponent } from "./dashboard/user/component/search-results/search-results.component";
 import { PortPropertyEditFrameComponent } from "./workspace/component/property-editor/port-property-edit-frame/port-property-edit-frame.component";
-import { AdminGmailComponent } from "./dashboard/component/admin/gmail/admin-gmail.component";
+import { AdminGmailComponent } from "./dashboard/user/component/admin/gmail/admin-gmail.component";
 import { PublicProjectComponent } from "./dashboard/user/component/user-project/public-project/public-project.component";
 import { FormlyNgZorroAntdModule } from "@ngx-formly/ng-zorro-antd";
 import { FlarumComponent } from "./dashboard/user/component/flarum/flarum.component";

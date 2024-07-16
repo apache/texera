@@ -1,0 +1,30 @@
+<i
+  class="search-info-box"
+  nz-icon
+  nz-popover
+  nzPopoverTitle="Filter Instructions"
+  nzType="question-circle"
+  nzTheme="outline"
+  [nzPopoverContent]="filterPopContent"></i>
+
+<ng-template #filterPopContent>
+  We support the following search criteria:
+  <ul>
+    <li>Search by Workflow Name: <strong>workflowName</strong></li>
+    <li>Search by Workflow Creation Time: <strong>ctime: yyyy-MM-dd</strong></li>
+    <li>Search by Workflow Modification Time: <strong>mtime: yyyy-MM-dd</strong></li>
+    <li>Search by Workflow Owner: <strong>owner: John</strong></li>
+    <li>Search by Workflow Id: <strong>id: workflowId</strong></li>
+    <li>Search by Workflows' Operators: <strong>operator: operatorName</strong></li>
+    <li>Search by User Projects: <strong>project: projectName</strong></li>
+  </ul>
+  You can change search parameters by:
+  <ul>
+    <li>selecting/unselecting dropdown menu options</li>
+    <li>manually typing parameters into search bar</li>
+    <li>clicking the <strong>X</strong> on a tag or the search bar, to clear one or all tags</li>
+  </ul>
+  <br />
+  Example: "Untitled Workflow" id:1 owner:John<br />
+  Meaning: Search for the workflow with name Untitled Workflow, id 1, and the owner called John.
+</ng-template>

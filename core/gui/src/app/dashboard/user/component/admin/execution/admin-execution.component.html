@@ -1,0 +1,139 @@
+<nz-card
+  class="section-title"
+  style="background-color: lightcoral">
+  <h2
+    class="page-title"
+    style="color: white">
+    Executions
+  </h2>
+</nz-card>
+
+<nz-table
+  #basicTable
+  [nzData]="listOfExecutions">
+  <thead>
+    <tr>
+      <th
+        [nzSortFn]="sortByWorkflowName"
+        nzWidth="16%">
+        Workflow (ID)
+      </th>
+      <th
+        [nzSortFn]="sortByExecutionName"
+        nzWidth="16%">
+        Execution Name (ID)
+      </th>
+      <th
+        [nzSortFn]="sortByInitiator"
+        nzWidth="12%">
+        Initiator
+      </th>
+      <th
+        nzShowFilter
+        [nzFilters]="[
+          { text: 'READY', value: 'READY' },
+          { text: 'RUNNING', value: 'RUNNING'},
+          { text: 'PAUSED', value: 'PAUSED'},
+          { text: 'COMPLETED', value: 'COMPLETED'},
+          { text: 'FAILED', value: 'FAILED'},
+          { text: 'KILLED', value: 'KILLED'},
+          { text: 'JUST COMPLETED', value: 'JUST COMPLETED'},
+          { text: 'UNKNOWN', value: 'UNKNOWN'}]"
+        [nzFilterFn]="filterByStatus"
+        nzWidth="16%">
+        Status
+      </th>
+      <th nzWidth="10%">Time Used (hh:mm:ss)</th>
+      <th
+        [nzSortFn]="sortByCompletedTime"
+        nzWidth="15%">
+        End Time
+      </th>
+      <th nzWidth="15%">Action</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr *ngFor="let execution of basicTable.data">
+      <td>
+        <div *ngIf="execution.access; else normalWorkflowName">
+          <a href="/workflow/{{execution.workflowId}}">
+            {{ maxStringLength(execution.workflowName, 16) }} ({{ execution.workflowId }})
+          </a>
+        </div>
+        <ng-template #normalWorkflowName>
+          <div>{{ maxStringLength(execution.workflowName, 16) }} ({{ execution.workflowId }})</div>
+        </ng-template>
+      </td>
+      <td>{{ maxStringLength(execution.executionName, 20) }} ({{ execution.executionId }})</td>
+      <td>{{ execution.userName }}</td>
+      <td [ngStyle]="{ 'color': getStatusColor(execution.executionStatus) }"><b>{{ execution.executionStatus }}</b></td>
+      <td>
+        <div *ngIf="execution.executionTime >= 0; else endTimeNotAvailable">
+          {{ convertSecondsToTime(execution.executionTime) }}
+        </div>
+        <ng-template #endTimeNotAvailable>
+          <div>Not Available</div>
+        </ng-template>
+      </td>
+
+      <td>
+        <div *ngIf="execution.endTime !== 0; else endTimeNotAvailable">
+          {{ convertTimeToTimestamp(execution.executionStatus, execution.endTime) }}
+        </div>
+        <ng-template #endTimeNotAvailable>
+          <div>Not Available</div>
+        </ng-template>
+      </td>
+      <td>
+        <button
+          type="button"
+          (click)="killExecution(execution.workflowId)"
+          [disabled]="execution.executionStatus === 'COMPLETED' ||
+                        execution.executionStatus === 'JUST COMPLETED' ||
+                        execution.executionStatus === 'FAILED' ||
+                        execution.executionStatus === 'KILLED'"
+          nz-button
+          nz-tooltip="kill execution {{execution.executionName}} of workflow {{execution.workflowName}}">
+          <i
+            nz-icon
+            nzTheme="outline"
+            nzType="stop"></i>
+        </button>
+        <button
+          type="button"
+          (click)="pauseExecution(execution.workflowId)"
+          [disabled]="execution.executionStatus !== 'RUNNING'"
+          nz-button
+          nz-tooltip="pause execution {{execution.executionName}} of workflow {{execution.workflowName}}">
+          <i
+            nz-icon
+            nzTheme="outline"
+            nzType="pause"></i>
+        </button>
+        <button
+          type="button"
+          (click)="resumeExecution(execution.workflowId)"
+          [disabled]="execution.executionStatus !== 'PAUSED'"
+          nz-button
+          nz-tooltip="resume execution {{execution.executionName}} of workflow {{execution.workflowName}}">
+          <i
+            nz-icon
+            nzTheme="outline"
+            nzType="redo"></i>
+        </button>
+        <button
+          (click)="clickToViewHistory(execution.workflowId)"
+          nz-button
+          nz-tooltip="previous execution of the workflow: {{
+                      execution.workflowName
+                    }}"
+          type="button">
+          <i
+            nz-icon
+            nzTheme="outline"
+            nzType="history"></i>
+        </button>
+      </td>
+    </tr>
+  </tbody>
+</nz-table>

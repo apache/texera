@@ -1,0 +1,183 @@
+<div
+  [style.height]="dynamicHeight"
+  style="overflow-y: auto">
+  <nz-card
+    class="section-title"
+    [style.backgroundColor]="backgroundColor">
+    <h2
+      class="page-title"
+      [style.color]="textColor">
+      Quota
+    </h2>
+  </nz-card>
+  <div>
+    <nz-tabset nzCentered>
+      <style>
+        .info-container {
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: center;
+        }
+
+        .info-box {
+          background-color: #f4f4f4;
+          padding: 40px;
+          margin: 10px;
+          width: 375px;
+          height: 135px;
+          border-radius: 5px;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+          font-family: Arial, sans-serif;
+          text-align: center;
+        }
+
+        .info-heading {
+          font-weight: bold;
+          font-size: 18px;
+        }
+
+        .info-content {
+          font-size: 24px;
+          margin-top: 10px;
+        }
+      </style>
+      <nz-tab nzTitle="Quota Table">
+        <div class="info-container">
+          <div class="info-box">
+            <h2 class="info-heading">Files Uploaded</h2>
+            <p class="info-content">{{ this.createdFiles.length }}</p>
+          </div>
+          <div class="info-box">
+            <h2 class="info-heading">Datasets Uploaded</h2>
+            <p class="info-content">{{ this.totalUploadedDatasetCount }}</p>
+          </div>
+          <div class="info-box">
+            <h2 class="info-heading">Total Size of Datasets</h2>
+            <p class="info-content">{{ convertFileSize(this.totalUploadedDatasetSize) }}</p>
+          </div>
+          <div class="info-box">
+            <h2 class="info-heading">Workflows Created</h2>
+            <p class="info-content">{{ this.createdWorkflows.length }}</p>
+          </div>
+          <div class="info-box">
+            <h2 class="info-heading">Files with Access</h2>
+            <p class="info-content">{{ this.accessFiles.length }}</p>
+          </div>
+          <div class="info-box">
+            <h2 class="info-heading">Workflows with Access</h2>
+            <p class="info-content">{{ this.accessWorkflows.length }}</p>
+          </div>
+          <div class="info-box">
+            <h2 class="info-heading">Total Size of the Files</h2>
+            <p class="info-content">{{ convertFileSize(this.totalFileSize) }}</p>
+          </div>
+          <div class="info-box">
+            <h2 class="info-heading">Total Result Cache Size</h2>
+            <p class="info-content">{{ convertFileSize(this.totalMongoSize) }}</p>
+          </div>
+        </div>
+      </nz-tab>
+      <nz-tab nzTitle="Result Cache">
+        <nz-collapse>
+          <nz-collapse-panel
+            *ngFor="let workflow of mongodbWorkflows"
+            [nzHeader]="workflow.workflowName">
+            <nz-table
+              #executionTable
+              [nzData]="workflow.executions"
+              [nzPageSize]="3"
+              nzFrontPagination="true">
+              <thead>
+                <tr>
+                  <th>Collection Name</th>
+                  <th>Execution ID</th>
+                  <th [nzSortFn]="sortByMongoDBSize">Cache Size</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let execution of executionTable.data">
+                  <td>{{ execution.pointer }}</td>
+                  <td>{{ execution.eid }}</td>
+                  <td>{{ convertFileSize(execution.size) }}</td>
+                  <td>
+                    <button
+                      nz-popconfirm
+                      nzPopconfirmTitle="Confirm to delete selected workflows."
+                      nz-button
+                      nz-tooltip="delete collection"
+                      (nzOnConfirm)="deleteMongoCollection(execution.pointer, execution, execution.workflowName)"
+                      type="button">
+                      <i
+                        nz-icon
+                        nzTheme="outline"
+                        nzType="delete"></i>
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </nz-table>
+          </nz-collapse-panel>
+        </nz-collapse>
+      </nz-tab>
+      <nz-tab nzTitle="Top 5 Files">
+        <nz-table
+          #top5
+          [nzData]="topFiveFiles"
+          [nzPageSize]="6"
+          nzFrontPagination="true">
+          <thead>
+            <tr>
+              <th nzWidth="20%">File Name</th>
+              <th nzWidth="10%">Size</th>
+              <th nzWidth="20%">Uploaded Time</th>
+              <th nzWidth="30%">File Description</th>
+              <th naWidth="20%">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let data of top5.data">
+              <td>{{maxStringLength(data.fileName, 18)}}</td>
+              <td>{{convertFileSize(data.fileSize)}}</td>
+              <td>{{convertTimeToTimestamp(data.uploadedTime)}}</td>
+              <td>
+                <div *ngIf="data.description !== ''; else descriptionNotAvailable">
+                  {{ maxStringLength(data.description, 36) }}
+                </div>
+                <ng-template #descriptionNotAvailable>
+                  <div>No Available Descriptions</div>
+                </ng-template>
+              </td>
+              <td>
+                <button
+                  nz-popconfirm
+                  nzPopconfirmTitle="Confirm to delete selected file."
+                  nz-button
+                  nz-tooltip="delete file"
+                  (nzOnConfirm)="deleteFile(data.fileId)"
+                  type="button">
+                  <i
+                    nz-icon
+                    nzTheme="outline"
+                    nzType="delete"></i>
+                </button>
+                <button
+                  nz-popconfirm
+                  nzPopconfirmTitle="Confirm to download selected file."
+                  nz-button
+                  nz-tooltip="download file"
+                  (nzOnConfirm)="downloadFile(data.fileId, data.fileName)"
+                  type="button">
+                  <i
+                    nz-icon
+                    nzTheme="outline"
+                    nzType="download"></i>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </nz-table>
+      </nz-tab>
+    </nz-tabset>
+  </div>
+</div>

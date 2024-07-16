@@ -1,0 +1,27 @@
+.modal-body {
+  min-height: 20vh;
+  max-height: 60vh;
+  overflow: auto;
+
+  table {
+    table-layout: fixed;
+    width: 100%;
+
+    #checkbox-col {
+      width: 10%;
+    }
+
+    #id-col {
+      width: 10%;
+    }
+
+    #name-col {
+      width: 40%;
+    }
+
+    td {
+      word-wrap: break-word;
+      white-space: normal;
+    }
+  }
+}

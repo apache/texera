@@ -10,12 +10,12 @@ import { UserProjectComponent } from "./dashboard/user/component/user-project/us
 import { WorkspaceComponent } from "./workspace/component/workspace.component";
 import { HomeComponent } from "./home/component/home.component";
 import { AuthGuardService } from "./common/service/user/auth-guard.service";
-import { AdminUserComponent } from "./dashboard/component/admin/user/admin-user.component";
-import { AdminExecutionComponent } from "./dashboard/component/admin/execution/admin-execution.component";
+import { AdminUserComponent } from "./dashboard/user/component/admin/user/admin-user.component";
+import { AdminExecutionComponent } from "./dashboard/user/component/admin/execution/admin-execution.component";
 import { AdminGuardService } from "./dashboard/user/service/admin/guard/admin-guard.service";
 import { SearchComponent } from "./dashboard/user/component/search/search.component";
 import { FlarumComponent } from "./dashboard/user/component/flarum/flarum.component";
-import { AdminGmailComponent } from "./dashboard/component/admin/gmail/admin-gmail.component";
+import { AdminGmailComponent } from "./dashboard/user/component/admin/gmail/admin-gmail.component";
 import { UserDatasetExplorerComponent } from "./dashboard/user/component/user-dataset/user-dataset-explorer/user-dataset-explorer.component";
 import { UserDatasetComponent } from "./dashboard/user/component/user-dataset/user-dataset.component";
 /*
