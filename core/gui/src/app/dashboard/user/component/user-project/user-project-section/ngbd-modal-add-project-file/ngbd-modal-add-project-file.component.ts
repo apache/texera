@@ -1,7 +1,7 @@
 import { Component, inject, OnInit } from "@angular/core";
 import { forkJoin, Observable } from "rxjs";
-import { UserFileService } from "../../../../service/user-file/user-file.service";
-import { UserProjectService } from "../../../../service/user-project/user-project.service";
+import { UserFileService } from "../../../../../service/user/file/user-file.service";
+import { UserProjectService } from "../../../../../service/user/project/user-project.service";
 import { DashboardFile } from "../../../../../type/dashboard-file.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";

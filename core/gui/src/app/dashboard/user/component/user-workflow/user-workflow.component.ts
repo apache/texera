@@ -15,13 +15,13 @@ import { NotificationService } from "../../../../common/service/notification/not
 import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
 import { NzUploadFile } from "ng-zorro-antd/upload";
 import * as JSZip from "jszip";
-import { FileSaverService } from "../../service/user-file/file-saver.service";
+import { FileSaverService } from "../../../service/user/file/file-saver.service";
 import { FiltersComponent } from "../filters/filters.component";
 import { SearchResultsComponent } from "../search-results/search-results.component";
-import { SearchService } from "../../service/search.service";
+import { SearchService } from "../../../service/user/search.service";
 import { SortMethod } from "../../../type/sort-method";
 import { isDefined } from "../../../../common/util/predicate";
-import { UserProjectService } from "../../service/user-project/user-project.service";
+import { UserProjectService } from "../../../service/user/project/user-project.service";
 import { map, mergeMap, tap } from "rxjs/operators";
 /**
  * Saved-workflow-section component contains information and functionality

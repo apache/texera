@@ -2,7 +2,7 @@ import { Component, EventEmitter, Input, Output } from "@angular/core";
 import { DashboardFile } from "../../../../type/dashboard-file.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzModalService } from "ng-zorro-antd/modal";
-import { UserFileService } from "../../../service/user-file/user-file.service";
+import { UserFileService } from "../../../../service/user/file/user-file.service";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { ShareAccessComponent } from "../../share-access/share-access.component";
 

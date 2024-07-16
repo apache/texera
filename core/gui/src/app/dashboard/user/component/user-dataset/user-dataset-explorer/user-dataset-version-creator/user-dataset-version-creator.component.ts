@@ -1,7 +1,7 @@
 import { Component, EventEmitter, Input, OnInit, Output } from "@angular/core";
 import { FormBuilder, FormGroup, Validators } from "@angular/forms";
 import { FormlyFieldConfig } from "@ngx-formly/core";
-import { DatasetService } from "../../../../service/user-dataset/dataset.service";
+import { DatasetService } from "../../../../../service/user/dataset/dataset.service";
 import { FileUploadItem } from "../../../../../type/dashboard-file.interface";
 import { Dataset, DatasetVersion } from "../../../../../../common/type/dataset";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";

@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { UserQuotaComponent } from "./user-quota.component";
-import { UserQuotaService } from "../../service/user-quota/user-quota.service";
+import { UserQuotaService } from "../../../service/user/quota/user-quota.service";
 
 describe("UserQuotaComponent", () => {
   let component: UserQuotaComponent;

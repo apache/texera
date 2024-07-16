@@ -1,10 +1,10 @@
 import { Component, inject } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { File, Workflow, MongoExecution, MongoWorkflow } from "../../../../common/type/user";
-import { UserFileService } from "../../service/user-file/user-file.service";
+import { UserFileService } from "../../../service/user/file/user-file.service";
 import { NzTableSortFn } from "ng-zorro-antd/table";
-import { UserQuotaService } from "../../service/user-quota/user-quota.service";
-import { AdminUserService } from "../../service/admin/user/admin-user.service";
+import { UserQuotaService } from "../../../service/user/quota/user-quota.service";
+import { AdminUserService } from "../../../service/admin/user/admin-user.service";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
 
 type UserServiceType = AdminUserService | UserQuotaService;

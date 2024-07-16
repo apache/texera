@@ -1,7 +1,7 @@
 import { Component, OnInit } from "@angular/core";
 import { ActivatedRoute, NavigationEnd, Router } from "@angular/router";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { DatasetService } from "../../../service/user-dataset/dataset.service";
+import { DatasetService } from "../../../../service/user/dataset/dataset.service";
 import { NzResizeEvent } from "ng-zorro-antd/resizable";
 import {
   DatasetVersionFileTreeNode,

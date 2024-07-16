@@ -1,13 +1,13 @@
 import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
 import { UserWorkflowListItemComponent } from "./user-workflow-list-item.component";
-import { FileSaverService } from "../../../service/user-file/file-saver.service";
-import { testWorkflowEntries } from "../../user-dashboard-test-fixtures";
+import { FileSaverService } from "../../../../service/user/file/file-saver.service";
+import { testWorkflowEntries } from "../../../../component/user-dashboard-test-fixtures";
 import { By } from "@angular/platform-browser";
 import { StubWorkflowPersistService } from "src/app/common/service/workflow-persist/stub-workflow-persist.service";
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
 import { HttpClient, HttpHandler } from "@angular/common/http";
-import { UserProjectService } from "../../../service/user-project/user-project.service";
-import { StubUserProjectService } from "../../../service/user-project/stub-user-project.service";
+import { UserProjectService } from "../../../../service/user/project/user-project.service";
+import { StubUserProjectService } from "../../../../service/user/project/stub-user-project.service";
 import { NzModalModule } from "ng-zorro-antd/modal";
 import { HighlightSearchTermsPipe } from "./highlight-search-terms.pipe";
 

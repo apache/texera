@@ -9,9 +9,9 @@ import {
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { ShareAccessComponent } from "../../share-access/share-access.component";
 import { Workflow } from "src/app/common/type/workflow";
-import { FileSaverService } from "../../../service/user-file/file-saver.service";
+import { FileSaverService } from "../../../../service/user/file/file-saver.service";
 import { DashboardProject } from "../../../../type/dashboard-project.interface";
-import { UserProjectService } from "../../../service/user-project/user-project.service";
+import { UserProjectService } from "../../../../service/user/project/user-project.service";
 import { DashboardEntry } from "../../../../type/dashboard-entry";
 import { firstValueFrom } from "rxjs";
 

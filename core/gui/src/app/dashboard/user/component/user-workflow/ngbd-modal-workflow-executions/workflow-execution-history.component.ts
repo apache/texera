@@ -1,7 +1,7 @@
 import { AfterViewInit, Component, Inject, OnInit, Optional } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowExecutionsEntry } from "../../../../type/workflow-executions-entry";
-import { WorkflowExecutionsService } from "../../../service/workflow-executions/workflow-executions.service";
+import { WorkflowExecutionsService } from "../../../../service/user/workflow-executions/workflow-executions.service";
 import { ExecutionState } from "../../../../../workspace/types/execute-workflow.interface";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { WorkflowActionService } from "../../../../../workspace/service/workflow-graph/model/workflow-action.service";

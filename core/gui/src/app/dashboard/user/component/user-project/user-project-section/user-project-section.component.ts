@@ -1,12 +1,12 @@
 import { Component, OnInit } from "@angular/core";
-import { UserProjectService } from "../../../service/user-project/user-project.service";
+import { UserProjectService } from "../../../../service/user/project/user-project.service";
 import { ActivatedRoute, Router } from "@angular/router";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { NgbdModalAddProjectFileComponent } from "./ngbd-modal-add-project-file/ngbd-modal-add-project-file.component";
 import { NgbdModalRemoveProjectFileComponent } from "./ngbd-modal-remove-project-file/ngbd-modal-remove-project-file.component";
 import { DashboardFile } from "../../../../type/dashboard-file.interface";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
-import { UserFileService } from "../../../service/user-file/user-file.service";
+import { UserFileService } from "../../../../service/user/file/user-file.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DashboardProject } from "../../../../type/dashboard-project.interface";
 import { isDefined } from "../../../../../common/util/predicate";

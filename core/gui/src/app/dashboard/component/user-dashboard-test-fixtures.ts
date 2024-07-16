@@ -1,8 +1,8 @@
 //All times in test Workflows are in PST because our local machine's timezone is PST
 
-import { Workflow, WorkflowContent } from "src/app/common/type/workflow";
-import { DashboardEntry } from "../../type/dashboard-entry";
-import { DashboardProject } from "../../type/dashboard-project.interface";
+import { Workflow, WorkflowContent } from "../../common/type/workflow";
+import { DashboardEntry } from "../type/dashboard-entry";
+import { DashboardProject } from "../type/dashboard-project.interface";
 
 //the Date class creates unix timestamp based on local timezone, therefore test workflow time needs to be in local timezone
 const oneDay = 86400000;

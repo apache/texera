@@ -5,7 +5,7 @@ import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { UndoRedoService } from "../../../../workspace/service/undo-redo/undo-redo.service";
 import { isEqual } from "lodash";
-import { OperatorLink, OperatorPredicate, Point } from "src/app/workspace/types/workflow-common.interface";
+import { OperatorLink, OperatorPredicate, Point } from "../../../../workspace/types/workflow-common.interface";
 import { WorkflowVersionEntry } from "../../../type/workflow-version-entry";
 import { AppSettings } from "../../../../common/app-setting";
 import { filter, map } from "rxjs/operators";

@@ -3,7 +3,7 @@ import { DashboardProject } from "../../../type/dashboard-project.interface";
 import { DashboardWorkflow } from "../../../type/dashboard-workflow.interface";
 import { DashboardFile } from "../../../type/dashboard-file.interface";
 import { UserProjectService } from "./user-project.service";
-import { testUserProjects } from "../../component/user-dashboard-test-fixtures";
+import { testUserProjects } from "../../../component/user-dashboard-test-fixtures";
 
 export class StubUserProjectService {
   public getProjectList(): Observable<DashboardProject[]> {
