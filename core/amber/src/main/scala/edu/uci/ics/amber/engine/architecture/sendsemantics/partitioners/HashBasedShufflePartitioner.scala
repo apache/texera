@@ -16,5 +16,6 @@ case class HashBasedShufflePartitioner(partitioning: HashBasedShufflePartitionin
     Iterator(index)
   }
 
-  override def allReceivers: Seq[ActorVirtualIdentity] = partitioning.channels.map(_.toWorkerId).distinct
+  override def allReceivers: Seq[ActorVirtualIdentity] =
+    partitioning.channels.map(_.toWorkerId).distinct
 }

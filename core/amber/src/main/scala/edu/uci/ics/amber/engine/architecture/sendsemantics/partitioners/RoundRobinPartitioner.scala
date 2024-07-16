@@ -12,5 +12,6 @@ case class RoundRobinPartitioner(partitioning: RoundRobinPartitioning) extends P
     Iterator(roundRobinIndex)
   }
 
-  override def allReceivers: Seq[ActorVirtualIdentity] = partitioning.channels.map(_.toWorkerId).distinct
+  override def allReceivers: Seq[ActorVirtualIdentity] =
+    partitioning.channels.map(_.toWorkerId).distinct
 }

@@ -10,5 +10,6 @@ case class BroadcastPartitioner(partitioning: BroadcastPartitioning) extends Par
     partitioning.channels.indices.iterator
   }
 
-  override def allReceivers: Seq[ActorVirtualIdentity] = partitioning.channels.map(_.toWorkerId).distinct
+  override def allReceivers: Seq[ActorVirtualIdentity] =
+    partitioning.channels.map(_.toWorkerId).distinct
 }
