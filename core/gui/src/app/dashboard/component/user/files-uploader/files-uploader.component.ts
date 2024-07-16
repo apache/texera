@@ -1,7 +1,7 @@
-import { Component, EventEmitter, Input, OnInit, Output } from "@angular/core";
+import { Component, EventEmitter, Input, Output } from "@angular/core";
 import { FileUploadItem } from "../../../type/dashboard-file.interface";
 import { NgxFileDropEntry } from "ngx-file-drop";
-import { UserFileUploadService } from "../../service/user-file/user-file-upload.service";
+import { UserFileUploadService } from "../../../service/user/file/user-file-upload.service";
 import {
   DatasetVersionFileTreeManager,
   DatasetVersionFileTreeNode,

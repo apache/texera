@@ -1,13 +1,13 @@
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { SearchComponent } from "./search.component";
-import { SearchService } from "../../service/search.service";
-import { StubSearchService } from "../../service/stub-search.service";
-import { testUserProjects, testWorkflowEntries } from "../user-dashboard-test-fixtures";
+import { SearchService } from "../../../service/user/search.service";
+import { StubSearchService } from "../../../service/user/stub-search.service";
+import { testUserProjects, testWorkflowEntries } from "../../user-dashboard-test-fixtures";
 import { FiltersComponent } from "../filters/filters.component";
 import { StubOperatorMetadataService } from "src/app/workspace/service/operator-metadata/stub-operator-metadata.service";
 import { OperatorMetadataService } from "src/app/workspace/service/operator-metadata/operator-metadata.service";
-import { UserProjectService } from "../../service/user-project/user-project.service";
-import { StubUserProjectService } from "../../service/user-project/stub-user-project.service";
+import { UserProjectService } from "../../../service/user/project/user-project.service";
+import { StubUserProjectService } from "../../../service/user/project/stub-user-project.service";
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
 import { StubWorkflowPersistService } from "src/app/common/service/workflow-persist/stub-workflow-persist.service";
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";

@@ -1,6 +1,6 @@
 import { Component, inject, OnInit } from "@angular/core";
 import { FormBuilder, FormGroup, Validators } from "@angular/forms";
-import { ShareAccessService } from "../../service/share-access/share-access.service";
+import { ShareAccessService } from "../../../service/user/share-access/share-access.service";
 import { ShareAccess } from "../../../type/share-access.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { UserService } from "../../../../common/service/user/user.service";

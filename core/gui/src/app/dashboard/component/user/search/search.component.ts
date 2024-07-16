@@ -1,6 +1,6 @@
 import { Component, ViewChild } from "@angular/core";
 import { DashboardEntry } from "../../../type/dashboard-entry";
-import { SearchService } from "../../service/search.service";
+import { SearchService } from "../../../service/user/search.service";
 import { FiltersComponent } from "../filters/filters.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { firstValueFrom } from "rxjs";
