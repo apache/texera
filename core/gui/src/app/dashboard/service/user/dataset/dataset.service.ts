@@ -8,7 +8,7 @@ import { Observable } from "rxjs";
 import { SearchFilterParameters, toQueryStrings } from "../../../type/search-filter-parameters";
 import { DashboardDataset } from "../../../type/dashboard-dataset.interface";
 import { FileUploadItem } from "../../../type/dashboard-file.interface";
-import { UserFileUploadService } from "../user-file/user-file-upload.service";
+import { UserFileUploadService } from "../file/user-file-upload.service";
 import {
   DatasetVersionFileTree,
   DatasetVersionFileTreeNode,
