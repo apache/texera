@@ -4,7 +4,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { debounceTime } from "rxjs/operators";
 import { map } from "rxjs";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
-import { EnvironmentService } from "../../../dashboard/user/service/user-environment/environment.service";
+import { EnvironmentService } from "../../../dashboard/service/user/environment/environment.service";
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { FileSelectionComponent } from "../file-selection/file-selection.component";

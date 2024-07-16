@@ -13,7 +13,7 @@ import { Observable, of } from "rxjs";
 import { mockLogicalPlan_scan_result, mockWorkflowPlan_scan_result } from "./mock-workflow-plan";
 import { HttpClient } from "@angular/common/http";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
-import { WorkflowSnapshotService } from "../../../dashboard/user/service/workflow-snapshot/workflow-snapshot.service";
+import { WorkflowSnapshotService } from "../../../dashboard/service/user/workflow-snapshot/workflow-snapshot.service";
 
 class StubHttpClient {
   public post(): Observable<string> {
