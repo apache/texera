@@ -35,7 +35,6 @@ abstract class SklearnMLOpDesc extends PythonOperatorDescriptor {
 
   @JsonSchemaTitle("Text Attribute")
   @JsonPropertyDescription("Attribute in your dataset with text to vectorize.")
-  @JsonProperty(required = true)
   @JsonSchemaInject(
     strings = Array(
       new JsonSchemaString(
