@@ -95,6 +95,7 @@ export class ShareAccessComponent implements OnInit {
   }
 
   public grantAccess(): void {
+    this.handleInputConfirm();
     if (this.emailTags.length > 0) {
       this.emailTags.forEach(email => {
         this.accessService
