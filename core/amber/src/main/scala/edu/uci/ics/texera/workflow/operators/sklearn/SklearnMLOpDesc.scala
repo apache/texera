@@ -35,7 +35,6 @@ abstract class SklearnMLOpDesc extends PythonOperatorDescriptor {
 
   @JsonSchemaTitle("Text Attribute")
   @JsonPropertyDescription("Attribute in your dataset with text to vectorize.")
-  @JsonProperty(required = true)
   @JsonSchemaInject(
     strings = Array(
       new JsonSchemaString(
@@ -75,6 +74,7 @@ abstract class SklearnMLOpDesc extends PythonOperatorDescriptor {
        |from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, mean_absolute_error, r2_score
        |from sklearn.pipeline import make_pipeline
        |from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
+       |from pickle import dumps
        |import numpy as np
        |from pytexera import *
        |class ProcessTableOperator(UDFTableOperator):
@@ -90,6 +90,7 @@ abstract class SklearnMLOpDesc extends PythonOperatorDescriptor {
       .last}()).fit(X, Y)
        |        else:
        |            predictions = self.model.predict(X)
+       |            serializedModel = dumps(self.model)
        |            if ${if (classification) "True"
     else "False"}:
        |                print("Overall Accuracy:", accuracy_score(Y, predictions))
@@ -98,12 +99,12 @@ abstract class SklearnMLOpDesc extends PythonOperatorDescriptor {
        |                recalls = recall_score(Y, predictions, average=None)
        |                for i, class_name in enumerate(np.unique(Y)):
        |                    print("Class", repr(class_name), " - F1:", f1s[i], ", Precision:", precisions[i], ", Recall:", recalls[i])
-       |                yield {"model_name" : "$getUserFriendlyModelName", "model" : self.model}
+       |                yield {"model_name" : "$getUserFriendlyModelName", "model" : serializedModel}
        |            else:
        |                mae = mean_absolute_error(Y, predictions)
        |                r2 = r2_score(Y, predictions)
        |                print("MAE:", mae, ", R2:", r2)
-       |                yield {"model_name" : "$getUserFriendlyModelName", "model" : self.model}""".stripMargin
+       |                yield {"model_name" : "$getUserFriendlyModelName", "model" : serializedModel}""".stripMargin
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
