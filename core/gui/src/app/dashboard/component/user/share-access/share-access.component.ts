@@ -38,7 +38,8 @@ export class ShareAccessComponent implements OnInit {
     private message: NzMessageService
   ) {
     this.validateForm = this.formBuilder.group({
-      email: [null, Validators.email],
+      // email: [null, Validators.email],
+      email: [null],
       accessLevel: ["READ"],
     });
     this.currentEmail = this.userService.getCurrentUser()?.email;
@@ -132,7 +133,10 @@ export class ShareAccessComponent implements OnInit {
     event.preventDefault();
     const pasteData = event.clipboardData?.getData('text');
     if (pasteData) {
-      this.validateForm.get('email')?.setValue(pasteData);
+      const currentEmailValue = this.validateForm.get('email')?.value || '';
+      // concaste new emails and old emails
+      const newValue = currentEmailValue + pasteData;
+      this.validateForm.get('email')?.setValue(newValue);
       this.handleInputConfirm();
     }
   }
