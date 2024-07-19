@@ -13,6 +13,8 @@ import { NzMessageService } from "ng-zorro-antd/message";
 @UntilDestroy()
 @Component({
   templateUrl: "share-access.component.html",
+  selector: 'app-share-access',
+  styleUrls: ['./share-access.component.scss']
 })
 export class ShareAccessComponent implements OnInit {
   readonly nzModalData = inject(NZ_MODAL_DATA);
@@ -38,8 +40,8 @@ export class ShareAccessComponent implements OnInit {
     private message: NzMessageService
   ) {
     this.validateForm = this.formBuilder.group({
-      // email: [null, Validators.email],
-      email: [null],
+      email: [null, Validators.email],
+      // email: [null],
       accessLevel: ["READ"],
     });
     this.currentEmail = this.userService.getCurrentUser()?.email;
@@ -79,6 +81,11 @@ export class ShareAccessComponent implements OnInit {
     }
   
     this.validateForm.get('email')?.reset();
+  }
+
+  public addEmail(event: Event): void {
+    event.preventDefault();
+    this.handleInputConfirm();
   }
 
   public removeEmailTag(email: string): void {

@@ -15,17 +15,19 @@
           [nzSm]="14"
           [nzXs]="24"
           nzErrorTip="The input is not valid E-mail!">
-          <input
-            nz-input
-            id="email"
-            type="text"
-            formControlName="email"
-            (keydown)="onEmailInput($event)"
-            (paste)="onPaste($event)"
-            [(ngModel)]="ownerSearchValue"
-            (ngModelChange)="onChange($event)"
-            [nzAutocomplete]="auto"
-          />
+            <div class="input-group">
+              <input
+                nz-input
+                id="email"
+                type="text"
+                formControlName="email"
+                (paste)="onPaste($event)"
+                [(ngModel)]="ownerSearchValue"
+                (ngModelChange)="onChange($event)"
+                [nzAutocomplete]="auto"
+              />
+              <button nz-button nzType="primary" (click)="addEmail($event)" class="add-button">+</button>
+            </div>
           <nz-autocomplete
             [nzDefaultActiveFirstOption]="false"
             [nzDataSource]="filteredOwners"
@@ -100,3 +102,5 @@
     </button>
   </li>
 </ul>
+
+
