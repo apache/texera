@@ -9,7 +9,7 @@
           [nzXs]="24"
           nzRequired
           nzFor="email"
-          >E-mail</nz-form-label
+          >E-mails</nz-form-label
         >
         <nz-form-control
           [nzSm]="14"
@@ -18,16 +18,31 @@
           <input
             nz-input
             id="email"
-            type="email"
+            type="text"
             formControlName="email"
+            (keydown)="onEmailInput($event)"
+            (paste)="onPaste($event)"
             [(ngModel)]="ownerSearchValue"
             (ngModelChange)="onChange($event)"
-            [nzAutocomplete]="auto" />
+            [nzAutocomplete]="auto"
+          />
           <nz-autocomplete
             [nzDefaultActiveFirstOption]="false"
             [nzDataSource]="filteredOwners"
             nzBackfill
             #auto></nz-autocomplete>
+        </nz-form-control>
+      </nz-form-item>
+      <nz-form-item>
+        <nz-form-control [nzSm]="24" [nzXs]="24">
+          <div style="max-height: 200px; overflow-y: auto;">
+            <nz-tag
+              *ngFor="let email of emailTags"
+              nzMode="closeable"
+              (nzOnClose)="removeEmailTag(email)">
+              {{ email }}
+            </nz-tag>
+          </div>
         </nz-form-control>
       </nz-form-item>
     </nz-card>
@@ -42,7 +57,7 @@
         </select>
       </div>
       <button
-        [disabled]="!writeAccess"
+        [disabled]="!writeAccess || emailTags.length === 0"
         style="width: 100%"
         nz-button
         nzType="primary"
