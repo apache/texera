@@ -97,7 +97,8 @@ class WorkerSpec
       mockPortId
     )
 
-  private val mockPolicy = OneToOnePartitioning(10, Seq(identifier2))
+  private val mockPolicy =
+    OneToOnePartitioning(10, Seq(ChannelIdentity(identifier1, identifier2, isControl = false)))
 
   def sendControlToWorker(
       worker: ActorRef,

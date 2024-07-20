@@ -1,5 +1,5 @@
 import typing
-from typing import Iterator, List
+from typing import Iterator
 
 from overrides import overrides
 
@@ -19,7 +19,9 @@ class BroadcastPartitioner(Partitioner):
         super().__init__(set_one_of(Partitioning, partitioning))
         self.batch_size = partitioning.batch_size
         self.batch: list[Tuple] = list()
-        self.receivers: List[ActorVirtualIdentity] = partitioning.receivers
+        self.receivers = list(
+            {channel.to_worker_id for channel in partitioning.channels}
+        )
 
     @overrides
     def add_tuple_to_batch(

@@ -15,13 +15,14 @@ from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity
 
 
 class OneToOnePartitioner(Partitioner):
-    def __init__(self, partitioning: OneToOnePartitioning):
+    def __init__(self, partitioning: OneToOnePartitioning, worker_id: str):
         super().__init__(set_one_of(Partitioning, partitioning))
         self.batch_size = partitioning.batch_size
         self.batch: list[Tuple] = list()
-        self.receiver = partitioning.receivers[
-            0
-        ]  # one to one will have only one receiver.
+        for channel in partitioning.channels:
+            if channel.from_worker_id.name == worker_id:
+                self.receiver = channel.to_worker_id
+                break  # one to one will have only one receiver.
 
     @overrides
     def add_tuple_to_batch(

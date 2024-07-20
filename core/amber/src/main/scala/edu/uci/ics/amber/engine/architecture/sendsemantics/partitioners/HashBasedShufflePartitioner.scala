@@ -7,8 +7,10 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 case class HashBasedShufflePartitioner(partitioning: HashBasedShufflePartitioning)
     extends Partitioner {
 
+  private val receivers = partitioning.channels.map(_.toWorkerId).distinct
+
   override def getBucketIndex(tuple: Tuple): Iterator[Int] = {
-    val numBuckets = partitioning.receivers.length
+    val numBuckets = receivers.length
     val partialTuple =
       if (partitioning.hashAttributeNames.isEmpty) tuple
       else tuple.getPartialTuple(partitioning.hashAttributeNames.toList)
@@ -16,5 +18,5 @@ case class HashBasedShufflePartitioner(partitioning: HashBasedShufflePartitionin
     Iterator(index)
   }
 
-  override def allReceivers: Seq[ActorVirtualIdentity] = partitioning.receivers
+  override def allReceivers: Seq[ActorVirtualIdentity] = receivers
 }

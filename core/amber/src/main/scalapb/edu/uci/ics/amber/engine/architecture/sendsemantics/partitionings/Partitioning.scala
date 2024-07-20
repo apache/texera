@@ -286,7 +286,7 @@ object PartitioningMessage extends scalapb.GeneratedMessageCompanion[edu.uci.ics
 @SerialVersionUID(0L)
 final case class OneToOnePartitioning(
     batchSize: _root_.scala.Int,
-    receivers: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]
+    channels: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity]
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning.NonEmpty with scalapb.lenses.Updatable[OneToOnePartitioning] {
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
@@ -299,7 +299,7 @@ final case class OneToOnePartitioning(
           __size += _root_.com.google.protobuf.CodedOutputStream.computeInt32Size(1, __value)
         }
       };
-      receivers.foreach { __item =>
+      channels.foreach { __item =>
         val __value = __item
         __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
       }
@@ -320,7 +320,7 @@ final case class OneToOnePartitioning(
           _output__.writeInt32(1, __v)
         }
       };
-      receivers.foreach { __v =>
+      channels.foreach { __v =>
         val __m = __v
         _output__.writeTag(2, 2)
         _output__.writeUInt32NoTag(__m.serializedSize)
@@ -328,24 +328,24 @@ final case class OneToOnePartitioning(
       };
     }
     def withBatchSize(__v: _root_.scala.Int): OneToOnePartitioning = copy(batchSize = __v)
-    def clearReceivers = copy(receivers = _root_.scala.Seq.empty)
-    def addReceivers(__vs: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity*): OneToOnePartitioning = addAllReceivers(__vs)
-    def addAllReceivers(__vs: Iterable[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]): OneToOnePartitioning = copy(receivers = receivers ++ __vs)
-    def withReceivers(__v: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]): OneToOnePartitioning = copy(receivers = __v)
+    def clearChannels = copy(channels = _root_.scala.Seq.empty)
+    def addChannels(__vs: edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity*): OneToOnePartitioning = addAllChannels(__vs)
+    def addAllChannels(__vs: Iterable[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity]): OneToOnePartitioning = copy(channels = channels ++ __vs)
+    def withChannels(__v: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity]): OneToOnePartitioning = copy(channels = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
         case 1 => {
           val __t = batchSize
           if (__t != 0) __t else null
         }
-        case 2 => receivers
+        case 2 => channels
       }
     }
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
       _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
       (__field.number: @_root_.scala.unchecked) match {
         case 1 => _root_.scalapb.descriptors.PInt(batchSize)
-        case 2 => _root_.scalapb.descriptors.PRepeated(receivers.iterator.map(_.toPMessage).toVector)
+        case 2 => _root_.scalapb.descriptors.PRepeated(channels.iterator.map(_.toPMessage).toVector)
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
@@ -357,7 +357,7 @@ object OneToOnePartitioning extends scalapb.GeneratedMessageCompanion[edu.uci.ic
   implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning] = this
   def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning = {
     var __batchSize: _root_.scala.Int = 0
-    val __receivers: _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity] = new _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]
+    val __channels: _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity] = new _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity]
     var _done__ = false
     while (!_done__) {
       val _tag__ = _input__.readTag()
@@ -366,13 +366,13 @@ object OneToOnePartitioning extends scalapb.GeneratedMessageCompanion[edu.uci.ic
         case 8 =>
           __batchSize = _input__.readInt32()
         case 18 =>
-          __receivers += _root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity](_input__)
+          __channels += _root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity](_input__)
         case tag => _input__.skipField(tag)
       }
     }
     edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning(
         batchSize = __batchSize,
-        receivers = __receivers.result()
+        channels = __channels.result()
     )
   }
   implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning] = _root_.scalapb.descriptors.Reads{
@@ -380,7 +380,7 @@ object OneToOnePartitioning extends scalapb.GeneratedMessageCompanion[edu.uci.ic
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
       edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning(
         batchSize = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Int]).getOrElse(0),
-        receivers = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]]).getOrElse(_root_.scala.Seq.empty)
+        channels = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity]]).getOrElse(_root_.scala.Seq.empty)
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
@@ -389,7 +389,7 @@ object OneToOnePartitioning extends scalapb.GeneratedMessageCompanion[edu.uci.ic
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = {
     var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
     (__number: @_root_.scala.unchecked) match {
-      case 2 => __out = edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+      case 2 => __out = edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity
     }
     __out
   }
@@ -397,20 +397,20 @@ object OneToOnePartitioning extends scalapb.GeneratedMessageCompanion[edu.uci.ic
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
   lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning(
     batchSize = 0,
-    receivers = _root_.scala.Seq.empty
+    channels = _root_.scala.Seq.empty
   )
   implicit class OneToOnePartitioningLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning](_l) {
     def batchSize: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Int] = field(_.batchSize)((c_, f_) => c_.copy(batchSize = f_))
-    def receivers: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]] = field(_.receivers)((c_, f_) => c_.copy(receivers = f_))
+    def channels: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity]] = field(_.channels)((c_, f_) => c_.copy(channels = f_))
   }
   final val BATCHSIZE_FIELD_NUMBER = 1
-  final val RECEIVERS_FIELD_NUMBER = 2
+  final val CHANNELS_FIELD_NUMBER = 2
   def of(
     batchSize: _root_.scala.Int,
-    receivers: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]
+    channels: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity]
   ): _root_.edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning = _root_.edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning(
     batchSize,
-    receivers
+    channels
   )
   // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.sendsemantics.OneToOnePartitioning])
 }
@@ -418,7 +418,7 @@ object OneToOnePartitioning extends scalapb.GeneratedMessageCompanion[edu.uci.ic
 @SerialVersionUID(0L)
 final case class RoundRobinPartitioning(
     batchSize: _root_.scala.Int,
-    receivers: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]
+    channels: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity]
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning.NonEmpty with scalapb.lenses.Updatable[RoundRobinPartitioning] {
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
@@ -431,7 +431,7 @@ final case class RoundRobinPartitioning(
           __size += _root_.com.google.protobuf.CodedOutputStream.computeInt32Size(1, __value)
         }
       };
-      receivers.foreach { __item =>
+      channels.foreach { __item =>
         val __value = __item
         __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
       }
@@ -452,7 +452,7 @@ final case class RoundRobinPartitioning(
           _output__.writeInt32(1, __v)
         }
       };
-      receivers.foreach { __v =>
+      channels.foreach { __v =>
         val __m = __v
         _output__.writeTag(2, 2)
         _output__.writeUInt32NoTag(__m.serializedSize)
@@ -460,24 +460,24 @@ final case class RoundRobinPartitioning(
       };
     }
     def withBatchSize(__v: _root_.scala.Int): RoundRobinPartitioning = copy(batchSize = __v)
-    def clearReceivers = copy(receivers = _root_.scala.Seq.empty)
-    def addReceivers(__vs: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity*): RoundRobinPartitioning = addAllReceivers(__vs)
-    def addAllReceivers(__vs: Iterable[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]): RoundRobinPartitioning = copy(receivers = receivers ++ __vs)
-    def withReceivers(__v: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]): RoundRobinPartitioning = copy(receivers = __v)
+    def clearChannels = copy(channels = _root_.scala.Seq.empty)
+    def addChannels(__vs: edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity*): RoundRobinPartitioning = addAllChannels(__vs)
+    def addAllChannels(__vs: Iterable[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity]): RoundRobinPartitioning = copy(channels = channels ++ __vs)
+    def withChannels(__v: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity]): RoundRobinPartitioning = copy(channels = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
         case 1 => {
           val __t = batchSize
           if (__t != 0) __t else null
         }
-        case 2 => receivers
+        case 2 => channels
       }
     }
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
       _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
       (__field.number: @_root_.scala.unchecked) match {
         case 1 => _root_.scalapb.descriptors.PInt(batchSize)
-        case 2 => _root_.scalapb.descriptors.PRepeated(receivers.iterator.map(_.toPMessage).toVector)
+        case 2 => _root_.scalapb.descriptors.PRepeated(channels.iterator.map(_.toPMessage).toVector)
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
@@ -489,7 +489,7 @@ object RoundRobinPartitioning extends scalapb.GeneratedMessageCompanion[edu.uci.
   implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RoundRobinPartitioning] = this
   def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RoundRobinPartitioning = {
     var __batchSize: _root_.scala.Int = 0
-    val __receivers: _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity] = new _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]
+    val __channels: _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity] = new _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity]
     var _done__ = false
     while (!_done__) {
       val _tag__ = _input__.readTag()
@@ -498,13 +498,13 @@ object RoundRobinPartitioning extends scalapb.GeneratedMessageCompanion[edu.uci.
         case 8 =>
           __batchSize = _input__.readInt32()
         case 18 =>
-          __receivers += _root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity](_input__)
+          __channels += _root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity](_input__)
         case tag => _input__.skipField(tag)
       }
     }
     edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RoundRobinPartitioning(
         batchSize = __batchSize,
-        receivers = __receivers.result()
+        channels = __channels.result()
     )
   }
   implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RoundRobinPartitioning] = _root_.scalapb.descriptors.Reads{
@@ -512,7 +512,7 @@ object RoundRobinPartitioning extends scalapb.GeneratedMessageCompanion[edu.uci.
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
       edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RoundRobinPartitioning(
         batchSize = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Int]).getOrElse(0),
-        receivers = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]]).getOrElse(_root_.scala.Seq.empty)
+        channels = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity]]).getOrElse(_root_.scala.Seq.empty)
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
@@ -521,7 +521,7 @@ object RoundRobinPartitioning extends scalapb.GeneratedMessageCompanion[edu.uci.
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = {
     var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
     (__number: @_root_.scala.unchecked) match {
-      case 2 => __out = edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+      case 2 => __out = edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity
     }
     __out
   }
@@ -529,20 +529,20 @@ object RoundRobinPartitioning extends scalapb.GeneratedMessageCompanion[edu.uci.
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
   lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RoundRobinPartitioning(
     batchSize = 0,
-    receivers = _root_.scala.Seq.empty
+    channels = _root_.scala.Seq.empty
   )
   implicit class RoundRobinPartitioningLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RoundRobinPartitioning]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RoundRobinPartitioning](_l) {
     def batchSize: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Int] = field(_.batchSize)((c_, f_) => c_.copy(batchSize = f_))
-    def receivers: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]] = field(_.receivers)((c_, f_) => c_.copy(receivers = f_))
+    def channels: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity]] = field(_.channels)((c_, f_) => c_.copy(channels = f_))
   }
   final val BATCHSIZE_FIELD_NUMBER = 1
-  final val RECEIVERS_FIELD_NUMBER = 2
+  final val CHANNELS_FIELD_NUMBER = 2
   def of(
     batchSize: _root_.scala.Int,
-    receivers: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]
+    channels: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity]
   ): _root_.edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RoundRobinPartitioning = _root_.edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RoundRobinPartitioning(
     batchSize,
-    receivers
+    channels
   )
   // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.sendsemantics.RoundRobinPartitioning])
 }
@@ -550,7 +550,7 @@ object RoundRobinPartitioning extends scalapb.GeneratedMessageCompanion[edu.uci.
 @SerialVersionUID(0L)
 final case class HashBasedShufflePartitioning(
     batchSize: _root_.scala.Int,
-    receivers: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity],
+    channels: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity],
     hashAttributeNames: _root_.scala.Seq[_root_.scala.Predef.String]
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning.NonEmpty with scalapb.lenses.Updatable[HashBasedShufflePartitioning] {
     @transient
@@ -564,7 +564,7 @@ final case class HashBasedShufflePartitioning(
           __size += _root_.com.google.protobuf.CodedOutputStream.computeInt32Size(1, __value)
         }
       };
-      receivers.foreach { __item =>
+      channels.foreach { __item =>
         val __value = __item
         __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
       }
@@ -589,7 +589,7 @@ final case class HashBasedShufflePartitioning(
           _output__.writeInt32(1, __v)
         }
       };
-      receivers.foreach { __v =>
+      channels.foreach { __v =>
         val __m = __v
         _output__.writeTag(2, 2)
         _output__.writeUInt32NoTag(__m.serializedSize)
@@ -601,10 +601,10 @@ final case class HashBasedShufflePartitioning(
       };
     }
     def withBatchSize(__v: _root_.scala.Int): HashBasedShufflePartitioning = copy(batchSize = __v)
-    def clearReceivers = copy(receivers = _root_.scala.Seq.empty)
-    def addReceivers(__vs: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity*): HashBasedShufflePartitioning = addAllReceivers(__vs)
-    def addAllReceivers(__vs: Iterable[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]): HashBasedShufflePartitioning = copy(receivers = receivers ++ __vs)
-    def withReceivers(__v: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]): HashBasedShufflePartitioning = copy(receivers = __v)
+    def clearChannels = copy(channels = _root_.scala.Seq.empty)
+    def addChannels(__vs: edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity*): HashBasedShufflePartitioning = addAllChannels(__vs)
+    def addAllChannels(__vs: Iterable[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity]): HashBasedShufflePartitioning = copy(channels = channels ++ __vs)
+    def withChannels(__v: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity]): HashBasedShufflePartitioning = copy(channels = __v)
     def clearHashAttributeNames = copy(hashAttributeNames = _root_.scala.Seq.empty)
     def addHashAttributeNames(__vs: _root_.scala.Predef.String*): HashBasedShufflePartitioning = addAllHashAttributeNames(__vs)
     def addAllHashAttributeNames(__vs: Iterable[_root_.scala.Predef.String]): HashBasedShufflePartitioning = copy(hashAttributeNames = hashAttributeNames ++ __vs)
@@ -615,7 +615,7 @@ final case class HashBasedShufflePartitioning(
           val __t = batchSize
           if (__t != 0) __t else null
         }
-        case 2 => receivers
+        case 2 => channels
         case 3 => hashAttributeNames
       }
     }
@@ -623,7 +623,7 @@ final case class HashBasedShufflePartitioning(
       _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
       (__field.number: @_root_.scala.unchecked) match {
         case 1 => _root_.scalapb.descriptors.PInt(batchSize)
-        case 2 => _root_.scalapb.descriptors.PRepeated(receivers.iterator.map(_.toPMessage).toVector)
+        case 2 => _root_.scalapb.descriptors.PRepeated(channels.iterator.map(_.toPMessage).toVector)
         case 3 => _root_.scalapb.descriptors.PRepeated(hashAttributeNames.iterator.map(_root_.scalapb.descriptors.PString(_)).toVector)
       }
     }
@@ -636,7 +636,7 @@ object HashBasedShufflePartitioning extends scalapb.GeneratedMessageCompanion[ed
   implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.HashBasedShufflePartitioning] = this
   def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.HashBasedShufflePartitioning = {
     var __batchSize: _root_.scala.Int = 0
-    val __receivers: _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity] = new _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]
+    val __channels: _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity] = new _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity]
     val __hashAttributeNames: _root_.scala.collection.immutable.VectorBuilder[_root_.scala.Predef.String] = new _root_.scala.collection.immutable.VectorBuilder[_root_.scala.Predef.String]
     var _done__ = false
     while (!_done__) {
@@ -646,7 +646,7 @@ object HashBasedShufflePartitioning extends scalapb.GeneratedMessageCompanion[ed
         case 8 =>
           __batchSize = _input__.readInt32()
         case 18 =>
-          __receivers += _root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity](_input__)
+          __channels += _root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity](_input__)
         case 26 =>
           __hashAttributeNames += _input__.readStringRequireUtf8()
         case tag => _input__.skipField(tag)
@@ -654,7 +654,7 @@ object HashBasedShufflePartitioning extends scalapb.GeneratedMessageCompanion[ed
     }
     edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.HashBasedShufflePartitioning(
         batchSize = __batchSize,
-        receivers = __receivers.result(),
+        channels = __channels.result(),
         hashAttributeNames = __hashAttributeNames.result()
     )
   }
@@ -663,7 +663,7 @@ object HashBasedShufflePartitioning extends scalapb.GeneratedMessageCompanion[ed
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
       edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.HashBasedShufflePartitioning(
         batchSize = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Int]).getOrElse(0),
-        receivers = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]]).getOrElse(_root_.scala.Seq.empty),
+        channels = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity]]).getOrElse(_root_.scala.Seq.empty),
         hashAttributeNames = __fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).map(_.as[_root_.scala.Seq[_root_.scala.Predef.String]]).getOrElse(_root_.scala.Seq.empty)
       )
     case _ => throw new RuntimeException("Expected PMessage")
@@ -673,7 +673,7 @@ object HashBasedShufflePartitioning extends scalapb.GeneratedMessageCompanion[ed
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = {
     var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
     (__number: @_root_.scala.unchecked) match {
-      case 2 => __out = edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+      case 2 => __out = edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity
     }
     __out
   }
@@ -681,24 +681,24 @@ object HashBasedShufflePartitioning extends scalapb.GeneratedMessageCompanion[ed
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
   lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.HashBasedShufflePartitioning(
     batchSize = 0,
-    receivers = _root_.scala.Seq.empty,
+    channels = _root_.scala.Seq.empty,
     hashAttributeNames = _root_.scala.Seq.empty
   )
   implicit class HashBasedShufflePartitioningLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.HashBasedShufflePartitioning]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.HashBasedShufflePartitioning](_l) {
     def batchSize: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Int] = field(_.batchSize)((c_, f_) => c_.copy(batchSize = f_))
-    def receivers: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]] = field(_.receivers)((c_, f_) => c_.copy(receivers = f_))
+    def channels: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity]] = field(_.channels)((c_, f_) => c_.copy(channels = f_))
     def hashAttributeNames: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[_root_.scala.Predef.String]] = field(_.hashAttributeNames)((c_, f_) => c_.copy(hashAttributeNames = f_))
   }
   final val BATCHSIZE_FIELD_NUMBER = 1
-  final val RECEIVERS_FIELD_NUMBER = 2
+  final val CHANNELS_FIELD_NUMBER = 2
   final val HASHATTRIBUTENAMES_FIELD_NUMBER = 3
   def of(
     batchSize: _root_.scala.Int,
-    receivers: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity],
+    channels: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity],
     hashAttributeNames: _root_.scala.Seq[_root_.scala.Predef.String]
   ): _root_.edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.HashBasedShufflePartitioning = _root_.edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.HashBasedShufflePartitioning(
     batchSize,
-    receivers,
+    channels,
     hashAttributeNames
   )
   // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.sendsemantics.HashBasedShufflePartitioning])
@@ -707,7 +707,7 @@ object HashBasedShufflePartitioning extends scalapb.GeneratedMessageCompanion[ed
 @SerialVersionUID(0L)
 final case class RangeBasedShufflePartitioning(
     batchSize: _root_.scala.Int,
-    receivers: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity],
+    channels: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity],
     rangeAttributeNames: _root_.scala.Seq[_root_.scala.Predef.String],
     rangeMin: _root_.scala.Long,
     rangeMax: _root_.scala.Long
@@ -723,7 +723,7 @@ final case class RangeBasedShufflePartitioning(
           __size += _root_.com.google.protobuf.CodedOutputStream.computeInt32Size(1, __value)
         }
       };
-      receivers.foreach { __item =>
+      channels.foreach { __item =>
         val __value = __item
         __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
       }
@@ -762,7 +762,7 @@ final case class RangeBasedShufflePartitioning(
           _output__.writeInt32(1, __v)
         }
       };
-      receivers.foreach { __v =>
+      channels.foreach { __v =>
         val __m = __v
         _output__.writeTag(2, 2)
         _output__.writeUInt32NoTag(__m.serializedSize)
@@ -786,10 +786,10 @@ final case class RangeBasedShufflePartitioning(
       };
     }
     def withBatchSize(__v: _root_.scala.Int): RangeBasedShufflePartitioning = copy(batchSize = __v)
-    def clearReceivers = copy(receivers = _root_.scala.Seq.empty)
-    def addReceivers(__vs: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity*): RangeBasedShufflePartitioning = addAllReceivers(__vs)
-    def addAllReceivers(__vs: Iterable[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]): RangeBasedShufflePartitioning = copy(receivers = receivers ++ __vs)
-    def withReceivers(__v: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]): RangeBasedShufflePartitioning = copy(receivers = __v)
+    def clearChannels = copy(channels = _root_.scala.Seq.empty)
+    def addChannels(__vs: edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity*): RangeBasedShufflePartitioning = addAllChannels(__vs)
+    def addAllChannels(__vs: Iterable[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity]): RangeBasedShufflePartitioning = copy(channels = channels ++ __vs)
+    def withChannels(__v: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity]): RangeBasedShufflePartitioning = copy(channels = __v)
     def clearRangeAttributeNames = copy(rangeAttributeNames = _root_.scala.Seq.empty)
     def addRangeAttributeNames(__vs: _root_.scala.Predef.String*): RangeBasedShufflePartitioning = addAllRangeAttributeNames(__vs)
     def addAllRangeAttributeNames(__vs: Iterable[_root_.scala.Predef.String]): RangeBasedShufflePartitioning = copy(rangeAttributeNames = rangeAttributeNames ++ __vs)
@@ -802,7 +802,7 @@ final case class RangeBasedShufflePartitioning(
           val __t = batchSize
           if (__t != 0) __t else null
         }
-        case 2 => receivers
+        case 2 => channels
         case 3 => rangeAttributeNames
         case 4 => {
           val __t = rangeMin
@@ -818,7 +818,7 @@ final case class RangeBasedShufflePartitioning(
       _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
       (__field.number: @_root_.scala.unchecked) match {
         case 1 => _root_.scalapb.descriptors.PInt(batchSize)
-        case 2 => _root_.scalapb.descriptors.PRepeated(receivers.iterator.map(_.toPMessage).toVector)
+        case 2 => _root_.scalapb.descriptors.PRepeated(channels.iterator.map(_.toPMessage).toVector)
         case 3 => _root_.scalapb.descriptors.PRepeated(rangeAttributeNames.iterator.map(_root_.scalapb.descriptors.PString(_)).toVector)
         case 4 => _root_.scalapb.descriptors.PLong(rangeMin)
         case 5 => _root_.scalapb.descriptors.PLong(rangeMax)
@@ -833,7 +833,7 @@ object RangeBasedShufflePartitioning extends scalapb.GeneratedMessageCompanion[e
   implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning] = this
   def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning = {
     var __batchSize: _root_.scala.Int = 0
-    val __receivers: _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity] = new _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]
+    val __channels: _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity] = new _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity]
     val __rangeAttributeNames: _root_.scala.collection.immutable.VectorBuilder[_root_.scala.Predef.String] = new _root_.scala.collection.immutable.VectorBuilder[_root_.scala.Predef.String]
     var __rangeMin: _root_.scala.Long = 0L
     var __rangeMax: _root_.scala.Long = 0L
@@ -845,7 +845,7 @@ object RangeBasedShufflePartitioning extends scalapb.GeneratedMessageCompanion[e
         case 8 =>
           __batchSize = _input__.readInt32()
         case 18 =>
-          __receivers += _root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity](_input__)
+          __channels += _root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity](_input__)
         case 26 =>
           __rangeAttributeNames += _input__.readStringRequireUtf8()
         case 32 =>
@@ -857,7 +857,7 @@ object RangeBasedShufflePartitioning extends scalapb.GeneratedMessageCompanion[e
     }
     edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning(
         batchSize = __batchSize,
-        receivers = __receivers.result(),
+        channels = __channels.result(),
         rangeAttributeNames = __rangeAttributeNames.result(),
         rangeMin = __rangeMin,
         rangeMax = __rangeMax
@@ -868,7 +868,7 @@ object RangeBasedShufflePartitioning extends scalapb.GeneratedMessageCompanion[e
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
       edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning(
         batchSize = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Int]).getOrElse(0),
-        receivers = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]]).getOrElse(_root_.scala.Seq.empty),
+        channels = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity]]).getOrElse(_root_.scala.Seq.empty),
         rangeAttributeNames = __fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).map(_.as[_root_.scala.Seq[_root_.scala.Predef.String]]).getOrElse(_root_.scala.Seq.empty),
         rangeMin = __fieldsMap.get(scalaDescriptor.findFieldByNumber(4).get).map(_.as[_root_.scala.Long]).getOrElse(0L),
         rangeMax = __fieldsMap.get(scalaDescriptor.findFieldByNumber(5).get).map(_.as[_root_.scala.Long]).getOrElse(0L)
@@ -880,7 +880,7 @@ object RangeBasedShufflePartitioning extends scalapb.GeneratedMessageCompanion[e
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = {
     var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
     (__number: @_root_.scala.unchecked) match {
-      case 2 => __out = edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+      case 2 => __out = edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity
     }
     __out
   }
@@ -888,32 +888,32 @@ object RangeBasedShufflePartitioning extends scalapb.GeneratedMessageCompanion[e
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
   lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning(
     batchSize = 0,
-    receivers = _root_.scala.Seq.empty,
+    channels = _root_.scala.Seq.empty,
     rangeAttributeNames = _root_.scala.Seq.empty,
     rangeMin = 0L,
     rangeMax = 0L
   )
   implicit class RangeBasedShufflePartitioningLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning](_l) {
     def batchSize: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Int] = field(_.batchSize)((c_, f_) => c_.copy(batchSize = f_))
-    def receivers: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]] = field(_.receivers)((c_, f_) => c_.copy(receivers = f_))
+    def channels: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity]] = field(_.channels)((c_, f_) => c_.copy(channels = f_))
     def rangeAttributeNames: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[_root_.scala.Predef.String]] = field(_.rangeAttributeNames)((c_, f_) => c_.copy(rangeAttributeNames = f_))
     def rangeMin: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Long] = field(_.rangeMin)((c_, f_) => c_.copy(rangeMin = f_))
     def rangeMax: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Long] = field(_.rangeMax)((c_, f_) => c_.copy(rangeMax = f_))
   }
   final val BATCHSIZE_FIELD_NUMBER = 1
-  final val RECEIVERS_FIELD_NUMBER = 2
+  final val CHANNELS_FIELD_NUMBER = 2
   final val RANGEATTRIBUTENAMES_FIELD_NUMBER = 3
   final val RANGEMIN_FIELD_NUMBER = 4
   final val RANGEMAX_FIELD_NUMBER = 5
   def of(
     batchSize: _root_.scala.Int,
-    receivers: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity],
+    channels: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity],
     rangeAttributeNames: _root_.scala.Seq[_root_.scala.Predef.String],
     rangeMin: _root_.scala.Long,
     rangeMax: _root_.scala.Long
   ): _root_.edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning = _root_.edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning(
     batchSize,
-    receivers,
+    channels,
     rangeAttributeNames,
     rangeMin,
     rangeMax
@@ -924,7 +924,7 @@ object RangeBasedShufflePartitioning extends scalapb.GeneratedMessageCompanion[e
 @SerialVersionUID(0L)
 final case class BroadcastPartitioning(
     batchSize: _root_.scala.Int,
-    receivers: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]
+    channels: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity]
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning.NonEmpty with scalapb.lenses.Updatable[BroadcastPartitioning] {
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
@@ -937,7 +937,7 @@ final case class BroadcastPartitioning(
           __size += _root_.com.google.protobuf.CodedOutputStream.computeInt32Size(1, __value)
         }
       };
-      receivers.foreach { __item =>
+      channels.foreach { __item =>
         val __value = __item
         __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
       }
@@ -958,7 +958,7 @@ final case class BroadcastPartitioning(
           _output__.writeInt32(1, __v)
         }
       };
-      receivers.foreach { __v =>
+      channels.foreach { __v =>
         val __m = __v
         _output__.writeTag(2, 2)
         _output__.writeUInt32NoTag(__m.serializedSize)
@@ -966,24 +966,24 @@ final case class BroadcastPartitioning(
       };
     }
     def withBatchSize(__v: _root_.scala.Int): BroadcastPartitioning = copy(batchSize = __v)
-    def clearReceivers = copy(receivers = _root_.scala.Seq.empty)
-    def addReceivers(__vs: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity*): BroadcastPartitioning = addAllReceivers(__vs)
-    def addAllReceivers(__vs: Iterable[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]): BroadcastPartitioning = copy(receivers = receivers ++ __vs)
-    def withReceivers(__v: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]): BroadcastPartitioning = copy(receivers = __v)
+    def clearChannels = copy(channels = _root_.scala.Seq.empty)
+    def addChannels(__vs: edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity*): BroadcastPartitioning = addAllChannels(__vs)
+    def addAllChannels(__vs: Iterable[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity]): BroadcastPartitioning = copy(channels = channels ++ __vs)
+    def withChannels(__v: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity]): BroadcastPartitioning = copy(channels = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
         case 1 => {
           val __t = batchSize
           if (__t != 0) __t else null
         }
-        case 2 => receivers
+        case 2 => channels
       }
     }
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
       _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
       (__field.number: @_root_.scala.unchecked) match {
         case 1 => _root_.scalapb.descriptors.PInt(batchSize)
-        case 2 => _root_.scalapb.descriptors.PRepeated(receivers.iterator.map(_.toPMessage).toVector)
+        case 2 => _root_.scalapb.descriptors.PRepeated(channels.iterator.map(_.toPMessage).toVector)
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
@@ -995,7 +995,7 @@ object BroadcastPartitioning extends scalapb.GeneratedMessageCompanion[edu.uci.i
   implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.BroadcastPartitioning] = this
   def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.BroadcastPartitioning = {
     var __batchSize: _root_.scala.Int = 0
-    val __receivers: _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity] = new _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]
+    val __channels: _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity] = new _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity]
     var _done__ = false
     while (!_done__) {
       val _tag__ = _input__.readTag()
@@ -1004,13 +1004,13 @@ object BroadcastPartitioning extends scalapb.GeneratedMessageCompanion[edu.uci.i
         case 8 =>
           __batchSize = _input__.readInt32()
         case 18 =>
-          __receivers += _root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity](_input__)
+          __channels += _root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity](_input__)
         case tag => _input__.skipField(tag)
       }
     }
     edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.BroadcastPartitioning(
         batchSize = __batchSize,
-        receivers = __receivers.result()
+        channels = __channels.result()
     )
   }
   implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.BroadcastPartitioning] = _root_.scalapb.descriptors.Reads{
@@ -1018,7 +1018,7 @@ object BroadcastPartitioning extends scalapb.GeneratedMessageCompanion[edu.uci.i
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
       edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.BroadcastPartitioning(
         batchSize = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Int]).getOrElse(0),
-        receivers = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]]).getOrElse(_root_.scala.Seq.empty)
+        channels = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity]]).getOrElse(_root_.scala.Seq.empty)
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
@@ -1027,7 +1027,7 @@ object BroadcastPartitioning extends scalapb.GeneratedMessageCompanion[edu.uci.i
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = {
     var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
     (__number: @_root_.scala.unchecked) match {
-      case 2 => __out = edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+      case 2 => __out = edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity
     }
     __out
   }
@@ -1035,20 +1035,20 @@ object BroadcastPartitioning extends scalapb.GeneratedMessageCompanion[edu.uci.i
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
   lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.BroadcastPartitioning(
     batchSize = 0,
-    receivers = _root_.scala.Seq.empty
+    channels = _root_.scala.Seq.empty
   )
   implicit class BroadcastPartitioningLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.BroadcastPartitioning]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.BroadcastPartitioning](_l) {
     def batchSize: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Int] = field(_.batchSize)((c_, f_) => c_.copy(batchSize = f_))
-    def receivers: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]] = field(_.receivers)((c_, f_) => c_.copy(receivers = f_))
+    def channels: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity]] = field(_.channels)((c_, f_) => c_.copy(channels = f_))
   }
   final val BATCHSIZE_FIELD_NUMBER = 1
-  final val RECEIVERS_FIELD_NUMBER = 2
+  final val CHANNELS_FIELD_NUMBER = 2
   def of(
     batchSize: _root_.scala.Int,
-    receivers: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]
+    channels: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity]
   ): _root_.edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.BroadcastPartitioning = _root_.edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.BroadcastPartitioning(
     batchSize,
-    receivers
+    channels
   )
   // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.sendsemantics.BroadcastPartitioning])
 }

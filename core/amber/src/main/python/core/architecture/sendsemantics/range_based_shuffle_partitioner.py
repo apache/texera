@@ -1,5 +1,5 @@
 import typing
-from typing import Iterator, List
+from typing import Iterator
 
 from loguru import logger
 from overrides import overrides
@@ -20,8 +20,9 @@ class RangeBasedShufflePartitioner(Partitioner):
         super().__init__(set_one_of(Partitioning, partitioning))
         logger.info(f"got {partitioning}")
         self.batch_size = partitioning.batch_size
-        self.receivers: List[typing.Tuple[ActorVirtualIdentity, List[Tuple]]] = [
-            (receiver, list()) for receiver in partitioning.receivers
+        self.receivers = [
+            (receiver, [])
+            for receiver in {channel.to_worker_id for channel in partitioning.channels}
         ]
         self.range_attribute_names = partitioning.range_attribute_names
         self.range_min = partitioning.range_min
@@ -29,7 +30,7 @@ class RangeBasedShufflePartitioner(Partitioner):
         self.keys_per_receiver = int(
             (
                 (partitioning.range_max - partitioning.range_min)
-                // len(partitioning.receivers)
+                // len(partitioning.channels)
             )
             + 1
         )

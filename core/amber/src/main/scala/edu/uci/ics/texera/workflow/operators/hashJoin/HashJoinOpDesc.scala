@@ -18,7 +18,7 @@ import edu.uci.ics.texera.workflow.common.metadata.annotations.{
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
-import edu.uci.ics.texera.workflow.common.workflow.{HashPartition, PhysicalPlan}
+import edu.uci.ics.texera.workflow.common.workflow.{HashPartition, OneToOnePartition, PhysicalPlan}
 
 object HashJoinOpDesc {
   val HASH_JOIN_INTERNAL_KEY_NAME = "__internal__hashtable__key__"
@@ -84,7 +84,6 @@ class HashJoinOpDesc[K] extends LogicalOp {
             )
           )
         )
-        .withDerivePartition(_ => HashPartition(List(HASH_JOIN_INTERNAL_KEY_NAME)))
         .withParallelizable(true)
 
     val probeBuildInputPort = InputPort(PortIdentity(0, internal = true))
@@ -113,10 +112,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
         )
         .withOutputPorts(List(probeOutputPort))
         .withPartitionRequirement(
-          List(
-            Option(HashPartition(List(HASH_JOIN_INTERNAL_KEY_NAME))),
-            Option(HashPartition(List(probeAttributeName)))
-          )
+          List(Option(OneToOnePartition()), Option(HashPartition(List(probeAttributeName))))
         )
         .withDerivePartition(_ => HashPartition(List(probeAttributeName)))
         .withParallelizable(true)

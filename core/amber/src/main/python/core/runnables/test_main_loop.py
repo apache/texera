@@ -245,7 +245,16 @@ class TestMainLoop:
                 tag=mock_link,
                 partitioning=set_one_of(
                     Partitioning,
-                    OneToOnePartitioning(batch_size=1, receivers=[mock_receiver_actor]),
+                    OneToOnePartitioning(
+                        batch_size=1,
+                        channels=[
+                            ChannelIdentity(
+                                from_worker_id=ActorVirtualIdentity("dummy_worker_id"),
+                                to_worker_id=mock_receiver_actor,
+                                is_control=False,
+                            )
+                        ],
+                    ),
                 ),
             ),
         )
