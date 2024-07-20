@@ -1,5 +1,5 @@
 import typing
-from typing import Iterator, List
+from typing import Iterator
 
 from overrides import overrides
 
@@ -18,7 +18,10 @@ class RoundRobinPartitioner(Partitioner):
     def __init__(self, partitioning: RoundRobinPartitioning):
         super().__init__(set_one_of(Partitioning, partitioning))
         self.batch_size = partitioning.batch_size
-        self.receivers = [(receiver, []) for receiver in {channel.to_worker_id for channel in partitioning.channels}]
+        self.receivers = [
+            (receiver, [])
+            for receiver in {channel.to_worker_id for channel in partitioning.channels}
+        ]
         self.round_robin_index = 0
 
     @overrides
