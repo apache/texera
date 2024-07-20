@@ -76,10 +76,11 @@ case object LinkConfig {
       case UnknownPartition() =>
         RoundRobinPartitioning(
           defaultBatchSize,
-          fromWorkerIds.zip(toWorkerIds).map {
-            case (fromWorkerId, toWorkerId) =>
+          fromWorkerIds.flatMap(fromWorkerId =>
+            toWorkerIds.map(toWorkerId =>
               ChannelIdentity(fromWorkerId, toWorkerId, isControl = false)
-          }
+            )
+          )
         )
 
       case _ =>
