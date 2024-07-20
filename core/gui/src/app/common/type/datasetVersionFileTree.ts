@@ -1,4 +1,4 @@
-import { FileUploadItem } from "../../dashboard/user/type/dashboard-file.interface";
+import { FileUploadItem } from "../../dashboard/type/dashboard-file.interface";
 import { FileNode } from "./fileNode";
 
 export interface DatasetVersionFileTree {
