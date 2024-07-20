@@ -29,8 +29,9 @@ case object LinkConfig {
       case HashPartition(hashAttributeNames) =>
         HashBasedShufflePartitioning(
           defaultBatchSize,
-          fromWorkerIds.flatMap(fromId =>
-            toWorkerIds.map(toId => ChannelIdentity(fromId, toId, isControl = false))
+          fromWorkerIds.flatMap(from =>
+            toWorkerIds.map(to =>
+              ChannelIdentity(from, to, isControl = false))
           ),
           hashAttributeNames
         )
@@ -76,9 +77,9 @@ case object LinkConfig {
       case UnknownPartition() =>
         RoundRobinPartitioning(
           defaultBatchSize,
-          fromWorkerIds.flatMap(fromWorkerId =>
-            toWorkerIds.map(toWorkerId =>
-              ChannelIdentity(fromWorkerId, toWorkerId, isControl = false)
+          fromWorkerIds.flatMap(from =>
+            toWorkerIds.map(to =>
+              ChannelIdentity(from, to, isControl = false)
             )
           )
         )
