@@ -7,9 +7,8 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 case class OneToOnePartitioner(partitioning: OneToOnePartitioning, actorId: ActorVirtualIdentity)
     extends Partitioner {
 
-  private val targetWorker = partitioning.channels.filter(_.fromWorkerId == actorId).head.toWorkerId
-
   override def getBucketIndex(tuple: Tuple): Iterator[Int] = Iterator(0)
 
-  override def allReceivers: Seq[ActorVirtualIdentity] = Seq(targetWorker)
+  override def allReceivers: Seq[ActorVirtualIdentity] =
+    Seq(partitioning.channels.filter(_.fromWorkerId == actorId).head.toWorkerId)
 }

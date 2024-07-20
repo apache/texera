@@ -8,8 +8,9 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType
 case class RangeBasedShufflePartitioner(partitioning: RangeBasedShufflePartitioning)
     extends Partitioner {
 
+  private val receivers = partitioning.channels.map(_.toWorkerId).distinct
   private val keysPerReceiver =
-    ((partitioning.rangeMax - partitioning.rangeMin) / partitioning.channels.length) + 1
+    ((partitioning.rangeMax - partitioning.rangeMin) / receivers.length) + 1
 
   override def getBucketIndex(tuple: Tuple): Iterator[Int] = {
     // Do range partitioning only on the first attribute in `rangeAttributeNames`.
@@ -30,12 +31,11 @@ case class RangeBasedShufflePartitioner(partitioning: RangeBasedShufflePartition
       return Iterator(0)
     }
     if (fieldVal > partitioning.rangeMax) {
-      return Iterator(partitioning.channels.length - 1)
+      return Iterator(receivers.length - 1)
     }
     Iterator(((fieldVal - partitioning.rangeMin) / keysPerReceiver).toInt)
   }
 
-  override def allReceivers: Seq[ActorVirtualIdentity] =
-    partitioning.channels.map(_.toWorkerId).distinct
+  override def allReceivers: Seq[ActorVirtualIdentity] = receivers
 
 }

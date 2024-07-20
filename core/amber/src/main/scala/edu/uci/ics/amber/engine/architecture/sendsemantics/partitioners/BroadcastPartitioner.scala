@@ -6,10 +6,11 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 case class BroadcastPartitioner(partitioning: BroadcastPartitioning) extends Partitioner {
 
+  private val receivers = partitioning.channels.map(_.toWorkerId).distinct
+
   override def getBucketIndex(tuple: Tuple): Iterator[Int] = {
-    partitioning.channels.indices.iterator
+    receivers.indices.iterator
   }
 
-  override def allReceivers: Seq[ActorVirtualIdentity] =
-    partitioning.channels.map(_.toWorkerId).distinct
+  override def allReceivers: Seq[ActorVirtualIdentity] = receivers
 }
