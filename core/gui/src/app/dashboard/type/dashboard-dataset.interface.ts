@@ -1,5 +1,5 @@
-import { Dataset, DatasetVersion } from "../../../common/type/dataset";
-import { DatasetFileNode } from "../../../common/type/datasetVersionFileTree";
+import { Dataset, DatasetVersion } from "../../common/type/dataset";
+import { DatasetFileNode } from "../../common/type/datasetVersionFileTree";
 
 export interface DashboardDataset {
   isOwner: boolean;

@@ -1,28 +1,9 @@
-import { FileUploadItem } from "../../dashboard/type/dashboard-file.interface";
-import { FileNode } from "./fileNode";
-import { DashboardDataset } from "../../dashboard/user/type/dashboard-dataset.interface";
-
-export interface DatasetVersionFileTree {
-  [key: string]: DatasetVersionFileTree | string;
-}
-
 export interface DatasetFileNode {
   name: string;
   type: "file" | "directory";
   children?: DatasetFileNode[]; // Only populated if 'type' is 'directory'
   parentDir: string;
   ownerEmail?: string;
-}
-
-export function pruneFilePath(path: string): string {
-  // Split the path by '/'
-  const segments = path.split("/");
-
-  // Remove the first segment
-  segments.shift();
-
-  // Join the remaining segments back into a path
-  return "/" + segments.join("/");
 }
 
 export function getFullPathFromDatasetFileNode(node: DatasetFileNode): string {

@@ -1,9 +1,7 @@
 import { Component, inject } from "@angular/core";
 import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
 import { UntilDestroy } from "@ngneat/until-destroy";
-import { DatasetFileNode, getFullPathFromDatasetFileNode } from "../../../common/type/datasetVersionFileTree";
-import { DashboardDataset } from "../../../dashboard/user/type/dashboard-dataset.interface";
-import { DatasetService } from "../../../dashboard/user/service/user-dataset/dataset.service";
+import { DatasetFileNode } from "../../../common/type/datasetVersionFileTree";
 
 @UntilDestroy()
 @Component({

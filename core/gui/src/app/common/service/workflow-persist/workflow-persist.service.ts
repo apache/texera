@@ -8,7 +8,6 @@ import { DashboardWorkflow } from "../../../dashboard/type/dashboard-workflow.in
 import { WorkflowUtilService } from "../../../workspace/service/workflow-graph/util/workflow-util.service";
 import { NotificationService } from "../notification/notification.service";
 import { SearchFilterParameters, toQueryStrings } from "../../../dashboard/type/search-filter-parameters";
-import { Environment } from "../../type/environment";
 
 export const WORKFLOW_BASE_URL = "workflow";
 export const WORKFLOW_PERSIST_URL = WORKFLOW_BASE_URL + "/persist";

@@ -5,8 +5,8 @@ import { WorkflowActionService } from "../../service/workflow-graph/model/workfl
 import { NzModalService } from "ng-zorro-antd/modal";
 import { FileSelectionComponent } from "../file-selection/file-selection.component";
 import { environment } from "../../../../environments/environment";
-import { DatasetService } from "../../../dashboard/user/service/user-dataset/dataset.service";
 import { DatasetFileNode, getFullPathFromDatasetFileNode } from "../../../common/type/datasetVersionFileTree";
+import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.service";
 
 @UntilDestroy()
 @Component({
