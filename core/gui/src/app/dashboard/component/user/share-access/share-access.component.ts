@@ -60,7 +60,10 @@ export class ShareAccessComponent implements OnInit {
       });
   }
 
-  public handleInputConfirm(): void {
+  public handleInputConfirm(event?: Event): void {
+    if (event) {
+      event.preventDefault();
+    }
     const emailInput = this.validateForm.get('email')?.value;
   
     if (emailInput) {
@@ -81,11 +84,6 @@ export class ShareAccessComponent implements OnInit {
     }
   
     this.validateForm.get('email')?.reset();
-  }
-
-  public addEmail(event: Event): void {
-    event.preventDefault();
-    this.handleInputConfirm();
   }
 
   public removeEmailTag(email: string): void {
@@ -130,12 +128,7 @@ export class ShareAccessComponent implements OnInit {
     }
   }
 
-  public onEmailInput(event: KeyboardEvent): void {
-    if (event.key === 'Enter' || event.key === 'Tab' || event.key === ',' || event.key === ';') {
-      event.preventDefault();
-      this.handleInputConfirm();
-    }
-  }
+
 
   public onPaste(event: ClipboardEvent): void {
     event.preventDefault();
