@@ -13,7 +13,7 @@ import { NzMessageService } from "ng-zorro-antd/message";
 @UntilDestroy()
 @Component({
   templateUrl: "share-access.component.html",
-  selector: "app-share-access",
+  selector: "texera-share-access",
   styleUrls: ["./share-access.component.scss"],
 })
 export class ShareAccessComponent implements OnInit {
