@@ -72,6 +72,8 @@ export class ShareAccessComponent implements OnInit {
           const emailControl = new FormControl(email, Validators.email);
           if (!emailControl.errors && !this.emailTags.includes(email)) {
             this.emailTags.push(email);
+          } else if (this.emailTags.includes(email)) {
+            this.message.error(`${email} is already in the tags`);
           } else {
             this.message.error(`${email} is not a valid email`);
           }
