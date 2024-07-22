@@ -13,8 +13,8 @@ import { NzMessageService } from "ng-zorro-antd/message";
 @UntilDestroy()
 @Component({
   templateUrl: "share-access.component.html",
-  selector: 'app-share-access',
-  styleUrls: ['./share-access.component.scss']
+  selector: "app-share-access",
+  styleUrls: ["./share-access.component.scss"],
 })
 export class ShareAccessComponent implements OnInit {
   readonly nzModalData = inject(NZ_MODAL_DATA);
@@ -30,7 +30,7 @@ export class ShareAccessComponent implements OnInit {
   public ownerSearchValue?: string;
   public emailTags: string[] = [];
   currentEmail: string | undefined = "";
-  
+
   constructor(
     private accessService: ShareAccessService,
     private formBuilder: FormBuilder,
@@ -63,8 +63,8 @@ export class ShareAccessComponent implements OnInit {
     if (event) {
       event.preventDefault();
     }
-    const emailInput = this.validateForm.get('email')?.value;
-  
+    const emailInput = this.validateForm.get("email")?.value;
+
     if (emailInput) {
       const emailArray: string[] = emailInput.split(/[\s,;]+/);
       emailArray.forEach(email => {
@@ -80,8 +80,8 @@ export class ShareAccessComponent implements OnInit {
         }
       });
     }
-  
-    this.validateForm.get('email')?.reset();
+
+    this.validateForm.get("email")?.reset();
   }
 
   public removeEmailTag(email: string): void {
@@ -97,9 +97,7 @@ export class ShareAccessComponent implements OnInit {
           .pipe(untilDestroyed(this))
           .subscribe({
             next: () => {
-              this.notificationService.success(
-                this.type + " shared with " + email + " successfully."
-              );
+              this.notificationService.success(this.type + " shared with " + email + " successfully.");
               this.gmailService.sendEmail(
                 "Texera: " + this.owner + " shared a " + this.type + " with you",
                 this.owner +
@@ -124,16 +122,14 @@ export class ShareAccessComponent implements OnInit {
     }
   }
 
-
-
   public onPaste(event: ClipboardEvent): void {
     event.preventDefault();
-    const pasteData = event.clipboardData?.getData('text');
+    const pasteData = event.clipboardData?.getData("text");
     if (pasteData) {
-      const currentEmailValue = this.validateForm.get('email')?.value || '';
+      const currentEmailValue = this.validateForm.get("email")?.value || "";
       // concaste new emails and old emails
       const newValue = currentEmailValue + pasteData;
-      this.validateForm.get('email')?.setValue(newValue);
+      this.validateForm.get("email")?.setValue(newValue);
       this.handleInputConfirm();
     }
   }

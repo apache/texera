@@ -15,19 +15,24 @@
           [nzSm]="14"
           [nzXs]="24"
           nzErrorTip="The input is not valid E-mail!">
-            <div class="input-group">
-              <input
-                nz-input
-                id="email"
-                type="text"
-                formControlName="email"
-                (paste)="onPaste($event)"
-                [(ngModel)]="ownerSearchValue"
-                (ngModelChange)="onChange($event)"
-                [nzAutocomplete]="auto"
-              />
-              <button nz-button nzType="primary" (click)="handleInputConfirm($event)" class="add-button">+</button>
-            </div>
+          <div class="input-group">
+            <input
+              nz-input
+              id="email"
+              type="text"
+              formControlName="email"
+              (paste)="onPaste($event)"
+              [(ngModel)]="ownerSearchValue"
+              (ngModelChange)="onChange($event)"
+              [nzAutocomplete]="auto" />
+            <button
+              nz-button
+              nzType="primary"
+              (click)="handleInputConfirm($event)"
+              class="add-button">
+              +
+            </button>
+          </div>
           <nz-autocomplete
             [nzDefaultActiveFirstOption]="false"
             [nzDataSource]="filteredOwners"
@@ -36,8 +41,10 @@
         </nz-form-control>
       </nz-form-item>
       <nz-form-item>
-        <nz-form-control [nzSm]="24" [nzXs]="24">
-          <div style="max-height: 200px; overflow-y: auto;">
+        <nz-form-control
+          [nzSm]="24"
+          [nzXs]="24">
+          <div style="max-height: 200px; overflow-y: auto">
             <nz-tag
               *ngFor="let email of emailTags"
               nzMode="closeable"
@@ -102,5 +109,3 @@
     </button>
   </li>
 </ul>
-
-
