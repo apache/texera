@@ -41,7 +41,6 @@ export class ShareAccessComponent implements OnInit {
   ) {
     this.validateForm = this.formBuilder.group({
       email: [null, Validators.email],
-      // email: [null],
       accessLevel: ["READ"],
     });
     this.currentEmail = this.userService.getCurrentUser()?.email;
@@ -68,9 +67,6 @@ export class ShareAccessComponent implements OnInit {
   
     if (emailInput) {
       const emailArray: string[] = emailInput.split(/[\s,;]+/);
-      console.log("++++")
-      console.log(emailArray)
-  
       emailArray.forEach(email => {
         if (email) {
           const emailControl = new FormControl(email, Validators.email);
@@ -88,8 +84,6 @@ export class ShareAccessComponent implements OnInit {
 
   public removeEmailTag(email: string): void {
     this.emailTags = this.emailTags.filter(tag => tag !== email);
-    console.log("------")
-    console.log(this.emailTags)
   }
 
   public grantAccess(): void {
