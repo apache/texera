@@ -37,14 +37,15 @@ class LoggingSpec
     with ImplicitSender
     with AnyFlatSpecLike
     with BeforeAndAfterAll {
-
+  private val identifier1 = ActorVirtualIdentity("Worker:WF1-E1-op-layer-1")
   private val identifier2 = ActorVirtualIdentity("Worker:WF1-E1-op-layer-2")
   private val operatorIdentity = OperatorIdentity("testOperator")
   private val physicalOpId1 = PhysicalOpIdentity(operatorIdentity, "1st-layer")
   private val physicalOpId2 = PhysicalOpIdentity(operatorIdentity, "2nd-layer")
   private val mockLink = PhysicalLink(physicalOpId1, PortIdentity(), physicalOpId2, PortIdentity())
 
-  private val mockPolicy = OneToOnePartitioning(10, Seq(identifier2))
+  private val mockPolicy =
+    OneToOnePartitioning(10, Seq(ChannelIdentity(identifier1, identifier2, isControl = false)))
   val payloadToLog: Array[WorkflowFIFOMessagePayload] = Array(
     ControlInvocation(0, StartWorker()),
     ControlInvocation(0, AddPartitioning(mockLink, mockPolicy)),

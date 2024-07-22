@@ -65,6 +65,7 @@ class DefaultResourceAllocator(
           linkPartitionInfos(physicalLink)
         ),
         toPartitioning(
+          operatorConfigs(physicalLink.fromOpId).workerConfigs.map(_.workerId),
           operatorConfigs(physicalLink.toOpId).workerConfigs.map(_.workerId),
           linkPartitionInfos(physicalLink)
         )

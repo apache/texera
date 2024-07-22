@@ -1,4 +1,4 @@
-import { EnvironmentService } from "../../../../dashboard/user/service/user-environment/environment.service";
+import { EnvironmentService } from "../../../../dashboard/service/user/environment/environment.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { Component, Input, OnInit } from "@angular/core";
@@ -8,8 +8,8 @@ import {
   DatasetVersionFileTreeNode,
   getFullPathFromFileTreeNode,
 } from "../../../../common/type/datasetVersionFileTree";
-import { DatasetService } from "../../../../dashboard/user/service/user-dataset/dataset.service";
-import { DashboardDataset } from "../../../../dashboard/user/type/dashboard-dataset.interface";
+import { DatasetService } from "../../../../dashboard/service/user/dataset/dataset.service";
+import { DashboardDataset } from "../../../../dashboard/type/dashboard-dataset.interface";
 import { DatasetOfEnvironmentDetails, Environment } from "../../../../common/type/environment";
 import { DatasetVersion } from "../../../../common/type/dataset";
 import { map, Observable, of } from "rxjs";

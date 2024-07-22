@@ -73,6 +73,11 @@ final case class RangePartition(rangeAttributeNames: List[String], rangeMin: Lon
 final case class SinglePartition() extends PartitionInfo {}
 
 /**
+  * Represents an input stream that is partitioned one-to-one between nodes, where each node processes a unique subset of the data.
+  */
+final case class OneToOnePartition() extends PartitionInfo {}
+
+/**
   * Represents the input stream needs to send to every node
   */
 final case class BroadcastPartition() extends PartitionInfo {}
