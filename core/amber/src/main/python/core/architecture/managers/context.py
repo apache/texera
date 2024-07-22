@@ -42,7 +42,7 @@ class Context:
         self.pause_manager = PauseManager(
             self.input_queue, state_manager=self.state_manager
         )
-        self.output_manager = OutputManager()
+        self.output_manager = OutputManager(worker_id)
         self.input_manager = InputManager()
         self.console_message_manager = ConsoleMessageManager()
         self.debug_manager = DebugManager(

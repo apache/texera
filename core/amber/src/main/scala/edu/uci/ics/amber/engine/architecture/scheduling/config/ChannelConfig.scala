@@ -5,6 +5,7 @@ import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.common.workflow.{
   BroadcastPartition,
   HashPartition,
+  OneToOnePartition,
   PartitionInfo,
   RangePartition,
   SinglePartition,
@@ -32,6 +33,11 @@ case object ChannelConfig {
         fromWorkerIds.map(fromWorkerId =>
           ChannelConfig(ChannelIdentity(fromWorkerId, toWorkerId, isControl = false), toPortId)
         )
+      case OneToOnePartition() =>
+        fromWorkerIds.zip(toWorkerIds).map {
+          case (fromWorkerId, toWorkerId) =>
+            ChannelConfig(ChannelIdentity(fromWorkerId, toWorkerId, isControl = false), toPortId)
+        }
       case _ =>
         List()
 
