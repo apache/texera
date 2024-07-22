@@ -35,10 +35,10 @@ export class UserQuotaComponent implements OnInit {
   datasetList: ReadonlyArray<DatasetQuota> = [];
   mongodbWorkflows: Array<MongoWorkflow> = [];
   UserService: UserServiceType;
-  DEFAULT_PIE_CHART_WIDTH = 450;
-  DEFAULT_PIE_CHART_HEIGHT = 450;
-  DEFAULT_LINE_CHART_WIDTH = 600;
-  DEFAULT_LINE_CHART_HEIGHT = 450;
+  DEFAULT_PIE_CHART_WIDTH = 480;
+  DEFAULT_PIE_CHART_HEIGHT = 340;
+  DEFAULT_LINE_CHART_WIDTH = 480;
+  DEFAULT_LINE_CHART_HEIGHT = 340;
 
   constructor(
     private adminUserService: AdminUserService,

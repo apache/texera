@@ -27,14 +27,14 @@
 }
 
 .charts-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  grid-template-rows: auto auto;
-  gap: 50px;
-  margin: 80px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding-top: 40px;
 
   > div {
     display: flex;
+    margin: 20px;
     justify-content: center;
     align-items: center;
     background: #fff;
