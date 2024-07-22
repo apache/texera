@@ -10,7 +10,7 @@ ALTER TABLE `dataset_of_environment`
     DROP FOREIGN KEY `dataset_of_environment_ibfk_2`;
 
 ALTER TABLE `workflow_executions`
-    DROP FOREIGN KEY `workflow_executions_ibfk_3`;
+    DROP FOREIGN KEY `fk_environment_eid`;
 -- Dropping the dependent tables
 DROP TABLE IF EXISTS `environment_of_workflow`;
 DROP TABLE IF EXISTS `dataset_of_environment`;
