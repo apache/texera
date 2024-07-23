@@ -12,35 +12,6 @@
   </nz-card>
   <div>
     <nz-tabset nzCentered>
-      <style>
-        .info-container {
-          display: flex;
-          flex-wrap: wrap;
-          justify-content: center;
-        }
-
-        .info-box {
-          background-color: #f4f4f4;
-          padding: 40px;
-          margin: 10px;
-          width: 375px;
-          height: 135px;
-          border-radius: 5px;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-          font-family: Arial, sans-serif;
-          text-align: center;
-        }
-
-        .info-heading {
-          font-weight: bold;
-          font-size: 18px;
-        }
-
-        .info-content {
-          font-size: 24px;
-          margin-top: 10px;
-        }
-      </style>
       <nz-tab nzTitle="Quota Table">
         <div class="info-container">
           <div class="info-box">
@@ -75,6 +46,20 @@
             <h2 class="info-heading">Total Result Cache Size</h2>
             <p class="info-content">{{ convertFileSize(this.totalMongoSize) }}</p>
           </div>
+        </div>
+        <nz-card
+          class="section-title"
+          [style.backgroundColor]="backgroundColor">
+          <h2
+            class="page-title"
+            [style.color]="textColor">
+            Diagram
+          </h2>
+        </nz-card>
+        <div class="charts-grid">
+          <div id="sizePieChart"></div>
+          <div id="datasetLineChart"></div>
+          <div id="workflowLineChart"></div>
         </div>
       </nz-tab>
       <nz-tab nzTitle="Result Cache">

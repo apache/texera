@@ -10,8 +10,7 @@ describe("UserQuotaComponent", () => {
   beforeEach(() => {
     const userQuotaServiceSpy = jasmine.createSpyObj("UserQuotaService", [
       "getUploadedFiles",
-      "getTotalUploadedDatasetSize",
-      "getTotalUploadedDatasetCount",
+      "getCreatedDatasets",
       "getCreatedWorkflows",
       "getAccessFiles",
       "getAccessWorkflows",
