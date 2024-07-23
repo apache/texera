@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.dataset;
 
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.service.GitVersionControlLocalFileStorage;
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.type.FileNode;
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.type.PhysicalFileNode;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.junit.After;
 import org.junit.Before;
@@ -131,14 +131,14 @@ public class GitVersionControlLocalFileStorageSpec {
   public void testFileTreeRetrieval() throws Exception {
     // File path for the test file
     Path file1Path = testRepoPath.resolve(testFile1Name);
-    FileNode file1Node = new FileNode(testRepoPath, file1Path);
-    Set<FileNode> fileNodes = new HashSet<FileNode>() {{
+    PhysicalFileNode file1Node = new PhysicalFileNode(testRepoPath, file1Path);
+    Set<PhysicalFileNode> physicalFileNodes = new HashSet<PhysicalFileNode>() {{
       add(file1Node);
     }};
 
     // first retrieve the latest version's file tree
     Assert.assertEquals("File Tree should match",
-        fileNodes,
+        physicalFileNodes,
         GitVersionControlLocalFileStorage.retrieveRootFileNodesOfVersion(testRepoPath, testRepoMasterCommitHashes.get(testRepoMasterCommitHashes.size() - 1)));
 
     // now we add a new file testDir/testFile2.txt
@@ -154,15 +154,15 @@ public class GitVersionControlLocalFileStorageSpec {
     });
     testRepoMasterCommitHashes.add(v4Hash);
 
-    FileNode dirNode = new FileNode(testRepoPath, testDirPath);
-    dirNode.addChildNode(new FileNode(testRepoPath, file2Path));
+    PhysicalFileNode dirNode = new PhysicalFileNode(testRepoPath, testDirPath);
+    dirNode.addChildNode(new PhysicalFileNode(testRepoPath, file2Path));
     // update the expected fileNodes
-    fileNodes.add(dirNode);
+    physicalFileNodes.add(dirNode);
 
     // check the file tree
     Assert.assertEquals(
         "File Tree should match",
-        fileNodes,
+        physicalFileNodes,
         GitVersionControlLocalFileStorage.retrieveRootFileNodesOfVersion(testRepoPath, v4Hash));
 
     // now we delete the file1, check the filetree
@@ -174,10 +174,10 @@ public class GitVersionControlLocalFileStorageSpec {
       }
     });
 
-    fileNodes.remove(file1Node);
+    physicalFileNodes.remove(file1Node);
     Assert.assertEquals(
         "File1 should be gone",
-        fileNodes,
+        physicalFileNodes,
         GitVersionControlLocalFileStorage.retrieveRootFileNodesOfVersion(testRepoPath, v5Hash)
     );
 

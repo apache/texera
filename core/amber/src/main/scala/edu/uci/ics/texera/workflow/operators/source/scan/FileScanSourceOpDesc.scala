@@ -47,7 +47,7 @@ class FileScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp = {
-    val (filepath, fileDesc) = determineFilePathOrDesc()
+    val (filepath, fileDesc) = determineFilePathOrDatasetFile()
     PhysicalOp
       .sourcePhysicalOp(
         workflowId,

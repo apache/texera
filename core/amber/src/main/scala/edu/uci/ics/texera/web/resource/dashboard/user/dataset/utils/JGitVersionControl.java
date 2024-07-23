@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils;
 
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.type.FileNode;
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.type.PhysicalFileNode;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.ResetCommand;
 import org.eclipse.jgit.api.Status;
@@ -103,9 +103,9 @@ public class JGitVersionControl {
     }
   }
 
-  public static Set<FileNode> getRootFileNodeOfCommit(Path repoPath, String commitHash) throws Exception {
-    Map<String, FileNode> pathToFileNodeMap = new HashMap<>();
-    Set<FileNode> rootNodes = new HashSet<>();
+  public static Set<PhysicalFileNode> getRootFileNodeOfCommit(Path repoPath, String commitHash) throws Exception {
+    Map<String, PhysicalFileNode> pathToFileNodeMap = new HashMap<>();
+    Set<PhysicalFileNode> rootNodes = new HashSet<>();
 
     try (Repository repository = new FileRepositoryBuilder()
         .setGitDir(repoPath.resolve(".git").toFile())
@@ -120,7 +120,7 @@ public class JGitVersionControl {
 
         while (treeWalk.next()) {
           Path fullPath = repoPath.resolve(treeWalk.getPathString());
-          FileNode currentNode = createOrGetNode(pathToFileNodeMap, repoPath, fullPath);
+          PhysicalFileNode currentNode = createOrGetNode(pathToFileNodeMap, repoPath, fullPath);
 
           if (treeWalk.isSubtree()) {
             treeWalk.enterSubtree();
@@ -147,14 +147,14 @@ public class JGitVersionControl {
     return rootNodes;
   }
 
-  private static FileNode createOrGetNode(Map<String, FileNode> map, Path repoPath, Path path) {
-    return map.computeIfAbsent(path.toString(), k -> new FileNode(repoPath, path));
+  private static PhysicalFileNode createOrGetNode(Map<String, PhysicalFileNode> map, Path repoPath, Path path) {
+    return map.computeIfAbsent(path.toString(), k -> new PhysicalFileNode(repoPath, path));
   }
 
-  private static void ensureParentChildLink(Map<String, FileNode> map, Path repoPath, Path childPath, FileNode childNode) {
+  private static void ensureParentChildLink(Map<String, PhysicalFileNode> map, Path repoPath, Path childPath, PhysicalFileNode childNode) {
     Path parentPath = childPath.getParent();
     if (parentPath != null && !parentPath.equals(repoPath)) {
-      FileNode parentNode = createOrGetNode(map, repoPath, parentPath);
+      PhysicalFileNode parentNode = createOrGetNode(map, repoPath, parentPath);
       parentNode.addChildNode(childNode);
     }
   }

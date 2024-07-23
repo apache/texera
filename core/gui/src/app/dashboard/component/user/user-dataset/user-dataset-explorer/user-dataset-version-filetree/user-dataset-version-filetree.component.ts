@@ -1,6 +1,6 @@
 import { UntilDestroy } from "@ngneat/until-destroy";
 import { AfterViewInit, Component, EventEmitter, Input, Output, ViewChild } from "@angular/core";
-import { DatasetVersionFileTreeNode } from "../../../../../../common/type/datasetVersionFileTree";
+import { DatasetFileNode, getFullPathFromDatasetFileNode } from "../../../../../../common/type/datasetVersionFileTree";
 import { ITreeOptions, TREE_ACTIONS } from "@ali-hm/angular-tree-component";
 
 @UntilDestroy()
@@ -14,7 +14,7 @@ export class UserDatasetVersionFiletreeComponent implements AfterViewInit {
   public isTreeNodeDeletable: boolean = false;
 
   @Input()
-  public fileTreeNodes: DatasetVersionFileTreeNode[] = [];
+  public fileTreeNodes: DatasetFileNode[] = [];
 
   @Input()
   public isExpandAllAfterViewInit = false;
@@ -38,14 +38,14 @@ export class UserDatasetVersionFiletreeComponent implements AfterViewInit {
   };
 
   @Output()
-  public selectedTreeNode = new EventEmitter<DatasetVersionFileTreeNode>();
+  public selectedTreeNode = new EventEmitter<DatasetFileNode>();
 
   @Output()
-  public deletedTreeNode = new EventEmitter<DatasetVersionFileTreeNode>();
+  public deletedTreeNode = new EventEmitter<DatasetFileNode>();
 
   constructor() {}
 
-  onNodeDeleted(node: DatasetVersionFileTreeNode): void {
+  onNodeDeleted(node: DatasetFileNode): void {
     // look up for the DatasetVersionFileTreeNode
     this.deletedTreeNode.emit(node);
   }

@@ -9,7 +9,7 @@ import java.net.URI
   * e.g. for dataset file, supports for read/write using file stream are essential, whereas read & write using index are hard to support and are semantically meaningless
   * @tparam T the type of data that can use index to read and write.
   */
-abstract class VirtualDocument[T >: Null <: AnyRef] {
+abstract class VirtualDocument[T] {
 
   /**
     * get the URI of corresponding document

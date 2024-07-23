@@ -1,11 +1,10 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.dataset.service;
 
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.type.FileNode;
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.type.PhysicalFileNode;
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.JGitVersionControl;
 import org.eclipse.jgit.api.errors.GitAPIException;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -111,7 +110,7 @@ public class GitVersionControlLocalFileStorage {
    * @param versionCommitHashVal The commit hash of the version.
    * @return A set of file nodes at the root level of the given repo at given version
    */
-  public static Set<FileNode> retrieveRootFileNodesOfVersion(Path baseRepoPath, String versionCommitHashVal) throws Exception {
+  public static Set<PhysicalFileNode> retrieveRootFileNodesOfVersion(Path baseRepoPath, String versionCommitHashVal) throws Exception {
     return JGitVersionControl.getRootFileNodeOfCommit(baseRepoPath, versionCommitHashVal);
   }
 

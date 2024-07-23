@@ -5,11 +5,8 @@ package edu.uci.ics.texera.web.model.jooq.generated;
 
 
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetOfEnvironment;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetUserAccess;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetVersion;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.Environment;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.EnvironmentOfWorkflow;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.File;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.FileOfProject;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.FileOfWorkflow;
@@ -45,18 +42,11 @@ public class Indexes {
     public static final Index DATASET_IDX_DATASET_NAME_DESCRIPTION = Indexes0.DATASET_IDX_DATASET_NAME_DESCRIPTION;
     public static final Index DATASET_OWNER_UID = Indexes0.DATASET_OWNER_UID;
     public static final Index DATASET_PRIMARY = Indexes0.DATASET_PRIMARY;
-    public static final Index DATASET_OF_ENVIRONMENT_DVID = Indexes0.DATASET_OF_ENVIRONMENT_DVID;
-    public static final Index DATASET_OF_ENVIRONMENT_EID = Indexes0.DATASET_OF_ENVIRONMENT_EID;
-    public static final Index DATASET_OF_ENVIRONMENT_PRIMARY = Indexes0.DATASET_OF_ENVIRONMENT_PRIMARY;
     public static final Index DATASET_USER_ACCESS_PRIMARY = Indexes0.DATASET_USER_ACCESS_PRIMARY;
     public static final Index DATASET_USER_ACCESS_UID = Indexes0.DATASET_USER_ACCESS_UID;
     public static final Index DATASET_VERSION_DID = Indexes0.DATASET_VERSION_DID;
     public static final Index DATASET_VERSION_IDX_DATASET_VERSION_NAME = Indexes0.DATASET_VERSION_IDX_DATASET_VERSION_NAME;
     public static final Index DATASET_VERSION_PRIMARY = Indexes0.DATASET_VERSION_PRIMARY;
-    public static final Index ENVIRONMENT_OWNER_UID = Indexes0.ENVIRONMENT_OWNER_UID;
-    public static final Index ENVIRONMENT_PRIMARY = Indexes0.ENVIRONMENT_PRIMARY;
-    public static final Index ENVIRONMENT_OF_WORKFLOW_PRIMARY = Indexes0.ENVIRONMENT_OF_WORKFLOW_PRIMARY;
-    public static final Index ENVIRONMENT_OF_WORKFLOW_WID = Indexes0.ENVIRONMENT_OF_WORKFLOW_WID;
     public static final Index FILE_IDX_FILE_NAME_DESCRIPTION = Indexes0.FILE_IDX_FILE_NAME_DESCRIPTION;
     public static final Index FILE_OWNER_UID = Indexes0.FILE_OWNER_UID;
     public static final Index FILE_PRIMARY = Indexes0.FILE_PRIMARY;
@@ -79,7 +69,6 @@ public class Indexes {
     public static final Index USER_FILE_ACCESS_PRIMARY = Indexes0.USER_FILE_ACCESS_PRIMARY;
     public static final Index WORKFLOW_IDX_WORKFLOW_NAME_DESCRIPTION_CONTENT = Indexes0.WORKFLOW_IDX_WORKFLOW_NAME_DESCRIPTION_CONTENT;
     public static final Index WORKFLOW_PRIMARY = Indexes0.WORKFLOW_PRIMARY;
-    public static final Index WORKFLOW_EXECUTIONS_ENVIRONMENT_EID = Indexes0.WORKFLOW_EXECUTIONS_ENVIRONMENT_EID;
     public static final Index WORKFLOW_EXECUTIONS_PRIMARY = Indexes0.WORKFLOW_EXECUTIONS_PRIMARY;
     public static final Index WORKFLOW_EXECUTIONS_UID = Indexes0.WORKFLOW_EXECUTIONS_UID;
     public static final Index WORKFLOW_EXECUTIONS_VID = Indexes0.WORKFLOW_EXECUTIONS_VID;
@@ -102,18 +91,11 @@ public class Indexes {
         public static Index DATASET_IDX_DATASET_NAME_DESCRIPTION = Internal.createIndex("idx_dataset_name_description", Dataset.DATASET, new OrderField[] { Dataset.DATASET.NAME, Dataset.DATASET.DESCRIPTION }, false);
         public static Index DATASET_OWNER_UID = Internal.createIndex("owner_uid", Dataset.DATASET, new OrderField[] { Dataset.DATASET.OWNER_UID }, false);
         public static Index DATASET_PRIMARY = Internal.createIndex("PRIMARY", Dataset.DATASET, new OrderField[] { Dataset.DATASET.DID }, true);
-        public static Index DATASET_OF_ENVIRONMENT_DVID = Internal.createIndex("dvid", DatasetOfEnvironment.DATASET_OF_ENVIRONMENT, new OrderField[] { DatasetOfEnvironment.DATASET_OF_ENVIRONMENT.DVID }, false);
-        public static Index DATASET_OF_ENVIRONMENT_EID = Internal.createIndex("eid", DatasetOfEnvironment.DATASET_OF_ENVIRONMENT, new OrderField[] { DatasetOfEnvironment.DATASET_OF_ENVIRONMENT.EID }, false);
-        public static Index DATASET_OF_ENVIRONMENT_PRIMARY = Internal.createIndex("PRIMARY", DatasetOfEnvironment.DATASET_OF_ENVIRONMENT, new OrderField[] { DatasetOfEnvironment.DATASET_OF_ENVIRONMENT.DID, DatasetOfEnvironment.DATASET_OF_ENVIRONMENT.EID }, true);
         public static Index DATASET_USER_ACCESS_PRIMARY = Internal.createIndex("PRIMARY", DatasetUserAccess.DATASET_USER_ACCESS, new OrderField[] { DatasetUserAccess.DATASET_USER_ACCESS.DID, DatasetUserAccess.DATASET_USER_ACCESS.UID }, true);
         public static Index DATASET_USER_ACCESS_UID = Internal.createIndex("uid", DatasetUserAccess.DATASET_USER_ACCESS, new OrderField[] { DatasetUserAccess.DATASET_USER_ACCESS.UID }, false);
         public static Index DATASET_VERSION_DID = Internal.createIndex("did", DatasetVersion.DATASET_VERSION, new OrderField[] { DatasetVersion.DATASET_VERSION.DID }, false);
         public static Index DATASET_VERSION_IDX_DATASET_VERSION_NAME = Internal.createIndex("idx_dataset_version_name", DatasetVersion.DATASET_VERSION, new OrderField[] { DatasetVersion.DATASET_VERSION.NAME }, false);
         public static Index DATASET_VERSION_PRIMARY = Internal.createIndex("PRIMARY", DatasetVersion.DATASET_VERSION, new OrderField[] { DatasetVersion.DATASET_VERSION.DVID }, true);
-        public static Index ENVIRONMENT_OWNER_UID = Internal.createIndex("owner_uid", Environment.ENVIRONMENT, new OrderField[] { Environment.ENVIRONMENT.OWNER_UID }, false);
-        public static Index ENVIRONMENT_PRIMARY = Internal.createIndex("PRIMARY", Environment.ENVIRONMENT, new OrderField[] { Environment.ENVIRONMENT.EID }, true);
-        public static Index ENVIRONMENT_OF_WORKFLOW_PRIMARY = Internal.createIndex("PRIMARY", EnvironmentOfWorkflow.ENVIRONMENT_OF_WORKFLOW, new OrderField[] { EnvironmentOfWorkflow.ENVIRONMENT_OF_WORKFLOW.EID, EnvironmentOfWorkflow.ENVIRONMENT_OF_WORKFLOW.WID }, true);
-        public static Index ENVIRONMENT_OF_WORKFLOW_WID = Internal.createIndex("wid", EnvironmentOfWorkflow.ENVIRONMENT_OF_WORKFLOW, new OrderField[] { EnvironmentOfWorkflow.ENVIRONMENT_OF_WORKFLOW.WID }, false);
         public static Index FILE_IDX_FILE_NAME_DESCRIPTION = Internal.createIndex("idx_file_name_description", File.FILE, new OrderField[] { File.FILE.NAME, File.FILE.DESCRIPTION }, false);
         public static Index FILE_OWNER_UID = Internal.createIndex("owner_uid", File.FILE, new OrderField[] { File.FILE.OWNER_UID, File.FILE.NAME }, true);
         public static Index FILE_PRIMARY = Internal.createIndex("PRIMARY", File.FILE, new OrderField[] { File.FILE.FID }, true);
@@ -136,7 +118,6 @@ public class Indexes {
         public static Index USER_FILE_ACCESS_PRIMARY = Internal.createIndex("PRIMARY", UserFileAccess.USER_FILE_ACCESS, new OrderField[] { UserFileAccess.USER_FILE_ACCESS.UID, UserFileAccess.USER_FILE_ACCESS.FID }, true);
         public static Index WORKFLOW_IDX_WORKFLOW_NAME_DESCRIPTION_CONTENT = Internal.createIndex("idx_workflow_name_description_content", Workflow.WORKFLOW, new OrderField[] { Workflow.WORKFLOW.NAME, Workflow.WORKFLOW.DESCRIPTION, Workflow.WORKFLOW.CONTENT }, false);
         public static Index WORKFLOW_PRIMARY = Internal.createIndex("PRIMARY", Workflow.WORKFLOW, new OrderField[] { Workflow.WORKFLOW.WID }, true);
-        public static Index WORKFLOW_EXECUTIONS_ENVIRONMENT_EID = Internal.createIndex("environment_eid", WorkflowExecutions.WORKFLOW_EXECUTIONS, new OrderField[] { WorkflowExecutions.WORKFLOW_EXECUTIONS.ENVIRONMENT_EID }, false);
         public static Index WORKFLOW_EXECUTIONS_PRIMARY = Internal.createIndex("PRIMARY", WorkflowExecutions.WORKFLOW_EXECUTIONS, new OrderField[] { WorkflowExecutions.WORKFLOW_EXECUTIONS.EID }, true);
         public static Index WORKFLOW_EXECUTIONS_UID = Internal.createIndex("uid", WorkflowExecutions.WORKFLOW_EXECUTIONS, new OrderField[] { WorkflowExecutions.WORKFLOW_EXECUTIONS.UID }, false);
         public static Index WORKFLOW_EXECUTIONS_VID = Internal.createIndex("vid", WorkflowExecutions.WORKFLOW_EXECUTIONS, new OrderField[] { WorkflowExecutions.WORKFLOW_EXECUTIONS.VID }, false);

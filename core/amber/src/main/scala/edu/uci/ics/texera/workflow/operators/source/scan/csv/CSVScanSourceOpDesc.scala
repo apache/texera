@@ -37,7 +37,7 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
     if (customDelimiter.isEmpty || customDelimiter.get.isEmpty)
       customDelimiter = Option(",")
 
-    val (filepath, fileDesc) = determineFilePathOrDesc()
+    val (filepath, fileDesc) = determineFilePathOrDatasetFile()
     PhysicalOp
       .sourcePhysicalOp(
         workflowId,
@@ -74,12 +74,12 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
       return null
     }
 
-    val (filepath, fileDesc) = determineFilePathOrDesc()
+    val (filepath, fileDesc) = determineFilePathOrDatasetFile()
     val stream =
       if (filepath != null) {
         new FileInputStream(new File(filepath))
       } else {
-        fileDesc.fileInputStream()
+        fileDesc.asInputStream()
       }
     val inputReader =
       new InputStreamReader(stream, fileEncoding.getCharset)

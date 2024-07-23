@@ -37,12 +37,12 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
     if (customDelimiter.get.isEmpty)
       customDelimiter = Option(",")
 
-    val (filepath, fileDesc) = determineFilePathOrDesc()
+    val (filepath, datasetFileDocument) = determineFilePathOrDatasetFile()
     // for CSVOldScanSourceOpDesc, it requires the full File presence when execute, so use temp file here
     // TODO: figure out a better way
     val path =
       if (filepath == null) {
-        fileDesc.tempFilePath().toString
+        datasetFileDocument.asFile().toPath.toString
       } else {
         filepath
       }
@@ -81,12 +81,12 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
     if (customDelimiter.isEmpty) {
       return null
     }
-    val (filepath, fileDesc) = determineFilePathOrDesc()
+    val (filepath, fileDesc) = determineFilePathOrDatasetFile()
     val file =
       if (filepath != null) {
         new File(filepath)
       } else {
-        fileDesc.tempFilePath().toFile
+        fileDesc.asFile()
       }
     implicit object CustomFormat extends DefaultCSVFormat {
       override val delimiter: Char = customDelimiter.get.charAt(0)

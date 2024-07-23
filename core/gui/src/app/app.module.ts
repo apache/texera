@@ -130,7 +130,6 @@ import { NzTreeModule } from "ng-zorro-antd/tree";
 import { NzTreeViewModule } from "ng-zorro-antd/tree-view";
 import { NzNoAnimationModule } from "ng-zorro-antd/core/no-animation";
 import { TreeModule } from "@ali-hm/angular-tree-component";
-import { EnvironmentComponent } from "./workspace/component/left-panel/environment/environment.component";
 import { FileSelectionComponent } from "./workspace/component/file-selection/file-selection.component";
 import { ResultExportationComponent } from "./workspace/component/result-exportation/result-exportation.component";
 
@@ -194,7 +193,6 @@ registerLocaleData(en);
     UserDatasetListItemComponent,
     UserDatasetFileRendererComponent,
     NzModalCommentBoxComponent,
-    EnvironmentComponent,
     LeftPanelComponent,
     LocalLoginComponent,
     ContextMenuComponent,
