@@ -1,0 +1,9 @@
+server:
+  applicationConnectors:
+    - type: http
+      port: 8888
+
+logging:
+  level: INFO
+  loggers:
+    "com.example": DEBUG
