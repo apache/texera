@@ -1,3 +1,4 @@
+import config.ApplicationConf
 import io.dropwizard.core.{Application, Configuration}
 import io.dropwizard.core.setup.{Bootstrap, Environment}
 import web.resources.HelloWorldResource
