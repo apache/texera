@@ -877,7 +877,7 @@ export class JointUIService {
         fill: "#888888",
         "font-size": "10px",
         "ref-x": 0.5,
-        "ref-y": 68,
+        "ref-y": -12,
         ref: "rect.body",
         "y-alignment": "middle",
         "x-alignment": "middle",
