@@ -40,6 +40,8 @@ export interface Workflow
     userId: number;
     workflowId: number;
     workflowName: string;
+    creationTime: number;
+    lastModifiedTime: number;
   }> {}
 
 export interface MongoWorkflow {

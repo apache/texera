@@ -4,8 +4,8 @@ import { NgxFileDropEntry } from "ngx-file-drop";
 import { UserFileUploadService } from "../../../service/user/file/user-file-upload.service";
 import {
   DatasetVersionFileTreeManager,
-  DatasetVersionFileTreeNode,
-  getPathsFromTreeNode,
+  DatasetFileNode,
+  getPathsUnderOrEqualDatasetFileNode,
 } from "../../../../common/type/datasetVersionFileTree";
 import { environment } from "../../../../../environments/environment";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
@@ -17,7 +17,7 @@ import { NotificationService } from "../../../../common/service/notification/not
 })
 export class FilesUploaderComponent {
   @Input()
-  previouslyUploadFiles: DatasetVersionFileTreeNode[] | undefined;
+  previouslyUploadFiles: DatasetFileNode[] | undefined;
   previouslyUploadFilesManager: DatasetVersionFileTreeManager | undefined;
 
   @Output()
@@ -26,12 +26,9 @@ export class FilesUploaderComponent {
   @Output()
   removingFilePaths = new EventEmitter<string[]>();
 
-  newUploadNodeToFileItems: Map<DatasetVersionFileTreeNode, FileUploadItem> = new Map<
-    DatasetVersionFileTreeNode,
-    FileUploadItem
-  >();
+  newUploadNodeToFileItems: Map<DatasetFileNode, FileUploadItem> = new Map<DatasetFileNode, FileUploadItem>();
   newUploadFileTreeManager: DatasetVersionFileTreeManager = new DatasetVersionFileTreeManager();
-  newUploadFileTreeNodes: DatasetVersionFileTreeNode[] = [];
+  newUploadFileTreeNodes: DatasetFileNode[] = [];
 
   fileUploadingFinished: boolean = false;
   // four types: "success", "info", "warning" and "error"
@@ -104,18 +101,18 @@ export class FilesUploaderComponent {
       });
   }
 
-  onPreviouslyUploadedFileDeleted(node: DatasetVersionFileTreeNode) {
+  onPreviouslyUploadedFileDeleted(node: DatasetFileNode) {
     this.removeFileTreeNode(node, true);
-    const paths = getPathsFromTreeNode(node);
+    const paths = getPathsUnderOrEqualDatasetFileNode(node);
     this.removingFilePaths.emit(paths);
   }
 
-  onNewUploadsFileDeleted(node: DatasetVersionFileTreeNode) {
+  onNewUploadsFileDeleted(node: DatasetFileNode) {
     this.removeFileTreeNode(node, false);
     this.uploadedFiles.emit(Array.from(this.newUploadNodeToFileItems.values()));
   }
 
-  private removeFileTreeNode(node: DatasetVersionFileTreeNode, fromPreviouslyUploads: boolean) {
+  private removeFileTreeNode(node: DatasetFileNode, fromPreviouslyUploads: boolean) {
     if (fromPreviouslyUploads) {
       if (!this.previouslyUploadFilesManager) {
         this.previouslyUploadFilesManager = new DatasetVersionFileTreeManager(this.previouslyUploadFiles);
@@ -132,7 +129,7 @@ export class FilesUploaderComponent {
     }
   }
 
-  private removeNodeAndChildrenFromFileItemsMap(node: DatasetVersionFileTreeNode) {
+  private removeNodeAndChildrenFromFileItemsMap(node: DatasetFileNode) {
     this.newUploadNodeToFileItems.delete(node);
 
     // Recursively remove children if it's a directory

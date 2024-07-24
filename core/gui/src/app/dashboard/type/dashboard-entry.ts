@@ -48,7 +48,7 @@ export class DashboardEntry {
       return this.value.workflow.lastModifiedTime;
     } else if ("name" in this.value) {
       return this.value.creationTime;
-    } else if ("ownerEmail" in this.value) {
+    } else if ("ownerEmail" in this.value && "file" in this.value) {
       return this.value.file.uploadTime;
     }
     throw new Error("Unexpected type in DashboardEntry.");
@@ -69,7 +69,7 @@ export class DashboardEntry {
   }
 
   get file(): DashboardFile {
-    if (!("ownerEmail" in this.value)) {
+    if (!("ownerEmail" in this.value && "file" in this.value)) {
       throw new Error("Value is not of type file.");
     }
     return this.value;

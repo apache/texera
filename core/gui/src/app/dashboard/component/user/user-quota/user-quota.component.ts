@@ -1,19 +1,22 @@
-import { Component, inject } from "@angular/core";
+import { Component, OnInit, inject } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { File, Workflow, MongoExecution, MongoWorkflow } from "../../../../common/type/user";
+import { DatasetQuota } from "src/app/dashboard/type/quota-statistic.interface";
 import { UserFileService } from "../../../service/user/file/user-file.service";
 import { NzTableSortFn } from "ng-zorro-antd/table";
-import { UserQuotaService } from "../../../service/user/quota/user-quota.service";
-import { AdminUserService } from "../../../service/admin/user/admin-user.service";
+import { UserQuotaService } from "src/app/dashboard/service/user/quota/user-quota.service";
+import { AdminUserService } from "src/app/dashboard/service/admin/user/admin-user.service";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
+import * as Plotly from "plotly.js-basic-dist-min";
 
 type UserServiceType = AdminUserService | UserQuotaService;
 
 @UntilDestroy()
 @Component({
   templateUrl: "./user-quota.component.html",
+  styleUrls: ["./user-quota.component.scss"],
 })
-export class UserQuotaComponent {
+export class UserQuotaComponent implements OnInit {
   readonly userId: number;
   backgroundColor: String = "white";
   textColor: String = "Black";
@@ -29,10 +32,13 @@ export class UserQuotaComponent {
   accessWorkflows: ReadonlyArray<number> = [];
   topFiveFiles: ReadonlyArray<File> = [];
   mongodbExecutions: ReadonlyArray<MongoExecution> = [];
+  datasetList: ReadonlyArray<DatasetQuota> = [];
   mongodbWorkflows: Array<MongoWorkflow> = [];
   UserService: UserServiceType;
-
-  timer = setInterval(() => {}, 1000); // 1 second interval
+  DEFAULT_PIE_CHART_WIDTH = 480;
+  DEFAULT_PIE_CHART_HEIGHT = 340;
+  DEFAULT_LINE_CHART_WIDTH = 480;
+  DEFAULT_LINE_CHART_HEIGHT = 340;
 
   constructor(
     private adminUserService: AdminUserService,
@@ -50,7 +56,126 @@ export class UserQuotaComponent {
       this.UserService = this.regularUserService;
       this.dynamicHeight = "";
     }
+  }
+  ngOnInit(): void {
     this.refreshData();
+  }
+  /* takes in an array of tuple ('label', 'value') and generates the corresponding pie chart */
+  generatePieChart(dataToDisplay: Array<[string, ...number[]]>, title: string, chart: string) {
+    var data = [
+      {
+        values: dataToDisplay.map(d => d[1]),
+        labels: dataToDisplay.map(d => d[0]),
+        type: "pie" as const,
+      },
+    ];
+    var layout = {
+      height: this.DEFAULT_PIE_CHART_HEIGHT,
+      width: this.DEFAULT_PIE_CHART_WIDTH,
+      title: {
+        text: title,
+      },
+    };
+    Plotly.newPlot(chart, data, layout);
+  }
+
+  filterOutdatedData(data: Array<[string, number]>): Array<[string, number]> {
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    return data.filter(([date]) => new Date(date) >= oneYearAgo);
+  }
+  aggregateByMonth(data: Array<[string, number]>): Array<[string, number]> {
+    const monthMap = new Map<string, number>();
+    data.forEach(([date, value]) => {
+      const month = date.substring(0, 7); // 'YYYY-MM'
+      if (monthMap.has(month)) {
+        monthMap.set(month, monthMap.get(month)! + value);
+      } else {
+        monthMap.set(month, value);
+      }
+    });
+    return Array.from(monthMap, ([date, value]) => [date, value]);
+  }
+
+  aggregateData(data: Array<[string, number]>, numGroup: number) {
+    data = this.filterOutdatedData(data);
+
+    if (data.length < 8) {
+      return data;
+    }
+
+    const uniqueMonths = new Set(data.map(([date]) => date.substring(0, 7)));
+    if (uniqueMonths.size >= 3) {
+      return this.aggregateByMonth(data);
+    }
+
+    const startDate = new Date(data[0][0]);
+    const endDate = new Date(data[data.length - 1][0]);
+    const newOfDays = (endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24);
+    const daysPerGroup = Math.ceil(newOfDays / numGroup);
+    let aggData: Array<[string, number]> = [];
+
+    let currentGroupStartDate = startDate;
+    let sum = 0;
+    let nextDate = new Date(currentGroupStartDate);
+    nextDate.setDate(currentGroupStartDate.getDate() + daysPerGroup);
+    data.forEach(([date, value]) => {
+      const currentDate = new Date(date);
+      if (currentDate < nextDate) {
+        sum += value;
+      } else {
+        aggData.push([currentGroupStartDate.toISOString().split("T")[0], sum]);
+        currentGroupStartDate = new Date(nextDate);
+        nextDate.setDate(currentGroupStartDate.getDate() + daysPerGroup);
+        sum = value;
+      }
+    });
+    aggData.push([currentGroupStartDate.toISOString().split("T")[0], sum]);
+    return aggData;
+  }
+
+  generateLineChart(
+    dataToDisplay: Array<[string, number]>,
+    x_label: string,
+    y_label: string,
+    title: string,
+    chart: string
+  ) {
+    var data = [
+      {
+        x: dataToDisplay.map(d => d[0]),
+        y: dataToDisplay.map(d => d[1]),
+        type: "scatter" as const,
+      },
+    ];
+
+    const yValues = dataToDisplay.map(d => d[1]);
+    const maxY = Math.max(...yValues);
+    const minY = Math.min(...yValues);
+    const yRange = maxY - minY;
+
+    var layout = {
+      height: this.DEFAULT_LINE_CHART_HEIGHT,
+      width: this.DEFAULT_LINE_CHART_WIDTH,
+      title: {
+        text: title,
+      },
+      xaxis: {
+        title: x_label,
+      },
+      yaxis: {
+        title: y_label,
+        rangemode: "tozero" as const,
+        zeroline: true,
+        zerolinewidth: 2,
+        zerolinecolor: "#000",
+        range: [0, "auto"],
+        tickmode: yRange <= 5 ? ("linear" as const) : undefined,
+        dtick: yRange <= 5 ? 1 : undefined,
+      },
+    };
+
+    Plotly.newPlot(chart, data, layout);
   }
 
   refreshData() {
@@ -63,28 +188,58 @@ export class UserQuotaComponent {
           size += file.fileSize;
         });
         this.totalFileSize = size;
-
         const copiedFiles = [...fileList];
         copiedFiles.sort((a, b) => b.fileSize - a.fileSize);
         this.topFiveFiles = copiedFiles.slice(0, 5);
       });
 
-    this.UserService.getTotalUploadedDatasetSize(this.userId)
+    this.UserService.getCreatedDatasets(this.userId)
       .pipe(untilDestroyed(this))
-      .subscribe(datasetSize => {
-        this.totalUploadedDatasetSize = datasetSize;
-      });
-
-    this.UserService.getTotalUploadedDatasetCount(this.userId)
-      .pipe(untilDestroyed(this))
-      .subscribe(datasetCount => {
-        this.totalUploadedDatasetCount = datasetCount;
+      .subscribe(datasetList => {
+        this.datasetList = datasetList;
+        let totalDatasetSize = 0;
+        this.totalUploadedDatasetCount = datasetList.length;
+        let pieChartData: Array<[string, ...number[]]> = [];
+        let lineChartData: Map<string, number> = new Map();
+        this.datasetList.forEach(dataset => {
+          totalDatasetSize += dataset.size;
+          pieChartData.push([dataset.name, dataset.size]);
+          const date = new Date(dataset.creationTime).toLocaleDateString();
+          if (lineChartData.has(date)) {
+            lineChartData.set(date, lineChartData.get(date)! + 1);
+          } else {
+            lineChartData.set(date, 1);
+          }
+        });
+        this.generatePieChart(pieChartData, "Dataset Size Distribution", "sizePieChart");
+        let lineChartDataArray: Array<[string, number]> = [];
+        lineChartData.forEach((count, date) => {
+          lineChartDataArray.push([date, count]);
+        });
+        lineChartDataArray = this.aggregateData(lineChartDataArray, 5);
+        this.generateLineChart(lineChartDataArray, "Date", "Count", "Dataset Upload Overview", "datasetLineChart");
+        this.totalUploadedDatasetSize = totalDatasetSize;
       });
 
     this.UserService.getCreatedWorkflows(this.userId)
       .pipe(untilDestroyed(this))
       .subscribe(workflowList => {
+        let lineChartData: Map<string, number> = new Map();
         this.createdWorkflows = workflowList;
+        this.createdWorkflows.forEach(workflow => {
+          const date = new Date(workflow.creationTime).toLocaleDateString();
+          if (lineChartData.has(date)) {
+            lineChartData.set(date, lineChartData.get(date)! + 1);
+          } else {
+            lineChartData.set(date, 1);
+          }
+        });
+        let lineChartDataArray: Array<[string, number]> = [];
+        lineChartData.forEach((count, date) => {
+          lineChartDataArray.push([date, count]);
+        });
+        lineChartDataArray = this.aggregateData(lineChartDataArray, 5);
+        this.generateLineChart(lineChartDataArray, "Date", "Count", "Workflow Upload Overview", "workflowLineChart");
       });
 
     this.UserService.getAccessFiles(this.userId)

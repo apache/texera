@@ -3,10 +3,7 @@ import { ActivatedRoute, NavigationEnd, Router } from "@angular/router";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DatasetService } from "../../../../service/user/dataset/dataset.service";
 import { NzResizeEvent } from "ng-zorro-antd/resizable";
-import {
-  DatasetVersionFileTreeNode,
-  getFullPathFromFileTreeNode,
-} from "../../../../../common/type/datasetVersionFileTree";
+import { DatasetFileNode, getFullPathFromDatasetFileNode } from "../../../../../common/type/datasetVersionFileTree";
 import { DatasetVersion } from "../../../../../common/type/dataset";
 import { switchMap } from "rxjs/operators";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
@@ -31,7 +28,7 @@ export class UserDatasetExplorerComponent implements OnInit {
 
   public versions: ReadonlyArray<DatasetVersion> = [];
   public selectedVersion: DatasetVersion | undefined;
-  public fileTreeNodeList: DatasetVersionFileTreeNode[] = [];
+  public fileTreeNodeList: DatasetFileNode[] = [];
 
   public isCreatingVersion: boolean = false;
   public isCreatingDataset: boolean = false;
@@ -180,14 +177,14 @@ export class UserDatasetExplorerComponent implements OnInit {
     }
   }
 
-  loadFileContent(node: DatasetVersionFileTreeNode) {
-    this.currentDisplayedFileName = getFullPathFromFileTreeNode(node);
+  loadFileContent(node: DatasetFileNode) {
+    this.currentDisplayedFileName = getFullPathFromDatasetFileNode(node);
   }
 
   onClickDownloadCurrentFile() {
     if (this.did && this.selectedVersion && this.selectedVersion.dvid) {
       this.datasetService
-        .retrieveDatasetVersionSingleFile(this.did, this.selectedVersion?.dvid, this.currentDisplayedFileName)
+        .retrieveDatasetVersionSingleFile(this.currentDisplayedFileName)
         .pipe(untilDestroyed(this))
         .subscribe({
           next: blob => {
@@ -240,7 +237,7 @@ export class UserDatasetExplorerComponent implements OnInit {
         });
   }
 
-  onVersionFileTreeNodeSelected(node: DatasetVersionFileTreeNode) {
+  onVersionFileTreeNodeSelected(node: DatasetFileNode) {
     this.loadFileContent(node);
   }
 
