@@ -137,6 +137,7 @@ export const operatorCoeditorChangedPropertyClass = "texera-operator-coeditor-ch
 
 export const operatorIconClass = "texera-operator-icon";
 export const operatorNameClass = "texera-operator-name";
+export const operatorFriendlyNameClass = "texera-operator-friendly-name";
 
 export const linkPathStrokeColor = "#919191";
 
@@ -151,6 +152,7 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
     <g class="element-node">
       <rect class="body"></rect>
       <image class="${operatorIconClass}"></image>
+      <text class="${operatorFriendlyNameClass}"></text>
       <text class="${operatorNameClass}"></text>
       <text class="${operatorProcessedCountClass}"></text>
       <text class="${operatorOutputCountClass}"></text>
@@ -269,7 +271,8 @@ export class JointUIService {
       attrs: JointUIService.getCustomOperatorStyleAttrs(
         operator,
         operator.customDisplayName ?? operatorSchema.additionalMetadata.userFriendlyName,
-        operatorSchema.operatorType
+        operatorSchema.operatorType,
+        operatorSchema.additionalMetadata.userFriendlyName
       ),
       ports: {
         groups: {
@@ -756,7 +759,8 @@ export class JointUIService {
   public static getCustomOperatorStyleAttrs(
     operator: OperatorPredicate,
     operatorDisplayName: string,
-    operatorType: string
+    operatorType: string,
+    operatorFriendlyName: string
   ): joint.shapes.devs.ModelSelectors {
     const operatorStyleAttrs = {
       ".texera-operator-coeditor-editing": {
@@ -864,6 +868,16 @@ export class JointUIService {
         "font-size": "14px",
         "ref-x": 0.5,
         "ref-y": 80,
+        ref: "rect.body",
+        "y-alignment": "middle",
+        "x-alignment": "middle",
+      },
+      ".texera-operator-friendly-name": {
+        text: operatorFriendlyName,
+        fill: "#888888",
+        "font-size": "10px",
+        "ref-x": 0.5,
+        "ref-y": -12,
         ref: "rect.body",
         "y-alignment": "middle",
         "x-alignment": "middle",
