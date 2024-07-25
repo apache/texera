@@ -28,3 +28,6 @@ libraryDependencies += "org.jooq" % "jooq" % "3.14.16"
 
 // config
 libraryDependencies += "com.typesafe" % "config" % "1.4.1"
+
+// https://mvnrepository.com/artifact/mysql/mysql-connector-java
+libraryDependencies += "mysql" % "mysql-connector-java" % "8.0.33"
