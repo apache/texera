@@ -9,8 +9,15 @@ case class KubernetesConfig(
                              workflowPodPoolDeploymentName: String
                            )
 
+case class MysqlConfig(
+    url: String,
+    username: String,
+    password: String,
+                      )
+
 case class AppConfig(
-                      kubernetes: KubernetesConfig
+                      kubernetes: KubernetesConfig,
+                      mysqlConfig: MysqlConfig
                     )
 
 object ApplicationConf {
@@ -22,6 +29,11 @@ object ApplicationConf {
       namespace = config.getString("kubernetes.namespace"),
       workflowPodBrainDeploymentName = config.getString("kubernetes.workflow-pod-brain-deployment-name"),
       workflowPodPoolDeploymentName = config.getString("kubernetes.workflow-pod-pool-deployment-name")
+    ),
+    mysqlConfig = MysqlConfig(
+      url = config.getString("jdbc.url"),
+      username = config.getString("jdbc.username"),
+      password = config.getString("jdbc.password")
     )
   )
 }

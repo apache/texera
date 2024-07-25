@@ -1,16 +1,16 @@
 import config.ApplicationConf
 import io.dropwizard.core.{Application, Configuration}
 import io.dropwizard.core.setup.{Bootstrap, Environment}
-import web.resources.HelloWorldResource
+import web.resources.{HelloWorldResource, WorkflowPodBrainResource}
 
-class Main extends Application[Configuration] {
+class WorkflowPodBrainApplication extends Application[Configuration] {
   override def initialize(bootstrap: Bootstrap[Configuration]): Unit = {}
 
   override def run(configuration: Configuration, environment: Environment): Unit = {
     val appConfig = ApplicationConf.appConfig
 
-    val resource = new HelloWorldResource
-    environment.jersey().register(resource)
+    environment.jersey().register(new HelloWorldResource)
+    environment.jersey().register(new WorkflowPodBrainResource)
 
     println(s"Kube Config Path: ${appConfig.kubernetes.kubeConfigPath}")
     println(s"Namespace: ${appConfig.kubernetes.namespace}")
@@ -19,8 +19,8 @@ class Main extends Application[Configuration] {
   }
 }
 
-object Main {
+object WorkflowPodBrainApplication {
   def main(args: Array[String]): Unit = {
-    new Main().run(args: _*)
+    new WorkflowPodBrainApplication().run(args: _*)
   }
 }
