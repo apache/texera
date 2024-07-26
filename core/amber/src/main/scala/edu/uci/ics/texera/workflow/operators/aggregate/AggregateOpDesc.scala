@@ -31,9 +31,9 @@ class AggregateOpDesc extends LogicalOp {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalPlan = {
-//    if (aggregations.isEmpty) {
-//      throw new UnsupportedOperationException("Aggregation Functions Cannot be Empty")
-//    }
+    if (aggregations.isEmpty) {
+      throw new UnsupportedOperationException("Aggregation Functions Cannot be Empty")
+    }
 
     // TODO: this is supposed to be blocking but due to limitations of materialization naming on the logical operator
     // we are keeping it not annotated as blocking.
