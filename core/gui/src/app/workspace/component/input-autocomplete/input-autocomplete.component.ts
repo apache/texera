@@ -25,7 +25,7 @@ export class InputAutoCompleteComponent extends FieldType<FieldTypeConfig> {
 
   onClickOpenFileSelectionModal(): void {
     this.datasetService
-      .retrieveAccessibleDatasets(true)
+      .retrieveAccessibleDatasets()
       .pipe(untilDestroyed(this))
       .subscribe(response => {
         // const fileNodes = response.fileNodes;

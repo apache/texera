@@ -1,15 +1,3 @@
-<!-- <input
-  nz-input
-  placeholder="Search for files from datasets..."
-  [(ngModel)]="filterText"
-  (ngModelChange)="filterFileTreeNodes()" />
-
-<texera-user-dataset-version-filetree
-  [isExpandAllAfterViewInit]="true"
-  [fileTreeNodes]="suggestedFileTreeNodes"
-  (selectedTreeNode)="onFileTreeNodeSelected($event)">
-</texera-user-dataset-version-filetree> -->
-
 <div>
   <nz-select
     nzShowSearch
@@ -29,7 +17,7 @@
     (ngModelChange)="onVersionChange()"
     [nzDisabled]="!selectedDataset"
   >
-    <nz-option *ngFor="let version of selectedDataset?.versions" [nzValue]="version.datasetVersion" [nzLabel]="version.datasetVersion.name"></nz-option>
+    <nz-option *ngFor="let version of datasetVersions" [nzValue]="version" [nzLabel]="version.name"></nz-option>
   </nz-select>
 
   <button nz-button (click)="showFiles()" [disabled]="!selectedVersion">Show Files</button>
