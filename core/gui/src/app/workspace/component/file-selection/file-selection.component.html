@@ -1,4 +1,4 @@
-<div>
+<div class="container">
   <nz-select
     nzShowSearch
     nzAllowClear
@@ -21,11 +21,11 @@
   </nz-select>
 
   <button nz-button (click)="showFiles()" [disabled]="!selectedVersion">Show Files</button>
-</div>
 
-<texera-user-dataset-version-filetree
-  *ngIf="suggestedFileTreeNodes.length > 0"
-  [isExpandAllAfterViewInit]="true"
-  [fileTreeNodes]="suggestedFileTreeNodes"
-  (selectedTreeNode)="onFileTreeNodeSelected($event)"
-></texera-user-dataset-version-filetree>
+  <texera-user-dataset-version-filetree
+    *ngIf="suggestedFileTreeNodes.length > 0"
+    [isExpandAllAfterViewInit]="true"
+    [fileTreeNodes]="suggestedFileTreeNodes"
+    (selectedTreeNode)="onFileTreeNodeSelected($event)"
+  ></texera-user-dataset-version-filetree>
+</div>

@@ -1,0 +1,24 @@
+:host {
+    display: block;
+    padding: 16px;
+  }
+  
+  .container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .nz-select {
+    width: 100%;
+  }
+  
+  button {
+    align-self: flex-start;
+    margin-top: 8px;
+  }
+  
+  .texera-user-dataset-version-filetree {
+    margin-top: 16px;
+  }
+  
