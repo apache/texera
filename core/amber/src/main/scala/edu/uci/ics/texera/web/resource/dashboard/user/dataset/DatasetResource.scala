@@ -210,7 +210,7 @@ object DatasetResource {
   // read access will be checked
   def getDashboardDataset(ctx: DSLContext, did: UInteger, uid: UInteger): DashboardDataset = {
     if (!userHasReadAccess(ctx, did, uid)) {
-      throw new ForbiddenException()
+      throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
     }
 
     val targetDataset = getDatasetByID(ctx, did)
@@ -764,6 +764,7 @@ class DatasetResource {
   @Path("")
   def listDatasets(
       @Auth user: SessionUser,
+      @QueryParam("includeVersions") includeVersions: Boolean = false,
       @QueryParam("includeFileNodes") includeFileNodes: Boolean = false
   ): ListDatasetsResponse = {
     val uid = user.getUid
@@ -812,35 +813,40 @@ class DatasetResource {
       }
       val fileNodesMap = mutable.Map[(String, String, String), List[PhysicalFileNode]]()
 
-      if (includeFileNodes) {
-        // iterate over datasets and retrieve the version
-        accessibleDatasets = accessibleDatasets.map { dataset =>
-          val did = dataset.dataset.getDid
+      // iterate over datasets and retrieve the version
+      accessibleDatasets = accessibleDatasets.map { dataset =>
+        val did = dataset.dataset.getDid
 
-          DashboardDataset(
-            isOwner = dataset.isOwner,
-            dataset = dataset.dataset,
-            ownerEmail = dataset.ownerEmail,
-            accessPrivilege = dataset.accessPrivilege,
-            versions = getDatasetVersions(ctx, did, uid).map { version =>
-              fileNodesMap += ((
-                dataset.ownerEmail,
-                dataset.dataset.getName,
-                version.getName
-              ) -> GitVersionControlLocalFileStorage
-                .retrieveRootFileNodesOfVersion(
-                  PathUtils.getDatasetPath(did),
-                  version.getVersionHash
-                )
-                .toList)
+        DashboardDataset(
+          isOwner = dataset.isOwner,
+          dataset = dataset.dataset,
+          ownerEmail = dataset.ownerEmail,
+          accessPrivilege = dataset.accessPrivilege,
+          versions = if (includeVersions || includeFileNodes) {
+            getDatasetVersions(ctx, did, uid).map { version =>
+              if (includeFileNodes) {
+                fileNodesMap += ((
+                  dataset.ownerEmail,
+                  dataset.dataset.getName,
+                  version.getName
+                ) -> GitVersionControlLocalFileStorage
+                  .retrieveRootFileNodesOfVersion(
+                    PathUtils.getDatasetPath(did),
+                    version.getVersionHash
+                  )
+                  .toList)
+              }
               DashboardDatasetVersion(
                 version,
                 List()
               )
             }
-          )
-        }
+          } else {
+            List()
+          }
+        )
       }
+
       ListDatasetsResponse(
         accessibleDatasets.toList,
         DatasetFileNode.fromPhysicalFileNodes(fileNodesMap.toMap)
@@ -916,13 +922,11 @@ class DatasetResource {
     val uid = user.getUid
 
     withTransaction(context)(ctx => {
-      if (!userHasReadAccess(ctx, did, uid)) {
-        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-      }
-      val dataset = getDatasetByID(ctx, did)
+
+      val dataset = getDashboardDataset(ctx, did, uid)
       val targetDatasetPath = PathUtils.getDatasetPath(did)
       val datasetVersion = getDatasetVersionByID(ctx, dvid)
-
+      val datasetName = dataset.dataset.getName
       val fileNodes = GitVersionControlLocalFileStorage.retrieveRootFileNodesOfVersion(
         targetDatasetPath,
         datasetVersion.getVersionHash
@@ -930,12 +934,12 @@ class DatasetResource {
 
       val ownerFileNode = DatasetFileNode
         .fromPhysicalFileNodes(
-          Map((user.getEmail, dataset.getName, datasetVersion.getName) -> fileNodes.toList)
+          Map((dataset.ownerEmail, datasetName, datasetVersion.getName) -> fileNodes.toList)
         )
         .head
 
       DatasetVersionRootFileNodes(
-        getFileNodesOfCertainVersion(ownerFileNode, dataset.getName, datasetVersion.getName)
+        getFileNodesOfCertainVersion(ownerFileNode, datasetName, datasetVersion.getName)
       )
     })
   }
