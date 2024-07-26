@@ -18,7 +18,6 @@ export class FileSelectionComponent implements OnInit {
   selectedVersion?: DatasetVersion;
   datasetVersions?: DatasetVersion[];
   suggestedFileTreeNodes: DatasetFileNode[] = [];
-  filterText: string = "";
 
   constructor(private modalRef: NzModalRef, private datasetService: DatasetService) {}
 
