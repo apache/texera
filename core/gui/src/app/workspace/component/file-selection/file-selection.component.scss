@@ -53,18 +53,6 @@
   overflow: hidden;
 }
 
-::ng-deep .ant-select-dropdown {
-  max-height: 400px; /* 增加下拉菜单的最大高度 */
-}
 
-::ng-deep .ant-select-item-option-content {
-  display: flex;
-  align-items: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 
-::ng-deep .ant-select-item-option {
-  height: auto; /* 确保每个选项的高度是自适应的 */
-}
+
