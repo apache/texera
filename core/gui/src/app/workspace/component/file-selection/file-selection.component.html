@@ -8,7 +8,17 @@
       (ngModelChange)="onDatasetChange()"
       class="select-dataset"
     >
-      <nz-option *ngFor="let dataset of datasets" [nzValue]="dataset" [nzLabel]="dataset.dataset.name"></nz-option>
+      <nz-option
+        *ngFor="let dataset of datasets"
+        [nzValue]="dataset"
+        [nzLabel]="dataset.dataset.name"
+        [nzCustomContent]="true"
+      >
+        <div class="dataset-option">
+          <div class="dataset-id-container">{{ dataset.dataset.did }}</div>
+          <span>{{ dataset.dataset.name }}</span>
+        </div>
+      </nz-option>
     </nz-select>
 
     <nz-select
@@ -20,7 +30,14 @@
       (ngModelChange)="onVersionChange()"
       class="select-version"
     >
-      <nz-option *ngFor="let version of datasetVersions" [nzValue]="version" [nzLabel]="version.name"></nz-option>
+      <nz-option
+        *ngFor="let version of datasetVersions"
+        [nzValue]="version"
+        [nzLabel]="version.name"
+        [nzCustomContent]="true"
+      >
+        {{ version.name }}
+      </nz-option>
     </nz-select>
   </div>
 

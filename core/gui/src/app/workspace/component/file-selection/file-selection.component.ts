@@ -13,7 +13,7 @@ import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.
   styleUrls: ["file-selection.component.scss"],
 })
 export class FileSelectionComponent implements OnInit {
-  readonly datasets: ReadonlyArray<DashboardDataset> = inject(NZ_MODAL_DATA).datasets; // 获取传递的数据集信息
+  readonly datasets: ReadonlyArray<DashboardDataset> = inject(NZ_MODAL_DATA).datasets;
   selectedDataset?: DashboardDataset;
   selectedVersion?: DatasetVersion;
   datasetVersions?: DatasetVersion[];
