@@ -45,8 +45,6 @@ export class FileSelectionComponent implements OnInit {
         .retrieveDatasetVersionFileTree(this.selectedDataset.dataset.did, this.selectedVersion.dvid)
         .subscribe(fileNodes => {
           this.suggestedFileTreeNodes = fileNodes;
-          console.log("+++++")
-          console.log(this.suggestedFileTreeNodes)
         });
     }
   }
