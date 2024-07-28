@@ -21,8 +21,7 @@ export class FileSelectionComponent implements OnInit {
 
   constructor(private modalRef: NzModalRef, private datasetService: DatasetService) {}
 
-  ngOnInit() {
-  }
+  ngOnInit() {}
 
   onDatasetChange() {
     this.selectedVersion = undefined;
