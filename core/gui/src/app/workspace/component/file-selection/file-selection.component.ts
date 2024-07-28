@@ -30,15 +30,17 @@ export class FileSelectionComponent implements OnInit {
     if (this.selectedDataset && this.selectedDataset.dataset.did !== undefined) {
       this.datasetService.retrieveDatasetVersionList(this.selectedDataset.dataset.did).subscribe((versions) => {
         this.datasetVersions = versions;
+        // set default version to the latest version
+        if (this.datasetVersions && this.datasetVersions.length > 0) {
+          this.selectedVersion = this.datasetVersions[0];
+          this.onVersionChange(); 
+        }
       });
     }
   }
 
   onVersionChange() {
     this.suggestedFileTreeNodes = [];
-  }
-
-  showFiles() {
     if (this.selectedDataset && this.selectedDataset.dataset.did !== undefined && this.selectedVersion && this.selectedVersion.dvid !== undefined) {
       this.datasetService
         .retrieveDatasetVersionFileTree(this.selectedDataset.dataset.did, this.selectedVersion.dvid)
@@ -54,4 +56,3 @@ export class FileSelectionComponent implements OnInit {
     this.modalRef.close(node);
   }
 }
-
