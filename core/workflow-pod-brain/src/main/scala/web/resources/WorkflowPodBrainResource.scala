@@ -1,5 +1,6 @@
 package web.resources
 
+import io.kubernetes.client.openapi.models.V1Pod
 import jakarta.ws.rs.core.{MediaType, Response}
 import jakarta.ws.rs.{Consumes, GET, POST, Path, Produces, QueryParam}
 import org.jooq.DSLContext
@@ -11,6 +12,7 @@ import web.model.jooq.generated.tables.daos.PodDao
 import web.resources.WorkflowPodBrainResource.{WorkflowPodCreationParams, WorkflowPodTerminationParams, context}
 import web.model.jooq.generated.tables.pojos.Pod
 
+import java.sql.Timestamp
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 object WorkflowPodBrainResource {
@@ -35,7 +37,23 @@ class WorkflowPodBrainResource {
   @Path("/create")
   def createPod(
                  param: WorkflowPodCreationParams
-               ): Pod = ???
+               ): Pod = {
+    val newPod: V1Pod = new KubernetesClientService().createPod(param.uid.intValue())
+    val newSQLPod: Pod = new Pod()
+
+    // Set uid, name, pod_uid, creation_time manually
+    // pod_id, terminate_time are auto-generated
+    newSQLPod.setUid(param.uid)
+    newSQLPod.setName(newPod.getMetadata.getName)
+    newSQLPod.setPodUid(newPod.getMetadata.getUid)
+    newSQLPod.setCreationTime(Timestamp.from(newPod.getMetadata.getCreationTimestamp.toInstant))
+
+    withTransaction(context) { ctx =>
+      val podDao = new PodDao(ctx.configuration())
+      podDao.insert(newSQLPod)
+      newSQLPod
+    }
+  }
 
 
   /**
@@ -48,7 +66,12 @@ class WorkflowPodBrainResource {
   def listPods(@QueryParam("uid") uid: UInteger): java.util.List[Pod] = {
     withTransaction(context) { ctx =>
       val podDao = new PodDao(ctx.configuration())
-      val pods = podDao.fetchByUid(uid)
+      var pods: java.util.List[Pod] = null
+      if (uid == null) {
+         pods = podDao.findAll()
+      } else {
+        pods = podDao.fetchByUid(uid)
+      }
       pods
     }
   }
