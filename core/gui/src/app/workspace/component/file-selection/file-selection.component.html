@@ -6,14 +6,12 @@
       nzPlaceHolder="Select dataset"
       [(ngModel)]="selectedDataset"
       (ngModelChange)="onDatasetChange()"
-      class="select-dataset"
-    >
+      class="select-dataset">
       <nz-option
         *ngFor="let dataset of datasets"
         [nzValue]="dataset"
         [nzLabel]="dataset.dataset.name"
-        [nzCustomContent]="true"
-      >
+        [nzCustomContent]="true">
         <div class="dataset-option">
           <div class="dataset-id-container">{{ dataset.dataset.did }}</div>
           <span>{{ dataset.dataset.name }}</span>
@@ -28,14 +26,12 @@
       nzPlaceHolder="Select version"
       [(ngModel)]="selectedVersion"
       (ngModelChange)="onVersionChange()"
-      class="select-version"
-    >
+      class="select-version">
       <nz-option
         *ngFor="let version of datasetVersions"
         [nzValue]="version"
         [nzLabel]="version.name"
-        [nzCustomContent]="true"
-      >
+        [nzCustomContent]="true">
         {{ version.name }}
       </nz-option>
     </nz-select>
@@ -46,6 +42,5 @@
     [isExpandAllAfterViewInit]="true"
     [fileTreeNodes]="suggestedFileTreeNodes"
     (selectedTreeNode)="onFileTreeNodeSelected($event)"
-    class="texera-user-dataset-version-filetree"
-  ></texera-user-dataset-version-filetree>
+    class="texera-user-dataset-version-filetree"></texera-user-dataset-version-filetree>
 </div>

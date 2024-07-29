@@ -19,7 +19,10 @@ export class FileSelectionComponent implements OnInit {
   datasetVersions?: DatasetVersion[];
   suggestedFileTreeNodes: DatasetFileNode[] = [];
 
-  constructor(private modalRef: NzModalRef, private datasetService: DatasetService) {}
+  constructor(
+    private modalRef: NzModalRef,
+    private datasetService: DatasetService
+  ) {}
 
   ngOnInit() {}
 
@@ -27,12 +30,12 @@ export class FileSelectionComponent implements OnInit {
     this.selectedVersion = undefined;
     this.suggestedFileTreeNodes = [];
     if (this.selectedDataset && this.selectedDataset.dataset.did !== undefined) {
-      this.datasetService.retrieveDatasetVersionList(this.selectedDataset.dataset.did).subscribe((versions) => {
+      this.datasetService.retrieveDatasetVersionList(this.selectedDataset.dataset.did).subscribe(versions => {
         this.datasetVersions = versions;
         // set default version to the latest version
         if (this.datasetVersions && this.datasetVersions.length > 0) {
           this.selectedVersion = this.datasetVersions[0];
-          this.onVersionChange(); 
+          this.onVersionChange();
         }
       });
     }
@@ -40,7 +43,12 @@ export class FileSelectionComponent implements OnInit {
 
   onVersionChange() {
     this.suggestedFileTreeNodes = [];
-    if (this.selectedDataset && this.selectedDataset.dataset.did !== undefined && this.selectedVersion && this.selectedVersion.dvid !== undefined) {
+    if (
+      this.selectedDataset &&
+      this.selectedDataset.dataset.did !== undefined &&
+      this.selectedVersion &&
+      this.selectedVersion.dvid !== undefined
+    ) {
       this.datasetService
         .retrieveDatasetVersionFileTree(this.selectedDataset.dataset.did, this.selectedVersion.dvid)
         .subscribe(fileNodes => {
