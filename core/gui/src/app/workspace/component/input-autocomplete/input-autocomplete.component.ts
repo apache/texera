@@ -28,15 +28,13 @@ export class InputAutoCompleteComponent extends FieldType<FieldTypeConfig> {
       .retrieveAccessibleDatasets()
       .pipe(untilDestroyed(this))
       .subscribe(response => {
-        // const fileNodes = response.fileNodes;
-        const datasets = response.datasets; // 获取数据集信息
+        const datasets = response.datasets; 
         const modal = this.modalService.create({
           nzTitle: "Please select one file from datasets",
           nzContent: FileSelectionComponent,
           nzFooter: null,
           nzData: {
-            // datasetRootFileNodes: fileNodes,
-            datasets: datasets, // 传递数据集信息
+            datasets: datasets, 
           },
         });
         // Handle the selection from the modal
