@@ -106,6 +106,22 @@ class KubernetesClientService(
   }
 
   /**
+    * Deletes an existing pod with the specified pod name.
+    *
+    * @param podName   The name of the pod to be deleted.
+    */
+  def deletePod(podName: String): Unit = ???
+
+  /**
+   * Deletes an existing deployment belonging to the specific user id.
+   *
+   * @param uid   The deployment owner's user id.
+   */
+  def deleteDeployment(uid: Int): Unit = {
+    appsApi.deleteNamespacedDeployment(s"user-deployment-$uid", namespace).execute()
+  }
+
+  /**
    * Find and return the latest created pod.
    *
    * @param uid        The uid which a new pod will be created for.
@@ -147,14 +163,5 @@ class KubernetesClientService(
       }
     }
     returnPod
-  }
-
-  /**
-    * Deletes an existing pod with the specified pod name.
-    *
-    * @param podName   The name of the pod to be deleted.
-    */
-  def deletePod(podName: String): Unit = {
-
   }
 }

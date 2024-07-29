@@ -13,7 +13,6 @@ import web.resources.WorkflowPodBrainResource.{WorkflowPodCreationParams, Workfl
 import web.model.jooq.generated.tables.pojos.Pod
 
 import java.sql.Timestamp
-import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 object WorkflowPodBrainResource {
 
@@ -79,8 +78,8 @@ class WorkflowPodBrainResource {
 
   /**
     * Terminate the workflow's pod
-    * @param param
-    * @return
+    * @param param the parameters
+    * @return request response
     */
   @POST
   @Consumes(Array(MediaType.APPLICATION_JSON))
@@ -88,5 +87,13 @@ class WorkflowPodBrainResource {
   @Path("/terminate")
   def terminatePod(
                     param: WorkflowPodTerminationParams
-                  ): Response = ???
+                  ): Response = {
+    new KubernetesClientService().deleteDeployment(param.uid.intValue())
+    withTransaction(context) { ctx =>
+      val podDao = new PodDao(ctx.configuration())
+      val pods = podDao.fetchByUid(param.uid)
+      podDao.delete(pods)
+      Response.ok(s"Successfully terminated deployment and pod of uid ${param.uid}").build()
+    }
+  }
 }
