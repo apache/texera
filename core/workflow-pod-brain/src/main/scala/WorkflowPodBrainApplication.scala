@@ -23,7 +23,7 @@ class WorkflowPodBrainApplication extends Application[Configuration] {
 //    val pods = new KubernetesClientService().getPodsList()
 //    pods.foreach(pod => println(pod.getMetadata.getName))
 //
-//    val newPod = new KubernetesClientService().createPod(1)
+//    val newPod = new KubernetesClientService().createPod("1")
 //    println(newPod.getMetadata.getUid)
 //    println(newPod.getMetadata.getName)
 //    println(newPod.getMetadata.getAnnotations)

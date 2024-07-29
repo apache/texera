@@ -3,7 +3,7 @@ package service
 import config.ApplicationConf.appConfig
 import io.kubernetes.client.openapi.{ApiClient, Configuration}
 import io.kubernetes.client.openapi.apis.{AppsV1Api, CoreV1Api}
-import io.kubernetes.client.openapi.models.{V1Deployment, V1DeploymentSpec, V1ObjectMeta, V1Pod, V1PodList}
+import io.kubernetes.client.openapi.models.{V1Container, V1ContainerPort, V1Deployment, V1DeploymentSpec, V1LabelSelector, V1ObjectMeta, V1Pod, V1PodList, V1PodSpec, V1PodTemplateSpec}
 import io.kubernetes.client.util.Config
 import service.KubernetesClientConfig.kubernetesConfig
 
@@ -44,6 +44,22 @@ class KubernetesClientService(
   }
 
   /**
+   * Retrieves the list of pods for a given label in the specified namespace.
+   *
+   * @param podLabel        The label of the pods to be returned.
+   * @return A list of V1Pod objects representing the pods with the given label.
+   */
+  def getPodsList(podLabel: String): List[V1Pod] = {
+    val podList = coreApi.listNamespacedPod(namespace).execute().getItems.asScala
+    (
+      for (
+        pod: V1Pod <- podList
+        if pod.getMetadata.getLabels.containsValue(podLabel)
+      ) yield pod
+    ).toList
+  }
+
+  /**
     * Creates a new pod under the specified deployment.
     *
     * @param podSpec        The specification of the pod to be created.
@@ -57,26 +73,36 @@ class KubernetesClientService(
    * @param uid        The uid which a new pod will be created for.
    * @return The newly created V1Pod object.
    */
-  def createPod(uid: Int): V1Pod = {
-    val deployment: V1Deployment = appsApi.readNamespacedDeployment(
-      kubernetesConfig.workflowPodPoolDeploymentName,
-      namespace
-    ).execute()
-    val spec: V1DeploymentSpec = deployment.getSpec
+  def createPod(uid: String): V1Pod = {
+    val deployment: V1Deployment = new V1Deployment()
+      .apiVersion("apps/v1")
+      .kind("Deployment")
+      .metadata(
+        new V1ObjectMeta()
+        .name(s"user-deployment-$uid")
+        .namespace(namespace)
+        .labels(util.Map.of("userId", uid))
+      )
+      .spec(
+        new V1DeploymentSpec()
+        .replicas(1)
+        .selector(new V1LabelSelector().matchLabels(util.Map.of("userId", uid)))
+        .template(
+          new V1PodTemplateSpec()
+          .metadata(new V1ObjectMeta().labels(util.Map.of("userId", uid))
+          )
+          .spec(
+            new V1PodSpec().containers(util.List.of(new V1Container()
+            .name("worker")
+            .image("kelvinyz/python-watcher:latest")
+            .ports(util.List.of(new V1ContainerPort().containerPort(8080)))))
+          )
+        )
+      )
+    appsApi.createNamespacedDeployment(namespace, deployment).execute()
 
-    val currReplicas: Int = spec.getReplicas
-    val newReplicas: Int = currReplicas + 1
-    spec.setReplicas(newReplicas)
-
-    appsApi.replaceNamespacedDeployment(
-      kubernetesConfig.workflowPodPoolDeploymentName,
-      namespace,
-      deployment
-    ).execute()
-    println(s"Set ${kubernetesConfig.workflowPodPoolDeploymentName} replica number from $currReplicas to $newReplicas")
-
-    // Get and return the newly created pod.
-    pollForNewPod(uid)
+    // Should be a list with a single pod
+    getPodsList(uid).last
   }
 
   /**
@@ -93,7 +119,7 @@ class KubernetesClientService(
     // After finding owner-less pod, create "uid" annotation and set to uid parameter. Then, save the modified pod,
     // exit the loop, and return the modified pod.
     while (!podFound) {
-      val podList = getPodsList()
+      val podList = getPodsList(uid.toString)
       podList.foreach(pod => {
         val metadata: V1ObjectMeta = pod.getMetadata
         val annotations: java.util.Map[String, String] =
@@ -124,9 +150,11 @@ class KubernetesClientService(
   }
 
   /**
-    * Deletes an existing pod in the specified namespace.
+    * Deletes an existing pod with the specified pod name.
     *
     * @param podName   The name of the pod to be deleted.
     */
-  def deletePod(podName: String): Unit = ???
+  def deletePod(podName: String): Unit = {
+
+  }
 }
