@@ -102,7 +102,15 @@ class KubernetesClientService(
     appsApi.createNamespacedDeployment(namespace, deployment).execute()
 
     // Should be a list with a single pod
-    getPodsList(uid).last
+    try {
+      getPodsList(uid).last
+    }
+    catch {
+      case e: java.util.NoSuchElementException =>
+        Thread.sleep(1000)
+        getPodsList(uid).last
+    }
+
   }
 
   /**
