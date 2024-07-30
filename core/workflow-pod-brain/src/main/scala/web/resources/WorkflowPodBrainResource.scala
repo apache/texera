@@ -92,7 +92,8 @@ class WorkflowPodBrainResource {
     withTransaction(context) { ctx =>
       val podDao = new PodDao(ctx.configuration())
       val pods = podDao.fetchByUid(param.uid)
-      podDao.delete(pods)
+      pods.forEach(pod => pod.setTerminateTime(new Timestamp(System.currentTimeMillis())))
+      podDao.update(pods)
       Response.ok(s"Successfully terminated deployment and pod of uid ${param.uid}").build()
     }
   }
