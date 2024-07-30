@@ -73,7 +73,8 @@ class KubernetesClientService(
    * @param uid        The uid which a new pod will be created for.
    * @return The newly created V1Pod object.
    */
-  def createPod(uid: String): V1Pod = {
+  def createPod(uid: Int): V1Pod = {
+    val uidString: String = String.valueOf(uid)
     val deployment: V1Deployment = new V1Deployment()
       .apiVersion("apps/v1")
       .kind("Deployment")
@@ -81,15 +82,15 @@ class KubernetesClientService(
         new V1ObjectMeta()
         .name(s"user-deployment-$uid")
         .namespace(namespace)
-        .labels(util.Map.of("userId", uid))
+        .labels(util.Map.of("userId", uidString))
       )
       .spec(
         new V1DeploymentSpec()
         .replicas(1)
-        .selector(new V1LabelSelector().matchLabels(util.Map.of("userId", uid)))
+        .selector(new V1LabelSelector().matchLabels(util.Map.of("userId", uidString)))
         .template(
           new V1PodTemplateSpec()
-          .metadata(new V1ObjectMeta().labels(util.Map.of("userId", uid))
+          .metadata(new V1ObjectMeta().labels(util.Map.of("userId", uidString))
           )
           .spec(
             new V1PodSpec().containers(util.List.of(new V1Container()
@@ -103,12 +104,12 @@ class KubernetesClientService(
 
     // Should be a list with a single pod
     try {
-      getPodsList(uid).last
+      getPodsList(uidString).last
     }
     catch {
       case e: java.util.NoSuchElementException =>
         Thread.sleep(1000)
-        getPodsList(uid).last
+        getPodsList(uidString).last
     }
 
   }
