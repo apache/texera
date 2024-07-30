@@ -25,7 +25,7 @@ object ApplicationConf {
 
   val appConfig: AppConfig = AppConfig(
     kubernetes = KubernetesConfig(
-      kubeConfigPath = config.getString("kubernetes.kube-config-path"),
+      kubeConfigPath = expandPath(config.getString("kubernetes.kube-config-path")),
       namespace = config.getString("kubernetes.namespace"),
       workflowPodBrainDeploymentName = config.getString("kubernetes.workflow-pod-brain-deployment-name"),
       workflowPodPoolDeploymentName = config.getString("kubernetes.workflow-pod-pool-deployment-name")
@@ -36,4 +36,12 @@ object ApplicationConf {
       password = config.getString("jdbc.password")
     )
   )
+
+  private def expandPath(path: String): String = {
+    if (path.startsWith("~")) {
+      System.getProperty("user.home") + path.substring(1)
+    } else {
+      path
+    }
+  }
 }
