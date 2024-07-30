@@ -29,7 +29,12 @@ class KubernetesClientService(
                                val namespace: String = kubernetesConfig.namespace,
                                val deploymentName: String = kubernetesConfig.workflowPodPoolDeploymentName) {
 
+  // Kubernetes Api Clients are collections of different K8s objects and functions
+  // which provide programmatic access to K8s resources.
+
+  // Contains objects and resources that are core building blocks of a K8s cluster, such as pods and services.
   private val coreApi: CoreV1Api = KubernetesClientConfig.createKubernetesCoreClient()
+  // Contains a set of higher level application-focused resources such as Deployments and StatefulSets.
   private val appsApi: AppsV1Api = KubernetesClientConfig.createKubernetesAppsClient()
 
   /**
