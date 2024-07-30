@@ -1,14 +1,19 @@
 package web.resources
 
+import io.kubernetes.client.openapi.models.V1Pod
 import jakarta.ws.rs.core.{MediaType, Response}
-import jakarta.ws.rs.{Consumes, GET, POST, Path, Produces}
+import jakarta.ws.rs.{Consumes, GET, POST, Path, Produces, QueryParam}
 import org.jooq.DSLContext
 import org.jooq.types.UInteger
+import service.KubernetesClientService
 import web.Utils.withTransaction
 import web.model.SqlServer
 import web.model.jooq.generated.tables.daos.PodDao
 import web.resources.WorkflowPodBrainResource.{WorkflowPodCreationParams, WorkflowPodTerminationParams, context}
 import web.model.jooq.generated.tables.pojos.Pod
+
+import java.sql.Timestamp
+
 object WorkflowPodBrainResource {
 
   private lazy val context: DSLContext = SqlServer.createDSLContext()
@@ -32,12 +37,20 @@ class WorkflowPodBrainResource {
   def createPod(
                  param: WorkflowPodCreationParams
                ): Pod = {
-    // example codes of using withTransaction to make your queries consistent
-    // and to use jooq
+    val newPod: V1Pod = new KubernetesClientService().createPod(param.uid.intValue())
+    val newSQLPod: Pod = new Pod()
+
+    // Set uid, name, pod_uid, creation_time manually
+    // pod_id, terminate_time are auto-generated
+    newSQLPod.setUid(param.uid)
+    newSQLPod.setName(newPod.getMetadata.getName)
+    newSQLPod.setPodUid(newPod.getMetadata.getUid)
+    newSQLPod.setCreationTime(Timestamp.from(newPod.getMetadata.getCreationTimestamp.toInstant))
+
     withTransaction(context) { ctx =>
       val podDao = new PodDao(ctx.configuration())
-      println(param)
-      podDao.fetchOneByPodId(UInteger.valueOf(1))
+      podDao.insert(newSQLPod)
+      newSQLPod
     }
   }
 
@@ -48,13 +61,25 @@ class WorkflowPodBrainResource {
     */
   @GET
   @Path("")
-  def listPods(): List[Pod] = ???
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def listPods(@QueryParam("uid") uid: UInteger): java.util.List[Pod] = {
+    withTransaction(context) { ctx =>
+      val podDao = new PodDao(ctx.configuration())
+      var pods: java.util.List[Pod] = null
+      if (uid == null) {
+         pods = podDao.findAll()
+      } else {
+        pods = podDao.fetchByUid(uid)
+      }
+      pods
+    }
+  }
 
 
   /**
     * Terminate the workflow's pod
-    * @param param
-    * @return
+    * @param param the parameters
+    * @return request response
     */
   @POST
   @Consumes(Array(MediaType.APPLICATION_JSON))
@@ -62,5 +87,14 @@ class WorkflowPodBrainResource {
   @Path("/terminate")
   def terminatePod(
                     param: WorkflowPodTerminationParams
-                  ): Response = ???
+                  ): Response = {
+    new KubernetesClientService().deleteDeployment(param.uid.intValue())
+    withTransaction(context) { ctx =>
+      val podDao = new PodDao(ctx.configuration())
+      val pods = podDao.fetchByUid(param.uid)
+      pods.forEach(pod => pod.setTerminateTime(new Timestamp(System.currentTimeMillis())))
+      podDao.update(pods)
+      Response.ok(s"Successfully terminated deployment and pod of uid ${param.uid}").build()
+    }
+  }
 }
