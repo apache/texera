@@ -20,10 +20,12 @@
 
 .select-dataset {
   flex: 0 0 60%;
+  max-width: 60%;
 }
 
 .select-version {
   flex: 1;
+  min-width: 0; 
 }
 
 .texera-user-dataset-version-filetree {
@@ -38,16 +40,24 @@
   text-overflow: ellipsis;
 }
 
+.dataset-name {
+  display: inline-block;
+  max-width: calc(100% - 28px); /* Subtract the space occupied by the id container and margin */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .dataset-id-container {
   background-color: grey;
   color: white;
-  width: 25px;
-  height: 25px;
+  width: 23px;
+  height: 23px;
   border-radius: 50%;
   display: flex;
   justify-content: center;
   align-items: center;
-  font-size: 14px;
+  font-size: 12px;
   margin-right: 5px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   overflow: hidden;

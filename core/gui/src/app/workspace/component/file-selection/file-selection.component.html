@@ -14,7 +14,7 @@
         [nzCustomContent]="true">
         <div class="dataset-option">
           <div class="dataset-id-container">{{ dataset.dataset.did }}</div>
-          <span>{{ dataset.dataset.name }}</span>
+          <span class="dataset-name">{{ dataset.dataset.name }}</span>
         </div>
       </nz-option>
     </nz-select>
@@ -30,9 +30,7 @@
       <nz-option
         *ngFor="let version of datasetVersions"
         [nzValue]="version"
-        [nzLabel]="version.name"
-        [nzCustomContent]="true">
-        {{ version.name }}
+        [nzLabel]="version.name">
       </nz-option>
     </nz-select>
   </div>
