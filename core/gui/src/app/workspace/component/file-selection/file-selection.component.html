@@ -18,6 +18,10 @@
         <div class="dataset-option">
           <div class="dataset-id-container">{{ dataset.dataset.did }}</div>
           <span class="dataset-name">{{ dataset.dataset.name }}</span>
+          <span class="dataset-owner" *ngIf="dataset.isOwner">OWNER</span>
+          <span class="dataset-access-privilege" *ngIf="!dataset.isOwner">
+            {{ dataset.accessPrivilege }}
+          </span>
         </div>
       </nz-option>
     </nz-select>
