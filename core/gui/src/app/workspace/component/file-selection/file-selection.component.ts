@@ -18,22 +18,19 @@ export class FileSelectionComponent {
   selectedVersion?: DatasetVersion;
   datasetVersions?: DatasetVersion[];
   suggestedFileTreeNodes: DatasetFileNode[] = [];
+  isDatasetSelected: boolean = false;
 
-  constructor(
-    private modalRef: NzModalRef,
-    private datasetService: DatasetService
-  ) {}
+  constructor(private modalRef: NzModalRef, private datasetService: DatasetService) {}
 
   onDatasetChange() {
     this.selectedVersion = undefined;
     this.suggestedFileTreeNodes = [];
+    this.isDatasetSelected = !!this.selectedDataset;
     if (this.selectedDataset && this.selectedDataset.dataset.did !== undefined) {
-      this.datasetService
-        .retrieveDatasetVersionList(this.selectedDataset.dataset.did)
+      this.datasetService.retrieveDatasetVersionList(this.selectedDataset.dataset.did)
         .pipe(untilDestroyed(this))
-        .subscribe(versions => {
+        .subscribe((versions) => {
           this.datasetVersions = versions;
-          // set default version to the latest version
           if (this.datasetVersions && this.datasetVersions.length > 0) {
             this.selectedVersion = this.datasetVersions[0];
             this.onVersionChange();
@@ -44,14 +41,8 @@ export class FileSelectionComponent {
 
   onVersionChange() {
     this.suggestedFileTreeNodes = [];
-    if (
-      this.selectedDataset &&
-      this.selectedDataset.dataset.did !== undefined &&
-      this.selectedVersion &&
-      this.selectedVersion.dvid !== undefined
-    ) {
-      this.datasetService
-        .retrieveDatasetVersionFileTree(this.selectedDataset.dataset.did, this.selectedVersion.dvid)
+    if (this.selectedDataset && this.selectedDataset.dataset.did !== undefined && this.selectedVersion && this.selectedVersion.dvid !== undefined) {
+      this.datasetService.retrieveDatasetVersionFileTree(this.selectedDataset.dataset.did, this.selectedVersion.dvid)
         .pipe(untilDestroyed(this))
         .subscribe(fileNodes => {
           this.suggestedFileTreeNodes = fileNodes;

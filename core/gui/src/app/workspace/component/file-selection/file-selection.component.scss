@@ -19,8 +19,7 @@
 }
 
 .select-dataset {
-  flex: 0 0 60%;
-  max-width: 60%;
+  transition: width 0.3s; /* Add animation effect */
 }
 
 .select-version {
