@@ -100,7 +100,7 @@ class KubernetesClientService(
           .spec(
             new V1PodSpec().containers(util.List.of(new V1Container()
             .name("worker")
-            .image("kelvinyz/python-watcher:latest")
+            .image("pureblank/dropwizard-example:latest")
             .ports(util.List.of(new V1ContainerPort().containerPort(8080)))))
           )
         )
