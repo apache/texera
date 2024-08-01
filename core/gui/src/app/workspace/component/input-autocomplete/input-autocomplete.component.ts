@@ -25,16 +25,16 @@ export class InputAutoCompleteComponent extends FieldType<FieldTypeConfig> {
 
   onClickOpenFileSelectionModal(): void {
     this.datasetService
-      .retrieveAccessibleDatasets(true, true)
+      .retrieveAccessibleDatasets()
       .pipe(untilDestroyed(this))
       .subscribe(response => {
-        const fileNodes = response.fileNodes;
+        const datasets = response.datasets;
         const modal = this.modalService.create({
           nzTitle: "Please select one file from datasets",
           nzContent: FileSelectionComponent,
           nzFooter: null,
           nzData: {
-            datasetRootFileNodes: fileNodes,
+            datasets: datasets,
           },
         });
         // Handle the selection from the modal

@@ -1,11 +1,55 @@
-<input
-  nz-input
-  placeholder="Search for files from datasets..."
-  [(ngModel)]="filterText"
-  (ngModelChange)="filterFileTreeNodes()" />
+<div class="container">
+  <div class="selection-row">
+    <nz-select
+      nzShowSearch
+      nzAllowClear
+      nzPlaceHolder="Select dataset"
+      [(ngModel)]="selectedDataset"
+      (ngModelChange)="onDatasetChange()"
+      [ngStyle]="{'width': isDatasetSelected ? '60%' : '100%'}"
+      class="select-dataset">
+      <nz-option
+        *ngFor="let dataset of datasets"
+        [nzValue]="dataset"
+        [nzLabel]="dataset.dataset.name"
+        [nzCustomContent]="true">
+        <div class="dataset-option">
+          <div class="dataset-id-container">{{ dataset.dataset.did }}</div>
+          <span class="dataset-name">{{ dataset.dataset.name }}</span>
+          <span
+            class="dataset-owner"
+            *ngIf="dataset.isOwner"
+            >OWNER</span
+          >
+          <span
+            class="dataset-access-privilege"
+            *ngIf="!dataset.isOwner">
+            {{ dataset.accessPrivilege }}
+          </span>
+        </div>
+      </nz-option>
+    </nz-select>
 
-<texera-user-dataset-version-filetree
-  [isExpandAllAfterViewInit]="true"
-  [fileTreeNodes]="suggestedFileTreeNodes"
-  (selectedTreeNode)="onFileTreeNodeSelected($event)">
-</texera-user-dataset-version-filetree>
+    <nz-select
+      *ngIf="selectedDataset"
+      nzShowSearch
+      nzAllowClear
+      nzPlaceHolder="Select version"
+      [(ngModel)]="selectedVersion"
+      (ngModelChange)="onVersionChange()"
+      class="select-version">
+      <nz-option
+        *ngFor="let version of datasetVersions"
+        [nzValue]="version"
+        [nzLabel]="version.name">
+      </nz-option>
+    </nz-select>
+  </div>
+
+  <texera-user-dataset-version-filetree
+    *ngIf="suggestedFileTreeNodes.length > 0"
+    [isExpandAllAfterViewInit]="true"
+    [fileTreeNodes]="suggestedFileTreeNodes"
+    (selectedTreeNode)="onFileTreeNodeSelected($event)"
+    class="texera-user-dataset-version-filetree"></texera-user-dataset-version-filetree>
+</div>
