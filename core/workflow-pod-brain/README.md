@@ -4,6 +4,23 @@
 
 ![](./architecture.JPG)
 
+## GUI Design and User Experience
+A power button is added next to the `Run` button.
+![image](https://github.com/user-attachments/assets/afce0224-fe3b-4fde-a953-bc3810a86c63)
+
+By default, no pod is running. When user click on this power button, the button turns into a spinning wheel before the pod is ready.
+![image](https://github.com/user-attachments/assets/6c5c04fc-12c0-45f8-ba74-7bd05425242f)
+![image](https://github.com/user-attachments/assets/c955288c-f0e1-4984-b6b8-2207ec3b9273)
+Now the pod is ready, the button becomes a terminate button, when user click it, the pod will be terminated. After termination, the button becomes power button again.
+![image](https://github.com/user-attachments/assets/25d0ea02-628b-47ca-9b9e-7ed27de1ae7b)
+![image](https://github.com/user-attachments/assets/f230d545-defe-478d-8f1e-238abe22ac6f)
+
+### Involved GUI codes
+
+The component for the workflow's workspace menu is: `core/gui/src/app/workspace/component/menu`, you will need to modify this component to add such button. Please try to make this button a **standalone** component, and let the existing `menu` component to import the power button you wrote. This can keep the code clean.
+
+For sending request to the backend from the frontend, you may add a new `service` in the gui(e.g. `workflow-pod-brain.service.ts`). You can refer to other existing services under `core/gui/src/app/workspace/service` to create a new one just for the workflow pod brain.
+
 ## Structure Overview
 
 ### Configuration Files
