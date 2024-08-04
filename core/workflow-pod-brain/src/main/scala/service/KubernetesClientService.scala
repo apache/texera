@@ -73,57 +73,100 @@ class KubernetesClientService(
   def createPod(podSpec: V1Pod): V1Pod = ???
 
   /**
-   * Creates a new pod under the specified deployment.
+   * Creates a new pod under the specified namespace.
    *
    * @param uid        The uid which a new pod will be created for.
    * @return The newly created V1Pod object.
    */
   def createPod(uid: Int): V1Pod = {
     val uidString: String = String.valueOf(uid)
-    val deployment: V1Deployment = new V1Deployment()
-      .apiVersion("apps/v1")
-      .kind("Deployment")
-      .metadata(
-        new V1ObjectMeta()
-        .name(s"user-deployment-$uid")
-        .namespace(namespace)
-        .labels(util.Map.of("userId", uidString))
-      )
-      .spec(
-        new V1DeploymentSpec()
-        .replicas(1)
-        .selector(new V1LabelSelector().matchLabels(util.Map.of("userId", uidString)))
-        .template(
-          new V1PodTemplateSpec()
-          .metadata(new V1ObjectMeta().labels(util.Map.of("userId", uidString)))
-          .spec(
-            new V1PodSpec().containers(util.List.of(new V1Container()
-            .name("worker")
-            .image("pureblank/dropwizard-example:latest")
-            .ports(util.List.of(new V1ContainerPort().containerPort(8080)))))
-          )
-        )
-      )
-    appsApi.createNamespacedDeployment(namespace, deployment).execute()
+//    val deployment: V1Deployment = createUserDeployment(uid)
+    val pod: V1Pod = createUserPod(uid)
 
     // Should be a list with a single pod
     try {
       getPodsList(uidString).last
     }
     catch {
+      // In case program moves too fast and newly created pod is not detectable yet
       case e: java.util.NoSuchElementException =>
+        println(e.getMessage)
         Thread.sleep(1000)
+        println("Attempting to retrieve pod again")
         getPodsList(uidString).last
     }
-
   }
 
   /**
-    * Deletes an existing pod with the specified pod name.
-    *
-    * @param podName   The name of the pod to be deleted.
-    */
-  def deletePod(podName: String): Unit = ???
+   * Creates a pod belonging to the specified user id.
+   *
+   * @param uid        The uid which a pod pod will be created for.
+   * @return The newly created V1Pod object.
+   */
+  def createUserPod(uid: Int): V1Pod = {
+    val uidString: String = String.valueOf(uid)
+    val pod: V1Pod = new V1Pod()
+      .apiVersion("v1")
+      .kind("Pod")
+      .metadata(
+        new V1ObjectMeta()
+          .name(s"user-pod-$uid")
+          .namespace(namespace)
+          .labels(util.Map.of("userId", uidString, "workflow", "worker"))
+      )
+      .spec(
+        new V1PodSpec().containers(util.List.of(new V1Container()
+          .name("worker")
+          .image("pureblank/dropwizard-example:latest")
+          .ports(util.List.of(new V1ContainerPort().containerPort(8080)))))
+          .overhead(null)
+      )
+    coreApi.createNamespacedPod(namespace, pod).execute()
+  }
+
+  /**
+   * Creates a deployment belonging to the specified user id.
+   *
+   * @param uid        The uid which a deployment pod will be created for.
+   * @return The newly created V1Deployment object.
+   */
+  def createUserDeployment(uid: Int): V1Deployment = {
+    val uidString: String = String.valueOf(uid)
+    val deployment: V1Deployment = new V1Deployment()
+      .apiVersion("apps/v1")
+      .kind("Deployment")
+      .metadata(
+        new V1ObjectMeta()
+          .name(s"user-deployment-$uid")
+          .namespace(namespace)
+          .labels(util.Map.of("userId", uidString))
+      )
+      .spec(
+        new V1DeploymentSpec()
+          .replicas(1)
+          .selector(new V1LabelSelector().matchLabels(util.Map.of("userId", uidString)))
+          .template(
+            new V1PodTemplateSpec()
+              .metadata(new V1ObjectMeta().labels(util.Map.of("userId", uidString)))
+              .spec(
+                new V1PodSpec().containers(util.List.of(new V1Container()
+                  .name("worker")
+                  .image("pureblank/dropwizard-example:latest")
+                  .ports(util.List.of(new V1ContainerPort().containerPort(8080)))))
+              )
+          )
+      )
+    appsApi.createNamespacedDeployment(namespace, deployment).execute()
+  }
+
+  /**
+   * Deletes an existing pod belonging to the specific user id.
+   *
+   * @param uid   The pod owner's user id.
+   */
+  def deletePod(uid: Int): Unit = {
+    coreApi.deleteNamespacedPod(s"user-pod-$uid", namespace).execute()
+  }
 
   /**
    * Deletes an existing deployment belonging to the specific user id.

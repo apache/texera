@@ -90,7 +90,7 @@ class WorkflowPodBrainResource {
   def terminatePod(
                     param: WorkflowPodTerminationParams
                   ): Response = {
-    new KubernetesClientService().deleteDeployment(param.uid.intValue())
+    new KubernetesClientService().deletePod(param.uid.intValue())
     withTransaction(context) { ctx =>
       val podDao = new PodDao(ctx.configuration())
       val pods = podDao.fetchByUid(param.uid)
