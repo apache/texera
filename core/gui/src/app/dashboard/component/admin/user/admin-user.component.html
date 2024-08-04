@@ -13,9 +13,14 @@
   <thead>
     <tr>
       <th>Avatar</th>
-      <th [nzSortFn]="sortByID">ID</th>
+      <th
+        [nzSortFn]="sortByID"
+        [nzSortDirections]="['ascend', 'descend']">
+        ID
+      </th>
       <th
         [nzSortFn]="sortByName"
+        [nzSortDirections]="['ascend', 'descend']"
         nzCustomFilter>
         Name
         <nz-filter-trigger
@@ -29,6 +34,7 @@
       </th>
       <th
         [nzSortFn]="sortByEmail"
+        [nzSortDirections]="['ascend', 'descend']"
         nzCustomFilter>
         Email
         <nz-filter-trigger
@@ -43,6 +49,7 @@
       <th>Action</th>
       <th
         [nzFilterFn]="filterByRole"
+        [nzSortDirections]="['ascend', 'descend']"
         [nzFilters]="[
       { text: 'INACTIVE', value: 'INACTIVE' },
       { text: 'REGULAR', value: 'REGULAR'},
