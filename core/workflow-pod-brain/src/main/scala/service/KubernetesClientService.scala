@@ -95,8 +95,7 @@ class KubernetesClientService(
         .selector(new V1LabelSelector().matchLabels(util.Map.of("userId", uidString)))
         .template(
           new V1PodTemplateSpec()
-          .metadata(new V1ObjectMeta().labels(util.Map.of("userId", uidString))
-          )
+          .metadata(new V1ObjectMeta().labels(util.Map.of("userId", uidString)))
           .spec(
             new V1PodSpec().containers(util.List.of(new V1Container()
             .name("worker")
