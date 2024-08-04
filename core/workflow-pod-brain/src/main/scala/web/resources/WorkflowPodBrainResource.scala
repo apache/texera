@@ -13,6 +13,7 @@ import web.resources.WorkflowPodBrainResource.{WorkflowPodCreationParams, Workfl
 import web.model.jooq.generated.tables.pojos.Pod
 
 import java.sql.Timestamp
+import scala.jdk.CollectionConverters.{CollectionHasAsScala, IterableHasAsJava}
 
 object WorkflowPodBrainResource {
 
@@ -71,6 +72,7 @@ class WorkflowPodBrainResource {
       } else {
         pods = podDao.fetchByUid(uid)
       }
+      pods.removeIf((pod: Pod) => pod.getTerminateTime != null)
       pods
     }
   }
@@ -92,7 +94,7 @@ class WorkflowPodBrainResource {
     withTransaction(context) { ctx =>
       val podDao = new PodDao(ctx.configuration())
       val pods = podDao.fetchByUid(param.uid)
-      pods.forEach(pod => pod.setTerminateTime(new Timestamp(System.currentTimeMillis())))
+      pods.forEach(pod => if (pod.getTerminateTime == null) pod.setTerminateTime(new Timestamp(System.currentTimeMillis())))
       podDao.update(pods)
       Response.ok(s"Successfully terminated deployment and pod of uid ${param.uid}").build()
     }
