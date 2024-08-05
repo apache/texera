@@ -183,6 +183,14 @@ class KubernetesClientService(
   }
 
   /**
+   * Sends given workflow to specified user's pod and gets workflow response.
+   *
+   * @param uid        The uid which a deployment pod will be created for.
+   * @return The newly created V1Deployment object.
+   */
+  def sendWorkflow(uid: String, workflow: String): Map[String, String] = ???
+
+  /**
    * Find and return the latest created pod.
    *
    * @param uid        The uid which a new pod will be created for.
