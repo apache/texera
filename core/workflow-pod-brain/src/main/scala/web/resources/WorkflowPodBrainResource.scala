@@ -2,7 +2,7 @@ package web.resources
 
 import io.kubernetes.client.openapi.models.V1Pod
 import jakarta.ws.rs.core.{MediaType, Response}
-import jakarta.ws.rs.{Consumes, GET, POST, Path, Produces, QueryParam}
+import jakarta.ws.rs.{Consumes, GET, POST, Path, PathParam, Produces, QueryParam}
 import org.jooq.DSLContext
 import org.jooq.types.UInteger
 import service.KubernetesClientService
@@ -20,6 +20,8 @@ object WorkflowPodBrainResource {
   case class WorkflowPodCreationParams(uid: UInteger, wid: UInteger)
 
   case class WorkflowPodTerminationParams(uid: UInteger, wid: UInteger)
+
+  case class WorkflowPodRunParams(wid: UInteger, workflow: String)
 }
 
 @Produces(Array(MediaType.APPLICATION_JSON))
@@ -71,6 +73,7 @@ class WorkflowPodBrainResource {
       } else {
         pods = podDao.fetchByUid(uid)
       }
+      pods.removeIf((pod: Pod) => pod.getTerminateTime != null)
       pods
     }
   }
@@ -88,13 +91,30 @@ class WorkflowPodBrainResource {
   def terminatePod(
                     param: WorkflowPodTerminationParams
                   ): Response = {
-    new KubernetesClientService().deleteDeployment(param.uid.intValue())
+    new KubernetesClientService().deletePod(param.uid.intValue())
     withTransaction(context) { ctx =>
       val podDao = new PodDao(ctx.configuration())
       val pods = podDao.fetchByUid(param.uid)
-      pods.forEach(pod => pod.setTerminateTime(new Timestamp(System.currentTimeMillis())))
+      pods.forEach(pod => if (pod.getTerminateTime == null) pod.setTerminateTime(new Timestamp(System.currentTimeMillis())))
       podDao.update(pods)
       Response.ok(s"Successfully terminated deployment and pod of uid ${param.uid}").build()
     }
+  }
+
+
+  /**
+   * Run given workflow in request body.
+   * @param param the parameters
+   * @return workflow result
+   */
+  @POST
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Path("/{uid}/run-workflow")
+  def runWorkflow(
+                    @PathParam("uid") uid: String,
+                    param: WorkflowPodTerminationParams
+                  ): Response = {
+    Response.ok(s"Endpoints successfully reached by uid: $uid").build()
   }
 }

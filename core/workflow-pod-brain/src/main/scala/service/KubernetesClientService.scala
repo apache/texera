@@ -38,14 +38,12 @@ class KubernetesClientService(
   private val appsApi: AppsV1Api = KubernetesClientConfig.createKubernetesAppsClient()
 
   /**
-    * Retrieves the list of pods for a given deployment in the specified namespace.
+    * Retrieves the list of all pods in the specified namespace.
     *
-    * @return A list of V1Pod objects representing the pods in the deployment.
+    * @return A list of V1Pod objects.
     */
   def getPodsList(): List[V1Pod] = {
-    // TODO: Get only pods from workflow-pod-pool and not all pods from defined namespace
-    val request = coreApi.listNamespacedPod(namespace)
-    request.execute().getItems.asScala.toList
+    coreApi.listNamespacedPod(namespace).execute().getItems.asScala.toList
   }
 
   /**
@@ -65,117 +63,84 @@ class KubernetesClientService(
   }
 
   /**
-    * Creates a new pod under the specified deployment.
-    *
-    * @param podSpec        The specification of the pod to be created.
-    * @return The newly created V1Pod object.
-    */
-  def createPod(podSpec: V1Pod): V1Pod = ???
-
-  /**
-   * Creates a new pod under the specified deployment.
+   * Creates a new pod under the specified namespace.
    *
    * @param uid        The uid which a new pod will be created for.
    * @return The newly created V1Pod object.
    */
   def createPod(uid: Int): V1Pod = {
     val uidString: String = String.valueOf(uid)
-    val deployment: V1Deployment = new V1Deployment()
-      .apiVersion("apps/v1")
-      .kind("Deployment")
-      .metadata(
-        new V1ObjectMeta()
-        .name(s"user-deployment-$uid")
-        .namespace(namespace)
-        .labels(util.Map.of("userId", uidString))
-      )
-      .spec(
-        new V1DeploymentSpec()
-        .replicas(1)
-        .selector(new V1LabelSelector().matchLabels(util.Map.of("userId", uidString)))
-        .template(
-          new V1PodTemplateSpec()
-          .metadata(new V1ObjectMeta().labels(util.Map.of("userId", uidString))
-          )
-          .spec(
-            new V1PodSpec().containers(util.List.of(new V1Container()
-            .name("worker")
-            .image("pureblank/dropwizard-example:latest")
-            .ports(util.List.of(new V1ContainerPort().containerPort(8080)))))
-          )
-        )
-      )
-    appsApi.createNamespacedDeployment(namespace, deployment).execute()
+    val pod: V1Pod = createUserPod(uid)
 
     // Should be a list with a single pod
     try {
       getPodsList(uidString).last
     }
     catch {
+      // In case program moves too fast and newly created pod is not detectable yet
       case e: java.util.NoSuchElementException =>
+        println(e.getMessage)
         Thread.sleep(1000)
+        println("Attempting to retrieve pod again")
         getPodsList(uidString).last
     }
-
   }
 
   /**
-    * Deletes an existing pod with the specified pod name.
-    *
-    * @param podName   The name of the pod to be deleted.
-    */
-  def deletePod(podName: String): Unit = ???
-
-  /**
-   * Deletes an existing deployment belonging to the specific user id.
+   * Creates a pod belonging to the specified user id.
    *
-   * @param uid   The deployment owner's user id.
+   * @param uid        The uid which a pod pod will be created for.
+   * @return The newly created V1Pod object.
    */
-  def deleteDeployment(uid: Int): Unit = {
-    appsApi.deleteNamespacedDeployment(s"user-deployment-$uid", namespace).execute()
+  def createUserPod(uid: Int): V1Pod = {
+    val uidString: String = String.valueOf(uid)
+    val pod: V1Pod = new V1Pod()
+      .apiVersion("v1")
+      .kind("Pod")
+      .metadata(
+        new V1ObjectMeta()
+          .name(s"user-pod-$uid")
+          .namespace(namespace)
+          .labels(util.Map.of("userId", uidString, "workflow", "worker"))
+      )
+      .spec(
+        new V1PodSpec()
+          .containers(
+            util.List.of(new V1Container()
+              .name("worker")
+              .image("pureblank/dropwizard-example:latest")
+              .ports(util.List.of(new V1ContainerPort().containerPort(8080))))
+          )
+          .hostname(s"user-pod-$uid")
+          .subdomain("workflow-pods")
+          .overhead(null)
+      )
+    coreApi.createNamespacedPod(namespace, pod).execute()
   }
 
   /**
-   * Find and return the latest created pod.
+   * Deletes an existing pod belonging to the specific user id.
+   *
+   * @param uid   The pod owner's user id.
+   */
+  def deletePod(uid: Int): Unit = {
+    coreApi.deleteNamespacedPod(s"user-pod-$uid", namespace).execute()
+  }
+
+  /**
+   * Sends given workflow to specified user's pod and gets workflow response.
+   *
+   * @param uid        The user id who the workflow belongs to.
+   * @param workflow   The JSON representation of a texera workflow.
+   * @return The response object produced by the worker pod.
+   */
+  def sendWorkflow(uid: String, workflow: String): Map[String, String] = ???
+
+  /**
+   * Find and replace pod in case of pod failure.
    *
    * @param uid        The uid which a new pod will be created for.
-   * @return A newly created pod with user id attached as an annotation.
+   * @return A newly created pod.
    */
-  private def pollForNewPod(uid: Int): V1Pod = {
-    var returnPod: V1Pod = null
-    var podFound: Boolean = false
-
-    // Loop through list of all pods in deployment to find pods without an owner (i.e. no "uid" annotation).
-    // After finding owner-less pod, create "uid" annotation and set to uid parameter. Then, save the modified pod,
-    // exit the loop, and return the modified pod.
-    while (!podFound) {
-      val podList = getPodsList(uid.toString)
-      podList.foreach(pod => {
-        val metadata: V1ObjectMeta = pod.getMetadata
-        val annotations: java.util.Map[String, String] =
-          if (metadata.getAnnotations == null) new util.HashMap[String, String]() else metadata.getAnnotations
-
-        if (!podFound && pod.getStatus.getPhase == "Running" && !annotations.containsKey("uid")) {
-          annotations.put("uid", String.valueOf(uid))
-          metadata.setAnnotations(annotations)
-          pod.setMetadata(metadata)
-
-          // Possible error code 409 here.
-          // Happens due to pod changing state after retrieving the initial podList,
-          // leading to a mismatch between the cluster's current pod and the server's current pod object.
-          // Current Solution => only consider pods which are in the "Running" state.
-          // Could also add exception handling to retry in case of error.
-          coreApi.replaceNamespacedPod(pod.getMetadata.getName, namespace, pod).execute()
-
-          returnPod = pod
-          podFound = true
-        }
-      })
-
-      if (!podFound) {
-        Thread.sleep(500)
-      }
-    }
-    returnPod
-  }
+  private def pollForFailingPod(uid: Int): V1Pod = ???
 }
