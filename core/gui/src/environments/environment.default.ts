@@ -63,7 +63,7 @@ export const defaultEnvironment = {
   /**
    * whether workflow executions tracking feature is enabled
    */
-  workflowExecutionsTrackingEnabled: false,
+  workflowExecutionsTrackingEnabled: true,
 
   /**
    * whether linkBreakpoint is supported

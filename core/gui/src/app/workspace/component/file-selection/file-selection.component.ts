@@ -1,4 +1,4 @@
-import { Component, inject } from "@angular/core";
+import { Component, inject, OnInit } from "@angular/core";
 import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DatasetFileNode } from "../../../common/type/datasetVersionFileTree";
@@ -12,8 +12,10 @@ import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.
   templateUrl: "file-selection.component.html",
   styleUrls: ["file-selection.component.scss"],
 })
-export class FileSelectionComponent {
+export class FileSelectionComponent implements OnInit {
   readonly datasets: ReadonlyArray<DashboardDataset> = inject(NZ_MODAL_DATA).datasets;
+  readonly selectedFilePath: string = inject(NZ_MODAL_DATA).selectedFilePath;
+
   selectedDataset?: DashboardDataset;
   selectedVersion?: DatasetVersion;
   datasetVersions?: DatasetVersion[];
@@ -24,6 +26,23 @@ export class FileSelectionComponent {
     private modalRef: NzModalRef,
     private datasetService: DatasetService
   ) {}
+
+  ngOnInit() {
+    console.log("selected path: ", this.selectedFilePath);
+    // if users already select some file, then show that selected dataset & related vesrion
+    if (this.selectedFilePath && this.selectedFilePath != "") {
+      this.datasetService
+        .retrieveAccessibleDatasets(false, false, this.selectedFilePath)
+        .pipe(untilDestroyed(this))
+        .subscribe(response => {
+          const dataset = response.datasets[0];
+          this.selectedDataset = dataset;
+          this.isDatasetSelected = !!this.selectedDataset;
+          this.selectedVersion = dataset.versions[0].datasetVersion;
+          this.onVersionChange();
+        });
+    }
+  }
 
   onDatasetChange() {
     this.selectedVersion = undefined;

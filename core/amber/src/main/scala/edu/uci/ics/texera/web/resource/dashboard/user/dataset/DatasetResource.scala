@@ -174,7 +174,7 @@ object DatasetResource {
   //      ownerName is bob@texera.com; datasetName is twitterDataset, versionName is v1, fileRelativePath is california/irvine/tw1.csv
   def resolveFilePath(
       filePath: java.nio.file.Path
-  ): (Dataset, DatasetVersion, java.nio.file.Path) = {
+  ): (String, Dataset, DatasetVersion, java.nio.file.Path) = {
 
     val pathSegments = (0 until filePath.getNameCount).map(filePath.getName(_).toString).toArray
 
@@ -203,7 +203,7 @@ object DatasetResource {
       }
 
       // Return the dataset, dataset version, and file relative path
-      (dataset, datasetVersion, fileRelativePath)
+      (ownerEmail, dataset, datasetVersion, fileRelativePath)
     }
   }
 
@@ -343,7 +343,7 @@ object DatasetResource {
           .parse(filePathsValue)
           .as[List[String]]
           .foreach(pathStr => {
-            val (_, _, fileRelativePath) = resolveFilePath(Paths.get(pathStr))
+            val (_, _, _, fileRelativePath) = resolveFilePath(Paths.get(pathStr))
             filesToRemove += datasetPath.resolve(fileRelativePath)
           })
       }
@@ -744,18 +744,6 @@ class DatasetResource {
     }
   }
 
-  @GET
-  @Path("/{did}")
-  def getDataset(
-      @PathParam("did") did: UInteger,
-      @Auth user: SessionUser
-  ): DashboardDataset = {
-    val uid = user.getUid
-    withTransaction(context)(ctx => {
-      getDashboardDataset(ctx, did, uid)
-    })
-  }
-
   /**
     * This method returns a list of DashboardDatasets objects that are accessible by current user.
     * @param user the session user
@@ -766,13 +754,38 @@ class DatasetResource {
   def listDatasets(
       @Auth user: SessionUser,
       @QueryParam("includeVersions") includeVersions: Boolean = false,
-      @QueryParam("includeFileNodes") includeFileNodes: Boolean = false
+      @QueryParam("includeFileNodes") includeFileNodes: Boolean = false,
+      @QueryParam("path") filePathStr: String
   ): ListDatasetsResponse = {
     val uid = user.getUid
     withTransaction(context)(ctx => {
-      // we first retrieve all datasets user have the direct access to
-      var accessibleDatasets =
-        ListBuffer.from(
+      var accessibleDatasets: ListBuffer[DashboardDataset] = ListBuffer()
+
+      if (filePathStr != null && filePathStr.nonEmpty) {
+        // if the file path is given, then only fetch the dataset and version this file is belonging to
+        val decodedPathStr = URLDecoder.decode(filePathStr, StandardCharsets.UTF_8.name())
+        val (ownerEmail, dataset, version, _) = resolveFilePath(Paths.get(decodedPathStr))
+        val accessPrivilege = getDatasetUserAccessPrivilege(ctx, dataset.getDid, uid)
+        if (
+          accessPrivilege == DatasetUserAccessPrivilege.NONE && dataset.getIsPublic == DATASET_IS_PRIVATE
+        ) {
+          throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+        }
+        accessibleDatasets = accessibleDatasets :+ DashboardDataset(
+          dataset = dataset,
+          ownerEmail = ownerEmail,
+          accessPrivilege = accessPrivilege,
+          isOwner = dataset.getOwnerUid == uid,
+          versions = List(
+            DashboardDatasetVersion(
+              datasetVersion = version,
+              fileNodes = List()
+            )
+          )
+        )
+      } else {
+        // first fetch all datasets user have explicit access to
+        accessibleDatasets = ListBuffer.from(
           ctx
             .select()
             .from(
@@ -798,18 +811,19 @@ class DatasetResource {
             })
         )
 
-      // then we fetch the public datasets and merge it as a part of the result if not exist
-      val publicDatasets = retrievePublicDatasets(context)
-      publicDatasets.forEach { publicDataset =>
-        if (!accessibleDatasets.exists(_.dataset.getDid == publicDataset.dataset.getDid)) {
-          val dashboardDataset = DashboardDataset(
-            isOwner = false,
-            dataset = publicDataset.dataset,
-            ownerEmail = publicDataset.ownerEmail,
-            accessPrivilege = DatasetUserAccessPrivilege.READ,
-            versions = List()
-          )
-          accessibleDatasets = accessibleDatasets :+ dashboardDataset
+        // then we fetch the public datasets and merge it as a part of the result if not exist
+        val publicDatasets = retrievePublicDatasets(context)
+        publicDatasets.forEach { publicDataset =>
+          if (!accessibleDatasets.exists(_.dataset.getDid == publicDataset.dataset.getDid)) {
+            val dashboardDataset = DashboardDataset(
+              isOwner = false,
+              dataset = publicDataset.dataset,
+              ownerEmail = publicDataset.ownerEmail,
+              accessPrivilege = DatasetUserAccessPrivilege.READ,
+              versions = List()
+            )
+            accessibleDatasets = accessibleDatasets :+ dashboardDataset
+          }
         }
       }
       val fileNodesMap = mutable.Map[(String, String, String), List[PhysicalFileNode]]()
@@ -843,7 +857,7 @@ class DatasetResource {
               )
             }
           } else {
-            List()
+            dataset.versions
           }
         )
       }
@@ -946,6 +960,18 @@ class DatasetResource {
   }
 
   @GET
+  @Path("/{did}")
+  def getDataset(
+      @PathParam("did") did: UInteger,
+      @Auth user: SessionUser
+  ): DashboardDataset = {
+    val uid = user.getUid
+    withTransaction(context)(ctx => {
+      getDashboardDataset(ctx, did, uid)
+    })
+  }
+
+  @GET
   @Path("/file")
   def retrieveDatasetSingleFile(
       @QueryParam("path") pathStr: String,
@@ -954,7 +980,7 @@ class DatasetResource {
     val uid = user.getUid
     val decodedPathStr = URLDecoder.decode(pathStr, StandardCharsets.UTF_8.name())
 
-    val (dataset, dsVersion, fileRelativePath) = resolveFilePath(Paths.get(decodedPathStr))
+    val (_, dataset, dsVersion, fileRelativePath) = resolveFilePath(Paths.get(decodedPathStr))
 
     withTransaction(context)(ctx => {
       val did = dataset.getDid
