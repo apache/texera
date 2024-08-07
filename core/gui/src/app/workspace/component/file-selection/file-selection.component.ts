@@ -28,18 +28,28 @@ export class FileSelectionComponent implements OnInit {
   ) {}
 
   ngOnInit() {
+    console.log("+++++++");
     console.log("selected path: ", this.selectedFilePath);
-    // if users already select some file, then show that selected dataset & related vesrion
-    if (this.selectedFilePath && this.selectedFilePath != "") {
+    // if users already select some file, then show that selected dataset & related version
+    if (this.selectedFilePath && this.selectedFilePath !== "") {
       this.datasetService
         .retrieveAccessibleDatasets(false, false, this.selectedFilePath)
         .pipe(untilDestroyed(this))
         .subscribe(response => {
           const dataset = response.datasets[0];
-          this.selectedDataset = dataset;
+          this.selectedDataset = this.datasets.find(d => d.dataset.did === dataset.dataset.did);
           this.isDatasetSelected = !!this.selectedDataset;
-          this.selectedVersion = dataset.versions[0].datasetVersion;
-          this.onVersionChange();
+          if (this.selectedDataset && this.selectedDataset.dataset.did !== undefined) {
+            this.datasetService
+              .retrieveDatasetVersionList(this.selectedDataset.dataset.did)
+              .pipe(untilDestroyed(this))
+              .subscribe(versions => {
+                this.datasetVersions = versions;
+                const versionDvid = dataset.versions[0].datasetVersion.dvid;
+                this.selectedVersion = this.datasetVersions.find(v => v.dvid === versionDvid);
+                this.onVersionChange();
+              });
+          }
         });
     }
   }
