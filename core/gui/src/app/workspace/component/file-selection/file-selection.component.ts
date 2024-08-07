@@ -5,6 +5,7 @@ import { DatasetFileNode } from "../../../common/type/datasetVersionFileTree";
 import { DatasetVersion } from "../../../common/type/dataset";
 import { DashboardDataset } from "../../../dashboard/type/dashboard-dataset.interface";
 import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.service";
+import { parseFilePathToDatasetFile } from "../../../common/type/dataset-file";
 
 @UntilDestroy()
 @Component({
@@ -34,16 +35,17 @@ export class FileSelectionComponent implements OnInit {
         .retrieveAccessibleDatasets(false, false, this.selectedFilePath)
         .pipe(untilDestroyed(this))
         .subscribe(response => {
-          const dataset = response.datasets[0];
-          this.selectedDataset = this.datasets.find(d => d.dataset.did === dataset.dataset.did);
+          const prevDataset = response.datasets[0];
+          this.selectedDataset = this.datasets.find(d => d.dataset.did === prevDataset.dataset.did);
           this.isDatasetSelected = !!this.selectedDataset;
+
           if (this.selectedDataset && this.selectedDataset.dataset.did !== undefined) {
             this.datasetService
               .retrieveDatasetVersionList(this.selectedDataset.dataset.did)
               .pipe(untilDestroyed(this))
               .subscribe(versions => {
                 this.datasetVersions = versions;
-                const versionDvid = dataset.versions[0].datasetVersion.dvid;
+                const versionDvid = prevDataset.versions[0].datasetVersion.dvid;
                 this.selectedVersion = this.datasetVersions.find(v => v.dvid === versionDvid);
                 this.onVersionChange();
               });

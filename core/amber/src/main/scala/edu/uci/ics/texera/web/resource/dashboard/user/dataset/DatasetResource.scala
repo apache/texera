@@ -127,10 +127,10 @@ object DatasetResource {
   }
 
   private def getDatasetByName(
-                                ctx: DSLContext,
-                                ownerEmail: String,
-                                datasetName: String
-                              ): Dataset = {
+      ctx: DSLContext,
+      ownerEmail: String,
+      datasetName: String
+  ): Dataset = {
     ctx
       .select(DATASET.fields: _*)
       .from(DATASET)
