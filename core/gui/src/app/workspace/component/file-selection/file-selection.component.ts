@@ -28,8 +28,6 @@ export class FileSelectionComponent implements OnInit {
   ) {}
 
   ngOnInit() {
-    console.log("+++++++");
-    console.log("selected path: ", this.selectedFilePath);
     // if users already select some file, then show that selected dataset & related version
     if (this.selectedFilePath && this.selectedFilePath !== "") {
       this.datasetService
