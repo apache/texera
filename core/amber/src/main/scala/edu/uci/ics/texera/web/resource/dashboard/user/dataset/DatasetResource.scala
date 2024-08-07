@@ -127,17 +127,15 @@ object DatasetResource {
   }
 
   private def getDatasetByName(
-      ctx: DSLContext,
-      ownerEmail: String,
-      datasetName: String
-  ): Dataset = {
+                                ctx: DSLContext,
+                                ownerEmail: String,
+                                datasetName: String
+                              ): Dataset = {
     ctx
-      .select()
-      .from(
-        DATASET
-          .leftJoin(USER)
-          .on(USER.UID.eq(DATASET.OWNER_UID))
-      )
+      .select(DATASET.fields: _*)
+      .from(DATASET)
+      .leftJoin(USER)
+      .on(USER.UID.eq(DATASET.OWNER_UID))
       .where(USER.EMAIL.eq(ownerEmail))
       .and(DATASET.NAME.eq(datasetName))
       .fetchOneInto(classOf[Dataset])
