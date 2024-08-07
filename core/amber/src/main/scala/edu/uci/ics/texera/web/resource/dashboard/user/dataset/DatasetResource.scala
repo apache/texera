@@ -178,7 +178,6 @@ object DatasetResource {
 
     val pathSegments = (0 until filePath.getNameCount).map(filePath.getName(_).toString).toArray
 
-
     if (pathSegments.length < 4) {
       throw new BadRequestException(
         "Invalid file path format. Expected format: /ownerEmail/datasetName/versionName/fileRelativePath"
