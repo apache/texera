@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: workflow-pods
-  namespace: default
+  namespace: wf-pod-pool
 spec:
   clusterIP: None
   selector:

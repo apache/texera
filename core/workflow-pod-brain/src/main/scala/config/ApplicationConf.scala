@@ -5,8 +5,9 @@ import com.typesafe.config.{Config, ConfigFactory}
 case class KubernetesConfig(
                              kubeConfigPath: String,
                              namespace: String,
-                             workflowPodBrainDeploymentName: String,
-                             workflowPodPoolDeploymentName: String
+                             workflowPodBrainNamespace: String,
+                             workflowPodPoolNamespace: String,
+                             workflowPodBrainDeploymentName: String
                            )
 
 case class MysqlConfig(
@@ -27,8 +28,9 @@ object ApplicationConf {
     kubernetes = KubernetesConfig(
       kubeConfigPath = expandPath(config.getString("kubernetes.kube-config-path")),
       namespace = config.getString("kubernetes.namespace"),
-      workflowPodBrainDeploymentName = config.getString("kubernetes.workflow-pod-brain-deployment-name"),
-      workflowPodPoolDeploymentName = config.getString("kubernetes.workflow-pod-pool-deployment-name")
+      workflowPodBrainNamespace = config.getString("kubernetes.brain-namespace"),
+      workflowPodPoolNamespace = config.getString("kubernetes.pool-namespace"),
+      workflowPodBrainDeploymentName = config.getString("kubernetes.workflow-pod-brain-deployment-name")
     ),
     mysqlConfig = MysqlConfig(
       url = config.getString("jdbc.url"),

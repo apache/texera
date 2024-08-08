@@ -15,18 +15,6 @@ class WorkflowPodBrainApplication extends Application[Configuration] {
     environment.jersey().register(new WorkflowPodBrainResource)
 
     println(s"Kube Config Path: ${appConfig.kubernetes.kubeConfigPath}")
-    println(s"Namespace: ${appConfig.kubernetes.namespace}")
-    println(s"Workflow Pod Brain Deployment Name: ${appConfig.kubernetes.workflowPodBrainDeploymentName}")
-    println(s"Workflow Pod Pool Deployment Name: ${appConfig.kubernetes.workflowPodPoolDeploymentName}")
-
-//    // Check if service functions work
-//    val pods = new KubernetesClientService().getPodsList()
-//    pods.foreach(pod => println(pod.getMetadata.getName))
-//
-//    val newPod = new KubernetesClientService().createPod("1")
-//    println(newPod.getMetadata.getUid)
-//    println(newPod.getMetadata.getName)
-//    println(newPod.getMetadata.getAnnotations)
   }
 }
 
