@@ -9,7 +9,7 @@ import service.KubernetesClientService
 import web.Utils.withTransaction
 import web.model.SqlServer
 import web.model.jooq.generated.tables.daos.PodDao
-import web.resources.WorkflowPodBrainResource.{WorkflowPodCreationParams, WorkflowPodTerminationParams, context}
+import web.resources.WorkflowPodBrainResource.{WorkflowPodCreationParams, WorkflowPodTerminationParams, WorkflowPodRunParams, context}
 import web.model.jooq.generated.tables.pojos.Pod
 
 import java.sql.Timestamp
@@ -113,8 +113,9 @@ class WorkflowPodBrainResource {
   @Path("/{uid}/run-workflow")
   def runWorkflow(
                     @PathParam("uid") uid: String,
-                    param: WorkflowPodTerminationParams
+                    param: WorkflowPodRunParams
                   ): Response = {
-    Response.ok(s"Endpoints successfully reached by uid: $uid").build()
+    val responseBody = ujson.write(new KubernetesClientService().sendWorkflow(uid, param.workflow))
+    Response.ok(responseBody, MediaType.APPLICATION_JSON).build()
   }
 }

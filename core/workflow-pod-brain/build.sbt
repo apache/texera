@@ -31,3 +31,9 @@ libraryDependencies += "com.typesafe" % "config" % "1.4.1"
 
 // https://mvnrepository.com/artifact/mysql/mysql-connector-java
 libraryDependencies += "mysql" % "mysql-connector-java" % "8.0.33"
+
+// Scala https library
+libraryDependencies += "com.softwaremill.sttp.client4" %% "core" % "4.0.0-M6"
+
+// Scala JSON library
+libraryDependencies += "com.lihaoyi" %% "upickle" % "3.1.0"

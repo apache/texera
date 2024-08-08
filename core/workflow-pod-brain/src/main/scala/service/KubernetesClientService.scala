@@ -9,6 +9,10 @@ import service.KubernetesClientConfig.kubernetesConfig
 
 import java.util
 import scala.jdk.CollectionConverters.CollectionHasAsScala
+import sttp.client4.quick.{RichRequest, quickRequest}
+import sttp.client4.{Response, UriContext}
+import sttp.model.Uri
+import sttp.model.Uri.QuerySegment.Value
 
 object KubernetesClientConfig {
 
@@ -134,7 +138,23 @@ class KubernetesClientService(
    * @param workflow   The JSON representation of a texera workflow.
    * @return The response object produced by the worker pod.
    */
-  def sendWorkflow(uid: String, workflow: String): Map[String, String] = ???
+  def sendWorkflow(uid: String, workflow: String): Map[String, ujson.Value] = {
+    // Build and send request
+//    val podUri: Uri = uri"http://user-pod-$uid.workflow-pods.default.svc.cluster.local:8080/hello-world"
+    val podUri: Uri = uri"http://localhost:8080/hello-world"
+    val response = quickRequest.get(podUri).send()
+//    val workflowJSON = ujson.Obj(
+//      "uid" -> uid,
+//      "workflow" -> workflow
+//    )
+//    val response: Response[String] = quickRequest
+//      .post(podUri)
+//      .header("Content-Type", "application/json")
+//      .body(ujson.write(workflowJSON))
+//      .send()
+
+    ujson.read(response.body).obj.toMap
+  }
 
   /**
    * Find and replace pod in case of pod failure.
