@@ -9,7 +9,7 @@ import java.nio.file.{Files, Path}
 
 class DatasetFileDocument(uid: UInteger, fileFullPath: Path) extends VirtualDocument[Nothing] {
 
-  private val (dataset, datasetVersion, fileRelativePath) =
+  private val (_, dataset, datasetVersion, fileRelativePath) =
     DatasetResource.resolveFilePath(fileFullPath)
 
   private var tempFile: Option[File] = None

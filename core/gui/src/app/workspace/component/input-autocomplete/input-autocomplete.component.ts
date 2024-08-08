@@ -35,6 +35,7 @@ export class InputAutoCompleteComponent extends FieldType<FieldTypeConfig> {
           nzFooter: null,
           nzData: {
             datasets: datasets,
+            selectedFilePath: this.formControl.getRawValue(),
           },
         });
         // Handle the selection from the modal
