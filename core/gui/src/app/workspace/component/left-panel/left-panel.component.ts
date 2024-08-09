@@ -45,18 +45,28 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
   constructor() {
   //   this.order = localStorage.getItem("left-panel-order")?.split(",").map(Number) || this.order;
     
-    // 动态更新 localStorage 数据，确保包含新组件
     const savedOrder = localStorage.getItem("left-panel-order");
-    console.log("savedOrder")
-    console.log(savedOrder)
-    const parsedOrder = savedOrder?.split(",").map(Number).filter(index => index < this.items.length) || this.order;
-    console.log('parsedOrder')
-    console.log(parsedOrder)
+    console.log("savedOrder", savedOrder);
+
+    
+    const parsedOrder = savedOrder?.split(",").map(Number) || this.order;
+    console.log('parsedOrder', parsedOrder);
+
+    const parsedOrderSet = new Set(parsedOrder);
+    const currentOrderSet = new Set(this.order);
+
+    const isOrderConsistent = [...currentOrderSet].every(index => parsedOrderSet.has(index)) && [...parsedOrderSet].every(index => currentOrderSet.has(index));
+
+    console.log('isOrderConsistent', isOrderConsistent);
     // 动态更新 order 以包括新组件
-    console.log(this.items.length - 1)
-    this.order = [...new Set([...parsedOrder, this.items.length - 1])];
-    console.log('this.order')
-    console.log(this.order)
+    if (isOrderConsistent) {
+      this.order = parsedOrder;
+    } else {
+      // 保持现有的 this.order，不使用 parsedOrder
+      console.log('Order inconsistency detected, keeping original this.order');
+    }
+  
+  console.log('Final this.order', this.order);
 
     const savedIndex = Number(localStorage.getItem("left-panel-index"));
     if (savedIndex < this.items.length && this.items[savedIndex].enabled) {
