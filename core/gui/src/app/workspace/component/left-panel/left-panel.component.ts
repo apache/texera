@@ -41,16 +41,17 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
 
   order = Array.from({ length: this.items.length - 1 }, (_, index) => index + 1);
 
-
   constructor() {
     const savedOrder = localStorage.getItem("left-panel-order");
-    
+
     const parsedOrder = savedOrder?.split(",").map(Number) || this.order;
 
     const parsedOrderSet = new Set(parsedOrder);
     const currentOrderSet = new Set(this.order);
 
-    const isOrderConsistent = [...currentOrderSet].every(index => parsedOrderSet.has(index)) && [...parsedOrderSet].every(index => currentOrderSet.has(index));
+    const isOrderConsistent =
+      [...currentOrderSet].every(index => parsedOrderSet.has(index)) &&
+      [...parsedOrderSet].every(index => currentOrderSet.has(index));
 
     if (isOrderConsistent) {
       this.order = parsedOrder;
@@ -60,13 +61,12 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
     if (savedIndex < this.items.length && this.items[savedIndex].enabled) {
       this.openFrame(savedIndex);
     } else {
-      this.openFrame(1); 
+      this.openFrame(1);
     }
 
     this.width = Number(localStorage.getItem("left-panel-width")) || this.width;
     this.height = Number(localStorage.getItem("left-panel-height")) || this.height;
   }
-
 
   ngOnInit(): void {
     const style = localStorage.getItem("left-panel-style");
