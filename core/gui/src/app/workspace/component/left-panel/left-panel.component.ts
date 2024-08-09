@@ -43,45 +43,25 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
 
 
   constructor() {
-  //   this.order = localStorage.getItem("left-panel-order")?.split(",").map(Number) || this.order;
-    
     const savedOrder = localStorage.getItem("left-panel-order");
-    console.log("savedOrder", savedOrder);
-
     
     const parsedOrder = savedOrder?.split(",").map(Number) || this.order;
-    console.log('parsedOrder', parsedOrder);
 
     const parsedOrderSet = new Set(parsedOrder);
     const currentOrderSet = new Set(this.order);
 
     const isOrderConsistent = [...currentOrderSet].every(index => parsedOrderSet.has(index)) && [...parsedOrderSet].every(index => currentOrderSet.has(index));
 
-    console.log('isOrderConsistent', isOrderConsistent);
-    // 动态更新 order 以包括新组件
     if (isOrderConsistent) {
       this.order = parsedOrder;
-    } else {
-      // 保持现有的 this.order，不使用 parsedOrder
-      console.log('Order inconsistency detected, keeping original this.order');
     }
-  
-  console.log('Final this.order', this.order);
 
     const savedIndex = Number(localStorage.getItem("left-panel-index"));
     if (savedIndex < this.items.length && this.items[savedIndex].enabled) {
       this.openFrame(savedIndex);
     } else {
-      this.openFrame(1); // 默认打开第一个有效组件
+      this.openFrame(1); 
     }
-
-    // this.openFrame(Number(localStorage.getItem("left-panel-index") || "1"));
-
-    
-    // localStorage.setItem("left-panel-order", String(this.order));
-    // localStorage.setItem("left-panel-index", String(this.currentIndex));
-    console.log("new save")
-    console.log(localStorage.getItem("left-panel-order"))
 
     this.width = Number(localStorage.getItem("left-panel-width")) || this.width;
     this.height = Number(localStorage.getItem("left-panel-height")) || this.height;
