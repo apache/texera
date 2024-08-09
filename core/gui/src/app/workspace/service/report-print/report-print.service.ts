@@ -11,7 +11,7 @@ export class ReportPrintService {
   private paper!: joint.dia.Paper;
   constructor(
     public workflowActionService: WorkflowActionService,
-    private workflowResultService: WorkflowResultService,
+    private workflowResultService: WorkflowResultService
   ) {}
 
   /**
@@ -56,7 +56,7 @@ export class ReportPrintService {
               resolve(dataUrl);
               document.body.removeChild(snapshotContainer);
             })
-            .catch((error) => {
+            .catch(error => {
               reject(error);
               document.body.removeChild(snapshotContainer);
             });

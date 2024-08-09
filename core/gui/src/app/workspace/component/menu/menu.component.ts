@@ -100,7 +100,7 @@ export class MenuComponent implements OnInit {
     public operatorMenu: OperatorMenuService,
     public coeditorPresenceService: CoeditorPresenceService,
     private modalService: NzModalService,
-    private reportPrintService: ReportPrintService,
+    private reportPrintService: ReportPrintService
   ) {
     workflowWebsocketService
       .subscribeToEvent("ExecutionDurationUpdateEvent")
@@ -138,8 +138,6 @@ export class MenuComponent implements OnInit {
         this.applyRunButtonBehavior(this.getRunButtonBehavior());
       });
 
-
-
     // set the map of operatorStatusMap
     this.validationWorkflowService
       .getWorkflowValidationErrorStream()
@@ -161,7 +159,6 @@ export class MenuComponent implements OnInit {
     this.runDisable = behavior.disable;
     this.onClickRunHandler = behavior.onClick;
   }
-
 
   public getRunButtonBehavior(): {
     text: string;
@@ -256,7 +253,8 @@ export class MenuComponent implements OnInit {
    * get the html to export all results.
    */
   public onClickExportAllResults(): void {
-    this.reportPrintService.getWorkflowSnapshot()
+    this.reportPrintService
+      .getWorkflowSnapshot()
       .then(snapshot => {
         this.reportPrintService.downloadResultsAsHtml(snapshot);
       })
@@ -264,7 +262,6 @@ export class MenuComponent implements OnInit {
         console.error("Error capturing workflow snapshot:", error);
       });
   }
-
 
   /**
    * This method checks whether the zoom ratio reaches minimum. If it is minimum, this method
