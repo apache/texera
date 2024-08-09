@@ -41,12 +41,42 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
 
   order = Array.from({ length: this.items.length - 1 }, (_, index) => index + 1);
 
+
   constructor() {
-    this.order = localStorage.getItem("left-panel-order")?.split(",").map(Number) || this.order;
-    this.openFrame(Number(localStorage.getItem("left-panel-index") || "1"));
+  //   this.order = localStorage.getItem("left-panel-order")?.split(",").map(Number) || this.order;
+    
+    // 动态更新 localStorage 数据，确保包含新组件
+    const savedOrder = localStorage.getItem("left-panel-order");
+    console.log("savedOrder")
+    console.log(savedOrder)
+    const parsedOrder = savedOrder?.split(",").map(Number).filter(index => index < this.items.length) || this.order;
+    console.log('parsedOrder')
+    console.log(parsedOrder)
+    // 动态更新 order 以包括新组件
+    console.log(this.items.length - 1)
+    this.order = [...new Set([...parsedOrder, this.items.length - 1])];
+    console.log('this.order')
+    console.log(this.order)
+
+    const savedIndex = Number(localStorage.getItem("left-panel-index"));
+    if (savedIndex < this.items.length && this.items[savedIndex].enabled) {
+      this.openFrame(savedIndex);
+    } else {
+      this.openFrame(1); // 默认打开第一个有效组件
+    }
+
+    // this.openFrame(Number(localStorage.getItem("left-panel-index") || "1"));
+
+    
+    // localStorage.setItem("left-panel-order", String(this.order));
+    // localStorage.setItem("left-panel-index", String(this.currentIndex));
+    console.log("new save")
+    console.log(localStorage.getItem("left-panel-order"))
+
     this.width = Number(localStorage.getItem("left-panel-width")) || this.width;
     this.height = Number(localStorage.getItem("left-panel-height")) || this.height;
   }
+
 
   ngOnInit(): void {
     const style = localStorage.getItem("left-panel-style");
