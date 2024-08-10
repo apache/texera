@@ -21,7 +21,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.amber.error.ErrorUtils.{mkConsoleMessage, safely}
-import edu.uci.ics.texera.workflow.common.{EndOfUpstream, State}
+import edu.uci.ics.texera.workflow.common.EndOfUpstream
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
@@ -99,7 +99,7 @@ class DataProcessor(
   private[this] def processEndOfUpstream(port: Int): Unit = {
     try {
       outputManager.outputIterator.setTupleOutput(
-        executor.onInputFinishMultiPort(port)
+        executor.onFinishMultiPort(port)
       )
     } catch safely {
       case e =>
