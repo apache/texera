@@ -150,8 +150,8 @@ import scala.collection.mutable
 import scala.util.Try
 
 trait StateTransferFunc
-  extends ((OperatorExecutor, OperatorExecutor) => Unit)
-    with java.io.Serializable
+    extends ((OperatorExecutor, OperatorExecutor) => Unit)
+      with java.io.Serializable
 
 @JsonTypeInfo(
   use = JsonTypeInfo.Id.NAME,
