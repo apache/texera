@@ -8,7 +8,6 @@ import pandas
 from deprecated import deprecated
 
 from . import InputExhausted, Table, TableLike, Tuple, TupleLike, Batch, BatchLike
-from .state import State
 from .table import all_output_to_tuple
 
 
@@ -45,25 +44,6 @@ class Operator(ABC):
     def close(self) -> None:
         """
         Close the context of the operator.
-        """
-        pass
-
-    def process_state(self, state_: State, port: int) -> State:
-        """
-        Process an input State from the given link.
-
-        :param state_: State, a State from an input port to be processed.
-        :param port: int, input port index of the current exhausted port.
-        :return: State, producing one State object
-        """
-        return state_
-
-    def produce_state(self, port: int) -> State:
-        """
-        Produce a State after the input port is exhausted.
-
-        :param port: int, input port index of the current exhausted port.
-        :return: State, producing one State object
         """
         pass
 
