@@ -15,6 +15,7 @@ object JsonTest {
 
     val des = om.readValue(str, classOf[WorkflowAggregatedState])
     println(des)
+
   }
 }
 
