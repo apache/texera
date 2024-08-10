@@ -26,8 +26,3 @@ class OutputDataFrame(DataPayload):
 @dataclass
 class EndOfUpstream(DataPayload):
     frame: Optional[Table] = None
-
-
-@dataclass
-class StateFrame(DataPayload):
-    frame: Table
