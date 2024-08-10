@@ -7,7 +7,6 @@ from .tuple import InputExhausted, Tuple, TupleLike, ArrowTableTupleProvider
 from .table import Table, TableLike
 from .batch import Batch, BatchLike
 from .schema import AttributeType, Field, Schema
-from .state import State
 from .operator import (
     Operator,
     TupleOperator,
@@ -52,5 +51,4 @@ __all__ = [
     "AttributeType",
     "Field",
     "Schema",
-    "State"
 ]
