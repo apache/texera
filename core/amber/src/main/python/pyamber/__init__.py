@@ -11,7 +11,6 @@ from core.models import (
     BatchOperator,
     SourceOperator,
     TupleOperatorV2,
-    State
 )
 
 __all__ = [
@@ -26,6 +25,5 @@ __all__ = [
     "TableOperator",
     "BatchOperator",
     "TupleOperatorV2",
-    "SourceOperator",
-    "State"
+    "SourceOperator"
 ]
