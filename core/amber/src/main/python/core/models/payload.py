@@ -3,7 +3,6 @@ from pyarrow.lib import Table
 from typing import List, Optional
 
 from core.models.schema.schema import Schema
-from core.models.state import State
 from core.models.tuple import Tuple
 
 
