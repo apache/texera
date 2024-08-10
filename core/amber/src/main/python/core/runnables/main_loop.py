@@ -20,7 +20,6 @@ from core.models import (
     Tuple,
 )
 from core.models.internal_queue import DataElement, ControlElement
-from core.models.payload import OutputDataFrame
 from core.runnables.data_processor import DataProcessor
 from core.util import StoppableQueueBlockingRunnable, get_one_of, set_one_of
 from core.util.customized_queue.queue_base import QueueElement
@@ -161,21 +160,18 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 self.context.tuple_processing_manager.current_input_port_id
             )
 
-        for output_data in self.process_tuple_with_udf():
+        for output_tuple in self.process_tuple_with_udf():
             self._check_and_process_control()
-            if output_data is not None:
-                if isinstance(output_data, Tuple):
-                    self.context.statistics_manager.increase_output_tuple_count(
-                        PortIdentity(0)
-                    )
-                    for (to, batch) in self.context.output_manager.tuple_to_batch(output_data):
-                        batch.schema = self.context.output_manager.get_port().get_schema()
-                        self._output_queue.put(DataElement(tag=to, payload=batch))
-                elif isinstance(output_data, State):
-                    for (to, batch) in self.context.output_manager.state_to_batch(output_data):
-                        if isinstance(batch, OutputDataFrame):
-                            batch.schema = self.context.output_manager.get_port().get_schema()
-                        self._output_queue.put(DataElement(tag=to, payload=batch))
+            if output_tuple is not None:
+                self.context.statistics_manager.increase_output_tuple_count(
+                    PortIdentity(0)
+                )
+                for (
+                        to,
+                        batch,
+                ) in self.context.output_manager.tuple_to_batch(output_tuple):
+                    batch.schema = self.context.output_manager.get_port().get_schema()
+                    self._output_queue.put(DataElement(tag=to, payload=batch))
 
     def process_tuple_with_udf(self) -> Iterator[Optional[Tuple]]:
         """
@@ -192,8 +188,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
             self._check_and_process_control()
             self._switch_context()
             yield self.context.tuple_processing_manager.get_output_tuple()
-            self._check_and_process_control()
-            yield self.context.tuple_processing_manager.get_output_state()
 
     def _process_control_element(self, control_element: ControlElement) -> None:
         """
@@ -207,11 +201,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self.context.tuple_processing_manager.current_input_tuple = tuple_
         self.process_input_tuple()
         self._check_and_process_control()
-
-    def _process_state(self, state_: State):
-        self.context.tuple_processing_manager.current_input_state = state_
-        self._check_and_process_control()
-        self._switch_context()
 
     def _process_input_exhausted(self, input_exhausted: InputExhausted):
         self._process_tuple(input_exhausted)
@@ -301,8 +290,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
                     self._process_sender_change_marker,
                     EndOfAllMarker,
                     self._process_end_of_all_marker,
-                    State,
-                    self._process_state,
                 )
             except Exception as err:
                 logger.exception(err)
