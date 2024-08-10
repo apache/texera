@@ -2,7 +2,6 @@ from threading import Event, Condition
 from typing import Optional, Union, Tuple, Iterator
 
 from core.models import InputExhausted
-from core.models.state import State
 from proto.edu.uci.ics.amber.engine.common import PortIdentity
 
 
@@ -13,20 +12,10 @@ class TupleProcessingManager:
         self.current_input_tuple_iter: Optional[
             Iterator[Union[Tuple, InputExhausted]]
         ] = None
-        self.current_input_state: Optional[State] = None
-        self.current_output_state: Optional[State] = None
         self.current_output_tuple: Optional[Tuple] = None
         self.context_switch_condition: Condition = Condition()
         self.finished_current: Event = Event()
 
     def get_output_tuple(self) -> Optional[Tuple]:
         ret, self.current_output_tuple = self.current_output_tuple, None
-        return ret
-
-    def get_output_state(self) -> Optional[State]:
-        ret, self.current_output_state = self.current_output_state, None
-        return ret
-
-    def get_input_state(self) -> Optional[State]:
-        ret, self.current_input_state = self.current_input_state, None
         return ret

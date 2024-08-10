@@ -3,10 +3,9 @@ from typing import Iterator
 
 from overrides import overrides
 
-from copy import deepcopy
 from core.architecture.sendsemantics.partitioner import Partitioner
-from core.models import Tuple, State
-from core.models.payload import OutputDataFrame, DataPayload, EndOfUpstream, StateFrame
+from core.models import Tuple
+from core.models.payload import OutputDataFrame, DataPayload, EndOfUpstream
 from core.util import set_one_of
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
     OneToOnePartitioning,
@@ -33,14 +32,6 @@ class OneToOnePartitioner(Partitioner):
         if len(self.batch) == self.batch_size:
             yield self.receiver, OutputDataFrame(frame=self.batch)
             self.reset()
-
-    @overrides
-    def add_state_to_batch(self, state: State):
-        if len(self.batch) > 0:
-            yield self.receiver, OutputDataFrame(frame=deepcopy(self.batch))
-            self.batch.clear()
-
-        yield self.receiver, StateFrame(frame=state.to_table())
 
     @overrides
     def no_more(self) -> Iterator[typing.Tuple[ActorVirtualIdentity, DataPayload]]:
