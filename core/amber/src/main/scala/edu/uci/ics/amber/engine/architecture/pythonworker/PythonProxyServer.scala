@@ -106,9 +106,6 @@ private class AmberProducer(
     if (dataHeader.marker == EndOfUpstream().getClass.getSimpleName) {
       assert(root.getRowCount == 0)
       outputPort.sendTo(to, MarkerFrame(EndOfUpstream()))
-    } else if (dataHeader.marker == "StateFrame") {
-      assert(root.getRowCount == 1)
-      outputPort.sendTo(to, MarkerFrame(State().fromTuple(ArrowUtils.getTexeraTuple(0, root))))
     } else {
       // normal data batches
       val queue = mutable.Queue[Tuple]()
