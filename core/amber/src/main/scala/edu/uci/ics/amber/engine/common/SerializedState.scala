@@ -16,16 +16,6 @@ object SerializedState {
     val manifest = Serializers.manifestFor(ser, obj)
     SerializedState(bytes, ser.identifier, manifest)
   }
-
-  def fromObjectToString[T <: AnyRef](obj:T):String = {
-    val serializedObj = fromObject(obj, AmberRuntime.serde)
-    s"${serializedObj.manifest}amber_serialization${serializedObj.serializerId}amber_serialization" + (serializedObj.bytes.map(_.toChar)).mkString
-  }
-
-  def stringToObject(str:String):AnyRef = {
-    val fields = str.split("amber_serialization")
-    SerializedState(fields(2).map(_.toByte).toArray,fields(1).toInt,fields(0)).toObject[AnyRef](AmberRuntime.serde)
-  }
 }
 
 case class SerializedState(bytes: Array[Byte], serializerId: Int, manifest: String) {
