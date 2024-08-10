@@ -3,6 +3,7 @@ from typing import Iterator
 
 from loguru import logger
 from overrides import overrides
+
 from core.architecture.sendsemantics.partitioner import Partitioner
 from core.models import Tuple
 from core.models.payload import OutputDataFrame, DataPayload, EndOfUpstream
