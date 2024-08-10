@@ -1,6 +1,7 @@
 import { Injectable } from "@angular/core";
 import html2canvas from "html2canvas";
 import * as joint from "jointjs";
+import { Observable, Observer } from "rxjs";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowResultService } from "../workflow-result/workflow-result.service";
 
@@ -9,6 +10,18 @@ import { WorkflowResultService } from "../workflow-result/workflow-result.servic
 })
 export class ReportPrintService {
   private paper!: joint.dia.Paper;
+
+  // Define constants for styles
+  private readonly SNAPSHOT_CONTAINER_WIDTH = "75%";
+  private readonly SNAPSHOT_CONTAINER_HEIGHT = "75%";
+  private readonly SNAPSHOT_CONTAINER_POSITION = "fixed";
+  private readonly SNAPSHOT_CONTAINER_TOP = "0";
+  private readonly SNAPSHOT_CONTAINER_LEFT = "0";
+  private readonly SNAPSHOT_CONTAINER_ZINDEX = "-1";
+  private readonly SNAPSHOT_CONTAINER_BACKGROUND = "#FFFFFF";
+
+
+
   constructor(
     public workflowActionService: WorkflowActionService,
     private workflowResultService: WorkflowResultService
@@ -16,24 +29,24 @@ export class ReportPrintService {
 
   /**
    * Captures the current workflow snapshot and returns it as a base64-encoded PNG image URL.
-   * @returns {Promise<string>} A promise that resolves with the base64-encoded PNG image URL of the workflow snapshot.
+   * @returns {Observable<string>} An Observable that emits the base64-encoded PNG image URL of the workflow snapshot.
    */
-  public async getWorkflowSnapshot(): Promise<string> {
-    return new Promise((resolve, reject) => {
+  public getWorkflowSnapshot(): Observable<string> {
+    return new Observable((observer: Observer<string>) => {
       const element = document.querySelector("#workflow-editor") as HTMLElement;
       if (element) {
         const snapshotContainer = document.createElement("div");
-        snapshotContainer.style.width = "75%";
-        snapshotContainer.style.height = "75%";
-        snapshotContainer.style.position = "fixed";
-        snapshotContainer.style.top = "0";
-        snapshotContainer.style.left = "0";
-        snapshotContainer.style.zIndex = "-1";
-        snapshotContainer.style.background = "#FFFFFF";
+        snapshotContainer.style.width = this.SNAPSHOT_CONTAINER_WIDTH;
+        snapshotContainer.style.height = this.SNAPSHOT_CONTAINER_HEIGHT;
+        snapshotContainer.style.position = this.SNAPSHOT_CONTAINER_POSITION;
+        snapshotContainer.style.top = this.SNAPSHOT_CONTAINER_TOP;
+        snapshotContainer.style.left = this.SNAPSHOT_CONTAINER_LEFT;
+        snapshotContainer.style.zIndex = this.SNAPSHOT_CONTAINER_ZINDEX;
+        snapshotContainer.style.background = this.SNAPSHOT_CONTAINER_BACKGROUND;
         document.body.appendChild(snapshotContainer);
 
         const jointGraph = this.workflowActionService.getJointGraphWrapper().jointGraph;
-        this.paper = new joint.dia.Paper({
+        const paper = new joint.dia.Paper({
           el: snapshotContainer,
           model: jointGraph,
           width: snapshotContainer.clientWidth,
@@ -42,7 +55,7 @@ export class ReportPrintService {
           background: { color: "#FFFFFF" },
         });
 
-        this.paper.scale(0.75, 0.75);
+        paper.scale(0.75, 0.75);
 
         setTimeout(() => {
           html2canvas(snapshotContainer, {
@@ -51,18 +64,19 @@ export class ReportPrintService {
             allowTaint: true,
             foreignObjectRendering: true,
           })
-            .then((canvas: HTMLCanvasElement) => {
-              const dataUrl: string = canvas.toDataURL("image/png");
-              resolve(dataUrl);
+            .then((canvas) => {
+              const dataUrl = canvas.toDataURL("image/png");
+              observer.next(dataUrl);
+              observer.complete();
               document.body.removeChild(snapshotContainer);
             })
-            .catch(error => {
-              reject(error);
+            .catch((error) => {
+              observer.error(error);
               document.body.removeChild(snapshotContainer);
             });
         }, 1000);
       } else {
-        reject("Workflow canvas element not found");
+        observer.error("Workflow canvas element not found");
       }
     });
   }

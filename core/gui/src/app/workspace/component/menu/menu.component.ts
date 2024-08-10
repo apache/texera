@@ -253,14 +253,14 @@ export class MenuComponent implements OnInit {
    * get the html to export all results.
    */
   public onClickExportAllResults(): void {
-    this.reportPrintService
-      .getWorkflowSnapshot()
-      .then(snapshot => {
+    this.reportPrintService.getWorkflowSnapshot().subscribe({
+      next: (snapshot: string) => {
         this.reportPrintService.downloadResultsAsHtml(snapshot);
-      })
-      .catch(error => {
-        console.error("Error capturing workflow snapshot:", error);
-      });
+      },
+      error: (error) => {
+        console.error('Error capturing workflow snapshot:', error);
+      },
+    });
   }
 
   /**
