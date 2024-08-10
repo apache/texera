@@ -55,9 +55,9 @@ class HashJoinOpDesc[K] extends LogicalOp {
   var joinType: JoinType = JoinType.INNER
 
   override def getPhysicalPlan(
-                                workflowId: WorkflowIdentity,
-                                executionId: ExecutionIdentity
-                              ): PhysicalPlan = {
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity
+  ): PhysicalPlan = {
 
     val buildInputPort = operatorInfo.inputPorts.head
     val buildOutputPort = OutputPort(PortIdentity(0, internal = true), blocking = true)
