@@ -2,7 +2,7 @@ from typing import Iterator, Optional, Union, Dict, List
 
 from core.models import Tuple, ArrowTableTupleProvider, Schema
 from core.models.marker import EndOfAllMarker, Marker, SenderChangeMarker
-from core.models.payload import InputDataFrame, DataPayload, EndOfUpstream, State, StateFrame
+from core.models.payload import InputDataFrame, DataPayload, EndOfUpstream
 from core.models.tuple import InputExhausted
 from proto.edu.uci.ics.amber.engine.common import (
     ActorVirtualIdentity,
@@ -96,10 +96,7 @@ class InputManager:
             self._current_channel_id = current_channel_id
             yield SenderChangeMarker(current_channel_id)
 
-        if isinstance(payload, StateFrame):
-            yield State().from_dict(payload.frame.to_pandas().iloc[0].to_dict())
-
-        elif isinstance(payload, InputDataFrame):
+        if isinstance(payload, InputDataFrame):
             for field_accessor in ArrowTableTupleProvider(payload.frame):
                 yield Tuple(
                     {name: field_accessor for name in payload.frame.column_names},
