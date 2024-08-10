@@ -5,8 +5,11 @@ import { CdkDragDrop, moveItemInArray } from "@angular/cdk/drag-drop";
 import { environment } from "../../../../environments/environment";
 import { OperatorMenuComponent } from "./operator-menu/operator-menu.component";
 import { VersionsListComponent } from "./versions-list/versions-list.component";
-import { WorkflowExecutionHistoryComponent } from "../../../dashboard/component/user/user-workflow/ngbd-modal-workflow-executions/workflow-execution-history.component";
+import {
+  WorkflowExecutionHistoryComponent,
+} from "../../../dashboard/component/user/user-workflow/ngbd-modal-workflow-executions/workflow-execution-history.component";
 import { TimeTravelComponent } from "./time-travel/time-travel.component";
+
 @UntilDestroy()
 @Component({
   selector: "texera-left-panel",
@@ -42,27 +45,11 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
   order = Array.from({ length: this.items.length - 1 }, (_, index) => index + 1);
 
   constructor() {
-    const savedOrder = localStorage.getItem("left-panel-order");
-
-    const parsedOrder = savedOrder?.split(",").map(Number) || this.order;
-
-    const parsedOrderSet = new Set(parsedOrder);
-    const currentOrderSet = new Set(this.order);
-
-    const isOrderConsistent =
-      [...currentOrderSet].every(index => parsedOrderSet.has(index)) &&
-      [...parsedOrderSet].every(index => currentOrderSet.has(index));
-
-    if (isOrderConsistent) {
-      this.order = parsedOrder;
-    }
+    const savedOrder = localStorage.getItem("left-panel-order")?.split(",").map(Number);
+    this.order = savedOrder && new Set(savedOrder).size === new Set(this.order).size ? savedOrder : this.order;
 
     const savedIndex = Number(localStorage.getItem("left-panel-index"));
-    if (savedIndex < this.items.length && this.items[savedIndex].enabled) {
-      this.openFrame(savedIndex);
-    } else {
-      this.openFrame(1);
-    }
+    this.openFrame(savedIndex < this.items.length && this.items[savedIndex].enabled ? savedIndex : 1);
 
     this.width = Number(localStorage.getItem("left-panel-width")) || this.width;
     this.height = Number(localStorage.getItem("left-panel-height")) || this.height;
