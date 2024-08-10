@@ -1,9 +1,10 @@
 package edu.uci.ics.texera.workflow.operators.hashJoin
 
 import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
-import edu.uci.ics.texera.workflow.common.State
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
+import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc.HASH_JOIN_INTERNAL_KEY_NAME
+
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
@@ -43,17 +44,18 @@ class HashJoinProbeOpExec[K](
     probeAttributeName: String,
     joinType: JoinType
 ) extends OperatorExecutor {
+  var currentTuple: Tuple = _
 
   var buildTableHashMap: mutable.HashMap[K, (ListBuffer[Tuple], Boolean)] = _
 
-  override def processState(state: State, port: Int): State = {
-    buildTableHashMap = state("hashtable").asInstanceOf[mutable.HashMap[K, (mutable.ListBuffer[Tuple], Boolean)]]
-    State()
-  }
-
-
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] =
     if (port == 0) {
+      // Load build hash map
+      val key = tuple.getField[K](HASH_JOIN_INTERNAL_KEY_NAME)
+      buildTableHashMap.getOrElseUpdate(key, (new ListBuffer[Tuple](), false))._1 += tuple
+        .getPartialTuple(
+          tuple.getSchema.getAttributeNames.filterNot(n => n == HASH_JOIN_INTERNAL_KEY_NAME)
+        )
       Iterator.empty
     } else {
       // Probe phase
