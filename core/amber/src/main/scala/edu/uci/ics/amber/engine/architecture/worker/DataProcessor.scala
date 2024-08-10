@@ -92,10 +92,6 @@ class DataProcessor(
     }
   }
 
-  private[this] def processInputState(state: State, port: Int): Unit = {
-    outputManager.emitMarker(executor.processState(state, port))
-  }
-
   /**
     * process end of an input port with Executor.onFinish().
     * this function is only called by the DP thread.
@@ -105,10 +101,6 @@ class DataProcessor(
       outputManager.outputIterator.setTupleOutput(
         executor.onInputFinishMultiPort(port)
       )
-      val outputState = executor.onFinishProduceState(port)
-      if (outputState!= null) {
-        outputManager.emitMarker(outputState)
-      }
     } catch safely {
       case e =>
         // forward input tuple to the user and pause DP thread
@@ -199,8 +191,6 @@ class DataProcessor(
         processInputTuple(inputManager.getNextTuple)
       case MarkerFrame(marker) =>
         marker match {
-          case state: State =>
-            processInputState(state, portId.id)
           case EndOfUpstream() =>
             this.inputManager.getPort(portId).channels(channelId) = true
             if (inputManager.isPortCompleted(portId)) {
