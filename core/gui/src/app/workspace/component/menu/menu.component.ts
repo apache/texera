@@ -255,12 +255,10 @@ export class MenuComponent implements OnInit {
   public onClickExportAllResults(): void {
     this.reportPrintService
       .getWorkflowSnapshot()
-      .pipe(
-        tap((snapshot: string) => this.reportPrintService.downloadResultsAsHtml(snapshot)),
-        untilDestroyed(this)
-      )
+      .pipe(untilDestroyed(this))
       .subscribe({
-        error: (error: unknown) => console.error("Error capturing workflow snapshot:", (error as Error).message),
+        next: (snapshot: string) => this.reportPrintService.downloadResultsAsHtml(snapshot),
+        error: (e: unknown) => this.notificationService.error((e as Error).message),
       });
   }
 

@@ -19,6 +19,7 @@ export class ReportPrintService {
   private readonly SNAPSHOT_CONTAINER_LEFT = "0";
   private readonly SNAPSHOT_CONTAINER_ZINDEX = "-1";
   private readonly SNAPSHOT_CONTAINER_BACKGROUND = "#FFFFFF";
+  private readonly SCALE_FACTOR = 0.75;
 
   constructor(
     public workflowActionService: WorkflowActionService,
@@ -53,8 +54,9 @@ export class ReportPrintService {
           background: { color: "#FFFFFF" },
         });
 
-        paper.scale(0.75, 0.75);
+        paper.scale(this.SCALE_FACTOR, this.SCALE_FACTOR);
 
+        // setTimeout is used to delay the execution of the code to ensure that the previous scaling operation has been completed.
         setTimeout(() => {
           html2canvas(snapshotContainer, {
             logging: true,
