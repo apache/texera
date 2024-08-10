@@ -20,8 +20,6 @@ export class ReportPrintService {
   private readonly SNAPSHOT_CONTAINER_ZINDEX = "-1";
   private readonly SNAPSHOT_CONTAINER_BACKGROUND = "#FFFFFF";
 
-
-
   constructor(
     public workflowActionService: WorkflowActionService,
     private workflowResultService: WorkflowResultService
@@ -64,13 +62,13 @@ export class ReportPrintService {
             allowTaint: true,
             foreignObjectRendering: true,
           })
-            .then((canvas) => {
-              const dataUrl = canvas.toDataURL("image/png");
+            .then((canvas: HTMLCanvasElement) => {
+              const dataUrl: string = canvas.toDataURL("image/png");
               observer.next(dataUrl);
               observer.complete();
               document.body.removeChild(snapshotContainer);
             })
-            .catch((error) => {
+            .catch((error: any) => {
               observer.error(error);
               document.body.removeChild(snapshotContainer);
             });
@@ -80,7 +78,6 @@ export class ReportPrintService {
       }
     });
   }
-
   /**
    * Generates an HTML file containing the workflow snapshot and triggers a download of the file.
    * @param {string} workflowSnapshot - The base64-encoded PNG image URL of the workflow snapshot.
