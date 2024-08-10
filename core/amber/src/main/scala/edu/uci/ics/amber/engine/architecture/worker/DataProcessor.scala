@@ -145,7 +145,6 @@ class DataProcessor(
         )
         asyncRPCClient.send(WorkerExecutionCompleted(), CONTROLLER)
       case FinalizePort(portId, input) =>
-        //operator.onOutputFinish(portId.id)
         asyncRPCClient.send(PortCompleted(portId, input), CONTROLLER)
       case schemaEnforceable: SchemaEnforceable =>
         if (outputPortOpt.isEmpty) {
@@ -204,8 +203,6 @@ class DataProcessor(
               // assuming all the output ports finalize after all input ports are finalized.
               outputManager.finalizeOutput()
             }
-          case _ =>
-            logger.error(s"unsupported marker type: $marker")
         }
     }
     statisticsManager.increaseDataProcessingTime(System.nanoTime() - dataProcessingStartTime)
