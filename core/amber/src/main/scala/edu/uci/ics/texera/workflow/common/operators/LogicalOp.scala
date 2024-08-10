@@ -151,7 +151,7 @@ import scala.util.Try
 
 trait StateTransferFunc
     extends ((OperatorExecutor, OperatorExecutor) => Unit)
-      with java.io.Serializable
+    with java.io.Serializable
 
 @JsonTypeInfo(
   use = JsonTypeInfo.Id.NAME,
@@ -387,7 +387,7 @@ abstract class LogicalOp extends PortDescriptor with Serializable {
     operatorId = id
   }
 
- def runtimeReconfiguration(
+  def runtimeReconfiguration(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
       oldOpDesc: LogicalOp,
