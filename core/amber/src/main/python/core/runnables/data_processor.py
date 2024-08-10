@@ -7,7 +7,7 @@ from threading import Event
 from loguru import logger
 
 from core.architecture.managers import Context
-from core.models import Tuple, ExceptionInfo, State
+from core.models import Tuple, ExceptionInfo
 from core.models.table import all_output_to_tuple
 from core.util import Stoppable
 from core.util.console_message.replace_print import replace_print
@@ -29,37 +29,8 @@ class DataProcessor(Runnable, Stoppable):
         self._running.set()
         self._switch_context()
         while self._running.is_set():
-            self.process_state()
             self.process_tuple()
             self._switch_context()
-
-    def process_state(self) -> None:
-        state_ = self._context.tuple_processing_manager.get_input_state()
-        if state_ is not None:
-            try:
-                executor = self._context.executor_manager.executor
-                port_id = self._context.tuple_processing_manager.current_input_port_id
-                port: int
-                if port_id is None:
-                    # no upstream, special case for source executor.
-                    port = 0
-                else:
-                    port = port_id.id
-
-                with replace_print(
-                        self._context.worker_id,
-                        self._context.console_message_manager.print_buf,
-                ):
-                    self._set_output_state(executor.process_state(state_, port))
-
-            except Exception as err:
-                logger.exception(err)
-                exc_info = sys.exc_info()
-                self._context.exception_manager.set_exception_info(exc_info)
-                self._report_exception(exc_info)
-
-            finally:
-                self._switch_context()
 
     def process_tuple(self) -> None:
         finished_current = self._context.tuple_processing_manager.finished_current
@@ -75,14 +46,14 @@ class DataProcessor(Runnable, Stoppable):
                 else:
                     port = port_id.id
 
-                if isinstance(tuple_, Tuple):
-                    output_iterator = executor.process_tuple(tuple_, port)
-                else:
-                    self._set_output_state(executor.produce_state(port))
-                    output_iterator = executor.on_finish(port)
+                output_iterator = (
+                    executor.process_tuple(tuple_, port)
+                    if isinstance(tuple_, Tuple)
+                    else executor.on_finish(port)
+                )
                 with replace_print(
-                        self._context.worker_id,
-                        self._context.console_message_manager.print_buf,
+                    self._context.worker_id,
+                    self._context.console_message_manager.print_buf,
                 ):
                     for output in output_iterator:
                         # output could be a None, a TupleLike, or a TableLike.
@@ -106,9 +77,6 @@ class DataProcessor(Runnable, Stoppable):
         if output_tuple is not None:
             output_tuple.finalize(self._context.output_manager.get_port().get_schema())
         self._context.tuple_processing_manager.current_output_tuple = output_tuple
-
-    def _set_output_state(self, output_state: State):
-        self._context.tuple_processing_manager.current_output_state = output_state
 
     def _switch_context(self) -> None:
         """
