@@ -163,8 +163,12 @@ class MainLoop(StoppableQueueBlockingRunnable):
         for output_tuple in self.process_tuple_with_udf():
             self._check_and_process_control()
             if output_tuple is not None:
-                self.context.statistics_manager.increase_output_tuple_count(PortIdentity(0))
-                for (to, batch) in self.context.output_manager.tuple_to_batch(output_tuple):
+                self.context.statistics_manager.increase_output_tuple_count(
+                    PortIdentity(0)
+                )
+                for to, batch in self.context.output_manager.tuple_to_batch(
+                    output_tuple
+                ):
                     self._output_queue.put(DataElement(tag=to, payload=batch))
 
     def process_tuple_with_udf(self) -> Iterator[Optional[Tuple]]:

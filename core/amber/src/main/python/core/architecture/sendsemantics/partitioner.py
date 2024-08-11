@@ -18,10 +18,15 @@ class Partitioner(ABC):
         self.schema = schema
 
     def tuple_to_frame(self, tuples: typing.List[Tuple]) -> DataFrame:
-        return DataFrame(frame=Table.from_pydict(
-            {name: [t[name] for t in tuples] for name in self.schema.get_attr_names()},
-            schema=self.schema.as_arrow_schema(),
-        ))
+        return DataFrame(
+            frame=Table.from_pydict(
+                {
+                    name: [t[name] for t in tuples]
+                    for name in self.schema.get_attr_names()
+                },
+                schema=self.schema.as_arrow_schema(),
+            )
+        )
 
     def add_tuple_to_batch(
         self, tuple_: Tuple

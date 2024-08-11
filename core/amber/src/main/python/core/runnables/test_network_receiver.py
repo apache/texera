@@ -4,7 +4,6 @@ import pandas
 import pytest
 from pyarrow import Table
 
-from core.models import Tuple
 from core.models.internal_queue import InternalQueue, ControlElement, DataElement
 from core.models.payload import EndOfUpstream, DataFrame
 from core.proxy import ProxyClient

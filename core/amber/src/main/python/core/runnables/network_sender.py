@@ -3,7 +3,7 @@ from typing import Optional
 from loguru import logger
 from overrides import overrides
 
-from core.models import DataPayload, EndOfUpstream, InternalQueue, DataFrame
+from core.models import DataPayload, InternalQueue
 from core.models.internal_queue import InternalQueueElement, DataElement, ControlElement
 from core.proxy import ProxyClient
 from core.util import StoppableQueueBlockingRunnable

@@ -15,7 +15,9 @@ from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity
 
 
 class OneToOnePartitioner(Partitioner):
-    def __init__(self, partitioning: OneToOnePartitioning, schema: Schema, worker_id: str):
+    def __init__(
+        self, partitioning: OneToOnePartitioning, schema: Schema, worker_id: str
+    ):
         super().__init__(set_one_of(Partitioning, partitioning), schema)
         self.batch_size = partitioning.batch_size
         self.batch: list[Tuple] = list()

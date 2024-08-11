@@ -62,7 +62,8 @@ class NetworkReceiver(Runnable, Stoppable):
             shared_queue.put(
                 DataElement(
                     tag=data_header.tag,
-                    payload=getattr(core.models.payload, data_header.marker)(table))
+                    payload=getattr(core.models.payload, data_header.marker)(table),
+                )
             )
 
             return shared_queue.in_mem_size()

@@ -88,7 +88,10 @@ class OutputManager:
         self, tuple_: Tuple
     ) -> Iterator[typing.Tuple[ActorVirtualIdentity, DataFrame]]:
         return chain(
-            *(partitioner.add_tuple_to_batch(tuple_) for partitioner in self._partitioners.values())
+            *(
+                partitioner.add_tuple_to_batch(tuple_)
+                for partitioner in self._partitioners.values()
+            )
         )
 
     def emit_end_of_upstream(
