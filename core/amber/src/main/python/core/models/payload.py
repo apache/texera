@@ -8,11 +8,5 @@ class DataPayload:
     frame: Optional[Table] = None
 
 
-@dataclass
-class DataFrame(DataPayload):
-    pass
-
-
-@dataclass
-class EndOfUpstream(DataPayload):
-    pass
+DataFrame = DataPayload
+EndOfUpstream = DataPayload
