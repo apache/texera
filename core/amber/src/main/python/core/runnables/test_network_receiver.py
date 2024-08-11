@@ -84,13 +84,14 @@ class TestNetworkReceiver:
 
     @pytest.fixture
     def data_payload(self):
-        df_to_sent = {
-                "Brand": ["Honda Civic", "Toyota Corolla", "Ford Focus", "Audi A4"],
-                "Price": [22000, 25000, 27000, 35000],
-            }
-
-        
-        return DataFrame(frame=Table.from_pydict(df_to_sent))
+        return DataFrame(
+            frame=Table.from_pydict(
+                {
+                    "Brand": ["Honda Civic", "Toyota Corolla", "Ford Focus", "Audi A4"],
+                    "Price": [22000, 25000, 27000, 35000],
+                }
+            )
+        )
 
     @pytest.mark.timeout(2)
     def test_network_receiver_can_receive_data_messages(
