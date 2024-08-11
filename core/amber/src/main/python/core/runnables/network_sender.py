@@ -21,11 +21,11 @@ class NetworkSender(StoppableQueueBlockingRunnable):
     """
 
     def __init__(
-            self,
-            shared_queue: InternalQueue,
-            host: str,
-            port: int,
-            handshake_port: Optional[int] = None,
+        self,
+        shared_queue: InternalQueue,
+        host: str,
+        port: int,
+        handshake_port: Optional[int] = None,
     ):
         super().__init__(self.__class__.__name__, queue=shared_queue)
         self._proxy_client = ProxyClient(
@@ -57,7 +57,7 @@ class NetworkSender(StoppableQueueBlockingRunnable):
 
     @logger.catch(reraise=True)
     def _send_control(
-            self, to: ActorVirtualIdentity, control_payload: ControlPayloadV2
+        self, to: ActorVirtualIdentity, control_payload: ControlPayloadV2
     ) -> None:
         """
         Send the control payload to the given target actor. This method is to be used
