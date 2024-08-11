@@ -2,7 +2,6 @@ from typing import Optional
 
 from loguru import logger
 from overrides import overrides
-from pyarrow import Table
 
 from core.models import DataPayload, EndOfUpstream, InternalQueue, DataFrame
 from core.models.internal_queue import InternalQueueElement, DataElement, ControlElement
@@ -22,11 +21,11 @@ class NetworkSender(StoppableQueueBlockingRunnable):
     """
 
     def __init__(
-        self,
-        shared_queue: InternalQueue,
-        host: str,
-        port: int,
-        handshake_port: Optional[int] = None,
+            self,
+            shared_queue: InternalQueue,
+            host: str,
+            port: int,
+            handshake_port: Optional[int] = None,
     ):
         super().__init__(self.__class__.__name__, queue=shared_queue)
         self._proxy_client = ProxyClient(
@@ -53,20 +52,12 @@ class NetworkSender(StoppableQueueBlockingRunnable):
             EndOfUpstream
         """
 
-        if isinstance(data_payload, DataFrame):
-            data_header = PythonDataHeader(tag=to, marker=DataFrame.__name__)
-            self._proxy_client.send_data(bytes(data_header), data_payload.frame)  # returns credits
-
-        elif isinstance(data_payload, EndOfUpstream):
-            data_header = PythonDataHeader(tag=to, marker=EndOfUpstream.__name__)
-            self._proxy_client.send_data(bytes(data_header), None)  # returns credits
-
-        else:
-            raise TypeError(f"Unexpected payload {data_payload}")
+        data_header = PythonDataHeader(tag=to, marker=data_payload.__class__.__name__)
+        self._proxy_client.send_data(bytes(data_header), data_payload.frame)
 
     @logger.catch(reraise=True)
     def _send_control(
-        self, to: ActorVirtualIdentity, control_payload: ControlPayloadV2
+            self, to: ActorVirtualIdentity, control_payload: ControlPayloadV2
     ) -> None:
         """
         Send the control payload to the given target actor. This method is to be used
