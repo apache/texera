@@ -9,7 +9,6 @@ import { WorkflowResultService } from "../workflow-result/workflow-result.servic
   providedIn: "root",
 })
 export class ReportPrintService {
-
   constructor(
     public workflowActionService: WorkflowActionService,
     private workflowResultService: WorkflowResultService
@@ -23,19 +22,20 @@ export class ReportPrintService {
     return new Observable((observer: Observer<string>) => {
       const element = document.querySelector("#workflow-editor") as HTMLElement;
       if (element) {
-
         const promises: Promise<void>[] = [];
         const images = element.querySelectorAll("image");
 
-        images.forEach((img) => {
+        images.forEach(img => {
           const imgSrc = img.getAttribute("xlink:href");
           if (imgSrc) {
-            promises.push(new Promise((resolve, reject) => {
-              const imgElement = new Image();
-              imgElement.src = imgSrc;
-              imgElement.onload = () => resolve();
-              imgElement.onerror = () => reject();
-            }));
+            promises.push(
+              new Promise((resolve, reject) => {
+                const imgElement = new Image();
+                imgElement.src = imgSrc;
+                imgElement.onload = () => resolve();
+                imgElement.onerror = () => reject();
+              })
+            );
           }
         });
 
@@ -61,12 +61,6 @@ export class ReportPrintService {
       }
     });
   }
-
-
-
-
-
-
 
   /**
    * Generates an HTML file containing the workflow snapshot and triggers a download of the file.
