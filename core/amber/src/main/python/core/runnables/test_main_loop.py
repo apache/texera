@@ -6,8 +6,7 @@ import pyarrow
 import pytest
 
 from core.models import (
-    InputDataFrame,
-    OutputDataFrame,
+    DataFrame,
     EndOfUpstream,
     InternalQueue,
     Tuple,
@@ -92,7 +91,7 @@ class TestMainLoop:
     def mock_data_element(self, mock_tuple, mock_sender_actor):
         return DataElement(
             tag=mock_sender_actor,
-            payload=InputDataFrame(
+            payload=DataFrame(
                 frame=pyarrow.Table.from_pandas(
                     pandas.DataFrame([mock_tuple.as_dict()])
                 )
@@ -107,7 +106,7 @@ class TestMainLoop:
             data_elements.append(
                 DataElement(
                     tag=mock_sender_actor,
-                    payload=InputDataFrame(
+                    payload=DataFrame(
                         frame=pyarrow.Table.from_pandas(
                             pandas.DataFrame([mock_tuple.as_dict()])
                         )
@@ -419,13 +418,13 @@ class TestMainLoop:
             ),
         )
 
-        # can process a InputDataFrame
+        # can process a DataFrame
         input_queue.put(mock_data_element)
 
         output_data_element: DataElement = output_queue.get()
         assert output_data_element.tag == mock_receiver_actor
-        assert isinstance(output_data_element.payload, OutputDataFrame)
-        data_frame: OutputDataFrame = output_data_element.payload
+        assert isinstance(output_data_element.payload, DataFrame)
+        data_frame: DataFrame = output_data_element.payload
         assert len(data_frame.frame) == 1
         assert data_frame.frame[0] == mock_tuple
 
@@ -610,7 +609,7 @@ class TestMainLoop:
         executor = main_loop.context.executor_manager.executor
         output_data_elements = []
 
-        # can process a InputDataFrame
+        # can process a DataFrame
         executor.BATCH_SIZE = 10
         for i in range(13):
             input_queue.put(mock_batch_data_elements[i])
@@ -678,8 +677,8 @@ class TestMainLoop:
         assert main_loop.context.executor_manager.executor.count == 8
 
         assert output_data_elements[0].tag == mock_receiver_actor
-        assert isinstance(output_data_elements[0].payload, OutputDataFrame)
-        data_frame: OutputDataFrame = output_data_elements[0].payload
+        assert isinstance(output_data_elements[0].payload, DataFrame)
+        data_frame: DataFrame = output_data_elements[0].payload
         assert len(data_frame.frame) == 1
         assert data_frame.frame[0] == Tuple(mock_batch[0])
 

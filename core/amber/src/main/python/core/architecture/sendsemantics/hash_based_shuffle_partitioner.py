@@ -5,8 +5,8 @@ from loguru import logger
 from overrides import overrides
 
 from core.architecture.sendsemantics.partitioner import Partitioner
-from core.models import Tuple
-from core.models.payload import OutputDataFrame, DataPayload, EndOfUpstream
+from core.models import Tuple, Schema
+from core.models.payload import DataPayload, EndOfUpstream, DataFrame
 from core.util import set_one_of
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
     HashBasedShufflePartitioning,
@@ -16,8 +16,8 @@ from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity
 
 
 class HashBasedShufflePartitioner(Partitioner):
-    def __init__(self, partitioning: HashBasedShufflePartitioning):
-        super().__init__(set_one_of(Partitioning, partitioning))
+    def __init__(self, partitioning: HashBasedShufflePartitioning, schema: Schema):
+        super().__init__(set_one_of(Partitioning, partitioning), schema)
         logger.debug(f"got {partitioning}")
         self.batch_size = partitioning.batch_size
         self.receivers = [
@@ -29,7 +29,7 @@ class HashBasedShufflePartitioner(Partitioner):
     @overrides
     def add_tuple_to_batch(
         self, tuple_: Tuple
-    ) -> Iterator[typing.Tuple[ActorVirtualIdentity, OutputDataFrame]]:
+    ) -> Iterator[typing.Tuple[ActorVirtualIdentity, DataFrame]]:
         partial_tuple = (
             tuple_
             if not self.hash_attribute_names
@@ -39,12 +39,12 @@ class HashBasedShufflePartitioner(Partitioner):
         receiver, batch = self.receivers[hash_code]
         batch.append(tuple_)
         if len(batch) == self.batch_size:
-            yield receiver, OutputDataFrame(frame=batch)
+            yield receiver, self.tuple_to_frame(batch)
             self.receivers[hash_code] = (receiver, list())
 
     @overrides
     def no_more(self) -> Iterator[typing.Tuple[ActorVirtualIdentity, DataPayload]]:
         for receiver, batch in self.receivers:
             if len(batch) > 0:
-                yield receiver, OutputDataFrame(frame=batch)
+                yield receiver, self.tuple_to_frame(batch)
             yield receiver, EndOfUpstream()

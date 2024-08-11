@@ -2,11 +2,11 @@ import threading
 
 import pandas
 import pytest
+from pyarrow import Table
 
 from core.models import Tuple
 from core.models.internal_queue import InternalQueue, ControlElement, DataElement
-from core.models.payload import OutputDataFrame, EndOfUpstream
-from core.models.schema.schema import Schema
+from core.models.payload import EndOfUpstream, DataFrame
 from core.proxy import ProxyClient
 from core.runnables.network_receiver import NetworkReceiver
 from core.runnables.network_sender import NetworkSender
@@ -92,10 +92,7 @@ class TestNetworkReceiver:
             },
             columns=["Brand", "Price"],
         )
-        return OutputDataFrame(
-            frame=[Tuple(r) for _, r in df_to_sent.iterrows()],
-            schema=Schema(raw_schema={"Brand": "string", "Price": "integer"}),
-        )
+        return DataFrame(frame=Table.from_pandas(df=df_to_sent))
 
     @pytest.mark.timeout(2)
     def test_network_receiver_can_receive_data_messages(

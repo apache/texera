@@ -15,7 +15,7 @@ from .operator import (
     BatchOperator,
     SourceOperator,
 )
-from .payload import InputDataFrame, OutputDataFrame, DataPayload, EndOfUpstream
+from .payload import DataFrame, DataPayload, EndOfUpstream
 
 
 class ExceptionInfo(NamedTuple):
@@ -43,8 +43,7 @@ __all__ = [
     "TableOperator",
     "BatchOperator",
     "SourceOperator",
-    "InputDataFrame",
-    "OutputDataFrame",
+    "DataFrame",
     "DataPayload",
     "EndOfUpstream",
     "ExceptionInfo",

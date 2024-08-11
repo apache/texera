@@ -12,14 +12,8 @@ class DataPayload:
 
 
 @dataclass
-class InputDataFrame(DataPayload):
+class DataFrame(DataPayload):
     frame: Table
-
-
-@dataclass
-class OutputDataFrame(DataPayload):
-    frame: List[Tuple]
-    schema: Optional[Schema] = None
 
 
 @dataclass

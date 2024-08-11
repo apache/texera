@@ -20,7 +20,7 @@ from core.architecture.sendsemantics.broad_cast_partitioner import (
     BroadcastPartitioner,
 )
 from core.models import Tuple, Schema
-from core.models.payload import OutputDataFrame, DataPayload
+from core.models.payload import DataPayload, DataFrame
 from core.util import get_one_of
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
     HashBasedShufflePartitioning,
@@ -77,20 +77,18 @@ class OutputManager:
         the_partitioning = get_one_of(partitioning)
         logger.debug(f"adding {the_partitioning}")
         partitioner = self._partitioning_to_partitioner[type(the_partitioning)]
+        schema = self.get_port().get_schema()
         self._partitioners[tag] = (
-            partitioner(the_partitioning)
+            partitioner(the_partitioning, schema)
             if partitioner != OneToOnePartitioner
-            else partitioner(the_partitioning, self.worker_id)
+            else partitioner(the_partitioning, schema, self.worker_id)
         )
 
     def tuple_to_batch(
         self, tuple_: Tuple
-    ) -> Iterator[typing.Tuple[ActorVirtualIdentity, OutputDataFrame]]:
+    ) -> Iterator[typing.Tuple[ActorVirtualIdentity, DataFrame]]:
         return chain(
-            *(
-                partitioner.add_tuple_to_batch(tuple_)
-                for partitioner in self._partitioners.values()
-            )
+            *(partitioner.add_tuple_to_batch(tuple_) for partitioner in self._partitioners.values())
         )
 
     def emit_end_of_upstream(

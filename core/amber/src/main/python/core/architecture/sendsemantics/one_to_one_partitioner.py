@@ -4,8 +4,8 @@ from typing import Iterator
 from overrides import overrides
 
 from core.architecture.sendsemantics.partitioner import Partitioner
-from core.models import Tuple
-from core.models.payload import OutputDataFrame, DataPayload, EndOfUpstream
+from core.models import Tuple, Schema
+from core.models.payload import DataPayload, EndOfUpstream, DataFrame
 from core.util import set_one_of
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
     OneToOnePartitioning,
@@ -15,8 +15,8 @@ from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity
 
 
 class OneToOnePartitioner(Partitioner):
-    def __init__(self, partitioning: OneToOnePartitioning, worker_id: str):
-        super().__init__(set_one_of(Partitioning, partitioning))
+    def __init__(self, partitioning: OneToOnePartitioning, schema: Schema, worker_id: str):
+        super().__init__(set_one_of(Partitioning, partitioning), schema)
         self.batch_size = partitioning.batch_size
         self.batch: list[Tuple] = list()
         for channel in partitioning.channels:
@@ -27,16 +27,16 @@ class OneToOnePartitioner(Partitioner):
     @overrides
     def add_tuple_to_batch(
         self, tuple_: Tuple
-    ) -> Iterator[typing.Tuple[ActorVirtualIdentity, OutputDataFrame]]:
+    ) -> Iterator[typing.Tuple[ActorVirtualIdentity, DataFrame]]:
         self.batch.append(tuple_)
         if len(self.batch) == self.batch_size:
-            yield self.receiver, OutputDataFrame(frame=self.batch)
+            yield self.receiver, self.tuple_to_frame(self.batch)
             self.reset()
 
     @overrides
     def no_more(self) -> Iterator[typing.Tuple[ActorVirtualIdentity, DataPayload]]:
         if len(self.batch) > 0:
-            yield self.receiver, OutputDataFrame(frame=self.batch)
+            yield self.receiver, self.tuple_to_frame(self.batch)
         self.reset()
         yield self.receiver, EndOfUpstream()
 
