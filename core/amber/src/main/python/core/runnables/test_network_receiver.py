@@ -1,6 +1,5 @@
 import threading
 
-import pandas
 import pytest
 from pyarrow import Table
 
@@ -122,7 +121,7 @@ class TestNetworkReceiver:
         worker_id = ActorVirtualIdentity(name="test")
         input_queue.put(DataElement(tag=worker_id, payload=EndOfUpstream()))
         element: DataElement = output_queue.get()
-        assert element.payload == EndOfUpstream()
+        assert isinstance(element.payload, EndOfUpstream)
         assert element.tag == worker_id
 
     @pytest.mark.timeout(2)
