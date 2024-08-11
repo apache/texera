@@ -680,7 +680,7 @@ class TestMainLoop:
         assert isinstance(output_data_elements[0].payload, DataFrame)
         data_frame: DataFrame = output_data_elements[0].payload
         assert len(data_frame.frame) == 1
-        assert data_frame.frame[0] == Tuple(mock_batch[0])
+        assert Tuple(data_frame.frame.to_pylist()[0]) == Tuple(mock_batch[0])
 
         reraise()
 
