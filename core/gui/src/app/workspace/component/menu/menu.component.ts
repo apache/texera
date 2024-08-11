@@ -253,6 +253,9 @@ export class MenuComponent implements OnInit {
    * get the html to export all results.
    */
   public onClickExportAllResults(): void {
+
+    this.notificationService.info("The report is generating...");
+    
     this.reportPrintService
       .getWorkflowSnapshot()
       .pipe(untilDestroyed(this))

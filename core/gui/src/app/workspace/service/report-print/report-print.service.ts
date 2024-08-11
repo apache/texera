@@ -9,17 +9,6 @@ import { WorkflowResultService } from "../workflow-result/workflow-result.servic
   providedIn: "root",
 })
 export class ReportPrintService {
-  private paper!: joint.dia.Paper;
-
-  // Define constants for styles
-  private readonly SNAPSHOT_CONTAINER_WIDTH = "75%";
-  private readonly SNAPSHOT_CONTAINER_HEIGHT = "75%";
-  private readonly SNAPSHOT_CONTAINER_POSITION = "fixed";
-  private readonly SNAPSHOT_CONTAINER_TOP = "0";
-  private readonly SNAPSHOT_CONTAINER_LEFT = "0";
-  private readonly SNAPSHOT_CONTAINER_ZINDEX = "-1";
-  private readonly SNAPSHOT_CONTAINER_BACKGROUND = "#FFFFFF";
-  private readonly SCALE_FACTOR = 0.75;
 
   constructor(
     public workflowActionService: WorkflowActionService,
@@ -34,52 +23,51 @@ export class ReportPrintService {
     return new Observable((observer: Observer<string>) => {
       const element = document.querySelector("#workflow-editor") as HTMLElement;
       if (element) {
-        const snapshotContainer = document.createElement("div");
-        snapshotContainer.style.width = this.SNAPSHOT_CONTAINER_WIDTH;
-        snapshotContainer.style.height = this.SNAPSHOT_CONTAINER_HEIGHT;
-        snapshotContainer.style.position = this.SNAPSHOT_CONTAINER_POSITION;
-        snapshotContainer.style.top = this.SNAPSHOT_CONTAINER_TOP;
-        snapshotContainer.style.left = this.SNAPSHOT_CONTAINER_LEFT;
-        snapshotContainer.style.zIndex = this.SNAPSHOT_CONTAINER_ZINDEX;
-        snapshotContainer.style.background = this.SNAPSHOT_CONTAINER_BACKGROUND;
-        document.body.appendChild(snapshotContainer);
 
-        const jointGraph = this.workflowActionService.getJointGraphWrapper().jointGraph;
-        const paper = new joint.dia.Paper({
-          el: snapshotContainer,
-          model: jointGraph,
-          width: snapshotContainer.clientWidth,
-          height: snapshotContainer.clientHeight,
-          interactive: false,
-          background: { color: "#FFFFFF" },
+        const promises: Promise<void>[] = [];
+        const images = element.querySelectorAll("image");
+
+        images.forEach((img) => {
+          const imgSrc = img.getAttribute("xlink:href");
+          if (imgSrc) {
+            promises.push(new Promise((resolve, reject) => {
+              const imgElement = new Image();
+              imgElement.src = imgSrc;
+              imgElement.onload = () => resolve();
+              imgElement.onerror = () => reject();
+            }));
+          }
         });
 
-        paper.scale(this.SCALE_FACTOR, this.SCALE_FACTOR);
-
-        // setTimeout is used to delay the execution of the code to ensure that the previous scaling operation has been completed.
-        setTimeout(() => {
-          html2canvas(snapshotContainer, {
-            logging: true,
-            useCORS: true,
-            allowTaint: true,
-            foreignObjectRendering: true,
-          })
-            .then((canvas: HTMLCanvasElement) => {
-              const dataUrl: string = canvas.toDataURL("image/png");
-              observer.next(dataUrl);
-              observer.complete();
-              document.body.removeChild(snapshotContainer);
-            })
-            .catch((error: any) => {
-              observer.error(error);
-              document.body.removeChild(snapshotContainer);
+        Promise.all(promises)
+          .then(() => {
+            return html2canvas(element, {
+              logging: true,
+              useCORS: true,
+              allowTaint: true,
+              foreignObjectRendering: true,
             });
-        }, 1000);
+          })
+          .then((canvas: HTMLCanvasElement) => {
+            const dataUrl: string = canvas.toDataURL("image/png");
+            observer.next(dataUrl);
+            observer.complete();
+          })
+          .catch((error: any) => {
+            observer.error(error);
+          });
       } else {
-        observer.error("Workflow canvas element not found");
+        observer.error("Workflow editor element not found");
       }
     });
   }
+
+
+
+
+
+
+
   /**
    * Generates an HTML file containing the workflow snapshot and triggers a download of the file.
    * @param {string} workflowSnapshot - The base64-encoded PNG image URL of the workflow snapshot.
@@ -93,7 +81,7 @@ export class ReportPrintService {
       <body>
         <div style="text-align: center;">
           <h2>Workflow Static State</h2>
-          <img src="${workflowSnapshot}" alt="Workflow Snapshot" style="width: 100%; max-width: 800px;">
+          <img src="${workflowSnapshot}" alt="Workflow Snapshot" style="width: 100%; max-width: 1000px;">
         </div>
       </body>
     </html>
