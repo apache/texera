@@ -426,7 +426,7 @@ class TestMainLoop:
         assert isinstance(output_data_element.payload, DataFrame)
         data_frame: DataFrame = output_data_element.payload
         assert len(data_frame.frame) == 1
-        assert data_frame.frame[0] == mock_tuple
+        assert Tuple(data_frame.frame.to_pylist()[0]) == mock_tuple
 
         # can process QueryStatistics
         input_queue.put(mock_query_statistics)
