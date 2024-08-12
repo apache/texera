@@ -21,14 +21,16 @@ import edu.uci.ics.texera.workflow.common.workflow.{
 
 case object LinkConfig {
   def toPartitioning(
-      fromWorkerIds: List[ActorVirtualIdentity],
-      toWorkerIds: List[ActorVirtualIdentity],
-      partitionInfo: PartitionInfo
-  ): Partitioning = {
+                      fromWorkerIds: List[ActorVirtualIdentity],
+                      toWorkerIds: List[ActorVirtualIdentity],
+                      partitionInfo: PartitionInfo,
+                      batchSize: Int
+                    ): Partitioning = {
     partitionInfo match {
       case HashPartition(hashAttributeNames) =>
         HashBasedShufflePartitioning(
-          defaultBatchSize,
+          //          defaultBatchSize,
+          batchSize,
           fromWorkerIds.flatMap(from =>
             toWorkerIds.map(to => ChannelIdentity(from, to, isControl = false))
           ),
@@ -37,7 +39,8 @@ case object LinkConfig {
 
       case RangePartition(rangeAttributeNames, rangeMin, rangeMax) =>
         RangeBasedShufflePartitioning(
-          defaultBatchSize,
+          //          defaultBatchSize,
+          batchSize,
           fromWorkerIds.flatMap(fromId =>
             toWorkerIds.map(toId => ChannelIdentity(fromId, toId, isControl = false))
           ),
@@ -49,7 +52,8 @@ case object LinkConfig {
       case SinglePartition() =>
         assert(toWorkerIds.size == 1)
         OneToOnePartitioning(
-          defaultBatchSize,
+          //          defaultBatchSize,
+          batchSize,
           fromWorkerIds.map(fromWorkerId =>
             ChannelIdentity(fromWorkerId, toWorkerIds.head, isControl = false)
           )
@@ -57,7 +61,8 @@ case object LinkConfig {
 
       case OneToOnePartition() =>
         OneToOnePartitioning(
-          defaultBatchSize,
+          //          defaultBatchSize,
+          batchSize,
           fromWorkerIds.zip(toWorkerIds).map {
             case (fromWorkerId, toWorkerId) =>
               ChannelIdentity(fromWorkerId, toWorkerId, isControl = false)
@@ -66,7 +71,8 @@ case object LinkConfig {
 
       case BroadcastPartition() =>
         BroadcastPartitioning(
-          defaultBatchSize,
+          //          defaultBatchSize,
+          batchSize,
           fromWorkerIds.zip(toWorkerIds).map {
             case (fromWorkerId, toWorkerId) =>
               ChannelIdentity(fromWorkerId, toWorkerId, isControl = false)
@@ -75,7 +81,8 @@ case object LinkConfig {
 
       case UnknownPartition() =>
         RoundRobinPartitioning(
-          defaultBatchSize,
+          //          defaultBatchSize,
+          batchSize,
           fromWorkerIds.flatMap(from =>
             toWorkerIds.map(to => ChannelIdentity(from, to, isControl = false))
           )
@@ -89,6 +96,6 @@ case object LinkConfig {
 }
 
 case class LinkConfig(
-    channelConfigs: List[ChannelConfig],
-    partitioning: Partitioning
-)
+                       channelConfigs: List[ChannelConfig],
+                       partitioning: Partitioning
+                     )

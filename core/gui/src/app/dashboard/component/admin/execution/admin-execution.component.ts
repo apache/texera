@@ -108,7 +108,7 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
     for (let i = 0; i < this.listOfExecutions.length; i++) {
       const execution = this.listOfExecutions[i];
       let tempWorkflow: Workflow = {
-        content: { operators: [], operatorPositions: {}, links: [], groups: [], commentBoxes: [] },
+        content: { operators: [], operatorPositions: {}, links: [], groups: [], commentBoxes: [], batchSize: 400 },
         name: execution.workflowName,
         wid: execution.workflowId,
         description: "",

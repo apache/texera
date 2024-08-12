@@ -195,6 +195,7 @@ export class UserWorkflowComponent implements AfterViewInit {
       groups: [],
       links: [],
       operatorPositions: {},
+      batchSize: 400
     };
     let localPid = this.pid;
     this.workflowPersistService

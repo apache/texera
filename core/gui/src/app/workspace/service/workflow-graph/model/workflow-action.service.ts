@@ -38,6 +38,7 @@ export const DEFAULT_WORKFLOW = {
   lastModifiedTime: undefined,
   readonly: false,
 };
+export const DEFAULT_BATCH_SIZE = 400;
 
 /**
  *
@@ -76,6 +77,8 @@ export class WorkflowActionService {
   private workflowMetadata: WorkflowMetadata;
   private workflowMetadataChangeSubject: Subject<WorkflowMetadata> = new Subject<WorkflowMetadata>();
 
+  private batchSize: number;
+
   constructor(
     private operatorMetadataService: OperatorMetadataService,
     private jointUIService: JointUIService,
@@ -101,6 +104,7 @@ export class WorkflowActionService {
     );
     this.syncOperatorGroup = new SyncOperatorGroup(this.texeraGraph, this.jointGraphWrapper, this.operatorGroup);
     this.workflowMetadata = DEFAULT_WORKFLOW;
+    this.batchSize = DEFAULT_BATCH_SIZE;
     this.undoRedoService.setUndoManager(this.texeraGraph.sharedModel.undoManager);
 
     this.handleJointElementDrag();
@@ -718,6 +722,10 @@ export class WorkflowActionService {
     const links = texeraGraph.getAllLinks();
     const operatorPositions: { [key: string]: Point } = {};
     const commentBoxes = texeraGraph.getAllCommentBoxes();
+    const batchSize = this.batchSize; //要改
+    console.log("+++++++++")
+    console.log(batchSize)
+    console.log("+++++++++")
 
     const groups = this.getOperatorGroup()
       .getAllGroups()
@@ -745,6 +753,7 @@ export class WorkflowActionService {
       links,
       groups,
       commentBoxes,
+      batchSize
     };
   }
 
@@ -785,6 +794,12 @@ export class WorkflowActionService {
   public setWorkflowName(name: string): void {
     const newName = name.trim().length > 0 ? name : DEFAULT_WORKFLOW_NAME;
     this.setWorkflowMetadata({ ...this.workflowMetadata, name: newName });
+  }
+
+  public setWorkflowBatchSize(size: number): void {
+    if (size > 0 && size != null){
+      this.batchSize = size;
+    }
   }
 
   public clearWorkflow(): void {

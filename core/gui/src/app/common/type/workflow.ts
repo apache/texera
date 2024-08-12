@@ -21,6 +21,7 @@ export interface WorkflowContent
     links: OperatorLink[];
     groups: PlainGroup[];
     commentBoxes: CommentBox[];
+    batchSize: number;
   }> {}
 
 export type Workflow = { content: WorkflowContent } & WorkflowMetadata;

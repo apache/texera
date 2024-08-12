@@ -66,6 +66,7 @@ export class MenuComponent implements OnInit {
   @Input() public currentWorkflowName: string = ""; // reset workflowName
   @Input() public currentExecutionName: string = ""; // reset executionName
   @Input() public particularVersionDate: string = ""; // placeholder for the metadata information of a particular workflow version
+  @Input() public currentBatchSize: number = 400; // 添加 Batch Size 属性
   @ViewChild("nameInput") nameInputBox: ElementRef<HTMLElement> | undefined;
 
   // variable bound with HTML to decide if the running spinner should show
@@ -149,6 +150,7 @@ export class MenuComponent implements OnInit {
 
     this.registerWorkflowMetadataDisplayRefresh();
     this.handleWorkflowVersionDisplay();
+    this.currentBatchSize = this.workflowActionService.getWorkflowContent().batchSize; // 初始化 batchSize
   }
 
   // apply a behavior to the run button via bound variables
@@ -447,6 +449,15 @@ export class MenuComponent implements OnInit {
     this.workflowActionService.setWorkflowName(this.currentWorkflowName);
     if (this.userService.isLogin()) {
       this.persistWorkflow();
+    }
+  }
+
+  public confirmUpdateBatchSize(batchSize: number): void {
+    if (batchSize > 0) {
+      this.workflowActionService.setWorkflowBatchSize(batchSize);
+      if (this.userService.isLogin()) {
+        this.persistWorkflow();
+      }
     }
   }
 
