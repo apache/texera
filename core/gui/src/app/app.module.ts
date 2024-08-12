@@ -132,7 +132,7 @@ import { NzNoAnimationModule } from "ng-zorro-antd/core/no-animation";
 import { TreeModule } from "@ali-hm/angular-tree-component";
 import { FileSelectionComponent } from "./workspace/component/file-selection/file-selection.component";
 import { ResultExportationComponent } from "./workspace/component/result-exportation/result-exportation.component";
-import { ReportPrintService } from "./workspace/service/report-print/report-print.service";
+import { ReportGenerateService } from "./workspace/service/report-generate/report-generate.service";
 
 registerLocaleData(en);
 
@@ -282,6 +282,7 @@ registerLocaleData(en);
     UserFileService,
     UserFileUploadService,
     FileSaverService,
+    ReportGenerateService,
     {
       provide: HTTP_INTERCEPTORS,
       useClass: BlobErrorHttpInterceptor,

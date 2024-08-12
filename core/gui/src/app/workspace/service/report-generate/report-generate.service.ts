@@ -8,7 +8,7 @@ import { WorkflowResultService } from "../workflow-result/workflow-result.servic
 @Injectable({
   providedIn: "root",
 })
-export class ReportPrintService {
+export class ReportGenerateService {
   constructor(
     public workflowActionService: WorkflowActionService,
     private workflowResultService: WorkflowResultService
@@ -19,7 +19,7 @@ export class ReportPrintService {
    * @param {string} workflowName - The name of the workflow.
    * @returns {Observable<string>} An observable that emits the base64-encoded PNG image URL of the workflow snapshot.
    */
-  public getWorkflowSnapshot(workflowName: string): Observable<string> {
+  public generateWorkflowSnapshot(workflowName: string): Observable<string> {
     return new Observable((observer: Observer<string>) => {
       const element = document.querySelector("#workflow-editor") as HTMLElement;
       if (element) {
