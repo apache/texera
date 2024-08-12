@@ -253,16 +253,21 @@ export class MenuComponent implements OnInit {
    * get the html to export all results.
    */
   public onClickExportAllResults(): void {
+  //Get notification
     this.notificationService.info("The report is generating...");
 
+    const workflowName = this.currentWorkflowName;
+
+  // Invokes the method of the report printing service
     this.reportPrintService
-      .getWorkflowSnapshot()
+      .getWorkflowSnapshot(workflowName)
       .pipe(untilDestroyed(this))
       .subscribe({
-        next: (snapshot: string) => this.reportPrintService.downloadResultsAsHtml(snapshot),
+        next: (snapshot: string) => this.reportPrintService.downloadResultsAsHtml(snapshot, workflowName),
         error: (e: unknown) => this.notificationService.error((e as Error).message),
       });
   }
+
 
   /**
    * This method checks whether the zoom ratio reaches minimum. If it is minimum, this method

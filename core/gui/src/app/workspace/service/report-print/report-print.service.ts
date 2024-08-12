@@ -12,35 +12,39 @@ export class ReportPrintService {
   constructor(
     public workflowActionService: WorkflowActionService,
     private workflowResultService: WorkflowResultService
-  ) {}
+  ) {
+  }
 
   /**
-   * Captures the current workflow snapshot and returns it as a base64-encoded PNG image URL.
-   * @returns {Observable<string>} An Observable that emits the base64-encoded PNG image URL of the workflow snapshot.
+   * Captures a snapshot of the workflow editor and returns it as a base64-encoded PNG image URL.
+   * @param {string} workflowName - The name of the workflow.
+   * @returns {Observable<string>} An observable that emits the base64-encoded PNG image URL of the workflow snapshot.
    */
-  public getWorkflowSnapshot(): Observable<string> {
+  public getWorkflowSnapshot(workflowName: string): Observable<string> {
     return new Observable((observer: Observer<string>) => {
       const element = document.querySelector("#workflow-editor") as HTMLElement;
       if (element) {
+        // Ensure all resources are loaded
         const promises: Promise<void>[] = [];
         const images = element.querySelectorAll("image");
 
-        images.forEach(img => {
+        // Create promises for each image to ensure they are loaded
+        images.forEach((img) => {
           const imgSrc = img.getAttribute("xlink:href");
           if (imgSrc) {
-            promises.push(
-              new Promise((resolve, reject) => {
-                const imgElement = new Image();
-                imgElement.src = imgSrc;
-                imgElement.onload = () => resolve();
-                imgElement.onerror = () => reject();
-              })
-            );
+            promises.push(new Promise((resolve, reject) => {
+              const imgElement = new Image();
+              imgElement.src = imgSrc;
+              imgElement.onload = () => resolve();
+              imgElement.onerror = () => reject();
+            }));
           }
         });
 
+        // Wait for all images to load
         Promise.all(promises)
           .then(() => {
+            // Capture the snapshot using html2canvas
             return html2canvas(element, {
               logging: true,
               useCORS: true,
@@ -62,29 +66,32 @@ export class ReportPrintService {
     });
   }
 
+
   /**
    * Generates an HTML file containing the workflow snapshot and triggers a download of the file.
-   * @param {string} workflowSnapshot - The base64-encoded PNG image URL of the workflow snapshot.
+   * @param {string} workflowSnapshotURL - The base64-encoded PNG image URL of the workflow snapshot.
+   * @param {string} workflowName - The name of the workflow.
    */
-  public downloadResultsAsHtml(workflowSnapshot: string): void {
+  public downloadResultsAsHtml(workflowSnapshotURL: string, workflowName: string): void {
     const htmlContent = `
-    <html>
-      <head>
-        <title>Workflow Snapshot</title>
-      </head>
-      <body>
-        <div style="text-align: center;">
-          <h2>Workflow Static State</h2>
-          <img src="${workflowSnapshot}" alt="Workflow Snapshot" style="width: 100%; max-width: 1000px;">
-        </div>
-      </body>
-    </html>
-    `;
-    const blob = new Blob([htmlContent], { type: "text/html" });
+  <html>
+    <head>
+      <title>${workflowName} Snapshot</title>
+    </head>
+    <body>
+      <div style="text-align: center;">
+        <h2>${workflowName} Static State</h2>
+        <img src="${workflowSnapshotURL}" alt="Workflow Snapshot" style="width: 100%; max-width: 800px;">
+      </div>
+    </body>
+  </html>
+  `;
+    const blob = new Blob([htmlContent], {type: "text/html"});
     const url = URL.createObjectURL(blob);
+    const fileName = workflowName + "-snapshot.html";
     const a = document.createElement("a");
     a.href = url;
-    a.download = "workflow-snapshot.html";
+    a.download = fileName;
     a.click();
     URL.revokeObjectURL(url);
   }
