@@ -12,8 +12,7 @@ export class ReportPrintService {
   constructor(
     public workflowActionService: WorkflowActionService,
     private workflowResultService: WorkflowResultService
-  ) {
-  }
+  ) {}
 
   /**
    * Captures a snapshot of the workflow editor and returns it as a base64-encoded PNG image URL.
@@ -29,15 +28,17 @@ export class ReportPrintService {
         const images = element.querySelectorAll("image");
 
         // Create promises for each image to ensure they are loaded
-        images.forEach((img) => {
+        images.forEach(img => {
           const imgSrc = img.getAttribute("xlink:href");
           if (imgSrc) {
-            promises.push(new Promise((resolve, reject) => {
-              const imgElement = new Image();
-              imgElement.src = imgSrc;
-              imgElement.onload = () => resolve();
-              imgElement.onerror = () => reject();
-            }));
+            promises.push(
+              new Promise((resolve, reject) => {
+                const imgElement = new Image();
+                imgElement.src = imgSrc;
+                imgElement.onload = () => resolve();
+                imgElement.onerror = () => reject();
+              })
+            );
           }
         });
 
@@ -66,7 +67,6 @@ export class ReportPrintService {
     });
   }
 
-
   /**
    * Generates an HTML file containing the workflow snapshot and triggers a download of the file.
    * @param {string} workflowSnapshotURL - The base64-encoded PNG image URL of the workflow snapshot.
@@ -86,7 +86,7 @@ export class ReportPrintService {
     </body>
   </html>
   `;
-    const blob = new Blob([htmlContent], {type: "text/html"});
+    const blob = new Blob([htmlContent], { type: "text/html" });
     const url = URL.createObjectURL(blob);
     const fileName = workflowName + "-snapshot.html";
     const a = document.createElement("a");
