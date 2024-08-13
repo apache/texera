@@ -4,6 +4,7 @@
 package edu.uci.ics.texera.web.model.jooq.generated;
 
 
+import edu.uci.ics.texera.web.model.jooq.generated.tables.Cluster;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetUserAccess;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetVersion;
@@ -30,6 +31,11 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowVersion;
  */
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Tables {
+
+    /**
+     * The table <code>texera_db.cluster</code>.
+     */
+    public static final Cluster CLUSTER = Cluster.CLUSTER;
 
     /**
      * The table <code>texera_db.dataset</code>.

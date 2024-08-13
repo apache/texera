@@ -4,6 +4,7 @@
 package edu.uci.ics.texera.web.model.jooq.generated;
 
 
+import edu.uci.ics.texera.web.model.jooq.generated.tables.Cluster;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetUserAccess;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetVersion;
@@ -23,6 +24,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowOfUser;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowRuntimeStatistics;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowUserAccess;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowVersion;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.records.ClusterRecord;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.DatasetRecord;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.DatasetUserAccessRecord;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.DatasetVersionRecord;
@@ -61,6 +63,7 @@ public class Keys {
     // IDENTITY definitions
     // -------------------------------------------------------------------------
 
+    public static final Identity<ClusterRecord, Integer> IDENTITY_CLUSTER = Identities0.IDENTITY_CLUSTER;
     public static final Identity<DatasetRecord, UInteger> IDENTITY_DATASET = Identities0.IDENTITY_DATASET;
     public static final Identity<DatasetVersionRecord, UInteger> IDENTITY_DATASET_VERSION = Identities0.IDENTITY_DATASET_VERSION;
     public static final Identity<FileRecord, UInteger> IDENTITY_FILE = Identities0.IDENTITY_FILE;
@@ -74,6 +77,7 @@ public class Keys {
     // UNIQUE and PRIMARY KEY definitions
     // -------------------------------------------------------------------------
 
+    public static final UniqueKey<ClusterRecord> KEY_CLUSTER_PRIMARY = UniqueKeys0.KEY_CLUSTER_PRIMARY;
     public static final UniqueKey<DatasetRecord> KEY_DATASET_PRIMARY = UniqueKeys0.KEY_DATASET_PRIMARY;
     public static final UniqueKey<DatasetUserAccessRecord> KEY_DATASET_USER_ACCESS_PRIMARY = UniqueKeys0.KEY_DATASET_USER_ACCESS_PRIMARY;
     public static final UniqueKey<DatasetVersionRecord> KEY_DATASET_VERSION_PRIMARY = UniqueKeys0.KEY_DATASET_VERSION_PRIMARY;
@@ -102,6 +106,7 @@ public class Keys {
     // FOREIGN KEY definitions
     // -------------------------------------------------------------------------
 
+    public static final ForeignKey<ClusterRecord, UserRecord> CLUSTER_IBFK_1 = ForeignKeys0.CLUSTER_IBFK_1;
     public static final ForeignKey<DatasetRecord, UserRecord> DATASET_IBFK_1 = ForeignKeys0.DATASET_IBFK_1;
     public static final ForeignKey<DatasetUserAccessRecord, DatasetRecord> DATASET_USER_ACCESS_IBFK_1 = ForeignKeys0.DATASET_USER_ACCESS_IBFK_1;
     public static final ForeignKey<DatasetUserAccessRecord, UserRecord> DATASET_USER_ACCESS_IBFK_2 = ForeignKeys0.DATASET_USER_ACCESS_IBFK_2;
@@ -135,6 +140,7 @@ public class Keys {
     // -------------------------------------------------------------------------
 
     private static class Identities0 {
+        public static Identity<ClusterRecord, Integer> IDENTITY_CLUSTER = Internal.createIdentity(Cluster.CLUSTER, Cluster.CLUSTER.CLUSTER_ID);
         public static Identity<DatasetRecord, UInteger> IDENTITY_DATASET = Internal.createIdentity(Dataset.DATASET, Dataset.DATASET.DID);
         public static Identity<DatasetVersionRecord, UInteger> IDENTITY_DATASET_VERSION = Internal.createIdentity(DatasetVersion.DATASET_VERSION, DatasetVersion.DATASET_VERSION.DVID);
         public static Identity<FileRecord, UInteger> IDENTITY_FILE = Internal.createIdentity(File.FILE, File.FILE.FID);
@@ -146,6 +152,7 @@ public class Keys {
     }
 
     private static class UniqueKeys0 {
+        public static final UniqueKey<ClusterRecord> KEY_CLUSTER_PRIMARY = Internal.createUniqueKey(Cluster.CLUSTER, "KEY_cluster_PRIMARY", Cluster.CLUSTER.CLUSTER_ID);
         public static final UniqueKey<DatasetRecord> KEY_DATASET_PRIMARY = Internal.createUniqueKey(Dataset.DATASET, "KEY_dataset_PRIMARY", Dataset.DATASET.DID);
         public static final UniqueKey<DatasetUserAccessRecord> KEY_DATASET_USER_ACCESS_PRIMARY = Internal.createUniqueKey(DatasetUserAccess.DATASET_USER_ACCESS, "KEY_dataset_user_access_PRIMARY", DatasetUserAccess.DATASET_USER_ACCESS.DID, DatasetUserAccess.DATASET_USER_ACCESS.UID);
         public static final UniqueKey<DatasetVersionRecord> KEY_DATASET_VERSION_PRIMARY = Internal.createUniqueKey(DatasetVersion.DATASET_VERSION, "KEY_dataset_version_PRIMARY", DatasetVersion.DATASET_VERSION.DVID);
@@ -172,6 +179,7 @@ public class Keys {
     }
 
     private static class ForeignKeys0 {
+        public static final ForeignKey<ClusterRecord, UserRecord> CLUSTER_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_USER_PRIMARY, Cluster.CLUSTER, "cluster_ibfk_1", Cluster.CLUSTER.OWNER_ID);
         public static final ForeignKey<DatasetRecord, UserRecord> DATASET_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_USER_PRIMARY, Dataset.DATASET, "dataset_ibfk_1", Dataset.DATASET.OWNER_UID);
         public static final ForeignKey<DatasetUserAccessRecord, DatasetRecord> DATASET_USER_ACCESS_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_DATASET_PRIMARY, DatasetUserAccess.DATASET_USER_ACCESS, "dataset_user_access_ibfk_1", DatasetUserAccess.DATASET_USER_ACCESS.DID);
         public static final ForeignKey<DatasetUserAccessRecord, UserRecord> DATASET_USER_ACCESS_IBFK_2 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_USER_PRIMARY, DatasetUserAccess.DATASET_USER_ACCESS, "dataset_user_access_ibfk_2", DatasetUserAccess.DATASET_USER_ACCESS.UID);

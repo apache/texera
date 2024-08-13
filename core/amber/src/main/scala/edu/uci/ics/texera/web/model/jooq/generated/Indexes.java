@@ -4,6 +4,7 @@
 package edu.uci.ics.texera.web.model.jooq.generated;
 
 
+import edu.uci.ics.texera.web.model.jooq.generated.tables.Cluster;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetUserAccess;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetVersion;
@@ -39,6 +40,8 @@ public class Indexes {
     // INDEX definitions
     // -------------------------------------------------------------------------
 
+    public static final Index CLUSTER_OWNER_ID = Indexes0.CLUSTER_OWNER_ID;
+    public static final Index CLUSTER_PRIMARY = Indexes0.CLUSTER_PRIMARY;
     public static final Index DATASET_IDX_DATASET_NAME_DESCRIPTION = Indexes0.DATASET_IDX_DATASET_NAME_DESCRIPTION;
     public static final Index DATASET_OWNER_UID = Indexes0.DATASET_OWNER_UID;
     public static final Index DATASET_PRIMARY = Indexes0.DATASET_PRIMARY;
@@ -88,6 +91,8 @@ public class Indexes {
     // -------------------------------------------------------------------------
 
     private static class Indexes0 {
+        public static Index CLUSTER_OWNER_ID = Internal.createIndex("owner_id", Cluster.CLUSTER, new OrderField[] { Cluster.CLUSTER.OWNER_ID }, false);
+        public static Index CLUSTER_PRIMARY = Internal.createIndex("PRIMARY", Cluster.CLUSTER, new OrderField[] { Cluster.CLUSTER.CLUSTER_ID }, true);
         public static Index DATASET_IDX_DATASET_NAME_DESCRIPTION = Internal.createIndex("idx_dataset_name_description", Dataset.DATASET, new OrderField[] { Dataset.DATASET.NAME, Dataset.DATASET.DESCRIPTION }, false);
         public static Index DATASET_OWNER_UID = Internal.createIndex("owner_uid", Dataset.DATASET, new OrderField[] { Dataset.DATASET.OWNER_UID }, false);
         public static Index DATASET_PRIMARY = Internal.createIndex("PRIMARY", Dataset.DATASET, new OrderField[] { Dataset.DATASET.DID }, true);
