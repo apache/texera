@@ -624,6 +624,16 @@ export class WorkflowActionService {
 
       const workflowContent: WorkflowContent = workflow.content;
 
+      console.log("==========")
+      console.log(workflowContent.batchSize)
+      console.log("==========")
+
+
+      this.batchSize = workflowContent.batchSize || DEFAULT_BATCH_SIZE; //改了的
+      console.log("==========++")
+      console.log(this.batchSize)
+      console.log("==========++")
+
       let operatorsAndPositions: { op: OperatorPredicate; pos: Point }[] = [];
       workflowContent.operators.forEach(op => {
         const opPosition = workflowContent.operatorPositions[op.operatorID];
@@ -723,9 +733,9 @@ export class WorkflowActionService {
     const operatorPositions: { [key: string]: Point } = {};
     const commentBoxes = texeraGraph.getAllCommentBoxes();
     const batchSize = this.batchSize; //要改
-    console.log("+++++++++")
-    console.log(batchSize)
-    console.log("+++++++++")
+    // console.log("+++++++++")
+    // console.log(batchSize)
+    // console.log("+++++++++")
 
     const groups = this.getOperatorGroup()
       .getAllGroups()
