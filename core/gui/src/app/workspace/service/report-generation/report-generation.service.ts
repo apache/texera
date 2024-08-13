@@ -1,6 +1,5 @@
 import { Injectable } from "@angular/core";
 import html2canvas from "html2canvas";
-import * as joint from "jointjs";
 import { Observable, Observer } from "rxjs";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowResultService } from "../workflow-result/workflow-result.service";
@@ -8,7 +7,7 @@ import { WorkflowResultService } from "../workflow-result/workflow-result.servic
 @Injectable({
   providedIn: "root",
 })
-export class ReportGenerateService {
+export class ReportGenerationService {
   constructor(
     public workflowActionService: WorkflowActionService,
     private workflowResultService: WorkflowResultService
@@ -72,7 +71,7 @@ export class ReportGenerateService {
    * @param {string} workflowSnapshotURL - The base64-encoded PNG image URL of the workflow snapshot.
    * @param {string} workflowName - The name of the workflow.
    */
-  public downloadResultsAsHtml(workflowSnapshotURL: string, workflowName: string): void {
+  public generateReportAsHtml(workflowSnapshotURL: string, workflowName: string): void {
     const htmlContent = `
   <html>
     <head>

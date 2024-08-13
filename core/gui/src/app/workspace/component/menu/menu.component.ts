@@ -30,7 +30,7 @@ import { isDefined } from "../../../common/util/predicate";
 import { FileSelectionComponent } from "../file-selection/file-selection.component";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { ResultExportationComponent } from "../result-exportation/result-exportation.component";
-import { ReportGenerateService } from "../../service/report-generate/report-generate.service";
+import { ReportGenerationService } from "../../service/report-generation/report-generation.service";
 /**
  * MenuComponent is the top level menu bar that shows
  *  the Texera title and workflow execution button
@@ -100,7 +100,7 @@ export class MenuComponent implements OnInit {
     public operatorMenu: OperatorMenuService,
     public coeditorPresenceService: CoeditorPresenceService,
     private modalService: NzModalService,
-    private reportPrintService: ReportGenerateService
+    private reportPrintService: ReportGenerationService
   ) {
     workflowWebsocketService
       .subscribeToEvent("ExecutionDurationUpdateEvent")
@@ -252,7 +252,7 @@ export class MenuComponent implements OnInit {
   /**
    * get the html to export all results.
    */
-  public onClickExportAllResults(): void {
+  public onClickGenerateReport(): void {
     //Get notification
     this.notificationService.info("The report is being generated...");
 
@@ -263,7 +263,7 @@ export class MenuComponent implements OnInit {
       .generateWorkflowSnapshot(workflowName)
       .pipe(untilDestroyed(this))
       .subscribe({
-        next: (snapshot: string) => this.reportPrintService.downloadResultsAsHtml(snapshot, workflowName),
+        next: (snapshot: string) => this.reportPrintService.generateReportAsHtml(snapshot, workflowName),
         error: (e: unknown) => this.notificationService.error((e as Error).message),
       });
   }
