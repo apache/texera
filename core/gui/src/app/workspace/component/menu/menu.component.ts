@@ -100,7 +100,7 @@ export class MenuComponent implements OnInit {
     public operatorMenu: OperatorMenuService,
     public coeditorPresenceService: CoeditorPresenceService,
     private modalService: NzModalService,
-    private reportPrintService: ReportGenerationService
+    private reportGenerationService: ReportGenerationService
   ) {
     workflowWebsocketService
       .subscribeToEvent("ExecutionDurationUpdateEvent")
@@ -259,11 +259,11 @@ export class MenuComponent implements OnInit {
     const workflowName = this.currentWorkflowName;
 
     // Invokes the method of the report printing service
-    this.reportPrintService
+    this.reportGenerationService
       .generateWorkflowSnapshot(workflowName)
       .pipe(untilDestroyed(this))
       .subscribe({
-        next: (snapshot: string) => this.reportPrintService.generateReportAsHtml(snapshot, workflowName),
+        next: (snapshot: string) => this.reportGenerationService.generateReportAsHtml(snapshot, workflowName),
         error: (e: unknown) => this.notificationService.error((e as Error).message),
       });
   }
