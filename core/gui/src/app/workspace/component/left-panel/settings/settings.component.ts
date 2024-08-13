@@ -26,18 +26,23 @@ export class SettingsComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.currentBatchSize = this.workflowActionService.getWorkflowContent().batchSize || 400; // 默认值为 400
+    console.log("------")
+    console.log(this.workflowActionService.getWorkflowContent().batchSize)
+    console.log("------")
+    // this.currentBatchSize = this.workflowActionService.getWorkflowContent().batchSize || 400; // 默认值为 400
 
     this.settingsForm = this.fb.group({
       packetSize: [this.currentBatchSize, [Validators.required, Validators.min(1)]],
     });
 
-    // 监听值的变化，并立即触发验证
-    this.settingsForm.get('packetSize')?.valueChanges
+    this.workflowActionService
+      .workflowChanged()
       .pipe(untilDestroyed(this))
       .subscribe(() => {
-        this.settingsForm.get('packetSize')?.updateValueAndValidity({ onlySelf: true, emitEvent: false });
+        this.currentBatchSize = this.workflowActionService.getWorkflowContent().batchSize || 400;
+        this.settingsForm.patchValue({ packetSize: this.currentBatchSize });
       });
+
   }
 
   onSubmit(): void {
