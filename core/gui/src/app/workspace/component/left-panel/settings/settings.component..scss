@@ -1,0 +1,70 @@
+.settings-container {
+    padding: 10px;
+  }
+  
+  h4 {
+    margin-bottom: 15px;
+  }
+  
+  .form-inline {
+    display: flex;
+    flex-direction: column; /* 让表单项和按钮垂直排列 */
+  }
+  
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    width: 100%; /* 输入框占满容器宽度 */
+  }
+  
+  label {
+    margin-bottom: 5px;
+    font-weight: bold;
+  }
+  
+  input.form-control {
+    width: 100%;
+    height: 30px;
+    padding: 5px;
+    font-size: 14px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    box-sizing: border-box;
+    margin-bottom: 5px; /* 为按钮和错误消息留出间距 */
+  }
+  
+  .button-error-wrapper {
+    display: flex;
+    align-items: center;
+  }
+  
+  button.btn-save {
+    min-width: 55px; /* 设置最小宽度 */
+    height: 30px;
+    padding: 0 12px;
+    font-size: 14px;
+    background-color: #007bff;
+    border: none;
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    margin-right: 10px;
+    text-align: center; /* 确保文本居中 */
+  }
+  
+  button.btn-save:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+  }
+  
+  button.btn-save:not(:disabled):hover {
+    background-color: #0056b3;
+  }
+  
+  .error-message {
+    color: red;
+    font-size: 0.8em;
+    margin: 0; /* 去除默认的 margin */
+  }
+  

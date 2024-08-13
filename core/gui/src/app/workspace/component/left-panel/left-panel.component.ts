@@ -7,7 +7,7 @@ import { OperatorMenuComponent } from "./operator-menu/operator-menu.component";
 import { VersionsListComponent } from "./versions-list/versions-list.component";
 import { WorkflowExecutionHistoryComponent } from "../../../dashboard/component/user/user-workflow/ngbd-modal-workflow-executions/workflow-execution-history.component";
 import { TimeTravelComponent } from "./time-travel/time-travel.component";
-
+import { SettingsComponent } from "./settings/settings.component";
 @UntilDestroy()
 @Component({
   selector: "texera-left-panel",
@@ -27,6 +27,12 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
     { component: OperatorMenuComponent, title: "Operators", icon: "appstore", enabled: true },
     { component: VersionsListComponent, title: "Versions", icon: "schedule", enabled: environment.userSystemEnabled },
     {
+      component: SettingsComponent,
+      title: "Settings",
+      icon: "setting",
+      enabled: true, // Enable based on your logic
+    },
+    {
       component: WorkflowExecutionHistoryComponent,
       title: "Execution History",
       icon: "history",
@@ -43,12 +49,8 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
   order = Array.from({ length: this.items.length - 1 }, (_, index) => index + 1);
 
   constructor() {
-    const savedOrder = localStorage.getItem("left-panel-order")?.split(",").map(Number);
-    this.order = savedOrder && new Set(savedOrder).size === new Set(this.order).size ? savedOrder : this.order;
-
-    const savedIndex = Number(localStorage.getItem("left-panel-index"));
-    this.openFrame(savedIndex < this.items.length && this.items[savedIndex].enabled ? savedIndex : 1);
-
+    this.order = localStorage.getItem("left-panel-order")?.split(",").map(Number) || this.order;
+    this.openFrame(Number(localStorage.getItem("left-panel-index") || "1"));
     this.width = Number(localStorage.getItem("left-panel-width")) || this.width;
     this.height = Number(localStorage.getItem("left-panel-height")) || this.height;
   }
