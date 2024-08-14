@@ -246,7 +246,8 @@ CREATE TABLE IF NOT EXISTS dataset_version
     )  ENGINE = INNODB;
 
 CREATE TABLE IF NOT EXISTS cluster (
-    `cluster_id` INT AUTO_INCREMENT PRIMARY KEY,
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `name` VARCHAR(255) NOT NULL,
     `owner_id` INT UNSIGNED NOT NULL,
     `machine_type` VARCHAR(255) NOT NULL,
     `number_of_machines` INT NOT NULL,

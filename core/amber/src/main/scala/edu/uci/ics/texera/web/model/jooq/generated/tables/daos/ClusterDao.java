@@ -38,28 +38,42 @@ public class ClusterDao extends DAOImpl<ClusterRecord, edu.uci.ics.texera.web.mo
 
     @Override
     public Integer getId(edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Cluster object) {
-        return object.getClusterId();
+        return object.getId();
     }
 
     /**
-     * Fetch records that have <code>cluster_id BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>id BETWEEN lowerInclusive AND upperInclusive</code>
      */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Cluster> fetchRangeOfClusterId(Integer lowerInclusive, Integer upperInclusive) {
-        return fetchRange(Cluster.CLUSTER.CLUSTER_ID, lowerInclusive, upperInclusive);
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Cluster> fetchRangeOfId(Integer lowerInclusive, Integer upperInclusive) {
+        return fetchRange(Cluster.CLUSTER.ID, lowerInclusive, upperInclusive);
     }
 
     /**
-     * Fetch records that have <code>cluster_id IN (values)</code>
+     * Fetch records that have <code>id IN (values)</code>
      */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Cluster> fetchByClusterId(Integer... values) {
-        return fetch(Cluster.CLUSTER.CLUSTER_ID, values);
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Cluster> fetchById(Integer... values) {
+        return fetch(Cluster.CLUSTER.ID, values);
     }
 
     /**
-     * Fetch a unique record that has <code>cluster_id = value</code>
+     * Fetch a unique record that has <code>id = value</code>
      */
-    public edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Cluster fetchOneByClusterId(Integer value) {
-        return fetchOne(Cluster.CLUSTER.CLUSTER_ID, value);
+    public edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Cluster fetchOneById(Integer value) {
+        return fetchOne(Cluster.CLUSTER.ID, value);
+    }
+
+    /**
+     * Fetch records that have <code>name BETWEEN lowerInclusive AND upperInclusive</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Cluster> fetchRangeOfName(String lowerInclusive, String upperInclusive) {
+        return fetchRange(Cluster.CLUSTER.NAME, lowerInclusive, upperInclusive);
+    }
+
+    /**
+     * Fetch records that have <code>name IN (values)</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Cluster> fetchByName(String... values) {
+        return fetch(Cluster.CLUSTER.NAME, values);
     }
 
     /**

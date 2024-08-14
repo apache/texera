@@ -18,9 +18,10 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Cluster implements ICluster {
 
-    private static final long serialVersionUID = -1602735446;
+    private static final long serialVersionUID = -1918350163;
 
-    private Integer    clusterId;
+    private Integer    id;
+    private String     name;
     private UInteger   ownerId;
     private String     machineType;
     private Integer    numberOfMachines;
@@ -31,7 +32,8 @@ public class Cluster implements ICluster {
     public Cluster() {}
 
     public Cluster(ICluster value) {
-        this.clusterId = value.getClusterId();
+        this.id = value.getId();
+        this.name = value.getName();
         this.ownerId = value.getOwnerId();
         this.machineType = value.getMachineType();
         this.numberOfMachines = value.getNumberOfMachines();
@@ -41,7 +43,8 @@ public class Cluster implements ICluster {
     }
 
     public Cluster(
-        Integer    clusterId,
+        Integer    id,
+        String     name,
         UInteger   ownerId,
         String     machineType,
         Integer    numberOfMachines,
@@ -49,7 +52,8 @@ public class Cluster implements ICluster {
         Timestamp  deletionTime,
         BigDecimal totalBill
     ) {
-        this.clusterId = clusterId;
+        this.id = id;
+        this.name = name;
         this.ownerId = ownerId;
         this.machineType = machineType;
         this.numberOfMachines = numberOfMachines;
@@ -59,13 +63,23 @@ public class Cluster implements ICluster {
     }
 
     @Override
-    public Integer getClusterId() {
-        return this.clusterId;
+    public Integer getId() {
+        return this.id;
     }
 
     @Override
-    public void setClusterId(Integer clusterId) {
-        this.clusterId = clusterId;
+    public void setId(Integer id) {
+        this.id = id;
+    }
+
+    @Override
+    public String getName() {
+        return this.name;
+    }
+
+    @Override
+    public void setName(String name) {
+        this.name = name;
     }
 
     @Override
@@ -132,7 +146,8 @@ public class Cluster implements ICluster {
     public String toString() {
         StringBuilder sb = new StringBuilder("Cluster (");
 
-        sb.append(clusterId);
+        sb.append(id);
+        sb.append(", ").append(name);
         sb.append(", ").append(ownerId);
         sb.append(", ").append(machineType);
         sb.append(", ").append(numberOfMachines);
@@ -150,7 +165,8 @@ public class Cluster implements ICluster {
 
     @Override
     public void from(ICluster from) {
-        setClusterId(from.getClusterId());
+        setId(from.getId());
+        setName(from.getName());
         setOwnerId(from.getOwnerId());
         setMachineType(from.getMachineType());
         setNumberOfMachines(from.getNumberOfMachines());

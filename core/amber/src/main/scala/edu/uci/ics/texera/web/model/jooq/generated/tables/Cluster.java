@@ -20,7 +20,7 @@ import org.jooq.Identity;
 import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
-import org.jooq.Row7;
+import org.jooq.Row8;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
@@ -36,7 +36,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Cluster extends TableImpl<ClusterRecord> {
 
-    private static final long serialVersionUID = -98596255;
+    private static final long serialVersionUID = -1382267729;
 
     /**
      * The reference instance of <code>texera_db.cluster</code>
@@ -52,9 +52,14 @@ public class Cluster extends TableImpl<ClusterRecord> {
     }
 
     /**
-     * The column <code>texera_db.cluster.cluster_id</code>.
+     * The column <code>texera_db.cluster.id</code>.
      */
-    public final TableField<ClusterRecord, Integer> CLUSTER_ID = createField(DSL.name("cluster_id"), org.jooq.impl.SQLDataType.INTEGER.nullable(false).identity(true), this, "");
+    public final TableField<ClusterRecord, Integer> ID = createField(DSL.name("id"), org.jooq.impl.SQLDataType.INTEGER.nullable(false).identity(true), this, "");
+
+    /**
+     * The column <code>texera_db.cluster.name</code>.
+     */
+    public final TableField<ClusterRecord, String> NAME = createField(DSL.name("name"), org.jooq.impl.SQLDataType.VARCHAR(255).nullable(false), this, "");
 
     /**
      * The column <code>texera_db.cluster.owner_id</code>.
@@ -180,11 +185,11 @@ public class Cluster extends TableImpl<ClusterRecord> {
     }
 
     // -------------------------------------------------------------------------
-    // Row7 type methods
+    // Row8 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row7<Integer, UInteger, String, Integer, Timestamp, Timestamp, BigDecimal> fieldsRow() {
-        return (Row7) super.fieldsRow();
+    public Row8<Integer, String, UInteger, String, Integer, Timestamp, Timestamp, BigDecimal> fieldsRow() {
+        return (Row8) super.fieldsRow();
     }
 }
