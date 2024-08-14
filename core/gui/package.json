@@ -108,6 +108,7 @@
     "@types/papaparse": "5.3.5",
     "@types/quill": "2.0.9",
     "@types/uuid": "8.3.4",
+    "@types/validator": "^13.12.0",
     "@typescript-eslint/eslint-plugin": "7.0.2",
     "@typescript-eslint/parser": "7.0.2",
     "babel-plugin-dynamic-import-node": "^2.3.3",
