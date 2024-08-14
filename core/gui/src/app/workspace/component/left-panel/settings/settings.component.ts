@@ -29,7 +29,7 @@ export class SettingsComponent implements OnInit {
     console.log("------")
     console.log(this.workflowActionService.getWorkflowContent().batchSize)
     console.log("------")
-    // this.currentBatchSize = this.workflowActionService.getWorkflowContent().batchSize || 400; // 默认值为 400
+    this.currentBatchSize = this.workflowActionService.getWorkflowContent().batchSize || 400; // 默认值为 400
 
     this.settingsForm = this.fb.group({
       packetSize: [this.currentBatchSize, [Validators.required, Validators.min(1)]],
