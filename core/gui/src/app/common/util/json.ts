@@ -8,7 +8,7 @@
  * @param rowData original row data returns from execution
  */
 import { IndexableObject } from "../../workspace/types/result-table.interface";
-import validator from 'validator';
+import validator from "validator";
 import deepMap from "deep-map";
 
 function isBase64(str: string): boolean {
@@ -23,7 +23,7 @@ function isBinary(str: string): boolean {
 export function trimDisplayJsonData(rowData: IndexableObject, maxLen: number): Record<string, unknown> {
   return deepMap<Record<string, unknown>>(rowData, value => {
     if (typeof value === "string") {
-      if ((isBase64(value) || isBinary(value))) {
+      if (isBase64(value) || isBinary(value)) {
         return `bytes<${value.slice(0, 3)}...${value.slice(-3)}>`;
       }
       if (value.length > maxLen) {
