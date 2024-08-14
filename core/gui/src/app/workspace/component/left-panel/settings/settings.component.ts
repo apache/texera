@@ -66,7 +66,7 @@ export class SettingsComponent implements OnInit {
 
   public persistWorkflow(): void {
     this.isSaving = true;
-
+  
     // 调用 persistWorkflow 方法保存当前的工作流状态
     this.workflowPersistService
         .persistWorkflow(this.workflowActionService.getWorkflow())
@@ -74,6 +74,10 @@ export class SettingsComponent implements OnInit {
            untilDestroyed(this)
          )
          .subscribe({
+           next: () => {
+             // 保存成功后显示通知
+             this.notificationService.success("Save Successful");
+           },
            error: (e: unknown) => this.notificationService.error((e as Error).message),
          })
          .add(() => (this.isSaving = false));
