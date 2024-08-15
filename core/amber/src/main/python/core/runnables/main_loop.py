@@ -10,13 +10,13 @@ from pampy import match
 
 from core.architecture.managers.context import Context
 from core.architecture.managers.pause_manager import PauseType
-from core.architecture.packaging.input_manager import EndOfAllMarker
+from core.architecture.packaging.input_manager import EndOfAllInternalMarker
 from core.architecture.rpc.async_rpc_client import AsyncRPCClient
 from core.architecture.rpc.async_rpc_server import AsyncRPCServer
 from core.models import (
     InputExhausted,
     InternalQueue,
-    SenderChangeMarker,
+    SenderChangeInternalMarker,
     Tuple,
 )
 from core.models.internal_queue import DataElement, ControlElement
@@ -215,7 +215,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
             )
 
     def _process_sender_change_marker(
-        self, sender_change_marker: SenderChangeMarker
+        self, sender_change_marker: SenderChangeInternalMarker
     ) -> None:
         """
         Upon receipt of a SenderChangeMarker, change the current input link to the
@@ -227,7 +227,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
             self.context.input_manager.get_port_id(sender_change_marker.channel_id)
         )
 
-    def _process_end_of_all_marker(self, _: EndOfAllMarker) -> None:
+    def _process_end_of_all_marker(self, _: EndOfAllInternalMarker) -> None:
         """
         Upon receipt of an EndOfAllMarker, which indicates the end of all input links,
         send the last data batches to all downstream workers.
@@ -283,9 +283,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
                     self._process_tuple,
                     InputExhausted,
                     self._process_input_exhausted,
-                    SenderChangeMarker,
+                    SenderChangeInternalMarker,
                     self._process_sender_change_marker,
-                    EndOfAllMarker,
+                    EndOfAllInternalMarker,
                     self._process_end_of_all_marker,
                 )
             except Exception as err:

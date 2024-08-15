@@ -1,7 +1,7 @@
 from typing import Iterator, Optional, Union, Dict, List
 
 from core.models import Tuple, ArrowTableTupleProvider, Schema
-from core.models.marker import EndOfAllMarker, Marker, SenderChangeMarker
+from core.models.internalmarker import EndOfAllInternalMarker, InternalMarker, SenderChangeInternalMarker
 from core.models.payload import DataFrame, DataPayload, EndOfUpstream
 from core.models.tuple import InputExhausted
 from proto.edu.uci.ics.amber.engine.common import (
@@ -78,11 +78,11 @@ class InputManager:
 
     def process_data_payload(
         self, from_: ActorVirtualIdentity, payload: DataPayload
-    ) -> Iterator[Union[Tuple, InputExhausted, Marker]]:
+    ) -> Iterator[Union[Tuple, InputExhausted, InternalMarker]]:
         # special case used to yield for source op
         if from_ == InputManager.SOURCE_STARTER:
             yield InputExhausted()
-            yield EndOfAllMarker()
+            yield EndOfAllInternalMarker()
             return
         current_channel_id = None
         for channel_id, channel in self._channels.items():
@@ -94,7 +94,7 @@ class InputManager:
             or self._current_channel_id != current_channel_id
         ):
             self._current_channel_id = current_channel_id
-            yield SenderChangeMarker(current_channel_id)
+            yield SenderChangeInternalMarker(current_channel_id)
 
         if isinstance(payload, DataFrame):
             for field_accessor in ArrowTableTupleProvider(payload.frame):
@@ -124,7 +124,7 @@ class InputManager:
             )
 
             if all_ports_completed:
-                yield EndOfAllMarker()
+                yield EndOfAllInternalMarker()
 
         else:
             raise NotImplementedError()
