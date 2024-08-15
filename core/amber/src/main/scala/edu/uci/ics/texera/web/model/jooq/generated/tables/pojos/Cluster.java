@@ -4,9 +4,9 @@
 package edu.uci.ics.texera.web.model.jooq.generated.tables.pojos;
 
 
+import edu.uci.ics.texera.web.model.jooq.generated.enums.ClusterStatus;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces.ICluster;
 
-import java.math.BigDecimal;
 import java.sql.Timestamp;
 
 import org.jooq.types.UInteger;
@@ -18,16 +18,15 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Cluster implements ICluster {
 
-    private static final long serialVersionUID = -1918350163;
+    private static final long serialVersionUID = -346405278;
 
-    private Integer    id;
-    private String     name;
-    private UInteger   ownerId;
-    private String     machineType;
-    private Integer    numberOfMachines;
-    private Timestamp  creationTime;
-    private Timestamp  deletionTime;
-    private BigDecimal totalBill;
+    private Integer       id;
+    private String        name;
+    private UInteger      ownerId;
+    private String        machineType;
+    private Integer       numberOfMachines;
+    private Timestamp     creationTime;
+    private ClusterStatus status;
 
     public Cluster() {}
 
@@ -38,19 +37,17 @@ public class Cluster implements ICluster {
         this.machineType = value.getMachineType();
         this.numberOfMachines = value.getNumberOfMachines();
         this.creationTime = value.getCreationTime();
-        this.deletionTime = value.getDeletionTime();
-        this.totalBill = value.getTotalBill();
+        this.status = value.getStatus();
     }
 
     public Cluster(
-        Integer    id,
-        String     name,
-        UInteger   ownerId,
-        String     machineType,
-        Integer    numberOfMachines,
-        Timestamp  creationTime,
-        Timestamp  deletionTime,
-        BigDecimal totalBill
+        Integer       id,
+        String        name,
+        UInteger      ownerId,
+        String        machineType,
+        Integer       numberOfMachines,
+        Timestamp     creationTime,
+        ClusterStatus status
     ) {
         this.id = id;
         this.name = name;
@@ -58,8 +55,7 @@ public class Cluster implements ICluster {
         this.machineType = machineType;
         this.numberOfMachines = numberOfMachines;
         this.creationTime = creationTime;
-        this.deletionTime = deletionTime;
-        this.totalBill = totalBill;
+        this.status = status;
     }
 
     @Override
@@ -123,23 +119,13 @@ public class Cluster implements ICluster {
     }
 
     @Override
-    public Timestamp getDeletionTime() {
-        return this.deletionTime;
+    public ClusterStatus getStatus() {
+        return this.status;
     }
 
     @Override
-    public void setDeletionTime(Timestamp deletionTime) {
-        this.deletionTime = deletionTime;
-    }
-
-    @Override
-    public BigDecimal getTotalBill() {
-        return this.totalBill;
-    }
-
-    @Override
-    public void setTotalBill(BigDecimal totalBill) {
-        this.totalBill = totalBill;
+    public void setStatus(ClusterStatus status) {
+        this.status = status;
     }
 
     @Override
@@ -152,8 +138,7 @@ public class Cluster implements ICluster {
         sb.append(", ").append(machineType);
         sb.append(", ").append(numberOfMachines);
         sb.append(", ").append(creationTime);
-        sb.append(", ").append(deletionTime);
-        sb.append(", ").append(totalBill);
+        sb.append(", ").append(status);
 
         sb.append(")");
         return sb.toString();
@@ -171,8 +156,7 @@ public class Cluster implements ICluster {
         setMachineType(from.getMachineType());
         setNumberOfMachines(from.getNumberOfMachines());
         setCreationTime(from.getCreationTime());
-        setDeletionTime(from.getDeletionTime());
-        setTotalBill(from.getTotalBill());
+        setStatus(from.getStatus());
     }
 
     @Override

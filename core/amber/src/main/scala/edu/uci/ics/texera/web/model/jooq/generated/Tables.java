@@ -5,6 +5,7 @@ package edu.uci.ics.texera.web.model.jooq.generated;
 
 
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Cluster;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.ClusterActivity;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetUserAccess;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetVersion;
@@ -36,6 +37,11 @@ public class Tables {
      * The table <code>texera_db.cluster</code>.
      */
     public static final Cluster CLUSTER = Cluster.CLUSTER;
+
+    /**
+     * The table <code>texera_db.cluster_activity</code>.
+     */
+    public static final ClusterActivity CLUSTER_ACTIVITY = ClusterActivity.CLUSTER_ACTIVITY;
 
     /**
      * The table <code>texera_db.dataset</code>.

@@ -5,6 +5,7 @@ package edu.uci.ics.texera.web.model.jooq.generated;
 
 
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Cluster;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.ClusterActivity;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetUserAccess;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetVersion;
@@ -40,7 +41,7 @@ import org.jooq.impl.SchemaImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class TexeraDb extends SchemaImpl {
 
-    private static final long serialVersionUID = -1751373997;
+    private static final long serialVersionUID = 14553964;
 
     /**
      * The reference instance of <code>texera_db</code>
@@ -51,6 +52,11 @@ public class TexeraDb extends SchemaImpl {
      * The table <code>texera_db.cluster</code>.
      */
     public final Cluster CLUSTER = edu.uci.ics.texera.web.model.jooq.generated.tables.Cluster.CLUSTER;
+
+    /**
+     * The table <code>texera_db.cluster_activity</code>.
+     */
+    public final ClusterActivity CLUSTER_ACTIVITY = edu.uci.ics.texera.web.model.jooq.generated.tables.ClusterActivity.CLUSTER_ACTIVITY;
 
     /**
      * The table <code>texera_db.dataset</code>.
@@ -170,6 +176,7 @@ public class TexeraDb extends SchemaImpl {
     private final List<Table<?>> getTables0() {
         return Arrays.<Table<?>>asList(
             Cluster.CLUSTER,
+            ClusterActivity.CLUSTER_ACTIVITY,
             Dataset.DATASET,
             DatasetUserAccess.DATASET_USER_ACCESS,
             DatasetVersion.DATASET_VERSION,

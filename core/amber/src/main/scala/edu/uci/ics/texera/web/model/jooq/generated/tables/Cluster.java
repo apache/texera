@@ -7,9 +7,9 @@ package edu.uci.ics.texera.web.model.jooq.generated.tables;
 import edu.uci.ics.texera.web.model.jooq.generated.Indexes;
 import edu.uci.ics.texera.web.model.jooq.generated.Keys;
 import edu.uci.ics.texera.web.model.jooq.generated.TexeraDb;
+import edu.uci.ics.texera.web.model.jooq.generated.enums.ClusterStatus;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.ClusterRecord;
 
-import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.util.Arrays;
 import java.util.List;
@@ -20,7 +20,7 @@ import org.jooq.Identity;
 import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
-import org.jooq.Row8;
+import org.jooq.Row7;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
@@ -36,7 +36,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Cluster extends TableImpl<ClusterRecord> {
 
-    private static final long serialVersionUID = -1382267729;
+    private static final long serialVersionUID = -1137613607;
 
     /**
      * The reference instance of <code>texera_db.cluster</code>
@@ -82,14 +82,9 @@ public class Cluster extends TableImpl<ClusterRecord> {
     public final TableField<ClusterRecord, Timestamp> CREATION_TIME = createField(DSL.name("creation_time"), org.jooq.impl.SQLDataType.TIMESTAMP.defaultValue(org.jooq.impl.DSL.field("CURRENT_TIMESTAMP", org.jooq.impl.SQLDataType.TIMESTAMP)), this, "");
 
     /**
-     * The column <code>texera_db.cluster.deletion_time</code>.
+     * The column <code>texera_db.cluster.status</code>.
      */
-    public final TableField<ClusterRecord, Timestamp> DELETION_TIME = createField(DSL.name("deletion_time"), org.jooq.impl.SQLDataType.TIMESTAMP, this, "");
-
-    /**
-     * The column <code>texera_db.cluster.total_bill</code>.
-     */
-    public final TableField<ClusterRecord, BigDecimal> TOTAL_BILL = createField(DSL.name("total_bill"), org.jooq.impl.SQLDataType.DECIMAL(10, 2).defaultValue(org.jooq.impl.DSL.inline("0.00", org.jooq.impl.SQLDataType.DECIMAL)), this, "");
+    public final TableField<ClusterRecord, ClusterStatus> STATUS = createField(DSL.name("status"), org.jooq.impl.SQLDataType.VARCHAR(11).asEnumDataType(edu.uci.ics.texera.web.model.jooq.generated.enums.ClusterStatus.class), this, "");
 
     /**
      * Create a <code>texera_db.cluster</code> table reference
@@ -185,11 +180,11 @@ public class Cluster extends TableImpl<ClusterRecord> {
     }
 
     // -------------------------------------------------------------------------
-    // Row8 type methods
+    // Row7 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row8<Integer, String, UInteger, String, Integer, Timestamp, Timestamp, BigDecimal> fieldsRow() {
-        return (Row8) super.fieldsRow();
+    public Row7<Integer, String, UInteger, String, Integer, Timestamp, ClusterStatus> fieldsRow() {
+        return (Row7) super.fieldsRow();
     }
 }

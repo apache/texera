@@ -4,8 +4,9 @@
 package edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces;
 
 
+import edu.uci.ics.texera.web.model.jooq.generated.enums.ClusterStatus;
+
 import java.io.Serializable;
-import java.math.BigDecimal;
 import java.sql.Timestamp;
 
 import org.jooq.types.UInteger;
@@ -78,24 +79,14 @@ public interface ICluster extends Serializable {
     public Timestamp getCreationTime();
 
     /**
-     * Setter for <code>texera_db.cluster.deletion_time</code>.
+     * Setter for <code>texera_db.cluster.status</code>.
      */
-    public void setDeletionTime(Timestamp value);
+    public void setStatus(ClusterStatus value);
 
     /**
-     * Getter for <code>texera_db.cluster.deletion_time</code>.
+     * Getter for <code>texera_db.cluster.status</code>.
      */
-    public Timestamp getDeletionTime();
-
-    /**
-     * Setter for <code>texera_db.cluster.total_bill</code>.
-     */
-    public void setTotalBill(BigDecimal value);
-
-    /**
-     * Getter for <code>texera_db.cluster.total_bill</code>.
-     */
-    public BigDecimal getTotalBill();
+    public ClusterStatus getStatus();
 
     // -------------------------------------------------------------------------
     // FROM and INTO

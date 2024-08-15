@@ -4,10 +4,10 @@
 package edu.uci.ics.texera.web.model.jooq.generated.tables.daos;
 
 
+import edu.uci.ics.texera.web.model.jooq.generated.enums.ClusterStatus;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Cluster;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.ClusterRecord;
 
-import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.util.List;
 
@@ -133,30 +133,16 @@ public class ClusterDao extends DAOImpl<ClusterRecord, edu.uci.ics.texera.web.mo
     }
 
     /**
-     * Fetch records that have <code>deletion_time BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>status BETWEEN lowerInclusive AND upperInclusive</code>
      */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Cluster> fetchRangeOfDeletionTime(Timestamp lowerInclusive, Timestamp upperInclusive) {
-        return fetchRange(Cluster.CLUSTER.DELETION_TIME, lowerInclusive, upperInclusive);
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Cluster> fetchRangeOfStatus(ClusterStatus lowerInclusive, ClusterStatus upperInclusive) {
+        return fetchRange(Cluster.CLUSTER.STATUS, lowerInclusive, upperInclusive);
     }
 
     /**
-     * Fetch records that have <code>deletion_time IN (values)</code>
+     * Fetch records that have <code>status IN (values)</code>
      */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Cluster> fetchByDeletionTime(Timestamp... values) {
-        return fetch(Cluster.CLUSTER.DELETION_TIME, values);
-    }
-
-    /**
-     * Fetch records that have <code>total_bill BETWEEN lowerInclusive AND upperInclusive</code>
-     */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Cluster> fetchRangeOfTotalBill(BigDecimal lowerInclusive, BigDecimal upperInclusive) {
-        return fetchRange(Cluster.CLUSTER.TOTAL_BILL, lowerInclusive, upperInclusive);
-    }
-
-    /**
-     * Fetch records that have <code>total_bill IN (values)</code>
-     */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Cluster> fetchByTotalBill(BigDecimal... values) {
-        return fetch(Cluster.CLUSTER.TOTAL_BILL, values);
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Cluster> fetchByStatus(ClusterStatus... values) {
+        return fetch(Cluster.CLUSTER.STATUS, values);
     }
 }
