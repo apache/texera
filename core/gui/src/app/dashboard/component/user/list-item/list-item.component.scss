@@ -1,85 +1,98 @@
 .list-item-card {
     padding: 0;
-    min-width: 700px;
+    width: 100%;
     background-color: white;
     position: relative;
     .card-content {
       display: flex;
-      flex-direction: row;
       justify-content: left;
       align-items: center;
-
-      .avatar-section {
-        position: relative;
-        .user-avatar {
-          ::ng-deep .texera-user-avatar {
-            width: 45px; 
-            height: 45px;
-            line-height: 45px;
-            font-size: 15px;
-          }
-        }
+      width: 100%;
+      .resource-info {
+        display: flex;
+        justify-content: left;
+        align-items: center;
+        width: 50%;
         .type-icon-div {
-          position: absolute;
           text-align: center;
-          right: -6px;
-          bottom: -6px;
-          width: 23px;
-          height: 23px;
-          font-size: 12px;
-          border: 1px solid grey;
-          border-radius: 15px;
+          font-size: 38px;
           background-color: white;
           display: flex;         
           justify-content: center;
           align-items: center;
-
+        }
+        .resource-title {
+          margin-left: 12px;
+          display: flex;
+          align-items: start;
+          flex-direction: column;
+          justify-content: space-between;
+          overflow: hidden;
+          width: calc(100% - 65px);
+          h3 {
+            flex-grow: 0;
+            width: 100%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding: 0;
+            margin: 0;
+            font-size: 17px;
+            font-weight: 600;
+          }
+          p {
+            flex-grow: 0;
+            width: 100%;
+            font-size: 12px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-weight: light;
+            color: grey;
+            padding: 0;
+            margin: 0;
+          }
         }
       }
-
-      .resource-info {
-        margin-left: 15px;
+      .edit-info{
+        width: 50%;
         display: flex;
-        flex-direction: row;
         justify-content: space-between;
         align-items: center;
-        width: 100%;
-        h3 {
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          width: 50%;
-          padding: 0 130px 0 0;
-          margin: 0;
-          font-size: 19px;
-          font-weight: 600;
-        }
-        .edit-info{
-          width: 50%;
+        font-size: 13px;
+        .resource-owner {
           display: flex;
-          justify-content: space-between;
           align-items: center;
-          .resource-creationtime {
-            font-size: 14px;
-            font-weight: light;
-            color: grey;
-            margin: 0;
+          justify-content: start;
+          margin-right: 20px;
+          em {
+            margin-right: 8px;
           }
-          .resource-edittime {
-
-            font-size: 14px;
-            font-weight: light;
-            color: grey;
-            margin: 0;
+          .user-avatar {
+            ::ng-deep .texera-user-avatar {
+              width: 34px; 
+              height: 34px;
+              line-height: 34px;
+              font-size: 12px;
+            }
           }
+        }
+        .resource-creationtime {
+          font-weight: 400;
+          color: grey;
+          margin: 0;
+        }
+        .resource-edittime {
+          font-weight: 400;
+          color: grey;
+          margin: 0;
         }
       }
     }
     .button-group {
       display: none;
       position: absolute;
-      height: 77px;
-      width: 200px; 
+      height: 70px;
       right: 0;
       bottom: 0;
       background-color: #f0f0f0;
@@ -87,7 +100,7 @@
       align-items: center;
 
       button {
-        margin-right: 16px;
+        margin-right: 32px;
       }
 
       button:hover {

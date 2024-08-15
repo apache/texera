@@ -1,33 +1,39 @@
 <nz-card 
-  [nzBodyStyle]="{padding: '16px'}"
+  [nzBodyStyle]="{padding: '16px', width: '100%'}"
   class="list-item-card">
   <div 
     [routerLink]="entryLink"
     class="card-content">
-    <div class="avatar-section">
-      <texera-user-avatar
-        class="user-avatar"
-        googleAvatar=""
-        userColor="#1E90FF"
-        [userName]="entry.ownerName || 'User'">
-      </texera-user-avatar>
+    <div class="resource-info">
       <div class="type-icon-div">
         <i
           nz-icon
           [nzType]="iconType"
         ></i>
       </div>
-    </div>
-    <div class="resource-info">
-      <h3>{{ entry.name }} <em>#{{ entry.id }}</em></h3>
-      <div class="edit-info">
-        <p class="resource-creationtime">
-          {{ entry.type }} • Created on {{ entry.creationTime | date: 'mediumDate'}}
-        </p>
-        <p class="resource-edittime">
-          Last Edited on: {{ entry.lastModifiedTime | date: 'mediumDate'}}
-        </p>
+      <div class="resource-title">
+        <em>#{{ entry.id }}</em><h3>{{ entry.name }} </h3>
+        <p class="resource-description">
+          {{ entry.description || ""}}
+        </p>       
       </div>
+    </div>
+    <div class="edit-info">
+      <div class="resource-owner">
+        <em>by</em>
+        <texera-user-avatar
+          class="user-avatar"
+          googleAvatar=""
+          userColor="#1E90FF"
+          [userName]="entry.ownerName || 'User'">
+        </texera-user-avatar>
+      </div>
+      <p class="resource-creationtime">
+        Created: {{ entry.creationTime | date: 'mediumDate'}}
+      </p>
+      <p class="resource-edittime">
+        Edited:  {{ entry.lastModifiedTime | date: 'mediumDate'}}
+      </p>
     </div>
   </div>
 
