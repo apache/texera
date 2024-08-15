@@ -24,7 +24,10 @@ export function trimDisplayJsonData(rowData: IndexableObject, maxLen: number): R
   return deepMap<Record<string, unknown>>(rowData, value => {
     if (typeof value === "string") {
       if (isBase64(value) || isBinary(value)) {
-        return `bytes<${value.slice(0, 3)}...${value.slice(-3)}>`;
+        const length = value.length;
+        const leadingBytes = value.slice(0, 10);
+        const trailingBytes = value.slice(-3);
+        return `bytes'${leadingBytes}...${trailingBytes}' (length: ${length})`;
       }
       if (value.length > maxLen) {
         return value.substring(0, maxLen) + "...";
