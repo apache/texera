@@ -104,10 +104,10 @@ class DataProcessor(
     * process end of an input port with Executor.onFinish().
     * this function is only called by the DP thread.
     */
-  private[this] def processEndOfUpstream(port: Int): Unit = {
+  private[this] def processEndOfUpstream(portId: Int): Unit = {
     try {
       outputManager.outputIterator.setTupleOutput(
-        executor.onFinishMultiPort(port)
+        executor.onFinishMultiPort(portId)
       )
     } catch safely {
       case e =>
