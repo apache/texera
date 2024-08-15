@@ -5,7 +5,7 @@ from enum import Enum
 from threading import RLock
 from typing import TypeVar, Set
 
-from core.models.internalmarker import InternalMarker
+from core.models.internal_marker import InternalMarker
 from core.models.payload import DataPayload
 from core.util.customized_queue.linked_blocking_multi_queue import (
     LinkedBlockingMultiQueue,

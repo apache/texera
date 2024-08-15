@@ -1,7 +1,7 @@
 from typing import Iterator, Optional, Union, Dict, List
 
 from core.models import Tuple, ArrowTableTupleProvider, Schema
-from core.models.internalmarker import EndOfAllInternalMarker, InternalMarker, SenderChangeInternalMarker
+from core.models.internal_marker import EndOfAllInternalMarker, InternalMarker, SenderChangeInternalMarker
 from core.models.payload import DataFrame, DataPayload, EndOfUpstream
 from core.models.tuple import InputExhausted
 from proto.edu.uci.ics.amber.engine.common import (
