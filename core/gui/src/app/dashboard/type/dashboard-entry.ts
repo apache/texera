@@ -2,85 +2,93 @@ import { DashboardFile } from "./dashboard-file.interface";
 import { DashboardWorkflow } from "./dashboard-workflow.interface";
 import { DashboardProject } from "./dashboard-project.interface";
 import { DashboardDataset } from "./dashboard-dataset.interface";
+import { isDashboardWorkflow, isDashboardProject, isDashboardFile, isDashboardDataset } from "./type-predicates";
 
 export class DashboardEntry {
   checked = false;
-  get type(): "workflow" | "project" | "file" | "dataset" {
-    if ("workflow" in this.value) {
-      return "workflow";
-    } else if ("name" in this.value) {
-      return "project";
-    } else if ("ownerEmail" in this.value) {
-      return "file";
-    } else if ("dataset" in this.value) {
-      return "dataset";
-    }
-    throw new Error("Unexpected type in DashboardEntry.");
-  }
-  get name(): string {
-    if ("workflow" in this.value) {
-      return this.value.workflow.name;
-    } else if ("dataset" in this.value) {
-      return this.value.dataset.name;
-    } else if ("name" in this.value) {
-      return this.project.name;
-    } else if ("ownerEmail" in this.value) {
-      return this.value.file.name;
-    }
-    throw new Error("Unexpected type in DashboardEntry.");
-  }
+  type: "workflow" | "project" | "file" | "dataset";
+  name: string;
+  creationTime: number | undefined;
+  lastModifiedTime: number | undefined;
+  id: number | undefined;
+  description: string | undefined;
+  accessLevel: string | undefined;
+  ownerName: string | undefined;
+  ownerEmail: string | undefined;
 
-  get creationTime(): number | undefined {
-    if ("workflow" in this.value) {
-      return this.value.workflow.creationTime;
-    } else if ("dataset" in this.value) {
-      return this.value.dataset.creationTime;
-    } else if ("name" in this.value) {
-      return this.value.creationTime;
-    } else if ("ownerEmail" in this.value) {
-      return this.value.file.uploadTime;
-    }
-    throw new Error("Unexpected type in DashboardEntry.");
-  }
 
-  get lastModifiedTime(): number | undefined {
-    if ("workflow" in this.value) {
-      return this.value.workflow.lastModifiedTime;
-    } else if ("name" in this.value) {
-      return this.value.creationTime;
-    } else if ("ownerEmail" in this.value && "file" in this.value) {
-      return this.value.file.uploadTime;
+  constructor(public value: DashboardWorkflow | DashboardProject | DashboardFile | DashboardDataset) {
+    if (isDashboardWorkflow(value)) {
+      this.type = "workflow";
+      this.id = value.workflow.wid;
+      this.name = value.workflow.name;
+      this.description = value.workflow.description;
+      this.creationTime = value.workflow.creationTime;
+      this.lastModifiedTime = value.workflow.lastModifiedTime;
+      this.accessLevel = value.accessLevel;
+      this.ownerName = value.ownerName;
+      this.ownerEmail = "";
+      
+    } else if (isDashboardProject(value)) {
+      this.type = "project";
+      this.id = value.pid;
+      this.name = value.name;
+      this.description = "";
+      this.creationTime = value.creationTime;
+      this.lastModifiedTime = value.creationTime;
+      this.accessLevel = value.accessLevel;
+      this.ownerName = "";
+      this.ownerEmail = "";
+    } else if (isDashboardFile(value)) {
+      this.type = "file";
+      this.id = value.file.fid;
+      this.name = value.file.name;
+      this.description = value.file.description;
+      this.creationTime = value.file.uploadTime;
+      this.lastModifiedTime = value.file.uploadTime;
+      this.accessLevel = value.accessLevel;
+      this.ownerName = "";
+      this.ownerEmail = value.ownerEmail;
+    } else if (isDashboardDataset(value)) {
+      this.type = "dataset";
+      this.id = value.dataset.did;
+      this.name = value.dataset.name;
+      this.description = value.dataset.description;
+      this.creationTime = value.dataset.creationTime;
+      this.lastModifiedTime = value.dataset.creationTime;
+      this.accessLevel = value.accessPrivilege;
+      this.ownerName = "";
+      this.ownerEmail = value.ownerEmail;
+    } else {
+      throw new Error("Unexpected type in DashboardEntry.");
     }
-    throw new Error("Unexpected type in DashboardEntry.");
   }
 
   get project(): DashboardProject {
-    if (!("name" in this.value)) {
-      throw new Error("Value is not of type Workflow.");
+    if (!isDashboardProject(this.value)) {
+      throw new Error("Value is not of type DashboardProject.");
     }
     return this.value;
   }
 
   get workflow(): DashboardWorkflow {
-    if (!("workflow" in this.value)) {
-      throw new Error("Value is not of type Workflow.");
+    if (!isDashboardWorkflow(this.value)) {
+      throw new Error("Value is not of type DashboardWorkflow.");
     }
     return this.value;
   }
 
   get file(): DashboardFile {
-    if (!("ownerEmail" in this.value && "file" in this.value)) {
-      throw new Error("Value is not of type file.");
+    if (!isDashboardFile(this.value)) {
+      throw new Error("Value is not of type DashboardFile.");
     }
     return this.value;
   }
 
   get dataset(): DashboardDataset {
-    if (!("dataset" in this.value)) {
-      throw new Error("Value is not of type Dataset");
+    if (!isDashboardDataset(this.value)) {
+      throw new Error("Value is not of type DashboardDataset");
     }
     return this.value;
   }
-
-  constructor(public value: DashboardWorkflow | DashboardProject | DashboardFile | DashboardDataset) {}
 }

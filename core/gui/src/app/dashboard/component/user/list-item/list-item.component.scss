@@ -1,0 +1,106 @@
+.list-item-card {
+    padding: 0;
+    min-width: 700px;
+    background-color: white;
+    position: relative;
+    .card-content {
+      display: flex;
+      flex-direction: row;
+      justify-content: left;
+      align-items: center;
+
+      .avatar-section {
+        position: relative;
+        .user-avatar {
+          ::ng-deep .texera-user-avatar {
+            width: 45px; 
+            height: 45px;
+            line-height: 45px;
+            font-size: 15px;
+          }
+        }
+        .type-icon-div {
+          position: absolute;
+          text-align: center;
+          right: -6px;
+          bottom: -6px;
+          width: 23px;
+          height: 23px;
+          font-size: 12px;
+          border: 1px solid grey;
+          border-radius: 15px;
+          background-color: white;
+          display: flex;         
+          justify-content: center;
+          align-items: center;
+
+        }
+      }
+
+      .resource-info {
+        margin-left: 15px;
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        h3 {
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          width: 50%;
+          padding: 0 130px 0 0;
+          margin: 0;
+          font-size: 19px;
+          font-weight: 600;
+        }
+        .edit-info{
+          width: 50%;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          .resource-creationtime {
+            font-size: 14px;
+            font-weight: light;
+            color: grey;
+            margin: 0;
+          }
+          .resource-edittime {
+
+            font-size: 14px;
+            font-weight: light;
+            color: grey;
+            margin: 0;
+          }
+        }
+      }
+    }
+    .button-group {
+      display: none;
+      position: absolute;
+      height: 77px;
+      width: 200px; 
+      right: 0;
+      bottom: 0;
+      background-color: #f0f0f0;
+      justify-content: right;
+      align-items: center;
+
+      button {
+        margin-right: 16px;
+      }
+
+      button:hover {
+        background-color: #d9d9d9;
+      }
+    }
+  }
+
+.list-item-card:hover {
+  background-color: #f0f0f0;
+  cursor: pointer;
+}
+
+.list-item-card:hover .button-group{
+  display: flex;
+}
