@@ -431,7 +431,7 @@ export class MenuComponent implements OnInit {
 
   public onClickExportWorkflow(): void {
     const workflowContent: WorkflowContent = this.workflowActionService.getWorkflowContent();
-    const workflowContentJson = JSON.stringify(workflowContent);
+    const workflowContentJson = JSON.stringify(workflowContent, null, 2);
     const fileName = this.currentWorkflowName + ".json";
     saveAs(new Blob([workflowContentJson], { type: "text/plain;charset=utf-8" }), fileName);
   }
