@@ -11,7 +11,7 @@ class DataPayload:
 
 @dataclass
 class DataFrame(DataPayload):
-    pass
+    frame: Table
 
 
 @dataclass
