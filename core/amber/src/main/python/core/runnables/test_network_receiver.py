@@ -4,7 +4,8 @@ import pytest
 from pyarrow import Table
 
 from core.models.internal_queue import InternalQueue, ControlElement, DataElement
-from core.models.payload import EndOfUpstream, DataFrame
+from core.models.marker import EndOfUpstream
+from core.models.payload import MarkerFrame, DataFrame
 from core.proxy import ProxyClient
 from core.runnables.network_receiver import NetworkReceiver
 from core.runnables.network_sender import NetworkSender
@@ -119,9 +120,9 @@ class TestNetworkReceiver:
     ):
         network_sender_thread.start()
         worker_id = ActorVirtualIdentity(name="test")
-        input_queue.put(DataElement(tag=worker_id, payload=EndOfUpstream()))
+        input_queue.put(DataElement(tag=worker_id, payload=MarkerFrame(EndOfUpstream())))
         element: DataElement = output_queue.get()
-        assert isinstance(element.payload, EndOfUpstream)
+        assert isinstance(element.payload, MarkerFrame(EndOfUpstream()))
         assert element.tag == worker_id
 
     @pytest.mark.timeout(2)

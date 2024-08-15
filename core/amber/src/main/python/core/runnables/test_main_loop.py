@@ -7,11 +7,12 @@ import pytest
 
 from core.models import (
     DataFrame,
-    EndOfUpstream,
+    MarkerFrame,
     InternalQueue,
     Tuple,
 )
 from core.models.internal_queue import DataElement, ControlElement
+from core.models.marker import EndOfUpstream
 from core.runnables import MainLoop
 from core.util import set_one_of
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
@@ -118,7 +119,7 @@ class TestMainLoop:
 
     @pytest.fixture
     def mock_end_of_upstream(self, mock_tuple, mock_sender_actor):
-        return DataElement(tag=mock_sender_actor, payload=EndOfUpstream())
+        return DataElement(tag=mock_sender_actor, payload=MarkerFrame(EndOfUpstream()))
 
     @pytest.fixture
     def input_queue(self):
@@ -505,7 +506,7 @@ class TestMainLoop:
         )
 
         assert output_queue.get() == DataElement(
-            tag=mock_receiver_actor, payload=EndOfUpstream()
+            tag=mock_receiver_actor, payload=MarkerFrame(EndOfUpstream())
         )
 
         # can process ReturnInvocation

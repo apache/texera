@@ -15,7 +15,7 @@ from .operator import (
     BatchOperator,
     SourceOperator,
 )
-from .payload import DataFrame, DataPayload, EndOfUpstream
+from .payload import DataFrame, DataPayload, MarkerFrame
 
 
 class ExceptionInfo(NamedTuple):
@@ -45,7 +45,7 @@ __all__ = [
     "SourceOperator",
     "DataFrame",
     "DataPayload",
-    "EndOfUpstream",
+    "MarkerFrame",
     "ExceptionInfo",
     "AttributeType",
     "Field",

@@ -14,9 +14,10 @@ from core.architecture.handlers.actorcommand.credit_update_handler import (
 )
 from core.models import (
     DataFrame,
-    EndOfUpstream,
+    MarkerFrame,
 )
 from core.models.internal_queue import DataElement, ControlElement, InternalQueue
+from core.models.marker import EndOfUpstream
 from core.proxy import ProxyServer
 from core.util import Stoppable, get_one_of
 from core.util.runnable.runnable import Runnable
@@ -66,7 +67,7 @@ class NetworkReceiver(Runnable, Stoppable):
             if marker == "data":
                 payload = DataFrame(table)
             elif marker == "EndOfUpstream":
-                payload = EndOfUpstream()
+                payload = MarkerFrame(EndOfUpstream())
             shared_queue.put(
                 DataElement(
                     tag=data_header.tag,

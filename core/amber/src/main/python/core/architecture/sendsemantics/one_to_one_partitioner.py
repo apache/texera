@@ -5,7 +5,8 @@ from overrides import overrides
 
 from core.architecture.sendsemantics.partitioner import Partitioner
 from core.models import Tuple, Schema
-from core.models.payload import DataPayload, EndOfUpstream, DataFrame
+from core.models.marker import EndOfUpstream
+from core.models.payload import DataPayload, MarkerFrame, DataFrame
 from core.util import set_one_of
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
     OneToOnePartitioning,
@@ -40,7 +41,7 @@ class OneToOnePartitioner(Partitioner):
         if len(self.batch) > 0:
             yield self.receiver, self.tuple_to_frame(self.batch)
         self.reset()
-        yield self.receiver, EndOfUpstream()
+        yield self.receiver, MarkerFrame(EndOfUpstream())
 
     @overrides
     def reset(self) -> None:

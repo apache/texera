@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from pyarrow.lib import Table
 from typing import Optional
+from core.models.marker import Marker
 
 
 @dataclass
@@ -14,5 +15,5 @@ class DataFrame(DataPayload):
 
 
 @dataclass
-class EndOfUpstream(DataPayload):
-    pass
+class MarkerFrame(DataPayload):
+    frame: Marker

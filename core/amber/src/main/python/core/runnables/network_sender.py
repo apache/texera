@@ -3,7 +3,7 @@ from typing import Optional
 from loguru import logger
 from overrides import overrides
 
-from core.models import DataPayload, InternalQueue
+from core.models import DataPayload, InternalQueue, DataFrame, MarkerFrame
 from core.models.internal_queue import InternalQueueElement, DataElement, ControlElement
 from core.proxy import ProxyClient
 from core.util import StoppableQueueBlockingRunnable
@@ -52,8 +52,13 @@ class NetworkSender(StoppableQueueBlockingRunnable):
             EndOfUpstream
         """
 
-        data_header = PythonDataHeader(tag=to, marker=data_payload.__class__.__name__)
-        self._proxy_client.send_data(bytes(data_header), data_payload.frame)
+        if isinstance(data_payload, DataFrame):
+            data_header = PythonDataHeader(tag=to, marker=data_payload.__class__.__name__)
+            self._proxy_client.send_data(bytes(data_header), data_payload.frame)  # returns credits
+
+        elif isinstance(data_payload, MarkerFrame):
+            data_header = PythonDataHeader(tag=to, marker=data_payload.frame.__class__.__name__)
+            self._proxy_client.send_data(bytes(data_header), None)  # returns credits
 
     @logger.catch(reraise=True)
     def _send_control(

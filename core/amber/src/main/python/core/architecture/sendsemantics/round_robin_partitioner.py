@@ -5,7 +5,8 @@ from overrides import overrides
 
 from core.architecture.sendsemantics.partitioner import Partitioner
 from core.models import Tuple, Schema
-from core.models.payload import DataPayload, EndOfUpstream, DataFrame
+from core.models.marker import EndOfUpstream
+from core.models.payload import DataPayload, MarkerFrame, DataFrame
 from core.util import set_one_of
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
     Partitioning,
@@ -40,4 +41,4 @@ class RoundRobinPartitioner(Partitioner):
         for receiver, batch in self.receivers:
             if len(batch) > 0:
                 yield receiver, self.tuple_to_frame(batch)
-            yield receiver, EndOfUpstream()
+            yield receiver, MarkerFrame(EndOfUpstream())
