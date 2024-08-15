@@ -261,7 +261,8 @@ CREATE TABLE IF NOT EXISTS cluster_activity (
     `cluster_id` INT NOT NULL,
     `start_time` TIMESTAMP NOT NULL,
     `end_time` TIMESTAMP NULL,
-    FOREIGN KEY (`cluster_id`) REFERENCES `cluster` (`id`) ON DELETE CASCADE
+    FOREIGN KEY (`cluster_id`) REFERENCES `cluster` (`id`) ON DELETE CASCADE,
+    INDEX (`cluster_id`, `start_time`)
 ) ENGINE = INNODB;
 
 -- create fulltext search indexes

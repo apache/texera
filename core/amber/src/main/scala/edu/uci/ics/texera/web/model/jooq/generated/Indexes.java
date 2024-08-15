@@ -96,7 +96,7 @@ public class Indexes {
     private static class Indexes0 {
         public static Index CLUSTER_OWNER_ID = Internal.createIndex("owner_id", Cluster.CLUSTER, new OrderField[] { Cluster.CLUSTER.OWNER_ID }, false);
         public static Index CLUSTER_PRIMARY = Internal.createIndex("PRIMARY", Cluster.CLUSTER, new OrderField[] { Cluster.CLUSTER.ID }, true);
-        public static Index CLUSTER_ACTIVITY_CLUSTER_ID = Internal.createIndex("cluster_id", ClusterActivity.CLUSTER_ACTIVITY, new OrderField[] { ClusterActivity.CLUSTER_ACTIVITY.CLUSTER_ID }, false);
+        public static Index CLUSTER_ACTIVITY_CLUSTER_ID = Internal.createIndex("cluster_id", ClusterActivity.CLUSTER_ACTIVITY, new OrderField[] { ClusterActivity.CLUSTER_ACTIVITY.CLUSTER_ID, ClusterActivity.CLUSTER_ACTIVITY.START_TIME }, false);
         public static Index CLUSTER_ACTIVITY_PRIMARY = Internal.createIndex("PRIMARY", ClusterActivity.CLUSTER_ACTIVITY, new OrderField[] { ClusterActivity.CLUSTER_ACTIVITY.ID }, true);
         public static Index DATASET_IDX_DATASET_NAME_DESCRIPTION = Internal.createIndex("idx_dataset_name_description", Dataset.DATASET, new OrderField[] { Dataset.DATASET.NAME, Dataset.DATASET.DESCRIPTION }, false);
         public static Index DATASET_OWNER_UID = Internal.createIndex("owner_uid", Dataset.DATASET, new OrderField[] { Dataset.DATASET.OWNER_UID }, false);
