@@ -6,7 +6,7 @@ from core.models.marker import Marker
 
 @dataclass
 class DataPayload:
-    frame: Optional[Table] = None
+    pass
 
 
 @dataclass
