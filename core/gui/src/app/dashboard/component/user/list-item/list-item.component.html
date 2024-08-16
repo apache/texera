@@ -2,24 +2,27 @@
   [nzBodyStyle]="{padding: '5px'}"
   class="list-item-card">
   <div
-  <div
     [routerLink]="entryLink"
     nz-row
     nzAlign="middle">
-    <div nz-col nzSpan="1">
+    <div
+      nz-col
+      nzSpan="1">
       <div class="type-icon-div">
         <i
           nz-icon
           [nzType]="iconType"></i>
       </div>
     </div>
-    <div nz-col nzSpan="11">
-      <div class="resource-name truncate-single-line"><em>#{{ entry.id }}</em> {{ entry.name }} </div>
-      <div class="resource-description truncate-single-line">
-        {{ entry.description || ""}}
-      </div>       
+    <div
+      nz-col
+      nzSpan="11">
+      <div class="resource-name truncate-single-line"><em>#{{ entry.id }}</em> {{ entry.name }}</div>
+      <div class="resource-description truncate-single-line">{{ entry.description || ""}}</div>
     </div>
-    <div nz-col nzSpan="12">
+    <div
+      nz-col
+      nzSpan="12">
       <div class="edit-info">
         <div class="resource-owner">
           <em>by</em>
@@ -30,12 +33,8 @@
             [userName]="entry.ownerName || 'User'">
           </texera-user-avatar>
         </div>
-        <div class="resource-time-info">
-          Created: {{ entry.creationTime | date: 'mediumDate'}}
-        </div>
-        <div class="resource-time-info">
-          Edited:  {{ entry.lastModifiedTime | date: 'mediumDate'}}
-        </div>
+        <div class="resource-time-info">Created: {{ entry.creationTime | date: 'mediumDate'}}</div>
+        <div class="resource-time-info">Edited: {{ entry.lastModifiedTime | date: 'mediumDate'}}</div>
       </div>
     </div>
   </div>

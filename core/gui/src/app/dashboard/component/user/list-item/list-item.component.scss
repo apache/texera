@@ -1,16 +1,16 @@
 .list-item-card {
-    padding: 0;
-    width: 100%;
-    background-color: white;
-    position: relative;
+  padding: 0;
+  width: 100%;
+  background-color: white;
+  position: relative;
 }
 
 .truncate-single-line {
   display: -webkit-box;
-  -webkit-line-clamp: 1;       
+  -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
-  overflow: hidden;            
-  text-overflow: ellipsis;     
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .resource-name {
