@@ -59,13 +59,17 @@ class KubernetesClientService(
    * @return A list of V1Pod objects representing the pods with the given label.
    */
   def getPodsList(namespace: String, podLabel: String): List[V1Pod] = {
-    val podList = coreApi.listNamespacedPod(namespace).execute().getItems.asScala
-    (
-      for (
-        pod: V1Pod <- podList
-        if pod.getMetadata.getLabels.containsValue(podLabel)
-      ) yield pod
-    ).toList
+    coreApi.listNamespacedPod(namespace).labelSelector(podLabel).execute().getItems.asScala.toList
+  }
+
+  /**
+   * Retrieves a single with the given label in the specified namespace.
+   *
+   * @param podLabel        The label of the pods to be returned.
+   * @return A list of V1Pod objects representing the pods with the given label.
+   */
+  def getPodFromLabel(namespace: String, podLabel: String): V1Pod = {
+    coreApi.listNamespacedPod(namespace).labelSelector(podLabel).limit(1).execute().getItems.asScala.toList.last
   }
 
   /**
@@ -76,11 +80,12 @@ class KubernetesClientService(
    */
   def createPod(uid: Int): V1Pod = {
     val uidString: String = String.valueOf(uid)
+    val uidLabelSelector: String = s"userId=$uidString"
     val pod: V1Pod = createUserPod(uid)
 
     // Should be a list with a single pod
     try {
-      getPodsList(poolNamespace, uidString).last
+      getPodFromLabel(poolNamespace, uidLabelSelector)
     }
     catch {
       // In case program moves too fast and newly created pod is not detectable yet
@@ -88,7 +93,7 @@ class KubernetesClientService(
         println(e.getMessage)
         Thread.sleep(1000)
         println("Attempting to retrieve pod again")
-        getPodsList(poolNamespace, uidString).last
+        getPodFromLabel(poolNamespace, uidLabelSelector)
     }
   }
 
@@ -114,8 +119,8 @@ class KubernetesClientService(
           .containers(
             util.List.of(new V1Container()
               .name("worker")
-              .image("pureblank/dropwizard-example:latest")
-              .ports(util.List.of(new V1ContainerPort().containerPort(8080))))
+              .image("ksdn117/web-socket-test")
+              .ports(util.List.of(new V1ContainerPort().containerPort(8010))))
           )
           .hostname(s"user-pod-$uid")
           .subdomain("workflow-pods")
