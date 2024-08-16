@@ -5,7 +5,10 @@ import { NzModalService } from "ng-zorro-antd/modal";
 import { WorkflowExecutionHistoryComponent } from "../user-workflow/ngbd-modal-workflow-executions/workflow-execution-history.component";
 import { DashboardEntry } from "src/app/dashboard/type/dashboard-entry";
 import { ShareAccessComponent } from "../share-access/share-access.component";
-import { DEFAULT_WORKFLOW_NAME, WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
+import {
+  DEFAULT_WORKFLOW_NAME,
+  WorkflowPersistService,
+} from "src/app/common/service/workflow-persist/workflow-persist.service";
 import { Workflow } from "src/app/common/type/workflow";
 import { Dataset } from "src/app/common/type/dataset";
 import { DatasetService } from "src/app/dashboard/service/user/dataset/dataset.service";
@@ -18,11 +21,11 @@ import { NotificationService } from "src/app/common/service/notification/notific
 
 @UntilDestroy()
 @Component({
-  selector: 'texera-list-item',
-  templateUrl: './list-item.component.html',
-  styleUrls: ['./list-item.component.scss'],
+  selector: "texera-list-item",
+  templateUrl: "./list-item.component.html",
+  styleUrls: ["./list-item.component.scss"],
 })
-export class ListItemComponent implements OnInit, OnChanges{
+export class ListItemComponent implements OnInit, OnChanges {
   ROUTER_WORKFLOW_BASE_URL = "/dashboard/workspace";
   ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
   ROUTER_DATASET_BASE_URL = "/dashboard/dataset";
@@ -58,20 +61,16 @@ export class ListItemComponent implements OnInit, OnChanges{
     if (this.entry.type === "workflow") {
       this.entryLink = this.ROUTER_WORKFLOW_BASE_URL + "/" + this.entry.id;
       this.iconType = "project";
-    }
-    else if (this.entry.type === "project") {
-      this.entryLink = this.ROUTER_USER_PROJECT_BASE_URL + '/' + this.entry.id;
+    } else if (this.entry.type === "project") {
+      this.entryLink = this.ROUTER_USER_PROJECT_BASE_URL + "/" + this.entry.id;
       this.iconType = "container";
-    }
-    else if (this.entry.type === "dataset") {
-      this.entryLink = this.ROUTER_DATASET_BASE_URL + '/' + this.entry.id;
+    } else if (this.entry.type === "dataset") {
+      this.entryLink = this.ROUTER_DATASET_BASE_URL + "/" + this.entry.id;
       this.iconType = "database";
-    }
-    else if (this.entry.type === "file") {
+    } else if (this.entry.type === "file") {
       // not sure where to redirect
       this.iconType = "folder-open";
-    }
-    else {
+    } else {
       throw new Error("Unexpected type in DashboardEntry.");
     }
   }
@@ -81,8 +80,8 @@ export class ListItemComponent implements OnInit, OnChanges{
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['entry']) {
-      this.initializeEntry()
+    if (changes["entry"]) {
+      this.initializeEntry();
     }
   }
 
@@ -100,8 +99,7 @@ export class ListItemComponent implements OnInit, OnChanges{
         nzTitle: "Share this workflow with others",
         nzCentered: true,
       });
-    }
-    else if (this.entry.type === "dataset") {
+    } else if (this.entry.type === "dataset") {
       this.modalService.create({
         nzContent: ShareAccessComponent,
         nzData: {

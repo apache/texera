@@ -134,7 +134,7 @@ import { FileSelectionComponent } from "./workspace/component/file-selection/fil
 import { ResultExportationComponent } from "./workspace/component/result-exportation/result-exportation.component";
 import { ReportGenerationService } from "./workspace/service/report-generation/report-generation.service";
 import { SearchBarComponent } from "./dashboard/component/user/search-bar/search-bar.component";
-import { ListItemComponent } from './dashboard/component/user/list-item/list-item.component';
+import { ListItemComponent } from "./dashboard/component/user/list-item/list-item.component";
 
 registerLocaleData(en);
 
