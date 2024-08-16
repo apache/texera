@@ -3,7 +3,6 @@ import { RouterModule, Routes } from "@angular/router";
 import { environment } from "../environments/environment";
 import { DashboardComponent } from "./dashboard/component/dashboard.component";
 import { UserWorkflowComponent } from "./dashboard/component/user/user-workflow/user-workflow.component";
-import { UserFileComponent } from "./dashboard/component/user/user-file/user-file.component";
 import { UserQuotaComponent } from "./dashboard/component/user/user-quota/user-quota.component";
 import { UserProjectSectionComponent } from "./dashboard/component/user/user-project/user-project-section/user-project-section.component";
 import { UserProjectComponent } from "./dashboard/component/user/user-project/user-project.component";
@@ -59,10 +58,6 @@ if (environment.userSystemEnabled) {
       {
         path: "workflow",
         component: UserWorkflowComponent,
-      },
-      {
-        path: "user-file",
-        component: UserFileComponent,
       },
       {
         path: "dataset",
