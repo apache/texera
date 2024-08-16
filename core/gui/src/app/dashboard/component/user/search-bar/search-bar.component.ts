@@ -1,6 +1,15 @@
 import { Component } from "@angular/core";
 import { Router } from "@angular/router";
+import { SearchService } from "../../../service/user/search.service";
+import { SearchFilterParameters } from "../../../type/search-filter-parameters";
+import { SortMethod } from "../../../type/sort-method";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { SearchResult, SearchResultItem } from "../../../type/search-result";
+import { DashboardEntry } from "../../../type/dashboard-entry";
+import { Subject } from "rxjs";
+import { debounceTime, switchMap } from "rxjs/operators";
 
+@UntilDestroy()
 @Component({
   selector: "texera-search-bar",
   templateUrl: "./search-bar.component.html",
@@ -8,10 +17,59 @@ import { Router } from "@angular/router";
 })
 export class SearchBarComponent {
   public searchParam: string = "";
+  public listOfResult: string[] = [];
+  private searchSubject = new Subject<string>();
 
-  constructor(private router: Router) {}
+  private params: SearchFilterParameters = {
+    createDateStart: null,
+    createDateEnd: null,
+    modifiedDateStart: null,
+    modifiedDateEnd: null,
+    owners: [],
+    ids: [],
+    operators: [],
+    projectIds: [],
+  };
+
+  constructor(
+    private router: Router,
+    private searchService: SearchService
+  ) {
+    this.searchSubject
+      .pipe(
+        debounceTime(200),
+        switchMap(query => this.searchService.search([query], this.params, 0, 5, null, SortMethod.NameAsc)),
+        untilDestroyed(this)
+      )
+      .subscribe((result: SearchResult) => {
+        const uniqueResults = Array.from(new Set(result.results.map(item => this.convertToName(item))));
+        this.listOfResult = uniqueResults;
+      });
+  }
+
+  onSearchInputChange(query: string): void {
+    if (query) {
+      this.searchSubject.next(query);
+    } else {
+      this.listOfResult = [];
+    }
+  }
 
   performSearch(keyword: string) {
     this.router.navigate(["/dashboard/search"], { queryParams: { q: keyword } });
+  }
+
+  convertToName(resultItem: SearchResultItem): string {
+    if (resultItem.workflow) {
+      return new DashboardEntry(resultItem.workflow).name;
+    } else if (resultItem.project) {
+      return new DashboardEntry(resultItem.project).name;
+    } else if (resultItem.file) {
+      return new DashboardEntry(resultItem.file).name;
+    } else if (resultItem.dataset) {
+      return new DashboardEntry(resultItem.dataset).name;
+    } else {
+      throw new Error("Unexpected type in SearchResult.");
+    }
   }
 }
