@@ -100,22 +100,4 @@ class WorkflowPodBrainResource {
       Response.ok(s"Successfully terminated deployment and pod of uid ${param.uid}").build()
     }
   }
-
-
-  /**
-   * Run given workflow in request body.
-   * @param param the parameters
-   * @return workflow result
-   */
-  @POST
-  @Consumes(Array(MediaType.APPLICATION_JSON))
-  @Produces(Array(MediaType.APPLICATION_JSON))
-  @Path("/{uid}/run-workflow")
-  def runWorkflow(
-                    @PathParam("uid") uid: String,
-                    param: WorkflowPodRunParams
-                  ): Response = {
-    val responseBody = ujson.write(new KubernetesClientService().sendWorkflow(uid, param.workflow))
-    Response.ok(responseBody, MediaType.APPLICATION_JSON).build()
-  }
 }

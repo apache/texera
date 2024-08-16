@@ -139,31 +139,6 @@ class KubernetesClientService(
   }
 
   /**
-   * Sends given workflow to specified user's pod and gets workflow response.
-   *
-   * @param uid        The user id who the workflow belongs to.
-   * @param workflow   The JSON representation of a texera workflow.
-   * @return The response object produced by the worker pod.
-   */
-  def sendWorkflow(uid: String, workflow: String): Map[String, ujson.Value] = {
-    // Build and send request
-//    val podUri: Uri = uri"http://user-pod-$uid.workflow-pods.default.svc.cluster.local:8080/hello-world"
-    val podUri: Uri = uri"http://localhost:8080/hello-world"
-    val response = quickRequest.get(podUri).send()
-//    val workflowJSON = ujson.Obj(
-//      "uid" -> uid,
-//      "workflow" -> workflow
-//    )
-//    val response: Response[String] = quickRequest
-//      .post(podUri)
-//      .header("Content-Type", "application/json")
-//      .body(ujson.write(workflowJSON))
-//      .send()
-
-    ujson.read(response.body).obj.toMap
-  }
-
-  /**
    * Find and replace pod in case of pod failure.
    *
    * @param uid        The uid which a new pod will be created for.
