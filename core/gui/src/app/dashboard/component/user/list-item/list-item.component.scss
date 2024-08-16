@@ -3,111 +3,70 @@
     width: 100%;
     background-color: white;
     position: relative;
-    .card-content {
-      display: flex;
-      justify-content: left;
-      align-items: center;
-      width: 100%;
-      .resource-info {
-        display: flex;
-        justify-content: left;
-        align-items: center;
-        width: 50%;
-        .type-icon-div {
-          text-align: center;
-          font-size: 38px;
-          background-color: white;
-          display: flex;         
-          justify-content: center;
-          align-items: center;
-        }
-        .resource-title {
-          margin-left: 12px;
-          display: flex;
-          align-items: start;
-          flex-direction: column;
-          justify-content: space-between;
-          overflow: hidden;
-          width: calc(100% - 65px);
-          h3 {
-            flex-grow: 0;
-            width: 100%;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            padding: 0;
-            margin: 0;
-            font-size: 17px;
-            font-weight: 600;
-          }
-          p {
-            flex-grow: 0;
-            width: 100%;
-            font-size: 12px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            font-weight: light;
-            color: grey;
-            padding: 0;
-            margin: 0;
-          }
-        }
-      }
-      .edit-info{
-        width: 50%;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        font-size: 13px;
-        .resource-owner {
-          display: flex;
-          align-items: center;
-          justify-content: start;
-          margin-right: 20px;
-          em {
-            margin-right: 8px;
-          }
-          .user-avatar {
-            ::ng-deep .texera-user-avatar {
-              width: 34px; 
-              height: 34px;
-              line-height: 34px;
-              font-size: 12px;
-            }
-          }
-        }
-        .resource-creationtime {
-          font-weight: 400;
-          color: grey;
-          margin: 0;
-        }
-        .resource-edittime {
-          font-weight: 400;
-          color: grey;
-          margin: 0;
-        }
-      }
-    }
-    .button-group {
-      display: none;
-      position: absolute;
-      height: 70px;
-      right: 0;
-      bottom: 0;
-      background-color: #f0f0f0;
-      justify-content: right;
-      align-items: center;
+}
 
-      button {
-        margin-right: 32px;
-      }
+.truncate-single-line {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;       
+  -webkit-box-orient: vertical;
+  overflow: hidden;            
+  text-overflow: ellipsis;     
+}
 
-      button:hover {
-        background-color: #d9d9d9;
-      }
+.resource-name {
+  font-size: 17px;
+  font-weight: 600;
+}
+.resource-description {
+  font-size: 12px;
+  font-weight: 300;
+  color: grey;
+}
+
+.type-icon-div {
+  text-align: center;
+  font-size: 38px;
+}
+
+.edit-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-right: 16px;
+  .resource-owner {
+    display: flex;
+    align-items: center;
+    justify-content: start;
+    em {
+      margin-right: 8px;
     }
   }
+  .resource-time-info {
+    font-size: 13px;
+    font-weight: 400;
+    color: grey;
+  }
+}
+
+.button-group {
+  display: none;
+  position: absolute;
+  height: 70px;
+  min-width: 150px;
+  right: 0;
+  bottom: 0;
+  background-color: #f0f0f0;
+  justify-content: right;
+  align-items: center;
+
+  button {
+    margin-right: 32px;
+  }
+
+  button:hover {
+    background-color: #d9d9d9;
+  }
+}
 
 .list-item-card:hover {
   background-color: #f0f0f0;
