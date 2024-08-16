@@ -6,14 +6,5 @@
     nz-input
     placeholder="Search"
     [(ngModel)]="searchParam"
-    (ngModelChange)="onSearchInputChange($event)"
-    (keydown.enter)="performSearch(searchParam)"
-    [nzAutocomplete]="auto"
-    #searchInput />
+    (keydown.enter)="performSearch(searchParam)" />
 </nz-input-group>
-<nz-autocomplete
-  class="autocomplete"
-  [nzBackfill]="true"
-  [nzDefaultActiveFirstOption]="false"
-  [nzDataSource]="listOfResult"
-  #auto></nz-autocomplete>
