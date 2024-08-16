@@ -6,7 +6,7 @@ import { SortMethod } from "../../../type/sort-method";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { SearchResult, SearchResultItem } from "../../../type/search-result";
 import { DashboardEntry } from "../../../type/dashboard-entry";
-import { Subject } from "rxjs";
+import { Subject, Observable, of } from "rxjs";
 import { debounceTime, switchMap } from "rxjs/operators";
 
 @UntilDestroy()
@@ -31,6 +31,10 @@ export class SearchBarComponent {
     projectIds: [],
   };
 
+  private searchCache = new Map<string, string[]>();
+
+  private queryOrder: string[] = [];
+
   constructor(
     private router: Router,
     private searchService: SearchService
@@ -38,13 +42,36 @@ export class SearchBarComponent {
     this.searchSubject
       .pipe(
         debounceTime(200),
-        switchMap(query => this.searchService.search([query], this.params, 0, 5, null, SortMethod.NameAsc)),
+        switchMap(query => this.getSearchResults(query)),
         untilDestroyed(this)
       )
-      .subscribe((result: SearchResult) => {
-        const uniqueResults = Array.from(new Set(result.results.map(item => this.convertToName(item))));
-        this.listOfResult = uniqueResults;
+      .subscribe((results: string[]) => {
+        this.listOfResult = results;
       });
+  }
+
+  // Method to get search results with caching and limit cache size
+  private getSearchResults(query: string): Observable<string[]> {
+    if (this.searchCache.has(query)) {
+      return of(this.searchCache.get(query)!);
+    } else {
+      return this.searchService.search([query], this.params, 0, 5, null, SortMethod.NameAsc).pipe(
+        switchMap((result: SearchResult) => {
+          const uniqueResults = Array.from(new Set(result.results.map(item => this.convertToName(item))));
+          this.addToCache(query, uniqueResults);
+          return of(uniqueResults);
+        })
+      );
+    }
+  }
+
+  private addToCache(query: string, results: string[]): void {
+    if (this.queryOrder.length >= 20) {
+      const oldestQuery = this.queryOrder.shift();
+      this.searchCache.delete(oldestQuery!);
+    }
+    this.queryOrder.push(query);
+    this.searchCache.set(query, results);
   }
 
   onSearchInputChange(query: string): void {
