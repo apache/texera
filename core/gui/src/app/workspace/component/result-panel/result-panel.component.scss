@@ -7,8 +7,8 @@
 }
 
 #result-container {
-  position: absolute;
-  top: -300px;
+  position: fixed;
+  top: calc(100vh - 300px);
   left: 0;
   user-select: none;
   background: white;
