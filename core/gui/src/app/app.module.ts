@@ -93,7 +93,6 @@ import { LocalLoginComponent } from "./home/component/login/local-login/local-lo
 import { MarkdownModule } from "ngx-markdown";
 import { FileSaverService } from "./dashboard/service/user/file/file-saver.service";
 import { DragDropModule } from "@angular/cdk/drag-drop";
-import { UserWorkflowListItemComponent } from "./dashboard/component/user/user-workflow/user-workflow-list-item/user-workflow-list-item.component";
 import { UserProjectListItemComponent } from "./dashboard/component/user/user-project/user-project-list-item/user-project-list-item.component";
 import { SortButtonComponent } from "./dashboard/component/user/sort-button/sort-button.component";
 import { FiltersComponent } from "./dashboard/component/user/filters/filters.component";
@@ -115,7 +114,7 @@ import { TimeTravelComponent } from "./workspace/component/left-panel/time-trave
 import { NzMessageModule } from "ng-zorro-antd/message";
 import { NzModalModule } from "ng-zorro-antd/modal";
 import { OverlayModule } from "@angular/cdk/overlay";
-import { HighlightSearchTermsPipe } from "./dashboard/component/user/user-workflow/user-workflow-list-item/highlight-search-terms.pipe";
+import { HighlightSearchTermsPipe } from "./dashboard/component/user/user-workflow/highlight-search-terms.pipe";
 import { en_US, provideNzI18n } from "ng-zorro-antd/i18n";
 import { FilesUploaderComponent } from "./dashboard/component/user/files-uploader/files-uploader.component";
 import { UserDatasetComponent } from "./dashboard/component/user/user-dataset/user-dataset.component";
@@ -124,7 +123,6 @@ import { UserDatasetExplorerComponent } from "./dashboard/component/user/user-da
 import { UserDatasetVersionFiletreeComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-version-filetree/user-dataset-version-filetree.component";
 import { UserDatasetFileRendererComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-file-renderer/user-dataset-file-renderer.component";
 import { NzSpinModule } from "ng-zorro-antd/spin";
-import { UserDatasetListItemComponent } from "./dashboard/component/user/user-dataset/user-dataset-list-item/user-dataset-list-item.component";
 import { NgxFileDropModule } from "ngx-file-drop";
 import { NzTreeModule } from "ng-zorro-antd/tree";
 import { NzTreeViewModule } from "ng-zorro-antd/tree-view";
@@ -193,7 +191,6 @@ registerLocaleData(en);
     UserDatasetVersionCreatorComponent,
     UserDatasetExplorerComponent,
     UserDatasetVersionFiletreeComponent,
-    UserDatasetListItemComponent,
     UserDatasetFileRendererComponent,
     NzModalCommentBoxComponent,
     LeftPanelComponent,
@@ -204,7 +201,6 @@ registerLocaleData(en);
     FileSelectionComponent,
     CollabWrapperComponent,
     HomeComponent,
-    UserWorkflowListItemComponent,
     UserProjectListItemComponent,
     SortButtonComponent,
     FiltersComponent,
