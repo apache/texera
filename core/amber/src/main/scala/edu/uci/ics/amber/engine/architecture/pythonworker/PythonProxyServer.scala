@@ -103,7 +103,7 @@ private class AmberProducer(
     // closing the stream will release the dictionaries
     flightStream.takeDictionaryOwnership
 
-    if (dataHeader.marker == EndOfUpstream().getClass.getSimpleName) {
+    if (dataHeader.payloadType == EndOfUpstream().getClass.getSimpleName) {
       assert(root.getRowCount == 0)
       outputPort.sendTo(to, MarkerFrame(EndOfUpstream()))
     } else {
@@ -130,7 +130,7 @@ class PythonProxyServer(
   def getPortNumber: AtomicInteger = portNumber
 
   val allocator: BufferAllocator =
-    new RootAllocator().newChildAllocator("flight-server", 0, Long.MaxValue);
+    new RootAllocator().newChildAllocator("flight-server", 0, Long.MaxValue)
 
   val producer: FlightProducer = new AmberProducer(actorId, outputPort, promise)
 

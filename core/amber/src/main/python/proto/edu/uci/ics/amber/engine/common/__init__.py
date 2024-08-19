@@ -126,7 +126,7 @@ class ControlPayloadV2(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class PythonDataHeader(betterproto.Message):
     tag: "ActorVirtualIdentity" = betterproto.message_field(1)
-    marker: str = betterproto.string_field(2)
+    payload_type: str = betterproto.string_field(2)
 
 
 @dataclass(eq=False, repr=False)
