@@ -253,17 +253,33 @@ export class MenuComponent implements OnInit {
    * get the html to export all results.
    */
   public onClickGenerateReport(): void {
-    //Get notification
+    // Get notification
     this.notificationService.info("The report is being generated...");
 
     const workflowName = this.currentWorkflowName;
+    const workflowContent: WorkflowContent = this.workflowActionService.getWorkflowContent();
+    const workflowContentJson = JSON.stringify(workflowContent);
+    const payload = JSON.parse(workflowContentJson);
+
+    // Extract operatorIDs and operators from the parsed payload
+    const operatorIds = payload.operators.map((operator: { operatorID: string }) => operator.operatorID);
+    const operators = payload.operators;
+
+    // Ensure operatorIds and operators are logged
+    console.log("Extracted operatorIds: ", operatorIds);
+    console.log("Extracted operators: ", operators);
 
     // Invokes the method of the report printing service
     this.reportGenerationService
       .generateWorkflowSnapshot(workflowName)
       .pipe(untilDestroyed(this))
       .subscribe({
-        next: (snapshot: string) => this.reportGenerationService.generateReportAsHtml(snapshot, workflowName),
+        next: (snapshot: string) => this.reportGenerationService.getAllOperatorResults({
+          operatorIds,
+          operators,
+          workflowSnapshot: snapshot,
+          workflowName // Pass workflowName here
+        }),
         error: (e: unknown) => this.notificationService.error((e as Error).message),
       });
   }
