@@ -33,14 +33,6 @@
             [(ngModel)]="currentWorkflowName"
             class="workflow-name"
             placeholder="Untitled Workflow" />
-          <input
-            *ngIf="!displayParticularWorkflowVersion"
-            type="number"
-            [(ngModel)]="currentBatchSize"
-            (change)="confirmUpdateBatchSize(currentBatchSize)"
-            class="workflow-batch-size"
-            placeholder="Batch Size"
-            min="1" />
           <span *ngIf="displayParticularWorkflowVersion"> {{particularVersionDate}} </span>
         </label>
         <button
