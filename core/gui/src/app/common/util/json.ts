@@ -25,8 +25,15 @@ export function trimDisplayJsonData(rowData: IndexableObject, maxLen: number): R
     if (typeof value === "string") {
       if (isBase64(value) || isBinary(value)) {
         const length = value.length;
+        // If length is less than 13, show the entire string.
+        if (length < 13) {
+          return `bytes'${value}' (length: ${length})`;
+        }
+        // Otherwise, show the leading and trailing bytes with ellipsis in between.
         const leadingBytes = value.slice(0, 10);
+        // If the length of the value is less than 10, leadingBytes will take the entire string.
         const trailingBytes = value.slice(-3);
+        // If the length of the value is less than 3, trailingBytes will take the entire string.
         return `bytes'${leadingBytes}...${trailingBytes}' (length: ${length})`;
       }
       if (value.length > maxLen) {
