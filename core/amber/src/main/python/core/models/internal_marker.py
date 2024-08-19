@@ -15,10 +15,15 @@ class InternalMarker:
 
 
 @dataclass
-class SenderChangeInternalMarker(InternalMarker):
+class SenderChange(InternalMarker):
     channel_id: ChannelIdentity
 
 
 @dataclass
-class EndOfAllInternalMarker(InternalMarker):
+class EndOfAll(InternalMarker):
+    pass
+
+
+@dataclass
+class InputExhausted(InternalMarker):
     pass

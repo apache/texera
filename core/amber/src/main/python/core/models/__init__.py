@@ -2,8 +2,8 @@ from inspect import Traceback
 from typing import NamedTuple
 
 from .internal_queue import InternalQueue
-from .internal_marker import EndOfAllInternalMarker, InternalMarker, SenderChangeInternalMarker
-from .tuple import InputExhausted, Tuple, TupleLike, ArrowTableTupleProvider
+from .internal_marker import EndOfAll, InternalMarker, SenderChange, InputExhausted
+from .tuple import Tuple, TupleLike, ArrowTableTupleProvider
 from .table import Table, TableLike
 from .batch import Batch, BatchLike
 from .schema import AttributeType, Field, Schema
@@ -26,9 +26,9 @@ class ExceptionInfo(NamedTuple):
 
 __all__ = [
     "InternalQueue",
-    "EndOfAllInternalMarker",
+    "EndOfAll",
     "InternalMarker",
-    "SenderChangeInternalMarker",
+    "SenderChange",
     "InputExhausted",
     "Tuple",
     "TupleLike",
