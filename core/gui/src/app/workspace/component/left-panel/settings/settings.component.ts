@@ -20,38 +20,37 @@ export class SettingsComponent implements OnInit {
   constructor(
     private fb: FormBuilder,
     private workflowActionService: WorkflowActionService,
-    private workflowPersistService: WorkflowPersistService,  // 注入服务
+    private workflowPersistService: WorkflowPersistService,
     private userService: UserService,
     private notificationService: NotificationService
   ) {}
 
   ngOnInit(): void {
-    console.log("------")
-    console.log(this.workflowActionService.getWorkflowContent().batchSize)
-    console.log("------")
     this.currentBatchSize = this.workflowActionService.getWorkflowContent().batchSize || 400; // 默认值为 400
 
     this.settingsForm = this.fb.group({
       packetSize: [this.currentBatchSize, [Validators.required, Validators.min(1)]],
     });
 
+    // 当表单值变化时自动保存
+    this.settingsForm.valueChanges
+      .pipe(untilDestroyed(this))
+      .subscribe(value => {
+        if (this.settingsForm.valid) {
+          this.confirmUpdateBatchSize(value.packetSize);
+        }
+      });
+
     this.workflowActionService
       .workflowChanged()
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         this.currentBatchSize = this.workflowActionService.getWorkflowContent().batchSize || 400;
-        this.settingsForm.patchValue({ packetSize: this.currentBatchSize });
+        this.settingsForm.patchValue({ packetSize: this.currentBatchSize }, { emitEvent: false });
       });
-
   }
 
-  onSubmit(): void {
-    if (this.settingsForm.valid) {
-      const packetSize = this.settingsForm.value.packetSize;
-      this.confirmUpdateBatchSize(packetSize);
-    }
-  }
-
+  // 确认并更新批处理大小
   public confirmUpdateBatchSize(batchSize: number): void {
     if (batchSize > 0) {
       // 更新 batchSize
@@ -64,6 +63,7 @@ export class SettingsComponent implements OnInit {
     }
   }
 
+  // 保存当前的工作流状态
   public persistWorkflow(): void {
     this.isSaving = true;
   
@@ -74,10 +74,6 @@ export class SettingsComponent implements OnInit {
            untilDestroyed(this)
          )
          .subscribe({
-           next: () => {
-             // 保存成功后显示通知
-             this.notificationService.success("Save Successful");
-           },
            error: (e: unknown) => this.notificationService.error((e as Error).message),
          })
          .add(() => (this.isSaving = false));
