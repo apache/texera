@@ -94,7 +94,7 @@ abstract class RegionPlanGenerator(
     if (workflowRecord != null) {
       val content: String = workflowRecord.getContent
       val json = Json.parse(content)
-      (json \ "batchSize").validate[Int] match {
+      (json \ "settings" \ "batchSize").validate[Int] match {
         case JsSuccess(batchSize, _) => batchSize
         case JsError(_) => 400 // 返回默认值400
       }
