@@ -37,6 +37,7 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
   maxWidth = window.innerWidth;
   maxHeight = window.innerHeight;
   operatorTitle = "";
+  dragPosition = {x: 0, y: 0}
 
   // the highlighted operator ID for display result table / visualization / breakpoint
   currentOperatorId?: string | undefined;
@@ -268,6 +269,11 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     this.prevWidth = this.width;
     this.height = 32.5;
     this.width = 0;
+    this.resetPanelPosition();
+  }
+
+  resetPanelPosition() {
+    this.dragPosition = {x: 0, y: 0};
   }
 
   onResize({ width, height }: NzResizeEvent) {

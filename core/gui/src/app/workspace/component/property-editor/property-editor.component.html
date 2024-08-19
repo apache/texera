@@ -1,7 +1,7 @@
 <div
   [hidden]="!currentComponent"
   cdkDrag
-  cdkDragBoundary="body"
+  cdkDragBoundary="texera-workspace"
   id="right-container"
   nz-resizable
   [nzMinWidth]="260"
@@ -11,6 +11,7 @@
   [style.width.px]="width"
   [style.height.px]="height"
   (nzResize)="onResize($event)"
+  [cdkDragFreeDragPosition]="dragPosition"
   class="box">
   <ul
     nz-menu
@@ -18,7 +19,7 @@
     [ngClass]="{'shadow':  !width}">
     <li
       nz-menu-item
-      (click)="width = 0; height = 65;"
+      (click)="closePanel()"
       *ngIf="width">
       <span
         nz-icon

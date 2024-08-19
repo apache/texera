@@ -25,6 +25,7 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
   height = Math.max(300, window.innerHeight * 0.6);
   currentComponent: Type<any> | null = null;
   componentInputs = {};
+  dragPosition = {x: 0, y: 0};
   constructor(
     public workflowActionService: WorkflowActionService,
     private changeDetectorRef: ChangeDetectorRef
@@ -105,5 +106,15 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
       this.width = width!;
       this.height = height!;
     });
+  }
+
+  closePanel() {
+    this.width = 0;
+    this.height = 65;
+    this.resetPanelPosition();
+  }
+
+  resetPanelPosition() {
+    this.dragPosition = {x: 0, y: 0};
   }
 }

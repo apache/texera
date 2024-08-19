@@ -41,6 +41,7 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
   ];
 
   order = Array.from({ length: this.items.length - 1 }, (_, index) => index + 1);
+  dragPosition = {x: 0, y: 0};
 
   constructor() {
     const savedOrder = localStorage.getItem("left-panel-order")?.split(",").map(Number);
@@ -71,6 +72,7 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
     if (!i) {
       this.width = 0;
       this.height = 65;
+      this.resetPanelPosition()
     } else if (!this.width) {
       this.width = 230;
       this.height = 300;
@@ -89,4 +91,9 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
       this.height = height!;
     });
   }
+
+  resetPanelPosition() {
+    this.dragPosition = {x: 0, y: 0};
+  }
+
 }

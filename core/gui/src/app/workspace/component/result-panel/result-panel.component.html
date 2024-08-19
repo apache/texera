@@ -1,7 +1,7 @@
 <div
   id="result-container"
   cdkDrag
-  cdkDragBoundary="body"
+  cdkDragBoundary="texera-workspace"
   nz-resizable
   [nzMinWidth]="300"
   [nzMinHeight]="250"
@@ -9,7 +9,8 @@
   [nzMaxHeight]="window.innerHeight"
   [style.width.px]="width"
   [style.height.px]="height"
-  (nzResize)="onResize($event)">
+  (nzResize)="onResize($event)"
+  [cdkDragFreeDragPosition]="dragPosition">
   <ul
     nz-menu
     id="result-buttons"
