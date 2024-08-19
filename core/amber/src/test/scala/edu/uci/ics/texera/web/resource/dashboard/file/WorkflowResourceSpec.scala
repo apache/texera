@@ -494,7 +494,7 @@ class WorkflowResourceSpec
         sessionUser1,
         SearchQueryParams(getKeywordsArray("test"))
       )
-    assert(DashboardClickableFileEntryList.results.length == 3)
+    assert(DashboardClickableFileEntryList.results.length == 2)
 
   }
 
@@ -559,7 +559,7 @@ class WorkflowResourceSpec
         sessionUser1,
         SearchQueryParams(getKeywordsArray("test"))
       )
-    assert(DashboardClickableFileEntryList.results.length == 6)
+    assert(DashboardClickableFileEntryList.results.length == 4)
 
     // filter resources by workflow
     DashboardClickableFileEntryList = dashboardResource.searchAllResourcesCall(
