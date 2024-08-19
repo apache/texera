@@ -7,7 +7,6 @@ import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.{
   RangeBasedShufflePartitioning,
   RoundRobinPartitioning
 }
-import edu.uci.ics.amber.engine.common.AmberConfig.defaultBatchSize
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.texera.workflow.common.workflow.{
   BroadcastPartition,
@@ -21,11 +20,11 @@ import edu.uci.ics.texera.workflow.common.workflow.{
 
 case object LinkConfig {
   def toPartitioning(
-                      fromWorkerIds: List[ActorVirtualIdentity],
-                      toWorkerIds: List[ActorVirtualIdentity],
-                      partitionInfo: PartitionInfo,
-                      batchSize: Int
-                    ): Partitioning = {
+      fromWorkerIds: List[ActorVirtualIdentity],
+      toWorkerIds: List[ActorVirtualIdentity],
+      partitionInfo: PartitionInfo,
+      batchSize: Int
+  ): Partitioning = {
     partitionInfo match {
       case HashPartition(hashAttributeNames) =>
         HashBasedShufflePartitioning(
@@ -96,6 +95,6 @@ case object LinkConfig {
 }
 
 case class LinkConfig(
-                       channelConfigs: List[ChannelConfig],
-                       partitioning: Partitioning
-                     )
+    channelConfigs: List[ChannelConfig],
+    partitioning: Partitioning
+)

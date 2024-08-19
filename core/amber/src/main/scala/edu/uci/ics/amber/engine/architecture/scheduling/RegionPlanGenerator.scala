@@ -19,9 +19,6 @@ import org.jgrapht.traverse.TopologicalOrderIterator
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.{CollectionHasAsScala, IteratorHasAsScala}
 
-
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowDao
 import org.jooq.types.UInteger
@@ -29,10 +26,10 @@ import play.api.libs.json._
 
 object RegionPlanGenerator {
   def replaceVertex(
-                     graph: DirectedAcyclicGraph[Region, RegionLink],
-                     oldVertex: Region,
-                     newVertex: Region
-                   ): Unit = {
+      graph: DirectedAcyclicGraph[Region, RegionLink],
+      oldVertex: Region,
+      newVertex: Region
+  ): Unit = {
     if (oldVertex.equals(newVertex)) {
       return
     }
@@ -60,10 +57,10 @@ object RegionPlanGenerator {
 }
 
 abstract class RegionPlanGenerator(
-                                    workflowContext: WorkflowContext,
-                                    var physicalPlan: PhysicalPlan,
-                                    opResultStorage: OpResultStorage
-                                  ) {
+    workflowContext: WorkflowContext,
+    var physicalPlan: PhysicalPlan,
+    opResultStorage: OpResultStorage
+) {
   private val executionClusterInfo = new ExecutionClusterInfo()
 
   final private lazy val context = SqlServer.createDSLContext()
@@ -72,15 +69,16 @@ abstract class RegionPlanGenerator(
   def generate(): (RegionPlan, PhysicalPlan)
 
   def allocateResource(
-                        regionDAG: DirectedAcyclicGraph[Region, RegionLink]
-                      ): Unit = {
+      regionDAG: DirectedAcyclicGraph[Region, RegionLink]
+  ): Unit = {
     //在database里找最新的content，里的batch size
     val workflowId = UInteger.valueOf(workflowContext.workflowId.id)
     val batchSize = getLatestBatchSize(workflowId)
     println("+++++++")
     println(batchSize)
 
-    val resourceAllocator = new DefaultResourceAllocator(physicalPlan, executionClusterInfo, batchSize)
+    val resourceAllocator =
+      new DefaultResourceAllocator(physicalPlan, executionClusterInfo, batchSize)
     // generate the resource configs
     new TopologicalOrderIterator(regionDAG).asScala
       .foreach(region => {
@@ -96,7 +94,7 @@ abstract class RegionPlanGenerator(
       val json = Json.parse(content)
       (json \ "settings" \ "batchSize").validate[Int] match {
         case JsSuccess(batchSize, _) => batchSize
-        case JsError(_) => 400 // 返回默认值400
+        case JsError(_)              => 400 // 返回默认值400
       }
     } else {
       400 // 如果没有找到对应的workflowId，也返回默认值400
@@ -104,9 +102,9 @@ abstract class RegionPlanGenerator(
   }
 
   def getRegions(
-                  physicalOpId: PhysicalOpIdentity,
-                  regionDAG: DirectedAcyclicGraph[Region, RegionLink]
-                ): Set[Region] = {
+      physicalOpId: PhysicalOpIdentity,
+      regionDAG: DirectedAcyclicGraph[Region, RegionLink]
+  ): Set[Region] = {
     regionDAG
       .vertexSet()
       .asScala
@@ -115,12 +113,12 @@ abstract class RegionPlanGenerator(
   }
 
   /**
-   * For a dependee input link, although it connects two regions A->B, we include this link and its toOp in region A
-   *  so that the dependee link will be completed first.
-   */
+    * For a dependee input link, although it connects two regions A->B, we include this link and its toOp in region A
+    *  so that the dependee link will be completed first.
+    */
   def populateDependeeLinks(
-                             regionDAG: DirectedAcyclicGraph[Region, RegionLink]
-                           ): Unit = {
+      regionDAG: DirectedAcyclicGraph[Region, RegionLink]
+  ): Unit = {
 
     val dependeeLinks = physicalPlan
       .topologicalIterator()
@@ -155,9 +153,9 @@ abstract class RegionPlanGenerator(
   }
 
   def replaceLinkWithMaterialization(
-                                      physicalLink: PhysicalLink,
-                                      writerReaderPairs: mutable.HashMap[PhysicalOpIdentity, PhysicalOpIdentity]
-                                    ): PhysicalPlan = {
+      physicalLink: PhysicalLink,
+      writerReaderPairs: mutable.HashMap[PhysicalOpIdentity, PhysicalOpIdentity]
+  ): PhysicalPlan = {
 
     val fromOp = physicalPlan.getOperator(physicalLink.fromOpId)
     val fromPortId = physicalLink.fromPortId
@@ -200,9 +198,9 @@ abstract class RegionPlanGenerator(
   }
 
   def createMatReader(
-                       matWriterLogicalOpId: OperatorIdentity,
-                       physicalLink: PhysicalLink
-                     ): PhysicalOp = {
+      matWriterLogicalOpId: OperatorIdentity,
+      physicalLink: PhysicalLink
+  ): PhysicalOp = {
     val matReader = new CacheSourceOpDesc(
       matWriterLogicalOpId,
       opResultStorage: OpResultStorage
@@ -220,8 +218,8 @@ abstract class RegionPlanGenerator(
   }
 
   def createMatWriter(
-                       physicalLink: PhysicalLink
-                     ): PhysicalOp = {
+      physicalLink: PhysicalLink
+  ): PhysicalOp = {
     val matWriter = new ProgressiveSinkOpDesc()
     matWriter.setContext(workflowContext)
     matWriter.setOperatorId(s"materialized_${getMatIdFromPhysicalLink(physicalLink)}")
