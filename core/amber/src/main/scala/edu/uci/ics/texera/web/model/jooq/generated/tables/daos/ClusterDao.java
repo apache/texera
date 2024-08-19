@@ -38,28 +38,28 @@ public class ClusterDao extends DAOImpl<ClusterRecord, edu.uci.ics.texera.web.mo
 
     @Override
     public Integer getId(edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Cluster object) {
-        return object.getId();
+        return object.getCid();
     }
 
     /**
-     * Fetch records that have <code>id BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>cid BETWEEN lowerInclusive AND upperInclusive</code>
      */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Cluster> fetchRangeOfId(Integer lowerInclusive, Integer upperInclusive) {
-        return fetchRange(Cluster.CLUSTER.ID, lowerInclusive, upperInclusive);
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Cluster> fetchRangeOfCid(Integer lowerInclusive, Integer upperInclusive) {
+        return fetchRange(Cluster.CLUSTER.CID, lowerInclusive, upperInclusive);
     }
 
     /**
-     * Fetch records that have <code>id IN (values)</code>
+     * Fetch records that have <code>cid IN (values)</code>
      */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Cluster> fetchById(Integer... values) {
-        return fetch(Cluster.CLUSTER.ID, values);
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Cluster> fetchByCid(Integer... values) {
+        return fetch(Cluster.CLUSTER.CID, values);
     }
 
     /**
-     * Fetch a unique record that has <code>id = value</code>
+     * Fetch a unique record that has <code>cid = value</code>
      */
-    public edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Cluster fetchOneById(Integer value) {
-        return fetchOne(Cluster.CLUSTER.ID, value);
+    public edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Cluster fetchOneByCid(Integer value) {
+        return fetchOne(Cluster.CLUSTER.CID, value);
     }
 
     /**

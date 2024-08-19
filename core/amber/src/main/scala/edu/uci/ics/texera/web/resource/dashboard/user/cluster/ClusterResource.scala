@@ -70,9 +70,9 @@ class ClusterResource {
     cluster.setStatus(ClusterStatus.LAUNCHED)
     clusterDao.update(cluster)
 
-    insertClusterActivity(cluster.getId, cluster.getCreationTime)
+    insertClusterActivity(cluster.getCid, cluster.getCreationTime)
 
-    clusterDao.fetchOneById(cluster.getId)
+    clusterDao.fetchOneByCid(cluster.getCid)
   }
 
   /**
@@ -85,16 +85,16 @@ class ClusterResource {
   @POST
   @Path("/delete")
   def deleteCluster(@Auth user: SessionUser, cluster: Cluster): Response = {
-    validateClusterOwnership(user, cluster.getId)
+    validateClusterOwnership(user, cluster.getCid)
 
-    updateClusterStatus(cluster.getId, ClusterStatus.TERMINATING)
+    updateClusterStatus(cluster.getCid, ClusterStatus.TERMINATING)
 
     // TODO: Call the Go Microservice
     // TODO: need to consider if the deletion fails
 
-    updateClusterStatus(cluster.getId, ClusterStatus.TERMINATED)
+    updateClusterStatus(cluster.getCid, ClusterStatus.TERMINATED)
 
-    updateClusterActivityEndTime(cluster.getId)
+    updateClusterActivityEndTime(cluster.getCid)
 
     Response.ok().build()
   }
@@ -109,16 +109,16 @@ class ClusterResource {
   @POST
   @Path("/pause")
   def pauseCluster(@Auth user: SessionUser, cluster: Cluster): Response = {
-    validateClusterOwnership(user, cluster.getId)
+    validateClusterOwnership(user, cluster.getCid)
 
-    updateClusterStatus(cluster.getId, ClusterStatus.PAUSING)
+    updateClusterStatus(cluster.getCid, ClusterStatus.PAUSING)
 
     // TODO: Call the Go Microservice
     // TODO: need to consider if the pause fails
 
-    updateClusterStatus(cluster.getId, ClusterStatus.PAUSED)
+    updateClusterStatus(cluster.getCid, ClusterStatus.PAUSED)
 
-    updateClusterActivityEndTime(cluster.getId)
+    updateClusterActivityEndTime(cluster.getCid)
 
     Response.ok().build()
   }
@@ -133,16 +133,16 @@ class ClusterResource {
   @POST
   @Path("/resume")
   def resumeCluster(@Auth user: SessionUser, cluster: Cluster): Response = {
-    validateClusterOwnership(user, cluster.getId)
+    validateClusterOwnership(user, cluster.getCid)
 
-    updateClusterStatus(cluster.getId, ClusterStatus.RESUMING)
+    updateClusterStatus(cluster.getCid, ClusterStatus.RESUMING)
 
     // TODO: Call the Go Microservice
     // TODO: need to consider if the resume fails
 
-    updateClusterStatus(cluster.getId, ClusterStatus.LAUNCHED)
+    updateClusterStatus(cluster.getCid, ClusterStatus.LAUNCHED)
 
-    insertClusterActivity(cluster.getId, Timestamp.from(Instant.now()))
+    insertClusterActivity(cluster.getCid, Timestamp.from(Instant.now()))
 
     Response.ok().build()
   }
@@ -158,12 +158,12 @@ class ClusterResource {
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Path("/update/name")
   def updateClusterName(@Auth user: SessionUser, cluster: Cluster): Response = {
-    validateClusterOwnership(user, cluster.getId)
+    validateClusterOwnership(user, cluster.getCid)
 
     context
       .update(CLUSTER)
       .set(CLUSTER.NAME, cluster.getName)
-      .where(CLUSTER.ID.eq(cluster.getId))
+      .where(CLUSTER.CID.eq(cluster.getCid))
       .execute()
 
     Response.ok().build()
@@ -188,7 +188,7 @@ class ClusterResource {
     * @param clusterId The ID of the cluster to validate ownership.
     */
   private def validateClusterOwnership(user: SessionUser, clusterId: Int): Unit = {
-    val clusterOwnerId = clusterDao.fetchOneById(clusterId).getOwnerId
+    val clusterOwnerId = clusterDao.fetchOneByCid(clusterId).getOwnerId
     if (clusterOwnerId != user.getUid) {
       throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_CLUSTER_MESSAGE)
     }
@@ -204,7 +204,7 @@ class ClusterResource {
     context
       .update(CLUSTER)
       .set(CLUSTER.STATUS, status)
-      .where(CLUSTER.ID.eq(clusterId))
+      .where(CLUSTER.CID.eq(clusterId))
       .execute()
   }
 

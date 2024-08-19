@@ -18,9 +18,9 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Cluster implements ICluster {
 
-    private static final long serialVersionUID = -346405278;
+    private static final long serialVersionUID = -343984889;
 
-    private Integer       id;
+    private Integer       cid;
     private String        name;
     private UInteger      ownerId;
     private String        machineType;
@@ -31,7 +31,7 @@ public class Cluster implements ICluster {
     public Cluster() {}
 
     public Cluster(ICluster value) {
-        this.id = value.getId();
+        this.cid = value.getCid();
         this.name = value.getName();
         this.ownerId = value.getOwnerId();
         this.machineType = value.getMachineType();
@@ -41,7 +41,7 @@ public class Cluster implements ICluster {
     }
 
     public Cluster(
-        Integer       id,
+        Integer       cid,
         String        name,
         UInteger      ownerId,
         String        machineType,
@@ -49,7 +49,7 @@ public class Cluster implements ICluster {
         Timestamp     creationTime,
         ClusterStatus status
     ) {
-        this.id = id;
+        this.cid = cid;
         this.name = name;
         this.ownerId = ownerId;
         this.machineType = machineType;
@@ -59,13 +59,13 @@ public class Cluster implements ICluster {
     }
 
     @Override
-    public Integer getId() {
-        return this.id;
+    public Integer getCid() {
+        return this.cid;
     }
 
     @Override
-    public void setId(Integer id) {
-        this.id = id;
+    public void setCid(Integer cid) {
+        this.cid = cid;
     }
 
     @Override
@@ -132,7 +132,7 @@ public class Cluster implements ICluster {
     public String toString() {
         StringBuilder sb = new StringBuilder("Cluster (");
 
-        sb.append(id);
+        sb.append(cid);
         sb.append(", ").append(name);
         sb.append(", ").append(ownerId);
         sb.append(", ").append(machineType);
@@ -150,7 +150,7 @@ public class Cluster implements ICluster {
 
     @Override
     public void from(ICluster from) {
-        setId(from.getId());
+        setCid(from.getCid());
         setName(from.getName());
         setOwnerId(from.getOwnerId());
         setMachineType(from.getMachineType());

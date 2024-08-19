@@ -19,14 +19,14 @@ import org.jooq.types.UInteger;
 public interface ICluster extends Serializable {
 
     /**
-     * Setter for <code>texera_db.cluster.id</code>.
+     * Setter for <code>texera_db.cluster.cid</code>.
      */
-    public void setId(Integer value);
+    public void setCid(Integer value);
 
     /**
-     * Getter for <code>texera_db.cluster.id</code>.
+     * Getter for <code>texera_db.cluster.cid</code>.
      */
-    public Integer getId();
+    public Integer getCid();
 
     /**
      * Setter for <code>texera_db.cluster.name</code>.

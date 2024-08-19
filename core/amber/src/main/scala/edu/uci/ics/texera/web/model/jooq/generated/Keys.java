@@ -145,7 +145,7 @@ public class Keys {
     // -------------------------------------------------------------------------
 
     private static class Identities0 {
-        public static Identity<ClusterRecord, Integer> IDENTITY_CLUSTER = Internal.createIdentity(Cluster.CLUSTER, Cluster.CLUSTER.ID);
+        public static Identity<ClusterRecord, Integer> IDENTITY_CLUSTER = Internal.createIdentity(Cluster.CLUSTER, Cluster.CLUSTER.CID);
         public static Identity<ClusterActivityRecord, Integer> IDENTITY_CLUSTER_ACTIVITY = Internal.createIdentity(ClusterActivity.CLUSTER_ACTIVITY, ClusterActivity.CLUSTER_ACTIVITY.ID);
         public static Identity<DatasetRecord, UInteger> IDENTITY_DATASET = Internal.createIdentity(Dataset.DATASET, Dataset.DATASET.DID);
         public static Identity<DatasetVersionRecord, UInteger> IDENTITY_DATASET_VERSION = Internal.createIdentity(DatasetVersion.DATASET_VERSION, DatasetVersion.DATASET_VERSION.DVID);
@@ -158,7 +158,7 @@ public class Keys {
     }
 
     private static class UniqueKeys0 {
-        public static final UniqueKey<ClusterRecord> KEY_CLUSTER_PRIMARY = Internal.createUniqueKey(Cluster.CLUSTER, "KEY_cluster_PRIMARY", Cluster.CLUSTER.ID);
+        public static final UniqueKey<ClusterRecord> KEY_CLUSTER_PRIMARY = Internal.createUniqueKey(Cluster.CLUSTER, "KEY_cluster_PRIMARY", Cluster.CLUSTER.CID);
         public static final UniqueKey<ClusterActivityRecord> KEY_CLUSTER_ACTIVITY_PRIMARY = Internal.createUniqueKey(ClusterActivity.CLUSTER_ACTIVITY, "KEY_cluster_activity_PRIMARY", ClusterActivity.CLUSTER_ACTIVITY.ID);
         public static final UniqueKey<DatasetRecord> KEY_DATASET_PRIMARY = Internal.createUniqueKey(Dataset.DATASET, "KEY_dataset_PRIMARY", Dataset.DATASET.DID);
         public static final UniqueKey<DatasetUserAccessRecord> KEY_DATASET_USER_ACCESS_PRIMARY = Internal.createUniqueKey(DatasetUserAccess.DATASET_USER_ACCESS, "KEY_dataset_user_access_PRIMARY", DatasetUserAccess.DATASET_USER_ACCESS.DID, DatasetUserAccess.DATASET_USER_ACCESS.UID);

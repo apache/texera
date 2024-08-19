@@ -36,7 +36,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Cluster extends TableImpl<ClusterRecord> {
 
-    private static final long serialVersionUID = -1137613607;
+    private static final long serialVersionUID = -499081102;
 
     /**
      * The reference instance of <code>texera_db.cluster</code>
@@ -52,9 +52,9 @@ public class Cluster extends TableImpl<ClusterRecord> {
     }
 
     /**
-     * The column <code>texera_db.cluster.id</code>.
+     * The column <code>texera_db.cluster.cid</code>.
      */
-    public final TableField<ClusterRecord, Integer> ID = createField(DSL.name("id"), org.jooq.impl.SQLDataType.INTEGER.nullable(false).identity(true), this, "");
+    public final TableField<ClusterRecord, Integer> CID = createField(DSL.name("cid"), org.jooq.impl.SQLDataType.INTEGER.nullable(false).identity(true), this, "");
 
     /**
      * The column <code>texera_db.cluster.name</code>.

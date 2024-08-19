@@ -24,21 +24,21 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class ClusterRecord extends UpdatableRecordImpl<ClusterRecord> implements Record7<Integer, String, UInteger, String, Integer, Timestamp, ClusterStatus>, ICluster {
 
-    private static final long serialVersionUID = -1405137813;
+    private static final long serialVersionUID = 2126947239;
 
     /**
-     * Setter for <code>texera_db.cluster.id</code>.
+     * Setter for <code>texera_db.cluster.cid</code>.
      */
     @Override
-    public void setId(Integer value) {
+    public void setCid(Integer value) {
         set(0, value);
     }
 
     /**
-     * Getter for <code>texera_db.cluster.id</code>.
+     * Getter for <code>texera_db.cluster.cid</code>.
      */
     @Override
-    public Integer getId() {
+    public Integer getCid() {
         return (Integer) get(0);
     }
 
@@ -163,7 +163,7 @@ public class ClusterRecord extends UpdatableRecordImpl<ClusterRecord> implements
 
     @Override
     public Field<Integer> field1() {
-        return Cluster.CLUSTER.ID;
+        return Cluster.CLUSTER.CID;
     }
 
     @Override
@@ -198,7 +198,7 @@ public class ClusterRecord extends UpdatableRecordImpl<ClusterRecord> implements
 
     @Override
     public Integer component1() {
-        return getId();
+        return getCid();
     }
 
     @Override
@@ -233,7 +233,7 @@ public class ClusterRecord extends UpdatableRecordImpl<ClusterRecord> implements
 
     @Override
     public Integer value1() {
-        return getId();
+        return getCid();
     }
 
     @Override
@@ -268,7 +268,7 @@ public class ClusterRecord extends UpdatableRecordImpl<ClusterRecord> implements
 
     @Override
     public ClusterRecord value1(Integer value) {
-        setId(value);
+        setCid(value);
         return this;
     }
 
@@ -326,7 +326,7 @@ public class ClusterRecord extends UpdatableRecordImpl<ClusterRecord> implements
 
     @Override
     public void from(ICluster from) {
-        setId(from.getId());
+        setCid(from.getCid());
         setName(from.getName());
         setOwnerId(from.getOwnerId());
         setMachineType(from.getMachineType());
@@ -355,10 +355,10 @@ public class ClusterRecord extends UpdatableRecordImpl<ClusterRecord> implements
     /**
      * Create a detached, initialised ClusterRecord
      */
-    public ClusterRecord(Integer id, String name, UInteger ownerId, String machineType, Integer numberOfMachines, Timestamp creationTime, ClusterStatus status) {
+    public ClusterRecord(Integer cid, String name, UInteger ownerId, String machineType, Integer numberOfMachines, Timestamp creationTime, ClusterStatus status) {
         super(Cluster.CLUSTER);
 
-        set(0, id);
+        set(0, cid);
         set(1, name);
         set(2, ownerId);
         set(3, machineType);
