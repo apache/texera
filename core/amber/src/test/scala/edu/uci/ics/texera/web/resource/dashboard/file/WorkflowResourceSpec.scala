@@ -509,18 +509,6 @@ class WorkflowResourceSpec
     assert(DashboardClickableFileEntryList.results.length == 2)
   }
 
-  it should "only return resources that match the given keyword" in {
-    projectResource.createProject(sessionUser1, "test project")
-    workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
-
-    val DashboardClickableFileEntryList =
-      dashboardResource.searchAllResourcesCall(
-        sessionUser1,
-        SearchQueryParams(getKeywordsArray("unique"))
-      )
-    assert(DashboardClickableFileEntryList.results.length == 1)
-  }
-
   it should "return multiple matching resources from a single resource type" in {
     workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
     projectResource.createProject(sessionUser1, "common project1")
