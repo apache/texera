@@ -27,7 +27,9 @@ public enum ClusterStatus implements EnumType {
 
     TERMINATING("TERMINATING"),
 
-    TERMINATED("TERMINATED");
+    TERMINATED("TERMINATED"),
+
+    FAILED("FAILED");
 
     private final String literal;
 
