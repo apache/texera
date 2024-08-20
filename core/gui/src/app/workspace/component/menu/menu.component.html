@@ -1,4 +1,14 @@
 <div id="menu-container">
+  <div
+    *ngIf="!userSystemEnabled"
+    id="logo">
+    <a href="{{userSystemEnabled?'/dashboard/workflow':'/'}}">
+      <img
+        alt="Texera"
+        height="{{userSystemEnabled?75:38}}"
+        src="assets/logos/full_logo_small.png" />
+    </a>
+  </div>
   <div id="menu-content">
     <div
       id="menu-user"
