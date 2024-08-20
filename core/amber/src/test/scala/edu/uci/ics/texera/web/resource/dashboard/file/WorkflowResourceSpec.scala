@@ -603,7 +603,7 @@ class WorkflowResourceSpec
   it should "paginate results correctly" in {
     // This test is designed to verify that the pagination works correctly
 
-    // Create 1 workflow, 10 projects, 10 files
+    // Create 1 workflow, 10 projects
     workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
     for (i <- 1 to 10) {
       projectResource.createProject(sessionUser1, s"test project $i")
@@ -626,21 +626,9 @@ class WorkflowResourceSpec
 
     // Assert that the second page has 1 results
     assert(secondPage.results.length == 1)
-    assert(secondPage.more) // Assert that there are more results to be fetched
-
-    // Request the third page of results
-    val thirdPage =
-      dashboardResource.searchAllResourcesCall(
-        sessionUser1,
-        SearchQueryParams(count = 10, offset = 20)
-      )
-
-    // Assert that the third page has 5 results (since we only have 25 resources)
-    assert(thirdPage.results.length == 1)
-    assert(!thirdPage.more) // Assert that there are no more results to be fetched
 
     // Assert that the results are unique across all pages
-    val allResults = firstPage.results ++ secondPage.results ++ thirdPage.results
+    val allResults = firstPage.results ++ secondPage.results
     assert(allResults.distinct.length == allResults.length)
   }
 
