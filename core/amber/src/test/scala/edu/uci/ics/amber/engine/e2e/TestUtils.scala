@@ -22,7 +22,6 @@ object TestUtils {
     workflowCompiler.compile(
       LogicalPlanPojo(operators, links, List(), List()),
       resultStorage,
-      None,
       new ExecutionStateStore()
     )
   }
