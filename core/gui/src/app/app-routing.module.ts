@@ -25,12 +25,7 @@ import { UserDatasetComponent } from "./dashboard/component/user/user-dataset/us
 const routes: Routes = [
   {
     path: "",
-    component: WorkspaceComponent,
-    canActivate: [AuthGuardService],
-  },
-  {
-    path: "workflow/:id",
-    component: WorkspaceComponent,
+    component: environment.userSystemEnabled ? UserWorkflowComponent : WorkspaceComponent,
     canActivate: [AuthGuardService],
   },
 ];
@@ -55,6 +50,11 @@ if (environment.userSystemEnabled) {
       {
         path: "user-project/:pid",
         component: UserProjectSectionComponent,
+      },
+      {
+        path: "workspace/:id",
+        component: WorkspaceComponent,
+        canActivate: [AuthGuardService],
       },
       {
         path: "workflow",

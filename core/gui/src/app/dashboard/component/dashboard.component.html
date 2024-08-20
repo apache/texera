@@ -1,19 +1,23 @@
-<div id="nav">
-  <img
-    alt="logo"
-    class="logo"
-    height="50"
-    src="../../../../assets/logos/logo.png" />
-  <texera-user-icon></texera-user-icon>
-</div>
 <nz-layout class="layout">
   <nz-sider
     nzCollapsible
     [nzCollapsedWidth]="45"
+    (nzCollapsedChange)="handleCollapseChange($event)"
     nzTheme="light">
     <ul
       nz-menu
       nzMode="inline">
+      <li class="logo-section">
+        <img
+          *ngIf="isCollpased"
+          alt="mini-logo"
+          src="../../../../assets/logos/favicon-32x32.png" />
+        <img
+          *ngIf="!isCollpased"
+          alt="logo"
+          height="50"
+          src="../../../../assets/logos/logo.png" />
+      </li>
       <li
         nz-menu-item
         nz-tooltip="Look up the user projects"
@@ -140,6 +144,11 @@
     </ul>
   </nz-sider>
   <nz-layout>
+    <div
+      *ngIf="displayNavbar"
+      id="nav">
+      <texera-user-icon></texera-user-icon>
+    </div>
     <nz-content>
       <router-outlet></router-outlet>
     </nz-content>
