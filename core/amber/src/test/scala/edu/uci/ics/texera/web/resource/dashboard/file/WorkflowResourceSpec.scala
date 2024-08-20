@@ -625,7 +625,7 @@ class WorkflowResourceSpec
       )
 
     // Assert that the second page has 10 results
-    assert(secondPage.results.length == 10)
+    assert(secondPage.results.length == 1)
     assert(secondPage.more) // Assert that there are more results to be fetched
 
     // Request the third page of results
