@@ -624,7 +624,7 @@ class WorkflowResourceSpec
         SearchQueryParams(count = 10, offset = 10)
       )
 
-    // Assert that the second page has 10 results
+    // Assert that the second page has 1 results
     assert(secondPage.results.length == 1)
     assert(secondPage.more) // Assert that there are more results to be fetched
 
