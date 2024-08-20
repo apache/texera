@@ -32,7 +32,6 @@ if (environment.userSystemEnabled) {
   /*
    *  The user dashboard is under path '/dashboard'
    *  The saved workflow is under path '/dashboard/workflow'
-   *  The user file is under path '/dashboard/user-file'
    *  The user dictionary is under path '/dashboard/user-dictionary'
    *  The user project list is under path '/dashboard/project'
    *  The single user project is under path 'dashboard/project/{pid}'
