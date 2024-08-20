@@ -1,23 +1,12 @@
 import { Component, EventEmitter, Input, Output, OnInit, OnChanges, SimpleChanges } from "@angular/core";
-import { environment } from "src/environments/environment";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzModalService } from "ng-zorro-antd/modal";
-import { WorkflowExecutionHistoryComponent } from "../user-workflow/ngbd-modal-workflow-executions/workflow-execution-history.component";
 import { DashboardEntry } from "src/app/dashboard/type/dashboard-entry";
 import { ShareAccessComponent } from "../share-access/share-access.component";
-import {
-  DEFAULT_WORKFLOW_NAME,
-  WorkflowPersistService,
-} from "src/app/common/service/workflow-persist/workflow-persist.service";
+import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
 import { Workflow } from "src/app/common/type/workflow";
-import { Dataset } from "src/app/common/type/dataset";
-import { DatasetService } from "src/app/dashboard/service/user/dataset/dataset.service";
 import { FileSaverService } from "src/app/dashboard/service/user/file/file-saver.service";
-import { DashboardProject } from "src/app/dashboard/type/dashboard-project.interface";
-import { UserProjectService } from "src/app/dashboard/service/user/project/user-project.service";
 import { firstValueFrom } from "rxjs";
-import { DashboardDataset } from "src/app/dashboard/type/dashboard-dataset.interface";
-import { NotificationService } from "src/app/common/service/notification/notification.service";
 
 @UntilDestroy()
 @Component({
@@ -51,10 +40,7 @@ export class ListItemComponent implements OnInit, OnChanges {
   constructor(
     private modalService: NzModalService,
     private workflowPersistService: WorkflowPersistService,
-    private fileSaverService: FileSaverService,
-    private userProjectService: UserProjectService,
-    private datasetService: DatasetService,
-    private notificationService: NotificationService
+    private fileSaverService: FileSaverService
   ) {}
 
   initializeEntry() {
@@ -132,6 +118,32 @@ export class ListItemComponent implements OnInit, OnChanges {
             this.fileSaverService.saveAs(new Blob([workflowJson], { type: "text/plain;charset=utf-8" }), fileName);
           });
       }
+    }
+  }
+
+  formatTime(timestamp: number | undefined): string {
+    if (timestamp === undefined) {
+      return "Unknown"; // Return "Unknown" if the timestamp is undefined
+    }
+
+    const currentTime = new Date().getTime();
+    const timeDifference = currentTime - timestamp;
+
+    const minutesAgo = Math.floor(timeDifference / (1000 * 60));
+    const hoursAgo = Math.floor(timeDifference / (1000 * 60 * 60));
+    const daysAgo = Math.floor(timeDifference / (1000 * 60 * 60 * 24));
+    const weeksAgo = Math.floor(daysAgo / 7);
+
+    if (minutesAgo < 60) {
+      return `${minutesAgo} minutes ago`;
+    } else if (hoursAgo < 24) {
+      return `${hoursAgo} hours ago`;
+    } else if (daysAgo < 7) {
+      return `${daysAgo} days ago`;
+    } else if (weeksAgo < 4) {
+      return `${weeksAgo} weeks ago`;
+    } else {
+      return new Date(timestamp).toLocaleDateString();
     }
   }
 }

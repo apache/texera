@@ -25,7 +25,6 @@
       nzSpan="12">
       <div class="edit-info">
         <div class="resource-owner">
-          <em>by</em>
           <texera-user-avatar
             class="user-avatar"
             googleAvatar=""
@@ -33,8 +32,8 @@
             [userName]="entry.ownerName || 'User'">
           </texera-user-avatar>
         </div>
-        <div class="resource-time-info">Created: {{ entry.creationTime | date: 'mediumDate'}}</div>
-        <div class="resource-time-info">Edited: {{ entry.lastModifiedTime | date: 'mediumDate'}}</div>
+        <div class="resource-time-info">Created: {{ formatTime(entry.creationTime) }}</div>
+        <div class="resource-time-info">Edited: {{ formatTime(entry.lastModifiedTime) }}</div>
       </div>
     </div>
   </div>
