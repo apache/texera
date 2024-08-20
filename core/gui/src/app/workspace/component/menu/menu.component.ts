@@ -274,12 +274,13 @@ export class MenuComponent implements OnInit {
       .generateWorkflowSnapshot(workflowName)
       .pipe(untilDestroyed(this))
       .subscribe({
-        next: (snapshot: string) => this.reportGenerationService.getAllOperatorResults({
-          operatorIds,
-          operators,
-          workflowSnapshot: snapshot,
-          workflowName // Pass workflowName here
-        }),
+        next: (snapshot: string) =>
+          this.reportGenerationService.getAllOperatorResults({
+            operatorIds,
+            operators,
+            workflowSnapshot: snapshot,
+            workflowName, // Pass workflowName here
+          }),
         error: (e: unknown) => this.notificationService.error((e as Error).message),
       });
   }
