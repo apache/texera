@@ -1,24 +1,23 @@
 @import "../../../section-style";
 @import "../../../dashboard.component.scss";
-
 /**
-  * css for project label, shared by workflow section and file section
-**/
-.dataset-list-item {
+  * css specifically for each file item in the list (not shared by workflow items)
+  **/
+.file-list-item {
   margin-bottom: 10px;
   min-height: 70px;
   padding: 5px 0 5px 0;
 
-  .dataset-item-meta {
+  .file-item-meta {
     margin: 0 20px;
   }
 
-  .dataset-item-meta-title {
+  .file-item-meta-title {
     display: flex;
     align-items: center;
 
-    .dataset-name {
-      color: black;
+    .file-name {
+      //color: rgb(62, 202, 253);
       font-size: 20px;
       font-family: -apple-system, BlinkMacSystemFont, sans-serif;
       text-align: center;
@@ -30,18 +29,19 @@
       margin-bottom: 6px;
     }
 
-    i.dataset-is-owner-icon {
+    i.file-is-owner-icon {
       margin-left: 7px;
     }
   }
 
-  .dataset-item-meta-description {
+  .file-item-meta-description {
     display: flex;
     align-items: center;
     padding: 2px 8px 2px 10px;
     margin-bottom: 8px;
 
-    .dataset-description-label {
+    .file-description-label {
+      // color: #000000;
       font-size: 13px;
       font-family: -apple-system, BlinkMacSystemFont, sans-serif;
 
@@ -56,7 +56,7 @@
       }
     }
 
-    .dataset-editable-description-input {
+    .file-editable-description-input {
       margin-bottom: 5px;
       display: inline-block;
       min-width: 17ch;

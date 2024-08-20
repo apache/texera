@@ -1,7 +1,18 @@
 #nav {
-  height: 70px;
-  background-color: #f8f9fa;
-  padding: 8px 16px;
+  height: 75px;
+  padding: 10px 0 10px 24px;
+  display: flex;
+  align-items: center;
+  background-color: white;
+  justify-content: space-between;
+}
+
+texera-filters-instructions {
+  margin-right: 10px;
+}
+
+texera-search-bar {
+  flex: 1;
 }
 
 button {
@@ -9,12 +20,11 @@ button {
 }
 
 texera-user-icon {
-  float: right;
-  padding: 8px;
+  padding: 0 24px;
 }
 
 .layout {
-  height: calc(100vh - 70px);
+  height: 100vh;
 }
 
 .ant-layout-content {
@@ -26,4 +36,15 @@ texera-user-icon {
   overflow-x: hidden;
   overflow-y: auto;
   height: calc(100vh - 70px - 48px);
+}
+
+.logo-section {
+  height: 70px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+nz-content {
+  position: relative;
 }
