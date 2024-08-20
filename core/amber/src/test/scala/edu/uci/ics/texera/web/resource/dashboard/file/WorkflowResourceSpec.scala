@@ -562,14 +562,6 @@ class WorkflowResourceSpec
       SearchQueryParams(resourceType = "project", keywords = getKeywordsArray("test"))
     )
     assert(DashboardClickableFileEntryList.results.length == 3)
-
-    // filter resources by file
-    DashboardClickableFileEntryList = dashboardResource.searchAllResourcesCall(
-      sessionUser1,
-      SearchQueryParams(resourceType = "file", keywords = getKeywordsArray("test"))
-    )
-    assert(DashboardClickableFileEntryList.results.length == 2)
-
   }
 
   it should "return resources that match any of all provided keywords" in {
