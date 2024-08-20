@@ -15,16 +15,53 @@ import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.FAILE
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants
 
 import java.time.Instant
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
+
+case class WorkflowCompilationResult(
+    physicalPlan: PhysicalPlan,
+    operatorIdToInputSchemas: Map[OperatorIdentity, List[Option[Schema]]],
+    operatorIdToError: Map[OperatorIdentity, WorkflowFatalError]
+)
 
 class WorkflowCompiler(
     context: WorkflowContext
 ) extends LazyLogging {
 
+  def compileToLogicalPlan(
+      logicalPlanPojo: LogicalPlanPojo
+  ): (LogicalPlan, Map[OperatorIdentity, WorkflowFatalError]) = {
+    val errorList = new ArrayBuffer[(OperatorIdentity, Throwable)]()
+    val opIdToError = mutable.Map[OperatorIdentity, WorkflowFatalError]()
+
+    var logicalPlan: LogicalPlan = LogicalPlan(logicalPlanPojo)
+    logicalPlan = SinkInjectionTransformer.transform(
+      logicalPlanPojo.opsToViewResult,
+      logicalPlan
+    )
+
+    logicalPlan.propagateWorkflowSchema(context, Some(errorList))
+    // report compilation errors
+    if (errorList.nonEmpty) {
+      errorList.foreach {
+        case (opId, err) =>
+          logger.error("error occurred in logical plan compilation", err)
+          opIdToError += (opId -> WorkflowFatalError(
+            COMPILATION_ERROR,
+            Timestamp(Instant.now),
+            err.toString,
+            getStackTraceWithAllCauses(err),
+            opId.id
+          ))
+      }
+    }
+    (logicalPlan, opIdToError.toMap)
+  }
   def compileLogicalPlan(
       logicalPlanPojo: LogicalPlanPojo,
       executionStateStore: ExecutionStateStore
@@ -90,6 +127,41 @@ class WorkflowCompiler(
       logicalPlan,
       physicalPlan
     )
+  }
+
+  def cleanCompile(
+      logicalPlanPojo: LogicalPlanPojo
+  ): WorkflowCompilationResult = {
+    val (logicalPlan, opIdToError) = compileToLogicalPlan(logicalPlanPojo)
+    if (opIdToError.nonEmpty) {
+      // encounter error during compile the logical plan pojo to logical plan,
+      // so directly return empty physical plan, empty schema map and error
+      return WorkflowCompilationResult(
+        physicalPlan = PhysicalPlan.empty,
+        operatorIdToInputSchemas = Map.empty,
+        operatorIdToError = opIdToError
+      )
+    }
+    // the PhysicalPlan with topology expanded.
+    val physicalPlan = PhysicalPlan(context, logicalPlan)
+
+    // Extract physical input schemas, excluding internal ports
+    val physicalInputSchemas = physicalPlan.operators.map { physicalOp =>
+      physicalOp.id -> physicalOp.inputPorts.values
+        .filterNot(_._1.id.internal)
+        .map {
+          case (port, _, schema) => port.id -> schema.toOption
+        }
+    }
+
+    // Group the physical input schemas by their logical operator ID and consolidate the schemas
+    val opIdToInputSchemas = physicalInputSchemas
+      .groupBy(_._1.logicalOpId)
+      .view
+      .mapValues(_.flatMap(_._2).toList.sortBy(_._1.id).map(_._2))
+      .toMap
+
+    WorkflowCompilationResult(physicalPlan, opIdToInputSchemas, Map.empty)
   }
 
   private def assignSinkStorage(

@@ -19,7 +19,7 @@ import org.jgrapht.util.SupplierUtil
 import scala.jdk.CollectionConverters.{IteratorHasAsScala, ListHasAsScala, SetHasAsScala}
 
 object PhysicalPlan {
-
+  def empty: PhysicalPlan = PhysicalPlan(operators = Set.empty, links = Set.empty)
   def apply(context: WorkflowContext, logicalPlan: LogicalPlan): PhysicalPlan = {
 
     var physicalPlan = PhysicalPlan(operators = Set.empty, links = Set.empty)
