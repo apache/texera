@@ -1,0 +1,94 @@
+<div class="section-container subsection-grid-container">
+  <nz-card class="section-title">
+    <h2 class="page-title">Clusters</h2>
+
+    <button
+      (click)="openClusterManagementModal()"
+      nz-button
+      title="Create a new cluster"
+      nz-tooltip="Create a new cluster"
+      nzTooltipPlacement="bottom"
+      type="button">
+      <i
+        nz-icon
+        nzTheme="outline"
+        nzType="file-add"></i>
+    </button>
+  </nz-card>
+
+  <div class="section-search-bar workflow-search-bar">
+    <texera-filters-instructions></texera-filters-instructions>
+    <nz-select
+      class="search-input-box"
+      name="search-input-box"
+      nzMode="tags"
+      nzPlaceHolder="Search clusters"
+      [nzBorderless]="true"
+      [nzOpen]="false"
+      ngDefaultControl
+      [nzAllowClear]="true">
+    </nz-select>
+  </div>
+
+  <nz-table #basicTable [nzData]="clusterList">
+    <thead>
+    <tr>
+      <th>Cluster ID</th>
+      <th>Cluster Name</th>
+      <th>Creation Time</th>
+      <th>Machine #</th>
+      <th>Machine Type</th>
+      <th>State</th>
+      <th>Actions</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr *ngFor="let data of basicTable.data">
+      <td>{{ data.cid }}</td>
+      <td>{{ data.name }}</td>
+      <td>{{ data.creationTime }}</td>
+      <td>{{ data.numberOfMachines}}</td>
+      <td>{{ data.machineType }}</td>
+      <td>
+                  <span
+                    [ngClass]="{
+                      'state-box': true,
+                      'state-launching': data.status === 'launching',
+                      'state-ready': data.status === 'ready',
+                      'state-finished': data.status === 'finished',
+                      'state-other':
+                        data.status !== 'launching' &&
+                        data.status !== 'ready' &&
+                        data.status !== 'finished',
+                    }"
+                  >
+                    {{ data.status }}
+                  </span>
+      </td>
+      <td>
+        <button
+          nz-button
+          nzType="default"
+          nzDanger
+          (click)="deleteCluster(data)"
+        >
+          <i class="fas fa-trash-alt"></i> Delete
+        </button>
+      </td>
+    </tr>
+    </tbody>
+  </nz-table>
+
+  <texera-search-results
+    [editable]="true"
+    ></texera-search-results>
+
+
+
+  <app-cluster-management-modal
+    [isVisible]="isClusterManagementVisible"
+    (closeModal)="closeClusterManagementModal()"
+  >
+  </app-cluster-management-modal>
+
+</div>

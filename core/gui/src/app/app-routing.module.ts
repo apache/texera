@@ -14,6 +14,7 @@ import { AdminUserComponent } from "./dashboard/component/admin/user/admin-user.
 import { AdminExecutionComponent } from "./dashboard/component/admin/execution/admin-execution.component";
 import { AdminGuardService } from "./dashboard/service/admin/guard/admin-guard.service";
 import { SearchComponent } from "./dashboard/component/user/search/search.component";
+import { ClusterComponent } from "./dashboard/component/user/cluster/cluster.component";
 import { FlarumComponent } from "./dashboard/component/user/flarum/flarum.component";
 import { AdminGmailComponent } from "./dashboard/component/admin/gmail/admin-gmail.component";
 import { UserDatasetExplorerComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-explorer.component";
@@ -88,6 +89,10 @@ if (environment.userSystemEnabled) {
       {
         path: "discussion",
         component: FlarumComponent,
+      },
+      {
+        path: "cluster",
+        component: ClusterComponent,
       },
       {
         path: "admin/user",
