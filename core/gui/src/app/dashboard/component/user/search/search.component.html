@@ -1,30 +1,26 @@
-<div class="section-container subsection-grid-container">
-  <nz-card class="section-title">
-    <h2 class="page-title">Search</h2>
-    <nz-button-group
-      class="utility-button-group"
-      ngbDropdown>
+<div class="general-search-container">
+  <div class="general-search-section">
+    <button
+      class="go-back-button"
+      nz-button
+      nzType="text"
+      nzSize="large"
+      (click)="goBack()">
+      <span
+        nz-icon
+        nzType="arrow-left"
+        nzTheme="outline"></span>
+    </button>
+    <div class="filters">
       <texera-sort-button (sortMethodChange)="sortMethod = $event; search()"></texera-sort-button>
-    </nz-button-group>
-    <texera-filters #filters></texera-filters>
-  </nz-card>
-
-  <div class="section-search-bar workflow-search-bar">
-    <texera-filters-instructions></texera-filters-instructions>
-    <nz-select
-      class="search-input-box"
-      name="search-input-box"
-      nzMode="tags"
-      nzPlaceHolder="Search all"
-      [nzBorderless]="true"
-      [nzOpen]="false"
-      ngDefaultControl
-      [(ngModel)]="filters.masterFilterList"
-      [nzAllowClear]="true">
-    </nz-select>
+      <texera-filters #filters></texera-filters>
+    </div>
   </div>
 
-  <texera-search-results
-    [showResourceTypes]="true"
-    [searchKeywords]="this.filters.getSearchKeywords()"></texera-search-results>
+  <div class="general-search-result">
+    <texera-search-results
+      [showResourceTypes]="true"
+      [searchKeywords]="this.filters.getSearchKeywords()">
+    </texera-search-results>
+  </div>
 </div>

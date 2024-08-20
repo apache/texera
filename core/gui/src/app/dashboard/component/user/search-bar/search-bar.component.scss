@@ -1,0 +1,16 @@
+.nz-input-group {
+  display: flex;
+  align-items: center;
+  margin: 0;
+}
+
+input[nz-input] {
+  border: none;
+  outline: none;
+  font-size: 18px;
+  padding: 4px 7px;
+}
+
+.nz-prefix-icon {
+  color: #888;
+}

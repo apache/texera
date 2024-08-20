@@ -74,7 +74,9 @@
     </nz-input-group>
   </div>
 
-  <nz-card class="section-list-container">
+  <nz-card
+    class="section-list-container"
+    [nzBodyStyle]="{ height: '100%'}">
     <!-- itemSize: the height (px) of each list item,
       this MUST be approximately the same as list item size set in CSS,
       .file-list-item sets the item size to be 70px, with additional paddings/margins it's approximately 80px

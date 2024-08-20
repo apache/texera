@@ -1,0 +1,10 @@
+<nz-input-group
+  nzSize="large"
+  nzPrefixIcon="search">
+  <input
+    type="text"
+    nz-input
+    placeholder="Search"
+    [(ngModel)]="searchParam"
+    (keydown.enter)="performSearch(searchParam)" />
+</nz-input-group>

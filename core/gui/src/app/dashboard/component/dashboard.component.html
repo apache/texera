@@ -65,18 +65,6 @@
           nzType="database"></span>
         <span>Datasets</span>
       </li>
-
-      <li
-        nz-menu-item
-        nz-tooltip="Search across the entire site"
-        nzMatchRouter="true"
-        nzTooltipPlacement="right"
-        routerLink="/dashboard/search">
-        <span
-          nz-icon
-          nzType="file-search"></span>
-        <span>Search</span>
-      </li>
       <li
         nz-menu-item
         nz-tooltip="Quota information"
@@ -147,6 +135,7 @@
     <div
       *ngIf="displayNavbar"
       id="nav">
+      <texera-search-bar></texera-search-bar>
       <texera-user-icon></texera-user-icon>
     </div>
     <nz-content>
