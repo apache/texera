@@ -36,10 +36,6 @@ import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.{
 }
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.service.GitVersionControlLocalFileStorage
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.PathUtils.getAllDatasetDirectories
-import edu.uci.ics.texera.web.resource.dashboard.user.file.{
-  UserFileAccessResource,
-  UserFileResource
-}
 import edu.uci.ics.texera.web.resource.dashboard.user.project.{
   ProjectAccessResource,
   ProjectResource,
@@ -247,8 +243,6 @@ class TexeraWebApplication
     environment.jersey.register(classOf[AuthResource])
     environment.jersey.register(classOf[GoogleAuthResource])
     environment.jersey.register(classOf[UserConfigResource])
-    environment.jersey.register(classOf[UserFileAccessResource])
-    environment.jersey.register(classOf[UserFileResource])
     environment.jersey.register(classOf[AdminUserResource])
     environment.jersey.register(classOf[PublicProjectResource])
     environment.jersey.register(classOf[WorkflowAccessResource])

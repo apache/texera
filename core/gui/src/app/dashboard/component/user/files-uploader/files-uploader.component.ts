@@ -1,7 +1,6 @@
 import { Component, EventEmitter, Input, Output } from "@angular/core";
 import { FileUploadItem } from "../../../type/dashboard-file.interface";
 import { NgxFileDropEntry } from "ngx-file-drop";
-import { UserFileUploadService } from "../../../service/user/file/user-file-upload.service";
 import {
   DatasetVersionFileTreeManager,
   DatasetFileNode,
@@ -64,8 +63,13 @@ export class FilesUploaderComponent {
               reject(null);
             } else {
               // If the file size is within the limit, proceed
-              const fileUploadItem = UserFileUploadService.createFileUploadItemWithPath(file, droppedFile.relativePath);
-              resolve(fileUploadItem);
+              resolve({
+                file: file,
+                name: droppedFile.relativePath,
+                description: "",
+                uploadProgress: 0,
+                isUploadingFlag: false,
+              });
             }
           }, reject);
         } else {
