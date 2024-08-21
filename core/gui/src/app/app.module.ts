@@ -32,14 +32,11 @@ import { TEXERA_FORMLY_CONFIG } from "./common/formly/formly-config";
 import { MultiSchemaTypeComponent } from "./common/formly/multischema.type";
 import { NullTypeComponent } from "./common/formly/null.type";
 import { ObjectTypeComponent } from "./common/formly/object.type";
-import { UserFileUploadService } from "./dashboard/service/user/file/user-file-upload.service";
-import { UserFileService } from "./dashboard/service/user/file/user-file.service";
 import { UserService } from "./common/service/user/user.service";
 import { DashboardComponent } from "./dashboard/component/dashboard.component";
 import { UserWorkflowComponent } from "./dashboard/component/user/user-workflow/user-workflow.component";
 import { ShareAccessComponent } from "./dashboard/component/user/share-access/share-access.component";
 import { WorkflowExecutionHistoryComponent } from "./dashboard/component/user/user-workflow/ngbd-modal-workflow-executions/workflow-execution-history.component";
-import { UserFileComponent } from "./dashboard/component/user/user-file/user-file.component";
 import { UserQuotaComponent } from "./dashboard/component/user/user-quota/user-quota.component";
 import { UserIconComponent } from "./dashboard/component/user/user-icon/user-icon.component";
 import { UserAvatarComponent } from "./dashboard/component/user/user-avatar/user-avatar.component";
@@ -72,8 +69,6 @@ import { UserProjectComponent } from "./dashboard/component/user/user-project/us
 import { UserProjectSectionComponent } from "./dashboard/component/user/user-project/user-project-section/user-project-section.component";
 import { NgbdModalAddProjectWorkflowComponent } from "./dashboard/component/user/user-project/user-project-section/ngbd-modal-add-project-workflow/ngbd-modal-add-project-workflow.component";
 import { NgbdModalRemoveProjectWorkflowComponent } from "./dashboard/component/user/user-project/user-project-section/ngbd-modal-remove-project-workflow/ngbd-modal-remove-project-workflow.component";
-import { NgbdModalAddProjectFileComponent } from "./dashboard/component/user/user-project/user-project-section/ngbd-modal-add-project-file/ngbd-modal-add-project-file.component";
-import { NgbdModalRemoveProjectFileComponent } from "./dashboard/component/user/user-project/user-project-section/ngbd-modal-remove-project-file/ngbd-modal-remove-project-file.component";
 import { PresetWrapperComponent } from "./common/formly/preset-wrapper/preset-wrapper.component";
 import { NzModalCommentBoxComponent } from "./workspace/component/workflow-editor/comment-box-modal/nz-modal-comment-box.component";
 import { NzCommentModule } from "ng-zorro-antd/comment";
@@ -98,7 +93,6 @@ import { UserProjectListItemComponent } from "./dashboard/component/user/user-pr
 import { SortButtonComponent } from "./dashboard/component/user/sort-button/sort-button.component";
 import { FiltersComponent } from "./dashboard/component/user/filters/filters.component";
 import { FiltersInstructionsComponent } from "./dashboard/component/user/filters-instructions/filters-instructions.component";
-import { UserFileListItemComponent } from "./dashboard/component/user/user-file/user-file-list-item/user-file-list-item.component";
 import { SearchComponent } from "./dashboard/component/user/search/search.component";
 import { SearchResultsComponent } from "./dashboard/component/user/search-results/search-results.component";
 import { PortPropertyEditFrameComponent } from "./workspace/component/property-editor/port-property-edit-frame/port-property-edit-frame.component";
@@ -133,6 +127,7 @@ import { TreeModule } from "@ali-hm/angular-tree-component";
 import { FileSelectionComponent } from "./workspace/component/file-selection/file-selection.component";
 import { ResultExportationComponent } from "./workspace/component/result-exportation/result-exportation.component";
 import { ReportGenerationService } from "./workspace/service/report-generation/report-generation.service";
+import { SearchBarComponent } from "./dashboard/component/user/search-bar/search-bar.component";
 
 registerLocaleData(en);
 
@@ -158,7 +153,6 @@ registerLocaleData(en);
     UserAvatarComponent,
     LocalLoginComponent,
     UserWorkflowComponent,
-    UserFileComponent,
     UserQuotaComponent,
     RowModalComponent,
     OperatorLabelComponent,
@@ -184,8 +178,6 @@ registerLocaleData(en);
     UserProjectSectionComponent,
     NgbdModalAddProjectWorkflowComponent,
     NgbdModalRemoveProjectWorkflowComponent,
-    NgbdModalAddProjectFileComponent,
-    NgbdModalRemoveProjectFileComponent,
     FilesUploaderComponent,
     UserDatasetComponent,
     UserDatasetVersionCreatorComponent,
@@ -207,13 +199,13 @@ registerLocaleData(en);
     SortButtonComponent,
     FiltersComponent,
     FiltersInstructionsComponent,
-    UserFileListItemComponent,
     SearchComponent,
     SearchResultsComponent,
     PortPropertyEditFrameComponent,
     WorkflowRuntimeStatisticsComponent,
     FlarumComponent,
     HighlightSearchTermsPipe,
+    SearchBarComponent,
   ],
   imports: [
     BrowserModule,
@@ -279,8 +271,6 @@ registerLocaleData(en);
     AdminGuardService,
     DatePipe,
     UserService,
-    UserFileService,
-    UserFileUploadService,
     FileSaverService,
     ReportGenerationService,
     {

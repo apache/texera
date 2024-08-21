@@ -3,7 +3,6 @@ import { RouterModule, Routes } from "@angular/router";
 import { environment } from "../environments/environment";
 import { DashboardComponent } from "./dashboard/component/dashboard.component";
 import { UserWorkflowComponent } from "./dashboard/component/user/user-workflow/user-workflow.component";
-import { UserFileComponent } from "./dashboard/component/user/user-file/user-file.component";
 import { UserQuotaComponent } from "./dashboard/component/user/user-quota/user-quota.component";
 import { UserProjectSectionComponent } from "./dashboard/component/user/user-project/user-project-section/user-project-section.component";
 import { UserProjectComponent } from "./dashboard/component/user/user-project/user-project.component";
@@ -25,12 +24,7 @@ import { UserDatasetComponent } from "./dashboard/component/user/user-dataset/us
 const routes: Routes = [
   {
     path: "",
-    component: WorkspaceComponent,
-    canActivate: [AuthGuardService],
-  },
-  {
-    path: "workflow/:id",
-    component: WorkspaceComponent,
+    component: environment.userSystemEnabled ? UserWorkflowComponent : WorkspaceComponent,
     canActivate: [AuthGuardService],
   },
 ];
@@ -38,7 +32,6 @@ if (environment.userSystemEnabled) {
   /*
    *  The user dashboard is under path '/dashboard'
    *  The saved workflow is under path '/dashboard/workflow'
-   *  The user file is under path '/dashboard/user-file'
    *  The user dictionary is under path '/dashboard/user-dictionary'
    *  The user project list is under path '/dashboard/project'
    *  The single user project is under path 'dashboard/project/{pid}'
@@ -57,12 +50,13 @@ if (environment.userSystemEnabled) {
         component: UserProjectSectionComponent,
       },
       {
-        path: "workflow",
-        component: UserWorkflowComponent,
+        path: "workspace/:id",
+        component: WorkspaceComponent,
+        canActivate: [AuthGuardService],
       },
       {
-        path: "user-file",
-        component: UserFileComponent,
+        path: "workflow",
+        component: UserWorkflowComponent,
       },
       {
         path: "dataset",
