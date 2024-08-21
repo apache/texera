@@ -29,7 +29,7 @@ class WorkflowCompilationResource extends LazyLogging {
   @POST
   @Path("/{wid}")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
-  def suggestAutocompleteSchema(
+  def compileWorkflow(
       workflowStr: String,
       @PathParam("wid") wid: UInteger,
       @Auth sessionUser: SessionUser
@@ -42,7 +42,7 @@ class WorkflowCompilationResource extends LazyLogging {
     )
 
     // compile the pojo
-    val workflowCompilationResult = new WorkflowCompiler(context).cleanCompile(logicalPlanPojo)
+    val workflowCompilationResult = new WorkflowCompiler(context).compileToPhysicalPlan(logicalPlanPojo)
 
     // return the result
     WorkflowCompilationResponse(
