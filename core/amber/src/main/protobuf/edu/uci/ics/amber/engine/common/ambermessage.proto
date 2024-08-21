@@ -32,7 +32,7 @@ message ControlPayloadV2 {
 
 message PythonDataHeader {
     common.ActorVirtualIdentity tag = 1 [(scalapb.field).no_box = true];
-    bool is_end = 2;
+    string payload_type = 2;
 }
 
 message PythonControlMessage {

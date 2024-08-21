@@ -1,6 +1,8 @@
 from abc import abstractmethod
 from typing import Iterator, Optional, Union
 from deprecated import deprecated
+
+from core.models import InputExhausted
 from pyamber import *
 
 

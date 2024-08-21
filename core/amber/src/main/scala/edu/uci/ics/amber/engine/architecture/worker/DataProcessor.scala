@@ -12,7 +12,6 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   OutputManager,
   WorkerTimerService
 }
-import edu.uci.ics.amber.engine.architecture.worker.DataProcessor.{FinalizeExecutor, FinalizePort}
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import edu.uci.ics.amber.engine.architecture.worker.managers.SerializationManager
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
@@ -24,24 +23,19 @@ import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
 import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
-import edu.uci.ics.amber.engine.common.tuple.amber.{SchemaEnforceable, SpecialTupleLike, TupleLike}
+import edu.uci.ics.amber.engine.common.tuple.amber.{
+  FinalizeExecutor,
+  FinalizePort,
+  SchemaEnforceable,
+  TupleLike
+}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.amber.error.ErrorUtils.{mkConsoleMessage, safely}
+import edu.uci.ics.texera.workflow.common.EndOfUpstream
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-
-object DataProcessor {
-
-  case class FinalizePort(portId: PortIdentity, input: Boolean) extends SpecialTupleLike {
-    override def getFields: Array[Any] = Array("FinalizePort")
-  }
-  case class FinalizeExecutor() extends SpecialTupleLike {
-    override def getFields: Array[Any] = Array("FinalizeExecutor")
-  }
-
-}
 
 class DataProcessor(
     actorId: ActorVirtualIdentity,
@@ -103,12 +97,10 @@ class DataProcessor(
     * process end of an input port with Executor.onFinish().
     * this function is only called by the DP thread.
     */
-  private[this] def processInputExhausted(): Unit = {
+  private[this] def processEndOfUpstream(portId: Int): Unit = {
     try {
       outputManager.outputIterator.setTupleOutput(
-        executor.onFinishMultiPort(
-          this.inputGateway.getChannel(inputManager.currentChannelId).getPortId.id
-        )
+        executor.onFinishMultiPort(portId)
       )
     } catch safely {
       case e =>
@@ -142,7 +134,7 @@ class DataProcessor(
 
     outputTuple match {
       case FinalizeExecutor() =>
-        outputManager.emitEndOfUpstream()
+        outputManager.emitMarker(EndOfUpstream())
         // Send Completed signal to worker actor.
         executor.close()
         adaptiveBatchingMonitor.stopAdaptiveBatching()
@@ -182,6 +174,7 @@ class DataProcessor(
       dataPayload: DataPayload
   ): Unit = {
     val dataProcessingStartTime = System.nanoTime()
+    val portId = this.inputGateway.getChannel(channelId).getPortId
     dataPayload match {
       case DataFrame(tuples) =>
         stateManager.conditionalTransitTo(
@@ -196,20 +189,21 @@ class DataProcessor(
         )
         inputManager.initBatch(channelId, tuples)
         processInputTuple(inputManager.getNextTuple)
-      case EndOfUpstream() =>
-        val channel = this.inputGateway.getChannel(channelId)
-        val portId = channel.getPortId
-
-        this.inputManager.getPort(portId).channels(channelId) = true
-
-        if (inputManager.isPortCompleted(portId)) {
-          inputManager.initBatch(channelId, Array.empty)
-          processInputExhausted()
-          outputManager.outputIterator.appendSpecialTupleToEnd(FinalizePort(portId, input = true))
-        }
-        if (inputManager.getAllPorts.forall(portId => inputManager.isPortCompleted(portId))) {
-          // assuming all the output ports finalize after all input ports are finalized.
-          outputManager.finalizeOutput()
+      case MarkerFrame(marker) =>
+        marker match {
+          case EndOfUpstream() =>
+            this.inputManager.getPort(portId).channels(channelId) = true
+            if (inputManager.isPortCompleted(portId)) {
+              inputManager.initBatch(channelId, Array.empty)
+              processEndOfUpstream(portId.id)
+              outputManager.outputIterator.appendSpecialTupleToEnd(
+                FinalizePort(portId, input = true)
+              )
+            }
+            if (inputManager.getAllPorts.forall(portId => inputManager.isPortCompleted(portId))) {
+              // assuming all the output ports finalize after all input ports are finalized.
+              outputManager.finalizeOutput()
+            }
         }
     }
     statisticsManager.increaseDataProcessingTime(System.nanoTime() - dataProcessingStartTime)
@@ -262,5 +256,4 @@ class DataProcessor(
     // invoke a pause in-place
     asyncRPCServer.execute(PauseWorker(), SELF)
   }
-
 }

@@ -3,7 +3,6 @@ import struct
 import typing
 from collections import OrderedDict
 from copy import deepcopy
-from dataclasses import dataclass
 from typing import Any, List, Iterator, Callable
 
 from typing_extensions import Protocol, runtime_checkable
@@ -23,11 +22,6 @@ class TupleLike(Protocol):
     def __getitem__(self, item: typing.Union[str, int]) -> Field: ...
 
     def __setitem__(self, key: typing.Union[str, int], value: Field) -> None: ...
-
-
-@dataclass
-class InputExhausted:
-    pass
 
 
 class ArrowTableTupleProvider:

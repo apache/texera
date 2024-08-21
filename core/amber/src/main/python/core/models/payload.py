@@ -1,9 +1,6 @@
 from dataclasses import dataclass
 from pyarrow.lib import Table
-from typing import List, Optional
-
-from core.models.schema.schema import Schema
-from core.models.tuple import Tuple
+from core.models.marker import Marker
 
 
 @dataclass
@@ -12,16 +9,10 @@ class DataPayload:
 
 
 @dataclass
-class InputDataFrame(DataPayload):
+class DataFrame(DataPayload):
     frame: Table
 
 
 @dataclass
-class OutputDataFrame(DataPayload):
-    frame: List[Tuple]
-    schema: Optional[Schema] = None
-
-
-@dataclass
-class EndOfUpstream(DataPayload):
-    pass
+class MarkerFrame(DataPayload):
+    frame: Marker

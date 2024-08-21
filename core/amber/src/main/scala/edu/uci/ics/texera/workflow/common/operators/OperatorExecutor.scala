@@ -8,8 +8,6 @@ trait OperatorExecutor {
 
   def open(): Unit = {}
 
-  def close(): Unit = {}
-
   def processTupleMultiPort(
       tuple: Tuple,
       port: Int
@@ -22,6 +20,9 @@ trait OperatorExecutor {
   def onFinishMultiPort(port: Int): Iterator[(TupleLike, Option[PortIdentity])] = {
     onFinish(port).map(t => (t, None))
   }
+
   def onFinish(port: Int): Iterator[TupleLike] = Iterator.empty
+
+  def close(): Unit = {}
 
 }

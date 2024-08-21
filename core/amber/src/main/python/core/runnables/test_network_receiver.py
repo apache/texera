@@ -1,12 +1,11 @@
 import threading
 
-import pandas
 import pytest
+from pyarrow import Table
 
-from core.models import Tuple
 from core.models.internal_queue import InternalQueue, ControlElement, DataElement
-from core.models.payload import OutputDataFrame, EndOfUpstream
-from core.models.schema.schema import Schema
+from core.models.marker import EndOfUpstream
+from core.models.payload import MarkerFrame, DataFrame
 from core.proxy import ProxyClient
 from core.runnables.network_receiver import NetworkReceiver
 from core.runnables.network_sender import NetworkSender
@@ -85,16 +84,13 @@ class TestNetworkReceiver:
 
     @pytest.fixture
     def data_payload(self):
-        df_to_sent = pandas.DataFrame(
-            {
-                "Brand": ["Honda Civic", "Toyota Corolla", "Ford Focus", "Audi A4"],
-                "Price": [22000, 25000, 27000, 35000],
-            },
-            columns=["Brand", "Price"],
-        )
-        return OutputDataFrame(
-            frame=[Tuple(r) for _, r in df_to_sent.iterrows()],
-            schema=Schema(raw_schema={"Brand": "string", "Price": "integer"}),
+        return DataFrame(
+            frame=Table.from_pydict(
+                {
+                    "Brand": ["Honda Civic", "Toyota Corolla", "Ford Focus", "Audi A4"],
+                    "Price": [22000, 25000, 27000, 35000],
+                }
+            )
         )
 
     @pytest.mark.timeout(2)
@@ -124,9 +120,12 @@ class TestNetworkReceiver:
     ):
         network_sender_thread.start()
         worker_id = ActorVirtualIdentity(name="test")
-        input_queue.put(DataElement(tag=worker_id, payload=EndOfUpstream()))
+        input_queue.put(
+            DataElement(tag=worker_id, payload=MarkerFrame(EndOfUpstream()))
+        )
         element: DataElement = output_queue.get()
-        assert element.payload == EndOfUpstream()
+        assert isinstance(element.payload, MarkerFrame)
+        assert element.payload.frame == EndOfUpstream()
         assert element.tag == worker_id
 
     @pytest.mark.timeout(2)

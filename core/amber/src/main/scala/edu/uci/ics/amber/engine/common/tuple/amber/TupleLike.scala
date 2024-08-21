@@ -1,5 +1,6 @@
 package edu.uci.ics.amber.engine.common.tuple.amber
 
+import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 
@@ -17,7 +18,12 @@ trait SchemaEnforceable {
   def enforceSchema(schema: Schema): Tuple
 }
 
-trait SpecialTupleLike extends TupleLike
+trait InternalMarker extends TupleLike {
+  override def getFields: Array[Any] = Array.empty
+}
+
+final case class FinalizePort(portId: PortIdentity, input: Boolean) extends InternalMarker
+final case class FinalizeExecutor() extends InternalMarker
 
 trait SeqTupleLike extends TupleLike with SchemaEnforceable {
   override def inMemSize: Long = ???
