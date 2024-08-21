@@ -120,7 +120,9 @@ class TestNetworkReceiver:
     ):
         network_sender_thread.start()
         worker_id = ActorVirtualIdentity(name="test")
-        input_queue.put(DataElement(tag=worker_id, payload=MarkerFrame(EndOfUpstream())))
+        input_queue.put(
+            DataElement(tag=worker_id, payload=MarkerFrame(EndOfUpstream()))
+        )
         element: DataElement = output_queue.get()
         assert isinstance(element.payload, MarkerFrame(EndOfUpstream()))
         assert element.tag == worker_id

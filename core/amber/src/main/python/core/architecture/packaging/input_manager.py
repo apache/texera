@@ -105,7 +105,9 @@ class InputManager:
                     ].get_schema(),
                 )
 
-        elif isinstance(payload, MarkerFrame) and isinstance(payload.frame, EndOfUpstream):
+        elif isinstance(payload, MarkerFrame) and isinstance(
+            payload.frame, EndOfUpstream
+        ):
             channel = self._channels[self._current_channel_id]
             channel.complete()
             port_id = channel.port_id

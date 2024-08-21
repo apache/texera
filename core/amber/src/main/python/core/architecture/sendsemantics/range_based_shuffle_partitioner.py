@@ -56,7 +56,13 @@ class RangeBasedShufflePartitioner(Partitioner):
             self.receivers[receiver_index] = (receiver, list())
 
     @overrides
-    def no_more(self) -> Iterator[typing.Tuple[ActorVirtualIdentity, typing.Union[EndOfUpstream, typing.List[Tuple]]]]:
+    def no_more(
+        self,
+    ) -> Iterator[
+        typing.Tuple[
+            ActorVirtualIdentity, typing.Union[EndOfUpstream, typing.List[Tuple]]
+        ]
+    ]:
         for receiver, batch in self.receivers:
             if len(batch) > 0:
                 yield receiver, batch

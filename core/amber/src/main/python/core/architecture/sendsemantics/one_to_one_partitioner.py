@@ -15,9 +15,7 @@ from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity
 
 
 class OneToOnePartitioner(Partitioner):
-    def __init__(
-        self, partitioning: OneToOnePartitioning, worker_id: str
-    ):
+    def __init__(self, partitioning: OneToOnePartitioning, worker_id: str):
         super().__init__(set_one_of(Partitioning, partitioning))
         self.batch_size = partitioning.batch_size
         self.batch: list[Tuple] = list()
@@ -36,7 +34,13 @@ class OneToOnePartitioner(Partitioner):
             self.reset()
 
     @overrides
-    def no_more(self) -> Iterator[typing.Tuple[ActorVirtualIdentity, typing.Union[EndOfUpstream, typing.List[Tuple]]]]:
+    def no_more(
+        self,
+    ) -> Iterator[
+        typing.Tuple[
+            ActorVirtualIdentity, typing.Union[EndOfUpstream, typing.List[Tuple]]
+        ]
+    ]:
         if len(self.batch) > 0:
             yield self.receiver, self.batch
         self.reset()

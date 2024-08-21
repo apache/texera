@@ -90,9 +90,13 @@ class OutputManager:
         self, tuple_: Tuple
     ) -> Iterator[typing.Tuple[ActorVirtualIdentity, DataFrame]]:
         return chain(
-            *((
-                (receiver, self.tuple_to_frame(tuples)) for receiver, tuples in partitioner.add_tuple_to_batch(tuple_)
-            ) for partitioner in self._partitioners.values())
+            *(
+                (
+                    (receiver, self.tuple_to_frame(tuples))
+                    for receiver, tuples in partitioner.add_tuple_to_batch(tuple_)
+                )
+                for partitioner in self._partitioners.values()
+            )
         )
 
     def tuple_to_frame(self, tuples: typing.List[Tuple]) -> DataFrame:
@@ -110,7 +114,18 @@ class OutputManager:
         self,
     ) -> Iterable[typing.Tuple[ActorVirtualIdentity, DataPayload]]:
         return chain(
-            *((
-                (receiver, MarkerFrame(tuples) if isinstance(tuples, EndOfUpstream) else self.tuple_to_frame(tuples)) for receiver, tuples in partitioner.no_more()
-            ) for partitioner in self._partitioners.values())
+            *(
+                (
+                    (
+                        receiver,
+                        (
+                            MarkerFrame(tuples)
+                            if isinstance(tuples, EndOfUpstream)
+                            else self.tuple_to_frame(tuples)
+                        ),
+                    )
+                    for receiver, tuples in partitioner.no_more()
+                )
+                for partitioner in self._partitioners.values()
+            )
         )

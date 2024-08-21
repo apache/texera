@@ -34,7 +34,13 @@ class BroadcastPartitioner(Partitioner):
             self.reset()
 
     @overrides
-    def no_more(self) -> Iterator[typing.Tuple[ActorVirtualIdentity, typing.Union[EndOfUpstream, typing.List[Tuple]]]]:
+    def no_more(
+        self,
+    ) -> Iterator[
+        typing.Tuple[
+            ActorVirtualIdentity, typing.Union[EndOfUpstream, typing.List[Tuple]]
+        ]
+    ]:
         if len(self.batch) > 0:
             for receiver in self.receivers:
                 yield receiver, self.batch

@@ -214,9 +214,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 ActorVirtualIdentity(name="CONTROLLER"), control_command
             )
 
-    def _process_sender_change_marker(
-        self, sender_change_marker: SenderChange
-    ) -> None:
+    def _process_sender_change_marker(self, sender_change_marker: SenderChange) -> None:
         """
         Upon receipt of a SenderChangeMarker, change the current input link to the
         sender.

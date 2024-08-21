@@ -1,6 +1,6 @@
 import typing
 from abc import ABC
-from typing import Iterator, Union
+from typing import Iterator
 
 from betterproto import Message
 
@@ -20,7 +20,13 @@ class Partitioner(ABC):
     ) -> Iterator[typing.Tuple[ActorVirtualIdentity, typing.List[Tuple]]]:
         pass
 
-    def no_more(self) -> Iterator[typing.Tuple[ActorVirtualIdentity, typing.Union[EndOfUpstream, typing.List[Tuple]]]]:
+    def no_more(
+        self,
+    ) -> Iterator[
+        typing.Tuple[
+            ActorVirtualIdentity, typing.Union[EndOfUpstream, typing.List[Tuple]]
+        ]
+    ]:
         pass
 
     def reset(self) -> None:

@@ -36,7 +36,13 @@ class RoundRobinPartitioner(Partitioner):
         self.round_robin_index = (self.round_robin_index + 1) % len(self.receivers)
 
     @overrides
-    def no_more(self) -> Iterator[typing.Tuple[ActorVirtualIdentity, typing.Union[EndOfUpstream, typing.List[Tuple]]]]:
+    def no_more(
+        self,
+    ) -> Iterator[
+        typing.Tuple[
+            ActorVirtualIdentity, typing.Union[EndOfUpstream, typing.List[Tuple]]
+        ]
+    ]:
         for receiver, batch in self.receivers:
             if len(batch) > 0:
                 yield receiver, batch
