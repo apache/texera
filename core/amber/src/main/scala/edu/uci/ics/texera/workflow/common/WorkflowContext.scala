@@ -11,7 +11,6 @@ object WorkflowContext {
   val DEFAULT_WORKFLOW_ID: WorkflowIdentity = WorkflowIdentity(1L)
 }
 class WorkflowContext(
-    var userId: Option[UInteger] = None,
     var workflowId: WorkflowIdentity = DEFAULT_WORKFLOW_ID,
     var executionId: ExecutionIdentity = DEFAULT_EXECUTION_ID
 )
