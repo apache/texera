@@ -13,7 +13,6 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.SearchQueryParams
-import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.DashboardFile
 import edu.uci.ics.texera.web.resource.dashboard.user.project.ProjectResource._
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasReadAccess
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflow
@@ -168,37 +167,6 @@ class ProjectResource {
       SearchQueryParams(resourceType = "workflow", projectIds = util.Arrays.asList(pid))
     )
     result.results.map(_.workflow.get)
-  }
-
-  /**
-    * This method returns a list of DashboardFile objects, which represents
-    * all the file objects that are part of the specified project.
-    * @param pid project ID
-    * @return a list of DashboardFile objects
-    */
-  @GET
-  @Path("/{pid}/files")
-  def listProjectFiles(
-      @PathParam("pid") pid: UInteger
-  ): List[DashboardFile] = {
-    context
-      .select()
-      .from(FILE_OF_PROJECT)
-      .leftJoin(FILE)
-      .on(FILE.FID.eq(FILE_OF_PROJECT.FID))
-      .leftJoin(USER)
-      .on(USER.UID.eq(FILE.OWNER_UID))
-      .where(FILE_OF_PROJECT.PID.eq(pid))
-      .fetch()
-      .map(fileRecord =>
-        DashboardFile(
-          fileRecord.into(USER).getName,
-          "READ",
-          fileRecord.into(FILE).into(classOf[File])
-        )
-      )
-      .asScala
-      .toList
   }
 
   /**

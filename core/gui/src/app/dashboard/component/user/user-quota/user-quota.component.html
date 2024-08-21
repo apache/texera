@@ -3,7 +3,7 @@
   style="overflow-y: auto">
   <nz-card
     class="section-title"
-    [style.backgroundColor]="backgroundColor">
+    [style.background]="backgroundColor">
     <h2
       class="page-title"
       [style.color]="textColor">
@@ -104,64 +104,6 @@
             </nz-table>
           </nz-collapse-panel>
         </nz-collapse>
-      </nz-tab>
-      <nz-tab nzTitle="Top 5 Files">
-        <nz-table
-          #top5
-          [nzData]="topFiveFiles"
-          [nzPageSize]="6"
-          nzFrontPagination="true">
-          <thead>
-            <tr>
-              <th nzWidth="20%">File Name</th>
-              <th nzWidth="10%">Size</th>
-              <th nzWidth="20%">Uploaded Time</th>
-              <th nzWidth="30%">File Description</th>
-              <th naWidth="20%">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let data of top5.data">
-              <td>{{maxStringLength(data.fileName, 18)}}</td>
-              <td>{{convertFileSize(data.fileSize)}}</td>
-              <td>{{convertTimeToTimestamp(data.uploadedTime)}}</td>
-              <td>
-                <div *ngIf="data.description !== ''; else descriptionNotAvailable">
-                  {{ maxStringLength(data.description, 36) }}
-                </div>
-                <ng-template #descriptionNotAvailable>
-                  <div>No Available Descriptions</div>
-                </ng-template>
-              </td>
-              <td>
-                <button
-                  nz-popconfirm
-                  nzPopconfirmTitle="Confirm to delete selected file."
-                  nz-button
-                  nz-tooltip="delete file"
-                  (nzOnConfirm)="deleteFile(data.fileId)"
-                  type="button">
-                  <i
-                    nz-icon
-                    nzTheme="outline"
-                    nzType="delete"></i>
-                </button>
-                <button
-                  nz-popconfirm
-                  nzPopconfirmTitle="Confirm to download selected file."
-                  nz-button
-                  nz-tooltip="download file"
-                  (nzOnConfirm)="downloadFile(data.fileId, data.fileName)"
-                  type="button">
-                  <i
-                    nz-icon
-                    nzTheme="outline"
-                    nzType="download"></i>
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </nz-table>
       </nz-tab>
     </nz-tabset>
   </div>
