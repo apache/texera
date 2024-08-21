@@ -220,8 +220,6 @@ class ClusterResource {
     val clusterActivity = new ClusterActivity()
     clusterActivity.setClusterId(clusterId)
     clusterActivity.setStartTime(startTime)
-    println(startTime)
-    println(clusterId)
     clusterActivityDao.insert(clusterActivity)
   }
 
