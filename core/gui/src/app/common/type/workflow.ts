@@ -2,7 +2,6 @@ import { WorkflowMetadata } from "../../dashboard/type/workflow-metadata.interfa
 import { PlainGroup } from "../../workspace/service/workflow-graph/model/operator-group";
 import { OperatorLink, OperatorPredicate, Point, CommentBox } from "../../workspace/types/workflow-common.interface";
 
-
 export interface WorkflowSettings {
   batchSize: number;
 }
@@ -27,7 +26,7 @@ export interface WorkflowContent
     links: OperatorLink[];
     groups: PlainGroup[];
     commentBoxes: CommentBox[];
-    settings: WorkflowSettings; 
+    settings: WorkflowSettings;
   }> {}
 
 export type Workflow = { content: WorkflowContent } & WorkflowMetadata;

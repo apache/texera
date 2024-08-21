@@ -32,13 +32,11 @@ export class SettingsComponent implements OnInit {
       packetSize: [this.currentBatchSize, [Validators.required, Validators.min(1)]],
     });
 
-    this.settingsForm.valueChanges
-      .pipe(untilDestroyed(this))
-      .subscribe(value => {
-        if (this.settingsForm.valid) {
-          this.confirmUpdateBatchSize(value.packetSize);
-        }
-      });
+    this.settingsForm.valueChanges.pipe(untilDestroyed(this)).subscribe(value => {
+      if (this.settingsForm.valid) {
+        this.confirmUpdateBatchSize(value.packetSize);
+      }
+    });
 
     this.workflowActionService
       .workflowChanged()
@@ -61,13 +59,11 @@ export class SettingsComponent implements OnInit {
   public persistWorkflow(): void {
     this.isSaving = true;
     this.workflowPersistService
-        .persistWorkflow(this.workflowActionService.getWorkflow())
-         .pipe(
-           untilDestroyed(this)
-         )
-         .subscribe({
-           error: (e: unknown) => this.notificationService.error((e as Error).message),
-         })
-         .add(() => (this.isSaving = false));
+      .persistWorkflow(this.workflowActionService.getWorkflow())
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        error: (e: unknown) => this.notificationService.error((e as Error).message),
+      })
+      .add(() => (this.isSaving = false));
   }
 }

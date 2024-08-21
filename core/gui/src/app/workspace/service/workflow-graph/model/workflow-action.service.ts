@@ -40,8 +40,8 @@ export const DEFAULT_WORKFLOW = {
 };
 export const DEFAULT_BATCH_SIZE = 400;
 export const DEFAULT_SETTINGS = {
-  batchSize : DEFAULT_BATCH_SIZE,
-}
+  batchSize: DEFAULT_BATCH_SIZE,
+};
 
 /**
  *
@@ -768,7 +768,7 @@ export class WorkflowActionService {
       links,
       groups,
       commentBoxes,
-      settings
+      settings,
     };
   }
 
@@ -812,7 +812,7 @@ export class WorkflowActionService {
   }
 
   public setWorkflowBatchSize(size: number): void {
-    if (size > 0 && size != null){
+    if (size > 0 && size != null) {
       this.setWorkflowSettings({ ...this.workflowSettings, batchSize: size });
     }
   }

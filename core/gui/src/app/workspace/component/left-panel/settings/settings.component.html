@@ -1,6 +1,8 @@
 <div class="settings-container">
   <h4>Workflow Settings</h4>
-  <form [formGroup]="settingsForm" class="form-inline">
+  <form
+    [formGroup]="settingsForm"
+    class="form-inline">
     <div class="form-group">
       <label for="packetSize">Packet Size:</label>
       <input
@@ -8,9 +10,10 @@
         type="number"
         formControlName="packetSize"
         [ngClass]="{'is-invalid': settingsForm.get('packetSize')?.invalid && settingsForm.get('packetSize')?.touched}"
-        class="form-control"
-      />
-      <div *ngIf="settingsForm.get('packetSize')?.invalid && settingsForm.get('packetSize')?.touched" class="error-message">
+        class="form-control" />
+      <div
+        *ngIf="settingsForm.get('packetSize')?.invalid && settingsForm.get('packetSize')?.touched"
+        class="error-message">
         Packet size must be at least 1.
       </div>
     </div>

@@ -200,7 +200,7 @@ export class ExecuteWorkflowService {
       engineVersion: version.hash,
       logicalPlan: logicalPlan,
       replayFromExecution: replayExecutionInfo,
-      workflowSettings: workflowSettings
+      workflowSettings: workflowSettings,
     };
     // wait for the form debounce to complete, then send
     window.setTimeout(() => {
