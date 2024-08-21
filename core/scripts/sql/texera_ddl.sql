@@ -3,8 +3,6 @@ USE `texera_db`;
 
 DROP TABLE IF EXISTS `workflow_runtime_statistics`;
 DROP TABLE IF EXISTS `workflow_user_access`;
-DROP TABLE IF EXISTS `user_file_access`;
-DROP TABLE IF EXISTS `file`;
 DROP TABLE IF EXISTS `workflow_of_user`;
 DROP TABLE IF EXISTS `user_config`;
 DROP TABLE IF EXISTS `user`;
@@ -12,8 +10,6 @@ DROP TABLE IF EXISTS `workflow`;
 DROP TABLE IF EXISTS `workflow_version`;
 DROP TABLE IF EXISTS `project`;
 DROP TABLE IF EXISTS `workflow_of_project`;
-DROP TABLE IF EXISTS `file_of_workflow`;
-DROP TABLE IF EXISTS `file_of_project`;
 DROP TABLE IF EXISTS `workflow_executions`;
 DROP TABLE IF EXISTS `dataset`;
 DROP TABLE IF EXISTS `dataset_user_access`;
@@ -46,30 +42,6 @@ CREATE TABLE IF NOT EXISTS user_config
     PRIMARY KEY (`uid`, `key`),
     FOREIGN KEY (`uid`) REFERENCES user (`uid`) ON DELETE CASCADE
 ) ENGINE = InnoDB;
-
-CREATE TABLE IF NOT EXISTS file
-(
-    `owner_uid`   INT UNSIGNED                NOT NULL,
-    `fid`         INT UNSIGNED AUTO_INCREMENT NOT NULL,
-    `size`        INT UNSIGNED                NOT NULL,
-    `name`        VARCHAR(128)                NOT NULL,
-    `path`        VARCHAR(512)                NOT NULL,
-    `description` VARCHAR(512)                NOT NULL,
-    `upload_time` TIMESTAMP                   NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (`owner_uid`, `name`),
-    PRIMARY KEY (`fid`),
-    FOREIGN KEY (`owner_uid`) REFERENCES user (`uid`) ON DELETE CASCADE
-) ENGINE = INNODB;
-
-CREATE TABLE IF NOT EXISTS user_file_access
-(
-    `uid`       INT UNSIGNED                   NOT NULL,
-    `fid`       INT UNSIGNED                   NOT NULL,
-    `privilege` ENUM ('NONE', 'READ', 'WRITE') NOT NULL DEFAULT 'NONE',
-    PRIMARY KEY (`uid`, `fid`),
-    FOREIGN KEY (`uid`) REFERENCES user (`uid`) ON DELETE CASCADE,
-    FOREIGN KEY (`fid`) REFERENCES file (`fid`) ON DELETE CASCADE
-) ENGINE = INNODB;
 
 CREATE TABLE IF NOT EXISTS workflow
 (
@@ -135,7 +107,6 @@ CREATE TABLE IF NOT EXISTS workflow_of_project
      FOREIGN KEY (`pid`) REFERENCES `project` (`pid`)  ON DELETE CASCADE
 ) ENGINE = INNODB;
 
-
 CREATE TABLE IF NOT EXISTS project_user_access
 (
     `uid`             INT UNSIGNED NOT NULL,
@@ -145,27 +116,6 @@ CREATE TABLE IF NOT EXISTS project_user_access
     FOREIGN KEY (`uid`) REFERENCES `user` (`uid`) ON DELETE CASCADE,
     FOREIGN KEY (`pid`) REFERENCES `project` (`pid`) ON DELETE CASCADE
 ) ENGINE = INNODB;
-
-
-CREATE TABLE IF NOT EXISTS file_of_project
-(
-     `fid`            INT UNSIGNED                     NOT NULL,
-     `pid`            INT UNSIGNED                     NOT NULL,
-     PRIMARY KEY (`fid`, `pid`),
-     FOREIGN KEY (`fid`) REFERENCES `file` (`fid`)     ON DELETE CASCADE,
-     FOREIGN KEY (`pid`) REFERENCES `project` (`pid`)  ON DELETE CASCADE
-) ENGINE = INNODB;
-
-CREATE TABLE IF NOT EXISTS file_of_workflow
-(
-    `fid`            INT UNSIGNED                     NOT NULL,
-    `wid`            INT UNSIGNED                     NOT NULL,
-    PRIMARY KEY (`fid`, `wid`),
-    FOREIGN KEY (`fid`) REFERENCES `file` (`fid`)      ON DELETE CASCADE,
-    FOREIGN KEY (`wid`) REFERENCES `workflow` (`wid`)  ON DELETE CASCADE
-) ENGINE = INNODB;
-
-
 
 CREATE TABLE IF NOT EXISTS workflow_executions
 (
@@ -253,8 +203,6 @@ CREATE FULLTEXT INDEX `idx_workflow_name_description_content` ON `texera_db`.`wo
 CREATE FULLTEXT INDEX `idx_user_name` ON `texera_db`.`user` (name);
 
 CREATE FULLTEXT INDEX `idx_user_project_name_description` ON `texera_db`.`project` (name, description);
-
-CREATE FULLTEXT INDEX `idx_file_name_description` ON `texera_db`.`file` (name, description);
 
 CREATE FULLTEXT INDEX `idx_dataset_name_description` ON `texera_db`.`dataset` (name, description);
 
