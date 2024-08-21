@@ -78,26 +78,28 @@ export class ReportGenerationService {
   }
 
   /**
-   * Collects all operator results from the workflow and generates a comprehensive HTML report.
-   * @param {Object} payload - The payload containing operator IDs, operator details, workflow snapshot, and workflow name.
-   * @param {string[]} payload.operatorIds - Array of operator IDs present in the workflow.
-   * @param {any[]} payload.operators - Array of operator details, including configurations and metadata.
-   * @param {string} payload.workflowSnapshot - Base64-encoded PNG image URL of the workflow snapshot.
-   * @param {string} payload.workflowName - The name of the workflow, used for naming the final report.
-   * @returns {void}
+   * Collects and processes results for all operators within the workflow, generating a comprehensive HTML report.
+   * This function iterates over each operator, retrieves its detailed results via `retrieveOperatorInfoReport`,
+   * and then compiles these results into a final HTML document. The report is then generated and made available for download.
+   *
+   * @param {Object} payload - An object containing all necessary data to process and generate the report.
+   * @param {OperatorDetail[]} payload.operators - An array of `OperatorDetail` objects representing each operator in the workflow.
+   * @param {string} payload.workflowSnapshotURL - A URL pointing to a snapshot of the current workflow, to be included in the report.
+   * @param {string} payload.workflowName - The name of the workflow, used to generate a relevant filename for the report.
+   *
+   * @returns {void} - This function does not return a value. It processes the operators and triggers the generation of an HTML report.
    */
-// Adjust the function signatures
+
 public getAllOperatorResults(payload: {
   operators: OperatorDetail[];
   workflowSnapshotURL: string;
   workflowName: string;
 }): void {
-  this.notificationService.info("Starting to generate operator results...");
 
   const allResults: { operatorId: string; html: string }[] = [];
 
 const promises = payload.operators.map(operator => {
-  return this.displayResult(operator.operatorID, operator, allResults);
+  return this.retrieveOperatorInfoReport(operator.operatorID, operator, allResults);
 });
 
 Promise.all(promises)
@@ -106,7 +108,6 @@ Promise.all(promises)
       op => allResults.find(result => result.operatorId === op.operatorID)?.html || ""
     );
     this.generateReportAsHtml(payload.workflowSnapshotURL, sortedResults, payload.workflowName);
-    this.notificationService.success("Completed generating operator results");
   })
   .catch(error => {
     this.notificationService.error("Error in generating operator results: " + error.message);
@@ -115,26 +116,29 @@ Promise.all(promises)
 
 
   /**
-   * Retrieves and processes the result for a given operator, generating an HTML representation.
-   * This function handles different scenarios including paginated results, snapshot results,
-   * and cases where no results are available. The generated HTML is pushed to the `allResults` array.
+   * Retrieves and processes detailed results for a specified operator, generating a structured HTML representation.
+   * This function covers multiple cases, including handling paginated results, snapshot data, and scenarios where
+   * no results are found for the operator. The resulting HTML content is stored in the `allResults` array.
    *
-   * @param {string} operatorId - The unique identifier of the operator whose results are to be displayed.
-   * @param {any} operatorInfo - Detailed information of the operator, used to create a JSON view in the HTML.
-   * @param {Array<{operatorId: string, html: string}>} allResults - An array that will store the HTML content for each operator's result.
+   * @param {string} operatorId - The unique identifier of the operator for which results are being processed.
+   * @param {any} operatorInfo - Metadata and configuration details of the operator, utilized to render a JSON editor within the HTML.
+   * @param {Array<{operatorId: string, html: string}>} allResults - An array used to collect HTML content for each operator's processed result.
    *
-   * @returns {Promise<void>} - A promise that resolves once the operator's result has been successfully processed and added to `allResults`.
+   * @returns {Promise<void>} - A promise that resolves once the operator's results have been processed and the HTML has been appended to `allResults`.
    */
-  public displayResult(
+
+  public retrieveOperatorInfoReport(
     operatorId: string,
     operatorInfo: any,
     allResults: { operatorId: string; html: string }[]
   ): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
+        // Retrieve the result service and paginated result service for the operator
         const resultService = this.workflowResultService.getResultService(operatorId);
         const paginatedResultService = this.workflowResultService.getPaginatedResultService(operatorId);
 
+        // Generate the HTML content for operator details, which will be included in the report
         const operatorDetailsHtml = `<div style="text-align: center;">
         <h4>Operator Details</h4>
         <div id="json-editor-${operatorId}" style="height: 400px;"></div>
@@ -148,16 +152,20 @@ Promise.all(promises)
         </script>
      </div>`;
 
+        // Check if the paginated result service is available
         if (paginatedResultService) {
           paginatedResultService.selectPage(1, 10).subscribe({
             next: pageData => {
               try {
+                // Handle the paginated results
                 const table = pageData.table;
                 let htmlContent = `<h3>Operator ID: ${operatorId}</h3>`;
 
                 if (!table.length) {
+                  // If no results are found, display a message
                   htmlContent += "<p>No results found for operator</p>";
                 } else {
+                  // Generate an HTML table to display the results
                   const columns: string[] = Object.keys(table[0]);
                   const rows: any[][] = table.map(row => columns.map(col => row[col]));
 
@@ -173,28 +181,36 @@ Promise.all(promises)
                  </div>`;
                 }
 
+                // Add the generated HTML content to the allResults array
                 allResults.push({ operatorId, html: htmlContent });
                 resolve();
-              } catch (error) {
-                console.error(`Error processing results for operator ${operatorId}:`, error);
+              } catch (error: unknown) {
+                // Handle any errors during the result processing
+                const errorMessage = (error as Error).message || "Unknown error";
+                this.notificationService.error(`Error processing results for operator ${operatorId}: ${errorMessage}`);
                 reject(error);
               }
             },
             error: (error: unknown) => {
-              console.error(`Error retrieving paginated results for operator ${operatorId}:`, error);
+              // Handle errors that occur during the retrieval of paginated results
+              const errorMessage = (error as Error).message || "Unknown error";
+              this.notificationService.error(`Error retrieving paginated results for operator ${operatorId}: ${errorMessage}`);
               reject(error);
             },
           });
         } else if (resultService) {
           try {
+            // Retrieve the current snapshot of results
             const data = resultService.getCurrentResultSnapshot();
             let htmlContent = `<h3>Operator ID: ${operatorId}</h3>`;
 
             if (data) {
+              // Parse the HTML content from the snapshot data
               const parser = new DOMParser();
               const lastData = data[data.length - 1];
               const doc = parser.parseFromString(Object(lastData)["html-content"], "text/html");
 
+              // Ensure the document's height is set correctly
               doc.documentElement.style.height = "50%";
               doc.body.style.height = "50%";
 
@@ -206,34 +222,44 @@ Promise.all(promises)
 
               htmlContent += newHtmlString;
             } else {
+              // If no data is found, display a message
               htmlContent += "<p>No data found for operator</p>";
             }
 
+            // Add the generated HTML content to the allResults array
             allResults.push({ operatorId, html: htmlContent });
             resolve();
-          } catch (error) {
-            console.error(`Error processing snapshot results for operator ${operatorId}:`, error);
+          } catch (error: unknown) {
+            // Handle any errors during snapshot result processing
+            const errorMessage = (error as Error).message || "Unknown error";
+            this.notificationService.error(`Error processing snapshot results for operator ${operatorId}: ${errorMessage}`);
             reject(error);
           }
         } else {
           try {
+            // If no result services are available, provide a default message
             allResults.push({
               operatorId,
               html: `<h3>Operator ID: ${operatorId}</h3>
              <p>No results found for operator</p>`,
             });
             resolve();
-          } catch (error) {
-            console.error(`Error pushing default result for operator ${operatorId}:`, error);
+          } catch (error: unknown) {
+            // Handle any errors when pushing the default result
+            const errorMessage = (error as Error).message || "Unknown error";
+            this.notificationService.error(`Error pushing default result for operator ${operatorId}: ${errorMessage}`);
             reject(error);
           }
         }
-      } catch (error) {
-        console.error(`Unexpected error in displayResult for operator ${operatorId}:`, error);
+      } catch (error: unknown) {
+        // Handle any unexpected errors that occur in the main logic
+        const errorMessage = (error as Error).message || "Unknown error";
+        this.notificationService.error(`Unexpected error in retrieveOperatorInfoReport for operator ${operatorId}: ${errorMessage}`);
         reject(error);
       }
     });
   }
+
 
   /**
    * Generates an HTML report containing the workflow snapshot and all operator results, and triggers a download of the report.
