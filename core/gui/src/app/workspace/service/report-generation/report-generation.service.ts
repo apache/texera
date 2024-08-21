@@ -13,7 +13,6 @@ class OperatorDetail {
   }
 }
 
-
 @Injectable({
   providedIn: "root",
 })
@@ -21,7 +20,7 @@ export class ReportGenerationService {
   constructor(
     public workflowActionService: WorkflowActionService,
     private workflowResultService: WorkflowResultService,
-    private notificationService: NotificationService,
+    private notificationService: NotificationService
   ) {}
 
   /**
@@ -90,30 +89,28 @@ export class ReportGenerationService {
    * @returns {void} - This function does not return a value. It processes the operators and triggers the generation of an HTML report.
    */
 
-public getAllOperatorResults(payload: {
-  operators: OperatorDetail[];
-  workflowSnapshotURL: string;
-  workflowName: string;
-}): void {
+  public getAllOperatorResults(payload: {
+    operators: OperatorDetail[];
+    workflowSnapshotURL: string;
+    workflowName: string;
+  }): void {
+    const allResults: { operatorId: string; html: string }[] = [];
 
-  const allResults: { operatorId: string; html: string }[] = [];
+    const promises = payload.operators.map(operator => {
+      return this.retrieveOperatorInfoReport(operator.operatorID, operator, allResults);
+    });
 
-const promises = payload.operators.map(operator => {
-  return this.retrieveOperatorInfoReport(operator.operatorID, operator, allResults);
-});
-
-Promise.all(promises)
-  .then(() => {
-    const sortedResults = payload.operators.map(
-      op => allResults.find(result => result.operatorId === op.operatorID)?.html || ""
-    );
-    this.generateReportAsHtml(payload.workflowSnapshotURL, sortedResults, payload.workflowName);
-  })
-  .catch(error => {
-    this.notificationService.error("Error in generating operator results: " + error.message);
-  });
-};
-
+    Promise.all(promises)
+      .then(() => {
+        const sortedResults = payload.operators.map(
+          op => allResults.find(result => result.operatorId === op.operatorID)?.html || ""
+        );
+        this.generateReportAsHtml(payload.workflowSnapshotURL, sortedResults, payload.workflowName);
+      })
+      .catch(error => {
+        this.notificationService.error("Error in generating operator results: " + error.message);
+      });
+  }
 
   /**
    * Retrieves and processes detailed results for a specified operator, generating a structured HTML representation.
@@ -194,7 +191,9 @@ Promise.all(promises)
             error: (error: unknown) => {
               // Handle errors that occur during the retrieval of paginated results
               const errorMessage = (error as Error).message || "Unknown error";
-              this.notificationService.error(`Error retrieving paginated results for operator ${operatorId}: ${errorMessage}`);
+              this.notificationService.error(
+                `Error retrieving paginated results for operator ${operatorId}: ${errorMessage}`
+              );
               reject(error);
             },
           });
@@ -232,7 +231,9 @@ Promise.all(promises)
           } catch (error: unknown) {
             // Handle any errors during snapshot result processing
             const errorMessage = (error as Error).message || "Unknown error";
-            this.notificationService.error(`Error processing snapshot results for operator ${operatorId}: ${errorMessage}`);
+            this.notificationService.error(
+              `Error processing snapshot results for operator ${operatorId}: ${errorMessage}`
+            );
             reject(error);
           }
         } else {
@@ -254,12 +255,13 @@ Promise.all(promises)
       } catch (error: unknown) {
         // Handle any unexpected errors that occur in the main logic
         const errorMessage = (error as Error).message || "Unknown error";
-        this.notificationService.error(`Unexpected error in retrieveOperatorInfoReport for operator ${operatorId}: ${errorMessage}`);
+        this.notificationService.error(
+          `Unexpected error in retrieveOperatorInfoReport for operator ${operatorId}: ${errorMessage}`
+        );
         reject(error);
       }
     });
   }
-
 
   /**
    * Generates an HTML report containing the workflow snapshot and all operator results, and triggers a download of the report.
