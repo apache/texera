@@ -26,13 +26,12 @@ export class SettingsComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.currentBatchSize = this.workflowActionService.getWorkflowContent().settings.batchSize || 400; // 默认值为 400
+    this.currentBatchSize = this.workflowActionService.getWorkflowContent().settings.batchSize || 400;
 
     this.settingsForm = this.fb.group({
       packetSize: [this.currentBatchSize, [Validators.required, Validators.min(1)]],
     });
 
-    // 当表单值变化时自动保存
     this.settingsForm.valueChanges
       .pipe(untilDestroyed(this))
       .subscribe(value => {
@@ -50,24 +49,17 @@ export class SettingsComponent implements OnInit {
       });
   }
 
-  // 确认并更新批处理大小
   public confirmUpdateBatchSize(batchSize: number): void {
     if (batchSize > 0) {
-      // 更新 batchSize
       this.workflowActionService.setWorkflowBatchSize(batchSize);
-
-      // 如果用户已登录，则保存工作流
       if (this.userService.isLogin()) {
         this.persistWorkflow();
       }
     }
   }
 
-  // 保存当前的工作流状态
   public persistWorkflow(): void {
     this.isSaving = true;
-  
-    // 调用 persistWorkflow 方法保存当前的工作流状态
     this.workflowPersistService
         .persistWorkflow(this.workflowActionService.getWorkflow())
          .pipe(

@@ -28,7 +28,6 @@ case object LinkConfig {
     partitionInfo match {
       case HashPartition(hashAttributeNames) =>
         HashBasedShufflePartitioning(
-          //          defaultBatchSize,
           batchSize,
           fromWorkerIds.flatMap(from =>
             toWorkerIds.map(to => ChannelIdentity(from, to, isControl = false))
@@ -38,7 +37,6 @@ case object LinkConfig {
 
       case RangePartition(rangeAttributeNames, rangeMin, rangeMax) =>
         RangeBasedShufflePartitioning(
-          //          defaultBatchSize,
           batchSize,
           fromWorkerIds.flatMap(fromId =>
             toWorkerIds.map(toId => ChannelIdentity(fromId, toId, isControl = false))
@@ -51,7 +49,6 @@ case object LinkConfig {
       case SinglePartition() =>
         assert(toWorkerIds.size == 1)
         OneToOnePartitioning(
-          //          defaultBatchSize,
           batchSize,
           fromWorkerIds.map(fromWorkerId =>
             ChannelIdentity(fromWorkerId, toWorkerIds.head, isControl = false)
@@ -60,7 +57,6 @@ case object LinkConfig {
 
       case OneToOnePartition() =>
         OneToOnePartitioning(
-          //          defaultBatchSize,
           batchSize,
           fromWorkerIds.zip(toWorkerIds).map {
             case (fromWorkerId, toWorkerId) =>
@@ -70,7 +66,6 @@ case object LinkConfig {
 
       case BroadcastPartition() =>
         BroadcastPartitioning(
-          //          defaultBatchSize,
           batchSize,
           fromWorkerIds.zip(toWorkerIds).map {
             case (fromWorkerId, toWorkerId) =>
@@ -80,7 +75,6 @@ case object LinkConfig {
 
       case UnknownPartition() =>
         RoundRobinPartitioning(
-          //          defaultBatchSize,
           batchSize,
           fromWorkerIds.flatMap(from =>
             toWorkerIds.map(to => ChannelIdentity(from, to, isControl = false))

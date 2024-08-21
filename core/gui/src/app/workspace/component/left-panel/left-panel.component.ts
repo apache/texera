@@ -30,7 +30,7 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
       component: SettingsComponent,
       title: "Settings",
       icon: "setting",
-      enabled: true, // Enable based on your logic
+      enabled: true,
     },
     {
       component: WorkflowExecutionHistoryComponent,

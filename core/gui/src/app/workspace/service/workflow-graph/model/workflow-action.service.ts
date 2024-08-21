@@ -81,7 +81,6 @@ export class WorkflowActionService {
   private workflowMetadataChangeSubject: Subject<WorkflowMetadata> = new Subject<WorkflowMetadata>();
 
   private workflowSettings: WorkflowSettings;
-  // private batchSize: number;
 
   constructor(
     private operatorMetadataService: OperatorMetadataService,
@@ -741,7 +740,6 @@ export class WorkflowActionService {
     const links = texeraGraph.getAllLinks();
     const operatorPositions: { [key: string]: Point } = {};
     const commentBoxes = texeraGraph.getAllCommentBoxes();
-    // const batchSize = this.batchSize; //要改
     const settings = this.workflowSettings;
 
     const groups = this.getOperatorGroup()
