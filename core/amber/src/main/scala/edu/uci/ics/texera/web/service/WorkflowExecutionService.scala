@@ -37,6 +37,7 @@ class WorkflowExecutionService(
     with LazyLogging {
 
   logger.info("Creating a new execution.")
+  workflowContext.workflowSettings = request.workflowSettings
 
   val wsInput = new WebsocketInput(errorHandler)
 

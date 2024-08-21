@@ -72,8 +72,8 @@ abstract class RegionPlanGenerator(
       regionDAG: DirectedAcyclicGraph[Region, RegionLink]
   ): Unit = {
     //在database里找最新的content，里的batch size
-    val workflowId = UInteger.valueOf(workflowContext.workflowId.id)
-    val batchSize = getLatestBatchSize(workflowId)
+//    val workflowId = UInteger.valueOf(workflowContext.workflowId.id)
+    val batchSize = workflowContext.workflowSettings.batchSize
     println("+++++++")
     println(batchSize)
 
