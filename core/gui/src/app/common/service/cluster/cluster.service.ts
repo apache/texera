@@ -15,36 +15,29 @@ export class ClusterService {
   public CLUSTER_RESUME_URL = this.CLUSTER_BASE_URL + "/resume";
   public CLUSTER_UPDATE_URL = this.CLUSTER_BASE_URL + "/update/name";
 
+  constructor(private http: HttpClient) {}
 
-  constructor(
-    private http: HttpClient,
-  ) {}
-
-  getClusters(): Observable<Clusters[]>{
-    return this.http
-      .get<Clusters[]>(`${AppSettings.getApiEndpoint()}/${this.CLUSTER_BASE_URL}`, {});
+  getClusters(): Observable<Clusters[]> {
+    return this.http.get<Clusters[]>(`${AppSettings.getApiEndpoint()}/${this.CLUSTER_BASE_URL}`, {});
   }
 
-  createCluster( formData: FormData): Observable<Response>{
-    return this.http
-      .post<Response>(`${AppSettings.getApiEndpoint()}/${this.CLUSTER_CREATE_URL}`,
-        formData
-      );
+  createCluster(formData: FormData): Observable<Response> {
+    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${this.CLUSTER_CREATE_URL}`, formData);
   }
 
   deleteCluster(cluster: Clusters): Observable<any> {
     return this.http.post(`${AppSettings.getApiEndpoint()}/${this.CLUSTER_DELETE_URL}`, cluster);
   }
 
-  pauseCluster(cluster: Clusters): Observable<Response>{
+  pauseCluster(cluster: Clusters): Observable<Response> {
     return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${this.CLUSTER_PAUSE_URL}`, cluster);
   }
 
-  resumeCluster(cluster: Clusters): Observable<Response>{
+  resumeCluster(cluster: Clusters): Observable<Response> {
     return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${this.CLUSTER_RESUME_URL}`, cluster);
   }
 
-  updateCluster(cluster: Clusters): Observable<Response>{
+  updateCluster(cluster: Clusters): Observable<Response> {
     return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${this.CLUSTER_UPDATE_URL}`, cluster);
   }
 }

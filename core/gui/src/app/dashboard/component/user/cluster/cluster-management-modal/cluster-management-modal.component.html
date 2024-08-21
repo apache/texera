@@ -2,18 +2,21 @@
   [(nzVisible)]="isVisible"
   nzTitle="Cluster Management"
   (nzOnCancel)="closeClusterManagementModal()"
-  (nzOnOk)="submitCluster()"
->
+  (nzOnOk)="submitCluster()">
   <ng-container *nzModalContent>
     <form
       nz-form
       [formGroup]="clusterForm"
       class="machine-form"
-      (ngSubmit)="submitCluster()"
-    >
+      (ngSubmit)="submitCluster()">
       <nz-form-item>
         <nz-form-control nzErrorTip="Please enter a name!">
-            <input nz-input placeholder="Enter a name for your clusters" formControlName="Name"/>
+          <nz-input-group nzPrefixIcon="edit">
+            <input
+              nz-input
+              placeholder="Enter a name for your clusters"
+              formControlName="Name" />
+          </nz-input-group>
         </nz-form-control>
       </nz-form-item>
       <nz-form-item>
@@ -21,13 +24,11 @@
           <nz-input-group nzPrefixIcon="setting">
             <nz-select
               formControlName="machineType"
-              nzPlaceHolder="Select Machine Type"
-            >
+              nzPlaceHolder="Select Machine Type">
               <nz-option
                 *ngFor="let option of machineOptions"
                 [nzValue]="option.value"
-                [nzLabel]="option.label"
-              >
+                [nzLabel]="option.label">
               </nz-option>
             </nz-select>
           </nz-input-group>
@@ -39,13 +40,11 @@
           <nz-input-group nzPrefixIcon="number">
             <nz-select
               formControlName="numberOfMachines"
-              nzPlaceHolder="Number of machines"
-            >
+              nzPlaceHolder="Number of machines">
               <nz-option
                 *ngFor="let num of machineNumbers"
                 [nzValue]="num"
-                [nzLabel]="num"
-              ></nz-option>
+                [nzLabel]="num"></nz-option>
             </nz-select>
           </nz-input-group>
         </nz-form-control>

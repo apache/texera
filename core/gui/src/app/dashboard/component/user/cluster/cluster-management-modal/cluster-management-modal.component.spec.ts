@@ -1,21 +1,21 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from "@angular/core/testing";
 
-import { ClusterManagementModalComponent } from './cluster-management-modal.component';
+import { ClusterManagementModalComponent } from "./cluster-management-modal.component";
 
-describe('ClusterManagementModalComponent', () => {
+describe("ClusterManagementModalComponent", () => {
   let component: ClusterManagementModalComponent;
   let fixture: ComponentFixture<ClusterManagementModalComponent>;
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      declarations: [ClusterManagementModalComponent]
+      declarations: [ClusterManagementModalComponent],
     });
     fixture = TestBed.createComponent(ClusterManagementModalComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });
 
-  it('should create', () => {
+  it("should create", () => {
     expect(component).toBeTruthy();
   });
 });

@@ -1,0 +1,106 @@
+.nz-modal {
+  border-radius: 20px;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+  transition: transform 0.3s ease-in-out;
+}
+
+.nz-modal-title {
+  font-weight: 700;
+  font-size: 2em;
+  text-align: center;
+  color: #333;
+  background: -webkit-linear-gradient(45deg, #f64f59, #c471ed, #12c2e9);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 30px;
+}
+
+form.machine-form {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+  padding: 20px;
+  background-color: rgba(255, 255, 255, 0.9);
+  border-radius: 15px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  animation: fadeInUp 0.5s ease-out;
+}
+
+h3 {
+  font-weight: 600;
+  font-size: 1.7em;
+  color: #444;
+  margin-bottom: 15px;
+  display: flex;
+  align-items: center;
+}
+
+h3 span[nz-tooltip] {
+  margin-left: 8px;
+  font-size: 1em;
+  color: #888;
+}
+
+.nz-input-group {
+  width: 100%;
+}
+
+.nz-select {
+  width: 100%;
+  font-size: 1.2em;
+  padding: 12px;
+  border-radius: 15px;
+  border: 1px solid #d3d3d3;
+  transition: border-color 0.3s ease;
+}
+
+.nz-select:hover {
+  border-color: #36d1dc;
+}
+
+.nz-form-item {
+  margin-bottom: 25px;
+}
+
+button[nz-button] {
+  background: linear-gradient(45deg, #36d1dc, #5b86e5);
+  color: #fff;
+  border: none;
+  font-weight: 600;
+  border-radius: 30px;
+  padding: 10px 25px;
+  transition:
+    background 0.3s ease,
+    transform 0.2s ease;
+}
+
+button[nz-button]:hover {
+  background: linear-gradient(45deg, #5b86e5, #36d1dc);
+  transform: translateY(-3px);
+}
+
+button[nz-button]:active {
+  transform: translateY(0);
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+::ng-deep .ant-select-selector {
+  min-height: 30px; /* Adjust to fit your content */
+}
+
+::ng-deep .ant-input {
+  min-height: 30px; /* Adjust to fit your content */
+}

@@ -134,7 +134,7 @@ import { FileSelectionComponent } from "./workspace/component/file-selection/fil
 import { ResultExportationComponent } from "./workspace/component/result-exportation/result-exportation.component";
 import { ReportGenerationService } from "./workspace/service/report-generation/report-generation.service";
 import { ClusterComponent } from "./dashboard/component/user/cluster/cluster.component";
-import { ClusterManagementModalComponent } from './dashboard/component/user/cluster/cluster-management-modal/cluster-management-modal.component';
+import { ClusterManagementModalComponent } from "./dashboard/component/user/cluster/cluster-management-modal/cluster-management-modal.component";
 
 registerLocaleData(en);
 
