@@ -726,6 +726,10 @@ export class WorkflowActionService {
     // this.workflowMetadataChangeSubject.next(newMetadata);
   }
 
+  public getWorkflowSettings(): WorkflowSettings {
+    return this.workflowSettings;
+  }
+
   public getWorkflowMetadata(): WorkflowMetadata {
     return this.workflowMetadata;
   }
