@@ -124,7 +124,8 @@ class TestNetworkReceiver:
             DataElement(tag=worker_id, payload=MarkerFrame(EndOfUpstream()))
         )
         element: DataElement = output_queue.get()
-        assert isinstance(element.payload, MarkerFrame(EndOfUpstream()))
+        assert isinstance(element.payload, MarkerFrame)
+        assert element.payload.frame == EndOfUpstream()
         assert element.tag == worker_id
 
     @pytest.mark.timeout(2)
