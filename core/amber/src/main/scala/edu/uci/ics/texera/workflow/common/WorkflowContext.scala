@@ -1,6 +1,10 @@
 package edu.uci.ics.texera.workflow.common
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.texera.workflow.common.WorkflowContext.{DEFAULT_EXECUTION_ID, DEFAULT_WORKFLOW_ID, DEFAULT_WORKFLOW_SETTINGS}
+import edu.uci.ics.texera.workflow.common.WorkflowContext.{
+  DEFAULT_EXECUTION_ID,
+  DEFAULT_WORKFLOW_ID,
+  DEFAULT_WORKFLOW_SETTINGS
+}
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowSettings
 import org.jooq.types.UInteger
 
