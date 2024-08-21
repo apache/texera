@@ -70,7 +70,9 @@ class ClusterResource {
     cluster.setStatus(ClusterStatus.LAUNCHED)
     clusterDao.update(cluster)
 
-    insertClusterActivity(cluster.getCid, cluster.getCreationTime)
+    val newCluster = clusterDao.fetchOneByCid(cluster.getCid)
+
+    insertClusterActivity(cluster.getCid, newCluster.getCreationTime)
 
     clusterDao.fetchOneByCid(cluster.getCid)
   }

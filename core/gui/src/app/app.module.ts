@@ -127,6 +127,8 @@ import { TreeModule } from "@ali-hm/angular-tree-component";
 import { FileSelectionComponent } from "./workspace/component/file-selection/file-selection.component";
 import { ResultExportationComponent } from "./workspace/component/result-exportation/result-exportation.component";
 import { ReportGenerationService } from "./workspace/service/report-generation/report-generation.service";
+import { ClusterComponent } from "./dashboard/component/user/cluster/cluster.component";
+import { ClusterManagementModalComponent } from "./dashboard/component/user/cluster/cluster-management-modal/cluster-management-modal.component";
 import { SearchBarComponent } from "./dashboard/component/user/search-bar/search-bar.component";
 
 registerLocaleData(en);
@@ -205,6 +207,8 @@ registerLocaleData(en);
     WorkflowRuntimeStatisticsComponent,
     FlarumComponent,
     HighlightSearchTermsPipe,
+    ClusterComponent,
+    ClusterManagementModalComponent,
     SearchBarComponent,
   ],
   imports: [
