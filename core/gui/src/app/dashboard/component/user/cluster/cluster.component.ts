@@ -10,7 +10,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 @Component({
   selector: "texera-cluster",
   templateUrl: "./cluster.component.html",
-  styleUrls: ["./cluster.component.css"],
+  styleUrls: ["./cluster.component.scss"],
 })
 export class ClusterComponent implements OnInit {
   private subscriptions: Subscription[] = [];

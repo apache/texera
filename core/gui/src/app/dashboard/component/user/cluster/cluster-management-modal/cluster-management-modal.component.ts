@@ -4,7 +4,7 @@ import { FormBuilder, FormGroup, Validators } from "@angular/forms";
 @Component({
   selector: "app-cluster-management-modal",
   templateUrl: "./cluster-management-modal.component.html",
-  styleUrls: ["./cluster-management-modal.component.css"],
+  styleUrls: ["./cluster-management-modal.component.scss"],
 })
 export class ClusterManagementModalComponent {
   @Input() isVisible: boolean = false;
