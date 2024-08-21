@@ -19,11 +19,6 @@ import org.jgrapht.traverse.TopologicalOrderIterator
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.{CollectionHasAsScala, IteratorHasAsScala}
 
-import edu.uci.ics.texera.web.SqlServer
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowDao
-import org.jooq.types.UInteger
-import play.api.libs.json._
-
 object RegionPlanGenerator {
   def replaceVertex(
       graph: DirectedAcyclicGraph[Region, RegionLink],
@@ -63,9 +58,6 @@ abstract class RegionPlanGenerator(
 ) {
   private val executionClusterInfo = new ExecutionClusterInfo()
 
-  final private lazy val context = SqlServer.createDSLContext()
-  final private lazy val workflowDao = new WorkflowDao(context.configuration)
-
   def generate(): (RegionPlan, PhysicalPlan)
 
   def allocateResource(
@@ -85,20 +77,6 @@ abstract class RegionPlanGenerator(
         val (newRegion, _) = resourceAllocator.allocate(region)
         replaceVertex(regionDAG, region, newRegion)
       })
-  }
-
-  def getLatestBatchSize(workflowId: UInteger): Int = {
-    val workflowRecord = workflowDao.fetchOneByWid(workflowId)
-    if (workflowRecord != null) {
-      val content: String = workflowRecord.getContent
-      val json = Json.parse(content)
-      (json \ "settings" \ "batchSize").validate[Int] match {
-        case JsSuccess(batchSize, _) => batchSize
-        case JsError(_)              => 400 // 返回默认值400
-      }
-    } else {
-      400 // 如果没有找到对应的workflowId，也返回默认值400
-    }
   }
 
   def getRegions(
