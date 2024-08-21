@@ -54,7 +54,7 @@ class NetworkSender(StoppableQueueBlockingRunnable):
 
         if isinstance(data_payload, DataFrame):
             data_header = PythonDataHeader(
-                tag=to, payload_type=data_payload.__class__.__name__
+                tag=to, payload_type="data"
             )
             self._proxy_client.send_data(
                 bytes(data_header), data_payload.frame
