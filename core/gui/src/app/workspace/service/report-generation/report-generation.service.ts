@@ -3,6 +3,16 @@ import html2canvas from "html2canvas";
 import { Observable, Observer } from "rxjs";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowResultService } from "../workflow-result/workflow-result.service";
+import { NotificationService } from "src/app/common/service/notification/notification.service";
+
+class OperatorDetail {
+  operatorID: string;
+
+  constructor(operatorID: string) {
+    this.operatorID = operatorID;
+  }
+}
+
 
 @Injectable({
   providedIn: "root",
@@ -10,7 +20,8 @@ import { WorkflowResultService } from "../workflow-result/workflow-result.servic
 export class ReportGenerationService {
   constructor(
     public workflowActionService: WorkflowActionService,
-    private workflowResultService: WorkflowResultService
+    private workflowResultService: WorkflowResultService,
+    private notificationService: NotificationService,
   ) {}
 
   /**
@@ -75,43 +86,33 @@ export class ReportGenerationService {
    * @param {string} payload.workflowName - The name of the workflow, used for naming the final report.
    * @returns {void}
    */
+// Adjust the function signatures
+public getAllOperatorResults(payload: {
+  operators: OperatorDetail[];
+  workflowSnapshotURL: string;
+  workflowName: string;
+}): void {
+  this.notificationService.info("Starting to generate operator results...");
 
-  public getAllOperatorResults(payload: {
-    operatorIds: string[];
-    operators: any[];
-    workflowSnapshot: string;
-    workflowName: string;
-  }): void {
-    console.log("Starting getAllOperatorResults with payload: ", payload);
-    console.log("Type of payload.operatorIds: ", typeof payload.operatorIds);
-    console.log("Is Array: ", Array.isArray(payload.operatorIds));
+  const allResults: { operatorId: string; html: string }[] = [];
 
-    const allResults: { operatorId: string; html: string }[] = [];
+const promises = payload.operators.map(operator => {
+  return this.displayResult(operator.operatorID, operator, allResults);
+});
 
-    const promises = payload.operatorIds.map(operatorId => {
-      const operatorInfo = payload.operators.find((op: any) => op.operatorID === operatorId);
-      return this.displayResult(operatorId, operatorInfo, allResults);
-    });
+Promise.all(promises)
+  .then(() => {
+    const sortedResults = payload.operators.map(
+      op => allResults.find(result => result.operatorId === op.operatorID)?.html || ""
+    );
+    this.generateReportAsHtml(payload.workflowSnapshotURL, sortedResults, payload.workflowName);
+    this.notificationService.success("Completed generating operator results");
+  })
+  .catch(error => {
+    this.notificationService.error("Error in generating operator results: " + error.message);
+  });
+};
 
-    Promise.all(promises)
-      .then(() => {
-        console.log("All results before sorting: ", allResults);
-        console.log("Payload: ", payload);
-
-        const sortedResults = payload.operatorIds.map(
-          id => allResults.find(result => result.operatorId === id)?.html || ""
-        );
-
-        console.log("All results after sorting: ", sortedResults);
-
-        // Pass the workflowName to generateReportAsHtml
-        this.generateReportAsHtml(payload.workflowSnapshot, sortedResults, payload.workflowName);
-        console.log("Completed getAllOperatorResults");
-      })
-      .catch(error => {
-        console.error("Error in getAllOperatorResults: ", error);
-      });
-  }
 
   /**
    * Retrieves and processes the result for a given operator, generating an HTML representation.

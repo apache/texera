@@ -276,9 +276,8 @@ export class MenuComponent implements OnInit {
       .subscribe({
         next: (snapshot: string) =>
           this.reportGenerationService.getAllOperatorResults({
-            operatorIds,
             operators,
-            workflowSnapshot: snapshot,
+            workflowSnapshotURL: snapshot,
             workflowName, // Pass workflowName here
           }),
         error: (e: unknown) => this.notificationService.error((e as Error).message),
