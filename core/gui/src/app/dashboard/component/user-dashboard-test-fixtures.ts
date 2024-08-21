@@ -21,6 +21,7 @@ export const testWorkflowContent = (operatorTypes: string[]): WorkflowContent =>
   groups: [],
   links: [],
   operatorPositions: {},
+  settings: { batchSize: 400 },
 });
 
 export const testWorkflow1: Workflow = {
