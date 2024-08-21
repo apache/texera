@@ -4,6 +4,8 @@ from itertools import chain
 from loguru import logger
 from typing import Iterable, Iterator
 
+from pyarrow import Table
+
 from core.architecture.packaging.input_manager import WorkerPort, Channel
 from core.architecture.sendsemantics.hash_based_shuffle_partitioner import (
     HashBasedShufflePartitioner,
@@ -19,7 +21,8 @@ from core.architecture.sendsemantics.round_robin_partitioner import (
 from core.architecture.sendsemantics.broad_cast_partitioner import (
     BroadcastPartitioner,
 )
-from core.models import Tuple, Schema
+from core.models import Tuple, Schema, MarkerFrame
+from core.models.marker import EndOfUpstream
 from core.models.payload import DataPayload, DataFrame
 from core.util import get_one_of
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
@@ -77,20 +80,29 @@ class OutputManager:
         the_partitioning = get_one_of(partitioning)
         logger.debug(f"adding {the_partitioning}")
         partitioner = self._partitioning_to_partitioner[type(the_partitioning)]
-        schema = self.get_port().get_schema()
         self._partitioners[tag] = (
-            partitioner(the_partitioning, schema)
+            partitioner(the_partitioning)
             if partitioner != OneToOnePartitioner
-            else partitioner(the_partitioning, schema, self.worker_id)
+            else partitioner(the_partitioning, self.worker_id)
         )
 
     def tuple_to_batch(
         self, tuple_: Tuple
     ) -> Iterator[typing.Tuple[ActorVirtualIdentity, DataFrame]]:
         return chain(
-            *(
-                partitioner.add_tuple_to_batch(tuple_)
-                for partitioner in self._partitioners.values()
+            *((
+                (receiver, self.tuple_to_frame(tuples)) for receiver, tuples in partitioner.add_tuple_to_batch(tuple_)
+            ) for partitioner in self._partitioners.values())
+        )
+
+    def tuple_to_frame(self, tuples: typing.List[Tuple]) -> DataFrame:
+        return DataFrame(
+            frame=Table.from_pydict(
+                {
+                    name: [t[name] for t in tuples]
+                    for name in self.get_port().get_schema().get_attr_names()
+                },
+                schema=self.get_port().get_schema().as_arrow_schema(),
             )
         )
 
@@ -98,5 +110,7 @@ class OutputManager:
         self,
     ) -> Iterable[typing.Tuple[ActorVirtualIdentity, DataPayload]]:
         return chain(
-            *(partitioner.no_more() for partitioner in self._partitioners.values())
+            *((
+                (receiver, MarkerFrame(tuples) if isinstance(tuples, EndOfUpstream) else self.tuple_to_frame(tuples)) for receiver, tuples in partitioner.no_more()
+            ) for partitioner in self._partitioners.values())
         )
