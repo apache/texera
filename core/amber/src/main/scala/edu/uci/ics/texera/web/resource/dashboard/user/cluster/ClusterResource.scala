@@ -24,7 +24,7 @@ import edu.uci.ics.texera.web.resource.dashboard.user.cluster.ClusterUtils.{
 
 import java.util
 import javax.annotation.security.RolesAllowed
-import javax.ws.rs.{Consumes, ForbiddenException, GET, POST, Path, Produces}
+import javax.ws.rs.{Consumes, ForbiddenException, GET, POST, Path}
 import javax.ws.rs.core.{MediaType, Response}
 
 object ClusterResource {
@@ -35,7 +35,6 @@ object ClusterResource {
   val ERR_USER_HAS_NO_ACCESS_TO_CLUSTER_MESSAGE = "User has no access to this cluster"
 }
 
-@Produces(Array(MediaType.APPLICATION_JSON))
 @RolesAllowed(Array("REGULAR", "ADMIN"))
 @Path("/cluster")
 class ClusterResource {
@@ -191,6 +190,12 @@ class ClusterResource {
   @Path("")
   def listClusters(@Auth user: SessionUser): util.List[Cluster] = {
     clusterDao.fetchByOwnerId(user.getUid)
+    context
+      .select(CLUSTER.asterisk())
+      .from(CLUSTER)
+      .where(CLUSTER.OWNER_ID.eq(user.getUid))
+      .and(CLUSTER.STATUS.ne(ClusterStatus.TERMINATED))
+      .fetchInto(classOf[Cluster])
   }
 
   /**
