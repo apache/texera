@@ -5,14 +5,6 @@ import { WorkflowActionService } from "../workflow-graph/model/workflow-action.s
 import { WorkflowResultService } from "../workflow-result/workflow-result.service";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 
-class OperatorDetail {
-  operatorID: string;
-
-  constructor(operatorID: string) {
-    this.operatorID = operatorID;
-  }
-}
-
 @Injectable({
   providedIn: "root",
 })
@@ -82,7 +74,7 @@ export class ReportGenerationService {
    * and then compiles these results into a final HTML document. The report is then generated and made available for download.
    *
    * @param {Object} payload - An object containing all necessary data to process and generate the report.
-   * @param {OperatorDetail[]} payload.operators - An array of `OperatorDetail` objects representing each operator in the workflow.
+   * @param {string[]} payload.operatorId - An array of operator IDs representing each operator in the workflow.
    * @param {string} payload.workflowSnapshotURL - A URL pointing to a snapshot of the current workflow, to be included in the report.
    * @param {string} payload.workflowName - The name of the workflow, used to generate a relevant filename for the report.
    *
@@ -90,20 +82,20 @@ export class ReportGenerationService {
    */
 
   public getAllOperatorResults(payload: {
-    operators: OperatorDetail[];
+    operatorId: string[]; // Changed from `operators: OperatorDetail[]` to `operatorIds: string[]` as requested
     workflowSnapshotURL: string;
     workflowName: string;
   }): void {
     const allResults: { operatorId: string; html: string }[] = [];
 
-    const promises = payload.operators.map(operator => {
-      return this.retrieveOperatorInfoReport(operator.operatorID, operator, allResults);
+    const promises = payload.operatorId.map(operatorId => {
+      return this.retrieveOperatorInfoReport(operatorId, operatorId, allResults); // Updated to pass only operatorId
     });
 
     Promise.all(promises)
       .then(() => {
-        const sortedResults = payload.operators.map(
-          op => allResults.find(result => result.operatorId === op.operatorID)?.html || ""
+        const sortedResults = payload.operatorId.map(
+          id => allResults.find(result => result.operatorId === id)?.html || ""
         );
         this.generateReportAsHtml(payload.workflowSnapshotURL, sortedResults, payload.workflowName);
       })
@@ -111,6 +103,7 @@ export class ReportGenerationService {
         this.notificationService.error("Error in generating operator results: " + error.message);
       });
   }
+
 
   /**
    * Retrieves and processes detailed results for a specified operator, generating a structured HTML representation.

@@ -257,27 +257,21 @@ export class MenuComponent implements OnInit {
     this.notificationService.info("The report is being generated...");
 
     const workflowName = this.currentWorkflowName;
-    const workflowContent: WorkflowContent = this.workflowActionService.getWorkflowContent();
-    const workflowContentJson = JSON.stringify(workflowContent);
-    const payload = JSON.parse(workflowContentJson);
+    const payload: WorkflowContent = this.workflowActionService.getWorkflowContent();
 
     // Extract operatorIDs and operators from the parsed payload
-    const operatorIds = payload.operators.map((operator: { operatorID: string }) => operator.operatorID);
+    const operatorId = payload.operators.map((operator: { operatorID: string }) => operator.operatorID);
     const operators = payload.operators;
-
-    // Ensure operatorIds and operators are logged
-    console.log("Extracted operatorIds: ", operatorIds);
-    console.log("Extracted operators: ", operators);
 
     // Invokes the method of the report printing service
     this.reportGenerationService
       .generateWorkflowSnapshot(workflowName)
       .pipe(untilDestroyed(this))
       .subscribe({
-        next: (snapshot: string) =>
+        next: (snapshotURL: string) =>
           this.reportGenerationService.getAllOperatorResults({
-            operators,
-            workflowSnapshotURL: snapshot,
+            operatorId,
+            workflowSnapshotURL: snapshotURL,
             workflowName, // Pass workflowName here
           }),
         error: (e: unknown) => this.notificationService.error((e as Error).message),
