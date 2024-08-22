@@ -260,7 +260,7 @@ export class MenuComponent implements OnInit {
     const payload: WorkflowContent = this.workflowActionService.getWorkflowContent();
 
     // Extract operatorIDs and operators from the parsed payload
-    const operatorId = payload.operators.map((operator: { operatorID: string }) => operator.operatorID);
+    const operatorIds = payload.operators.map((operator: { operatorID: string }) => operator.operatorID);
     const operators = payload.operators;
 
     // Invokes the method of the report printing service
@@ -268,11 +268,11 @@ export class MenuComponent implements OnInit {
       .generateWorkflowSnapshot(workflowName)
       .pipe(untilDestroyed(this))
       .subscribe({
-        next: (snapshotURL: string) =>
+        next: (workflowSnapshotURL: string) =>
           this.reportGenerationService.getAllOperatorResults({
-            operatorId,
-            workflowSnapshotURL: snapshotURL,
-            workflowName, // Pass workflowName here
+            operatorId: operatorIds,
+            workflowSnapshotURL: workflowSnapshotURL,
+            workflowName: workflowName,
           }),
         error: (e: unknown) => this.notificationService.error((e as Error).message),
       });
