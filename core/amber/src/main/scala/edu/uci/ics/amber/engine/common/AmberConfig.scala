@@ -105,4 +105,8 @@ object AmberConfig {
   // JDBC configuration
   val jdbcConfig: Config = getConfSource.getConfig("jdbc")
 
+  // Cluster launcher configuration
+  val clusterLauncherServiceTarget: String =
+    getConfSource.getString("cluster-launcher-service.target")
+
 }

@@ -4,36 +4,37 @@ import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.enums.ClusterStatus
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Cluster.CLUSTER
-import edu.uci.ics.texera.web.model.jooq.generated.tables.ClusterActivity.CLUSTER_ACTIVITY
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{ClusterActivityDao, ClusterDao}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.ClusterDao
 import edu.uci.ics.texera.web.resource.dashboard.user.cluster.ClusterResource.{
   ERR_USER_HAS_NO_ACCESS_TO_CLUSTER_MESSAGE,
-  clusterActivityDao,
   clusterDao,
   context
 }
 import io.dropwizard.auth.Auth
 import org.glassfish.jersey.media.multipart.FormDataParam
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{Cluster, ClusterActivity}
-import org.jooq.impl.DSL.max
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Cluster
+import edu.uci.ics.texera.web.resource.dashboard.user.cluster.ClusterServiceClient.{
+  callCreateClusterAPI,
+  callDeleteClusterAPI
+}
+import edu.uci.ics.texera.web.resource.dashboard.user.cluster.ClusterUtils.{
+  updateClusterActivityEndTime,
+  updateClusterStatus
+}
 
-import java.sql.Timestamp
-import java.time.Instant
 import java.util
 import javax.annotation.security.RolesAllowed
-import javax.ws.rs.{Consumes, ForbiddenException, GET, POST, Path, Produces}
+import javax.ws.rs.{Consumes, ForbiddenException, GET, POST, Path}
 import javax.ws.rs.core.{MediaType, Response}
 
 object ClusterResource {
   final private lazy val context = SqlServer.createDSLContext()
   final private lazy val clusterDao = new ClusterDao(context.configuration)
-  final private lazy val clusterActivityDao = new ClusterActivityDao(context.configuration)
 
   // error messages
   val ERR_USER_HAS_NO_ACCESS_TO_CLUSTER_MESSAGE = "User has no access to this cluster"
 }
 
-@Produces(Array(MediaType.APPLICATION_JSON))
 @RolesAllowed(Array("REGULAR", "ADMIN"))
 @Path("/cluster")
 class ClusterResource {
@@ -55,7 +56,7 @@ class ClusterResource {
       @FormDataParam("Name") name: String,
       @FormDataParam("machineType") machineType: String,
       @FormDataParam("numberOfMachines") numberOfMachines: Integer
-  ): Cluster = {
+  ): Response = {
     val cluster = new Cluster()
     cluster.setName(name)
     cluster.setOwnerId(user.getUid)
@@ -64,17 +65,18 @@ class ClusterResource {
     cluster.setStatus(ClusterStatus.LAUNCHING)
     clusterDao.insert(cluster)
 
-    // TODO: use Go microservice to launch the cluster
-    // TODO: need to consider if the creation fails
+    // Call Go microservice to actually create the cluster
+    callCreateClusterAPI(cluster.getCid, machineType, numberOfMachines) match {
+      case Right(goResponse) =>
+        Response.ok(clusterDao.fetchOneByCid(cluster.getCid)).build()
 
-    cluster.setStatus(ClusterStatus.LAUNCHED)
-    clusterDao.update(cluster)
-
-    val newCluster = clusterDao.fetchOneByCid(cluster.getCid)
-
-    insertClusterActivity(cluster.getCid, newCluster.getCreationTime)
-
-    clusterDao.fetchOneByCid(cluster.getCid)
+      case Left(errorMessage) =>
+        updateClusterStatus(cluster.getCid, ClusterStatus.FAILED, context)
+        Response
+          .status(Response.Status.INTERNAL_SERVER_ERROR)
+          .entity(s"Cluster creation failed: $errorMessage")
+          .build()
+    }
   }
 
   /**
@@ -87,18 +89,27 @@ class ClusterResource {
   @POST
   @Path("/delete")
   def deleteCluster(@Auth user: SessionUser, cluster: Cluster): Response = {
-    validateClusterOwnership(user, cluster.getCid)
+    val clusterId = cluster.getCid
+    validateClusterOwnership(user, clusterId)
 
-    updateClusterStatus(cluster.getCid, ClusterStatus.TERMINATING)
+    updateClusterStatus(clusterId, ClusterStatus.TERMINATING, context)
 
-    // TODO: Call the Go Microservice
-    // TODO: need to consider if the deletion fails
+    // Call Go microservice to actually delete the cluster
+    callDeleteClusterAPI(clusterId) match {
+      case Right(goResponse) =>
+        Response.ok(goResponse).build()
 
-    updateClusterStatus(cluster.getCid, ClusterStatus.TERMINATED)
-
-    updateClusterActivityEndTime(cluster.getCid)
-
-    Response.ok().build()
+      case Left(errorMessage) =>
+        updateClusterStatus(
+          clusterId,
+          ClusterStatus.FAILED,
+          context
+        ) // Assuming you have a FAILED status
+        Response
+          .status(Response.Status.INTERNAL_SERVER_ERROR)
+          .entity(s"Cluster deletion failed: $errorMessage")
+          .build()
+    }
   }
 
   /**
@@ -113,14 +124,14 @@ class ClusterResource {
   def pauseCluster(@Auth user: SessionUser, cluster: Cluster): Response = {
     validateClusterOwnership(user, cluster.getCid)
 
-    updateClusterStatus(cluster.getCid, ClusterStatus.PAUSING)
+    updateClusterStatus(cluster.getCid, ClusterStatus.PAUSING, context)
 
     // TODO: Call the Go Microservice
     // TODO: need to consider if the pause fails
 
-    updateClusterStatus(cluster.getCid, ClusterStatus.PAUSED)
+    updateClusterStatus(cluster.getCid, ClusterStatus.PAUSED, context)
 
-    updateClusterActivityEndTime(cluster.getCid)
+    updateClusterActivityEndTime(cluster.getCid, context)
 
     Response.ok().build()
   }
@@ -137,14 +148,12 @@ class ClusterResource {
   def resumeCluster(@Auth user: SessionUser, cluster: Cluster): Response = {
     validateClusterOwnership(user, cluster.getCid)
 
-    updateClusterStatus(cluster.getCid, ClusterStatus.RESUMING)
+    updateClusterStatus(cluster.getCid, ClusterStatus.RESUMING, context)
 
     // TODO: Call the Go Microservice
     // TODO: need to consider if the resume fails
 
-    updateClusterStatus(cluster.getCid, ClusterStatus.LAUNCHED)
-
-    insertClusterActivity(cluster.getCid, Timestamp.from(Instant.now()))
+    updateClusterStatus(cluster.getCid, ClusterStatus.LAUNCHED, context)
 
     Response.ok().build()
   }
@@ -181,6 +190,12 @@ class ClusterResource {
   @Path("")
   def listClusters(@Auth user: SessionUser): util.List[Cluster] = {
     clusterDao.fetchByOwnerId(user.getUid)
+    context
+      .select(CLUSTER.asterisk())
+      .from(CLUSTER)
+      .where(CLUSTER.OWNER_ID.eq(user.getUid))
+      .and(CLUSTER.STATUS.ne(ClusterStatus.TERMINATED))
+      .fetchInto(classOf[Cluster])
   }
 
   /**
@@ -194,54 +209,5 @@ class ClusterResource {
     if (clusterOwnerId != user.getUid) {
       throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_CLUSTER_MESSAGE)
     }
-  }
-
-  /**
-    * Updates the status of a cluster.
-    *
-    * @param clusterId The ID of the cluster to update.
-    * @param status The new status of the cluster.
-    */
-  private def updateClusterStatus(clusterId: Int, status: ClusterStatus): Unit = {
-    context
-      .update(CLUSTER)
-      .set(CLUSTER.STATUS, status)
-      .where(CLUSTER.CID.eq(clusterId))
-      .execute()
-  }
-
-  /**
-    * Inserts a new cluster activity record with the given start time.
-    *
-    * @param clusterId The ID of the cluster.
-    * @param startTime The start time of the activity.
-    */
-  private def insertClusterActivity(clusterId: Int, startTime: Timestamp): Unit = {
-    val clusterActivity = new ClusterActivity()
-    clusterActivity.setClusterId(clusterId)
-    clusterActivity.setStartTime(startTime)
-    clusterActivityDao.insert(clusterActivity)
-  }
-
-  /**
-    * Updates the end time of the most recent cluster activity to the current time.
-    *
-    * @param clusterId The ID of the cluster.
-    */
-  private def updateClusterActivityEndTime(clusterId: Int): Unit = {
-    context
-      .update(CLUSTER_ACTIVITY)
-      .set(CLUSTER_ACTIVITY.END_TIME, Timestamp.from(Instant.now()))
-      .where(CLUSTER_ACTIVITY.CLUSTER_ID.eq(clusterId))
-      .and(
-        CLUSTER_ACTIVITY.START_TIME.eq(
-          context
-            .select(max(CLUSTER_ACTIVITY.START_TIME))
-            .from(CLUSTER_ACTIVITY)
-            .where(CLUSTER_ACTIVITY.CLUSTER_ID.eq(clusterId))
-            .and(CLUSTER_ACTIVITY.END_TIME.isNull)
-        )
-      )
-      .execute()
   }
 }

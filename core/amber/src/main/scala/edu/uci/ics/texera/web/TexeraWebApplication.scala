@@ -26,7 +26,10 @@ import edu.uci.ics.texera.web.resource._
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource
 import edu.uci.ics.texera.web.resource.dashboard.admin.execution.AdminExecutionResource
 import edu.uci.ics.texera.web.resource.dashboard.admin.user.AdminUserResource
-import edu.uci.ics.texera.web.resource.dashboard.user.cluster.ClusterResource
+import edu.uci.ics.texera.web.resource.dashboard.user.cluster.{
+  ClusterResource,
+  ClusterCallbackResource
+}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.{
   DatasetAccessResource,
   DatasetResource
@@ -243,6 +246,7 @@ class TexeraWebApplication
 
     environment.jersey.register(classOf[AuthResource])
     environment.jersey.register(classOf[ClusterResource])
+    environment.jersey.register(classOf[ClusterCallbackResource])
     environment.jersey.register(classOf[GoogleAuthResource])
     environment.jersey.register(classOf[UserConfigResource])
     environment.jersey.register(classOf[AdminUserResource])
