@@ -130,6 +130,7 @@ import { ReportGenerationService } from "./workspace/service/report-generation/r
 import { ClusterComponent } from "./dashboard/component/user/cluster/cluster.component";
 import { ClusterManagementModalComponent } from "./dashboard/component/user/cluster/cluster-management-modal/cluster-management-modal.component";
 import { SearchBarComponent } from "./dashboard/component/user/search-bar/search-bar.component";
+import { ListItemComponent } from "./dashboard/component/user/list-item/list-item.component";
 
 registerLocaleData(en);
 
@@ -210,6 +211,7 @@ registerLocaleData(en);
     ClusterComponent,
     ClusterManagementModalComponent,
     SearchBarComponent,
+    ListItemComponent,
   ],
   imports: [
     BrowserModule,

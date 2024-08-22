@@ -79,6 +79,27 @@ class PhysicalLink(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class Backpressure(betterproto.Message):
+    enable_backpressure: bool = betterproto.bool_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class CreditUpdate(betterproto.Message):
+    pass
+
+
+@dataclass(eq=False, repr=False)
+class ActorCommand(betterproto.Message):
+    backpressure: "Backpressure" = betterproto.message_field(1, group="sealed_value")
+    credit_update: "CreditUpdate" = betterproto.message_field(2, group="sealed_value")
+
+
+@dataclass(eq=False, repr=False)
+class PythonActorMessage(betterproto.Message):
+    payload: "ActorCommand" = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
 class ControlInvocationV2(betterproto.Message):
     command_id: int = betterproto.int64_field(1)
     command: "_architecture_worker__.ControlCommandV2" = betterproto.message_field(2)
@@ -105,31 +126,10 @@ class ControlPayloadV2(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class PythonDataHeader(betterproto.Message):
     tag: "ActorVirtualIdentity" = betterproto.message_field(1)
-    is_end: bool = betterproto.bool_field(2)
+    payload_type: str = betterproto.string_field(2)
 
 
 @dataclass(eq=False, repr=False)
 class PythonControlMessage(betterproto.Message):
     tag: "ActorVirtualIdentity" = betterproto.message_field(1)
     payload: "ControlPayloadV2" = betterproto.message_field(2)
-
-
-@dataclass(eq=False, repr=False)
-class Backpressure(betterproto.Message):
-    enable_backpressure: bool = betterproto.bool_field(1)
-
-
-@dataclass(eq=False, repr=False)
-class CreditUpdate(betterproto.Message):
-    pass
-
-
-@dataclass(eq=False, repr=False)
-class ActorCommand(betterproto.Message):
-    backpressure: "Backpressure" = betterproto.message_field(1, group="sealed_value")
-    credit_update: "CreditUpdate" = betterproto.message_field(2, group="sealed_value")
-
-
-@dataclass(eq=False, repr=False)
-class PythonActorMessage(betterproto.Message):
-    payload: "ActorCommand" = betterproto.message_field(1)
