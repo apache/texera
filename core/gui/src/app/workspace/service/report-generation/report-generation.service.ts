@@ -104,7 +104,6 @@ export class ReportGenerationService {
       });
   }
 
-
   /**
    * Retrieves and processes detailed results for a specified operator, generating a structured HTML representation.
    * This function covers multiple cases, including handling paginated results, snapshot data, and scenarios where
