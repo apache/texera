@@ -140,10 +140,8 @@ class WorkflowService(
     )
   }
 
-  private[this] def createWorkflowContext(
-      uidOpt: Option[UInteger]
-  ): WorkflowContext = {
-    new WorkflowContext(uidOpt, workflowId)
+  private[this] def createWorkflowContext(): WorkflowContext = {
+    new WorkflowContext(workflowId)
   }
 
   def initExecutionService(req: WorkflowExecuteRequest, uidOpt: Option[UInteger]): Unit = {
@@ -151,12 +149,12 @@ class WorkflowService(
       //unsubscribe all
       executionService.getValue.unsubscribeAll()
     }
-    val workflowContext: WorkflowContext = createWorkflowContext(uidOpt)
+    val workflowContext: WorkflowContext = createWorkflowContext()
     var controllerConf = ControllerConfig.default
 
     workflowContext.executionId = ExecutionsMetadataPersistService.insertNewExecution(
       workflowContext.workflowId,
-      workflowContext.userId,
+      uidOpt,
       req.executionName,
       convertToJson(req.engineVersion)
     )
