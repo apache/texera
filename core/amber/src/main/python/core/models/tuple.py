@@ -245,8 +245,8 @@ class Tuple:
         :param schema: target Schema to finalize the Tuple.
         :return:
         """
-        self.cast_to_schema(schema)
-        self.validate_schema(schema)
+        skip_schemas = self.cast_to_schema(schema)
+        self.validate_schema(schema, skip_schemas)
         self._schema = schema
 
     def cast_to_schema(self, schema: Schema) -> None:
@@ -261,8 +261,10 @@ class Tuple:
             cast.
         :return:
         """
+        skip_schemas = []
         for field_name in self.get_field_names():
             try:
+                skip_encoding = "function ArrowTableTupleProvider" in str(repr(self._field_data[field_name]))
                 field_value: Field = self[field_name]
 
                 # convert NaN to None to support null value conversion
@@ -271,18 +273,21 @@ class Tuple:
 
                 if field_value is not None:
                     field_type = schema.get_attr_type(field_name)
-                    if field_type == AttributeType.BINARY and not isinstance(
+                    if field_type == AttributeType.BINARY and not skip_encoding and not isinstance(
                         field_value, bytes
                     ):
                         self[field_name] = b"pickle    " + pickle.dumps(field_value)
+                    if skip_encoding:
+                        skip_schemas.append(field_name)
             except Exception as err:
                 # Surpass exceptions during cast.
                 # Keep the value as it is if the cast fails, and continue to attempt
                 # on the next one.
                 logger.warning(err)
                 continue
+        return skip_schemas
 
-    def validate_schema(self, schema: Schema) -> None:
+    def validate_schema(self, schema: Schema, skip_schemas: List[str]) -> None:
         """
         Checks if the field values in the Tuple matches the expected Schema.
         :param schema: Schema
@@ -310,13 +315,14 @@ class Tuple:
 
         for field_name, field_value in self.as_key_value_pairs():
             expected = schema.get_attr_type(field_name)
-            if not isinstance(
-                field_value, (TO_PYOBJECT_MAPPING.get(expected), type(None))
-            ):
-                raise TypeError(
-                    f"Unmatched type for field '{field_name}', expected {expected}, "
-                    f"got {field_value} ({type(field_value)}) instead."
-                )
+            if field_name not in skip_schemas:
+                if not isinstance(
+                    field_value, (TO_PYOBJECT_MAPPING.get(expected), type(None))
+                ):
+                    raise TypeError(
+                        f"Unmatched type for field '{field_name}', expected {expected}, "
+                        f"got {field_value} ({type(field_value)}) instead."
+                    )
 
     def get_partial_tuple(self, attribute_names: List[str]) -> "Tuple":
         """
