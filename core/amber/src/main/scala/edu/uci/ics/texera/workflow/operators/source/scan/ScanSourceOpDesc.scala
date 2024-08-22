@@ -3,6 +3,7 @@ package edu.uci.ics.texera.workflow.operators.source.scan
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.storage.DatasetFileDocument
 import edu.uci.ics.amber.engine.common.workflow.OutputPort
 import edu.uci.ics.texera.workflow.common.WorkflowContext
@@ -64,9 +65,9 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
       throw new RuntimeException("no input file name")
     }
 
-    if (getContext.userId.isDefined) {
+    if (AmberConfig.isUserSystemEnabled) {
       // if user system is defined, a datasetFileDesc will be initialized, which is the handle of reading file from the dataset
-      datasetFile = Some(new DatasetFileDocument(getContext.userId.get, Paths.get(fileName.get)))
+      datasetFile = Some(new DatasetFileDocument(Paths.get(fileName.get)))
     } else {
       // otherwise, the fileName will be inputted by user, which is the filePath.
       filePath = fileName
@@ -89,7 +90,7 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
   // resolve the file path based on whether the user system is enabled
   // it will check for the presence of the given filePath/Desc
   def determineFilePathOrDatasetFile(): (String, DatasetFileDocument) = {
-    if (getContext.userId.isDefined) {
+    if (AmberConfig.isUserSystemEnabled) {
       val file = datasetFile.getOrElse(
         throw new RuntimeException("Dataset file descriptor is not provided.")
       )

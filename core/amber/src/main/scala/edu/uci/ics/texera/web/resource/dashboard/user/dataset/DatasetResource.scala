@@ -273,7 +273,6 @@ object DatasetResource {
   def getDatasetFile(
       did: UInteger,
       dvid: UInteger,
-      uid: UInteger,
       fileRelativePath: java.nio.file.Path
   ): InputStream = {
     val versionHash = getDatasetVersionByID(context, dvid).getVersionHash
