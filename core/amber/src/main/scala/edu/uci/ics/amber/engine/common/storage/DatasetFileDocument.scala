@@ -1,7 +1,6 @@
 package edu.uci.ics.amber.engine.common.storage
 
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource
-import org.jooq.types.UInteger
 
 import java.io.{File, InputStream, FileOutputStream}
 import java.net.URI
