@@ -28,16 +28,13 @@ case class WorkflowCompilationResponse(
 class WorkflowCompilationResource extends LazyLogging {
   @POST
   @Path("/{wid}")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def compileWorkflow(
       workflowStr: String,
       @PathParam("wid") wid: UInteger,
-      @Auth sessionUser: SessionUser
   ): WorkflowCompilationResponse = {
     val logicalPlanPojo = Utils.objectMapper.readValue(workflowStr, classOf[LogicalPlanPojo])
 
     val context = new WorkflowContext(
-      userId = Option(sessionUser.getUser.getUid),
       workflowId = WorkflowIdentity(wid.toString.toLong)
     )
 

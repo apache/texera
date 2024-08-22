@@ -19,11 +19,11 @@ import io.dropwizard.setup.{Bootstrap, Environment}
 import org.eclipse.jetty.server.session.SessionHandler
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 
-object TexeraCompilerWebApplication {
+object TexeraWorkflowCompilerService {
   def main(args: Array[String]): Unit = {
     val argMap = parseArgs(args)
 
-    new TexeraCompilerWebApplication().run(
+    new TexeraWorkflowCompilerService().run(
       "server",
       Utils.amberHomePath
         .resolve("src")
@@ -35,51 +35,22 @@ object TexeraCompilerWebApplication {
   }
 }
 
-class TexeraCompilerWebApplication
-    extends io.dropwizard.Application[TexeraCompilerWebConfiguration]
+class TexeraWorkflowCompilerService
+    extends io.dropwizard.Application[TexeraWorkflowCompilerWebServiceConfiguration]
     with LazyLogging {
-  override def initialize(bootstrap: Bootstrap[TexeraCompilerWebConfiguration]): Unit = {
+  override def initialize(bootstrap: Bootstrap[TexeraWorkflowCompilerWebServiceConfiguration]): Unit = {
     // register scala module to dropwizard default object mapper
     bootstrap.getObjectMapper.registerModule(DefaultScalaModule)
   }
 
   override def run(
-      configuration: TexeraCompilerWebConfiguration,
-      environment: Environment
+                    configuration: TexeraWorkflowCompilerWebServiceConfiguration,
+                    environment: Environment
   ): Unit = {
     // serve backend at /api/texera
     environment.jersey.setUrlPattern("/api/texera/*")
 
-    // register SessionHandler
-    environment.jersey.register(classOf[SessionHandler])
-    environment.servlets.setSessionHandler(new SessionHandler)
+    // register the compilation endpoint
     environment.jersey.register(classOf[WorkflowCompilationResource])
-
-    if (AmberConfig.isUserSystemEnabled) {
-      // register JWT Auth layer
-      environment.jersey.register(
-        new AuthDynamicFeature(
-          new JwtAuthFilter.Builder[SessionUser]()
-            .setJwtConsumer(jwtConsumer)
-            .setRealm("realm")
-            .setPrefix("Bearer")
-            .setAuthenticator(UserAuthenticator)
-            .setAuthorizer(UserRoleAuthorizer)
-            .buildAuthFilter()
-        )
-      )
-    } else {
-      // register Guest Auth layer
-      environment.jersey.register(
-        new AuthDynamicFeature(
-          new GuestAuthFilter.Builder().setAuthorizer(UserRoleAuthorizer).buildAuthFilter()
-        )
-      )
-    }
-
-    environment.jersey.register(
-      new AuthValueFactoryProvider.Binder[SessionUser](classOf[SessionUser])
-    )
-    environment.jersey.register(classOf[RolesAllowedDynamicFeature])
   }
 }
