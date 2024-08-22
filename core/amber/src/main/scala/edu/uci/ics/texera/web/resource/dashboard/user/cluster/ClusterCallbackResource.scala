@@ -11,7 +11,7 @@ import edu.uci.ics.texera.web.resource.dashboard.user.cluster.ClusterUtils.{
   updateClusterActivityEndTime,
   updateClusterStatus
 }
-import edu.uci.ics.texera.web.resource.dashboard.user.cluster.ClusterWebhookResource.{
+import edu.uci.ics.texera.web.resource.dashboard.user.cluster.ClusterCallbackResource.{
   clusterActivityDao,
   clusterDao,
   context
@@ -19,7 +19,7 @@ import edu.uci.ics.texera.web.resource.dashboard.user.cluster.ClusterWebhookReso
 
 import java.sql.Timestamp
 
-object ClusterWebhookResource {
+object ClusterCallbackResource {
   final private lazy val context = SqlServer.createDSLContext()
   final private lazy val clusterDao = new ClusterDao(context.configuration)
   final private lazy val clusterActivityDao = new ClusterActivityDao(context.configuration)
@@ -28,14 +28,14 @@ object ClusterWebhookResource {
   val ERR_USER_HAS_NO_ACCESS_TO_CLUSTER_MESSAGE = "User has no access to this cluster"
 }
 
-@Path("/webhook")
-class ClusterWebhookResource {
+@Path("/callback")
+class ClusterCallbackResource {
 
   @POST
   @Path("/cluster/created")
   @Consumes(Array(MediaType.APPLICATION_JSON))
-  def handleClusterCreatedWebhook(webhookPayload: WebhookPayload): Response = {
-    val clusterId = webhookPayload.clusterId
+  def handleClusterCreatedCallback(callbackPayload: CallbackPayload): Response = {
+    val clusterId = callbackPayload.clusterId
     // Update the cluster status to LAUNCHED in the database
     val cluster = clusterDao.fetchOneByCid(clusterId)
     if (cluster != null && cluster.getStatus == ClusterStatus.LAUNCHING) {
@@ -53,8 +53,8 @@ class ClusterWebhookResource {
   @POST
   @Path("/cluster/deleted")
   @Consumes(Array(MediaType.APPLICATION_JSON))
-  def handleClusterDeletedWebhook(webhookPayload: WebhookPayload): Response = {
-    val clusterId = webhookPayload.clusterId
+  def handleClusterDeletedCallback(callbackPayload: CallbackPayload): Response = {
+    val clusterId = callbackPayload.clusterId
 
     val cluster = clusterDao.fetchOneByCid(clusterId)
     if (cluster != null && cluster.getStatus == ClusterStatus.TERMINATING) {
@@ -86,4 +86,4 @@ class ClusterWebhookResource {
 }
 
 // Define the payload structure expected from the Go service
-case class WebhookPayload(clusterId: Int)
+case class CallbackPayload(clusterId: Int)
