@@ -4,13 +4,10 @@ import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource.{
   DatasetQuota,
-  File,
   MongoStorage,
   Workflow,
   deleteMongoCollection,
-  getUserAccessedFiles,
   getUserAccessedWorkflow,
-  getUserCreatedFile,
   getUserCreatedWorkflow,
   getUserMongoDBSize
 }
@@ -28,15 +25,6 @@ import scala.jdk.CollectionConverters.IterableHasAsScala
 
 object UserQuotaResource {
   final private lazy val context = SqlServer.createDSLContext()
-
-  case class File(
-      userId: UInteger,
-      fileId: UInteger,
-      fileName: String,
-      fileSize: UInteger,
-      uploadedTime: Long,
-      description: String
-  )
 
   case class Workflow(
       userId: UInteger,
@@ -82,35 +70,6 @@ object UserQuotaResource {
     name
   }
 
-  def getUserCreatedFile(uid: UInteger): List[File] = {
-    val userFileEntries = context
-      .select(
-        FILE.OWNER_UID,
-        FILE.FID,
-        FILE.NAME,
-        FILE.SIZE,
-        FILE.UPLOAD_TIME,
-        FILE.DESCRIPTION
-      )
-      .from(FILE)
-      .where(FILE.OWNER_UID.eq(uid))
-      .fetch()
-
-    userFileEntries
-      .map(fileRecord => {
-        File(
-          fileRecord.get(FILE.OWNER_UID),
-          fileRecord.get(FILE.FID),
-          fileRecord.get(FILE.NAME),
-          fileRecord.get(FILE.SIZE),
-          fileRecord.get(FILE.UPLOAD_TIME).getTime,
-          fileRecord.get(FILE.DESCRIPTION)
-        )
-      })
-      .asScala
-      .toList
-  }
-
   def getUserCreatedWorkflow(uid: UInteger): List[Workflow] = {
     val userWorkflowEntries = context
       .select(
@@ -140,8 +99,8 @@ object UserQuotaResource {
           workflowRecord.get(WORKFLOW_OF_USER.UID),
           workflowRecord.get(WORKFLOW_OF_USER.WID),
           workflowRecord.get(WORKFLOW.NAME),
-          workflowRecord.get(WORKFLOW.CREATION_TIME).getTime(),
-          workflowRecord.get(WORKFLOW.LAST_MODIFIED_TIME).getTime()
+          workflowRecord.get(WORKFLOW.CREATION_TIME).getTime,
+          workflowRecord.get(WORKFLOW.LAST_MODIFIED_TIME).getTime
         )
       })
       .asScala
@@ -161,21 +120,7 @@ object UserQuotaResource {
       )
       .fetchInto(classOf[UInteger])
 
-    return availableWorkflowIds
-  }
-
-  def getUserAccessedFiles(uid: UInteger): util.List[UInteger] = {
-    context
-      .select(
-        USER_FILE_ACCESS.FID
-      )
-      .from(
-        USER_FILE_ACCESS
-      )
-      .where(
-        USER_FILE_ACCESS.UID.eq(uid)
-      )
-      .fetchInto(classOf[UInteger])
+    availableWorkflowIds
   }
 
   def getUserMongoDBSize(uid: UInteger): Array[MongoStorage] = {
@@ -236,13 +181,6 @@ object UserQuotaResource {
 class UserQuotaResource {
 
   @GET
-  @Path("/uploaded_files")
-  @Produces(Array(MediaType.APPLICATION_JSON))
-  def getCreatedFile(@Auth current_user: SessionUser): List[File] = {
-    getUserCreatedFile(current_user.getUid)
-  }
-
-  @GET
   @Path("/created_datasets")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def getCreatedDatasets(@Auth current_user: SessionUser): List[DatasetQuota] = {
@@ -261,13 +199,6 @@ class UserQuotaResource {
   @Produces(Array(MediaType.APPLICATION_JSON))
   def getAccessedWorkflow(@Auth current_user: SessionUser): util.List[UInteger] = {
     getUserAccessedWorkflow(current_user.getUid)
-  }
-
-  @GET
-  @Path("/access_files")
-  @Produces(Array(MediaType.APPLICATION_JSON))
-  def getAccessedFiles(@Auth current_user: SessionUser): util.List[UInteger] = {
-    getUserAccessedFiles(current_user.getUid)
   }
 
   @GET

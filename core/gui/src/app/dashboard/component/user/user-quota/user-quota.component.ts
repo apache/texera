@@ -2,7 +2,6 @@ import { Component, OnInit, inject } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { File, Workflow, MongoExecution, MongoWorkflow } from "../../../../common/type/user";
 import { DatasetQuota } from "src/app/dashboard/type/quota-statistic.interface";
-import { UserFileService } from "../../../service/user/file/user-file.service";
 import { NzTableSortFn } from "ng-zorro-antd/table";
 import { UserQuotaService } from "src/app/dashboard/service/user/quota/user-quota.service";
 import { AdminUserService } from "src/app/dashboard/service/admin/user/admin-user.service";
@@ -30,7 +29,6 @@ export class UserQuotaComponent implements OnInit {
   createdWorkflows: ReadonlyArray<Workflow> = [];
   accessFiles: ReadonlyArray<number> = [];
   accessWorkflows: ReadonlyArray<number> = [];
-  topFiveFiles: ReadonlyArray<File> = [];
   mongodbExecutions: ReadonlyArray<MongoExecution> = [];
   datasetList: ReadonlyArray<DatasetQuota> = [];
   mongodbWorkflows: Array<MongoWorkflow> = [];
@@ -42,7 +40,6 @@ export class UserQuotaComponent implements OnInit {
 
   constructor(
     private adminUserService: AdminUserService,
-    private userFileService: UserFileService,
     private regularUserService: UserQuotaService
   ) {
     this.UserService = adminUserService;
@@ -179,20 +176,6 @@ export class UserQuotaComponent implements OnInit {
   }
 
   refreshData() {
-    this.UserService.getUploadedFiles(this.userId)
-      .pipe(untilDestroyed(this))
-      .subscribe(fileList => {
-        this.createdFiles = fileList;
-        let size = 0;
-        this.createdFiles.forEach(file => {
-          size += file.fileSize;
-        });
-        this.totalFileSize = size;
-        const copiedFiles = [...fileList];
-        copiedFiles.sort((a, b) => b.fileSize - a.fileSize);
-        this.topFiveFiles = copiedFiles.slice(0, 5);
-      });
-
     this.UserService.getCreatedDatasets(this.userId)
       .pipe(untilDestroyed(this))
       .subscribe(datasetList => {
@@ -240,12 +223,6 @@ export class UserQuotaComponent implements OnInit {
         });
         lineChartDataArray = this.aggregateData(lineChartDataArray, 5);
         this.generateLineChart(lineChartDataArray, "Date", "Count", "Workflow Upload Overview", "workflowLineChart");
-      });
-
-    this.UserService.getAccessFiles(this.userId)
-      .pipe(untilDestroyed(this))
-      .subscribe(accessFiles => {
-        this.accessFiles = accessFiles;
       });
 
     this.UserService.getAccessWorkflows(this.userId)
@@ -298,36 +275,6 @@ export class UserQuotaComponent implements OnInit {
       });
   }
 
-  /**
-   * Convert a numeric timestamp to a human-readable time string.
-   */
-  convertTimeToTimestamp(timeValue: number): string {
-    const date = new Date(timeValue);
-    return date.toLocaleString("en-US", { timeZoneName: "short" });
-  }
-
-  deleteFile(fid: number) {
-    if (fid === undefined) {
-      return;
-    }
-    this.userFileService
-      .deleteFile(fid)
-      .pipe(untilDestroyed(this))
-      .subscribe(() => this.refreshFiles());
-  }
-
-  downloadFile(fid: number, fileName: string) {
-    this.userFileService
-      .downloadFile(fid)
-      .pipe(untilDestroyed(this))
-      .subscribe((response: Blob) => {
-        const link = document.createElement("a");
-        link.download = fileName;
-        link.href = URL.createObjectURL(new Blob([response]));
-        link.click();
-      });
-  }
-
   convertFileSize(sizeInBytes: number): string {
     const units = ["B", "KB", "MB", "GB", "TB"];
 
@@ -340,30 +287,6 @@ export class UserQuotaComponent implements OnInit {
     }
 
     return `${size.toFixed(2)} ${units[unitIndex]}`;
-  }
-
-  refreshFiles() {
-    this.UserService.getUploadedFiles(this.userId)
-      .pipe(untilDestroyed(this))
-      .subscribe(fileList => {
-        this.createdFiles = fileList;
-        let size = 0;
-        this.createdFiles.forEach(file => {
-          size += file.fileSize;
-        });
-        this.totalFileSize = size;
-
-        const copiedFiles = [...fileList];
-        copiedFiles.sort((a, b) => b.fileSize - a.fileSize);
-        this.topFiveFiles = copiedFiles.slice(0, 5);
-      });
-  }
-
-  maxStringLength(input: string, length: number): string {
-    if (input.length > length) {
-      return input.substring(0, length) + " . . . ";
-    }
-    return input;
   }
 
   public sortByMongoDBSize: NzTableSortFn<MongoExecution> = (a: MongoExecution, b: MongoExecution) => b.size - a.size;

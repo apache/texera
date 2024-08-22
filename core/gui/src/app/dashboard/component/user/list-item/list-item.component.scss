@@ -1,0 +1,78 @@
+.list-item-card {
+  padding: 0;
+  width: 100%;
+  background-color: white;
+  position: relative;
+}
+
+.truncate-single-line {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.resource-name {
+  font-size: 17px;
+  font-weight: 600;
+}
+.resource-description {
+  font-size: 12px;
+  font-weight: 300;
+  color: grey;
+}
+
+.type-icon-div {
+  text-align: center;
+  font-size: 38px;
+}
+
+.edit-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-right: 16px;
+  .resource-owner {
+    display: flex;
+    align-items: center;
+    justify-content: start;
+    em {
+      margin-right: 8px;
+    }
+  }
+  .resource-time-info {
+    font-size: 13px;
+    font-weight: 400;
+    color: grey;
+  }
+}
+
+.button-group {
+  display: none;
+  position: absolute;
+  height: 70px;
+  min-width: 150px;
+  right: 0;
+  bottom: 0;
+  background-color: #f0f0f0;
+  justify-content: right;
+  align-items: center;
+
+  button {
+    margin-right: 32px;
+  }
+
+  button:hover {
+    background-color: #d9d9d9;
+  }
+}
+
+.list-item-card:hover {
+  background-color: #f0f0f0;
+  cursor: pointer;
+}
+
+.list-item-card:hover .button-group {
+  display: flex;
+}

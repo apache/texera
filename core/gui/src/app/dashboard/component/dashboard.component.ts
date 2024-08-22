@@ -28,8 +28,8 @@ export class DashboardComponent implements OnInit {
   routesWithoutNavbar: string[] = ["/workspace"];
   constructor(
     private userService: UserService,
-    private flarumService: FlarumService,
-    private router: Router
+    private router: Router,
+    private flarumService: FlarumService
   ) {}
 
   ngOnInit(): void {
