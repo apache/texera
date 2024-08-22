@@ -69,39 +69,27 @@ export class ReportGenerationService {
   }
 
   /**
-   * Collects and processes results for all operators within the workflow, generating a comprehensive HTML report.
-   * This function iterates over each operator, retrieves its detailed results via `retrieveOperatorInfoReport`,
-   * and then compiles these results into a final HTML document. The report is then generated and made available for download.
+   * Retrieves and processes results for all specified operators within the workflow.
+   * This function iterates over each operator ID, fetches the corresponding result details via `retrieveOperatorInfoReport`,
+   * and collects these results into an array. The function returns a promise that resolves with the processed results,
+   * which can be used to generate a comprehensive HTML report or for further processing.
    *
-   * @param {Object} payload - An object containing all necessary data to process and generate the report.
+   * @param {Object} payload - An object containing the operator IDs that need to be processed.
    * @param {string[]} payload.operatorId - An array of operator IDs representing each operator in the workflow.
-   * @param {string} payload.workflowSnapshotURL - A URL pointing to a snapshot of the current workflow, to be included in the report.
-   * @param {string} payload.workflowName - The name of the workflow, used to generate a relevant filename for the report.
    *
-   * @returns {void} - This function does not return a value. It processes the operators and triggers the generation of an HTML report.
+   * @returns {Promise<{operatorId: string, html: string}[]>} - A promise that resolves with an array of objects,
+   * each containing an `operatorId` and its corresponding HTML representation of the result.
+   * This result array can be used to generate an HTML report or for other purposes.
    */
 
-  public getAllOperatorResults(payload: {
-    operatorId: string[]; // Changed from `operators: OperatorDetail[]` to `operatorIds: string[]` as requested
-    workflowSnapshotURL: string;
-    workflowName: string;
-  }): void {
+  public getAllOperatorResults(payload: { operatorId: string[] }): Promise<{ operatorId: string; html: string }[]> {
     const allResults: { operatorId: string; html: string }[] = [];
 
     const promises = payload.operatorId.map(operatorId => {
-      return this.retrieveOperatorInfoReport(operatorId, operatorId, allResults); // Updated to pass only operatorId
+      return this.retrieveOperatorInfoReport(operatorId, allResults);
     });
 
-    Promise.all(promises)
-      .then(() => {
-        const sortedResults = payload.operatorId.map(
-          id => allResults.find(result => result.operatorId === id)?.html || ""
-        );
-        this.generateReportAsHtml(payload.workflowSnapshotURL, sortedResults, payload.workflowName);
-      })
-      .catch(error => {
-        this.notificationService.error("Error in generating operator results: " + error.message);
-      });
+    return Promise.all(promises).then(() => allResults);
   }
 
   /**
@@ -118,7 +106,6 @@ export class ReportGenerationService {
 
   public retrieveOperatorInfoReport(
     operatorId: string,
-    operatorInfo: any,
     allResults: { operatorId: string; html: string }[]
   ): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -136,7 +123,6 @@ export class ReportGenerationService {
             const container = document.querySelector("#json-editor-${operatorId}");
             const options = { mode: 'view', language: 'en' };
             const editor = new JSONEditor(container, options);
-            editor.set(${JSON.stringify(operatorInfo)});
           });
         </script>
      </div>`;

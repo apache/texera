@@ -257,23 +257,32 @@ export class MenuComponent implements OnInit {
     this.notificationService.info("The report is being generated...");
 
     const workflowName = this.currentWorkflowName;
-    const payload: WorkflowContent = this.workflowActionService.getWorkflowContent();
+    const WorkflowContent: WorkflowContent = this.workflowActionService.getWorkflowContent();
 
-    // Extract operatorIDs and operators from the parsed payload
-    const operatorIds = payload.operators.map((operator: { operatorID: string }) => operator.operatorID);
-    const operators = payload.operators;
+    // Extract operatorIDs from the parsed payload
+    const operatorIds = WorkflowContent.operators.map((operator: { operatorID: string }) => operator.operatorID);
 
     // Invokes the method of the report printing service
     this.reportGenerationService
       .generateWorkflowSnapshot(workflowName)
       .pipe(untilDestroyed(this))
       .subscribe({
-        next: (workflowSnapshotURL: string) =>
-          this.reportGenerationService.getAllOperatorResults({
-            operatorId: operatorIds,
-            workflowSnapshotURL: workflowSnapshotURL,
-            workflowName: workflowName,
-          }),
+        next: (workflowSnapshotURL: string) => {
+          this.reportGenerationService
+            .getAllOperatorResults({
+              operatorId: operatorIds,
+            })
+            .then(allResults => {
+              const sortedResults = operatorIds.map(
+                id => allResults.find(result => result.operatorId === id)?.html || ""
+              );
+              // Generate the final report as HTML after all results are retrieved
+              this.reportGenerationService.generateReportAsHtml(workflowSnapshotURL, sortedResults, workflowName);
+            })
+            .catch(error => {
+              this.notificationService.error("Error in retrieving operator results: " + (error as Error).message);
+            });
+        },
         error: (e: unknown) => this.notificationService.error((e as Error).message),
       });
   }
