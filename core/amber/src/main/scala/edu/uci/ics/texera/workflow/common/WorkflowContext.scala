@@ -4,7 +4,6 @@ import edu.uci.ics.texera.workflow.common.WorkflowContext.{
   DEFAULT_EXECUTION_ID,
   DEFAULT_WORKFLOW_ID
 }
-import org.jooq.types.UInteger
 
 object WorkflowContext {
   val DEFAULT_EXECUTION_ID: ExecutionIdentity = ExecutionIdentity(1L)
