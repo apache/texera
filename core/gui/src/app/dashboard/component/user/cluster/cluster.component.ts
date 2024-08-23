@@ -117,14 +117,14 @@ export class ClusterComponent implements OnInit {
   getBadgeStatus(status: string): string[]{
     switch(status){
       case "LAUNCHING":
-      case "LAUNCHED":
       case "RESUMING":
         return ["play-circle", "orange"];
-      case "COMPLETED":
+      case "LAUNCHED":
         return ["check-circle", "green"];
       case "PAUSED":
         return ["pause-circle", "gray"];
       case "TERMINATING":
+        return ["minus-circle", "orange"];
       case "TERMINATED":
       case "FAILED":
         return ["minus-circle", "red"];
