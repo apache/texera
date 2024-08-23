@@ -1,2 +1,14 @@
 @import "../../dashboard.component.scss";
-@import "../search/search.component.scss";
+
+.status-badge .ant-badge-status-dot {
+  display: none; /* Hide the default dot */
+}
+
+.status-badge .ant-badge-status-text {
+  padding: 8px 16px;
+  background-color: #52c41a; /* Green color for completed */
+  border-radius: 20px; /* Makes the shape an oval */
+  color: white;
+  font-weight: bold;
+  font-size: 16px;
+}

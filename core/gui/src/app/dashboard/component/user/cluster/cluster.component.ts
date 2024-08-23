@@ -113,4 +113,23 @@ export class ClusterComponent implements OnInit {
   closeClusterManagementModal(): void {
     this.isClusterManagementVisible = false;
   }
+
+  getBadgeStatus(status: string): string[]{
+    switch(status){
+      case "LAUNCHING":
+      case "LAUNCHED":
+      case "RESUMING":
+        return ["play-circle", "orange"];
+      case "COMPLETED":
+        return ["check-circle", "green"];
+      case "PAUSED":
+        return ["pause-circle", "gray"];
+      case "TERMINATING":
+      case "TERMINATED":
+      case "FAILED":
+        return ["minus-circle", "red"];
+      default:
+        return ["exclamation-circle", "gray"];
+    }
+  }
 }
