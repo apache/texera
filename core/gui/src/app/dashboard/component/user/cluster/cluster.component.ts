@@ -119,6 +119,8 @@ export class ClusterComponent implements OnInit {
       case "LAUNCHING":
       case "RESUMING":
         return ["play-circle", "orange"];
+      case "PAUSING":
+        return ["pause-circle", "orange"];
       case "LAUNCHED":
         return ["check-circle", "green"];
       case "PAUSED":
