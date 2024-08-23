@@ -16,19 +16,6 @@
     </button>
   </nz-card>
 
-  <div class="section-search-bar workflow-search-bar">
-    <nz-select
-      class="search-input-box"
-      name="search-input-box"
-      nzMode="tags"
-      nzPlaceHolder="Search clusters"
-      [nzBorderless]="true"
-      [nzOpen]="false"
-      ngDefaultControl
-      [nzAllowClear]="true">
-    </nz-select>
-  </div>
-
   <nz-table
     #basicTable
     [nzData]="clusterList">
@@ -51,19 +38,15 @@
         <td>{{ data.numberOfMachines}}</td>
         <td>{{ data.machineType }}</td>
         <td>
-          <span
-            [ngClass]="{
-                      'state-box': true,
-                      'state-launching': data.status === 'launching',
-                      'state-ready': data.status === 'ready',
-                      'state-finished': data.status === 'finished',
-                      'state-other':
-                        data.status !== 'launching' &&
-                        data.status !== 'ready' &&
-                        data.status !== 'finished',
-                    }">
-            {{ data.status }}
-          </span>
+          <i
+            [ngStyle]="{'color': getBadgeStatus(data.status)[1], 'font-size': '20px'}"
+            [nzTooltipTitle]="data.status"
+            [nzType]="getBadgeStatus(data.status)[0]"
+            class="status-icon"
+            nz-icon
+            nz-tooltip
+            nzTheme="outline"
+            nzTooltipPlacement="top"></i>
         </td>
         <td>
           <button
@@ -101,13 +84,6 @@
       </tr>
     </tbody>
   </nz-table>
-
-  <!--
-  TODO: Place table inside of the search results and allow for search
-  <texera-search-results
-    [editable]="true"
-    ></texera-search-results>
-  -->
 
   <app-cluster-management-modal
     [isVisible]="isClusterManagementVisible"
