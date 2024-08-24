@@ -245,8 +245,7 @@ class Tuple:
         :param schema: target Schema to finalize the Tuple.
         :return:
         """
-
-        if self._schema == None:
+        if self._schema is None:
             self.cast_to_schema(schema)
             self.validate_schema(schema)
             self._schema = schema
@@ -277,7 +276,6 @@ class Tuple:
                         field_value, bytes
                     ):
                         self[field_name] = b"pickle    " + pickle.dumps(field_value)
-
             except Exception as err:
                 # Surpass exceptions during cast.
                 # Keep the value as it is if the cast fails, and continue to attempt
