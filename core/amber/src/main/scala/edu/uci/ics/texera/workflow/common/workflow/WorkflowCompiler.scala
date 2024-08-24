@@ -75,8 +75,8 @@ class WorkflowCompiler(
     * @return WorkflowCompilationResult, containing the physical plan, input schemas per op and error per op
     */
   def compileToPhysicalPlan(
-                             logicalPlanPojo: LogicalPlanPojo
-                           ): WorkflowCompilationResult = {
+      logicalPlanPojo: LogicalPlanPojo
+  ): WorkflowCompilationResult = {
     val (logicalPlan, opIdToError) = compileToLogicalPlan(logicalPlanPojo)
     if (opIdToError.nonEmpty) {
       // encounter errors during compile pojo to logical plan,

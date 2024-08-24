@@ -38,14 +38,16 @@ object TexeraWorkflowCompilerService {
 class TexeraWorkflowCompilerService
     extends io.dropwizard.Application[TexeraWorkflowCompilerWebServiceConfiguration]
     with LazyLogging {
-  override def initialize(bootstrap: Bootstrap[TexeraWorkflowCompilerWebServiceConfiguration]): Unit = {
+  override def initialize(
+      bootstrap: Bootstrap[TexeraWorkflowCompilerWebServiceConfiguration]
+  ): Unit = {
     // register scala module to dropwizard default object mapper
     bootstrap.getObjectMapper.registerModule(DefaultScalaModule)
   }
 
   override def run(
-                    configuration: TexeraWorkflowCompilerWebServiceConfiguration,
-                    environment: Environment
+      configuration: TexeraWorkflowCompilerWebServiceConfiguration,
+      environment: Environment
   ): Unit = {
     // serve backend at /api/texera
     environment.jersey.setUrlPattern("/api/texera/*")

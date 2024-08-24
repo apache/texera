@@ -1,11 +1,12 @@
 package edu.uci.ics.texera.web.resource
 
 import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOpPojo
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.http.response.SchemaPropagationResponse
-import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
+import edu.uci.ics.texera.web.model.websocket.request.{LogicalPlanPojo, PhysicalPlanPojo}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute
 import edu.uci.ics.texera.workflow.common.workflow.{PhysicalPlan, WorkflowCompiler}
@@ -17,7 +18,7 @@ import javax.ws.rs.{Consumes, POST, Path, PathParam, Produces}
 import javax.ws.rs.core.MediaType
 
 case class WorkflowCompilationResponse(
-    physicalPlan: PhysicalPlan,
+    physicalPlan: PhysicalPlanPojo,
     operatorInputSchemas: Map[String, List[Option[List[Attribute]]]],
     operatorErrors: Map[String, String]
 )
@@ -30,7 +31,7 @@ class WorkflowCompilationResource extends LazyLogging {
   @Path("/{wid}")
   def compileWorkflow(
       workflowStr: String,
-      @PathParam("wid") wid: UInteger,
+      @PathParam("wid") wid: UInteger
   ): WorkflowCompilationResponse = {
     val logicalPlanPojo = Utils.objectMapper.readValue(workflowStr, classOf[LogicalPlanPojo])
 
@@ -39,11 +40,19 @@ class WorkflowCompilationResource extends LazyLogging {
     )
 
     // compile the pojo
-    val workflowCompilationResult = new WorkflowCompiler(context).compileToPhysicalPlan(logicalPlanPojo)
-
+    val workflowCompilationResult =
+      new WorkflowCompiler(context).compileToPhysicalPlan(logicalPlanPojo)
+    // get the physical plan from the compilation result
+    val physicalPlan = workflowCompilationResult.physicalPlan
+    // convert the physical plan to pojo, which is serializable
+    val physicalPlanPojo = PhysicalPlanPojo(
+      // the reason of using PhysicalOpPojo is because some fields in PhysicalOp is not serializable
+      physicalPlan.operators.map(op => PhysicalOpPojo(op)).toList,
+      physicalPlan.links.toList
+    )
     // return the result
     WorkflowCompilationResponse(
-      physicalPlan = workflowCompilationResult.physicalPlan,
+      physicalPlan = physicalPlanPojo,
       operatorInputSchemas = workflowCompilationResult.operatorIdToInputSchemas.map {
         case (operatorIdentity, schemas) =>
           val opId = operatorIdentity.id
