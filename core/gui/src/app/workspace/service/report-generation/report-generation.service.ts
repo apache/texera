@@ -71,25 +71,33 @@ export class ReportGenerationService {
   /**
    * Retrieves and processes results for all specified operators within the workflow.
    * This function iterates over each operator ID, fetches the corresponding result details via `retrieveOperatorInfoReport`,
-   * and collects these results into an array. The function returns a promise that resolves with the processed results,
+   * and collects these results into an array. The function returns an observable that emits the processed results,
    * which can be used to generate a comprehensive HTML report or for further processing.
    *
-   * @param {Object} payload - An object containing the operator IDs that need to be processed.
-   * @param {string[]} payload.operatorId - An array of operator IDs representing each operator in the workflow.
+   * @param {string[]} operatorIds - An array of operator IDs representing each operator in the workflow.
    *
-   * @returns {Promise<{operatorId: string, html: string}[]>} - A promise that resolves with an array of objects,
+   * @returns {Observable<{operatorId: string, html: string}[]>} - An observable that emits an array of objects,
    * each containing an `operatorId` and its corresponding HTML representation of the result.
    * This result array can be used to generate an HTML report or for other purposes.
    */
 
-  public getAllOperatorResults(payload: { operatorId: string[] }): Promise<{ operatorId: string; html: string }[]> {
-    const allResults: { operatorId: string; html: string }[] = [];
+  public getAllOperatorResults(operatorIds: string[]): Observable<{ operatorId: string; html: string }[]> {
+    return new Observable(observer => {
+      const allResults: { operatorId: string; html: string }[] = [];
 
-    const promises = payload.operatorId.map(operatorId => {
-      return this.retrieveOperatorInfoReport(operatorId, allResults);
+      const promises = operatorIds.map(operatorId => {
+        return this.retrieveOperatorInfoReport(operatorId, allResults);
+      });
+
+      Promise.all(promises)
+        .then(() => {
+          observer.next(allResults);
+          observer.complete();
+        })
+        .catch(error => {
+          observer.error("Error in retrieving operator results: " + error.message);
+        });
     });
-
-    return Promise.all(promises).then(() => allResults);
   }
 
   /**

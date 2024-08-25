@@ -269,18 +269,19 @@ export class MenuComponent implements OnInit {
       .subscribe({
         next: (workflowSnapshotURL: string) => {
           this.reportGenerationService
-            .getAllOperatorResults({
-              operatorId: operatorIds,
-            })
-            .then(allResults => {
-              const sortedResults = operatorIds.map(
-                id => allResults.find(result => result.operatorId === id)?.html || ""
-              );
-              // Generate the final report as HTML after all results are retrieved
-              this.reportGenerationService.generateReportAsHtml(workflowSnapshotURL, sortedResults, workflowName);
-            })
-            .catch(error => {
-              this.notificationService.error("Error in retrieving operator results: " + (error as Error).message);
+            .getAllOperatorResults(operatorIds)
+            .pipe(untilDestroyed(this))
+            .subscribe({
+              next: (allResults: { operatorId: string; html: string }[]) => {
+                const sortedResults = operatorIds.map(
+                  id => allResults.find(result => result.operatorId === id)?.html || ""
+                );
+                // Generate the final report as HTML after all results are retrieved
+                this.reportGenerationService.generateReportAsHtml(workflowSnapshotURL, sortedResults, workflowName);
+              },
+              error: (error: unknown) => {
+                this.notificationService.error("Error in retrieving operator results: " + (error as Error).message);
+              },
             });
         },
         error: (e: unknown) => this.notificationService.error((e as Error).message),
