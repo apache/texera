@@ -19,34 +19,34 @@ import io.dropwizard.setup.{Bootstrap, Environment}
 import org.eclipse.jetty.server.session.SessionHandler
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 
-object TexeraWorkflowCompilerService {
+object TexeraWorkflowCompilingService {
   def main(args: Array[String]): Unit = {
     val argMap = parseArgs(args)
 
-    new TexeraWorkflowCompilerService().run(
+    new TexeraWorkflowCompilingService().run(
       "server",
       Utils.amberHomePath
         .resolve("src")
         .resolve("main")
         .resolve("resources")
-        .resolve("texera-compiler-web-config.yml")
+        .resolve("texera-compiling-service-web-config.yml")
         .toString
     )
   }
 }
 
-class TexeraWorkflowCompilerService
-    extends io.dropwizard.Application[TexeraWorkflowCompilerWebServiceConfiguration]
+class TexeraWorkflowCompilingService
+    extends io.dropwizard.Application[TexeraWorkflowCompilingServiceConfiguration]
     with LazyLogging {
   override def initialize(
-      bootstrap: Bootstrap[TexeraWorkflowCompilerWebServiceConfiguration]
+      bootstrap: Bootstrap[TexeraWorkflowCompilingServiceConfiguration]
   ): Unit = {
     // register scala module to dropwizard default object mapper
     bootstrap.getObjectMapper.registerModule(DefaultScalaModule)
   }
 
   override def run(
-      configuration: TexeraWorkflowCompilerWebServiceConfiguration,
+      configuration: TexeraWorkflowCompilingServiceConfiguration,
       environment: Environment
   ): Unit = {
     // serve backend at /api/texera
