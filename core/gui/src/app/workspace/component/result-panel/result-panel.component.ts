@@ -269,7 +269,6 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     this.prevWidth = this.width;
     this.height = 32.5;
     this.width = 0;
-    this.resetPanelPosition();
   }
 
   resetPanelPosition() {

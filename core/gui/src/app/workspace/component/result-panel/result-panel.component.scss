@@ -9,7 +9,7 @@
 #result-container {
   position: fixed;
   top: calc(100vh - 300px);
-  left: 0;
+  left: 200px;
   user-select: none;
   background: white;
   border-radius: 5px;
@@ -44,9 +44,17 @@ $type-colors: (
 }
 
 #result-buttons {
-  position: absolute;
+  position: fixed;
+  bottom: 0;
+  left: 200px;
+  z-index: 4;
+  display: flex;
+}
+
+#panel-button {
+  position: fixed;
   top: 0;
-  left: 0;
+  right: 0;
   z-index: 4;
   display: flex;
 }
@@ -71,7 +79,7 @@ $type-colors: (
 }
 
 #title {
-  padding: 5px 41px;
+  padding: 5px 9px;
   border-bottom: 1px solid #e0e0e0;
   position: absolute;
   top: 0;
