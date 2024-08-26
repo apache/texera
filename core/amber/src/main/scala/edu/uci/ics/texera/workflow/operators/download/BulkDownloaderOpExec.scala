@@ -1,7 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.download
 
 import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
-import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
@@ -61,13 +60,6 @@ class BulkDownloaderOpExec(
                 val filename =
                   s"w${workflowContext.workflowId.id}-e${workflowContext.executionId.id}-${urlObj.getHost
                     .replace(".", "")}.download"
-                UserFileResource
-                  .saveFile(
-                    workflowContext.userId.get,
-                    filename,
-                    contentStream,
-                    s"downloaded by execution ${workflowContext.executionId.id} of workflow ${workflowContext.workflowId.id}. Original URL = $url"
-                  )
                 filename
               } else {
                 throw new RuntimeException(s"content is not available for $url")

@@ -103,7 +103,6 @@ class WorkflowWebsocketResource extends LazyLogging {
             new ExecutionStateStore()
           }
           val workflowContext = new WorkflowContext(
-            uidOpt,
             sessionState.getCurrentWorkflowState.get.workflowId
           )
           try {
