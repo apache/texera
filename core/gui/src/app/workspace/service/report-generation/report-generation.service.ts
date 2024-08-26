@@ -80,11 +80,9 @@ export class ReportGenerationService {
    * each containing an `operatorId` and its corresponding HTML representation of the result.
    * This result array can be used to generate an HTML report or for other purposes.
    */
-
   public getAllOperatorResults(operatorIds: string[]): Observable<{ operatorId: string; html: string }[]> {
     return new Observable(observer => {
       const allResults: { operatorId: string; html: string }[] = [];
-
       const promises = operatorIds.map(operatorId => {
         return this.retrieveOperatorInfoReport(operatorId, allResults);
       });
@@ -111,7 +109,6 @@ export class ReportGenerationService {
    *
    * @returns {Promise<void>} - A promise that resolves once the operator's results have been processed and the HTML has been appended to `allResults`.
    */
-
   public retrieveOperatorInfoReport(
     operatorId: string,
     allResults: { operatorId: string; html: string }[]
