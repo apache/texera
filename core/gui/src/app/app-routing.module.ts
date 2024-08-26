@@ -24,7 +24,12 @@ import { UserDatasetComponent } from "./dashboard/component/user/user-dataset/us
 const routes: Routes = [
   {
     path: "",
-    component: environment.userSystemEnabled ? UserWorkflowComponent : WorkspaceComponent,
+    if (environment.userSystemEnabled) {
+      redirectTo: "dashboard/workflow",
+    }
+    else {
+      component: WorkspaceComponent,
+    }
     canActivate: [AuthGuardService],
   },
 ];
