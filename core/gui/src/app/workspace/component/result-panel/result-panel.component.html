@@ -1,3 +1,38 @@
+<ul
+  nz-menu
+  id="result-buttons"
+  [ngClass]="{'shadow':  !width}">
+  <li
+    nz-menu-item
+    (click)="closePanel()"
+    *ngIf="width">
+      <span
+        nz-icon
+        nzType="minus"></span>
+  </li>
+  <li
+    nz-menu-item
+    nzSelected="{{!width}}"
+    cdkDragHandle
+    *ngIf="!width">
+      <span
+        nz-icon
+        nzType="drag"></span>
+  </li>
+  <li
+    nz-menu-divider
+    id="divider"></li>
+  <li
+    nz-menu-item
+    (click)="openPanel()"
+    *ngIf="!width"
+    nz-tooltip="Result Panel: {{operatorTitle}}">
+      <span
+        nz-icon
+        nzType="border"></span>
+  </li>
+</ul>
+
 <div
   id="result-container"
   cdkDrag
@@ -11,40 +46,6 @@
   [style.height.px]="height"
   (nzResize)="onResize($event)"
   [cdkDragFreeDragPosition]="dragPosition">
-  <ul
-    nz-menu
-    id="result-buttons"
-    [ngClass]="{'shadow':  !width}">
-    <li
-      nz-menu-item
-      (click)="closePanel()"
-      *ngIf="width">
-      <span
-        nz-icon
-        nzType="minus"></span>
-    </li>
-    <li
-      nz-menu-item
-      nzSelected="{{!width}}"
-      cdkDragHandle
-      *ngIf="!width">
-      <span
-        nz-icon
-        nzType="drag"></span>
-    </li>
-    <li
-      nz-menu-divider
-      id="divider"></li>
-    <li
-      nz-menu-item
-      (click)="openPanel()"
-      *ngIf="!width"
-      nz-tooltip="Result Panel: {{operatorTitle}}">
-      <span
-        nz-icon
-        nzType="border"></span>
-    </li>
-  </ul>
   <div
     id="content"
     *ngIf="width">
