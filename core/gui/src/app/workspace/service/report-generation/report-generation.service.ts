@@ -12,7 +12,6 @@ export class ReportGenerationService {
   constructor(
     public workflowActionService: WorkflowActionService,
     private workflowResultService: WorkflowResultService,
-    private notificationService: NotificationService
   ) {
   }
 
@@ -123,20 +122,16 @@ export class ReportGenerationService {
         const workflowContent = this.workflowActionService.getWorkflowContent();
         const operatorDetails = workflowContent.operators.find(op => op.operatorID === operatorId);
 
+        // 将 operatorData 转为 JSON 字符串
+        const operatorDataJson = JSON.stringify(operatorDetails, null, 2);
+
         const operatorDetailsHtml = `
-      <div style="text-align: center;">
-          <h4>Operator Details</h4>
-          <div id="json-editor-${operatorId}" style="height: 400px;"></div>
-          <script>
-            document.addEventListener('DOMContentLoaded', function() {
-              const container = document.querySelector("#json-editor-${operatorId}");
-              const options = { mode: 'view', language: 'en' };
-              const editor = new JSONEditor(container, options);
-              editor.set(${JSON.stringify(operatorDetails)});
-            });
-          </script>
-      </div>
-    `;
+  <div style="text-align: center;">
+    <h4>Operator Details</h4>
+    <pre id="json-editor-${operatorId}" style="max-height: 400px; overflow: auto; text-align: left; background: #f4f4f4; padding: 10px; border-radius: 5px; white-space: pre-wrap; word-wrap: break-word;">
+      ${operatorDataJson}
+    </pre>
+  </div>`;
 
         if (paginatedResultService) {
           paginatedResultService.selectPage(1, 10).subscribe(
@@ -294,6 +289,17 @@ export class ReportGenerationService {
             detailsElement.style.display = "none";
           }
         }
+
+        function downloadJson() {
+          const workflowContent = ${JSON.stringify(this.workflowActionService.getWorkflowContent())}; // Get the workflow content
+          const jsonBlob = new Blob([JSON.stringify(workflowContent, null, 2)], {type: "application/json"});
+          const url = URL.createObjectURL(jsonBlob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "${workflowName}-workflow.json";
+          a.click();
+          URL.revokeObjectURL(url);
+        }
       </script>
     </head>
     <body>
@@ -302,6 +308,9 @@ export class ReportGenerationService {
         <img src="${workflowSnapshot}" alt="Workflow Snapshot" style="width: 100%; max-width: 800px;">
       </div>
       ${allResults.join("")}
+      <div style="text-align: center; margin-top: 20px;">
+        <button class="button" onclick="downloadJson()">Download Workflow JSON</button>
+      </div>
     </body>
   </html>
   `;
