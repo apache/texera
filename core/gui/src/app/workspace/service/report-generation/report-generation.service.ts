@@ -12,6 +12,7 @@ export class ReportGenerationService {
   constructor(
     public workflowActionService: WorkflowActionService,
     private workflowResultService: WorkflowResultService,
+    private notificationService:NotificationService,
   ) {
   }
 
@@ -160,7 +161,7 @@ export class ReportGenerationService {
               const columns: string[] = Object.keys(table[0]);
               const rows: any[][] = table.map(row => columns.map(col => row[col]));
 
-              const tableHtml: string = `
+              const htmlContent: string = `
             <div style="width: 50%; margin: 0 auto; text-align: center;">
               <h3>Operator ID: ${operatorId}</h3>
               <table style="width: 100%; border-collapse: collapse; margin: 0 auto;">
@@ -178,7 +179,7 @@ export class ReportGenerationService {
           `;
 
               // Add the generated HTML content to the allResults array
-              allResults.push({operatorId, html: tableHtml});
+              allResults.push({ operatorId, html: htmlContent });
               resolve();
             },
             error => {
