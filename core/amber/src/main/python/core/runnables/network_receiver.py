@@ -13,10 +13,11 @@ from core.architecture.handlers.actorcommand.credit_update_handler import (
     CreditUpdateHandler,
 )
 from core.models import (
-    InputDataFrame,
-    EndOfUpstream,
+    DataFrame,
+    MarkerFrame,
 )
 from core.models.internal_queue import DataElement, ControlElement, InternalQueue
+from core.models.marker import EndOfUpstream
 from core.proxy import ProxyServer
 from core.util import Stoppable, get_one_of
 from core.util.runnable.runnable import Runnable
@@ -62,14 +63,18 @@ class NetworkReceiver(Runnable, Stoppable):
             :return: sender credits
             """
             data_header = PythonDataHeader().parse(command)
-            if not data_header.is_end:
-                shared_queue.put(
-                    DataElement(tag=data_header.tag, payload=InputDataFrame(table))
+            payload_type = data_header.payload_type
+            if payload_type == "data":
+                payload = DataFrame(table)
+            elif payload_type == "EndOfUpstream":
+                payload = MarkerFrame(EndOfUpstream())
+            shared_queue.put(
+                DataElement(
+                    tag=data_header.tag,
+                    payload=payload,
                 )
-            else:
-                shared_queue.put(
-                    DataElement(tag=data_header.tag, payload=EndOfUpstream())
-                )
+            )
+
             return shared_queue.in_mem_size()
 
         self._proxy_server.register_data_handler(data_handler)

@@ -56,7 +56,7 @@ import { map, mergeMap, tap } from "rxjs/operators";
   styleUrls: ["user-workflow.component.scss"],
 })
 export class UserWorkflowComponent implements AfterViewInit {
-  public ROUTER_WORKFLOW_BASE_URL = "workflow";
+  public ROUTER_WORKFLOW_BASE_URL = "/dashboard/workspace";
   private _searchResultsComponent?: SearchResultsComponent;
   @ViewChild(SearchResultsComponent) get searchResultsComponent(): SearchResultsComponent {
     if (this._searchResultsComponent) {

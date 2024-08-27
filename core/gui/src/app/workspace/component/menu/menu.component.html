@@ -1,5 +1,7 @@
 <div id="menu-container">
-  <div id="logo">
+  <div
+    *ngIf="!userSystemEnabled"
+    id="logo">
     <a href="{{userSystemEnabled?'/dashboard/workflow':'/'}}">
       <img
         alt="Texera"
@@ -115,6 +117,15 @@
           <i
             nz-icon
             nzType="download"></i>
+        </button>
+
+        <button
+          (click)="onClickGenerateReport()"
+          nz-button
+          title="generate report">
+          <i
+            nz-icon
+            nzType="cloud-download"></i>
         </button>
       </nz-button-group>
       <ng-template #utilities>

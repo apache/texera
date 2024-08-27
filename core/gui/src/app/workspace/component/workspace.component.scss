@@ -4,7 +4,7 @@
 }
 
 #git-commit-id {
-  position: fixed;
+  position: absolute;
   left: 5px;
   bottom: 5px;
   font-size: 0.4em;
@@ -13,7 +13,7 @@
 }
 
 texera-menu {
-  position: fixed;
+  position: absolute;
   top: 0;
   left: 0;
   z-index: 1;
@@ -22,7 +22,7 @@ texera-menu {
 }
 
 texera-mini-map {
-  position: fixed;
+  position: absolute;
   bottom: 0;
   right: 0;
   z-index: 3;
@@ -30,9 +30,10 @@ texera-mini-map {
 }
 
 texera-workflow-editor {
-  position: fixed;
+  position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
+  background-color: #f6f6f6;
 }

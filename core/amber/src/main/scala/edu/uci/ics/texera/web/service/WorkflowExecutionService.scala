@@ -75,7 +75,6 @@ class WorkflowExecutionService(
     workflow = new WorkflowCompiler(workflowContext).compile(
       request.logicalPlan,
       resultService.opResultStorage,
-      lastCompletedLogicalPlan,
       executionStateStore
     )
 
@@ -99,7 +98,7 @@ class WorkflowExecutionService(
     executionConsoleService = new ExecutionConsoleService(client, executionStateStore, wsInput)
 
     logger.info("Starting the workflow execution.")
-    resultService.attachToExecution(executionStateStore, workflow.originalLogicalPlan, client)
+    resultService.attachToExecution(executionStateStore, workflow.logicalPlan, client)
     executionStateStore.metadataStore.updateState(metadataStore =>
       updateWorkflowState(READY, metadataStore)
         .withFatalErrors(Seq.empty)

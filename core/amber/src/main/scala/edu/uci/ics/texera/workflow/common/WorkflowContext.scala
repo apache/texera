@@ -5,8 +5,10 @@ import edu.uci.ics.texera.workflow.common.WorkflowContext.{
   DEFAULT_WORKFLOW_ID,
   DEFAULT_WORKFLOW_SETTINGS
 }
+
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowSettings
 import org.jooq.types.UInteger
+
 
 object WorkflowContext {
   val DEFAULT_EXECUTION_ID: ExecutionIdentity = ExecutionIdentity(1L)
@@ -14,7 +16,6 @@ object WorkflowContext {
   val DEFAULT_WORKFLOW_SETTINGS: WorkflowSettings = WorkflowSettings(400)
 }
 class WorkflowContext(
-    var userId: Option[UInteger] = None,
     var workflowId: WorkflowIdentity = DEFAULT_WORKFLOW_ID,
     var executionId: ExecutionIdentity = DEFAULT_EXECUTION_ID,
     var workflowSettings: WorkflowSettings = DEFAULT_WORKFLOW_SETTINGS
