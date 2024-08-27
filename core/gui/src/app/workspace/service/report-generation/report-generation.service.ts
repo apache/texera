@@ -12,9 +12,8 @@ export class ReportGenerationService {
   constructor(
     public workflowActionService: WorkflowActionService,
     private workflowResultService: WorkflowResultService,
-    private notificationService:NotificationService,
-  ) {
-  }
+    private notificationService: NotificationService
+  ) {}
 
   /**
    * Captures a snapshot of the workflow editor and returns it as a base64-encoded PNG image URL.
@@ -116,7 +115,6 @@ export class ReportGenerationService {
   ): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
-
         // Retrieve the result service and paginated result service for the operator
         const resultService = this.workflowResultService.getResultService(operatorId);
         const paginatedResultService = this.workflowResultService.getPaginatedResultService(operatorId);
@@ -141,7 +139,7 @@ export class ReportGenerationService {
 
         if (paginatedResultService) {
           paginatedResultService.selectPage(1, 10).subscribe({
-            next: (pageData) => {
+            next: pageData => {
               try {
                 // Handle the paginated results
                 const table = pageData.table;
@@ -154,7 +152,7 @@ export class ReportGenerationService {
                     <button onclick="toggleDetails('details-${operatorId}')">Toggle Details</button>
                     <div id="details-${operatorId}" style="display: none;">${operatorDetailsHtml}</div>
                     <div contenteditable="true" id="comment-${operatorId}" style="width: 100%; margin-top: 10px; border: 1px solid black; padding: 10px;">Add your comments here...</div>
-                  `
+                  `,
                   });
                   resolve();
                   return;
@@ -204,7 +202,6 @@ export class ReportGenerationService {
           const data = resultService.getCurrentResultSnapshot();
 
           if (data) {
-
             // Parse the HTML content from the snapshot data
             const parser = new DOMParser();
             const lastData = data[data.length - 1];
@@ -240,7 +237,7 @@ export class ReportGenerationService {
               <button onclick="toggleDetails('details-${operatorId}')">Toggle Details</button>
               <div id="details-${operatorId}" style="display: none;">${operatorDetailsHtml}</div>
               <div contenteditable="true" id="comment-${operatorId}" style="width: 100%; margin-top: 10px; border: 1px solid black; padding: 10px;">Add your comments here...</div>
-            `
+            `,
             });
             resolve();
           }
@@ -253,7 +250,7 @@ export class ReportGenerationService {
             <button onclick="toggleDetails('details-${operatorId}')">Toggle Details</button>
             <div id="details-${operatorId}" style="display: none;">${operatorDetailsHtml}</div>
             <div contenteditable="true" id="comment-${operatorId}" style="width: 100%; margin-top: 10px; border: 1px solid black; padding: 10px;">Add your comments here...</div>
-          `
+          `,
           });
           resolve();
         }
@@ -346,7 +343,7 @@ export class ReportGenerationService {
   </html>
   `;
 
-    const blob = new Blob([htmlContent], {type: "text/html"});
+    const blob = new Blob([htmlContent], { type: "text/html" });
     const url = URL.createObjectURL(blob);
     const fileName = `${workflowName}-report.html`;
     const a = document.createElement("a");
