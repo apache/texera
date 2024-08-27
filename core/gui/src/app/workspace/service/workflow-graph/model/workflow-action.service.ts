@@ -722,7 +722,6 @@ export class WorkflowActionService {
 
     const newSettings = workflowSettings === undefined ? DEFAULT_SETTINGS : workflowSettings;
     this.workflowSettings = newSettings;
-    // this.workflowMetadataChangeSubject.next(newMetadata);
   }
 
   public getWorkflowSettings(): WorkflowSettings {
