@@ -116,6 +116,7 @@ export class ReportGenerationService {
   ): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
+
         // Retrieve the result service and paginated result service for the operator
         const resultService = this.workflowResultService.getResultService(operatorId);
         const paginatedResultService = this.workflowResultService.getPaginatedResultService(operatorId);
@@ -124,76 +125,92 @@ export class ReportGenerationService {
         const operatorDetails = workflowContent.operators.find(op => op.operatorID === operatorId);
 
         const operatorDetailsHtml = `
-    <div style="text-align: center;">
-        <h4>Operator Details</h4>
-        <div id="json-editor-${operatorId}" style="height: 400px;"></div>
-        <script>
-          document.addEventListener('DOMContentLoaded', function() {
-            const container = document.querySelector("#json-editor-${operatorId}");
-            const options = { mode: 'view', language: 'en' };
-            const editor = new JSONEditor(container, options);
-            editor.set(${JSON.stringify(operatorDetails)});
-          });
-        </script>
-    </div>
-  `;
+        <div style="text-align: center;">
+          <h4>Operator Details</h4>
+          <div id="json-editor-${operatorId}" style="height: 400px;"></div>
+          <script>
+            document.addEventListener('DOMContentLoaded', function() {
+              const container = document.querySelector("#json-editor-${operatorId}");
+              const options = { mode: 'view', language: 'en' };
+              const editor = new JSONEditor(container, options);
+              editor.set(${JSON.stringify(operatorDetails)});
+            });
+          </script>
+        </div>
+      `;
 
         if (paginatedResultService) {
-          paginatedResultService.selectPage(1, 10).subscribe(
-            pageData => {
-              // Handle the paginated results
-              const table = pageData.table;
-              if (!table.length) {
-                allResults.push({
-                  operatorId,
-                  html: `
-                <h3>Operator ID: ${operatorId}</h3>
-                <p>No results found for operator</p>
-                <button onclick="toggleDetails('details-${operatorId}')">Toggle Details</button>
-                <div id="details-${operatorId}" style="display: none;">${operatorDetailsHtml}</div>
-                <div contenteditable="true" id="comment-${operatorId}" style="width: 100%; margin-top: 10px; border: 1px solid black; padding: 10px;">Add your comments here...</div>
-              `
-                });
+          paginatedResultService.selectPage(1, 10).subscribe({
+            next: (pageData) => {
+              try {
+                // Handle the paginated results
+                const table = pageData.table;
+                if (!table.length) {
+                  allResults.push({
+                    operatorId,
+                    html: `
+                    <h3>Operator ID: ${operatorId}</h3>
+                    <p>No results found for operator</p>
+                    <button onclick="toggleDetails('details-${operatorId}')">Toggle Details</button>
+                    <div id="details-${operatorId}" style="display: none;">${operatorDetailsHtml}</div>
+                    <div contenteditable="true" id="comment-${operatorId}" style="width: 100%; margin-top: 10px; border: 1px solid black; padding: 10px;">Add your comments here...</div>
+                  `
+                  });
+                  resolve();
+                  return;
+                }
+                // Generate an HTML table to display the results
+                const columns: string[] = Object.keys(table[0]);
+                const rows: any[][] = table.map(row => columns.map(col => row[col]));
+
+                const htmlContent: string = `
+                <div style="width: 50%; margin: 0 auto; text-align: center;">
+                  <h3>Operator ID: ${operatorId}</h3>
+                  <table style="width: 100%; border-collapse: collapse; margin: 0 auto;">
+                    <thead>
+                      <tr>${columns.map(col => `<th style="border: 1px solid black; padding: 8px; text-align: center;">${col}</th>`).join("")}</tr>
+                    </thead>
+                    <tbody>
+                      ${rows.map(row => `<tr>${row.map(cell => `<td style="border: 1px solid black; padding: 8px; text-align: center;">${String(cell)}</td>`).join("")}</tr>`).join("")}
+                    </tbody>
+                  </table>
+                  <button onclick="toggleDetails('details-${operatorId}')">Toggle Details</button>
+                  <div id="details-${operatorId}" style="display: none;">${operatorDetailsHtml}</div>
+                  <div contenteditable="true" id="comment-${operatorId}" style="width: 100%; margin-top: 10px; border: 1px solid black; padding: 10px;">Add your comments here...</div>
+                </div>
+              `;
+
+                // Add the generated HTML content to the allResults array
+                allResults.push({ operatorId, html: htmlContent });
                 resolve();
-                return;
+              } catch (error: unknown) {
+                // Handle any errors during the result processing
+                const errorMessage = (error as Error).message || "Unknown error";
+                this.notificationService.error(`Error processing results for operator ${operatorId}: ${errorMessage}`);
+                reject(error);
               }
-              // Generate an HTML table to display the results
-              const columns: string[] = Object.keys(table[0]);
-              const rows: any[][] = table.map(row => columns.map(col => row[col]));
-
-              const htmlContent: string = `
-            <div style="width: 50%; margin: 0 auto; text-align: center;">
-              <h3>Operator ID: ${operatorId}</h3>
-              <table style="width: 100%; border-collapse: collapse; margin: 0 auto;">
-                <thead>
-                  <tr>${columns.map(col => `<th style="border: 1px solid black; padding: 8px; text-align: center;">${col}</th>`).join("")}</tr>
-                </thead>
-                <tbody>
-                  ${rows.map(row => `<tr>${row.map(cell => `<td style="border: 1px solid black; padding: 8px; text-align: center;">${String(cell)}</td>`).join("")}</tr>`).join("")}
-                </tbody>
-              </table>
-              <button onclick="toggleDetails('details-${operatorId}')">Toggle Details</button>
-              <div id="details-${operatorId}" style="display: none;">${operatorDetailsHtml}</div>
-              <div contenteditable="true" id="comment-${operatorId}" style="width: 100%; margin-top: 10px; border: 1px solid black; padding: 10px;">Add your comments here...</div>
-            </div>
-          `;
-
-              // Add the generated HTML content to the allResults array
-              allResults.push({ operatorId, html: htmlContent });
-              resolve();
             },
-            error => {
-              console.error(`Error displaying paginated results for operator ${operatorId}:`, error);
+            error: (error: unknown) => {
+              // Handle errors that occur during the retrieval of paginated results
+              const errorMessage = (error as Error).message || "Unknown error";
+              this.notificationService.error(
+                `Error retrieving paginated results for operator ${operatorId}: ${errorMessage}`
+              );
               reject(error);
-            }
-          );
+            },
+          });
         } else if (resultService) {
+          // Retrieve the current snapshot of results
           const data = resultService.getCurrentResultSnapshot();
+
           if (data) {
+
+            // Parse the HTML content from the snapshot data
             const parser = new DOMParser();
             const lastData = data[data.length - 1];
             const doc = parser.parseFromString(Object(lastData)["html-content"], "text/html");
 
+            // Ensure the document's height is set correctly
             doc.documentElement.style.height = "50%";
             doc.body.style.height = "50%";
 
@@ -204,25 +221,26 @@ export class ReportGenerationService {
             const newHtmlString = serializer.serializeToString(doc);
 
             const visualizationHtml = `
-          <h3 style="text-align: center;">Operator ID: ${operatorId}</h3>
-          ${newHtmlString}
-          <button onclick="toggleDetails('details-${operatorId}')">Toggle Details</button>
-          <div id="details-${operatorId}" style="display: none;">${operatorDetailsHtml}</div>
-          <div contenteditable="true" id="comment-${operatorId}" style="width: 100%; margin-top: 10px; border: 1px solid black; padding: 10px;">Add your comments here...</div>
-        `;
-
-            allResults.push({operatorId, html: visualizationHtml});
-            resolve();
-          } else {
-            allResults.push({
-              operatorId,
-              html: `
-            <h3>Operator ID: ${operatorId}</h3>
-            <p>No data found for operator</p>
+            <h3 style="text-align: center;">Operator ID: ${operatorId}</h3>
+            ${newHtmlString}
             <button onclick="toggleDetails('details-${operatorId}')">Toggle Details</button>
             <div id="details-${operatorId}" style="display: none;">${operatorDetailsHtml}</div>
             <div contenteditable="true" id="comment-${operatorId}" style="width: 100%; margin-top: 10px; border: 1px solid black; padding: 10px;">Add your comments here...</div>
-          `
+          `;
+
+            allResults.push({ operatorId, html: visualizationHtml });
+            resolve();
+          } else {
+            // If no data is found, display a message
+            allResults.push({
+              operatorId,
+              html: `
+              <h3>Operator ID: ${operatorId}</h3>
+              <p>No data found for operator</p>
+              <button onclick="toggleDetails('details-${operatorId}')">Toggle Details</button>
+              <div id="details-${operatorId}" style="display: none;">${operatorDetailsHtml}</div>
+              <div contenteditable="true" id="comment-${operatorId}" style="width: 100%; margin-top: 10px; border: 1px solid black; padding: 10px;">Add your comments here...</div>
+            `
             });
             resolve();
           }
@@ -230,17 +248,21 @@ export class ReportGenerationService {
           allResults.push({
             operatorId,
             html: `
-          <h3>Operator ID: ${operatorId}</h3>
-          <p>No results found for operator</p>
-          <button onclick="toggleDetails('details-${operatorId}')">Toggle Details</button>
-          <div id="details-${operatorId}" style="display: none;">${operatorDetailsHtml}</div>
-          <div contenteditable="true" id="comment-${operatorId}" style="width: 100%; margin-top: 10px; border: 1px solid black; padding: 10px;">Add your comments here...</div>
-        `
+            <h3>Operator ID: ${operatorId}</h3>
+            <p>No results found for operator</p>
+            <button onclick="toggleDetails('details-${operatorId}')">Toggle Details</button>
+            <div id="details-${operatorId}" style="display: none;">${operatorDetailsHtml}</div>
+            <div contenteditable="true" id="comment-${operatorId}" style="width: 100%; margin-top: 10px; border: 1px solid black; padding: 10px;">Add your comments here...</div>
+          `
           });
           resolve();
         }
-      } catch (error) {
-        console.error(`Error retrieving operator info for operator ${operatorId}:`, error);
+      } catch (error: unknown) {
+        // Handle any unexpected errors that occur in the main logic
+        const errorMessage = (error as Error).message || "Unknown error";
+        this.notificationService.error(
+          `Unexpected error in retrieveOperatorInfoReport for operator ${operatorId}: ${errorMessage}`
+        );
         reject(error);
       }
     });
