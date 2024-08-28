@@ -16,6 +16,8 @@ import edu.uci.ics.texera.web.resource.dashboard.user.cluster.ClusterCallbackRes
   clusterDao,
   context
 }
+import edu.uci.ics.texera.web.model.jooq.generated.tables.Cluster.CLUSTER
+import org.jooq.impl.DSL
 
 import java.sql.Timestamp
 
@@ -68,6 +70,25 @@ class ClusterCallbackResource {
         .status(Response.Status.NOT_FOUND)
         .entity("Cluster not found or status update not allowed")
         .build()
+    }
+  }
+
+  @POST
+  @Path("/cluster/getid")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  def handleClusterGetIdCallback(callbackPayload: CallbackPayload): Response = {
+    val maxCidResult = context
+      .select(DSL.max(CLUSTER.CID))
+      .from(CLUSTER)
+      .fetchOne()
+
+    val maxCid = maxCidResult.getValue(0, classOf[Integer])
+
+    if (maxCid == null) {
+      Response.ok("Next cluster ID is 1").entity(1).build()
+    } else {
+      val nextCid = maxCid + 1
+      Response.ok(s"Next cluster ID is $nextCid").entity(nextCid).build()
     }
   }
 
