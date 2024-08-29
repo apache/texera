@@ -24,8 +24,8 @@ class AiAssistantResource {
   def isAiAssistantEnabled: Boolean = isEnabled
 
   /**
-   * To get the type annotation suggestion from OpenAI
-   */
+    * To get the type annotation suggestion from OpenAI
+    */
   @POST
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/getresult")
@@ -86,12 +86,12 @@ class AiAssistantResource {
         case Some(data: List[List[Any]]) =>
           val unannotatedArgs = data.map {
             case List(
-            name: String,
-            startLine: Double,
-            startColumn: Double,
-            endLine: Double,
-            endColumn: Double
-            ) =>
+                  name: String,
+                  startLine: Double,
+                  startColumn: Double,
+                  endLine: Double,
+                  endColumn: Double
+                ) =>
               List(name, startLine.toInt, startColumn.toInt, endLine.toInt, endColumn.toInt)
           }
           logger.info(s"Unannotated arguments: $unannotatedArgs")
