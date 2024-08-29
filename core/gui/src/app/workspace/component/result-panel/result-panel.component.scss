@@ -6,6 +6,10 @@
   z-index: 4;
 }
 
+#texera-workspace {
+  position: relative;
+}
+
 #result-container {
   position: fixed;
   top: calc(100vh - 300px);
