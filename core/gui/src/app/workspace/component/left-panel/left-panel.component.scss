@@ -29,6 +29,12 @@
   border: none;
 }
 
+#docked-buttons {
+  position: fixed;
+  top: 80px;
+  z-index: 4;
+}
+
 #content {
   width: calc(100% - 33px);
   height: 100%;
@@ -38,7 +44,7 @@
   border-left: 1px solid #f0f0f0;
 }
 
-#divider {
+.divider {
   margin: 0;
 }
 

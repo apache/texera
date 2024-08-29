@@ -1,3 +1,36 @@
+<ul
+  nz-menu
+  id="docked-buttons"
+  [ngClass]="{'shadow':  !width}"
+  cdkDropList
+  (cdkDropListDropped)="onDrop($event)">
+  <li
+    nz-menu-item
+    (click)="openFrame(0)"
+    *ngIf="width">
+      <span
+        nz-icon
+        nzType="minus"></span>
+  </li>
+  <li
+    nz-menu-divider
+    class="divider"></li>
+  <ng-container *ngFor="let i of order">
+    <li
+      nz-menu-item
+      cdkDrag
+      nzTooltipPlacement="right"
+      nz-tooltip="{{items[i].title}}"
+      nzSelected="{{currentComponent === items[i].component}}"
+      *ngIf="items[i].enabled"
+      (click)="openFrame(i)">
+        <span
+          nz-icon
+          nzType="{{items[i].icon}}"></span>
+    </li>
+  </ng-container>
+</ul>
+
 <div
   cdkDrag
   cdkDragBoundary="texera-workspace"
@@ -17,27 +50,26 @@
     id="dock"
     [ngClass]="{'shadow':  !width}"
     cdkDropList
-    (cdkDropListDropped)="onDrop($event)">
+    (cdkDropListDropped)="onDrop($event)"
+    *ngIf="width">
     <li
       nz-menu-item
-      (click)="openFrame(0)"
-      *ngIf="width">
+      (click)="openFrame(0)">
       <span
         nz-icon
         nzType="minus"></span>
     </li>
     <li
+      nz-menu-divider
+      class="divider"></li>
+    <li
       nz-menu-item
-      nzSelected
-      cdkDragHandle
-      *ngIf="!width">
+      (click)="resetPanelPosition()"
+      [nzSelected]="false">
       <span
         nz-icon
-        nzType="drag"></span>
+        nzType="enter"></span>
     </li>
-    <li
-      nz-menu-divider
-      id="divider"></li>
     <ng-container *ngFor="let i of order">
       <li
         nz-menu-item
