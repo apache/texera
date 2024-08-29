@@ -16,7 +16,7 @@
 
     @JsonProperty(required = true)
     @JsonSchemaTitle("Reference Genomes")
-    @JsonPropertyDescription("Select one or more reference genomes")
+    @JsonPropertyDescription("Add one or more reference genomes")
     var referenceGenomes: List[ReferenceGenome] = List()
 
     @JsonSchemaTitle("FastA Files")

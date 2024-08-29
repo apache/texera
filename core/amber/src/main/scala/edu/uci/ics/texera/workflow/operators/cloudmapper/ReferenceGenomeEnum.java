@@ -2,7 +2,7 @@ package edu.uci.ics.texera.workflow.operators.cloudmapper;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 
-public enum ReferenceGenome {
+public enum ReferenceGenomeEnum {
     HUMAN_GRCh38("GRCh38"),
 
     MOUSE_GRCm39("GRCm39"),
@@ -15,7 +15,7 @@ public enum ReferenceGenome {
 
     private final String name;
 
-    ReferenceGenome(String name) {
+    ReferenceGenomeEnum(String name) {
         this.name = name;
     }
 
