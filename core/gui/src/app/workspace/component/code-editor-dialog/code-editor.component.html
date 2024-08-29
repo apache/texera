@@ -29,3 +29,21 @@
     <div [innerHTML]="this.getCoeditorCursorStyles(user)"></div>
   </ng-container>
 </div>
+
+<div
+  *ngIf="showAnnotationSuggestion"
+  class="annotation-suggestion">
+  <p>Do you agree with the type annotation suggestion？</p>
+  <pre>Adding annotation for code: {{ currentCode }}</pre>
+  <p>Given suggestion: <strong>{{ currentSuggestion }}</strong></p>
+  <button
+    class="accept-button"
+    (click)="acceptCurrentAnnotation()">
+    Accept
+  </button>
+  <button
+    class="decline-button"
+    (click)="rejectCurrentAnnotation()">
+    Decline
+  </button>
+</div>
