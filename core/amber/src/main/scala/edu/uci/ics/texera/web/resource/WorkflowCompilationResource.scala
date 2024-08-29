@@ -47,7 +47,7 @@ class WorkflowCompilationResource extends LazyLogging {
     // convert the physical plan to pojo, which is serializable
     val physicalPlanPojo = PhysicalPlanPojo(
       // the reason of using PhysicalOpPojo is because some fields in PhysicalOp is not serializable
-      physicalPlan.operators.map(op => PhysicalOpPojo(op)).toList,
+      physicalPlan.operators.toList,
       physicalPlan.links.toList
     )
     // return the result

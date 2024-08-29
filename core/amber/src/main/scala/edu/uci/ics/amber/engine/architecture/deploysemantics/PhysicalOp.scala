@@ -2,27 +2,16 @@ package edu.uci.ics.amber.engine.architecture.deploysemantics
 
 import akka.actor.Deploy
 import akka.remote.RemoteScope
+import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty}
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.common.AkkaActorService
 import edu.uci.ics.amber.engine.architecture.controller.execution.OperatorExecution
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
-  OpExecInitInfo,
-  OpExecInitInfoWithCode
-}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference.{
-  AddressInfo,
-  LocationPreference,
-  PreferController,
-  RoundRobinPreference
-}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecInitInfo, OpExecInitInfoWithCode}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference.{AddressInfo, LocationPreference, PreferController, RoundRobinPreference}
 import edu.uci.ics.amber.engine.architecture.pythonworker.PythonWorkflowWorker
 import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
-  FaultToleranceConfig,
-  StateRestoreConfig,
-  WorkerReplayInitialization
-}
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{FaultToleranceConfig, StateRestoreConfig, WorkerReplayInitialization}
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.virtualidentity._
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
@@ -159,34 +148,34 @@ object PhysicalOp {
 
 case class PhysicalOp(
     // the identifier of this PhysicalOp
-    id: PhysicalOpIdentity,
+    @JsonProperty id: PhysicalOpIdentity,
     // the workflow id number
-    workflowId: WorkflowIdentity,
+    @JsonProperty workflowId: WorkflowIdentity,
     // the execution id number
-    executionId: ExecutionIdentity,
+    @JsonProperty executionId: ExecutionIdentity,
     // information regarding initializing an operator executor instance
-    opExecInitInfo: OpExecInitInfo,
+    @JsonIgnore opExecInitInfo: OpExecInitInfo,
     // preference of parallelism
-    parallelizable: Boolean = true,
+    @JsonProperty parallelizable: Boolean = true,
     // preference of worker placement
-    locationPreference: Option[LocationPreference] = None,
+    @JsonProperty locationPreference: Option[LocationPreference] = None,
     // requirement of partition policy (hash/range/single/none) on inputs
-    partitionRequirement: List[Option[PartitionInfo]] = List(),
+    @JsonProperty partitionRequirement: List[Option[PartitionInfo]] = List(),
     // derive the output partition info given the input partitions
     // if not specified, by default the output partition is the same as input partition
-    derivePartition: List[PartitionInfo] => PartitionInfo = inputParts => inputParts.head,
+    @JsonIgnore derivePartition: List[PartitionInfo] => PartitionInfo = inputParts => inputParts.head,
     // input/output ports of the physical operator
     // for operators with multiple input/output ports: must set these variables properly
-    inputPorts: Map[PortIdentity, (InputPort, List[PhysicalLink], Either[Throwable, Schema])] =
+    @JsonProperty inputPorts: Map[PortIdentity, (InputPort, List[PhysicalLink], Either[Throwable, Schema])] =
       Map.empty,
-    outputPorts: Map[PortIdentity, (OutputPort, List[PhysicalLink], Either[Throwable, Schema])] =
+    @JsonProperty outputPorts: Map[PortIdentity, (OutputPort, List[PhysicalLink], Either[Throwable, Schema])] =
       Map.empty,
     // schema propagation function
-    propagateSchema: SchemaPropagationFunc = SchemaPropagationFunc(schemas => schemas),
-    isOneToManyOp: Boolean = false,
+    @JsonIgnore propagateSchema: SchemaPropagationFunc = SchemaPropagationFunc(schemas => schemas),
+    @JsonProperty isOneToManyOp: Boolean = false,
     // hint for number of workers
-    suggestedWorkerNum: Option[Int] = None
-) extends LazyLogging {
+    @JsonProperty suggestedWorkerNum: Option[Int] = None
+) extends LazyLogging with Serializable {
 
   // all the "dependee" links are also blocking
   private lazy val dependeeInputs: List[PortIdentity] =
@@ -223,6 +212,7 @@ case class PhysicalOp(
     }
   }
 
+  @JsonIgnore
   def getPythonCode: String = {
     val (code, _) =
       opExecInitInfo.asInstanceOf[OpExecInitInfoWithCode].codeGen(0, 0)

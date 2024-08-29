@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.web.model.websocket.request
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOpPojo
+import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, PhysicalOpPojo}
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.workflow.{LogicalLink, WorkflowSettings}
@@ -28,6 +28,6 @@ case class LogicalPlanPojo(
 )
 
 case class PhysicalPlanPojo(
-    operators: List[PhysicalOpPojo],
+    operators: List[PhysicalOp],
     links: List[PhysicalLink]
 )
