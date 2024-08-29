@@ -21,7 +21,7 @@ class ReferenceGenome {
       new JsonSchemaString(path = HideAnnotation.hideType, value = HideAnnotation.Type.regex),
       new JsonSchemaString(
         path = HideAnnotation.hideExpectedValue,
-        value = "^((?!others).)*$"
+        value = "^((?!Others).)*$"
       ) // regex to hide when "others" is not present
     )
   )
@@ -34,7 +34,7 @@ class ReferenceGenome {
       new JsonSchemaString(path = HideAnnotation.hideType, value = HideAnnotation.Type.regex),
       new JsonSchemaString(
         path = HideAnnotation.hideExpectedValue,
-        value = "^((?!others).)*$"
+        value = "^((?!Others).)*$"
       ) // regex to hide when "others" is not present
     )
   )
