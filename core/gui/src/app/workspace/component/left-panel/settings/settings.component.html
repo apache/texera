@@ -4,17 +4,17 @@
     [formGroup]="settingsForm"
     class="form-inline">
     <div class="form-group">
-      <label for="packetSize">Packet Size:</label>
+      <label for="batchSize">Batch Size:</label>
       <input
-        id="packetSize"
+        id="batchSize"
         type="number"
-        formControlName="packetSize"
-        [ngClass]="{'is-invalid': settingsForm.get('packetSize')?.invalid && settingsForm.get('packetSize')?.touched}"
+        formControlName="batchSize"
+        [ngClass]="{'is-invalid': settingsForm.get('batchSize')?.invalid && settingsForm.get('batchSize')?.touched}"
         class="form-control" />
       <div
-        *ngIf="settingsForm.get('packetSize')?.invalid && settingsForm.get('packetSize')?.touched"
+        *ngIf="settingsForm.get('batchSize')?.invalid && settingsForm.get('batchSize')?.touched"
         class="error-message">
-        Packet size must be at least 1.
+        Batch size must be at least 1.
       </div>
     </div>
   </form>

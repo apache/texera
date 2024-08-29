@@ -29,12 +29,12 @@ export class SettingsComponent implements OnInit {
     this.currentBatchSize = this.workflowActionService.getWorkflowContent().settings.batchSize || 400;
 
     this.settingsForm = this.fb.group({
-      packetSize: [this.currentBatchSize, [Validators.required, Validators.min(1)]],
+      batchSize: [this.currentBatchSize, [Validators.required, Validators.min(1)]],
     });
 
     this.settingsForm.valueChanges.pipe(untilDestroyed(this)).subscribe(value => {
       if (this.settingsForm.valid) {
-        this.confirmUpdateBatchSize(value.packetSize);
+        this.confirmUpdateBatchSize(value.batchSize);
       }
     });
 
@@ -43,7 +43,7 @@ export class SettingsComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         this.currentBatchSize = this.workflowActionService.getWorkflowContent().settings.batchSize || 400;
-        this.settingsForm.patchValue({ packetSize: this.currentBatchSize }, { emitEvent: false });
+        this.settingsForm.patchValue({ batchSize: this.currentBatchSize }, { emitEvent: false });
       });
   }
 
