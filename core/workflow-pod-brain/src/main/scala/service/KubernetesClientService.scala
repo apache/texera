@@ -78,10 +78,10 @@ class KubernetesClientService(
    * @param uid        The uid which a new pod will be created for.
    * @return The newly created V1Pod object.
    */
-  def createPod(uid: Int): V1Pod = {
+  def createPod(uid: Int, wid: Int): V1Pod = {
     val uidString: String = String.valueOf(uid)
     val uidLabelSelector: String = s"userId=$uidString"
-    val pod: V1Pod = createUserPod(uid)
+    val pod: V1Pod = createUserPod(uid, wid)
 
     // Should be a list with a single pod
     try {
@@ -103,14 +103,14 @@ class KubernetesClientService(
    * @param uid        The uid which a pod pod will be created for.
    * @return The newly created V1Pod object.
    */
-  def createUserPod(uid: Int): V1Pod = {
+  def createUserPod(uid: Int, wid: Int): V1Pod = {
     val uidString: String = String.valueOf(uid)
     val pod: V1Pod = new V1Pod()
       .apiVersion("v1")
       .kind("Pod")
       .metadata(
         new V1ObjectMeta()
-          .name(s"user-pod-$uid")
+          .name(s"user-pod-$uid-wid-$wid")
           .namespace(poolNamespace)
           .labels(util.Map.of("userId", uidString, "workflow", "worker"))
       )
@@ -122,7 +122,7 @@ class KubernetesClientService(
               .image("ksdn117/web-socket-test")
               .ports(util.List.of(new V1ContainerPort().containerPort(8010))))
           )
-          .hostname(s"user-pod-$uid")
+          .hostname(s"user-pod-$uid-wid-$wid")
           .subdomain("workflow-pods")
           .overhead(null)
       )
@@ -134,8 +134,8 @@ class KubernetesClientService(
    *
    * @param uid   The pod owner's user id.
    */
-  def deletePod(uid: Int): Unit = {
-    coreApi.deleteNamespacedPod(s"user-pod-$uid", poolNamespace).execute()
+  def deletePod(uid: Int, wid: Int): Unit = {
+    coreApi.deleteNamespacedPod(s"user-pod-$uid-wid-$wid", poolNamespace).execute()
   }
 
   /**

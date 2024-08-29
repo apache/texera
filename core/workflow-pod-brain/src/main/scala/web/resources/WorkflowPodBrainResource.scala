@@ -39,7 +39,7 @@ class WorkflowPodBrainResource {
   def createPod(
                  param: WorkflowPodCreationParams
                ): Pod = {
-    val newPod: V1Pod = new KubernetesClientService().createPod(param.uid.intValue())
+    val newPod: V1Pod = new KubernetesClientService().createPod(param.uid.intValue(), param.wid.intValue())
     val newSQLPod: Pod = new Pod()
 
     // Set uid, name, pod_uid, creation_time manually
@@ -48,6 +48,7 @@ class WorkflowPodBrainResource {
     newSQLPod.setName(newPod.getMetadata.getName)
     newSQLPod.setPodUid(newPod.getMetadata.getUid)
     newSQLPod.setCreationTime(Timestamp.from(newPod.getMetadata.getCreationTimestamp.toInstant))
+    newSQLPod.setPodId(param.wid)
 
     withTransaction(context) { ctx =>
       val podDao = new PodDao(ctx.configuration())
@@ -91,7 +92,7 @@ class WorkflowPodBrainResource {
   def terminatePod(
                     param: WorkflowPodTerminationParams
                   ): Response = {
-    new KubernetesClientService().deletePod(param.uid.intValue())
+    new KubernetesClientService().deletePod(param.uid.intValue(), param.wid.intValue())
     withTransaction(context) { ctx =>
       val podDao = new PodDao(ctx.configuration())
       val pods = podDao.fetchByUid(param.uid)
