@@ -12,7 +12,7 @@ import edu.uci.ics.texera.workflow.common.workflow.WorkflowSettings
 object WorkflowContext {
   val DEFAULT_EXECUTION_ID: ExecutionIdentity = ExecutionIdentity(1L)
   val DEFAULT_WORKFLOW_ID: WorkflowIdentity = WorkflowIdentity(1L)
-  val DEFAULT_WORKFLOW_SETTINGS: WorkflowSettings = WorkflowSettings(AmberConfig.defaultBatchSize)
+  val DEFAULT_WORKFLOW_SETTINGS: WorkflowSettings = WorkflowSettings(AmberConfig.defaultDataTransferBatchSize)
 }
 class WorkflowContext(
     var workflowId: WorkflowIdentity = DEFAULT_WORKFLOW_ID,
