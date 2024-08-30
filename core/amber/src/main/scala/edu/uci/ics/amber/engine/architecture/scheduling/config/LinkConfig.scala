@@ -23,12 +23,12 @@ case object LinkConfig {
       fromWorkerIds: List[ActorVirtualIdentity],
       toWorkerIds: List[ActorVirtualIdentity],
       partitionInfo: PartitionInfo,
-      batchSize: Int
+      dataTransferBatchSize: Int
   ): Partitioning = {
     partitionInfo match {
       case HashPartition(hashAttributeNames) =>
         HashBasedShufflePartitioning(
-          batchSize,
+          dataTransferBatchSize,
           fromWorkerIds.flatMap(from =>
             toWorkerIds.map(to => ChannelIdentity(from, to, isControl = false))
           ),
@@ -37,7 +37,7 @@ case object LinkConfig {
 
       case RangePartition(rangeAttributeNames, rangeMin, rangeMax) =>
         RangeBasedShufflePartitioning(
-          batchSize,
+          dataTransferBatchSize,
           fromWorkerIds.flatMap(fromId =>
             toWorkerIds.map(toId => ChannelIdentity(fromId, toId, isControl = false))
           ),
@@ -49,7 +49,7 @@ case object LinkConfig {
       case SinglePartition() =>
         assert(toWorkerIds.size == 1)
         OneToOnePartitioning(
-          batchSize,
+          dataTransferBatchSize,
           fromWorkerIds.map(fromWorkerId =>
             ChannelIdentity(fromWorkerId, toWorkerIds.head, isControl = false)
           )
@@ -57,7 +57,7 @@ case object LinkConfig {
 
       case OneToOnePartition() =>
         OneToOnePartitioning(
-          batchSize,
+          dataTransferBatchSize,
           fromWorkerIds.zip(toWorkerIds).map {
             case (fromWorkerId, toWorkerId) =>
               ChannelIdentity(fromWorkerId, toWorkerId, isControl = false)
@@ -66,7 +66,7 @@ case object LinkConfig {
 
       case BroadcastPartition() =>
         BroadcastPartitioning(
-          batchSize,
+          dataTransferBatchSize,
           fromWorkerIds.zip(toWorkerIds).map {
             case (fromWorkerId, toWorkerId) =>
               ChannelIdentity(fromWorkerId, toWorkerId, isControl = false)
@@ -75,7 +75,7 @@ case object LinkConfig {
 
       case UnknownPartition() =>
         RoundRobinPartitioning(
-          batchSize,
+          dataTransferBatchSize,
           fromWorkerIds.flatMap(from =>
             toWorkerIds.map(to => ChannelIdentity(from, to, isControl = false))
           )

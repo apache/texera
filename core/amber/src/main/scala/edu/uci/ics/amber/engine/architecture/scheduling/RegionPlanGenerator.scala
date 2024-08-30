@@ -63,10 +63,10 @@ abstract class RegionPlanGenerator(
   def allocateResource(
       regionDAG: DirectedAcyclicGraph[Region, RegionLink]
   ): Unit = {
-    val batchSize = workflowContext.workflowSettings.batchSize
+    val dataTransferBatchSize = workflowContext.workflowSettings.dataTransferBatchSize
 
     val resourceAllocator =
-      new DefaultResourceAllocator(physicalPlan, executionClusterInfo, batchSize)
+      new DefaultResourceAllocator(physicalPlan, executionClusterInfo, dataTransferBatchSize)
     // generate the resource configs
     new TopologicalOrderIterator(regionDAG).asScala
       .foreach(region => {
