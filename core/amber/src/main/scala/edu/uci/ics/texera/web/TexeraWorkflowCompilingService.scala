@@ -9,7 +9,12 @@ import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.TexeraWebApplication.parseArgs
 import edu.uci.ics.texera.web.auth.JwtAuth.jwtConsumer
-import edu.uci.ics.texera.web.auth.{GuestAuthFilter, SessionUser, UserAuthenticator, UserRoleAuthorizer}
+import edu.uci.ics.texera.web.auth.{
+  GuestAuthFilter,
+  SessionUser,
+  UserAuthenticator,
+  UserRoleAuthorizer
+}
 import edu.uci.ics.texera.web.model.serializer.PhysicalOpSerializer
 import edu.uci.ics.texera.web.resource.WorkflowCompilationResource
 import io.dropwizard.auth.{AuthDynamicFeature, AuthValueFactoryProvider}

@@ -6,12 +6,24 @@ import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty}
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.common.AkkaActorService
 import edu.uci.ics.amber.engine.architecture.controller.execution.OperatorExecution
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecInitInfo, OpExecInitInfoWithCode}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference.{AddressInfo, LocationPreference, PreferController, RoundRobinPreference}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
+  OpExecInitInfo,
+  OpExecInitInfoWithCode
+}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference.{
+  AddressInfo,
+  LocationPreference,
+  PreferController,
+  RoundRobinPreference
+}
 import edu.uci.ics.amber.engine.architecture.pythonworker.PythonWorkflowWorker
 import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{FaultToleranceConfig, StateRestoreConfig, WorkerReplayInitialization}
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
+  FaultToleranceConfig,
+  StateRestoreConfig,
+  WorkerReplayInitialization
+}
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.virtualidentity._
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
@@ -163,19 +175,25 @@ case class PhysicalOp(
     @JsonProperty partitionRequirement: List[Option[PartitionInfo]] = List(),
     // derive the output partition info given the input partitions
     // if not specified, by default the output partition is the same as input partition
-    @JsonIgnore derivePartition: List[PartitionInfo] => PartitionInfo = inputParts => inputParts.head,
+    @JsonIgnore derivePartition: List[PartitionInfo] => PartitionInfo = inputParts =>
+      inputParts.head,
     // input/output ports of the physical operator
     // for operators with multiple input/output ports: must set these variables properly
-    @JsonProperty inputPorts: Map[PortIdentity, (InputPort, List[PhysicalLink], Either[Throwable, Schema])] =
-      Map.empty,
-    @JsonProperty outputPorts: Map[PortIdentity, (OutputPort, List[PhysicalLink], Either[Throwable, Schema])] =
-      Map.empty,
+    @JsonProperty inputPorts: Map[
+      PortIdentity,
+      (InputPort, List[PhysicalLink], Either[Throwable, Schema])
+    ] = Map.empty,
+    @JsonProperty outputPorts: Map[
+      PortIdentity,
+      (OutputPort, List[PhysicalLink], Either[Throwable, Schema])
+    ] = Map.empty,
     // schema propagation function
     @JsonIgnore propagateSchema: SchemaPropagationFunc = SchemaPropagationFunc(schemas => schemas),
     @JsonProperty isOneToManyOp: Boolean = false,
     // hint for number of workers
     @JsonProperty suggestedWorkerNum: Option[Int] = None
-) extends LazyLogging with Serializable {
+) extends LazyLogging
+    with Serializable {
 
   // all the "dependee" links are also blocking
   private lazy val dependeeInputs: List[PortIdentity] =
