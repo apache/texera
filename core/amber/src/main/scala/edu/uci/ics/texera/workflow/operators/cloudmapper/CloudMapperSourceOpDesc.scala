@@ -39,7 +39,7 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
        |
        |    @overrides
        |    def produce(self) -> Iterator[Union[TupleLike, TableLike, None]]:
-       |        import requests
+       |        import requests, zipfile, io
        |
        |        # Set the URL to the Go endpoint
        |        url = "http://localhost:3000/api/job/create"
@@ -93,11 +93,18 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
        |        # Send the POST request to the Go program
        |        response = requests.post(url, data=form_data, files=files)
        |
-       |        # Print the response from the Go program
-       |        print(f"Response Status Code: {response.status_code}")
-       |        print(f"Response Text: {response.text}")
-       |        yield {'response': 200}
-           """.stripMargin
+       |        if response.status_code == 200:
+       |            zip_file = zipfile.ZipFile(io.BytesIO(response.content))
+       |
+       |            features_content = zip_file.read('features.tsv')
+       |            barcodes_content = zip_file.read('barcodes.tsv')
+       |            matrix_content = zip_file.read('matrix.mtx')
+       |            yield {'features': features_content, 'barcodes': barcodes_content, 'matrix': matrix_content}
+       |        else:
+       |            print(f"Failed to get the files. Status Code: {response.status_code}")
+       |            print(f"Response Text: {response.text}")
+       |            yield {'features': None, 'barcodes': None, 'matrix': None}
+    """.stripMargin
   }
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
@@ -112,7 +119,9 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
     Schema
       .builder()
       .add(
-        new Attribute("response", AttributeType.INTEGER)
+        new Attribute("features", AttributeType.BINARY),
+        new Attribute("barcodes", AttributeType.BINARY),
+        new Attribute("matrix", AttributeType.BINARY)
       )
       .build()
 }
