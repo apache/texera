@@ -1,9 +1,9 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
-import edu.uci.ics.texera.workflow.common.workflow.WorkflowSettings.DEFAULT_BATCH_SIZE
+import edu.uci.ics.amber.engine.common.AmberConfig
 
 object WorkflowSettings {
-  val DEFAULT_BATCH_SIZE = 400
-  def apply(batchSize: Int = DEFAULT_BATCH_SIZE): WorkflowSettings = new WorkflowSettings(batchSize)
+  def apply(batchSize: Int = AmberConfig.defaultBatchSize): WorkflowSettings = new WorkflowSettings(batchSize)
 }
-class WorkflowSettings(var batchSize: Int = DEFAULT_BATCH_SIZE)
+
+class WorkflowSettings(var batchSize: Int = AmberConfig.defaultBatchSize)
