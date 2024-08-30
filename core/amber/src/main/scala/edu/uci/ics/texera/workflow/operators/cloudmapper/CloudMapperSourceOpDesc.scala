@@ -25,13 +25,23 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
 
   override def generatePythonCode(): String = {
     // Convert the Scala referenceGenomes list to a Python list format
-    val pythonReferenceGenomes = referenceGenomes.map(_.referenceGenome.getName).map(name => s"'$name'").mkString("[", ", ", "]")
+    val pythonReferenceGenomes = referenceGenomes
+      .map(_.referenceGenome.getName)
+      .map(name => s"'$name'")
+      .mkString("[", ", ", "]")
 
     // Convert the Scala referenceGenomes list to a Python list format for FASTA files
-    val pythonFastaFiles = referenceGenomes.flatMap(_.fastAFiles).map(file => s"open('$file', 'rb')").mkString("[", ", ", "]")
+    val pythonFastaFiles = referenceGenomes
+      .flatMap(_.fastAFiles)
+      .map(file => s"open('$file', 'rb')")
+      .mkString("[", ", ", "]")
 
     // Extract GTF file if exists for 'Others'
-    val pythonGtfFile = referenceGenomes.find(_.referenceGenome == ReferenceGenomeEnum.OTHERS).flatMap(_.gtfFile).map(file => s"open('$file', 'rb')").getOrElse("")
+    val pythonGtfFile = referenceGenomes
+      .find(_.referenceGenome == ReferenceGenomeEnum.OTHERS)
+      .flatMap(_.gtfFile)
+      .map(file => s"open('$file', 'rb')")
+      .getOrElse("")
 
     s"""from pytexera import *
        |
