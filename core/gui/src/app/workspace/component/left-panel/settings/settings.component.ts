@@ -26,7 +26,8 @@ export class SettingsComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.currentDataTransferBatchSize = this.workflowActionService.getWorkflowContent().settings.dataTransferBatchSize || 400;
+    this.currentDataTransferBatchSize =
+      this.workflowActionService.getWorkflowContent().settings.dataTransferBatchSize || 400;
 
     this.settingsForm = this.fb.group({
       dataTransferBatchSize: [this.currentDataTransferBatchSize, [Validators.required, Validators.min(1)]],
@@ -42,8 +43,12 @@ export class SettingsComponent implements OnInit {
       .workflowChanged()
       .pipe(untilDestroyed(this))
       .subscribe(() => {
-        this.currentDataTransferBatchSize = this.workflowActionService.getWorkflowContent().settings.dataTransferBatchSize || 400;
-        this.settingsForm.patchValue({ dataTransferBatchSize: this.currentDataTransferBatchSize }, { emitEvent: false });
+        this.currentDataTransferBatchSize =
+          this.workflowActionService.getWorkflowContent().settings.dataTransferBatchSize || 400;
+        this.settingsForm.patchValue(
+          { dataTransferBatchSize: this.currentDataTransferBatchSize },
+          { emitEvent: false }
+        );
       });
   }
 
