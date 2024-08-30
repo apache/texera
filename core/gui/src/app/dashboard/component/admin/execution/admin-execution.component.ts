@@ -114,7 +114,7 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
           links: [],
           groups: [],
           commentBoxes: [],
-          settings: { batchSize: 400 },
+          settings: { dataTransferBatchSize: 400 },
         },
         name: execution.workflowName,
         wid: execution.workflowId,

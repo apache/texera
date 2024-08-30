@@ -3,7 +3,7 @@ import { PlainGroup } from "../../workspace/service/workflow-graph/model/operato
 import { OperatorLink, OperatorPredicate, Point, CommentBox } from "../../workspace/types/workflow-common.interface";
 
 export interface WorkflowSettings {
-  batchSize: number;
+  dataTransferBatchSize: number;
 }
 
 /**

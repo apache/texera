@@ -14,7 +14,7 @@ import { NotificationService } from "src/app/common/service/notification/notific
 })
 export class SettingsComponent implements OnInit {
   settingsForm!: FormGroup;
-  currentBatchSize!: number;
+  currentDataTransferBatchSize!: number;
   isSaving: boolean = false;
 
   constructor(
@@ -26,15 +26,15 @@ export class SettingsComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.currentBatchSize = this.workflowActionService.getWorkflowContent().settings.batchSize || 400;
+    this.currentDataTransferBatchSize = this.workflowActionService.getWorkflowContent().settings.dataTransferBatchSize || 400;
 
     this.settingsForm = this.fb.group({
-      batchSize: [this.currentBatchSize, [Validators.required, Validators.min(1)]],
+      dataTransferBatchSize: [this.currentDataTransferBatchSize, [Validators.required, Validators.min(1)]],
     });
 
     this.settingsForm.valueChanges.pipe(untilDestroyed(this)).subscribe(value => {
       if (this.settingsForm.valid) {
-        this.confirmUpdateBatchSize(value.batchSize);
+        this.confirmUpdateDataTransferBatchSize(value.dataTransferBatchSize);
       }
     });
 
@@ -42,14 +42,14 @@ export class SettingsComponent implements OnInit {
       .workflowChanged()
       .pipe(untilDestroyed(this))
       .subscribe(() => {
-        this.currentBatchSize = this.workflowActionService.getWorkflowContent().settings.batchSize || 400;
-        this.settingsForm.patchValue({ batchSize: this.currentBatchSize }, { emitEvent: false });
+        this.currentDataTransferBatchSize = this.workflowActionService.getWorkflowContent().settings.dataTransferBatchSize || 400;
+        this.settingsForm.patchValue({ dataTransferBatchSize: this.currentDataTransferBatchSize }, { emitEvent: false });
       });
   }
 
-  public confirmUpdateBatchSize(batchSize: number): void {
-    if (batchSize > 0) {
-      this.workflowActionService.setWorkflowBatchSize(batchSize);
+  public confirmUpdateDataTransferBatchSize(dataTransferBatchSize: number): void {
+    if (dataTransferBatchSize > 0) {
+      this.workflowActionService.setWorkflowDataTransferBatchSize(dataTransferBatchSize);
       if (this.userService.isLogin()) {
         this.persistWorkflow();
       }

@@ -4,17 +4,17 @@
     [formGroup]="settingsForm"
     class="form-inline">
     <div class="form-group">
-      <label for="batchSize">Batch Size:</label>
+      <label for="dataTransferBatchSize">Data Transfer Batch Size:</label>
       <input
-        id="batchSize"
+        id="dataTransferBatchSize"
         type="number"
-        formControlName="batchSize"
-        [ngClass]="{'is-invalid': settingsForm.get('batchSize')?.invalid && settingsForm.get('batchSize')?.touched}"
+        formControlName="dataTransferBatchSize"
+        [ngClass]="{'is-invalid': settingsForm.get('dataTransferBatchSize')?.invalid && settingsForm.get('dataTransferBatchSize')?.touched}"
         class="form-control" />
       <div
-        *ngIf="settingsForm.get('batchSize')?.invalid && settingsForm.get('batchSize')?.touched"
+        *ngIf="settingsForm.get('dataTransferBatchSize')?.invalid && settingsForm.get('dataTransferBatchSize')?.touched"
         class="error-message">
-        Batch size must be at least 1.
+        Data Transfer Batch Size size must be at least 1.
       </div>
     </div>
   </form>

@@ -38,9 +38,9 @@ export const DEFAULT_WORKFLOW = {
   lastModifiedTime: undefined,
   readonly: false,
 };
-export const DEFAULT_BATCH_SIZE = 400;
+export const DEFAULT_DATA_TRANSFER_BATCH_SIZE = 400;
 export const DEFAULT_SETTINGS = {
-  batchSize: DEFAULT_BATCH_SIZE,
+  dataTransferBatchSize: DEFAULT_DATA_TRANSFER_BATCH_SIZE,
 };
 
 /**
@@ -810,9 +810,9 @@ export class WorkflowActionService {
     this.setWorkflowMetadata({ ...this.workflowMetadata, name: newName });
   }
 
-  public setWorkflowBatchSize(size: number): void {
+  public setWorkflowDataTransferBatchSize(size: number): void {
     if (size > 0 && size != null) {
-      this.setWorkflowSettings({ ...this.workflowSettings, batchSize: size });
+      this.setWorkflowSettings({ ...this.workflowSettings, dataTransferBatchSize: size });
     }
   }
 
