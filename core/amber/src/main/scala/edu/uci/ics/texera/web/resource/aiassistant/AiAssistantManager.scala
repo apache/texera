@@ -14,10 +14,11 @@ object AiAssistantManager {
       false
 
     case "openai" =>
+      val sharedUrl = "https://api.openai.com/v1"
       var isKeyValid: Boolean = false
       var connection: HttpURLConnection = null
       try {
-        val url = new URL("https://api.openai.com/v1/models")
+        val url = new URL(s"${sharedUrl}/models")
         connection = url.openConnection().asInstanceOf[HttpURLConnection]
         connection.setRequestMethod("GET")
         connection.setRequestProperty(
