@@ -6,11 +6,12 @@ import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{READY, RUNNING}
 import edu.uci.ics.amber.engine.common.SourceOperatorExecutor
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.ambermessage.EndOfUpstream
+import edu.uci.ics.amber.engine.common.ambermessage.MarkerFrame
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.util.SOURCE_STARTER_ACTOR
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
+import edu.uci.ics.texera.workflow.common.EndOfUpstream
 
 object StartHandler {
   final case class StartWorker() extends ControlCommand[WorkerState]
@@ -32,7 +33,7 @@ trait StartHandler {
         .setPortId(dummyInputPortId)
       dp.processDataPayload(
         ChannelIdentity(SOURCE_STARTER_ACTOR, dp.actorId, isControl = false),
-        EndOfUpstream()
+        MarkerFrame(EndOfUpstream())
       )
       dp.stateManager.getCurrentState
     } else {

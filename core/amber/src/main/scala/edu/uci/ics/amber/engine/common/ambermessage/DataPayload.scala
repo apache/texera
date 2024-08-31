@@ -1,10 +1,11 @@
 package edu.uci.ics.amber.engine.common.ambermessage
 
+import edu.uci.ics.texera.workflow.common.Marker
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 sealed trait DataPayload extends WorkflowFIFOMessagePayload {}
 
-final case class EndOfUpstream() extends DataPayload
+final case class MarkerFrame(frame: Marker) extends DataPayload
 
 final case class DataFrame(frame: Array[Tuple]) extends DataPayload {
   val inMemSize: Long = {
