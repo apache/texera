@@ -282,8 +282,8 @@ export class ReportGenerationService {
     <head>
       <title>Operator Results</title>
       <!-- Link to JSONEditor CSS file-->
-      <link href="https://cdn.jsdelivr.net/npm/jsoneditor@latest/dist/jsoneditor.min.css" rel="stylesheet" type="text/css" />
-      <script src="https://cdn.jsdelivr.net/npm/jsoneditor@latest/dist/jsoneditor.min.js"></script>
+     <link href="https://cdn.jsdelivr.net/npm/jsoneditor@10.1.0/dist/jsoneditor.min.css" rel="stylesheet" type="text/css" />
+     <script src="https://cdn.jsdelivr.net/npm/jsoneditor@10.1.0/dist/jsoneditor.min.js"></script>
       <style>
         .button {
           margin-top: 20px;
