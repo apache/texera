@@ -5,6 +5,7 @@ import { WorkflowActionService } from "../../../service/workflow-graph/model/wor
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { UserService } from "../../../../common/service/user/user.service";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
+import { environment } from "../../../../../environments/environment";
 
 @UntilDestroy()
 @Component({
@@ -27,7 +28,8 @@ export class SettingsComponent implements OnInit {
 
   ngOnInit(): void {
     this.currentDataTransferBatchSize =
-      this.workflowActionService.getWorkflowContent().settings.dataTransferBatchSize || 400;
+      this.workflowActionService.getWorkflowContent().settings.dataTransferBatchSize ||
+      environment.defaultDataTransferBatchSize;
 
     this.settingsForm = this.fb.group({
       dataTransferBatchSize: [this.currentDataTransferBatchSize, [Validators.required, Validators.min(1)]],
@@ -44,7 +46,8 @@ export class SettingsComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         this.currentDataTransferBatchSize =
-          this.workflowActionService.getWorkflowContent().settings.dataTransferBatchSize || 400;
+          this.workflowActionService.getWorkflowContent().settings.dataTransferBatchSize ||
+          environment.defaultDataTransferBatchSize;
         this.settingsForm.patchValue(
           { dataTransferBatchSize: this.currentDataTransferBatchSize },
           { emitEvent: false }

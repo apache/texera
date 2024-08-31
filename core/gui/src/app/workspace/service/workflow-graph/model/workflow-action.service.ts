@@ -38,9 +38,8 @@ export const DEFAULT_WORKFLOW = {
   lastModifiedTime: undefined,
   readonly: false,
 };
-export const DEFAULT_DATA_TRANSFER_BATCH_SIZE = 400;
 export const DEFAULT_SETTINGS = {
-  dataTransferBatchSize: DEFAULT_DATA_TRANSFER_BATCH_SIZE,
+  dataTransferBatchSize: environment.defaultDataTransferBatchSize,
 };
 
 /**
