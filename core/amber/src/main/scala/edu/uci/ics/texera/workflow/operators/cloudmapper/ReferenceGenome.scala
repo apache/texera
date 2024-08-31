@@ -9,11 +9,15 @@ import com.kjetland.jackson.jsonSchema.annotations.{
 import edu.uci.ics.texera.workflow.common.metadata.annotations.HideAnnotation
 
 class ReferenceGenome {
+  // Required field for selecting a reference genome.
+  // This field is mandatory and must be filled by the user.
   @JsonProperty(required = true)
-  @JsonSchemaTitle("Select Reference Genome")
+  @JsonSchemaTitle("Reference Genome")
   @JsonPropertyDescription("reference genome for sequence alignment")
   var referenceGenome: ReferenceGenomeEnum = _
 
+  // Optional field for FastA files.
+  // This field is shown only if 'referenceGenome' is set to 'OTHERS'.
   @JsonSchemaTitle("FastA Files")
   @JsonSchemaInject(
     strings = Array(
@@ -27,6 +31,8 @@ class ReferenceGenome {
   )
   val fastAFiles: Option[String] = None
 
+  // Optional field for Gtf files.
+  // This field is shown only if 'referenceGenome' is set to 'OTHERS'.
   @JsonSchemaTitle("Gtf File")
   @JsonSchemaInject(
     strings = Array(

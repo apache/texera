@@ -2,6 +2,7 @@ package edu.uci.ics.texera.workflow.operators.cloudmapper
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.workflow.OutputPort
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.source.PythonSourceOperatorDescriptor
@@ -52,7 +53,7 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
        |        import requests, zipfile, io
        |
        |        # Set the URL to the Go endpoint
-       |        url = "http://localhost:3000/api/job/create"
+       |        url = "${AmberConfig.clusterLauncherServiceTarget}/api/job/create"
        |
        |        def create_job_form_data(cluster_id, job_form):
        |            form_data = {
