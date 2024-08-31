@@ -38,9 +38,10 @@ class ClusterCallbackResource {
   @Consumes(Array(MediaType.APPLICATION_JSON))
   def handleClusterCreatedCallback(callbackPayload: CallbackPayload): Response = {
     val clusterId = callbackPayload.clusterId
+    val success = callbackPayload.success;
     // Update the cluster status to LAUNCHED in the database
     val cluster = clusterDao.fetchOneByCid(clusterId)
-    if (cluster != null && cluster.getStatus == ClusterStatus.LAUNCHING) {
+    if (success && cluster != null && cluster.getStatus == ClusterStatus.LAUNCHING) {
       updateClusterStatus(clusterId, ClusterStatus.LAUNCHED, context)
       insertClusterActivity(cluster.getCid, cluster.getCreationTime)
       Response.ok("Cluster status updated to LAUNCHED").build()
@@ -57,9 +58,10 @@ class ClusterCallbackResource {
   @Consumes(Array(MediaType.APPLICATION_JSON))
   def handleClusterDeletedCallback(callbackPayload: CallbackPayload): Response = {
     val clusterId = callbackPayload.clusterId
+    val success = callbackPayload.success;
 
     val cluster = clusterDao.fetchOneByCid(clusterId)
-    if (cluster != null && cluster.getStatus == ClusterStatus.TERMINATING) {
+    if (success && cluster != null && cluster.getStatus == ClusterStatus.TERMINATING) {
       updateClusterStatus(clusterId, ClusterStatus.TERMINATED, context)
       updateClusterActivityEndTime(clusterId, context)
       Response
@@ -107,4 +109,4 @@ class ClusterCallbackResource {
 }
 
 // Define the payload structure expected from the Go service
-case class CallbackPayload(clusterId: Int)
+case class CallbackPayload(clusterId: Int, success: Boolean)

@@ -23,6 +23,7 @@ import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.operators.aggregate.AggregateOpDesc
 import edu.uci.ics.texera.workflow.operators.cartesianProduct.CartesianProductOpDesc
+import edu.uci.ics.texera.workflow.operators.cloudmapper.CloudMapperSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.dictionary.DictionaryMatcherOpDesc
 import edu.uci.ics.texera.workflow.operators.difference.DifferenceOpDesc
 import edu.uci.ics.texera.workflow.operators.distinct.DistinctOpDesc
@@ -133,11 +134,8 @@ import edu.uci.ics.texera.workflow.operators.visualization.scatter3DChart.Scatte
 import edu.uci.ics.texera.workflow.operators.visualization.ScatterMatrixChart.ScatterMatrixChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.funnelPlot.FunnelPlotOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.tablesChart.TablesPlotOpDesc
-
 import edu.uci.ics.texera.workflow.operators.visualization.icicleChart.IcicleChartOpDesc
-
 import edu.uci.ics.texera.workflow.operators.visualization.continuousErrorBands.ContinuousErrorBandsOpDesc
-
 import edu.uci.ics.texera.workflow.operators.visualization.ternaryPlot.TernaryPlotOpDesc
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
 import org.apache.zookeeper.KeeperException.UnimplementedException
@@ -145,6 +143,7 @@ import edu.uci.ics.texera.workflow.operators.machineLearning.Scorer.MachineLearn
 import edu.uci.ics.texera.workflow.operators.visualization.quiverPlot.QuiverPlotOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.contourPlot.ContourPlotOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.figureFactoryTable.FigureFactoryTableOpDesc
+
 import java.util.UUID
 import scala.collection.mutable
 import scala.util.Try
@@ -319,6 +318,10 @@ trait StateTransferFunc
     new Type(
       value = classOf[SklearnAdvancedSVRTrainerOpDesc],
       name = "SVRTrainer"
+    ),
+    new Type(
+      value = classOf[CloudMapperSourceOpDesc],
+      name = "CloudMapper"
     )
   )
 )
