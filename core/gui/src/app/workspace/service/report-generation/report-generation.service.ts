@@ -201,6 +201,8 @@ export class ReportGenerationService {
           // Retrieve the current snapshot of results
           const data = resultService.getCurrentResultSnapshot();
 
+          // Check if data exists; if it does, parse and display the HTML content.
+          // If no data is available, return a message indicating "No data found for operator."
           if (data) {
             // Parse the HTML content from the snapshot data
             const parser = new DOMParser();
@@ -279,6 +281,7 @@ export class ReportGenerationService {
   <html>
     <head>
       <title>Operator Results</title>
+      <!-- Link to JSONEditor CSS file-->
       <link href="https://cdn.jsdelivr.net/npm/jsoneditor@latest/dist/jsoneditor.min.css" rel="stylesheet" type="text/css" />
       <script src="https://cdn.jsdelivr.net/npm/jsoneditor@latest/dist/jsoneditor.min.js"></script>
       <style>
