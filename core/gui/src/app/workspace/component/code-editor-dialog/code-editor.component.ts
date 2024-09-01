@@ -63,7 +63,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     private sanitizer: DomSanitizer,
     private workflowActionService: WorkflowActionService,
     private workflowVersionService: WorkflowVersionService,
-    public coeditorPresenceService: CoeditorPresenceService,
+    public coeditorPresenceService: CoeditorPresenceService
   ) {
     const currentOperatorId = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0];
     const operatorType = this.workflowActionService.getTexeraGraph().getOperator(currentOperatorId).operatorType;
