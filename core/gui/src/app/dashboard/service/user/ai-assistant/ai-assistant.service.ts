@@ -16,7 +16,9 @@ export class AiAssistantService {
     return firstValueFrom(this.http.get<boolean>(apiUrl))
       .then(response => {
         const isEnabled = response !== undefined ? response : false;
-        console.log(isEnabled ? "AI Assistant successfully started" : "No AI Assistant or OpenAI authentication key error");
+        console.log(
+          isEnabled ? "AI Assistant successfully started" : "No AI Assistant or OpenAI authentication key error"
+        );
         return isEnabled;
       })
       .catch(() => {
@@ -24,5 +26,4 @@ export class AiAssistantService {
         return false;
       });
   }
-
 }
