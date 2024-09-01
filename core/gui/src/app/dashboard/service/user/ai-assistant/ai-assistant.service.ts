@@ -14,8 +14,17 @@ export class AiAssistantService {
   public checkAiAssistantEnabled(): Promise<boolean> {
     const apiUrl = `${AI_ASSISTANT_API_BASE_URL}/isenabled`;
     return firstValueFrom(this.http.get<boolean>(apiUrl))
-      .then(response => (response !== undefined ? response : false))
-      .catch(() => false);
+      .then(response => {
+        const isEnabled = response !== undefined ? response : false;
+        console.log(
+          isEnabled ? "AI Assistant successfully started" : "No AI Assistant or OpenAI authentication key error"
+        );
+        return isEnabled;
+      })
+      .catch(() => {
+        console.log("No AI Assistant or OpenAI authentication key error");
+        return false;
+      });
   }
 
   public getTypeAnnotations(code: string, lineNumber: number, allcode: string): Promise<string> {

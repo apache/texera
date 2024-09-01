@@ -1,11 +1,8 @@
 package edu.uci.ics.texera.web.resource.aiassistant
 import edu.uci.ics.amber.engine.common.AmberConfig
 import java.net.{HttpURLConnection, URL}
-import java.util.logging.Logger
 
 object AiAssistantManager {
-  private val logger = Logger.getLogger(getClass.getName)
-
   private val aiAssistantConfig = AmberConfig.aiAssistantConfig
   val assistantType: String = aiAssistantConfig.getString("assistant")
   val accountKey: String = aiAssistantConfig.getString("ai-service-key")
@@ -29,7 +26,6 @@ object AiAssistantManager {
       } catch {
         case e: Exception =>
           isKeyValid = false
-          logger.warning(s"Error validating OpenAI API key: ${e.getMessage}")
       } finally {
         if (connection != null) {
           connection.disconnect()
