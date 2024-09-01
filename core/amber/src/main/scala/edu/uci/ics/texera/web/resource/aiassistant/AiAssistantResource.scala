@@ -8,11 +8,9 @@ import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 
 import javax.ws.rs.core.Response
-import java.util.logging.Logger
 
 @Path("/aiassistant")
 class AiAssistantResource {
-  private val logger = Logger.getLogger(classOf[AiAssistantResource].getName)
 
   final private lazy val isEnabled = AiAssistantManager.validAIAssistant
 
@@ -49,17 +47,11 @@ class AiAssistantResource {
       val responseCode = connection.getResponseCode
       val responseStream = connection.getInputStream
       val responseString = scala.io.Source.fromInputStream(responseStream).mkString
-      if (responseCode == 200) {
-        logger.info(s"Response from OpenAI API: $responseString")
-      } else {
-        logger.warning(s"Error response from OpenAI API: $responseString")
-      }
       responseStream.close()
       connection.disconnect()
       Response.status(responseCode).entity(responseString).build()
     } catch {
       case e: Exception =>
-        logger.warning(s"Exception occurred: ${e.getMessage}")
         e.printStackTrace()
         Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("Error occurred").build()
     }

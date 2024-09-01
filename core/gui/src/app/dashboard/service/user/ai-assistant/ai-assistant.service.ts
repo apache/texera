@@ -57,15 +57,18 @@ export class AiAssistantService {
             - For the first situation: you must return strictly according to the format ": type", without adding any extra characters. No need for an explanation, just the result : type is enough!
             - For the second situation: you return strictly according to the format " -> type", without adding any extra characters. No need for an explanation, just the result -> type is enough!
         `;
-    return firstValueFrom(this.http.post<any>(`${AI_ASSISTANT_API_BASE_URL}/getresult`, { prompt }))
-      .then(response => {
-        console.log("Received response from backend:", response);
-        const result = response.choices[0].message.content.trim();
-        return result;
-      })
-      .catch(error => {
-        console.error("Request to backend failed:", error);
-        return "";
-      });
-  }
+      return firstValueFrom(this.http.post<any>(`${AI_ASSISTANT_API_BASE_URL}/getresult`, { prompt }))
+        .then(response => {
+          if (response.choices && response.choices.length > 0) {
+            return response.choices[0].message.content.trim();
+          } else {
+            console.error("Error from backend:", response.body);
+            return "";
+          }
+        })
+        .catch(error => {
+          console.error("Request to backend failed:", error);
+          return "";
+        });
+    }
 }
