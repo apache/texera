@@ -17,6 +17,7 @@ import { isUndefined } from "lodash";
 import { CloseAction, ErrorAction } from "vscode-languageclient/lib/common/client.js";
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api.js";
 import { FormControl } from "@angular/forms";
+import { AiAssistantService } from "../../../dashboard/service/user/ai-assistant/ai-assistant.service";
 
 /**
  * CodeEditorComponent is the content of the dialogue invoked by CodeareaCustomTemplateComponent.
@@ -63,7 +64,8 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     private sanitizer: DomSanitizer,
     private workflowActionService: WorkflowActionService,
     private workflowVersionService: WorkflowVersionService,
-    public coeditorPresenceService: CoeditorPresenceService
+    public coeditorPresenceService: CoeditorPresenceService,
+    private aiAssistantService: AiAssistantService
   ) {
     const currentOperatorId = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0];
     const operatorType = this.workflowActionService.getTexeraGraph().getOperator(currentOperatorId).operatorType;
@@ -152,7 +154,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
    * Create a Monaco editor and connect it to MonacoBinding.
    * @private
    */
-  private initMonaco() {
+  private async initMonaco() {
     const editor = monaco.editor.create(this.editorElement.nativeElement, {
       language: this.language,
       fontSize: 11,
