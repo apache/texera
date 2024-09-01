@@ -152,7 +152,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
    * Create a Monaco editor and connect it to MonacoBinding.
    * @private
    */
-  private async initMonaco() {
+  private initMonaco() {
     const editor = monaco.editor.create(this.editorElement.nativeElement, {
       language: this.language,
       fontSize: 11,
