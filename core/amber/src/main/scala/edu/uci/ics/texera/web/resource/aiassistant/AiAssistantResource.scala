@@ -8,8 +8,6 @@ import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 
 import javax.ws.rs.core.Response
-import java.util.Base64
-import scala.sys.process._
 import java.util.logging.Logger
 
 @Path("/aiassistant")
@@ -24,8 +22,8 @@ class AiAssistantResource {
   def isAiAssistantEnabled: Boolean = isEnabled
 
   /**
-   * To get the type annotation suggestion from OpenAI
-   */
+    * To get the type annotation suggestion from OpenAI
+    */
   @POST
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/getresult")
@@ -67,4 +65,3 @@ class AiAssistantResource {
     }
   }
 }
-
