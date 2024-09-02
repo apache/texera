@@ -15,8 +15,8 @@ class AiAssistantResource {
   def isAiAssistantEnable: String = isEnabled
 
   /**
-    * To get the type annotation suggestion from OpenAI
-    */
+   * To get the type annotation suggestion from OpenAI
+   */
   @POST
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/getresult")
