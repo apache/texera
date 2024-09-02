@@ -111,7 +111,6 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
   closePanel() {
     this.width = 0;
     this.height = 65;
-    this.resetPanelPosition();
   }
 
   resetPanelPosition() {

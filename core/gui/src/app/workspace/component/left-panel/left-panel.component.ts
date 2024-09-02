@@ -72,7 +72,6 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
     if (!i) {
       this.width = 0;
       this.height = 65;
-      this.resetPanelPosition()
     } else if (!this.width) {
       this.width = 230;
       this.height = 300;

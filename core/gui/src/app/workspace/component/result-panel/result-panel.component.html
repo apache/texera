@@ -51,14 +51,15 @@
         nz-icon
         nzType="minus"></span>
     </li>
-    <li
-      nz-menu-item
+    <button
+      nz-button
+      nzType="text"
       (click)="resetPanelPosition()"
       *ngIf="width">
       <span
         nz-icon
         nzType="enter"></span>
-    </li>
+    </button>
   </ul>
   <div
     id="content"

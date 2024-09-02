@@ -35,6 +35,13 @@
   z-index: 4;
 }
 
+#return-button {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 3;
+}
+
 #content {
   width: calc(100% - 33px);
   height: 100%;

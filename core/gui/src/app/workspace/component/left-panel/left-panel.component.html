@@ -62,14 +62,6 @@
     <li
       nz-menu-divider
       class="divider"></li>
-    <li
-      nz-menu-item
-      (click)="resetPanelPosition()"
-      [nzSelected]="false">
-      <span
-        nz-icon
-        nzType="enter"></span>
-    </li>
     <ng-container *ngFor="let i of order">
       <li
         nz-menu-item
@@ -85,6 +77,16 @@
       </li>
     </ng-container>
   </ul>
+  <button
+    id="return-button"
+    nz-button
+    nzType="text"
+    (click)="resetPanelPosition()"
+    *ngIf="width">
+      <span
+        nz-icon
+        nzType="enter"></span>
+  </button>
   <div
     id="content"
     [hidden]="!currentComponent">
