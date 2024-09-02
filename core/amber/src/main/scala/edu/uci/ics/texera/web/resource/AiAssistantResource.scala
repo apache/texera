@@ -32,7 +32,7 @@ class AiAssistantResource {
             """.stripMargin
 
     try {
-      val url = new java.net.URL("https://api.openai.com/v1/chat/completions")
+      val url = new java.net.URL(s"${AiAssistantManager.sharedUrl}/chat/completions")
       val connection = url.openConnection().asInstanceOf[java.net.HttpURLConnection]
       connection.setRequestMethod("POST")
       connection.setRequestProperty("Authorization", s"Bearer ${AiAssistantManager.accountKey}")
