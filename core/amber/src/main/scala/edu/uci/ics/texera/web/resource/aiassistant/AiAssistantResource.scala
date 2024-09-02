@@ -11,13 +11,11 @@ import javax.ws.rs.core.Response
 
 @Path("/aiassistant")
 class AiAssistantResource {
-
   final private lazy val isEnabled = AiAssistantManager.validAIAssistant
-
   @GET
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/isenabled")
-  def isAiAssistantEnabled: Boolean = isEnabled
+  def isAiAssistantEnable: String = isEnabled
 
   /**
     * To get the type annotation suggestion from OpenAI

@@ -5,7 +5,6 @@ import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, PhysicalPlan}
 
 case class Workflow(
     context: WorkflowContext,
-    originalLogicalPlan: LogicalPlan,
     logicalPlan: LogicalPlan,
     physicalPlan: PhysicalPlan
 )

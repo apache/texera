@@ -17,25 +17,9 @@ import { FlarumComponent } from "./dashboard/component/user/flarum/flarum.compon
 import { AdminGmailComponent } from "./dashboard/component/admin/gmail/admin-gmail.component";
 import { UserDatasetExplorerComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-explorer.component";
 import { UserDatasetComponent } from "./dashboard/component/user/user-dataset/user-dataset.component";
-/*
- *  This file defines the url path
- *  The workflow workspace is set as default path
- */
-const routes: Routes = [
-  {
-    path: "",
-    component: environment.userSystemEnabled ? UserWorkflowComponent : WorkspaceComponent,
-    canActivate: [AuthGuardService],
-  },
-];
+
+const routes: Routes = [];
 if (environment.userSystemEnabled) {
-  /*
-   *  The user dashboard is under path '/dashboard'
-   *  The saved workflow is under path '/dashboard/workflow'
-   *  The user dictionary is under path '/dashboard/user-dictionary'
-   *  The user project list is under path '/dashboard/project'
-   *  The single user project is under path 'dashboard/project/{pid}'
-   */
   routes.push({
     path: "dashboard",
     component: DashboardComponent,
@@ -105,11 +89,22 @@ if (environment.userSystemEnabled) {
     path: "home",
     component: HomeComponent,
   });
+
+  routes.push({
+    path: "",
+    redirectTo: "dashboard/workflow",
+    pathMatch: "full",
+  });
+} else {
+  routes.push({
+    path: "",
+    component: WorkspaceComponent,
+  });
 }
 // redirect all other paths to index.
 routes.push({
   path: "**",
-  redirectTo: "",
+  redirectTo: "dashboard/workflow",
 });
 @NgModule({
   imports: [RouterModule.forRoot(routes)],

@@ -31,7 +31,6 @@ class SchemaPropagationResource extends LazyLogging {
     val logicalPlanPojo = Utils.objectMapper.readValue(workflowStr, classOf[LogicalPlanPojo])
 
     val context = new WorkflowContext(
-      userId = Option(sessionUser.getUser.getUid),
       workflowId = WorkflowIdentity(wid.toString.toLong)
     )
 

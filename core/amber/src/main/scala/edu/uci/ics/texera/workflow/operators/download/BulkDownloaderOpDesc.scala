@@ -33,7 +33,6 @@ class BulkDownloaderOpDesc extends LogicalOp {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp = {
-    assert(getContext.userId.isDefined)
     PhysicalOp
       .oneToOnePhysicalOp(
         workflowId,
