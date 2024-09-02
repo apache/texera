@@ -10,8 +10,7 @@ object AiAssistantManager {
   val accountKey: String = aiAssistantConfig.getString("ai-service-key")
   val sharedUrl: String = aiAssistantConfig.getString("ai-service-url")
 
-  private def initOpenAI(): Boolean = {
-    var isKeyValid: Boolean = false
+  private def initOpenAI(): String = {
     var connection: HttpURLConnection = null
     try {
       val url = new URL(s"${sharedUrl}/models")
@@ -22,26 +21,29 @@ object AiAssistantManager {
         s"Bearer ${accountKey.trim.replaceAll("^\"|\"$", "")}"
       )
       val responseCode = connection.getResponseCode
-      isKeyValid = responseCode == 200
+      if (responseCode == 200) {
+        "OpenAI"
+      } else {
+        "NoAiAssistant"
+      }
     } catch {
       case e: Exception =>
-        isKeyValid = false
+        "NoAiAssistant"
     } finally {
       if (connection != null) {
         connection.disconnect()
       }
     }
-    isKeyValid
   }
 
-  val validAIAssistant: Boolean = assistantType match {
+  val validAIAssistant: String = assistantType match {
     case "none" =>
-      false
+      "NoAiAssistant"
 
     case "openai" =>
       initOpenAI()
 
     case _ =>
-      false
+      "NoAiAssistant"
   }
 }

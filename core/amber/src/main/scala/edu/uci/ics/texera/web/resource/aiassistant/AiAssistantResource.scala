@@ -9,5 +9,5 @@ class AiAssistantResource {
   @GET
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/isenabled")
-  def isAiAssistantEnabled: Boolean = isEnabled
+  def isAiAssistantEnable: String = isEnabled
 }
