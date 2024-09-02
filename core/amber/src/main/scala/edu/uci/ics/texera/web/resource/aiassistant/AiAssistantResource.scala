@@ -1,12 +1,9 @@
 package edu.uci.ics.texera.web.resource
-
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.resource.aiassistant.AiAssistantManager
 import io.dropwizard.auth.Auth
-
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
-
 import javax.ws.rs.core.Response
 
 @Path("/aiassistant")
