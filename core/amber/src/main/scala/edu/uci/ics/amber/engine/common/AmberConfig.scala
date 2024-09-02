@@ -106,5 +106,8 @@ object AmberConfig {
   val jdbcConfig: Config = getConfSource.getConfig("jdbc")
 
   // Python language server configuration
-  val aiAssistantConfig: Config = getConfSource.getConfig("ai-assistant-server")
+  var aiAssistantConfig: Option[Config] = None
+  if (getConfSource.hasPath("ai-assistant-server")) {
+    aiAssistantConfig = Some(getConfSource.getConfig("ai-assistant-server"))
+  }
 }

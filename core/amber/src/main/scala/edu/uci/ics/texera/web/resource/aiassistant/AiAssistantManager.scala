@@ -3,7 +3,9 @@ import edu.uci.ics.amber.engine.common.AmberConfig
 import java.net.{HttpURLConnection, URL}
 
 object AiAssistantManager {
-  private val aiAssistantConfig = AmberConfig.aiAssistantConfig
+  private val aiAssistantConfig = AmberConfig.aiAssistantConfig.getOrElse(
+    throw new Exception("ai-assistant-server configuration is missing in application.conf")
+  )
   val assistantType: String = aiAssistantConfig.getString("assistant")
   // The accountKey is the OpenAI authentication key used to authenticate API requests and obtain responses from the OpenAI service.
 
