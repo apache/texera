@@ -1,7 +1,7 @@
 import os
 import sys
 import traceback
-from datetime import datetime
+import datetime
 from threading import Event
 
 from loguru import logger
@@ -112,7 +112,7 @@ class DataProcessor(Runnable, Stoppable):
         self._context.console_message_manager.put_message(
             ConsoleMessage(
                 worker_id=self._context.worker_id,
-                timestamp=datetime.now(datetime.timezone.utc),
+                timestamp=datetime.datetime.now(datetime.timezone.utc),
                 msg_type=ConsoleMessageType.ERROR,
                 source=f"{module_name}:{func_name}:{line_number}",
                 title=title,
