@@ -112,7 +112,7 @@ class DataProcessor(Runnable, Stoppable):
         self._context.console_message_manager.put_message(
             ConsoleMessage(
                 worker_id=self._context.worker_id,
-                timestamp=datetime.now(),
+                timestamp=datetime.now(datetime.timezone.utc),
                 msg_type=ConsoleMessageType.ERROR,
                 source=f"{module_name}:{func_name}:{line_number}",
                 title=title,

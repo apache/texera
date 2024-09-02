@@ -53,7 +53,7 @@ class replace_print(ContextManager):
                 complete_str = tmp_buf.getvalue()
                 console_message = ConsoleMessage(
                     worker_id=self.worker_id,
-                    timestamp=datetime.datetime.now(),
+                    timestamp=datetime.datetime.now(datetime.timezone.utc),
                     msg_type=ConsoleMessageType.PRINT,
                     source=(
                         f"{inspect.currentframe().f_back.f_globals['__name__']}"

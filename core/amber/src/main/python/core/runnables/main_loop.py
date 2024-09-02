@@ -335,7 +335,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 PythonConsoleMessageV2(
                     ConsoleMessage(
                         worker_id=self.context.worker_id,
-                        timestamp=datetime.datetime.now(),
+                        timestamp=datetime.datetime.now(datetime.timezone.utc),
                         msg_type=ConsoleMessageType.DEBUGGER,
                         source="(Pdb)",
                         title=debug_event,
