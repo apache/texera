@@ -1,10 +1,8 @@
 package edu.uci.ics.texera.web
 
-import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.github.toastshaman.dropwizard.auth.jwt.JwtAuthFilter
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.TexeraWebApplication.parseArgs
@@ -15,11 +13,9 @@ import edu.uci.ics.texera.web.auth.{
   UserAuthenticator,
   UserRoleAuthorizer
 }
-import edu.uci.ics.texera.web.model.serializer.PhysicalOpSerializer
 import edu.uci.ics.texera.web.resource.WorkflowCompilationResource
 import io.dropwizard.auth.{AuthDynamicFeature, AuthValueFactoryProvider}
 import io.dropwizard.setup.{Bootstrap, Environment}
-import org.eclipse.jetty.server.session.SessionHandler
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 
 object TexeraWorkflowCompilingService {
@@ -57,5 +53,32 @@ class TexeraWorkflowCompilingService
 
     // register the compilation endpoint
     environment.jersey.register(classOf[WorkflowCompilationResource])
+
+    // Add JWT Auth layer (without session)
+    if (AmberConfig.isUserSystemEnabled) {
+      environment.jersey.register(
+        new AuthDynamicFeature(
+          new JwtAuthFilter.Builder[SessionUser]() // Renamed from SessionUser to AuthenticatedUser
+            .setJwtConsumer(jwtConsumer)
+            .setRealm("realm")
+            .setPrefix("Bearer")
+            .setAuthenticator(UserAuthenticator)
+            .setAuthorizer(UserRoleAuthorizer)
+            .buildAuthFilter()
+        )
+      )
+    } else {
+      // register Guest Auth layer (if applicable)
+      environment.jersey.register(
+        new AuthDynamicFeature(
+          new GuestAuthFilter.Builder().setAuthorizer(UserRoleAuthorizer).buildAuthFilter()
+        )
+      )
+    }
+
+    environment.jersey.register(
+      new AuthValueFactoryProvider.Binder[SessionUser](classOf[SessionUser]) // Updated here as well
+    )
+    environment.jersey.register(classOf[RolesAllowedDynamicFeature])
   }
 }

@@ -9,6 +9,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute
 import edu.uci.ics.texera.workflow.common.workflow.{PhysicalPlan, WorkflowCompiler}
 import org.jooq.types.UInteger
 
+import javax.annotation.security.RolesAllowed
 import javax.ws.rs.{Consumes, POST, Path, PathParam, Produces}
 import javax.ws.rs.core.MediaType
 
@@ -20,6 +21,7 @@ case class WorkflowCompilationResponse(
 
 @Consumes(Array(MediaType.APPLICATION_JSON))
 @Produces(Array(MediaType.APPLICATION_JSON))
+@RolesAllowed(Array("REGULAR", "ADMIN"))
 @Path("/compilation")
 class WorkflowCompilationResource extends LazyLogging {
   @POST
