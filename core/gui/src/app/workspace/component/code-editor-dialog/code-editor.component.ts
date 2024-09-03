@@ -17,7 +17,7 @@ import { isUndefined } from "lodash";
 import { CloseAction, ErrorAction } from "vscode-languageclient/lib/common/client.js";
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api.js";
 import { FormControl } from "@angular/forms";
-import { AiAssistantService } from "../../../dashboard/service/user/ai-assistant/ai-assistant.service";
+import { AIAssistantService } from "../../../dashboard/service/user/ai-assistant/ai-assistant.service";
 
 /**
  * CodeEditorComponent is the content of the dialogue invoked by CodeareaCustomTemplateComponent.
@@ -74,7 +74,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     private workflowActionService: WorkflowActionService,
     private workflowVersionService: WorkflowVersionService,
     public coeditorPresenceService: CoeditorPresenceService,
-    private aiAssistantService: AiAssistantService
+    private aiAssistantService: AIAssistantService
   ) {
     const currentOperatorId = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0];
     const operatorType = this.workflowActionService.getTexeraGraph().getOperator(currentOperatorId).operatorType;
@@ -182,7 +182,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     this.editor = editor;
 
     // Check if the AI provider is "openai"
-    if ((await this.aiAssistantService.checkAiAssistantEnabled()) == "OpenAI") {
+    if ((await this.aiAssistantService.checkAIAssistantEnabled()) == "OpenAI") {
       // Add all needed modules for add type annotation
       this.addAnnotationModule(editor);
 

@@ -2,7 +2,7 @@ package edu.uci.ics.texera.web.resource.aiassistant
 import edu.uci.ics.amber.engine.common.AmberConfig
 import java.net.{HttpURLConnection, URL}
 
-object AiAssistantManager {
+object AIAssistantManager {
   private val aiAssistantConfig = AmberConfig.aiAssistantConfig.getOrElse(
     throw new Exception("ai-assistant-server configuration is missing in application.conf")
   )
@@ -26,11 +26,11 @@ object AiAssistantManager {
       if (responseCode == 200) {
         "OpenAI"
       } else {
-        "NoAiAssistant"
+        "NoAIAssistant"
       }
     } catch {
       case e: Exception =>
-        "NoAiAssistant"
+        "NoAIAssistant"
     } finally {
       if (connection != null) {
         connection.disconnect()
@@ -40,12 +40,12 @@ object AiAssistantManager {
 
   val validAIAssistant: String = assistantType match {
     case "none" =>
-      "NoAiAssistant"
+      "NoAIAssistant"
 
     case "openai" =>
       initOpenAI()
 
     case _ =>
-      "NoAiAssistant"
+      "NoAIAssistant"
   }
 }

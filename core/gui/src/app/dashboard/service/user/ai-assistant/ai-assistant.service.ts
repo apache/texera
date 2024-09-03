@@ -8,14 +8,14 @@ export const AI_ASSISTANT_API_BASE_URL = `${AppSettings.getApiEndpoint()}/aiassi
 @Injectable({
   providedIn: "root",
 })
-export class AiAssistantService {
+export class AIAssistantService {
   constructor(private http: HttpClient) {}
 
-  public checkAiAssistantEnabled(): Promise<string> {
+  public checkAIAssistantEnabled(): Promise<string> {
     const apiUrl = `${AI_ASSISTANT_API_BASE_URL}/isenabled`;
     return firstValueFrom(this.http.get(apiUrl, { responseType: "text" }))
       .then(response => {
-        const isEnabled = response !== undefined ? response : "NoAiAssistant";
+        const isEnabled = response !== undefined ? response : "NoAIAssistant";
         console.log(
           isEnabled === "OpenAI"
             ? "AI Assistant successfully started"
@@ -24,7 +24,7 @@ export class AiAssistantService {
         return isEnabled;
       })
       .catch(() => {
-        return "NoAiAssistant";
+        return "NoAIAssistant";
       });
   }
 
