@@ -1,6 +1,7 @@
 import datetime
 import tzlocal
 
+
 def current_time_in_local_timezone():
     # Get the system's local timezone
     local_timezone = tzlocal.get_localzone()

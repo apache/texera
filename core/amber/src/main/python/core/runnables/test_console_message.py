@@ -1,6 +1,4 @@
 import pytest
-import datetime
-
 from core.models.internal_queue import InternalQueue
 from core.util.buffer.timed_buffer import TimedBuffer
 from core.util import set_one_of
@@ -19,7 +17,7 @@ from proto.edu.uci.ics.amber.engine.architecture.worker import (
 from core.util.console_message.timestamp import current_time_in_local_timezone
 
 '''
-This class covers test cases related to ConsoleMessage, including serialization and deserialization
+This class covers test cases related to ConsoleMessage
 '''
 class TestConsoleMessage:
     @pytest.fixture
@@ -36,7 +34,8 @@ class TestConsoleMessage:
             ConsoleMessage(
                 worker_id="0",
                 timestamp=current_time_in_local_timezone(),
-                # timestamp=datetime.datetime.now(), this will produce error if betterproto is set to 2.0.0b7
+                # this will produce error if betterproto is set to 2.0.0b7
+                # timestamp=datetime.datetime.now(),
                 msg_type=ConsoleMessageType.PRINT,
                 source="pytest",
                 title="Test Message",
@@ -55,14 +54,15 @@ class TestConsoleMessage:
         :param mock_controller: the mock actor id
         :param console_message: the test message
         '''
-        # below statements wrap the console message as the python control message,
-        #   which is the message that is actually being sent through the network when a console message is produced
+        # below statements wrap the console message as the python control message
         command = set_one_of(ControlCommandV2, console_message)
         payload = set_one_of(ControlPayloadV2, ControlInvocationV2(1, command=command))
         python_control_message = PythonControlMessage(tag=mock_controller, payload=payload)
         # serialize the python control message to bytes
         python_control_message_bytes = bytes(python_control_message)
         # deserialize the control message from bytes
-        parsed_python_control_message = PythonControlMessage().parse(python_control_message_bytes)
+        parsed_python_control_message = (
+            PythonControlMessage().parse(python_control_message_bytes)
+        )
         # deserialized one should equal to the original one
         assert python_control_message == parsed_python_control_message
