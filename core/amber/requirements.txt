@@ -26,3 +26,4 @@ bidict==0.22.0
 cached_property
 psutil
 transformers
+tzlocal
