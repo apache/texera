@@ -14,7 +14,7 @@ import javax.ws.rs.{Consumes, POST, Path, PathParam, Produces}
 import javax.ws.rs.core.MediaType
 
 case class WorkflowCompilationResponse(
-    physicalPlan: PhysicalPlanPojo,
+    physicalPlan: PhysicalPlan,
     operatorInputSchemas: Map[String, List[Option[List[Attribute]]]],
     operatorErrors: Map[String, String]
 )
@@ -48,7 +48,8 @@ class WorkflowCompilationResource extends LazyLogging {
     )
     // return the result
     WorkflowCompilationResponse(
-      physicalPlan = physicalPlanPojo,
+//      physicalPlan = physicalPlanPojo,
+      physicalPlan = workflowCompilationResult.physicalPlan,
       operatorInputSchemas = workflowCompilationResult.operatorIdToInputSchemas.map {
         case (operatorIdentity, schemas) =>
           val opId = operatorIdentity.id

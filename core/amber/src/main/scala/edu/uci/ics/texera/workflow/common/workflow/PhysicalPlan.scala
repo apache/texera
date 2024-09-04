@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
+import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty}
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
@@ -67,11 +68,11 @@ case class PhysicalPlan(
     links: Set[PhysicalLink]
 ) extends LazyLogging {
 
-  @transient private lazy val operatorMap: Map[PhysicalOpIdentity, PhysicalOp] =
+  @JsonIgnore @transient private lazy val operatorMap: Map[PhysicalOpIdentity, PhysicalOp] =
     operators.map(o => (o.id, o)).toMap
 
   // the dag will be re-computed again once it reaches the coordinator.
-  @transient lazy val dag: DirectedAcyclicGraph[PhysicalOpIdentity, PhysicalLink] = {
+  @JsonIgnore @transient lazy val dag: DirectedAcyclicGraph[PhysicalOpIdentity, PhysicalLink] = {
     val jgraphtDag = new DirectedAcyclicGraph[PhysicalOpIdentity, PhysicalLink](
       null, // vertexSupplier
       SupplierUtil.createSupplier(classOf[PhysicalLink]), // edgeSupplier
@@ -83,11 +84,13 @@ case class PhysicalPlan(
     jgraphtDag
   }
 
-  @transient lazy val maxChains: Set[Set[PhysicalLink]] = this.getMaxChains
+  @JsonIgnore @transient lazy val maxChains: Set[Set[PhysicalLink]] = this.getMaxChains
 
+  @JsonIgnore
   def getSourceOperatorIds: Set[PhysicalOpIdentity] =
     operatorMap.keys.filter(op => dag.inDegreeOf(op) == 0).toSet
 
+  @JsonIgnore
   def getPhysicalOpsOfLogicalOp(logicalOpId: OperatorIdentity): List[PhysicalOp] = {
     topologicalIterator()
       .filter(physicalOpId => physicalOpId.logicalOpId == logicalOpId)
@@ -95,11 +98,13 @@ case class PhysicalPlan(
       .toList
   }
 
+  @JsonIgnore
   def getOperator(physicalOpId: PhysicalOpIdentity): PhysicalOp = operatorMap(physicalOpId)
 
   /**
     * returns a sub-plan that contains the specified operators and the links connected within these operators
     */
+  @JsonIgnore
   def getSubPlan(subOperators: Set[PhysicalOpIdentity]): PhysicalPlan = {
     val newOps = operators.filter(op => subOperators.contains(op.id))
     val newLinks =
@@ -109,18 +114,22 @@ case class PhysicalPlan(
     PhysicalPlan(newOps, newLinks)
   }
 
+  @JsonIgnore
   def getUpstreamPhysicalOpIds(physicalOpId: PhysicalOpIdentity): Set[PhysicalOpIdentity] = {
     dag.incomingEdgesOf(physicalOpId).asScala.map(e => dag.getEdgeSource(e)).toSet
   }
 
+  @JsonIgnore
   def getUpstreamPhysicalLinks(physicalOpId: PhysicalOpIdentity): Set[PhysicalLink] = {
     links.filter(l => l.toOpId == physicalOpId)
   }
 
+  @JsonIgnore
   def getDownstreamPhysicalLinks(physicalOpId: PhysicalOpIdentity): Set[PhysicalLink] = {
     links.filter(l => l.fromOpId == physicalOpId)
   }
 
+  @JsonIgnore
   def topologicalIterator(): Iterator[PhysicalOpIdentity] = {
     new TopologicalOrderIterator(dag).asScala
   }
@@ -157,9 +166,11 @@ case class PhysicalPlan(
     this.copy(operators = (operatorMap + (physicalOp.id -> physicalOp)).values.toSet)
   }
 
+  @JsonIgnore
   def getPhysicalOpByWorkerId(workerId: ActorVirtualIdentity): PhysicalOp =
     getOperator(VirtualIdentityUtils.getPhysicalOpId(workerId))
 
+  @JsonIgnore
   def getLinksBetween(
       from: PhysicalOpIdentity,
       to: PhysicalOpIdentity
@@ -168,6 +179,7 @@ case class PhysicalPlan(
 
   }
 
+  @JsonIgnore
   def getOutputPartitionInfo(
       link: PhysicalLink,
       upstreamPartitionInfo: PartitionInfo,
@@ -206,10 +218,12 @@ case class PhysicalPlan(
     }
   }
 
+  @JsonIgnore
   private def isMaterializedLink(link: PhysicalLink): Boolean = {
     getOperator(link.toOpId).isSinkOperator
   }
 
+  @JsonIgnore
   def getNonMaterializedBlockingAndDependeeLinks: Set[PhysicalLink] = {
     operators
       .flatMap { physicalOp =>
@@ -230,6 +244,7 @@ case class PhysicalPlan(
       }
   }
 
+  @JsonIgnore
   def getDependeeLinks: Set[PhysicalLink] = {
     operators
       .flatMap { physicalOp =>
@@ -249,6 +264,7 @@ case class PhysicalPlan(
   /**
     * create a DAG similar to the physical DAG but with all dependee links removed.
     */
+  @JsonIgnore
   def getDependeeLinksRemovedDAG: PhysicalPlan = {
     this.copy(operators, links.diff(getDependeeLinks))
   }
@@ -260,6 +276,7 @@ case class PhysicalPlan(
     *
     * @return All non-blocking links that are not bridges.
     */
+  @JsonIgnore
   def getNonBridgeNonBlockingLinks: Set[PhysicalLink] = {
     val bridges =
       new BiconnectivityInspector[PhysicalOpIdentity, PhysicalLink](this.dag).getBridges.asScala
@@ -284,6 +301,7 @@ case class PhysicalPlan(
     *
     * @return All the maximal chains of this physical plan, where each chain is represented as a set of links.
     */
+  @JsonIgnore
   private def getMaxChains: Set[Set[PhysicalLink]] = {
     val dijkstra = new AllDirectedPaths[PhysicalOpIdentity, PhysicalLink](this.dag)
     val chains = this.dag
