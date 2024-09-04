@@ -14,7 +14,7 @@ import javax.ws.rs.{Consumes, POST, Path, PathParam, Produces}
 import javax.ws.rs.core.MediaType
 
 case class WorkflowCompilationResponse(
-    physicalPlan: PhysicalPlan,
+    physicalPlan: Option[PhysicalPlan],
     operatorInputSchemas: Map[String, List[Option[List[Attribute]]]],
     operatorErrors: Map[String, String]
 )

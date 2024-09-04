@@ -24,7 +24,7 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 case class WorkflowCompilationResult(
-    physicalPlan: PhysicalPlan,
+    physicalPlan: Option[PhysicalPlan], // if physical plan is none, the compilation is failed
     operatorIdToInputSchemas: Map[OperatorIdentity, List[Option[Schema]]],
     operatorIdToError: Map[OperatorIdentity, WorkflowFatalError]
 )
@@ -82,7 +82,7 @@ class WorkflowCompiler(
       // encounter errors during compile pojo to logical plan,
       //   so directly return empty physical plan, schema map and non-empty error map
       return WorkflowCompilationResult(
-        physicalPlan = PhysicalPlan.empty,
+        physicalPlan = None,
         operatorIdToInputSchemas = Map.empty,
         operatorIdToError = opIdToError
       )
@@ -106,14 +106,17 @@ class WorkflowCompiler(
       .mapValues(_.flatMap(_._2).toList.sortBy(_._1.id).map(_._2))
       .toMap
 
-    WorkflowCompilationResult(physicalPlan, opIdToInputSchemas, Map.empty)
+    WorkflowCompilationResult(Some(physicalPlan), opIdToInputSchemas, Map.empty)
   }
 
+  /**
+    * After separating the compiler as a standalone service, this function needs to be removed.
+    */
+  @Deprecated
   def compileLogicalPlan(
       logicalPlanPojo: LogicalPlanPojo,
       executionStateStore: ExecutionStateStore
   ): LogicalPlan = {
-    // TODO: remove this function after separating compiler as a standalone service
     val errorList = new ArrayBuffer[(OperatorIdentity, Throwable)]()
     // remove previous error state
     executionStateStore.metadataStore.updateState { metadataStore =>
@@ -151,16 +154,19 @@ class WorkflowCompiler(
     logicalPlan
   }
 
+  /**
+    * After separating the compiler as a standalone service, this function needs to be removed.
+    * The sink storage assignment needs to be pushed to the standalone workflow execution service.
+    */
+  @Deprecated
   def compile(
       logicalPlanPojo: LogicalPlanPojo,
       opResultStorage: OpResultStorage,
       executionStateStore: ExecutionStateStore
   ): Workflow = {
-    // TODO: remove this function after separating compiler as a standalone service
     // generate a LogicalPlan. The logical plan is the injected with all necessary sinks
     val logicalPlan = compileLogicalPlan(logicalPlanPojo, executionStateStore)
 
-    // TODO: push the sink storage assignment directly on physical plan in workflow execution service
     assignSinkStorage(
       logicalPlan,
       context,
@@ -177,6 +183,10 @@ class WorkflowCompiler(
     )
   }
 
+  /**
+    * Once standalone compiler is done, move this function to the execution service, and change the 1st parameter from LogicalPlan to PhysicalPlan
+    */
+  @Deprecated
   private def assignSinkStorage(
       logicalPlan: LogicalPlan,
       context: WorkflowContext,
@@ -184,7 +194,6 @@ class WorkflowCompiler(
       reuseStorageSet: Set[OperatorIdentity] = Set()
   ): Unit = {
     // create a JSON object that holds pointers to the workflow's results in Mongo
-    // TODO: move it to the execution service, and change the 1st parameter from LogicalPlan to PhysicalPlan
     val resultsJSON = objectMapper.createObjectNode()
     val sinksPointers = objectMapper.createArrayNode()
     // assign storage to texera-managed sinks before generating exec config
