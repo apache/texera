@@ -38,7 +38,7 @@ class WorkflowCompilationResource extends LazyLogging {
 
     // compile the pojo using WorkflowCompiler
     val workflowCompilationResult =
-      new WorkflowCompiler(context).compileToPhysicalPlan(logicalPlanPojo)
+      new WorkflowCompiler(context).compile(logicalPlanPojo)
     // return the result
     WorkflowCompilationResponse(
       physicalPlan = workflowCompilationResult.physicalPlan,

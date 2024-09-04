@@ -34,13 +34,15 @@ class WorkflowCompiler(
 ) extends LazyLogging {
 
   /**
-    * Compile the workflow to logical plan and errors(if any)
+    * Compile a workflow to physical plan, along with the schema propagation result and error(if any)
+    *
     * @param logicalPlanPojo the pojo parsed from workflow str provided by user
-    * @return LogicalPlan, and a Map from OpId to Op's error(this map is empty if there is no error)
+    * @return WorkflowCompilationResult, containing the physical plan, input schemas per op and error per op
     */
-  def compileToLogicalPlan(
+  def compile(
       logicalPlanPojo: LogicalPlanPojo
-  ): (LogicalPlan, Map[OperatorIdentity, WorkflowFatalError]) = {
+  ): WorkflowCompilationResult = {
+    // first compile the pojo to logical plan
     val errorList = new ArrayBuffer[(OperatorIdentity, Throwable)]()
     val opIdToError = mutable.Map[OperatorIdentity, WorkflowFatalError]()
 
@@ -51,7 +53,7 @@ class WorkflowCompiler(
     )
 
     logicalPlan.propagateWorkflowSchema(context, Some(errorList))
-    // report compilation errors
+    // map compilation errors with op id
     if (errorList.nonEmpty) {
       errorList.foreach {
         case (opId, err) =>
@@ -65,26 +67,14 @@ class WorkflowCompiler(
           ))
       }
     }
-    (logicalPlan, opIdToError.toMap)
-  }
 
-  /**
-    * Compile a workflow to physical plan, along with the schema propagation result and error(if any)
-    *
-    * @param logicalPlanPojo the pojo parsed from workflow str provided by user
-    * @return WorkflowCompilationResult, containing the physical plan, input schemas per op and error per op
-    */
-  def compileToPhysicalPlan(
-      logicalPlanPojo: LogicalPlanPojo
-  ): WorkflowCompilationResult = {
-    val (logicalPlan, opIdToError) = compileToLogicalPlan(logicalPlanPojo)
     if (opIdToError.nonEmpty) {
       // encounter errors during compile pojo to logical plan,
-      //   so directly return empty physical plan, schema map and non-empty error map
+      //   so directly return None as physical plan, schema map and non-empty error map
       return WorkflowCompilationResult(
         physicalPlan = None,
         operatorIdToInputSchemas = Map.empty,
-        operatorIdToError = opIdToError
+        operatorIdToError = opIdToError.toMap
       )
     }
     // from logical plan to physical plan
