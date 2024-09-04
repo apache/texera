@@ -7,7 +7,7 @@ import com.typesafe.config.Config
 object AiAssistantManager {
   // Optionally retrieve the configuration
   private val aiAssistantConfigOpt: Option[Config] = AmberConfig.aiAssistantConfig
-
+  private val noAssistant: String = "NoAiAssistant"
   // Public variables, accessible from outside the object
   var accountKey: String = _
   var sharedUrl: String = _
@@ -22,12 +22,12 @@ object AiAssistantManager {
     case Some(aiAssistantConfig) =>
       val assistantType: String = aiAssistantConfig.getString("assistant")
       assistantType match {
-        case "none"   => "NoAiAssistant"
+        case "none"   => noAssistant
         case "openai" => initOpenAI()
-        case _        => "NoAiAssistant"
+        case _        => noAssistant
       }
     case None =>
-      "NoAiAssistant"
+      noAssistant
   }
 
   private def initOpenAI(): String = {
@@ -44,11 +44,11 @@ object AiAssistantManager {
       if (responseCode == 200) {
         "OpenAI"
       } else {
-        "NoAiAssistant"
+        noAssistant
       }
     } catch {
       case e: Exception =>
-        "NoAiAssistant"
+        noAssistant
     } finally {
       if (connection != null) {
         connection.disconnect()
