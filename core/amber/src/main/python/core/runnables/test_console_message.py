@@ -16,9 +16,7 @@ from proto.edu.uci.ics.amber.engine.architecture.worker import (
 )
 from core.util.console_message.timestamp import current_time_in_local_timezone
 
-'''
-This class covers test cases related to ConsoleMessage
-'''
+
 class TestConsoleMessage:
     @pytest.fixture
     def internal_queue(self):
@@ -57,7 +55,9 @@ class TestConsoleMessage:
         # below statements wrap the console message as the python control message
         command = set_one_of(ControlCommandV2, console_message)
         payload = set_one_of(ControlPayloadV2, ControlInvocationV2(1, command=command))
-        python_control_message = PythonControlMessage(tag=mock_controller, payload=payload)
+        python_control_message = PythonControlMessage(
+            tag=mock_controller, payload=payload
+        )
         # serialize the python control message to bytes
         python_control_message_bytes = bytes(python_control_message)
         # deserialize the control message from bytes
