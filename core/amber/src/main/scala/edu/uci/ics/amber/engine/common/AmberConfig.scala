@@ -44,7 +44,8 @@ object AmberConfig {
     getConfSource.getInt("flow-control.credit-poll-interval-in-ms")
 
   // Network buffering configuration
-  def defaultBatchSize: Int = getConfSource.getInt("network-buffering.default-batch-size")
+  def defaultDataTransferBatchSize: Int =
+    getConfSource.getInt("network-buffering.default-data-transfer-batch-size")
   val enableAdaptiveNetworkBuffering: Boolean =
     getConfSource.getBoolean("network-buffering.enable-adaptive-buffering")
   val adaptiveBufferingTimeoutMs: Int =
