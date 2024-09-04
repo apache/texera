@@ -6,7 +6,7 @@ from proto.edu.uci.ics.amber.engine.common import (
     ActorVirtualIdentity,
     ControlInvocationV2,
     ControlPayloadV2,
-    PythonControlMessage
+    PythonControlMessage,
 )
 from proto.edu.uci.ics.amber.engine.architecture.worker import (
     PythonConsoleMessageV2,
@@ -47,11 +47,11 @@ class TestConsoleMessage:
 
     @pytest.mark.timeout(2)
     def test_console_message_serialization(self, mock_controller, console_message):
-        '''
+        """
         Test the serialization of the console message
         :param mock_controller: the mock actor id
         :param console_message: the test message
-        '''
+        """
         # below statements wrap the console message as the python control message
         command = set_one_of(ControlCommandV2, console_message)
         payload = set_one_of(ControlPayloadV2, ControlInvocationV2(1, command=command))
@@ -61,8 +61,8 @@ class TestConsoleMessage:
         # serialize the python control message to bytes
         python_control_message_bytes = bytes(python_control_message)
         # deserialize the control message from bytes
-        parsed_python_control_message = (
-            PythonControlMessage().parse(python_control_message_bytes)
+        parsed_python_control_message = PythonControlMessage().parse(
+            python_control_message_bytes
         )
         # deserialized one should equal to the original one
         assert python_control_message == parsed_python_control_message
