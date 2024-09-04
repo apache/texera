@@ -3,6 +3,7 @@
 import { Workflow, WorkflowContent } from "../../common/type/workflow";
 import { DashboardEntry } from "../type/dashboard-entry";
 import { DashboardProject } from "../type/dashboard-project.interface";
+import { environment } from "../../../environments/environment";
 
 //the Date class creates unix timestamp based on local timezone, therefore test workflow time needs to be in local timezone
 const oneDay = 86400000;
@@ -21,6 +22,7 @@ export const testWorkflowContent = (operatorTypes: string[]): WorkflowContent =>
   groups: [],
   links: [],
   operatorPositions: {},
+  settings: { dataTransferBatchSize: environment.defaultDataTransferBatchSize },
 });
 
 export const testWorkflow1: Workflow = {

@@ -7,6 +7,7 @@ import { NzModalService } from "ng-zorro-antd/modal";
 import { WorkflowExecutionHistoryComponent } from "../../user/user-workflow/ngbd-modal-workflow-executions/workflow-execution-history.component";
 import { Workflow } from "../../../../common/type/workflow";
 import { WorkflowWebsocketService } from "../../../../workspace/service/workflow-websocket/workflow-websocket.service";
+import { environment } from "../../../../../environments/environment";
 
 @UntilDestroy()
 @Component({
@@ -108,7 +109,14 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
     for (let i = 0; i < this.listOfExecutions.length; i++) {
       const execution = this.listOfExecutions[i];
       let tempWorkflow: Workflow = {
-        content: { operators: [], operatorPositions: {}, links: [], groups: [], commentBoxes: [] },
+        content: {
+          operators: [],
+          operatorPositions: {},
+          links: [],
+          groups: [],
+          commentBoxes: [],
+          settings: { dataTransferBatchSize: environment.defaultDataTransferBatchSize },
+        },
         name: execution.workflowName,
         wid: execution.workflowId,
         description: "",
