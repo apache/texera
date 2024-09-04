@@ -23,6 +23,7 @@ import { SortMethod } from "../../../type/sort-method";
 import { isDefined } from "../../../../common/util/predicate";
 import { UserProjectService } from "../../../service/user/project/user-project.service";
 import { map, mergeMap, tap } from "rxjs/operators";
+import { environment } from "../../../../../environments/environment";
 /**
  * Saved-workflow-section component contains information and functionality
  * of the saved workflows section and is re-used in the user projects section when a project is clicked
@@ -195,6 +196,7 @@ export class UserWorkflowComponent implements AfterViewInit {
       groups: [],
       links: [],
       operatorPositions: {},
+      settings: { dataTransferBatchSize: environment.defaultDataTransferBatchSize },
     };
     let localPid = this.pid;
     this.workflowPersistService
