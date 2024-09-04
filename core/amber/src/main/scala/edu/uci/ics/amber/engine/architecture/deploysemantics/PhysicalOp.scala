@@ -210,7 +210,6 @@ case class PhysicalOp(
 ) extends LazyLogging {
 
   // all the "dependee" links are also blocking
-  @JsonIgnore
   private lazy val dependeeInputs: List[PortIdentity] =
     inputPorts.values
       .flatMap({
@@ -219,13 +218,11 @@ case class PhysicalOp(
       .toList
       .distinct
 
-  @JsonIgnore
   private lazy val isInitWithCode: Boolean = opExecInitInfo.isInstanceOf[OpExecInitInfoWithCode]
 
   /**
     * Helper functions related to compile-time operations
     */
-  @JsonIgnore
   def isSourceOperator: Boolean = {
     inputPorts.isEmpty
   }
@@ -233,12 +230,10 @@ case class PhysicalOp(
   /**
     * Helper function used to determine whether the input link is a materialized link.
     */
-  @JsonIgnore
   def isSinkOperator: Boolean = {
     outputPorts.forall(port => port._2._2.isEmpty)
   }
 
-  @JsonIgnore
   def isPythonBased: Boolean = {
     opExecInitInfo match {
       case opExecInfo: OpExecInitInfoWithCode =>
@@ -248,7 +243,7 @@ case class PhysicalOp(
     }
   }
 
-  @JsonIgnore
+  @JsonIgnore // this is needed to prevent the serialization issue
   def getPythonCode: String = {
     val (code, _) =
       opExecInitInfo.asInstanceOf[OpExecInitInfoWithCode].codeGen(0, 0)
@@ -258,7 +253,6 @@ case class PhysicalOp(
   /**
     * creates a copy with the location preference information
     */
-  @JsonIgnore
   def withLocationPreference(preference: Option[LocationPreference]): PhysicalOp = {
     this.copy(locationPreference = preference)
   }
@@ -271,7 +265,6 @@ case class PhysicalOp(
     * @param inputs A list of InputPort instances to set as the new input ports.
     * @return A new instance of PhysicalOp with the input ports updated.
     */
-  @JsonIgnore
   def withInputPorts(inputs: List[InputPort]): PhysicalOp = {
     this.copy(inputPorts =
       inputs
@@ -291,7 +284,6 @@ case class PhysicalOp(
     * @param outputs A list of OutputPort instances to set as the new output ports.
     * @return A new instance of PhysicalOp with the output ports updated.
     */
-  @JsonIgnore
   def withOutputPorts(outputs: List[OutputPort]): PhysicalOp = {
     this.copy(outputPorts =
       outputs
@@ -306,7 +298,6 @@ case class PhysicalOp(
   /**
     * creates a copy with suggested worker number. This is only to be used by Python UDF operators.
     */
-  @JsonIgnore
   def withSuggestedWorkerNum(workerNum: Int): PhysicalOp = {
     this.copy(suggestedWorkerNum = Some(workerNum))
   }
@@ -314,7 +305,6 @@ case class PhysicalOp(
   /**
     * creates a copy with the partition requirements
     */
-  @JsonIgnore
   def withPartitionRequirement(partitionRequirements: List[Option[PartitionInfo]]): PhysicalOp = {
     this.copy(partitionRequirement = partitionRequirements)
   }
@@ -322,7 +312,6 @@ case class PhysicalOp(
   /**
     * creates a copy with the partition info derive function
     */
-  @JsonIgnore
   def withDerivePartition(derivePartition: List[PartitionInfo] => PartitionInfo): PhysicalOp = {
     this.copy(derivePartition = derivePartition)
   }
@@ -330,14 +319,12 @@ case class PhysicalOp(
   /**
     * creates a copy with the parallelizable specified
     */
-  @JsonIgnore
   def withParallelizable(parallelizable: Boolean): PhysicalOp =
     this.copy(parallelizable = parallelizable)
 
   /**
     * creates a copy with the specified property that whether this operator is one-to-many
     */
-  @JsonIgnore
   def withIsOneToManyOp(isOneToManyOp: Boolean): PhysicalOp =
     this.copy(isOneToManyOp = isOneToManyOp)
 
@@ -350,7 +337,6 @@ case class PhysicalOp(
     *               A Right value represents a successful schema, while a Left value represents an error (Throwable).
     * @return A new instance of PhysicalOp with the updated input port schema or error information.
     */
-  @JsonIgnore
   private def withInputSchema(
       portId: PortIdentity,
       schema: Either[Throwable, Schema]
@@ -371,7 +357,6 @@ case class PhysicalOp(
     *               A Right value indicates a successful schema, while a Left value indicates an error (Throwable).
     * @return A new instance of PhysicalOp with the updated output port schema or error information.
     */
-  @JsonIgnore
   private def withOutputSchema(
       portId: PortIdentity,
       schema: Either[Throwable, Schema]
@@ -385,7 +370,6 @@ case class PhysicalOp(
   /**
     * creates a copy with the schema propagation function.
     */
-  @JsonIgnore
   def withPropagateSchema(func: SchemaPropagationFunc): PhysicalOp = {
     this.copy(propagateSchema = func)
   }
@@ -393,7 +377,6 @@ case class PhysicalOp(
   /**
     * creates a copy with an additional input link specified on an input port
     */
-  @JsonIgnore
   def addInputLink(link: PhysicalLink): PhysicalOp = {
     assert(link.toOpId == id)
     assert(inputPorts.contains(link.toPortId))
@@ -407,7 +390,6 @@ case class PhysicalOp(
   /**
     * creates a copy with an additional output link specified on an output port
     */
-  @JsonIgnore
   def addOutputLink(link: PhysicalLink): PhysicalOp = {
     assert(link.fromOpId == id)
     assert(outputPorts.contains(link.fromPortId))
@@ -482,7 +464,6 @@ case class PhysicalOp(
   /**
     * returns all output links. Optionally, if a specific portId is provided, returns the links connected to that portId.
     */
-  @JsonIgnore
   def getOutputLinks(portId: PortIdentity): List[PhysicalLink] = {
     outputPorts.values
       .flatMap(_._2)
@@ -493,7 +474,6 @@ case class PhysicalOp(
   /**
     * returns all input links. Optionally, if a specific portId is provided, returns the links connected to that portId.
     */
-  @JsonIgnore
   def getInputLinks(portIdOpt: Option[PortIdentity] = None): List[PhysicalLink] = {
     inputPorts.values
       .flatMap(_._2)
@@ -509,7 +489,6 @@ case class PhysicalOp(
   /**
     * Tells whether the input port the link connects to is depended by another input .
     */
-  @JsonIgnore
   def isInputLinkDependee(link: PhysicalLink): Boolean = {
     dependeeInputs.contains(link.toPortId)
   }
@@ -518,7 +497,6 @@ case class PhysicalOp(
     * Tells whether the output on this link is blocking i.e. the operator doesn't output anything till this link
     * outputs all its tuples.
     */
-  @JsonIgnore
   def isOutputLinkBlocking(link: PhysicalLink): Boolean = {
     this.outputPorts(link.fromPortId)._1.blocking
   }
@@ -527,7 +505,6 @@ case class PhysicalOp(
     * Some operators process their inputs in a particular order. Eg: 2 phase hash join first
     * processes the build input, then the probe input.
     */
-  @JsonIgnore
   def getInputLinksInProcessingOrder: List[PhysicalLink] = {
     val dependencyDag = {
       new DirectedAcyclicGraph[PhysicalLink, DefaultEdge](classOf[DefaultEdge])
