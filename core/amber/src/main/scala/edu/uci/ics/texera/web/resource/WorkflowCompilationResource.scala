@@ -3,7 +3,7 @@ package edu.uci.ics.texera.web.resource
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.Utils
-import edu.uci.ics.texera.web.model.websocket.request.{LogicalPlanPojo, PhysicalPlanPojo}
+import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute
 import edu.uci.ics.texera.workflow.common.workflow.{PhysicalPlan, WorkflowCompiler}
@@ -36,19 +36,11 @@ class WorkflowCompilationResource extends LazyLogging {
       workflowId = WorkflowIdentity(wid.toString.toLong)
     )
 
-    // compile the pojo
+    // compile the pojo using WorkflowCompiler
     val workflowCompilationResult =
       new WorkflowCompiler(context).compileToPhysicalPlan(logicalPlanPojo)
-    // get the physical plan from the compilation result
-    // convert the physical plan to pojo, which is serializable
-    val physicalPlanPojo = PhysicalPlanPojo(
-      // the reason of using PhysicalOpPojo is because some fields in PhysicalOp is not serializable
-      workflowCompilationResult.physicalPlan.operators.toList,
-      workflowCompilationResult.physicalPlan.links.toList
-    )
     // return the result
     WorkflowCompilationResponse(
-//      physicalPlan = physicalPlanPojo,
       physicalPlan = workflowCompilationResult.physicalPlan,
       operatorInputSchemas = workflowCompilationResult.operatorIdToInputSchemas.map {
         case (operatorIdentity, schemas) =>

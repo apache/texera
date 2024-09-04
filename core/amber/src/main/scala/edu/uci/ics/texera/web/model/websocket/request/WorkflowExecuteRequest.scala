@@ -26,8 +26,3 @@ case class LogicalPlanPojo(
     opsToViewResult: List[String],
     opsToReuseResult: List[String]
 )
-
-case class PhysicalPlanPojo(
-    operators: List[PhysicalOp],
-    links: List[PhysicalLink]
-)
