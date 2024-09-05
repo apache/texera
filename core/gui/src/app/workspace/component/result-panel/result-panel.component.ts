@@ -37,7 +37,8 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
   maxWidth = window.innerWidth;
   maxHeight = window.innerHeight;
   operatorTitle = "";
-  dragPosition = {x: 0, y: 0}
+  dragPosition = {x: 0, y: 0};
+  returnPosition= {x: 0, y: 0};
 
   // the highlighted operator ID for display result table / visualization / breakpoint
   currentOperatorId?: string | undefined;
@@ -62,7 +63,10 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     const style = localStorage.getItem("result-panel-style");
     if (style) document.getElementById("result-container")!.style.cssText = style;
-
+    const translates = document.getElementById("result-container")!.style.transform;
+    console.log(translates)
+    const [xOffset, yOffset, _] = this.calculateTotalTranslate3d(translates);
+    this.returnPosition = {x: -xOffset, y: -yOffset};
     this.registerAutoRerenderResultPanel();
     this.registerAutoOpenResultPanel();
     this.handleResultPanelForVersionPreview();
@@ -272,7 +276,7 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
   }
 
   resetPanelPosition() {
-    this.dragPosition = {x: 0, y: 0};
+    this.dragPosition = {x:this.returnPosition.x, y:this.returnPosition.y};
   }
 
   onResize({ width, height }: NzResizeEvent) {
@@ -282,5 +286,34 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
       this.height = height!;
       this.resizeService.changePanelSize(this.width, this.height);
     });
+  }
+
+  parseTranslate3d(translate3d: string): [number, number, number] {
+    const regex = /translate3d\((-?\d+\.?\d*)px,\s*(-?\d+\.?\d*)px,\s*(-?\d+\.?\d*)px\)/g;
+    const match = regex.exec(translate3d);
+    if (match) {
+      const x = parseFloat(match[1]);
+      const y = parseFloat(match[2]);
+      const z = parseFloat(match[3]);
+      return [x, y, z];
+    }
+    return [0, 0, 0];
+  }
+
+  calculateTotalTranslate3d(translates: string): [number, number, number] {
+    let totalXOffset = 0;
+    let totalYOffset = 0;
+    let totalZOffset = 0;
+
+    const translate3dArray = translates.match(/translate3d\(.*?\)/g) || [];
+
+    for (const translate of translate3dArray) {
+      const [x, y, z] = this.parseTranslate3d(translate);
+      totalXOffset += x;
+      totalYOffset += y;
+      totalZOffset += z;
+    }
+
+    return [totalXOffset, totalYOffset, totalZOffset];
   }
 }
