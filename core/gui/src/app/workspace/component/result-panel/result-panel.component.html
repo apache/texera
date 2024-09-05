@@ -43,14 +43,6 @@
     nz-menu
     id="panel-button"
     [ngClass]="{'shadow':  !width}">
-    <li
-      nz-menu-item
-      (click)="closePanel()"
-      *ngIf="width">
-      <span
-        nz-icon
-        nzType="minus"></span>
-    </li>
     <button
       nz-button
       nzType="text"
@@ -60,6 +52,14 @@
         nz-icon
         nzType="enter"></span>
     </button>
+    <li
+      nz-menu-item
+      (click)="closePanel()"
+      *ngIf="width">
+      <span
+        nz-icon
+        nzType="minus"></span>
+    </li>
   </ul>
   <div
     id="content"

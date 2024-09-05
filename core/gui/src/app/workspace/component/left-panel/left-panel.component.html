@@ -52,16 +52,6 @@
     cdkDropList
     (cdkDropListDropped)="onDrop($event)"
     *ngIf="width">
-    <li
-      nz-menu-item
-      (click)="openFrame(0)">
-      <span
-        nz-icon
-        nzType="minus"></span>
-    </li>
-    <li
-      nz-menu-divider
-      class="divider"></li>
     <ng-container *ngFor="let i of order">
       <li
         nz-menu-item
@@ -77,16 +67,30 @@
       </li>
     </ng-container>
   </ul>
-  <button
+  <ul
     id="return-button"
-    nz-button
-    nzType="text"
-    (click)="resetPanelPosition()"
+    nz-menu
+    [ngClass]="{'shadow':  !width}"
+    cdkDropList
+    (cdkDropListDropped)="onDrop($event)"
     *ngIf="width">
+    <button
+      nz-button
+      nzType="text"
+      (click)="resetPanelPosition()"
+      *ngIf="width">
       <span
         nz-icon
         nzType="enter"></span>
-  </button>
+    </button>
+    <li
+      nz-menu-item
+      (click)="openFrame(0)">
+      <span
+        nz-icon
+        nzType="minus"></span>
+    </li>
+  </ul>
   <div
     id="content"
     [hidden]="!currentComponent">
