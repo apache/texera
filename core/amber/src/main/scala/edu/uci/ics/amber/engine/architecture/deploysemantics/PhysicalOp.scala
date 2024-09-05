@@ -194,14 +194,10 @@ case class PhysicalOp(
     derivePartition: List[PartitionInfo] => PartitionInfo = inputParts => inputParts.head,
     // input/output ports of the physical operator
     // for operators with multiple input/output ports: must set these variables properly
-    inputPorts: Map[
-      PortIdentity,
-      (InputPort, List[PhysicalLink], Either[Throwable, Schema])
-    ] = Map.empty,
-    outputPorts: Map[
-      PortIdentity,
-      (OutputPort, List[PhysicalLink], Either[Throwable, Schema])
-    ] = Map.empty,
+    inputPorts: Map[PortIdentity, (InputPort, List[PhysicalLink], Either[Throwable, Schema])] =
+    Map.empty,
+    outputPorts: Map[PortIdentity, (OutputPort, List[PhysicalLink], Either[Throwable, Schema])] =
+    Map.empty,
     // schema propagation function
     propagateSchema: SchemaPropagationFunc = SchemaPropagationFunc(schemas => schemas),
     isOneToManyOp: Boolean = false,

@@ -58,7 +58,7 @@ class TexeraWorkflowCompilingService
     if (AmberConfig.isUserSystemEnabled) {
       environment.jersey.register(
         new AuthDynamicFeature(
-          new JwtAuthFilter.Builder[SessionUser]() // Renamed from SessionUser to AuthenticatedUser
+          new JwtAuthFilter.Builder[SessionUser]()
             .setJwtConsumer(jwtConsumer)
             .setRealm("realm")
             .setPrefix("Bearer")
@@ -68,7 +68,6 @@ class TexeraWorkflowCompilingService
         )
       )
     } else {
-      // register Guest Auth layer (if applicable)
       environment.jersey.register(
         new AuthDynamicFeature(
           new GuestAuthFilter.Builder().setAuthorizer(UserRoleAuthorizer).buildAuthFilter()
@@ -77,7 +76,7 @@ class TexeraWorkflowCompilingService
     }
 
     environment.jersey.register(
-      new AuthValueFactoryProvider.Binder[SessionUser](classOf[SessionUser]) // Updated here as well
+      new AuthValueFactoryProvider.Binder[SessionUser](classOf[SessionUser])
     )
     environment.jersey.register(classOf[RolesAllowedDynamicFeature])
   }
