@@ -108,7 +108,7 @@ class TestMainLoop:
     def mock_binary_data_element(self, mock_binary_tuple, mock_sender_actor):
         return DataElement(
             tag=mock_sender_actor,
-            payload=InputDataFrame(
+            payload=DataFrame(
                 frame=pyarrow.Table.from_pandas(
                     pandas.DataFrame([mock_binary_tuple.as_dict()])
                 )
@@ -843,15 +843,11 @@ class TestMainLoop:
         input_queue.put(mock_binary_data_element)
         output_data_element: DataElement = output_queue.get()
         assert output_data_element.tag == mock_receiver_actor
-        assert isinstance(output_data_element.payload, OutputDataFrame)
-        data_frame: OutputDataFrame = output_data_element.payload
+        assert isinstance(output_data_element.payload, DataFrame)
+        data_frame: DataFrame = output_data_element.payload
 
         assert len(data_frame.frame) == 1
-        assert data_frame.frame[0]["test-1"] == b"pickle    " + pickle.dumps(
-            mock_binary_tuple["test-1"]
-        )
-        assert data_frame.frame[0]["test-2"] == mock_binary_tuple["test-2"]
-
+        assert data_frame.frame.to_pylist()[0]["test-2"] == mock_binary_tuple["test-2"]
         reraise()
 
     @staticmethod
