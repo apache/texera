@@ -160,8 +160,6 @@ class Tuple:
         else:
             self._field_data = OrderedDict(tuple_like) if tuple_like else OrderedDict()
         self._schema: typing.Optional[Schema] = schema
-        if self._schema:
-            self.finalize(schema)
 
     def __getitem__(self, item: typing.Union[int, str]) -> Field:
         """
@@ -239,6 +237,7 @@ class Tuple:
         :param schema: target Schema to finalize the Tuple.
         :return:
         """
+        assert self._schema is None
         self.cast_to_schema(schema)
         self.validate_schema(schema)
         self._schema = schema
