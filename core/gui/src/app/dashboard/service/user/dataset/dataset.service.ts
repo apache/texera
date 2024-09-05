@@ -56,7 +56,20 @@ export class DatasetService {
 
   public retrieveDatasetVersionSingleFile(path: string): Observable<Blob> {
     const encodedPath = encodeURIComponent(path);
+    console.log("=========")
+    console.log(path)
+    console.log(encodedPath)
     return this.http.get(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/file?path=${encodedPath}`, {
+      responseType: "blob",
+    });
+  }
+
+  public retrieveDatasetVersionAsZip(path: string): Observable<Blob> {
+    const encodedPath = encodeURIComponent(path);
+    console.log("=========")
+    console.log(path)
+    console.log(encodedPath)
+    return this.http.get(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/version-zip?path=${encodedPath}`, {
       responseType: "blob",
     });
   }

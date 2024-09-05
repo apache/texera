@@ -54,6 +54,7 @@ export class UserDatasetExplorerComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    console.log("111111222")
     this.route.params
       .pipe(
         switchMap(params => {
@@ -183,6 +184,11 @@ export class UserDatasetExplorerComponent implements OnInit {
 
   onClickDownloadCurrentFile() {
     if (this.did && this.selectedVersion && this.selectedVersion.dvid) {
+      console.log("---------")
+      console.log(this.did)
+      console.log(this.selectedVersion)
+      console.log(this.selectedVersion.dvid)
+      console.log(this.currentDisplayedFileName)
       this.datasetService
         .retrieveDatasetVersionSingleFile(this.currentDisplayedFileName)
         .pipe(untilDestroyed(this))
@@ -208,6 +214,44 @@ export class UserDatasetExplorerComponent implements OnInit {
           },
           error: (error: unknown) => {
             this.notificationService.error(`Error downloading file '${this.currentDisplayedFileName}'`);
+          },
+        });
+    }
+  }
+
+  onClickDownloadVersionAsZip() {
+    if (this.did && this.selectedVersion && this.selectedVersion.dvid) {
+      console.log("---------")
+      console.log(this.did)
+      console.log(this.selectedVersion)
+      console.log(this.selectedVersion.dvid)
+
+      this.datasetService
+        .retrieveDatasetVersionAsZip(this.currentDisplayedFileName)
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          next: blob => {
+            // Create URL for the ZIP blob
+            const url = URL.createObjectURL(blob);
+
+            // Create a temporary link element
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `dataset-version-${this.selectedVersion?.dvid}.zip`; // Filename for ZIP file
+
+            // Append the link to the body
+            document.body.appendChild(a);
+            // Trigger the download
+            a.click();
+            // Remove the link after download
+            document.body.removeChild(a);
+            // Release the blob URL
+            URL.revokeObjectURL(url);
+
+            this.notificationService.info(`Version ${this.selectedVersion?.dvid} is downloading as ZIP`);
+          },
+          error: (error: unknown) => {
+            this.notificationService.error(`Error downloading version '${this.selectedVersion?.dvid}' as ZIP`);
           },
         });
     }

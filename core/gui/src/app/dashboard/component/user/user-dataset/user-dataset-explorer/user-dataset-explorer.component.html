@@ -157,6 +157,13 @@
         (click)="onClickOpenVersionCreator()">
         + Version
       </button>
+      <button
+  nz-button
+  nzType="default"
+  *ngIf="selectedVersion"
+  (click)="onClickDownloadVersionAsZip()">
+  Download ZIP
+</button>
     </div>
   </nz-sider>
 </nz-layout>
