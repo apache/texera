@@ -759,7 +759,6 @@ class TestMainLoop:
 
         reraise()
 
-
     @pytest.mark.timeout(5)
     def test_main_loop_thread_can_process_single_tuple_with_binary(
         self,
@@ -854,7 +853,6 @@ class TestMainLoop:
         assert data_frame.frame[0]["test-2"] == mock_binary_tuple["test-2"]
 
         reraise()
-
 
     @staticmethod
     def send_pause(
