@@ -847,7 +847,9 @@ class TestMainLoop:
         data_frame: DataFrame = output_data_element.payload
 
         assert len(data_frame.frame) == 1
-        assert data_frame.frame.to_pylist()[0]["test-2"] == mock_binary_tuple["test-2"]
+        assert data_frame.frame.to_pylist()[0][
+            "test-1"
+        ] == b"pickle    " + pickle.dumps(mock_binary_tuple["test-1"])
         reraise()
 
     @staticmethod
