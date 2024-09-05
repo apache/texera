@@ -759,20 +759,6 @@ class TestMainLoop:
 
         reraise()
 
-    @staticmethod
-    def send_pause(
-        command_sequence, input_queue, mock_controller, mock_pause, output_queue
-    ):
-        input_queue.put(mock_pause)
-        assert output_queue.get() == ControlElement(
-            tag=mock_controller,
-            payload=ControlPayloadV2(
-                return_invocation=ReturnInvocationV2(
-                    original_command_id=command_sequence,
-                    control_return=ControlReturnV2(worker_state=WorkerState.PAUSED),
-                )
-            ),
-        )
 
     @pytest.mark.timeout(5)
     def test_main_loop_thread_can_process_single_tuple_with_binary(
@@ -868,6 +854,22 @@ class TestMainLoop:
         assert data_frame.frame[0]["test-2"] == mock_binary_tuple["test-2"]
 
         reraise()
+
+
+    @staticmethod
+    def send_pause(
+        command_sequence, input_queue, mock_controller, mock_pause, output_queue
+    ):
+        input_queue.put(mock_pause)
+        assert output_queue.get() == ControlElement(
+            tag=mock_controller,
+            payload=ControlPayloadV2(
+                return_invocation=ReturnInvocationV2(
+                    original_command_id=command_sequence,
+                    control_return=ControlReturnV2(worker_state=WorkerState.PAUSED),
+                )
+            ),
+        )
 
     @staticmethod
     def send_resume(
