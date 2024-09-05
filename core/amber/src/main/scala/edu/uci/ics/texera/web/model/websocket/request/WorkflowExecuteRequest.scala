@@ -1,8 +1,6 @@
 package edu.uci.ics.texera.web.model.websocket.request
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
-import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.workflow.{LogicalLink, WorkflowSettings}
 

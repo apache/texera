@@ -2,12 +2,7 @@ package edu.uci.ics.amber.engine.architecture.deploysemantics
 
 import akka.actor.Deploy
 import akka.remote.RemoteScope
-import com.fasterxml.jackson.annotation.{
-  JsonAutoDetect,
-  JsonIgnore,
-  JsonIgnoreProperties,
-  JsonProperty
-}
+import com.fasterxml.jackson.annotation.{JsonIgnore, JsonIgnoreProperties}
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.common.AkkaActorService
 import edu.uci.ics.amber.engine.architecture.controller.execution.OperatorExecution
