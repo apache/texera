@@ -7,13 +7,13 @@ import pytest
 import pickle
 
 from core.models import (
-    InputDataFrame,
-    OutputDataFrame,
-    EndOfUpstream,
+    DataFrame,
+    MarkerFrame,
     InternalQueue,
     Tuple,
 )
 from core.models.internal_queue import DataElement, ControlElement
+from core.models.marker import EndOfUpstream
 from core.runnables import MainLoop
 from core.util import set_one_of
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
@@ -97,7 +97,7 @@ class TestMainLoop:
     def mock_data_element(self, mock_tuple, mock_sender_actor):
         return DataElement(
             tag=mock_sender_actor,
-            payload=InputDataFrame(
+            payload=DataFrame(
                 frame=pyarrow.Table.from_pandas(
                     pandas.DataFrame([mock_tuple.as_dict()])
                 )
@@ -123,7 +123,7 @@ class TestMainLoop:
             data_elements.append(
                 DataElement(
                     tag=mock_sender_actor,
-                    payload=InputDataFrame(
+                    payload=DataFrame(
                         frame=pyarrow.Table.from_pandas(
                             pandas.DataFrame([mock_tuple.as_dict()])
                         )
@@ -135,7 +135,7 @@ class TestMainLoop:
 
     @pytest.fixture
     def mock_end_of_upstream(self, mock_tuple, mock_sender_actor):
-        return DataElement(tag=mock_sender_actor, payload=EndOfUpstream())
+        return DataElement(tag=mock_sender_actor, payload=MarkerFrame(EndOfUpstream()))
 
     @pytest.fixture
     def input_queue(self):
@@ -493,15 +493,15 @@ class TestMainLoop:
             ),
         )
 
-        # can process a InputDataFrame
+        # can process a DataFrame
         input_queue.put(mock_data_element)
 
         output_data_element: DataElement = output_queue.get()
         assert output_data_element.tag == mock_receiver_actor
-        assert isinstance(output_data_element.payload, OutputDataFrame)
-        data_frame: OutputDataFrame = output_data_element.payload
+        assert isinstance(output_data_element.payload, DataFrame)
+        data_frame: DataFrame = output_data_element.payload
         assert len(data_frame.frame) == 1
-        assert data_frame.frame[0] == mock_tuple
+        assert Tuple(data_frame.frame.to_pylist()[0]) == mock_tuple
 
         # can process QueryStatistics
         input_queue.put(mock_query_statistics)
@@ -580,7 +580,7 @@ class TestMainLoop:
         )
 
         assert output_queue.get() == DataElement(
-            tag=mock_receiver_actor, payload=EndOfUpstream()
+            tag=mock_receiver_actor, payload=MarkerFrame(EndOfUpstream())
         )
 
         # can process ReturnInvocation
@@ -684,7 +684,7 @@ class TestMainLoop:
         executor = main_loop.context.executor_manager.executor
         output_data_elements = []
 
-        # can process a InputDataFrame
+        # can process a DataFrame
         executor.BATCH_SIZE = 10
         for i in range(13):
             input_queue.put(mock_batch_data_elements[i])
@@ -752,10 +752,10 @@ class TestMainLoop:
         assert main_loop.context.executor_manager.executor.count == 8
 
         assert output_data_elements[0].tag == mock_receiver_actor
-        assert isinstance(output_data_elements[0].payload, OutputDataFrame)
-        data_frame: OutputDataFrame = output_data_elements[0].payload
+        assert isinstance(output_data_elements[0].payload, DataFrame)
+        data_frame: DataFrame = output_data_elements[0].payload
         assert len(data_frame.frame) == 1
-        assert data_frame.frame[0] == Tuple(mock_batch[0])
+        assert Tuple(data_frame.frame.to_pylist()[0]) == Tuple(mock_batch[0])
 
         reraise()
 

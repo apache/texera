@@ -36,10 +36,6 @@ import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.{
 }
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.service.GitVersionControlLocalFileStorage
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.PathUtils.getAllDatasetDirectories
-import edu.uci.ics.texera.web.resource.dashboard.user.file.{
-  UserFileAccessResource,
-  UserFileResource
-}
 import edu.uci.ics.texera.web.resource.dashboard.user.project.{
   ProjectAccessResource,
   ProjectResource,
@@ -53,6 +49,7 @@ import edu.uci.ics.texera.web.resource.dashboard.user.workflow.{
   WorkflowResource,
   WorkflowVersionResource
 }
+import edu.uci.ics.texera.web.resource.languageserver.PythonLanguageServerManager
 import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
 import edu.uci.ics.texera.web.storage.MongoDatabaseManager
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{COMPLETED, FAILED}
@@ -141,6 +138,7 @@ object TexeraWebApplication {
         .resolve("web-config.yml")
         .toString
     )
+    PythonLanguageServerManager.startLanguageServer()
   }
 }
 
@@ -247,8 +245,6 @@ class TexeraWebApplication
     environment.jersey.register(classOf[AuthResource])
     environment.jersey.register(classOf[GoogleAuthResource])
     environment.jersey.register(classOf[UserConfigResource])
-    environment.jersey.register(classOf[UserFileAccessResource])
-    environment.jersey.register(classOf[UserFileResource])
     environment.jersey.register(classOf[AdminUserResource])
     environment.jersey.register(classOf[PublicProjectResource])
     environment.jersey.register(classOf[WorkflowAccessResource])
@@ -264,6 +260,7 @@ class TexeraWebApplication
     environment.jersey.register(classOf[AdminExecutionResource])
     environment.jersey.register(classOf[UserQuotaResource])
     environment.jersey.register(classOf[UserDiscussionResource])
+    environment.jersey.register(classOf[AiAssistantResource])
   }
 
   /**

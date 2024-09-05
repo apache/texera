@@ -5,7 +5,7 @@ from enum import Enum
 from threading import RLock
 from typing import TypeVar, Set
 
-from core.models.marker import Marker
+from core.models.internal_marker import InternalMarker
 from core.models.payload import DataPayload
 from core.util.customized_queue.linked_blocking_multi_queue import (
     LinkedBlockingMultiQueue,
@@ -59,7 +59,7 @@ class InternalQueue(IQueue):
         return self._queue.get()
 
     def put(self, item: T) -> None:
-        if isinstance(item, (DataElement, Marker)):
+        if isinstance(item, (DataElement, InternalMarker)):
             self._queue.put(InternalQueue.QueueID.DATA.value, item)
         elif isinstance(item, ControlElement):
             self._queue.put(InternalQueue.QueueID.CONTROL.value, item)

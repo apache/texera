@@ -57,7 +57,8 @@ describe("ExecuteWorkflowService", () => {
   it("should msg backend when executing workflow", fakeAsync(() => {
     const logicalPlan: LogicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(mockWorkflowPlan_scan_result);
     const wsSendSpy = spyOn((service as any).workflowWebsocketService, "send");
-    service.sendExecutionRequest("", logicalPlan);
+    const settings = service["workflowActionService"].getWorkflowSettings();
+    service.sendExecutionRequest("", logicalPlan, settings);
     tick(FORM_DEBOUNCE_TIME_MS + 1);
     flush();
     expect(wsSendSpy).toHaveBeenCalledTimes(1);

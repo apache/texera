@@ -3,7 +3,6 @@ package edu.uci.ics.texera.web.resource.dashboard
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.enums.{
   DatasetUserAccessPrivilege,
-  UserFileAccessPrivilege,
   WorkflowUserAccessPrivilege
 }
 import edu.uci.ics.texera.web.resource.dashboard.UnifiedResourceSchema.context
@@ -51,12 +50,6 @@ object UnifiedResourceSchema {
       pid: Field[UInteger] = DSL.inline(null, classOf[UInteger]),
       projectOwnerId: Field[UInteger] = DSL.inline(null, classOf[UInteger]),
       projectColor: Field[String] = DSL.inline(""),
-      fid: Field[UInteger] = DSL.inline(null, classOf[UInteger]),
-      fileUploadTime: Field[Timestamp] = DSL.inline(null, classOf[Timestamp]),
-      filePath: Field[String] = DSL.inline(""),
-      fileSize: Field[UInteger] = DSL.inline(null, classOf[UInteger]),
-      fileUserAccess: Field[UserFileAccessPrivilege] =
-        DSL.inline(null, classOf[UserFileAccessPrivilege]),
       did: Field[UInteger] = DSL.inline(null, classOf[UInteger]),
       datasetStoragePath: Field[String] = DSL.inline(null, classOf[String]),
       isDatasetPublic: Field[Byte] = DSL.inline(null, classOf[Byte]),
@@ -80,11 +73,6 @@ object UnifiedResourceSchema {
         pid -> pid.as("pid"),
         projectOwnerId -> projectOwnerId.as("owner_uid"),
         projectColor -> projectColor.as("color"),
-        fid -> fid.as("fid"),
-        fileUploadTime -> fileUploadTime.as("upload_time"),
-        filePath -> filePath.as("path"),
-        fileSize -> fileSize.as("size"),
-        fileUserAccess -> fileUserAccess.as("user_file_access"),
         did -> did.as("did"),
         datasetStoragePath -> datasetStoragePath.as("dataset_storage_path"),
         datasetUserAccess -> datasetUserAccess.as("user_dataset_access"),

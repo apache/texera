@@ -20,6 +20,7 @@ import java.net.ServerSocket
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
 import com.twitter.util.Promise
+import edu.uci.ics.texera.workflow.common.EndOfUpstream
 
 import java.nio.charset.Charset
 
@@ -83,8 +84,6 @@ private class AmberProducer(
     val dataHeader: PythonDataHeader = PythonDataHeader
       .parseFrom(flightStream.getDescriptor.getCommand)
     val to: ActorVirtualIdentity = dataHeader.tag
-    val isEnd: Boolean = dataHeader.isEnd
-
     val root = flightStream.getRoot
 
     // send back ack with credits on ackStream
@@ -104,10 +103,9 @@ private class AmberProducer(
     // closing the stream will release the dictionaries
     flightStream.takeDictionaryOwnership
 
-    if (isEnd) {
-      // EndOfUpstream
+    if (dataHeader.payloadType == EndOfUpstream().getClass.getSimpleName) {
       assert(root.getRowCount == 0)
-      outputPort.sendTo(to, EndOfUpstream())
+      outputPort.sendTo(to, MarkerFrame(EndOfUpstream()))
     } else {
       // normal data batches
       val queue = mutable.Queue[Tuple]()
@@ -132,7 +130,7 @@ class PythonProxyServer(
   def getPortNumber: AtomicInteger = portNumber
 
   val allocator: BufferAllocator =
-    new RootAllocator().newChildAllocator("flight-server", 0, Long.MaxValue);
+    new RootAllocator().newChildAllocator("flight-server", 0, Long.MaxValue)
 
   val producer: FlightProducer = new AmberProducer(actorId, outputPort, promise)
 

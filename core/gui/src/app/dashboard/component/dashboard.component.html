@@ -1,19 +1,23 @@
-<div id="nav">
-  <img
-    alt="logo"
-    class="logo"
-    height="50"
-    src="../../../../assets/logos/logo.png" />
-  <texera-user-icon></texera-user-icon>
-</div>
 <nz-layout class="layout">
   <nz-sider
     nzCollapsible
     [nzCollapsedWidth]="45"
+    (nzCollapsedChange)="handleCollapseChange($event)"
     nzTheme="light">
     <ul
       nz-menu
       nzMode="inline">
+      <li class="logo-section">
+        <img
+          *ngIf="isCollpased"
+          alt="mini-logo"
+          src="../../../../assets/logos/favicon-32x32.png" />
+        <img
+          *ngIf="!isCollpased"
+          alt="logo"
+          height="50"
+          src="../../../../assets/logos/logo.png" />
+      </li>
       <li
         nz-menu-item
         nz-tooltip="Look up the user projects"
@@ -40,18 +44,6 @@
 
       <li
         nz-menu-item
-        nz-tooltip="Look up for workflow result files"
-        nzMatchRouter="true"
-        nzTooltipPlacement="right"
-        routerLink="/dashboard/user-file">
-        <span
-          nz-icon
-          nzType="folder-open"></span>
-        <span>Results</span>
-      </li>
-
-      <li
-        nz-menu-item
         nz-tooltip="Look up for datasets"
         nzMatchRouter="true"
         nzTooltipPlacement="right"
@@ -60,18 +52,6 @@
           nz-icon
           nzType="database"></span>
         <span>Datasets</span>
-      </li>
-
-      <li
-        nz-menu-item
-        nz-tooltip="Search across the entire site"
-        nzMatchRouter="true"
-        nzTooltipPlacement="right"
-        routerLink="/dashboard/search">
-        <span
-          nz-icon
-          nzType="file-search"></span>
-        <span>Search</span>
       </li>
       <li
         nz-menu-item
@@ -140,6 +120,12 @@
     </ul>
   </nz-sider>
   <nz-layout>
+    <div
+      *ngIf="displayNavbar"
+      id="nav">
+      <texera-search-bar></texera-search-bar>
+      <texera-user-icon></texera-user-icon>
+    </div>
     <nz-content>
       <router-outlet></router-outlet>
     </nz-content>
