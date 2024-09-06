@@ -15,21 +15,98 @@ import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.FAILE
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants
 
 import java.time.Instant
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
+
+case class WorkflowCompilationResult(
+    physicalPlan: Option[PhysicalPlan], // if physical plan is none, the compilation is failed
+    operatorIdToInputSchemas: Map[OperatorIdentity, List[Option[Schema]]],
+    operatorIdToError: Map[OperatorIdentity, WorkflowFatalError]
+)
 
 class WorkflowCompiler(
     context: WorkflowContext
 ) extends LazyLogging {
 
+  /**
+    * Compile a workflow to physical plan, along with the schema propagation result and error(if any)
+    *
+    * @param logicalPlanPojo the pojo parsed from workflow str provided by user
+    * @return WorkflowCompilationResult, containing the physical plan, input schemas per op and error per op
+    */
+  def compile(
+      logicalPlanPojo: LogicalPlanPojo
+  ): WorkflowCompilationResult = {
+    // first compile the pojo to logical plan
+    val errorList = new ArrayBuffer[(OperatorIdentity, Throwable)]()
+    val opIdToError = mutable.Map[OperatorIdentity, WorkflowFatalError]()
+
+    var logicalPlan: LogicalPlan = LogicalPlan(logicalPlanPojo)
+    logicalPlan = SinkInjectionTransformer.transform(
+      logicalPlanPojo.opsToViewResult,
+      logicalPlan
+    )
+
+    logicalPlan.propagateWorkflowSchema(context, Some(errorList))
+    // map compilation errors with op id
+    if (errorList.nonEmpty) {
+      errorList.foreach {
+        case (opId, err) =>
+          logger.error("error occurred in logical plan compilation", err)
+          opIdToError += (opId -> WorkflowFatalError(
+            COMPILATION_ERROR,
+            Timestamp(Instant.now),
+            err.toString,
+            getStackTraceWithAllCauses(err),
+            opId.id
+          ))
+      }
+    }
+
+    if (opIdToError.nonEmpty) {
+      // encounter errors during compile pojo to logical plan,
+      //   so directly return None as physical plan, schema map and non-empty error map
+      return WorkflowCompilationResult(
+        physicalPlan = None,
+        operatorIdToInputSchemas = Map.empty,
+        operatorIdToError = opIdToError.toMap
+      )
+    }
+    // from logical plan to physical plan
+    val physicalPlan = PhysicalPlan(context, logicalPlan)
+
+    // Extract physical input schemas, excluding internal ports
+    val physicalInputSchemas = physicalPlan.operators.map { physicalOp =>
+      physicalOp.id -> physicalOp.inputPorts.values
+        .filterNot(_._1.id.internal)
+        .map {
+          case (port, _, schema) => port.id -> schema.toOption
+        }
+    }
+
+    // Group the physical input schemas by their logical operator ID and consolidate the schemas
+    val opIdToInputSchemas = physicalInputSchemas
+      .groupBy(_._1.logicalOpId)
+      .view
+      .mapValues(_.flatMap(_._2).toList.sortBy(_._1.id).map(_._2))
+      .toMap
+
+    WorkflowCompilationResult(Some(physicalPlan), opIdToInputSchemas, Map.empty)
+  }
+
+  /**
+    * After separating the compiler as a standalone service, this function needs to be removed.
+    */
+  @Deprecated
   def compileLogicalPlan(
       logicalPlanPojo: LogicalPlanPojo,
       executionStateStore: ExecutionStateStore
   ): LogicalPlan = {
-
     val errorList = new ArrayBuffer[(OperatorIdentity, Throwable)]()
     // remove previous error state
     executionStateStore.metadataStore.updateState { metadataStore =>
@@ -67,6 +144,11 @@ class WorkflowCompiler(
     logicalPlan
   }
 
+  /**
+    * After separating the compiler as a standalone service, this function needs to be removed.
+    * The sink storage assignment needs to be pushed to the standalone workflow execution service.
+    */
+  @Deprecated
   def compile(
       logicalPlanPojo: LogicalPlanPojo,
       opResultStorage: OpResultStorage,
@@ -75,7 +157,6 @@ class WorkflowCompiler(
     // generate a LogicalPlan. The logical plan is the injected with all necessary sinks
     val logicalPlan = compileLogicalPlan(logicalPlanPojo, executionStateStore)
 
-    // assign the storage location to sink operators
     assignSinkStorage(
       logicalPlan,
       context,
@@ -92,6 +173,10 @@ class WorkflowCompiler(
     )
   }
 
+  /**
+    * Once standalone compiler is done, move this function to the execution service, and change the 1st parameter from LogicalPlan to PhysicalPlan
+    */
+  @Deprecated
   private def assignSinkStorage(
       logicalPlan: LogicalPlan,
       context: WorkflowContext,
@@ -99,7 +184,6 @@ class WorkflowCompiler(
       reuseStorageSet: Set[OperatorIdentity] = Set()
   ): Unit = {
     // create a JSON object that holds pointers to the workflow's results in Mongo
-    // TODO in the future, will extract this logic from here when we need pointers to the stats storage
     val resultsJSON = objectMapper.createObjectNode()
     val sinksPointers = objectMapper.createArrayNode()
     // assign storage to texera-managed sinks before generating exec config

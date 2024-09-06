@@ -20,4 +20,17 @@ object PropertyNameConstants { // logical plan property names
   final val RESULT_ATTRIBUTE_NAME = "resultAttribute"
   final val SPAN_LIST_NAME = "spanListName"
   final val TABLE_NAME = "tableName"
+
+  // physical plan property names
+  final val WORKFLOW_ID = "workflowID"
+  final val EXECUTION_ID = "executionID"
+  final val PARALLELIZABLE = "parallelizable"
+  final val LOCATION_PREFERENCE = "locationPreference"
+  final val PARTITION_REQUIREMENT = "partitionRequirement"
+  // derivePartition is a function type that cannot be serialized
+  final val INPUT_PORTS = "inputPorts"
+  final val OUTPUT_PORTS = "outputPorts"
+  // propagateSchema is a function type that cannot be serialized
+  final val IS_ONE_TO_MANY_OP = "isOneToManyOp"
+  final val SUGGESTED_WORKER_NUM = "suggestedWorkerNum"
 }

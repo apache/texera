@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
@@ -19,7 +20,6 @@ import org.jgrapht.util.SupplierUtil
 import scala.jdk.CollectionConverters.{IteratorHasAsScala, ListHasAsScala, SetHasAsScala}
 
 object PhysicalPlan {
-
   def apply(context: WorkflowContext, logicalPlan: LogicalPlan): PhysicalPlan = {
 
     var physicalPlan = PhysicalPlan(operators = Set.empty, links = Set.empty)
@@ -249,6 +249,7 @@ case class PhysicalPlan(
   /**
     * create a DAG similar to the physical DAG but with all dependee links removed.
     */
+  @JsonIgnore // this is needed to prevent the serialization issue
   def getDependeeLinksRemovedDAG: PhysicalPlan = {
     this.copy(operators, links.diff(getDependeeLinks))
   }
