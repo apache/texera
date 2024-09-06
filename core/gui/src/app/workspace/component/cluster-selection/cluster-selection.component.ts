@@ -1,4 +1,4 @@
-import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { UntilDestroy } from "@ngneat/until-destroy";
 import { Component, inject, OnInit } from "@angular/core";
 import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
 import { Clusters } from "src/app/dashboard/type/clusters";
@@ -33,6 +33,6 @@ export class ClusterSelectionComponent implements OnInit {
   }
 
   onCancel() {
-    this.modalRef.close();
+    this.modalRef.close(this.selectedCluster);
   }
 }

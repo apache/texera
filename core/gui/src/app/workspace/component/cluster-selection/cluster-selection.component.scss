@@ -31,14 +31,9 @@ h3 {
   width: 100%;
 }
 
-.cluster-id {
-  flex: 0 0 auto;
-  margin-right: 10px;
-  font-weight: bold;
-}
-
 .cluster-name {
   flex: 1;
+  margin-left: 10px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
