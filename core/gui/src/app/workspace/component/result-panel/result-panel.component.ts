@@ -64,7 +64,6 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     const style = localStorage.getItem("result-panel-style");
     if (style) document.getElementById("result-container")!.style.cssText = style;
     const translates = document.getElementById("result-container")!.style.transform;
-    console.log(translates);
     const [xOffset, yOffset, _] = this.calculateTotalTranslate3d(translates);
     this.returnPosition = { x: -xOffset, y: -yOffset };
     this.registerAutoRerenderResultPanel();
