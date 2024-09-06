@@ -132,7 +132,9 @@ import { ClusterComponent } from "./dashboard/component/user/cluster/cluster.com
 import { ClusterManagementModalComponent } from "./dashboard/component/user/cluster/cluster-management-modal/cluster-management-modal.component";
 import { SearchBarComponent } from "./dashboard/component/user/search-bar/search-bar.component";
 import { ListItemComponent } from "./dashboard/component/user/list-item/list-item.component";
-
+import { ClusterSelectionComponent } from "./workspace/component/cluster-selection/cluster-selection.component";
+import { ClusterAutoCompleteComponent } from "./workspace/component/cluster-autocomplete/cluster-autocomplete.component";
+import { NzEmptyModule } from "ng-zorro-antd/empty";
 registerLocaleData(en);
 
 @NgModule({
@@ -214,6 +216,8 @@ registerLocaleData(en);
     ClusterManagementModalComponent,
     SearchBarComponent,
     ListItemComponent,
+    ClusterSelectionComponent,
+    ClusterAutoCompleteComponent,
   ],
   imports: [
     BrowserModule,
@@ -272,6 +276,7 @@ registerLocaleData(en);
     NzTreeViewModule,
     NzNoAnimationModule,
     TreeModule,
+    NzEmptyModule,
   ],
   providers: [
     provideNzI18n(en_US),
