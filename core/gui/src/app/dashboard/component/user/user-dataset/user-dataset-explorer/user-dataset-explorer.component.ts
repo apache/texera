@@ -184,11 +184,6 @@ export class UserDatasetExplorerComponent implements OnInit {
 
   onClickDownloadCurrentFile() {
     if (this.did && this.selectedVersion && this.selectedVersion.dvid) {
-      console.log("---------")
-      console.log(this.did)
-      console.log(this.selectedVersion)
-      console.log(this.selectedVersion.dvid)
-      console.log(this.currentDisplayedFileName)
       this.datasetService
         .retrieveDatasetVersionSingleFile(this.currentDisplayedFileName)
         .pipe(untilDestroyed(this))
@@ -221,11 +216,6 @@ export class UserDatasetExplorerComponent implements OnInit {
 
   onClickDownloadVersionAsZip() {
     if (this.did && this.selectedVersion && this.selectedVersion.dvid) {
-      console.log("---------")
-      console.log(this.did)
-      console.log(this.selectedVersion)
-      console.log(this.selectedVersion.dvid)
-
       this.datasetService
         .retrieveDatasetVersionAsZip(this.currentDisplayedFileName)
         .pipe(untilDestroyed(this))
