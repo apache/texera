@@ -104,7 +104,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
         if (displayParticularVersion) {
           this.initDiffEditor();
         } else {
-          initServices({}).then(r => this.initMonaco());
+          initServices({}).then(_ => this.initMonaco());
           this.formControl.statusChanges.pipe(untilDestroyed(this)).subscribe(_ => {
             this.editor.updateOptions({
               readOnly: this.formControl.disabled,
