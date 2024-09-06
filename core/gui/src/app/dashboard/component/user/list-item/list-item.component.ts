@@ -28,7 +28,7 @@ import { firstValueFrom } from "rxjs";
   styleUrls: ["./list-item.component.scss"],
 })
 export class ListItemComponent implements OnInit, OnChanges {
-  @ViewChild("nameInput") nameInput!: ElementRef
+  @ViewChild("nameInput") nameInput!: ElementRef;
   @ViewChild("descriptionInput") descriptionInput!: ElementRef;
   editingName = false;
   editingDescription = false;
@@ -192,7 +192,6 @@ export class ListItemComponent implements OnInit, OnChanges {
         this.editingDescription = false;
       });
   }
-
 
   formatTime(timestamp: number | undefined): string {
     if (timestamp === undefined) {

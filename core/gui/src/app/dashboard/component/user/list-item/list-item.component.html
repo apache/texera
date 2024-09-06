@@ -5,26 +5,34 @@
     [routerLink]="entryLink"
     nz-row
     nzAlign="middle">
-
     <!-- Icon Column -->
-    <div nz-col nzSpan="1">
+    <div
+      nz-col
+      nzSpan="1">
       <div class="type-icon-div">
-        <i nz-icon [nzType]="iconType"></i>
+        <i
+          nz-icon
+          [nzType]="iconType"></i>
       </div>
     </div>
 
     <!-- ID Column -->
-    <div nz-col nzSpan="1">
+    <div
+      nz-col
+      nzSpan="1">
       <div class="resource-id">
         <em>#{{ entry.id }}</em>
       </div>
     </div>
 
-    <div nz-col nzSpan="10">
+    <div
+      nz-col
+      nzSpan="10">
       <div class="name-container">
         <!-- Edit Name Buttons -->
-        <div class="edit-button-group"
-             *ngIf="isPrivateSearch">
+        <div
+          class="edit-button-group"
+          *ngIf="isPrivateSearch">
           <button
             nz-button
             nzType="text"
@@ -32,12 +40,17 @@
             title="Rename"
             (click)="onEditName()"
             (click)="$event.stopPropagation()">
-            <i nz-icon nzTheme="outline" nzType="edit"></i>
+            <i
+              nz-icon
+              nzTheme="outline"
+              nzType="edit"></i>
           </button>
         </div>
 
         <!-- Name -->
-        <div class="resource-name truncate-single-line" *ngIf="!editingName">
+        <div
+          class="resource-name truncate-single-line"
+          *ngIf="!editingName">
           {{ entry.name }}
         </div>
         <input
@@ -48,14 +61,15 @@
           (blur)="confirmUpdateWorkflowCustomName(entry.name)"
           (keydown.enter)="confirmUpdateWorkflowCustomName(entry.name)"
           (click)="$event.stopPropagation()"
-          autofocus>
+          autofocus />
       </div>
 
       <!-- Description -->
       <div cladd="description-container">
         <!-- Edit Description Buttons -->
-        <div class="edit-button-group"
-             *ngIf="isPrivateSearch">
+        <div
+          class="edit-button-group"
+          *ngIf="isPrivateSearch">
           <button
             nz-button
             nzType="text"
@@ -63,10 +77,15 @@
             title="Edit Description"
             (click)="onEditDescription()"
             (click)="$event.stopPropagation()">
-            <i nz-icon nzTheme="outline" nzType="form"></i>
+            <i
+              nz-icon
+              nzTheme="outline"
+              nzType="form"></i>
           </button>
         </div>
-        <div class="resource-description truncate-single-line" *ngIf="!editingDescription">
+        <div
+          class="resource-description truncate-single-line"
+          *ngIf="!editingDescription">
           {{ entry.description ? entry.description : '' }}
         </div>
         <textarea

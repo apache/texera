@@ -121,7 +121,9 @@
   line-height: 1.5;
   max-height: 18px;
   overflow: hidden;
-  transition: border-color 0.3s, box-shadow 0.3s;
+  transition:
+    border-color 0.3s,
+    box-shadow 0.3s;
 }
 
 .name-container .description-container {
