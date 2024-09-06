@@ -216,7 +216,7 @@ export class UserDatasetExplorerComponent implements OnInit {
   onClickDownloadVersionAsZip() {
     if (this.did && this.selectedVersion && this.selectedVersion.dvid) {
       this.datasetService
-        .retrieveDatasetVersionAsZip(this.currentDisplayedFileName)
+        .retrieveDatasetVersionZip(this.currentDisplayedFileName)
         .pipe(untilDestroyed(this))
         .subscribe({
           next: blob => {
