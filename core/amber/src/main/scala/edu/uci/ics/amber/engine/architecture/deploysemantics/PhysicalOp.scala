@@ -2,6 +2,7 @@ package edu.uci.ics.amber.engine.architecture.deploysemantics
 
 import akka.actor.Deploy
 import akka.remote.RemoteScope
+import com.fasterxml.jackson.annotation.{JsonIgnore, JsonIgnoreProperties}
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.common.AkkaActorService
 import edu.uci.ics.amber.engine.architecture.controller.execution.OperatorExecution
@@ -157,6 +158,17 @@ object PhysicalOp {
   }
 }
 
+// @JsonIgnore is not working when directly annotated to fields of a case class
+// https://stackoverflow.com/questions/40482904/jsonignore-doesnt-work-in-scala-case-class
+@JsonIgnoreProperties(
+  Array(
+    "opExecInitInfo", // function type, ignore it
+    "derivePartition", // function type, ignore it
+    "inputPorts", // may contain very long stacktrace, ignore it
+    "outputPorts", // same reason with above
+    "propagateSchema" // function type, so ignore it
+  )
+)
 case class PhysicalOp(
     // the identifier of this PhysicalOp
     id: PhysicalOpIdentity,
@@ -202,7 +214,6 @@ case class PhysicalOp(
   /**
     * Helper functions related to compile-time operations
     */
-
   def isSourceOperator: Boolean = {
     inputPorts.isEmpty
   }
@@ -223,6 +234,7 @@ case class PhysicalOp(
     }
   }
 
+  @JsonIgnore // this is needed to prevent the serialization issue
   def getPythonCode: String = {
     val (code, _) =
       opExecInitInfo.asInstanceOf[OpExecInitInfoWithCode].codeGen(0, 0)
