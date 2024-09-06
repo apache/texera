@@ -68,6 +68,8 @@ import play.api.libs.json.Json
 import java.io.{InputStream, OutputStream}
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
+import java.nio.file.{Files, Paths}
+import java.util.zip.{ZipEntry, ZipOutputStream}
 import java.util
 import java.util.concurrent.locks.ReentrantLock
 import javax.annotation.security.RolesAllowed
@@ -88,9 +90,6 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters._
-
-import java.nio.file.{Files, Paths}
-import java.util.zip.{ZipEntry, ZipOutputStream}
 
 object DatasetResource {
   val DATASET_IS_PUBLIC: Byte = 1;
@@ -978,9 +977,6 @@ class DatasetResource {
   ): Response = {
     val uid = user.getUid
     val decodedPathStr = URLDecoder.decode(pathStr, StandardCharsets.UTF_8.name())
-    println("+++++++++")
-    println(decodedPathStr)
-    println(Paths.get(decodedPathStr))
 
     val (_, dataset, dsVersion, fileRelativePath) = resolveFilePath(Paths.get(decodedPathStr))
 
@@ -1038,7 +1034,6 @@ class DatasetResource {
     val (_, dataset, dsVersion, _) = resolveFilePath(Paths.get(decodedPathStr))
 
     withTransaction(context) { ctx =>
-      // 检查用户是否有权限访问此 dataset version
       val did = dataset.getDid
       val dvid = dsVersion.getDvid
 
@@ -1048,29 +1043,24 @@ class DatasetResource {
 
       val targetDatasetPath = PathUtils.getDatasetPath(did)
       val datasetVersion = getDatasetVersionByID(ctx, dvid)
+      val versionName = datasetVersion.getName
+      val datasetName = dataset.getName
       val versionHash = datasetVersion.getVersionHash
 
-      // 获取 dataset version 中的所有文件路径
       val fileNodes = GitVersionControlLocalFileStorage.retrieveRootFileNodesOfVersion(
         targetDatasetPath,
         versionHash
       )
 
-      // 创建临时的 ZIP 文件
-      val tempZipFile = Files.createTempFile("dataset-version-", ".zip")
+      val tempZipFile = Files.createTempFile(s"$datasetName-$versionName", ".zip")
       tempZipFile.toFile.deleteOnExit()
 
-      // 将文件压缩为 ZIP
       val zipOutputStream = new ZipOutputStream(Files.newOutputStream(tempZipFile))
 
       fileNodes.foreach { fileNode =>
-        // 使用相对路径作为 ZIP 内的路径
         val zipEntryName = fileNode.getRelativePath.toString
-
-        // 将文件添加到 ZIP 中
         zipOutputStream.putNextEntry(new ZipEntry(zipEntryName))
 
-        // 使用绝对路径读取文件内容
         val filePath = fileNode.getAbsolutePath
         Files.copy(filePath, zipOutputStream)
 
@@ -1079,10 +1069,9 @@ class DatasetResource {
 
       zipOutputStream.close()
 
-      // 返回 ZIP 文件作为响应
       Response
-        .ok(Files.newInputStream(tempZipFile)) // 使用 InputStream 返回
-        .header("Content-Disposition", s"attachment; filename=dataset-version-$versionHash.zip")
+        .ok(Files.newInputStream(tempZipFile))
+        .header("Content-Disposition", s"attachment; filename=$datasetName-$versionName.zip")
         .`type`("application/zip")
         .build()
     }
