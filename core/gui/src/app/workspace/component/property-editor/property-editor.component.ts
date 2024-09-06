@@ -25,8 +25,8 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
   height = Math.max(300, window.innerHeight * 0.6);
   currentComponent: Type<any> | null = null;
   componentInputs = {};
-  dragPosition = {x: 0, y: 0};
-  returnPosition= {x: 0, y: 0};
+  dragPosition = { x: 0, y: 0 };
+  returnPosition = { x: 0, y: 0 };
   constructor(
     public workflowActionService: WorkflowActionService,
     private changeDetectorRef: ChangeDetectorRef
@@ -41,7 +41,7 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
     if (style) document.getElementById("right-container")!.style.cssText = style;
     const translates = document.getElementById("right-container")!.style.transform;
     const [xOffset, yOffset, _] = this.calculateTotalTranslate3d(translates);
-    this.returnPosition = {x: -xOffset, y: -yOffset};
+    this.returnPosition = { x: -xOffset, y: -yOffset };
     this.registerHighlightEventsHandler();
   }
 
@@ -118,7 +118,7 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
   }
 
   resetPanelPosition() {
-    this.dragPosition = {x:this.returnPosition.x, y:this.returnPosition.y};
+    this.dragPosition = { x: this.returnPosition.x, y: this.returnPosition.y };
   }
 
   parseTranslate3d(translate3d: string): [number, number, number] {

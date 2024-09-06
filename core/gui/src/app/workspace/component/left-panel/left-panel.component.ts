@@ -47,8 +47,8 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
   ];
 
   order = Array.from({ length: this.items.length - 1 }, (_, index) => index + 1);
-  dragPosition = {x: 0, y: 0};
-  returnPosition= {x: 0, y: 0};
+  dragPosition = { x: 0, y: 0 };
+  returnPosition = { x: 0, y: 0 };
 
   constructor() {
     const savedOrder = localStorage.getItem("left-panel-order")?.split(",").map(Number);
@@ -66,7 +66,7 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
     if (style) document.getElementById("left-container")!.style.cssText = style;
     const translates = document.getElementById("left-container")!.style.transform;
     const [xOffset, yOffset, _] = this.calculateTotalTranslate3d(translates);
-    this.returnPosition = {x: -xOffset, y: -yOffset};
+    this.returnPosition = { x: -xOffset, y: -yOffset };
   }
 
   @HostListener("window:beforeunload")
@@ -102,7 +102,7 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
   }
 
   resetPanelPosition() {
-    this.dragPosition = {x:this.returnPosition.x, y:this.returnPosition.y};
+    this.dragPosition = { x: this.returnPosition.x, y: this.returnPosition.y };
   }
 
   parseTranslate3d(translate3d: string): [number, number, number] {
@@ -133,5 +133,4 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
 
     return [totalXOffset, totalYOffset, totalZOffset];
   }
-
 }

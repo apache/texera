@@ -37,8 +37,8 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
   maxWidth = window.innerWidth;
   maxHeight = window.innerHeight;
   operatorTitle = "";
-  dragPosition = {x: 0, y: 0};
-  returnPosition= {x: 0, y: 0};
+  dragPosition = { x: 0, y: 0 };
+  returnPosition = { x: 0, y: 0 };
 
   // the highlighted operator ID for display result table / visualization / breakpoint
   currentOperatorId?: string | undefined;
@@ -64,9 +64,9 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     const style = localStorage.getItem("result-panel-style");
     if (style) document.getElementById("result-container")!.style.cssText = style;
     const translates = document.getElementById("result-container")!.style.transform;
-    console.log(translates)
+    console.log(translates);
     const [xOffset, yOffset, _] = this.calculateTotalTranslate3d(translates);
-    this.returnPosition = {x: -xOffset, y: -yOffset};
+    this.returnPosition = { x: -xOffset, y: -yOffset };
     this.registerAutoRerenderResultPanel();
     this.registerAutoOpenResultPanel();
     this.handleResultPanelForVersionPreview();
@@ -276,7 +276,7 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
   }
 
   resetPanelPosition() {
-    this.dragPosition = {x:this.returnPosition.x, y:this.returnPosition.y};
+    this.dragPosition = { x: this.returnPosition.x, y: this.returnPosition.y };
   }
 
   onResize({ width, height }: NzResizeEvent) {

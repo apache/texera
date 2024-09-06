@@ -8,9 +8,9 @@
     nz-menu-item
     (click)="openFrame(0)"
     *ngIf="width">
-      <span
-        nz-icon
-        nzType="minus"></span>
+    <span
+      nz-icon
+      nzType="minus"></span>
   </li>
   <li
     nz-menu-divider
@@ -24,9 +24,9 @@
       nzSelected="{{currentComponent === items[i].component}}"
       *ngIf="items[i].enabled"
       (click)="openFrame(i)">
-        <span
-          nz-icon
-          nzType="{{items[i].icon}}"></span>
+      <span
+        nz-icon
+        nzType="{{items[i].icon}}"></span>
     </li>
   </ng-container>
 </ul>
