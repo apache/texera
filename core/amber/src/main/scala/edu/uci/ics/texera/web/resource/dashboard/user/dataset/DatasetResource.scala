@@ -68,7 +68,6 @@ import play.api.libs.json.Json
 import java.io.{InputStream, OutputStream}
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
-import java.nio.file.Paths
 import java.util
 import java.util.concurrent.locks.ReentrantLock
 import javax.annotation.security.RolesAllowed
@@ -130,10 +129,10 @@ object DatasetResource {
   }
 
   private def getDatasetByName(
-                                ctx: DSLContext,
-                                ownerEmail: String,
-                                datasetName: String
-                              ): Dataset = {
+      ctx: DSLContext,
+      ownerEmail: String,
+      datasetName: String
+  ): Dataset = {
     ctx
       .select(DATASET.fields: _*)
       .from(DATASET)
@@ -145,10 +144,10 @@ object DatasetResource {
   }
 
   private def getDatasetVersionByName(
-                                       ctx: DSLContext,
-                                       did: UInteger,
-                                       versionName: String
-                                     ): DatasetVersion = {
+      ctx: DSLContext,
+      did: UInteger,
+      versionName: String
+  ): DatasetVersion = {
     ctx
       .selectFrom(DATASET_VERSION)
       .where(DATASET_VERSION.DID.eq(did))
@@ -159,9 +158,9 @@ object DatasetResource {
   // this function retrieve the version hash identified by dvid and did
   // read access will be checked
   private def getDatasetVersionByID(
-                                     ctx: DSLContext,
-                                     dvid: UInteger
-                                   ): DatasetVersion = {
+      ctx: DSLContext,
+      dvid: UInteger
+  ): DatasetVersion = {
     val datasetVersionDao = new DatasetVersionDao(ctx.configuration())
     val version = datasetVersionDao.fetchOneByDvid(dvid)
     if (version == null) {
@@ -174,8 +173,8 @@ object DatasetResource {
   // e.g. /bob@texera.com/twitterDataset/v1/california/irvine/tw1.csv
   //      ownerName is bob@texera.com; datasetName is twitterDataset, versionName is v1, fileRelativePath is california/irvine/tw1.csv
   def resolveFilePath(
-                       filePath: java.nio.file.Path
-                     ): (String, Dataset, DatasetVersion, java.nio.file.Path) = {
+      filePath: java.nio.file.Path
+  ): (String, Dataset, DatasetVersion, java.nio.file.Path) = {
 
     val pathSegments = (0 until filePath.getNameCount).map(filePath.getName(_).toString).toArray
 
@@ -229,10 +228,10 @@ object DatasetResource {
 
   // the format of dataset version name is: v{#n} - {user provided dataset version name}. e.g. v10 - new version
   private def generateDatasetVersionName(
-                                          ctx: DSLContext,
-                                          did: UInteger,
-                                          userProvidedVersionName: String
-                                        ): String = {
+      ctx: DSLContext,
+      did: UInteger,
+      userProvidedVersionName: String
+  ): String = {
     val numberOfExistingVersions = ctx
       .selectFrom(DATASET_VERSION)
       .where(DATASET_VERSION.DID.eq(did))
@@ -274,10 +273,10 @@ object DatasetResource {
   }
 
   def getDatasetFile(
-                      did: UInteger,
-                      dvid: UInteger,
-                      fileRelativePath: java.nio.file.Path
-                    ): InputStream = {
+      did: UInteger,
+      dvid: UInteger,
+      fileRelativePath: java.nio.file.Path
+  ): InputStream = {
     val versionHash = getDatasetVersionByID(context, dvid).getVersionHash
     val datasetPath = PathUtils.getDatasetPath(did)
     GitVersionControlLocalFileStorage
@@ -289,10 +288,10 @@ object DatasetResource {
   }
 
   private def getFileNodesOfCertainVersion(
-                                            ownerNode: DatasetFileNode,
-                                            datasetName: String,
-                                            ownerName: String
-                                          ): List[DatasetFileNode] = {
+      ownerNode: DatasetFileNode,
+      datasetName: String,
+      ownerName: String
+  ): List[DatasetFileNode] = {
     ownerNode.children.get
       .find(_.getName == datasetName)
       .head
@@ -306,14 +305,14 @@ object DatasetResource {
 
   // DatasetOperation defines the operations that will be applied when creating a new dataset version
   private case class DatasetOperation(
-                                       filesToAdd: Map[java.nio.file.Path, InputStream],
-                                       filesToRemove: List[java.nio.file.Path]
-                                     )
+      filesToAdd: Map[java.nio.file.Path, InputStream],
+      filesToRemove: List[java.nio.file.Path]
+  )
 
   private def parseUserUploadedFormToDatasetOperations(
-                                                        did: UInteger,
-                                                        multiPart: FormDataMultiPart
-                                                      ): DatasetOperation = {
+      did: UInteger,
+      multiPart: FormDataMultiPart
+  ): DatasetOperation = {
     val datasetPath = PathUtils.getDatasetPath(did) // Obtain dataset base path
 
     // Mutable collections for constructing DatasetOperation
@@ -355,10 +354,10 @@ object DatasetResource {
 
   // add file(s) to a dataset, a new version will be created
   def createNewDatasetVersionByAddingFiles(
-                                            did: UInteger,
-                                            user: User,
-                                            filesToAdd: Map[java.nio.file.Path, InputStream]
-                                          ): Option[DashboardDatasetVersion] = {
+      did: UInteger,
+      user: User,
+      filesToAdd: Map[java.nio.file.Path, InputStream]
+  ): Option[DashboardDatasetVersion] = {
     applyDatasetOperationToCreateNewVersion(
       context,
       did,
@@ -371,13 +370,13 @@ object DatasetResource {
 
   // create a new dataset version using the form data from frontend
   def createNewDatasetVersionFromFormData(
-                                           ctx: DSLContext,
-                                           did: UInteger,
-                                           uid: UInteger,
-                                           ownerEmail: String,
-                                           userProvidedVersionName: String,
-                                           multiPart: FormDataMultiPart
-                                         ): Option[DashboardDatasetVersion] = {
+      ctx: DSLContext,
+      did: UInteger,
+      uid: UInteger,
+      ownerEmail: String,
+      userProvidedVersionName: String,
+      multiPart: FormDataMultiPart
+  ): Option[DashboardDatasetVersion] = {
     val datasetOperation = parseUserUploadedFormToDatasetOperations(did, multiPart)
     applyDatasetOperationToCreateNewVersion(
       ctx,
@@ -400,10 +399,10 @@ object DatasetResource {
   }
 
   private def getDatasetVersions(
-                                  ctx: DSLContext,
-                                  did: UInteger,
-                                  uid: UInteger
-                                ): List[DatasetVersion] = {
+      ctx: DSLContext,
+      did: UInteger,
+      uid: UInteger
+  ): List[DatasetVersion] = {
     val result: java.util.List[DatasetVersion] = ctx
       .selectFrom(DATASET_VERSION)
       .where(DATASET_VERSION.DID.eq(did))
@@ -417,13 +416,13 @@ object DatasetResource {
   // it returns the created dataset version if creation succeed, else return None
   // concurrency control is performed here: the thread has to have the lock in order to create the new version
   private def applyDatasetOperationToCreateNewVersion(
-                                                       ctx: DSLContext,
-                                                       did: UInteger,
-                                                       uid: UInteger,
-                                                       ownerEmail: String,
-                                                       userProvidedVersionName: String,
-                                                       datasetOperation: DatasetOperation
-                                                     ): Option[DashboardDatasetVersion] = {
+      ctx: DSLContext,
+      did: UInteger,
+      uid: UInteger,
+      ownerEmail: String,
+      userProvidedVersionName: String,
+      datasetOperation: DatasetOperation
+  ): Option[DashboardDatasetVersion] = {
     // Acquire or Create the lock for dataset of {did}
     val lock = DatasetResource.datasetLocks.getOrElseUpdate(did, new ReentrantLock())
 
@@ -513,26 +512,26 @@ object DatasetResource {
   }
 
   case class DashboardDataset(
-                               dataset: Dataset,
-                               ownerEmail: String,
-                               accessPrivilege: EnumType,
-                               isOwner: Boolean,
-                               versions: List[DashboardDatasetVersion]
-                             )
+      dataset: Dataset,
+      ownerEmail: String,
+      accessPrivilege: EnumType,
+      isOwner: Boolean,
+      versions: List[DashboardDatasetVersion]
+  )
 
   case class ListDatasetsResponse(
-                                   datasets: List[DashboardDataset],
-                                   fileNodes: List[DatasetFileNode]
-                                 )
+      datasets: List[DashboardDataset],
+      fileNodes: List[DatasetFileNode]
+  )
 
   case class DatasetVersionRootFileNodes(fileNodes: List[DatasetFileNode])
 
   case class DatasetVersions(versions: List[DatasetVersion])
 
   case class DashboardDatasetVersion(
-                                      datasetVersion: DatasetVersion,
-                                      fileNodes: List[DatasetFileNode]
-                                    )
+      datasetVersion: DatasetVersion,
+      fileNodes: List[DatasetFileNode]
+  )
 
   case class DatasetIDs(dids: List[UInteger])
 
@@ -550,13 +549,13 @@ class DatasetResource {
   @Path("/create")
   @Consumes(Array(MediaType.MULTIPART_FORM_DATA))
   def createDataset(
-                     @Auth user: SessionUser,
-                     @FormDataParam("datasetName") datasetName: String,
-                     @FormDataParam("datasetDescription") datasetDescription: String,
-                     @FormDataParam("isDatasetPublic") isDatasetPublic: String,
-                     @FormDataParam("initialVersionName") initialVersionName: String,
-                     files: FormDataMultiPart
-                   ): DashboardDataset = {
+      @Auth user: SessionUser,
+      @FormDataParam("datasetName") datasetName: String,
+      @FormDataParam("datasetDescription") datasetDescription: String,
+      @FormDataParam("isDatasetPublic") isDatasetPublic: String,
+      @FormDataParam("initialVersionName") initialVersionName: String,
+      files: FormDataMultiPart
+  ): DashboardDataset = {
 
     withTransaction(context) { ctx =>
       val uid = user.getUid
@@ -647,9 +646,9 @@ class DatasetResource {
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/update/name")
   def updateDatasetName(
-                         modificator: DatasetNameModification,
-                         @Auth sessionUser: SessionUser
-                       ): Response = {
+      modificator: DatasetNameModification,
+      @Auth sessionUser: SessionUser
+  ): Response = {
     withTransaction(context) { ctx =>
       val datasetDao = new DatasetDao(ctx.configuration())
       val uid = sessionUser.getUid
@@ -671,9 +670,9 @@ class DatasetResource {
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/update/description")
   def updateDatasetDescription(
-                                modificator: DatasetDescriptionModification,
-                                @Auth sessionUser: SessionUser
-                              ): Response = {
+      modificator: DatasetDescriptionModification,
+      @Auth sessionUser: SessionUser
+  ): Response = {
     withTransaction(context) { ctx =>
       val datasetDao = new DatasetDao(ctx.configuration())
       val uid = sessionUser.getUid
@@ -694,9 +693,9 @@ class DatasetResource {
   @POST
   @Path("/{did}/update/publicity")
   def toggleDatasetPublicity(
-                              @PathParam("did") did: UInteger,
-                              @Auth sessionUser: SessionUser
-                            ): Response = {
+      @PathParam("did") did: UInteger,
+      @Auth sessionUser: SessionUser
+  ): Response = {
     withTransaction(context) { ctx =>
       val datasetDao = new DatasetDao(ctx.configuration())
       val uid = sessionUser.getUid
@@ -721,11 +720,11 @@ class DatasetResource {
   @Path("/{did}/version/create")
   @Consumes(Array(MediaType.MULTIPART_FORM_DATA))
   def createDatasetVersion(
-                            @PathParam("did") did: UInteger,
-                            @FormDataParam("versionName") versionName: String,
-                            @Auth user: SessionUser,
-                            multiPart: FormDataMultiPart
-                          ): DashboardDatasetVersion = {
+      @PathParam("did") did: UInteger,
+      @FormDataParam("versionName") versionName: String,
+      @Auth user: SessionUser,
+      multiPart: FormDataMultiPart
+  ): DashboardDatasetVersion = {
     val uid = user.getUid
     withTransaction(context) { ctx =>
       if (!userHasWriteAccess(ctx, did, uid)) {
@@ -745,18 +744,18 @@ class DatasetResource {
   }
 
   /**
-   * This method returns a list of DashboardDatasets objects that are accessible by current user.
-   * @param user the session user
-   * @return list of user accessible DashboardDataset objects
-   */
+    * This method returns a list of DashboardDatasets objects that are accessible by current user.
+    * @param user the session user
+    * @return list of user accessible DashboardDataset objects
+    */
   @GET
   @Path("")
   def listDatasets(
-                    @Auth user: SessionUser,
-                    @QueryParam("includeVersions") includeVersions: Boolean = false,
-                    @QueryParam("includeFileNodes") includeFileNodes: Boolean = false,
-                    @QueryParam("path") filePathStr: String
-                  ): ListDatasetsResponse = {
+      @Auth user: SessionUser,
+      @QueryParam("includeVersions") includeVersions: Boolean = false,
+      @QueryParam("includeFileNodes") includeFileNodes: Boolean = false,
+      @QueryParam("path") filePathStr: String
+  ): ListDatasetsResponse = {
     val uid = user.getUid
     withTransaction(context)(ctx => {
       var accessibleDatasets: ListBuffer[DashboardDataset] = ListBuffer()
@@ -872,9 +871,9 @@ class DatasetResource {
   @GET
   @Path("/{did}/version/list")
   def getDatasetVersionList(
-                             @PathParam("did") did: UInteger,
-                             @Auth user: SessionUser
-                           ): DatasetVersions = {
+      @PathParam("did") did: UInteger,
+      @Auth user: SessionUser
+  ): DatasetVersions = {
     val uid = user.getUid
     withTransaction(context)(ctx => {
 
@@ -894,9 +893,9 @@ class DatasetResource {
   @GET
   @Path("/{did}/version/latest")
   def getLatestDatasetVersion(
-                               @PathParam("did") did: UInteger,
-                               @Auth user: SessionUser
-                             ): DashboardDatasetVersion = {
+      @PathParam("did") did: UInteger,
+      @Auth user: SessionUser
+  ): DashboardDatasetVersion = {
     val uid = user.getUid
     withTransaction(context)(ctx => {
       if (!userHasReadAccess(ctx, did, uid)) {
@@ -930,10 +929,10 @@ class DatasetResource {
   @GET
   @Path("/{did}/version/{dvid}/rootFileNodes")
   def retrieveDatasetVersionRootFileNodes(
-                                           @PathParam("did") did: UInteger,
-                                           @PathParam("dvid") dvid: UInteger,
-                                           @Auth user: SessionUser
-                                         ): DatasetVersionRootFileNodes = {
+      @PathParam("did") did: UInteger,
+      @PathParam("dvid") dvid: UInteger,
+      @Auth user: SessionUser
+  ): DatasetVersionRootFileNodes = {
     val uid = user.getUid
 
     withTransaction(context)(ctx => {
@@ -962,9 +961,9 @@ class DatasetResource {
   @GET
   @Path("/{did}")
   def getDataset(
-                  @PathParam("did") did: UInteger,
-                  @Auth user: SessionUser
-                ): DashboardDataset = {
+      @PathParam("did") did: UInteger,
+      @Auth user: SessionUser
+  ): DashboardDataset = {
     val uid = user.getUid
     withTransaction(context)(ctx => {
       getDashboardDataset(ctx, did, uid)
@@ -974,9 +973,9 @@ class DatasetResource {
   @GET
   @Path("/file")
   def retrieveDatasetSingleFile(
-                                 @QueryParam("path") pathStr: String,
-                                 @Auth user: SessionUser
-                               ): Response = {
+      @QueryParam("path") pathStr: String,
+      @Auth user: SessionUser
+  ): Response = {
     val uid = user.getUid
     val decodedPathStr = URLDecoder.decode(pathStr, StandardCharsets.UTF_8.name())
     println("+++++++++")
@@ -1031,9 +1030,9 @@ class DatasetResource {
   @GET
   @Path("/version-zip")
   def retrieveDatasetVersionZip(
-                                 @QueryParam("path") pathStr: String,
-                                 @Auth user: SessionUser
-                               ): Response = {
+      @QueryParam("path") pathStr: String,
+      @Auth user: SessionUser
+  ): Response = {
     val uid = user.getUid
     val decodedPathStr = URLDecoder.decode(pathStr, StandardCharsets.UTF_8.name())
     val (_, dataset, dsVersion, _) = resolveFilePath(Paths.get(decodedPathStr))
@@ -1052,7 +1051,10 @@ class DatasetResource {
       val versionHash = datasetVersion.getVersionHash
 
       // 获取 dataset version 中的所有文件路径
-      val fileNodes = GitVersionControlLocalFileStorage.retrieveRootFileNodesOfVersion(targetDatasetPath, versionHash)
+      val fileNodes = GitVersionControlLocalFileStorage.retrieveRootFileNodesOfVersion(
+        targetDatasetPath,
+        versionHash
+      )
 
       // 创建临时的 ZIP 文件
       val tempZipFile = Files.createTempFile("dataset-version-", ".zip")
@@ -1078,7 +1080,8 @@ class DatasetResource {
       zipOutputStream.close()
 
       // 返回 ZIP 文件作为响应
-      Response.ok(Files.newInputStream(tempZipFile)) // 使用 InputStream 返回
+      Response
+        .ok(Files.newInputStream(tempZipFile)) // 使用 InputStream 返回
         .header("Content-Disposition", s"attachment; filename=dataset-version-$versionHash.zip")
         .`type`("application/zip")
         .build()

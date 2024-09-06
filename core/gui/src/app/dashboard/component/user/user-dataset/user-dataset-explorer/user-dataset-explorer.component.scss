@@ -79,15 +79,15 @@ body {
 .select-and-button-container {
   display: flex;
   align-items: center;
-  gap: 10px; 
+  gap: 10px;
 }
 
 .spaced-button {
-  flex-shrink: 0; 
-  width: 30px; 
+  flex-shrink: 0;
+  width: 30px;
   height: 24px;
 }
 
 nz-select {
-  flex-grow: 1; 
+  flex-grow: 1;
 }
