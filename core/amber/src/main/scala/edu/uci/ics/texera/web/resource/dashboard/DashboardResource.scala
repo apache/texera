@@ -5,7 +5,6 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource._
 import edu.uci.ics.texera.web.resource.dashboard.SearchQueryBuilder.ALL_RESOURCE_TYPE
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.DashboardDataset
-import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.DashboardFile
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflow
 import io.dropwizard.auth.Auth
 import org.jooq.{Field, OrderField}
@@ -22,7 +21,6 @@ object DashboardResource {
       resourceType: String,
       workflow: Option[DashboardWorkflow] = None,
       project: Option[Project] = None,
-      file: Option[DashboardFile] = None,
       dataset: Option[DashboardDataset] = None
   )
 
@@ -72,18 +70,15 @@ object DashboardResource {
     val query = params.resourceType match {
       case SearchQueryBuilder.WORKFLOW_RESOURCE_TYPE =>
         WorkflowSearchQueryBuilder.constructQuery(uid, params)
-      case SearchQueryBuilder.FILE_RESOURCE_TYPE =>
-        FileSearchQueryBuilder.constructQuery(uid, params)
       case SearchQueryBuilder.PROJECT_RESOURCE_TYPE =>
         ProjectSearchQueryBuilder.constructQuery(uid, params)
       case SearchQueryBuilder.DATASET_RESOURCE_TYPE =>
         DatasetSearchQueryBuilder.constructQuery(uid, params)
       case SearchQueryBuilder.ALL_RESOURCE_TYPE =>
         val q1 = WorkflowSearchQueryBuilder.constructQuery(uid, params)
-        val q2 = FileSearchQueryBuilder.constructQuery(uid, params)
         val q3 = ProjectSearchQueryBuilder.constructQuery(uid, params)
         val q4 = DatasetSearchQueryBuilder.constructQuery(uid, params)
-        q1.unionAll(q2).unionAll(q3).unionAll(q4)
+        q1.unionAll(q3).unionAll(q4)
       case _ => throw new IllegalArgumentException(s"Unknown resource type: ${params.resourceType}")
     }
 
@@ -98,8 +93,6 @@ object DashboardResource {
         resourceType match {
           case SearchQueryBuilder.WORKFLOW_RESOURCE_TYPE =>
             WorkflowSearchQueryBuilder.toEntry(uid, record)
-          case SearchQueryBuilder.FILE_RESOURCE_TYPE =>
-            FileSearchQueryBuilder.toEntry(uid, record)
           case SearchQueryBuilder.PROJECT_RESOURCE_TYPE =>
             ProjectSearchQueryBuilder.toEntry(uid, record)
           case SearchQueryBuilder.DATASET_RESOURCE_TYPE =>

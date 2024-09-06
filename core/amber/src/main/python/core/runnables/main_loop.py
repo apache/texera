@@ -1,4 +1,3 @@
-import datetime
 import threading
 import time
 import typing
@@ -10,19 +9,20 @@ from pampy import match
 
 from core.architecture.managers.context import Context
 from core.architecture.managers.pause_manager import PauseType
-from core.architecture.packaging.input_manager import EndOfAllMarker
+from core.architecture.packaging.input_manager import EndOfAll
 from core.architecture.rpc.async_rpc_client import AsyncRPCClient
 from core.architecture.rpc.async_rpc_server import AsyncRPCServer
 from core.models import (
     InputExhausted,
     InternalQueue,
-    SenderChangeMarker,
+    SenderChange,
     Tuple,
 )
 from core.models.internal_queue import DataElement, ControlElement
 from core.runnables.data_processor import DataProcessor
 from core.util import StoppableQueueBlockingRunnable, get_one_of, set_one_of
 from core.util.customized_queue.queue_base import QueueElement
+from core.util.console_message.timestamp import current_time_in_local_timezone
 from proto.edu.uci.ics.amber.engine.architecture.worker import (
     ControlCommandV2,
     ConsoleMessageType,
@@ -166,11 +166,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 self.context.statistics_manager.increase_output_tuple_count(
                     PortIdentity(0)
                 )
-                for (
-                    to,
-                    batch,
-                ) in self.context.output_manager.tuple_to_batch(output_tuple):
-                    batch.schema = self.context.output_manager.get_port().get_schema()
+                for to, batch in self.context.output_manager.tuple_to_batch(
+                    output_tuple
+                ):
                     self._output_queue.put(DataElement(tag=to, payload=batch))
 
     def process_tuple_with_udf(self) -> Iterator[Optional[Tuple]]:
@@ -216,9 +214,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 ActorVirtualIdentity(name="CONTROLLER"), control_command
             )
 
-    def _process_sender_change_marker(
-        self, sender_change_marker: SenderChangeMarker
-    ) -> None:
+    def _process_sender_change_marker(self, sender_change_marker: SenderChange) -> None:
         """
         Upon receipt of a SenderChangeMarker, change the current input link to the
         sender.
@@ -229,7 +225,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
             self.context.input_manager.get_port_id(sender_change_marker.channel_id)
         )
 
-    def _process_end_of_all_marker(self, _: EndOfAllMarker) -> None:
+    def _process_end_of_all_marker(self, _: EndOfAll) -> None:
         """
         Upon receipt of an EndOfAllMarker, which indicates the end of all input links,
         send the last data batches to all downstream workers.
@@ -239,7 +235,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
         :param _: EndOfAllMarker
         """
         for to, batch in self.context.output_manager.emit_end_of_upstream():
-            batch.schema = self.context.output_manager.get_port().get_schema()
             self._output_queue.put(DataElement(tag=to, payload=batch))
             self._check_and_process_control()
             control_command = set_one_of(
@@ -286,9 +281,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
                     self._process_tuple,
                     InputExhausted,
                     self._process_input_exhausted,
-                    SenderChangeMarker,
+                    SenderChange,
                     self._process_sender_change_marker,
-                    EndOfAllMarker,
+                    EndOfAll,
                     self._process_end_of_all_marker,
                 )
             except Exception as err:
@@ -340,7 +335,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 PythonConsoleMessageV2(
                     ConsoleMessage(
                         worker_id=self.context.worker_id,
-                        timestamp=datetime.datetime.now(),
+                        timestamp=current_time_in_local_timezone(),
                         msg_type=ConsoleMessageType.DEBUGGER,
                         source="(Pdb)",
                         title=debug_event,

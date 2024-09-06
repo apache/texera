@@ -13,7 +13,7 @@ import { Observable, of } from "rxjs";
 import { mockLogicalPlan_scan_result, mockWorkflowPlan_scan_result } from "./mock-workflow-plan";
 import { HttpClient } from "@angular/common/http";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
-import { WorkflowSnapshotService } from "../../../dashboard/user/service/workflow-snapshot/workflow-snapshot.service";
+import { WorkflowSnapshotService } from "../../../dashboard/service/user/workflow-snapshot/workflow-snapshot.service";
 
 class StubHttpClient {
   public post(): Observable<string> {
@@ -57,7 +57,8 @@ describe("ExecuteWorkflowService", () => {
   it("should msg backend when executing workflow", fakeAsync(() => {
     const logicalPlan: LogicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(mockWorkflowPlan_scan_result);
     const wsSendSpy = spyOn((service as any).workflowWebsocketService, "send");
-    service.sendExecutionRequest("", logicalPlan);
+    const settings = service["workflowActionService"].getWorkflowSettings();
+    service.sendExecutionRequest("", logicalPlan, settings);
     tick(FORM_DEBOUNCE_TIME_MS + 1);
     flush();
     expect(wsSendSpy).toHaveBeenCalledTimes(1);

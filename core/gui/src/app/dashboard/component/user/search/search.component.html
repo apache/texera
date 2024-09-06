@@ -1,0 +1,26 @@
+<div class="general-search-container">
+  <div class="general-search-section">
+    <button
+      class="go-back-button"
+      nz-button
+      nzType="text"
+      nzSize="large"
+      (click)="goBack()">
+      <span
+        nz-icon
+        nzType="arrow-left"
+        nzTheme="outline"></span>
+    </button>
+    <div class="filters">
+      <texera-sort-button (sortMethodChange)="sortMethod = $event; search()"></texera-sort-button>
+      <texera-filters #filters></texera-filters>
+    </div>
+  </div>
+
+  <div class="general-search-result">
+    <texera-search-results
+      [showResourceTypes]="true"
+      [searchKeywords]="this.filters.getSearchKeywords()">
+    </texera-search-results>
+  </div>
+</div>

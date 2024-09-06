@@ -9,7 +9,7 @@ import java.net.URI
   * e.g. for dataset file, supports for read/write using file stream are essential, whereas read & write using index are hard to support and are semantically meaningless
   * @tparam T the type of data that can use index to read and write.
   */
-abstract class VirtualDocument[T >: Null <: AnyRef] {
+abstract class VirtualDocument[T] {
 
   /**
     * get the URI of corresponding document
@@ -26,29 +26,59 @@ abstract class VirtualDocument[T >: Null <: AnyRef] {
     throw new NotImplementedError("getItem method is not implemented")
 
   /**
-    * get a iterator that iterates all indexed items
-    * @return an iterator that return data item of type T
+    * get an iterator that iterates all indexed items
+    * @return an iterator that returns data items of type T
     */
   def get(): Iterator[T] = throw new NotImplementedError("get method is not implemented")
 
   /**
-    * set ith item
+    * get an iterator of a sequence starting from index `from`, until index `until`
+    * @param from the starting index (inclusive)
+    * @param until the ending index (exclusive)
+    * @return an iterator that returns data items of type T
+    */
+  def getRange(from: Int, until: Int): Iterator[T] =
+    throw new NotImplementedError("getRange method is not implemented")
+
+  /**
+    * get an iterator of all items after the specified index `offset`
+    * @param offset the starting index (exclusive)
+    * @return an iterator that returns data items of type T
+    */
+  def getAfter(offset: Int): Iterator[T] =
+    throw new NotImplementedError("getAfter method is not implemented")
+
+  /**
+    * get the count of items in the document
+    * @return the count of items
+    */
+  def getCount: Long = throw new NotImplementedError("getCount method is not implemented")
+
+  /**
+    * set the ith item
+    * @param i the index to set the item at
     * @param item the data item
     */
   def setItem(i: Int, item: T): Unit =
     throw new NotImplementedError("setItem method is not implemented")
 
   /**
+    * return a writer that buffers the items and performs the flush operation at close time
+    * @return a buffered item writer
+    */
+  def write(): BufferedItemWriter[T] =
+    throw new NotImplementedError("write method is not implemented")
+
+  /**
     * append one data item to the document
-    *
     * @param item the data item
     */
   def append(item: T): Unit =
-    throw new NotImplementedError("setItem method is not implemented")
+    throw new NotImplementedError("append method is not implemented")
 
   /**
     * append data items from the iterator to the document
-    * @param items iterator for the data item
+    * @param items iterator for the data items
     */
   def append(items: Iterator[T]): Unit =
     throw new NotImplementedError("append method is not implemented")
@@ -58,23 +88,23 @@ abstract class VirtualDocument[T >: Null <: AnyRef] {
     * @param inputStream the data source input stream
     */
   def appendStream(inputStream: InputStream): Unit =
-    throw new NotImplementedError("append method is not implemented")
+    throw new NotImplementedError("appendStream method is not implemented")
 
   /**
-    * convert document as an input stream
+    * convert document to an input stream
     * @return the input stream
     */
   def asInputStream(): InputStream =
     throw new NotImplementedError("asInputStream method is not implemented")
 
   /**
-    * convert document as a File
+    * convert document to a File
     * @return the file
     */
   def asFile(): File = throw new NotImplementedError("asFile method is not implemented")
 
   /**
-    * physically remove current document
+    * physically remove the current document
     */
   def remove(): Unit
 }

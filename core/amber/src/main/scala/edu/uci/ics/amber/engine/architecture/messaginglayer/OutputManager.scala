@@ -7,12 +7,17 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager.{
 }
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners._
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings._
-import edu.uci.ics.amber.engine.architecture.worker.DataProcessor.{FinalizeExecutor, FinalizePort}
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.tuple.amber.{SchemaEnforceable, TupleLike}
+import edu.uci.ics.amber.engine.common.tuple.amber.{
+  FinalizeExecutor,
+  FinalizePort,
+  SchemaEnforceable,
+  TupleLike
+}
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
+import edu.uci.ics.texera.workflow.common.Marker
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 
 import scala.collection.mutable
@@ -22,9 +27,10 @@ object OutputManager {
   final case class FlushNetworkBuffer() extends ControlCommand[Unit]
 
   // create a corresponding partitioner for the given partitioning policy
-  def toPartitioner(partitioning: Partitioning): Partitioner = {
+  def toPartitioner(partitioning: Partitioning, actorId: ActorVirtualIdentity): Partitioner = {
     val partitioner = partitioning match {
-      case oneToOnePartitioning: OneToOnePartitioning => OneToOnePartitioner(oneToOnePartitioning)
+      case oneToOnePartitioning: OneToOnePartitioning =>
+        OneToOnePartitioner(oneToOnePartitioning, actorId)
       case roundRobinPartitioning: RoundRobinPartitioning =>
         RoundRobinPartitioner(roundRobinPartitioning)
       case hashBasedShufflePartitioning: HashBasedShufflePartitioning =>
@@ -104,7 +110,7 @@ class OutputManager(
       link: PhysicalLink,
       partitioning: Partitioning
   ): Unit = {
-    val partitioner = toPartitioner(partitioning)
+    val partitioner = toPartitioner(partitioning, actorId)
     partitioners.update(link, partitioner)
     partitioner.allReceivers.foreach(receiver => {
       val buffer = new NetworkOutputBuffer(receiver, outputGateway, getBatchSize(partitioning))
@@ -161,15 +167,8 @@ class OutputManager(
     buffersToFlush.foreach(_.flush())
   }
 
-  /**
-    * Send the last batch and EOU marker to all down streams
-    */
-  def emitEndOfUpstream(): Unit = {
-    // flush all network buffers of this operator, emit end marker to network
-    networkOutputBuffers.foreach(kv => {
-      kv._2.flush()
-      kv._2.noMore()
-    })
+  def emitMarker(marker: Marker): Unit = {
+    networkOutputBuffers.foreach(kv => kv._2.sendMarker(marker))
   }
 
   def addPort(portId: PortIdentity, schema: Schema): Unit = {

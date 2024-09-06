@@ -27,11 +27,6 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 """)
 class DumbbellPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
 
-  @JsonProperty(value = "title", required = false, defaultValue = "DumbbellPlot Visualization")
-  @JsonSchemaTitle("Title")
-  @JsonPropertyDescription("the title of this dumbbell plots")
-  var title: String = "DumbbellPlot Visualization"
-
   @JsonProperty(value = "categoryColumnName", required = true)
   @JsonSchemaTitle("Category Column Name")
   @JsonPropertyDescription("the name of the category column")
@@ -106,12 +101,10 @@ class DumbbellPlotOpDesc extends VisualizationOperator with PythonOperatorDescri
      |                             name=entity,
      |                             line=dict(color=color)))
      |
-     |          fig.update_layout(title="${title}",
-     |                  xaxis_title="${measurementColumnName}",
+     |          fig.update_layout(xaxis_title="${measurementColumnName}",
      |                  yaxis_title="${comparedColumnName}",
      |                  yaxis=dict(categoryorder='array', categoryarray=entityNames),
-     |                  ${showLegendsOption},
-     |                  height=20 * len(entityNames)
+     |                  ${showLegendsOption}
      |                  )
      |""".stripMargin
   }
@@ -168,6 +161,7 @@ class DumbbellPlotOpDesc extends VisualizationOperator with PythonOperatorDescri
      |        ${createPlotlyDumbbellLineFigure()}
      |        ${addPlotlyDots()}
      |        # convert fig to html content
+     |        fig.update_layout(margin=dict(l=0, r=0, b=60, t=0))
      |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
      |        yield {'html-content': html}
      |

@@ -36,11 +36,6 @@ class PieChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor
   @AutofillAttributeName
   var name: String = ""
 
-  @JsonProperty(value = "title", required = false, defaultValue = "PieChart Visualization")
-  @JsonSchemaTitle("Title")
-  @JsonPropertyDescription("the title of this pie chart")
-  var title: String = "PieChart Visualization"
-
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Schema.builder().add(new Attribute("html-content", AttributeType.STRING)).build()
   }
@@ -64,9 +59,9 @@ class PieChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor
   def createPlotlyFigure(): String = {
     assert(value.nonEmpty)
     s"""
-       |        fig = px.pie(table, names='$name', values='$value', title='$title')
+       |        fig = px.pie(table, names='$name', values='$value')
        |        fig.update_traces(textposition='inside', textinfo='percent+label')
-       |        fig.update_layout(margin=dict(t=40, b=30, l=10, r=10))
+       |        fig.update_layout(margin=dict(t=0, b=0, l=0, r=0))
        |""".stripMargin
   }
 

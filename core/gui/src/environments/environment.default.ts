@@ -95,6 +95,11 @@ export const defaultEnvironment = {
   /**
    */
   singleFileUploadMaximumSizeMB: 20,
+
+  /**
+   * default data transfer batch size for workflows
+   */
+  defaultDataTransferBatchSize: 400,
 };
 
 export type AppEnv = typeof defaultEnvironment;

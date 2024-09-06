@@ -174,6 +174,7 @@ class ExecutionResultService(
     mutable.HashMap[OperatorIdentity, ProgressiveSinkOpDesc]()
   private val resultPullingFrequency = AmberConfig.executionResultPollingInSecs
   private var resultUpdateCancellable: Cancellable = _
+  var tableFields: mutable.Map[String, Map[String, Iterable[String]]] = mutable.Map()
 
   def attachToExecution(
       stateStore: ExecutionStateStore,
@@ -230,6 +231,7 @@ class ExecutionResultService(
     addSubscription(
       workflowStateStore.resultStore.registerDiffHandler((oldState, newState) => {
         val buf = mutable.HashMap[String, WebResultUpdate]()
+        val allTableStats = mutable.Map[String, Map[String, Map[String, Any]]]()
         newState.resultInfo
           .filter(info => {
             // only update those operators with changing tuple count.
@@ -244,8 +246,57 @@ class ExecutionResultService(
                 oldInfo.tupleCount,
                 info.tupleCount
               )
+              if (
+                AmberConfig.sinkStorageMode.toLowerCase == "mongodb" && !opId.id.startsWith("sink")
+              ) {
+                val sinkMgr = sinkOperators(opId).getStorage
+                if (oldState.resultInfo.isEmpty) {
+                  val fields = sinkMgr.getAllFields()
+                  if (fields.length >= 3) {
+                    // The fields array for MongoDB operators should contain three arrays:
+                    // 1. numericFields: An array of numeric field names
+                    // 2. catFields: An array of categorical field names
+                    // 3. dateFields: An array of date field names
+                    val NumericFieldsNamesArray = "numericFields"
+                    val CategoricalFieldsNamesArray = "catFields"
+                    val DateFieldsNamesArray = "dateFields"
+
+                    // Update tableFields with extracted fields
+                    tableFields.update(
+                      opId.id,
+                      Map(
+                        NumericFieldsNamesArray -> fields(0),
+                        CategoricalFieldsNamesArray -> fields(1),
+                        DateFieldsNamesArray -> fields(2)
+                      )
+                    )
+                  }
+                }
+                if (
+                  tableFields.contains(opId.id) && tableFields(opId.id).contains("catFields") &&
+                  tableFields(opId.id).contains("dateFields") && tableFields(opId.id)
+                    .contains("numericFields")
+                ) {
+                  val tableCatStats = sinkMgr.getCatColStats(tableFields(opId.id)("catFields"))
+                  val tableDateStats = sinkMgr.getDateColStats(tableFields(opId.id)("dateFields"))
+                  val tableNumericStats =
+                    sinkMgr.getNumericColStats(tableFields(opId.id)("numericFields"))
+                  val allStats = tableNumericStats ++ tableCatStats ++ tableDateStats
+                  if (
+                    tableNumericStats.nonEmpty || tableCatStats.nonEmpty || tableDateStats.nonEmpty
+                  ) {
+                    allTableStats(opId.id) = allStats
+                  }
+                }
+              }
           }
-        Iterable(WebResultUpdateEvent(buf.toMap))
+        Iterable(
+          WebResultUpdateEvent(
+            buf.toMap,
+            allTableStats.toMap,
+            AmberConfig.sinkStorageMode.toLowerCase
+          )
+        )
       })
     )
 

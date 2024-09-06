@@ -5,20 +5,13 @@ package edu.uci.ics.texera.web.model.jooq.generated;
 
 
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetOfEnvironment;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetUserAccess;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetVersion;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.Environment;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.EnvironmentOfWorkflow;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.File;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.FileOfProject;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.FileOfWorkflow;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Project;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.ProjectUserAccess;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.PublicProject;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.User;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.UserConfig;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.UserFileAccess;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Workflow;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowExecutions;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowOfProject;
@@ -26,20 +19,13 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowOfUser;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowRuntimeStatistics;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowUserAccess;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowVersion;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.records.DatasetOfEnvironmentRecord;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.DatasetRecord;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.DatasetUserAccessRecord;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.DatasetVersionRecord;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.records.EnvironmentOfWorkflowRecord;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.records.EnvironmentRecord;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.records.FileOfProjectRecord;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.records.FileOfWorkflowRecord;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.records.FileRecord;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.ProjectRecord;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.ProjectUserAccessRecord;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.PublicProjectRecord;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.UserConfigRecord;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.records.UserFileAccessRecord;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.UserRecord;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.WorkflowExecutionsRecord;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.WorkflowOfProjectRecord;
@@ -69,8 +55,6 @@ public class Keys {
 
     public static final Identity<DatasetRecord, UInteger> IDENTITY_DATASET = Identities0.IDENTITY_DATASET;
     public static final Identity<DatasetVersionRecord, UInteger> IDENTITY_DATASET_VERSION = Identities0.IDENTITY_DATASET_VERSION;
-    public static final Identity<EnvironmentRecord, UInteger> IDENTITY_ENVIRONMENT = Identities0.IDENTITY_ENVIRONMENT;
-    public static final Identity<FileRecord, UInteger> IDENTITY_FILE = Identities0.IDENTITY_FILE;
     public static final Identity<ProjectRecord, UInteger> IDENTITY_PROJECT = Identities0.IDENTITY_PROJECT;
     public static final Identity<UserRecord, UInteger> IDENTITY_USER = Identities0.IDENTITY_USER;
     public static final Identity<WorkflowRecord, UInteger> IDENTITY_WORKFLOW = Identities0.IDENTITY_WORKFLOW;
@@ -82,15 +66,8 @@ public class Keys {
     // -------------------------------------------------------------------------
 
     public static final UniqueKey<DatasetRecord> KEY_DATASET_PRIMARY = UniqueKeys0.KEY_DATASET_PRIMARY;
-    public static final UniqueKey<DatasetOfEnvironmentRecord> KEY_DATASET_OF_ENVIRONMENT_PRIMARY = UniqueKeys0.KEY_DATASET_OF_ENVIRONMENT_PRIMARY;
     public static final UniqueKey<DatasetUserAccessRecord> KEY_DATASET_USER_ACCESS_PRIMARY = UniqueKeys0.KEY_DATASET_USER_ACCESS_PRIMARY;
     public static final UniqueKey<DatasetVersionRecord> KEY_DATASET_VERSION_PRIMARY = UniqueKeys0.KEY_DATASET_VERSION_PRIMARY;
-    public static final UniqueKey<EnvironmentRecord> KEY_ENVIRONMENT_PRIMARY = UniqueKeys0.KEY_ENVIRONMENT_PRIMARY;
-    public static final UniqueKey<EnvironmentOfWorkflowRecord> KEY_ENVIRONMENT_OF_WORKFLOW_PRIMARY = UniqueKeys0.KEY_ENVIRONMENT_OF_WORKFLOW_PRIMARY;
-    public static final UniqueKey<FileRecord> KEY_FILE_OWNER_UID = UniqueKeys0.KEY_FILE_OWNER_UID;
-    public static final UniqueKey<FileRecord> KEY_FILE_PRIMARY = UniqueKeys0.KEY_FILE_PRIMARY;
-    public static final UniqueKey<FileOfProjectRecord> KEY_FILE_OF_PROJECT_PRIMARY = UniqueKeys0.KEY_FILE_OF_PROJECT_PRIMARY;
-    public static final UniqueKey<FileOfWorkflowRecord> KEY_FILE_OF_WORKFLOW_PRIMARY = UniqueKeys0.KEY_FILE_OF_WORKFLOW_PRIMARY;
     public static final UniqueKey<ProjectRecord> KEY_PROJECT_PRIMARY = UniqueKeys0.KEY_PROJECT_PRIMARY;
     public static final UniqueKey<ProjectRecord> KEY_PROJECT_OWNER_ID = UniqueKeys0.KEY_PROJECT_OWNER_ID;
     public static final UniqueKey<ProjectUserAccessRecord> KEY_PROJECT_USER_ACCESS_PRIMARY = UniqueKeys0.KEY_PROJECT_USER_ACCESS_PRIMARY;
@@ -99,7 +76,6 @@ public class Keys {
     public static final UniqueKey<UserRecord> KEY_USER_EMAIL = UniqueKeys0.KEY_USER_EMAIL;
     public static final UniqueKey<UserRecord> KEY_USER_GOOGLE_ID = UniqueKeys0.KEY_USER_GOOGLE_ID;
     public static final UniqueKey<UserConfigRecord> KEY_USER_CONFIG_PRIMARY = UniqueKeys0.KEY_USER_CONFIG_PRIMARY;
-    public static final UniqueKey<UserFileAccessRecord> KEY_USER_FILE_ACCESS_PRIMARY = UniqueKeys0.KEY_USER_FILE_ACCESS_PRIMARY;
     public static final UniqueKey<WorkflowRecord> KEY_WORKFLOW_PRIMARY = UniqueKeys0.KEY_WORKFLOW_PRIMARY;
     public static final UniqueKey<WorkflowExecutionsRecord> KEY_WORKFLOW_EXECUTIONS_PRIMARY = UniqueKeys0.KEY_WORKFLOW_EXECUTIONS_PRIMARY;
     public static final UniqueKey<WorkflowOfProjectRecord> KEY_WORKFLOW_OF_PROJECT_PRIMARY = UniqueKeys0.KEY_WORKFLOW_OF_PROJECT_PRIMARY;
@@ -113,29 +89,16 @@ public class Keys {
     // -------------------------------------------------------------------------
 
     public static final ForeignKey<DatasetRecord, UserRecord> DATASET_IBFK_1 = ForeignKeys0.DATASET_IBFK_1;
-    public static final ForeignKey<DatasetOfEnvironmentRecord, EnvironmentRecord> DATASET_OF_ENVIRONMENT_IBFK_1 = ForeignKeys0.DATASET_OF_ENVIRONMENT_IBFK_1;
-    public static final ForeignKey<DatasetOfEnvironmentRecord, DatasetVersionRecord> DATASET_OF_ENVIRONMENT_IBFK_2 = ForeignKeys0.DATASET_OF_ENVIRONMENT_IBFK_2;
     public static final ForeignKey<DatasetUserAccessRecord, DatasetRecord> DATASET_USER_ACCESS_IBFK_1 = ForeignKeys0.DATASET_USER_ACCESS_IBFK_1;
     public static final ForeignKey<DatasetUserAccessRecord, UserRecord> DATASET_USER_ACCESS_IBFK_2 = ForeignKeys0.DATASET_USER_ACCESS_IBFK_2;
     public static final ForeignKey<DatasetVersionRecord, DatasetRecord> DATASET_VERSION_IBFK_1 = ForeignKeys0.DATASET_VERSION_IBFK_1;
-    public static final ForeignKey<EnvironmentRecord, UserRecord> ENVIRONMENT_IBFK_1 = ForeignKeys0.ENVIRONMENT_IBFK_1;
-    public static final ForeignKey<EnvironmentOfWorkflowRecord, EnvironmentRecord> ENVIRONMENT_OF_WORKFLOW_IBFK_2 = ForeignKeys0.ENVIRONMENT_OF_WORKFLOW_IBFK_2;
-    public static final ForeignKey<EnvironmentOfWorkflowRecord, WorkflowRecord> ENVIRONMENT_OF_WORKFLOW_IBFK_1 = ForeignKeys0.ENVIRONMENT_OF_WORKFLOW_IBFK_1;
-    public static final ForeignKey<FileRecord, UserRecord> FILE_IBFK_1 = ForeignKeys0.FILE_IBFK_1;
-    public static final ForeignKey<FileOfProjectRecord, FileRecord> FILE_OF_PROJECT_IBFK_1 = ForeignKeys0.FILE_OF_PROJECT_IBFK_1;
-    public static final ForeignKey<FileOfProjectRecord, ProjectRecord> FILE_OF_PROJECT_IBFK_2 = ForeignKeys0.FILE_OF_PROJECT_IBFK_2;
-    public static final ForeignKey<FileOfWorkflowRecord, FileRecord> FILE_OF_WORKFLOW_IBFK_1 = ForeignKeys0.FILE_OF_WORKFLOW_IBFK_1;
-    public static final ForeignKey<FileOfWorkflowRecord, WorkflowRecord> FILE_OF_WORKFLOW_IBFK_2 = ForeignKeys0.FILE_OF_WORKFLOW_IBFK_2;
     public static final ForeignKey<ProjectRecord, UserRecord> PROJECT_IBFK_1 = ForeignKeys0.PROJECT_IBFK_1;
     public static final ForeignKey<ProjectUserAccessRecord, UserRecord> PROJECT_USER_ACCESS_IBFK_1 = ForeignKeys0.PROJECT_USER_ACCESS_IBFK_1;
     public static final ForeignKey<ProjectUserAccessRecord, ProjectRecord> PROJECT_USER_ACCESS_IBFK_2 = ForeignKeys0.PROJECT_USER_ACCESS_IBFK_2;
     public static final ForeignKey<PublicProjectRecord, ProjectRecord> PUBLIC_PROJECT_IBFK_1 = ForeignKeys0.PUBLIC_PROJECT_IBFK_1;
     public static final ForeignKey<UserConfigRecord, UserRecord> USER_CONFIG_IBFK_1 = ForeignKeys0.USER_CONFIG_IBFK_1;
-    public static final ForeignKey<UserFileAccessRecord, UserRecord> USER_FILE_ACCESS_IBFK_1 = ForeignKeys0.USER_FILE_ACCESS_IBFK_1;
-    public static final ForeignKey<UserFileAccessRecord, FileRecord> USER_FILE_ACCESS_IBFK_2 = ForeignKeys0.USER_FILE_ACCESS_IBFK_2;
     public static final ForeignKey<WorkflowExecutionsRecord, WorkflowVersionRecord> WORKFLOW_EXECUTIONS_IBFK_1 = ForeignKeys0.WORKFLOW_EXECUTIONS_IBFK_1;
     public static final ForeignKey<WorkflowExecutionsRecord, UserRecord> WORKFLOW_EXECUTIONS_IBFK_2 = ForeignKeys0.WORKFLOW_EXECUTIONS_IBFK_2;
-    public static final ForeignKey<WorkflowExecutionsRecord, EnvironmentRecord> WORKFLOW_EXECUTIONS_IBFK_3 = ForeignKeys0.WORKFLOW_EXECUTIONS_IBFK_3;
     public static final ForeignKey<WorkflowOfProjectRecord, WorkflowRecord> WORKFLOW_OF_PROJECT_IBFK_1 = ForeignKeys0.WORKFLOW_OF_PROJECT_IBFK_1;
     public static final ForeignKey<WorkflowOfProjectRecord, ProjectRecord> WORKFLOW_OF_PROJECT_IBFK_2 = ForeignKeys0.WORKFLOW_OF_PROJECT_IBFK_2;
     public static final ForeignKey<WorkflowOfUserRecord, UserRecord> WORKFLOW_OF_USER_IBFK_1 = ForeignKeys0.WORKFLOW_OF_USER_IBFK_1;
@@ -153,8 +116,6 @@ public class Keys {
     private static class Identities0 {
         public static Identity<DatasetRecord, UInteger> IDENTITY_DATASET = Internal.createIdentity(Dataset.DATASET, Dataset.DATASET.DID);
         public static Identity<DatasetVersionRecord, UInteger> IDENTITY_DATASET_VERSION = Internal.createIdentity(DatasetVersion.DATASET_VERSION, DatasetVersion.DATASET_VERSION.DVID);
-        public static Identity<EnvironmentRecord, UInteger> IDENTITY_ENVIRONMENT = Internal.createIdentity(Environment.ENVIRONMENT, Environment.ENVIRONMENT.EID);
-        public static Identity<FileRecord, UInteger> IDENTITY_FILE = Internal.createIdentity(File.FILE, File.FILE.FID);
         public static Identity<ProjectRecord, UInteger> IDENTITY_PROJECT = Internal.createIdentity(Project.PROJECT, Project.PROJECT.PID);
         public static Identity<UserRecord, UInteger> IDENTITY_USER = Internal.createIdentity(User.USER, User.USER.UID);
         public static Identity<WorkflowRecord, UInteger> IDENTITY_WORKFLOW = Internal.createIdentity(Workflow.WORKFLOW, Workflow.WORKFLOW.WID);
@@ -164,15 +125,8 @@ public class Keys {
 
     private static class UniqueKeys0 {
         public static final UniqueKey<DatasetRecord> KEY_DATASET_PRIMARY = Internal.createUniqueKey(Dataset.DATASET, "KEY_dataset_PRIMARY", Dataset.DATASET.DID);
-        public static final UniqueKey<DatasetOfEnvironmentRecord> KEY_DATASET_OF_ENVIRONMENT_PRIMARY = Internal.createUniqueKey(DatasetOfEnvironment.DATASET_OF_ENVIRONMENT, "KEY_dataset_of_environment_PRIMARY", DatasetOfEnvironment.DATASET_OF_ENVIRONMENT.DID, DatasetOfEnvironment.DATASET_OF_ENVIRONMENT.EID);
         public static final UniqueKey<DatasetUserAccessRecord> KEY_DATASET_USER_ACCESS_PRIMARY = Internal.createUniqueKey(DatasetUserAccess.DATASET_USER_ACCESS, "KEY_dataset_user_access_PRIMARY", DatasetUserAccess.DATASET_USER_ACCESS.DID, DatasetUserAccess.DATASET_USER_ACCESS.UID);
         public static final UniqueKey<DatasetVersionRecord> KEY_DATASET_VERSION_PRIMARY = Internal.createUniqueKey(DatasetVersion.DATASET_VERSION, "KEY_dataset_version_PRIMARY", DatasetVersion.DATASET_VERSION.DVID);
-        public static final UniqueKey<EnvironmentRecord> KEY_ENVIRONMENT_PRIMARY = Internal.createUniqueKey(Environment.ENVIRONMENT, "KEY_environment_PRIMARY", Environment.ENVIRONMENT.EID);
-        public static final UniqueKey<EnvironmentOfWorkflowRecord> KEY_ENVIRONMENT_OF_WORKFLOW_PRIMARY = Internal.createUniqueKey(EnvironmentOfWorkflow.ENVIRONMENT_OF_WORKFLOW, "KEY_environment_of_workflow_PRIMARY", EnvironmentOfWorkflow.ENVIRONMENT_OF_WORKFLOW.EID, EnvironmentOfWorkflow.ENVIRONMENT_OF_WORKFLOW.WID);
-        public static final UniqueKey<FileRecord> KEY_FILE_OWNER_UID = Internal.createUniqueKey(File.FILE, "KEY_file_owner_uid", File.FILE.OWNER_UID, File.FILE.NAME);
-        public static final UniqueKey<FileRecord> KEY_FILE_PRIMARY = Internal.createUniqueKey(File.FILE, "KEY_file_PRIMARY", File.FILE.FID);
-        public static final UniqueKey<FileOfProjectRecord> KEY_FILE_OF_PROJECT_PRIMARY = Internal.createUniqueKey(FileOfProject.FILE_OF_PROJECT, "KEY_file_of_project_PRIMARY", FileOfProject.FILE_OF_PROJECT.FID, FileOfProject.FILE_OF_PROJECT.PID);
-        public static final UniqueKey<FileOfWorkflowRecord> KEY_FILE_OF_WORKFLOW_PRIMARY = Internal.createUniqueKey(FileOfWorkflow.FILE_OF_WORKFLOW, "KEY_file_of_workflow_PRIMARY", FileOfWorkflow.FILE_OF_WORKFLOW.FID, FileOfWorkflow.FILE_OF_WORKFLOW.WID);
         public static final UniqueKey<ProjectRecord> KEY_PROJECT_PRIMARY = Internal.createUniqueKey(Project.PROJECT, "KEY_project_PRIMARY", Project.PROJECT.PID);
         public static final UniqueKey<ProjectRecord> KEY_PROJECT_OWNER_ID = Internal.createUniqueKey(Project.PROJECT, "KEY_project_owner_id", Project.PROJECT.OWNER_ID, Project.PROJECT.NAME);
         public static final UniqueKey<ProjectUserAccessRecord> KEY_PROJECT_USER_ACCESS_PRIMARY = Internal.createUniqueKey(ProjectUserAccess.PROJECT_USER_ACCESS, "KEY_project_user_access_PRIMARY", ProjectUserAccess.PROJECT_USER_ACCESS.UID, ProjectUserAccess.PROJECT_USER_ACCESS.PID);
@@ -181,7 +135,6 @@ public class Keys {
         public static final UniqueKey<UserRecord> KEY_USER_EMAIL = Internal.createUniqueKey(User.USER, "KEY_user_email", User.USER.EMAIL);
         public static final UniqueKey<UserRecord> KEY_USER_GOOGLE_ID = Internal.createUniqueKey(User.USER, "KEY_user_google_id", User.USER.GOOGLE_ID);
         public static final UniqueKey<UserConfigRecord> KEY_USER_CONFIG_PRIMARY = Internal.createUniqueKey(UserConfig.USER_CONFIG, "KEY_user_config_PRIMARY", UserConfig.USER_CONFIG.UID, UserConfig.USER_CONFIG.KEY);
-        public static final UniqueKey<UserFileAccessRecord> KEY_USER_FILE_ACCESS_PRIMARY = Internal.createUniqueKey(UserFileAccess.USER_FILE_ACCESS, "KEY_user_file_access_PRIMARY", UserFileAccess.USER_FILE_ACCESS.UID, UserFileAccess.USER_FILE_ACCESS.FID);
         public static final UniqueKey<WorkflowRecord> KEY_WORKFLOW_PRIMARY = Internal.createUniqueKey(Workflow.WORKFLOW, "KEY_workflow_PRIMARY", Workflow.WORKFLOW.WID);
         public static final UniqueKey<WorkflowExecutionsRecord> KEY_WORKFLOW_EXECUTIONS_PRIMARY = Internal.createUniqueKey(WorkflowExecutions.WORKFLOW_EXECUTIONS, "KEY_workflow_executions_PRIMARY", WorkflowExecutions.WORKFLOW_EXECUTIONS.EID);
         public static final UniqueKey<WorkflowOfProjectRecord> KEY_WORKFLOW_OF_PROJECT_PRIMARY = Internal.createUniqueKey(WorkflowOfProject.WORKFLOW_OF_PROJECT, "KEY_workflow_of_project_PRIMARY", WorkflowOfProject.WORKFLOW_OF_PROJECT.WID, WorkflowOfProject.WORKFLOW_OF_PROJECT.PID);
@@ -193,29 +146,16 @@ public class Keys {
 
     private static class ForeignKeys0 {
         public static final ForeignKey<DatasetRecord, UserRecord> DATASET_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_USER_PRIMARY, Dataset.DATASET, "dataset_ibfk_1", Dataset.DATASET.OWNER_UID);
-        public static final ForeignKey<DatasetOfEnvironmentRecord, EnvironmentRecord> DATASET_OF_ENVIRONMENT_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_ENVIRONMENT_PRIMARY, DatasetOfEnvironment.DATASET_OF_ENVIRONMENT, "dataset_of_environment_ibfk_1", DatasetOfEnvironment.DATASET_OF_ENVIRONMENT.EID);
-        public static final ForeignKey<DatasetOfEnvironmentRecord, DatasetVersionRecord> DATASET_OF_ENVIRONMENT_IBFK_2 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_DATASET_VERSION_PRIMARY, DatasetOfEnvironment.DATASET_OF_ENVIRONMENT, "dataset_of_environment_ibfk_2", DatasetOfEnvironment.DATASET_OF_ENVIRONMENT.DVID);
         public static final ForeignKey<DatasetUserAccessRecord, DatasetRecord> DATASET_USER_ACCESS_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_DATASET_PRIMARY, DatasetUserAccess.DATASET_USER_ACCESS, "dataset_user_access_ibfk_1", DatasetUserAccess.DATASET_USER_ACCESS.DID);
         public static final ForeignKey<DatasetUserAccessRecord, UserRecord> DATASET_USER_ACCESS_IBFK_2 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_USER_PRIMARY, DatasetUserAccess.DATASET_USER_ACCESS, "dataset_user_access_ibfk_2", DatasetUserAccess.DATASET_USER_ACCESS.UID);
         public static final ForeignKey<DatasetVersionRecord, DatasetRecord> DATASET_VERSION_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_DATASET_PRIMARY, DatasetVersion.DATASET_VERSION, "dataset_version_ibfk_1", DatasetVersion.DATASET_VERSION.DID);
-        public static final ForeignKey<EnvironmentRecord, UserRecord> ENVIRONMENT_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_USER_PRIMARY, Environment.ENVIRONMENT, "environment_ibfk_1", Environment.ENVIRONMENT.OWNER_UID);
-        public static final ForeignKey<EnvironmentOfWorkflowRecord, EnvironmentRecord> ENVIRONMENT_OF_WORKFLOW_IBFK_2 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_ENVIRONMENT_PRIMARY, EnvironmentOfWorkflow.ENVIRONMENT_OF_WORKFLOW, "environment_of_workflow_ibfk_2", EnvironmentOfWorkflow.ENVIRONMENT_OF_WORKFLOW.EID);
-        public static final ForeignKey<EnvironmentOfWorkflowRecord, WorkflowRecord> ENVIRONMENT_OF_WORKFLOW_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_WORKFLOW_PRIMARY, EnvironmentOfWorkflow.ENVIRONMENT_OF_WORKFLOW, "environment_of_workflow_ibfk_1", EnvironmentOfWorkflow.ENVIRONMENT_OF_WORKFLOW.WID);
-        public static final ForeignKey<FileRecord, UserRecord> FILE_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_USER_PRIMARY, File.FILE, "file_ibfk_1", File.FILE.OWNER_UID);
-        public static final ForeignKey<FileOfProjectRecord, FileRecord> FILE_OF_PROJECT_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_FILE_PRIMARY, FileOfProject.FILE_OF_PROJECT, "file_of_project_ibfk_1", FileOfProject.FILE_OF_PROJECT.FID);
-        public static final ForeignKey<FileOfProjectRecord, ProjectRecord> FILE_OF_PROJECT_IBFK_2 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_PROJECT_PRIMARY, FileOfProject.FILE_OF_PROJECT, "file_of_project_ibfk_2", FileOfProject.FILE_OF_PROJECT.PID);
-        public static final ForeignKey<FileOfWorkflowRecord, FileRecord> FILE_OF_WORKFLOW_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_FILE_PRIMARY, FileOfWorkflow.FILE_OF_WORKFLOW, "file_of_workflow_ibfk_1", FileOfWorkflow.FILE_OF_WORKFLOW.FID);
-        public static final ForeignKey<FileOfWorkflowRecord, WorkflowRecord> FILE_OF_WORKFLOW_IBFK_2 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_WORKFLOW_PRIMARY, FileOfWorkflow.FILE_OF_WORKFLOW, "file_of_workflow_ibfk_2", FileOfWorkflow.FILE_OF_WORKFLOW.WID);
         public static final ForeignKey<ProjectRecord, UserRecord> PROJECT_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_USER_PRIMARY, Project.PROJECT, "project_ibfk_1", Project.PROJECT.OWNER_ID);
         public static final ForeignKey<ProjectUserAccessRecord, UserRecord> PROJECT_USER_ACCESS_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_USER_PRIMARY, ProjectUserAccess.PROJECT_USER_ACCESS, "project_user_access_ibfk_1", ProjectUserAccess.PROJECT_USER_ACCESS.UID);
         public static final ForeignKey<ProjectUserAccessRecord, ProjectRecord> PROJECT_USER_ACCESS_IBFK_2 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_PROJECT_PRIMARY, ProjectUserAccess.PROJECT_USER_ACCESS, "project_user_access_ibfk_2", ProjectUserAccess.PROJECT_USER_ACCESS.PID);
         public static final ForeignKey<PublicProjectRecord, ProjectRecord> PUBLIC_PROJECT_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_PROJECT_PRIMARY, PublicProject.PUBLIC_PROJECT, "public_project_ibfk_1", PublicProject.PUBLIC_PROJECT.PID);
         public static final ForeignKey<UserConfigRecord, UserRecord> USER_CONFIG_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_USER_PRIMARY, UserConfig.USER_CONFIG, "user_config_ibfk_1", UserConfig.USER_CONFIG.UID);
-        public static final ForeignKey<UserFileAccessRecord, UserRecord> USER_FILE_ACCESS_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_USER_PRIMARY, UserFileAccess.USER_FILE_ACCESS, "user_file_access_ibfk_1", UserFileAccess.USER_FILE_ACCESS.UID);
-        public static final ForeignKey<UserFileAccessRecord, FileRecord> USER_FILE_ACCESS_IBFK_2 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_FILE_PRIMARY, UserFileAccess.USER_FILE_ACCESS, "user_file_access_ibfk_2", UserFileAccess.USER_FILE_ACCESS.FID);
         public static final ForeignKey<WorkflowExecutionsRecord, WorkflowVersionRecord> WORKFLOW_EXECUTIONS_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_WORKFLOW_VERSION_PRIMARY, WorkflowExecutions.WORKFLOW_EXECUTIONS, "workflow_executions_ibfk_1", WorkflowExecutions.WORKFLOW_EXECUTIONS.VID);
         public static final ForeignKey<WorkflowExecutionsRecord, UserRecord> WORKFLOW_EXECUTIONS_IBFK_2 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_USER_PRIMARY, WorkflowExecutions.WORKFLOW_EXECUTIONS, "workflow_executions_ibfk_2", WorkflowExecutions.WORKFLOW_EXECUTIONS.UID);
-        public static final ForeignKey<WorkflowExecutionsRecord, EnvironmentRecord> WORKFLOW_EXECUTIONS_IBFK_3 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_ENVIRONMENT_PRIMARY, WorkflowExecutions.WORKFLOW_EXECUTIONS, "workflow_executions_ibfk_3", WorkflowExecutions.WORKFLOW_EXECUTIONS.ENVIRONMENT_EID);
         public static final ForeignKey<WorkflowOfProjectRecord, WorkflowRecord> WORKFLOW_OF_PROJECT_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_WORKFLOW_PRIMARY, WorkflowOfProject.WORKFLOW_OF_PROJECT, "workflow_of_project_ibfk_1", WorkflowOfProject.WORKFLOW_OF_PROJECT.WID);
         public static final ForeignKey<WorkflowOfProjectRecord, ProjectRecord> WORKFLOW_OF_PROJECT_IBFK_2 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_PROJECT_PRIMARY, WorkflowOfProject.WORKFLOW_OF_PROJECT, "workflow_of_project_ibfk_2", WorkflowOfProject.WORKFLOW_OF_PROJECT.PID);
         public static final ForeignKey<WorkflowOfUserRecord, UserRecord> WORKFLOW_OF_USER_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_USER_PRIMARY, WorkflowOfUser.WORKFLOW_OF_USER, "workflow_of_user_ibfk_1", WorkflowOfUser.WORKFLOW_OF_USER.UID);

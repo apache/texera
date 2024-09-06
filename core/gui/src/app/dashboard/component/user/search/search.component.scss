@@ -1,0 +1,34 @@
+$section-height: 76px;
+$section-margin: 24px;
+
+.general-search-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+
+  .general-search-section {
+    width: 100%;
+    height: $section-height;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    .go-back-button {
+      margin-left: $section-margin;
+    }
+
+    .filters {
+      margin-right: $section-margin;
+      flex-grow: 1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+  }
+
+  .general-search-result {
+    width: 100%;
+    flex-grow: 1;
+  }
+}

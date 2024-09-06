@@ -1,9 +1,9 @@
 from typing import Iterator, Optional, Union, Dict, List
 
-from core.models import Tuple, ArrowTableTupleProvider, Schema
-from core.models.marker import EndOfAllMarker, Marker, SenderChangeMarker
-from core.models.payload import InputDataFrame, DataPayload, EndOfUpstream
-from core.models.tuple import InputExhausted
+from core.models import Tuple, ArrowTableTupleProvider, Schema, InputExhausted
+from core.models.internal_marker import EndOfAll, InternalMarker, SenderChange
+from core.models.marker import EndOfUpstream
+from core.models.payload import DataFrame, DataPayload, MarkerFrame
 from proto.edu.uci.ics.amber.engine.common import (
     ActorVirtualIdentity,
     PortIdentity,
@@ -78,11 +78,11 @@ class InputManager:
 
     def process_data_payload(
         self, from_: ActorVirtualIdentity, payload: DataPayload
-    ) -> Iterator[Union[Tuple, InputExhausted, Marker]]:
+    ) -> Iterator[Union[Tuple, InputExhausted, InternalMarker]]:
         # special case used to yield for source op
         if from_ == InputManager.SOURCE_STARTER:
             yield InputExhausted()
-            yield EndOfAllMarker()
+            yield EndOfAll()
             return
         current_channel_id = None
         for channel_id, channel in self._channels.items():
@@ -94,15 +94,20 @@ class InputManager:
             or self._current_channel_id != current_channel_id
         ):
             self._current_channel_id = current_channel_id
-            yield SenderChangeMarker(current_channel_id)
+            yield SenderChange(current_channel_id)
 
-        if isinstance(payload, InputDataFrame):
+        if isinstance(payload, DataFrame):
             for field_accessor in ArrowTableTupleProvider(payload.frame):
                 yield Tuple(
-                    {name: field_accessor for name in payload.frame.column_names}
+                    {name: field_accessor for name in payload.frame.column_names},
+                    schema=self._ports[
+                        self._channels[self._current_channel_id].port_id
+                    ].get_schema(),
                 )
 
-        elif isinstance(payload, EndOfUpstream):
+        elif isinstance(payload, MarkerFrame) and isinstance(
+            payload.frame, EndOfUpstream
+        ):
             channel = self._channels[self._current_channel_id]
             channel.complete()
             port_id = channel.port_id
@@ -121,7 +126,7 @@ class InputManager:
             )
 
             if all_ports_completed:
-                yield EndOfAllMarker()
+                yield EndOfAll()
 
         else:
             raise NotImplementedError()

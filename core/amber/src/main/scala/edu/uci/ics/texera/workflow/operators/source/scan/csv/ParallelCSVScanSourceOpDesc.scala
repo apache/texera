@@ -39,10 +39,10 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
 
     // here, the stream requires to be seekable, so datasetFileDesc creates a temp file here
     // TODO: consider a better way
-    val (filepath, fileDesc) = determineFilePathOrDesc()
+    val (filepath, fileDesc) = determineFilePathOrDatasetFile()
     val file =
       if (filepath == null) {
-        fileDesc.tempFilePath().toFile
+        fileDesc.asFile()
       } else {
         new File(filepath)
       }
@@ -86,10 +86,10 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
     if (customDelimiter.isEmpty) {
       return null
     }
-    val (filepath, fileDesc) = determineFilePathOrDesc()
+    val (filepath, fileDesc) = determineFilePathOrDatasetFile()
     val file =
       if (filepath == null) {
-        fileDesc.tempFilePath().toFile
+        fileDesc.asFile()
       } else {
         new File(filepath)
       }

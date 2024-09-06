@@ -18,8 +18,8 @@ import { WorkflowResultExportService } from "../../service/workflow-result-expor
 import { debounceTime, filter, mergeMap, tap } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
-import { WorkflowVersionService } from "../../../dashboard/user/service/workflow-version/workflow-version.service";
-import { UserProjectService } from "src/app/dashboard/user/service/user-project/user-project.service";
+import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
+import { UserProjectService } from "../../../dashboard/service/user/project/user-project.service";
 import { NzUploadFile } from "ng-zorro-antd/upload";
 import { saveAs } from "file-saver";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
@@ -30,7 +30,7 @@ import { isDefined } from "../../../common/util/predicate";
 import { FileSelectionComponent } from "../file-selection/file-selection.component";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { ResultExportationComponent } from "../result-exportation/result-exportation.component";
-
+import { ReportGenerationService } from "../../service/report-generation/report-generation.service";
 /**
  * MenuComponent is the top level menu bar that shows
  *  the Texera title and workflow execution button
@@ -99,7 +99,8 @@ export class MenuComponent implements OnInit {
     private notificationService: NotificationService,
     public operatorMenu: OperatorMenuService,
     public coeditorPresenceService: CoeditorPresenceService,
-    private modalService: NzModalService
+    private modalService: NzModalService,
+    private reportGenerationService: ReportGenerationService
   ) {
     workflowWebsocketService
       .subscribeToEvent("ExecutionDurationUpdateEvent")
@@ -246,6 +247,45 @@ export class MenuComponent implements OnInit {
 
   public handleCheckpoint(): void {
     this.executeWorkflowService.takeGlobalCheckpoint();
+  }
+
+  /**
+   * get the html to export all results.
+   */
+  public onClickGenerateReport(): void {
+    // Get notification
+    this.notificationService.info("The report is being generated...");
+
+    const workflowName = this.currentWorkflowName;
+    const WorkflowContent: WorkflowContent = this.workflowActionService.getWorkflowContent();
+
+    // Extract operatorIDs from the parsed payload
+    const operatorIds = WorkflowContent.operators.map((operator: { operatorID: string }) => operator.operatorID);
+
+    // Invokes the method of the report printing service
+    this.reportGenerationService
+      .generateWorkflowSnapshot(workflowName)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: (workflowSnapshotURL: string) => {
+          this.reportGenerationService
+            .getAllOperatorResults(operatorIds)
+            .pipe(untilDestroyed(this))
+            .subscribe({
+              next: (allResults: { operatorId: string; html: string }[]) => {
+                const sortedResults = operatorIds.map(
+                  id => allResults.find(result => result.operatorId === id)?.html || ""
+                );
+                // Generate the final report as HTML after all results are retrieved
+                this.reportGenerationService.generateReportAsHtml(workflowSnapshotURL, sortedResults, workflowName);
+              },
+              error: (error: unknown) => {
+                this.notificationService.error("Error in retrieving operator results: " + (error as Error).message);
+              },
+            });
+        },
+        error: (e: unknown) => this.notificationService.error((e as Error).message),
+      });
   }
 
   /**
@@ -411,7 +451,7 @@ export class MenuComponent implements OnInit {
 
   public onClickExportWorkflow(): void {
     const workflowContent: WorkflowContent = this.workflowActionService.getWorkflowContent();
-    const workflowContentJson = JSON.stringify(workflowContent);
+    const workflowContentJson = JSON.stringify(workflowContent, null, 2);
     const fileName = this.currentWorkflowName + ".json";
     saveAs(new Blob([workflowContentJson], { type: "text/plain;charset=utf-8" }), fileName);
   }

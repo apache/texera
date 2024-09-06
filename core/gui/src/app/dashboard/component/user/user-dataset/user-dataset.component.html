@@ -1,0 +1,44 @@
+<div class="section-container subsection-grid-container">
+  <nz-card class="section-title">
+    <h2 class="page-title">Datasets</h2>
+    <div class="management-panel">
+      <nz-button-group
+        class="utility-button-group"
+        ngbDropdown>
+        <button
+          (click)="onClickOpenDatasetAddComponent()"
+          nz-button
+          nz-tooltip="Create Dataset"
+          title="Create Dataset"
+          nzTooltipPlacement="bottom">
+          <i
+            nz-icon
+            nzTheme="outline"
+            nzType="file-add"></i>
+        </button>
+      </nz-button-group>
+      <texera-filters #filters></texera-filters>
+    </div>
+  </nz-card>
+
+  <div class="section-search-bar">
+    <texera-filters-instructions></texera-filters-instructions>
+    <nz-select
+      #searchInput
+      class="search-input-box"
+      name="search-input-box"
+      nzMode="tags"
+      nzPlaceHolder="Search all dataset"
+      [nzBorderless]="true"
+      [nzOpen]="false"
+      ngDefaultControl
+      [(ngModel)]="filters.masterFilterList"
+      [nzAllowClear]="true">
+    </nz-select>
+  </div>
+
+  <texera-search-results
+    [editable]="true"
+    [isPrivateSearch]="true"
+    (deleted)="deleteDataset($event)"></texera-search-results>
+</div>

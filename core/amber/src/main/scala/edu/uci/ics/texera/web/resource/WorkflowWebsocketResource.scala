@@ -36,7 +36,15 @@ class WorkflowWebsocketResource extends LazyLogging {
 
   @OnOpen
   def myOnOpen(session: Session, config: EndpointConfig): Unit = {
-    SessionState.setState(session.getId, new SessionState(session))
+    val sessionState = new SessionState(session)
+    SessionState.setState(session.getId, sessionState)
+    val wid = session.getRequestParameterMap.get("wid").get(0).toLong
+    // hack to refresh frontend run button state
+    sessionState.send(WorkflowStateEvent("Uninitialized"))
+    val workflowState =
+      WorkflowService.getOrCreate(WorkflowIdentity(wid))
+    sessionState.subscribe(workflowState)
+    sessionState.send(ClusterStatusUpdateEvent(ClusterListener.numWorkerNodesInCluster))
     logger.info("connection open")
   }
 
@@ -51,19 +59,18 @@ class WorkflowWebsocketResource extends LazyLogging {
     val uidOpt = session.getUserProperties.asScala
       .get(classOf[User].getName)
       .map(_.asInstanceOf[User].getUid)
+    val userEmailOpt = session.getUserProperties.asScala
+      .get(classOf[User].getName)
+      .map(_.asInstanceOf[User].getEmail)
+    val user = session.getUserProperties.asScala
+      .get(classOf[User].getName)
+      .map(_.asInstanceOf[User])
+
     val sessionState = SessionState.getState(session.getId)
     val workflowStateOpt = sessionState.getCurrentWorkflowState
     val executionStateOpt = workflowStateOpt.flatMap(x => Option(x.executionService.getValue))
     try {
       request match {
-        case registerWorkflowIdRequest: RegisterWorkflowIdRequest =>
-          // hack to refresh frontend run button state
-          sessionState.send(WorkflowStateEvent("Uninitialized"))
-          val workflowState =
-            WorkflowService.getOrCreate(WorkflowIdentity(registerWorkflowIdRequest.workflowId))
-          sessionState.subscribe(workflowState)
-          sessionState.send(ClusterStatusUpdateEvent(ClusterListener.numWorkerNodesInCluster))
-          sessionState.send(RegisterWorkflowIdResponse("workflowId registered"))
         case heartbeat: HeartBeatRequest =>
           sessionState.send(HeartBeatResponse())
         case paginationRequest: ResultPaginationRequest =>
@@ -72,7 +79,7 @@ class WorkflowWebsocketResource extends LazyLogging {
           )
         case resultExportRequest: ResultExportRequest =>
           workflowStateOpt.foreach(state =>
-            sessionState.send(state.exportService.exportResult(uidOpt.get, resultExportRequest))
+            sessionState.send(state.exportService.exportResult(user.get, resultExportRequest))
           )
         case modifyLogicRequest: ModifyLogicRequest =>
           if (workflowStateOpt.isDefined) {
@@ -84,6 +91,7 @@ class WorkflowWebsocketResource extends LazyLogging {
             sessionState.send(modifyLogicResponse)
           }
         case editingTimeCompilationRequest: EditingTimeCompilationRequest =>
+          // TODO: remove this after separating the workflow compiler as a standalone service
           val stateStore = if (executionStateOpt.isDefined) {
             val currentState =
               executionStateOpt.get.executionStateStore.metadataStore.getState.state
@@ -96,7 +104,6 @@ class WorkflowWebsocketResource extends LazyLogging {
             new ExecutionStateStore()
           }
           val workflowContext = new WorkflowContext(
-            uidOpt,
             sessionState.getCurrentWorkflowState.get.workflowId
           )
           try {

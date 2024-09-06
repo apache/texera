@@ -1,7 +1,6 @@
 package edu.uci.ics.texera.workflow.common.operators
 
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type
-
 import com.fasterxml.jackson.annotation.{
   JsonIgnore,
   JsonProperty,
@@ -41,6 +40,12 @@ import edu.uci.ics.texera.workflow.operators.huggingFace.{
   HuggingFaceSpamSMSDetectionOpDesc,
   HuggingFaceTextSummarizationOpDesc
 }
+import edu.uci.ics.texera.workflow.operators.machineLearning.sklearnAdvanced.KNNTrainer.{
+  SklearnAdvancedKNNClassifierTrainerOpDesc,
+  SklearnAdvancedKNNRegressorTrainerOpDesc
+}
+import edu.uci.ics.texera.workflow.operators.machineLearning.sklearnAdvanced.SVCTrainer.SklearnAdvancedSVCTrainerOpDesc
+import edu.uci.ics.texera.workflow.operators.machineLearning.sklearnAdvanced.SVRTrainer.SVCTrainer.SklearnAdvancedSVRTrainerOpDesc
 import edu.uci.ics.texera.workflow.operators.projection.ProjectionOpDesc
 import edu.uci.ics.texera.workflow.operators.randomksampling.RandomKSamplingOpDesc
 import edu.uci.ics.texera.workflow.operators.regex.RegexOpDesc
@@ -106,6 +111,7 @@ import edu.uci.ics.texera.workflow.operators.udf.python.{
 import edu.uci.ics.texera.workflow.operators.udf.r.{RUDFOpDesc, RUDFSourceOpDesc}
 import edu.uci.ics.texera.workflow.operators.union.UnionOpDesc
 import edu.uci.ics.texera.workflow.operators.unneststring.UnnestStringOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.candlestickChart.CandlestickChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.boxPlot.BoxPlotOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.barChart.BarChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.htmlviz.HtmlVizOpDesc
@@ -127,9 +133,18 @@ import edu.uci.ics.texera.workflow.operators.visualization.scatter3DChart.Scatte
 import edu.uci.ics.texera.workflow.operators.visualization.ScatterMatrixChart.ScatterMatrixChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.funnelPlot.FunnelPlotOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.tablesChart.TablesPlotOpDesc
+
+import edu.uci.ics.texera.workflow.operators.visualization.icicleChart.IcicleChartOpDesc
+
+import edu.uci.ics.texera.workflow.operators.visualization.continuousErrorBands.ContinuousErrorBandsOpDesc
+
+import edu.uci.ics.texera.workflow.operators.visualization.ternaryPlot.TernaryPlotOpDesc
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
 import org.apache.zookeeper.KeeperException.UnimplementedException
-
+import edu.uci.ics.texera.workflow.operators.machineLearning.Scorer.MachineLearningScorerOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.quiverPlot.QuiverPlotOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.contourPlot.ContourPlotOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.figureFactoryTable.FigureFactoryTableOpDesc
 import java.util.UUID
 import scala.collection.mutable
 import scala.util.Try
@@ -145,6 +160,7 @@ trait StateTransferFunc
 )
 @JsonSubTypes(
   Array(
+    new Type(value = classOf[IcicleChartOpDesc], name = "IcicleChart"),
     new Type(value = classOf[CSVScanSourceOpDesc], name = "CSVFileScan"),
     // disabled the ParallelCSVScanSourceOpDesc so that it does not confuse user. it can be re-enabled when doing experiments.
     // new Type(value = classOf[ParallelCSVScanSourceOpDesc], name = "ParallelCSVFileScan"),
@@ -160,7 +176,9 @@ trait StateTransferFunc
       name = "TwitterSearch"
     ),
     new Type(value = classOf[ProgressiveSinkOpDesc], name = "SimpleSink"),
+    new Type(value = classOf[CandlestickChartOpDesc], name = "CandlestickChart"),
     new Type(value = classOf[SplitOpDesc], name = "Split"),
+    new Type(value = classOf[ContourPlotOpDesc], name = "ContourPlot"),
     new Type(value = classOf[RegexOpDesc], name = "Regex"),
     new Type(value = classOf[SpecializedFilterOpDesc], name = "Filter"),
     new Type(value = classOf[SentimentAnalysisOpDesc], name = "SentimentAnalysis"),
@@ -171,6 +189,7 @@ trait StateTransferFunc
     new Type(value = classOf[LineChartOpDesc], name = "LineChart"),
     new Type(value = classOf[BarChartOpDesc], name = "BarChart"),
     new Type(value = classOf[PieChartOpDesc], name = "PieChart"),
+    new Type(value = classOf[QuiverPlotOpDesc], name = "QuiverPlot"),
     new Type(value = classOf[WordCloudOpDesc], name = "WordCloud"),
     new Type(value = classOf[HtmlVizOpDesc], name = "HTMLVisualizer"),
     new Type(value = classOf[UrlVizOpDesc], name = "URLVisualizer"),
@@ -216,9 +235,13 @@ trait StateTransferFunc
     new Type(value = classOf[Scatter3dChartOpDesc], name = "Scatter3DChart"),
     new Type(value = classOf[FunnelPlotOpDesc], name = "FunnelPlot"),
     new Type(value = classOf[TablesPlotOpDesc], name = "TablesPlot"),
+    new Type(value = classOf[ContinuousErrorBandsOpDesc], name = "ContinuousErrorBands"),
+    new Type(value = classOf[FigureFactoryTableOpDesc], name = "FigureFactoryTable"),
+    new Type(value = classOf[TernaryPlotOpDesc], name = "TernaryPlot"),
     new Type(value = classOf[JavaUDFOpDesc], name = "JavaUDF"),
     new Type(value = classOf[RUDFOpDesc], name = "RUDF"),
     new Type(value = classOf[RUDFSourceOpDesc], name = "RUDFSource"),
+    new Type(value = classOf[MachineLearningScorerOpDesc], name = "Scorer"),
     new Type(value = classOf[SortOpDesc], name = "Sort"),
     new Type(value = classOf[SklearnLogisticRegressionOpDesc], name = "SklearnLogisticRegression"),
     new Type(
@@ -280,6 +303,22 @@ trait StateTransferFunc
     new Type(
       value = classOf[HuggingFaceIrisLogisticRegressionOpDesc],
       name = "HuggingFaceIrisLogisticRegression"
+    ),
+    new Type(
+      value = classOf[SklearnAdvancedKNNClassifierTrainerOpDesc],
+      name = "KNNClassifierTrainer"
+    ),
+    new Type(
+      value = classOf[SklearnAdvancedKNNRegressorTrainerOpDesc],
+      name = "KNNRegressorTrainer"
+    ),
+    new Type(
+      value = classOf[SklearnAdvancedSVCTrainerOpDesc],
+      name = "SVCTrainer"
+    ),
+    new Type(
+      value = classOf[SklearnAdvancedSVRTrainerOpDesc],
+      name = "SVRTrainer"
     )
   )
 )

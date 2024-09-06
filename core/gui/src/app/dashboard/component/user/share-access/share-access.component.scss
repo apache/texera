@@ -1,0 +1,18 @@
+.input-group {
+  display: flex;
+  align-items: center;
+}
+
+.input-group input[nz-input] {
+  flex: 1;
+  margin-right: 8px;
+}
+
+.add-button {
+  margin-left: 8px;
+  white-space: nowrap;
+  padding: 8 18px;
+  height: 25px;
+  font-size: 14px;
+  line-height: 1;
+}

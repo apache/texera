@@ -19,6 +19,7 @@ class SklearnPredictionOpDesc extends PythonOperatorDescriptor {
 
   override def generatePythonCode(): String =
     s"""from pytexera import *
+       |from sklearn.pipeline import Pipeline
        |class ProcessTupleOperator(UDFOperatorV2):
        |    @overrides
        |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
