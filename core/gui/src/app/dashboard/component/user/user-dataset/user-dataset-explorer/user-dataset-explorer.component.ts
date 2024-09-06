@@ -227,7 +227,7 @@ export class UserDatasetExplorerComponent implements OnInit {
             // Create a temporary link element
             const a = document.createElement("a");
             a.href = url;
-            a.download = `dataset-version-${this.selectedVersion?.dvid}.zip`; // Filename for ZIP file
+            a.download = `${this.datasetName}-${this.selectedVersion?.name}.zip`; // Filename for ZIP file
 
             // Append the link to the body
             document.body.appendChild(a);
@@ -238,10 +238,10 @@ export class UserDatasetExplorerComponent implements OnInit {
             // Release the blob URL
             URL.revokeObjectURL(url);
 
-            this.notificationService.info(`Version ${this.selectedVersion?.dvid} is downloading as ZIP`);
+            this.notificationService.info(`Version ${this.selectedVersion?.name} is downloading as ZIP`);
           },
           error: (error: unknown) => {
-            this.notificationService.error(`Error downloading version '${this.selectedVersion?.dvid}' as ZIP`);
+            this.notificationService.error(`Error downloading version '${this.selectedVersion?.name}' as ZIP`);
           },
         });
     }
