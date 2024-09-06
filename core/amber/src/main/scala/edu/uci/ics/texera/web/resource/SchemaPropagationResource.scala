@@ -14,11 +14,16 @@ import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 
+/**
+  * The SchemaPropagation functionality will be included by the standalone compiling service
+  */
+@Deprecated
 @Consumes(Array(MediaType.APPLICATION_JSON))
 @Produces(Array(MediaType.APPLICATION_JSON))
 @Path("/queryplan")
 class SchemaPropagationResource extends LazyLogging {
 
+  @Deprecated
   @POST
   @Path("/autocomplete/{wid}")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
