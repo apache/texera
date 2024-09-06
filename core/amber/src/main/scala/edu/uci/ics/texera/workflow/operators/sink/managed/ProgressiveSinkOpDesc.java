@@ -58,7 +58,9 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
 
     @Override
     public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId) {
-        final SinkStorageWriter writer = storage.getStorageWriter();
+        // Since during workflow compilation phase, the storage can be null, the writer should also be null
+        // the writer will be set properly when workflow execution service receives the physical plan
+        final SinkStorageWriter writer = (storage != null) ? storage.getStorageWriter() : null;
         return PhysicalOp.localPhysicalOp(
                 workflowId,
                 executionId,
