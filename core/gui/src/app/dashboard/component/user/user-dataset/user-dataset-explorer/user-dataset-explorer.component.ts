@@ -54,7 +54,6 @@ export class UserDatasetExplorerComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    console.log("111111222")
     this.route.params
       .pipe(
         switchMap(params => {
