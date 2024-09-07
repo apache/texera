@@ -7,6 +7,7 @@ import { CodeareaCustomTemplateComponent } from "../../workspace/component/codea
 import { PresetWrapperComponent } from "./preset-wrapper/preset-wrapper.component";
 import { InputAutoCompleteComponent } from "../../workspace/component/input-autocomplete/input-autocomplete.component";
 import { CollabWrapperComponent } from "./collab-wrapper/collab-wrapper/collab-wrapper.component";
+import { ClusterAutoCompleteComponent } from "src/app/workspace/component/cluster-autocomplete/cluster-autocomplete.component";
 
 /**
  * Configuration for using Json Schema with Formly.
@@ -57,6 +58,7 @@ export const TEXERA_FORMLY_CONFIG = {
     { name: "multischema", component: MultiSchemaTypeComponent },
     { name: "codearea", component: CodeareaCustomTemplateComponent },
     { name: "inputautocomplete", component: InputAutoCompleteComponent, wrappers: ["form-field"] },
+    { name: "clusterautocomplete", component: ClusterAutoCompleteComponent, wrappers: ["form-field"] },
   ],
   wrappers: [
     { name: "preset-wrapper", component: PresetWrapperComponent },

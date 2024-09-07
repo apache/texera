@@ -435,6 +435,11 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         mappedField.type = "inputautocomplete";
       }
 
+      // if the title is clusterId, then change it to cluster-autocomplete
+      if (mappedField.key == "clusterId") {
+        mappedField.type = "clusterautocomplete";
+      }
+
       // if the title is python script (for Python UDF), then make this field a custom template 'codearea'
       if (mapSource?.description?.toLowerCase() === "input your code here") {
         if (mappedField.type) {

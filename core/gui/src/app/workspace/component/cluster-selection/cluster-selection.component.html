@@ -1,0 +1,75 @@
+<div class="container">
+  <div class="selection-panel">
+    <h3>Select a cluster</h3>
+    <nz-select
+      nzShowSearch
+      nzAllowClear
+      nzPlaceHolder="Select cluster"
+      [(ngModel)]="selectedCluster"
+      (ngModelChange)="onClusterChange()"
+      class="select-cluster"
+      [nzNotFoundContent]="notFoundContent">
+      <nz-option
+        *ngFor="let cluster of clusters"
+        [nzValue]="cluster"
+        [nzLabel]="cluster.name"
+        [nzCustomContent]="true">
+        <div class="cluster-option">
+          <span class="cluster-id">#{{ cluster.cid }}</span>
+          <span class="cluster-name">{{ cluster.name }}</span>
+        </div>
+      </nz-option>
+    </nz-select>
+    <ng-template #notFoundContent>
+      <nz-empty nzDescription="No cluster found"></nz-empty>
+    </ng-template>
+  </div>
+  <div class="info-panel">
+    <h3>Cluster Information</h3>
+    <ng-container *ngIf="selectedCluster; else noClusterSelected">
+      <div class="info-row">
+        <span class="info-label">Name:</span>
+        <span class="info-value">{{ selectedCluster.name }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Machine Type:</span>
+        <span class="info-value">{{ selectedCluster.machineType }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Machines:</span>
+        <span class="info-value">{{ selectedCluster.numberOfMachines }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Status:</span>
+        <span class="info-value">{{ selectedCluster.status }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Created At:</span>
+        <span
+          class="info-value"
+          nz-tooltip
+          [nzTooltipTitle]="createdAtTooltip">
+          {{ selectedCluster.creationTime | date:'medium' }}
+        </span>
+      </div>
+    </ng-container>
+    <ng-template #noClusterSelected>
+      <nz-empty nzDescription="No cluster selected"></nz-empty>
+    </ng-template>
+  </div>
+</div>
+<div class="button-row">
+  <button
+    nz-button
+    nzType="primary"
+    (click)="onConfirm()"
+    [disabled]="!isClusterSelected">
+    Select
+  </button>
+  <button
+    nz-button
+    nzType="default"
+    (click)="onCancel()">
+    Cancel
+  </button>
+</div>

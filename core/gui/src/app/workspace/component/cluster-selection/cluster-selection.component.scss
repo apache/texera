@@ -1,0 +1,80 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: max-content;
+  gap: 1rem;
+  max-height: 70vh;
+  width: 100%;
+}
+
+.selection-panel,
+.info-panel {
+  width: 100%;
+}
+
+h3 {
+  margin-bottom: 10px;
+  white-space: nowrap;
+}
+
+.button-row {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.cluster-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.cluster-id {
+  flex: 0 0 2.5rem;
+  text-align: right;
+}
+
+.cluster-name {
+  flex: 1;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.select-cluster {
+  width: 100%;
+}
+
+.info-row {
+  gap: 0.5rem;
+  margin-bottom: 8px;
+}
+
+.info-label {
+  flex: 0 0 110px;
+  font-weight: bold;
+}
+
+.info-value {
+  flex: 1;
+  white-space: nowrap;
+}
+
+nz-empty {
+  margin: 16px 0;
+}
+
+@media (min-width: 768px) {
+  .container {
+    flex-direction: row;
+  }
+
+  .selection-panel,
+  .info-panel {
+    min-width: fit-content;
+  }
+}

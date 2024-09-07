@@ -1,0 +1,15 @@
+<nz-input-group [nzSuffix]="suffixIcon">
+  <input
+    nz-input
+    [formControl]="formControl"
+    [formlyAttributes]="field"
+    (click)="isClusterSelectionEnabled && onClickOpenClusterSelectionModal()"
+    [readOnly]="isClusterSelectionEnabled"
+    placeholder="Select a cluster" />
+</nz-input-group>
+<ng-template #suffixIcon>
+  <span
+    nz-icon
+    nzType="cluster"
+    nzTheme="outline"></span>
+</ng-template>
