@@ -26,7 +26,7 @@ export class ClusterAutoCompleteComponent extends FieldType<FieldTypeConfig> {
       .getClusters()
       .pipe(untilDestroyed(this))
       .subscribe(clusters => {
-        const nonFailedClusters = clusters.filter(cluster => cluster.status !== ClusterStatus.FAILED);
+        const nonFailedClusters = clusters.filter(cluster => cluster.status === ClusterStatus.LAUNCHED);
         const modal = this.modalService.create({
           nzTitle: "Select Cluster",
           nzContent: ClusterSelectionComponent,
