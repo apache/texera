@@ -1,15 +1,4 @@
-<div
-  id="result-container"
-  cdkDrag
-  cdkDragBoundary="texera-workspace"
-  nz-resizable
-  [nzMinWidth]="300"
-  [nzMinHeight]="250"
-  [nzMaxWidth]="window.innerWidth"
-  [nzMaxHeight]="window.innerHeight"
-  [style.width.px]="width"
-  [style.height.px]="height"
-  (nzResize)="onResize($event)">
+<div id="texera-workspace">
   <ul
     nz-menu
     id="result-buttons"
@@ -23,15 +12,6 @@
         nzType="minus"></span>
     </li>
     <li
-      nz-menu-item
-      nzSelected="{{!width}}"
-      cdkDragHandle
-      *ngIf="!width">
-      <span
-        nz-icon
-        nzType="drag"></span>
-    </li>
-    <li
       nz-menu-divider
       id="divider"></li>
     <li
@@ -42,6 +22,43 @@
       <span
         nz-icon
         nzType="border"></span>
+    </li>
+  </ul>
+</div>
+
+<div
+  id="result-container"
+  cdkDrag
+  cdkDragBoundary="texera-workspace"
+  nz-resizable
+  [nzMinWidth]="300"
+  [nzMinHeight]="250"
+  [nzMaxWidth]="window.innerWidth"
+  [nzMaxHeight]="window.innerHeight"
+  [style.width.px]="width"
+  [style.height.px]="height"
+  (nzResize)="onResize($event)"
+  [cdkDragFreeDragPosition]="dragPosition">
+  <ul
+    nz-menu
+    id="panel-button"
+    [ngClass]="{'shadow':  !width}">
+    <button
+      nz-button
+      nzType="text"
+      (click)="resetPanelPosition()"
+      *ngIf="width">
+      <span
+        nz-icon
+        nzType="enter"></span>
+    </button>
+    <li
+      nz-menu-item
+      (click)="closePanel()"
+      *ngIf="width">
+      <span
+        nz-icon
+        nzType="minus"></span>
     </li>
   </ul>
   <div

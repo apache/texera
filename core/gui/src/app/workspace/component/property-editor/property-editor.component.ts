@@ -6,6 +6,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { filter } from "rxjs/operators";
 import { PortPropertyEditFrameComponent } from "./port-property-edit-frame/port-property-edit-frame.component";
 import { NzResizeEvent } from "ng-zorro-antd/resizable";
+import { calculateTotalTranslate3d } from "../../../common/util/panel-dock";
 /**
  * PropertyEditorComponent is the panel that allows user to edit operator properties.
  * Depending on the highlighted operator or link, it displays OperatorPropertyEditFrameComponent
@@ -25,6 +26,8 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
   height = Math.max(300, window.innerHeight * 0.6);
   currentComponent: Type<any> | null = null;
   componentInputs = {};
+  dragPosition = { x: 0, y: 0 };
+  returnPosition = { x: 0, y: 0 };
   constructor(
     public workflowActionService: WorkflowActionService,
     private changeDetectorRef: ChangeDetectorRef
@@ -37,6 +40,9 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     const style = localStorage.getItem("right-panel-style");
     if (style) document.getElementById("right-container")!.style.cssText = style;
+    const translates = document.getElementById("right-container")!.style.transform;
+    const [xOffset, yOffset, _] = calculateTotalTranslate3d(translates);
+    this.returnPosition = { x: -xOffset, y: -yOffset };
     this.registerHighlightEventsHandler();
   }
 
@@ -105,5 +111,14 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
       this.width = width!;
       this.height = height!;
     });
+  }
+
+  closePanel() {
+    this.width = 0;
+    this.height = 65;
+  }
+
+  resetPanelPosition() {
+    this.dragPosition = { x: this.returnPosition.x, y: this.returnPosition.y };
   }
 }
