@@ -112,7 +112,7 @@ export class UserProjectSectionComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe(project => {
         this.name = project.name;
-        this.ownerID = project.ownerID;
+        this.ownerID = project.ownerId;
         this.creationTime = project.creationTime;
         if (project.color != null) {
           this.color = project.color;
@@ -138,7 +138,7 @@ export class UserProjectSectionComponent implements OnInit {
             if (userProject.pid === this.pid) {
               this.name = userProject.name;
               this.description = userProject.description;
-              this.ownerID = userProject.ownerID;
+              this.ownerID = userProject.ownerId;
               this.creationTime = userProject.creationTime;
               this.accessLevel = userProject.accessLevel;
               if (userProject.color != null) {
