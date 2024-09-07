@@ -159,6 +159,7 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
         description: this.form.get("description")?.value,
         isPublic: this.isDatasetPublic ? 1 : 0,
         did: undefined,
+        ownerUid: undefined,
         storagePath: undefined,
         creationTime: undefined,
         versionHierarchy: undefined,

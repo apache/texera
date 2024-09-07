@@ -131,7 +131,8 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
           .split(',')
           .map(number => UInteger.valueOf(number))
           .toList
-      }
+      },
+      record.into(USER).getUid
     )
     DashboardClickableFileEntry(SearchQueryBuilder.WORKFLOW_RESOURCE_TYPE, workflow = Some(dw))
   }

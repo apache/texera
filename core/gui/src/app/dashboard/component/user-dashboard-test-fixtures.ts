@@ -112,6 +112,7 @@ export const testWorkflowFileNameConflictEntries: DashboardEntry[] = [
     ownerName: "Texera",
     accessLevel: "Write",
     projectIDs: [1],
+    ownerId: 1,
   }),
   new DashboardEntry({
     workflow: testDownloadWorkflow2,
@@ -119,6 +120,7 @@ export const testWorkflowFileNameConflictEntries: DashboardEntry[] = [
     ownerName: "Texera",
     accessLevel: "Write",
     projectIDs: [1, 2],
+    ownerId: 1,
   }),
   new DashboardEntry({
     workflow: testDownloadWorkflow3,
@@ -126,6 +128,7 @@ export const testWorkflowFileNameConflictEntries: DashboardEntry[] = [
     ownerName: "Angular",
     accessLevel: "Write",
     projectIDs: [1],
+    ownerId: 2,
   }),
 ];
 
@@ -136,6 +139,7 @@ export const testWorkflowEntries: DashboardEntry[] = [
     ownerName: "Texera",
     accessLevel: "Write",
     projectIDs: [1],
+    ownerId: 1,
   }),
   new DashboardEntry({
     workflow: testWorkflow2,
@@ -143,6 +147,7 @@ export const testWorkflowEntries: DashboardEntry[] = [
     ownerName: "Texera",
     accessLevel: "Write",
     projectIDs: [1, 2],
+    ownerId: 1,
   }),
   new DashboardEntry({
     workflow: testWorkflow3,
@@ -150,6 +155,7 @@ export const testWorkflowEntries: DashboardEntry[] = [
     ownerName: "Angular",
     accessLevel: "Write",
     projectIDs: [1],
+    ownerId: 2,
   }),
   new DashboardEntry({
     workflow: testWorkflow4,
@@ -157,6 +163,7 @@ export const testWorkflowEntries: DashboardEntry[] = [
     ownerName: "Angular",
     accessLevel: "Write",
     projectIDs: [3],
+    ownerId: 2,
   }),
   new DashboardEntry({
     workflow: testWorkflow5,
@@ -164,11 +171,18 @@ export const testWorkflowEntries: DashboardEntry[] = [
     ownerName: "UCI",
     accessLevel: "Write",
     projectIDs: [3],
+    ownerId: 3,
   }),
 ];
 
 export const testUserProjects: DashboardProject[] = [
-  { pid: 1, name: "Project1", description: "p1", ownerID: 1, color: "#ffffff", creationTime: 0, accessLevel: "WRITE" },
-  { pid: 2, name: "Project2", description: "p1", ownerID: 1, color: "#ffffff", creationTime: 0, accessLevel: "WRITE" },
-  { pid: 3, name: "Project3", description: "p1", ownerID: 1, color: "#ffffff", creationTime: 0, accessLevel: "WRITE" },
+  { pid: 1, name: "Project1", description: "p1", ownerId: 1, color: "#ffffff", creationTime: 0, accessLevel: "WRITE" },
+  { pid: 2, name: "Project2", description: "p1", ownerId: 1, color: "#ffffff", creationTime: 0, accessLevel: "WRITE" },
+  { pid: 3, name: "Project3", description: "p1", ownerId: 1, color: "#ffffff", creationTime: 0, accessLevel: "WRITE" },
 ];
+
+export const mockUserInfo = {
+  1: { userName: "Texera", googleAvatar: "avatar_url_1" },
+  2: { userName: "Angular", googleAvatar: "avatar_url_2" },
+  3: { userName: "UCI", googleAvatar: "avatar_url_3" },
+};

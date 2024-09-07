@@ -12,6 +12,7 @@ export interface DatasetVersion {
 
 export interface Dataset {
   did: number | undefined;
+  ownerUid: number | undefined;
   name: string;
   isPublic: number;
   storagePath: string | undefined;

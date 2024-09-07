@@ -5,7 +5,7 @@ import { Router } from "@angular/router";
 import { SearchService } from "../../../service/user/search.service";
 import { DatasetService } from "../../../service/user/dataset/dataset.service";
 import { SortMethod } from "../../../type/sort-method";
-import { DashboardEntry } from "../../../type/dashboard-entry";
+import { DashboardEntry, UserInfo } from "../../../type/dashboard-entry";
 import { SearchResultsComponent } from "../search-results/search-results.component";
 import { FiltersComponent } from "../filters/filters.component";
 import { firstValueFrom } from "rxjs";
@@ -86,10 +86,33 @@ export class UserDatasetComponent implements AfterViewInit {
           this.sortMethod
         )
       );
+
+      const userIds = new Set<number>();
+      results.results.forEach(i => {
+        const ownerUid = i.dataset?.dataset?.ownerUid;
+        if (ownerUid !== undefined) {
+          userIds.add(ownerUid);
+        }
+      });
+
+      let userIdToInfoMap: { [key: number]: UserInfo } = {};
+      if (userIds.size > 0) {
+        userIdToInfoMap = await firstValueFrom(this.searchService.getUserInfo(Array.from(userIds)));
+      }
+
       return {
         entries: results.results.map(i => {
           if (i.dataset) {
-            return new DashboardEntry(i.dataset);
+            const entry = new DashboardEntry(i.dataset);
+
+            const ownerUid = i.dataset.dataset?.ownerUid;
+            if (ownerUid !== undefined) {
+              const userInfo = userIdToInfoMap[ownerUid] || { userName: "", googleAvatar: "" };
+              entry.setOwnerName(userInfo.userName);
+              entry.setOwnerGoogleAvatar(userInfo.googleAvatar ?? "");
+            }
+
+            return entry;
           } else {
             throw new Error("Unexpected type in SearchResult.");
           }

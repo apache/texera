@@ -8,7 +8,7 @@ export interface SearchResultItem {
   workflow?: DashboardWorkflow;
   project?: DashboardProject;
   file?: DashboardFile;
-  dataset?: DashboardFile;
+  dataset?: DashboardDataset;
 }
 
 export interface SearchResult {
