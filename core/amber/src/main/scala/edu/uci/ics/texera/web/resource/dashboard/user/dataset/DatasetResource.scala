@@ -1043,8 +1043,6 @@ class DatasetResource {
 
       val targetDatasetPath = PathUtils.getDatasetPath(did)
       val datasetVersion = getDatasetVersionByID(ctx, dvid)
-      val versionName = datasetVersion.getName
-      val datasetName = dataset.getName
       val versionHash = datasetVersion.getVersionHash
 
       val fileNodes = GitVersionControlLocalFileStorage.retrieveRootFileNodesOfVersion(
@@ -1052,26 +1050,32 @@ class DatasetResource {
         versionHash
       )
 
-      val tempZipFile = Files.createTempFile(s"$datasetName-$versionName", ".zip")
-      tempZipFile.toFile.deleteOnExit()
+      val streamingOutput = new StreamingOutput() {
+        override def write(outputStream: OutputStream): Unit = {
+          val zipOutputStream = new ZipOutputStream(outputStream)
 
-      val zipOutputStream = new ZipOutputStream(Files.newOutputStream(tempZipFile))
+          try {
+            fileNodes.foreach { fileNode =>
+              val zipEntryName = fileNode.getRelativePath.toString
+              zipOutputStream.putNextEntry(new ZipEntry(zipEntryName))
 
-      fileNodes.foreach { fileNode =>
-        val zipEntryName = fileNode.getRelativePath.toString
-        zipOutputStream.putNextEntry(new ZipEntry(zipEntryName))
+              val filePath = fileNode.getAbsolutePath
+              Files.copy(filePath, zipOutputStream)
 
-        val filePath = fileNode.getAbsolutePath
-        Files.copy(filePath, zipOutputStream)
-
-        zipOutputStream.closeEntry()
+              zipOutputStream.closeEntry()
+            }
+          } finally {
+            zipOutputStream.close()
+          }
+        }
       }
 
-      zipOutputStream.close()
-
       Response
-        .ok(Files.newInputStream(tempZipFile))
-        .header("Content-Disposition", s"attachment; filename=$datasetName-$versionName.zip")
+        .ok(streamingOutput)
+        .header(
+          "Content-Disposition",
+          s"attachment; filename=${dataset.getName}-${datasetVersion.getName}.zip"
+        )
         .`type`("application/zip")
         .build()
     }
