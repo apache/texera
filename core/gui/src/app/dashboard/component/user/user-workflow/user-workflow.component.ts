@@ -297,7 +297,6 @@ export class UserWorkflowComponent implements AfterViewInit {
         });
 
         this.searchResultsComponent.entries = [...newEntries, ...this.searchResultsComponent.entries];
-
       } catch (err: unknown) {
         console.log("Error duplicating workflow:", err);
         // @ts-ignore // TODO: fix this with notification component

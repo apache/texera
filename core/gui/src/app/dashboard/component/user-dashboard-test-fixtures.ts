@@ -112,7 +112,7 @@ export const testWorkflowFileNameConflictEntries: DashboardEntry[] = [
     ownerName: "Texera",
     accessLevel: "Write",
     projectIDs: [1],
-    ownerId: 1
+    ownerId: 1,
   }),
   new DashboardEntry({
     workflow: testDownloadWorkflow2,
@@ -120,7 +120,7 @@ export const testWorkflowFileNameConflictEntries: DashboardEntry[] = [
     ownerName: "Texera",
     accessLevel: "Write",
     projectIDs: [1, 2],
-    ownerId: 1
+    ownerId: 1,
   }),
   new DashboardEntry({
     workflow: testDownloadWorkflow3,
@@ -128,7 +128,7 @@ export const testWorkflowFileNameConflictEntries: DashboardEntry[] = [
     ownerName: "Angular",
     accessLevel: "Write",
     projectIDs: [1],
-    ownerId: 2
+    ownerId: 2,
   }),
 ];
 
@@ -139,7 +139,7 @@ export const testWorkflowEntries: DashboardEntry[] = [
     ownerName: "Texera",
     accessLevel: "Write",
     projectIDs: [1],
-    ownerId: 1
+    ownerId: 1,
   }),
   new DashboardEntry({
     workflow: testWorkflow2,
@@ -147,7 +147,7 @@ export const testWorkflowEntries: DashboardEntry[] = [
     ownerName: "Texera",
     accessLevel: "Write",
     projectIDs: [1, 2],
-    ownerId: 1
+    ownerId: 1,
   }),
   new DashboardEntry({
     workflow: testWorkflow3,
@@ -155,7 +155,7 @@ export const testWorkflowEntries: DashboardEntry[] = [
     ownerName: "Angular",
     accessLevel: "Write",
     projectIDs: [1],
-    ownerId: 2
+    ownerId: 2,
   }),
   new DashboardEntry({
     workflow: testWorkflow4,
@@ -163,7 +163,7 @@ export const testWorkflowEntries: DashboardEntry[] = [
     ownerName: "Angular",
     accessLevel: "Write",
     projectIDs: [3],
-    ownerId: 2
+    ownerId: 2,
   }),
   new DashboardEntry({
     workflow: testWorkflow5,
@@ -171,7 +171,7 @@ export const testWorkflowEntries: DashboardEntry[] = [
     ownerName: "UCI",
     accessLevel: "Write",
     projectIDs: [3],
-    ownerId: 3
+    ownerId: 3,
   }),
 ];
 

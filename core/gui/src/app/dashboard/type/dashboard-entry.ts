@@ -76,8 +76,8 @@ export class DashboardEntry {
     this.ownerName = ownerName;
   }
 
-  setOwnerGoogleAvatar(ownerGoogleAvatar: string): void{
-    this.ownerGoogleAvatar = ownerGoogleAvatar
+  setOwnerGoogleAvatar(ownerGoogleAvatar: string): void {
+    this.ownerGoogleAvatar = ownerGoogleAvatar;
   }
 
   get project(): DashboardProject {

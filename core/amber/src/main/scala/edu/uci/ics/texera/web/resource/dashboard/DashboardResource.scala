@@ -164,7 +164,9 @@ class DashboardResource {
 
   @GET
   @Path("/resultsOwnersInfo")
-  def resultsOwnersInfo(@QueryParam("userIds") userIds: util.List[UInteger]): util.Map[UInteger, UserInfo] = {
+  def resultsOwnersInfo(
+      @QueryParam("userIds") userIds: util.List[UInteger]
+  ): util.Map[UInteger, UserInfo] = {
     val scalaUserIds: Set[UInteger] = userIds.asScala.toSet
 
     val records = context
@@ -173,12 +175,15 @@ class DashboardResource {
       .where(USER.UID.in(scalaUserIds.asJava))
       .fetch()
 
-    val userIdToInfoMap = records.asScala.map { record =>
-      val userId = record.get(USER.UID)
-      val userName = record.get(USER.NAME)
-      val googleAvatar = Option(record.get(USER.GOOGLE_AVATAR))
-      userId -> UserInfo(userId, userName, googleAvatar)
-    }.toMap.asJava
+    val userIdToInfoMap = records.asScala
+      .map { record =>
+        val userId = record.get(USER.UID)
+        val userName = record.get(USER.NAME)
+        val googleAvatar = Option(record.get(USER.GOOGLE_AVATAR))
+        userId -> UserInfo(userId, userName, googleAvatar)
+      }
+      .toMap
+      .asJava
 
     userIdToInfoMap
   }
