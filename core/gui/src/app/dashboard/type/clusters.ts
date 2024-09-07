@@ -4,6 +4,17 @@ export interface Clusters {
   owner_id: number;
   machineType: string;
   numberOfMachines: number;
-  status: string;
+  status: ClusterStatus;
   creationTime: string;
+}
+
+export enum ClusterStatus {
+  LAUNCHED = "launched",
+  FAILED = "failed",
+  LAUNCHING = "launching",
+  PAUSING = "pausing",
+  PAUSED = "paused",
+  RESUMING = "resuming",
+  TERMINATING = "terminating",
+  TERMINATED = "terminated",
 }
