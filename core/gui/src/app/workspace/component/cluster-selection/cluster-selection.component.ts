@@ -13,6 +13,7 @@ export class ClusterSelectionComponent implements OnInit {
   readonly clusters: ReadonlyArray<Clusters> = inject(NZ_MODAL_DATA).clusters;
   selectedCluster?: Clusters;
   isClusterSelected: boolean = false;
+  createdAtTooltip: string = "";
 
   constructor(private modalRef: NzModalRef) {}
 
@@ -21,11 +22,28 @@ export class ClusterSelectionComponent implements OnInit {
     if (this.clusters.length > 0) {
       this.selectedCluster = this.clusters[0];
       this.isClusterSelected = true;
+      this.updateCreatedAtTooltip();
     }
   }
 
   onClusterChange() {
     this.isClusterSelected = !!this.selectedCluster;
+    this.updateCreatedAtTooltip();
+  }
+
+  updateCreatedAtTooltip() {
+    if (this.selectedCluster) {
+      const date = new Date(this.selectedCluster.creationTime);
+      this.createdAtTooltip = `${date.toLocaleString()} ${this.getTimeZone(date)}`;
+    }
+  }
+
+  getTimeZone(date: Date): string {
+    const offset = -date.getTimezoneOffset();
+    const sign = offset >= 0 ? "+" : "-";
+    const hours = String(Math.floor(Math.abs(offset) / 60)).padStart(2, "0");
+    const minutes = String(Math.abs(offset) % 60).padStart(2, "0");
+    return `GMT${sign}${hours}:${minutes}`;
   }
 
   onConfirm() {
@@ -33,6 +51,6 @@ export class ClusterSelectionComponent implements OnInit {
   }
 
   onCancel() {
-    this.modalRef.close(this.selectedCluster);
+    this.modalRef.close();
   }
 }

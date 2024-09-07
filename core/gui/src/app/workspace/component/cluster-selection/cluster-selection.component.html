@@ -15,7 +15,7 @@
         [nzLabel]="cluster.name"
         [nzCustomContent]="true">
         <div class="cluster-option">
-          <span>#{{ cluster.cid }}</span>
+          <span class="cluster-id">#{{ cluster.cid }}</span>
           <span class="cluster-name">{{ cluster.name }}</span>
         </div>
       </nz-option>
@@ -45,7 +45,12 @@
       </div>
       <div class="info-row">
         <span class="info-label">Created At:</span>
-        <span class="info-value">{{ selectedCluster.creationTime | date:'medium' }}</span>
+        <span
+          class="info-value"
+          nz-tooltip
+          [nzTooltipTitle]="createdAtTooltip">
+          {{ selectedCluster.creationTime | date:'medium' }}
+        </span>
       </div>
     </ng-container>
     <ng-template #noClusterSelected>
