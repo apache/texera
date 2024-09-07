@@ -1,9 +1,22 @@
-import { Component, EventEmitter, Input, Output, OnInit, OnChanges, SimpleChanges } from "@angular/core";
+import {
+  Component,
+  EventEmitter,
+  Input,
+  Output,
+  OnInit,
+  OnChanges,
+  SimpleChanges,
+  ViewChild,
+  ElementRef,
+} from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { DashboardEntry } from "src/app/dashboard/type/dashboard-entry";
 import { ShareAccessComponent } from "../share-access/share-access.component";
-import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
+import {
+  WorkflowPersistService,
+  DEFAULT_WORKFLOW_NAME,
+} from "src/app/common/service/workflow-persist/workflow-persist.service";
 import { Workflow } from "src/app/common/type/workflow";
 import { FileSaverService } from "src/app/dashboard/service/user/file/file-saver.service";
 import { firstValueFrom } from "rxjs";
@@ -15,6 +28,11 @@ import { firstValueFrom } from "rxjs";
   styleUrls: ["./list-item.component.scss"],
 })
 export class ListItemComponent implements OnInit, OnChanges {
+  @ViewChild("nameInput") nameInput!: ElementRef;
+  @ViewChild("descriptionInput") descriptionInput!: ElementRef;
+  editingName = false;
+  editingDescription = false;
+
   ROUTER_WORKFLOW_BASE_URL = "/dashboard/workspace";
   ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
   ROUTER_DATASET_BASE_URL = "/dashboard/dataset";
@@ -30,13 +48,16 @@ export class ListItemComponent implements OnInit, OnChanges {
     }
     return this._entry;
   }
+
   set entry(value: DashboardEntry) {
     this._entry = value;
   }
+
   @Output() deleted = new EventEmitter<void>();
   @Output() duplicated = new EventEmitter<void>();
   @Output()
   refresh = new EventEmitter<void>();
+
   constructor(
     private modalService: NzModalService,
     private workflowPersistService: WorkflowPersistService,
@@ -99,6 +120,7 @@ export class ListItemComponent implements OnInit, OnChanges {
       });
     }
   }
+
   public onClickDownload(): void {
     if (this.entry.type === "workflow") {
       if (this.entry.id) {
@@ -119,6 +141,56 @@ export class ListItemComponent implements OnInit, OnChanges {
           });
       }
     }
+  }
+
+  onEditName(): void {
+    this.editingName = true;
+    setTimeout(() => {
+      if (this.nameInput) {
+        const inputElement = this.nameInput.nativeElement;
+        const valueLength = inputElement.value.length;
+        inputElement.focus();
+        inputElement.setSelectionRange(valueLength, valueLength);
+      }
+    }, 0);
+  }
+
+  onEditDescription(): void {
+    this.editingDescription = true;
+    setTimeout(() => {
+      if (this.descriptionInput) {
+        const textareaElement = this.descriptionInput.nativeElement;
+        const valueLength = textareaElement.value.length;
+        textareaElement.focus();
+        textareaElement.setSelectionRange(valueLength, valueLength);
+      }
+    }, 0);
+  }
+
+  public confirmUpdateWorkflowCustomName(name: string): void {
+    this.workflowPersistService
+      .updateWorkflowName(this.entry.id, name || DEFAULT_WORKFLOW_NAME)
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        this.entry.name = name || DEFAULT_WORKFLOW_NAME;
+      })
+      .add(() => {
+        this.editingName = false;
+      });
+  }
+
+  public confirmUpdateWorkflowCustomDescription(description: string | undefined): void {
+    const updatedDescription = description !== undefined ? description : "";
+
+    this.workflowPersistService
+      .updateWorkflowDescription(this.entry.id, updatedDescription)
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        this.entry.description = updatedDescription;
+      })
+      .add(() => {
+        this.editingDescription = false;
+      });
   }
 
   formatTime(timestamp: number | undefined): string {
