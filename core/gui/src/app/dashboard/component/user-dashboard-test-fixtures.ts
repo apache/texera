@@ -180,3 +180,9 @@ export const testUserProjects: DashboardProject[] = [
   { pid: 2, name: "Project2", description: "p1", ownerId: 1, color: "#ffffff", creationTime: 0, accessLevel: "WRITE" },
   { pid: 3, name: "Project3", description: "p1", ownerId: 1, color: "#ffffff", creationTime: 0, accessLevel: "WRITE" },
 ];
+
+export const mockUserInfo = {
+  1: { userName: "Texera", googleAvatar: "avatar_url_1" },
+  2: { userName: "Angular", googleAvatar: "avatar_url_2" },
+  3: { userName: "UCI", googleAvatar: "avatar_url_3" },
+};
