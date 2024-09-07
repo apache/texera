@@ -1,16 +1,34 @@
 package edu.uci.ics.texera.web.resource.aiassistant
+
 import edu.uci.ics.amber.engine.common.AmberConfig
 import java.net.{HttpURLConnection, URL}
+import com.typesafe.config.Config
 
 object AiAssistantManager {
-  private val aiAssistantConfig = AmberConfig.aiAssistantConfig.getOrElse(
-    throw new Exception("ai-assistant-server configuration is missing in application.conf")
-  )
-  val assistantType: String = aiAssistantConfig.getString("assistant")
-  // The accountKey is the OpenAI authentication key used to authenticate API requests and obtain responses from the OpenAI service.
+  // Optionally retrieve the configuration
+  private val aiAssistantConfigOpt: Option[Config] = AmberConfig.aiAssistantConfig
+  private val noAssistant: String = "NoAiAssistant"
+  // Public variables, accessible from outside the object
+  var accountKey: String = _
+  var sharedUrl: String = _
 
-  val accountKey: String = aiAssistantConfig.getString("ai-service-key")
-  val sharedUrl: String = aiAssistantConfig.getString("ai-service-url")
+  // Initialize accountKey and sharedUrl if the configuration is present
+  aiAssistantConfigOpt.foreach { aiAssistantConfig =>
+    accountKey = aiAssistantConfig.getString("ai-service-key")
+    sharedUrl = aiAssistantConfig.getString("ai-service-url")
+  }
+
+  val validAIAssistant: String = aiAssistantConfigOpt match {
+    case Some(aiAssistantConfig) =>
+      val assistantType: String = aiAssistantConfig.getString("assistant")
+      assistantType match {
+        case "none"   => noAssistant
+        case "openai" => initOpenAI()
+        case _        => noAssistant
+      }
+    case None =>
+      noAssistant
+  }
 
   private def initOpenAI(): String = {
     var connection: HttpURLConnection = null
@@ -26,26 +44,15 @@ object AiAssistantManager {
       if (responseCode == 200) {
         "OpenAI"
       } else {
-        "NoAiAssistant"
+        noAssistant
       }
     } catch {
       case e: Exception =>
-        "NoAiAssistant"
+        noAssistant
     } finally {
       if (connection != null) {
         connection.disconnect()
       }
     }
-  }
-
-  val validAIAssistant: String = assistantType match {
-    case "none" =>
-      "NoAiAssistant"
-
-    case "openai" =>
-      initOpenAI()
-
-    case _ =>
-      "NoAiAssistant"
   }
 }

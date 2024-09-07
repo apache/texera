@@ -28,12 +28,18 @@ h3 {
 .cluster-option {
   display: flex;
   align-items: center;
+  gap: 0.5rem;
   width: 100%;
+}
+
+.cluster-id {
+  flex: 0 0 2.5rem;
+  text-align: right;
 }
 
 .cluster-name {
   flex: 1;
-  margin-left: 10px;
+  text-align: left;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
