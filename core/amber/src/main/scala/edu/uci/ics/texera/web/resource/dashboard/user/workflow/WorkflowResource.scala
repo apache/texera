@@ -78,7 +78,8 @@ object WorkflowResource {
       accessLevel: String,
       ownerName: String,
       workflow: Workflow,
-      projectIDs: List[UInteger]
+      projectIDs: List[UInteger],
+      ownerId: UInteger
   )
 
   case class WorkflowWithPrivilege(
@@ -233,7 +234,8 @@ class WorkflowResource extends LazyLogging {
           workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
           if (workflowRecord.component9() == null) List[UInteger]()
           else
-            workflowRecord.component9().split(',').map(number => UInteger.valueOf(number)).toList
+            workflowRecord.component9().split(',').map(number => UInteger.valueOf(number)).toList,
+          workflowRecord.into(WORKFLOW_OF_USER).getUid
         )
       )
       .asScala
@@ -397,7 +399,8 @@ class WorkflowResource extends LazyLogging {
         WorkflowUserAccessPrivilege.WRITE.toString,
         user.getName,
         workflowDao.fetchOneByWid(workflow.getWid),
-        List[UInteger]()
+        List[UInteger](),
+        user.getUid
       )
     }
 

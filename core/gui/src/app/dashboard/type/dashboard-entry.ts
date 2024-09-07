@@ -4,6 +4,11 @@ import { DashboardProject } from "./dashboard-project.interface";
 import { DashboardDataset } from "./dashboard-dataset.interface";
 import { isDashboardWorkflow, isDashboardProject, isDashboardFile, isDashboardDataset } from "./type-predicates";
 
+export interface UserInfo {
+  userName: string;
+  googleAvatar?: string;
+}
+
 export class DashboardEntry {
   checked = false;
   type: "workflow" | "project" | "file" | "dataset";
@@ -15,6 +20,7 @@ export class DashboardEntry {
   accessLevel: string | undefined;
   ownerName: string | undefined;
   ownerEmail: string | undefined;
+  ownerGoogleAvatar: string | undefined;
 
   constructor(public value: DashboardWorkflow | DashboardProject | DashboardFile | DashboardDataset) {
     if (isDashboardWorkflow(value)) {
@@ -27,6 +33,7 @@ export class DashboardEntry {
       this.accessLevel = value.accessLevel;
       this.ownerName = value.ownerName;
       this.ownerEmail = "";
+      this.ownerGoogleAvatar = "";
     } else if (isDashboardProject(value)) {
       this.type = "project";
       this.id = value.pid;
@@ -37,6 +44,7 @@ export class DashboardEntry {
       this.accessLevel = value.accessLevel;
       this.ownerName = "";
       this.ownerEmail = "";
+      this.ownerGoogleAvatar = "";
     } else if (isDashboardFile(value)) {
       this.type = "file";
       this.id = value.file.fid;
@@ -47,6 +55,7 @@ export class DashboardEntry {
       this.accessLevel = value.accessLevel;
       this.ownerName = "";
       this.ownerEmail = value.ownerEmail;
+      this.ownerGoogleAvatar = "";
     } else if (isDashboardDataset(value)) {
       this.type = "dataset";
       this.id = value.dataset.did;
@@ -57,9 +66,18 @@ export class DashboardEntry {
       this.accessLevel = value.accessPrivilege;
       this.ownerName = "";
       this.ownerEmail = value.ownerEmail;
+      this.ownerGoogleAvatar = "";
     } else {
       throw new Error("Unexpected type in DashboardEntry.");
     }
+  }
+
+  setOwnerName(ownerName: string): void {
+    this.ownerName = ownerName;
+  }
+
+  setOwnerGoogleAvatar(ownerGoogleAvatar: string): void {
+    this.ownerGoogleAvatar = ownerGoogleAvatar;
   }
 
   get project(): DashboardProject {

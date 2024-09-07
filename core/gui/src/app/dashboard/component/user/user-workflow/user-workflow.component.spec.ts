@@ -26,7 +26,11 @@ import { ScrollingModule } from "@angular/cdk/scrolling";
 import { NzAvatarModule } from "ng-zorro-antd/avatar";
 import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 import { FileSaverService } from "../../../service/user/file/file-saver.service";
-import { testWorkflowEntries, testWorkflowFileNameConflictEntries } from "../../user-dashboard-test-fixtures";
+import {
+  testWorkflowEntries,
+  testWorkflowFileNameConflictEntries,
+  mockUserInfo,
+} from "../../user-dashboard-test-fixtures";
 import { FiltersComponent } from "../filters/filters.component";
 import { UserWorkflowListItemComponent } from "./user-workflow-list-item/user-workflow-list-item.component";
 import { UserProjectService } from "../../../service/user/project/user-project.service";
@@ -65,7 +69,7 @@ describe("SavedWorkflowSectionComponent", () => {
         { provide: FileSaverService, useValue: fileSaverServiceSpy },
         {
           provide: SearchService,
-          useValue: new StubSearchService(testWorkflowEntries),
+          useValue: new StubSearchService(testWorkflowEntries, mockUserInfo),
         },
       ],
       imports: [
@@ -120,6 +124,8 @@ describe("SavedWorkflowSectionComponent", () => {
     expect(component.searchResultsComponent.loading).toBeFalse();
     const SortedCase = component.searchResultsComponent.entries.map(workflow => workflow.name);
     expect(SortedCase).toEqual(["workflow 1", "workflow 2", "workflow 3", "workflow 4", "workflow 5"]);
+    console.log("Master Filter List:", component.filters.masterFilterList);
+
     expect(component.filters.masterFilterList).toEqual([]);
   });
 
