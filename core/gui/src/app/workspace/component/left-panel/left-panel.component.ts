@@ -8,6 +8,7 @@ import { VersionsListComponent } from "./versions-list/versions-list.component";
 import { WorkflowExecutionHistoryComponent } from "../../../dashboard/component/user/user-workflow/ngbd-modal-workflow-executions/workflow-execution-history.component";
 import { TimeTravelComponent } from "./time-travel/time-travel.component";
 import { SettingsComponent } from "./settings/settings.component";
+import { calculateTotalTranslate3d } from "../../../common/util/panel-dock";
 @UntilDestroy()
 @Component({
   selector: "texera-left-panel",
@@ -65,7 +66,7 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
     const style = localStorage.getItem("left-panel-style");
     if (style) document.getElementById("left-container")!.style.cssText = style;
     const translates = document.getElementById("left-container")!.style.transform;
-    const [xOffset, yOffset, _] = this.calculateTotalTranslate3d(translates);
+    const [xOffset, yOffset, _] = calculateTotalTranslate3d(translates);
     this.returnPosition = { x: -xOffset, y: -yOffset };
   }
 
@@ -103,34 +104,5 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
 
   resetPanelPosition() {
     this.dragPosition = { x: this.returnPosition.x, y: this.returnPosition.y };
-  }
-
-  parseTranslate3d(translate3d: string): [number, number, number] {
-    const regex = /translate3d\((-?\d+\.?\d*)px,\s*(-?\d+\.?\d*)px,\s*(-?\d+\.?\d*)px\)/g;
-    const match = regex.exec(translate3d);
-    if (match) {
-      const x = parseFloat(match[1]);
-      const y = parseFloat(match[2]);
-      const z = parseFloat(match[3]);
-      return [x, y, z];
-    }
-    return [0, 0, 0];
-  }
-
-  calculateTotalTranslate3d(translates: string): [number, number, number] {
-    let totalXOffset = 0;
-    let totalYOffset = 0;
-    let totalZOffset = 0;
-
-    const translate3dArray = translates.match(/translate3d\(.*?\)/g) || [];
-
-    for (const translate of translate3dArray) {
-      const [x, y, z] = this.parseTranslate3d(translate);
-      totalXOffset += x;
-      totalYOffset += y;
-      totalZOffset += z;
-    }
-
-    return [totalXOffset, totalYOffset, totalZOffset];
   }
 }

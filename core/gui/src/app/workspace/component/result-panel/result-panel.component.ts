@@ -15,6 +15,7 @@ import { ErrorFrameComponent } from "./error-frame/error-frame.component";
 import { WorkflowConsoleService } from "../../service/workflow-console/workflow-console.service";
 import { NzResizeEvent } from "ng-zorro-antd/resizable";
 import { VisualizationFrameContentComponent } from "../visualization-panel-content/visualization-frame-content.component";
+import { calculateTotalTranslate3d } from "../../../common/util/panel-dock";
 
 /**
  * ResultPanelComponent is the bottom level area that displays the
@@ -64,7 +65,7 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     const style = localStorage.getItem("result-panel-style");
     if (style) document.getElementById("result-container")!.style.cssText = style;
     const translates = document.getElementById("result-container")!.style.transform;
-    const [xOffset, yOffset, _] = this.calculateTotalTranslate3d(translates);
+    const [xOffset, yOffset, _] = calculateTotalTranslate3d(translates);
     this.returnPosition = { x: -xOffset, y: -yOffset };
     this.registerAutoRerenderResultPanel();
     this.registerAutoOpenResultPanel();
@@ -285,34 +286,5 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
       this.height = height!;
       this.resizeService.changePanelSize(this.width, this.height);
     });
-  }
-
-  parseTranslate3d(translate3d: string): [number, number, number] {
-    const regex = /translate3d\((-?\d+\.?\d*)px,\s*(-?\d+\.?\d*)px,\s*(-?\d+\.?\d*)px\)/g;
-    const match = regex.exec(translate3d);
-    if (match) {
-      const x = parseFloat(match[1]);
-      const y = parseFloat(match[2]);
-      const z = parseFloat(match[3]);
-      return [x, y, z];
-    }
-    return [0, 0, 0];
-  }
-
-  calculateTotalTranslate3d(translates: string): [number, number, number] {
-    let totalXOffset = 0;
-    let totalYOffset = 0;
-    let totalZOffset = 0;
-
-    const translate3dArray = translates.match(/translate3d\(.*?\)/g) || [];
-
-    for (const translate of translate3dArray) {
-      const [x, y, z] = this.parseTranslate3d(translate);
-      totalXOffset += x;
-      totalYOffset += y;
-      totalZOffset += z;
-    }
-
-    return [totalXOffset, totalYOffset, totalZOffset];
   }
 }
