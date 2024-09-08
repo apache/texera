@@ -9,10 +9,6 @@ import service.KubernetesClientConfig.kubernetesConfig
 
 import java.util
 import scala.jdk.CollectionConverters.CollectionHasAsScala
-import sttp.client4.quick.{RichRequest, quickRequest}
-import sttp.client4.{Response, UriContext}
-import sttp.model.Uri
-import sttp.model.Uri.QuerySegment.Value
 
 object KubernetesClientConfig {
 
@@ -110,7 +106,7 @@ class KubernetesClientService(
       .kind("Pod")
       .metadata(
         new V1ObjectMeta()
-          .name(s"user-pod-$uid-wid-$wid")
+          .name(s"user-pod-$uid-$wid")
           .namespace(poolNamespace)
           .labels(util.Map.of("userId", uidString, "workflow", "worker"))
       )
@@ -119,10 +115,10 @@ class KubernetesClientService(
           .containers(
             util.List.of(new V1Container()
               .name("worker")
-              .image("ksdn117/web-socket-test")
+              .image("kelvinyz/texera-pod")
               .ports(util.List.of(new V1ContainerPort().containerPort(8010))))
           )
-          .hostname(s"user-pod-$uid-wid-$wid")
+          .hostname(s"user-pod-$uid-$wid")
           .subdomain("workflow-pods")
           .overhead(null)
       )
