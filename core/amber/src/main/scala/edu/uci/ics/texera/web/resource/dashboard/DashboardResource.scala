@@ -1,9 +1,10 @@
 package edu.uci.ics.texera.web.resource.dashboard
 
 import edu.uci.ics.texera.web.auth.SessionUser
+import edu.uci.ics.texera.web.model.jooq.generated.Tables._
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource._
-import edu.uci.ics.texera.web.resource.dashboard.SearchQueryBuilder.ALL_RESOURCE_TYPE
+import edu.uci.ics.texera.web.resource.dashboard.SearchQueryBuilder.{ALL_RESOURCE_TYPE, context}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.DashboardDataset
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflow
 import io.dropwizard.auth.Auth
@@ -14,8 +15,7 @@ import javax.ws.rs.core.MediaType
 import org.jooq.types.UInteger
 
 import java.util
-import scala.jdk.CollectionConverters.CollectionHasAsScala
-
+import scala.jdk.CollectionConverters._
 object DashboardResource {
   case class DashboardClickableFileEntry(
       resourceType: String,
@@ -23,6 +23,8 @@ object DashboardResource {
       project: Option[Project] = None,
       dataset: Option[DashboardDataset] = None
   )
+
+  case class UserInfo(userId: UInteger, userName: String, googleAvatar: Option[String])
 
   case class DashboardSearchResult(results: List[DashboardClickableFileEntry], more: Boolean)
 
@@ -158,5 +160,31 @@ class DashboardResource {
       @BeanParam params: SearchQueryParams
   ): DashboardSearchResult = {
     DashboardResource.searchAllResources(user, params)
+  }
+
+  @GET
+  @Path("/resultsOwnersInfo")
+  def resultsOwnersInfo(
+      @QueryParam("userIds") userIds: util.List[UInteger]
+  ): util.Map[UInteger, UserInfo] = {
+    val scalaUserIds: Set[UInteger] = userIds.asScala.toSet
+
+    val records = context
+      .select(USER.UID, USER.NAME, USER.GOOGLE_AVATAR)
+      .from(USER)
+      .where(USER.UID.in(scalaUserIds.asJava))
+      .fetch()
+
+    val userIdToInfoMap = records.asScala
+      .map { record =>
+        val userId = record.get(USER.UID)
+        val userName = record.get(USER.NAME)
+        val googleAvatar = Option(record.get(USER.GOOGLE_AVATAR))
+        userId -> UserInfo(userId, userName, googleAvatar)
+      }
+      .toMap
+      .asJava
+
+    userIdToInfoMap
   }
 }
