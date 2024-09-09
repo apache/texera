@@ -1,13 +1,26 @@
 {
   "name": "pyright-language-server",
   "version": "0.0.1",
-  "main": "startPyright.mjs",
-  "license": "Apache 2.0",
+  "main": "src/main.ts",
+  "license": "Apache-2.0",
+  "type": "module",
   "dependencies": {
-    "express": "^4.19.2",
-    "hocon-parser": "^1.0.1",
-    "pyright": "^1.1.377",
-    "vscode-ws-jsonrpc": "^3.3.2",
-    "ws": "^8.18.0"
+    "express": "4.19.2",
+    "hocon-parser": "1.0.1",
+    "hoconjs": "1.0.0",
+    "pyright": "1.1.377",
+    "typescript": "5.5.4",
+    "vscode-languageserver": "9.0.1",
+    "vscode-ws-jsonrpc": "3.3.2",
+    "ws": "8.18.0"
+  },
+  "devDependencies": {
+    "@types/express": "4.17.21",
+    "@types/node": "22.5.4",
+    "@types/ws": "8.5.12",
+    "ts-node": "10.9.2"
+  },
+  "scripts": {
+    "start": "node --loader ts-node/esm src/main.ts"
   }
 }

@@ -1,5 +1,0 @@
-{
-  "languageServerDir": "node_modules/pyright/dist",
-  "languageServerFile": "pyright-langserver.js",
-  "amberConfigFilePath": "../amber/src/main/resources/application.conf"
-}
