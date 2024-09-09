@@ -50,7 +50,8 @@ The remaining of the guide will be structured in the following sections:
     5. Install Python dependencies: `pip install -r core/amber/requirements.txt`
     6. Some of the tests workflows require more dependencies:
         1. `pip install nltk`
-        2. `pip install spacy~=3.2.6` , then `python -m spacy download en_core_web_sm`
+        2. `pip install spacy~=3.2.6` , then `python -m spacy download en_core_web_sm`\
+        3. `pip install Pillow`
     
 
 </details>
