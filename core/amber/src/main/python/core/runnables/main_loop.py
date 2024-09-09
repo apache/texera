@@ -125,16 +125,64 @@ class MainLoop(StoppableQueueBlockingRunnable):
             # examples:
 
             # add a breakpoint
-            # self.simulate_debug_command(
-            #     "b 20, 'Udon' in tuple_['text'] and 'welcome' in tokens"
-            # )
+            # self.simulate_debug_command("b linenum[, condition]")
 
-            # add a state transfer (active request)
-            # self.simulate_debug_command(
-            #     "rs 20 22 tokens "
-            #     "PythonUDFV2-operator-8c277eca-adb7-4b4f-866c-3e8950535ef1-main"
-            # )
+            # change from ["W1", "W2", "W3", "W4", "W5", "W6Passive", "W6Active"]
+            test = "W4"
 
+            if test == "W5":
+                # For W1:
+                self.simulate_debug_command(
+                    "b 50, 'Udon' in tuple_['text'] and 'welcome' in tokens"
+                )
+
+            elif test == "W2":
+                # For W2:
+                self.simulate_debug_command(
+                    "b 26, 'Udon' in tuple_['text'] and 'welcome' in tokens"
+                )
+
+            elif test == "W3":
+                # For W3:
+                self.simulate_debug_command(
+                    "b 9, tuple_['column-5'] > 10"
+                )
+
+            elif test == "W4":
+                # For W4:
+                if "fc88c19f-1f8a-4c7e-8578-8272952c47c8" not in self.context.worker_id: # only break for Image Rotator
+                    self.simulate_debug_command(
+                        "b 18, H > 400"
+                    )
+
+            elif test == "W5":
+                # For W5:
+                self.simulate_debug_command(
+                    "b 23, sum(1 for token in doc if token.pos_ == 'NOUN') > 10"
+                )
+
+            elif "W6" in test:
+                # For state transfer between multiple operators
+                upstream = "PythonUDFV2-operator-21e8857b-8c1b-4cc0-9b88-03026d791e2a-main-0"
+                downstream = "PythonUDFV2-operator-e6e9797a-fe9d-444a-bc43-1f28f42b9f03-main-0"
+
+                if "Passive" in test:
+                    # For W6 passive transfer (Store state + Request State)
+
+                    if upstream in self.context.worker_id:
+                        self.simulate_debug_command(
+                            "ss 51 tokens"
+                        )
+                    if downstream in self.context.worker_id:
+                        self.simulate_debug_command(
+                            f"rs 17 51 tokens {self.context.worker_id.split('-')[0]}-{upstream}"
+                        )
+                else:
+                    #For W6 active transfer (Append State):
+                    if upstream in self.context.worker_id:
+                        self.simulate_debug_command(
+                            "as 51 tokens"
+                        )
             pass
 
         match(

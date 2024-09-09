@@ -50,13 +50,13 @@ class DataProcessor(Runnable, Stoppable):
                         f"{self._context.tuple_processing_manager.input_link_map}"
                     )
 
-                output_iterator = (
+                self._context.tuple_processing_manager.output_iterator = (
                     operator.process_tuple(tuple_, port)
                     if isinstance(tuple_, Tuple)
                     else operator.on_finish(port)
                 )
                 with replace_print(self._context.console_message_manager.print_buf):
-                    for output in output_iterator:
+                    for output in self._context.tuple_processing_manager.output_iterator:
                         if not isinstance(output, str):
                             # the output is a TupleLike
 
