@@ -180,7 +180,7 @@ class OperatorManager:
 
         return new_code
 
-    def add_ss(self, lineno, state):
+    def add_as(self, lineno, state):
         lineno = lineno
 
         old_code = self.operator_source_code.splitlines()
@@ -189,7 +189,7 @@ class OperatorManager:
         code_after = old_code[lineno:]
 
         indentation = " " * (len(target_line) - len(target_line.lstrip()))
-        bp_line = f"{indentation}tuple_['{state}'] = {state}*100"
+        bp_line = f"{indentation}tuple_['{state}'] = {state}"
 
         new_code = "\n".join(code_before + [bp_line, target_line] + code_after)
         return new_code
@@ -213,7 +213,7 @@ class OperatorManager:
         # print(new_code, file=sys.stdout)
         return new_code
 
-    def add_as(self, lineno, state):
+    def add_ss(self, lineno, state):
         old_code = self.operator_source_code.splitlines()
         target_line = old_code[lineno - 1]
         code_before = old_code[: lineno - 1]

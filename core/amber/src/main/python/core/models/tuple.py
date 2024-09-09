@@ -192,7 +192,7 @@ class Tuple(TupleLike):
         :return:
         """
         self.cast_to_schema(schema)
-        self.validate_schema(schema)
+        # self.validate_schema(schema)
 
     def cast_to_schema(self, schema: Schema) -> None:
         """
@@ -215,7 +215,7 @@ class Tuple(TupleLike):
                     self[field_name] = None
 
                 if field_value is not None:
-                    field_type = schema.get_attr_type(field_name)
+                    field_type = schema._name_type_mapping.get(field_name, AttributeType.BINARY)
                     if field_type == AttributeType.BINARY:
                         self[field_name] = b"pickle    " + pickle.dumps(field_value)
             except Exception as err:
