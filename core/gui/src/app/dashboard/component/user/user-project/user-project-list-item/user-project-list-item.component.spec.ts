@@ -14,7 +14,7 @@ describe("UserProjectListItemComponent", () => {
     creationTime: januaryFirst1970,
     description: "description",
     name: "project1",
-    ownerID: 1,
+    ownerId: 1,
     pid: 1,
     accessLevel: "WRITE",
   };
