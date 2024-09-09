@@ -22,7 +22,9 @@ The remaining of the guide will be structured in the following sections:
 
 1. Get Started
 2. Udon Components Overview
-3. Reproduce experiments
+3. Play with Udon (in production)
+4. Play with Udon (for experiments)
+5. Reproduce experiments
 
 ***
 
