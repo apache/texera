@@ -17,7 +17,10 @@ import { isUndefined } from "lodash";
 import { CloseAction, ErrorAction } from "vscode-languageclient/lib/common/client.js";
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api.js";
 import { FormControl } from "@angular/forms";
-import { AIAssistantService, TypeAnnotationResponse } from "../../../dashboard/service/user/ai-assistant/ai-assistant.service";
+import {
+  AIAssistantService,
+  TypeAnnotationResponse,
+} from "../../../dashboard/service/user/ai-assistant/ai-assistant.service";
 
 /**
  * CodeEditorComponent is the content of the dialogue invoked by CodeareaCustomTemplateComponent.
@@ -205,13 +208,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
           const code = model.getValueInRange(selection);
           // Start line of the selected code
           const lineNumber = selection.startLineNumber;
-          this.handleTypeAnnotation(
-            code,
-            selection,
-            ed as monaco.editor.IStandaloneCodeEditor,
-            lineNumber,
-            allcode
-          );
+          this.handleTypeAnnotation(code, selection, ed as monaco.editor.IStandaloneCodeEditor, lineNumber, allcode);
         },
       });
     }
@@ -227,7 +224,8 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     lineNumber: number,
     allcode: string
   ): void {
-    this.aiAssistantService.getTypeAnnotations(code, lineNumber, allcode)
+    this.aiAssistantService
+      .getTypeAnnotations(code, lineNumber, allcode)
       .pipe(takeUntil(this.workflowVersionStreamSubject))
       .subscribe({
         next: (response: TypeAnnotationResponse) => {
@@ -281,7 +279,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
         },
         error: (error: unknown) => {
           console.error("Error fetching type annotations:", error);
-        }
+        },
       });
   }
 
