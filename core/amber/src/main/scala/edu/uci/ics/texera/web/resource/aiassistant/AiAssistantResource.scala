@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.web.resource
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.resource.aiassistant.AIAssistantManager
+import edu.uci.ics.texera.web.resource.aiassistant.AiAssistantManager
 import io.dropwizard.auth.Auth
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
@@ -13,7 +13,7 @@ case class AIAssistantRequest(code: String, lineNumber: Int, allcode: String)
 
 @Path("/aiassistant")
 class AIAssistantResource {
-  final private lazy val isEnabled = AIAssistantManager.validAIAssistant
+  final private lazy val isEnabled = AiAssistantManager.validAIAssistant
   @GET
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/isenabled")
@@ -44,10 +44,10 @@ class AIAssistantResource {
 
     val requestBodyString = Json.stringify(requestBodyJson)
     try {
-      val url = new java.net.URL(s"${AIAssistantManager.sharedUrl}/chat/completions")
+      val url = new java.net.URL(s"${AiAssistantManager.sharedUrl}/chat/completions")
       val connection = url.openConnection().asInstanceOf[java.net.HttpURLConnection]
       connection.setRequestMethod("POST")
-      connection.setRequestProperty("Authorization", s"Bearer ${AIAssistantManager.accountKey}")
+      connection.setRequestProperty("Authorization", s"Bearer ${AiAssistantManager.accountKey}")
       connection.setRequestProperty("Content-Type", "application/json")
       connection.setDoOutput(true)
       connection.getOutputStream.write(requestBodyString.getBytes("UTF-8"))

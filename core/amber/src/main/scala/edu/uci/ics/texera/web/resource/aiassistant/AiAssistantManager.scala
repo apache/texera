@@ -2,7 +2,7 @@ package edu.uci.ics.texera.web.resource.aiassistant
 import edu.uci.ics.amber.engine.common.AmberConfig
 import java.net.{HttpURLConnection, URL}
 
-object AIAssistantManager {
+object AiAssistantManager {
   private val aiAssistantConfig = AmberConfig.aiAssistantConfig.getOrElse(
     throw new Exception("ai-assistant-server configuration is missing in application.conf")
   )
