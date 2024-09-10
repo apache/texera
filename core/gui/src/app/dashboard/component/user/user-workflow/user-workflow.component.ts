@@ -8,7 +8,7 @@ import {
 } from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { NgbdModalAddProjectWorkflowComponent } from "../user-project/user-project-section/ngbd-modal-add-project-workflow/ngbd-modal-add-project-workflow.component";
 import { NgbdModalRemoveProjectWorkflowComponent } from "../user-project/user-project-section/ngbd-modal-remove-project-workflow/ngbd-modal-remove-project-workflow.component";
-import { DashboardEntry } from "../../../type/dashboard-entry";
+import { DashboardEntry, UserInfo } from "../../../type/dashboard-entry";
 import { UserService } from "../../../../common/service/user/user.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
@@ -24,6 +24,7 @@ import { isDefined } from "../../../../common/util/predicate";
 import { UserProjectService } from "../../../service/user/project/user-project.service";
 import { map, mergeMap, tap } from "rxjs/operators";
 import { environment } from "../../../../../environments/environment";
+import { DashboardWorkflow } from "../../../type/dashboard-workflow.interface";
 /**
  * Saved-workflow-section component contains information and functionality
  * of the saved workflows section and is re-used in the user projects section when a project is clicked
@@ -172,10 +173,31 @@ export class UserWorkflowComponent implements AfterViewInit {
           this.sortMethod
         )
       );
+
+      const userIds = new Set<number>();
+      results.results.forEach(i => {
+        if (i.workflow && i.workflow.ownerId) {
+          userIds.add(i.workflow.ownerId);
+        }
+      });
+
+      let userIdToInfoMap: { [key: number]: UserInfo } = {};
+      if (userIds.size > 0) {
+        userIdToInfoMap = await firstValueFrom(this.searchService.getUserInfo(Array.from(userIds)));
+      }
+
       return {
         entries: results.results.map(i => {
           if (i.workflow) {
-            return new DashboardEntry(i.workflow);
+            const entry = new DashboardEntry(i.workflow);
+
+            const userInfo = userIdToInfoMap[i.workflow.ownerId];
+            if (userInfo) {
+              entry.setOwnerName(userInfo.userName);
+              entry.setOwnerGoogleAvatar(userInfo.googleAvatar ?? "");
+            }
+
+            return entry;
           } else {
             throw new Error("Unexpected type in SearchResult.");
           }
@@ -237,39 +259,48 @@ export class UserWorkflowComponent implements AfterViewInit {
    * for workflow components inside a project-section, it will also add
    * the workflow to the project
    */
-  public onClickDuplicateWorkflow(entry: DashboardEntry): void {
+  public async onClickDuplicateWorkflow(entry: DashboardEntry): Promise<void> {
     if (entry.workflow.workflow.wid) {
-      if (!isDefined(this.pid)) {
-        // not nested within user project section
-        this.workflowPersistService
-          .duplicateWorkflow([entry.workflow.workflow.wid])
-          .pipe(untilDestroyed(this))
-          .subscribe({
-            next: duplicatedWorkflowsInfo => {
-              this.searchResultsComponent.entries = [
-                ...duplicatedWorkflowsInfo.map(duplicatedWorkflowInfo => new DashboardEntry(duplicatedWorkflowInfo)),
-                ...this.searchResultsComponent.entries,
-              ];
-            },
-            // @ts-ignore // TODO: fix this with notification component
-            error: (err: unknown) => alert(err.error),
-          });
-      } else {
-        // is nested within project section, also add duplicate workflow to project
-        let localPid = this.pid;
-        this.workflowPersistService
-          .duplicateWorkflow([entry.workflow.workflow.wid], localPid)
-          .pipe(untilDestroyed(this))
-          .subscribe({
-            next: duplicatedWorkflowsInfo => {
-              this.searchResultsComponent.entries = [
-                ...duplicatedWorkflowsInfo.map(duplicatedWorkflowInfo => new DashboardEntry(duplicatedWorkflowInfo)),
-                ...this.searchResultsComponent.entries,
-              ];
-            },
-            // @ts-ignore // TODO: fix this with notification component
-            error: (err: unknown) => alert(err),
-          });
+      try {
+        let duplicatedWorkflowsInfo: DashboardWorkflow[] = [];
+        if (!isDefined(this.pid)) {
+          duplicatedWorkflowsInfo = await firstValueFrom(
+            this.workflowPersistService.duplicateWorkflow([entry.workflow.workflow.wid])
+          );
+        } else {
+          const localPid = this.pid;
+          duplicatedWorkflowsInfo = await firstValueFrom(
+            this.workflowPersistService.duplicateWorkflow([entry.workflow.workflow.wid], localPid)
+          );
+        }
+
+        const userIds = new Set<number>();
+        duplicatedWorkflowsInfo.forEach(workflow => {
+          if (workflow.ownerId) {
+            userIds.add(workflow.ownerId);
+          }
+        });
+
+        let userIdToInfoMap: { [key: number]: UserInfo } = {};
+        if (userIds.size > 0) {
+          userIdToInfoMap = await firstValueFrom(this.searchService.getUserInfo(Array.from(userIds)));
+        }
+
+        const newEntries = duplicatedWorkflowsInfo.map(duplicatedWorkflowInfo => {
+          const entry = new DashboardEntry(duplicatedWorkflowInfo);
+          const userInfo = userIdToInfoMap[duplicatedWorkflowInfo.ownerId];
+          if (userInfo) {
+            entry.setOwnerName(userInfo.userName);
+            entry.setOwnerGoogleAvatar(userInfo.googleAvatar ?? "");
+          }
+          return entry;
+        });
+
+        this.searchResultsComponent.entries = [...newEntries, ...this.searchResultsComponent.entries];
+      } catch (err: unknown) {
+        console.log("Error duplicating workflow:", err);
+        // @ts-ignore // TODO: fix this with notification component
+        alert((err as any).error);
       }
     }
   }

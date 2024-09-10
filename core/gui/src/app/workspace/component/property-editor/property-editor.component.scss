@@ -8,8 +8,8 @@
 
 #right-container {
   position: fixed;
-  top: 90px;
-  right: 15px;
+  top: 10vh;
+  right: 0;
   user-select: none;
   background: white;
 }
@@ -37,6 +37,14 @@
 #property-buttons {
   position: absolute;
   top: 0;
+  right: 0;
+  z-index: 4;
+  display: flex;
+}
+
+#docked-buttons {
+  position: fixed;
+  top: 10vh;
   right: 0;
   z-index: 4;
 }
