@@ -15,7 +15,7 @@ export class AIAssistantService {
     const apiUrl = `${AI_ASSISTANT_API_BASE_URL}/isenabled`;
     return firstValueFrom(this.http.get(apiUrl, { responseType: "text" }))
       .then(response => {
-        const isEnabled = response !== undefined ? response : "NoAIAssistant";
+        const isEnabled = response !== undefined ? response : "NoAiAssistant";
         console.log(
           isEnabled === "OpenAI"
             ? "AI Assistant successfully started"
@@ -24,7 +24,7 @@ export class AIAssistantService {
         return isEnabled;
       })
       .catch(() => {
-        return "NoAIAssistant";
+        return "NoAiAssistant";
       });
   }
 
