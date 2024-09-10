@@ -2,6 +2,10 @@ import { WorkflowMetadata } from "../../dashboard/type/workflow-metadata.interfa
 import { PlainGroup } from "../../workspace/service/workflow-graph/model/operator-group";
 import { OperatorLink, OperatorPredicate, Point, CommentBox } from "../../workspace/types/workflow-common.interface";
 
+export interface WorkflowSettings {
+  dataTransferBatchSize: number;
+}
+
 /**
  * WorkflowContent is used to store the information of the workflow
  *  1. all existing operators and their properties
@@ -14,6 +18,7 @@ import { OperatorLink, OperatorPredicate, Point, CommentBox } from "../../worksp
  *  will then be used to reload the entire workflow.
  *
  */
+
 export interface WorkflowContent
   extends Readonly<{
     operators: OperatorPredicate[];
@@ -21,6 +26,7 @@ export interface WorkflowContent
     links: OperatorLink[];
     groups: PlainGroup[];
     commentBoxes: CommentBox[];
+    settings: WorkflowSettings;
   }> {}
 
 export type Workflow = { content: WorkflowContent } & WorkflowMetadata;
