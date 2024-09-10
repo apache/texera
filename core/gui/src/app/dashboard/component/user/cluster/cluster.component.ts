@@ -142,7 +142,6 @@ export class ClusterComponent implements OnInit, OnDestroy {
         return ["exclamation-circle", "gray"];
     }
   }
-
   getMachineTypeInfo(machineType: string): string {
     switch (machineType) {
       case "t2.micro":
