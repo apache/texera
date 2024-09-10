@@ -192,8 +192,8 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
         label: "Add Type Annotation",
         contextMenuGroupId: "1_modification",
         contextMenuOrder: 1.0,
-        run: async ed => {
-          // User selected code(including range and content)
+        run: ed => {
+          // User selected code (including range and content)
           const selection = ed.getSelection();
           const model = ed.getModel();
           if (!model || !selection) {
@@ -205,7 +205,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
           const code = model.getValueInRange(selection);
           // Start line of the selected code
           const lineNumber = selection.startLineNumber;
-          await this.handleTypeAnnotation(
+          this.handleTypeAnnotation(
             code,
             selection,
             ed as monaco.editor.IStandaloneCodeEditor,
@@ -220,70 +220,66 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     }
   }
 
-  private async handleTypeAnnotation(
+  private handleTypeAnnotation(
     code: string,
     range: monaco.Range,
     editor: monaco.editor.IStandaloneCodeEditor,
     lineNumber: number,
     allcode: string
-  ): Promise<void> {
-    return new Promise<void>(resolve => {
-      this.aiAssistantService.getTypeAnnotations(code, lineNumber, allcode).then(typeAnnotations => {
-        console.log("The result from OpenAI is", typeAnnotations);
+  ): void {
+    this.aiAssistantService.getTypeAnnotations(code, lineNumber, allcode)
+      .subscribe({
+        next: (response) => {
+          if (response.choices && response.choices.length > 0 && response.choices[0].message.content) {
+            this.currentSuggestion = response.choices[0].message.content.trim();
 
-        let acceptButton: HTMLButtonElement | null = null;
-        let declineButton: HTMLButtonElement | null = null;
+            let acceptButton: HTMLButtonElement | null = null;
+            let declineButton: HTMLButtonElement | null = null;
 
-        this.currentCode = code;
-        this.currentSuggestion = typeAnnotations;
-        this.currentRange = range;
-        this.showAnnotationSuggestion = true;
+            this.currentCode = code;
+            this.currentRange = range;
+            this.showAnnotationSuggestion = true;
 
-        // Let the suggestion pop up next to the selected code
-        setTimeout(() => {
-          const position = editor.getScrolledVisiblePosition(range.getStartPosition());
-          const popupElement = document.querySelector(".annotation-suggestion") as HTMLElement;
+            setTimeout(() => {
+              const position = editor.getScrolledVisiblePosition(range.getStartPosition());
+              const popupElement = document.querySelector(".annotation-suggestion") as HTMLElement;
 
-          if (popupElement && position) {
-            popupElement.style.top = `${position.top + 100}px`;
-            popupElement.style.left = `${position.left + 100}px`;
-          }
+              if (popupElement && position) {
+                popupElement.style.top = `${position.top + 100}px`;
+                popupElement.style.left = `${position.left + 100}px`;
+              }
 
-          // Make sure the user click the button
-          const cleanup = () => {
-            console.log("Cleaning up and resolving...");
-            if (acceptButton) acceptButton.removeEventListener("click", acceptListener);
-            if (declineButton) declineButton.removeEventListener("click", declineListener);
-            this.showAnnotationSuggestion = false;
-            resolve();
-            console.log("Resolved!");
-          };
+              const cleanup = () => {
+                if (acceptButton) acceptButton.removeEventListener("click", acceptListener);
+                if (declineButton) declineButton.removeEventListener("click", declineListener);
+                this.showAnnotationSuggestion = false;
+              };
 
-          const acceptListener = () => {
-            this.acceptCurrentAnnotation();
-            cleanup();
-          };
+              const acceptListener = () => {
+                this.acceptCurrentAnnotation();
+                cleanup();
+              };
 
-          const declineListener = () => {
-            cleanup();
-          };
-          acceptButton = document.querySelector(".accept-button") as HTMLButtonElement;
-          declineButton = document.querySelector(".decline-button") as HTMLButtonElement;
+              const declineListener = () => {
+                cleanup();
+              };
 
-          if (acceptButton && declineButton) {
-            console.log("Buttons found, adding event listeners");
-            //clean the old one for the "add all type annotation"
-            acceptButton.removeEventListener("click", acceptListener);
-            declineButton.removeEventListener("click", declineListener);
+              acceptButton = document.querySelector(".accept-button") as HTMLButtonElement;
+              declineButton = document.querySelector(".decline-button") as HTMLButtonElement;
 
-            acceptButton.addEventListener("click", acceptListener, { once: true });
-            declineButton.addEventListener("click", declineListener, { once: true });
+              if (acceptButton && declineButton) {
+                acceptButton.addEventListener("click", acceptListener, { once: true });
+                declineButton.addEventListener("click", declineListener, { once: true });
+              }
+            }, 0);
           } else {
-            console.error("Buttons not found!");
+            console.error("Error: OpenAI response does not contain a valid message content", response);
           }
-        }, 0);
+        },
+        error: (error) => {
+          console.error("Error fetching type annotations:", error);
+        }
       });
-    });
   }
 
   // Called when the user clicks the "accept" button

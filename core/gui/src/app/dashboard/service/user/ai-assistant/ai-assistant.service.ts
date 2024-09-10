@@ -2,6 +2,29 @@ import { Injectable } from "@angular/core";
 import { firstValueFrom } from "rxjs";
 import { AppSettings } from "../../../../common/app-setting";
 import { HttpClient, HttpHeaders } from "@angular/common/http";
+import { Observable } from "rxjs";
+
+export type TypeAnnotationResponse = {
+  id: string;
+  object: string;
+  created: number;
+  model: string;
+  choices: {
+    index: number;
+    message: {
+      role: string;
+      content: string;
+    };
+    logprobs: any;
+    finish_reason: string;
+  }[];
+  usage: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+};
+
 
 export const AI_ASSISTANT_API_BASE_URL = `${AppSettings.getApiEndpoint()}/aiassistant`;
 
@@ -28,23 +51,17 @@ export class AIAssistantService {
       });
   }
 
-  public getTypeAnnotations(code: string, lineNumber: number, allcode: string): Promise<string> {
+  public getTypeAnnotations(
+    code: string,
+    lineNumber: number,
+    allcode: string
+  ): Observable<TypeAnnotationResponse> {
     const headers = new HttpHeaders({ "Content-Type": "application/json" });
     const requestBody = { code, lineNumber, allcode };
-    return firstValueFrom(
-      this.http.post<any>(`${AI_ASSISTANT_API_BASE_URL}/annotationresult`, requestBody, { headers })
-    )
-      .then(response => {
-        if (response.choices && response.choices.length > 0) {
-          return response.choices[0].message.content.trim();
-        } else {
-          console.error("Error from backend:", response.body);
-          return "";
-        }
-      })
-      .catch(error => {
-        console.error("Request to backend failed:", error);
-        return "";
-      });
+    return this.http.post<TypeAnnotationResponse>(
+      `${AI_ASSISTANT_API_BASE_URL}/annotationresult`,
+      requestBody,
+      { headers }
+    );
   }
 }

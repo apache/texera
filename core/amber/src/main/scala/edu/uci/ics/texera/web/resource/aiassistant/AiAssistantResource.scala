@@ -8,6 +8,7 @@ import javax.ws.rs.core.Response
 import javax.ws.rs.Consumes
 import javax.ws.rs.core.MediaType
 import play.api.libs.json.{Json, JsValue}
+import kong.unirest.Unirest
 
 case class AIAssistantRequest(code: String, lineNumber: Int, allcode: String)
 
@@ -31,7 +32,7 @@ class AIAssistantResource {
                      @Auth user: SessionUser
                    ): Response = {
     val finalPrompt = generatePrompt(request.code, request.lineNumber, request.allcode)
-    val requestBodyJson: JsValue = Json.obj(
+    val requestBodyJson = Json.obj(
       "model" -> "gpt-4",
       "messages" -> Json.arr(
         Json.obj(
@@ -42,25 +43,14 @@ class AIAssistantResource {
       "max_tokens" -> 15
     )
 
-    val requestBodyString = Json.stringify(requestBodyJson)
     try {
-      val url = new java.net.URL(s"${AiAssistantManager.sharedUrl}/chat/completions")
-      val connection = url.openConnection().asInstanceOf[java.net.HttpURLConnection]
-      connection.setRequestMethod("POST")
-      connection.setRequestProperty("Authorization", s"Bearer ${AiAssistantManager.accountKey}")
-      connection.setRequestProperty("Content-Type", "application/json")
-      connection.setDoOutput(true)
-      connection.getOutputStream.write(requestBodyString.getBytes("UTF-8"))
-      val responseCode = connection.getResponseCode
-      val responseStream = if (responseCode >= 200 && responseCode < 300) {
-        connection.getInputStream
-      } else {
-        connection.getErrorStream
-      }
-      val responseString = scala.io.Source.fromInputStream(responseStream).mkString
-      responseStream.close()
-      connection.disconnect()
-      Response.status(responseCode).entity(responseString).build()
+      val response = Unirest.post(s"${AiAssistantManager.sharedUrl}/chat/completions")
+        .header("Authorization", s"Bearer ${AiAssistantManager.accountKey}")
+        .header("Content-Type", "application/json")
+        .body(Json.stringify(requestBodyJson))
+        .asString()
+
+      Response.status(response.getStatus).entity(response.getBody).build()
     } catch {
       case e: Exception =>
         e.printStackTrace()
