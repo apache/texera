@@ -53,14 +53,12 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
     // Convert the Scala fastQFiles into a file path
     val (filepath, fileDesc) = determineFilePathOrDatasetFile(Some(fastQFiles))
     val fastQFilePath = if (filepath != null) filepath else fileDesc.asFile().toPath.toString
-    Console.println(fastQFilePath)
 
     // Convert the Scala referenceGenomes list to a Python list format
     val pythonReferenceGenomes = referenceGenomes
       .map(_.referenceGenome.getName)
       .map(name => s"'$name'")
       .mkString("[", ", ", "]")
-    Console.println(pythonReferenceGenomes)
 
     // Convert the Scala referenceGenomes list to a Python list format for FASTA files
     val pythonFastaFiles = referenceGenomes
@@ -71,7 +69,6 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
         s"open(r'$fastAFilePath', 'rb')"
       })
       .mkString("[", ", ", "]")
-    Console.println(pythonFastaFiles)
 
     // Extract GTF file if exists for 'Others'
     val pythonGtfFile = referenceGenomes
@@ -83,7 +80,6 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
         s"open(r'$gtfFilePath', 'rb')"
       })
       .getOrElse("")
-    Console.println(pythonGtfFile )
 
     s"""from pytexera import *
        |
