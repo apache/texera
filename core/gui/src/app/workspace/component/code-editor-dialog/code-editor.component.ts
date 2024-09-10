@@ -186,9 +186,6 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
 
     // Check if the AI provider is "openai"
     if ((await this.aiAssistantService.checkAIAssistantEnabled()) == "OpenAI") {
-      // Add all needed modules for add type annotation
-      this.addAnnotationModule(editor);
-
       // "Add Type Annotation" Button
       editor.addAction({
         id: "type-annotation-action",
@@ -331,52 +328,6 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
       forceMoveMarkers: true,
     };
     editor.executeEdits("add annotation", [op]);
-  }
-
-  // Add all necessary modules for type annotation at the first line of the Python UDF
-  private addAnnotationModule(editor: monaco.editor.IStandaloneCodeEditor) {
-    const model = editor.getModel();
-    if (!model) {
-      return;
-    }
-    const allCode = model.getValue();
-    const typingImports = [
-      "Any",
-      "Awaitable",
-      "Callable",
-      "Coroutine",
-      "Dict",
-      "FrozenSet",
-      "Generator",
-      "Generic",
-      "Iterable",
-      "Iterator",
-      "List",
-      "Mapping",
-      "Optional",
-      "Sequence",
-      "Set",
-      "Tuple",
-      "Type",
-      "TypeVar",
-      "Union",
-      "Deque",
-      "NamedTuple",
-      "TypedDict",
-      "Protocol",
-      "Literal",
-      "NewType",
-      "NoReturn",
-    ];
-    const importStatement = `from typing import (\n  ${typingImports.join(",\n  ")}\n)`;
-    if (!allCode.includes(importStatement)) {
-      const importOp = {
-        // Add the module at the first line
-        range: new monaco.Range(1, 1, 1, 1),
-        text: `${importStatement}\n\n`,
-      };
-      editor.executeEdits("add module", [importOp]);
-    }
   }
 
   private connectLanguageServer() {
