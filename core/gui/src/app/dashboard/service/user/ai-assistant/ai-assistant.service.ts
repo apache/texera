@@ -4,27 +4,14 @@ import { AppSettings } from "../../../../common/app-setting";
 import { HttpClient, HttpHeaders } from "@angular/common/http";
 import { Observable } from "rxjs";
 
+// The type annotation return from the LLM
 export type TypeAnnotationResponse = {
-  id: string;
-  object: string;
-  created: number;
-  model: string;
   choices: {
-    index: number;
     message: {
-      role: string;
       content: string;
     };
-    logprobs: any;
-    finish_reason: string;
   }[];
-  usage: {
-    prompt_tokens: number;
-    completion_tokens: number;
-    total_tokens: number;
-  };
 };
-
 
 export const AI_ASSISTANT_API_BASE_URL = `${AppSettings.getApiEndpoint()}/aiassistant`;
 
@@ -51,17 +38,11 @@ export class AIAssistantService {
       });
   }
 
-  public getTypeAnnotations(
-    code: string,
-    lineNumber: number,
-    allcode: string
-  ): Observable<TypeAnnotationResponse> {
+  public getTypeAnnotations(code: string, lineNumber: number, allcode: string): Observable<TypeAnnotationResponse> {
     const headers = new HttpHeaders({ "Content-Type": "application/json" });
     const requestBody = { code, lineNumber, allcode };
-    return this.http.post<TypeAnnotationResponse>(
-      `${AI_ASSISTANT_API_BASE_URL}/annotationresult`,
-      requestBody,
-      { headers }
-    );
+    return this.http.post<TypeAnnotationResponse>(`${AI_ASSISTANT_API_BASE_URL}/annotationresult`, requestBody, {
+      headers,
+    });
   }
 }

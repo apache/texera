@@ -7,7 +7,7 @@ import javax.ws.rs._
 import javax.ws.rs.core.Response
 import javax.ws.rs.Consumes
 import javax.ws.rs.core.MediaType
-import play.api.libs.json.{Json, JsValue}
+import play.api.libs.json.Json
 import kong.unirest.Unirest
 
 case class AIAssistantRequest(code: String, lineNumber: Int, allcode: String)
@@ -28,9 +28,9 @@ class AIAssistantResource {
   @Path("/annotationresult")
   @Consumes(Array(MediaType.APPLICATION_JSON))
   def getAnnotation(
-                     request: AIAssistantRequest,
-                     @Auth user: SessionUser
-                   ): Response = {
+      request: AIAssistantRequest,
+      @Auth user: SessionUser
+  ): Response = {
     val finalPrompt = generatePrompt(request.code, request.lineNumber, request.allcode)
     val requestBodyJson = Json.obj(
       "model" -> "gpt-4",
@@ -44,7 +44,8 @@ class AIAssistantResource {
     )
 
     try {
-      val response = Unirest.post(s"${AiAssistantManager.sharedUrl}/chat/completions")
+      val response = Unirest
+        .post(s"${AiAssistantManager.sharedUrl}/chat/completions")
         .header("Authorization", s"Bearer ${AiAssistantManager.accountKey}")
         .header("Content-Type", "application/json")
         .body(Json.stringify(requestBodyJson))

@@ -17,7 +17,7 @@ import { isUndefined } from "lodash";
 import { CloseAction, ErrorAction } from "vscode-languageclient/lib/common/client.js";
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api.js";
 import { FormControl } from "@angular/forms";
-import { AIAssistantService } from "../../../dashboard/service/user/ai-assistant/ai-assistant.service";
+import { AIAssistantService, TypeAnnotationResponse } from "../../../dashboard/service/user/ai-assistant/ai-assistant.service";
 
 /**
  * CodeEditorComponent is the content of the dialogue invoked by CodeareaCustomTemplateComponent.
@@ -228,10 +228,12 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     allcode: string
   ): void {
     this.aiAssistantService.getTypeAnnotations(code, lineNumber, allcode)
+      .pipe(takeUntil(this.workflowVersionStreamSubject))
       .subscribe({
-        next: (response) => {
-          if (response.choices && response.choices.length > 0 && response.choices[0].message.content) {
-            this.currentSuggestion = response.choices[0].message.content.trim();
+        next: (response: TypeAnnotationResponse) => {
+          const choices = response.choices || [];
+          if (choices.length > 0 && choices[0].message && choices[0].message.content) {
+            this.currentSuggestion = choices[0].message.content.trim();
 
             let acceptButton: HTMLButtonElement | null = null;
             let declineButton: HTMLButtonElement | null = null;
@@ -244,6 +246,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
               const position = editor.getScrolledVisiblePosition(range.getStartPosition());
               const popupElement = document.querySelector(".annotation-suggestion") as HTMLElement;
 
+              // Make sure the UI pop up next to the selected argument
               if (popupElement && position) {
                 popupElement.style.top = `${position.top + 100}px`;
                 popupElement.style.left = `${position.left + 100}px`;
@@ -273,10 +276,10 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
               }
             }, 0);
           } else {
-            console.error("Error: OpenAI response does not contain a valid message content", response);
+            console.error("Error: OpenAI response does not contain valid message content", response);
           }
         },
-        error: (error) => {
+        error: (error: unknown) => {
           console.error("Error fetching type annotations:", error);
         }
       });
