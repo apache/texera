@@ -1,10 +1,11 @@
-import { Component, OnInit } from "@angular/core";
+import { Component, OnInit, OnDestroy } from "@angular/core";
 import { Clusters } from "../../../type/clusters";
 import { ClusterService } from "../../../../common/service/cluster/cluster.service";
-import { Subscription } from "rxjs";
 import { FormGroup } from "@angular/forms";
 import { HttpErrorResponse } from "@angular/common/http";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { BehaviorSubject, Observable, timer } from "rxjs";
+import { switchMap, distinctUntilChanged, map } from "rxjs/operators";
 
 @UntilDestroy()
 @Component({
@@ -12,39 +13,34 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
   templateUrl: "./cluster.component.html",
   styleUrls: ["./cluster.component.scss"],
 })
-export class ClusterComponent implements OnInit {
-  private subscriptions: Subscription[] = [];
-  private intervalId: any;
+export class ClusterComponent implements OnInit, OnDestroy {
   isClusterManagementVisible = false;
-  clusterList: Clusters[] = [];
+  clusterList$!: Observable<Clusters[]>;
+  private refreshTrigger = new BehaviorSubject<void>(undefined);
 
   constructor(private clusterService: ClusterService) {}
 
   ngOnInit(): void {
-    this.getClusters();
-    this.startClusterPolling();
+    this.setupClusterObservable();
+    this.refreshClusters();
   }
 
-  private startClusterPolling(): void {
-    this.intervalId = setInterval(() => {
-      this.getClusters();
-    }, 1000);
+  ngOnDestroy(): void {
+    this.refreshTrigger.complete();
   }
 
-  private stopClusterPolling(): void {
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
-    }
+  private setupClusterObservable(): void {
+    this.clusterList$ = this.refreshTrigger.pipe(
+      switchMap(() => timer(0, 5000)),
+      switchMap(() => this.clusterService.getClusters()),
+      map(clusters => clusters || []),
+      distinctUntilChanged((prev, curr) => JSON.stringify(prev) === JSON.stringify(curr)),
+      untilDestroyed(this)
+    );
   }
 
-  getClusters() {
-    this.clusterService
-      .getClusters()
-      .pipe(untilDestroyed(this))
-      .subscribe(
-        clusters => (this.clusterList = clusters || []),
-        (error: HttpErrorResponse) => console.error("Error fetching clusters", error)
-      );
+  refreshClusters(): void {
+    this.refreshTrigger.next();
   }
 
   createCluster(formData: FormData) {
@@ -52,8 +48,11 @@ export class ClusterComponent implements OnInit {
       .createCluster(formData)
       .pipe(untilDestroyed(this))
       .subscribe(
-        response => console.log("Response: ", response),
-        (error: HttpErrorResponse) => console.error("Error fetching clusters", error)
+        response => {
+          console.log("Response: ", response);
+          this.refreshClusters();
+        },
+        (error: HttpErrorResponse) => console.error("Error creating cluster", error)
       );
   }
 
@@ -62,8 +61,11 @@ export class ClusterComponent implements OnInit {
       .deleteCluster(cluster)
       .pipe(untilDestroyed(this))
       .subscribe(
-        response => console.log("Response: ", response),
-        (error: HttpErrorResponse) => console.error("Error fetching clusters", error)
+        response => {
+          console.log("Response: ", response);
+          this.refreshClusters();
+        },
+        (error: HttpErrorResponse) => console.error("Error deleting cluster", error)
       );
   }
 
@@ -72,8 +74,11 @@ export class ClusterComponent implements OnInit {
       .pauseCluster(cluster)
       .pipe(untilDestroyed(this))
       .subscribe(
-        response => console.log("Response: ", response),
-        (error: HttpErrorResponse) => console.error("Error fetching clusters", error)
+        response => {
+          console.log("Response: ", response);
+          this.refreshClusters();
+        },
+        (error: HttpErrorResponse) => console.error("Error pausing cluster", error)
       );
   }
 
@@ -82,8 +87,11 @@ export class ClusterComponent implements OnInit {
       .resumeCluster(cluster)
       .pipe(untilDestroyed(this))
       .subscribe(
-        response => console.log("Response: ", response),
-        (error: HttpErrorResponse) => console.error("Error fetching clusters", error)
+        response => {
+          console.log("Response: ", response);
+          this.refreshClusters();
+        },
+        (error: HttpErrorResponse) => console.error("Error resuming cluster", error)
       );
   }
 
@@ -114,8 +122,8 @@ export class ClusterComponent implements OnInit {
     this.isClusterManagementVisible = false;
   }
 
-  getBadgeStatus(status: string): string[]{
-    switch(status){
+  getBadgeStatus(status: string): string[] {
+    switch (status) {
       case "LAUNCHING":
       case "RESUMING":
         return ["play-circle", "orange"];
@@ -132,6 +140,21 @@ export class ClusterComponent implements OnInit {
         return ["minus-circle", "red"];
       default:
         return ["exclamation-circle", "gray"];
+    }
+  }
+
+  getMachineTypeInfo(machineType: string): string {
+    switch (machineType) {
+      case "t2.micro":
+        return "1 CPU, 1 GB RAM, $0.0116/hour";
+      case "t3.large":
+        return "2 CPUs, 8 GB RAM, $0.0832/hour";
+      case "t3.xlarge":
+        return "4 CPUs, 16 GB RAM, $0.1664/hour";
+      case "t3.2xlarge":
+        return "8 CPUs, 32 GB RAM, $0.3328/hour";
+      default:
+        return "Information not available";
     }
   }
 }
