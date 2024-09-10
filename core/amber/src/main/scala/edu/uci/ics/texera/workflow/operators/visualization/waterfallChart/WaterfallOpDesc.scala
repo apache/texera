@@ -16,13 +16,13 @@ class WaterfallChartOpDesc extends VisualizationOperator with PythonOperatorDesc
 
   @JsonProperty(value = "xColumn", required = true)
   @JsonSchemaTitle("X Axis Values")
-  @JsonPropertyDescription("The column for x axis values")
+  @JsonPropertyDescription("The column representing categories or stages")
   @AutofillAttributeName
   var xColumn: String = _
 
   @JsonProperty(value = "yColumn", required = true)
   @JsonSchemaTitle("Y Axis Values")
-  @JsonPropertyDescription("The column for y axis values")
+  @JsonPropertyDescription("The column representing numeric values for each stage")
   @AutofillAttributeName
   var yColumn: String = _
 
@@ -46,7 +46,7 @@ class WaterfallChartOpDesc extends VisualizationOperator with PythonOperatorDesc
        |
        |        fig = go.Figure(go.Waterfall(
        |            name="Waterfall", orientation="v",
-       |            measure=["relative"] * (len(y_values) - 1) + ["total"],
+       |            measure=["relative"] * len(y_values),
        |            x=x_values,
        |            y=y_values,
        |            textposition="outside",
@@ -54,7 +54,7 @@ class WaterfallChartOpDesc extends VisualizationOperator with PythonOperatorDesc
        |            connector={"line": {"color": "rgb(63, 63, 63)"}}
        |        ))
        |
-       |        fig.update_layout(title="Waterfall Chart Example", showlegend=True, waterfallgap=0.3)
+       |        fig.update_layout(showlegend=True, waterfallgap=0.3)
        |""".stripMargin
   }
 
