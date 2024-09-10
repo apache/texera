@@ -46,7 +46,7 @@ class WaterfallChartOpDesc extends VisualizationOperator with PythonOperatorDesc
        |
        |        fig = go.Figure(go.Waterfall(
        |            name="Waterfall", orientation="v",
-       |            measure=["relative"] * len(y_values),
+       |            measure=["relative"] * (len(y_values) - 1) + ["total"],
        |            x=x_values,
        |            y=y_values,
        |            textposition="outside",
