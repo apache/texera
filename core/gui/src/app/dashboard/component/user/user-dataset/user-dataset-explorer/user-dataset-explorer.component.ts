@@ -213,10 +213,17 @@ export class UserDatasetExplorerComponent implements OnInit {
     }
   }
 
+  extractVersionPath(currentDisplayedFileName: string): string {
+    const pathParts = currentDisplayedFileName.split("/");
+
+    return `/${pathParts[1]}/${pathParts[2]}/${pathParts[3]}`;
+  }
+
   onClickDownloadVersionAsZip() {
     if (this.did && this.selectedVersion && this.selectedVersion.dvid) {
+      const versionPath = this.extractVersionPath(this.currentDisplayedFileName);
       this.datasetService
-        .retrieveDatasetVersionZip(this.currentDisplayedFileName)
+        .retrieveDatasetVersionZip(versionPath)
         .pipe(untilDestroyed(this))
         .subscribe({
           next: blob => {
