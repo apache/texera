@@ -65,7 +65,7 @@ import org.jooq.{DSLContext, EnumType}
 import org.jooq.types.UInteger
 import play.api.libs.json.Json
 
-import java.io.{InputStream, OutputStream}
+import java.io.{IOException, InputStream, OutputStream}
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
@@ -83,7 +83,8 @@ import javax.ws.rs.{
   Path,
   PathParam,
   Produces,
-  QueryParam
+  QueryParam,
+  WebApplicationException
 }
 import javax.ws.rs.core.{MediaType, Response, StreamingOutput}
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
@@ -1041,14 +1042,14 @@ class DatasetResource {
   }
 
   /**
-   * Retrieves a ZIP file for a specific dataset version.
-   *
-   * @param pathStr The dataset version path in the format: /ownerEmail/datasetName/versionName
-   *                Example: /user@example.com/dataset/v1
-   *
-   * @param user the session user.
-   * @return A Response containing the dataset version as a ZIP file.
-   */
+    * Retrieves a ZIP file for a specific dataset version.
+    *
+    * @param pathStr The dataset version path in the format: /ownerEmail/datasetName/versionName
+    *                Example: /user@example.com/dataset/v1
+    *
+    * @param user the session user.
+    * @return A Response containing the dataset version as a ZIP file.
+    */
   @GET
   @Path("/version-zip")
   def retrieveDatasetVersionZip(
@@ -1084,13 +1085,24 @@ class DatasetResource {
           try {
             fileNodes.foreach { fileNode =>
               val zipEntryName = fileNode.getRelativePath.toString
-              zipOutputStream.putNextEntry(new ZipEntry(zipEntryName))
 
-              val filePath = fileNode.getAbsolutePath
-              Files.copy(filePath, zipOutputStream)
+              try {
+                zipOutputStream.putNextEntry(new ZipEntry(zipEntryName))
 
-              zipOutputStream.closeEntry()
+                val filePath = fileNode.getAbsolutePath
+
+                Files.copy(filePath, zipOutputStream)
+
+              } catch {
+                case e: IOException =>
+                  throw new WebApplicationException(s"Error processing file: $zipEntryName", e)
+              } finally {
+                zipOutputStream.closeEntry()
+              }
             }
+          } catch {
+            case e: IOException =>
+              throw new WebApplicationException("Error creating ZIP output stream", e)
           } finally {
             zipOutputStream.close()
           }
