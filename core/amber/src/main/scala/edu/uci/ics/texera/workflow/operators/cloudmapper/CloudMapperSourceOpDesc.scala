@@ -100,7 +100,7 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
        |
        |        # Send the POST request to start the job
        |        response = requests.post("${AmberConfig.clusterLauncherServiceTarget}/api/job/create",
-       |                                 data=form_data, files=files, timeout=0.5)
+       |                                 data=form_data, files=files)
        |
        |        # Extract the job ID from the initial response
        |        job_id = response.json().get("job_id")
@@ -124,7 +124,8 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
        |            yield
        |
        |        # Request to download the ZIP file after the job is completed
-       |        download_response = requests.get(f'${AmberConfig.clusterLauncherServiceTarget}/api/job/download/{job_id}')
+       |        download_response = requests.get(f'${AmberConfig.clusterLauncherServiceTarget}/api/job/download/{job_id}',
+       |                                         params={'cid': str(${clusterId})})
        |
        |        if download_response.status_code == 200:
        |            # Read the ZIP file from the response content
