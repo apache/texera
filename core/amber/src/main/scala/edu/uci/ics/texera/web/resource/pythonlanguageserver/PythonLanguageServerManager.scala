@@ -28,7 +28,7 @@ object PythonLanguageServerManager {
         while (tryCount < MAX_TRY_COUNT && !started) {
           try {
             val command = Seq("node", "--loader", "ts-node/esm", "src/main.ts")
-            val workingDir = new File("C:/Users/Owner/new/texera/core/pyright-language-server")
+            val workingDir = new File("../pyright-language-server")
             val exitCode = Process(command, workingDir).!
             if (exitCode == 0) {
               logger.info(
