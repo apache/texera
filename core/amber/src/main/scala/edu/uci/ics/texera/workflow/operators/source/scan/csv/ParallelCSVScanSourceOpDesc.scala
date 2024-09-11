@@ -10,6 +10,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, Workf
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.inferSchemaFromRows
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
+import edu.uci.ics.texera.workflow.operators.util.OperatorFilePathUtils
 
 import java.io.{File, IOException}
 
@@ -39,7 +40,7 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
 
     // here, the stream requires to be seekable, so datasetFileDesc creates a temp file here
     // TODO: consider a better way
-    val (filepath, fileDesc) = determineFilePathOrDatasetFile()
+    val (filepath, fileDesc) = OperatorFilePathUtils.determineFilePathOrDatasetFile(this.fileName)
     val file =
       if (filepath == null) {
         fileDesc.asFile()
@@ -86,7 +87,7 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
     if (customDelimiter.isEmpty) {
       return null
     }
-    val (filepath, fileDesc) = determineFilePathOrDatasetFile()
+    val (filepath, fileDesc) = OperatorFilePathUtils.determineFilePathOrDatasetFile(this.fileName)
     val file =
       if (filepath == null) {
         fileDesc.asFile()

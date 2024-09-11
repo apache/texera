@@ -1,17 +1,14 @@
 package edu.uci.ics.texera.workflow.operators.source.scan
 
 import com.fasterxml.jackson.annotation.{JsonIgnoreProperties, JsonProperty}
-import com.kjetland.jackson.jsonSchema.annotations.{
-  JsonSchemaInject,
-  JsonSchemaString,
-  JsonSchemaTitle
-}
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaString, JsonSchemaTitle}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.HideAnnotation
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.texera.workflow.operators.source.scan.text.TextSourceOpDesc
+import edu.uci.ics.texera.workflow.operators.util.OperatorFilePathUtils
 
 @JsonIgnoreProperties(value = Array("limit", "offset", "fileEncoding"))
 class FileScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
@@ -47,7 +44,7 @@ class FileScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp = {
-    val (filepath, fileDesc) = determineFilePathOrDatasetFile()
+    val (filepath, fileDesc) = OperatorFilePathUtils.determineFilePathOrDatasetFile(this.fileName)
     PhysicalOp
       .sourcePhysicalOp(
         workflowId,

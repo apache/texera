@@ -10,6 +10,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, Workf
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.inferSchemaFromRows
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
+import edu.uci.ics.texera.workflow.operators.util.OperatorFilePathUtils
 
 import java.io.{File, IOException}
 
@@ -37,7 +38,7 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
     if (customDelimiter.get.isEmpty)
       customDelimiter = Option(",")
 
-    val (filepath, datasetFileDocument) = determineFilePathOrDatasetFile()
+    val (filepath, datasetFileDocument) = OperatorFilePathUtils.determineFilePathOrDatasetFile(this.fileName)
     // for CSVOldScanSourceOpDesc, it requires the full File presence when execute, so use temp file here
     // TODO: figure out a better way
     val path =
@@ -81,7 +82,7 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
     if (customDelimiter.isEmpty) {
       return null
     }
-    val (filepath, fileDesc) = determineFilePathOrDatasetFile()
+    val (filepath, fileDesc) = OperatorFilePathUtils.determineFilePathOrDatasetFile(this.fileName)
     val file =
       if (filepath != null) {
         new File(filepath)

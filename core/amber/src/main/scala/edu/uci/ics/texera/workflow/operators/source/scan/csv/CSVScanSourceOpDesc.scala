@@ -10,6 +10,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, Workf
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.inferSchemaFromRows
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
+import edu.uci.ics.texera.workflow.operators.util.OperatorFilePathUtils
 
 import java.io.{File, FileInputStream, IOException, InputStreamReader}
 
@@ -37,7 +38,7 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
     if (customDelimiter.isEmpty || customDelimiter.get.isEmpty)
       customDelimiter = Option(",")
 
-    val (filepath, fileDesc) = determineFilePathOrDatasetFile()
+    val (filepath, fileDesc) = OperatorFilePathUtils.determineFilePathOrDatasetFile(this.fileName)
     PhysicalOp
       .sourcePhysicalOp(
         workflowId,
@@ -74,7 +75,7 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
       return null
     }
 
-    val (filepath, fileDesc) = determineFilePathOrDatasetFile()
+    val (filepath, fileDesc) = OperatorFilePathUtils.determineFilePathOrDatasetFile(this.fileName)
     val stream =
       if (filepath != null) {
         new FileInputStream(new File(filepath))

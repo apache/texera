@@ -8,6 +8,7 @@ import edu.uci.ics.amber.engine.common.workflow.OutputPort
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.source.PythonSourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
+import edu.uci.ics.texera.workflow.operators.util.OperatorFilePathUtils
 
 import java.nio.file.Paths
 
@@ -27,31 +28,9 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
   @JsonPropertyDescription("Cluster Id")
   val clusterId: String = ""
 
-  @JsonIgnore
-  var filePath: Option[String] = None
-
-  @JsonIgnore
-  var datasetFile: Option[DatasetFileDocument] = None
-
-  def determineFilePathOrDatasetFile(fileName: Option[String]): (String, DatasetFileDocument) = {
-    if (AmberConfig.isUserSystemEnabled) {
-      // if user system is defined, a datasetFileDesc will be initialized, which is the handle of reading file from the dataset
-      datasetFile = Some(new DatasetFileDocument(Paths.get(fileName.get)))
-      val file = datasetFile.getOrElse(
-        throw new RuntimeException("Dataset file descriptor is not provided.")
-      )
-      (null, file)
-    } else {
-      // otherwise, the fileName will be inputted by user, which is the filePath.
-      filePath = fileName
-      val filepath = filePath.getOrElse(throw new RuntimeException("File path is not provided."))
-      (filepath, null)
-    }
-  }
-
   override def generatePythonCode(): String = {
     // Convert the Scala fastQFiles into a file path
-    val (filepath, fileDesc) = determineFilePathOrDatasetFile(Some(fastQFiles))
+    val (filepath, fileDesc) = OperatorFilePathUtils.determineFilePathOrDatasetFile(Some(fastQFiles))
     val fastQFilePath = if (filepath != null) filepath else fileDesc.asFile().toPath.toString
 
     // Convert the Scala referenceGenomes list to a Python list format
@@ -64,7 +43,7 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
     val pythonFastaFiles = referenceGenomes
       .flatMap(_.fastAFiles)
       .map(file => {
-        val (filepath, fileDesc) = determineFilePathOrDatasetFile(Some(file))
+        val (filepath, fileDesc) = OperatorFilePathUtils.determineFilePathOrDatasetFile(Some(file))
         val fastAFilePath = if (filepath != null) filepath else fileDesc.asFile().toPath.toString
         s"open(r'$fastAFilePath', 'rb')"
       })
@@ -75,7 +54,7 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
       .find(_.referenceGenome == ReferenceGenomeEnum.OTHERS)
       .flatMap(_.gtfFile)
       .map(file => {
-        val (filepath, fileDesc) = determineFilePathOrDatasetFile(Some(file))
+        val (filepath, fileDesc) = OperatorFilePathUtils.determineFilePathOrDatasetFile(Some(file))
         val gtfFilePath = if (filepath != null) filepath else fileDesc.asFile().toPath.toString
         s"open(r'$gtfFilePath', 'rb')"
       })
