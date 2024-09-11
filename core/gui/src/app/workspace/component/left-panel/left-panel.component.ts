@@ -50,6 +50,7 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
   order = Array.from({ length: this.items.length - 1 }, (_, index) => index + 1);
   dragPosition = { x: 0, y: 0 };
   returnPosition = { x: 0, y: 0 };
+  isDocked = true;
 
   constructor() {
     const savedOrder = localStorage.getItem("left-panel-order")?.split(",").map(Number);
@@ -68,6 +69,7 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
     const translates = document.getElementById("left-container")!.style.transform;
     const [xOffset, yOffset, _] = calculateTotalTranslate3d(translates);
     this.returnPosition = { x: -xOffset, y: -yOffset };
+    this.isDocked = this.dragPosition.x === this.returnPosition.x && this.dragPosition.y === this.returnPosition.y;
   }
 
   @HostListener("window:beforeunload")
@@ -104,5 +106,10 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
 
   resetPanelPosition() {
     this.dragPosition = { x: this.returnPosition.x, y: this.returnPosition.y };
+    this.isDocked = true;
+  }
+
+  handleDragStart() {
+    this.isDocked = false;
   }
 }

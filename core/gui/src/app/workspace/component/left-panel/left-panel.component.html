@@ -7,7 +7,7 @@
   <li
     nz-menu-item
     (click)="openFrame(0)"
-    *ngIf="width">
+    *ngIf="width && !isDocked">
     <span
       nz-icon
       nzType="minus"></span>
@@ -22,7 +22,7 @@
       nzTooltipPlacement="right"
       nz-tooltip="{{items[i].title}}"
       nzSelected="{{currentComponent === items[i].component}}"
-      *ngIf="items[i].enabled"
+      *ngIf="items[i].enabled && !width"
       (click)="openFrame(i)">
       <span
         nz-icon
@@ -44,6 +44,7 @@
   [style.width.px]="width"
   [style.height.px]="height"
   (nzResize)="onResize($event)"
+  (cdkDragStarted)="handleDragStart()"
   [cdkDragFreeDragPosition]="dragPosition">
   <ul
     nz-menu
@@ -52,6 +53,14 @@
     cdkDropList
     (cdkDropListDropped)="onDrop($event)"
     *ngIf="width">
+    <li
+      nz-menu-item
+      (click)="openFrame(0)"
+      *ngIf="isDocked">
+      <span
+        nz-icon
+        nzType="minus"></span>
+    </li>
     <ng-container *ngFor="let i of order">
       <li
         nz-menu-item
