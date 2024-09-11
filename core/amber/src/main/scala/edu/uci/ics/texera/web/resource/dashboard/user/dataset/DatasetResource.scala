@@ -1040,6 +1040,15 @@ class DatasetResource {
     })
   }
 
+  /**
+   * Retrieves a ZIP file for a specific dataset version.
+   *
+   * @param pathStr The dataset version path in the format: /ownerEmail/datasetName/versionName
+   *                Example: /user@example.com/dataset/v1
+   *
+   * @param user the session user.
+   * @return A Response containing the dataset version as a ZIP file.
+   */
   @GET
   @Path("/version-zip")
   def retrieveDatasetVersionZip(
