@@ -11,7 +11,7 @@ public enum ReferenceGenomeEnum {
 
     HUMAN_hg19("hg19"),
 
-    OTHERS("Others");
+    MY_REFERENCE("My Reference");
 
     private final String name;
 

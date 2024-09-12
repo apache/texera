@@ -3,7 +3,8 @@
     nzCollapsible
     [nzCollapsedWidth]="45"
     (nzCollapsedChange)="handleCollapseChange($event)"
-    nzTheme="light">
+    nzTheme="light"
+    [nzWidth]="210">
     <ul
       nz-menu
       nzMode="inline">
@@ -85,7 +86,7 @@
         <span
           nz-icon
           nzType="cluster"></span>
-        <span>Starsolo Clusters</span>
+        <span>CloudMapper Clusters</span>
       </li>
       <li
         *ngIf="isAdmin"

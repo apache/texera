@@ -9,7 +9,6 @@ import edu.uci.ics.texera.workflow.common.operators.source.PythonSourceOperatorD
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.texera.workflow.operators.util.OperatorFilePathUtils
 
-
 class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
   @JsonProperty(required = true)
   @JsonSchemaTitle("FastQ Files")
@@ -22,9 +21,18 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
   var referenceGenomes: List[ReferenceGenome] = List()
 
   @JsonProperty(required = true)
-  @JsonSchemaTitle("Cluster Id")
-  @JsonPropertyDescription("Cluster Id")
-  val clusterId: String = ""
+  @JsonSchemaTitle("Cluster")
+  @JsonPropertyDescription("Cluster")
+  val cluster: String = ""
+
+  // Getter to retrieve only the id part (cid) from the cluster
+  def clusterId: String = {
+    if (cluster.startsWith("#")) {
+      cluster.split(" ")(0).substring(1) // Extracts the cid part by splitting and removing '#'
+    } else {
+      ""
+    }
+  }
 
   override def generatePythonCode(): String = {
     // Convert the Scala fastQFiles into a file path
@@ -48,9 +56,9 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
       })
       .mkString("[", ", ", "]")
 
-    // Extract GTF file if exists for 'Others'
+    // Extract GTF file if exists for 'My Reference'
     val pythonGtfFile = referenceGenomes
-      .find(_.referenceGenome == ReferenceGenomeEnum.OTHERS)
+      .find(_.referenceGenome == ReferenceGenomeEnum.MY_REFERENCE)
       .flatMap(_.gtfFile)
       .map(file => {
         val (filepath, fileDesc) = OperatorFilePathUtils.determineFilePathOrDatasetFile(Some(file))
@@ -89,7 +97,7 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
        |            for index, genome in enumerate(selected_genomes):
        |                form_data[f'referenceGenome[{index}]'] = genome
        |
-       |            if 'Others' in selected_genomes:
+       |            if 'My Reference' in selected_genomes:
        |                append_fasta_and_gtf_files_to_form_data(files, job_form)
        |
        |        def append_fasta_and_gtf_files_to_form_data(files, job_form):
@@ -106,9 +114,11 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
        |        job_form = {
        |            'reads': open(r'${fastQFilePath}', 'rb'),
        |            'referenceGenome': ${pythonReferenceGenomes},
-       |            'fastaFiles': ${pythonFastaFiles} if 'Others' in ${pythonReferenceGenomes} else [],
+       |            'fastaFiles': ${pythonFastaFiles} if 'My Reference' in ${pythonReferenceGenomes} else [],
        |            'gtfFile': ${pythonGtfFile}
        |        }
+       |
+       |        print(${pythonReferenceGenomes})
        |
        |        # Create form data and files based on the provided job_form
        |        form_data, files = create_job_form_data(${clusterId}, job_form)
@@ -131,7 +141,7 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
        |                break
        |            elif status == "failed":
        |                print("Job failed.")
-       |                yield {'features': None, 'barcodes': None, 'matrix': None}
+       |                yield {'matrix_path': None}
        |                return
        |
        |            print("Job is still processing...")

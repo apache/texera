@@ -17,7 +17,7 @@ class ReferenceGenome {
   var referenceGenome: ReferenceGenomeEnum = _
 
   // Optional field for FastA files.
-  // This field is shown only if 'referenceGenome' is set to 'OTHERS'.
+  // This field is shown only if 'referenceGenome' is set to 'MY_REFERENCE'.
   @JsonSchemaTitle("FastA Files")
   @JsonSchemaInject(
     strings = Array(
@@ -25,14 +25,14 @@ class ReferenceGenome {
       new JsonSchemaString(path = HideAnnotation.hideType, value = HideAnnotation.Type.regex),
       new JsonSchemaString(
         path = HideAnnotation.hideExpectedValue,
-        value = "^((?!Others).)*$"
-      ) // regex to hide when "others" is not present
+        value = "^((?!My Reference).)*$"
+      )
     )
   )
   val fastAFiles: Option[String] = None
 
   // Optional field for Gtf files.
-  // This field is shown only if 'referenceGenome' is set to 'OTHERS'.
+  // This field is shown only if 'referenceGenome' is set to 'MY_REFERENCE'.
   @JsonSchemaTitle("Gtf File")
   @JsonSchemaInject(
     strings = Array(
@@ -40,8 +40,8 @@ class ReferenceGenome {
       new JsonSchemaString(path = HideAnnotation.hideType, value = HideAnnotation.Type.regex),
       new JsonSchemaString(
         path = HideAnnotation.hideExpectedValue,
-        value = "^((?!Others).)*$"
-      ) // regex to hide when "others" is not present
+        value = "^((?!My Reference).)*$"
+      )
     )
   )
   val gtfFile: Option[String] = None

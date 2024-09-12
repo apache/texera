@@ -441,7 +441,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       }
 
       // if the title is clusterId, then change it to cluster-autocomplete
-      if (mappedField.key == "clusterId") {
+      if (mappedField.key == "cluster") {
         mappedField.type = "clusterautocomplete";
       }
 

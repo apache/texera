@@ -34,7 +34,9 @@ export class ClusterAutoCompleteComponent extends FieldType<FieldTypeConfig> {
 
         modal.afterClose.pipe(untilDestroyed(this)).subscribe(selectedCluster => {
           if (selectedCluster) {
-            this.formControl.setValue(String(selectedCluster.cid));
+            // Format the value as #cid name
+            const formattedValue = `#${selectedCluster.cid} ${selectedCluster.name}`;
+            this.formControl.setValue(formattedValue);
           }
         });
       });
