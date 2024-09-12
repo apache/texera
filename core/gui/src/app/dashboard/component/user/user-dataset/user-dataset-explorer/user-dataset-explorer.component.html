@@ -132,17 +132,30 @@
       </div>
       <div class="version-storage">
         <h6 style="font-weight: lighter; font-size: 0.9em">Choose a Version:</h6>
-        <nz-select
-          nzShowSearch
-          nzAllowClear
-          nzPlaceHolder="Select a version"
-          (ngModelChange)="onVersionSelected($event)"
-          [(ngModel)]="selectedVersion">
-          <nz-option
-            *ngFor="let version of versions"
-            [nzValue]="version"
-            [nzLabel]="version.name"></nz-option>
-        </nz-select>
+        <div class="select-and-button-container">
+          <nz-select
+            nzShowSearch
+            nzAllowClear
+            nzPlaceHolder="Select a version"
+            (ngModelChange)="onVersionSelected($event)"
+            [(ngModel)]="selectedVersion">
+            <nz-option
+              *ngFor="let version of versions"
+              [nzValue]="version"
+              [nzLabel]="version.name"></nz-option>
+          </nz-select>
+          <button
+            nz-button
+            nz-tooltip="Download Dataset"
+            (click)="onClickDownloadVersionAsZip()"
+            *ngIf="selectedVersion"
+            class="spaced-button">
+            <i
+              nz-icon
+              nzType="download"
+              nzTheme="outline"></i>
+          </button>
+        </div>
       </div>
       <texera-user-dataset-version-filetree
         [fileTreeNodes]="fileTreeNodeList"

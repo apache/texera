@@ -49,7 +49,7 @@ import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{
   getDatasetVersions,
   getFileNodesOfCertainVersion,
   getUserDatasets,
-  resolveFilePath,
+  resolvePath,
   retrievePublicDatasets
 }
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.{
@@ -65,10 +65,11 @@ import org.jooq.{DSLContext, EnumType}
 import org.jooq.types.UInteger
 import play.api.libs.json.Json
 
-import java.io.{InputStream, OutputStream}
+import java.io.{IOException, InputStream, OutputStream}
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
-import java.nio.file.Paths
+import java.nio.file.{Files, Paths}
+import java.util.zip.{ZipEntry, ZipOutputStream}
 import java.util
 import java.util.concurrent.locks.ReentrantLock
 import javax.annotation.security.RolesAllowed
@@ -82,7 +83,8 @@ import javax.ws.rs.{
   Path,
   PathParam,
   Produces,
-  QueryParam
+  QueryParam,
+  WebApplicationException
 }
 import javax.ws.rs.core.{MediaType, Response, StreamingOutput}
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
@@ -167,25 +169,38 @@ object DatasetResource {
     version
   }
 
-  // user given filePath is /ownerEmail/datasetName/versionName/fileRelativePath
+  // @param shouldContainFile a boolean flag indicating whether the path includes a fileRelativePath
+  // when shouldContainFile is true, user given path is /ownerEmail/datasetName/versionName/fileRelativePath
   // e.g. /bob@texera.com/twitterDataset/v1/california/irvine/tw1.csv
   //      ownerName is bob@texera.com; datasetName is twitterDataset, versionName is v1, fileRelativePath is california/irvine/tw1.csv
-  def resolveFilePath(
-      filePath: java.nio.file.Path
-  ): (String, Dataset, DatasetVersion, java.nio.file.Path) = {
+  // when shouldContainFile is false, user given path is /ownerEmail/datasetName/versionName
+  // e.g. /bob@texera.com/twitterDataset/v1
+  //      ownerName is bob@texera.com; datasetName is twitterDataset, versionName is v1
+  def resolvePath(
+      path: java.nio.file.Path,
+      shouldContainFile: Boolean
+  ): (String, Dataset, DatasetVersion, Option[java.nio.file.Path]) = {
 
-    val pathSegments = (0 until filePath.getNameCount).map(filePath.getName(_).toString).toArray
+    val pathSegments = (0 until path.getNameCount).map(path.getName(_).toString).toArray
 
-    if (pathSegments.length < 4) {
+    // The expected length of the path segments:
+    // - If shouldContainFile is true, the path should include 4 segments: /ownerEmail/datasetName/versionName/fileRelativePath
+    // - If shouldContainFile is false, the path should include only 3 segments: /ownerEmail/datasetName/versionName
+    val expectedLength = if (shouldContainFile) 4 else 3
+
+    if (pathSegments.length < expectedLength) {
       throw new BadRequestException(
-        "Invalid file path format. Expected format: /ownerEmail/datasetName/versionName/fileRelativePath"
+        s"Invalid path format. Expected format: /ownerEmail/datasetName/versionName" +
+          (if (shouldContainFile) "/fileRelativePath" else "")
       )
     }
 
     val ownerEmail = pathSegments(0)
     val datasetName = pathSegments(1)
     val versionName = pathSegments(2)
-    val fileRelativePath = Paths.get(pathSegments.drop(3).mkString("/"))
+
+    val fileRelativePath =
+      if (shouldContainFile) Some(Paths.get(pathSegments.drop(3).mkString("/"))) else None
 
     withTransaction(context) { ctx =>
       // Get the dataset by owner email and dataset name
@@ -200,7 +215,6 @@ object DatasetResource {
         throw new NotFoundException("Dataset version not found")
       }
 
-      // Return the dataset, dataset version, and file relative path
       (ownerEmail, dataset, datasetVersion, fileRelativePath)
     }
   }
@@ -340,8 +354,17 @@ object DatasetResource {
           .parse(filePathsValue)
           .as[List[String]]
           .foreach(pathStr => {
-            val (_, _, _, fileRelativePath) = resolveFilePath(Paths.get(pathStr))
-            filesToRemove += datasetPath.resolve(fileRelativePath)
+            val (_, _, _, fileRelativePath) =
+              resolvePath(Paths.get(pathStr), shouldContainFile = true)
+
+            fileRelativePath
+              .map { path =>
+                filesToRemove += datasetPath
+                  .resolve(path) // When path exists, resolve it and add to filesToRemove
+              }
+              .getOrElse {
+                throw new IllegalArgumentException("File relative path is missing")
+              }
           })
       }
     }
@@ -761,7 +784,8 @@ class DatasetResource {
       if (filePathStr != null && filePathStr.nonEmpty) {
         // if the file path is given, then only fetch the dataset and version this file is belonging to
         val decodedPathStr = URLDecoder.decode(filePathStr, StandardCharsets.UTF_8.name())
-        val (ownerEmail, dataset, version, _) = resolveFilePath(Paths.get(decodedPathStr))
+        val (ownerEmail, dataset, version, _) =
+          resolvePath(Paths.get(decodedPathStr), shouldContainFile = true)
         val accessPrivilege = getDatasetUserAccessPrivilege(ctx, dataset.getDid, uid)
         if (
           accessPrivilege == DatasetUserAccessPrivilege.NONE && dataset.getIsPublic == DATASET_IS_PRIVATE
@@ -977,7 +1001,8 @@ class DatasetResource {
     val uid = user.getUid
     val decodedPathStr = URLDecoder.decode(pathStr, StandardCharsets.UTF_8.name())
 
-    val (_, dataset, dsVersion, fileRelativePath) = resolveFilePath(Paths.get(decodedPathStr))
+    val (_, dataset, dsVersion, fileRelativePath) =
+      resolvePath(Paths.get(decodedPathStr), shouldContainFile = true)
 
     withTransaction(context)(ctx => {
       val did = dataset.getDid
@@ -992,12 +1017,18 @@ class DatasetResource {
 
       val streamingOutput = new StreamingOutput() {
         override def write(output: OutputStream): Unit = {
-          GitVersionControlLocalFileStorage.retrieveFileContentOfVersion(
-            targetDatasetPath,
-            datasetVersion.getVersionHash,
-            targetDatasetPath.resolve(fileRelativePath),
-            output
-          )
+          fileRelativePath
+            .map { path =>
+              GitVersionControlLocalFileStorage.retrieveFileContentOfVersion(
+                targetDatasetPath,
+                datasetVersion.getVersionHash,
+                targetDatasetPath.resolve(path),
+                output
+              )
+            }
+            .getOrElse {
+              throw new IllegalArgumentException("File relative path is missing.")
+            }
         }
       }
 
@@ -1020,5 +1051,84 @@ class DatasetResource {
 
       Response.ok(streamingOutput).`type`(contentType).build()
     })
+  }
+
+  /**
+    * Retrieves a ZIP file for a specific dataset version.
+    *
+    * @param pathStr The dataset version path in the format: /ownerEmail/datasetName/versionName
+    *                Example: /user@example.com/dataset/v1
+    *
+    * @param user the session user.
+    * @return A Response containing the dataset version as a ZIP file.
+    */
+  @GET
+  @Path("/version-zip")
+  def retrieveDatasetVersionZip(
+      @QueryParam("path") pathStr: String,
+      @Auth user: SessionUser
+  ): Response = {
+    val uid = user.getUid
+    val decodedPathStr = URLDecoder.decode(pathStr, StandardCharsets.UTF_8.name())
+    val (_, dataset, dsVersion, _) =
+      resolvePath(Paths.get(decodedPathStr), shouldContainFile = false)
+
+    withTransaction(context) { ctx =>
+      val did = dataset.getDid
+      val dvid = dsVersion.getDvid
+
+      if (!userHasReadAccess(ctx, did, uid)) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+      }
+
+      val targetDatasetPath = PathUtils.getDatasetPath(did)
+      val datasetVersion = getDatasetVersionByID(ctx, dvid)
+      val versionHash = datasetVersion.getVersionHash
+
+      val fileNodes = GitVersionControlLocalFileStorage.retrieveRootFileNodesOfVersion(
+        targetDatasetPath,
+        versionHash
+      )
+
+      val streamingOutput = new StreamingOutput() {
+        override def write(outputStream: OutputStream): Unit = {
+          val zipOutputStream = new ZipOutputStream(outputStream)
+
+          try {
+            fileNodes.foreach { fileNode =>
+              val zipEntryName = fileNode.getRelativePath.toString
+
+              try {
+                zipOutputStream.putNextEntry(new ZipEntry(zipEntryName))
+
+                val filePath = fileNode.getAbsolutePath
+
+                Files.copy(filePath, zipOutputStream)
+
+              } catch {
+                case e: IOException =>
+                  throw new WebApplicationException(s"Error processing file: $zipEntryName", e)
+              } finally {
+                zipOutputStream.closeEntry()
+              }
+            }
+          } catch {
+            case e: IOException =>
+              throw new WebApplicationException("Error creating ZIP output stream", e)
+          } finally {
+            zipOutputStream.close()
+          }
+        }
+      }
+
+      Response
+        .ok(streamingOutput)
+        .header(
+          "Content-Disposition",
+          s"attachment; filename=${dataset.getName}-${datasetVersion.getName}.zip"
+        )
+        .`type`("application/zip")
+        .build()
+    }
   }
 }

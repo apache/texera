@@ -9,7 +9,7 @@ import java.nio.file.{Files, Path}
 class DatasetFileDocument(fileFullPath: Path) extends VirtualDocument[Nothing] {
 
   private val (_, dataset, datasetVersion, fileRelativePath) =
-    DatasetResource.resolveFilePath(fileFullPath)
+    DatasetResource.resolvePath(fileFullPath, shouldContainFile = true)
 
   private var tempFile: Option[File] = None
 
@@ -18,8 +18,14 @@ class DatasetFileDocument(fileFullPath: Path) extends VirtualDocument[Nothing] {
       "The URI cannot be acquired because the file is not physically located"
     )
 
-  override def asInputStream(): InputStream =
-    DatasetResource.getDatasetFile(dataset.getDid, datasetVersion.getDvid, fileRelativePath)
+  override def asInputStream(): InputStream = {
+    fileRelativePath match {
+      case Some(path) =>
+        DatasetResource.getDatasetFile(dataset.getDid, datasetVersion.getDvid, path)
+      case None =>
+        throw new IllegalArgumentException("File relative path is missing.")
+    }
+  }
 
   override def asFile(): File = {
     tempFile match {
