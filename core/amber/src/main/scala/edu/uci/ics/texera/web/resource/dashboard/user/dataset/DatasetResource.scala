@@ -169,6 +169,7 @@ object DatasetResource {
     version
   }
 
+  // @param shouldContainFile a boolean flag indicating whether the path includes a fileRelativePath
   // when shouldContainFile is true, user given path is /ownerEmail/datasetName/versionName/fileRelativePath
   // e.g. /bob@texera.com/twitterDataset/v1/california/irvine/tw1.csv
   //      ownerName is bob@texera.com; datasetName is twitterDataset, versionName is v1, fileRelativePath is california/irvine/tw1.csv
@@ -181,6 +182,10 @@ object DatasetResource {
   ): (String, Dataset, DatasetVersion, Option[java.nio.file.Path]) = {
 
     val pathSegments = (0 until path.getNameCount).map(path.getName(_).toString).toArray
+
+    // The expected length of the path segments:
+    // - If shouldContainFile is true, the path should include 4 segments: /ownerEmail/datasetName/versionName/fileRelativePath
+    // - If shouldContainFile is false, the path should include only 3 segments: /ownerEmail/datasetName/versionName
     val expectedLength = if (shouldContainFile) 4 else 3
 
     if (pathSegments.length < expectedLength) {
