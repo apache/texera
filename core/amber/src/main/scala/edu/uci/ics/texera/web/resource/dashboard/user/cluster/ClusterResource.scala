@@ -5,12 +5,22 @@ import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.enums.ClusterStatus
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Cluster.CLUSTER
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.ClusterDao
-import edu.uci.ics.texera.web.resource.dashboard.user.cluster.ClusterResource.{ERR_USER_HAS_NO_ACCESS_TO_CLUSTER_MESSAGE, clusterDao, context}
+import edu.uci.ics.texera.web.resource.dashboard.user.cluster.ClusterResource.{
+  ERR_USER_HAS_NO_ACCESS_TO_CLUSTER_MESSAGE,
+  clusterDao,
+  context
+}
 import io.dropwizard.auth.Auth
 import org.glassfish.jersey.media.multipart.FormDataParam
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Cluster
-import edu.uci.ics.texera.web.resource.dashboard.user.cluster.ClusterServiceClient.{callCreateClusterAPI, callDeleteClusterAPI}
-import edu.uci.ics.texera.web.resource.dashboard.user.cluster.ClusterUtils.{updateClusterActivityEndTime, updateClusterStatus}
+import edu.uci.ics.texera.web.resource.dashboard.user.cluster.ClusterServiceClient.{
+  callCreateClusterAPI,
+  callDeleteClusterAPI
+}
+import edu.uci.ics.texera.web.resource.dashboard.user.cluster.ClusterUtils.{
+  updateClusterActivityEndTime,
+  updateClusterStatus
+}
 
 import java.util
 import javax.annotation.security.RolesAllowed
@@ -179,18 +189,20 @@ class ClusterResource {
     */
   @GET
   @Path("")
-  def listClusters(@Auth user: SessionUser, @QueryParam("available") available :Boolean): util.List[Cluster] = {
+  def listClusters(
+      @Auth user: SessionUser,
+      @QueryParam("available") available: Boolean
+  ): util.List[Cluster] = {
     clusterDao.fetchByOwnerId(user.getUid)
     var steps = context
-        .select(CLUSTER.asterisk())
-        .from(CLUSTER)
-        .where(CLUSTER.OWNER_ID.eq(user.getUid))
-        .and(CLUSTER.STATUS.ne(ClusterStatus.TERMINATED))
+      .select(CLUSTER.asterisk())
+      .from(CLUSTER)
+      .where(CLUSTER.OWNER_ID.eq(user.getUid))
+      .and(CLUSTER.STATUS.ne(ClusterStatus.TERMINATED))
     if (available) {
       steps = steps.and(CLUSTER.STATUS.eq(ClusterStatus.LAUNCHED))
     }
     steps.fetchInto(classOf[Cluster])
-
 
   }
 

@@ -1,16 +1,14 @@
 package edu.uci.ics.texera.workflow.operators.cloudmapper
 
-import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
+import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.common.AmberConfig
-import edu.uci.ics.amber.engine.common.storage.DatasetFileDocument
 import edu.uci.ics.amber.engine.common.workflow.OutputPort
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.source.PythonSourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.texera.workflow.operators.util.OperatorFilePathUtils
 
-import java.nio.file.Paths
 
 class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
   @JsonProperty(required = true)
@@ -30,7 +28,8 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
 
   override def generatePythonCode(): String = {
     // Convert the Scala fastQFiles into a file path
-    val (filepath, fileDesc) = OperatorFilePathUtils.determineFilePathOrDatasetFile(Some(fastQFiles))
+    val (filepath, fileDesc) =
+      OperatorFilePathUtils.determineFilePathOrDatasetFile(Some(fastQFiles))
     val fastQFilePath = if (filepath != null) filepath else fileDesc.asFile().toPath.toString
 
     // Convert the Scala referenceGenomes list to a Python list format
@@ -66,7 +65,7 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
        |
        |    @overrides
        |    def produce(self) -> Iterator[Union[TupleLike, TableLike, None]]:
-       |        import requests, zipfile, io, time
+       |        import requests, io, time
        |
        |        def create_job_form_data(cluster_id, job_form):
        |            form_data = {
@@ -139,24 +138,18 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
        |            time.sleep(0.5)
        |            yield
        |
-       |        # Request to download the ZIP file after the job is completed
+       |        # Request to download files after the job is completed
        |        download_response = requests.get(f'${AmberConfig.clusterLauncherServiceTarget}/api/job/download/{job_id}',
        |                                         params={'cid': str(${clusterId})})
        |
        |        if download_response.status_code == 200:
-       |            # Read the ZIP file from the response content
-       |            zip_file = zipfile.ZipFile(io.BytesIO(download_response.content))
-       |
-       |            # Extract file contents from the ZIP file
-       |            features_content = zip_file.read('features.tsv')
-       |            barcodes_content = zip_file.read('barcodes.tsv')
-       |            matrix_content = zip_file.read('matrix.mtx')
-       |
-       |            yield {'features': features_content, 'barcodes': barcodes_content, 'matrix': matrix_content}
+       |            # Read the directory path from the response text
+       |            directory_path = download_response.text.strip()
+       |            yield {'matrix_path': directory_path}
        |        else:
        |            print(f"Failed to get the files. Status Code: {download_response.status_code}")
        |            print(f"Response Text: {download_response.text}")
-       |            yield {'features': None, 'barcodes': None, 'matrix': None}
+       |            yield {'matrix_path': None}
     """.stripMargin
   }
   override def operatorInfo: OperatorInfo =
@@ -172,9 +165,7 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
     Schema
       .builder()
       .add(
-        new Attribute("features", AttributeType.BINARY),
-        new Attribute("barcodes", AttributeType.BINARY),
-        new Attribute("matrix", AttributeType.BINARY)
+        new Attribute("matrix_path", AttributeType.STRING)
       )
       .build()
 }

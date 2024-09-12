@@ -38,7 +38,8 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
     if (customDelimiter.get.isEmpty)
       customDelimiter = Option(",")
 
-    val (filepath, datasetFileDocument) = OperatorFilePathUtils.determineFilePathOrDatasetFile(this.fileName)
+    val (filepath, datasetFileDocument) =
+      OperatorFilePathUtils.determineFilePathOrDatasetFile(this.fileName)
     // for CSVOldScanSourceOpDesc, it requires the full File presence when execute, so use temp file here
     // TODO: figure out a better way
     val path =
