@@ -50,10 +50,7 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
        |
        |    @overrides
        |    def produce(self) -> Iterator[Union[TupleLike, TableLike, None]]:
-       |        import requests, zipfile, io
-       |
-       |        # Set the URL to the Go endpoint
-       |        url = "${AmberConfig.clusterLauncherServiceTarget}/api/job/create"
+       |        import requests, zipfile, io, time
        |
        |        def create_job_form_data(cluster_id, job_form):
        |            form_data = {
@@ -101,19 +98,48 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
        |        # Create form data and files based on the provided job_form
        |        form_data, files = create_job_form_data(${clusterId}, job_form)
        |
-       |        # Send the POST request to the Go program
-       |        response = requests.post(url, data=form_data, files=files)
+       |        # Send the POST request to start the job
+       |        response = requests.post("${AmberConfig.clusterLauncherServiceTarget}/api/job/create",
+       |                                 data=form_data, files=files)
        |
-       |        if response.status_code == 200:
-       |            zip_file = zipfile.ZipFile(io.BytesIO(response.content))
+       |        # Extract the job ID from the initial response
+       |        job_id = response.json().get("job_id")
        |
+       |        # Poll until the job is finished
+       |        while True:
+       |            # Poll the status endpoint
+       |            status_response = requests.get(f'${AmberConfig.clusterLauncherServiceTarget}/api/job/status/{job_id}')
+       |            status = status_response.json().get("status")
+       |
+       |            if status == "finished":
+       |                print("Job finished! Downloading the result...")
+       |                break
+       |            elif status == "failed":
+       |                print("Job failed.")
+       |                yield {'features': None, 'barcodes': None, 'matrix': None}
+       |                return
+       |
+       |            print("Job is still processing...")
+       |            time.sleep(0.5)
+       |            yield
+       |
+       |        # Request to download the ZIP file after the job is completed
+       |        download_response = requests.get(f'${AmberConfig.clusterLauncherServiceTarget}/api/job/download/{job_id}',
+       |                                         params={'cid': str(${clusterId})})
+       |
+       |        if download_response.status_code == 200:
+       |            # Read the ZIP file from the response content
+       |            zip_file = zipfile.ZipFile(io.BytesIO(download_response.content))
+       |
+       |            # Extract file contents from the ZIP file
        |            features_content = zip_file.read('features.tsv')
        |            barcodes_content = zip_file.read('barcodes.tsv')
        |            matrix_content = zip_file.read('matrix.mtx')
+       |
        |            yield {'features': features_content, 'barcodes': barcodes_content, 'matrix': matrix_content}
        |        else:
-       |            print(f"Failed to get the files. Status Code: {response.status_code}")
-       |            print(f"Response Text: {response.text}")
+       |            print(f"Failed to get the files. Status Code: {download_response.status_code}")
+       |            print(f"Response Text: {download_response.text}")
        |            yield {'features': None, 'barcodes': None, 'matrix': None}
     """.stripMargin
   }
