@@ -126,15 +126,15 @@ export class ClusterComponent implements OnInit, OnDestroy {
     switch (status) {
       case "LAUNCHING":
       case "RESUMING":
-        return ["play-circle", "orange"];
+        return ["loading", "green"];
       case "PAUSING":
-        return ["pause-circle", "orange"];
+        return ["loading", "orange"];
       case "LAUNCHED":
         return ["check-circle", "green"];
       case "PAUSED":
         return ["pause-circle", "gray"];
       case "TERMINATING":
-        return ["minus-circle", "orange"];
+        return ["loading", "red"];
       case "TERMINATED":
       case "FAILED":
         return ["minus-circle", "red"];
