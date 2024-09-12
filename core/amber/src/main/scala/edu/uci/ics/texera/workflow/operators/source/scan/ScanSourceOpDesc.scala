@@ -87,20 +87,6 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
 
   def inferSchema(): Schema
 
-  // resolve the file path based on whether the user system is enabled
-  // it will check for the presence of the given filePath/Desc
-  def determineFilePathOrDatasetFile(): (String, DatasetFileDocument) = {
-    if (AmberConfig.isUserSystemEnabled) {
-      val file = datasetFile.getOrElse(
-        throw new RuntimeException("Dataset file descriptor is not provided.")
-      )
-      (null, file)
-    } else {
-      val filepath = filePath.getOrElse(throw new RuntimeException("File path is not provided."))
-      (filepath, null)
-    }
-  }
-
   override def equals(that: Any): Boolean =
     EqualsBuilder.reflectionEquals(this, that, "context", "filePath")
 }

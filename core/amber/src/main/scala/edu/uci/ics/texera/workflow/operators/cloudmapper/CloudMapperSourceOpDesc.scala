@@ -1,12 +1,16 @@
 package edu.uci.ics.texera.workflow.operators.cloudmapper
 
-import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
+import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.common.AmberConfig
+import edu.uci.ics.amber.engine.common.storage.DatasetFileDocument
 import edu.uci.ics.amber.engine.common.workflow.OutputPort
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.source.PythonSourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
+import edu.uci.ics.texera.workflow.operators.util.OperatorFilePathUtils
+
+import java.nio.file.Paths
 
 class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
   @JsonProperty(required = true)
@@ -25,6 +29,10 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
   val clusterId: String = ""
 
   override def generatePythonCode(): String = {
+    // Convert the Scala fastQFiles into a file path
+    val (filepath, fileDesc) = OperatorFilePathUtils.determineFilePathOrDatasetFile(Some(fastQFiles))
+    val fastQFilePath = if (filepath != null) filepath else fileDesc.asFile().toPath.toString
+
     // Convert the Scala referenceGenomes list to a Python list format
     val pythonReferenceGenomes = referenceGenomes
       .map(_.referenceGenome.getName)
@@ -34,14 +42,22 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
     // Convert the Scala referenceGenomes list to a Python list format for FASTA files
     val pythonFastaFiles = referenceGenomes
       .flatMap(_.fastAFiles)
-      .map(file => s"open('$file', 'rb')")
+      .map(file => {
+        val (filepath, fileDesc) = OperatorFilePathUtils.determineFilePathOrDatasetFile(Some(file))
+        val fastAFilePath = if (filepath != null) filepath else fileDesc.asFile().toPath.toString
+        s"open(r'$fastAFilePath', 'rb')"
+      })
       .mkString("[", ", ", "]")
 
     // Extract GTF file if exists for 'Others'
     val pythonGtfFile = referenceGenomes
       .find(_.referenceGenome == ReferenceGenomeEnum.OTHERS)
       .flatMap(_.gtfFile)
-      .map(file => s"open('$file', 'rb')")
+      .map(file => {
+        val (filepath, fileDesc) = OperatorFilePathUtils.determineFilePathOrDatasetFile(Some(file))
+        val gtfFilePath = if (filepath != null) filepath else fileDesc.asFile().toPath.toString
+        s"open(r'$gtfFilePath', 'rb')"
+      })
       .getOrElse("")
 
     s"""from pytexera import *
@@ -89,7 +105,7 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
        |
        |        # Example job_form dictionary using inputs from Scala
        |        job_form = {
-       |            'reads': open('${fastQFiles}', 'rb'),
+       |            'reads': open(r'${fastQFilePath}', 'rb'),
        |            'referenceGenome': ${pythonReferenceGenomes},
        |            'fastaFiles': ${pythonFastaFiles} if 'Others' in ${pythonReferenceGenomes} else [],
        |            'gtfFile': ${pythonGtfFile}
