@@ -197,11 +197,15 @@ object DatasetResource {
     withTransaction(context) { ctx =>
       // Get the dataset by owner email and dataset name
       val dataset = getDatasetByName(ctx, ownerEmail, datasetName)
-      if (dataset == null) throw new NotFoundException("Dataset not found")
+      if (dataset == null) {
+        throw new NotFoundException("Dataset not found")
+      }
 
       // Get the dataset version by dataset ID and version name
       val datasetVersion = getDatasetVersionByName(ctx, dataset.getDid, versionName)
-      if (datasetVersion == null) throw new NotFoundException("Dataset version not found")
+      if (datasetVersion == null) {
+        throw new NotFoundException("Dataset version not found")
+      }
 
       (ownerEmail, dataset, datasetVersion, fileRelativePath)
     }
