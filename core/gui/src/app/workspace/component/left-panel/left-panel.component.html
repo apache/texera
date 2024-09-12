@@ -1,3 +1,36 @@
+<ul
+  nz-menu
+  id="docked-buttons"
+  [ngClass]="{'shadow':  !width}"
+  cdkDropList
+  (cdkDropListDropped)="onDrop($event)">
+  <li
+    nz-menu-item
+    (click)="openFrame(0)"
+    *ngIf="width && !isDocked">
+    <span
+      nz-icon
+      nzType="minus"></span>
+  </li>
+  <li
+    nz-menu-divider
+    class="divider"></li>
+  <ng-container *ngFor="let i of order">
+    <li
+      nz-menu-item
+      cdkDrag
+      nzTooltipPlacement="right"
+      nz-tooltip="{{items[i].title}}"
+      nzSelected="{{currentComponent === items[i].component}}"
+      *ngIf="items[i].enabled && !width"
+      (click)="openFrame(i)">
+      <span
+        nz-icon
+        nzType="{{items[i].icon}}"></span>
+    </li>
+  </ng-container>
+</ul>
+
 <div
   cdkDrag
   cdkDragBoundary="texera-workspace"
@@ -10,33 +43,24 @@
   [nzMaxHeight]="window.innerHeight*0.85"
   [style.width.px]="width"
   [style.height.px]="height"
-  (nzResize)="onResize($event)">
+  (nzResize)="onResize($event)"
+  (cdkDragStarted)="handleDragStart()"
+  [cdkDragFreeDragPosition]="dragPosition">
   <ul
     nz-menu
     id="dock"
     [ngClass]="{'shadow':  !width}"
     cdkDropList
-    (cdkDropListDropped)="onDrop($event)">
+    (cdkDropListDropped)="onDrop($event)"
+    *ngIf="width">
     <li
       nz-menu-item
       (click)="openFrame(0)"
-      *ngIf="width">
+      *ngIf="isDocked">
       <span
         nz-icon
         nzType="minus"></span>
     </li>
-    <li
-      nz-menu-item
-      nzSelected
-      cdkDragHandle
-      *ngIf="!width">
-      <span
-        nz-icon
-        nzType="drag"></span>
-    </li>
-    <li
-      nz-menu-divider
-      id="divider"></li>
     <ng-container *ngFor="let i of order">
       <li
         nz-menu-item
@@ -51,6 +75,30 @@
           nzType="{{items[i].icon}}"></span>
       </li>
     </ng-container>
+  </ul>
+  <ul
+    id="return-button"
+    nz-menu
+    [ngClass]="{'shadow':  !width}"
+    cdkDropList
+    (cdkDropListDropped)="onDrop($event)"
+    *ngIf="width">
+    <button
+      nz-button
+      nzType="text"
+      (click)="resetPanelPosition()"
+      *ngIf="width">
+      <span
+        nz-icon
+        nzType="enter"></span>
+    </button>
+    <li
+      nz-menu-item
+      (click)="openFrame(0)">
+      <span
+        nz-icon
+        nzType="minus"></span>
+    </li>
   </ul>
   <div
     id="content"

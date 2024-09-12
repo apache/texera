@@ -5,7 +5,6 @@ import { NzModalService } from "ng-zorro-antd/modal";
 import { ClusterSelectionComponent } from "../cluster-selection/cluster-selection.component";
 import { ClusterService } from "src/app/common/service/cluster/cluster.service";
 import { environment } from "src/environments/environment";
-import { ClusterStatus } from "src/app/dashboard/type/clusters";
 
 @UntilDestroy()
 @Component({
