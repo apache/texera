@@ -18,7 +18,7 @@
 
   <nz-table
     #basicTable
-    [nzData]="clusterList">
+    [nzData]="(clusterList$ | async) ?? []">
     <thead>
       <tr>
         <th>Cluster ID</th>
@@ -36,7 +36,14 @@
         <td>{{ data.name }}</td>
         <td>{{ data.creationTime | date:'MM/dd/yyyy hh:mm:ss a':'PDT'}} PDT</td>
         <td>{{ data.numberOfMachines}}</td>
-        <td>{{ data.machineType }}</td>
+        <td>
+          <span
+            nz-tooltip
+            [nzTooltipTitle]="getMachineTypeInfo(data.machineType)"
+            nzTooltipPlacement="top">
+            {{ data.machineType }}
+          </span>
+        </td>
         <td>
           <i
             [ngStyle]="{'color': getBadgeStatus(data.status)[1], 'font-size': '20px'}"
