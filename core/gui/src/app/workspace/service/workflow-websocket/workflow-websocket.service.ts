@@ -67,7 +67,7 @@ export class WorkflowWebsocketService {
 
   public openWebsocket(wId: number, uId: number) {
     if (uId == undefined) {
-      console.log(`uId is ${uId}, defaulting to uId = 1`)
+      console.log(`uId is ${uId}, defaulting to uId = 1`);
       uId = 1;
     }
     const websocketUrl =
