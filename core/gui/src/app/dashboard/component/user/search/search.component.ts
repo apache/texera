@@ -19,6 +19,10 @@ export class SearchComponent implements AfterViewInit {
   public searchParam: string = "";
   sortMethod = SortMethod.EditTimeDesc;
   lastSortMethod: SortMethod | null = null;
+
+  selectedType: "project" | "workflow" | "dataset" | null = null;
+  lastSelectedType: "project" | "workflow" | "dataset" | null = null;
+
   public masterFilterList: ReadonlyArray<string> = [];
   @ViewChild(SearchResultsComponent) searchResultsComponent?: SearchResultsComponent;
   private _filters?: FiltersComponent;
@@ -58,12 +62,13 @@ export class SearchComponent implements AfterViewInit {
     const sameList =
       this.filters.masterFilterList.length === this.masterFilterList.length &&
       this.filters.masterFilterList.every((v, i) => v === this.masterFilterList[i]);
-    if (sameList && this.sortMethod === this.lastSortMethod) {
+    if (sameList && this.sortMethod === this.lastSortMethod && this.selectedType === this.lastSelectedType) {
       // If the filter lists are the same, do no make the same request again.
       return;
     }
     this.masterFilterList = this.filters.masterFilterList;
     this.lastSortMethod = this.sortMethod;
+    this.lastSelectedType = this.selectedType;
     if (!this.searchResultsComponent) {
       throw new Error("searchResultsComponent is undefined.");
     }
@@ -74,7 +79,7 @@ export class SearchComponent implements AfterViewInit {
           this.filters.getSearchFilterParameters(),
           start,
           count,
-          null,
+          this.selectedType,
           this.sortMethod
         )
       );
@@ -136,6 +141,11 @@ export class SearchComponent implements AfterViewInit {
       };
     });
     await this.searchResultsComponent.loadMore();
+  }
+
+  filterByType(type: "project" | "workflow" | "dataset" | null): void {
+    this.selectedType = type;
+    this.search();
   }
 
   goBack(): void {
