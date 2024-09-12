@@ -131,7 +131,7 @@ class KubernetesClientService(
    * @param uid   The pod owner's user id.
    */
   def deletePod(uid: Int, wid: Int): Unit = {
-    coreApi.deleteNamespacedPod(s"user-pod-$uid-wid-$wid", poolNamespace).execute()
+    coreApi.deleteNamespacedPod(s"user-pod-$uid-$wid", poolNamespace).execute()
   }
 
   /**
