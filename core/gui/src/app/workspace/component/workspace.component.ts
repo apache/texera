@@ -104,7 +104,8 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
       this.registerReEstablishWebsocketUponWIdChange();
     } else {
       let wid = this.route.snapshot.params.id ?? 0;
-      this.workflowWebsocketService.openWebsocket(wid);
+      let uid = this.userService.getCurrentUser()?.uid ?? 1;
+      this.workflowWebsocketService.openWebsocket(wid, uid);
     }
 
     this.registerLoadOperatorMetadata();
@@ -268,7 +269,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
       )
       .pipe(untilDestroyed(this))
       .subscribe(wid => {
-        this.workflowWebsocketService.reopenWebsocket(wid);
+        this.workflowWebsocketService.reopenWebsocket(wid, this.userService.getCurrentUser()?.uid ?? 0);
       });
   }
 }

@@ -91,7 +91,7 @@
       <td>
         <button
           type="button"
-          (click)="killExecution(execution.workflowId)"
+          (click)="killExecution(execution.workflowId, execution.userId)"
           [disabled]="execution.executionStatus === 'COMPLETED' ||
                         execution.executionStatus === 'JUST COMPLETED' ||
                         execution.executionStatus === 'FAILED' ||
@@ -105,7 +105,7 @@
         </button>
         <button
           type="button"
-          (click)="pauseExecution(execution.workflowId)"
+          (click)="pauseExecution(execution.workflowId, execution.userId)"
           [disabled]="execution.executionStatus !== 'RUNNING'"
           nz-button
           nz-tooltip="pause execution {{execution.executionName}} of workflow {{execution.workflowName}}">
@@ -116,7 +116,7 @@
         </button>
         <button
           type="button"
-          (click)="resumeExecution(execution.workflowId)"
+          (click)="resumeExecution(execution.workflowId, execution.userId)"
           [disabled]="execution.executionStatus !== 'PAUSED'"
           nz-button
           nz-tooltip="resume execution {{execution.executionName}} of workflow {{execution.workflowName}}">
