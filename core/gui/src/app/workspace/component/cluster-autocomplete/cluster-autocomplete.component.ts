@@ -5,7 +5,6 @@ import { NzModalService } from "ng-zorro-antd/modal";
 import { ClusterSelectionComponent } from "../cluster-selection/cluster-selection.component";
 import { ClusterService } from "src/app/common/service/cluster/cluster.service";
 import { environment } from "src/environments/environment";
-import { ClusterStatus } from "src/app/dashboard/type/clusters";
 
 @UntilDestroy()
 @Component({
@@ -26,11 +25,10 @@ export class ClusterAutoCompleteComponent extends FieldType<FieldTypeConfig> {
       .getClusters()
       .pipe(untilDestroyed(this))
       .subscribe(clusters => {
-        const nonFailedClusters = clusters.filter(cluster => cluster.status === ClusterStatus.LAUNCHED);
         const modal = this.modalService.create({
           nzTitle: "Select Cluster",
           nzContent: ClusterSelectionComponent,
-          nzData: { clusters: nonFailedClusters },
+          nzData: { clusters },
           nzFooter: null,
         });
 
