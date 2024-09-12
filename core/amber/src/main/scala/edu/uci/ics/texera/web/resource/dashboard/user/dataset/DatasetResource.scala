@@ -169,15 +169,18 @@ object DatasetResource {
     version
   }
 
-  // user given filePath is /ownerEmail/datasetName/versionName/fileRelativePath
+  // when shouldContainFile is true, user given path is /ownerEmail/datasetName/versionName/fileRelativePath
   // e.g. /bob@texera.com/twitterDataset/v1/california/irvine/tw1.csv
   //      ownerName is bob@texera.com; datasetName is twitterDataset, versionName is v1, fileRelativePath is california/irvine/tw1.csv
+  // when shouldContainFile is false, user given path is /ownerEmail/datasetName/versionName
+  // e.g. /bob@texera.com/twitterDataset/v1
+  //      ownerName is bob@texera.com; datasetName is twitterDataset, versionName is v1
   def resolvePath(
-      filePath: java.nio.file.Path,
+      path: java.nio.file.Path,
       shouldContainFile: Boolean
   ): (String, Dataset, DatasetVersion, Option[java.nio.file.Path]) = {
 
-    val pathSegments = (0 until filePath.getNameCount).map(filePath.getName(_).toString).toArray
+    val pathSegments = (0 until path.getNameCount).map(path.getName(_).toString).toArray
     val expectedLength = if (shouldContainFile) 4 else 3
 
     if (pathSegments.length < expectedLength) {
