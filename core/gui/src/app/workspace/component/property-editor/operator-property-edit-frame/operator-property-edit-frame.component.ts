@@ -431,7 +431,12 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       }
 
       // if the title is fileName, fastQFiles, fastAFiles, or gtfFile, then change it to custom autocomplete input template
-      if (mappedField.key == "fileName" || mappedField.key == "fastQFiles" || mappedField.key == "fastAFiles" || mappedField.key == "gtfFile") {
+      if (
+        mappedField.key == "fileName" ||
+        mappedField.key == "fastQFiles" ||
+        mappedField.key == "fastAFiles" ||
+        mappedField.key == "gtfFile"
+      ) {
         mappedField.type = "inputautocomplete";
       }
 
