@@ -1351,7 +1351,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     const navigationEntry = entryList[0] as PerformanceNavigationTiming;
     const resizeEvent = new Event("resize");
     if (navigationEntry.type === "reload") {
-      console.log("reloaded")
+      console.log("reloaded");
       setTimeout(() => {
         window.dispatchEvent(resizeEvent);
       }, 175);
