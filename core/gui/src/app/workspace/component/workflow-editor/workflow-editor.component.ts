@@ -147,7 +147,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     }
     this.handlePointerEvents();
     this.handleURLFragment();
-    this.handleReload();
+    this.invokeResize();
   }
 
   ngOnDestroy(): void {
@@ -1346,15 +1346,10 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       });
   }
 
-  handleReload() {
-    const entryList = performance.getEntriesByType("navigation");
-    const navigationEntry = entryList[0] as PerformanceNavigationTiming;
+  invokeResize() {
     const resizeEvent = new Event("resize");
-    if (navigationEntry.type === "reload") {
-      console.log("reloaded");
-      setTimeout(() => {
-        window.dispatchEvent(resizeEvent);
-      }, 175);
-    }
+    setTimeout(() => {
+      window.dispatchEvent(resizeEvent);
+    }, 175);
   }
 }
