@@ -22,13 +22,13 @@ export class ClusterAutoCompleteComponent extends FieldType<FieldTypeConfig> {
 
   onClickOpenClusterSelectionModal(): void {
     this.clusterService
-      .getClusters()
+      .getClusters(true)
       .pipe(untilDestroyed(this))
       .subscribe(clusters => {
         const modal = this.modalService.create({
           nzTitle: "Select Cluster",
           nzContent: ClusterSelectionComponent,
-          nzData: { clusters },
+          nzData: { clusters: clusters },
           nzFooter: null,
         });
 

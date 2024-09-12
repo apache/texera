@@ -5,26 +5,16 @@ import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.enums.ClusterStatus
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Cluster.CLUSTER
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.ClusterDao
-import edu.uci.ics.texera.web.resource.dashboard.user.cluster.ClusterResource.{
-  ERR_USER_HAS_NO_ACCESS_TO_CLUSTER_MESSAGE,
-  clusterDao,
-  context
-}
+import edu.uci.ics.texera.web.resource.dashboard.user.cluster.ClusterResource.{ERR_USER_HAS_NO_ACCESS_TO_CLUSTER_MESSAGE, clusterDao, context}
 import io.dropwizard.auth.Auth
 import org.glassfish.jersey.media.multipart.FormDataParam
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Cluster
-import edu.uci.ics.texera.web.resource.dashboard.user.cluster.ClusterServiceClient.{
-  callCreateClusterAPI,
-  callDeleteClusterAPI
-}
-import edu.uci.ics.texera.web.resource.dashboard.user.cluster.ClusterUtils.{
-  updateClusterActivityEndTime,
-  updateClusterStatus
-}
+import edu.uci.ics.texera.web.resource.dashboard.user.cluster.ClusterServiceClient.{callCreateClusterAPI, callDeleteClusterAPI}
+import edu.uci.ics.texera.web.resource.dashboard.user.cluster.ClusterUtils.{updateClusterActivityEndTime, updateClusterStatus}
 
 import java.util
 import javax.annotation.security.RolesAllowed
-import javax.ws.rs.{Consumes, ForbiddenException, GET, POST, Path}
+import javax.ws.rs.{Consumes, ForbiddenException, GET, POST, Path, QueryParam}
 import javax.ws.rs.core.{MediaType, Response}
 
 object ClusterResource {
@@ -184,18 +174,24 @@ class ClusterResource {
     * Lists all clusters owned by the authenticated user.
     *
     * @param user The authenticated user.
+    * @param available Boolean to indicate whether to return available (Launched) clusters only
     * @return A list of Clusters owned by the user.
     */
   @GET
   @Path("")
-  def listClusters(@Auth user: SessionUser): util.List[Cluster] = {
+  def listClusters(@Auth user: SessionUser, @QueryParam("available") available :Boolean): util.List[Cluster] = {
     clusterDao.fetchByOwnerId(user.getUid)
-    context
-      .select(CLUSTER.asterisk())
-      .from(CLUSTER)
-      .where(CLUSTER.OWNER_ID.eq(user.getUid))
-      .and(CLUSTER.STATUS.ne(ClusterStatus.TERMINATED))
-      .fetchInto(classOf[Cluster])
+    var steps = context
+        .select(CLUSTER.asterisk())
+        .from(CLUSTER)
+        .where(CLUSTER.OWNER_ID.eq(user.getUid))
+        .and(CLUSTER.STATUS.ne(ClusterStatus.TERMINATED))
+    if (available) {
+      steps = steps.and(CLUSTER.STATUS.eq(ClusterStatus.LAUNCHED))
+    }
+    steps.fetchInto(classOf[Cluster])
+
+
   }
 
   /**

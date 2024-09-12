@@ -17,8 +17,10 @@ export class ClusterService {
 
   constructor(private http: HttpClient) {}
 
-  getClusters(): Observable<Clusters[]> {
-    return this.http.get<Clusters[]>(`${AppSettings.getApiEndpoint()}/${this.CLUSTER_BASE_URL}`, {});
+  getClusters(available = false): Observable<Clusters[]> {
+    return this.http.get<Clusters[]>(`${AppSettings.getApiEndpoint()}/${this.CLUSTER_BASE_URL}`, {
+      params: { available },
+    });
   }
 
   createCluster(formData: FormData): Observable<Response> {
