@@ -1,0 +1,9 @@
+button.running {
+  background-color: #f5222d;
+  border-color: #f5222d;
+}
+
+button.running:hover:not(:disabled) {
+  background-color: #ff4d4f;
+  border-color: #ff4d4f;
+}

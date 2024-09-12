@@ -1,0 +1,9 @@
+<button
+  nz-button
+  nzType="primary"
+  [disabled]="disabled || state === 'initializing' || state === 'stopping'"
+  (click)="onClick()"
+  [class.running]="isRunning()">
+  <i nz-icon [nzType]="getIconType()"></i>
+  {{ getButtonText() }}
+</button>
