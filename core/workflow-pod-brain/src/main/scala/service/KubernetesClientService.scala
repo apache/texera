@@ -9,10 +9,8 @@ import service.KubernetesClientConfig.kubernetesConfig
 
 import java.util
 import scala.jdk.CollectionConverters.CollectionHasAsScala
-import sttp.client4.quick.{RichRequest, quickRequest}
-import sttp.client4.{Response, UriContext}
-import sttp.model.Uri
-import sttp.model.Uri.QuerySegment.Value
+
+import scala.util.{Failure, Success, Try}
 
 object KubernetesClientConfig {
 
@@ -119,14 +117,18 @@ class KubernetesClientService(
           .containers(
             util.List.of(new V1Container()
               .name("worker")
-              .image("ksdn117/web-socket-test")
+//              .image("ksdn117/web-socket-test")
+//              .ports(util.List.of(new V1ContainerPort().containerPort(8010))))
+              .image("pureblank/texera-image-backend:latest")
               .ports(util.List.of(new V1ContainerPort().containerPort(8010))))
           )
           .hostname(s"user-pod-$uid-wid-$wid")
           .subdomain("workflow-pods")
           .overhead(null)
       )
-    coreApi.createNamespacedPod(poolNamespace, pod).execute()
+    val result = coreApi.createNamespacedPod(poolNamespace, pod).execute()
+    this.waitForPodStatus(uid, wid, "Running")
+    result
   }
 
   /**
@@ -136,6 +138,41 @@ class KubernetesClientService(
    */
   def deletePod(uid: Int, wid: Int): Unit = {
     coreApi.deleteNamespacedPod(s"user-pod-$uid-wid-$wid", poolNamespace).execute()
+    Thread.sleep(10000)
+  }
+
+  /**
+   * Check if pod is in the desired status
+   * @param podName
+   * @param namespace
+   * @param desiredState
+   * @return
+   */
+  private def isPodInDesiredState(podName: String, namespace: String, desiredState: String): Boolean = {
+    val pod = coreApi.readNamespacedPod(podName, namespace).execute()
+    println(pod.getStatus.getPhase)
+    pod.getStatus.getPhase == desiredState
+  }
+
+  /**
+   * Wait for pod to reach desired status
+   * @param uid
+   * @param wid
+   * @param desiredStatus
+   */
+  private def waitForPodStatus(uid: Int, wid: Int, desiredStatus: String): Unit = {
+    var attempts = 0
+    val maxAttempts = 30
+
+    while (attempts < maxAttempts && !isPodInDesiredState(s"user-pod-$uid-wid-$wid", poolNamespace, desiredStatus)) {
+      attempts += 1
+      Thread.sleep(1000)
+      println(s"Waiting for pod user-pod-$uid-wid-$wid to reach $desiredStatus (attempt $attempts)")
+    }
+
+    if (!isPodInDesiredState(s"user-pod-$uid-wid-$wid", poolNamespace, desiredStatus)) {
+      throw new RuntimeException(s"Pod user-pod-$uid-wid-$wid failed to reach $desiredStatus after $maxAttempts attempts")
+    }
   }
 
   /**

@@ -253,14 +253,14 @@ export class MenuComponent implements OnInit {
 
     switch (newState) {
       case PowerState.Initializing:
-        this.startInitialization();
+        this.sendPodRequest();
         break;
       case PowerState.Running:
         // Handle running state
         console.log("System is now running");
         break;
       case PowerState.Stopping:
-        this.startStopping();
+        this.sendPodRequest();
         break;
       case PowerState.Off:
         console.log("System is now off");
@@ -268,19 +268,21 @@ export class MenuComponent implements OnInit {
     }
   }
 
-  private startInitialization() {
-    // Simulate initialization process
-    setTimeout(() => {
-      this.onPowerStateChange(PowerState.Running);
-    }, 3000);
-    // this.workflowPodBrainService.sendRequest(this.powerState)
-  }
-
-  private startStopping() {
-    // Simulate stopping process
-    setTimeout(() => {
-      this.onPowerStateChange(PowerState.Off);
-    }, 2000);
+  private async sendPodRequest() {
+    try {
+      const response = await this.workflowPodBrainService.sendRequest(this.powerState);
+      console.log("Request successful, response:", response);
+      if (this.powerState === PowerState.Initializing) {
+        this.powerState = PowerState.Running;
+      } else {
+        this.powerState = PowerState.Off;
+      }
+    } catch (error) {
+      console.error("Error sending pod request:", error);
+      if (this.powerState === PowerState.Initializing) {
+        this.powerState = PowerState.Initializing;
+      }
+    }
   }
 
   public handleKill(): void {

@@ -13,6 +13,12 @@ export const defaultEnvironment = {
   apiUrl: "api",
 
   /**
+   * root API the workflow pod brain
+   */
+  workflowPodUrl: "workflowpod",
+
+
+  /**
    * whether fetching available source tables is enabled
    * see SourceTablesService for details
    */
