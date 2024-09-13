@@ -147,7 +147,6 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     }
     this.handlePointerEvents();
     this.handleURLFragment();
-    this.invokeResize();
   }
 
   ngOnDestroy(): void {
@@ -1344,12 +1343,5 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           this.openCommentBox(box.commentBoxID);
         }
       });
-  }
-
-  invokeResize() {
-    const resizeEvent = new Event("resize");
-    setTimeout(() => {
-      window.dispatchEvent(resizeEvent);
-    }, 175);
   }
 }
