@@ -17,7 +17,7 @@ spec:
         - name: envoy
           image: envoyproxy/envoy:v1.31-latest  # Use the latest stable version
           ports:
-            - containerPort: 80  # Expose port 80 for HTTP traffic
+            - containerPort: 10000  # Expose port 10000 for traffic
           volumeMounts:
             - name: envoy-config
               mountPath: /etc/envoy

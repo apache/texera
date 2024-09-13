@@ -51,7 +51,7 @@ data:
                           dns_cache_config:
                             name: dynamic_dns_cache
                             dns_lookup_family: V4_ONLY
-                            dns_refresh_rate: 5s
+                            dns_refresh_rate: 1s
                       - name: envoy.filters.http.router
                         typed_config:
                           "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
@@ -72,4 +72,4 @@ data:
               dns_cache_config:
                 name: dynamic_dns_cache
                 dns_lookup_family: V4_ONLY
-                dns_refresh_rate: 5s
+                dns_refresh_rate: 1s

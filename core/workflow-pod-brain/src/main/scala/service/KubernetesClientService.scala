@@ -134,7 +134,7 @@ class KubernetesClientService(
    */
   def deletePod(uid: Int, wid: Int): Unit = {
     coreApi.deleteNamespacedPod(s"user-pod-$uid-$wid", poolNamespace).execute()
-    Thread.sleep(10000)
+    Thread.sleep(3000)
   }
 
   /**
@@ -168,6 +168,9 @@ class KubernetesClientService(
 
     if (!isPodInDesiredState(s"user-pod-$uid-$wid", poolNamespace, desiredStatus)) {
       throw new RuntimeException(s"Pod user-pod-$uid-$wid failed to reach $desiredStatus after $maxAttempts attempts")
+    } else {
+      // Wait extra amount to account for server inside pod to initialize
+      Thread.sleep(7000)
     }
   }
 
