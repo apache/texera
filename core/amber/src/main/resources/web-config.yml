@@ -4,10 +4,10 @@ server:
   applicationContextPath: /
   applicationConnectors:
     - type: http
-      port: 8083
+      port: 8080
   adminConnectors:
     - type: http
-      port: 8082
+      port: 8081
   requestLog:
     type: classic
     timeZone: UTC

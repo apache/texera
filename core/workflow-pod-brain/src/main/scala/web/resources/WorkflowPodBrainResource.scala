@@ -39,7 +39,7 @@ class WorkflowPodBrainResource {
   def createPod(
                  param: WorkflowPodCreationParams
                ): Pod = {
-    val newPod: V1Pod = new KubernetesClientService().createPod(param.uid.intValue(), param.wid.intValue())
+    val newPod: V1Pod = new KubernetesClientService().createUserPod(param.uid.intValue(), param.wid.intValue())
     val newSQLPod: Pod = new Pod()
 
     // Set uid, name, pod_uid, creation_time manually

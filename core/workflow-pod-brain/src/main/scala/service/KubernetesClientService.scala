@@ -133,7 +133,7 @@ class KubernetesClientService(
    * @param uid   The pod owner's user id.
    */
   def deletePod(uid: Int, wid: Int): Unit = {
-    coreApi.deleteNamespacedPod(s"user-pod-$uid-wid-$wid", poolNamespace).execute()
+    coreApi.deleteNamespacedPod(s"user-pod-$uid-$wid", poolNamespace).execute()
     Thread.sleep(10000)
   }
 
@@ -158,19 +158,17 @@ class KubernetesClientService(
    */
   private def waitForPodStatus(uid: Int, wid: Int, desiredStatus: String): Unit = {
     var attempts = 0
-    val maxAttempts = 30
+    val maxAttempts = 60
 
-    while (attempts < maxAttempts && !isPodInDesiredState(s"user-pod-$uid-wid-$wid", poolNamespace, desiredStatus)) {
+    while (attempts < maxAttempts && !isPodInDesiredState(s"user-pod-$uid-$wid", poolNamespace, desiredStatus)) {
       attempts += 1
       Thread.sleep(1000)
-      println(s"Waiting for pod user-pod-$uid-wid-$wid to reach $desiredStatus (attempt $attempts)")
+      println(s"Waiting for pod user-pod-$uid-$wid to reach $desiredStatus (attempt $attempts)")
     }
 
-    if (!isPodInDesiredState(s"user-pod-$uid-wid-$wid", poolNamespace, desiredStatus)) {
-      throw new RuntimeException(s"Pod user-pod-$uid-wid-$wid failed to reach $desiredStatus after $maxAttempts attempts")
+    if (!isPodInDesiredState(s"user-pod-$uid-$wid", poolNamespace, desiredStatus)) {
+      throw new RuntimeException(s"Pod user-pod-$uid-$wid failed to reach $desiredStatus after $maxAttempts attempts")
     }
-    coreApi.deleteNamespacedPod(s"user-pod-$uid-$wid", poolNamespace).execute()
-    Thread.sleep(10000)
   }
 
   /**
