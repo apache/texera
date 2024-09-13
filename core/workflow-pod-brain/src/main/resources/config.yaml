@@ -3,6 +3,10 @@ server:
     - type: http
       port: 8888
 
+  adminConnectors:
+    - type: http
+      port: 8082
+
 logging:
   level: INFO
   loggers:

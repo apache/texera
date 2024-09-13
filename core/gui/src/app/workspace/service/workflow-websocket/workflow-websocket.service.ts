@@ -22,6 +22,7 @@ export const WS_RECONNECT_INTERVAL_MS = 3000;
 })
 export class WorkflowWebsocketService {
   private static readonly TEXERA_WEBSOCKET_ENDPOINT = "wsapi/workflow-websocket";
+  // private static readonly TEXERA_WS_PROXY_ENDPOINT = "ws-proxy";
 
   public isConnected: boolean = false;
   public numWorkers: number = -1;
@@ -64,11 +65,17 @@ export class WorkflowWebsocketService {
     this.websocket?.complete();
   }
 
-  public openWebsocket(wId: number) {
+  public openWebsocket(wId: number, uId: number) {
+    if (uId == undefined) {
+      console.log(`uId is ${uId}, defaulting to uId = 1`);
+      uId = 1;
+    }
     const websocketUrl =
       getWebsocketUrl(WorkflowWebsocketService.TEXERA_WEBSOCKET_ENDPOINT, "") +
       "?wid=" +
       wId +
+      "&uid=" +
+      uId +
       (environment.userSystemEnabled && AuthService.getAccessToken() !== null
         ? "&access-token=" + AuthService.getAccessToken()
         : "");
@@ -102,8 +109,8 @@ export class WorkflowWebsocketService {
     });
   }
 
-  public reopenWebsocket(wId: number) {
+  public reopenWebsocket(wId: number, uId: number) {
     this.closeWebsocket();
-    this.openWebsocket(wId);
+    this.openWebsocket(wId, uId);
   }
 }

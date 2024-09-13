@@ -264,9 +264,9 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
    Due to the Async nature when setting up the websocket, the socket would be closed before the connection is established.
    Therefore, commenting the code to ensure the connections is established and request has been sent.
    */
-  killExecution(wid: number) {
+  killExecution(wid: number, uId: number) {
     let socket = new WorkflowWebsocketService();
-    socket.openWebsocket(wid);
+    socket.openWebsocket(wid, uId);
     socket.send("WorkflowKillRequest", {});
     // socket.closeWebsocket();
   }
@@ -275,9 +275,9 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
    Due to the Async nature when setting up the websocket, the socket would be closed before the connection is established.
    Therefore, commenting the code to ensure the connections is established and request has been sent.
    */
-  pauseExecution(wid: number) {
+  pauseExecution(wid: number, uId: number) {
     let socket = new WorkflowWebsocketService();
-    socket.openWebsocket(wid);
+    socket.openWebsocket(wid, uId);
     socket.send("WorkflowPauseRequest", {});
     // socket.closeWebsocket();
   }
@@ -286,9 +286,9 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
    Due to the Async nature when setting up the websocket, the socket would be closed before the connection is established.
    Therefore, commenting the code to ensure the connections is established and request has been sent.
    */
-  resumeExecution(wid: number) {
+  resumeExecution(wid: number, uId: number) {
     let socket = new WorkflowWebsocketService();
-    socket.openWebsocket(wid);
+    socket.openWebsocket(wid, uId);
     socket.send("WorkflowResumeRequest", {});
     // socket.closeWebsocket();
   }

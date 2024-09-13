@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: envoy-deployment
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: envoy
+  template:
+    metadata:
+      labels:
+        app: envoy
+    spec:
+      containers:
+        - name: envoy
+          image: envoyproxy/envoy:v1.31-latest  # Use the latest stable version
+          ports:
+            - containerPort: 80  # Expose port 80 for HTTP traffic
+          volumeMounts:
+            - name: envoy-config
+              mountPath: /etc/envoy
+              readOnly: true
+          args:
+            - "-c"
+            - "/etc/envoy/envoy.yaml"  # Specify the path to the configuration file
+            # - "--log-level debug"  # Set level of logging
+      volumes:
+        - name: envoy-config
+          configMap:
+            name: envoy-config  # Reference the ConfigMap created earlier

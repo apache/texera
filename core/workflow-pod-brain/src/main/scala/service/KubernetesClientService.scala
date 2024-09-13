@@ -9,8 +9,11 @@ import service.KubernetesClientConfig.kubernetesConfig
 
 import java.util
 import scala.jdk.CollectionConverters.CollectionHasAsScala
+<<<<<<< HEAD
 
 import scala.util.{Failure, Success, Try}
+=======
+>>>>>>> 7060f5b57 (Integrate Envoy Proxy Into Workflow Pods (#2833))
 
 object KubernetesClientConfig {
 
@@ -108,7 +111,7 @@ class KubernetesClientService(
       .kind("Pod")
       .metadata(
         new V1ObjectMeta()
-          .name(s"user-pod-$uid-wid-$wid")
+          .name(s"user-pod-$uid-$wid")
           .namespace(poolNamespace)
           .labels(util.Map.of("userId", uidString, "workflow", "worker"))
       )
@@ -117,12 +120,10 @@ class KubernetesClientService(
           .containers(
             util.List.of(new V1Container()
               .name("worker")
-//              .image("ksdn117/web-socket-test")
-//              .ports(util.List.of(new V1ContainerPort().containerPort(8010))))
-              .image("pureblank/texera-image-backend:latest")
+              .image("kelvinyz/texera-pod")
               .ports(util.List.of(new V1ContainerPort().containerPort(8010))))
           )
-          .hostname(s"user-pod-$uid-wid-$wid")
+          .hostname(s"user-pod-$uid-$wid")
           .subdomain("workflow-pods")
           .overhead(null)
       )
@@ -173,6 +174,7 @@ class KubernetesClientService(
     if (!isPodInDesiredState(s"user-pod-$uid-wid-$wid", poolNamespace, desiredStatus)) {
       throw new RuntimeException(s"Pod user-pod-$uid-wid-$wid failed to reach $desiredStatus after $maxAttempts attempts")
     }
+    coreApi.deleteNamespacedPod(s"user-pod-$uid-$wid", poolNamespace).execute()
   }
 
   /**
