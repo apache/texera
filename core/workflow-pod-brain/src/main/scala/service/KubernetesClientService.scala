@@ -9,11 +9,6 @@ import service.KubernetesClientConfig.kubernetesConfig
 
 import java.util
 import scala.jdk.CollectionConverters.CollectionHasAsScala
-<<<<<<< HEAD
-
-import scala.util.{Failure, Success, Try}
-=======
->>>>>>> 7060f5b57 (Integrate Envoy Proxy Into Workflow Pods (#2833))
 
 object KubernetesClientConfig {
 
@@ -175,6 +170,7 @@ class KubernetesClientService(
       throw new RuntimeException(s"Pod user-pod-$uid-wid-$wid failed to reach $desiredStatus after $maxAttempts attempts")
     }
     coreApi.deleteNamespacedPod(s"user-pod-$uid-$wid", poolNamespace).execute()
+    Thread.sleep(10000)
   }
 
   /**
