@@ -24,11 +24,34 @@ $section-margin: 24px;
       display: flex;
       align-items: center;
       justify-content: space-between;
+
+      .left-controls {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+
+        button {
+          height: 32px;
+          padding: 0 12px;
+          font-size: 14px;
+          line-height: 1.5;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 4px;
+        }
+      }
     }
   }
 
   .general-search-result {
     width: 100%;
     flex-grow: 1;
+  }
+
+  .selected {
+    background-color: #1890ff;
+    color: #fff;
+    border-color: #1890ff;
   }
 }
