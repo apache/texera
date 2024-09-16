@@ -14,6 +14,8 @@ import { mockLogicalPlan_scan_result, mockWorkflowPlan_scan_result } from "./moc
 import { HttpClient } from "@angular/common/http";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { WorkflowSnapshotService } from "../../../dashboard/service/user/workflow-snapshot/workflow-snapshot.service";
+import { UserService } from "../../../common/service/user/user.service";
+import { StubUserService } from "../../../common/service/user/stub-user.service";
 
 class StubHttpClient {
   public post(): Observable<string> {
@@ -38,6 +40,7 @@ describe("ExecuteWorkflowService", () => {
           useClass: StubOperatorMetadataService,
         },
         { provide: HttpClient, useClass: StubHttpClient },
+        { provide: UserService, useClass: StubUserService },
       ],
     });
 
