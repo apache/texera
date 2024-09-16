@@ -17,12 +17,12 @@ import web.model.jooq.generated.tables.interfaces.IPod;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Pod implements IPod {
 
-    private static final long serialVersionUID = 1362953847;
+    private static final long serialVersionUID = 1536194397;
 
     private UInteger  uid;
+    private UInteger  wid;
     private String    name;
     private String    podUid;
-    private UInteger  podId;
     private Timestamp creationTime;
     private Timestamp terminateTime;
 
@@ -30,25 +30,25 @@ public class Pod implements IPod {
 
     public Pod(IPod value) {
         this.uid = value.getUid();
+        this.wid = value.getWid();
         this.name = value.getName();
         this.podUid = value.getPodUid();
-        this.podId = value.getPodId();
         this.creationTime = value.getCreationTime();
         this.terminateTime = value.getTerminateTime();
     }
 
     public Pod(
         UInteger  uid,
+        UInteger  wid,
         String    name,
         String    podUid,
-        UInteger  podId,
         Timestamp creationTime,
         Timestamp terminateTime
     ) {
         this.uid = uid;
+        this.wid = wid;
         this.name = name;
         this.podUid = podUid;
-        this.podId = podId;
         this.creationTime = creationTime;
         this.terminateTime = terminateTime;
     }
@@ -61,6 +61,16 @@ public class Pod implements IPod {
     @Override
     public void setUid(UInteger uid) {
         this.uid = uid;
+    }
+
+    @Override
+    public UInteger getWid() {
+        return this.wid;
+    }
+
+    @Override
+    public void setWid(UInteger wid) {
+        this.wid = wid;
     }
 
     @Override
@@ -81,16 +91,6 @@ public class Pod implements IPod {
     @Override
     public void setPodUid(String podUid) {
         this.podUid = podUid;
-    }
-
-    @Override
-    public UInteger getPodId() {
-        return this.podId;
-    }
-
-    @Override
-    public void setPodId(UInteger podId) {
-        this.podId = podId;
     }
 
     @Override
@@ -118,9 +118,9 @@ public class Pod implements IPod {
         StringBuilder sb = new StringBuilder("Pod (");
 
         sb.append(uid);
+        sb.append(", ").append(wid);
         sb.append(", ").append(name);
         sb.append(", ").append(podUid);
-        sb.append(", ").append(podId);
         sb.append(", ").append(creationTime);
         sb.append(", ").append(terminateTime);
 
@@ -135,9 +135,9 @@ public class Pod implements IPod {
     @Override
     public void from(IPod from) {
         setUid(from.getUid());
+        setWid(from.getWid());
         setName(from.getName());
         setPodUid(from.getPodUid());
-        setPodId(from.getPodId());
         setCreationTime(from.getCreationTime());
         setTerminateTime(from.getTerminateTime());
     }

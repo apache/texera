@@ -42,6 +42,7 @@ class KubernetesClientService(
   /**
     * Retrieves the list of all pods in the specified namespace.
     *
+    * @param namespace        The namespace of the pods to be returned.
     * @return A list of V1Pod objects.
     */
   def getPodsList(namespace: String): List[V1Pod] = {
@@ -51,6 +52,7 @@ class KubernetesClientService(
   /**
    * Retrieves the list of pods for a given label in the specified namespace.
    *
+   * @param namespace        The namespace of the pods to be returned.
    * @param podLabel        The label of the pods to be returned.
    * @return A list of V1Pod objects representing the pods with the given label.
    */
@@ -61,11 +63,17 @@ class KubernetesClientService(
   /**
    * Retrieves a single with the given label in the specified namespace.
    *
+   * @param namespace        The namespace of the pods to be returned.
    * @param podLabel        The label of the pods to be returned.
-   * @return A list of V1Pod objects representing the pods with the given label.
+   * @return A V1Pod object representing the pod with the given label.
    */
   def getPodFromLabel(namespace: String, podLabel: String): V1Pod = {
-    coreApi.listNamespacedPod(namespace).labelSelector(podLabel).limit(1).execute().getItems.asScala.toList.last
+    val podsList = getPodsList(namespace, podLabel)
+    if (podsList.isEmpty) {
+      null
+    } else {
+      podsList.last
+    }
   }
 
   /**
@@ -100,7 +108,12 @@ class KubernetesClientService(
    * @return The newly created V1Pod object.
    */
   def createUserPod(uid: Int, wid: Int): V1Pod = {
+    if (getPodFromLabel(poolNamespace, s"name=user-pod-$uid-$wid") != null) {
+      throw new Exception(s"Pod with uid $uid and wid $wid already exists")
+    }
+
     val uidString: String = String.valueOf(uid)
+    val widString: String = String.valueOf(wid)
     val pod: V1Pod = new V1Pod()
       .apiVersion("v1")
       .kind("Pod")
@@ -108,7 +121,8 @@ class KubernetesClientService(
         new V1ObjectMeta()
           .name(s"user-pod-$uid-$wid")
           .namespace(poolNamespace)
-          .labels(util.Map.of("userId", uidString, "workflow", "worker"))
+          .labels(util.Map.of("userId", uidString, "workflowId", widString,
+            "name", s"user-pod-$uid-$wid", "workflow", "worker"))
       )
       .spec(
         new V1PodSpec()

@@ -10,7 +10,6 @@ import java.util.List;
 
 import org.jooq.Field;
 import org.jooq.ForeignKey;
-import org.jooq.Identity;
 import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
@@ -35,7 +34,7 @@ import web.model.jooq.generated.tables.records.PodRecord;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Pod extends TableImpl<PodRecord> {
 
-    private static final long serialVersionUID = -1372917950;
+    private static final long serialVersionUID = -1531436535;
 
     /**
      * The reference instance of <code>texera_db.pod</code>
@@ -56,6 +55,11 @@ public class Pod extends TableImpl<PodRecord> {
     public final TableField<PodRecord, UInteger> UID = createField(DSL.name("uid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
 
     /**
+     * The column <code>texera_db.pod.wid</code>.
+     */
+    public final TableField<PodRecord, UInteger> WID = createField(DSL.name("wid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+
+    /**
      * The column <code>texera_db.pod.name</code>.
      */
     public final TableField<PodRecord, String> NAME = createField(DSL.name("name"), org.jooq.impl.SQLDataType.VARCHAR(128).nullable(false), this, "");
@@ -64,11 +68,6 @@ public class Pod extends TableImpl<PodRecord> {
      * The column <code>texera_db.pod.pod_uid</code>.
      */
     public final TableField<PodRecord, String> POD_UID = createField(DSL.name("pod_uid"), org.jooq.impl.SQLDataType.VARCHAR(128).nullable(false), this, "");
-
-    /**
-     * The column <code>texera_db.pod.pod_id</code>.
-     */
-    public final TableField<PodRecord, UInteger> POD_ID = createField(DSL.name("pod_id"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false).identity(true), this, "");
 
     /**
      * The column <code>texera_db.pod.creation_time</code>.
@@ -124,11 +123,6 @@ public class Pod extends TableImpl<PodRecord> {
     }
 
     @Override
-    public Identity<PodRecord, UInteger> getIdentity() {
-        return Keys.IDENTITY_POD;
-    }
-
-    @Override
     public UniqueKey<PodRecord> getPrimaryKey() {
         return Keys.KEY_POD_PRIMARY;
     }
@@ -178,7 +172,7 @@ public class Pod extends TableImpl<PodRecord> {
     // -------------------------------------------------------------------------
 
     @Override
-    public Row6<UInteger, String, String, UInteger, Timestamp, Timestamp> fieldsRow() {
+    public Row6<UInteger, UInteger, String, String, Timestamp, Timestamp> fieldsRow() {
         return (Row6) super.fieldsRow();
     }
 }

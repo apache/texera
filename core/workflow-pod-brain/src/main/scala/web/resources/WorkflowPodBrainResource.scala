@@ -28,38 +28,52 @@ object WorkflowPodBrainResource {
 @Path("/workflowpod")
 class WorkflowPodBrainResource {
   /**
-    * Create a new pod for the given workflow wid and workflow content
-    * @param param the parameters
-    * @return the created pod
-    */
+   * Create a new pod for the given workflow wid and workflow content
+   *
+   * @param param the parameters
+   * @return the created pod
+   */
   @POST
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/create")
   def createPod(
                  param: WorkflowPodCreationParams
-               ): Pod = {
-    val newPod: V1Pod = new KubernetesClientService().createUserPod(param.uid.intValue(), param.wid.intValue())
-    val newSQLPod: Pod = new Pod()
+               ): Response = {
+    var newPod: V1Pod = null
+    try {
+      newPod = new KubernetesClientService().createUserPod(param.uid.intValue(), param.wid.intValue())
+    } catch {
+      case e: Exception => return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage).build()
+    }
 
-    // Set uid, name, pod_uid, creation_time manually
-    // pod_id, terminate_time are auto-generated
+    // Set uid, wid, name, pod_uid, creation_time manually
+    // terminate_time is set on pod termination
+    val newSQLPod: Pod = new Pod()
     newSQLPod.setUid(param.uid)
+    newSQLPod.setWid(param.wid)
     newSQLPod.setName(newPod.getMetadata.getName)
     newSQLPod.setPodUid(newPod.getMetadata.getUid)
     newSQLPod.setCreationTime(Timestamp.from(newPod.getMetadata.getCreationTimestamp.toInstant))
-    newSQLPod.setPodId(param.wid)
 
-    withTransaction(context) { ctx =>
-      val podDao = new PodDao(ctx.configuration())
-      podDao.insert(newSQLPod)
-      newSQLPod
+    try {
+      // Insert the new pod into the database within a transaction
+      withTransaction(context) { ctx =>
+        val podDao = new PodDao(ctx.configuration())
+        podDao.insert(newSQLPod)
+      }
+    } catch {
+      case e: Exception => return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity(e.getMessage).build()
     }
+
+    // If everything succeeds, return the new SQL pod as the response entity
+    Response.ok(newSQLPod).build()
   }
 
 
   /**
     * List all pods created by current user
+    *
     * @return
     */
   @GET
@@ -83,6 +97,7 @@ class WorkflowPodBrainResource {
   /**
     * Terminate the workflow's pod
     * @param param the parameters
+    *
     * @return request response
     */
   @POST
@@ -96,9 +111,12 @@ class WorkflowPodBrainResource {
     withTransaction(context) { ctx =>
       val podDao = new PodDao(ctx.configuration())
       val pods = podDao.fetchByUid(param.uid)
-      pods.forEach(pod => if (pod.getTerminateTime == null) pod.setTerminateTime(new Timestamp(System.currentTimeMillis())))
+      pods.forEach(pod =>
+        if (pod.getWid == param.wid && pod.getTerminateTime == null)
+          pod.setTerminateTime(new Timestamp(System.currentTimeMillis()))
+      )
       podDao.update(pods)
-      Response.ok(s"Successfully terminated deployment and pod of uid ${param.uid}").build()
+      Response.ok(s"Successfully terminated user pod of uid ${param.uid} and wid ${param.wid}").build()
     }
   }
 }

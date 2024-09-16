@@ -106,7 +106,7 @@ public class Indexes {
         public static Index FILE_OF_PROJECT_PRIMARY = Internal.createIndex("PRIMARY", FileOfProject.FILE_OF_PROJECT, new OrderField[] { FileOfProject.FILE_OF_PROJECT.FID, FileOfProject.FILE_OF_PROJECT.PID }, true);
         public static Index FILE_OF_WORKFLOW_PRIMARY = Internal.createIndex("PRIMARY", FileOfWorkflow.FILE_OF_WORKFLOW, new OrderField[] { FileOfWorkflow.FILE_OF_WORKFLOW.FID, FileOfWorkflow.FILE_OF_WORKFLOW.WID }, true);
         public static Index FILE_OF_WORKFLOW_WID = Internal.createIndex("wid", FileOfWorkflow.FILE_OF_WORKFLOW, new OrderField[] { FileOfWorkflow.FILE_OF_WORKFLOW.WID }, false);
-        public static Index POD_PRIMARY = Internal.createIndex("PRIMARY", Pod.POD, new OrderField[] { Pod.POD.POD_ID }, true);
+        public static Index POD_PRIMARY = Internal.createIndex("PRIMARY", Pod.POD, new OrderField[] { Pod.POD.POD_UID }, true);
         public static Index POD_UID = Internal.createIndex("uid", Pod.POD, new OrderField[] { Pod.POD.UID }, false);
         public static Index PROJECT_IDX_USER_PROJECT_NAME_DESCRIPTION = Internal.createIndex("idx_user_project_name_description", Project.PROJECT, new OrderField[] { Project.PROJECT.NAME, Project.PROJECT.DESCRIPTION }, false);
         public static Index PROJECT_OWNER_ID = Internal.createIndex("owner_id", Project.PROJECT, new OrderField[] { Project.PROJECT.OWNER_ID, Project.PROJECT.NAME }, true);

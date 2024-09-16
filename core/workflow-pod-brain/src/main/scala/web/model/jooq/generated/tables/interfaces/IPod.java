@@ -27,6 +27,16 @@ public interface IPod extends Serializable {
     public UInteger getUid();
 
     /**
+     * Setter for <code>texera_db.pod.wid</code>.
+     */
+    public void setWid(UInteger value);
+
+    /**
+     * Getter for <code>texera_db.pod.wid</code>.
+     */
+    public UInteger getWid();
+
+    /**
      * Setter for <code>texera_db.pod.name</code>.
      */
     public void setName(String value);
@@ -45,16 +55,6 @@ public interface IPod extends Serializable {
      * Getter for <code>texera_db.pod.pod_uid</code>.
      */
     public String getPodUid();
-
-    /**
-     * Setter for <code>texera_db.pod.pod_id</code>.
-     */
-    public void setPodId(UInteger value);
-
-    /**
-     * Getter for <code>texera_db.pod.pod_id</code>.
-     */
-    public UInteger getPodId();
 
     /**
      * Setter for <code>texera_db.pod.creation_time</code>.
