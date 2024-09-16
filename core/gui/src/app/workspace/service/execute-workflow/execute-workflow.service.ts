@@ -27,6 +27,8 @@ import { WorkflowStatusService } from "../workflow-status/workflow-status.servic
 import { isDefined } from "../../../common/util/predicate";
 import { intersection } from "../../../common/util/set";
 import { Workflow, WorkflowContent, WorkflowSettings } from "../../../common/type/workflow";
+import { UserService } from "src/app/common/service/user/user.service";
+import { GmailService } from "src/app/common/service/gmail/gmail.service";
 
 // TODO: change this declaration
 export const FORM_DEBOUNCE_TIME_MS = 150;
@@ -74,7 +76,9 @@ export class ExecuteWorkflowService {
     private workflowActionService: WorkflowActionService,
     private workflowWebsocketService: WorkflowWebsocketService,
     private workflowStatusService: WorkflowStatusService,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    private userService: UserService,
+    private gmailService: GmailService
   ) {
     workflowWebsocketService.websocketEvent().subscribe(event => {
       switch (event.type) {
@@ -298,6 +302,56 @@ export class ExecuteWorkflowService {
       return;
     }
     this.updateWorkflowActionLock(stateInfo);
+    if (
+      stateInfo.state === ExecutionState.Completed ||
+      stateInfo.state === ExecutionState.Failed ||
+      stateInfo.state === ExecutionState.Killed ||
+      stateInfo.state === ExecutionState.Paused
+    ) {
+      // Check if current user is defined
+      const currentUser = this.userService.getCurrentUser();
+      if (currentUser) {
+        const userEmail = currentUser.email;
+        const workflowId = this.workflowActionService.getWorkflow().wid;
+        const workflowName = this.workflowActionService.getWorkflow().name;
+        const state = stateInfo.state;
+        const timestamp =
+          new Date().toLocaleString("en-US", {
+            timeZone: "UTC",
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+            hour: "numeric",
+            minute: "numeric",
+            second: "numeric",
+            hour12: true,
+          }) + " (UTC)";
+        const dashboardUrl = `https://texera.ics.uci.edu/dashboard/workspace/${workflowId}`;
+
+        // Construct email subject and content
+        const subject = `Workflow ${workflowName} (${workflowId}) Status: ${state}`;
+        const content = `
+          Hello,
+  
+          The workflow with the following details has changed its state:
+  
+          - Workflow ID: ${workflowId}
+          - Workflow Name: ${workflowName}
+          - State: ${state}
+          - Timestamp: ${timestamp}
+  
+          You can view more details by visiting: ${dashboardUrl}
+  
+          Regards,
+          Texera Team
+        `;
+
+        // Send the email
+        this.gmailService.sendEmail(subject, content, userEmail);
+      } else {
+        console.log("Current user is undefined. Cannot send email.");
+      }
+    }
     const previousState = this.currentState;
     // update current state
     this.currentState = stateInfo;
