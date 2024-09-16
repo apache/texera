@@ -50,7 +50,7 @@ export class PowerButtonComponent {
       case PowerState.Initializing:
         return "Initializing...";
       case PowerState.Running:
-        return "Stop";
+        return "Running";
       case PowerState.Stopping:
         return "Stopping...";
     }

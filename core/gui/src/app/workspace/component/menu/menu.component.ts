@@ -25,7 +25,7 @@ import { saveAs } from "file-saver";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { OperatorMenuService } from "../../service/operator-menu/operator-menu.service";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
-import { Subscription, timer } from "rxjs";
+import { delay, Subscription, timer } from "rxjs";
 import { isDefined } from "../../../common/util/predicate";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { ResultExportationComponent } from "../result-exportation/result-exportation.component";
@@ -272,18 +272,30 @@ export class MenuComponent implements OnInit {
     try {
       const response = await this.workflowPodBrainService.sendRequest(this.powerState);
       console.log("Request successful, response:", response);
+
       if (this.powerState === PowerState.Initializing) {
+        await this.waitForConditions();
         this.powerState = PowerState.Running;
       } else {
         this.powerState = PowerState.Off;
       }
     } catch (error) {
       console.error("Error sending pod request:", error);
-      if (this.powerState === PowerState.Initializing) {
-        this.powerState = PowerState.Initializing;
-      }
     }
   }
+
+  private async waitForConditions(): Promise<void> {
+    const checkConditions = () => {
+      return !this.runDisable &&
+        this.workflowWebsocketService.isConnected &&
+        !this.displayParticularWorkflowVersion;
+    };
+
+    while (!checkConditions()) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  }
+
 
   public handleKill(): void {
     this.executeWorkflowService.killWorkflow();
