@@ -27,7 +27,6 @@ import { WorkflowStatusService } from "../workflow-status/workflow-status.servic
 import { isDefined } from "../../../common/util/predicate";
 import { intersection } from "../../../common/util/set";
 import { Workflow, WorkflowContent, WorkflowSettings } from "../../../common/type/workflow";
-import { UserService } from "src/app/common/service/user/user.service";
 import { GmailService } from "src/app/common/service/gmail/gmail.service";
 import { DOCUMENT } from "@angular/common";
 
@@ -78,7 +77,6 @@ export class ExecuteWorkflowService {
     private workflowWebsocketService: WorkflowWebsocketService,
     private workflowStatusService: WorkflowStatusService,
     private notificationService: NotificationService,
-    private userService: UserService,
     private gmailService: GmailService,
     @Inject(DOCUMENT) private document: Document
   ) {
@@ -356,13 +354,6 @@ export class ExecuteWorkflowService {
    * @param stateInfo - The new execution state information containing the updated state of the workflow.
    */
   private sendWorkflowStatusEmail(stateInfo: ExecutionStateInfo): void {
-    const currentUser = this.userService.getCurrentUser();
-    if (!currentUser) {
-      console.log("Current user is undefined. Cannot send email.");
-      return;
-    }
-
-    const userEmail = currentUser.email;
     const workflow = this.workflowActionService.getWorkflow();
     const timestamp =
       new Date().toLocaleString("en-US", {
@@ -396,7 +387,7 @@ export class ExecuteWorkflowService {
         Texera Team
       `;
 
-    this.gmailService.sendEmail(subject, content, userEmail);
+    this.gmailService.sendEmail(subject, content);
   }
 
   /**
