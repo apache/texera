@@ -3,6 +3,7 @@ import { OperatorMetadataService } from "../operator-metadata/operator-metadata.
 import { StubOperatorMetadataService } from "../operator-metadata/stub-operator-metadata.service";
 
 import { OperatorReuseCacheStatusService } from "./operator-reuse-cache-status.service";
+import { HttpClientModule } from "@angular/common/http";
 
 describe("OperatorCacheStatusService", () => {
   let service: OperatorReuseCacheStatusService;
@@ -15,6 +16,7 @@ describe("OperatorCacheStatusService", () => {
           useClass: StubOperatorMetadataService,
         },
       ],
+      imports: [HttpClientModule],
     });
     service = TestBed.inject(OperatorReuseCacheStatusService);
   });
