@@ -13,7 +13,7 @@
 </div> -->
 
 <div class="input-autocomplete-container">
-  <input
+  <input *ngIf="selectedFilePath"
     nz-input
     [readOnly]="isFileSelectionEnabled"
     required
