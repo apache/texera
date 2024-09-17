@@ -3,9 +3,6 @@ import { OperatorMetadataService } from "src/app/workspace/service/operator-meta
 import { StubOperatorMetadataService } from "src/app/workspace/service/operator-metadata/stub-operator-metadata.service";
 
 import { ContextMenuComponent } from "./context-menu.component";
-import { GmailService } from "src/app/common/service/gmail/gmail.service";
-import { ExecuteWorkflowService } from "src/app/workspace/service/execute-workflow/execute-workflow.service";
-import { OperatorMenuService } from "src/app/workspace/service/operator-menu/operator-menu.service";
 import { HttpClientModule } from "@angular/common/http";
 
 describe("ContextMenuComponent", () => {
