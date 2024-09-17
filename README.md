@@ -123,4 +123,25 @@ This project is supported by the <a href="http://www.nsf.gov">National Science F
 * <a href="https://www.niddk.nih.gov/"><img src="https://github.com/Texera/texera/assets/17627829/d279897a-3efb-41c1-b2d3-8fd20c800ad7" alt="NIH NIDDK" height="30"/></a> This project is supported by an <a href="https://reporter.nih.gov/project-details/10818244">NIH NIDDK</a> award.
 
 
-* <a href="http://www.yourkit.com"><img src="https://www.yourkit.com/images/yklogo.png" alt="Yourkit" height="30"/></a>  [Yourkit](https://www.yourkit.com/) has given an open source license to use their profiler in this project. 
+* <a href="http://www.yourkit.com"><img src="https://www.yourkit.com/images/yklogo.png" alt="Yourkit" height="30"/></a>  [Yourkit](https://www.yourkit.com/) has given an open source license to use their profiler in this project.
+
+## Citation
+Please cite Texera as 
+```
+@article{10.14778/3681954.3682022,
+  author = {Wang, Zuozhi and Huang, Yicong and Ni, Shengquan and Kumar, Avinash and Alsudais, Sadeem and Liu, Xiaozhen and Lin, Xinyuan and Ding, Yunyan and Li, Chen},
+  title = {Texera: A System for Collaborative and Interactive Data Analytics Using Workflows},
+  year = {2024},
+  issue_date = {July 2024},
+  publisher = {VLDB Endowment},
+  volume = {17},
+  number = {11},
+  issn = {2150-8097},
+  url = {https://doi.org/10.14778/3681954.3682022},
+  doi = {10.14778/3681954.3682022},
+  journal = {Proc. VLDB Endow.},
+  month = {aug},
+  pages = {3580–3588},
+  numpages = {9}
+}
+```
