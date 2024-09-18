@@ -14,12 +14,12 @@ export class NotificationService {
     private notification: NzNotificationService
   ) {}
 
-  //only blank can be removed manually
+  // only blank can be removed manually
   blank(title: string, content: string, options: NzMessageDataOptions = {}): void {
     this.notification.blank(title, content, options);
   }
 
-  //remove current blank notification only
+  // remove current blank notification only
   remove(): void {
     this.notification.remove();
   }
