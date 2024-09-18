@@ -21,7 +21,7 @@
     [formlyAttributes]="field"
   />
 <button nz-button nzType="primary" nzSize="small" (click)="isFileSelectionEnabled && onClickOpenFileSelectionModal()">
-  Select File
+  {{ selectedFilePath ? 'Reselect File' : 'Select File' }}
 </button>  
 </div>
 <div
