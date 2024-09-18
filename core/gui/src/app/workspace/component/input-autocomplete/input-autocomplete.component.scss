@@ -16,16 +16,16 @@ mat-form-field {
   }
 
   .file-select-button {
-    border: 2px solid #1890ff; 
-    color: #1890ff; 
+    border: 2px solid #1890ff;
+    color: #1890ff;
 
     &:hover {
-      background-color: #e6f7ff;  
+      background-color: #e6f7ff;
       border-color: #1890ff;
     }
 
     &:focus {
-      box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2); 
+      box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
     }
   }
 }
