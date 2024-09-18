@@ -13,18 +13,8 @@ export class NotificationService {
     private message: NzMessageService,
     private notification: NzNotificationService) {}
 
-  createReportNotification(): string {
-    const notificationId = this.notification.blank(
-      "报告生成中",
-      "报告正在生成，请稍候...",
-      { nzDuration: 0 } // 确保通知不会自动关闭
-    ).messageId; // 保存通知的ID，稍后可以用来关闭
-
-    return notificationId;
-  }
-
-  blank(title: string, content: string): void {
-    this.notification.blank(title, content, { nzDuration: 0 });
+  blank(title: string, content: string, options: NzMessageDataOptions = {}): void {
+    this.notification.blank(title, content, options);
   }
 
   remove(id?: string): void {

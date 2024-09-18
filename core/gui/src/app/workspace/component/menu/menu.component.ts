@@ -257,6 +257,7 @@ export class MenuComponent implements OnInit {
     this.notificationService.blank(
       "",
       "The report is being generated...",
+      { nzDuration: 0 }
     );
 
     const workflowName = this.currentWorkflowName;
