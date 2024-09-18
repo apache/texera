@@ -3,15 +3,15 @@ mat-form-field {
 }
 .input-autocomplete-container {
   display: flex;
-  align-items: center; 
-  width: 100%; 
+  align-items: center;
+  width: 100%;
 
   input {
-    flex: 1; 
-    margin-right: 10px; 
+    flex: 1;
+    margin-right: 10px;
   }
 
   button {
-    white-space: nowrap; 
+    white-space: nowrap;
   }
 }

@@ -1,32 +1,22 @@
-<!-- <input
-  nz-input
-  [readOnly]="isFileSelectionEnabled"
-  required
-  [formControl]="formControl"
-  [formlyAttributes]="field"
-  (click)="isFileSelectionEnabled && onClickOpenFileSelectionModal()" />
+<div class="input-autocomplete-container">
+  <input
+    *ngIf="selectedFilePath"
+    nz-input
+    [readOnly]="isFileSelectionEnabled"
+    required
+    [formControl]="formControl"
+    [formlyAttributes]="field" />
+  <button
+    nz-button
+    nzType="primary"
+    nzSize="small"
+    (click)="isFileSelectionEnabled && onClickOpenFileSelectionModal()">
+    {{ selectedFilePath ? 'Reselect File' : 'Select File' }}
+  </button>
+</div>
 <div
   class="alert alert-danger"
   role="alert"
   *ngIf="props.showError && formControl.errors">
   <formly-validation-message [field]="field"></formly-validation-message>
-</div> -->
-
-<div class="input-autocomplete-container">
-  <input *ngIf="selectedFilePath"
-    nz-input
-    [readOnly]="isFileSelectionEnabled"
-    required
-    [formControl]="formControl"
-    [formlyAttributes]="field"
-  />
-<button nz-button nzType="primary" nzSize="small" (click)="isFileSelectionEnabled && onClickOpenFileSelectionModal()">
-  {{ selectedFilePath ? 'Reselect File' : 'Select File' }}
-</button>  
-</div>
-<div
-class="alert alert-danger"
-role="alert"
-*ngIf="props.showError && formControl.errors">
-<formly-validation-message [field]="field"></formly-validation-message>
 </div>

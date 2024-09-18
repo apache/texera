@@ -51,6 +51,6 @@ export class InputAutoCompleteComponent extends FieldType<FieldTypeConfig> {
   }
 
   get selectedFilePath(): string | null {
-    return this.formControl.value; 
+    return this.formControl.value;
   }
 }
