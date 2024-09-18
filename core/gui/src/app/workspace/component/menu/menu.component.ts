@@ -254,11 +254,7 @@ export class MenuComponent implements OnInit {
    */
   public onClickGenerateReport(): void {
     // Get notification and set nzDuration to 0 to prevent it from auto-closing
-    this.notificationService.blank(
-      "",
-      "The report is being generated...",
-      { nzDuration: 0 }
-    );
+    this.notificationService.blank("", "The report is being generated...", { nzDuration: 0 });
 
     const workflowName = this.currentWorkflowName;
     const WorkflowContent: WorkflowContent = this.workflowActionService.getWorkflowContent();
@@ -301,7 +297,6 @@ export class MenuComponent implements OnInit {
         },
       });
   }
-
 
   /**
    * This method checks whether the zoom ratio reaches minimum. If it is minimum, this method
