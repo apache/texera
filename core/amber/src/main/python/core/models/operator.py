@@ -5,9 +5,8 @@ from typing import Iterator, List, Mapping, Optional, Union, MutableMapping
 import overrides
 import pandas
 
-from deprecated import deprecated
 
-from . import InputExhausted, Table, TableLike, Tuple, TupleLike, Batch, BatchLike
+from . import Table, TableLike, Tuple, TupleLike, Batch, BatchLike
 from .table import all_output_to_tuple
 
 
@@ -205,33 +204,3 @@ class TableOperator(TupleOperatorV2):
             time, or None.
         """
         yield
-
-
-@deprecated(reason="Use TupleOperatorV2 instead")
-class TupleOperator(Operator):
-    """
-    Base class for tuple-oriented operators. A concrete implementation must
-    be provided upon using.
-    """
-
-    @abstractmethod
-    def process_tuple(
-        self, tuple_: Union[Tuple, InputExhausted], input_: int
-    ) -> Iterator[Optional[TupleLike]]:
-        """
-        Process an input Tuple from the given link.
-
-        :param tuple_: Union[Tuple, InputExhausted], either
-                        1. a Tuple from a link to be processed;
-                        2. an InputExhausted indicating no more data from this link.
-        :param input_: int, input index of the current Tuple.
-        :return: Iterator[Optional[TupleLike]], producing one TupleLike object at a
-            time, or None.
-        """
-        yield
-
-    def on_finish(self, port: int) -> Iterator[Optional[TupleLike]]:
-        """
-        For backward compatibility.
-        """
-        yield from self.process_tuple(InputExhausted(), input_=port)

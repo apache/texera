@@ -9,7 +9,6 @@ from .batch import Batch, BatchLike
 from .schema import AttributeType, Field, Schema
 from .operator import (
     Operator,
-    TupleOperator,
     TableOperator,
     TupleOperatorV2,
     BatchOperator,
@@ -38,7 +37,6 @@ __all__ = [
     "Batch",
     "BatchLike",
     "Operator",
-    "TupleOperator",
     "TupleOperatorV2",
     "TableOperator",
     "BatchOperator",
