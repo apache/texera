@@ -20,7 +20,7 @@ import { FormControl } from "@angular/forms";
 import {
   AIAssistantService,
   TypeAnnotationResponse,
-} from "../../ai-assistant/ai-assistant.service";
+} from "../../service/ai-assistant/ai-assistant.service";
 
 /**
  * CodeEditorComponent is the content of the dialogue invoked by CodeareaCustomTemplateComponent.

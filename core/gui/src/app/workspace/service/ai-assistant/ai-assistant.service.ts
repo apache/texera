@@ -1,6 +1,6 @@
 import { Injectable } from "@angular/core";
 import { firstValueFrom } from "rxjs";
-import { AppSettings } from "../../common/app-setting";
+import { AppSettings } from "../../../common/app-setting";
 import { HttpClient, HttpHeaders } from "@angular/common/http";
 import { Observable } from "rxjs";
 
