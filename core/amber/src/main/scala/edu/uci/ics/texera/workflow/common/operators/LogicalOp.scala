@@ -144,7 +144,7 @@ import edu.uci.ics.texera.workflow.operators.machineLearning.Scorer.MachineLearn
 import edu.uci.ics.texera.workflow.operators.visualization.quiverPlot.QuiverPlotOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.contourPlot.ContourPlotOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.figureFactoryTable.FigureFactoryTableOpDesc
-
+import edu.uci.ics.texera.workflow.operators.visualization.sunburstChart.SunburstChartOpDesc
 import java.util.UUID
 import scala.collection.mutable
 import scala.util.Try
@@ -160,6 +160,7 @@ trait StateTransferFunc
 )
 @JsonSubTypes(
   Array(
+    new Type(value = classOf[SunburstChartOpDesc], name = "SunburstChart"),
     new Type(value = classOf[IcicleChartOpDesc], name = "IcicleChart"),
     new Type(value = classOf[CSVScanSourceOpDesc], name = "CSVFileScan"),
     // disabled the ParallelCSVScanSourceOpDesc so that it does not confuse user. it can be re-enabled when doing experiments.
