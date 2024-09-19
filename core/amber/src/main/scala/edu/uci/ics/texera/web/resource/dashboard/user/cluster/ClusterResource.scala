@@ -5,22 +5,12 @@ import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.enums.ClusterStatus
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Cluster.CLUSTER
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.ClusterDao
-import edu.uci.ics.texera.web.resource.dashboard.user.cluster.ClusterResource.{
-  ERR_USER_HAS_NO_ACCESS_TO_CLUSTER_MESSAGE,
-  clusterDao,
-  context
-}
+import edu.uci.ics.texera.web.resource.dashboard.user.cluster.ClusterResource.{ERR_USER_HAS_NO_ACCESS_TO_CLUSTER_MESSAGE, clusterDao, context}
 import io.dropwizard.auth.Auth
 import org.glassfish.jersey.media.multipart.FormDataParam
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Cluster
-import edu.uci.ics.texera.web.resource.dashboard.user.cluster.ClusterServiceClient.{
-  callCreateClusterAPI,
-  callDeleteClusterAPI
-}
-import edu.uci.ics.texera.web.resource.dashboard.user.cluster.ClusterUtils.{
-  updateClusterActivityEndTime,
-  updateClusterStatus
-}
+import edu.uci.ics.texera.web.resource.dashboard.user.cluster.ClusterServiceClient.{callCreateClusterAPI, callDeleteClusterAPI, callPauseClusterAPI, callResumeClusterAPI}
+import edu.uci.ics.texera.web.resource.dashboard.user.cluster.ClusterUtils.{updateClusterActivityEndTime, updateClusterStatus}
 
 import java.util
 import javax.annotation.security.RolesAllowed
@@ -122,12 +112,26 @@ class ClusterResource {
   @POST
   @Path("/pause")
   def pauseCluster(@Auth user: SessionUser, cluster: Cluster): Response = {
-    validateClusterOwnership(user, cluster.getCid)
+    val clusterId = cluster.getCid
+    validateClusterOwnership(user, clusterId)
 
-    updateClusterStatus(cluster.getCid, ClusterStatus.PAUSING, context)
+    updateClusterStatus(clusterId, ClusterStatus.PAUSING, context)
 
-    // TODO: Call the Go Microservice
-    // TODO: need to consider if the pause fails
+    callPauseClusterAPI(clusterId) match {
+      case Right(goResponse) =>
+        Response.ok(goResponse).build()
+
+      case Left(errorMessage) =>
+        updateClusterStatus(
+          clusterId,
+          ClusterStatus.FAILED,
+          context
+        ) // Assuming you have a FAILED status
+        return Response
+          .status(Response.Status.INTERNAL_SERVER_ERROR)
+          .entity(s"Cluster pause failed: $errorMessage")
+          .build()
+    }
 
     updateClusterStatus(cluster.getCid, ClusterStatus.PAUSED, context)
 
@@ -146,12 +150,26 @@ class ClusterResource {
   @POST
   @Path("/resume")
   def resumeCluster(@Auth user: SessionUser, cluster: Cluster): Response = {
-    validateClusterOwnership(user, cluster.getCid)
+    val clusterId = cluster.getCid
+    validateClusterOwnership(user, clusterId)
 
-    updateClusterStatus(cluster.getCid, ClusterStatus.RESUMING, context)
+    updateClusterStatus(clusterId, ClusterStatus.RESUMING, context)
 
-    // TODO: Call the Go Microservice
-    // TODO: need to consider if the resume fails
+    callResumeClusterAPI(clusterId) match {
+      case Right(goResponse) =>
+        Response.ok(goResponse).build()
+
+      case Left(errorMessage) =>
+        updateClusterStatus(
+          clusterId,
+          ClusterStatus.FAILED,
+          context
+        ) // Assuming you have a FAILED status
+        return Response
+          .status(Response.Status.INTERNAL_SERVER_ERROR)
+          .entity(s"Cluster resume failed: $errorMessage")
+          .build()
+    }
 
     updateClusterStatus(cluster.getCid, ClusterStatus.LAUNCHED, context)
 
