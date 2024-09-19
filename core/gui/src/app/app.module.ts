@@ -41,6 +41,7 @@ import { UserQuotaComponent } from "./dashboard/component/user/user-quota/user-q
 import { UserIconComponent } from "./dashboard/component/user/user-icon/user-icon.component";
 import { UserAvatarComponent } from "./dashboard/component/user/user-avatar/user-avatar.component";
 import { CodeEditorComponent } from "./workspace/component/code-editor-dialog/code-editor.component";
+import { AnnotationSuggestionComponent } from "./workspace/component/code-editor-dialog/annotation-suggestion.component";
 import { CodeareaCustomTemplateComponent } from "./workspace/component/codearea-custom-template/codearea-custom-template.component";
 import { MiniMapComponent } from "./workspace/component/workflow-editor/mini-map/mini-map.component";
 import { MenuComponent } from "./workspace/component/menu/menu.component";
@@ -168,6 +169,7 @@ registerLocaleData(en);
     VisualizationFrameContentComponent,
     CodeareaCustomTemplateComponent,
     CodeEditorComponent,
+    AnnotationSuggestionComponent,
     TypeCastingDisplayComponent,
     ShareAccessComponent,
     WorkflowExecutionHistoryComponent,

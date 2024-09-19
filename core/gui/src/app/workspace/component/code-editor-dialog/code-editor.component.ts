@@ -21,6 +21,7 @@ import {
   AIAssistantService,
   TypeAnnotationResponse,
 } from "../../service/ai-assistant/ai-assistant.service";
+import { AnnotationSuggestionComponent } from "./annotation-suggestion.component";
 
 /**
  * CodeEditorComponent is the content of the dialogue invoked by CodeareaCustomTemplateComponent.
@@ -39,6 +40,7 @@ import {
 export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy {
   @ViewChild("editor", { static: true }) editorElement!: ElementRef;
   @ViewChild("container", { static: true }) containerElement!: ElementRef;
+  @ViewChild(AnnotationSuggestionComponent) annotationSuggestion!: AnnotationSuggestionComponent;
   private code?: YText;
   private editor?: any;
   private languageServerSocket?: WebSocket;
@@ -58,6 +60,8 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   public currentSuggestion: string = "";
   // The range selected by the user
   public currentRange: monaco.Range | undefined;
+  public suggestionTop: number = 0;
+  public suggestionLeft: number = 0;
 
   private generateLanguageTitle(language: string): string {
     return `${language.charAt(0).toUpperCase()}${language.slice(1)} UDF`;
@@ -229,47 +233,23 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
           const choices = response.choices || [];
           if (choices.length > 0 && choices[0].message && choices[0].message.content) {
             this.currentSuggestion = choices[0].message.content.trim();
-
-            let acceptButton: HTMLButtonElement | undefined;
-            let declineButton: HTMLButtonElement | undefined;
-
             this.currentCode = code;
             this.currentRange = range;
+
+            const position = editor.getScrolledVisiblePosition(range.getStartPosition());
+            if (position) {
+              this.suggestionTop = position.top + 100;
+              this.suggestionLeft = position.left + 100;
+            }
+
             this.showAnnotationSuggestion = true;
 
-            setTimeout(() => {
-              const position = editor.getScrolledVisiblePosition(range.getStartPosition());
-              const popupElement = document.querySelector(".annotation-suggestion") as HTMLElement;
-
-              // Make sure the UI pop up next to the selected argument
-              if (popupElement && position) {
-                popupElement.style.top = `${position.top + 100}px`;
-                popupElement.style.left = `${position.left + 100}px`;
-              }
-
-              const cleanup = () => {
-                if (acceptButton) acceptButton.removeEventListener("click", acceptListener);
-                if (declineButton) declineButton.removeEventListener("click", declineListener);
-                this.showAnnotationSuggestion = false;
-              };
-
-              const acceptListener = () => {
-                this.acceptCurrentAnnotation();
-                cleanup();
-              };
-
-              const declineListener = () => {
-                cleanup();
-              };
-
-              acceptButton = document.querySelector(".accept-button") as HTMLButtonElement;
-              declineButton = document.querySelector(".decline-button") as HTMLButtonElement;
-
-              if (acceptButton && declineButton) {
-                acceptButton.addEventListener("click", acceptListener, { once: true });
-                declineButton.addEventListener("click", declineListener, { once: true });
-              }
-            }, 0);
+            if (this.annotationSuggestion) {
+              this.annotationSuggestion.code = this.currentCode;
+              this.annotationSuggestion.suggestion = this.currentSuggestion;
+              this.annotationSuggestion.top = this.suggestionTop;
+              this.annotationSuggestion.left = this.suggestionLeft;
+            }
           } else {
             console.error("Error: OpenAI response does not contain valid message content", response);
           }
