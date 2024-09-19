@@ -17,10 +17,7 @@ import { isUndefined } from "lodash";
 import { CloseAction, ErrorAction } from "vscode-languageclient/lib/common/client.js";
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api.js";
 import { FormControl } from "@angular/forms";
-import {
-  AIAssistantService,
-  TypeAnnotationResponse,
-} from "../../service/ai-assistant/ai-assistant.service";
+import { AIAssistantService, TypeAnnotationResponse } from "../../service/ai-assistant/ai-assistant.service";
 import { AnnotationSuggestionComponent } from "./annotation-suggestion.component";
 
 /**
@@ -189,36 +186,43 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     this.editor = editor;
 
     // Check if the AI provider is "openai"
-    this.aiAssistantService.checkAIAssistantEnabled()
+    this.aiAssistantService
+      .checkAIAssistantEnabled()
       .pipe(untilDestroyed(this))
       .subscribe({
-      next: (isEnabled: string) => {
-        if (isEnabled === "OpenAI") {
-          // "Add Type Annotation" Button
-          editor.addAction({
-            id: "type-annotation-action",
-            label: "Add Type Annotation",
-            contextMenuGroupId: "1_modification",
-            contextMenuOrder: 1.0,
-            run: ed => {
-              // User selected code (including range and content)
-              const selection = ed.getSelection();
-              const model = ed.getModel();
-              if (!model || !selection) {
-                return;
-              }
-              // All the code in Python UDF
-              const allcode = model.getValue();
-              // Content of user selected code
-              const code = model.getValueInRange(selection);
-              // Start line of the selected code
-              const lineNumber = selection.startLineNumber;
-              this.handleTypeAnnotation(code, selection, ed as monaco.editor.IStandaloneCodeEditor, lineNumber, allcode);
-            },
-          });
-        }
-      },
-    });
+        next: (isEnabled: string) => {
+          if (isEnabled === "OpenAI") {
+            // "Add Type Annotation" Button
+            editor.addAction({
+              id: "type-annotation-action",
+              label: "Add Type Annotation",
+              contextMenuGroupId: "1_modification",
+              contextMenuOrder: 1.0,
+              run: ed => {
+                // User selected code (including range and content)
+                const selection = ed.getSelection();
+                const model = ed.getModel();
+                if (!model || !selection) {
+                  return;
+                }
+                // All the code in Python UDF
+                const allcode = model.getValue();
+                // Content of user selected code
+                const code = model.getValueInRange(selection);
+                // Start line of the selected code
+                const lineNumber = selection.startLineNumber;
+                this.handleTypeAnnotation(
+                  code,
+                  selection,
+                  ed as monaco.editor.IStandaloneCodeEditor,
+                  lineNumber,
+                  allcode
+                );
+              },
+            });
+          }
+        },
+      });
     if (this.language == "python") {
       this.connectLanguageServer();
     }
