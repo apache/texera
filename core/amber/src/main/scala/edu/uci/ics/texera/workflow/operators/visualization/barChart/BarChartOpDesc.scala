@@ -36,6 +36,12 @@ class BarChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor
   @AutofillAttributeName
   var fields: String = ""
 
+  @JsonProperty(required = false)
+  @JsonSchemaTitle("Pattern")
+  @JsonPropertyDescription("Add texture to the chart based on an attribute")
+  @AutofillAttributeName
+  var pattern: String = ""
+
   @JsonProperty(defaultValue = "No Selection", required = false)
   @JsonSchemaTitle("Category Column")
   @JsonPropertyDescription("Optional - Select a column to Color Code the Categories")
@@ -74,6 +80,10 @@ class BarChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor
     if (horizontalOrientation)
       isHorizontalOrientation = "True"
 
+    var isPatternSelected = "False"
+    if (pattern != "")
+      isPatternSelected = "True"
+
     var isCategoryColumn = "False"
     if (categoryColumn != "No Selection")
       isCategoryColumn = "True"
@@ -102,9 +112,9 @@ class BarChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor
                        |        ${manipulateTable()}
                        |        if not table.empty and '$fields' != '$value':
                        |           if $isHorizontalOrientation:
-                       |               fig = go.Figure(px.bar(table, y='$fields', x='$value', color="$categoryColumn" if $isCategoryColumn else None, orientation = 'h'))
+                       |               fig = go.Figure(px.bar(table, y='$fields', x='$value', color="$categoryColumn" if $isCategoryColumn else None, pattern_shape="$pattern" if $isPatternSelected else None, orientation = 'h'))
                        |           else:
-                       |               fig = go.Figure(px.bar(table, y='$value', x='$fields', color="$categoryColumn" if $isCategoryColumn else None))
+                       |               fig = go.Figure(px.bar(table, y='$value', x='$fields', color="$categoryColumn" if $isCategoryColumn else None, pattern_shape="$pattern" if $isPatternSelected else None))
                        |           fig.update_layout(margin=dict(l=0, r=0, t=0, b=0))
                        |           html = plotly.io.to_html(fig, include_plotlyjs = 'cdn', auto_play = False)
                        |           # use latest plotly lib in html
