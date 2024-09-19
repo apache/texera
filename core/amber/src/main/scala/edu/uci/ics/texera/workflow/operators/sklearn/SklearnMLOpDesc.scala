@@ -97,7 +97,7 @@ abstract class SklearnMLOpDesc extends PythonOperatorDescriptor {
        |                recalls = recall_score(Y, predictions, average=None)
        |                for i, class_name in enumerate(np.unique(Y)):
        |                    print("Class", repr(class_name), " - F1:", f1s[i], ", Precision:", precisions[i], ", Recall:", recalls[i])
-       |                yield {"model_name" : "$getUserFriendlyModelName", "model" : serializedModel}
+       |                yield {"model_name" : "$getUserFriendlyModelName", "model" : self.model}
        |            else:
        |                mae = mean_absolute_error(Y, predictions)
        |                r2 = r2_score(Y, predictions)
