@@ -74,6 +74,8 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
         handleGoogleSheetRequest(cache, request, results, attributeNames)
       case "csv" =>
         handleCSVRequest(user, request, results, attributeNames)
+      case "binary" =>
+        handleBinaryRequest(user, request, results)
       case _ =>
         ResultExportResponse("error", s"Unknown export type: ${request.exportType}")
     }
@@ -172,6 +174,58 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
       .setFields("spreadsheetId")
       .execute
     targetSheet.getSpreadsheetId
+  }
+
+  private def handleBinaryRequest(
+      user: User,
+      request: ResultExportRequest,
+      results: Iterable[Tuple]
+  ): ResultExportResponse = {
+
+    // Get the row and column indices from the request
+    val rowIndex = request.rowIndex
+    val columnIndex = request.columnIndex
+    val filename = request.filename
+    val fileExtension = request.fileExtension
+
+    // Validate that the requested row and column exist
+    if (rowIndex >= results.size || columnIndex >= results.head.getFields.size) {
+      return ResultExportResponse("error", s"Invalid row or column index")
+    }
+
+    // Retrieve the binary data (byte[]) from the specified row and column
+    val selectedRow = results.toSeq(rowIndex)
+    val binaryData = selectedRow.getField(columnIndex)
+
+    // Ensure the field is of type Array[Byte]
+    binaryData match {
+      case data if data.isInstanceOf[Array[Byte]] =>
+        val byteArray = data.asInstanceOf[Array[Byte]]
+
+        // Prepare the file for download
+        val fileNameWithExtension = s"$filename.$fileExtension"
+        val fileStream = new ByteArrayInputStream(byteArray)
+
+        // Save the binary file (similar to how files are saved in the CSV handler)
+        request.datasetIds.foreach { did =>
+          val datasetPath = PathUtils.getDatasetPath(UInteger.valueOf(did))
+          val filePath = datasetPath.resolve(fileNameWithExtension)
+          createNewDatasetVersionByAddingFiles(
+            UInteger.valueOf(did),
+            user,
+            Map(filePath -> fileStream)
+          )
+        }
+
+        ResultExportResponse(
+          "success",
+          s"Binary file $fileNameWithExtension saved to Datasets ${request.datasetIds.mkString(",")}"
+        )
+
+      case _ =>
+        // Handle the case where the field is not binary data
+        ResultExportResponse("error", s"Selected field is not binary data")
+    }
   }
 
   /**
