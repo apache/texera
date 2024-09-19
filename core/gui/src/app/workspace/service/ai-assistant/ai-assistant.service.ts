@@ -2,7 +2,8 @@ import { Injectable } from "@angular/core";
 import { firstValueFrom } from "rxjs";
 import { AppSettings } from "../../../common/app-setting";
 import { HttpClient, HttpHeaders } from "@angular/common/http";
-import { Observable } from "rxjs";
+import { Observable, of } from "rxjs";
+import { map, catchError } from "rxjs/operators";
 
 // The type annotation return from the LLM
 export type TypeAnnotationResponse = {
@@ -21,10 +22,10 @@ export const AI_ASSISTANT_API_BASE_URL = `${AppSettings.getApiEndpoint()}/aiassi
 export class AIAssistantService {
   constructor(private http: HttpClient) {}
 
-  public checkAIAssistantEnabled(): Promise<string> {
+  public checkAIAssistantEnabled(): Observable<string> {
     const apiUrl = `${AI_ASSISTANT_API_BASE_URL}/isenabled`;
-    return firstValueFrom(this.http.get(apiUrl, { responseType: "text" }))
-      .then(response => {
+    return this.http.get(apiUrl, { responseType: "text" }).pipe(
+      map(response => {
         const isEnabled = response !== undefined ? response : "NoAiAssistant";
         console.log(
           isEnabled === "OpenAI"
@@ -32,10 +33,11 @@ export class AIAssistantService {
             : "No AI Assistant or OpenAI authentication key error"
         );
         return isEnabled;
+      }),
+      catchError(() => {
+        return of("NoAiAssistant");
       })
-      .catch(() => {
-        return "NoAiAssistant";
-      });
+    );
   }
 
   public getTypeAnnotations(code: string, lineNumber: number, allcode: string): Observable<TypeAnnotationResponse> {
