@@ -253,8 +253,8 @@ export class MenuComponent implements OnInit {
    * get the html to export all results.
    */
   public onClickGenerateReport(): void {
-    // Get notification
-    this.notificationService.info("The report is being generated...");
+    // Get notification and set nzDuration to 0 to prevent it from auto-closing
+    this.notificationService.blank("", "The report is being generated...", { nzDuration: 0 });
 
     const workflowName = this.currentWorkflowName;
     const WorkflowContent: WorkflowContent = this.workflowActionService.getWorkflowContent();
@@ -278,13 +278,23 @@ export class MenuComponent implements OnInit {
                 );
                 // Generate the final report as HTML after all results are retrieved
                 this.reportGenerationService.generateReportAsHtml(workflowSnapshotURL, sortedResults, workflowName);
+
+                // Close the notification after the report is generated
+                this.notificationService.remove();
+                this.notificationService.success("Report successfully generated.");
               },
               error: (error: unknown) => {
                 this.notificationService.error("Error in retrieving operator results: " + (error as Error).message);
+                // Close the notification on error
+                this.notificationService.remove();
               },
             });
         },
-        error: (e: unknown) => this.notificationService.error((e as Error).message),
+        error: (e: unknown) => {
+          this.notificationService.error((e as Error).message);
+          // Close the notification on error
+          this.notificationService.remove();
+        },
       });
   }
 
