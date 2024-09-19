@@ -1,16 +1,16 @@
 import { Injectable } from "@angular/core";
 import { firstValueFrom } from "rxjs";
-import { AppSettings } from "../../../../common/app-setting";
+import { AppSettings } from "../../common/app-setting";
 import { HttpClient, HttpHeaders } from "@angular/common/http";
 import { Observable } from "rxjs";
 
 // The type annotation return from the LLM
 export type TypeAnnotationResponse = {
-  choices: {
+  choices: ReadonlyArray<{
     message: {
       content: string;
     };
-  }[];
+  }>;
 };
 
 export const AI_ASSISTANT_API_BASE_URL = `${AppSettings.getApiEndpoint()}/aiassistant`;
@@ -39,7 +39,7 @@ export class AIAssistantService {
   }
 
   public getTypeAnnotations(code: string, lineNumber: number, allcode: string): Observable<TypeAnnotationResponse> {
-    const headers = new HttpHeaders({ "Content-Type": "application/json" });
+    const headers = new HttpHeaders({});
     const requestBody = { code, lineNumber, allcode };
     return this.http.post<TypeAnnotationResponse>(`${AI_ASSISTANT_API_BASE_URL}/annotationresult`, requestBody, {
       headers,

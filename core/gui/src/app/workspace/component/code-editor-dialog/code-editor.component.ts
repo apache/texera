@@ -20,7 +20,7 @@ import { FormControl } from "@angular/forms";
 import {
   AIAssistantService,
   TypeAnnotationResponse,
-} from "../../../dashboard/service/user/ai-assistant/ai-assistant.service";
+} from "../../ai-assistant/ai-assistant.service";
 
 /**
  * CodeEditorComponent is the content of the dialogue invoked by CodeareaCustomTemplateComponent.
@@ -57,7 +57,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   // The result returned by the backend AI assistant
   public currentSuggestion: string = "";
   // The range selected by the user
-  public currentRange: monaco.Range | null = null;
+  public currentRange: monaco.Range | undefined;
 
   private generateLanguageTitle(language: string): string {
     return `${language.charAt(0).toUpperCase()}${language.slice(1)} UDF`;
@@ -230,8 +230,8 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
           if (choices.length > 0 && choices[0].message && choices[0].message.content) {
             this.currentSuggestion = choices[0].message.content.trim();
 
-            let acceptButton: HTMLButtonElement | null = null;
-            let declineButton: HTMLButtonElement | null = null;
+            let acceptButton: HTMLButtonElement | undefined;
+            let declineButton: HTMLButtonElement | undefined;
 
             this.currentCode = code;
             this.currentRange = range;

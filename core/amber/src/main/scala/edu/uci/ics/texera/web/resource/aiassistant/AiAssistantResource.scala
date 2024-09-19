@@ -43,20 +43,16 @@ class AIAssistantResource {
       "max_tokens" -> 15
     )
 
-    try {
-      val response = Unirest
-        .post(s"${AiAssistantManager.sharedUrl}/chat/completions")
-        .header("Authorization", s"Bearer ${AiAssistantManager.accountKey}")
-        .header("Content-Type", "application/json")
-        .body(Json.stringify(requestBodyJson))
-        .asString()
-
-      Response.status(response.getStatus).entity(response.getBody).build()
-    } catch {
-      case e: Exception =>
-        e.printStackTrace()
-        Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("Error occurred").build()
+    val response = Unirest
+      .post(s"${AiAssistantManager.sharedUrl}/chat/completions")
+      .header("Authorization", s"Bearer ${AiAssistantManager.accountKey}")
+      .header("Content-Type", "application/json")
+      .body(Json.stringify(requestBodyJson))
+      .asString()
+    if (response.getStatus >= 400) {
+      throw new RuntimeException(s"getAnnotation error: ${response.getStatus}: ${response.getBody}")
     }
+    Response.status(response.getStatus).entity(response.getBody).build()
   }
 
   // Helper function to get the type annotation
