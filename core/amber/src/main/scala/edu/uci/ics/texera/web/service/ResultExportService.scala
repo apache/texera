@@ -181,8 +181,6 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
       request: ResultExportRequest,
       results: Iterable[Tuple]
   ): ResultExportResponse = {
-
-    // Get the row and column indices from the request
     val rowIndex = request.rowIndex
     val columnIndex = request.columnIndex
     val filename = request.filename
@@ -192,23 +190,16 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
       return ResultExportResponse("error", s"Invalid row or column index")
     }
 
-    // Retrieve the binary data (byte[]) from the specified row and column
     val selectedRow = results.toSeq(rowIndex)
-    println("HELLO WORLD")
-    println(s"Row Index: $rowIndex")
-    println(s"Column Index: $columnIndex")
-    println(s"Filename: $filename")
-    println(s"Selected Row: $selectedRow")
 
-    // Handle the Java byte[] (Array[Byte] in Scala) explicitly
     val field: Any = selectedRow.getField(columnIndex)
 
     // Ensure the field is of type byte[]
     val binaryData: Array[Byte] = field match {
-      case data: Array[Byte] => data // Correctly handle byte[] from Java
+      case data: Array[Byte] => data
       case data: AnyRef
           if data.getClass.isArray && data.getClass.getComponentType == classOf[Byte] =>
-        data.asInstanceOf[Array[Byte]] // Handle as byte array
+        data.asInstanceOf[Array[Byte]]
       case _ =>
         return ResultExportResponse(
           "error",
@@ -220,8 +211,6 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
     binaryData match {
       case data: Array[Byte] =>
         val byteArray = data
-
-        // Prepare the file for download
         val fileStream = new ByteArrayInputStream(byteArray)
 
         // Save the binary file
@@ -241,7 +230,6 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
         )
 
       case _ =>
-        // Handle the case where the field is not binary data
         ResultExportResponse("error", s"Selected field is not binary data")
     }
   }
