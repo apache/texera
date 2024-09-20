@@ -36,12 +36,6 @@ class BarChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor
   @AutofillAttributeName
   var fields: String = ""
 
-  @JsonProperty(required = false)
-  @JsonSchemaTitle("Pattern")
-  @JsonPropertyDescription("Add texture to the chart based on an attribute")
-  @AutofillAttributeName
-  var pattern: String = ""
-
   @JsonProperty(defaultValue = "No Selection", required = false)
   @JsonSchemaTitle("Category Column")
   @JsonPropertyDescription("Optional - Select a column to Color Code the Categories")
@@ -52,6 +46,12 @@ class BarChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor
   @JsonSchemaTitle("Horizontal Orientation")
   @JsonPropertyDescription("Orientation Style")
   var horizontalOrientation: Boolean = _
+
+  @JsonProperty(required = false)
+  @JsonSchemaTitle("Pattern")
+  @JsonPropertyDescription("Add texture to the chart based on an attribute")
+  @AutofillAttributeName
+  var pattern: String = ""
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Schema.builder().add(new Attribute("html-content", AttributeType.STRING)).build()
