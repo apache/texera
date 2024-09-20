@@ -107,7 +107,6 @@ class SankeyDiagramOpDesc extends VisualizationOperator with PythonOperatorDescr
     finalCode
   }
 
-
   // make the chart type to html visualization so it can be recognized by both backend and frontend.
   override def chartType(): String = VisualizationConstants.HTML_VIZ
 }
