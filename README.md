@@ -128,20 +128,26 @@ This project is supported by the <a href="http://www.nsf.gov">National Science F
 ## Citation
 Please cite Texera as 
 ```
-@article{10.14778/3681954.3682022,
-  author = {Wang, Zuozhi and Huang, Yicong and Ni, Shengquan and Kumar, Avinash and Alsudais, Sadeem and Liu, Xiaozhen and Lin, Xinyuan and Ding, Yunyan and Li, Chen},
-  title = {Texera: A System for Collaborative and Interactive Data Analytics Using Workflows},
-  year = {2024},
-  issue_date = {July 2024},
-  publisher = {VLDB Endowment},
-  volume = {17},
-  number = {11},
-  issn = {2150-8097},
-  url = {https://doi.org/10.14778/3681954.3682022},
-  doi = {10.14778/3681954.3682022},
-  journal = {Proc. VLDB Endow.},
-  month = {aug},
-  pages = {3580–3588},
-  numpages = {9}
+@article{DBLP:journals/pvldb/WangHNKALLDL24,
+  author       = {Zuozhi Wang and
+                  Yicong Huang and
+                  Shengquan Ni and
+                  Avinash Kumar and
+                  Sadeem Alsudais and
+                  Xiaozhen Liu and
+                  Xinyuan Lin and
+                  Yunyan Ding and
+                  Chen Li},
+  title        = {Texera: {A} System for Collaborative and Interactive Data Analytics
+                  Using Workflows},
+  journal      = {Proc. {VLDB} Endow.},
+  volume       = {17},
+  number       = {11},
+  pages        = {3580--3588},
+  year         = {2024},
+  url          = {https://www.vldb.org/pvldb/vol17/p3580-wang.pdf},
+  timestamp    = {Thu, 19 Sep 2024 13:09:37 +0200},
+  biburl       = {https://dblp.org/rec/journals/pvldb/WangHNKALLDL24.bib},
+  bibsource    = {dblp computer science bibliography, https://dblp.org}
 }
 ```
