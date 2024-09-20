@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.web.auth
 
+import edu.uci.ics.texera.web.auth.GuestAuthFilter.GUEST
 import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import io.dropwizard.auth.AuthFilter
@@ -18,6 +19,7 @@ import java.util.Optional
   class Builder extends AuthFilter.AuthFilterBuilder[String, SessionUser, GuestAuthFilter] {
     override protected def newInstance = new GuestAuthFilter
   }
+  val GUEST: User = new User(null, "guest", null, null, null, UserRole.REGULAR, null)
 }
 
 @PreMatching
@@ -32,10 +34,7 @@ import java.util.Optional
       scheme: String
   ): Boolean = {
 
-    val principal =
-      Optional.of(
-        new SessionUser(new User(null, "guest", null, null, null, UserRole.REGULAR, null))
-      )
+    val principal = Optional.of(new SessionUser(GUEST))
     val securityContext = requestContext.getSecurityContext
     val secure = securityContext != null && securityContext.isSecure
     requestContext.setSecurityContext(new SecurityContext() {
