@@ -367,8 +367,9 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     return false;
   }
 
-  downloadBinaryData(binaryData: any, rowIndex: number, columnName: string): void {
-    const defaultFileName = `${columnName}_${rowIndex}`;
+  downloadBinaryData(binaryData: any, rowIndex: number, columnIndex: number, columnName: string): void {
+    const realRowNumber = (this.currentPageIndex - 1) * this.pageSize + rowIndex;
+    const defaultFileName = `${columnName}_${realRowNumber}`;
     const modal = this.modalService.create({
       nzTitle: "Export Binary Data and Save to a Dataset",
       nzContent: ResultExportationComponent,
@@ -376,6 +377,8 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
         exportType: "binary",
         workflowName: this.workflowActionService.getWorkflowMetadata.name,
         defaultFileName: defaultFileName,
+        rowIndex: realRowNumber,
+        columnIndex: columnIndex,
       },
       nzFooter: null,
     });

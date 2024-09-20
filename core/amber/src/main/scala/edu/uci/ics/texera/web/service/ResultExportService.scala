@@ -186,7 +186,6 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
     val rowIndex = request.rowIndex
     val columnIndex = request.columnIndex
     val filename = request.filename
-    val fileExtension = request.fileExtension
 
     // Validate that the requested row and column exist
     if (rowIndex >= results.size || columnIndex >= results.head.getFields.size) {
@@ -203,13 +202,12 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
         val byteArray = data.asInstanceOf[Array[Byte]]
 
         // Prepare the file for download
-        val fileNameWithExtension = s"$filename.$fileExtension"
         val fileStream = new ByteArrayInputStream(byteArray)
 
         // Save the binary file (similar to how files are saved in the CSV handler)
         request.datasetIds.foreach { did =>
           val datasetPath = PathUtils.getDatasetPath(UInteger.valueOf(did))
-          val filePath = datasetPath.resolve(fileNameWithExtension)
+          val filePath = datasetPath.resolve(filename)
           createNewDatasetVersionByAddingFiles(
             UInteger.valueOf(did),
             user,
@@ -219,7 +217,7 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
 
         ResultExportResponse(
           "success",
-          s"Binary file $fileNameWithExtension saved to Datasets ${request.datasetIds.mkString(",")}"
+          s"Binary file $filename saved to Datasets ${request.datasetIds.mkString(",")}"
         )
 
       case _ =>

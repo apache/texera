@@ -9,6 +9,5 @@ case class ResultExportRequest(
     datasetIds: Array[Int],
     rowIndex: Int,
     columnIndex: Int,
-    filename: String,
-    fileExtension: String
+    filename: String
 ) extends TexeraWebSocketRequest
