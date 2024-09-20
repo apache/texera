@@ -294,6 +294,8 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   public rejectCurrentAnnotation(): void {
     // Do nothing except for closing the UI
     this.showAnnotationSuggestion = false;
+    this.currentCode = "";
+    this.currentSuggestion = "";
   }
 
   // Add the type annotation into monaco editor
