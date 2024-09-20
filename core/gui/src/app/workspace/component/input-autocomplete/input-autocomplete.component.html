@@ -1,4 +1,4 @@
-<div class="input-autocomplete-container">
+<div [ngClass]="{'input-autocomplete-container': isFileSelectionEnabled}">
   <input
     *ngIf="selectedFilePath || !isFileSelectionEnabled"
     nz-input
