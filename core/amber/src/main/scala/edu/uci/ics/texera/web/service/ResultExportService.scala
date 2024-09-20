@@ -194,17 +194,37 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
 
     // Retrieve the binary data (byte[]) from the specified row and column
     val selectedRow = results.toSeq(rowIndex)
-    val binaryData = selectedRow.getField(columnIndex)
+    println("HELLO WORLD")
+    println(s"Row Index: $rowIndex")
+    println(s"Column Index: $columnIndex")
+    println(s"Filename: $filename")
+    println(s"Selected Row: $selectedRow")
 
-    // Ensure the field is of type Array[Byte]
+    // Handle the Java byte[] (Array[Byte] in Scala) explicitly
+    val field: Any = selectedRow.getField(columnIndex)
+
+    // Ensure the field is of type byte[]
+    val binaryData: Array[Byte] = field match {
+      case data: Array[Byte] => data // Correctly handle byte[] from Java
+      case data: AnyRef
+          if data.getClass.isArray && data.getClass.getComponentType == classOf[Byte] =>
+        data.asInstanceOf[Array[Byte]] // Handle as byte array
+      case _ =>
+        return ResultExportResponse(
+          "error",
+          s"Expected binary data (Array[Byte]), but got: ${field.getClass}"
+        )
+    }
+
+    // Save the binary file (similar to how files are saved in the CSV handler)
     binaryData match {
-      case data if data.isInstanceOf[Array[Byte]] =>
-        val byteArray = data.asInstanceOf[Array[Byte]]
+      case data: Array[Byte] =>
+        val byteArray = data
 
         // Prepare the file for download
         val fileStream = new ByteArrayInputStream(byteArray)
 
-        // Save the binary file (similar to how files are saved in the CSV handler)
+        // Save the binary file
         request.datasetIds.foreach { did =>
           val datasetPath = PathUtils.getDatasetPath(UInteger.valueOf(did))
           val filePath = datasetPath.resolve(filename)
