@@ -108,7 +108,7 @@
           {{ column.getCell(row) }}
           <button
             *ngIf="isBinaryData(currentResult[i][column.columnDef])"
-            (click)="downloadBinaryData(currentResult[i][column.columnDef])"
+            (click)="downloadBinaryData(currentResult[i][column.columnDef]); $event.stopPropagation()"
             nz-button
             nz-dropdown
             title="export binary data">

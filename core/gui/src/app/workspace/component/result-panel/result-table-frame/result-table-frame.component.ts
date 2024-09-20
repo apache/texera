@@ -12,6 +12,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 import { style } from "@angular/animations";
 import { isBase64, isBinary } from "src/app/common/util/json";
+import { ResultExportationComponent } from "../../result-exportation/result-exportation.component";
 
 export const TABLE_COLUMN_TEXT_LIMIT = 100;
 export const PRETTY_JSON_TEXT_LIMIT = 50000;
@@ -366,5 +367,15 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     return false;
   }
 
-  downloadBinaryData(binaryData: any): void {}
+  downloadBinaryData(binaryData: any): void {
+    const modal = this.modalService.create({
+      nzTitle: "Export Binary Data and Save to a Dataset",
+      nzContent: ResultExportationComponent,
+      nzData: {
+        exportType: "binary",
+        workflowName: this.workflowActionService.getWorkflowMetadata.name,
+      },
+      nzFooter: null,
+    });
+  }
 }
