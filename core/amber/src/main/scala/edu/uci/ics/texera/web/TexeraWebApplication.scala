@@ -266,7 +266,7 @@ class TexeraWebApplication
     environment.jersey.register(classOf[AdminExecutionResource])
     environment.jersey.register(classOf[UserQuotaResource])
     environment.jersey.register(classOf[UserDiscussionResource])
-    environment.jersey.register(classOf[AiAssistantResource])
+    environment.jersey.register(classOf[AIAssistantResource])
   }
 
   /**

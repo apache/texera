@@ -114,7 +114,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
 
   @HostListener("window:beforeunload")
   ngOnDestroy() {
-    if (this.workflowPersistService.isWorkflowPersistEnabled()) {
+    if (this.userService.isLogin() && this.workflowPersistService.isWorkflowPersistEnabled()) {
       const workflow = this.workflowActionService.getWorkflow();
       this.workflowPersistService.persistWorkflow(workflow).pipe(untilDestroyed(this)).subscribe();
     }
