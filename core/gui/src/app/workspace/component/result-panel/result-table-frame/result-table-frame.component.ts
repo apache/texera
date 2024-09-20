@@ -367,13 +367,15 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     return false;
   }
 
-  downloadBinaryData(binaryData: any): void {
+  downloadBinaryData(binaryData: any, rowIndex: number, columnName: string): void {
+    const defaultFileName = `${columnName}_${rowIndex}`;
     const modal = this.modalService.create({
       nzTitle: "Export Binary Data and Save to a Dataset",
       nzContent: ResultExportationComponent,
       nzData: {
         exportType: "binary",
         workflowName: this.workflowActionService.getWorkflowMetadata.name,
+        defaultFileName: defaultFileName,
       },
       nzFooter: null,
     });

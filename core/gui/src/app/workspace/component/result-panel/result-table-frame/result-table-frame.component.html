@@ -105,10 +105,9 @@
           class="table-row"
           nzEllipsis
           ngClass="data-size">
-          {{ column.getCell(row) }}
           <button
             *ngIf="isBinaryData(currentResult[i][column.columnDef])"
-            (click)="downloadBinaryData(currentResult[i][column.columnDef]); $event.stopPropagation()"
+            (click)="downloadBinaryData(currentResult[i][column.columnDef], i, column.columnDef); $event.stopPropagation()"
             nz-button
             nz-dropdown
             title="export binary data">
@@ -116,6 +115,7 @@
               nz-icon
               nzType="cloud-download"></i>
           </button>
+          {{ column.getCell(row) }}
         </td>
       </tr>
     </tbody>

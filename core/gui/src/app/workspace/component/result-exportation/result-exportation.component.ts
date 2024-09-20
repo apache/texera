@@ -16,6 +16,7 @@ export class ResultExportationComponent implements OnInit {
   exportType: string = inject(NZ_MODAL_DATA).exportType;
 
   workflowName: string = inject(NZ_MODAL_DATA).workflowName;
+  inputFileName: string = inject(NZ_MODAL_DATA).defaultFileName;
 
   inputDatasetName = "";
 
