@@ -11,6 +11,7 @@ import { RowModalComponent } from "../result-panel-modal.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 import { style } from "@angular/animations";
+import { isBase64, isBinary } from "src/app/common/util/json";
 
 export const TABLE_COLUMN_TEXT_LIMIT = 100;
 export const PRETTY_JSON_TEXT_LIMIT = 50000;
@@ -357,4 +358,13 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     }
     return cellContent;
   }
+
+  isBinaryData(cellContent: any): boolean {
+    if (typeof cellContent === "string") {
+      return isBase64(cellContent) || isBinary(cellContent);
+    }
+    return false;
+  }
+
+  downloadBinaryData(binaryData: any): void {}
 }
