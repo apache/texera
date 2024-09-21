@@ -9,8 +9,17 @@ import javax.ws.rs.Consumes
 import javax.ws.rs.core.MediaType
 import play.api.libs.json.Json
 import kong.unirest.Unirest
+import java.util.Base64
+import scala.sys.process._
+import play.api.libs.json._
+import scala.util.{Try, Success, Failure}
 
 case class AIAssistantRequest(code: String, lineNumber: Int, allcode: String)
+case class LocateUnannotatedRequest(selectedCode: String, startLine: Int)
+case class UnannotatedArgument(name: String, startLine: Int, startColumn: Int, endLine: Int, endColumn: Int)
+object UnannotatedArgument {
+  implicit val format: Format[UnannotatedArgument] = Json.format[UnannotatedArgument]
+}
 
 @Path("/aiassistant")
 class AIAssistantResource {
@@ -85,5 +94,38 @@ class AIAssistantResource {
        |- For the first situation: you must return strictly according to the format ": type", without adding any extra characters. No need for an explanation, just the result : type is enough!
        |- For the second situation: you return strictly according to the format " -> type", without adding any extra characters. No need for an explanation, just the result -> type is enough!
      """.stripMargin
+  }
+
+  @POST
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/getArgument")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  def locateUnannotated(request: LocateUnannotatedRequest, @Auth user: SessionUser): Response = {
+    val encodedCode = Base64.getEncoder.encodeToString(request.selectedCode.getBytes("UTF-8"))
+    val pythonScriptPath = "src/main/scala/edu/uci/ics/texera/web/resource/aiassistant/python_abstract_syntax_tree.py"
+
+    try {
+      val command = s"""python $pythonScriptPath "$encodedCode" ${request.startLine}"""
+      val result = command.!!
+      val parsedResult = parseJsonResult(result)
+      Response.ok(Json.obj("result" -> Json.toJson(parsedResult))).build()
+    } catch {
+      case e: Exception =>
+        Response.status(500).entity("Error executing the Python code").build()
+    }
+  }
+
+  private def parseJsonResult(jsonString: String): List[UnannotatedArgument] = {
+    val jsonValue = Json.parse(jsonString)
+    jsonValue.as[List[List[JsValue]]].map {
+      case List(name: JsString, startLine: JsNumber, startColumn: JsNumber, endLine: JsNumber, endColumn: JsNumber) =>
+        UnannotatedArgument(
+          name.value,
+          startLine.value.toInt,
+          startColumn.value.toInt,
+          endLine.value.toInt,
+          endColumn.value.toInt
+        )
+    }
   }
 }

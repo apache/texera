@@ -13,6 +13,32 @@ export type TypeAnnotationResponse = {
   }>;
 };
 
+export interface UnannotatedArgument {
+  name: string;
+  startLine: number;
+  startColumn: number;
+  endLine: number;
+  endColumn: number;
+}
+
+interface UnannotatedArgumentItem {
+  underlying: {
+    name: { value: string };
+    startLine: { value: number };
+    startColumn: { value: number };
+    endLine: { value: number };
+    endColumn: { value: number };
+  };
+}
+
+interface UnannotatedArgumentResponse {
+  underlying: {
+    result: {
+      value: UnannotatedArgumentItem[];
+    };
+  };
+}
+
 // Define AI model type
 export const AI_ASSISTANT_API_BASE_URL = `${AppSettings.getApiEndpoint()}/aiassistant`;
 export const AI_MODEL = {
@@ -65,5 +91,31 @@ export class AIAssistantService {
   public getTypeAnnotations(code: string, lineNumber: number, allcode: string): Observable<TypeAnnotationResponse> {
     const requestBody = { code, lineNumber, allcode };
     return this.http.post<TypeAnnotationResponse>(`${AI_ASSISTANT_API_BASE_URL}/annotationresult`, requestBody, {});
+  }
+
+  public locateUnannotated(selectedCode: string, startLine: number): Observable<UnannotatedArgument[]> {
+    const requestBody = { selectedCode, startLine };
+
+    return this.http.post<UnannotatedArgumentResponse>(`${AI_ASSISTANT_API_BASE_URL}/getArgument`, requestBody)
+      .pipe(
+        map(response => {
+          if (response) {
+            return response.underlying.result.value.map((item: UnannotatedArgumentItem): UnannotatedArgument => ({
+              name: item.underlying.name.value,
+              startLine: item.underlying.startLine.value,
+              startColumn: item.underlying.startColumn.value,
+              endLine: item.underlying.endLine.value,
+              endColumn: item.underlying.endColumn.value
+            }));
+          } else {
+            console.error("Unexpected response format:", response);
+            return [];
+          }
+        }),
+        catchError((error: unknown) => {
+          console.error("Request to backend failed:", error);
+          return of([]);
+        })
+      );
   }
 }

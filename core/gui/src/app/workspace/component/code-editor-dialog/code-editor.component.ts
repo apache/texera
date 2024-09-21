@@ -4,7 +4,7 @@ import { WorkflowActionService } from "../../service/workflow-graph/model/workfl
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
 import { YText } from "yjs/dist/src/types/YText";
 import { MonacoBinding } from "y-monaco";
-import { Subject } from "rxjs";
+import { Subject, take } from "rxjs";
 import { takeUntil } from "rxjs/operators";
 import { MonacoLanguageClient } from "monaco-languageclient";
 import { toSocket, WebSocketMessageReader, WebSocketMessageWriter } from "vscode-ws-jsonrpc";
@@ -59,6 +59,9 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   public currentRange: monaco.Range | undefined;
   public suggestionTop: number = 0;
   public suggestionLeft: number = 0;
+  // For "Add All Type Annotation" to show the UI individually
+  private userResponseSubject?: Subject<void>;
+  private isMultipleVariables: boolean = false;
 
   private generateLanguageTitle(language: string): string {
     return `${language.charAt(0).toUpperCase()}${language.slice(1)} UDF`;
@@ -221,7 +224,94 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
               },
             });
           }
-        },
+
+          // "Add All Type Annotation" Button
+          editor.addAction({
+            id: "all-type-annotation-action",
+            label: "Add All Type Annotations",
+            contextMenuGroupId: "1_modification",
+            contextMenuOrder: 1.1,
+            run: ed => {
+              const selection = ed.getSelection();
+              const model = ed.getModel();
+              if (!model || !selection) {
+                return;
+              }
+
+              const selectedCode = model.getValueInRange(selection);
+              const allCode = model.getValue();
+
+              this.aiAssistantService.locateUnannotated(selectedCode, selection.startLineNumber)
+                .pipe(takeUntil(this.workflowVersionStreamSubject))
+                .subscribe(variablesWithoutAnnotations => {
+                  // If no unannotated variable, then do nothing.
+                  if (variablesWithoutAnnotations.length == 0) {
+                    return;
+                  }
+
+                  let offset = 0;
+                  let lastLine: number | undefined;
+
+                  this.isMultipleVariables = true;
+                  this.userResponseSubject = new Subject<void>();
+
+                  const processNextVariable = (index: number) => {
+                    if (index >= variablesWithoutAnnotations.length) {
+                      this.isMultipleVariables = false;
+                      this.userResponseSubject = undefined;
+                      return;
+                    }
+
+                    const currVariable = variablesWithoutAnnotations[index];
+
+                    const variableCode = currVariable.name;
+                    const variableLineNumber = currVariable.startLine;
+
+                    // Update range
+                    if (lastLine !== undefined && lastLine === variableLineNumber) {
+                      offset += this.currentSuggestion.length;
+                    } else {
+                      offset = 0;
+                    }
+
+                    const variableRange = new monaco.Range(
+                      currVariable.startLine,
+                      currVariable.startColumn + offset,
+                      currVariable.endLine,
+                      currVariable.endColumn + offset
+                    );
+
+                    const highlight = editor.createDecorationsCollection([{
+                      range: variableRange,
+                      options: {
+                        hoverMessage: { value: "Argument without Annotation" },
+                        isWholeLine: false,
+                        className: "annotation-highlight",
+                      },
+                    }]);
+
+                    this.handleTypeAnnotation(variableCode, variableRange, ed as monaco.editor.IStandaloneCodeEditor, variableLineNumber, allCode);
+
+                    lastLine = variableLineNumber;
+
+                    // Make sure the currVariable will not go to the next one until the user click the accept/decline button
+                    if (this.userResponseSubject !== undefined) {
+                      const userResponseSubject = this.userResponseSubject;
+                      // Only take one response (accept/decline)
+                      const subscription = userResponseSubject.pipe(take(1))
+                        .pipe(takeUntil(this.workflowVersionStreamSubject))
+                        .subscribe(() => {
+                          highlight.clear();
+                          subscription.unsubscribe();
+                          processNextVariable(index + 1);
+                        });
+                    }
+                  };
+                  processNextVariable(0);
+                });
+            },
+          });
+        }
       });
     if (this.language == "python") {
       this.connectLanguageServer();
@@ -285,6 +375,11 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
         this.currentRange.endColumn
       );
       this.insertTypeAnnotations(this.editor, selection, this.currentSuggestion);
+
+      // Only for "Add All Type Annotation"
+      if (this.isMultipleVariables && this.userResponseSubject) {
+        this.userResponseSubject.next();
+      }
     }
     // close the UI after adding the annotation
     this.showAnnotationSuggestion = false;
@@ -296,6 +391,11 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     this.showAnnotationSuggestion = false;
     this.currentCode = "";
     this.currentSuggestion = "";
+
+    // Only for "Add All Type Annotation"
+    if (this.isMultipleVariables && this.userResponseSubject) {
+      this.userResponseSubject.next();
+    }
   }
 
   // Add the type annotation into monaco editor
