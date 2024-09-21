@@ -3,13 +3,13 @@ import { Injectable } from "@angular/core";
 import { isEqual } from "lodash-es";
 import { EMPTY, merge, Observable, Subject } from "rxjs";
 import { CustomJSONSchema7 } from "src/app/workspace/types/custom-json-schema.interface";
-import { environment } from "../../../../../environments/environment";
 import { AppSettings } from "../../../../common/app-setting";
 import { OperatorSchema } from "../../../types/operator-schema.interface";
 import { ExecuteWorkflowService } from "../../execute-workflow/execute-workflow.service";
 import { DEFAULT_WORKFLOW, WorkflowActionService } from "../../workflow-graph/model/workflow-action.service";
 import { DynamicSchemaService } from "../dynamic-schema.service";
 import { catchError, debounceTime, filter, mergeMap } from "rxjs/operators";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
 // endpoint for schema propagation
 export const SCHEMA_PROPAGATION_ENDPOINT = "queryplan/autocomplete";
@@ -26,9 +26,9 @@ export const SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS = 500;
  * By contract, property name `attribute` and `attributes` indicate the field is a column of the operator's input,
  *  and schema propagation can provide autocomplete for the column names.
  */
-@Injectable({
-  providedIn: "root",
-})
+
+@UntilDestroy()
+@Injectable()
 export class SchemaPropagationService {
   private operatorInputSchemaMap: Readonly<Record<string, OperatorInputSchema>> = {};
 
@@ -39,11 +39,10 @@ export class SchemaPropagationService {
     private workflowActionService: WorkflowActionService,
     private dynamicSchemaService: DynamicSchemaService
   ) {
-    // do nothing if schema propagation is not enabled
-    if (!environment.schemaPropagationEnabled) {
-      return;
-    }
+    this.registerSchemaPropagation();
+  }
 
+  registerSchemaPropagation() {
     // invoke schema propagation API when: link is added/deleted,
     // or any property of any operator is changed
     merge(
@@ -57,15 +56,12 @@ export class SchemaPropagationService {
         mergeMap(() => this.invokeSchemaPropagationAPI()),
         filter(response => response.code === 0)
       )
+      .pipe(untilDestroyed(this))
       .subscribe(response => {
         this.operatorInputSchemaMap = response.result;
         this.operatorInputSchemaChangedStream.next();
         this._applySchemaPropagationResult(this.operatorInputSchemaMap);
       });
-  }
-
-  public getOperatorInputSchemaMap(): Readonly<Record<string, OperatorInputSchema>> {
-    return this.operatorInputSchemaMap;
   }
 
   public getOperatorInputSchema(operatorID: string): OperatorInputSchema | undefined {

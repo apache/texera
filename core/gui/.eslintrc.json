@@ -54,7 +54,7 @@
           {
             "alias": ["untilDestroyed"],
             "checkComplete": true,
-            "checkDecorators": ["Component"],
+            "checkDecorators": ["Component", "UntilDestroy"],
             "checkDestroy": false
           }
         ],

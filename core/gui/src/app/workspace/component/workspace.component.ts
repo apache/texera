@@ -32,20 +32,19 @@ export const SAVE_DEBOUNCE_TIME_IN_MS = 5000;
   providers: [
     // uncomment this line for manual testing without opening backend server
     // { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+    WorkflowConsoleService,
+    SchemaPropagationService,
+    OperatorReuseCacheStatusService,
   ],
 })
 export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   public pid?: number = undefined;
   public gitCommitHash: string = Version.raw;
-  public showResultPanel: boolean = false;
   userSystemEnabled = environment.userSystemEnabled;
   @ViewChild("codeEditor", { read: ViewContainerRef }) codeEditorViewRef!: ViewContainerRef;
+
   constructor(
     private userService: UserService,
-    // list additional services in constructor so they are initialized even if no one use them directly
-    private schemaPropagationService: SchemaPropagationService,
-    private operatorReuseCacheStatus: OperatorReuseCacheStatusService,
-    private workflowConsoleService: WorkflowConsoleService,
     private undoRedoService: UndoRedoService,
     private workflowCacheService: WorkflowCacheService,
     private workflowPersistService: WorkflowPersistService,
@@ -54,7 +53,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     private location: Location,
     private route: ActivatedRoute,
     private operatorMetadataService: OperatorMetadataService,
-    private message: NzMessageService,
     private router: Router,
     private notificationService: NotificationService,
     private codeEditorService: CodeEditorService
@@ -198,7 +196,9 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
           // clear stack
           this.undoRedoService.clearUndoStack();
           this.undoRedoService.clearRedoStack();
-          this.message.error("You don't have access to this workflow, please log in with an appropriate account");
+          this.notificationService.error(
+            "You don't have access to this workflow, please log in with an appropriate account"
+          );
         }
       );
   }
