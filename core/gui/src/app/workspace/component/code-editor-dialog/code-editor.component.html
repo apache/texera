@@ -29,3 +29,13 @@
     <div [innerHTML]="this.getCoeditorCursorStyles(user)"></div>
   </ng-container>
 </div>
+
+<texera-annotation-suggestion
+  *ngIf="showAnnotationSuggestion"
+  [code]="currentCode"
+  [suggestion]="currentSuggestion"
+  [top]="suggestionTop"
+  [left]="suggestionLeft"
+  (accept)="acceptCurrentAnnotation()"
+  (decline)="rejectCurrentAnnotation()">
+</texera-annotation-suggestion>

@@ -1,12 +1,13 @@
-<div class="input-autocomplete-container">
+<div [ngClass]="{'input-autocomplete-container': isFileSelectionEnabled}">
   <input
-    *ngIf="selectedFilePath"
+    *ngIf="selectedFilePath || !isFileSelectionEnabled"
     nz-input
     [readOnly]="isFileSelectionEnabled"
     required
     [formControl]="formControl"
     [formlyAttributes]="field" />
   <button
+    *ngIf="isFileSelectionEnabled"
     nz-button
     class="file-select-button"
     nzSize="small"
