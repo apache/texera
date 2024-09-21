@@ -78,7 +78,7 @@ class GanttChartOpDesc extends VisualizationOperator with PythonOperatorDescript
 
   def createPlotlyFigure(): String = {
     val colorSetting = if (color.nonEmpty) s", color='$color'" else ""
-    val patternParam = if(pattern.nonEmpty) s""", pattern_shape="$pattern"""" else ""
+    val patternParam = if (pattern.nonEmpty) s""", pattern_shape="$pattern"""" else ""
 
     s"""
         |        fig = px.timeline(table, x_start='$start', x_end='$finish', y='$task' $colorSetting $patternParam)
