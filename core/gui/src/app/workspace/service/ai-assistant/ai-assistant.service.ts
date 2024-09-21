@@ -96,26 +96,27 @@ export class AIAssistantService {
   public locateUnannotated(selectedCode: string, startLine: number): Observable<UnannotatedArgument[]> {
     const requestBody = { selectedCode, startLine };
 
-    return this.http.post<UnannotatedArgumentResponse>(`${AI_ASSISTANT_API_BASE_URL}/getArgument`, requestBody)
-      .pipe(
-        map(response => {
-          if (response) {
-            return response.underlying.result.value.map((item: UnannotatedArgumentItem): UnannotatedArgument => ({
+    return this.http.post<UnannotatedArgumentResponse>(`${AI_ASSISTANT_API_BASE_URL}/getArgument`, requestBody).pipe(
+      map(response => {
+        if (response) {
+          return response.underlying.result.value.map(
+            (item: UnannotatedArgumentItem): UnannotatedArgument => ({
               name: item.underlying.name.value,
               startLine: item.underlying.startLine.value,
               startColumn: item.underlying.startColumn.value,
               endLine: item.underlying.endLine.value,
-              endColumn: item.underlying.endColumn.value
-            }));
-          } else {
-            console.error("Unexpected response format:", response);
-            return [];
-          }
-        }),
-        catchError((error: unknown) => {
-          console.error("Request to backend failed:", error);
-          return of([]);
-        })
-      );
+              endColumn: item.underlying.endColumn.value,
+            })
+          );
+        } else {
+          console.error("Unexpected response format:", response);
+          return [];
+        }
+      }),
+      catchError((error: unknown) => {
+        console.error("Request to backend failed:", error);
+        return of([]);
+      })
+    );
   }
 }

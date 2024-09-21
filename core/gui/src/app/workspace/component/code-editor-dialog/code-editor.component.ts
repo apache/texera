@@ -241,7 +241,8 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
               const selectedCode = model.getValueInRange(selection);
               const allCode = model.getValue();
 
-              this.aiAssistantService.locateUnannotated(selectedCode, selection.startLineNumber)
+              this.aiAssistantService
+                .locateUnannotated(selectedCode, selection.startLineNumber)
                 .pipe(takeUntil(this.workflowVersionStreamSubject))
                 .subscribe(variablesWithoutAnnotations => {
                   // If no unannotated variable, then do nothing.
@@ -281,16 +282,24 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
                       currVariable.endColumn + offset
                     );
 
-                    const highlight = editor.createDecorationsCollection([{
-                      range: variableRange,
-                      options: {
-                        hoverMessage: { value: "Argument without Annotation" },
-                        isWholeLine: false,
-                        className: "annotation-highlight",
+                    const highlight = editor.createDecorationsCollection([
+                      {
+                        range: variableRange,
+                        options: {
+                          hoverMessage: { value: "Argument without Annotation" },
+                          isWholeLine: false,
+                          className: "annotation-highlight",
+                        },
                       },
-                    }]);
+                    ]);
 
-                    this.handleTypeAnnotation(variableCode, variableRange, ed as monaco.editor.IStandaloneCodeEditor, variableLineNumber, allCode);
+                    this.handleTypeAnnotation(
+                      variableCode,
+                      variableRange,
+                      ed as monaco.editor.IStandaloneCodeEditor,
+                      variableLineNumber,
+                      allCode
+                    );
 
                     lastLine = variableLineNumber;
 
@@ -298,7 +307,8 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
                     if (this.userResponseSubject !== undefined) {
                       const userResponseSubject = this.userResponseSubject;
                       // Only take one response (accept/decline)
-                      const subscription = userResponseSubject.pipe(take(1))
+                      const subscription = userResponseSubject
+                        .pipe(take(1))
                         .pipe(takeUntil(this.workflowVersionStreamSubject))
                         .subscribe(() => {
                           highlight.clear();
@@ -311,7 +321,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
                 });
             },
           });
-        }
+        },
       });
     if (this.language == "python") {
       this.connectLanguageServer();
