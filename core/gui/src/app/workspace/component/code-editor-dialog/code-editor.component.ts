@@ -17,6 +17,8 @@ import { isUndefined } from "lodash";
 import { CloseAction, ErrorAction } from "vscode-languageclient/lib/common/client.js";
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api.js";
 import { FormControl } from "@angular/forms";
+import { AIAssistantService, TypeAnnotationResponse } from "../../service/ai-assistant/ai-assistant.service";
+import { AnnotationSuggestionComponent } from "./annotation-suggestion.component";
 
 /**
  * CodeEditorComponent is the content of the dialogue invoked by CodeareaCustomTemplateComponent.
@@ -35,6 +37,7 @@ import { FormControl } from "@angular/forms";
 export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy {
   @ViewChild("editor", { static: true }) editorElement!: ElementRef;
   @ViewChild("container", { static: true }) containerElement!: ElementRef;
+  @ViewChild(AnnotationSuggestionComponent) annotationSuggestion!: AnnotationSuggestionComponent;
   private code?: YText;
   private editor?: any;
   private languageServerSocket?: WebSocket;
@@ -45,6 +48,17 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   public componentRef: ComponentRef<CodeEditorComponent> | undefined;
   public language: string = "";
   public languageTitle: string = "";
+
+  // Boolean to determine whether the suggestion UI should be shown
+  public showAnnotationSuggestion: boolean = false;
+  // The code selected by the user
+  public currentCode: string = "";
+  // The result returned by the backend AI assistant
+  public currentSuggestion: string = "";
+  // The range selected by the user
+  public currentRange: monaco.Range | undefined;
+  public suggestionTop: number = 0;
+  public suggestionLeft: number = 0;
 
   private generateLanguageTitle(language: string): string {
     return `${language.charAt(0).toUpperCase()}${language.slice(1)} UDF`;
@@ -63,7 +77,8 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     private sanitizer: DomSanitizer,
     private workflowActionService: WorkflowActionService,
     private workflowVersionService: WorkflowVersionService,
-    public coeditorPresenceService: CoeditorPresenceService
+    public coeditorPresenceService: CoeditorPresenceService,
+    private aiAssistantService: AIAssistantService
   ) {
     const currentOperatorId = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0];
     const operatorType = this.workflowActionService.getTexeraGraph().getOperator(currentOperatorId).operatorType;
@@ -169,9 +184,142 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
       );
     }
     this.editor = editor;
+
+    // Check if the AI provider is "openai"
+    this.aiAssistantService
+      .checkAIAssistantEnabled()
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: (isEnabled: string) => {
+          if (isEnabled === "OpenAI") {
+            // "Add Type Annotation" Button
+            editor.addAction({
+              id: "type-annotation-action",
+              label: "Add Type Annotation",
+              contextMenuGroupId: "1_modification",
+              contextMenuOrder: 1.0,
+              run: ed => {
+                // User selected code (including range and content)
+                const selection = ed.getSelection();
+                const model = ed.getModel();
+                if (!model || !selection) {
+                  return;
+                }
+                // All the code in Python UDF
+                const allcode = model.getValue();
+                // Content of user selected code
+                const code = model.getValueInRange(selection);
+                // Start line of the selected code
+                const lineNumber = selection.startLineNumber;
+                this.handleTypeAnnotation(
+                  code,
+                  selection,
+                  ed as monaco.editor.IStandaloneCodeEditor,
+                  lineNumber,
+                  allcode
+                );
+              },
+            });
+          }
+        },
+      });
     if (this.language == "python") {
       this.connectLanguageServer();
     }
+  }
+
+  private handleTypeAnnotation(
+    code: string,
+    range: monaco.Range,
+    editor: monaco.editor.IStandaloneCodeEditor,
+    lineNumber: number,
+    allcode: string
+  ): void {
+    this.aiAssistantService
+      .getTypeAnnotations(code, lineNumber, allcode)
+      .pipe(takeUntil(this.workflowVersionStreamSubject))
+      .subscribe({
+        next: (response: TypeAnnotationResponse) => {
+          const choices = response.choices || [];
+          if (choices.length > 0 && choices[0].message && choices[0].message.content) {
+            this.currentSuggestion = choices[0].message.content.trim();
+            this.currentCode = code;
+            this.currentRange = range;
+
+            const position = editor.getScrolledVisiblePosition(range.getStartPosition());
+            if (position) {
+              this.suggestionTop = position.top + 100;
+              this.suggestionLeft = position.left + 100;
+            }
+
+            this.showAnnotationSuggestion = true;
+
+            if (this.annotationSuggestion) {
+              this.annotationSuggestion.code = this.currentCode;
+              this.annotationSuggestion.suggestion = this.currentSuggestion;
+              this.annotationSuggestion.top = this.suggestionTop;
+              this.annotationSuggestion.left = this.suggestionLeft;
+            }
+          } else {
+            console.error("Error: OpenAI response does not contain valid message content", response);
+          }
+        },
+        error: (error: unknown) => {
+          console.error("Error fetching type annotations:", error);
+        },
+      });
+  }
+
+  // Called when the user clicks the "accept" button
+  public acceptCurrentAnnotation(): void {
+    // Avoid accidental calls
+    if (!this.showAnnotationSuggestion || !this.currentRange || !this.currentSuggestion) {
+      return;
+    }
+
+    if (this.currentRange && this.currentSuggestion) {
+      const selection = new monaco.Selection(
+        this.currentRange.startLineNumber,
+        this.currentRange.startColumn,
+        this.currentRange.endLineNumber,
+        this.currentRange.endColumn
+      );
+      this.insertTypeAnnotations(this.editor, selection, this.currentSuggestion);
+    }
+    // close the UI after adding the annotation
+    this.showAnnotationSuggestion = false;
+  }
+
+  // Called when the user clicks the "decline" button
+  public rejectCurrentAnnotation(): void {
+    // Do nothing except for closing the UI
+    this.showAnnotationSuggestion = false;
+    this.currentCode = "";
+    this.currentSuggestion = "";
+  }
+
+  // Add the type annotation into monaco editor
+  private insertTypeAnnotations(
+    editor: monaco.editor.IStandaloneCodeEditor,
+    selection: monaco.Selection,
+    annotations: string
+  ) {
+    const endLineNumber = selection.endLineNumber;
+    const endColumn = selection.endColumn;
+    const range = new monaco.Range(
+      // Insert the content to the end of the selected code
+      endLineNumber,
+      endColumn,
+      endLineNumber,
+      endColumn
+    );
+    const text = `${annotations}`;
+    const op = {
+      range: range,
+      text: text,
+      forceMoveMarkers: true,
+    };
+    editor.executeEdits("add annotation", [op]);
   }
 
   private connectLanguageServer() {
