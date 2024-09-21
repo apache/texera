@@ -1,11 +1,10 @@
 import builtins
-import datetime
 import inspect
 from contextlib import redirect_stdout
 from io import StringIO
 
 from typing import ContextManager
-
+from core.util.console_message.timestamp import current_time_in_local_timezone
 from core.util.buffer.buffer_base import IBuffer
 from proto.edu.uci.ics.amber.engine.architecture.worker import (
     ConsoleMessage,
@@ -53,7 +52,7 @@ class replace_print(ContextManager):
                 complete_str = tmp_buf.getvalue()
                 console_message = ConsoleMessage(
                     worker_id=self.worker_id,
-                    timestamp=datetime.datetime.now(),
+                    timestamp=current_time_in_local_timezone(),
                     msg_type=ConsoleMessageType.PRINT,
                     source=(
                         f"{inspect.currentframe().f_back.f_globals['__name__']}"

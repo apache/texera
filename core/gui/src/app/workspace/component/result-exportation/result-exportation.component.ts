@@ -32,7 +32,8 @@ export class ResultExportationComponent implements OnInit {
     this.datasetService
       .retrieveAccessibleDatasets()
       .pipe(untilDestroyed(this))
-      .subscribe(datasets => {
+      .subscribe(response => {
+        const datasets = response.datasets;
         this.userAccessibleDatasets = datasets.filter(dataset => dataset.accessPrivilege === "WRITE");
         this.filteredUserAccessibleDatasets = [...this.userAccessibleDatasets];
       });

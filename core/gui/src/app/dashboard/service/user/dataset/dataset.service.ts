@@ -1,20 +1,13 @@
 import { Injectable } from "@angular/core";
-import { HttpClient } from "@angular/common/http";
+import { HttpClient, HttpParams } from "@angular/common/http";
 import { map } from "rxjs/operators";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { Dataset, DatasetVersion } from "../../../../common/type/dataset";
 import { AppSettings } from "../../../../common/app-setting";
 import { Observable } from "rxjs";
-import { SearchFilterParameters, toQueryStrings } from "../../../type/search-filter-parameters";
 import { DashboardDataset } from "../../../type/dashboard-dataset.interface";
 import { FileUploadItem } from "../../../type/dashboard-file.interface";
-import { UserFileUploadService } from "../file/user-file-upload.service";
-import {
-  DatasetVersionFileTree,
-  DatasetVersionFileTreeNode,
-  parseFileNodesToTreeNodes,
-} from "../../../../common/type/datasetVersionFileTree";
-import { FileNode } from "../../../../common/type/fileNode";
+import { DatasetFileNode } from "../../../../common/type/datasetVersionFileTree";
 
 export const DATASET_BASE_URL = "dataset";
 export const DATASET_CREATE_URL = DATASET_BASE_URL + "/create";
@@ -61,22 +54,40 @@ export class DatasetService {
     return this.http.get<DashboardDataset>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}`);
   }
 
-  public listDatasets(): Observable<DashboardDataset[]> {
-    return this.http.get<DashboardDataset[]>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}`);
+  public retrieveDatasetVersionSingleFile(path: string): Observable<Blob> {
+    const encodedPath = encodeURIComponent(path);
+    return this.http.get(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/file?path=${encodedPath}`, {
+      responseType: "blob",
+    });
   }
 
-  public retrieveDatasetVersionSingleFile(did: number, dvid: number, path: string): Observable<Blob> {
+  public retrieveDatasetVersionZip(path: string): Observable<Blob> {
     const encodedPath = encodeURIComponent(path);
-    return this.http.get(
-      `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/version/${dvid}/file?path=${encodedPath}`,
-      { responseType: "blob" }
+    return this.http.get(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/version-zip?path=${encodedPath}`, {
+      responseType: "blob",
+    });
+  }
+
+  public retrieveAccessibleDatasets(
+    includeVersions: boolean = false,
+    includeFileNodes: boolean = false,
+    filePath: string = ""
+  ): Observable<{ datasets: DashboardDataset[]; fileNodes: DatasetFileNode[] }> {
+    let params = new HttpParams();
+    if (includeVersions) {
+      params = params.set("includeVersions", "true");
+    }
+    if (includeFileNodes) {
+      params = params.set("includeFileNodes", "true");
+    }
+    if (filePath && filePath != "") {
+      params = params.set("path", encodeURIComponent(filePath));
+    }
+    return this.http.get<{ datasets: DashboardDataset[]; fileNodes: DatasetFileNode[] }>(
+      `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}`,
+      { params: params }
     );
   }
-
-  public retrieveAccessibleDatasets(): Observable<DashboardDataset[]> {
-    return this.http.get<DashboardDataset[]>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}`);
-  }
-
   public createDatasetVersion(
     did: number,
     newVersion: string,
@@ -87,7 +98,7 @@ export class DatasetService {
     formData.append("versionName", newVersion);
 
     if (removedFilePaths.length > 0) {
-      const removedFilesString = removedFilePaths.join(",");
+      const removedFilesString = JSON.stringify(removedFilePaths);
       formData.append("file:remove", removedFilesString);
     }
 
@@ -98,11 +109,11 @@ export class DatasetService {
     return this.http
       .post<{
         datasetVersion: DatasetVersion;
-        fileNodes: FileNode[];
+        fileNodes: DatasetFileNode[];
       }>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/version/create`, formData)
       .pipe(
         map(response => {
-          response.datasetVersion.versionFileTreeNodes = parseFileNodesToTreeNodes(response.fileNodes);
+          response.datasetVersion.fileNodes = response.fileNodes;
           return response.datasetVersion;
         })
       );
@@ -128,11 +139,11 @@ export class DatasetService {
     return this.http
       .get<{
         datasetVersion: DatasetVersion;
-        fileNodes: FileNode[];
+        fileNodes: DatasetFileNode[];
       }>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/${DATASET_VERSION_LATEST_URL}`)
       .pipe(
         map(response => {
-          response.datasetVersion.versionFileTreeNodes = parseFileNodesToTreeNodes(response.fileNodes);
+          response.datasetVersion.fileNodes = response.fileNodes;
           return response.datasetVersion;
         })
       );
@@ -143,12 +154,12 @@ export class DatasetService {
    * @param did
    * @param dvid
    */
-  public retrieveDatasetVersionFileTree(did: number, dvid: number): Observable<DatasetVersionFileTreeNode[]> {
+  public retrieveDatasetVersionFileTree(did: number, dvid: number): Observable<DatasetFileNode[]> {
     return this.http
       .get<{
-        fileNodes: FileNode[];
+        fileNodes: DatasetFileNode[];
       }>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/${DATASET_VERSION_BASE_URL}/${dvid}/rootFileNodes`)
-      .pipe(map(response => parseFileNodesToTreeNodes(response.fileNodes)));
+      .pipe(map(response => response.fileNodes));
   }
 
   public deleteDatasets(dids: number[]): Observable<Response> {

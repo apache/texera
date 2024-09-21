@@ -5,20 +5,13 @@ package edu.uci.ics.texera.web.model.jooq.generated;
 
 
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetOfEnvironment;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetUserAccess;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetVersion;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.Environment;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.EnvironmentOfWorkflow;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.File;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.FileOfProject;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.FileOfWorkflow;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Project;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.ProjectUserAccess;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.PublicProject;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.User;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.UserConfig;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.UserFileAccess;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Workflow;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowExecutions;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowOfProject;
@@ -40,11 +33,6 @@ public class Tables {
     public static final Dataset DATASET = Dataset.DATASET;
 
     /**
-     * The table <code>texera_db.dataset_of_environment</code>.
-     */
-    public static final DatasetOfEnvironment DATASET_OF_ENVIRONMENT = DatasetOfEnvironment.DATASET_OF_ENVIRONMENT;
-
-    /**
      * The table <code>texera_db.dataset_user_access</code>.
      */
     public static final DatasetUserAccess DATASET_USER_ACCESS = DatasetUserAccess.DATASET_USER_ACCESS;
@@ -53,31 +41,6 @@ public class Tables {
      * The table <code>texera_db.dataset_version</code>.
      */
     public static final DatasetVersion DATASET_VERSION = DatasetVersion.DATASET_VERSION;
-
-    /**
-     * The table <code>texera_db.environment</code>.
-     */
-    public static final Environment ENVIRONMENT = Environment.ENVIRONMENT;
-
-    /**
-     * The table <code>texera_db.environment_of_workflow</code>.
-     */
-    public static final EnvironmentOfWorkflow ENVIRONMENT_OF_WORKFLOW = EnvironmentOfWorkflow.ENVIRONMENT_OF_WORKFLOW;
-
-    /**
-     * The table <code>texera_db.file</code>.
-     */
-    public static final File FILE = File.FILE;
-
-    /**
-     * The table <code>texera_db.file_of_project</code>.
-     */
-    public static final FileOfProject FILE_OF_PROJECT = FileOfProject.FILE_OF_PROJECT;
-
-    /**
-     * The table <code>texera_db.file_of_workflow</code>.
-     */
-    public static final FileOfWorkflow FILE_OF_WORKFLOW = FileOfWorkflow.FILE_OF_WORKFLOW;
 
     /**
      * The table <code>texera_db.project</code>.
@@ -103,11 +66,6 @@ public class Tables {
      * The table <code>texera_db.user_config</code>.
      */
     public static final UserConfig USER_CONFIG = UserConfig.USER_CONFIG;
-
-    /**
-     * The table <code>texera_db.user_file_access</code>.
-     */
-    public static final UserFileAccess USER_FILE_ACCESS = UserFileAccess.USER_FILE_ACCESS;
 
     /**
      * The table <code>texera_db.workflow</code>.

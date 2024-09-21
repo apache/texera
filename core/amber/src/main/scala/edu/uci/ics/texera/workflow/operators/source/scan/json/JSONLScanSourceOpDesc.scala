@@ -4,9 +4,9 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.JsonNode
 import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
+import edu.uci.ics.amber.engine.common.storage.DatasetFileDocument
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.Utils.objectMapper
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.DatasetFileDesc
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.inferSchemaFromRows
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
@@ -24,11 +24,11 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
 
   fileTypeName = Option("JSONL")
 
-  def createInputStream(filepath: String, fileDesc: DatasetFileDesc): InputStream = {
+  def createInputStream(filepath: String, fileDesc: DatasetFileDocument): InputStream = {
     if (filepath != null) {
       new FileInputStream(filepath)
     } else {
-      fileDesc.fileInputStream()
+      fileDesc.asInputStream()
     }
   }
 
@@ -37,7 +37,7 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp = {
-    val (filepath, fileDesc) = determineFilePathOrDesc()
+    val (filepath, fileDesc) = determineFilePathOrDatasetFile()
     val stream = createInputStream(filepath, fileDesc)
     // count lines and partition the task to each worker
     val reader = new BufferedReader(
@@ -85,7 +85,7 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
     */
   @Override
   def inferSchema(): Schema = {
-    val (filepath, fileDesc) = determineFilePathOrDesc()
+    val (filepath, fileDesc) = determineFilePathOrDatasetFile()
     val stream = createInputStream(filepath, fileDesc)
     val reader = new BufferedReader(new InputStreamReader(stream, fileEncoding.getCharset))
     var fieldNames = Set[String]()

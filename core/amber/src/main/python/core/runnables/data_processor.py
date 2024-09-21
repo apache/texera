@@ -1,7 +1,6 @@
 import os
 import sys
 import traceback
-from datetime import datetime
 from threading import Event
 
 from loguru import logger
@@ -11,6 +10,7 @@ from core.models import Tuple, ExceptionInfo
 from core.models.table import all_output_to_tuple
 from core.util import Stoppable
 from core.util.console_message.replace_print import replace_print
+from core.util.console_message.timestamp import current_time_in_local_timezone
 from core.util.runnable.runnable import Runnable
 from proto.edu.uci.ics.amber.engine.architecture.worker import (
     ConsoleMessage,
@@ -112,7 +112,7 @@ class DataProcessor(Runnable, Stoppable):
         self._context.console_message_manager.put_message(
             ConsoleMessage(
                 worker_id=self._context.worker_id,
-                timestamp=datetime.now(),
+                timestamp=current_time_in_local_timezone(),
                 msg_type=ConsoleMessageType.ERROR,
                 source=f"{module_name}:{func_name}:{line_number}",
                 title=title,

@@ -1,0 +1,70 @@
+:host {
+  display: block;
+  padding: 16px;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.selection-row {
+  display: flex;
+  gap: 16px;
+}
+
+.nz-select {
+  width: 100%;
+}
+
+.select-dataset {
+  transition: width 0.3s; /* Add animation effect */
+}
+
+.select-version {
+  flex: 1;
+  min-width: 0;
+}
+
+.texera-user-dataset-version-filetree {
+  margin-top: 16px;
+}
+
+.dataset-option {
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dataset-name {
+  display: inline-block;
+  max-width: calc(100% - 100px); /* Adjust to fit other elements */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dataset-id-container {
+  background-color: grey;
+  color: white;
+  width: 23px;
+  height: 23px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 12px;
+  margin-right: 5px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.dataset-owner,
+.dataset-access-privilege {
+  margin-left: 10px;
+  font-size: 12px;
+  color: grey;
+}

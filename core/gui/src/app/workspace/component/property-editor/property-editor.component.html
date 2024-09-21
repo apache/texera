@@ -1,7 +1,31 @@
+<ul
+  nz-menu
+  id="docked-buttons"
+  [ngClass]="{'shadow':  !width}"
+  [hidden]="!currentComponent">
+  <li
+    nz-menu-item
+    (click)="closePanel()"
+    *ngIf="width">
+    <span
+      nz-icon
+      nzType="minus"></span>
+  </li>
+  <li
+    nz-menu-item
+    (click)="width = 280; height = 300"
+    *ngIf="!width"
+    nz-tooltip="Property Editor">
+    <span
+      nz-icon
+      nzType="form"></span>
+  </li>
+</ul>
+
 <div
   [hidden]="!currentComponent"
   cdkDrag
-  cdkDragBoundary="body"
+  cdkDragBoundary="texera-workspace"
   id="right-container"
   nz-resizable
   [nzMinWidth]="260"
@@ -11,39 +35,31 @@
   [style.width.px]="width"
   [style.height.px]="height"
   (nzResize)="onResize($event)"
+  [cdkDragFreeDragPosition]="dragPosition"
   class="box">
   <ul
     nz-menu
     id="property-buttons"
     [ngClass]="{'shadow':  !width}">
-    <li
-      nz-menu-item
-      (click)="width = 0; height = 65;"
+    <button
+      nz-button
+      nzType="text"
+      (click)="resetPanelPosition()"
       *ngIf="width">
       <span
         nz-icon
-        nzType="minus"></span>
-    </li>
-    <li
-      nz-menu-item
-      nzSelected="{{!width}}"
-      cdkDragHandle
-      *ngIf="!width">
-      <span
-        nz-icon
-        nzType="drag"></span>
-    </li>
+        nzType="enter"></span>
+    </button>
     <li
       nz-menu-divider
       id="divider"></li>
     <li
       nz-menu-item
-      (click)="width = 280; height = 300"
-      *ngIf="!width"
-      nz-tooltip="Property Editor">
+      (click)="closePanel()"
+      *ngIf="width">
       <span
         nz-icon
-        nzType="form"></span>
+        nzType="minus"></span>
     </li>
   </ul>
   <div id="content">

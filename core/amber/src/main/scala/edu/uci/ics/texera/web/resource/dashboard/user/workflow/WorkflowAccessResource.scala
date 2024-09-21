@@ -155,7 +155,7 @@ class WorkflowAccessResource() {
       )
     } catch {
       case _: NullPointerException =>
-        throw new BadRequestException("User Not Found!")
+        throw new BadRequestException(s"User $email Not Found!")
     }
 
   }

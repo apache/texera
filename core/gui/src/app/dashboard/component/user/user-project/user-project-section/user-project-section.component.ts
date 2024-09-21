@@ -1,17 +1,10 @@
 import { Component, OnInit } from "@angular/core";
 import { UserProjectService } from "../../../../service/user/project/user-project.service";
-import { ActivatedRoute, Router } from "@angular/router";
-import { NzModalService } from "ng-zorro-antd/modal";
-import { NgbdModalAddProjectFileComponent } from "./ngbd-modal-add-project-file/ngbd-modal-add-project-file.component";
-import { NgbdModalRemoveProjectFileComponent } from "./ngbd-modal-remove-project-file/ngbd-modal-remove-project-file.component";
+import { ActivatedRoute } from "@angular/router";
 import { DashboardFile } from "../../../../type/dashboard-file.interface";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
-import { UserFileService } from "../../../../service/user/file/user-file.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { DashboardProject } from "../../../../type/dashboard-project.interface";
 import { isDefined } from "../../../../../common/util/predicate";
-
-export const ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
 
 @UntilDestroy()
 @Component({
@@ -36,19 +29,9 @@ export class UserProjectSectionComponent implements OnInit {
   public colorPickerIsSelected: boolean = false;
   public updateProjectStatus = ""; // track any updates to user project for child components to rerender
 
-  // temporarily here for file section color tags, TODO : remove once file service PR approved
-  public userProjectsMap: ReadonlyMap<number, DashboardProject> = new Map(); // maps pid to its corresponding DashboardProjectInterface
-  public colorBrightnessMap: ReadonlyMap<number, boolean> = new Map(); // tracks whether each project's color is light or dark
-
-  // ----- for file card
-  public isEditingFileName: number[] = [];
-
   constructor(
     private userProjectService: UserProjectService,
     private activatedRoute: ActivatedRoute,
-    private router: Router,
-    private modalService: NzModalService,
-    private userFileService: UserFileService,
     private notificationService: NotificationService
   ) {}
 
@@ -66,26 +49,6 @@ export class UserProjectSectionComponent implements OnInit {
     // otherwise no project ID, no project to load
   }
 
-  public onClickOpenAddFile() {
-    this.modalService.create({
-      nzContent: NgbdModalAddProjectFileComponent,
-      nzData: { addedFiles: this.getUserProjectFilesArray(), projectId: this.pid },
-      nzFooter: null,
-      nzTitle: "Add Files To Project",
-      nzCentered: true,
-    });
-  }
-
-  public onClickOpenRemoveFile() {
-    this.modalService.create({
-      nzContent: NgbdModalRemoveProjectFileComponent,
-      nzData: { addedFiles: this.getUserProjectFilesArray(), projectId: this.pid },
-      nzFooter: null,
-      nzTitle: "Remove Files From Project",
-      nzCentered: true,
-    });
-  }
-
   public getUserProjectFilesArray(): ReadonlyArray<DashboardFile> {
     const fileArray = this.userProjectService.getProjectFiles();
     if (!fileArray) {
@@ -94,12 +57,6 @@ export class UserProjectSectionComponent implements OnInit {
     return fileArray;
   }
 
-  /**
-   * navigate to another project page
-   */
-  public jumpToProject({ pid }: DashboardProject): void {
-    this.router.navigate([`${ROUTER_USER_PROJECT_BASE_URL}/${pid}`]).then(null);
-  }
   public updateProjectColor(color: string) {
     color = color.substring(1);
     this.colorPickerIsSelected = false;
@@ -146,80 +103,6 @@ export class UserProjectSectionComponent implements OnInit {
       });
   }
 
-  // TODO: will be removed in future refactor to reuse UserFileSection component
-  public removeFileFromProject(pid: number, fid: number): void {
-    this.userProjectService
-      .removeFileFromProject(pid, fid)
-      .pipe(untilDestroyed(this))
-      .subscribe(() => {});
-  }
-
-  // ----------------- for file card
-  public addFileSizeUnit(fileSize: number): string {
-    return this.userFileService.addFileSizeUnit(fileSize);
-  }
-
-  public confirmEditFileName(dashboardUserFileEntry: DashboardFile, name: string, index: number): void {
-    const {
-      file: { fid },
-    } = dashboardUserFileEntry;
-    this.userFileService
-      .changeFileName(fid, name)
-      .pipe(untilDestroyed(this))
-      .subscribe(
-        () => {
-          if (!isDefined(this.pid)) {
-            return;
-          }
-          this.userProjectService.refreshFilesOfProject(this.pid); // -- perform appropriate call for project page
-        },
-        (e: unknown) => {
-          this.notificationService.error((e as Error).message);
-          if (!isDefined(this.pid)) {
-            return;
-          }
-          this.userProjectService.refreshFilesOfProject(this.pid); // -- perform appropriate call for project page
-        }
-      )
-      .add(() => (this.isEditingFileName = this.isEditingFileName.filter(fileIsEditing => fileIsEditing != index)));
-  }
-
-  public downloadUserFile(userFileEntry: DashboardFile): void {
-    this.userFileService
-      .downloadFile(userFileEntry.file.fid)
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: (response: Blob) => {
-          // prepare the data to be downloaded.
-          const dataType = response.type;
-          const binaryData = [];
-          binaryData.push(response);
-
-          // create a download link and trigger it.
-          const downloadLink = document.createElement("a");
-          downloadLink.href = URL.createObjectURL(new Blob(binaryData, { type: dataType }));
-          downloadLink.setAttribute("download", userFileEntry.file.name);
-          document.body.appendChild(downloadLink);
-          downloadLink.click();
-          URL.revokeObjectURL(downloadLink.href);
-        },
-        error: (e: unknown) => this.notificationService.error((e as Error).message),
-      });
-  }
-
-  /**
-   * Created new implementation in project service to
-   * ensure files in the project page are refreshed
-   *
-   * @param userFileEntry
-   */
-  public deleteUserFileEntry(userFileEntry: DashboardFile): void {
-    if (!isDefined(this.pid)) {
-      return;
-    }
-    this.userProjectService.deleteDashboardUserFileEntry(this.pid, userFileEntry);
-  }
-
   private getUserProjectMetadata() {
     if (!isDefined(this.pid)) {
       return;
@@ -229,7 +112,7 @@ export class UserProjectSectionComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe(project => {
         this.name = project.name;
-        this.ownerID = project.ownerID;
+        this.ownerID = project.ownerId;
         this.creationTime = project.creationTime;
         if (project.color != null) {
           this.color = project.color;
@@ -244,9 +127,6 @@ export class UserProjectSectionComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe(userProjectList => {
         if (userProjectList != null && userProjectList.length > 0) {
-          // map project ID to project object
-          this.userProjectsMap = new Map(userProjectList.map(userProject => [userProject.pid, userProject]));
-
           // calculate whether project colors are light or dark
           const projectColorBrightnessMap: Map<number, boolean> = new Map();
           userProjectList.forEach(userProject => {
@@ -258,7 +138,7 @@ export class UserProjectSectionComponent implements OnInit {
             if (userProject.pid === this.pid) {
               this.name = userProject.name;
               this.description = userProject.description;
-              this.ownerID = userProject.ownerID;
+              this.ownerID = userProject.ownerId;
               this.creationTime = userProject.creationTime;
               this.accessLevel = userProject.accessLevel;
               if (userProject.color != null) {
@@ -268,7 +148,6 @@ export class UserProjectSectionComponent implements OnInit {
               }
             }
           });
-          this.colorBrightnessMap = projectColorBrightnessMap;
           this.projectDataIsLoaded = true;
         }
       });

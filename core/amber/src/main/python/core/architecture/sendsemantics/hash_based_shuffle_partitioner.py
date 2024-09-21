@@ -1,12 +1,12 @@
 import typing
-from typing import Iterator, List
+from typing import Iterator
 
 from loguru import logger
 from overrides import overrides
 
 from core.architecture.sendsemantics.partitioner import Partitioner
 from core.models import Tuple
-from core.models.payload import OutputDataFrame, DataPayload, EndOfUpstream
+from core.models.marker import EndOfUpstream
 from core.util import set_one_of
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
     HashBasedShufflePartitioning,
@@ -20,15 +20,16 @@ class HashBasedShufflePartitioner(Partitioner):
         super().__init__(set_one_of(Partitioning, partitioning))
         logger.debug(f"got {partitioning}")
         self.batch_size = partitioning.batch_size
-        self.receivers: List[typing.Tuple[ActorVirtualIdentity, List[Tuple]]] = [
-            (receiver, list()) for receiver in partitioning.receivers
+        self.receivers = [
+            (receiver, [])
+            for receiver in {channel.to_worker_id for channel in partitioning.channels}
         ]
         self.hash_attribute_names = partitioning.hash_attribute_names
 
     @overrides
     def add_tuple_to_batch(
         self, tuple_: Tuple
-    ) -> Iterator[typing.Tuple[ActorVirtualIdentity, OutputDataFrame]]:
+    ) -> Iterator[typing.Tuple[ActorVirtualIdentity, typing.List[Tuple]]]:
         partial_tuple = (
             tuple_
             if not self.hash_attribute_names
@@ -38,12 +39,18 @@ class HashBasedShufflePartitioner(Partitioner):
         receiver, batch = self.receivers[hash_code]
         batch.append(tuple_)
         if len(batch) == self.batch_size:
-            yield receiver, OutputDataFrame(frame=batch)
+            yield receiver, batch
             self.receivers[hash_code] = (receiver, list())
 
     @overrides
-    def no_more(self) -> Iterator[typing.Tuple[ActorVirtualIdentity, DataPayload]]:
+    def no_more(
+        self,
+    ) -> Iterator[
+        typing.Tuple[
+            ActorVirtualIdentity, typing.Union[EndOfUpstream, typing.List[Tuple]]
+        ]
+    ]:
         for receiver, batch in self.receivers:
             if len(batch) > 0:
-                yield receiver, OutputDataFrame(frame=batch)
+                yield receiver, batch
             yield receiver, EndOfUpstream()

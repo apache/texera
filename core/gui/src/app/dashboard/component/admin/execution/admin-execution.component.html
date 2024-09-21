@@ -15,16 +15,19 @@
     <tr>
       <th
         [nzSortFn]="sortByWorkflowName"
+        [nzSortDirections]="['ascend', 'descend']"
         nzWidth="16%">
         Workflow (ID)
       </th>
       <th
         [nzSortFn]="sortByExecutionName"
+        [nzSortDirections]="['ascend', 'descend']"
         nzWidth="16%">
         Execution Name (ID)
       </th>
       <th
         [nzSortFn]="sortByInitiator"
+        [nzSortDirections]="['ascend', 'descend']"
         nzWidth="12%">
         Initiator
       </th>
@@ -46,6 +49,7 @@
       <th nzWidth="10%">Time Used (hh:mm:ss)</th>
       <th
         [nzSortFn]="sortByCompletedTime"
+        [nzSortDirections]="['ascend', 'descend']"
         nzWidth="15%">
         End Time
       </th>

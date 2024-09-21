@@ -11,6 +11,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   PhysicalOpIdentity
 }
 import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
+import edu.uci.ics.texera.workflow.common.EndOfUpstream
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
@@ -65,10 +66,13 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
       (mockHandler.apply _).expects(
         mkDataMessage(fakeID, identifier, 2, DataFrame(tuples.slice(20, 21)))
       )
-      (mockHandler.apply _).expects(mkDataMessage(fakeID, identifier, 3, EndOfUpstream()))
+      (mockHandler.apply _).expects(
+        mkDataMessage(fakeID, identifier, 3, MarkerFrame(EndOfUpstream()))
+      )
     }
     val fakeLink = PhysicalLink(physicalOpId(), mockPortId, physicalOpId(), mockPortId)
-    val fakeReceiver = Array[ActorVirtualIdentity](fakeID)
+    val fakeReceiver =
+      Array[ChannelIdentity](ChannelIdentity(identifier, fakeID, isControl = false))
 
     outputManager.addPartitionerWithPartitioning(
       fakeLink,
@@ -77,7 +81,7 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
     tuples.foreach { t =>
       outputManager.passTupleToDownstream(TupleLike(t.getFields), None)
     }
-    outputManager.emitEndOfUpstream()
+    outputManager.emitMarker(EndOfUpstream())
   }
 
 }

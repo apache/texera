@@ -20,7 +20,8 @@ trait ResourceAllocator {
 }
 class DefaultResourceAllocator(
     physicalPlan: PhysicalPlan,
-    executionClusterInfo: ExecutionClusterInfo
+    executionClusterInfo: ExecutionClusterInfo,
+    dataTransferBatchSize: Int
 ) extends ResourceAllocator {
 
   // a map of a physical link to the partition info of the upstream/downstream of this link
@@ -65,8 +66,10 @@ class DefaultResourceAllocator(
           linkPartitionInfos(physicalLink)
         ),
         toPartitioning(
+          operatorConfigs(physicalLink.fromOpId).workerConfigs.map(_.workerId),
           operatorConfigs(physicalLink.toOpId).workerConfigs.map(_.workerId),
-          linkPartitionInfos(physicalLink)
+          linkPartitionInfos(physicalLink),
+          this.dataTransferBatchSize
         )
       )
     }.toMap

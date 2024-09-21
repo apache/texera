@@ -7,11 +7,11 @@ import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.{
   RangeBasedShufflePartitioning,
   RoundRobinPartitioning
 }
-import edu.uci.ics.amber.engine.common.AmberConfig.defaultBatchSize
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.texera.workflow.common.workflow.{
   BroadcastPartition,
   HashPartition,
+  OneToOnePartition,
   PartitionInfo,
   RangePartition,
   SinglePartition,
@@ -20,21 +20,27 @@ import edu.uci.ics.texera.workflow.common.workflow.{
 
 case object LinkConfig {
   def toPartitioning(
+      fromWorkerIds: List[ActorVirtualIdentity],
       toWorkerIds: List[ActorVirtualIdentity],
-      partitionInfo: PartitionInfo
+      partitionInfo: PartitionInfo,
+      dataTransferBatchSize: Int
   ): Partitioning = {
     partitionInfo match {
       case HashPartition(hashAttributeNames) =>
         HashBasedShufflePartitioning(
-          defaultBatchSize,
-          toWorkerIds,
+          dataTransferBatchSize,
+          fromWorkerIds.flatMap(from =>
+            toWorkerIds.map(to => ChannelIdentity(from, to, isControl = false))
+          ),
           hashAttributeNames
         )
 
       case RangePartition(rangeAttributeNames, rangeMin, rangeMax) =>
         RangeBasedShufflePartitioning(
-          defaultBatchSize,
-          toWorkerIds,
+          dataTransferBatchSize,
+          fromWorkerIds.flatMap(fromId =>
+            toWorkerIds.map(toId => ChannelIdentity(fromId, toId, isControl = false))
+          ),
           rangeAttributeNames,
           rangeMin,
           rangeMax
@@ -42,13 +48,38 @@ case object LinkConfig {
 
       case SinglePartition() =>
         assert(toWorkerIds.size == 1)
-        OneToOnePartitioning(defaultBatchSize, Seq(toWorkerIds.head).toSeq)
+        OneToOnePartitioning(
+          dataTransferBatchSize,
+          fromWorkerIds.map(fromWorkerId =>
+            ChannelIdentity(fromWorkerId, toWorkerIds.head, isControl = false)
+          )
+        )
+
+      case OneToOnePartition() =>
+        OneToOnePartitioning(
+          dataTransferBatchSize,
+          fromWorkerIds.zip(toWorkerIds).map {
+            case (fromWorkerId, toWorkerId) =>
+              ChannelIdentity(fromWorkerId, toWorkerId, isControl = false)
+          }
+        )
 
       case BroadcastPartition() =>
-        BroadcastPartitioning(defaultBatchSize, toWorkerIds)
+        BroadcastPartitioning(
+          dataTransferBatchSize,
+          fromWorkerIds.zip(toWorkerIds).map {
+            case (fromWorkerId, toWorkerId) =>
+              ChannelIdentity(fromWorkerId, toWorkerId, isControl = false)
+          }
+        )
 
       case UnknownPartition() =>
-        RoundRobinPartitioning(defaultBatchSize, toWorkerIds)
+        RoundRobinPartitioning(
+          dataTransferBatchSize,
+          fromWorkerIds.flatMap(from =>
+            toWorkerIds.map(to => ChannelIdentity(from, to, isControl = false))
+          )
+        )
 
       case _ =>
         throw new UnsupportedOperationException()

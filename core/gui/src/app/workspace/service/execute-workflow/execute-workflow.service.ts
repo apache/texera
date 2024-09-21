@@ -1,4 +1,4 @@
-import { Injectable } from "@angular/core";
+import { Injectable, Inject } from "@angular/core";
 import { from, Observable, Subject } from "rxjs";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowGraphReadonly } from "../workflow-graph/model/workflow-graph";
@@ -26,6 +26,9 @@ import { exhaustiveGuard } from "../../../common/util/switch";
 import { WorkflowStatusService } from "../workflow-status/workflow-status.service";
 import { isDefined } from "../../../common/util/predicate";
 import { intersection } from "../../../common/util/set";
+import { Workflow, WorkflowContent, WorkflowSettings } from "../../../common/type/workflow";
+import { GmailService } from "src/app/common/service/gmail/gmail.service";
+import { DOCUMENT } from "@angular/common";
 
 // TODO: change this declaration
 export const FORM_DEBOUNCE_TIME_MS = 150;
@@ -73,7 +76,9 @@ export class ExecuteWorkflowService {
     private workflowActionService: WorkflowActionService,
     private workflowWebsocketService: WorkflowWebsocketService,
     private workflowStatusService: WorkflowStatusService,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    private gmailService: GmailService,
+    @Inject(DOCUMENT) private document: Document
   ) {
     workflowWebsocketService.websocketEvent().subscribe(event => {
       switch (event.type) {
@@ -169,18 +174,21 @@ export class ExecuteWorkflowService {
       this.workflowActionService.getTexeraGraph(),
       targetOperatorId
     );
+    const settings = this.workflowActionService.getWorkflowSettings();
     this.resetExecutionState();
     this.workflowStatusService.resetStatus();
-    this.sendExecutionRequest(executionName, logicalPlan);
+    this.sendExecutionRequest(executionName, logicalPlan, settings);
   }
 
   public executeWorkflowWithReplay(replayExecutionInfo: ReplayExecutionInfo): void {
     const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
+    const settings = this.workflowActionService.getWorkflowSettings();
     this.resetExecutionState();
     this.workflowStatusService.resetStatus();
     this.sendExecutionRequest(
       `Replay run of ${replayExecutionInfo.eid} to ${replayExecutionInfo.interaction}`,
       logicalPlan,
+      settings,
       replayExecutionInfo
     );
   }
@@ -188,6 +196,7 @@ export class ExecuteWorkflowService {
   public sendExecutionRequest(
     executionName: string,
     logicalPlan: LogicalPlan,
+    workflowSettings: WorkflowSettings,
     replayExecutionInfo: ReplayExecutionInfo | undefined = undefined
   ): void {
     const workflowExecuteRequest = {
@@ -195,6 +204,7 @@ export class ExecuteWorkflowService {
       engineVersion: version.hash,
       logicalPlan: logicalPlan,
       replayFromExecution: replayExecutionInfo,
+      workflowSettings: workflowSettings,
     };
     // wait for the form debounce to complete, then send
     window.setTimeout(() => {
@@ -292,6 +302,15 @@ export class ExecuteWorkflowService {
       return;
     }
     this.updateWorkflowActionLock(stateInfo);
+    const isTransitionFromRunningToNonRunning =
+      this.currentState.state === ExecutionState.Running &&
+      [ExecutionState.Completed, ExecutionState.Failed, ExecutionState.Killed, ExecutionState.Paused].includes(
+        stateInfo.state
+      );
+
+    if (isTransitionFromRunningToNonRunning) {
+      this.sendWorkflowStatusEmail(stateInfo);
+    }
     const previousState = this.currentState;
     // update current state
     this.currentState = stateInfo;
@@ -324,6 +343,51 @@ export class ExecuteWorkflowService {
       default:
         return exhaustiveGuard(stateInfo);
     }
+  }
+
+  /**
+   * Sends an email notification about the change in workflow state.
+   * This method constructs the email content with details such as the workflow ID, name,
+   * new state, and a timestamp, then sends it to the user's email address.
+   * The email is sent only if the current user is defined.
+   *
+   * @param stateInfo - The new execution state information containing the updated state of the workflow.
+   */
+  private sendWorkflowStatusEmail(stateInfo: ExecutionStateInfo): void {
+    const workflow = this.workflowActionService.getWorkflow();
+    const timestamp =
+      new Date().toLocaleString("en-US", {
+        timeZone: "UTC",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "numeric",
+        minute: "numeric",
+        second: "numeric",
+        hour12: true,
+      }) + " (UTC)";
+
+    const baseUrl = this.document.location.origin;
+    const dashboardUrl = `${baseUrl}/dashboard/workspace/${workflow.wid}`;
+
+    const subject = `Workflow ${workflow.name} (${workflow.wid}) Status: ${stateInfo.state}`;
+    const content = `
+        Hello,
+    
+        The workflow with the following details has changed its state:
+    
+        - Workflow ID: ${workflow.wid}
+        - Workflow Name: ${workflow.name}
+        - State: ${stateInfo.state}
+        - Timestamp: ${timestamp}
+    
+        You can view more details by visiting: ${dashboardUrl}
+    
+        Regards,
+        Texera Team
+      `;
+
+    this.gmailService.sendEmail(subject, content);
   }
 
   /**

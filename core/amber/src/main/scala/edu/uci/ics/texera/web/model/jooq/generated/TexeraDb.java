@@ -5,20 +5,13 @@ package edu.uci.ics.texera.web.model.jooq.generated;
 
 
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetOfEnvironment;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetUserAccess;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetVersion;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.Environment;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.EnvironmentOfWorkflow;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.File;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.FileOfProject;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.FileOfWorkflow;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Project;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.ProjectUserAccess;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.PublicProject;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.User;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.UserConfig;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.UserFileAccess;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Workflow;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowExecutions;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowOfProject;
@@ -42,7 +35,7 @@ import org.jooq.impl.SchemaImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class TexeraDb extends SchemaImpl {
 
-    private static final long serialVersionUID = -633402813;
+    private static final long serialVersionUID = -202156650;
 
     /**
      * The reference instance of <code>texera_db</code>
@@ -55,11 +48,6 @@ public class TexeraDb extends SchemaImpl {
     public final Dataset DATASET = edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset.DATASET;
 
     /**
-     * The table <code>texera_db.dataset_of_environment</code>.
-     */
-    public final DatasetOfEnvironment DATASET_OF_ENVIRONMENT = edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetOfEnvironment.DATASET_OF_ENVIRONMENT;
-
-    /**
      * The table <code>texera_db.dataset_user_access</code>.
      */
     public final DatasetUserAccess DATASET_USER_ACCESS = edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS;
@@ -68,31 +56,6 @@ public class TexeraDb extends SchemaImpl {
      * The table <code>texera_db.dataset_version</code>.
      */
     public final DatasetVersion DATASET_VERSION = edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetVersion.DATASET_VERSION;
-
-    /**
-     * The table <code>texera_db.environment</code>.
-     */
-    public final Environment ENVIRONMENT = edu.uci.ics.texera.web.model.jooq.generated.tables.Environment.ENVIRONMENT;
-
-    /**
-     * The table <code>texera_db.environment_of_workflow</code>.
-     */
-    public final EnvironmentOfWorkflow ENVIRONMENT_OF_WORKFLOW = edu.uci.ics.texera.web.model.jooq.generated.tables.EnvironmentOfWorkflow.ENVIRONMENT_OF_WORKFLOW;
-
-    /**
-     * The table <code>texera_db.file</code>.
-     */
-    public final File FILE = edu.uci.ics.texera.web.model.jooq.generated.tables.File.FILE;
-
-    /**
-     * The table <code>texera_db.file_of_project</code>.
-     */
-    public final FileOfProject FILE_OF_PROJECT = edu.uci.ics.texera.web.model.jooq.generated.tables.FileOfProject.FILE_OF_PROJECT;
-
-    /**
-     * The table <code>texera_db.file_of_workflow</code>.
-     */
-    public final FileOfWorkflow FILE_OF_WORKFLOW = edu.uci.ics.texera.web.model.jooq.generated.tables.FileOfWorkflow.FILE_OF_WORKFLOW;
 
     /**
      * The table <code>texera_db.project</code>.
@@ -118,11 +81,6 @@ public class TexeraDb extends SchemaImpl {
      * The table <code>texera_db.user_config</code>.
      */
     public final UserConfig USER_CONFIG = edu.uci.ics.texera.web.model.jooq.generated.tables.UserConfig.USER_CONFIG;
-
-    /**
-     * The table <code>texera_db.user_file_access</code>.
-     */
-    public final UserFileAccess USER_FILE_ACCESS = edu.uci.ics.texera.web.model.jooq.generated.tables.UserFileAccess.USER_FILE_ACCESS;
 
     /**
      * The table <code>texera_db.workflow</code>.
@@ -182,20 +140,13 @@ public class TexeraDb extends SchemaImpl {
     private final List<Table<?>> getTables0() {
         return Arrays.<Table<?>>asList(
             Dataset.DATASET,
-            DatasetOfEnvironment.DATASET_OF_ENVIRONMENT,
             DatasetUserAccess.DATASET_USER_ACCESS,
             DatasetVersion.DATASET_VERSION,
-            Environment.ENVIRONMENT,
-            EnvironmentOfWorkflow.ENVIRONMENT_OF_WORKFLOW,
-            File.FILE,
-            FileOfProject.FILE_OF_PROJECT,
-            FileOfWorkflow.FILE_OF_WORKFLOW,
             Project.PROJECT,
             ProjectUserAccess.PROJECT_USER_ACCESS,
             PublicProject.PUBLIC_PROJECT,
             User.USER,
             UserConfig.USER_CONFIG,
-            UserFileAccess.USER_FILE_ACCESS,
             Workflow.WORKFLOW,
             WorkflowExecutions.WORKFLOW_EXECUTIONS,
             WorkflowOfProject.WORKFLOW_OF_PROJECT,

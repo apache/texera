@@ -1,0 +1,159 @@
+.list-item-card {
+  padding: 0;
+  width: 100%;
+  background-color: white;
+  position: relative;
+  cursor: pointer;
+
+  &:hover {
+    background-color: #f0f0f0;
+    .edit-button-group {
+      display: flex;
+    }
+  }
+}
+
+.truncate-single-line {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.resource-id {
+  font-size: 17px;
+  font-weight: 600;
+  margin-top: -5px;
+  margin-right: 25px;
+  margin-left: 5px;
+  text-align: right;
+  display: block;
+}
+
+.resource-name {
+  margin-left: 30px;
+  font-size: 17px;
+  font-weight: 600;
+  width: 85%;
+}
+
+.resource-description {
+  margin-left: 30px;
+  font-size: 12px;
+  font-weight: 300;
+  color: grey;
+  width: 85%;
+  min-height: 18px;
+}
+
+.type-icon-div {
+  text-align: center;
+  font-size: 38px;
+}
+
+.edit-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-right: 16px;
+  .resource-owner {
+    display: flex;
+    align-items: center;
+    justify-content: start;
+    em {
+      margin-right: 8px;
+    }
+  }
+  .resource-time-info {
+    font-size: 13px;
+    font-weight: 400;
+    color: grey;
+  }
+}
+
+.button-group {
+  display: none;
+  position: absolute;
+  height: 70px;
+  min-width: 150px;
+  right: 0;
+  bottom: 0;
+  background-color: #f0f0f0;
+  justify-content: right;
+  align-items: center;
+
+  button {
+    margin-right: 32px;
+  }
+
+  button:hover {
+    background-color: #d9d9d9;
+  }
+}
+
+.list-item-card:hover .button-group {
+  display: flex;
+}
+
+.resource-name-edit-input {
+  font-size: 17px;
+  font-weight: 600;
+  width: 85%;
+  padding: 0;
+  margin-bottom: 4px;
+  margin-left: 30px;
+  outline: none;
+  height: 23px;
+  border: 1px solid #d9d9d9;
+}
+
+.resource-description-edit-textarea {
+  font-size: 12px;
+  font-weight: 300;
+  width: 85%;
+  padding: 0;
+  margin-left: 30px;
+  border: 1px solid #d9d9d9;
+  outline: none;
+  resize: none;
+  height: 18px;
+  line-height: 1.5;
+  max-height: 18px;
+  overflow: hidden;
+  transition:
+    border-color 0.3s,
+    box-shadow 0.3s;
+}
+
+.name-container .description-container {
+  display: flex;
+  align-items: center;
+  position: relative;
+
+  &:hover {
+    .edit-button-group {
+      display: flex;
+    }
+  }
+}
+
+.edit-button-group {
+  display: none;
+  position: absolute;
+  left: 0;
+  align-items: center;
+
+  button {
+    margin-left: 0;
+    background-color: transparent;
+    font-size: 13px;
+    padding: 3px 4px;
+    height: 25px;
+    width: 25px;
+
+    &:hover {
+      background-color: #d9d9d9;
+    }
+  }
+}

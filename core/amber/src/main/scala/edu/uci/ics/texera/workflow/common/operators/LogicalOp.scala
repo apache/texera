@@ -129,6 +129,7 @@ import edu.uci.ics.texera.workflow.operators.visualization.dumbbellPlot.Dumbbell
 import edu.uci.ics.texera.workflow.operators.visualization.histogram.HistogramChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.heatMap.HeatMapOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.lineChart.LineChartOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.waterfallChart.WaterfallChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.scatter3DChart.Scatter3dChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.ScatterMatrixChart.ScatterMatrixChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.funnelPlot.FunnelPlotOpDesc
@@ -145,6 +146,7 @@ import edu.uci.ics.texera.workflow.operators.machineLearning.Scorer.MachineLearn
 import edu.uci.ics.texera.workflow.operators.visualization.quiverPlot.QuiverPlotOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.contourPlot.ContourPlotOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.figureFactoryTable.FigureFactoryTableOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.sankeyDiagram.SankeyDiagramOpDesc
 import java.util.UUID
 import scala.collection.mutable
 import scala.util.Try
@@ -160,6 +162,7 @@ trait StateTransferFunc
 )
 @JsonSubTypes(
   Array(
+    new Type(value = classOf[SankeyDiagramOpDesc], name = "SankeyDiagram"),
     new Type(value = classOf[IcicleChartOpDesc], name = "IcicleChart"),
     new Type(value = classOf[CSVScanSourceOpDesc], name = "CSVFileScan"),
     // disabled the ParallelCSVScanSourceOpDesc so that it does not confuse user. it can be re-enabled when doing experiments.
@@ -187,6 +190,7 @@ trait StateTransferFunc
     new Type(value = classOf[KeywordSearchOpDesc], name = "KeywordSearch"),
     new Type(value = classOf[AggregateOpDesc], name = "Aggregate"),
     new Type(value = classOf[LineChartOpDesc], name = "LineChart"),
+    new Type(value = classOf[WaterfallChartOpDesc], name = "WaterfallChart"),
     new Type(value = classOf[BarChartOpDesc], name = "BarChart"),
     new Type(value = classOf[PieChartOpDesc], name = "PieChart"),
     new Type(value = classOf[QuiverPlotOpDesc], name = "QuiverPlot"),

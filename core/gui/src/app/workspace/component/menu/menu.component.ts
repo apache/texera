@@ -30,7 +30,7 @@ import { isDefined } from "../../../common/util/predicate";
 import { FileSelectionComponent } from "../file-selection/file-selection.component";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { ResultExportationComponent } from "../result-exportation/result-exportation.component";
-
+import { ReportGenerationService } from "../../service/report-generation/report-generation.service";
 /**
  * MenuComponent is the top level menu bar that shows
  *  the Texera title and workflow execution button
@@ -99,7 +99,8 @@ export class MenuComponent implements OnInit {
     private notificationService: NotificationService,
     public operatorMenu: OperatorMenuService,
     public coeditorPresenceService: CoeditorPresenceService,
-    private modalService: NzModalService
+    private modalService: NzModalService,
+    private reportGenerationService: ReportGenerationService
   ) {
     workflowWebsocketService
       .subscribeToEvent("ExecutionDurationUpdateEvent")
@@ -246,6 +247,55 @@ export class MenuComponent implements OnInit {
 
   public handleCheckpoint(): void {
     this.executeWorkflowService.takeGlobalCheckpoint();
+  }
+
+  /**
+   * get the html to export all results.
+   */
+  public onClickGenerateReport(): void {
+    // Get notification and set nzDuration to 0 to prevent it from auto-closing
+    this.notificationService.blank("", "The report is being generated...", { nzDuration: 0 });
+
+    const workflowName = this.currentWorkflowName;
+    const WorkflowContent: WorkflowContent = this.workflowActionService.getWorkflowContent();
+
+    // Extract operatorIDs from the parsed payload
+    const operatorIds = WorkflowContent.operators.map((operator: { operatorID: string }) => operator.operatorID);
+
+    // Invokes the method of the report printing service
+    this.reportGenerationService
+      .generateWorkflowSnapshot(workflowName)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: (workflowSnapshotURL: string) => {
+          this.reportGenerationService
+            .getAllOperatorResults(operatorIds)
+            .pipe(untilDestroyed(this))
+            .subscribe({
+              next: (allResults: { operatorId: string; html: string }[]) => {
+                const sortedResults = operatorIds.map(
+                  id => allResults.find(result => result.operatorId === id)?.html || ""
+                );
+                // Generate the final report as HTML after all results are retrieved
+                this.reportGenerationService.generateReportAsHtml(workflowSnapshotURL, sortedResults, workflowName);
+
+                // Close the notification after the report is generated
+                this.notificationService.remove();
+                this.notificationService.success("Report successfully generated.");
+              },
+              error: (error: unknown) => {
+                this.notificationService.error("Error in retrieving operator results: " + (error as Error).message);
+                // Close the notification on error
+                this.notificationService.remove();
+              },
+            });
+        },
+        error: (e: unknown) => {
+          this.notificationService.error((e as Error).message);
+          // Close the notification on error
+          this.notificationService.remove();
+        },
+      });
   }
 
   /**
@@ -411,7 +461,7 @@ export class MenuComponent implements OnInit {
 
   public onClickExportWorkflow(): void {
     const workflowContent: WorkflowContent = this.workflowActionService.getWorkflowContent();
-    const workflowContentJson = JSON.stringify(workflowContent);
+    const workflowContentJson = JSON.stringify(workflowContent, null, 2);
     const fileName = this.currentWorkflowName + ".json";
     saveAs(new Blob([workflowContentJson], { type: "text/plain;charset=utf-8" }), fileName);
   }

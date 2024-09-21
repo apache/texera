@@ -1,4 +1,4 @@
-import { DatasetVersionFileTreeNode } from "./datasetVersionFileTree";
+import { DatasetFileNode } from "./datasetVersionFileTree";
 
 export interface DatasetVersion {
   dvid: number | undefined;
@@ -7,11 +7,12 @@ export interface DatasetVersion {
   name: string;
   versionHash: string | undefined;
   creationTime: number | undefined;
-  versionFileTreeNodes: DatasetVersionFileTreeNode[] | undefined;
+  fileNodes: DatasetFileNode[] | undefined;
 }
 
 export interface Dataset {
   did: number | undefined;
+  ownerUid: number | undefined;
   name: string;
   isPublic: number;
   storagePath: string | undefined;

@@ -4,15 +4,16 @@ from threading import Thread
 import pandas
 import pyarrow
 import pytest
+import pickle
 
 from core.models import (
-    InputDataFrame,
-    OutputDataFrame,
-    EndOfUpstream,
+    DataFrame,
+    MarkerFrame,
     InternalQueue,
     Tuple,
 )
 from core.models.internal_queue import DataElement, ControlElement
+from core.models.marker import EndOfUpstream
 from core.runnables import MainLoop
 from core.util import set_one_of
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
@@ -70,6 +71,10 @@ class TestMainLoop:
         return Tuple({"test-1": "hello", "test-2": 10})
 
     @pytest.fixture
+    def mock_binary_tuple(self):
+        return Tuple({"test-1": [1, 2, 3, 4], "test-2": 10})
+
+    @pytest.fixture
     def mock_batch(self):
         batch_list = []
         for i in range(57):
@@ -92,9 +97,20 @@ class TestMainLoop:
     def mock_data_element(self, mock_tuple, mock_sender_actor):
         return DataElement(
             tag=mock_sender_actor,
-            payload=InputDataFrame(
+            payload=DataFrame(
                 frame=pyarrow.Table.from_pandas(
                     pandas.DataFrame([mock_tuple.as_dict()])
+                )
+            ),
+        )
+
+    @pytest.fixture
+    def mock_binary_data_element(self, mock_binary_tuple, mock_sender_actor):
+        return DataElement(
+            tag=mock_sender_actor,
+            payload=DataFrame(
+                frame=pyarrow.Table.from_pandas(
+                    pandas.DataFrame([mock_binary_tuple.as_dict()])
                 )
             ),
         )
@@ -107,7 +123,7 @@ class TestMainLoop:
             data_elements.append(
                 DataElement(
                     tag=mock_sender_actor,
-                    payload=InputDataFrame(
+                    payload=DataFrame(
                         frame=pyarrow.Table.from_pandas(
                             pandas.DataFrame([mock_tuple.as_dict()])
                         )
@@ -119,7 +135,7 @@ class TestMainLoop:
 
     @pytest.fixture
     def mock_end_of_upstream(self, mock_tuple, mock_sender_actor):
-        return DataElement(tag=mock_sender_actor, payload=EndOfUpstream())
+        return DataElement(tag=mock_sender_actor, payload=MarkerFrame(EndOfUpstream()))
 
     @pytest.fixture
     def input_queue(self):
@@ -162,6 +178,38 @@ class TestMainLoop:
         return ControlElement(tag=mock_controller, payload=payload)
 
     @pytest.fixture
+    def mock_assign_input_port_binary(
+        self, mock_binary_raw_schema, mock_controller, mock_link, command_sequence
+    ):
+        command = set_one_of(
+            ControlCommandV2,
+            AssignPortV2(
+                port_id=mock_link.to_port_id, input=True, schema=mock_binary_raw_schema
+            ),
+        )
+        payload = set_one_of(
+            ControlPayloadV2,
+            ControlInvocationV2(command_id=command_sequence, command=command),
+        )
+        return ControlElement(tag=mock_controller, payload=payload)
+
+    @pytest.fixture
+    def mock_assign_output_port_binary(
+        self, mock_binary_raw_schema, mock_controller, command_sequence
+    ):
+        command = set_one_of(
+            ControlCommandV2,
+            AssignPortV2(
+                port_id=PortIdentity(id=0), input=False, schema=mock_binary_raw_schema
+            ),
+        )
+        payload = set_one_of(
+            ControlPayloadV2,
+            ControlInvocationV2(command_id=command_sequence, command=command),
+        )
+        return ControlElement(tag=mock_controller, payload=payload)
+
+    @pytest.fixture
     def mock_add_input_channel(
         self,
         mock_controller,
@@ -190,6 +238,10 @@ class TestMainLoop:
     @pytest.fixture
     def mock_raw_schema(self):
         return {"test-1": "string", "test-2": "integer"}
+
+    @pytest.fixture
+    def mock_binary_raw_schema(self):
+        return {"test-1": "binary", "test-2": "integer"}
 
     @pytest.fixture
     def mock_initialize_executor(
@@ -236,6 +288,28 @@ class TestMainLoop:
         return ControlElement(tag=mock_controller, payload=payload)
 
     @pytest.fixture
+    def mock_initialize_binary_executor(
+        self,
+        mock_controller,
+        mock_sender_actor,
+        mock_link,
+        command_sequence,
+        mock_binary_raw_schema,
+    ):
+        command = set_one_of(
+            ControlCommandV2,
+            InitializeExecutorV2(
+                code="from pytexera import *\n" + inspect.getsource(EchoOperator),
+                is_source=False,
+            ),
+        )
+        payload = set_one_of(
+            ControlPayloadV2,
+            ControlInvocationV2(command_id=command_sequence, command=command),
+        )
+        return ControlElement(tag=mock_controller, payload=payload)
+
+    @pytest.fixture
     def mock_add_partitioning(
         self, mock_controller, mock_receiver_actor, command_sequence, mock_link
     ):
@@ -245,7 +319,16 @@ class TestMainLoop:
                 tag=mock_link,
                 partitioning=set_one_of(
                     Partitioning,
-                    OneToOnePartitioning(batch_size=1, receivers=[mock_receiver_actor]),
+                    OneToOnePartitioning(
+                        batch_size=1,
+                        channels=[
+                            ChannelIdentity(
+                                from_worker_id=ActorVirtualIdentity("dummy_worker_id"),
+                                to_worker_id=mock_receiver_actor,
+                                is_control=False,
+                            )
+                        ],
+                    ),
                 ),
             ),
         )
@@ -410,15 +493,15 @@ class TestMainLoop:
             ),
         )
 
-        # can process a InputDataFrame
+        # can process a DataFrame
         input_queue.put(mock_data_element)
 
         output_data_element: DataElement = output_queue.get()
         assert output_data_element.tag == mock_receiver_actor
-        assert isinstance(output_data_element.payload, OutputDataFrame)
-        data_frame: OutputDataFrame = output_data_element.payload
+        assert isinstance(output_data_element.payload, DataFrame)
+        data_frame: DataFrame = output_data_element.payload
         assert len(data_frame.frame) == 1
-        assert data_frame.frame[0] == mock_tuple
+        assert Tuple(data_frame.frame.to_pylist()[0]) == mock_tuple
 
         # can process QueryStatistics
         input_queue.put(mock_query_statistics)
@@ -497,7 +580,7 @@ class TestMainLoop:
         )
 
         assert output_queue.get() == DataElement(
-            tag=mock_receiver_actor, payload=EndOfUpstream()
+            tag=mock_receiver_actor, payload=MarkerFrame(EndOfUpstream())
         )
 
         # can process ReturnInvocation
@@ -601,7 +684,7 @@ class TestMainLoop:
         executor = main_loop.context.executor_manager.executor
         output_data_elements = []
 
-        # can process a InputDataFrame
+        # can process a DataFrame
         executor.BATCH_SIZE = 10
         for i in range(13):
             input_queue.put(mock_batch_data_elements[i])
@@ -669,11 +752,104 @@ class TestMainLoop:
         assert main_loop.context.executor_manager.executor.count == 8
 
         assert output_data_elements[0].tag == mock_receiver_actor
-        assert isinstance(output_data_elements[0].payload, OutputDataFrame)
-        data_frame: OutputDataFrame = output_data_elements[0].payload
+        assert isinstance(output_data_elements[0].payload, DataFrame)
+        data_frame: DataFrame = output_data_elements[0].payload
         assert len(data_frame.frame) == 1
-        assert data_frame.frame[0] == Tuple(mock_batch[0])
+        assert Tuple(data_frame.frame.to_pylist()[0]) == Tuple(mock_batch[0])
 
+        reraise()
+
+    @pytest.mark.timeout(5)
+    def test_main_loop_thread_can_process_single_tuple_with_binary(
+        self,
+        mock_link,
+        mock_receiver_actor,
+        mock_controller,
+        input_queue,
+        output_queue,
+        mock_binary_tuple,
+        mock_binary_data_element,
+        main_loop_thread,
+        mock_assign_input_port_binary,
+        mock_assign_output_port_binary,
+        mock_add_input_channel,
+        mock_add_partitioning,
+        mock_initialize_binary_executor,
+        mock_end_of_upstream,
+        mock_query_statistics,
+        command_sequence,
+        reraise,
+    ):
+        main_loop_thread.start()
+
+        # can process AssignPort
+        input_queue.put(mock_assign_input_port_binary)
+        assert output_queue.get() == ControlElement(
+            tag=mock_controller,
+            payload=ControlPayloadV2(
+                return_invocation=ReturnInvocationV2(
+                    original_command_id=command_sequence,
+                    control_return=ControlReturnV2(),
+                )
+            ),
+        )
+        input_queue.put(mock_assign_output_port_binary)
+        assert output_queue.get() == ControlElement(
+            tag=mock_controller,
+            payload=ControlPayloadV2(
+                return_invocation=ReturnInvocationV2(
+                    original_command_id=command_sequence,
+                    control_return=ControlReturnV2(),
+                )
+            ),
+        )
+
+        # can process AddInputChannel
+        input_queue.put(mock_add_input_channel)
+        assert output_queue.get() == ControlElement(
+            tag=mock_controller,
+            payload=ControlPayloadV2(
+                return_invocation=ReturnInvocationV2(
+                    original_command_id=command_sequence,
+                    control_return=ControlReturnV2(),
+                )
+            ),
+        )
+
+        # can process AddPartitioning
+        input_queue.put(mock_add_partitioning)
+        assert output_queue.get() == ControlElement(
+            tag=mock_controller,
+            payload=ControlPayloadV2(
+                return_invocation=ReturnInvocationV2(
+                    original_command_id=command_sequence,
+                    control_return=ControlReturnV2(),
+                )
+            ),
+        )
+
+        # can process InitializeExecutor
+        input_queue.put(mock_initialize_binary_executor)
+        assert output_queue.get() == ControlElement(
+            tag=mock_controller,
+            payload=ControlPayloadV2(
+                return_invocation=ReturnInvocationV2(
+                    original_command_id=command_sequence,
+                    control_return=ControlReturnV2(),
+                )
+            ),
+        )
+
+        input_queue.put(mock_binary_data_element)
+        output_data_element: DataElement = output_queue.get()
+        assert output_data_element.tag == mock_receiver_actor
+        assert isinstance(output_data_element.payload, DataFrame)
+        data_frame: DataFrame = output_data_element.payload
+
+        assert len(data_frame.frame) == 1
+        assert data_frame.frame.to_pylist()[0][
+            "test-1"
+        ] == b"pickle    " + pickle.dumps(mock_binary_tuple["test-1"])
         reraise()
 
     @staticmethod
