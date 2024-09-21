@@ -16,7 +16,7 @@ class GanttChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
       opDesc
         .createPlotlyFigure()
         .contains(
-          "fig = px.timeline(table, x_start='start', x_end='finish', y='task' )"
+          "fig = px.timeline(table, x_start='start', x_end='finish', y='task'  )"
         )
     )
   }
@@ -30,7 +30,22 @@ class GanttChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
       opDesc
         .createPlotlyFigure()
         .contains(
-          "fig = px.timeline(table, x_start='start', x_end='finish', y='task' , color='color')"
+          "fig = px.timeline(table, x_start='start', x_end='finish', y='task' , color='color' )"
+        )
+    )
+  }
+  it should "generate a plotly python figure with 3 columns and color and pattern" in {
+    opDesc.start = "start"
+    opDesc.finish = "finish"
+    opDesc.task = "task"
+    opDesc.color = "color"
+    opDesc.pattern = "task"
+
+    assert(
+      opDesc
+        .createPlotlyFigure()
+        .contains(
+          "fig = px.timeline(table, x_start='start', x_end='finish', y='task' , color='color' , pattern_shape='task')"
         )
     )
   }
