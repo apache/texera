@@ -5,7 +5,7 @@
   "license": "Apache-2.0",
   "type": "module",
   "dependencies": {
-    "express": "4.19.2",
+    "express": "4.20.0",
     "hocon-parser": "1.0.1",
     "hoconjs": "1.0.0",
     "pyright": "1.1.377",
