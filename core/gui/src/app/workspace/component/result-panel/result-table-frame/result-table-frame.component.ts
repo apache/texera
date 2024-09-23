@@ -11,6 +11,8 @@ import { RowModalComponent } from "../result-panel-modal.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 import { style } from "@angular/animations";
+import { isBase64, isBinary } from "src/app/common/util/json";
+import { ResultExportationComponent } from "../../result-exportation/result-exportation.component";
 
 export const TABLE_COLUMN_TEXT_LIMIT = 100;
 export const PRETTY_JSON_TEXT_LIMIT = 50000;
@@ -356,5 +358,29 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       return cellContent.substring(0, TABLE_COLUMN_TEXT_LIMIT) + "...";
     }
     return cellContent;
+  }
+
+  isBinaryData(cellContent: any): boolean {
+    if (typeof cellContent === "string") {
+      return isBase64(cellContent) || isBinary(cellContent);
+    }
+    return false;
+  }
+
+  downloadBinaryData(binaryData: any, rowIndex: number, columnIndex: number, columnName: string): void {
+    const realRowNumber = (this.currentPageIndex - 1) * this.pageSize + rowIndex;
+    const defaultFileName = `${columnName}_${realRowNumber}`;
+    const modal = this.modalService.create({
+      nzTitle: "Export Binary Data and Save to a Dataset",
+      nzContent: ResultExportationComponent,
+      nzData: {
+        exportType: "binary",
+        workflowName: this.workflowActionService.getWorkflowMetadata.name,
+        defaultFileName: defaultFileName,
+        rowIndex: realRowNumber,
+        columnIndex: columnIndex,
+      },
+      nzFooter: null,
+    });
   }
 }

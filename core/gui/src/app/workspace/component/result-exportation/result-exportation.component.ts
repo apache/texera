@@ -14,8 +14,10 @@ import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
 })
 export class ResultExportationComponent implements OnInit {
   exportType: string = inject(NZ_MODAL_DATA).exportType;
-
   workflowName: string = inject(NZ_MODAL_DATA).workflowName;
+  inputFileName: string = inject(NZ_MODAL_DATA).defaultFileName ?? "default_filename";
+  rowIndex: number = inject(NZ_MODAL_DATA).rowIndex ?? -1;
+  columnIndex: number = inject(NZ_MODAL_DATA).columnIndex ?? -1;
 
   inputDatasetName = "";
 
@@ -51,9 +53,14 @@ export class ResultExportationComponent implements OnInit {
 
   onClickSaveResultFileToDatasets(dataset: DashboardDataset) {
     if (dataset.dataset.did) {
-      this.workflowResultExportService.exportWorkflowExecutionResult(this.exportType, this.workflowName, [
-        dataset.dataset.did,
-      ]);
+      this.workflowResultExportService.exportWorkflowExecutionResult(
+        this.exportType,
+        this.workflowName,
+        [dataset.dataset.did],
+        this.rowIndex,
+        this.columnIndex,
+        this.inputFileName
+      );
       this.modalRef.close();
     }
   }
