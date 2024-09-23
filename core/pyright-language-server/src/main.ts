@@ -1,10 +1,11 @@
 //The source file can be referred to: https://github.com/TypeFox/monaco-languageclient/blob/main/packages/examples/src/python/server/main.ts
 
-import { resolve } from "node:path";
+import {dirname, resolve} from "node:path";
 import { runLanguageServer } from "./language-server-runner.ts";
 import { getLocalDirectory, LanguageName } from "./server-commons.ts";
 import fs from "fs";
 import hoconParser from "hocon-parser";
+import {fileURLToPath} from "url";
 
 const runPythonServer = (baseDir: string, relativeDir: string, serverPort: number) => {
   const processRunPath = resolve(baseDir, relativeDir);
@@ -39,4 +40,5 @@ const applicationConfig = hoconParser(amberConfigContent) as Record<string, any>
 const pythonLanguageServerPort = applicationConfig["python-language-server"].port;
 const clientPathName = config.clientPathName
 
-runPythonServer(baseDir, relativeDir, pythonLanguageServerPort);
+const runDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+runPythonServer(runDir, relativeDir, pythonLanguageServerPort);
