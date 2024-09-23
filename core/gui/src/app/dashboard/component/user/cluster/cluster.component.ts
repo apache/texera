@@ -17,6 +17,8 @@ export class ClusterComponent implements OnInit, OnDestroy {
   isClusterManagementVisible = false;
   clusterList$!: Observable<Clusters[]>;
   private refreshTrigger = new BehaviorSubject<void>(undefined);
+  pageSize = 10;
+  pageIndex = 1;
 
   constructor(private clusterService: ClusterService) {}
 
@@ -155,5 +157,14 @@ export class ClusterComponent implements OnInit, OnDestroy {
       default:
         return "Information not available";
     }
+  }
+
+  onPageIndexChange(index: number): void {
+    this.pageIndex = index;
+  }
+
+  onPageSizeChange(size: number): void {
+    this.pageSize = size;
+    this.pageIndex = 1;
   }
 }
