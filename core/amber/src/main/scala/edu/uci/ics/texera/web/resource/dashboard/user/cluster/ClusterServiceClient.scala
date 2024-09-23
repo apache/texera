@@ -44,6 +44,29 @@ object ClusterServiceClient {
     sendHttpRequest("DELETE", url, None)
   }
 
+
+
+  /**
+   * Makes an HTTP DELETE request to delete a cluster in the Go microservice.
+   *
+   * @param clusterId The ID of the cluster to be paused.
+   * @return Either an error message in Left, or the response body in Right.
+   */
+  def callPauseClusterAPI(clusterId: Int): Either[String, String] = {
+    val url = new URL(s"${AmberConfig.clusterLauncherServiceTarget}/api/cluster/$clusterId")
+    sendHttpRequest("PUT", url, None)
+  }
+
+  /**
+   * Makes an HTTP DELETE request to delete a cluster in the Go microservice.
+   *
+   * @param clusterId The ID of the cluster to be resumed.
+   * @return Either an error message in Left, or the response body in Right.
+   */
+  def callResumeClusterAPI(clusterId: Int): Either[String, String] = {
+    val url = new URL(s"${AmberConfig.clusterLauncherServiceTarget}/api/cluster/resume/$clusterId")
+    sendHttpRequest("POST", url, None)
+  }
   /**
     * Helper function to send an HTTP request.
     *
