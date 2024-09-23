@@ -73,7 +73,7 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
        |
        |    @overrides
        |    def produce(self) -> Iterator[Union[TupleLike, TableLike, None]]:
-       |        import requests, io, time
+       |        import requests, time, json, base64
        |
        |        def create_job_form_data(cluster_id, job_form):
        |            form_data = {
@@ -118,8 +118,6 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
        |            'gtfFile': ${pythonGtfFile}
        |        }
        |
-       |        print(${pythonReferenceGenomes})
-       |
        |        # Create form data and files based on the provided job_form
        |        form_data, files = create_job_form_data(${clusterId}, job_form)
        |
@@ -151,15 +149,30 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
        |        # Request to download files after the job is completed
        |        download_response = requests.get(f'${AmberConfig.clusterLauncherServiceTarget}/api/job/download/{job_id}',
        |                                         params={'cid': str(${clusterId})})
-       |
+       |     
        |        if download_response.status_code == 200:
-       |            # Read the directory path from the response text
-       |            directory_path = download_response.text.strip()
-       |            yield {'matrix_path': directory_path}
+       |            # Parse the JSON response
+       |            file_contents = json.loads(download_response.content)
+       |
+       |            # Decode base64 content directly to bytes
+       |            features_content = base64.b64decode(file_contents['features.tsv'])
+       |            barcodes_content = base64.b64decode(file_contents['barcodes.tsv'])
+       |            matrix_content = base64.b64decode(file_contents['matrix.mtx'])
+       |
+       |            # Yield the raw byte content
+       |            yield {
+       |                'features_content': features_content,
+       |                'barcodes_content': barcodes_content,
+       |                'matrix_content': matrix_content
+       |            }
        |        else:
        |            print(f"Failed to get the files. Status Code: {download_response.status_code}")
        |            print(f"Response Text: {download_response.text}")
-       |            yield {'matrix_path': None}
+       |            yield {
+       |                'features_content': None,
+       |                'barcodes_content': None,
+       |                'matrix_content': None
+       |            }
     """.stripMargin
   }
   override def operatorInfo: OperatorInfo =
@@ -175,7 +188,9 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
     Schema
       .builder()
       .add(
-        new Attribute("matrix_path", AttributeType.STRING)
+        new Attribute("features_content", AttributeType.BINARY),
+        new Attribute("barcodes_content", AttributeType.BINARY),
+        new Attribute("matrix_content", AttributeType.BINARY)
       )
       .build()
 }

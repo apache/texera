@@ -5,12 +5,21 @@ import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.enums.ClusterStatus
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Cluster.CLUSTER
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.ClusterDao
-import edu.uci.ics.texera.web.resource.dashboard.user.cluster.ClusterResource.{ERR_USER_HAS_NO_ACCESS_TO_CLUSTER_MESSAGE, clusterDao, context}
+import edu.uci.ics.texera.web.resource.dashboard.user.cluster.ClusterResource.{
+  ERR_USER_HAS_NO_ACCESS_TO_CLUSTER_MESSAGE,
+  clusterDao,
+  context
+}
 import io.dropwizard.auth.Auth
 import org.glassfish.jersey.media.multipart.FormDataParam
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Cluster
-import edu.uci.ics.texera.web.resource.dashboard.user.cluster.ClusterServiceClient.{callCreateClusterAPI, callDeleteClusterAPI, callPauseClusterAPI, callResumeClusterAPI}
-import edu.uci.ics.texera.web.resource.dashboard.user.cluster.ClusterUtils.{updateClusterActivityEndTime, updateClusterStatus}
+import edu.uci.ics.texera.web.resource.dashboard.user.cluster.ClusterServiceClient.{
+  callCreateClusterAPI,
+  callDeleteClusterAPI,
+  callPauseClusterAPI,
+  callResumeClusterAPI
+}
+import edu.uci.ics.texera.web.resource.dashboard.user.cluster.ClusterUtils.updateClusterStatus
 
 import java.util
 import javax.annotation.security.RolesAllowed
