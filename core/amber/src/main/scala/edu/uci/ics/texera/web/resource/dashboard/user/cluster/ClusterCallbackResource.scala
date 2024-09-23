@@ -38,7 +38,7 @@ class ClusterCallbackResource {
   @Consumes(Array(MediaType.APPLICATION_JSON))
   def handleClusterCreatedCallback(callbackPayload: CallbackPayload): Response = {
     val clusterId = callbackPayload.clusterId
-    val success = callbackPayload.success;
+    val success = callbackPayload.success
     // Update the cluster status to LAUNCHED in the database
     val cluster = clusterDao.fetchOneByCid(clusterId)
     if (success && cluster != null && cluster.getStatus == ClusterStatus.LAUNCHING) {
@@ -58,7 +58,7 @@ class ClusterCallbackResource {
   @Consumes(Array(MediaType.APPLICATION_JSON))
   def handleClusterDeletedCallback(callbackPayload: CallbackPayload): Response = {
     val clusterId = callbackPayload.clusterId
-    val success = callbackPayload.success;
+    val success = callbackPayload.success
 
     val cluster = clusterDao.fetchOneByCid(clusterId)
     if (success && cluster != null && cluster.getStatus == ClusterStatus.TERMINATING) {
@@ -67,6 +67,48 @@ class ClusterCallbackResource {
       Response
         .ok(s"Cluster with ID $clusterId marked as TERMINATED and activity end time updated")
         .build()
+    } else {
+      Response
+        .status(Response.Status.NOT_FOUND)
+        .entity("Cluster not found or status update not allowed")
+        .build()
+    }
+  }
+
+  @POST
+  @Path("/cluster/paused")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  def handleClusterPausedCallback(callbackPayload: CallbackPayload): Response = {
+    val clusterId = callbackPayload.clusterId
+    val success = callbackPayload.success
+
+    val cluster = clusterDao.fetchOneByCid(clusterId)
+    if (success && cluster != null && cluster.getStatus == ClusterStatus.PAUSING) {
+      updateClusterStatus(clusterId, ClusterStatus.PAUSED, context)
+      updateClusterActivityEndTime(clusterId, context)
+      Response
+        .ok(s"Cluster with ID $clusterId marked as PAUSED and activity end time updated")
+        .build()
+    } else {
+      Response
+        .status(Response.Status.NOT_FOUND)
+        .entity("Cluster not found or status update not allowed")
+        .build()
+    }
+  }
+
+  @POST
+  @Path("/cluster/resumed")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  def handleClusterResumedCallback(callbackPayload: CallbackPayload): Response = {
+    val clusterId = callbackPayload.clusterId
+    val success = callbackPayload.success
+    // Update the cluster status to LAUNCHED in the database
+    val cluster = clusterDao.fetchOneByCid(clusterId)
+    if (success && cluster != null && cluster.getStatus == ClusterStatus.RESUMING) {
+      updateClusterStatus(clusterId, ClusterStatus.LAUNCHED, context)
+      insertClusterActivity(cluster.getCid, cluster.getCreationTime)
+      Response.ok("Cluster status updated to LAUNCHED").build()
     } else {
       Response
         .status(Response.Status.NOT_FOUND)

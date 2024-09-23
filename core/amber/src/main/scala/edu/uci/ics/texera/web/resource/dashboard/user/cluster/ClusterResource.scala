@@ -127,17 +127,12 @@ class ClusterResource {
           ClusterStatus.FAILED,
           context
         ) // Assuming you have a FAILED status
-        return Response
+        Response
           .status(Response.Status.INTERNAL_SERVER_ERROR)
           .entity(s"Cluster pause failed: $errorMessage")
           .build()
     }
 
-    updateClusterStatus(cluster.getCid, ClusterStatus.PAUSED, context)
-
-    updateClusterActivityEndTime(cluster.getCid, context)
-
-    Response.ok().build()
   }
 
   /**
@@ -165,15 +160,12 @@ class ClusterResource {
           ClusterStatus.FAILED,
           context
         ) // Assuming you have a FAILED status
-        return Response
+        Response
           .status(Response.Status.INTERNAL_SERVER_ERROR)
           .entity(s"Cluster resume failed: $errorMessage")
           .build()
     }
 
-    updateClusterStatus(cluster.getCid, ClusterStatus.LAUNCHED, context)
-
-    Response.ok().build()
   }
 
   /**
