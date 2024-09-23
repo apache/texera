@@ -342,7 +342,14 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     return columns.map(col => ({
       columnDef: col.columnKey,
       header: col.columnText,
-      getCell: (row: IndexableObject) => this.trimTableCell(row[col.columnKey]),
+      getCell: (row: IndexableObject) => {
+        if (row[col.columnKey] !== null && row[col.columnKey] !== undefined) {
+          return this.trimTableCell(row[col.columnKey].toString());
+        } else {
+          // allowing null value from backend
+          return "";
+        }
+      },
     }));
   }
 
