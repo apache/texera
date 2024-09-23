@@ -1,1 +1,43 @@
 @import "../../dashboard.component.scss";
+
+.section-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.subsection-grid-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.section-title {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background-color: #fff;
+}
+
+.table-container {
+  flex: 1;
+  overflow-y: auto;
+
+  ::ng-deep {
+    .ant-table-thead {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background-color: #fff;
+    }
+
+    .ant-table-container {
+      height: 100%;
+    }
+
+    .ant-table-body {
+      overflow-y: auto;
+      max-height: calc(100vh - 200px); // Adjust this value as needed
+    }
+  }
+}
