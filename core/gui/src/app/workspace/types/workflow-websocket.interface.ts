@@ -90,6 +90,9 @@ export type ResultExportRequest = Readonly<{
   operatorId: string;
   operatorName: string;
   datasetIds: ReadonlyArray<number>;
+  rowIndex: number;
+  columnIndex: number;
+  filename: string;
 }>;
 
 export type ResultExportResponse = Readonly<{

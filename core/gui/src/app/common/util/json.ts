@@ -11,11 +11,11 @@ import { IndexableObject } from "../../workspace/types/result-table.interface";
 import validator from "validator";
 import deepMap from "deep-map";
 
-function isBase64(str: string): boolean {
+export function isBase64(str: string): boolean {
   return validator.isBase64(str);
 }
 
-function isBinary(str: string): boolean {
+export function isBinary(str: string): boolean {
   const binaryRegex = /^[01]+$/;
   return binaryRegex.test(str);
 }
