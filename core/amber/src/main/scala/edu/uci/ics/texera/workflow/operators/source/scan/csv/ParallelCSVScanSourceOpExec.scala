@@ -17,14 +17,16 @@ class ParallelCSVScanSourceOpExec private[csv] (
     hasHeader: Boolean,
     startOffset: Long,
     endOffset: Long,
+    limit:Option[Int],
     schemaFunc: () => Schema
 ) extends SourceOperatorExecutor {
   private var schema: Schema = _
   private var reader: BufferedBlockReader = _
+  private var tupleCounter = 0
 
   override def produceTuple(): Iterator[TupleLike] =
     new Iterator[TupleLike]() {
-      override def hasNext: Boolean = reader.hasNext
+      override def hasNext: Boolean = tupleCounter < limit.getOrElse(Int.MaxValue) && reader.hasNext
 
       override def next(): TupleLike = {
 
@@ -60,6 +62,7 @@ class ParallelCSVScanSourceOpExec private[csv] (
               .map((attr: Attribute) => attr.getType)
               .toArray
           )
+          tupleCounter +=1
           TupleLike(ArraySeq.unsafeWrapArray(parsedFields): _*)
         } catch {
           case _: Throwable => null

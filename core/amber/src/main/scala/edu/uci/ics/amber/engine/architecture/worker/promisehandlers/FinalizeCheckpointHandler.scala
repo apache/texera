@@ -1,12 +1,9 @@
 package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
-import edu.uci.ics.amber.engine.architecture.worker.{
-  DataProcessorRPCHandlerInitializer,
-  WorkflowWorker
-}
+import edu.uci.ics.amber.engine.architecture.worker.{DataProcessorRPCHandlerInitializer, WorkflowWorker}
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.FinalizeCheckpointHandler.FinalizeCheckpoint
-import edu.uci.ics.amber.engine.common.{CheckpointState, CheckpointSupport, SerializedState}
+import edu.uci.ics.amber.engine.common.{AmberConfig, CheckpointState, CheckpointSupport, SerializedState}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.engine.common.virtualidentity.ChannelMarkerIdentity
@@ -22,6 +19,20 @@ object FinalizeCheckpointHandler {
 
 trait FinalizeCheckpointHandler {
   this: DataProcessorRPCHandlerInitializer =>
+
+  private def createArrayOfSize(n: Long): Array[Byte] = {
+    // Calculate the size in bytes
+    val sizeInBytes = n * 1024
+
+    // Create an array of bytes with the required size
+    val array = new Array[Byte](sizeInBytes.toInt)
+
+    // Optionally, you can fill the array with some values if needed
+    // scala.util.Random.nextBytes(array)
+
+    // Return the array
+    array
+  }
 
   registerHandler { (msg: FinalizeCheckpoint, sender) =>
     if (dp.channelMarkerManager.checkpoints.contains(msg.checkpointId)) {

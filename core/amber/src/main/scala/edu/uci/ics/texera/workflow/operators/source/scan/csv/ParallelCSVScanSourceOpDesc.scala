@@ -65,6 +65,7 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
             hasHeader,
             startOffset,
             endOffset,
+            limit,
             schemaFunc = () => sourceSchema()
           )
         })

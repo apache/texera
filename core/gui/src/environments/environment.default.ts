@@ -85,7 +85,7 @@ export const defaultEnvironment = {
   /**
    * whether time-travel is enabled
    */
-  timetravelEnabled: false,
+  timetravelEnabled: true,
   /**
    * Whether to connect to local or production shared editing server. Set to true if you have
    * reverse proxy set up for y-websocket.

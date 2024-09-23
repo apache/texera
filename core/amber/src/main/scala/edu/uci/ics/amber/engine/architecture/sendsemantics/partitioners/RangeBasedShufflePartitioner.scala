@@ -5,6 +5,8 @@ import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType
 
+import java.sql.Timestamp
+
 case class RangeBasedShufflePartitioner(partitioning: RangeBasedShufflePartitioning)
     extends Partitioner {
 
@@ -22,6 +24,8 @@ case class RangeBasedShufflePartitioner(partitioning: RangeBasedShufflePartition
         fieldVal = tuple.getField[Int](attribute)
       case AttributeType.DOUBLE =>
         fieldVal = tuple.getField[Double](attribute).toLong
+      case AttributeType.TIMESTAMP =>
+        fieldVal = tuple.getField[Timestamp](attribute).getTime
       case _ =>
         throw new RuntimeException(s"unsupported attribute type: ${attribute.getType}")
     }

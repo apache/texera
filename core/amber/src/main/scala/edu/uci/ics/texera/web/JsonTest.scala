@@ -44,7 +44,7 @@ object JsonTest {
   def main(args: Array[String]): Unit = {
 
     val logStorage = SequentialRecordStorage.getStorage[ReplayLogRecord](
-      Some(new URI("file:///Users/shengquanni/Documents/GitHub/texera/core/log/recovery-logs/WorkflowIdentity(25)/w3"))
+      Some(new URI("file:///Users/shengquanni/Documents/GitHub/IcedTea/core/log/recovery-logs/WorkflowIdentity(0)/ExecutionIdentity(5)"))
     )
     logStorage.listFiles.foreach{
       file =>
