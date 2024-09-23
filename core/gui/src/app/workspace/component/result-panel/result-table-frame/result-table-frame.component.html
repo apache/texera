@@ -101,10 +101,21 @@
       <tr *ngFor="let row of basicTable.data; let i = index">
         <td
           (click)="open(i, row)"
-          *ngFor="let column of currentColumns"
+          *ngFor="let column of currentColumns; let columnIndex = index"
           class="table-row"
           nzEllipsis
           ngClass="data-size">
+          <button
+            *ngIf="isBinaryData(currentResult[i][column.columnDef])"
+            (click)="downloadBinaryData(currentResult[i][column.columnDef], i, columnIndex, column.columnDef); $event.stopPropagation()"
+            nz-button
+            nz-dropdown
+            class="borderless-button"
+            title="export binary data">
+            <i
+              nz-icon
+              nzType="cloud-download"></i>
+          </button>
           {{ column.getCell(row) }}
         </td>
       </tr>
