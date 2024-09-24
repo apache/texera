@@ -13,6 +13,8 @@ import java.util.Base64
 import scala.sys.process._
 import play.api.libs.json._
 import java.nio.file.Paths
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.scala.DefaultScalaModule
 
 case class AIAssistantRequest(code: String, lineNumber: Int, allcode: String)
 case class LocateUnannotatedRequest(selectedCode: String, startLine: Int)
@@ -29,6 +31,8 @@ object UnannotatedArgument {
 
 @Path("/aiassistant")
 class AIAssistantResource {
+  val objectMapper = new ObjectMapper()
+  objectMapper.registerModule(DefaultScalaModule)
   final private lazy val isEnabled = AiAssistantManager.validAIAssistant
   @GET
   @RolesAllowed(Array("REGULAR", "ADMIN"))
@@ -114,31 +118,17 @@ class AIAssistantResource {
     try {
       val command = s"""python $pythonScriptPath "$encodedCode" ${request.startLine}"""
       val result = command.!!
-      val parsedResult = parseJsonResult(result)
+    val parsedResult = objectMapper.readValue(result, classOf[List[List[Any]]]).map {
+    case List(name: String, startLine: Int, startColumn: Int, endLine: Int, endColumn: Int) =>
+      UnannotatedArgument(name, startLine, startColumn, endLine, endColumn)
+    case _ =>
+      throw new RuntimeException("Unexpected format in Python script result")
+    }
       Response.ok(Json.obj("result" -> Json.toJson(parsedResult))).build()
     } catch {
       case e: Exception =>
+        e.printStackTrace()
         Response.status(500).entity(s"Error executing the Python code: ${e.getMessage}").build()
-    }
-  }
-
-  private def parseJsonResult(jsonString: String): List[UnannotatedArgument] = {
-    val jsonValue = Json.parse(jsonString)
-    jsonValue.as[List[List[JsValue]]].map {
-      case List(
-            name: JsString,
-            startLine: JsNumber,
-            startColumn: JsNumber,
-            endLine: JsNumber,
-            endColumn: JsNumber
-          ) =>
-        UnannotatedArgument(
-          name.value,
-          startLine.value.toInt,
-          startColumn.value.toInt,
-          endLine.value.toInt,
-          endColumn.value.toInt
-        )
     }
   }
 }

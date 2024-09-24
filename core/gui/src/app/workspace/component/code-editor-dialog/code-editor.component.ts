@@ -62,6 +62,8 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   // For "Add All Type Annotation" to show the UI individually
   private userResponseSubject?: Subject<void>;
   private isMultipleVariables: boolean = false;
+  private componentDestroy = new Subject<void>;
+
 
   private generateLanguageTitle(language: string): string {
     return `${language.charAt(0).toUpperCase()}${language.slice(1)} UDF`;
@@ -243,7 +245,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
 
               this.aiAssistantService
                 .locateUnannotated(selectedCode, selection.startLineNumber)
-                .pipe(takeUntil(this.workflowVersionStreamSubject))
+                .pipe(takeUntil(this.componentDestroy))
                 .subscribe(variablesWithoutAnnotations => {
                   // If no unannotated variable, then do nothing.
                   if (variablesWithoutAnnotations.length == 0) {
@@ -309,7 +311,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
                       // Only take one response (accept/decline)
                       const subscription = userResponseSubject
                         .pipe(take(1))
-                        .pipe(takeUntil(this.workflowVersionStreamSubject))
+                        .pipe(takeUntil(this.componentDestroy))
                         .subscribe(() => {
                           highlight.clear();
                           subscription.unsubscribe();
@@ -328,6 +330,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     }
   }
 
+
   private handleTypeAnnotation(
     code: string,
     range: monaco.Range,
@@ -337,7 +340,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   ): void {
     this.aiAssistantService
       .getTypeAnnotations(code, lineNumber, allcode)
-      .pipe(takeUntil(this.workflowVersionStreamSubject))
+      .pipe(takeUntil(this.componentDestroy))
       .subscribe({
         next: (response: TypeAnnotationResponse) => {
           const choices = response.choices || [];
