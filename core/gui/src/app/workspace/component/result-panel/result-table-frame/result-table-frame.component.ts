@@ -346,7 +346,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
         if (row[col.columnKey] === null) {
           return "NULL"; // Explicitly show NULL for null values
         } else if (row[col.columnKey] !== undefined) {
-          return this.trimTableCell(row[col.columnKey].toString());
+          return this.trimTableCell(row[col.columnKey]);
         } else {
           return ""; // Keep empty string for undefined values
         }
