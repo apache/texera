@@ -98,7 +98,9 @@
       </tr>
     </thead>
     <tbody>
-      <tr *ngFor="let row of basicTable.data; let i = index" class="table-row-hover">
+      <tr
+        *ngFor="let row of basicTable.data; let i = index"
+        class="table-row-hover">
         <td
           *ngFor="let column of currentColumns; let columnIndex = index"
           class="table-cell"
@@ -111,7 +113,9 @@
             nzType="link"
             class="download-button"
             title="Download data">
-            <i nz-icon nzType="download"></i>
+            <i
+              nz-icon
+              nzType="cloud-download"></i>
           </button>
         </td>
       </tr>

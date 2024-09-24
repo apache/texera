@@ -63,7 +63,7 @@ th.header-size {
 
 .table-cell {
   position: relative;
-  padding-right: 24px; // Make room for the download button
+  padding-right: 28px;
 }
 
 .cell-content {
@@ -80,17 +80,21 @@ th.header-size {
   transform: translateY(-50%);
   opacity: 0;
   transition: opacity 0.2s ease-in-out;
-  padding: 4px 8px;
-  
+  padding: 4px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+
   i {
-    font-size: 14px;
+    font-size: 16px; // Slightly larger to match the cloud icon
+    color: #1890ff; // Ant Design's primary blue color
   }
 }
 
 .table-row-hover:hover {
   .download-button {
-    opacity: 0.5;
-    
+    opacity: 0.7;
+
     &:hover {
       opacity: 1;
     }

@@ -197,8 +197,8 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
     // Convert the field to a byte array, regardless of its type
     val dataBytes: Array[Byte] = field match {
       case data: Array[Byte] => data
-      case data: String => data.getBytes(StandardCharsets.UTF_8)
-      case data => data.toString.getBytes(StandardCharsets.UTF_8)
+      case data: String      => data.getBytes(StandardCharsets.UTF_8)
+      case data              => data.toString.getBytes(StandardCharsets.UTF_8)
     }
 
     // Save the data file
