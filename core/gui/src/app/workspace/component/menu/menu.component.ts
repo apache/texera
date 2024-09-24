@@ -27,7 +27,6 @@ import { OperatorMenuService } from "../../service/operator-menu/operator-menu.s
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
 import { Subscription, timer } from "rxjs";
 import { isDefined } from "../../../common/util/predicate";
-import { FileSelectionComponent } from "../file-selection/file-selection.component";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { ResultExportationComponent } from "../result-exportation/result-exportation.component";
 import { ReportGenerationService } from "../../service/report-generation/report-generation.service";
@@ -322,7 +321,7 @@ export class MenuComponent implements OnInit {
    *
    */
   public onClickExportExecutionResult(exportType: string): void {
-    const modal = this.modalService.create({
+    this.modalService.create({
       nzTitle: "Export Result and Save to a Dataset",
       nzContent: ResultExportationComponent,
       nzData: {
