@@ -82,8 +82,8 @@ export class ListItemComponent implements OnInit, OnChanges {
             this.entryLink = [this.ROUTER_WORKFLOW_BASE_URL, String(this.entry.id)];
             this.queryParams = {};
           } else {
-            this.entryLink = [this.ROUTER_WORKFLOW_DETAIL_BASE_URL];
-            this.queryParams = { wid: this.entry.id };
+            this.entryLink = [this.ROUTER_WORKFLOW_DETAIL_BASE_URL, String(this.entry.id)];
+            this.queryParams = {};
           }
         });
       }
