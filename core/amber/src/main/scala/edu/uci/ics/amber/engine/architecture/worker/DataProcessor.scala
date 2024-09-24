@@ -33,7 +33,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.amber.error.ErrorUtils.{mkConsoleMessage, safely}
-import edu.uci.ics.texera.workflow.common.EndOfUpstream
+import edu.uci.ics.texera.workflow.common.{EndOfInputChannel, StartOfInputChannel, State}
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
@@ -93,12 +93,45 @@ class DataProcessor(
     }
   }
 
+  private[this] def processInputState(state: State, port: Int): Unit = {
+    try {
+      val outputState = executor.processState(state, port)
+      if (outputState.isDefined) {
+        outputManager.emitMarker(outputState.get)
+      }
+    } catch safely {
+      case e =>
+        handleExecutorException(e)
+    }
+  }
+
   /**
-    * process end of an input port with Executor.onFinish().
+    * process start of an input port with Executor.produceStateOnStart().
     * this function is only called by the DP thread.
     */
-  private[this] def processEndOfUpstream(portId: Int): Unit = {
+  private[this] def processStartOfInputChannel(portId: Int): Unit = {
     try {
+      outputManager.emitMarker(StartOfInputChannel())
+      val outputState = executor.produceStateOnStart(portId)
+      if (outputState.isDefined) {
+        outputManager.emitMarker(outputState.get)
+      }
+    } catch safely {
+      case e =>
+        handleExecutorException(e)
+    }
+  }
+
+  /**
+    * process end of an input port with Executor.produceStateOnFinish().
+    * this function is only called by the DP thread.
+    */
+  private[this] def processEndOfInputChannel(portId: Int): Unit = {
+    try {
+      val outputState = executor.produceStateOnFinish(portId)
+      if (outputState.isDefined) {
+        outputManager.emitMarker(outputState.get)
+      }
       outputManager.outputIterator.setTupleOutput(
         executor.onFinishMultiPort(portId)
       )
@@ -134,7 +167,7 @@ class DataProcessor(
 
     outputTuple match {
       case FinalizeExecutor() =>
-        outputManager.emitMarker(EndOfUpstream())
+        outputManager.emitMarker(EndOfInputChannel())
         // Send Completed signal to worker actor.
         executor.close()
         adaptiveBatchingMonitor.stopAdaptiveBatching()
@@ -191,11 +224,15 @@ class DataProcessor(
         processInputTuple(inputManager.getNextTuple)
       case MarkerFrame(marker) =>
         marker match {
-          case EndOfUpstream() =>
+          case state: State =>
+            processInputState(state, portId.id)
+          case StartOfInputChannel() =>
+            processStartOfInputChannel(portId.id)
+          case EndOfInputChannel() =>
             this.inputManager.getPort(portId).channels(channelId) = true
             if (inputManager.isPortCompleted(portId)) {
               inputManager.initBatch(channelId, Array.empty)
-              processEndOfUpstream(portId.id)
+              processEndOfInputChannel(portId.id)
               outputManager.outputIterator.appendSpecialTupleToEnd(
                 FinalizePort(portId, input = true)
               )

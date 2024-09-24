@@ -13,7 +13,7 @@ from core.models import (
     Tuple,
 )
 from core.models.internal_queue import DataElement, ControlElement
-from core.models.marker import EndOfUpstream
+from core.models.marker import EndOfInputChannel
 from core.runnables import MainLoop
 from core.util import set_one_of
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
@@ -135,7 +135,9 @@ class TestMainLoop:
 
     @pytest.fixture
     def mock_end_of_upstream(self, mock_tuple, mock_sender_actor):
-        return DataElement(tag=mock_sender_actor, payload=MarkerFrame(EndOfUpstream()))
+        return DataElement(
+            tag=mock_sender_actor, payload=MarkerFrame(EndOfInputChannel())
+        )
 
     @pytest.fixture
     def input_queue(self):
@@ -533,7 +535,7 @@ class TestMainLoop:
             ),
         )
 
-        # can process EndOfUpstream
+        # can process EndOfInputChannel
         input_queue.put(mock_end_of_upstream)
 
         # the input port should complete
@@ -580,7 +582,7 @@ class TestMainLoop:
         )
 
         assert output_queue.get() == DataElement(
-            tag=mock_receiver_actor, payload=MarkerFrame(EndOfUpstream())
+            tag=mock_receiver_actor, payload=MarkerFrame(EndOfInputChannel())
         )
 
         # can process ReturnInvocation

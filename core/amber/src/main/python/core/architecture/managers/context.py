@@ -2,6 +2,7 @@ from proto.edu.uci.ics.amber.engine.architecture.worker import WorkerState
 from .console_message_manager import ConsoleMessageManager
 from .debug_manager import DebugManager
 from .exception_manager import ExceptionManager
+from .marker_processing_manager import MarkerProcessingManager
 from .tuple_processing_manager import TupleProcessingManager
 from .executor_manager import ExecutorManager
 from .pause_manager import PauseManager
@@ -26,6 +27,7 @@ class Context:
         self.input_queue: InternalQueue = input_queue
         self.executor_manager = ExecutorManager()
         self.tuple_processing_manager = TupleProcessingManager()
+        self.marker_processing_manager = MarkerProcessingManager()
         self.exception_manager = ExceptionManager()
         self.state_manager = StateManager(
             {

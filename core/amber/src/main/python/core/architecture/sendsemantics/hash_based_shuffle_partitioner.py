@@ -3,10 +3,9 @@ from typing import Iterator
 
 from loguru import logger
 from overrides import overrides
-
 from core.architecture.sendsemantics.partitioner import Partitioner
 from core.models import Tuple
-from core.models.marker import EndOfUpstream
+from core.models.marker import Marker
 from core.util import set_one_of
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
     HashBasedShufflePartitioning,
@@ -43,14 +42,12 @@ class HashBasedShufflePartitioner(Partitioner):
             self.receivers[hash_code] = (receiver, list())
 
     @overrides
-    def no_more(
-        self,
+    def flush(
+        self, marker: Marker
     ) -> Iterator[
-        typing.Tuple[
-            ActorVirtualIdentity, typing.Union[EndOfUpstream, typing.List[Tuple]]
-        ]
+        typing.Tuple[ActorVirtualIdentity, typing.Union[Marker, typing.List[Tuple]]]
     ]:
         for receiver, batch in self.receivers:
             if len(batch) > 0:
                 yield receiver, batch
-            yield receiver, EndOfUpstream()
+            yield receiver, marker

@@ -7,6 +7,7 @@ import pandas
 
 
 from . import Table, TableLike, Tuple, TupleLike, Batch, BatchLike
+from .marker import State
 from .table import all_output_to_tuple
 
 
@@ -43,6 +44,36 @@ class Operator(ABC):
     def close(self) -> None:
         """
         Close the context of the operator.
+        """
+        pass
+
+    def process_state(self, state: State, port: int) -> Optional[State]:
+        """
+        Process an input State from the given link.
+        The default implementation is to pass the State to all downstream operators
+        if the State has pass_to_all_downstream set to True.
+        :param state: State, a State from an input port to be processed.
+        :param port: int, input port index of the current exhausted port.
+        :return: State, producing one State object
+        """
+        if state.passToAllDownstream:
+            return state
+
+    def produce_state_on_start(self, port: int) -> State:
+        """
+        Produce a State when the given link started.
+
+        :param port: int, input port index of the current initialized port.
+        :return: State, producing one State object
+        """
+        pass
+
+    def produce_state_on_finish(self, port: int) -> State:
+        """
+        Produce a State after the input port is exhausted.
+
+        :param port: int, input port index of the current exhausted port.
+        :return: State, producing one State object
         """
         pass
 

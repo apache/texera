@@ -11,7 +11,7 @@ from .udf.udf_operator import (
 )
 
 __all__ = [
-    "InputExhausted",
+    "State",
     "Tuple",
     "TupleLike",
     "UDFOperatorV2",
