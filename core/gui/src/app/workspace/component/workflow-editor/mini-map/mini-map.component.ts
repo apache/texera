@@ -3,7 +3,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { MAIN_CANVAS } from "../workflow-editor.component";
 import * as joint from "jointjs";
-import {JointGraphWrapper} from "../../../service/workflow-graph/model/joint-graph-wrapper";
+import { JointGraphWrapper } from "../../../service/workflow-graph/model/joint-graph-wrapper";
 
 @UntilDestroy()
 @Component({

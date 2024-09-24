@@ -3,9 +3,9 @@
     nz-button
     id="minimap-button"
     (click)="hidden = !hidden">
-  <span
-    nz-icon
-    nzType="{{hidden ? 'global' : 'minus'}}"></span>
+    <span
+      nz-icon
+      nzType="{{hidden ? 'global' : 'minus'}}"></span>
   </button>
   <button
     id="minimap-zoom-out-button"
@@ -33,7 +33,6 @@
       cdkDragBoundary="texera-mini-map"
       (cdkDragMoved)="onDrag($event)"
       (cdkDragStarted)="dragging=true"
-      (cdkDragEnded)="dragging=false">
-    </div>
+      (cdkDragEnded)="dragging=false"></div>
   </div>
 </div>
