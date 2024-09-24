@@ -1,7 +1,7 @@
 import threading
 import time
 import typing
-from typing import Iterator, Optional, Union
+from typing import Iterator, Optional
 
 from loguru import logger
 from overrides import overrides
@@ -9,16 +9,21 @@ from pampy import match
 
 from core.architecture.managers.context import Context
 from core.architecture.managers.pause_manager import PauseType
-from core.architecture.packaging.input_manager import EndOfAll
+from core.architecture.packaging.input_manager import EndOfOutputPorts
 from core.architecture.rpc.async_rpc_client import AsyncRPCClient
 from core.architecture.rpc.async_rpc_server import AsyncRPCServer
 from core.models import (
-    InputExhausted,
     InternalQueue,
     SenderChange,
     Tuple,
 )
+from core.models.internal_marker import (
+    StartOfOutputPorts,
+    EndOfInputPort,
+    StartOfInputPort,
+)
 from core.models.internal_queue import DataElement, ControlElement
+from core.models.marker import State, EndOfInputChannel, StartOfInputChannel
 from core.runnables.data_processor import DataProcessor
 from core.util import StoppableQueueBlockingRunnable, get_one_of, set_one_of
 from core.util.customized_queue.queue_base import QueueElement
@@ -149,8 +154,8 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
     def process_input_tuple(self) -> None:
         """
-        Process the current input tuple with the current input link. Send all result
-        Tuples to downstream workers.
+        Process the current input tuple with the current input link.
+        Send all result Tuples or State to downstream workers.
 
         This is being invoked for each Tuple/Marker that are unpacked from the
         DataElement.
@@ -170,6 +175,14 @@ class MainLoop(StoppableQueueBlockingRunnable):
                     output_tuple
                 ):
                     self._output_queue.put(DataElement(tag=to, payload=batch))
+
+    def process_input_state(self) -> None:
+        self._switch_context()
+        output_state = self.context.marker_processing_manager.get_output_state()
+        self._switch_context()
+        if output_state is not None:
+            for to, batch in self.context.output_manager.emit_marker(output_state):
+                self._output_queue.put(DataElement(tag=to, payload=batch))
 
     def process_tuple_with_udf(self) -> Iterator[Optional[Tuple]]:
         """
@@ -195,13 +208,28 @@ class MainLoop(StoppableQueueBlockingRunnable):
         """
         self.process_control_payload(control_element.tag, control_element.payload)
 
-    def _process_tuple(self, tuple_: Union[Tuple, InputExhausted]) -> None:
+    def _process_tuple(self, tuple_: Tuple) -> None:
         self.context.tuple_processing_manager.current_input_tuple = tuple_
         self.process_input_tuple()
         self._check_and_process_control()
 
-    def _process_input_exhausted(self, input_exhausted: InputExhausted):
-        self._process_tuple(input_exhausted)
+    def _process_state(self, state_: State) -> None:
+        self.context.marker_processing_manager.current_input_marker = state_
+        self.process_input_state()
+        self._check_and_process_control()
+
+    def _process_start_of_input_port(
+        self, start_of_input_port: StartOfInputPort
+    ) -> None:
+        self.context.marker_processing_manager.current_input_marker = (
+            start_of_input_port
+        )
+        self.process_input_state()
+
+    def _process_end_of_input_port(self, end_of_input_port: EndOfInputPort) -> None:
+        self.context.marker_processing_manager.current_input_marker = end_of_input_port
+        self.process_input_state()
+        self.process_input_tuple()
         if self.context.tuple_processing_manager.current_input_port_id is not None:
             control_command = set_one_of(
                 ControlCommandV2,
@@ -225,16 +253,28 @@ class MainLoop(StoppableQueueBlockingRunnable):
             self.context.input_manager.get_port_id(sender_change_marker.channel_id)
         )
 
-    def _process_end_of_all_marker(self, _: EndOfAll) -> None:
+    def _process_start_of_output_ports(self, _: StartOfOutputPorts) -> None:
+        """
+        Upon receipt of an StartOfAllMarker,
+        which indicates the start of any input links,
+        send the StartOfInputChannel to all downstream workers.
+
+        :param _: StartOfAny Internal Marker
+        """
+        for to, batch in self.context.output_manager.emit_marker(StartOfInputChannel()):
+            self._output_queue.put(DataElement(tag=to, payload=batch))
+            self._check_and_process_control()
+
+    def _process_end_of_output_ports(self, _: EndOfOutputPorts) -> None:
         """
         Upon receipt of an EndOfAllMarker, which indicates the end of all input links,
         send the last data batches to all downstream workers.
 
         It will also invoke complete() of this DataProcessor.
 
-        :param _: EndOfAllMarker
+        :param _: EndOfOutputPorts
         """
-        for to, batch in self.context.output_manager.emit_end_of_upstream():
+        for to, batch in self.context.output_manager.emit_marker(EndOfInputChannel()):
             self._output_queue.put(DataElement(tag=to, payload=batch))
             self._check_and_process_control()
             control_command = set_one_of(
@@ -265,7 +305,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
         if self.context.tuple_processing_manager.current_input_tuple_iter is None:
             return
-        # here the self.context.processing_manager.current_input_tuple_iter
+        # here the self.context.processing_manager.current_input_iter
         # could be modified during iteration, thus we are using the while :=
         # way to iterate through the iterator, instead of the for-each-loop
         # syntax sugar.
@@ -279,12 +319,18 @@ class MainLoop(StoppableQueueBlockingRunnable):
                     element,
                     Tuple,
                     self._process_tuple,
-                    InputExhausted,
-                    self._process_input_exhausted,
+                    StartOfInputPort,
+                    self._process_start_of_input_port,
+                    EndOfInputPort,
+                    self._process_end_of_input_port,
                     SenderChange,
                     self._process_sender_change_marker,
-                    EndOfAll,
-                    self._process_end_of_all_marker,
+                    StartOfOutputPorts,
+                    self._process_start_of_output_ports,
+                    EndOfOutputPorts,
+                    self._process_end_of_output_ports,
+                    State,
+                    self._process_state,
                 )
             except Exception as err:
                 logger.exception(err)

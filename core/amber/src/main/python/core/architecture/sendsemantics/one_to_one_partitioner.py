@@ -2,10 +2,9 @@ import typing
 from typing import Iterator
 
 from overrides import overrides
-
 from core.architecture.sendsemantics.partitioner import Partitioner
 from core.models import Tuple
-from core.models.marker import EndOfUpstream
+from core.models.marker import Marker
 from core.util import set_one_of
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
     OneToOnePartitioning,
@@ -34,17 +33,15 @@ class OneToOnePartitioner(Partitioner):
             self.reset()
 
     @overrides
-    def no_more(
-        self,
+    def flush(
+        self, marker: Marker
     ) -> Iterator[
-        typing.Tuple[
-            ActorVirtualIdentity, typing.Union[EndOfUpstream, typing.List[Tuple]]
-        ]
+        typing.Tuple[ActorVirtualIdentity, typing.Union[Marker, typing.List[Tuple]]]
     ]:
         if len(self.batch) > 0:
             yield self.receiver, self.batch
         self.reset()
-        yield self.receiver, EndOfUpstream()
+        yield self.receiver, marker
 
     @overrides
     def reset(self) -> None:

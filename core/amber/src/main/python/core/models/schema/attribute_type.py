@@ -66,3 +66,12 @@ TO_PYOBJECT_MAPPING = {
     AttributeType.BINARY: bytes,
     AttributeType.TIMESTAMP: datetime.datetime,
 }
+
+FROM_PYOBJECT_MAPPING = {
+    str: AttributeType.STRING,
+    int: AttributeType.INT,
+    float: AttributeType.DOUBLE,
+    bool: AttributeType.BOOL,
+    bytes: AttributeType.BINARY,
+    datetime.datetime: AttributeType.TIMESTAMP,
+}
