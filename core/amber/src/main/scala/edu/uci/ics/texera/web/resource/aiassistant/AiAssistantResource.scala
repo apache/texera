@@ -12,6 +12,7 @@ import kong.unirest.Unirest
 import java.util.Base64
 import scala.sys.process._
 import play.api.libs.json._
+import java.nio.file.Paths
 
 case class AIAssistantRequest(code: String, lineNumber: Int, allcode: String)
 case class LocateUnannotatedRequest(selectedCode: String, startLine: Int)
@@ -103,12 +104,12 @@ class AIAssistantResource {
 
   @POST
   @RolesAllowed(Array("REGULAR", "ADMIN"))
-  @Path("/getArgument")
+  @Path("/annotate-argument")
   @Consumes(Array(MediaType.APPLICATION_JSON))
   def locateUnannotated(request: LocateUnannotatedRequest, @Auth user: SessionUser): Response = {
     val encodedCode = Base64.getEncoder.encodeToString(request.selectedCode.getBytes("UTF-8"))
     val pythonScriptPath =
-      "src/main/scala/edu/uci/ics/texera/web/resource/aiassistant/python_abstract_syntax_tree.py"
+      Paths.get("src", "main", "scala", "edu", "uci", "ics", "texera", "web", "resource", "aiassistant", "type_annotation_visitor.py").toString
 
     try {
       val command = s"""python $pythonScriptPath "$encodedCode" ${request.startLine}"""
@@ -117,7 +118,7 @@ class AIAssistantResource {
       Response.ok(Json.obj("result" -> Json.toJson(parsedResult))).build()
     } catch {
       case e: Exception =>
-        Response.status(500).entity("Error executing the Python code").build()
+        Response.status(500).entity(s"Error executing the Python code: ${e.getMessage}").build()
     }
   }
 

@@ -14,30 +14,31 @@ export type TypeAnnotationResponse = {
 };
 
 export interface UnannotatedArgument {
-  name: string;
-  startLine: number;
-  startColumn: number;
-  endLine: number;
-  endColumn: number;
+  readonly name: string;
+  readonly startLine: number;
+  readonly startColumn: number;
+  readonly endLine: number;
+  readonly endColumn: number;
 }
 
 interface UnannotatedArgumentItem {
-  underlying: {
-    name: { value: string };
-    startLine: { value: number };
-    startColumn: { value: number };
-    endLine: { value: number };
-    endColumn: { value: number };
+  readonly underlying: {
+    readonly name: { readonly value: string };
+    readonly startLine: { readonly value: number };
+    readonly startColumn: { readonly value: number };
+    readonly endLine: { readonly value: number };
+    readonly endColumn: { readonly value: number };
   };
 }
 
 interface UnannotatedArgumentResponse {
-  underlying: {
-    result: {
-      value: UnannotatedArgumentItem[];
+  readonly underlying: {
+    readonly result: {
+      readonly value: ReadonlyArray<UnannotatedArgumentItem>;
     };
   };
 }
+
 
 // Define AI model type
 export const AI_ASSISTANT_API_BASE_URL = `${AppSettings.getApiEndpoint()}/aiassistant`;
@@ -96,7 +97,7 @@ export class AIAssistantService {
   public locateUnannotated(selectedCode: string, startLine: number): Observable<UnannotatedArgument[]> {
     const requestBody = { selectedCode, startLine };
 
-    return this.http.post<UnannotatedArgumentResponse>(`${AI_ASSISTANT_API_BASE_URL}/getArgument`, requestBody).pipe(
+    return this.http.post<UnannotatedArgumentResponse>(`${AI_ASSISTANT_API_BASE_URL}/annotate-argument`, requestBody).pipe(
       map(response => {
         if (response) {
           return response.underlying.result.value.map(
