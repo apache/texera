@@ -1,8 +1,8 @@
-import {Component, OnInit} from "@angular/core";
-import {UntilDestroy, untilDestroyed} from "@ngneat/until-destroy";
+import { Component, OnInit } from "@angular/core";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { ActivatedRoute } from "@angular/router";
-import {HubWorkflowService} from "../../../service/workflow/hub-workflow.service";
-import {User} from "../../../../common/type/user";
+import { HubWorkflowService } from "../../../service/workflow/hub-workflow.service";
+import { User } from "../../../../common/type/user";
 
 @UntilDestroy()
 @Component({
@@ -10,14 +10,12 @@ import {User} from "../../../../common/type/user";
   templateUrl: "hub-workflow-detail.component.html",
   styleUrls: ["hub-workflow-detail.component.scss"],
 })
-export class HubWorkflowDetailComponent implements OnInit{
+export class HubWorkflowDetailComponent implements OnInit {
   wid: number;
   ownerUser!: User;
   workflowName: string = "";
 
   workflow = {
-    name: "Example Workflow",
-    createdBy: "John Doe",
     steps: [
       {
         name: "Step 1: Data Collection",
@@ -61,6 +59,6 @@ export class HubWorkflowDetailComponent implements OnInit{
       .pipe(untilDestroyed(this))
       .subscribe(workflowName => {
         this.workflowName = workflowName;
-      })
+      });
   }
 }

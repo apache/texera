@@ -21,14 +21,13 @@ export class HubWorkflowService {
     return this.http.get<HubWorkflow[]>(`${this.BASE_URL}/list`);
   }
 
-  public getOwnerUser(wid: number): Observable<User>{
+  public getOwnerUser(wid: number): Observable<User> {
     const params = new HttpParams().set("wid", wid);
-    return this.http.get<User>(`${this.BASE_URL}/owner_user/`, { params })
+    return this.http.get<User>(`${this.BASE_URL}/owner_user/`, { params });
   }
 
-  public getWorkflowName(wid: number): Observable<string>{
+  public getWorkflowName(wid: number): Observable<string> {
     const params = new HttpParams().set("wid", wid);
-    return this.http.get(`${this.BASE_URL}/workflow_name/`, { params, responseType: "text" })
+    return this.http.get(`${this.BASE_URL}/workflow_name/`, { params, responseType: "text" });
   }
-
 }
