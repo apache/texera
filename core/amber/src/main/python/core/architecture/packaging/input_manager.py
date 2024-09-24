@@ -1,8 +1,15 @@
 from typing import Iterator, Optional, Union, Dict, List
-
-from core.models import Tuple, ArrowTableTupleProvider, Schema, InputExhausted
-from core.models.internal_marker import EndOfAll, InternalMarker, SenderChange
-from core.models.marker import EndOfUpstream
+from pyarrow.lib import Table
+from core.models import Tuple, ArrowTableTupleProvider, Schema
+from core.models.internal_marker import (
+    InternalMarker,
+    StartOfOutputPorts,
+    EndOfOutputPorts,
+    SenderChange,
+    EndOfInputPort,
+    StartOfInputPort,
+)
+from core.models.marker import EndOfInputChannel, State, StartOfInputChannel, Marker
 from core.models.payload import DataFrame, DataPayload, MarkerFrame
 from proto.edu.uci.ics.amber.engine.common import (
     ActorVirtualIdentity,
@@ -50,6 +57,7 @@ class InputManager:
         self._ports: Dict[PortIdentity, WorkerPort] = dict()
         self._channels: Dict[ChannelIdentity, Channel] = dict()
         self._current_channel_id: Optional[ChannelIdentity] = None
+        self.started = False
 
     def add_input_port(self, port_id: PortIdentity, schema: Schema) -> None:
         if port_id.id is None:
@@ -78,16 +86,21 @@ class InputManager:
 
     def process_data_payload(
         self, from_: ActorVirtualIdentity, payload: DataPayload
-    ) -> Iterator[Union[Tuple, InputExhausted, InternalMarker]]:
+    ) -> Iterator[Union[Tuple, InternalMarker]]:
         # special case used to yield for source op
         if from_ == InputManager.SOURCE_STARTER:
-            yield InputExhausted()
-            yield EndOfAll()
+            yield EndOfInputChannel()
+            yield EndOfOutputPorts()
             return
-        current_channel_id = None
-        for channel_id, channel in self._channels.items():
-            if channel_id.from_worker_id == from_:
-                current_channel_id = channel_id
+
+        current_channel_id = next(
+            (
+                channel_id
+                for channel_id, channel in self._channels.items()
+                if channel_id.from_worker_id == from_
+            ),
+            None,
+        )
 
         if (
             self._current_channel_id is None
@@ -97,17 +110,30 @@ class InputManager:
             yield SenderChange(current_channel_id)
 
         if isinstance(payload, DataFrame):
-            for field_accessor in ArrowTableTupleProvider(payload.frame):
-                yield Tuple(
-                    {name: field_accessor for name in payload.frame.column_names},
-                    schema=self._ports[
-                        self._channels[self._current_channel_id].port_id
-                    ].get_schema(),
-                )
+            yield from self._process_data(payload.frame)
+        elif isinstance(payload, MarkerFrame):
+            yield from self._process_marker(payload.frame)
+        else:
+            raise NotImplementedError()
 
-        elif isinstance(payload, MarkerFrame) and isinstance(
-            payload.frame, EndOfUpstream
-        ):
+    def _process_data(self, table: Table) -> Iterator[Tuple]:
+        schema = self._ports[
+            self._channels[self._current_channel_id].port_id
+        ].get_schema()
+        for field_accessor in ArrowTableTupleProvider(table):
+            yield Tuple(
+                {name: field_accessor for name in table.column_names}, schema=schema
+            )
+
+    def _process_marker(self, marker: Marker) -> Iterator[InternalMarker]:
+        if isinstance(marker, State):
+            yield marker
+        if isinstance(marker, StartOfInputChannel):
+            if not self.started:
+                yield StartOfOutputPorts()
+            self.started = True
+            yield StartOfInputPort()
+        if isinstance(marker, EndOfInputChannel):
             channel = self._channels[self._current_channel_id]
             channel.complete()
             port_id = channel.port_id
@@ -119,14 +145,11 @@ class InputManager:
             )
 
             if port_completed:
-                yield InputExhausted()
+                yield EndOfInputPort()
 
             all_ports_completed = all(
                 map(lambda port: port.is_completed(), self._ports.values())
             )
 
             if all_ports_completed:
-                yield EndOfAll()
-
-        else:
-            raise NotImplementedError()
+                yield EndOfOutputPorts()
