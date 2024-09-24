@@ -60,3 +60,39 @@ th.header-size {
     background-color: rgba(0, 0, 0, 0.05);
   }
 }
+
+.table-cell {
+  position: relative;
+  padding-right: 24px; // Make room for the download button
+}
+
+.cell-content {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.download-button {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+  padding: 4px 8px;
+  
+  i {
+    font-size: 14px;
+  }
+}
+
+.table-row-hover:hover {
+  .download-button {
+    opacity: 0.5;
+    
+    &:hover {
+      opacity: 1;
+    }
+  }
+}
