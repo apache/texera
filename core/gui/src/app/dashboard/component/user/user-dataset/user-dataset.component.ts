@@ -124,7 +124,7 @@ export class UserDatasetComponent implements AfterViewInit {
   }
 
   public onClickOpenDatasetAddComponent(): void {
-    this.router.navigate(["/dashboard/dataset/create"]);
+    this.router.navigate(["/dashboard/user/dataset/create"]);
   }
 
   public deleteDataset(entry: DashboardEntry): void {

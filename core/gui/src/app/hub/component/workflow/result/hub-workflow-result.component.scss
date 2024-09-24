@@ -1,0 +1,29 @@
+.workflow-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-around;
+  padding: 20px;
+  background-color: #f9f9f9;
+}
+
+.workflow-card {
+  width: 300px;
+  transition:
+    transform 0.3s,
+    box-shadow 0.3s;
+}
+
+.workflow-card:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.workflow-card p {
+  margin: 0;
+  color: #666;
+}
+
+.workflow-card button {
+  margin-top: 10px;
+  width: 100%;
+}

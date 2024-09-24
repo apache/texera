@@ -13,14 +13,24 @@ texera-filters-instructions {
 
 texera-search-bar {
   flex: 1;
+  max-width: calc(100% - 20px);
 }
 
-button {
-  border: none;
+texera-google-login {
+  float: right;
+  padding: 5px 0;
 }
 
 texera-user-icon {
   padding: 0 24px;
+}
+
+texera-user-icon {
+  padding: 0 24px;
+}
+
+button {
+  border: none;
 }
 
 .layout {

@@ -1,0 +1,46 @@
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: #f4f4f4;
+}
+.container {
+  width: 80%;
+  margin: 30px auto 0;
+  padding: 20px;
+  background-color: #fff;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+h1 {
+  color: #333;
+}
+.workflow-info {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.workflow-info div {
+  flex: 1;
+  padding: 10px;
+  background-color: #e9e9e9;
+  margin-right: 10px;
+}
+.workflow-info div:last-child {
+  margin-right: 0;
+}
+.workflow-steps {
+  margin-top: 20px;
+}
+.workflow-step {
+  background-color: #f9f9f9;
+  padding: 15px;
+  margin-bottom: 10px;
+  border-left: 5px solid #007bff;
+}
+.workflow-step h3 {
+  margin: 0;
+  color: #007bff;
+}
+.workflow-step p {
+  margin: 5px 0;
+}

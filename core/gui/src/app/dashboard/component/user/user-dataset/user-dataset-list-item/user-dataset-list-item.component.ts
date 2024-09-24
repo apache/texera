@@ -14,7 +14,7 @@ import { DashboardDataset } from "../../../../type/dashboard-dataset.interface";
   styleUrls: ["./user-dataset-list-item.component.scss"],
 })
 export class UserDatasetListItemComponent {
-  ROUTER_DATASET_BASE_URL = "/dashboard/dataset";
+  ROUTER_DATASET_BASE_URL = "/dashboard/user/dataset";
 
   private _entry?: DashboardDataset;
 

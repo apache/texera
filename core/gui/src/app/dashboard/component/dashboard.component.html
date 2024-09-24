@@ -18,102 +18,120 @@
           height="50"
           src="../../../../assets/logos/logo.png" />
       </li>
-      <li
-        nz-menu-item
-        nz-tooltip="Look up the user projects"
-        nzMatchRouter="true"
-        nzTooltipPlacement="right"
-        routerLink="/dashboard/user-project">
-        <span
-          nz-icon
-          nzType="container"></span>
-        <span>Projects</span>
-      </li>
 
       <li
-        nz-menu-item
-        nz-tooltip="Open the saved workflows"
-        nzMatchRouter="true"
-        nzTooltipPlacement="right"
-        routerLink="/dashboard/workflow">
-        <span
-          nz-icon
-          nzType="project"></span>
-        <span>Workflows</span>
-      </li>
-
-      <li
-        nz-menu-item
-        nz-tooltip="Look up for datasets"
-        nzMatchRouter="true"
-        nzTooltipPlacement="right"
-        routerLink="/dashboard/dataset">
-        <span
-          nz-icon
-          nzType="database"></span>
-        <span>Datasets</span>
-      </li>
-      <li
-        nz-menu-item
-        nz-tooltip="Quota information"
-        nzMatchRouter="true"
-        nzTooltipPlacement="right"
-        routerLink="/dashboard/user-quota">
-        <span
-          nz-icon
-          nzType="dashboard"></span>
-        <span>Quota</span>
-      </li>
-      <li
-        *ngIf="displayForum"
-        nz-menu-item
-        nz-tooltip="Open the discussion forum"
-        nzMatchRouter="true"
-        nzTooltipPlacement="right"
-        routerLink="/dashboard/discussion">
-        <span
-          nz-icon
-          nzType="comment"></span>
-        <span>Forum</span>
-      </li>
-      <li
-        *ngIf="isAdmin"
         nz-submenu
-        nzTitle="Admin"
-        nzIcon="tool">
+        nzTitle="Community"
+        nzIcon="usergroup-add"
+        nzOpen="true">
+        <texera-hub [isLogin]="isLogin"></texera-hub>
+      </li>
+
+      <li
+        *ngIf="isLogin"
+        nz-submenu
+        nzTitle="Your Work"
+        nzIcon="user"
+        nzOpen="true">
         <ul>
           <li
             nz-menu-item
-            nz-tooltip="Look up the users"
+            nz-tooltip="Look up the user projects"
             nzMatchRouter="true"
             nzTooltipPlacement="right"
-            routerLink="/dashboard/admin/user">
+            routerLink="/dashboard/user/project">
             <span
               nz-icon
-              nzType="user"></span>
-            <span>Users</span>
+              nzType="container"></span>
+            <span>Projects</span>
+          </li>
+
+          <li
+            nz-menu-item
+            nz-tooltip="Open the saved workflows"
+            nzMatchRouter="true"
+            nzTooltipPlacement="right"
+            routerLink="/dashboard/user/workflow">
+            <span
+              nz-icon
+              nzType="project"></span>
+            <span>Workflows</span>
+          </li>
+
+          <li
+            nz-menu-item
+            nz-tooltip="Look up for datasets"
+            nzMatchRouter="true"
+            nzTooltipPlacement="right"
+            routerLink="/dashboard/user/dataset">
+            <span
+              nz-icon
+              nzType="database"></span>
+            <span>Datasets</span>
           </li>
           <li
             nz-menu-item
-            nz-tooltip="View statistics"
+            nz-tooltip="Quota information"
             nzMatchRouter="true"
             nzTooltipPlacement="right"
-            routerLink="/dashboard/admin/execution">
+            routerLink="/dashboard/user/quota">
             <span
               nz-icon
-              nzType="setting"></span>
-            <span>Executions</span>
+              nzType="dashboard"></span>
+            <span>Quota</span>
           </li>
           <li
+            *ngIf="displayForum"
             nz-menu-item
-            nz-tooltip="Setup gmail"
+            nz-tooltip="Open the discussion forum"
             nzMatchRouter="true"
             nzTooltipPlacement="right"
-            routerLink="/dashboard/admin/gmail">
+            routerLink="/dashboard/user/discussion">
             <span
               nz-icon
-              nzType="mail"></span>
-            <span>Gmail</span>
+              nzType="comment"></span>
+            <span>Forum</span>
+          </li>
+          <li
+            *ngIf="isAdmin"
+            nz-submenu
+            nzTitle="Admin"
+            nzIcon="tool">
+            <ul>
+              <li
+                nz-menu-item
+                nz-tooltip="Look up the users"
+                nzMatchRouter="true"
+                nzTooltipPlacement="right"
+                routerLink="/dashboard/admin/user">
+                <span
+                  nz-icon
+                  nzType="user"></span>
+                <span>Users</span>
+              </li>
+              <li
+                nz-menu-item
+                nz-tooltip="View statistics"
+                nzMatchRouter="true"
+                nzTooltipPlacement="right"
+                routerLink="/dashboard/admin/execution">
+                <span
+                  nz-icon
+                  nzType="setting"></span>
+                <span>Executions</span>
+              </li>
+              <li
+                nz-menu-item
+                nz-tooltip="Setup gmail"
+                nzMatchRouter="true"
+                nzTooltipPlacement="right"
+                routerLink="/dashboard/admin/gmail">
+                <span
+                  nz-icon
+                  nzType="mail"></span>
+                <span>Gmail</span>
+              </li>
+            </ul>
           </li>
         </ul>
       </li>
@@ -124,7 +142,7 @@
       *ngIf="displayNavbar"
       id="nav">
       <texera-search-bar></texera-search-bar>
-      <texera-user-icon></texera-user-icon>
+      <texera-user-icon *ngIf="isLogin"></texera-user-icon>
     </div>
     <nz-content>
       <router-outlet></router-outlet>

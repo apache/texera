@@ -104,7 +104,7 @@ export class UserDatasetExplorerComponent implements OnInit {
         this.retrieveDatasetVersionList();
         this.renderDatasetViewSider();
       } else {
-        this.router.navigate([`/dashboard/dataset/${creationID}`]);
+        this.router.navigate([`/dashboard/user/dataset/${creationID}`]);
       }
     } else {
       // creation failed
@@ -113,7 +113,7 @@ export class UserDatasetExplorerComponent implements OnInit {
         this.isCreatingDataset = false;
         this.retrieveDatasetVersionList();
       } else {
-        this.router.navigate(["/dashboard/dataset"]);
+        this.router.navigate(["/dashboard/user/dataset"]);
       }
     }
   }

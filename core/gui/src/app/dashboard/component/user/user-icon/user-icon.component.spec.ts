@@ -5,7 +5,7 @@ import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { StubUserService } from "../../../../common/service/user/stub-user.service";
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { RouterTestingModule } from "@angular/router/testing";
-import { HomeComponent } from "../../../../home/component/home.component";
+import { HomeComponent } from "../../../../hub/component/home/home.component";
 
 describe("UserIconComponent", () => {
   let component: UserIconComponent;

@@ -2,6 +2,7 @@ import { Component } from "@angular/core";
 import { UserService } from "../../../../common/service/user/user.service";
 import { User } from "../../../../common/type/user";
 import { UntilDestroy } from "@ngneat/until-destroy";
+import { Router } from "@angular/router";
 
 /**
  * UserIconComponent is used to control user system on the top right corner
@@ -17,7 +18,10 @@ import { UntilDestroy } from "@ngneat/until-destroy";
 export class UserIconComponent {
   public user: User | undefined;
 
-  constructor(private userService: UserService) {
+  constructor(
+    private userService: UserService,
+    private router: Router
+  ) {
     this.user = this.userService.getCurrentUser();
   }
 
@@ -27,6 +31,6 @@ export class UserIconComponent {
   public onClickLogout(): void {
     this.userService.logout();
     document.cookie = "flarum_remember=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    window.location.href = "home";
+    this.router.navigate(["dashboard/home"]);
   }
 }
