@@ -1,7 +1,7 @@
 import { Component } from "@angular/core";
 
 @Component({
-  selector: "texera-root",
+  selector: "texera-hub-workflow",
   template: "<router-outlet></router-outlet>",
 })
-export class AppComponent {}
+export class HubWorkflowComponent {}

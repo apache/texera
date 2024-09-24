@@ -83,10 +83,10 @@ import { CoeditorUserIconComponent } from "./workspace/component/menu/coeditor-u
 import { InputAutoCompleteComponent } from "./workspace/component/input-autocomplete/input-autocomplete.component";
 import { CollabWrapperComponent } from "./common/formly/collab-wrapper/collab-wrapper/collab-wrapper.component";
 import { NzSwitchModule } from "ng-zorro-antd/switch";
-import { HomeComponent } from "./home/component/home.component";
+import { HomeComponent } from "./hub/component/home/home.component";
 import { NzLayoutModule } from "ng-zorro-antd/layout";
 import { AuthGuardService } from "./common/service/user/auth-guard.service";
-import { LocalLoginComponent } from "./home/component/login/local-login/local-login.component";
+import { LocalLoginComponent } from "./hub/component/home/local-login/local-login.component";
 import { MarkdownModule } from "ngx-markdown";
 import { FileSaverService } from "./dashboard/service/user/file/file-saver.service";
 import { DragDropModule } from "@angular/cdk/drag-drop";
@@ -131,6 +131,13 @@ import { ResultExportationComponent } from "./workspace/component/result-exporta
 import { ReportGenerationService } from "./workspace/service/report-generation/report-generation.service";
 import { SearchBarComponent } from "./dashboard/component/user/search-bar/search-bar.component";
 import { ListItemComponent } from "./dashboard/component/user/list-item/list-item.component";
+import { HubComponent } from "./hub/component/hub.component";
+import { HubWorkflowSearchComponent } from "./hub/component/workflow/search/hub-workflow-search.component";
+import { GoogleLoginComponent } from "./dashboard/component/user/google-login/google-login.component";
+import { HubWorkflowResultComponent } from "./hub/component/workflow/result/hub-workflow-result.component";
+import { HubWorkflowComponent } from "./hub/component/workflow/hub-workflow.component";
+import { HubWorkflowSearchBarComponent } from "./hub/component/workflow/search-bar/hub-workflow-search-bar.component";
+import { HubWorkflowDetailComponent } from "./hub/component/workflow/detail/hub-workflow-detail.component";
 
 registerLocaleData(en);
 
@@ -212,6 +219,13 @@ registerLocaleData(en);
     HighlightSearchTermsPipe,
     SearchBarComponent,
     ListItemComponent,
+    HubComponent,
+    HubWorkflowComponent,
+    HubWorkflowSearchComponent,
+    HubWorkflowSearchBarComponent,
+    HubWorkflowDetailComponent,
+    HubWorkflowResultComponent,
+    GoogleLoginComponent,
   ],
   imports: [
     BrowserModule,

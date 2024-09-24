@@ -1,0 +1,26 @@
+<texera-hub-workflow-search-bar></texera-hub-workflow-search-bar>
+
+<nz-list
+  nzBordered
+  nzHeader="Results"
+  nzFooter="Total Workflows: {{listOfWorkflows.length}}">
+  <div class="workflow-list">
+    <nz-list-item *ngFor="let workflow of listOfWorkflows">
+      <nz-card
+        class="workflow-card"
+        nzTitle="{{ workflow.name }}">
+        <p>ID: {{ workflow.wid }}</p>
+        <p>Description: {{ workflow.description }}</p>
+        <p>Created On: {{ workflow.creationTime | date }}</p>
+        <p>Modified On: {{ workflow.lastModifiedTime | date }}</p>
+        <button
+          nz-button
+          nzType="primary"
+          routerLink="/dashboard/hub/workflow/search/result/detail"
+          [queryParams]="{ wid: workflow.wid}">
+          View Details
+        </button>
+      </nz-card>
+    </nz-list-item>
+  </div>
+</nz-list>

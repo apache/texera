@@ -26,6 +26,7 @@ import edu.uci.ics.texera.web.resource._
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource
 import edu.uci.ics.texera.web.resource.dashboard.admin.execution.AdminExecutionResource
 import edu.uci.ics.texera.web.resource.dashboard.admin.user.AdminUserResource
+import edu.uci.ics.texera.web.resource.dashboard.hub.workflow.HubWorkflowResource
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.{
   DatasetAccessResource,
   DatasetResource
@@ -249,6 +250,7 @@ class TexeraWebApplication
     environment.jersey.register(classOf[PublicProjectResource])
     environment.jersey.register(classOf[WorkflowAccessResource])
     environment.jersey.register(classOf[WorkflowResource])
+    environment.jersey.register(classOf[HubWorkflowResource])
     environment.jersey.register(classOf[WorkflowVersionResource])
     environment.jersey.register(classOf[DatasetResource])
     environment.jersey.register(classOf[DatasetAccessResource])

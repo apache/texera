@@ -58,7 +58,7 @@ import { DashboardWorkflow } from "../../../type/dashboard-workflow.interface";
   styleUrls: ["user-workflow.component.scss"],
 })
 export class UserWorkflowComponent implements AfterViewInit {
-  public ROUTER_WORKFLOW_BASE_URL = "/dashboard/workspace";
+  public ROUTER_WORKFLOW_BASE_URL = "/dashboard/user/workspace";
   private _searchResultsComponent?: SearchResultsComponent;
   @ViewChild(SearchResultsComponent) get searchResultsComponent(): SearchResultsComponent {
     if (this._searchResultsComponent) {
