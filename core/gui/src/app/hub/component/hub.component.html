@@ -1,0 +1,25 @@
+<ul>
+  <li
+    *ngIf="!isLogin"
+    nz-menu-item
+    nz-tooltip="Home page"
+    nzMatchRouter="true"
+    nzTooltipPlacement="right"
+    routerLink="/dashboard/home">
+    <span
+      nz-icon
+      nzType="home"></span>
+    <span>Home</span>
+  </li>
+  <li
+    nz-menu-item
+    nz-tooltip="Search public workflows"
+    nzMatchRouter="true"
+    nzTooltipPlacement="right"
+    routerLink="/dashboard/hub/workflow/search">
+    <span
+      nz-icon
+      nzType="project"></span>
+    <span>Workflows</span>
+  </li>
+</ul>
