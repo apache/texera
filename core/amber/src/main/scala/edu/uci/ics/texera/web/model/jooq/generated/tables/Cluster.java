@@ -36,7 +36,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Cluster extends TableImpl<ClusterRecord> {
 
-    private static final long serialVersionUID = 700200179;
+    private static final long serialVersionUID = -1908244660;
 
     /**
      * The reference instance of <code>texera_db.cluster</code>
@@ -84,7 +84,7 @@ public class Cluster extends TableImpl<ClusterRecord> {
     /**
      * The column <code>texera_db.cluster.status</code>.
      */
-    public final TableField<ClusterRecord, ClusterStatus> STATUS = createField(DSL.name("status"), org.jooq.impl.SQLDataType.VARCHAR(11).asEnumDataType(edu.uci.ics.texera.web.model.jooq.generated.enums.ClusterStatus.class), this, "");
+    public final TableField<ClusterRecord, ClusterStatus> STATUS = createField(DSL.name("status"), org.jooq.impl.SQLDataType.VARCHAR(18).asEnumDataType(edu.uci.ics.texera.web.model.jooq.generated.enums.ClusterStatus.class), this, "");
 
     /**
      * Create a <code>texera_db.cluster</code> table reference

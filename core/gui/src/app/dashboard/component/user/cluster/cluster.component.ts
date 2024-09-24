@@ -45,58 +45,57 @@ export class ClusterComponent implements OnInit, OnDestroy {
     this.refreshTrigger.next();
   }
 
-  createCluster(formData: FormData) {
+  launchCluster(formData: FormData) {
     this.clusterService
-      .createCluster(formData)
+      .launchCluster(formData)
       .pipe(untilDestroyed(this))
       .subscribe(
         response => {
           console.log("Response: ", response);
           this.refreshClusters();
         },
-        (error: HttpErrorResponse) => console.error("Error creating cluster", error)
+        (error: HttpErrorResponse) => console.error("Error launching cluster", error)
       );
   }
 
-  deleteCluster(cluster: Clusters): void {
+  terminateCluster(cluster: Clusters): void {
     this.clusterService
-      .deleteCluster(cluster)
+      .terminateCluster(cluster)
       .pipe(untilDestroyed(this))
       .subscribe(
         response => {
           console.log("Response: ", response);
           this.refreshClusters();
         },
-        (error: HttpErrorResponse) => console.error("Error deleting cluster", error)
+        (error: HttpErrorResponse) => console.error("Error terminating cluster", error)
       );
   }
 
-  pauseCluster(cluster: Clusters): void {
+  stopCluster(cluster: Clusters): void {
     this.clusterService
-      .pauseCluster(cluster)
+      .stopCluster(cluster)
       .pipe(untilDestroyed(this))
       .subscribe(
         response => {
           console.log("Response: ", response);
           this.refreshClusters();
         },
-        (error: HttpErrorResponse) => console.error("Error pausing cluster", error)
+        (error: HttpErrorResponse) => console.error("Error stopping cluster", error)
       );
   }
 
-  resumeCluster(cluster: Clusters): void {
+  startCluster(cluster: Clusters): void {
     this.clusterService
-      .resumeCluster(cluster)
+      .startCluster(cluster)
       .pipe(untilDestroyed(this))
       .subscribe(
         response => {
           console.log("Response: ", response);
           this.refreshClusters();
         },
-        (error: HttpErrorResponse) => console.error("Error resuming cluster", error)
+        (error: HttpErrorResponse) => console.error("Error starting cluster", error)
       );
   }
-
   updateCluster(cluster: Clusters): void {
     this.clusterService
       .updateCluster(cluster)
@@ -112,7 +111,7 @@ export class ClusterComponent implements OnInit, OnDestroy {
     formData.append("Name", clusterForm.value.Name);
     formData.append("machineType", clusterForm.value.machineType);
     formData.append("numberOfMachines", clusterForm.value.numberOfMachines);
-    this.createCluster(formData);
+    this.launchCluster(formData);
     this.closeClusterManagementModal();
   }
 
@@ -126,22 +125,26 @@ export class ClusterComponent implements OnInit, OnDestroy {
 
   getBadgeStatus(status: string): string[] {
     switch (status) {
-      case "LAUNCHING":
-      case "RESUMING":
-        return ["loading", "green"];
-      case "PAUSING":
-        return ["loading", "orange"];
-      case "LAUNCHED":
+      case "PENDING":
+      case "STOPPING":
+      case "SHUTTING_DOWN":
+      case "LAUNCH_RECEIVED":
+      case "TERMINATE_RECEIVED":
+      case "STOP_RECEIVED":
+      case "START_RECEIVED":
+        return ["loading", "processing"];
+      case "RUNNING":
         return ["check-circle", "green"];
-      case "PAUSED":
-        return ["pause-circle", "gray"];
-      case "TERMINATING":
-        return ["loading", "red"];
+      case "STOPPED":
       case "TERMINATED":
-      case "FAILED":
-        return ["minus-circle", "red"];
+        return ["pause-circle", "grey"];
+      case "LAUNCH_FAILED":
+      case "TERMINATE_FAILED":
+      case "STOP_FAILED":
+      case "START_FAILED":
+        return ["close-circle", "red"];
       default:
-        return ["exclamation-circle", "gray"];
+        return ["question-circle", "grey"];
     }
   }
   getMachineTypeInfo(machineType: string): string {
@@ -166,5 +169,22 @@ export class ClusterComponent implements OnInit, OnDestroy {
   onPageSizeChange(size: number): void {
     this.pageSize = size;
     this.pageIndex = 1;
+  }
+
+  isActionDisabled(status: string): boolean {
+    const disabledStatuses = [
+      "SHUTTING_DOWN",
+      "STOPPING",
+      "PENDING",
+      "LAUNCH_RECEIVED",
+      "TERMINATE_RECEIVED",
+      "STOP_RECEIVED",
+      "START_RECEIVED",
+      "LAUNCH_FAILED",
+      "TERMINATE_FAILED",
+      "STOP_FAILED",
+      "START_FAILED",
+    ];
+    return disabledStatuses.includes(status);
   }
 }

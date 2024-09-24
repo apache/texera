@@ -70,8 +70,8 @@
                 nz-button
                 nzType="default"
                 nzDanger
-                (click)="deleteCluster(data)"
-                [disabled]="['TERMINATED'].includes(data.status)">
+                (click)="terminateCluster(data)"
+                [disabled]="isActionDisabled(data.status)">
                 <span
                   nz-icon
                   nzType="delete"
@@ -80,8 +80,8 @@
               <button
                 nz-button
                 nzType="default"
-                (click)="pauseCluster(data)"
-                [disabled]="['TERMINATED', 'PAUSED'].includes(data.status)">
+                (click)="stopCluster(data)"
+                [disabled]="isActionDisabled(data.status) || data.status === 'STOPPED'">
                 <span
                   nz-icon
                   nzType="pause"
@@ -90,8 +90,8 @@
               <button
                 nz-button
                 nzType="default"
-                (click)="resumeCluster(data)"
-                [disabled]="!['PAUSED', 'TERMINATED'].includes(data.status)">
+                (click)="startCluster(data)"
+                [disabled]="data.status !== 'STOPPED'">
                 <span
                   nz-icon
                   nzType="caret-right"

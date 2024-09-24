@@ -15,21 +15,33 @@ import org.jooq.Schema;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public enum ClusterStatus implements EnumType {
 
-    LAUNCHING("LAUNCHING"),
+    LAUNCH_RECEIVED("LAUNCH_RECEIVED"),
 
-    LAUNCHED("LAUNCHED"),
+    PENDING("PENDING"),
 
-    PAUSING("PAUSING"),
+    RUNNING("RUNNING"),
 
-    PAUSED("PAUSED"),
+    TERMINATE_RECEIVED("TERMINATE_RECEIVED"),
 
-    RESUMING("RESUMING"),
-
-    TERMINATING("TERMINATING"),
+    SHUTTING_DOWN("SHUTTING_DOWN"),
 
     TERMINATED("TERMINATED"),
 
-    FAILED("FAILED");
+    STOP_RECEIVED("STOP_RECEIVED"),
+
+    STOPPING("STOPPING"),
+
+    STOPPED("STOPPED"),
+
+    START_RECEIVED("START_RECEIVED"),
+
+    LAUNCH_FAILED("LAUNCH_FAILED"),
+
+    TERMINATE_FAILED("TERMINATE_FAILED"),
+
+    STOP_FAILED("STOP_FAILED"),
+
+    START_FAILED("START_FAILED");
 
     private final String literal;
 

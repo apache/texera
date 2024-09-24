@@ -39,12 +39,12 @@ class ClusterCallbackResource {
   def handleClusterCreatedCallback(callbackPayload: CallbackPayload): Response = {
     val clusterId = callbackPayload.clusterId
     val success = callbackPayload.success
-    // Update the cluster status to LAUNCHED in the database
+
     val cluster = clusterDao.fetchOneByCid(clusterId)
-    if (success && cluster != null && cluster.getStatus == ClusterStatus.LAUNCHING) {
-      updateClusterStatus(clusterId, ClusterStatus.LAUNCHED, context)
+    if (success && cluster != null && cluster.getStatus == ClusterStatus.PENDING) {
+      updateClusterStatus(clusterId, ClusterStatus.RUNNING, context)
       insertClusterActivity(cluster.getCid, cluster.getCreationTime)
-      Response.ok("Cluster status updated to LAUNCHED").build()
+      Response.ok("Cluster status updated to RUNNING").build()
     } else {
       Response
         .status(Response.Status.NOT_FOUND)
@@ -61,7 +61,7 @@ class ClusterCallbackResource {
     val success = callbackPayload.success
 
     val cluster = clusterDao.fetchOneByCid(clusterId)
-    if (success && cluster != null && cluster.getStatus == ClusterStatus.TERMINATING) {
+    if (success && cluster != null && cluster.getStatus == ClusterStatus.SHUTTING_DOWN) {
       updateClusterStatus(clusterId, ClusterStatus.TERMINATED, context)
       updateClusterActivityEndTime(clusterId, context)
       Response
@@ -83,11 +83,11 @@ class ClusterCallbackResource {
     val success = callbackPayload.success
 
     val cluster = clusterDao.fetchOneByCid(clusterId)
-    if (success && cluster != null && cluster.getStatus == ClusterStatus.PAUSING) {
-      updateClusterStatus(clusterId, ClusterStatus.PAUSED, context)
+    if (success && cluster != null && cluster.getStatus == ClusterStatus.STOPPING) {
+      updateClusterStatus(clusterId, ClusterStatus.STOPPED, context)
       updateClusterActivityEndTime(clusterId, context)
       Response
-        .ok(s"Cluster with ID $clusterId marked as PAUSED and activity end time updated")
+        .ok(s"Cluster with ID $clusterId marked as STOPPED and activity end time updated")
         .build()
     } else {
       Response
@@ -105,10 +105,10 @@ class ClusterCallbackResource {
     val success = callbackPayload.success
     // Update the cluster status to LAUNCHED in the database
     val cluster = clusterDao.fetchOneByCid(clusterId)
-    if (success && cluster != null && cluster.getStatus == ClusterStatus.RESUMING) {
-      updateClusterStatus(clusterId, ClusterStatus.LAUNCHED, context)
+    if (success && cluster != null && cluster.getStatus == ClusterStatus.PENDING) {
+      updateClusterStatus(clusterId, ClusterStatus.RUNNING, context)
       insertClusterActivity(cluster.getCid, cluster.getCreationTime)
-      Response.ok("Cluster status updated to LAUNCHED").build()
+      Response.ok("Cluster status updated to RUNNING").build()
     } else {
       Response
         .status(Response.Status.NOT_FOUND)
