@@ -343,11 +343,12 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       columnDef: col.columnKey,
       header: col.columnText,
       getCell: (row: IndexableObject) => {
-        if (row[col.columnKey] !== null && row[col.columnKey] !== undefined) {
+        if (row[col.columnKey] === null) {
+          return "NULL"; // Explicitly show NULL for null values
+        } else if (row[col.columnKey] !== undefined) {
           return this.trimTableCell(row[col.columnKey].toString());
         } else {
-          // allowing null value from backend
-          return "";
+          return ""; // Keep empty string for undefined values
         }
       },
     }));

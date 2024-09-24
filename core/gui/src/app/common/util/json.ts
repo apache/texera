@@ -35,6 +35,9 @@ export function formatBinaryData(value: string): string {
 }
 
 export function trimAndFormatData(value: any, maxLen: number): string {
+  if (value === null) {
+    return "NULL";
+  }
   if (typeof value === "string") {
     if (isBase64(value) || isBinary(value)) {
       return formatBinaryData(value);
