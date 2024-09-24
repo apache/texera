@@ -17,7 +17,7 @@ export class AdminGuardService implements CanActivate {
     if (this.userService.isAdmin()) {
       return true;
     } else {
-      this.router.navigate(["/dashboard/workflow"]);
+      this.router.navigate(["/dashboard/user/workflow"]);
       return false;
     }
   }

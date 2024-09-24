@@ -19,7 +19,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   PhysicalOpIdentity
 }
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
-import edu.uci.ics.texera.workflow.common.EndOfUpstream
+import edu.uci.ics.texera.workflow.common.EndOfInputChannel
 import edu.uci.ics.texera.workflow.common.WorkflowContext.DEFAULT_WORKFLOW_ID
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
@@ -81,6 +81,13 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     (
         (
           input: Int
+        ) => executor.produceStateOnFinish(input)
+    )
+      .expects(0)
+      .returning(None)
+    (
+        (
+          input: Int
         ) => executor.onFinishMultiPort(input)
     )
       .expects(
@@ -108,7 +115,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     }
     dp.processDataPayload(
       ChannelIdentity(senderWorkerId, testWorkerId, isControl = false),
-      MarkerFrame(EndOfUpstream())
+      MarkerFrame(EndOfInputChannel())
     )
     while (dp.inputManager.hasUnfinishedInput || dp.outputManager.hasUnfinishedOutput) {
       dp.continueDataProcessing()
@@ -130,6 +137,13 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
       )
         .expects(x, 0)
     }
+    (
+        (
+          input: Int
+        ) => executor.produceStateOnFinish(input)
+    )
+      .expects(0)
+      .returning(None)
     (
         (
           input: Int
@@ -162,7 +176,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     (executor.close _).expects().once()
     dp.processDataPayload(
       ChannelIdentity(senderWorkerId, testWorkerId, isControl = false),
-      MarkerFrame(EndOfUpstream())
+      MarkerFrame(EndOfInputChannel())
     )
     while (dp.inputManager.hasUnfinishedInput || dp.outputManager.hasUnfinishedOutput) {
       dp.continueDataProcessing()
