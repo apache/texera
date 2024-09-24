@@ -11,7 +11,7 @@ import { RowModalComponent } from "../result-panel-modal.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 import { style } from "@angular/animations";
-import { isBase64, isBinary } from "src/app/common/util/json";
+import { isBase64, isBinary, trimAndFormatData } from "src/app/common/util/json";
 import { ResultExportationComponent } from "../../result-exportation/result-exportation.component";
 
 export const TABLE_COLUMN_TEXT_LIMIT = 100;
@@ -343,21 +343,19 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       columnDef: col.columnKey,
       header: col.columnText,
       getCell: (row: IndexableObject) => {
-        if (row[col.columnKey] !== null && row[col.columnKey] !== undefined) {
+        if (row[col.columnKey] === null) {
+          return "NULL"; // Explicitly show NULL for null values
+        } else if (row[col.columnKey] !== undefined) {
           return this.trimTableCell(row[col.columnKey].toString());
         } else {
-          // allowing null value from backend
-          return "";
+          return ""; // Keep empty string for undefined values
         }
       },
     }));
   }
 
-  trimTableCell(cellContent: string): string {
-    if (cellContent.length > TABLE_COLUMN_TEXT_LIMIT) {
-      return cellContent.substring(0, TABLE_COLUMN_TEXT_LIMIT) + "...";
-    }
-    return cellContent;
+  trimTableCell(cellContent: any): string {
+    return trimAndFormatData(cellContent, TABLE_COLUMN_TEXT_LIMIT);
   }
 
   isBinaryData(cellContent: any): boolean {
