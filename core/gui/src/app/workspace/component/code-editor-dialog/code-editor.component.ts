@@ -62,8 +62,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   // For "Add All Type Annotation" to show the UI individually
   private userResponseSubject?: Subject<void>;
   private isMultipleVariables: boolean = false;
-  private componentDestroy = new Subject<void>;
-
+  private componentDestroy = new Subject<void>();
 
   private generateLanguageTitle(language: string): string {
     return `${language.charAt(0).toUpperCase()}${language.slice(1)} UDF`;
@@ -329,7 +328,6 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
       this.connectLanguageServer();
     }
   }
-
 
   private handleTypeAnnotation(
     code: string,
