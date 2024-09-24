@@ -46,7 +46,8 @@ class HubWorkflowResource {
         USER.GOOGLE_AVATAR
       )
       .from(WORKFLOW_OF_USER)
-      .join(USER).on(WORKFLOW_OF_USER.UID.eq(USER.UID))
+      .join(USER)
+      .on(WORKFLOW_OF_USER.UID.eq(USER.UID))
       .where(WORKFLOW_OF_USER.WID.eq(wid))
       .fetchOneInto(classOf[User])
   }
