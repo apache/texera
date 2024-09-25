@@ -7,10 +7,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{User, Workflow}
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.{
-  WorkflowWithPrivilege,
-  context
-}
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.WorkflowWithPrivilege
 
 import java.util
 import javax.ws.rs._
