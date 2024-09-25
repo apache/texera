@@ -15,7 +15,6 @@ import { DashboardEntry, UserInfo } from "../../../../dashboard/type/dashboard-e
   templateUrl: "hub-workflow-search.component.html",
   styleUrls: ["hub-workflow-search.component.scss"],
 })
-
 export class HubWorkflowSearchComponent implements AfterViewInit {
   currentUid = this.userService.getCurrentUser()?.uid;
   private isLogin = false;
