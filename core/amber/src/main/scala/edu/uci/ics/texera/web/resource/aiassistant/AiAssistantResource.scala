@@ -111,19 +111,34 @@ class AIAssistantResource {
   @Path("/annotate-argument")
   @Consumes(Array(MediaType.APPLICATION_JSON))
   def locateUnannotated(request: LocateUnannotatedRequest, @Auth user: SessionUser): Response = {
+    // Encoding the code to transmit multi-line code as a single command-line argument
     val encodedCode = Base64.getEncoder.encodeToString(request.selectedCode.getBytes("UTF-8"))
     val pythonScriptPath =
-      Paths.get("src", "main", "scala", "edu", "uci", "ics", "texera", "web", "resource", "aiassistant", "type_annotation_visitor.py").toString
+      Paths
+        .get(
+          "src",
+          "main",
+          "scala",
+          "edu",
+          "uci",
+          "ics",
+          "texera",
+          "web",
+          "resource",
+          "aiassistant",
+          "type_annotation_visitor.py"
+        )
+        .toString
 
     try {
       val command = s"""python $pythonScriptPath "$encodedCode" ${request.startLine}"""
       val result = command.!!
-    val parsedResult = objectMapper.readValue(result, classOf[List[List[Any]]]).map {
-    case List(name: String, startLine: Int, startColumn: Int, endLine: Int, endColumn: Int) =>
-      UnannotatedArgument(name, startLine, startColumn, endLine, endColumn)
-    case _ =>
-      throw new RuntimeException("Unexpected format in Python script result")
-    }
+      val parsedResult = objectMapper.readValue(result, classOf[List[List[Any]]]).map {
+        case List(name: String, startLine: Int, startColumn: Int, endLine: Int, endColumn: Int) =>
+          UnannotatedArgument(name, startLine, startColumn, endLine, endColumn)
+        case _ =>
+          throw new RuntimeException("Unexpected format in Python script result")
+      }
       Response.ok(Json.obj("result" -> Json.toJson(parsedResult))).build()
     } catch {
       case e: Exception =>
