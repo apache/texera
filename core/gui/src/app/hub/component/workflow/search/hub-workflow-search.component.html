@@ -1,12 +1,12 @@
-<div class="public_workflow_container">
-  <div class="filter-section">
+<div class="search-container">
+  <div class="search-section">
     <div class="filter">
       <texera-sort-button (sortMethodChange)="sortMethod = $event; search()"></texera-sort-button>
       <texera-filters #filters></texera-filters>
     </div>
   </div>
 
-  <div class="hub-workflow-search-result">
+  <div class="search-result">
     <texera-search-results
       [showResourceTypes]="true"
       [searchKeywords]="this.filters.getSearchKeywords()"

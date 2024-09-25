@@ -3,6 +3,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { MAIN_CANVAS } from "../workflow-editor.component";
 import * as joint from "jointjs";
+import { JointGraphWrapper } from "../../../service/workflow-graph/model/joint-graph-wrapper";
 
 @UntilDestroy()
 @Component({
@@ -67,5 +68,40 @@ export class MiniMapComponent implements AfterViewInit, OnDestroy {
       navigator.style.width = (editor.offsetWidth / this.paper.scale().sx) * this.scale + "px";
       navigator.style.height = (editor.offsetHeight / this.paper.scale().sy) * this.scale + "px";
     }
+  }
+
+  public onClickZoomOut(): void {
+    // if zoom is already at minimum, don't zoom out again.
+    if (this.workflowActionService.getJointGraphWrapper().isZoomRatioMin()) {
+      return;
+    }
+
+    // make the ratio small.
+    this.workflowActionService
+      .getJointGraphWrapper()
+      .setZoomProperty(
+        this.workflowActionService.getJointGraphWrapper().getZoomRatio() - JointGraphWrapper.ZOOM_CLICK_DIFF
+      );
+  }
+
+  /**
+   * This method will increase the zoom ratio and send the new zoom ratio value
+   *  to the joint graph wrapper to change overall zoom ratio that is used in
+   *  zoom buttons and mouse wheel zoom.
+   *
+   * If the zoom ratio already reaches maximum, this method will not do anything.
+   */
+  public onClickZoomIn(): void {
+    // if zoom is already reach maximum, don't zoom in again.
+    if (this.workflowActionService.getJointGraphWrapper().isZoomRatioMax()) {
+      return;
+    }
+
+    // make the ratio big.
+    this.workflowActionService
+      .getJointGraphWrapper()
+      .setZoomProperty(
+        this.workflowActionService.getJointGraphWrapper().getZoomRatio() + JointGraphWrapper.ZOOM_CLICK_DIFF
+      );
   }
 }
