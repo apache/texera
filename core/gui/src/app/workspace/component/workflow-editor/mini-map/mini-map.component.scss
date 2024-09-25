@@ -1,7 +1,21 @@
 #minimap-button {
-  position: fixed;
+  position: absolute;
   bottom: 0;
   right: 0;
+  z-index: 4;
+}
+
+#minimap-zoom-out-button {
+  position: absolute;
+  bottom: 0;
+  right: 30px;
+  z-index: 4;
+}
+
+#minimap-zoom-in-button {
+  position: absolute;
+  bottom: 0;
+  right: 60px;
   z-index: 4;
 }
 
