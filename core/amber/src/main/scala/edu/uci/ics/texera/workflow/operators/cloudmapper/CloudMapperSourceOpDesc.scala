@@ -153,26 +153,29 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
        |        # Request to download files after the job is completed
        |        download_response = requests.get(f'${AmberConfig.clusterLauncherServiceTarget}/api/job/download/{job_id}',
        |                                         params={'cid': str(${clusterId})})
-       |     
+       |
        |        if download_response.status_code == 200:
        |            # Parse the JSON response
-       |            file_contents = json.loads(download_response.content)
+       |            all_file_contents = json.loads(download_response.content)
        |
-       |            # Decode base64 content directly to bytes
-       |            features_content = base64.b64decode(file_contents['features.tsv'])
-       |            barcodes_content = base64.b64decode(file_contents['barcodes.tsv'])
-       |            matrix_content = base64.b64decode(file_contents['matrix.mtx'])
+       |            for subdirectory, file_contents in all_file_contents.items():
+       |                # Decode base64 content directly to bytes
+       |                features_content = base64.b64decode(file_contents['features.tsv'])
+       |                barcodes_content = base64.b64decode(file_contents['barcodes.tsv'])
+       |                matrix_content = base64.b64decode(file_contents['matrix.mtx'])
        |
-       |            # Yield the raw byte content
-       |            yield {
-       |                'features_content': features_content,
-       |                'barcodes_content': barcodes_content,
-       |                'matrix_content': matrix_content
-       |            }
+       |                # Yield the raw byte content for each subdirectory
+       |                yield {
+       |                    'subdirectory': subdirectory,
+       |                    'features_content': features_content,
+       |                    'barcodes_content': barcodes_content,
+       |                    'matrix_content': matrix_content
+       |                }
        |        else:
        |            print(f"Failed to get the files. Status Code: {download_response.status_code}")
        |            print(f"Response Text: {download_response.text}")
        |            yield {
+       |                'subdirectory': None,
        |                'features_content': None,
        |                'barcodes_content': None,
        |                'matrix_content': None
@@ -192,6 +195,7 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
     Schema
       .builder()
       .add(
+        new Attribute("subdirectory", AttributeType.STRING),
         new Attribute("features_content", AttributeType.BINARY),
         new Attribute("barcodes_content", AttributeType.BINARY),
         new Attribute("matrix_content", AttributeType.BINARY)
