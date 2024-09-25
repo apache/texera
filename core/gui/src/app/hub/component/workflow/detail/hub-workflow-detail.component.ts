@@ -132,7 +132,7 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy {
   loadWorkflowWithId(wid: number): void {
     // disable the workspace until the workflow is fetched from the backend
     this.workflowActionService.disableWorkflowModification();
-    this.workflowPersistService
+    this.hubWorkflowService
       .retrievePublicWorkflow(wid)
       .pipe(untilDestroyed(this))
       .subscribe(

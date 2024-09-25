@@ -97,13 +97,6 @@ export class WorkflowPersistService {
     );
   }
 
-  public retrievePublicWorkflow(wid: number): Observable<Workflow> {
-    return this.http.get<Workflow>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_PUBLIC_URL}/${wid}`).pipe(
-      filter((workflow: Workflow) => workflow != null),
-      map(WorkflowUtilService.parseWorkflowInfo)
-    );
-  }
-
   private makeRequestAndFormatWorkflowResponse(url: string): Observable<DashboardWorkflow[]> {
     return this.http.get<DashboardWorkflow[]>(url).pipe(
       map((dashboardWorkflowEntries: DashboardWorkflow[]) =>
