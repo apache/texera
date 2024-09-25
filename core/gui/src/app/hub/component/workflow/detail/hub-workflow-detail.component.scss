@@ -44,3 +44,15 @@ h1 {
 .workflow-step p {
   margin: 5px 0;
 }
+
+.preview-containers {
+  position: relative;
+  height: 500px;
+}
+
+texera-mini-map {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  //z-index: 3;
+}

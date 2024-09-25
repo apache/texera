@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables._
-import edu.uci.ics.texera.web.model.jooq.generated.enums.WorkflowUserAccessPrivilege
+import edu.uci.ics.texera.web.model.jooq.generated.enums.{WorkflowUserAccessPrivilege, UserRole}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   WorkflowDao,
   WorkflowOfProjectDao,
@@ -21,7 +21,7 @@ import org.jooq.types.UInteger
 
 import java.sql.Timestamp
 import java.util
-import javax.annotation.security.RolesAllowed
+import javax.annotation.security.{RolesAllowed, PermitAll}
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import scala.collection.mutable.ListBuffer
@@ -253,6 +253,7 @@ class WorkflowResource extends LazyLogging {
     */
   @GET
   @Path("/{wid}")
+  @PermitAll
   def retrieveWorkflow(
       @PathParam("wid") wid: UInteger,
       @Auth user: SessionUser
@@ -270,6 +271,33 @@ class WorkflowResource extends LazyLogging {
         !WorkflowAccessResource.hasWriteAccess(wid, user.getUid)
       )
     } else {
+      throw new ForbiddenException("No sufficient access privilege.")
+    }
+  }
+
+  @GET
+  @Path("/public/{wid}")
+  def retrievePublicWorkflow(
+                              @PathParam("wid") wid: UInteger
+                            ): WorkflowWithPrivilege = {
+    val dummyUser = new User()
+    dummyUser.setRole(UserRole.REGULAR)
+    Console.println(WorkflowAccessResource.hasReadAccess(wid, new SessionUser(dummyUser).getUid))
+    if (WorkflowAccessResource.hasReadAccess(wid, new SessionUser(dummyUser).getUid)) {
+      Console.println("has read access")
+      val workflow = workflowDao.fetchOneByWid(wid)
+      WorkflowWithPrivilege(
+        workflow.getName,
+        workflow.getDescription,
+        workflow.getWid,
+        workflow.getContent,
+        workflow.getCreationTime,
+        workflow.getLastModifiedTime,
+        workflow.getIsPublished,
+        true
+      )
+    } else {
+      Console.println("no read access")
       throw new ForbiddenException("No sufficient access privilege.")
     }
   }

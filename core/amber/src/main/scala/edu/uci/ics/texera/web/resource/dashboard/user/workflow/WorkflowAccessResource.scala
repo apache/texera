@@ -7,7 +7,8 @@ import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
   PROJECT_USER_ACCESS,
   USER,
   WORKFLOW_OF_PROJECT,
-  WORKFLOW_USER_ACCESS
+  WORKFLOW_USER_ACCESS,
+  WORKFLOW
 }
 import edu.uci.ics.texera.web.model.jooq.generated.enums.WorkflowUserAccessPrivilege
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
@@ -36,7 +37,7 @@ object WorkflowAccessResource {
     * @return boolean value indicating yes/no
     */
   def hasReadAccess(wid: UInteger, uid: UInteger): Boolean = {
-    getPrivilege(wid, uid).eq(WorkflowUserAccessPrivilege.READ) || hasWriteAccess(wid, uid)
+    isPublic(wid) || getPrivilege(wid, uid).eq(WorkflowUserAccessPrivilege.READ) || hasWriteAccess(wid, uid)
   }
 
   /**
@@ -76,6 +77,14 @@ object WorkflowAccessResource {
     } else {
       access.getPrivilege
     }
+  }
+
+  def isPublic(wid: UInteger): Boolean = {
+    context
+      .select(WORKFLOW.IS_PUBLISHED)
+      .from(WORKFLOW)
+      .where(WORKFLOW.WID.eq(wid))
+      .fetchOneInto(classOf[Boolean])
   }
 }
 
