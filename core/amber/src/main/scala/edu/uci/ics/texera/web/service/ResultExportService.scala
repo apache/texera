@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.web.service
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
+import java.nio.charset.StandardCharsets
 import java.util
 import java.util.concurrent.{Executors, ThreadPoolExecutor}
 import com.github.tototoshi.csv.CSVWriter
@@ -74,8 +75,8 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
         handleGoogleSheetRequest(cache, request, results, attributeNames)
       case "csv" =>
         handleCSVRequest(user, request, results, attributeNames)
-      case "binary" =>
-        handleBinaryRequest(user, request, results)
+      case "data" =>
+        handleDataRequest(user, request, results)
       case _ =>
         ResultExportResponse("error", s"Unknown export type: ${request.exportType}")
     }
@@ -176,7 +177,7 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
     targetSheet.getSpreadsheetId
   }
 
-  private def handleBinaryRequest(
+  private def handleDataRequest(
       user: User,
       request: ResultExportRequest,
       results: Iterable[Tuple]
@@ -191,47 +192,32 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
     }
 
     val selectedRow = results.toSeq(rowIndex)
-
     val field: Any = selectedRow.getField(columnIndex)
 
-    // Ensure the field is of type byte[]
-    val binaryData: Array[Byte] = field match {
+    // Convert the field to a byte array, regardless of its type
+    val dataBytes: Array[Byte] = field match {
       case data: Array[Byte] => data
-      case data: AnyRef
-          if data.getClass.isArray && data.getClass.getComponentType == classOf[Byte] =>
-        data.asInstanceOf[Array[Byte]]
-      case _ =>
-        return ResultExportResponse(
-          "error",
-          s"Expected binary data (Array[Byte]), but got: ${field.getClass}"
-        )
+      case data: String      => data.getBytes(StandardCharsets.UTF_8)
+      case data              => data.toString.getBytes(StandardCharsets.UTF_8)
     }
 
-    // Save the binary file (similar to how files are saved in the CSV handler)
-    binaryData match {
-      case data: Array[Byte] =>
-        val byteArray = data
-        val fileStream = new ByteArrayInputStream(byteArray)
+    // Save the data file
+    val fileStream = new ByteArrayInputStream(dataBytes)
 
-        // Save the binary file
-        request.datasetIds.foreach { did =>
-          val datasetPath = PathUtils.getDatasetPath(UInteger.valueOf(did))
-          val filePath = datasetPath.resolve(filename)
-          createNewDatasetVersionByAddingFiles(
-            UInteger.valueOf(did),
-            user,
-            Map(filePath -> fileStream)
-          )
-        }
-
-        ResultExportResponse(
-          "success",
-          s"Binary file $filename saved to Datasets ${request.datasetIds.mkString(",")}"
-        )
-
-      case _ =>
-        ResultExportResponse("error", s"Selected field is not binary data")
+    request.datasetIds.foreach { did =>
+      val datasetPath = PathUtils.getDatasetPath(UInteger.valueOf(did))
+      val filePath = datasetPath.resolve(filename)
+      createNewDatasetVersionByAddingFiles(
+        UInteger.valueOf(did),
+        user,
+        Map(filePath -> fileStream)
+      )
     }
+
+    ResultExportResponse(
+      "success",
+      s"Data file $filename saved to Datasets ${request.datasetIds.mkString(",")}"
+    )
   }
 
   /**

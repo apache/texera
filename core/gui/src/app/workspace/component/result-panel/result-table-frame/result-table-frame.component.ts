@@ -358,21 +358,14 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     return trimAndFormatData(cellContent, TABLE_COLUMN_TEXT_LIMIT);
   }
 
-  isBinaryData(cellContent: any): boolean {
-    if (typeof cellContent === "string") {
-      return isBase64(cellContent) || isBinary(cellContent);
-    }
-    return false;
-  }
-
-  downloadBinaryData(binaryData: any, rowIndex: number, columnIndex: number, columnName: string): void {
+  downloadData(data: any, rowIndex: number, columnIndex: number, columnName: string): void {
     const realRowNumber = (this.currentPageIndex - 1) * this.pageSize + rowIndex;
     const defaultFileName = `${columnName}_${realRowNumber}`;
     const modal = this.modalService.create({
-      nzTitle: "Export Binary Data and Save to a Dataset",
+      nzTitle: "Export Data and Save to a Dataset",
       nzContent: ResultExportationComponent,
       nzData: {
-        exportType: "binary",
+        exportType: "data",
         workflowName: this.workflowActionService.getWorkflowMetadata.name,
         defaultFileName: defaultFileName,
         rowIndex: realRowNumber,
