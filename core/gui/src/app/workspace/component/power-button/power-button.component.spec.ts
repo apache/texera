@@ -9,9 +9,9 @@ describe("PowerButtonComponent", () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [
-        PowerButtonComponent,  // Import standalone component
-        HttpClientModule       // Import HttpClientModule for dynamic icon loading
-      ]
+        PowerButtonComponent, // Import standalone component
+        HttpClientModule, // Import HttpClientModule for dynamic icon loading
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(PowerButtonComponent);
