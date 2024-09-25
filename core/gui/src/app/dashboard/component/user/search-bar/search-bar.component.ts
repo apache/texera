@@ -1,4 +1,4 @@
-import { Component} from "@angular/core";
+import { Component } from "@angular/core";
 import { Router } from "@angular/router";
 import { SearchService } from "../../../service/user/search.service";
 import { SearchFilterParameters } from "../../../type/search-filter-parameters";
@@ -103,7 +103,7 @@ export class SearchBarComponent {
   }
 
   performSearch(keyword: string) {
-    this.router.navigate(["/dashboard/user/search"], { queryParams: { q: keyword } });
+    this.router.navigate(["/dashboard/search"], { queryParams: { q: keyword } });
   }
 
   convertToName(resultItem: SearchResultItem): string {

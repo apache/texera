@@ -58,55 +58,43 @@ if (environment.userSystemEnabled) {
       },
       {
         path: "user",
+        canActivate: [AuthGuardService],
         children: [
           {
             path: "project",
             component: UserProjectComponent,
-            canActivate: [AuthGuardService],
           },
           {
             path: "project/:pid",
             component: UserProjectSectionComponent,
-            canActivate: [AuthGuardService],
           },
           {
             path: "workspace/:id",
             component: WorkspaceComponent,
-            canActivate: [AuthGuardService],
           },
           {
             path: "workflow",
             component: UserWorkflowComponent,
-            canActivate: [AuthGuardService],
           },
           {
             path: "dataset",
             component: UserDatasetComponent,
-            canActivate: [AuthGuardService],
           },
           {
             path: "dataset/:did",
             component: UserDatasetExplorerComponent,
-            canActivate: [AuthGuardService],
           },
           {
             path: "dataset/create",
             component: UserDatasetExplorerComponent,
-            canActivate: [AuthGuardService],
           },
           {
             path: "quota",
             component: UserQuotaComponent,
-            canActivate: [AuthGuardService],
-          },
-          {
-            path: "search",
-            component: SearchComponent,
           },
           {
             path: "discussion",
             component: FlarumComponent,
-            canActivate: [AuthGuardService],
           },
         ],
       },
@@ -127,6 +115,10 @@ if (environment.userSystemEnabled) {
             component: AdminExecutionComponent,
           },
         ],
+      },
+      {
+        path: "search",
+        component: SearchComponent,
       },
     ],
   });
