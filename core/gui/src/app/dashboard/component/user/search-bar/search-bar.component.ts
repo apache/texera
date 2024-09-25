@@ -1,4 +1,4 @@
-import { Component, Input } from "@angular/core";
+import { Component } from "@angular/core";
 import { Router } from "@angular/router";
 import { SearchService } from "../../../service/user/search.service";
 import { SearchFilterParameters } from "../../../type/search-filter-parameters";
