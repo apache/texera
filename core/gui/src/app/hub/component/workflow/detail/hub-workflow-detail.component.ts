@@ -1,32 +1,22 @@
 import { AfterViewInit, Component, OnInit, HostListener, OnDestroy, ViewChild, ViewContainerRef } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { ActivatedRoute, Router } from "@angular/router";
-import { Version } from "../../../../../environments/version";
 import { environment } from "../../../../../environments/environment";
 import { UserService } from "../../../../common/service/user/user.service";
-import { SchemaPropagationService } from "../../../../workspace/service/dynamic-schema/schema-propagation/schema-propagation.service";
-import { OperatorReuseCacheStatusService } from "../../../../workspace/service/workflow-status/operator-reuse-cache-status.service";
-import { WorkflowConsoleService } from "../../../../workspace/service/workflow-console/workflow-console.service";
 import { UndoRedoService } from "../../../../workspace/service/undo-redo/undo-redo.service";
-import { WorkflowCacheService } from "../../../../workspace/service/workflow-cache/workflow-cache.service";
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { WorkflowWebsocketService } from "../../../../workspace/service/workflow-websocket/workflow-websocket.service";
 import { WorkflowActionService } from "../../../../workspace/service/workflow-graph/model/workflow-action.service";
-import { Location } from "@angular/common";
 import { OperatorMetadataService } from "../../../../workspace/service/operator-metadata/operator-metadata.service";
 import { NzMessageService } from "ng-zorro-antd/message";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { CodeEditorService } from "../../../../workspace/service/code-editor/code-editor.service";
-import { debounceTime, distinctUntilChanged, filter, switchMap } from "rxjs/operators";
+import { distinctUntilChanged, filter, switchMap } from "rxjs/operators";
 import { Workflow } from "../../../../common/type/workflow";
 import { of } from "rxjs";
 import { isDefined } from "../../../../common/util/predicate";
 import { HubWorkflowService } from "../../../service/workflow/hub-workflow.service";
 import { User } from "src/app/common/type/user";
-import { NzModalService } from "ng-zorro-antd/modal";
-import { LocalLoginComponent } from "../../home/local-login/local-login.component";
-
-export const SAVE_DEBOUNCE_TIME_IN_MS = 5000;
 
 @UntilDestroy()
 @Component({
@@ -36,11 +26,8 @@ export const SAVE_DEBOUNCE_TIME_IN_MS = 5000;
 })
 export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy {
   wid: number;
-  clonedWorklowId: number | undefined;
   workflowName: string = "";
   ownerUser!: User;
-  private currentUser?: User;
-  public clonePrompt: String = "";
   workflow = {
     steps: [
       {
@@ -67,8 +54,6 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy {
   };
 
   public pid?: number = undefined;
-  public gitCommitHash: string = Version.raw;
-  public showResultPanel: boolean = false;
   userSystemEnabled = environment.userSystemEnabled;
   @ViewChild("codeEditor", { read: ViewContainerRef }) codeEditorViewRef!: ViewContainerRef;
   constructor(
