@@ -89,7 +89,7 @@ class InputManager:
     ) -> Iterator[Union[Tuple, InternalMarker]]:
         # special case used to yield for source op
         if from_ == InputManager.SOURCE_STARTER:
-            yield EndOfInputChannel()
+            yield EndOfInputPort()
             yield EndOfOutputPorts()
             return
 
