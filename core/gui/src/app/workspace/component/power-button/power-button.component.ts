@@ -58,7 +58,7 @@ export class PowerButtonComponent {
   getIconType(): string {
     switch (this.state) {
       case PowerState.Off:
-        return "poweroff";
+        return "step-forward";
       case PowerState.Initializing:
         return "loading";
       case PowerState.Running:
