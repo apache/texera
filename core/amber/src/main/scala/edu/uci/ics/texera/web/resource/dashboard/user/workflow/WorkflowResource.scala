@@ -281,8 +281,8 @@ class WorkflowResource extends LazyLogging {
   @GET
   @Path("/public/{wid}")
   def retrievePublicWorkflow(
-                              @PathParam("wid") wid: UInteger
-                            ): WorkflowWithPrivilege = {
+      @PathParam("wid") wid: UInteger
+  ): WorkflowWithPrivilege = {
     val dummyUser = new User()
     dummyUser.setRole(UserRole.REGULAR)
     Console.println(WorkflowAccessResource.hasReadAccess(wid, new SessionUser(dummyUser).getUid))

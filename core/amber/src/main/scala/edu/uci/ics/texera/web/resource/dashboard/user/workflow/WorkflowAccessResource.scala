@@ -37,7 +37,10 @@ object WorkflowAccessResource {
     * @return boolean value indicating yes/no
     */
   def hasReadAccess(wid: UInteger, uid: UInteger): Boolean = {
-    isPublic(wid) || getPrivilege(wid, uid).eq(WorkflowUserAccessPrivilege.READ) || hasWriteAccess(wid, uid)
+    isPublic(wid) || getPrivilege(wid, uid).eq(WorkflowUserAccessPrivilege.READ) || hasWriteAccess(
+      wid,
+      uid
+    )
   }
 
   /**
