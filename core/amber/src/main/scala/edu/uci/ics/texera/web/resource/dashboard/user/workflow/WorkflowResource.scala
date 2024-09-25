@@ -21,7 +21,7 @@ import org.jooq.types.UInteger
 
 import java.sql.Timestamp
 import java.util
-import javax.annotation.security.{RolesAllowed, PermitAll}
+import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import scala.collection.mutable.ListBuffer
@@ -97,7 +97,6 @@ object WorkflowResource {
 
 }
 @Produces(Array(MediaType.APPLICATION_JSON))
-@RolesAllowed(Array("REGULAR", "ADMIN"))
 @Path("/workflow")
 class WorkflowResource extends LazyLogging {
 
@@ -107,6 +106,7 @@ class WorkflowResource extends LazyLogging {
     * @return WorkflowID[]
     */
   @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/user-workflow-ids")
   def retrieveIDs(@Auth user: SessionUser): util.List[String] = {
     context
@@ -122,6 +122,7 @@ class WorkflowResource extends LazyLogging {
     * @return OwnerName[]
     */
   @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/user-workflow-owners")
   def retrieveOwners(@Auth user: SessionUser): util.List[String] = {
     context
@@ -141,6 +142,7 @@ class WorkflowResource extends LazyLogging {
     * @return WorkflowID[]
     */
   @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/search-by-operators")
   def searchWorkflowByOperator(
       @QueryParam("operator") operator: String,
@@ -193,6 +195,7 @@ class WorkflowResource extends LazyLogging {
     * @return Workflow[]
     */
   @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/list")
   def retrieveWorkflowsBySessionUser(
       @Auth sessionUser: SessionUser
@@ -252,8 +255,8 @@ class WorkflowResource extends LazyLogging {
     * @return a json string representing an savedWorkflow
     */
   @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/{wid}")
-  @PermitAll
   def retrieveWorkflow(
       @PathParam("wid") wid: UInteger,
       @Auth user: SessionUser
@@ -312,6 +315,7 @@ class WorkflowResource extends LazyLogging {
     *             Should consider making the operations atomic
     */
   @POST
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Path("/persist")
   def persistWorkflow(workflow: Workflow, @Auth sessionUser: SessionUser): Workflow = {
@@ -349,6 +353,7 @@ class WorkflowResource extends LazyLogging {
     * @return Workflow, which contains the generated wid if not provided
     */
   @POST
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Path("/duplicate")
   def duplicateWorkflow(
@@ -410,6 +415,7 @@ class WorkflowResource extends LazyLogging {
   }
 
   @POST
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/clone/{wid}")
@@ -438,6 +444,7 @@ class WorkflowResource extends LazyLogging {
     * @return Workflow, which contains the generated wid if not provided
     */
   @POST
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/create")
@@ -466,6 +473,7 @@ class WorkflowResource extends LazyLogging {
     * @return Response, deleted - 200, not exists - 400
     */
   @POST
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/delete")
   def deleteWorkflow(workflowIDs: WorkflowIDs, @Auth sessionUser: SessionUser): Unit = {
     val user = sessionUser.getUser
@@ -492,6 +500,7 @@ class WorkflowResource extends LazyLogging {
     * @return Response
     */
   @POST
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/update/name")
@@ -514,6 +523,7 @@ class WorkflowResource extends LazyLogging {
   }
 
   @POST
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/update/description")
@@ -557,6 +567,7 @@ class WorkflowResource extends LazyLogging {
   }
 
   @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/type/{wid}")
   def getWorkflowType(@PathParam("wid") wid: UInteger): String = {
     val workflow: Workflow = workflowDao.fetchOneByWid(wid)

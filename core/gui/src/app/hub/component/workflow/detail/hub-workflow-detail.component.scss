@@ -47,7 +47,7 @@ h1 {
 
 .preview-containers {
   position: relative;
-  height: 500px;
+  height: 600px;
 }
 
 texera-mini-map {
@@ -55,4 +55,8 @@ texera-mini-map {
   bottom: 0;
   right: 0;
   //z-index: 3;
+}
+
+.prevent-select {
+  user-select: none;
 }

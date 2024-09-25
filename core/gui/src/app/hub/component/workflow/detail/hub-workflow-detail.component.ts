@@ -74,15 +74,10 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy {
   constructor(
     private userService: UserService,
     // list additional services in constructor so they are initialized even if no one use them directly
-    private schemaPropagationService: SchemaPropagationService,
-    private operatorReuseCacheStatus: OperatorReuseCacheStatusService,
-    private workflowConsoleService: WorkflowConsoleService,
     private undoRedoService: UndoRedoService,
-    private workflowCacheService: WorkflowCacheService,
     private workflowPersistService: WorkflowPersistService,
     private workflowWebsocketService: WorkflowWebsocketService,
     private workflowActionService: WorkflowActionService,
-    private location: Location,
     private route: ActivatedRoute,
     private operatorMetadataService: OperatorMetadataService,
     private message: NzMessageService,
@@ -90,7 +85,6 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy {
     private notificationService: NotificationService,
     private codeEditorService: CodeEditorService,
     private hubWorkflowService: HubWorkflowService,
-    private modalService: NzModalService,
   ) {
     this.wid = this.route.snapshot.params.id;
   }
@@ -111,34 +105,11 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy {
   }
 
   ngAfterViewInit(): void {
-    /**
-     * On initialization of the workspace, there could be three cases:
-     *
-     * - with userSystem enabled, usually during prod mode:
-     * 1. Accessed by URL `/`, no workflow is in the URL (Cold Start):
-     -    - A new `WorkflowActionService.DEFAULT_WORKFLOW` is created, which is an empty workflow with undefined id.
-     *    - After an Auto-persist being triggered by a WorkflowAction event, it will create a new workflow in the database
-     *    and update the URL with its new ID from database.
-     * 2. Accessed by URL `/workflow/:id` (refresh manually, or redirected from dashboard workflow list):
-     *    - It will retrieve the workflow from database with the given ID. Because it has an ID, it will be linked to the database
-     *    - Auto-persist will be triggered upon all workspace events.
-     *
-     * - with userSystem disabled, during dev mode:
-     * 1. Accessed by URL `/`, with a workflow cached (refresh manually):
-     *    - This will trigger the WorkflowCacheService to load the workflow from cache.
-     *    - Auto-cache will be triggered upon all workspace events.
-     *
-     * WorkflowActionService is the single source of the workflow representation. Both WorkflowCacheService and WorkflowPersistService are
-     * reflecting changes from WorkflowActionService.
-     */
     // clear the current workspace, reset as `WorkflowActionService.DEFAULT_WORKFLOW`
     this.workflowActionService.resetAsNewWorkflow();
 
     if (this.userSystemEnabled) {
       this.registerReEstablishWebsocketUponWIdChange();
-    } else {
-      let wid = this.route.snapshot.params.id ?? 0;
-      this.workflowWebsocketService.openWebsocket(wid);
     }
 
     this.registerLoadOperatorMetadata();
@@ -153,42 +124,9 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy {
       this.workflowPersistService.persistWorkflow(workflow).pipe(untilDestroyed(this)).subscribe();
     }
 
-    console.log("before clear")
     this.codeEditorViewRef.clear();
     this.workflowWebsocketService.closeWebsocket();
     this.workflowActionService.clearWorkflow();
-    console.log("end of on destroy")
-  }
-
-  registerAutoCacheWorkFlow(): void {
-    this.workflowActionService
-      .workflowChanged()
-      .pipe(debounceTime(SAVE_DEBOUNCE_TIME_IN_MS))
-      .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        this.workflowCacheService.setCacheWorkflow(this.workflowActionService.getWorkflow());
-      });
-  }
-
-  registerAutoPersistWorkflow(): void {
-    this.workflowActionService
-      .workflowChanged()
-      .pipe(debounceTime(SAVE_DEBOUNCE_TIME_IN_MS))
-      .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        if (this.userService.isLogin() && this.workflowPersistService.isWorkflowPersistEnabled()) {
-          this.workflowPersistService
-            .persistWorkflow(this.workflowActionService.getWorkflow())
-            .pipe(untilDestroyed(this))
-            .subscribe((updatedWorkflow: Workflow) => {
-              if (this.workflowActionService.getWorkflowMetadata().wid !== updatedWorkflow.wid) {
-                this.location.go(`/workflow/${updatedWorkflow.wid}`);
-              }
-              this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
-            });
-          // to sync up with the updated information, such as workflow.wid
-        }
-      });
   }
 
   loadWorkflowWithId(wid: number): void {
@@ -228,7 +166,6 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy {
           this.undoRedoService.clearRedoStack();
         },
         () => {
-          console.log("in error")
           this.workflowActionService.resetAsNewWorkflow();
           // enable workspace for modification
           this.workflowActionService.enableWorkflowModification();
@@ -245,57 +182,18 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy {
       .getOperatorMetadata()
       .pipe(untilDestroyed(this))
       .subscribe(() => {
-        console.log(this.wid)
-        let wid = this.route.snapshot.params.id;
-        console.log("this is what got calculated")
-        console.log(wid)
-        wid = this.wid;
-        if (environment.userSystemEnabled) {
           // load workflow with wid if presented in the URL
-          if (wid) {
+          if (this.wid) {
             // if wid is present in the url, load it from the backend
             this.userService
               .userChanged()
               .pipe(untilDestroyed(this))
               .subscribe(() => {
-                this.loadWorkflowWithId(wid);
+                this.loadWorkflowWithId(this.wid);
               });
           } else {
             // no workflow to load, pending to create a new workflow
           }
-          // responsible for persisting the workflow to the backend
-          this.registerAutoPersistWorkflow();
-        } else {
-          // remember URL fragment
-          const fragment = this.route.snapshot.fragment;
-          // fetch the cached workflow first
-          const cachedWorkflow = this.workflowCacheService.getCachedWorkflow();
-          // responsible for saving the existing workflow in cache
-          this.registerAutoCacheWorkFlow();
-          // load the cached workflow
-          this.workflowActionService.reloadWorkflow(cachedWorkflow);
-          // set the URL fragment to previous value
-          // because reloadWorkflow will highlight/unhighlight all elements
-          // which will change the URL fragment
-          this.router.navigate([], {
-            relativeTo: this.route,
-            fragment: fragment !== null ? fragment : undefined,
-            preserveFragment: false,
-          });
-          // highlight the operator, comment box, or link in the URL fragment
-          if (fragment) {
-            if (this.workflowActionService.getTexeraGraph().hasElementWithID(fragment)) {
-              this.workflowActionService.highlightElements(false, fragment);
-            } else {
-              this.notificationService.error(`Element ${fragment} doesn't exist`);
-              // remove the fragment from the URL
-              this.router.navigate([], { relativeTo: this.route });
-            }
-          }
-          // clear stack
-          this.undoRedoService.clearUndoStack();
-          this.undoRedoService.clearRedoStack();
-        }
       });
   }
 
@@ -311,9 +209,5 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy {
       .subscribe(wid => {
         this.workflowWebsocketService.reopenWebsocket(wid);
       });
-  }
-
-  goBack(): void {
-    this.location.back();
   }
 }
