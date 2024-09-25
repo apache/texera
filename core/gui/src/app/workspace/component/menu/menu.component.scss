@@ -56,6 +56,14 @@
   float: right;
 }
 
+#share-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  font-weight: 400;
+}
+
 i {
   display: inline-flex;
   align-content: center;

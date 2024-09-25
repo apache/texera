@@ -36,6 +36,7 @@ export const DEFAULT_WORKFLOW = {
   wid: 0,
   creationTime: undefined,
   lastModifiedTime: undefined,
+  isPublished: 0,
   readonly: false,
 };
 export const DEFAULT_SETTINGS = {
@@ -820,6 +821,10 @@ export class WorkflowActionService {
     this.setWorkflowMetadata(undefined);
     this.setWorkflowSettings(undefined);
     this.reloadWorkflow(undefined);
+  }
+
+  public setWorkflowIsPublished(newPublishState: number): void {
+    this.setWorkflowMetadata({ ...this.workflowMetadata, isPublished: newPublishState });
   }
 
   /**

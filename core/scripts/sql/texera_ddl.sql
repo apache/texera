@@ -207,3 +207,6 @@ CREATE FULLTEXT INDEX `idx_user_project_name_description` ON `texera_db`.`projec
 CREATE FULLTEXT INDEX `idx_dataset_name_description` ON `texera_db`.`dataset` (name, description);
 
 CREATE FULLTEXT INDEX `idx_dataset_version_name` ON `texera_db`.`dataset_version` (name);
+
+ALTER TABLE workflow
+ADD is_published BOOLEAN NOT NULL DEFAULT false;

@@ -122,6 +122,7 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
         description: "",
         creationTime: 0,
         lastModifiedTime: 0,
+        isPublished: 0,
         readonly: false,
       };
 

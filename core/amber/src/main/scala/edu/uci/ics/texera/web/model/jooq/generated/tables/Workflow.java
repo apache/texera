@@ -19,7 +19,7 @@ import org.jooq.Identity;
 import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
-import org.jooq.Row6;
+import org.jooq.Row7;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
@@ -35,7 +35,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Workflow extends TableImpl<WorkflowRecord> {
 
-    private static final long serialVersionUID = -908784271;
+    private static final long serialVersionUID = -1770381178;
 
     /**
      * The reference instance of <code>texera_db.workflow</code>
@@ -79,6 +79,11 @@ public class Workflow extends TableImpl<WorkflowRecord> {
      * The column <code>texera_db.workflow.last_modified_time</code>.
      */
     public final TableField<WorkflowRecord, Timestamp> LAST_MODIFIED_TIME = createField(DSL.name("last_modified_time"), org.jooq.impl.SQLDataType.TIMESTAMP.nullable(false).defaultValue(org.jooq.impl.DSL.field("CURRENT_TIMESTAMP", org.jooq.impl.SQLDataType.TIMESTAMP)), this, "");
+
+    /**
+     * The column <code>texera_db.workflow.is_published</code>.
+     */
+    public final TableField<WorkflowRecord, Byte> IS_PUBLISHED = createField(DSL.name("is_published"), org.jooq.impl.SQLDataType.TINYINT.nullable(false).defaultValue(org.jooq.impl.DSL.inline("0", org.jooq.impl.SQLDataType.TINYINT)), this, "");
 
     /**
      * Create a <code>texera_db.workflow</code> table reference
@@ -165,11 +170,11 @@ public class Workflow extends TableImpl<WorkflowRecord> {
     }
 
     // -------------------------------------------------------------------------
-    // Row6 type methods
+    // Row7 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row6<String, String, UInteger, String, Timestamp, Timestamp> fieldsRow() {
-        return (Row6) super.fieldsRow();
+    public Row7<String, String, UInteger, String, Timestamp, Timestamp, Byte> fieldsRow() {
+        return (Row7) super.fieldsRow();
     }
 }
