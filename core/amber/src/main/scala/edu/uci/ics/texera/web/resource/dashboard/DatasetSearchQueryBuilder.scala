@@ -33,7 +33,8 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder {
   // For those public datasets, need external union to merge them
   override protected def constructFromClause(
       uid: UInteger,
-      params: DashboardResource.SearchQueryParams
+      params: DashboardResource.SearchQueryParams,
+      includePublic: Boolean = false
   ): TableLike[_] = {
     DATASET
       .leftJoin(DATASET_USER_ACCESS)

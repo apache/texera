@@ -1,13 +1,15 @@
 import { Component, EventEmitter, Input, OnInit, Output } from "@angular/core";
 import { OperatorMetadataService } from "src/app/workspace/service/operator-metadata/operator-metadata.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { Observable } from "rxjs";
+import { Observable, of } from "rxjs";
 import { DashboardProject } from "../../../type/dashboard-project.interface";
 import { remove } from "lodash-es";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { UserProjectService } from "../../../service/user/project/user-project.service";
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
 import { SearchFilterParameters } from "../../../type/search-filter-parameters";
+import { UserService } from "../../../../common/service/user/user.service";
+import { switchMap } from "rxjs/operators";
 
 @UntilDestroy()
 @Component({
@@ -16,6 +18,7 @@ import { SearchFilterParameters } from "../../../type/search-filter-parameters";
   styleUrls: ["./filters.component.scss"],
 })
 export class FiltersComponent implements OnInit {
+  public isLogin = this.userService.isLogin();
   private _masterFilterList: ReadonlyArray<string> = [];
   // receive input from parent components (UserProjectSection), if any
   @Input() public pid?: number = undefined;
@@ -56,7 +59,7 @@ export class FiltersComponent implements OnInit {
   public selectedOperators: { userFriendlyName: string; operatorType: string; operatorGroup: string }[] = [];
   public selectedProjects: { name: string; pid: number }[] = [];
   /* variables for filtering workflows by projects */
-  public userProjectsList: Observable<DashboardProject[]>; // list of projects accessible by user
+  public userProjectsList!: Observable<DashboardProject[]>; // list of projects accessible by user
   public userProjectsDropdown: { pid: number; name: string; checked: boolean }[] = [];
   /* variables for project color tags */
   public userProjectsMap: ReadonlyMap<number, DashboardProject> = new Map(); // maps pid to its corresponding DashboardProjectInterface
@@ -64,23 +67,37 @@ export class FiltersComponent implements OnInit {
   public searchCriteria: string[] = ["owner", "id", "ctime", "mtime", "operator", "project"];
 
   constructor(
+    private userService: UserService,
     private operatorMetadataService: OperatorMetadataService,
     private notificationService: NotificationService,
     private userProjectService: UserProjectService,
     private workflowPersistService: WorkflowPersistService
   ) {
-    this.userProjectsList = this.userProjectService.getProjectList().pipe(untilDestroyed(this));
-    this.userProjectsList.pipe(untilDestroyed(this)).subscribe((userProjectsList: DashboardProject[]) => {
-      if (userProjectsList != null && userProjectsList.length > 0) {
-        // map project ID to project object
-        this.userProjectsMap = new Map(userProjectsList.map(userProject => [userProject.pid, userProject]));
-        // store the projects containing these workflows
-        this.userProjectsDropdown = userProjectsList.map(proj => {
-          return { pid: proj.pid, name: proj.name, checked: false };
-        });
-        this.userProjectsLoaded = true;
-      }
-    });
+    this.userService
+      .userChanged()
+      .pipe(
+        // eslint-disable-next-line rxjs/no-unsafe-takeuntil
+        untilDestroyed(this),
+        switchMap(() => {
+          this.isLogin = this.userService.isLogin();
+          if (this.isLogin) {
+            return this.userProjectService.getProjectList() as Observable<DashboardProject[]>;
+          } else {
+            return of([] as DashboardProject[]);
+          }
+        })
+      )
+      .subscribe((userProjectsList: DashboardProject[]) => {
+        if (userProjectsList != null && userProjectsList.length > 0) {
+          // map project ID to project object
+          this.userProjectsMap = new Map(userProjectsList.map(userProject => [userProject.pid, userProject]));
+          // store the projects containing these workflows
+          this.userProjectsDropdown = userProjectsList.map(proj => {
+            return { pid: proj.pid, name: proj.name, checked: false };
+          });
+          this.userProjectsLoaded = true;
+        }
+      });
   }
 
   ngOnInit(): void {
@@ -112,23 +129,25 @@ export class FiltersComponent implements OnInit {
         });
         this.operatorGroups = opdata.groups.map(group => group.groupName);
       });
-    this.workflowPersistService
-      .retrieveOwners()
-      .pipe(untilDestroyed(this))
-      .subscribe(list_of_owners => {
-        this.owners = list_of_owners.map(i => ({ userName: i, checked: false }));
-      });
-    this.workflowPersistService
-      .retrieveWorkflowIDs()
-      .pipe(untilDestroyed(this))
-      .subscribe(wids => {
-        this.wids = wids.map(wid => {
-          return {
-            id: wid.toString(),
-            checked: false,
-          };
+    if (this.isLogin) {
+      this.workflowPersistService
+        .retrieveOwners()
+        .pipe(untilDestroyed(this))
+        .subscribe(list_of_owners => {
+          this.owners = list_of_owners.map(i => ({ userName: i, checked: false }));
         });
-      });
+      this.workflowPersistService
+        .retrieveWorkflowIDs()
+        .pipe(untilDestroyed(this))
+        .subscribe(wids => {
+          this.wids = wids.map(wid => {
+            return {
+              id: wid.toString(),
+              checked: false,
+            };
+          });
+        });
+    }
   }
 
   /**

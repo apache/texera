@@ -1,5 +1,5 @@
-<div class="general-search-container">
-  <div class="general-search-section">
+<div class="search-container">
+  <div class="search-section">
     <button
       class="go-back-button"
       nz-button
@@ -62,10 +62,11 @@
     </div>
   </div>
 
-  <div class="general-search-result">
+  <div class="search-result">
     <texera-search-results
       [showResourceTypes]="true"
-      [searchKeywords]="this.filters.getSearchKeywords()">
+      [searchKeywords]="this.filters.getSearchKeywords()"
+      [currentUid]="this.currentUid">
     </texera-search-results>
   </div>
 </div>

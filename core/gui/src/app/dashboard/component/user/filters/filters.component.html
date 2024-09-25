@@ -55,6 +55,7 @@
   </nz-dropdown-menu>
 
   <a
+    *ngIf="this.isLogin"
     [nzDropdownMenu]="ownerSearchOptions"
     nz-dropdown
     nzTrigger="click"
@@ -89,6 +90,7 @@
   </nz-dropdown-menu>
 
   <a
+    *ngIf="this.isLogin"
     [nzDropdownMenu]="IDSearchOptions"
     nz-dropdown
     nzTrigger="click"

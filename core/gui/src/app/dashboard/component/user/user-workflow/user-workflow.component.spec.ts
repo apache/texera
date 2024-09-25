@@ -40,6 +40,7 @@ import { StubSearchService } from "../../../service/user/stub-search.service";
 import { SearchResultsComponent } from "../search-results/search-results.component";
 import { delay } from "rxjs";
 import { NzModalService } from "ng-zorro-antd/modal";
+import { NzButtonModule } from "ng-zorro-antd/button";
 
 describe("SavedWorkflowSectionComponent", () => {
   let component: UserWorkflowComponent;
@@ -89,6 +90,7 @@ describe("SavedWorkflowSectionComponent", () => {
         NzUploadModule,
         ScrollingModule,
         NoopAnimationsModule,
+        NzButtonModule,
       ],
     }).compileComponents();
   }));
@@ -118,6 +120,7 @@ describe("SavedWorkflowSectionComponent", () => {
       await delay(10);
     }
   };
+
   it("searchNoInput", async () => {
     // When no search input is provided, it should show all workflows.
     await component.search();
@@ -165,6 +168,12 @@ describe("SavedWorkflowSectionComponent", () => {
   });
 
   it("searchByProjects", async () => {
+    component.filters.userProjectsDropdown = [
+      { pid: 1, name: "Project1", checked: false },
+      { pid: 2, name: "Project2", checked: false },
+      { pid: 3, name: "Project3", checked: false },
+    ];
+
     // If the project filter is applied, only those workflows belonging to those projects should be returned.
     component.filters.userProjectsDropdown[0].checked = true;
     component.filters.updateSelectedProjects();
@@ -243,6 +252,11 @@ describe("SavedWorkflowSectionComponent", () => {
     if (operatorGroup) {
       operatorGroup[3].checked = true; // Aggregation operator
       component.filters.updateSelectedOperators();
+      component.filters.userProjectsDropdown = [
+        { pid: 1, name: "Project1", checked: false },
+        { pid: 2, name: "Project2", checked: false },
+        { pid: 3, name: "Project3", checked: false },
+      ];
 
       component.filters.owners[0].checked = true; //Texera
       component.filters.owners[1].checked = true; //Angular
