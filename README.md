@@ -128,6 +128,7 @@ This project is supported by the <a href="http://www.nsf.gov">National Science F
 ## Citation
 Please cite Texera as 
 ```
+
 @article{DBLP:journals/pvldb/WangHNKALLDL24,
   author       = {Zuozhi Wang and
                   Yicong Huang and

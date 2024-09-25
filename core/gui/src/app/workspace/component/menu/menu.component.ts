@@ -25,11 +25,12 @@ import { saveAs } from "file-saver";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { OperatorMenuService } from "../../service/operator-menu/operator-menu.service";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
-import { Subscription, timer } from "rxjs";
+import { firstValueFrom, Subscription, timer } from "rxjs";
 import { isDefined } from "../../../common/util/predicate";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { ResultExportationComponent } from "../result-exportation/result-exportation.component";
 import { ReportGenerationService } from "../../service/report-generation/report-generation.service";
+import { ShareAccessComponent } from "src/app/dashboard/component/user/share-access/share-access.component";
 /**
  * MenuComponent is the top level menu bar that shows
  *  the Texera title and workflow execution button
@@ -60,6 +61,7 @@ export class MenuComponent implements OnInit {
   public isWorkflowModifiable: boolean = false;
   public workflowId?: number;
 
+  @Input() public writeAccess: boolean = false;
   @Input() public pid?: number = undefined;
   @Input() public autoSaveState: string = "";
   @Input() public currentWorkflowName: string = ""; // reset workflowName
@@ -149,6 +151,23 @@ export class MenuComponent implements OnInit {
 
     this.registerWorkflowMetadataDisplayRefresh();
     this.handleWorkflowVersionDisplay();
+  }
+
+  public async onClickOpenShareAccess(): Promise<void> {
+    this.modalService.create({
+      nzContent: ShareAccessComponent,
+      nzData: {
+        writeAccess: this.writeAccess,
+        type: "workflow",
+        id: this.workflowId,
+        allOwners: await firstValueFrom(this.workflowPersistService.retrieveOwners()),
+        inWorkspace: true,
+      },
+      nzFooter: null,
+      nzTitle: "Share this workflow with others",
+      nzCentered: true,
+      nzWidth: "800px",
+    });
   }
 
   // apply a behavior to the run button via bound variables
@@ -382,6 +401,7 @@ export class MenuComponent implements OnInit {
           creationTime: undefined,
           lastModifiedTime: undefined,
           readonly: false,
+          isPublished: 0,
         };
 
         this.workflowActionService.enableWorkflowModification();
@@ -420,7 +440,9 @@ export class MenuComponent implements OnInit {
     this.workflowPersistService
       .persistWorkflow(this.workflowActionService.getWorkflow())
       .pipe(
-        tap((updatedWorkflow: Workflow) => this.workflowActionService.setWorkflowMetadata(updatedWorkflow)),
+        tap((updatedWorkflow: Workflow) => {
+          this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
+        }),
         filter(workflow => isDefined(localPid) && isDefined(workflow.wid)),
         mergeMap(workflow => this.userProjectService.addWorkflowToProject(localPid!, workflow.wid!)),
         untilDestroyed(this)
