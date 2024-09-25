@@ -4,6 +4,8 @@
   [disabled]="disabled || state === 'initializing' || state === 'stopping'"
   (click)="onClick()"
   [class.running]="isRunning()">
-  <i nz-icon [nzType]="getIconType()"></i>
+  <i
+    nz-icon
+    [nzType]="getIconType()"></i>
   {{ getButtonText() }}
 </button>

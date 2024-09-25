@@ -9,7 +9,7 @@ export enum PowerState {
   Off = "off",
   Initializing = "initializing",
   Running = "running",
-  Stopping = "stopping"
+  Stopping = "stopping",
 }
 
 @UntilDestroy()
@@ -25,10 +25,9 @@ export class PowerButtonComponent {
   @Input() state: PowerState = PowerState.Off;
   @Output() stateChange = new EventEmitter<PowerState>();
 
-
   onClick() {
     let newState: PowerState;
-    switch(this.state) {
+    switch (this.state) {
       case PowerState.Off:
         newState = PowerState.Initializing;
         break;
@@ -58,10 +57,14 @@ export class PowerButtonComponent {
 
   getIconType(): string {
     switch (this.state) {
-      case PowerState.Off : return "poweroff";
-      case PowerState.Initializing : return "loading";
-      case PowerState.Running : return "pause";
-      case PowerState.Stopping : return "loading";
+      case PowerState.Off:
+        return "poweroff";
+      case PowerState.Initializing:
+        return "loading";
+      case PowerState.Running:
+        return "pause";
+      case PowerState.Stopping:
+        return "loading";
     }
   }
 

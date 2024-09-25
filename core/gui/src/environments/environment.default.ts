@@ -17,7 +17,6 @@ export const defaultEnvironment = {
    */
   workflowPodUrl: "workflowpod",
 
-
   /**
    * whether fetching available source tables is enabled
    * see SourceTablesService for details

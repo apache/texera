@@ -286,16 +286,13 @@ export class MenuComponent implements OnInit {
 
   private async waitForConditions(): Promise<void> {
     const checkConditions = () => {
-      return !this.runDisable &&
-        this.workflowWebsocketService.isConnected &&
-        !this.displayParticularWorkflowVersion;
+      return !this.runDisable && this.workflowWebsocketService.isConnected && !this.displayParticularWorkflowVersion;
     };
 
     while (!checkConditions()) {
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
   }
-
 
   public handleKill(): void {
     this.executeWorkflowService.killWorkflow();

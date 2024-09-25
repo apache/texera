@@ -8,7 +8,7 @@ describe("PowerButtonComponent", () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      declarations: [PowerButtonComponent]
+      declarations: [PowerButtonComponent],
     });
     fixture = TestBed.createComponent(PowerButtonComponent);
     component = fixture.componentInstance;
