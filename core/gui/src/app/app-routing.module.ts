@@ -100,10 +100,6 @@ if (environment.userSystemEnabled) {
             canActivate: [AuthGuardService],
           },
           {
-            path: "search",
-            component: SearchComponent,
-          },
-          {
             path: "discussion",
             component: FlarumComponent,
             canActivate: [AuthGuardService],
@@ -127,6 +123,10 @@ if (environment.userSystemEnabled) {
             component: AdminExecutionComponent,
           },
         ],
+      },
+      {
+        path: "search",
+        component: SearchComponent,
       },
     ],
   });

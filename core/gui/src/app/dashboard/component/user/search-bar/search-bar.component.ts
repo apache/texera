@@ -8,6 +8,7 @@ import { SearchResult, SearchResultItem } from "../../../type/search-result";
 import { DashboardEntry } from "../../../type/dashboard-entry";
 import { Subject, Observable, of } from "rxjs";
 import { debounceTime, switchMap } from "rxjs/operators";
+import { UserService } from "../../../../common/service/user/user.service";
 
 @UntilDestroy()
 @Component({
@@ -16,11 +17,11 @@ import { debounceTime, switchMap } from "rxjs/operators";
   styleUrls: ["./search-bar.component.scss"],
 })
 export class SearchBarComponent {
-  @Input() isLogin!: boolean;
   private includePublic = true;
   public searchParam: string = "";
   public listOfResult: string[] = [];
   private searchSubject = new Subject<string>();
+  isLogin = this.userService.isLogin();
 
   private params: SearchFilterParameters = {
     createDateStart: null,
@@ -34,13 +35,19 @@ export class SearchBarComponent {
   };
 
   private searchCache = new Map<string, string[]>();
-
   private queryOrder: string[] = [];
 
   constructor(
     private router: Router,
-    private searchService: SearchService
+    private searchService: SearchService,
+    private userService: UserService
   ) {
+    this.userService
+      .userChanged()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        this.isLogin = this.userService.isLogin();
+      });
     this.searchSubject
       .pipe(
         debounceTime(200),
@@ -96,7 +103,7 @@ export class SearchBarComponent {
   }
 
   performSearch(keyword: string) {
-    this.router.navigate(["/dashboard/user/search"], { queryParams: { q: keyword } });
+    this.router.navigate(["/dashboard/search"], { queryParams: { q: keyword } });
   }
 
   convertToName(resultItem: SearchResultItem): string {
