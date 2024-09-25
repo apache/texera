@@ -1,3 +1,41 @@
+<div
+  class="access-button-group"
+  *ngIf="isPublic !== null">
+  <button
+    nz-button
+    class="access-button"
+    [nzType]="isPublic ? 'default' : 'primary'"
+    (click)="verifyUnpublish()"
+    [disabled]="!writeAccess">
+    <div
+      nz-icon
+      nzType="lock"
+      nzTheme="outline"
+      class="button-icon"></div>
+    <div class="button-text">
+      <div class="button-text-header">Private</div>
+      <p>Only collaborators can view this workflow {{ type }}</p>
+    </div>
+  </button>
+
+  <button
+    nz-button
+    class="access-button"
+    [nzType]="isPublic ? 'primary' : 'default'"
+    (click)="verifyPublish()"
+    [disabled]="!writeAccess">
+    <div
+      nz-icon
+      nzType="user"
+      nzTheme="outline"
+      class="button-icon"></div>
+    <div class="button-text">
+      <div class="button-text-header">Public</div>
+      <p>Anyone on Texera can find and view this {{ type }}</p>
+    </div>
+  </button>
+</div>
+
 <form
   [formGroup]="validateForm"
   (ngSubmit)="grantAccess()">

@@ -21,6 +21,7 @@ import { SchemaPropagationService } from "../service/dynamic-schema/schema-propa
 import { WorkflowConsoleService } from "../service/workflow-console/workflow-console.service";
 import { OperatorReuseCacheStatusService } from "../service/workflow-status/operator-reuse-cache-status.service";
 import { CodeEditorService } from "../service/code-editor/code-editor.service";
+import { WorkflowMetadata } from "src/app/dashboard/type/workflow-metadata.interface";
 
 export const SAVE_DEBOUNCE_TIME_IN_MS = 5000;
 
@@ -38,6 +39,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   public pid?: number = undefined;
   public gitCommitHash: string = Version.raw;
   public showResultPanel: boolean = false;
+  public writeAccess: boolean = false;
   userSystemEnabled = environment.userSystemEnabled;
   @ViewChild("codeEditor", { read: ViewContainerRef }) codeEditorViewRef!: ViewContainerRef;
   constructor(
@@ -262,13 +264,14 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     this.workflowActionService
       .workflowMetaDataChanged()
       .pipe(
-        switchMap(() => of(this.workflowActionService.getWorkflowMetadata().wid)),
-        filter(isDefined),
+        switchMap(() => of(this.workflowActionService.getWorkflowMetadata())),
+        filter((metadata: WorkflowMetadata) => isDefined(metadata.wid)),
         distinctUntilChanged()
       )
       .pipe(untilDestroyed(this))
-      .subscribe(wid => {
-        this.workflowWebsocketService.reopenWebsocket(wid);
+      .subscribe((metadata: WorkflowMetadata) => {
+        this.writeAccess = !metadata.readonly;
+        this.workflowWebsocketService.reopenWebsocket(metadata.wid as number);
       });
   }
 }

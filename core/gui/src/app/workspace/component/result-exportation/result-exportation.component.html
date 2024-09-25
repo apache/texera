@@ -1,4 +1,18 @@
 <div class="centered-container">
+  <div
+    *ngIf="exportType === 'data'"
+    class="input-wrapper">
+    <nz-form-item>
+      <nz-form-label nzFor="filenameInput">Filename</nz-form-label>
+      <input
+        id="filenameInput"
+        [(ngModel)]="inputFileName"
+        type="text"
+        nz-input
+        placeholder="Enter filename for binary data" />
+    </nz-form-item>
+  </div>
+
   <input
     [(ngModel)]="inputDatasetName"
     (input)="onUserInputDatasetName($event)"

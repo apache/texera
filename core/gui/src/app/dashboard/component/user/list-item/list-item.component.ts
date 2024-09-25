@@ -20,6 +20,8 @@ import {
 import { Workflow } from "src/app/common/type/workflow";
 import { FileSaverService } from "src/app/dashboard/service/user/file/file-saver.service";
 import { firstValueFrom } from "rxjs";
+import { SearchService } from "../../../service/user/search.service";
+import { Params } from "@angular/router";
 
 @UntilDestroy()
 @Component({
@@ -28,15 +30,19 @@ import { firstValueFrom } from "rxjs";
   styleUrls: ["./list-item.component.scss"],
 })
 export class ListItemComponent implements OnInit, OnChanges {
+  private owners: number[] = [];
+  @Input() currentUid: number | undefined;
   @ViewChild("nameInput") nameInput!: ElementRef;
   @ViewChild("descriptionInput") descriptionInput!: ElementRef;
   editingName = false;
   editingDescription = false;
 
-  ROUTER_WORKFLOW_BASE_URL = "/dashboard/workspace";
-  ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
-  ROUTER_DATASET_BASE_URL = "/dashboard/dataset";
-  public entryLink: string = "";
+  ROUTER_WORKFLOW_BASE_URL = "/dashboard/user/workspace";
+  ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user/project";
+  ROUTER_DATASET_BASE_URL = "/dashboard/user/dataset";
+  ROUTER_WORKFLOW_DETAIL_BASE_URL = "/dashboard/hub/workflow/search/result/detail";
+  entryLink: string[] = [];
+  queryParams: Params = {};
   public iconType: string = "";
   @Input() isPrivateSearch = false;
   @Input() editable = false;
@@ -59,6 +65,7 @@ export class ListItemComponent implements OnInit, OnChanges {
   refresh = new EventEmitter<void>();
 
   constructor(
+    private searchService: SearchService,
     private modalService: NzModalService,
     private workflowPersistService: WorkflowPersistService,
     private fileSaverService: FileSaverService
@@ -66,13 +73,29 @@ export class ListItemComponent implements OnInit, OnChanges {
 
   initializeEntry() {
     if (this.entry.type === "workflow") {
-      this.entryLink = this.ROUTER_WORKFLOW_BASE_URL + "/" + this.entry.id;
+      if (typeof this.entry.id === "number") {
+        // eslint-disable-next-line rxjs-angular/prefer-takeuntil
+        this.searchService.getWorkflowOwners(this.entry.id).subscribe((data: number[]) => {
+          this.owners = data;
+
+          if (this.currentUid !== undefined && this.owners.includes(this.currentUid)) {
+            this.entryLink = [this.ROUTER_WORKFLOW_BASE_URL, String(this.entry.id)];
+            this.queryParams = {};
+          } else {
+            this.entryLink = [this.ROUTER_WORKFLOW_DETAIL_BASE_URL];
+            this.queryParams = { wid: this.entry.id };
+          }
+        });
+      }
+      // this.entryLink = this.ROUTER_WORKFLOW_BASE_URL + "/" + this.entry.id;
       this.iconType = "project";
     } else if (this.entry.type === "project") {
-      this.entryLink = this.ROUTER_USER_PROJECT_BASE_URL + "/" + this.entry.id;
+      this.entryLink = [this.ROUTER_USER_PROJECT_BASE_URL, String(this.entry.id)];
+      this.queryParams = {};
       this.iconType = "container";
     } else if (this.entry.type === "dataset") {
-      this.entryLink = this.ROUTER_DATASET_BASE_URL + "/" + this.entry.id;
+      this.entryLink = [this.ROUTER_DATASET_BASE_URL, String(this.entry.id)];
+      this.queryParams = {};
       this.iconType = "database";
     } else if (this.entry.type === "file") {
       // not sure where to redirect
@@ -101,10 +124,12 @@ export class ListItemComponent implements OnInit, OnChanges {
           type: this.entry.type,
           id: this.entry.id,
           allOwners: await firstValueFrom(this.workflowPersistService.retrieveOwners()),
+          inWorkspace: false,
         },
         nzFooter: null,
         nzTitle: "Share this workflow with others",
         nzCentered: true,
+        nzWidth: "700px",
       });
     } else if (this.entry.type === "dataset") {
       this.modalService.create({
@@ -117,6 +142,7 @@ export class ListItemComponent implements OnInit, OnChanges {
         nzFooter: null,
         nzTitle: "Share this dataset with others",
         nzCentered: true,
+        nzWidth: "700px",
       });
     }
   }

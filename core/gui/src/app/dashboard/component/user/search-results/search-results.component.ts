@@ -20,6 +20,7 @@ export class SearchResultsComponent {
   @Input() public pid: number = 0;
   @Input() editable = false;
   @Input() searchKeywords: string[] = [];
+  @Input() currentUid: number | undefined;
   @Output() deleted = new EventEmitter<DashboardEntry>();
   @Output() duplicated = new EventEmitter<DashboardEntry>();
   @Output() modified = new EventEmitter<DashboardEntry>();
