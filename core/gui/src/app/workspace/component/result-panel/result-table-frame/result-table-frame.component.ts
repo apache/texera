@@ -11,7 +11,7 @@ import { RowModalComponent } from "../result-panel-modal.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 import { style } from "@angular/animations";
-import { isBase64, isBinary } from "src/app/common/util/json";
+import { isBase64, isBinary, trimAndFormatData } from "src/app/common/util/json";
 import { ResultExportationComponent } from "../../result-exportation/result-exportation.component";
 
 export const TABLE_COLUMN_TEXT_LIMIT = 100;
@@ -343,38 +343,29 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       columnDef: col.columnKey,
       header: col.columnText,
       getCell: (row: IndexableObject) => {
-        if (row[col.columnKey] !== null && row[col.columnKey] !== undefined) {
-          return this.trimTableCell(row[col.columnKey].toString());
+        if (row[col.columnKey] === null) {
+          return "NULL"; // Explicitly show NULL for null values
+        } else if (row[col.columnKey] !== undefined) {
+          return this.trimTableCell(row[col.columnKey]);
         } else {
-          // allowing null value from backend
-          return "";
+          return ""; // Keep empty string for undefined values
         }
       },
     }));
   }
 
-  trimTableCell(cellContent: string): string {
-    if (cellContent.length > TABLE_COLUMN_TEXT_LIMIT) {
-      return cellContent.substring(0, TABLE_COLUMN_TEXT_LIMIT) + "...";
-    }
-    return cellContent;
+  trimTableCell(cellContent: any): string {
+    return trimAndFormatData(cellContent, TABLE_COLUMN_TEXT_LIMIT);
   }
 
-  isBinaryData(cellContent: any): boolean {
-    if (typeof cellContent === "string") {
-      return isBase64(cellContent) || isBinary(cellContent);
-    }
-    return false;
-  }
-
-  downloadBinaryData(binaryData: any, rowIndex: number, columnIndex: number, columnName: string): void {
+  downloadData(data: any, rowIndex: number, columnIndex: number, columnName: string): void {
     const realRowNumber = (this.currentPageIndex - 1) * this.pageSize + rowIndex;
     const defaultFileName = `${columnName}_${realRowNumber}`;
     const modal = this.modalService.create({
-      nzTitle: "Export Binary Data and Save to a Dataset",
+      nzTitle: "Export Data and Save to a Dataset",
       nzContent: ResultExportationComponent,
       nzData: {
-        exportType: "binary",
+        exportType: "data",
         workflowName: this.workflowActionService.getWorkflowMetadata.name,
         defaultFileName: defaultFileName,
         rowIndex: realRowNumber,

@@ -22,7 +22,11 @@ trait SearchQueryBuilder {
 
   protected val mappedResourceSchema: UnifiedResourceSchema
 
-  protected def constructFromClause(uid: UInteger, params: SearchQueryParams): TableLike[_]
+  protected def constructFromClause(
+      uid: UInteger,
+      params: SearchQueryParams,
+      includePublic: Boolean = false
+  ): TableLike[_]
 
   protected def constructWhereClause(uid: UInteger, params: SearchQueryParams): Condition
 
@@ -38,11 +42,12 @@ trait SearchQueryBuilder {
 
   final def constructQuery(
       uid: UInteger,
-      params: SearchQueryParams
+      params: SearchQueryParams,
+      includePublic: Boolean
   ): SelectHavingStep[Record] = {
     val query: SelectGroupByStep[Record] = context
       .select(mappedResourceSchema.allFields: _*)
-      .from(constructFromClause(uid, params))
+      .from(constructFromClause(uid, params, includePublic))
       .where(constructWhereClause(uid, params))
     val groupByFields = getGroupByFields
     if (groupByFields.nonEmpty) {
