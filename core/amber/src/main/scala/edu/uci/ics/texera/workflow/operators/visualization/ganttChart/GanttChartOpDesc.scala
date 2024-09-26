@@ -48,7 +48,7 @@ class GanttChartOpDesc extends VisualizationOperator with PythonOperatorDescript
   @JsonSchemaTitle("Color Column")
   @JsonPropertyDescription("column to color tasks")
   @AutofillAttributeName
-  var color: String = _
+  var color: String = ""
 
   @JsonProperty(required = false)
   @JsonSchemaTitle("Pattern")
