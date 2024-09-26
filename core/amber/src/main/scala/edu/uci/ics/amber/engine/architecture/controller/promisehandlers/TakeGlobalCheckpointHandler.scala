@@ -16,16 +16,16 @@ import java.net.URI
 
 object TakeGlobalCheckpointHandler {
   final case class TakeGlobalCheckpoint(
-      estimationOnly: Boolean,
-      checkpointId: ChannelMarkerIdentity,
-      destination: URI
+                                         interactionOnly: Boolean,
+                                         checkpointId: ChannelMarkerIdentity,
+                                         destination: URI
   ) extends ControlCommand[Long] // return the total size
 }
 trait TakeGlobalCheckpointHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
   registerHandler { (msg: TakeGlobalCheckpoint, sender) =>
-    var estimationOnly = msg.estimationOnly
+    var estimationOnly = msg.interactionOnly
     @transient val storage =
       SequentialRecordStorage.getStorage[CheckpointState](Some(msg.destination))
     if (storage.containsFolder(msg.checkpointId.toString)) {

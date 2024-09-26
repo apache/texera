@@ -11,10 +11,11 @@ object ReplayLogGenerator {
       logStorage: SequentialRecordStorage[ReplayLogRecord],
       logFileName: String,
       replayTo: ChannelMarkerIdentity
-  ): (mutable.Queue[ProcessingStep], mutable.Queue[WorkflowFIFOMessage]) = {
+  ): (mutable.Queue[ProcessingStep], mutable.Queue[WorkflowFIFOMessage], Option[ChannelMarkerIdentity]) = {
     val logs = logStorage.getReader(logFileName).mkRecordIterator()
     val steps = mutable.Queue[ProcessingStep]()
     val messages = mutable.Queue[WorkflowFIFOMessage]()
+    var lastCheckpoint: Option[ChannelMarkerIdentity] = None
     logs.foreach {
       case s: ProcessingStep =>
         steps.enqueue(s)
@@ -23,11 +24,17 @@ object ReplayLogGenerator {
       case ReplayDestination(id) =>
         if (id == replayTo) {
           // we only need log record upto this point
-          return (steps, messages)
+          return (steps, messages, lastCheckpoint)
+        }else{
+          if(id.id.contains("Checkpoint")){
+            lastCheckpoint = Some(id)
+            steps.clear()
+            messages.clear()
+          }
         }
       case other =>
         throw new RuntimeException(s"cannot handle $other in the log")
     }
-    (steps, messages)
+    (steps, messages, lastCheckpoint)
   }
 }

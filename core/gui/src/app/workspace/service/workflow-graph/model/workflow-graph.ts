@@ -1123,4 +1123,64 @@ export class WorkflowGraph {
 
     return { operators: subDagOperators, links: subDagLinks };
   }
+
+  /**
+   * Retrieves a forward subgraph (subDAG) from the workflow graph. This method excludes disabled operators and links.
+   *
+   * This method can operate in two modes:
+   * 1. If a `sourceOperatorId` is provided, it performs a depth-first search (DFS) starting from
+   *    the specified operator and traces forward to all downstream operators to construct the forward subDAG.
+   * 2. If no `sourceOperatorId` is provided, it starts from all source operators (operators with no
+   *    incoming links) and aggregates the paths from these sources to construct the forward subDAG,
+   *    potentially covering the entire DAG if all paths are interconnected.
+   *
+   * @param sourceOperatorId - The unique identifier of the operator from which to start the DFS.
+   *                           This parameter is optional. If omitted, the search starts from all
+   *                           source operators within the graph.
+   * @returns An object containing two arrays: `operators` and `links`. The `operators` array
+   *          includes all operator objects that are part of the forward subDAG, and the `links` array
+   *          contains all the operator links that connect these operators within the subDAG.
+   */
+  public getForwardSubDAG(sourceOperatorId?: string) {
+    const visited: Set<string> = new Set();
+    const subDagOperators: OperatorPredicate[] = [];
+    const subDagLinks: OperatorLink[] = [];
+
+    // Helper function to perform DFS and trace forward through the DAG
+    function dfs(currentOperatorId: string, graph: WorkflowGraph) {
+      if (visited.has(currentOperatorId)) {
+        return;
+      }
+
+      visited.add(currentOperatorId);
+
+      const currentOperator = graph.getOperator(currentOperatorId);
+      if (currentOperator && !currentOperator.isDisabled) {
+        subDagOperators.push(currentOperator);
+
+        // Find links where the current operator is the source (tracing forward)
+        const connectedLinks = graph.getAllEnabledLinks().filter(link => link.source.operatorID === currentOperatorId);
+        connectedLinks.forEach(link => {
+          subDagLinks.push(link);
+          dfs(link.target.operatorID, graph);  // DFS proceeds to the target operator
+        });
+      }
+    }
+
+    if (sourceOperatorId !== undefined) {
+      dfs(sourceOperatorId, this);
+    } else {
+      // When no source operator ID is provided, start DFS from all source operators
+      const allOperators = this.getAllOperators();
+      const allLinks = this.getAllEnabledLinks();
+      const sourceOperators = allOperators.filter(
+        operator => !allLinks.some(link => link.target.operatorID === operator.operatorID)
+      );
+
+      sourceOperators.forEach(sourceOperator => dfs(sourceOperator.operatorID, this));
+    }
+
+    return { operators: subDagOperators, links: subDagLinks };
+  }
+
 }

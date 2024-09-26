@@ -2,6 +2,7 @@ import { Component } from "@angular/core";
 import { OperatorMenuService } from "src/app/workspace/service/operator-menu/operator-menu.service";
 import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/model/workflow-action.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import {WorkflowWebsocketService} from "../../../../service/workflow-websocket/workflow-websocket.service";
 
 @UntilDestroy()
 @Component({
@@ -12,9 +13,12 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 export class ContextMenuComponent {
   public isWorkflowModifiable: boolean = false;
 
+  public downstreamsToIO:string[] = [];
+
   constructor(
     public workflowActionService: WorkflowActionService,
-    public operatorMenuService: OperatorMenuService
+    public operatorMenuService: OperatorMenuService,
+    public workflowWebsocketService: WorkflowWebsocketService
   ) {
     this.registerWorkflowModifiableChangedHandler();
   }
@@ -25,6 +29,27 @@ export class ContextMenuComponent {
 
   public onPaste(): void {
     this.operatorMenuService.performPasteOperation();
+  }
+
+  public onSetAsInterestingOperator():void{
+    let highlighted = this.operatorMenuService.effectivelyHighlightedOperators.value[0]
+    let subDAG = this.workflowActionService.getTexeraGraph().getForwardSubDAG(highlighted)
+    this.downstreamsToIO = subDAG.operators.map(v => v.operatorID)
+  }
+
+  public onStepInto(): void{
+    let highlighted = this.operatorMenuService.effectivelyHighlightedOperators.value[0]
+    this.workflowWebsocketService.send("WorkflowStepRequest", {stepType: "StepInto", targetOp: highlighted})
+  }
+
+  public onStepOver():void{
+    let highlighted = this.operatorMenuService.effectivelyHighlightedOperators.value[0]
+    this.workflowWebsocketService.send("WorkflowStepRequest", {stepType: "StepOver", targetOp: highlighted})
+  }
+
+  public onStepOut():void{
+    let highlighted = this.operatorMenuService.effectivelyHighlightedOperators.value[0]
+    this.workflowWebsocketService.send("WorkflowStepRequest", {stepType: "StepOut", targetOp: highlighted})
   }
 
   public onCut(): void {

@@ -3,21 +3,14 @@ package edu.uci.ics.texera.web.service
 import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
-  FaultToleranceConfig,
-  StateRestoreConfig
-}
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{FaultToleranceConfig, StateRestoreConfig}
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ChannelMarkerIdentity,
-  ExecutionIdentity,
-  WorkflowIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ChannelMarkerIdentity, ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.error.ErrorUtils.{getOperatorFromActorIdOpt, getStackTraceWithAllCauses}
 import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
 import edu.uci.ics.texera.web.model.websocket.request.WorkflowExecuteRequest
-import edu.uci.ics.texera.web.service.WorkflowService.mkWorkflowStateId
+import edu.uci.ics.texera.web.service.WorkflowService.{inMemCount, mkWorkflowStateId}
 import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
 import edu.uci.ics.texera.web.storage.{ExecutionStateStore, WorkflowStateStore}
 import edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
@@ -35,11 +28,17 @@ import play.api.libs.json.Json
 import java.util.concurrent.ConcurrentHashMap
 import java.net.URI
 import java.time.Instant
+import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters.IterableHasAsScala
 
 object WorkflowService {
   private val workflowServiceMapping = new ConcurrentHashMap[String, WorkflowService]()
   val cleanUpDeadlineInSeconds: Int = AmberConfig.executionStateCleanUpInSecs
+  var inMemCount = 0
+  val logLocations = mutable.HashMap[Int, URI]()
+  val executions = mutable.HashMap[Int, mutable.ArrayBuffer[Int]]()
+  val timstamps = mutable.HashMap[Int, Timestamp]()
 
   def getAllWorkflowServices: Iterable[WorkflowService] = workflowServiceMapping.values().asScala
 
@@ -153,13 +152,16 @@ class WorkflowService(
     }
     val workflowContext: WorkflowContext = createWorkflowContext(uidOpt)
     var controllerConf = ControllerConfig.default
+    val intWid = workflowContext.workflowId.id.toInt
 
-    workflowContext.executionId = ExecutionsMetadataPersistService.insertNewExecution(
-      workflowContext.workflowId,
-      workflowContext.userId,
-      req.executionName,
-      convertToJson(req.engineVersion)
-    )
+    WorkflowService.inMemCount += 1
+    workflowContext.executionId = ExecutionIdentity(WorkflowService.inMemCount)
+    if (WorkflowService.executions.contains(intWid)) {
+      WorkflowService.executions(intWid).append(WorkflowService.inMemCount)
+    }else{
+      WorkflowService.executions(intWid) = ArrayBuffer[Int](inMemCount)
+    }
+    WorkflowService.timstamps(inMemCount) = Timestamp(Instant.now)
 
     if (AmberConfig.faultToleranceLogRootFolder.isDefined) {
       val writeLocation = AmberConfig.faultToleranceLogRootFolder.get.resolve(
@@ -170,36 +172,29 @@ class WorkflowService(
       )
     }
 
-    if (AmberConfig.isUserSystemEnabled) {
-      // enable only if we have mysql
-      val writeLocation = AmberConfig.faultToleranceLogRootFolder.get.resolve(
-        s"${workflowContext.workflowId}/${workflowContext.executionId}/"
+    // enable only if we have mysql
+    val writeLocation = AmberConfig.faultToleranceLogRootFolder.get.resolve(
+      s"${workflowContext.workflowId}/${workflowContext.executionId}/"
+    )
+    if (AmberConfig.faultToleranceLogRootFolder.isDefined) {
+      controllerConf = controllerConf.copy(faultToleranceConfOpt =
+        Some(FaultToleranceConfig(writeTo = writeLocation))
       )
-      if (AmberConfig.faultToleranceLogRootFolder.isDefined) {
-        ExecutionsMetadataPersistService.tryUpdateExistingExecution(workflowContext.executionId) {
-          execution => execution.setLogLocation(writeLocation.toString)
-        }
-        controllerConf = controllerConf.copy(faultToleranceConfOpt =
-          Some(FaultToleranceConfig(writeTo = writeLocation))
+    }
+    WorkflowService.logLocations(WorkflowService.inMemCount) = writeLocation
+    if (req.replayFromExecution.isDefined) {
+      val replayInfo = req.replayFromExecution.get
+      val logLocation = WorkflowService.logLocations(replayInfo.eid.toInt)
+      val readLocation = logLocation
+      controllerConf = controllerConf.copy(stateRestoreConfOpt =
+          Some(
+            StateRestoreConfig(
+              readFrom = readLocation,
+              replayDestination = ChannelMarkerIdentity(replayInfo.interaction)
+            )
+          )
         )
       }
-      if (req.replayFromExecution.isDefined) {
-        val replayInfo = req.replayFromExecution.get
-        ExecutionsMetadataPersistService
-          .tryGetExistingExecution(ExecutionIdentity(replayInfo.eid))
-          .foreach { execution =>
-            val readLocation = new URI(execution.getLogLocation)
-            controllerConf = controllerConf.copy(stateRestoreConfOpt =
-              Some(
-                StateRestoreConfig(
-                  readFrom = readLocation,
-                  replayDestination = ChannelMarkerIdentity(replayInfo.interaction)
-                )
-              )
-            )
-          }
-      }
-    }
 
     val executionStateStore = new ExecutionStateStore()
     // assign execution id to find the execution from DB in case the constructor fails.

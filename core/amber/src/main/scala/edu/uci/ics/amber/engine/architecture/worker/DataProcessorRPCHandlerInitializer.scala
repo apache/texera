@@ -23,6 +23,7 @@ class DataProcessorRPCHandlerInitializer(val dp: DataProcessor)
     with UpdateExecutorHandler
     with RetrieveStateHandler
     with PrepareCheckpointHandler
-    with FinalizeCheckpointHandler {
+    with FinalizeCheckpointHandler
+    with StepHandler {
   val actorId: ActorVirtualIdentity = dp.actorId
 }

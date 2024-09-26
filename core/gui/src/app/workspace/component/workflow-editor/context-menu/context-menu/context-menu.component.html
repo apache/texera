@@ -117,4 +117,48 @@
       nzTheme="outline"></span>
     execute to this operator
   </li>
+
+  <li
+    nz-menu-item
+    *ngIf="operatorMenuService.effectivelyHighlightedOperators.value.length === 1 && isWorkflowModifiable"
+    (click)="onSetAsInterestingOperator()">
+    <span
+      nz-icon
+      nzType="star"
+      nzTheme="outline"></span
+    >set as interesting operator
+  </li>
+
+  <li
+    nz-menu-item
+    *ngIf="operatorMenuService.effectivelyHighlightedOperators.value.length === 1  && !isWorkflowModifiable && downstreamsToIO.includes(operatorMenuService.effectivelyHighlightedOperators.value[0])"
+    (click)="onStepInto()">
+    <span
+      nz-icon
+      nzType="arrow-right"
+      nzTheme="outline"></span
+    >step-into
+  </li>
+
+  <li
+    nz-menu-item
+    *ngIf="operatorMenuService.effectivelyHighlightedOperators.value.length === 1  && !isWorkflowModifiable && downstreamsToIO.includes(operatorMenuService.effectivelyHighlightedOperators.value[0])"
+    (click)="onStepOver()">
+    <span
+      nz-icon
+      nzType="arrow-right"
+      nzTheme="outline"></span
+    >step-over
+  </li>
+
+  <li
+    nz-menu-item
+    *ngIf="operatorMenuService.effectivelyHighlightedOperators.value.length === 1  && !isWorkflowModifiable && downstreamsToIO.includes(operatorMenuService.effectivelyHighlightedOperators.value[0])"
+    (click)="onStepOut()">
+    <span
+      nz-icon
+      nzType="arrow-left"
+      nzTheme="outline"></span
+    >step-out
+  </li>
 </ul>

@@ -191,10 +191,18 @@ abstract class WorkflowActor(
       )
       val chkpt = chkptStorage.getReader(getLogName).mkRecordIterator().next()
       loadFromCheckpoint(chkpt)
+      onComplete()
     } else {
       // do replay from scratch
-      val (processSteps, messages) =
+      val (processSteps, messages, checkpointToLoad) =
         ReplayLogGenerator.generate(logStorageToRead, getLogName, replayTo)
+      if(checkpointToLoad.isDefined){
+        val chkptStorage = SequentialRecordStorage.getStorage[CheckpointState](
+          Some(stateRestoreConf.readFrom.resolve(checkpointToLoad.get.toString))
+        )
+        val chkpt = chkptStorage.getReader(getLogName).mkRecordIterator().next()
+        loadFromCheckpoint(chkpt)
+      }
       logger.info(
         s"setting up replay, " +
           s"read from ${stateRestoreConf.readFrom} " +

@@ -27,7 +27,7 @@ class ReplayOrderEnforcer(
     forwardNext()
   }
 
-  var isCompleted: Boolean = channelStepOrder.isEmpty
+  var isCompleted: Boolean = channelStepOrder.isEmpty && additionalStepOrder.isEmpty
 
   triggerOnComplete()
 
@@ -48,9 +48,12 @@ class ReplayOrderEnforcer(
     }
     // To terminate replay:
     // no next log record with step > current step, which means further processing is not logged.
-    if (channelStepOrder.isEmpty) {
+    if (channelStepOrder.isEmpty && additionalStepOrder.isEmpty) {
       isCompleted = true
       triggerOnComplete()
+    }
+    if(channelStepOrder.isEmpty && additionalStepOrder.nonEmpty){
+      return false
     }
     // only proceed if the current channel ID matches the channel ID of the log record
     currentChannelId == channelId

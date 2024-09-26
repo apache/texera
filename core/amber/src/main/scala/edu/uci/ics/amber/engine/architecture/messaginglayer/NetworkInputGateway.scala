@@ -1,7 +1,11 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.BroadcastMessageHandler.BroadcastMessage
 import edu.uci.ics.amber.engine.architecture.logreplay.OrderEnforcer
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StepHandler.{ContinueProcessing, StopProcessing}
 import edu.uci.ics.amber.engine.common.AmberLogging
+import edu.uci.ics.amber.engine.common.ambermessage.{ChannelMarkerPayload, WorkflowFIFOMessage}
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
 import scala.collection.mutable
@@ -20,6 +24,18 @@ class NetworkInputGateway(val actorId: ActorVirtualIdentity)
     val ret = inputChannels
       .find {
         case (cid, channel) =>
+          channel.peekMessage match {
+            case Some(value) =>
+              value match{
+                case WorkflowFIFOMessage(_, _, ControlInvocation(_, BroadcastMessage(_, _))) =>
+                  return Some(channel)
+                case WorkflowFIFOMessage(_, _, ControlInvocation(_, ContinueProcessing(_))) =>
+                  return Some(channel)
+                case WorkflowFIFOMessage(_, _, ControlInvocation(_, StopProcessing())) =>
+                  return Some(channel)
+              }
+            case None => // do nothing
+          }
           cid.isControl && channel.isEnabled && channel.hasMessage && enforcers.forall(enforcer =>
             enforcer.isCompleted || enforcer.canProceed(cid)
           )
@@ -38,6 +54,18 @@ class NetworkInputGateway(val actorId: ActorVirtualIdentity)
       inputChannels
         .find({
           case (cid, channel) =>
+            channel.peekMessage match {
+              case Some(value) =>
+                value match {
+                  case WorkflowFIFOMessage(_, _, ChannelMarkerPayload(id, _,_,_)) =>
+                    if(id.id.contains("debugging")){
+                      return Some(channel)
+                    }else{
+                      // do nothing
+                    }
+                }
+              case None => // do nothing
+            }
             !cid.isControl && channel.isEnabled && channel.hasMessage && enforcers
               .forall(enforcer => enforcer.isCompleted || enforcer.canProceed(cid))
         })

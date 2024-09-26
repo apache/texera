@@ -93,7 +93,8 @@ class WorkflowExecutionService(
       executionStateStore,
       wsInput,
       executionReconfigurationService,
-      controllerConfig.faultToleranceConfOpt
+      controllerConfig.faultToleranceConfOpt,
+      workflow.physicalPlan
     )
     executionConsoleService = new ExecutionConsoleService(client, executionStateStore, wsInput)
 

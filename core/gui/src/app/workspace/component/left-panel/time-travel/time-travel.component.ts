@@ -60,7 +60,7 @@ export class TimeTravelComponent implements OnInit, OnDestroy {
   }
 
   public getWid(): number | undefined {
-    return this.workflowActionService.getWorkflowMetadata()?.wid;
+    return 0;
   }
 
   toggleRow(eId: number): void {
@@ -115,16 +115,10 @@ export class TimeTravelComponent implements OnInit, OnDestroy {
     if (wid === undefined) {
       return;
     }
-    this.workflowVersionService
-      .retrieveWorkflowByVersion(wid, vid)
-      .pipe(untilDestroyed(this))
-      .subscribe(workflow => {
-        this.workflowVersionService.displayReadonlyWorkflow(workflow);
-        let replayExecutionInfo = { eid: eid, interaction: interaction };
-        this.revertedToInteraction = replayExecutionInfo;
-        this.notificationService.info(`start replay to interaction ${interaction} at execution ${eid}`);
-        this.executeWorkflowService.executeWorkflowWithReplay(replayExecutionInfo);
-      });
+    let replayExecutionInfo = { eid: eid, interaction: interaction };
+    this.revertedToInteraction = replayExecutionInfo;
+    this.notificationService.info(`start replay to interaction ${interaction} at execution ${eid}`);
+    this.executeWorkflowService.executeWorkflowWithReplay(replayExecutionInfo);
   }
 
   protected readonly requestIdleCallback = requestIdleCallback;

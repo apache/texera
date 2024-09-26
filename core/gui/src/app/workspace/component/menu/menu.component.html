@@ -316,11 +316,11 @@
           <span> {{ runButtonText }} </span>
         </button>
         <button
-          *ngIf="userSystemEnabled && environment.timetravelEnabled"
-          (click)="handleCheckpoint()"
-          title="take checkpoint"
-          [disabled]="!userSystemEnabled || executionState !== ExecutionState.Paused"
-          id="checkpoint-button"
+          *ngIf="environment.timetravelEnabled"
+          (click)="handleInteraction()"
+          title="interaction"
+          [disabled]="executionState !== ExecutionState.Paused"
+          id="interaction-button"
           nz-button
           nzType="primary">
           <i

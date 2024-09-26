@@ -134,7 +134,7 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
     val checkpointId = ChannelMarkerIdentity(s"Checkpoint_test_1")
     val uri = new URI("ram:///recovery-logs/tmp/")
     Await.result(
-      client1.sendAsync(TakeGlobalCheckpoint(estimationOnly = false, checkpointId, uri)),
+      client1.sendAsync(TakeGlobalCheckpoint(interactionOnly = false, checkpointId, uri)),
       Duration.fromSeconds(30)
     )
     client1.shutdown()

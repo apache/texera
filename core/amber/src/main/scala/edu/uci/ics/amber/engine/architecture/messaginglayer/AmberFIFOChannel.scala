@@ -68,6 +68,10 @@ class AmberFIFOChannel(val channelId: ChannelIdentity) extends AmberLogging {
 
   def hasMessage: Boolean = fifoQueue.nonEmpty
 
+  def peekMessage: Option[WorkflowFIFOMessage] = {
+    fifoQueue.headOption
+  }
+
   def enable(isEnabled: Boolean): Unit = {
     this.enabled = isEnabled
   }

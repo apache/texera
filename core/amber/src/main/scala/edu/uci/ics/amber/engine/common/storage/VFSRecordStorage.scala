@@ -42,6 +42,12 @@ class VFSRecordStorage[T >: Null <: AnyRef](vfsLogFolderURI: URI)
     }
   }
 
+  override def listFolders: Seq[String] = {
+    folder.getChildren.filter(f => f.isFolder).map{
+      folder => folder.getName.toString
+    }
+  }
+
   override def deleteStorage(): Unit = {
     folder.deleteAll()
   }

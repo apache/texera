@@ -230,14 +230,14 @@ export class ExecuteWorkflowService {
     this.workflowWebsocketService.send("WorkflowKillRequest", {});
   }
 
-  public takeGlobalCheckpoint(): void {
+  public takeInteraction(): void {
     if (
       this.currentState.state === ExecutionState.Uninitialized ||
       this.currentState.state === ExecutionState.Completed
     ) {
-      throw new Error("cannot take checkpoint, the current execution state is " + this.currentState.state);
+      throw new Error("cannot take interaction, the current execution state is " + this.currentState.state);
     }
-    this.workflowWebsocketService.send("WorkflowCheckpointRequest", {});
+    this.workflowWebsocketService.send("WorkflowInteractionRequest", {});
   }
 
   public resumeWorkflow(): void {
