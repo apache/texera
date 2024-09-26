@@ -45,21 +45,21 @@ class AggregateOpExec(
     keyedPartialAggregates(key) = updatedAggregates
 
     count += 1
-    if (count > 500000 && count < 500100) {
-      val bytes = AmberRuntime.serde.serialize(keyedPartialAggregates).get
-      println(s"Join state: ${bytes.length}")
-      if (oldBytes != null) {
-        val Abytes = MerkleTreeFromByteArray.getDiffInBytes(oldBytes, bytes, 4096)
-        println(s"MarkleTree Diff: ${Abytes}")
-      } else {
-        val Abytes = MerkleTreeFromByteArray.getDiffInBytes(Array[Byte](), bytes, 4096)
-        println(s"MarkleTree Diff: ${Abytes}")
-      }
-      oldBytes = bytes
-      val bytes2 = AmberRuntime.serde.serialize(key.asInstanceOf[AnyRef]).get
-      val bytes3 = AmberRuntime.serde.serialize(updatedAggregates).get
-      println(s"Normal Diff: ${bytes2.length + bytes3.length}")
-    }
+//    if (count > 500000 && count < 500100) {
+//      val bytes = AmberRuntime.serde.serialize(keyedPartialAggregates).get
+//      println(s"Join state: ${bytes.length}")
+//      if (oldBytes != null) {
+//        val Abytes = MerkleTreeFromByteArray.getDiffInBytes(oldBytes, bytes, 4096)
+//        println(s"MarkleTree Diff: ${Abytes}")
+//      } else {
+//        val Abytes = MerkleTreeFromByteArray.getDiffInBytes(Array[Byte](), bytes, 4096)
+//        println(s"MarkleTree Diff: ${Abytes}")
+//      }
+//      oldBytes = bytes
+//      val bytes2 = AmberRuntime.serde.serialize(key.asInstanceOf[AnyRef]).get
+//      val bytes3 = AmberRuntime.serde.serialize(updatedAggregates).get
+//      println(s"Normal Diff: ${bytes2.length + bytes3.length}")
+//    }
     Iterator.empty
 
   }
