@@ -49,7 +49,7 @@ if (environment.userSystemEnabled) {
                 component: HubWorkflowResultComponent,
               },
               {
-                path: "search/result/detail",
+                path: "search/result/detail/:id",
                 component: HubWorkflowDetailComponent,
               },
             ],

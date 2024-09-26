@@ -1,6 +1,8 @@
-import { Component } from "@angular/core";
-import { UntilDestroy } from "@ngneat/until-destroy";
+import { Component, OnInit } from "@angular/core";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { ActivatedRoute } from "@angular/router";
+import { HubWorkflowService } from "../../../service/workflow/hub-workflow.service";
+import { User } from "../../../../common/type/user";
 
 @UntilDestroy()
 @Component({
@@ -8,12 +10,12 @@ import { ActivatedRoute } from "@angular/router";
   templateUrl: "hub-workflow-detail.component.html",
   styleUrls: ["hub-workflow-detail.component.scss"],
 })
-export class HubWorkflowDetailComponent {
-  wid: string | null;
+export class HubWorkflowDetailComponent implements OnInit {
+  wid: number;
+  ownerUser!: User;
+  workflowName: string = "";
 
   workflow = {
-    name: "Example Workflow",
-    createdBy: "John Doe",
     steps: [
       {
         name: "Step 1: Data Collection",
@@ -38,7 +40,25 @@ export class HubWorkflowDetailComponent {
     ],
   };
 
-  constructor(private route: ActivatedRoute) {
-    this.wid = this.route.snapshot.queryParamMap.get("wid");
+  constructor(
+    private hubWorkflowService: HubWorkflowService,
+    private route: ActivatedRoute
+  ) {
+    this.wid = this.route.snapshot.params.id;
+  }
+
+  ngOnInit() {
+    this.hubWorkflowService
+      .getOwnerUser(this.wid)
+      .pipe(untilDestroyed(this))
+      .subscribe(owner => {
+        this.ownerUser = owner;
+      });
+    this.hubWorkflowService
+      .getWorkflowName(this.wid)
+      .pipe(untilDestroyed(this))
+      .subscribe(workflowName => {
+        this.workflowName = workflowName;
+      });
   }
 }
