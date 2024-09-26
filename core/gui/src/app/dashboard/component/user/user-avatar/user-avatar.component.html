@@ -1,4 +1,6 @@
-<div class="d-inline-block">
+<div
+  class="d-inline-block avatar-wrapper"
+  style="position: relative">
   <nz-avatar
     [nzAlt]=""
     [nzSrc]="googleAvatar"
@@ -6,4 +8,9 @@
     [style.background-color]="userColor"
     class="texera-user-avatar">
   </nz-avatar>
+  <span
+    *ngIf="isOwner"
+    class="owner-badge"
+    >★</span
+  >
 </div>

@@ -14,6 +14,7 @@ export class UserAvatarComponent {
   @Input() googleAvatar?: string;
   @Input() userName?: string;
   @Input() userColor?: string;
+  @Input() isOwner: Boolean = false;
 
   /**
    * abbreviates the name under 5 chars
