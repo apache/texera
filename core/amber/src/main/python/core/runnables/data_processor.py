@@ -110,6 +110,7 @@ class DataProcessor(Runnable, Stoppable):
                     output_tuple.finalize(
                         self._context.output_manager.get_port().get_schema()
                     )
+                self._switch_context()
                 self._context.tuple_processing_manager.current_output_tuple = (
                     output_tuple
                 )
