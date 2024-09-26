@@ -1,5 +1,4 @@
-import { Component, Input, ViewChild } from "@angular/core";
-import { HubWorkflowService } from "../../../service/workflow/hub-workflow.service";
+import { AfterViewInit, Component, Input, ViewChild } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { SearchResultsComponent } from "../../../../dashboard/component/user/search-results/search-results.component";
 import { FiltersComponent } from "../../../../dashboard/component/user/filters/filters.component";
@@ -16,7 +15,7 @@ import { DashboardEntry, UserInfo } from "../../../../dashboard/type/dashboard-e
   templateUrl: "hub-workflow-search.component.html",
   styleUrls: ["hub-workflow-search.component.scss"],
 })
-export class HubWorkflowSearchComponent {
+export class HubWorkflowSearchComponent implements AfterViewInit {
   currentUid = this.userService.getCurrentUser()?.uid;
   private isLogin = false;
   private includePublic = true;
