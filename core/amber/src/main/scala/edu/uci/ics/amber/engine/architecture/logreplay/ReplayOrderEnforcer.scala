@@ -21,6 +21,7 @@ class ReplayOrderEnforcer(
       onComplete()
       onComplete = null // make sure the onComplete is called only once.
       additionalStepOrder.foreach(ps => channelStepOrder.enqueue(ps))
+      additionalStepOrder.clear()
     }
   }
 
