@@ -169,6 +169,13 @@ class DataProcessor(
     if (outputManager.hasUnfinishedOutput) {
       outputOneTuple(logManager)
     } else {
+      if(pauseManager.allowedProcessedTuples.nonEmpty){
+        if(pauseManager.allowedProcessedTuples.get == 1){
+          pauseManager.allowedProcessedTuples = None
+        }else{
+          pauseManager.allowedProcessedTuples = Some(pauseManager.allowedProcessedTuples.get - 1)
+        }
+      }
       processInputTuple(inputManager.getNextTuple)
     }
     statisticsManager.increaseDataProcessingTime(System.nanoTime() - dataProcessingStartTime)

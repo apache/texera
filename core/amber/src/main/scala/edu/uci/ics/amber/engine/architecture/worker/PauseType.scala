@@ -6,6 +6,8 @@ sealed trait PauseType
 
 object UserPause extends PauseType
 
+object DebuggerPause extends PauseType
+
 object BackpressurePause extends PauseType
 
 object OperatorLogicPause extends PauseType

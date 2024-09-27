@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
-import edu.uci.ics.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
+import edu.uci.ics.amber.engine.architecture.worker.{DataProcessorRPCHandlerInitializer, DebuggerPause}
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StepHandler.{ContinueProcessing, StopProcessing}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 
@@ -13,11 +13,17 @@ trait StepHandler {
   this: DataProcessorRPCHandlerInitializer =>
 
   registerHandler { (msg: ContinueProcessing, sender) =>
-    throw new RuntimeException("Should not explicitly handle this")
+    logger.info(s"received $msg")
+    if(msg.stepSize.isEmpty){
+      dp.pauseManager.resume(DebuggerPause)
+    }else{
+      dp.pauseManager.allowedProcessedTuples = msg.stepSize
+    }
   }
 
   registerHandler { (msg: StopProcessing, sender) =>
-    throw new RuntimeException("Should not explicitly handle this")
+    logger.info(s"received $msg")
+    dp.pauseManager.pause(DebuggerPause)
   }
 
 }

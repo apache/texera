@@ -73,6 +73,7 @@ class WorkflowWorker(
         () => {
           logger.info("replay completed!")
           context.parent ! ReplayStatusUpdate(actorId, status = false)
+          dp.pauseManager.pause(DebuggerPause)
         }
       )
     }

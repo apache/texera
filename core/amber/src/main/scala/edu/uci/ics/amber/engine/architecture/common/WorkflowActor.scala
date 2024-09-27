@@ -194,7 +194,7 @@ abstract class WorkflowActor(
       onComplete()
     } else {
       // do replay from scratch
-      val (processSteps, messages, checkpointToLoad) =
+      val (processSteps, additionalSteps, messages, checkpointToLoad) =
         ReplayLogGenerator.generate(logStorageToRead, getLogName, replayTo)
       if(checkpointToLoad.isDefined){
         val chkptStorage = SequentialRecordStorage.getStorage[CheckpointState](
@@ -213,6 +213,7 @@ abstract class WorkflowActor(
       val orderEnforcer = new ReplayOrderEnforcer(
         logManager,
         processSteps,
+        additionalSteps,
         startStep = logManager.getStep,
         onComplete
       )

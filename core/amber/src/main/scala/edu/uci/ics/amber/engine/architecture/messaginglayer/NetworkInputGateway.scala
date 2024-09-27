@@ -33,6 +33,8 @@ class NetworkInputGateway(val actorId: ActorVirtualIdentity)
                   return Some(channel)
                 case WorkflowFIFOMessage(_, _, ControlInvocation(_, StopProcessing())) =>
                   return Some(channel)
+                case other =>
+                  //do nothing
               }
             case None => // do nothing
           }
@@ -63,6 +65,8 @@ class NetworkInputGateway(val actorId: ActorVirtualIdentity)
                     }else{
                       // do nothing
                     }
+                  case other =>
+                  //do nothing
                 }
               case None => // do nothing
             }
