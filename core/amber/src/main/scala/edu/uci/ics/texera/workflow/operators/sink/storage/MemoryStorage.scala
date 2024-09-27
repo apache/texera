@@ -3,30 +3,32 @@ package edu.uci.ics.texera.workflow.operators.sink.storage
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 
+import java.util.concurrent.CopyOnWriteArrayList
 import scala.collection.mutable.ArrayBuffer
+import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 class MemoryStorage extends SinkStorageReader with SinkStorageWriter {
 
-  private val results = new ArrayBuffer[Tuple]()
+  private val results = new CopyOnWriteArrayList[Tuple]()
 
   override def getAll: Iterable[Tuple] =
     synchronized {
-      results
+      results.asScala
     }
 
   override def putOne(tuple: Tuple): Unit =
     synchronized {
-      results += tuple
+      results.add(tuple)
     }
 
   override def removeOne(tuple: Tuple): Unit =
     synchronized {
-      results -= tuple
+      results.remove(tuple)
     }
 
   override def getAllAfter(offset: Int): Iterable[Tuple] =
     synchronized {
-      results.slice(offset, results.size)
+      results.asScala.slice(offset, results.size)
     }
 
   override def clear(): Unit =
@@ -42,10 +44,10 @@ class MemoryStorage extends SinkStorageReader with SinkStorageWriter {
 
   override def getRange(from: Int, to: Int): Iterable[Tuple] =
     synchronized {
-      results.slice(from, to)
+      results.asScala.slice(from, to)
     }
 
-  override def getCount: Long = results.length
+  override def getCount: Long = results.size
 
   override def getSchema: Schema = schema
 

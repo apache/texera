@@ -114,7 +114,7 @@ class DataProcessor(
   /** transfer one tuple from iterator to downstream.
     * this function is only called by the DP thread
     */
-  private[this] def outputOneTuple(logManager: ReplayLogManager): Unit = {
+  def outputOneTuple(logManager: ReplayLogManager): Unit = {
     adaptiveBatchingMonitor.startAdaptiveBatching()
     var out: (TupleLike, Option[PortIdentity]) = null
     try {
@@ -164,18 +164,29 @@ class DataProcessor(
     }
   }
 
+  def decreaseProcessedTuple(): Unit = {
+    if (pauseManager.allowedProcessedTuples.nonEmpty) {
+      if (pauseManager.allowedProcessedTuples.get == 1) {
+        pauseManager.allowedProcessedTuples = None
+      } else {
+        pauseManager.allowedProcessedTuples = Some(pauseManager.allowedProcessedTuples.get - 1)
+      }
+    }
+  }
+
   def continueDataProcessing(logManager:ReplayLogManager): Unit = {
     val dataProcessingStartTime = System.nanoTime()
     if (outputManager.hasUnfinishedOutput) {
       outputOneTuple(logManager)
-    } else {
-      if(pauseManager.allowedProcessedTuples.nonEmpty){
-        if(pauseManager.allowedProcessedTuples.get == 1){
-          pauseManager.allowedProcessedTuples = None
-        }else{
-          pauseManager.allowedProcessedTuples = Some(pauseManager.allowedProcessedTuples.get - 1)
-        }
+      if (executor.isInstanceOf[SourceOperatorExecutor]) {
+        decreaseProcessedTuple()
+      } else if(!outputManager.hasUnfinishedOutput){
+        decreaseProcessedTuple()
       }
+      if (pauseManager.allowedProcessedTuples.isEmpty) {
+        outputManager.flush()
+      }
+    } else {
       processInputTuple(inputManager.getNextTuple)
     }
     statisticsManager.increaseDataProcessingTime(System.nanoTime() - dataProcessingStartTime)
@@ -235,7 +246,7 @@ class DataProcessor(
       // invoke the control command carried with the epoch marker
       logger.info(s"process marker from $channelId, id = ${marker.id}, cmd = ${command}")
       if (command.isDefined) {
-        asyncRPCServer.receive(command.get, channelId.fromWorkerId)
+        asyncRPCServer.receive(command.get, CONTROLLER)
       }
       // if this worker is not the final destination of the marker, pass it downstream
       val downstreamChannelsInScope = marker.scope.filter(_.fromWorkerId == actorId)

@@ -5,6 +5,7 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.Executio
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.BroadcastMessageHandler.BroadcastMessage
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ChannelMarkerHandler.PropagateChannelMarker
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.QueryWorkerStatisticsHandler.ControllerInitiateQueryStatistics
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.TakeGlobalCheckpointHandler.TakeGlobalCheckpoint
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.FaultToleranceConfig
@@ -100,8 +101,9 @@ class ExecutionRuntimeService(
   addSubscription(wsInput.subscribe((req: WorkflowStepRequest, uidOpt) => {
     val targetOp = req.targetOp
     val physicalOp = physicalPlan.getPhysicalOpsOfLogicalOp(OperatorIdentity(targetOp)).head.id
-    val downstreams = physicalPlan.dag.getDescendants(physicalOp).asScala.toSet
+    val downstreams = physicalPlan.dag.getDescendants(physicalOp).asScala.toSet ++ Set(physicalOp)
     val downstreamsWithoutTarget = downstreams - physicalOp
+    val subDAG = physicalPlan.getSubPlan(downstreams)
     val subDAGWithoutTarget = physicalPlan.getSubPlan(downstreamsWithoutTarget)
     val now = LocalDateTime.now()
     val formatter = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")
@@ -114,12 +116,13 @@ class ExecutionRuntimeService(
             Set(physicalOp),
             ChannelMarkerIdentity(s"debugging-stepout-${timestamp}"),
             RequireAlignment,
-            subDAGWithoutTarget,
+            subDAG,
             downstreamsWithoutTarget,
             StopProcessing()
             ))
       case "StepInto" =>
         client.sendAsync(BroadcastMessage(Iterable(physicalOp), ContinueProcessing(Some(1))))
+        client.sendAsync(ControllerInitiateQueryStatistics(None))
       case "StepOver" =>
         client.sendAsync(BroadcastMessage(Iterable(physicalOp), ContinueProcessing(Some(1))))
         client.sendAsync(BroadcastMessage(downstreamsWithoutTarget, ContinueProcessing(None)))
@@ -128,7 +131,7 @@ class ExecutionRuntimeService(
             Set(physicalOp),
             ChannelMarkerIdentity(s"debugging-stepover-${timestamp}"),
             RequireAlignment,
-            subDAGWithoutTarget,
+            subDAG,
             downstreamsWithoutTarget,
             StopProcessing()
           ))

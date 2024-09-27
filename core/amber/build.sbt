@@ -286,4 +286,9 @@ libraryDependencies += "org.scala-lang.modules" %% "scala-collection-contrib" % 
 // https://mvnrepository.com/artifact/io.github.kostaskougios/cloning
 libraryDependencies += "io.github.kostaskougios" % "cloning" % "1.10.3"
 
+libraryDependencies ++= Seq(
+  "org.scala-lang" % "scala-compiler" % "2.13.12",
+  "org.scala-lang" % "scala-reflect"  % "2.13.12"
+)
+
 

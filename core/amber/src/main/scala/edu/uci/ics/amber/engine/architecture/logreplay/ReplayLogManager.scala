@@ -52,15 +52,20 @@ trait ReplayLogManager {
 
   def withFaultTolerant(
       channelId: ChannelIdentity,
-      message: Option[WorkflowFIFOMessage]
+      message: Option[WorkflowFIFOMessage],
+      disableFT:Boolean
   )(code: => Unit): Unit = {
-    cursor.setCurrentChannel(channelId)
-    try {
+    if(disableFT){
       code
-    } catch {
-      case t: Throwable => throw t
-    } finally {
-      cursor.stepIncrement()
+    }else{
+      cursor.setCurrentChannel(channelId)
+      try {
+        code
+      } catch {
+        case t: Throwable => throw t
+      } finally {
+        cursor.stepIncrement()
+      }
     }
   }
 
@@ -95,10 +100,13 @@ class ReplayLogManagerImpl(handler: Either[MainThreadDelegateMessage, WorkflowFI
 
   override def withFaultTolerant(
       channelId: ChannelIdentity,
-      message: Option[WorkflowFIFOMessage]
+      message: Option[WorkflowFIFOMessage],
+      disableFT:Boolean
   )(code: => Unit): Unit = {
-    replayLogger.logCurrentStepWithMessage(cursor.getStep, channelId, message)
-    super.withFaultTolerant(channelId, message)(code)
+    if(!disableFT){
+      replayLogger.logCurrentStepWithMessage(cursor.getStep, channelId, message)
+    }
+    super.withFaultTolerant(channelId, message, disableFT)(code)
   }
 
   override def markAsReplayDestination(id: ChannelMarkerIdentity): Unit = {

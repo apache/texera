@@ -7,10 +7,11 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.TakeGlob
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.FinalizeCheckpointHandler.FinalizeCheckpoint
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PrepareCheckpointHandler.PrepareCheckpoint
 import edu.uci.ics.amber.engine.common.{CheckpointState, SerializedState}
-import edu.uci.ics.amber.engine.common.ambermessage.NoAlignment
+import edu.uci.ics.amber.engine.common.ambermessage.{NoAlignment, RequireAlignment}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.engine.common.virtualidentity.ChannelMarkerIdentity
+import org.jooq.Require
 
 import java.net.URI
 

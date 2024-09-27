@@ -51,6 +51,8 @@ class AmberProcessor(
       case ret: ReturnInvocation =>
         asyncRPCClient.logControlReply(ret, channelId)
         asyncRPCClient.fulfillPromise(ret)
+      case other =>
+        println(other)
     }
     statisticsManager.increaseControlProcessingTime(System.nanoTime() - controlProcessingStartTime)
   }

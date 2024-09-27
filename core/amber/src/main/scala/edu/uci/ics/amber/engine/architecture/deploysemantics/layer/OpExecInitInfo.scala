@@ -2,6 +2,7 @@ package edu.uci.ics.amber.engine.architecture.deploysemantics.layer
 
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.operators.udf.java.JavaRuntimeCompilation
+import edu.uci.ics.texera.workflow.operators.udf.scala.ScalaRuntimeCompilation
 
 object OpExecInitInfo {
 
@@ -16,13 +17,22 @@ object OpExecInitInfo {
   ): OperatorExecutor = {
     opExecInitInfo match {
       case OpExecInitInfoWithCode(codeGen) =>
-        val (code, _) =
+        val (code, language) =
           codeGen(workerIdx, numWorkers)
-        JavaRuntimeCompilation
-          .compileCode(code)
-          .getDeclaredConstructor()
-          .newInstance()
-          .asInstanceOf[OperatorExecutor]
+        language match{
+          case "java" =>
+            JavaRuntimeCompilation
+              .compileCode(code)
+              .getDeclaredConstructor()
+              .newInstance()
+              .asInstanceOf[OperatorExecutor]
+          case "scala" =>
+            ScalaRuntimeCompilation.compileCode(code)
+              .getDeclaredConstructor()
+              .newInstance()
+              .asInstanceOf[OperatorExecutor]
+          case other => ???
+        }
       case OpExecInitInfoWithFunc(opGen) =>
         opGen(
           workerIdx,

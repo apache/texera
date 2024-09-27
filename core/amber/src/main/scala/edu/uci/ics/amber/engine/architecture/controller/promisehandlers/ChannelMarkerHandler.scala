@@ -3,17 +3,14 @@ package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ChannelMarkerHandler.PropagateChannelMarker
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.QueryWorkerStatisticsHandler.ControllerInitiateQueryStatistics
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.ambermessage.ChannelMarkerType
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  ChannelIdentity,
-  ChannelMarkerIdentity,
-  PhysicalOpIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity, ChannelMarkerIdentity, PhysicalOpIdentity}
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 
 object ChannelMarkerHandler {
@@ -88,10 +85,12 @@ trait ChannelMarkerHandler {
           )
         }
       }
-
       // step 5: wait for the marker propagation.
       Future.collect(futures.toList).map { ret =>
-        cp.logManager.markAsReplayDestination(msg.id)
+        if(!msg.markerCommand.isInstanceOf[PauseWorker]){
+          cp.logManager.markAsReplayDestination(msg.id)
+        }
+        execute(ControllerInitiateQueryStatistics(None), CONTROLLER)
         ret
       }
     }

@@ -140,10 +140,18 @@ class DPThread(
       //
       var channelId: ChannelIdentity = null
       var msgOpt: Option[WorkflowFIFOMessage] = None
+      var disableFT = false
       if (
         dp.inputManager.hasUnfinishedInput || dp.outputManager.hasUnfinishedOutput || dp.pauseManager.isPaused
       ) {
-        dp.inputGateway.tryPickControlChannel match {
+        val (channelOpt, ft) =
+          if(!dp.pauseManager.debuggingMode){
+            dp.inputGateway.tryPickControlChannel
+          }else{
+            dp.inputGateway.tryPickChannel
+          }
+        disableFT = ft
+        channelOpt match {
           case Some(channel) =>
             channelId = channel.channelId
             msgOpt = Some(channel.take)
@@ -157,11 +165,13 @@ class DPThread(
         }
       } else {
         // take from input port
-        if (backpressureStatus) {
+        val (channelOpt, ft) = if (backpressureStatus) {
           dp.inputGateway.tryPickControlChannel
         } else {
           dp.inputGateway.tryPickChannel
-        } match {
+        }
+        disableFT = ft
+        channelOpt match {
           case Some(channel) =>
             channelId = channel.channelId
             msgOpt = Some(channel.take)
@@ -175,7 +185,7 @@ class DPThread(
       if (channelId != null) {
         // for logging, skip large data frames.
         val msgToLog = msgOpt.filter(_.payload.isInstanceOf[ControlPayload])
-        logManager.withFaultTolerant(channelId, msgToLog) {
+        logManager.withFaultTolerant(channelId, msgToLog, disableFT) {
           msgOpt match {
             case None =>
               dp.continueDataProcessing(logManager)

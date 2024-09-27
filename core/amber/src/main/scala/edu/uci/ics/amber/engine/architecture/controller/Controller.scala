@@ -128,11 +128,12 @@ class Controller(
   def processMessages(): Unit = {
     var waitingForInput = false
     while (!waitingForInput) {
-      cp.inputGateway.tryPickChannel match {
+      val (channelOpt, disableFT) = cp.inputGateway.tryPickChannel
+      channelOpt match {
         case Some(channel) =>
           val msg = channel.take
           val msgToLog = Some(msg).filter(_.payload.isInstanceOf[ControlPayload])
-          logManager.withFaultTolerant(msg.channelId, msgToLog) {
+          logManager.withFaultTolerant(msg.channelId, msgToLog, disableFT) {
             msg.payload match {
               case payload: ControlPayload      => cp.processControlPayload(msg.channelId, payload)
               case marker: ChannelMarkerPayload => // skip marker
