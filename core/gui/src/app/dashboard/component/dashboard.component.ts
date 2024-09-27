@@ -51,26 +51,19 @@ export class DashboardComponent implements OnInit {
     this.isCollpased = false;
 
     if (!this.isLogin) {
-      if (!sessionStorage.getItem("homePageReloaded")) {
-        sessionStorage.setItem("homePageReloaded", "true");
-        window.location.reload();
-      } else {
-        sessionStorage.removeItem("homePageReloaded");
-
-        this.googleAuthService.googleAuthInit(document.getElementById("googleButton"));
-        this.googleAuthService.googleCredentialResponse
-          .pipe(mergeMap(res => this.userService.googleLogin(res.credential)))
-          .pipe(
-            catchError((e: unknown) => {
-              this.notificationService.error((e as Error).message, { nzDuration: 10 });
-              return throwError(() => e);
-            })
-          )
-          // eslint-disable-next-line rxjs-angular/prefer-takeuntil
-          .subscribe(() =>
-            this.router.navigateByUrl(this.route.snapshot.queryParams["returnUrl"] || "/dashboard/user/workflow")
-          );
-      }
+      this.googleAuthService.googleAuthInit(document.getElementById("googleButton"));
+      this.googleAuthService.googleCredentialResponse
+        .pipe(mergeMap(res => this.userService.googleLogin(res.credential)))
+        .pipe(
+          catchError((e: unknown) => {
+            this.notificationService.error((e as Error).message, { nzDuration: 10 });
+            return throwError(() => e);
+          })
+        )
+        // eslint-disable-next-line rxjs-angular/prefer-takeuntil
+        .subscribe(() =>
+          this.router.navigateByUrl(this.route.snapshot.queryParams["returnUrl"] || "/dashboard/user/workflow")
+        );
     }
     if (!document.cookie.includes("flarum_remember") && this.isLogin) {
       this.flarumService
