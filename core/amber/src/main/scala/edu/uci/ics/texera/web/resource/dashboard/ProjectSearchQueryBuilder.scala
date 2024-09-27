@@ -28,7 +28,8 @@ object ProjectSearchQueryBuilder extends SearchQueryBuilder {
 
   override protected def constructFromClause(
       uid: UInteger,
-      params: DashboardResource.SearchQueryParams
+      params: DashboardResource.SearchQueryParams,
+      includePublic: Boolean = false
   ): TableLike[_] = {
     PROJECT
       .leftJoin(PROJECT_USER_ACCESS)

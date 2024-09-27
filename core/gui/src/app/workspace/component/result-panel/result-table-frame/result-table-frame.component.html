@@ -98,14 +98,25 @@
       </tr>
     </thead>
     <tbody>
-      <tr *ngFor="let row of basicTable.data; let i = index">
+      <tr
+        *ngFor="let row of basicTable.data; let i = index"
+        class="table-row-hover">
         <td
-          (click)="open(i, row)"
-          *ngFor="let column of currentColumns"
-          class="table-row"
+          *ngFor="let column of currentColumns; let columnIndex = index"
+          class="table-cell"
           nzEllipsis
-          ngClass="data-size">
-          {{ column.getCell(row) }}
+          (click)="open(i, row)">
+          <span class="cell-content">{{ column.getCell(row) }}</span>
+          <button
+            (click)="downloadData(currentResult[i][column.columnDef], i, columnIndex, column.columnDef); $event.stopPropagation()"
+            nz-button
+            nzType="link"
+            class="download-button"
+            title="Download data">
+            <i
+              nz-icon
+              nzType="cloud-download"></i>
+          </button>
         </td>
       </tr>
     </tbody>
