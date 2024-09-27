@@ -4,8 +4,12 @@ import { UserService } from "../../common/service/user/user.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { FlarumService } from "../service/user/flarum/flarum.service";
 import { HttpErrorResponse } from "@angular/common/http";
-import { Router } from "@angular/router";
+import { ActivatedRoute, Router } from "@angular/router";
 import { HubComponent } from "../../hub/component/hub.component";
+import { GoogleAuthService } from "../../common/service/user/google-auth.service";
+import { NotificationService } from "../../common/service/notification/notification.service";
+import { catchError, mergeMap } from "rxjs/operators";
+import { throwError } from "rxjs";
 
 @Component({
   selector: "texera-dashboard",
@@ -28,7 +32,10 @@ export class DashboardComponent implements OnInit {
     private userService: UserService,
     private router: Router,
     private flarumService: FlarumService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private route: ActivatedRoute,
+    private googleAuthService: GoogleAuthService,
+    private notificationService: NotificationService
   ) {
     this.userService
       .userChanged()
@@ -42,6 +49,22 @@ export class DashboardComponent implements OnInit {
 
   ngOnInit(): void {
     this.isCollpased = false;
+
+    if (!this.isLogin) {
+      this.googleAuthService.googleAuthInit(document.getElementById("googleButton"));
+      this.googleAuthService.googleCredentialResponse
+        .pipe(mergeMap(res => this.userService.googleLogin(res.credential)))
+        .pipe(
+          catchError((e: unknown) => {
+            this.notificationService.error((e as Error).message, { nzDuration: 10 });
+            return throwError(() => e);
+          })
+        )
+        // eslint-disable-next-line rxjs-angular/prefer-takeuntil
+        .subscribe(() =>
+          this.router.navigateByUrl(this.route.snapshot.queryParams["returnUrl"] || "/dashboard/user/workflow")
+        );
+    }
     if (!document.cookie.includes("flarum_remember") && this.isLogin) {
       this.flarumService
         .auth()
