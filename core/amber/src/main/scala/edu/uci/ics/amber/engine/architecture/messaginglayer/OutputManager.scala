@@ -55,7 +55,11 @@ object OutputManager {
 
     def setTupleOutput(outputIter: Iterator[(TupleLike, Option[PortIdentity])]): Unit = {
       if (outputIter != null) {
-        this.outputIter = outputIter
+        if(this.outputIter.hasNext){
+          this.outputIter = this.outputIter ++ outputIter
+        }else{
+          this.outputIter = outputIter
+        }
       } else {
         this.outputIter = Iterator.empty
       }
