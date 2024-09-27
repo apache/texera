@@ -43,6 +43,7 @@ trait QueryWorkerStatisticsHandler {
               .getWorkerExecution(workerId)
           workerExecution.setState(metrics.workerState)
           workerExecution.setStats(metrics.workerStatistics)
+          workerExecution.setInternalState(metrics.workerInternalState)
         })
       )
       .toSeq

@@ -56,7 +56,8 @@ object ExecutionUtils {
         dataProcessingTimeSum,
         controlProcessingTimeSum,
         idleTimeSum
-      )
+      ),
+      metrics.map(_.operatorInternalState).mkString("\n")
     )
   }
   def aggregateStates[T](

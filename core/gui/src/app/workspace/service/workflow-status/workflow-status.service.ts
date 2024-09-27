@@ -41,6 +41,7 @@ export class WorkflowStatusService {
           operatorState: OperatorState.Uninitialized,
           aggregatedInputRowCount: 0,
           aggregatedOutputRowCount: 0,
+          aggregatedInternalState: ""
         };
         return accumulator;
       },

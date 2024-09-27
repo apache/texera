@@ -8,7 +8,8 @@ package edu.uci.ics.texera.web.workflowruntimestate
 @SerialVersionUID(0L)
 final case class OperatorMetrics(
     operatorState: edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState = edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.UNINITIALIZED,
-    operatorStatistics: edu.uci.ics.texera.web.workflowruntimestate.OperatorStatistics = edu.uci.ics.texera.web.workflowruntimestate.OperatorStatistics.defaultInstance
+    operatorStatistics: edu.uci.ics.texera.web.workflowruntimestate.OperatorStatistics = edu.uci.ics.texera.web.workflowruntimestate.OperatorStatistics.defaultInstance,
+    operatorInternalState: _root_.scala.Predef.String = ""
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[OperatorMetrics] {
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
@@ -26,6 +27,13 @@ final case class OperatorMetrics(
         val __value = operatorStatistics
         if (__value != edu.uci.ics.texera.web.workflowruntimestate.OperatorStatistics.defaultInstance) {
           __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
+        }
+      };
+      
+      {
+        val __value = operatorInternalState
+        if (!__value.isEmpty) {
+          __size += _root_.com.google.protobuf.CodedOutputStream.computeStringSize(3, __value)
         }
       };
       __size
@@ -53,9 +61,16 @@ final case class OperatorMetrics(
           __v.writeTo(_output__)
         }
       };
+      {
+        val __v = operatorInternalState
+        if (!__v.isEmpty) {
+          _output__.writeString(3, __v)
+        }
+      };
     }
     def withOperatorState(__v: edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState): OperatorMetrics = copy(operatorState = __v)
     def withOperatorStatistics(__v: edu.uci.ics.texera.web.workflowruntimestate.OperatorStatistics): OperatorMetrics = copy(operatorStatistics = __v)
+    def withOperatorInternalState(__v: _root_.scala.Predef.String): OperatorMetrics = copy(operatorInternalState = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
         case 1 => {
@@ -66,6 +81,10 @@ final case class OperatorMetrics(
           val __t = operatorStatistics
           if (__t != edu.uci.ics.texera.web.workflowruntimestate.OperatorStatistics.defaultInstance) __t else null
         }
+        case 3 => {
+          val __t = operatorInternalState
+          if (__t != "") __t else null
+        }
       }
     }
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
@@ -73,6 +92,7 @@ final case class OperatorMetrics(
       (__field.number: @_root_.scala.unchecked) match {
         case 1 => _root_.scalapb.descriptors.PEnum(operatorState.scalaValueDescriptor)
         case 2 => operatorStatistics.toPMessage
+        case 3 => _root_.scalapb.descriptors.PString(operatorInternalState)
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
@@ -85,6 +105,7 @@ object OperatorMetrics extends scalapb.GeneratedMessageCompanion[edu.uci.ics.tex
   def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.texera.web.workflowruntimestate.OperatorMetrics = {
     var __operatorState: edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState = edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.UNINITIALIZED
     var __operatorStatistics: _root_.scala.Option[edu.uci.ics.texera.web.workflowruntimestate.OperatorStatistics] = _root_.scala.None
+    var __operatorInternalState: _root_.scala.Predef.String = ""
     var _done__ = false
     while (!_done__) {
       val _tag__ = _input__.readTag()
@@ -94,12 +115,15 @@ object OperatorMetrics extends scalapb.GeneratedMessageCompanion[edu.uci.ics.tex
           __operatorState = edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.fromValue(_input__.readEnum())
         case 18 =>
           __operatorStatistics = _root_.scala.Some(__operatorStatistics.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.texera.web.workflowruntimestate.OperatorStatistics](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+        case 26 =>
+          __operatorInternalState = _input__.readStringRequireUtf8()
         case tag => _input__.skipField(tag)
       }
     }
     edu.uci.ics.texera.web.workflowruntimestate.OperatorMetrics(
         operatorState = __operatorState,
-        operatorStatistics = __operatorStatistics.getOrElse(edu.uci.ics.texera.web.workflowruntimestate.OperatorStatistics.defaultInstance)
+        operatorStatistics = __operatorStatistics.getOrElse(edu.uci.ics.texera.web.workflowruntimestate.OperatorStatistics.defaultInstance),
+        operatorInternalState = __operatorInternalState
     )
   }
   implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.texera.web.workflowruntimestate.OperatorMetrics] = _root_.scalapb.descriptors.Reads{
@@ -107,7 +131,8 @@ object OperatorMetrics extends scalapb.GeneratedMessageCompanion[edu.uci.ics.tex
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
       edu.uci.ics.texera.web.workflowruntimestate.OperatorMetrics(
         operatorState = edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.fromValue(__fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scalapb.descriptors.EnumValueDescriptor]).getOrElse(edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.UNINITIALIZED.scalaValueDescriptor).number),
-        operatorStatistics = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[edu.uci.ics.texera.web.workflowruntimestate.OperatorStatistics]).getOrElse(edu.uci.ics.texera.web.workflowruntimestate.OperatorStatistics.defaultInstance)
+        operatorStatistics = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[edu.uci.ics.texera.web.workflowruntimestate.OperatorStatistics]).getOrElse(edu.uci.ics.texera.web.workflowruntimestate.OperatorStatistics.defaultInstance),
+        operatorInternalState = __fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).map(_.as[_root_.scala.Predef.String]).getOrElse("")
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
@@ -128,20 +153,25 @@ object OperatorMetrics extends scalapb.GeneratedMessageCompanion[edu.uci.ics.tex
   }
   lazy val defaultInstance = edu.uci.ics.texera.web.workflowruntimestate.OperatorMetrics(
     operatorState = edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.UNINITIALIZED,
-    operatorStatistics = edu.uci.ics.texera.web.workflowruntimestate.OperatorStatistics.defaultInstance
+    operatorStatistics = edu.uci.ics.texera.web.workflowruntimestate.OperatorStatistics.defaultInstance,
+    operatorInternalState = ""
   )
   implicit class OperatorMetricsLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.OperatorMetrics]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.OperatorMetrics](_l) {
     def operatorState: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState] = field(_.operatorState)((c_, f_) => c_.copy(operatorState = f_))
     def operatorStatistics: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.OperatorStatistics] = field(_.operatorStatistics)((c_, f_) => c_.copy(operatorStatistics = f_))
+    def operatorInternalState: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.operatorInternalState)((c_, f_) => c_.copy(operatorInternalState = f_))
   }
   final val OPERATOR_STATE_FIELD_NUMBER = 1
   final val OPERATOR_STATISTICS_FIELD_NUMBER = 2
+  final val OPERATOR_INTERNAL_STATE_FIELD_NUMBER = 3
   def of(
     operatorState: edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState,
-    operatorStatistics: edu.uci.ics.texera.web.workflowruntimestate.OperatorStatistics
+    operatorStatistics: edu.uci.ics.texera.web.workflowruntimestate.OperatorStatistics,
+    operatorInternalState: _root_.scala.Predef.String
   ): _root_.edu.uci.ics.texera.web.workflowruntimestate.OperatorMetrics = _root_.edu.uci.ics.texera.web.workflowruntimestate.OperatorMetrics(
     operatorState,
-    operatorStatistics
+    operatorStatistics,
+    operatorInternalState
   )
   // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.texera.web.OperatorMetrics])
 }

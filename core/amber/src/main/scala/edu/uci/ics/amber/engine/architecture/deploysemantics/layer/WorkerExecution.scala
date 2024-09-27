@@ -16,12 +16,19 @@ case class WorkerExecution() extends Serializable {
 
   private var state: WorkerState = UNINITIALIZED
   private var stats: WorkerStatistics = WorkerStatistics(Seq(), Seq(), 0, 0, 0)
+  private var internalState: String = ""
 
   def getState: WorkerState = state
 
   def setState(state: WorkerState): Unit = {
     this.state = state
   }
+
+  def setInternalState(internal: String): Unit = {
+    this.internalState = internal
+  }
+
+  def getInternalState: String = this.internalState
 
   def getStats: WorkerStatistics = stats
 

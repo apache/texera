@@ -63,6 +63,7 @@ export interface OperatorStatistics
     operatorState: OperatorState;
     aggregatedInputRowCount: number;
     aggregatedOutputRowCount: number;
+    aggregatedInternalState: string;
   }> {}
 
 export interface OperatorStatsUpdate
