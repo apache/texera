@@ -11,7 +11,6 @@ class PauseManager(val actorId: ActorVirtualIdentity, inputGateway: InputGateway
 
   private val globalPauses = new mutable.HashSet[PauseType]()
   private val specificInputPauses = mutable.MultiDict[PauseType, ChannelIdentity]()
-  var allowedProcessedTuples: Option[Int] = None
   var debuggingMode = false
 
   def pause(pauseType: PauseType): Unit = {
@@ -52,7 +51,7 @@ class PauseManager(val actorId: ActorVirtualIdentity, inputGateway: InputGateway
   }
 
   def isPaused: Boolean = {
-    globalPauses.nonEmpty && allowedProcessedTuples.isEmpty
+    globalPauses.nonEmpty
   }
 
 }

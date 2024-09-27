@@ -25,14 +25,19 @@ trait StepHandler {
         val logManager = new EmptyReplayLogManagerImpl(dp.outputHandler)
         (0 until msg.stepSize.get).foreach(_ => dp.outputOneTuple(logManager))
         dp.outputManager.flush()
-      }else{
-        dp.pauseManager.allowedProcessedTuples = msg.stepSize
       }
     }
   }
 
   registerHandler { (msg: StopProcessing, sender) =>
     logger.info(s"received $msg")
+    val logManager = new EmptyReplayLogManagerImpl(dp.outputHandler)
+    if(!dp.executor.isInstanceOf[SourceOperatorExecutor]){
+      while(dp.outputManager.hasUnfinishedOutput){
+        dp.outputOneTuple(logManager)
+      }
+      dp.outputManager.flush()
+    }
     dp.pauseManager.pause(DebuggerPause)
     dp.pauseManager.debuggingMode = false
   }

@@ -164,28 +164,10 @@ class DataProcessor(
     }
   }
 
-  def decreaseProcessedTuple(): Unit = {
-    if (pauseManager.allowedProcessedTuples.nonEmpty) {
-      if (pauseManager.allowedProcessedTuples.get == 1) {
-        pauseManager.allowedProcessedTuples = None
-      } else {
-        pauseManager.allowedProcessedTuples = Some(pauseManager.allowedProcessedTuples.get - 1)
-      }
-    }
-  }
-
   def continueDataProcessing(logManager:ReplayLogManager): Unit = {
     val dataProcessingStartTime = System.nanoTime()
     if (outputManager.hasUnfinishedOutput) {
       outputOneTuple(logManager)
-      if (executor.isInstanceOf[SourceOperatorExecutor]) {
-        decreaseProcessedTuple()
-      } else if(!outputManager.hasUnfinishedOutput){
-        decreaseProcessedTuple()
-      }
-      if (pauseManager.allowedProcessedTuples.isEmpty) {
-        outputManager.flush()
-      }
     } else {
       processInputTuple(inputManager.getNextTuple)
     }
