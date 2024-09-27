@@ -215,7 +215,7 @@ registerLocaleData(en);
     WorkflowRuntimeStatisticsComponent,
     FlarumComponent,
     HighlightSearchTermsPipe,
-    PowerButtonComponent
+    PowerButtonComponent,
   ],
   imports: [
     BrowserModule,

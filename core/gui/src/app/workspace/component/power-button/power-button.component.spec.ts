@@ -16,7 +16,7 @@ describe("PowerButtonComponent", () => {
         HttpClientTestingModule, // Use TestingModule instead of HttpClientModule
         CommonModule,
         NzButtonModule,
-        NzIconModule
+        NzIconModule,
       ],
     }).compileComponents();
 

@@ -33,10 +33,13 @@ export class WorkflowPodBrainService {
       };
 
       return await lastValueFrom(
-        this.http
-        .post<Response>(`${AppSettings.getWorkflowPodEndpoint()}/${this.getRequestTypePath(requestType)}`, body, {
-          responseType: "text" as "json",
-        })
+        this.http.post<Response>(
+          `${AppSettings.getWorkflowPodEndpoint()}/${this.getRequestTypePath(requestType)}`,
+          body,
+          {
+            responseType: "text" as "json",
+          }
+        )
       );
     } catch (error) {
       console.error("Error sending request:", error);
