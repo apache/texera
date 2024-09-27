@@ -54,6 +54,7 @@ import edu.uci.ics.texera.workflow.operators.udf.python.source.PythonUDFSourceOp
 import edu.uci.ics.texera.workflow.operators.udf.python.{DualInputPortsPythonUDFOpDescV2, PythonLambdaFunctionOpDesc, PythonTableReducerOpDesc, PythonUDFOpDescV2}
 import edu.uci.ics.texera.workflow.operators.udf.r.{RUDFOpDesc, RUDFSourceOpDesc}
 import edu.uci.ics.texera.workflow.operators.udf.scala.ScalaUDFOpDesc
+import edu.uci.ics.texera.workflow.operators.udf.scala.source.ScalaUDFSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.union.UnionOpDesc
 import edu.uci.ics.texera.workflow.operators.unneststring.UnnestStringOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.boxPlot.BoxPlotOpDesc
@@ -169,6 +170,7 @@ trait StateTransferFunc
     new Type(value = classOf[TablesPlotOpDesc], name = "TablesPlot"),
     new Type(value = classOf[JavaUDFOpDesc], name = "JavaUDF"),
     new Type(value = classOf[ScalaUDFOpDesc], name = "ScalaUDF"),
+    new Type(value = classOf[ScalaUDFSourceOpDesc], name = "ScalaUDFSource"),
     new Type(value = classOf[RUDFOpDesc], name = "RUDF"),
     new Type(value = classOf[RUDFSourceOpDesc], name = "RUDFSource"),
     new Type(value = classOf[SortOpDesc], name = "Sort"),

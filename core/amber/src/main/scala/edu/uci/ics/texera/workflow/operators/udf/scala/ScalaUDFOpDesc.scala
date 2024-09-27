@@ -137,7 +137,7 @@ class ScalaUDFOpDesc extends LogicalOp {
     OperatorInfo(
       "Scala UDF",
       "User-defined function operator in Scala script",
-      OperatorGroupConstants.UDF_GROUP,
+      OperatorGroupConstants.SCALA_GROUP,
       inputPortInfo,
       outputPortInfo,
       dynamicInputPorts = true,
