@@ -1,6 +1,9 @@
 import { ComponentFixture, TestBed } from "@angular/core/testing";
-import { HttpClientModule } from "@angular/common/http";
+import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { PowerButtonComponent } from "./power-button.component";
+import { NzButtonModule } from "ng-zorro-antd/button";
+import { CommonModule } from "@angular/common";
+import { NzIconModule } from "ng-zorro-antd/icon";
 
 describe("PowerButtonComponent", () => {
   let component: PowerButtonComponent;
@@ -8,9 +11,12 @@ describe("PowerButtonComponent", () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
+      declarations: [PowerButtonComponent], // Declare if not standalone
       imports: [
-        PowerButtonComponent, // Import standalone component
-        HttpClientModule, // Import HttpClientModule for dynamic icon loading
+        HttpClientTestingModule, // Use TestingModule instead of HttpClientModule
+        CommonModule,
+        NzButtonModule,
+        NzIconModule
       ],
     }).compileComponents();
 

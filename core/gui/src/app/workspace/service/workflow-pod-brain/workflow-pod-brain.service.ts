@@ -4,6 +4,7 @@ import { UserService } from "../../../common/service/user/user.service";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { PowerState } from "../../component/power-button/power-button.component";
 import { AppSettings } from "src/app/common/app-setting";
+import { lastValueFrom } from "rxjs";
 
 @Injectable({
   providedIn: "root",
@@ -31,11 +32,12 @@ export class WorkflowPodBrainService {
         uid: this.uid,
       };
 
-      return await this.http
+      return await lastValueFrom(
+        this.http
         .post<Response>(`${AppSettings.getWorkflowPodEndpoint()}/${this.getRequestTypePath(requestType)}`, body, {
           responseType: "text" as "json",
         })
-        .toPromise();
+      );
     } catch (error) {
       console.error("Error sending request:", error);
       throw error;

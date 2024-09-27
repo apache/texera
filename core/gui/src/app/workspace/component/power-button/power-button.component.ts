@@ -1,7 +1,4 @@
 import { Component, Input, Output, EventEmitter } from "@angular/core";
-import { CommonModule } from "@angular/common";
-import { NzButtonModule } from "ng-zorro-antd/button";
-import { NzIconModule } from "ng-zorro-antd/icon";
 import { UntilDestroy } from "@ngneat/until-destroy";
 
 // Different states the power button can be in
@@ -15,8 +12,6 @@ export enum PowerState {
 @UntilDestroy()
 @Component({
   selector: "texera-power-button",
-  standalone: true,
-  imports: [CommonModule, NzButtonModule, NzIconModule],
   templateUrl: "./power-button.component.html",
   styleUrls: ["./power-button.component.scss"],
 })

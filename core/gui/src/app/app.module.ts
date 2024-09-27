@@ -215,6 +215,7 @@ registerLocaleData(en);
     WorkflowRuntimeStatisticsComponent,
     FlarumComponent,
     HighlightSearchTermsPipe,
+    PowerButtonComponent
   ],
   imports: [
     BrowserModule,
@@ -273,7 +274,6 @@ registerLocaleData(en);
     NzTreeViewModule,
     NzNoAnimationModule,
     TreeModule,
-    PowerButtonComponent,
   ],
   providers: [
     provideNzI18n(en_US),

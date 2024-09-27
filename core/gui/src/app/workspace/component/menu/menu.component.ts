@@ -248,19 +248,19 @@ export class MenuComponent implements OnInit {
     this.workflowActionService.addCommentBox(this.workflowUtilService.getNewCommentBox());
   }
 
-  public onPowerStateChange(newState: PowerState) {
+  public async onPowerStateChange(newState: PowerState) {
     this.powerState = newState;
 
     switch (newState) {
       case PowerState.Initializing:
-        this.sendPodRequest();
+        await this.sendPodRequest();
         break;
       case PowerState.Running:
         // Handle running state
         console.log("System is now running");
         break;
       case PowerState.Stopping:
-        this.sendPodRequest();
+        await this.sendPodRequest();
         break;
       case PowerState.Off:
         console.log("System is now off");
