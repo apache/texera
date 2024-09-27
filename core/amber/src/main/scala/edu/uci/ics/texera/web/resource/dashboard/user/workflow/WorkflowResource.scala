@@ -509,7 +509,6 @@ class WorkflowResource extends LazyLogging {
   }
 
   @PUT
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/public/{wid}")
   def makePublic(@PathParam("wid") wid: UInteger, @Auth user: SessionUser): Unit = {
     println(wid + " is public now")
@@ -519,7 +518,6 @@ class WorkflowResource extends LazyLogging {
   }
 
   @PUT
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/private/{wid}")
   def makePrivate(@PathParam("wid") wid: UInteger): Unit = {
     println(wid + " is private now")
