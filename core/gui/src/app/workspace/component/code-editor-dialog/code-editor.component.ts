@@ -409,7 +409,6 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     }
   }
 
-  // Add the type annotation into monaco editor
   private insertTypeAnnotations(
     editor: monaco.editor.IStandaloneCodeEditor,
     selection: monaco.Selection,
@@ -417,20 +416,9 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   ) {
     const endLineNumber = selection.endLineNumber;
     const endColumn = selection.endColumn;
-    const range = new monaco.Range(
-      // Insert the content to the end of the selected code
-      endLineNumber,
-      endColumn,
-      endLineNumber,
-      endColumn
-    );
-    const text = `${annotations}`;
-    const op = {
-      range: range,
-      text: text,
-      forceMoveMarkers: true,
-    };
-    editor.executeEdits("add annotation", [op]);
+    const insertPosition = new monaco.Position(endLineNumber, endColumn);
+    const insertOffset = editor.getModel()?.getOffsetAt(insertPosition) || 0;
+    this.code?.insert(insertOffset, annotations);
   }
 
   private connectLanguageServer() {
