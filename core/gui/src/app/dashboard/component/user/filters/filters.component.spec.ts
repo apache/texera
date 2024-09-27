@@ -8,6 +8,7 @@ import { StubWorkflowPersistService } from "src/app/common/service/workflow-pers
 import { testWorkflowEntries } from "../../user-dashboard-test-fixtures";
 import { HttpClient, HttpHandler } from "@angular/common/http";
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
+import { JwtHelperService, JWT_OPTIONS } from "@auth0/angular-jwt";
 
 describe("FiltersComponent", () => {
   let component: FiltersComponent;
@@ -19,6 +20,8 @@ describe("FiltersComponent", () => {
       providers: [
         HttpClient,
         HttpHandler,
+        JwtHelperService,
+        { provide: JWT_OPTIONS, useValue: {} },
         { provide: WorkflowPersistService, useValue: new StubWorkflowPersistService(testWorkflowEntries) },
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
       ],

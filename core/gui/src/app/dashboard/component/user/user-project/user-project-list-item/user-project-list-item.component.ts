@@ -5,7 +5,6 @@ import { NotificationService } from "src/app/common/service/notification/notific
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { ShareAccessComponent } from "../../share-access/share-access.component";
 import { NzModalService } from "ng-zorro-antd/modal";
-import { PublicProjectService } from "../../../../service/user/public-project/public-project.service";
 import { UserService } from "../../../../../common/service/user/user.service";
 
 @UntilDestroy()
@@ -39,7 +38,6 @@ export class UserProjectListItemComponent implements OnInit {
   descriptionCollapsed = true;
   color = "#ffffff";
   isAdmin: boolean = false;
-  isPublic: boolean = false;
   /** To make sure info remains visible against white background */
   get lightColor() {
     return UserProjectService.isLightColor(this.color);
@@ -49,8 +47,7 @@ export class UserProjectListItemComponent implements OnInit {
     private userProjectService: UserProjectService,
     private notificationService: NotificationService,
     private modalService: NzModalService,
-    private userService: UserService,
-    private publicProjectService: PublicProjectService
+    private userService: UserService
   ) {
     this.isAdmin = this.userService.isAdmin();
   }
@@ -59,12 +56,6 @@ export class UserProjectListItemComponent implements OnInit {
     if (this.entry.color) {
       this.color = this.entry.color;
     }
-    this.publicProjectService
-      .getType(this.entry.pid)
-      .pipe(untilDestroyed(this))
-      .subscribe(type => {
-        this.isPublic = type === "Public";
-      });
   }
 
   updateProjectColor(): void {
@@ -155,18 +146,5 @@ export class UserProjectListItemComponent implements OnInit {
       nzCentered: true,
     });
     modalRef.afterClose.pipe(untilDestroyed(this)).subscribe(() => this.refresh.emit());
-  }
-  public visibilityChange(): void {
-    if (this.isPublic) {
-      this.publicProjectService
-        .makePrivate(this.entry.pid)
-        .pipe(untilDestroyed(this))
-        .subscribe(() => this.ngOnInit());
-    } else {
-      this.publicProjectService
-        .makePublic(this.entry.pid)
-        .pipe(untilDestroyed(this))
-        .subscribe(() => this.ngOnInit());
-    }
   }
 }

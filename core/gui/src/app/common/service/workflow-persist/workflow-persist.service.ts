@@ -46,6 +46,7 @@ export class WorkflowPersistService {
         name: workflow.name,
         description: workflow.description,
         content: JSON.stringify(workflow.content),
+        isPublished: workflow.isPublished,
       })
       .pipe(
         filter((updatedWorkflow: Workflow) => updatedWorkflow != null),
@@ -167,6 +168,18 @@ export class WorkflowPersistService {
           return throwError(error);
         })
       );
+  }
+
+  public getWorkflowIsPublished(wid: number): Observable<string> {
+    return this.http.get(`${AppSettings.getApiEndpoint()}/${WORKFLOW_BASE_URL}/type/${wid}`, { responseType: "text" });
+  }
+
+  public updateWorkflowIsPublished(wid: number, isPublished: boolean): Observable<void> {
+    if (isPublished) {
+      return this.http.put<void>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_BASE_URL}/public/${wid}`, null);
+    } else {
+      return this.http.put<void>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_BASE_URL}/private/${wid}`, null);
+    }
   }
 
   public setWorkflowPersistFlag(flag: boolean): void {

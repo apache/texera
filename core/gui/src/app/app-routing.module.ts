@@ -50,7 +50,7 @@ if (environment.userSystemEnabled) {
                 component: HubWorkflowResultComponent,
               },
               {
-                path: "search/result/detail",
+                path: "search/result/detail/:id",
                 component: HubWorkflowDetailComponent,
               },
             ],
@@ -94,10 +94,6 @@ if (environment.userSystemEnabled) {
             component: UserQuotaComponent,
           },
           {
-            path: "search",
-            component: SearchComponent,
-          },
-          {
             path: "discussion",
             component: FlarumComponent,
           },
@@ -124,6 +120,10 @@ if (environment.userSystemEnabled) {
             component: AdminExecutionComponent,
           },
         ],
+      },
+      {
+        path: "search",
+        component: SearchComponent,
       },
     ],
   });
