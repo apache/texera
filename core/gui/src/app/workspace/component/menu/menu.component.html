@@ -139,22 +139,6 @@
               nzType="border-outer"></i>
           </button>
           <button
-            (click)="onClickZoomOut()"
-            nz-button
-            title="zoom out">
-            <i
-              nz-icon
-              nzType="zoom-out"></i>
-          </button>
-          <button
-            (click)="onClickZoomIn()"
-            nz-button
-            title="zoom in">
-            <i
-              nz-icon
-              nzType="zoom-in"></i>
-          </button>
-          <button
             (click)="onClickRestoreZoomOffsetDefault()"
             nz-button
             title="reset zoom">
@@ -295,6 +279,16 @@
       </button>
 
       <nz-button-group id="execution-buttons">
+        <button
+          nz-button
+          id="share-button"
+          (click)="onClickOpenShareAccess()">
+          <span
+            nz-icon
+            nzType="share-alt"
+            nzTheme="outline"></span>
+          Share
+        </button>
         <button
           (click)="handleKill()"
           [disabled]="

@@ -109,7 +109,8 @@
             class="user-avatar"
             [googleAvatar]="'https://lh3.googleusercontent.com/a/' + (entry.ownerGoogleAvatar || '')"
             userColor="#1E90FF"
-            [userName]="entry.ownerName || 'User'">
+            [userName]="entry.ownerName || 'User'"
+            [isOwner]="entry.ownerId === this.currentUid">
           </texera-user-avatar>
         </div>
         <div class="resource-time-info">Created: {{ formatTime(entry.creationTime) }}</div>
