@@ -58,7 +58,10 @@ export class ContextMenuComponent {
   public checkIfOperatorHasAnyResult(): boolean {
     const highlightedOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
     const resultService = this.workflowResultService.getResultService(highlightedOperatorIDs[0]);
-    return resultService?.getCurrentResultSnapshot() !== undefined || this.workflowResultService.hasAnyResult(highlightedOperatorIDs[0]);
+    return (
+      resultService?.getCurrentResultSnapshot() !== undefined ||
+      this.workflowResultService.hasAnyResult(highlightedOperatorIDs[0])
+    );
   }
 
   public logOperatorResult(): void {

@@ -96,14 +96,13 @@ export class WorkflowResultExportService {
           })
         )
         .subscribe();
-
     }
 
     if (resultService) {
       const snapshot = resultService.getCurrentResultSnapshot();
       const filesString: string[] = [];
 
-      snapshot?.forEach(s => filesString.push(Object(s)["html-content"]))
+      snapshot?.forEach(s => filesString.push(Object(s)["html-content"]));
 
       // Convert filesString into Blob objects and download them as HTML files
       filesString.forEach((fileContent, index) => {
