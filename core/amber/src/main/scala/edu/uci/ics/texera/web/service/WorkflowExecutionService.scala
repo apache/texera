@@ -1,29 +1,31 @@
 package edu.uci.ics.texera.web.service
 
+import akka.actor.Cancellable
 import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.ExecutionStateUpdate
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.TakeGlobalCheckpointHandler.TakeGlobalCheckpoint
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
+import edu.uci.ics.amber.engine.common.AmberRuntime
 import edu.uci.ics.amber.engine.common.client.AmberClient
+import edu.uci.ics.amber.engine.common.virtualidentity.ChannelMarkerIdentity
 import edu.uci.ics.texera.Utils
-import edu.uci.ics.texera.web.model.websocket.event.{
-  TexeraWebSocketEvent,
-  WorkflowErrorEvent,
-  WorkflowStateEvent
-}
+import edu.uci.ics.texera.web.model.websocket.event.{TexeraWebSocketEvent, WorkflowErrorEvent, WorkflowStateEvent}
 import edu.uci.ics.texera.web.model.websocket.request.WorkflowExecuteRequest
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{
-  COMPLETED,
-  FAILED,
-  READY
-}
+import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{COMPLETED, FAILED, KILLED, READY, RUNNING}
 import edu.uci.ics.texera.web.{SubscriptionManager, TexeraWebApplication, WebsocketInput}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, WorkflowCompiler}
 
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import scala.collection.mutable
+import scala.concurrent.duration.DurationInt
 
 class WorkflowExecutionService(
     controllerConfig: ControllerConfig,
@@ -37,7 +39,7 @@ class WorkflowExecutionService(
     with LazyLogging {
 
   logger.info("Creating a new execution.")
-
+  private var interactionHandle: Cancellable = _
   val wsInput = new WebsocketInput(errorHandler)
 
   addSubscription(
@@ -71,6 +73,10 @@ class WorkflowExecutionService(
   var executionConsoleService: ExecutionConsoleService = _
 
   def executeWorkflow(): Unit = {
+    if (interactionHandle != null && !interactionHandle.isCancelled) {
+      interactionHandle.cancel()
+    }
+
     workflow = new WorkflowCompiler(workflowContext).compile(
       request.logicalPlan,
       resultService.opResultStorage,
@@ -98,6 +104,17 @@ class WorkflowExecutionService(
     )
     executionConsoleService = new ExecutionConsoleService(client, executionStateStore, wsInput)
 
+    addSubscription(
+      client
+        .registerCallback[ExecutionStateUpdate](evt => {
+          if (evt.state == COMPLETED || evt.state == FAILED || evt.state == KILLED) {
+            if (interactionHandle != null && !interactionHandle.isCancelled) {
+              interactionHandle.cancel()
+            }
+          }
+        })
+    )
+
     logger.info("Starting the workflow execution.")
     resultService.attachToExecution(executionStateStore, workflow.originalLogicalPlan, client)
     executionStateStore.metadataStore.updateState(metadataStore =>
@@ -109,7 +126,31 @@ class WorkflowExecutionService(
     )
     client.sendAsyncWithCallback[WorkflowAggregatedState](
       StartWorkflow(),
-      state =>
+      state => {
+        if (this.request.periodicalInteraction > 0) {
+          interactionHandle = AmberRuntime
+            .scheduleRecurringCallThroughActorSystem(
+              this.request.periodicalInteraction.seconds,
+              this.request.periodicalInteraction.seconds
+            ) {
+              client.sendAsync(PauseWorkflow()).map{
+                ret => {
+                  val now = LocalDateTime.now()
+                  val formatter = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")
+                  val timestamp = now.format(formatter)
+                  val checkpointId = ChannelMarkerIdentity(s"Interaction_${timestamp}")
+                  val uri = controllerConfig.faultToleranceConfOpt.get.writeTo.resolve(checkpointId.toString)
+                  client.sendAsync(TakeGlobalCheckpoint(interactionOnly = false, checkpointId, uri)).map{
+                    ret =>
+                      client.sendAsync(ResumeWorkflow()).map(ret =>
+                        executionStateStore.metadataStore.updateState(metadataStore =>
+                        updateWorkflowState(RUNNING, metadataStore)
+                      ))
+                  }
+                }
+              }
+            }
+        }
         executionStateStore.metadataStore.updateState(metadataStore =>
           if (metadataStore.state != FAILED) {
             updateWorkflowState(state, metadataStore)
@@ -117,11 +158,16 @@ class WorkflowExecutionService(
             metadataStore
           }
         )
+      }
     )
   }
 
+
   override def unsubscribeAll(): Unit = {
     super.unsubscribeAll()
+    if (interactionHandle != null && !interactionHandle.isCancelled) {
+      interactionHandle.cancel()
+    }
     if (client != null) {
       // runtime created
       executionRuntimeService.unsubscribeAll()

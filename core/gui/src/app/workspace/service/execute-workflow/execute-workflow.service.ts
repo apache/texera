@@ -164,14 +164,14 @@ export class ExecuteWorkflowService {
     return [];
   }
 
-  public executeWorkflow(executionName: string, targetOperatorId?: string): void {
+  public executeWorkflow(executionName: string, targetOperatorId?: string, periodicalInteraction?: number): void {
     const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(
       this.workflowActionService.getTexeraGraph(),
       targetOperatorId
     );
     this.resetExecutionState();
     this.workflowStatusService.resetStatus();
-    this.sendExecutionRequest(executionName, logicalPlan);
+    this.sendExecutionRequest(executionName, logicalPlan, undefined, periodicalInteraction);
   }
 
   public executeWorkflowWithReplay(replayExecutionInfo: ReplayExecutionInfo): void {
@@ -188,13 +188,15 @@ export class ExecuteWorkflowService {
   public sendExecutionRequest(
     executionName: string,
     logicalPlan: LogicalPlan,
-    replayExecutionInfo: ReplayExecutionInfo | undefined = undefined
+    replayExecutionInfo: ReplayExecutionInfo | undefined = undefined,
+    periodicalInteraction?: number
   ): void {
     const workflowExecuteRequest = {
       executionName: executionName,
       engineVersion: version.hash,
       logicalPlan: logicalPlan,
       replayFromExecution: replayExecutionInfo,
+      periodicalInteraction: periodicalInteraction ?? -1
     };
     // wait for the form debounce to complete, then send
     window.setTimeout(() => {

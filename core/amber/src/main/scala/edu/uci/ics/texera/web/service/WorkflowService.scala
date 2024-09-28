@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.web.service
 
+import akka.actor.Cancellable
 import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
@@ -40,6 +41,8 @@ object WorkflowService {
   val executions = mutable.HashMap[Int, mutable.ArrayBuffer[Int]]()
   val timstamps = mutable.HashMap[Int, Timestamp]()
 
+
+
   def getAllWorkflowServices: Iterable[WorkflowService] = workflowServiceMapping.values().asScala
 
   def mkWorkflowStateId(workflowId: WorkflowIdentity): String = {
@@ -72,7 +75,6 @@ class WorkflowService(
   private val errorSubject = BehaviorSubject.create[TexeraWebSocketEvent]().toSerialized
   val stateStore = new WorkflowStateStore()
   var executionService: BehaviorSubject[WorkflowExecutionService] = BehaviorSubject.create()
-
   val resultService: ExecutionResultService =
     new ExecutionResultService(opResultStorage, stateStore)
   val exportService: ResultExportService =

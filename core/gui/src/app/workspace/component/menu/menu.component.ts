@@ -72,6 +72,8 @@ export class MenuComponent implements OnInit {
   public runButtonText = "Run";
   public runIcon = "play-circle";
   public runDisable = false;
+  public periodicalInteractionEnabled = false;
+  public interactionInterval = 5;
 
   public executionDuration = 0;
   private durationUpdateSubscription: Subscription = new Subscription();
@@ -189,7 +191,7 @@ export class MenuComponent implements OnInit {
           text: "Run",
           icon: "play-circle",
           disable: false,
-          onClick: () => this.executeWorkflowService.executeWorkflow(this.currentExecutionName),
+          onClick: () => this.executeWorkflowService.executeWorkflow(this.currentExecutionName, undefined, this.periodicalInteractionEnabled? this.interactionInterval: -1),
         };
       case ExecutionState.Initializing:
         return {

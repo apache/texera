@@ -441,6 +441,10 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
           mappedField.type = "codearea";
         }
       }
+
+      if (mapSource?.description?.toLowerCase() === "input your code here(hidden)") {
+          mappedField.hide = true
+      }
       // if presetService is ready and operator property allows presets, setup formly field to display presets
       if (
         environment.userSystemEnabled &&
