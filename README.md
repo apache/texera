@@ -72,7 +72,13 @@ After the workflow execution finishes, you can access the time-travel feature to
 ### 6. Resume and Step Through the Workflow
 After reverting the workflow to the chosen interaction point, you can resume stepping through it.
 
+
+
 - Step 7: Right-click an operator and choose Step to take the next action in the workflow.
 
 <img width="434" alt="截屏2024-09-28 上午12 59 00" src="https://github.com/user-attachments/assets/af493920-4d25-4f8f-b2ad-b99ce98382da">
+
+
+## Demo Video
+https://github.com/user-attachments/assets/e752d456-cddc-4c4d-a56e-b2a17887eafb
 
