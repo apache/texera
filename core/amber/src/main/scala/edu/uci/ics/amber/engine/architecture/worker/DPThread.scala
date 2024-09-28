@@ -1,30 +1,20 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
-  DPInputQueueElement,
-  MainThreadDelegateMessage
-}
+import com.google.protobuf.timestamp.Timestamp
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ConsoleMessageHandler.ConsoleMessageTriggered
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{DPInputQueueElement, MainThreadDelegateMessage}
 import edu.uci.ics.amber.engine.architecture.logreplay.ReplayLogManager
+import edu.uci.ics.amber.engine.architecture.worker.controlcommands.{ConsoleMessage, ConsoleMessageType}
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{READY, UNINITIALIZED}
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.actormessage.{ActorCommand, Backpressure}
-import edu.uci.ics.amber.engine.common.ambermessage.{
-  ChannelMarkerPayload,
-  ControlPayload,
-  DataPayload,
-  WorkflowFIFOMessage
-}
+import edu.uci.ics.amber.engine.common.ambermessage.{ChannelMarkerPayload, ControlPayload, DataPayload, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
-import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
-import edu.uci.ics.amber.error.ErrorUtils.safely
+import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
+import edu.uci.ics.amber.error.ErrorUtils.{mkConsoleMessage, safely}
 
-import java.util.concurrent.{
-  CompletableFuture,
-  ExecutorService,
-  Executors,
-  Future,
-  LinkedBlockingQueue
-}
+import java.time.Instant
+import java.util.concurrent.{CompletableFuture, ExecutorService, Executors, Future, LinkedBlockingQueue}
 
 class DPThread(
     val actorId: ActorVirtualIdentity,
@@ -106,6 +96,7 @@ class DPThread(
       case _ => // no op
     }
   }
+
 
   @throws[Exception]
   private[this] def runDPThreadMainLogic(): Unit = {
