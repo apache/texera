@@ -64,7 +64,7 @@ export class ContextMenuComponent {
     );
   }
 
-  public logOperatorResult(): void {
+  public triggerDownloadResultOfOperator(): void {
     const highlightedOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
     this.workflowResultExportService.exportOperatorAsFile(highlightedOperatorIDs[0]);
   }
