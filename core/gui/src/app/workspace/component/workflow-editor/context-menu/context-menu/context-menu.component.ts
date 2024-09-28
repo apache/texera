@@ -2,6 +2,8 @@ import { Component } from "@angular/core";
 import { OperatorMenuService } from "src/app/workspace/service/operator-menu/operator-menu.service";
 import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/model/workflow-action.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { WorkflowResultService } from "../../../../service/workflow-result/workflow-result.service";
+import { WorkflowResultExportService } from "../../../../service/workflow-result-export/workflow-result-export.service";
 
 @UntilDestroy()
 @Component({
@@ -14,7 +16,9 @@ export class ContextMenuComponent {
 
   constructor(
     public workflowActionService: WorkflowActionService,
-    public operatorMenuService: OperatorMenuService
+    public operatorMenuService: OperatorMenuService,
+    private workflowResultService: WorkflowResultService,
+    private workflowResultExportService: WorkflowResultExportService
   ) {
     this.registerWorkflowModifiableChangedHandler();
   }
@@ -49,5 +53,16 @@ export class ContextMenuComponent {
       .getWorkflowModificationEnabledStream()
       .pipe(untilDestroyed(this))
       .subscribe(modifiable => (this.isWorkflowModifiable = modifiable));
+  }
+
+  public checkIfOperatorHasAnyResult(): boolean {
+    const highlightedOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+    const resultService = this.workflowResultService.getResultService(highlightedOperatorIDs[0]);
+    return resultService?.getCurrentResultSnapshot() !== undefined || this.workflowResultService.hasAnyResult(highlightedOperatorIDs[0]);
+  }
+
+  public logOperatorResult(): void {
+    const highlightedOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+    this.workflowResultExportService.exportOperatorAsFile(highlightedOperatorIDs[0]);
   }
 }
