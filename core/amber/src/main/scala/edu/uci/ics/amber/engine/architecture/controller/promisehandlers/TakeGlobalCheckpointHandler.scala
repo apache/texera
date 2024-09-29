@@ -50,18 +50,12 @@ trait TakeGlobalCheckpointHandler {
       sender
     ).flatMap { ret =>
       val topologicalWorkers = cp.workflowScheduler.physicalPlan.topologicalIterator().toArray.flatMap(x => cp.workflowExecution.getLatestOperatorExecution(x).getWorkerIds)
-      topologicalWorkers.foldLeft(Future.Unit) {
+      topologicalWorkers.foldLeft(Future[Long](0)) {
           case (previousFuture, workerId) =>
-            previousFuture.map { _ =>
+            previousFuture.flatMap { size =>
               // Send the message to the worker, respecting the topological order
+              totalSize+=size
               send(FinalizeCheckpoint(msg.checkpointId, uri), workerId)
-                .onSuccess { size =>
-                  totalSize += size
-                }
-                .onFailure { err =>
-                  // You can either log the error or handle it accordingly
-                  throw err // TODO: Handle failures appropriately
-                }
             }
         }
         .map { _ =>
