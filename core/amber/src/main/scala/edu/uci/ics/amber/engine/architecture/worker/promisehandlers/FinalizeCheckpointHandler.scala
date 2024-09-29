@@ -38,6 +38,7 @@ trait FinalizeCheckpointHandler {
     if (dp.channelMarkerManager.checkpoints.contains(msg.checkpointId)) {
       val waitFuture = new CompletableFuture[Unit]()
       val chkpt = dp.channelMarkerManager.checkpoints(msg.checkpointId)
+      dp.channelMarkerManager.checkpoints.remove(msg.checkpointId)
       val closure = (worker: WorkflowWorker) => {
         logger.info(s"Main thread: start to serialize recorded messages.")
         chkpt.save(
