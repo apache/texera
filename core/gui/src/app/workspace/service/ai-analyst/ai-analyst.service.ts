@@ -12,7 +12,7 @@ const apiUrlOpenai = `${AI_ASSISTANT_API_BASE_URL}/aiassistant/openai`;
 @Injectable({
   providedIn: "root",
 })
-export class AiAssistantService {
+export class AiAnalystService {
   private isAIAssistantEnabled: boolean | null = null;
   constructor(
     private http: HttpClient,

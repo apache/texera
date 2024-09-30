@@ -6,7 +6,7 @@ import { map } from "rxjs/operators";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowResultService } from "../workflow-result/workflow-result.service";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
-import { AiAssistantService } from "../ai-assistant/ai-assistant.service";
+import { AiAnalystService } from "../ai-analyst/ai-analyst.service";
 import { AppSettings } from "src/app/common/app-setting";
 
 const AI_ASSISTANT_API_BASE_URL = `${AppSettings.getApiEndpoint()}`;
@@ -21,7 +21,7 @@ export class ReportGenerationService {
     public workflowActionService: WorkflowActionService,
     private workflowResultService: WorkflowResultService,
     private notificationService: NotificationService,
-    private aiAssistantService: AiAssistantService
+    private aiAnalystService: AiAnalystService
   ) {}
 
   /**
@@ -112,7 +112,7 @@ export class ReportGenerationService {
     allResults: { operatorId: string; html: string }[]
   ): Observable<void> {
     return new Observable(observer => {
-      this.aiAssistantService.checkAIAssistantEnabled().subscribe(AIEnabled => {
+      this.aiAnalystService.checkAIAssistantEnabled().subscribe(AIEnabled => {
         console.log(`Processing ${operatorId}`);
         try {
           // Retrieve the result service and paginated result service for the operator
@@ -402,7 +402,7 @@ export class ReportGenerationService {
       Again, the output comment should follow the format specified above and should be insightful for non-experts.`;
 
     // Call the openai function and pass the generated prompt
-    return this.aiAssistantService.openai(prompt);
+    return this.aiAnalystService.openai(prompt);
   }
 
   /**
@@ -432,6 +432,6 @@ export class ReportGenerationService {
       Again, the output comment should follow the format specified above and should be insightful for non-experts.`;
 
     // Call the openai function and pass the generated prompt
-    return this.aiAssistantService.openai(prompt);
+    return this.aiAnalystService.openai(prompt);
   }
 }
