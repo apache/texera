@@ -6,7 +6,7 @@ import { map } from "rxjs/operators";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowResultService } from "../workflow-result/workflow-result.service";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
-import { ReportAiAssistantService } from "./report-ai-assistant.service";
+import { AiAssistantService } from "../ai-assistant/ai-assistant.service";
 import { AppSettings } from "src/app/common/app-setting";
 
 const AI_ASSISTANT_API_BASE_URL = `${AppSettings.getApiEndpoint()}`;
@@ -21,7 +21,7 @@ export class ReportGenerationService {
     public workflowActionService: WorkflowActionService,
     private workflowResultService: WorkflowResultService,
     private notificationService: NotificationService,
-    private reportAiAssistantService: ReportAiAssistantService
+    private aiAssistantService: AiAssistantService
   ) {}
 
   /**
@@ -112,7 +112,7 @@ export class ReportGenerationService {
     allResults: { operatorId: string; html: string }[]
   ): Observable<void> {
     return new Observable(observer => {
-      this.reportAiAssistantService.checkAIAssistantEnabled().subscribe(AIEnabled => {
+      this.aiAssistantService.checkAIAssistantEnabled().subscribe(AIEnabled => {
         console.log(`Processing ${operatorId}`);
         try {
           // Retrieve the result service and paginated result service for the operator
@@ -136,7 +136,7 @@ export class ReportGenerationService {
                   </script>
               </div>`;
 
-          this.reportAiAssistantService.generateComment(operatorDetails).subscribe(comment => {
+          this.generateComment(operatorDetails).subscribe(comment => {
             if (paginatedResultService) {
               paginatedResultService.selectPage(1, 10).subscribe({
                 next: (pageData: any) => {
@@ -280,7 +280,7 @@ export class ReportGenerationService {
     const workflowContent = this.workflowActionService.getWorkflowContent();
 
     // Call generateSummaryComment and subscribe to its result
-    this.reportAiAssistantService.generateSummaryComment(workflowContent).subscribe(comment => {
+    this.generateSummaryComment(workflowContent).subscribe(comment => {
       const finalComment = comment; // Get the generated comment
 
       const htmlContent = `
@@ -372,5 +372,68 @@ export class ReportGenerationService {
       a.click();
       URL.revokeObjectURL(url);
     });
+  }
+
+  /**
+   * Generates an insightful comment for the given operator information by utilizing the AI Assistant service.
+   * The comment is tailored for an educated audience without a deep understanding of statistics.
+   *
+   * @param {any} operatorInfo - The operator information in JSON format, which will be used to generate the comment.
+   * @returns {Promise<string>} A promise that resolves to a string containing the generated comment or an error message
+   *                            if the generation fails or the AI Assistant is not enabled.
+   */
+  public generateComment(operatorInfo: any): Observable<string> {
+    const prompt = `
+      You are a statistical analysis expert.
+      You will be provided with operator information in JSON format and an HTML result.
+      Your task is to analyze the data and provide a detailed, which means at least 80 words, insightful comment tailored for an audience that is highly educated but does not understand statistics.
+      Operator Info: ${JSON.stringify(operatorInfo, null, 2)}
+      The output cannot be in markdown format, and must be plain text.
+
+      Follow these steps to generate your response:
+
+      Parse the provided JSON data under “Operator Info.”
+      Use the appropriate template based on the operator type to create a comment:
+      For general operators, use: “This operator processes data to achieve specific goals.”
+      For “CSVFileScan” type operators, use: “Briefly introduce the data composition, such as included data types.”
+      For “PythonUDFV2” type operators, use: “Refer to the ‘code’ section in the operator detail to understand its purpose. Ensure correct HTML rendering of results.”
+      For “Visualization” type operators, use: “This type of operator is usually associated with a chart or plot. You need to remind them that the graph is interactive and to care about the size and variation of the data.”
+
+      Again, the output comment should follow the format specified above and should be insightful for non-experts.`;
+
+    // Call the openai function and pass the generated prompt
+    return this.aiAssistantService.openai(prompt);
+  }
+
+
+  /**
+   * Generates a concise and insightful summary comment for the given operator information by utilizing the AI Assistant service.
+   * The summary is tailored for an educated audience without a deep understanding of statistics, focusing on the key findings,
+   * notable patterns, and potential areas of improvement related to the workflow and its components, particularly UDFs.
+   *
+   * @param {any} operatorInfo - The operator information in JSON format, which will be used to generate the summary comment.
+   * @returns {Promise<string>} A promise that resolves to a string containing the generated summary comment or an error message
+   *                            if the generation fails or the AI Assistant is not enabled.
+   */
+  public generateSummaryComment(operatorInfo: any): Observable<string> {
+    const prompt = `
+      You are a statistical analysis expert.
+      You will be provided with operator information in JSON format and an HTML result.
+      You should provide a concise (which means at least 150 words) and insightful summary comment for an audience who is highly educated but does not understand statistics (non-experts).
+      Operator Info: ${JSON.stringify(operatorInfo, null, 2)}
+      The output cannot be in markdown format, and must be plain text.
+
+      Follow these steps to generate your response:
+      The summary should:
+      1. Highlight the key findings and overall performance of the workflow, with particular attention to the UDFs as they are often the most critical components.
+      2. Mention any notable patterns, trends, or anomalies observed in the operator results, especially those related to UDFs.
+      3. Suggest potential areas of improvement or further investigation, particularly regarding the efficiency and accuracy of the UDFs.
+      4. Ensure the summary helps the reader gain a comprehensive understanding of the workflow and its global implications.
+
+      Again, the output comment should follow the format specified above and should be insightful for non-experts.`;
+
+
+    // Call the openai function and pass the generated prompt
+    return this.aiAssistantService.openai(prompt);
   }
 }
