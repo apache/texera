@@ -19,7 +19,6 @@ class AIAssistantResource {
   @Path("/isenabled")
   def isAIAssistantEnable: String = isEnabled
 
-  
   /**
     * Endpoint to get the operator comment from OpenAI.
     * @param prompt The input prompt for the OpenAI model.
@@ -73,6 +72,7 @@ class AIAssistantResource {
         Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("Error occurred").build()
     }
   }
+
   /**
     * To get the type annotation suggestion from OpenAI
     */
