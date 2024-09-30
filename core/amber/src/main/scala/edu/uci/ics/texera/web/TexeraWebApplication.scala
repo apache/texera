@@ -26,6 +26,7 @@ import edu.uci.ics.texera.web.resource._
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource
 import edu.uci.ics.texera.web.resource.dashboard.admin.execution.AdminExecutionResource
 import edu.uci.ics.texera.web.resource.dashboard.admin.user.AdminUserResource
+import edu.uci.ics.texera.web.resource.dashboard.hub.workflow.HubWorkflowResource
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.{
   DatasetAccessResource,
   DatasetResource
@@ -49,6 +50,7 @@ import edu.uci.ics.texera.web.resource.dashboard.user.workflow.{
   WorkflowResource,
   WorkflowVersionResource
 }
+import edu.uci.ics.texera.web.resource.languageserver.PythonLanguageServerManager
 import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
 import edu.uci.ics.texera.web.storage.MongoDatabaseManager
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{COMPLETED, FAILED}
@@ -137,6 +139,7 @@ object TexeraWebApplication {
         .resolve("web-config.yml")
         .toString
     )
+    PythonLanguageServerManager.startLanguageServer()
   }
 }
 
@@ -247,6 +250,7 @@ class TexeraWebApplication
     environment.jersey.register(classOf[PublicProjectResource])
     environment.jersey.register(classOf[WorkflowAccessResource])
     environment.jersey.register(classOf[WorkflowResource])
+    environment.jersey.register(classOf[HubWorkflowResource])
     environment.jersey.register(classOf[WorkflowVersionResource])
     environment.jersey.register(classOf[DatasetResource])
     environment.jersey.register(classOf[DatasetAccessResource])
@@ -258,7 +262,7 @@ class TexeraWebApplication
     environment.jersey.register(classOf[AdminExecutionResource])
     environment.jersey.register(classOf[UserQuotaResource])
     environment.jersey.register(classOf[UserDiscussionResource])
-    environment.jersey.register(classOf[AiAssistantResource])
+    environment.jersey.register(classOf[AIAssistantResource])
   }
 
   /**

@@ -45,9 +45,10 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
 
   override protected def constructFromClause(
       uid: UInteger,
-      params: DashboardResource.SearchQueryParams
+      params: DashboardResource.SearchQueryParams,
+      includePublic: Boolean = false
   ): TableLike[_] = {
-    WORKFLOW
+    val baseQuery = WORKFLOW
       .leftJoin(WORKFLOW_USER_ACCESS)
       .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
       .leftJoin(WORKFLOW_OF_USER)
@@ -58,9 +59,21 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
       .on(WORKFLOW_OF_PROJECT.WID.eq(WORKFLOW.WID))
       .leftJoin(PROJECT_USER_ACCESS)
       .on(PROJECT_USER_ACCESS.PID.eq(WORKFLOW_OF_PROJECT.PID))
-      .where(
+
+    var condition: Condition = DSL.trueCondition()
+    if (uid == null) {
+      condition = WORKFLOW.IS_PUBLISHED.eq(1.toByte)
+    } else {
+      val privateAccessCondition =
         WORKFLOW_USER_ACCESS.UID.eq(uid).or(PROJECT_USER_ACCESS.UID.eq(uid))
-      )
+      if (includePublic) {
+        condition = privateAccessCondition.or(WORKFLOW.IS_PUBLISHED.eq(1.toByte))
+      } else {
+        condition = privateAccessCondition
+      }
+    }
+
+    baseQuery.where(condition)
   }
 
   override protected def constructWhereClause(
@@ -131,7 +144,8 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
           .split(',')
           .map(number => UInteger.valueOf(number))
           .toList
-      }
+      },
+      record.into(USER).getUid
     )
     DashboardClickableFileEntry(SearchQueryBuilder.WORKFLOW_RESOURCE_TYPE, workflow = Some(dw))
   }

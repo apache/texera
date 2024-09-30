@@ -1,10 +1,20 @@
-<input
-  nz-input
-  [readOnly]="isFileSelectionEnabled"
-  required
-  [formControl]="formControl"
-  [formlyAttributes]="field"
-  (click)="isFileSelectionEnabled && onClickOpenFileSelectionModal()" />
+<div [ngClass]="{'input-autocomplete-container': isFileSelectionEnabled}">
+  <input
+    *ngIf="selectedFilePath || !isFileSelectionEnabled"
+    nz-input
+    [readOnly]="isFileSelectionEnabled"
+    required
+    [formControl]="formControl"
+    [formlyAttributes]="field" />
+  <button
+    *ngIf="isFileSelectionEnabled"
+    nz-button
+    class="file-select-button"
+    nzSize="small"
+    (click)="isFileSelectionEnabled && onClickOpenFileSelectionModal()">
+    {{ selectedFilePath ? 'Reselect File' : 'Select File' }}
+  </button>
+</div>
 <div
   class="alert alert-danger"
   role="alert"

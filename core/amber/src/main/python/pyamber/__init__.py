@@ -1,8 +1,6 @@
 from core.models import (
-    InputExhausted,
     Tuple,
     TupleLike,
-    TupleOperator,
     Table,
     TableLike,
     Batch,
@@ -11,13 +9,12 @@ from core.models import (
     BatchOperator,
     SourceOperator,
     TupleOperatorV2,
+    State,
 )
 
 __all__ = [
-    "InputExhausted",
     "Tuple",
     "TupleLike",
-    "TupleOperator",
     "Table",
     "TableLike",
     "Batch",
@@ -26,4 +23,5 @@ __all__ = [
     "BatchOperator",
     "TupleOperatorV2",
     "SourceOperator",
+    "State",
 ]

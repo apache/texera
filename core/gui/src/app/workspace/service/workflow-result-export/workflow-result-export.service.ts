@@ -63,7 +63,10 @@ export class WorkflowResultExportService {
   exportWorkflowExecutionResult(
     exportType: string,
     workflowName: string,
-    datasetIds: ReadonlyArray<number> = []
+    datasetIds: ReadonlyArray<number> = [],
+    rowIndex: number,
+    columnIndex: number,
+    filename: string
   ): void {
     if (!environment.exportExecutionResultEnabled || !this.hasResultToExport) {
       return;
@@ -91,6 +94,9 @@ export class WorkflowResultExportService {
           operatorId,
           operatorName,
           datasetIds,
+          rowIndex,
+          columnIndex,
+          filename,
         });
       });
   }

@@ -104,7 +104,7 @@ export class UserDatasetExplorerComponent implements OnInit {
         this.retrieveDatasetVersionList();
         this.renderDatasetViewSider();
       } else {
-        this.router.navigate([`/dashboard/dataset/${creationID}`]);
+        this.router.navigate([`/dashboard/user/dataset/${creationID}`]);
       }
     } else {
       // creation failed
@@ -113,7 +113,7 @@ export class UserDatasetExplorerComponent implements OnInit {
         this.isCreatingDataset = false;
         this.retrieveDatasetVersionList();
       } else {
-        this.router.navigate(["/dashboard/dataset"]);
+        this.router.navigate(["/dashboard/user/dataset"]);
       }
     }
   }
@@ -208,6 +208,46 @@ export class UserDatasetExplorerComponent implements OnInit {
           },
           error: (error: unknown) => {
             this.notificationService.error(`Error downloading file '${this.currentDisplayedFileName}'`);
+          },
+        });
+    }
+  }
+
+  extractVersionPath(currentDisplayedFileName: string): string {
+    const pathParts = currentDisplayedFileName.split("/");
+
+    return `/${pathParts[1]}/${pathParts[2]}/${pathParts[3]}`;
+  }
+
+  onClickDownloadVersionAsZip() {
+    if (this.did && this.selectedVersion && this.selectedVersion.dvid) {
+      const versionPath = this.extractVersionPath(this.currentDisplayedFileName);
+      this.datasetService
+        .retrieveDatasetVersionZip(versionPath)
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          next: blob => {
+            // Create URL for the ZIP blob
+            const url = URL.createObjectURL(blob);
+
+            // Create a temporary link element
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `${this.datasetName}-${this.selectedVersion?.name}.zip`; // Filename for ZIP file
+
+            // Append the link to the body
+            document.body.appendChild(a);
+            // Trigger the download
+            a.click();
+            // Remove the link after download
+            document.body.removeChild(a);
+            // Release the blob URL
+            URL.revokeObjectURL(url);
+
+            this.notificationService.info(`Version ${this.selectedVersion?.name} is downloading as ZIP`);
+          },
+          error: (error: unknown) => {
+            this.notificationService.error(`Error downloading version '${this.selectedVersion?.name}' as ZIP`);
           },
         });
     }

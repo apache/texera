@@ -26,7 +26,11 @@ import { ScrollingModule } from "@angular/cdk/scrolling";
 import { NzAvatarModule } from "ng-zorro-antd/avatar";
 import { NzToolTipModule } from "ng-zorro-antd/tooltip";
 import { FileSaverService } from "../../../service/user/file/file-saver.service";
-import { testWorkflowEntries, testWorkflowFileNameConflictEntries } from "../../user-dashboard-test-fixtures";
+import {
+  testWorkflowEntries,
+  testWorkflowFileNameConflictEntries,
+  mockUserInfo,
+} from "../../user-dashboard-test-fixtures";
 import { FiltersComponent } from "../filters/filters.component";
 import { UserWorkflowListItemComponent } from "./user-workflow-list-item/user-workflow-list-item.component";
 import { UserProjectService } from "../../../service/user/project/user-project.service";
@@ -36,6 +40,7 @@ import { StubSearchService } from "../../../service/user/stub-search.service";
 import { SearchResultsComponent } from "../search-results/search-results.component";
 import { delay } from "rxjs";
 import { NzModalService } from "ng-zorro-antd/modal";
+import { NzButtonModule } from "ng-zorro-antd/button";
 
 describe("SavedWorkflowSectionComponent", () => {
   let component: UserWorkflowComponent;
@@ -65,7 +70,7 @@ describe("SavedWorkflowSectionComponent", () => {
         { provide: FileSaverService, useValue: fileSaverServiceSpy },
         {
           provide: SearchService,
-          useValue: new StubSearchService(testWorkflowEntries),
+          useValue: new StubSearchService(testWorkflowEntries, mockUserInfo),
         },
       ],
       imports: [
@@ -85,6 +90,7 @@ describe("SavedWorkflowSectionComponent", () => {
         NzUploadModule,
         ScrollingModule,
         NoopAnimationsModule,
+        NzButtonModule,
       ],
     }).compileComponents();
   }));
@@ -114,12 +120,15 @@ describe("SavedWorkflowSectionComponent", () => {
       await delay(10);
     }
   };
+
   it("searchNoInput", async () => {
     // When no search input is provided, it should show all workflows.
     await component.search();
     expect(component.searchResultsComponent.loading).toBeFalse();
     const SortedCase = component.searchResultsComponent.entries.map(workflow => workflow.name);
     expect(SortedCase).toEqual(["workflow 1", "workflow 2", "workflow 3", "workflow 4", "workflow 5"]);
+    console.log("Master Filter List:", component.filters.masterFilterList);
+
     expect(component.filters.masterFilterList).toEqual([]);
   });
 
@@ -159,6 +168,12 @@ describe("SavedWorkflowSectionComponent", () => {
   });
 
   it("searchByProjects", async () => {
+    component.filters.userProjectsDropdown = [
+      { pid: 1, name: "Project1", checked: false },
+      { pid: 2, name: "Project2", checked: false },
+      { pid: 3, name: "Project3", checked: false },
+    ];
+
     // If the project filter is applied, only those workflows belonging to those projects should be returned.
     component.filters.userProjectsDropdown[0].checked = true;
     component.filters.updateSelectedProjects();
@@ -237,6 +252,11 @@ describe("SavedWorkflowSectionComponent", () => {
     if (operatorGroup) {
       operatorGroup[3].checked = true; // Aggregation operator
       component.filters.updateSelectedOperators();
+      component.filters.userProjectsDropdown = [
+        { pid: 1, name: "Project1", checked: false },
+        { pid: 2, name: "Project2", checked: false },
+        { pid: 3, name: "Project3", checked: false },
+      ];
 
       component.filters.owners[0].checked = true; //Texera
       component.filters.owners[1].checked = true; //Angular

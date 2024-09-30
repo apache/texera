@@ -1,19 +1,22 @@
-import { Component, inject, OnInit } from "@angular/core";
+import { Component, inject, Input, OnInit } from "@angular/core";
 import { FormBuilder, FormGroup, Validators, FormControl } from "@angular/forms";
 import { ShareAccessService } from "../../../service/user/share-access/share-access.service";
 import { ShareAccess } from "../../../type/share-access.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { UserService } from "../../../../common/service/user/user.service";
 import { GmailService } from "../../../../common/service/gmail/gmail.service";
-import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
+import { NZ_MODAL_DATA, NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { HttpErrorResponse } from "@angular/common/http";
 import { NzMessageService } from "ng-zorro-antd/message";
+import { DatasetService } from "../../../service/user/dataset/dataset.service";
+import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
+import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/model/workflow-action.service";
 
 @UntilDestroy()
 @Component({
-  templateUrl: "share-access.component.html",
   selector: "texera-share-access",
+  templateUrl: "share-access.component.html",
   styleUrls: ["./share-access.component.scss"],
 })
 export class ShareAccessComponent implements OnInit {
@@ -23,6 +26,7 @@ export class ShareAccessComponent implements OnInit {
   readonly id: number = this.nzModalData.id;
   readonly allOwners: string[] = this.nzModalData.allOwners;
 
+  readonly inWorkspace: boolean = this.nzModalData.inWorkspace;
   public validateForm: FormGroup;
   public accessList: ReadonlyArray<ShareAccess> = [];
   public owner: string = "";
@@ -30,6 +34,7 @@ export class ShareAccessComponent implements OnInit {
   public ownerSearchValue?: string;
   public emailTags: string[] = [];
   currentEmail: string | undefined = "";
+  isPublic: boolean | null = null;
 
   constructor(
     private accessService: ShareAccessService,
@@ -37,7 +42,11 @@ export class ShareAccessComponent implements OnInit {
     private userService: UserService,
     private gmailService: GmailService,
     private notificationService: NotificationService,
-    private message: NzMessageService
+    private message: NzMessageService,
+    private modalService: NzModalService,
+    private workflowPersistService: WorkflowPersistService,
+    private datasetService: DatasetService,
+    private workflowActionService: WorkflowActionService
   ) {
     this.validateForm = this.formBuilder.group({
       email: [null, Validators.email],
@@ -57,6 +66,21 @@ export class ShareAccessComponent implements OnInit {
       .subscribe(name => {
         this.owner = name;
       });
+    if (this.type === "workflow") {
+      this.workflowPersistService
+        .getWorkflowIsPublished(this.id)
+        .pipe(untilDestroyed(this))
+        .subscribe(dashboardWorkflow => {
+          this.isPublic = dashboardWorkflow === "Public";
+        });
+    } else if (this.type === "dataset") {
+      this.datasetService
+        .getDataset(this.id)
+        .pipe(untilDestroyed(this))
+        .subscribe(dashboardDataset => {
+          this.isPublic = dashboardDataset.dataset.isPublic === 1;
+        });
+    }
   }
 
   public handleInputConfirm(event?: Event): void {
@@ -147,5 +171,125 @@ export class ShareAccessComponent implements OnInit {
       .revokeAccess(this.type, this.id, userToRemove)
       .pipe(untilDestroyed(this))
       .subscribe(() => this.ngOnInit());
+  }
+  verifyPublish(): void {
+    if (!this.isPublic) {
+      const modal: NzModalRef = this.modalService.create({
+        nzTitle: "Notice",
+        nzContent: `Publishing your ${this.type} would grant all Texera users read access to your  ${this.type} along with the right to clone your work.`,
+        nzFooter: [
+          {
+            label: "Cancel",
+            onClick: () => modal.close(),
+          },
+          {
+            label: "Publish",
+            type: "primary",
+            onClick: () => {
+              if (this.type === "workflow") {
+                this.publishWorkflow();
+
+                if (this.inWorkspace) {
+                  this.workflowActionService.setWorkflowIsPublished(1);
+                }
+              } else if (this.type === "dataset") {
+                this.publishDataset();
+              }
+              modal.close();
+            },
+          },
+        ],
+      });
+    }
+  }
+
+  verifyUnpublish(): void {
+    if (this.isPublic) {
+      const modal: NzModalRef = this.modalService.create({
+        nzTitle: "Notice",
+        nzContent: `All other users would lose access to your ${this.type} if you unpublish it.`,
+        nzFooter: [
+          {
+            label: "Cancel",
+            onClick: () => modal.close(),
+          },
+          {
+            label: "Unpublish",
+            type: "primary",
+            onClick: () => {
+              if (this.type === "workflow") {
+                this.unpublishWorkflow();
+                if (this.inWorkspace) {
+                  this.workflowActionService.setWorkflowIsPublished(0);
+                }
+              } else if (this.type === "dataset") {
+                this.unpublishDataset();
+              }
+              modal.close();
+            },
+          },
+        ],
+      });
+    }
+  }
+
+  public publishWorkflow(): void {
+    if (!this.isPublic) {
+      console.log("Workflow " + this.id + " is published");
+      this.workflowPersistService
+        .updateWorkflowIsPublished(this.id, true)
+        .pipe(untilDestroyed(this))
+        .subscribe(() => (this.isPublic = true));
+    } else {
+      console.log("Workflow " + this.id + " is already published");
+    }
+  }
+
+  public unpublishWorkflow(): void {
+    if (this.isPublic) {
+      console.log("Workflow " + this.id + " is unpublished");
+      this.workflowPersistService
+        .updateWorkflowIsPublished(this.id, false)
+        .pipe(untilDestroyed(this))
+        .subscribe(() => (this.isPublic = false));
+    } else {
+      console.log("Workflow " + this.id + " is already private");
+    }
+  }
+
+  public publishDataset(): void {
+    if (!this.isPublic) {
+      this.datasetService
+        .updateDatasetPublicity(this.id)
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          next: (res: Response) => {
+            this.isPublic = true;
+          },
+          error: (err: unknown) => {
+            this.notificationService.error("Failed to publish the dataset");
+          },
+        });
+    } else {
+      console.log("Dataset " + this.id + " is already private");
+    }
+  }
+
+  public unpublishDataset(): void {
+    if (this.isPublic) {
+      this.datasetService
+        .updateDatasetPublicity(this.id)
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          next: (res: Response) => {
+            this.isPublic = false;
+          },
+          error: (err: unknown) => {
+            this.notificationService.error("Failed to unpublish the dataset");
+          },
+        });
+    } else {
+      console.log("Dataset " + this.id + " is already private");
+    }
   }
 }

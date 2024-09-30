@@ -5,7 +5,7 @@ import { Router } from "@angular/router";
 import { SearchService } from "../../../service/user/search.service";
 import { DatasetService } from "../../../service/user/dataset/dataset.service";
 import { SortMethod } from "../../../type/sort-method";
-import { DashboardEntry } from "../../../type/dashboard-entry";
+import { DashboardEntry, UserInfo } from "../../../type/dashboard-entry";
 import { SearchResultsComponent } from "../search-results/search-results.component";
 import { FiltersComponent } from "../filters/filters.component";
 import { firstValueFrom } from "rxjs";
@@ -19,6 +19,9 @@ import { firstValueFrom } from "rxjs";
 export class UserDatasetComponent implements AfterViewInit {
   public sortMethod = SortMethod.EditTimeDesc;
   lastSortMethod: SortMethod | null = null;
+  public isLogin = this.userService.isLogin();
+  private includePublic = false;
+  public currentUid = this.userService.getCurrentUser()?.uid;
   private _searchResultsComponent?: SearchResultsComponent;
   @ViewChild(SearchResultsComponent) get searchResultsComponent(): SearchResultsComponent {
     if (this._searchResultsComponent) {
@@ -51,7 +54,15 @@ export class UserDatasetComponent implements AfterViewInit {
     private router: Router,
     private searchService: SearchService,
     private datasetService: DatasetService
-  ) {}
+  ) {
+    this.userService
+      .userChanged()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        this.isLogin = this.userService.isLogin();
+        this.currentUid = this.userService.getCurrentUser()?.uid;
+      });
+  }
 
   ngAfterViewInit() {
     this.userService
@@ -83,13 +94,38 @@ export class UserDatasetComponent implements AfterViewInit {
           start,
           count,
           "dataset",
-          this.sortMethod
+          this.sortMethod,
+          this.isLogin,
+          this.includePublic
         )
       );
+
+      const userIds = new Set<number>();
+      results.results.forEach(i => {
+        const ownerUid = i.dataset?.dataset?.ownerUid;
+        if (ownerUid !== undefined) {
+          userIds.add(ownerUid);
+        }
+      });
+
+      let userIdToInfoMap: { [key: number]: UserInfo } = {};
+      if (userIds.size > 0) {
+        userIdToInfoMap = await firstValueFrom(this.searchService.getUserInfo(Array.from(userIds)));
+      }
+
       return {
         entries: results.results.map(i => {
           if (i.dataset) {
-            return new DashboardEntry(i.dataset);
+            const entry = new DashboardEntry(i.dataset);
+
+            const ownerUid = i.dataset.dataset?.ownerUid;
+            if (ownerUid !== undefined) {
+              const userInfo = userIdToInfoMap[ownerUid] || { userName: "", googleAvatar: "" };
+              entry.setOwnerName(userInfo.userName);
+              entry.setOwnerGoogleAvatar(userInfo.googleAvatar ?? "");
+            }
+
+            return entry;
           } else {
             throw new Error("Unexpected type in SearchResult.");
           }
@@ -101,7 +137,7 @@ export class UserDatasetComponent implements AfterViewInit {
   }
 
   public onClickOpenDatasetAddComponent(): void {
-    this.router.navigate(["/dashboard/dataset/create"]);
+    this.router.navigate(["/dashboard/user/dataset/create"]);
   }
 
   public deleteDataset(entry: DashboardEntry): void {

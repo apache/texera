@@ -2,7 +2,7 @@ import { Injectable } from "@angular/core";
 
 import * as joint from "jointjs";
 import { BehaviorSubject, merge, Observable, Subject } from "rxjs";
-import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
+import { Workflow, WorkflowContent, WorkflowSettings } from "../../../../common/type/workflow";
 import { mapToRecord, recordToMap } from "../../../../common/util/map";
 import { WorkflowMetadata } from "../../../../dashboard/type/workflow-metadata.interface";
 import {
@@ -36,7 +36,11 @@ export const DEFAULT_WORKFLOW = {
   wid: 0,
   creationTime: undefined,
   lastModifiedTime: undefined,
+  isPublished: 0,
   readonly: false,
+};
+export const DEFAULT_SETTINGS = {
+  dataTransferBatchSize: environment.defaultDataTransferBatchSize,
 };
 
 /**
@@ -76,6 +80,8 @@ export class WorkflowActionService {
   private workflowMetadata: WorkflowMetadata;
   private workflowMetadataChangeSubject: Subject<WorkflowMetadata> = new Subject<WorkflowMetadata>();
 
+  private workflowSettings: WorkflowSettings;
+
   constructor(
     private operatorMetadataService: OperatorMetadataService,
     private jointUIService: JointUIService,
@@ -101,6 +107,7 @@ export class WorkflowActionService {
     );
     this.syncOperatorGroup = new SyncOperatorGroup(this.texeraGraph, this.jointGraphWrapper, this.operatorGroup);
     this.workflowMetadata = DEFAULT_WORKFLOW;
+    this.workflowSettings = DEFAULT_SETTINGS;
     this.undoRedoService.setUndoManager(this.texeraGraph.sharedModel.undoManager);
 
     this.handleJointElementDrag();
@@ -619,6 +626,7 @@ export class WorkflowActionService {
       }
 
       const workflowContent: WorkflowContent = workflow.content;
+      this.workflowSettings = workflowContent.settings || DEFAULT_SETTINGS;
 
       let operatorsAndPositions: { op: OperatorPredicate; pos: Point }[] = [];
       workflowContent.operators.forEach(op => {
@@ -707,6 +715,19 @@ export class WorkflowActionService {
     this.workflowMetadataChangeSubject.next(newMetadata);
   }
 
+  public setWorkflowSettings(workflowSettings: WorkflowSettings | undefined): void {
+    if (this.workflowSettings === workflowSettings) {
+      return;
+    }
+
+    const newSettings = workflowSettings === undefined ? DEFAULT_SETTINGS : workflowSettings;
+    this.workflowSettings = newSettings;
+  }
+
+  public getWorkflowSettings(): WorkflowSettings {
+    return this.workflowSettings;
+  }
+
   public getWorkflowMetadata(): WorkflowMetadata {
     return this.workflowMetadata;
   }
@@ -718,6 +739,7 @@ export class WorkflowActionService {
     const links = texeraGraph.getAllLinks();
     const operatorPositions: { [key: string]: Point } = {};
     const commentBoxes = texeraGraph.getAllCommentBoxes();
+    const settings = this.workflowSettings;
 
     const groups = this.getOperatorGroup()
       .getAllGroups()
@@ -745,6 +767,7 @@ export class WorkflowActionService {
       links,
       groups,
       commentBoxes,
+      settings,
     };
   }
 
@@ -787,10 +810,21 @@ export class WorkflowActionService {
     this.setWorkflowMetadata({ ...this.workflowMetadata, name: newName });
   }
 
+  public setWorkflowDataTransferBatchSize(size: number): void {
+    if (size > 0 && size != null) {
+      this.setWorkflowSettings({ ...this.workflowSettings, dataTransferBatchSize: size });
+    }
+  }
+
   public clearWorkflow(): void {
     this.destroySharedModel();
     this.setWorkflowMetadata(undefined);
+    this.setWorkflowSettings(undefined);
     this.reloadWorkflow(undefined);
+  }
+
+  public setWorkflowIsPublished(newPublishState: number): void {
+    this.setWorkflowMetadata({ ...this.workflowMetadata, isPublished: newPublishState });
   }
 
   /**

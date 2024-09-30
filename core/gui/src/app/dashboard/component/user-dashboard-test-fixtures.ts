@@ -3,6 +3,7 @@
 import { Workflow, WorkflowContent } from "../../common/type/workflow";
 import { DashboardEntry } from "../type/dashboard-entry";
 import { DashboardProject } from "../type/dashboard-project.interface";
+import { environment } from "../../../environments/environment";
 
 //the Date class creates unix timestamp based on local timezone, therefore test workflow time needs to be in local timezone
 const oneDay = 86400000;
@@ -21,6 +22,7 @@ export const testWorkflowContent = (operatorTypes: string[]): WorkflowContent =>
   groups: [],
   links: [],
   operatorPositions: {},
+  settings: { dataTransferBatchSize: environment.defaultDataTransferBatchSize },
 });
 
 export const testWorkflow1: Workflow = {
@@ -30,6 +32,7 @@ export const testWorkflow1: Workflow = {
   content: testWorkflowContent(["Aggregation", "NlpSentiment", "SimpleSink"]),
   creationTime: januaryFirst1970,
   lastModifiedTime: januaryFirst1970 + 2,
+  isPublished: 0,
   readonly: false,
 };
 
@@ -40,6 +43,7 @@ export const testWorkflow2: Workflow = {
   content: testWorkflowContent(["Aggregation", "NlpSentiment", "SimpleSink"]),
   creationTime: januaryFirst1970 + (oneDay + 3),
   lastModifiedTime: januaryFirst1970 + (oneDay + 3),
+  isPublished: 0,
   readonly: false,
 };
 
@@ -50,6 +54,7 @@ export const testWorkflow3: Workflow = {
   content: testWorkflowContent(["Aggregation", "NlpSentiment"]),
   creationTime: januaryFirst1970 + oneDay,
   lastModifiedTime: januaryFirst1970 + (oneDay + 4),
+  isPublished: 0,
   readonly: false,
 };
 
@@ -60,6 +65,7 @@ export const testWorkflow4: Workflow = {
   content: testWorkflowContent([]),
   creationTime: januaryFirst1970 + (oneDay + 3) * 2,
   lastModifiedTime: januaryFirst1970 + oneDay * 2 + 6,
+  isPublished: 0,
   readonly: false,
 };
 
@@ -70,6 +76,7 @@ export const testWorkflow5: Workflow = {
   content: testWorkflowContent([]),
   creationTime: januaryFirst1970 + oneDay * 2,
   lastModifiedTime: januaryFirst1970 + oneDay * 2 + 8,
+  isPublished: 0,
   readonly: false,
 };
 
@@ -80,6 +87,7 @@ export const testDownloadWorkflow1: Workflow = {
   content: testWorkflowContent([]),
   creationTime: januaryFirst1970, //januaryFirst1970 is 1970-01-01 in PST
   lastModifiedTime: januaryFirst1970 + 2,
+  isPublished: 0,
   readonly: false,
 };
 
@@ -90,6 +98,7 @@ export const testDownloadWorkflow2: Workflow = {
   content: testWorkflowContent([]),
   creationTime: januaryFirst1970 + (oneDay + 3), // oneDay is the number of milliseconds in a day
   lastModifiedTime: januaryFirst1970 + (oneDay + 3),
+  isPublished: 0,
   readonly: false,
 };
 
@@ -100,6 +109,7 @@ export const testDownloadWorkflow3: Workflow = {
   content: testWorkflowContent([]),
   creationTime: januaryFirst1970 + oneDay,
   lastModifiedTime: januaryFirst1970 + (oneDay + 4),
+  isPublished: 0,
   readonly: false,
 };
 
@@ -110,6 +120,7 @@ export const testWorkflowFileNameConflictEntries: DashboardEntry[] = [
     ownerName: "Texera",
     accessLevel: "Write",
     projectIDs: [1],
+    ownerId: 1,
   }),
   new DashboardEntry({
     workflow: testDownloadWorkflow2,
@@ -117,6 +128,7 @@ export const testWorkflowFileNameConflictEntries: DashboardEntry[] = [
     ownerName: "Texera",
     accessLevel: "Write",
     projectIDs: [1, 2],
+    ownerId: 1,
   }),
   new DashboardEntry({
     workflow: testDownloadWorkflow3,
@@ -124,6 +136,7 @@ export const testWorkflowFileNameConflictEntries: DashboardEntry[] = [
     ownerName: "Angular",
     accessLevel: "Write",
     projectIDs: [1],
+    ownerId: 2,
   }),
 ];
 
@@ -134,6 +147,7 @@ export const testWorkflowEntries: DashboardEntry[] = [
     ownerName: "Texera",
     accessLevel: "Write",
     projectIDs: [1],
+    ownerId: 1,
   }),
   new DashboardEntry({
     workflow: testWorkflow2,
@@ -141,6 +155,7 @@ export const testWorkflowEntries: DashboardEntry[] = [
     ownerName: "Texera",
     accessLevel: "Write",
     projectIDs: [1, 2],
+    ownerId: 1,
   }),
   new DashboardEntry({
     workflow: testWorkflow3,
@@ -148,6 +163,7 @@ export const testWorkflowEntries: DashboardEntry[] = [
     ownerName: "Angular",
     accessLevel: "Write",
     projectIDs: [1],
+    ownerId: 2,
   }),
   new DashboardEntry({
     workflow: testWorkflow4,
@@ -155,6 +171,7 @@ export const testWorkflowEntries: DashboardEntry[] = [
     ownerName: "Angular",
     accessLevel: "Write",
     projectIDs: [3],
+    ownerId: 2,
   }),
   new DashboardEntry({
     workflow: testWorkflow5,
@@ -162,11 +179,18 @@ export const testWorkflowEntries: DashboardEntry[] = [
     ownerName: "UCI",
     accessLevel: "Write",
     projectIDs: [3],
+    ownerId: 3,
   }),
 ];
 
 export const testUserProjects: DashboardProject[] = [
-  { pid: 1, name: "Project1", description: "p1", ownerID: 1, color: "#ffffff", creationTime: 0, accessLevel: "WRITE" },
-  { pid: 2, name: "Project2", description: "p1", ownerID: 1, color: "#ffffff", creationTime: 0, accessLevel: "WRITE" },
-  { pid: 3, name: "Project3", description: "p1", ownerID: 1, color: "#ffffff", creationTime: 0, accessLevel: "WRITE" },
+  { pid: 1, name: "Project1", description: "p1", ownerId: 1, color: "#ffffff", creationTime: 0, accessLevel: "WRITE" },
+  { pid: 2, name: "Project2", description: "p1", ownerId: 1, color: "#ffffff", creationTime: 0, accessLevel: "WRITE" },
+  { pid: 3, name: "Project3", description: "p1", ownerId: 1, color: "#ffffff", creationTime: 0, accessLevel: "WRITE" },
 ];
+
+export const mockUserInfo = {
+  1: { userName: "Texera", googleAvatar: "avatar_url_1" },
+  2: { userName: "Angular", googleAvatar: "avatar_url_2" },
+  3: { userName: "UCI", googleAvatar: "avatar_url_3" },
+};

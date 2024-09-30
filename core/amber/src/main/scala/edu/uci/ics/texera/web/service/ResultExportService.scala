@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.web.service
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
+import java.nio.charset.StandardCharsets
 import java.util
 import java.util.concurrent.{Executors, ThreadPoolExecutor}
 import com.github.tototoshi.csv.CSVWriter
@@ -74,6 +75,8 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
         handleGoogleSheetRequest(cache, request, results, attributeNames)
       case "csv" =>
         handleCSVRequest(user, request, results, attributeNames)
+      case "data" =>
+        handleDataRequest(user, request, results)
       case _ =>
         ResultExportResponse("error", s"Unknown export type: ${request.exportType}")
     }
@@ -172,6 +175,49 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
       .setFields("spreadsheetId")
       .execute
     targetSheet.getSpreadsheetId
+  }
+
+  private def handleDataRequest(
+      user: User,
+      request: ResultExportRequest,
+      results: Iterable[Tuple]
+  ): ResultExportResponse = {
+    val rowIndex = request.rowIndex
+    val columnIndex = request.columnIndex
+    val filename = request.filename
+
+    // Validate that the requested row and column exist
+    if (rowIndex >= results.size || columnIndex >= results.head.getFields.size) {
+      return ResultExportResponse("error", s"Invalid row or column index")
+    }
+
+    val selectedRow = results.toSeq(rowIndex)
+    val field: Any = selectedRow.getField(columnIndex)
+
+    // Convert the field to a byte array, regardless of its type
+    val dataBytes: Array[Byte] = field match {
+      case data: Array[Byte] => data
+      case data: String      => data.getBytes(StandardCharsets.UTF_8)
+      case data              => data.toString.getBytes(StandardCharsets.UTF_8)
+    }
+
+    // Save the data file
+    val fileStream = new ByteArrayInputStream(dataBytes)
+
+    request.datasetIds.foreach { did =>
+      val datasetPath = PathUtils.getDatasetPath(UInteger.valueOf(did))
+      val filePath = datasetPath.resolve(filename)
+      createNewDatasetVersionByAddingFiles(
+        UInteger.valueOf(did),
+        user,
+        Map(filePath -> fileStream)
+      )
+    }
+
+    ResultExportResponse(
+      "success",
+      s"Data file $filename saved to Datasets ${request.datasetIds.mkString(",")}"
+    )
   }
 
   /**
