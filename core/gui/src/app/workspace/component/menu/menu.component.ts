@@ -271,10 +271,8 @@ export class MenuComponent implements OnInit {
    * get the html to export all results.
    */
   public onClickGenerateReport(): void {
-
     // Get notification and set nzDuration to 0 to prevent it from auto-closing
     this.notificationService.blank("", "The report is being generated...", { nzDuration: 0 });
-
 
     const workflowName = this.currentWorkflowName;
     const WorkflowContent: WorkflowContent = this.workflowActionService.getWorkflowContent();
@@ -315,7 +313,6 @@ export class MenuComponent implements OnInit {
 
           // Close the notification on error
           this.notificationService.remove();
-
         },
       });
   }
