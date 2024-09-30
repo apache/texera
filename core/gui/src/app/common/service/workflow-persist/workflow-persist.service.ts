@@ -22,6 +22,7 @@ export const WORKFLOW_OWNER_URL = WORKFLOW_BASE_URL + "/user-workflow-owners";
 export const WORKFLOW_ID_URL = WORKFLOW_BASE_URL + "/user-workflow-ids";
 
 export const DEFAULT_WORKFLOW_NAME = "Untitled workflow";
+export const WORKFLOW_PUBLIC_URL = WORKFLOW_BASE_URL + "/public";
 export const WORKFLOW_ENVIRONMENT = "environment";
 @Injectable({
   providedIn: "root",

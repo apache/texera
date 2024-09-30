@@ -1,4 +1,4 @@
-<div class="container">
+<div class="container prevent-select">
   <h1>Workflow Detail Page</h1>
   <div class="workflow-info">
     <div>
@@ -14,7 +14,12 @@
       <p>{{ ownerUser.name }}</p>
     </div>
   </div>
-
+  <h2>Preview</h2>
+  <div class="preview-containers">
+    <texera-workflow-editor></texera-workflow-editor>
+    <texera-mini-map class="box"></texera-mini-map>
+  </div>
+  <ng-template #codeEditor></ng-template>
   <div class="workflow-steps">
     <h2>Steps</h2>
 
