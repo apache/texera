@@ -21,8 +21,8 @@ class AIAssistantResource {
   @GET
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/isenabled")
-
   def isAIAssistantEnable: String = isEnabled
+
   
   /**
     * Endpoint to get the operator comment from OpenAI.
