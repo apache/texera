@@ -405,7 +405,6 @@ export class ReportGenerationService {
     return this.aiAssistantService.openai(prompt);
   }
 
-
   /**
    * Generates a concise and insightful summary comment for the given operator information by utilizing the AI Assistant service.
    * The summary is tailored for an educated audience without a deep understanding of statistics, focusing on the key findings,
@@ -431,7 +430,6 @@ export class ReportGenerationService {
       4. Ensure the summary helps the reader gain a comprehensive understanding of the workflow and its global implications.
 
       Again, the output comment should follow the format specified above and should be insightful for non-experts.`;
-
 
     // Call the openai function and pass the generated prompt
     return this.aiAssistantService.openai(prompt);
