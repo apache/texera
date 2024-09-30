@@ -76,7 +76,7 @@ class AIAssistantResource {
         e.printStackTrace()
         Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("Error occurred").build()
     }
-
+  }
   /**
     * To get the type annotation suggestion from OpenAI
     */
