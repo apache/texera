@@ -4,12 +4,8 @@ import edu.uci.ics.texera.web.resource.aiassistant.AiAssistantManager
 import io.dropwizard.auth.Auth
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
-
 import javax.ws.rs.core.{MediaType, Response}
-import io.dropwizard.auth.Auth
-import edu.uci.ics.texera.web.auth.SessionUser
 import javax.ws.rs.Consumes
-import javax.ws.rs.core.MediaType
 import play.api.libs.json.Json
 import kong.unirest.Unirest
 
