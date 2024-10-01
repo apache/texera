@@ -66,10 +66,12 @@ export class WorkflowResultExportService {
    * Export the operator results as files.
    * If multiple operatorIds are provided, results are zipped into a single file.
    */
-  exportOperatorsAsFile(download_all: boolean = false): void {
-    let operatorIds: string[] = [];
+  exportOperatorsResultAsFile(download_all: boolean = false): void {
+    let operatorIds: string[];
     if (!download_all)
-      operatorIds = [...this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()]
+      operatorIds = [...this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()];
+    else
+      operatorIds = this.workflowActionService.getTexeraGraph().getAllOperators().map(operator => operator.operatorID);
 
 
     const resultObservables: Observable<{ filename: string; blob: Blob }[]>[] = [];

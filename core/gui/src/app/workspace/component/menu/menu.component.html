@@ -179,6 +179,20 @@
               nzType="cloud-download"></i>
           </button>
           <button
+            (click)="workflowResultExportService.exportOperatorsResultAsFile(true)"
+            [disabled]="
+        !workflowResultExportService.exportExecutionResultEnabled ||
+        !workflowResultExportService.hasResultToExport
+      "
+            id="downloadZipWorkflow"
+            nz-button
+            nz-dropdown
+            title="download all the operators result">
+            <i
+              nz-icon
+              nzType="download"></i>
+          </button>
+          <button
             (click)="operatorMenu.disableHighlightedOperators()"
             *ngIf="operatorMenu.isDisableOperator || !operatorMenu.isDisableOperatorClickable"
             [disabled]="!operatorMenu.isDisableOperatorClickable"
