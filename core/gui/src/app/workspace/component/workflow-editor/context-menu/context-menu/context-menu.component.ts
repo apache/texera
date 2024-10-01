@@ -64,8 +64,26 @@ export class ContextMenuComponent {
     );
   }
 
-  public triggerDownloadResultOfOperator(): void {
+  public writeDownloadLabel(): string {
     const highlightedOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-    this.workflowResultExportService.exportOperatorAsFile(highlightedOperatorIDs[0]);
+    if (highlightedOperatorIDs.length > 1) {
+      return "download multiple results";
+    }
+
+    const operatorId = highlightedOperatorIDs[0];
+
+    const resultService = this.workflowResultService.getResultService(operatorId);
+    if (resultService?.getCurrentResultSnapshot() !== undefined) {
+      return "download result as HTML file";
+    }
+    if (this.workflowResultService.hasAnyResult(operatorId)) {
+      return "download result as CSV file";
+    }
+    return "download result";
+  }
+
+  public triggerDownloadResultOfOperator(): void {
+    const highlightedOperatorIDs = [...this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()]
+    this.workflowResultExportService.exportOperatorsAsFile(highlightedOperatorIDs);
   }
 }

@@ -1,15 +1,18 @@
+import * as JSZip from "jszip";
+import * as Papa from "papaparse";
 import { Injectable } from "@angular/core";
 import { environment } from "../../../../environments/environment";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
-import { EMPTY, expand, finalize, merge } from "rxjs";
-import { ResultExportResponse } from "../../types/workflow-websocket.interface";
+import { EMPTY, expand, finalize, forkJoin, merge, Observable } from "rxjs";
+import { PaginatedResultEvent, ResultExportResponse } from "../../types/workflow-websocket.interface";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
 import { ExecutionState, isNotInExecution } from "../../types/execute-workflow.interface";
 import { filter } from "rxjs/operators";
-import { WorkflowResultService } from "../workflow-result/workflow-result.service";
+import { OperatorResultService, WorkflowResultService } from "../workflow-result/workflow-result.service";
 import { FileSaverService } from "../../../dashboard/service/user/file/file-saver.service";
+import { OperatorPaginationResultService } from "../workflow-result/workflow-result.service";
 
 @Injectable({
   providedIn: "root",
@@ -24,7 +27,7 @@ export class WorkflowResultExportService {
     private notificationService: NotificationService,
     private executeWorkflowService: ExecuteWorkflowService,
     private workflowResultService: WorkflowResultService,
-    private fileSaverService: FileSaverService
+    private fileSaverService: FileSaverService,
   ) {
     this.registerResultExportResponseHandler();
     this.registerResultToExportUpdateHandler();
@@ -48,7 +51,7 @@ export class WorkflowResultExportService {
         .getExecutionStateStream()
         .pipe(filter(({ previous, current }) => current.state === ExecutionState.Completed)),
       this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
-      this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream()
+      this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream(),
     ).subscribe(() => {
       this.hasResultToExport =
         isNotInExecution(this.executeWorkflowService.getExecutionState().state) &&
@@ -60,57 +63,50 @@ export class WorkflowResultExportService {
   }
 
   /**
-   * export the operator result as a file.
-   * If its a paginated result, export as CSV.
-   * If its a visualization result, export as .html
+   * Export the operator results as files.
+   * If multiple operatorIds are provided, results are zipped into a single file.
    */
-  exportOperatorAsFile(operatorId: string): void {
-    const resultService = this.workflowResultService.getResultService(operatorId);
-    const paginatedResultService = this.workflowResultService.getPaginatedResultService(operatorId);
+  exportOperatorsAsFile(operatorIds: string[]): void {
+    const resultObservables: Observable<{ filename: string; blob: Blob }[]>[] = [];
 
-    if (paginatedResultService) {
-      const results: any[] = [];
-      let currentPage = 1;
-      const pageSize = 10;
+    operatorIds.forEach(operatorId => {
+      const resultService = this.workflowResultService.getResultService(operatorId);
+      const paginatedResultService = this.workflowResultService.getPaginatedResultService(operatorId);
 
-      paginatedResultService
-        .selectPage(currentPage, pageSize)
-        .pipe(
-          expand(pageData => {
-            // Process the current page data
-            results.push(...pageData.table);
+      if (paginatedResultService) {
+        const observable = this.fetchAllPaginatedResultsAsCSV(paginatedResultService, operatorId);
+        resultObservables.push(observable);
+      } else if (resultService) {
+        const observable = this.fetchVisualizationResultsAsHTML(resultService, operatorId);
+        resultObservables.push(observable);
+      } else {
+        // No result service available for this operatorId
+        this.notificationService.error(`No results available for operator ID: ${operatorId}`);
+      }
+    });
 
-            // Check if there are more pages
-            if (pageData.table.length === pageSize) {
-              currentPage++;
-              // Fetch the next page
-              return paginatedResultService.selectPage(currentPage, pageSize);
-            } else {
-              // No more pages; complete the observable
-              return EMPTY;
-            }
-          }),
-          finalize(() => {
-            // Proceed to convert results to CSV and download
-            this.downloadResultsAsCSV(results, operatorId);
-          })
-        )
-        .subscribe();
+    if (resultObservables.length === 0) {
+      return;
     }
 
-    if (resultService) {
-      const snapshot = resultService.getCurrentResultSnapshot();
-      const filesString: string[] = [];
+    forkJoin(resultObservables).subscribe(filesArray => {
+      const files = filesArray.flat();
 
-      snapshot?.forEach(s => filesString.push(Object(s)["html-content"]));
-
-      // Convert filesString into Blob objects and download them as HTML files
-      filesString.forEach((fileContent, index) => {
-        const blob = new Blob([fileContent], { type: "text/html;charset=utf-8" });
-        const filename = `result_${operatorId}_${index + 1}.html`;
-        this.fileSaverService.saveAs(blob, filename);
-      });
-    }
+      if (files.length === 1) {
+        // Only one file, save it directly
+        this.fileSaverService.saveAs(files[0].blob, files[0].filename);
+      } else if (files.length > 1) {
+        // Multiple files, zip them
+        const zip = new JSZip();
+        files.forEach(file => {
+          zip.file(file.filename, file.blob);
+        });
+        zip.generateAsync({ type: "blob" }).then((zipBlob: string | Blob) => {
+          const zipFilename = `results_${new Date().getTime()}.zip`;
+          this.fileSaverService.saveAs(zipBlob, zipFilename);
+        });
+      }
+    });
   }
 
   /**
@@ -122,7 +118,7 @@ export class WorkflowResultExportService {
     datasetIds: ReadonlyArray<number> = [],
     rowIndex: number,
     columnIndex: number,
-    filename: string
+    filename: string,
   ): void {
     if (!environment.exportExecutionResultEnabled || !this.hasResultToExport) {
       return;
@@ -158,43 +154,69 @@ export class WorkflowResultExportService {
   }
 
   /**
-   * Convert the results array into CSV format and trigger download.
+   * Helper method to fetch all paginated results and convert them to a CSV Blob.
    */
-  private downloadResultsAsCSV(results: any[], operatorId: string): void {
-    // Extract all unique keys from the results
-    const allKeys = new Set<string>();
-    results.forEach(record => {
-      Object.keys(record).forEach(key => allKeys.add(key));
+  private fetchAllPaginatedResultsAsCSV(
+    paginatedResultService: OperatorPaginationResultService,
+    operatorId: string,
+  ): Observable<{ filename: string; blob: Blob }[]> {
+    return new Observable(observer => {
+      const results: any[] = [];
+      let currentPage = 1;
+      const pageSize = 10;
+
+      paginatedResultService
+        .selectPage(currentPage, pageSize)
+        .pipe(
+          expand((pageData: PaginatedResultEvent) => {
+            results.push(...pageData.table);
+            if (pageData.table.length === pageSize) {
+              currentPage++;
+              return paginatedResultService.selectPage(currentPage, pageSize);
+            } else {
+              return EMPTY;
+            }
+          }),
+          finalize(() => {
+            const { filename, blob } = this.createCSVBlob(results, operatorId);
+            observer.next([{ filename, blob }]);
+            observer.complete();
+          }),
+        )
+        .subscribe();
     });
-    const headers = Array.from(allKeys);
+  }
 
-    // Build CSV content
-    let csvContent = "";
-    // Add headers
-    csvContent += headers.join(",") + "\n";
+  /**
+   * Helper method to fetch visualization results and convert them to HTML Blobs.
+   */
+  private fetchVisualizationResultsAsHTML(
+    resultService: OperatorResultService,
+    operatorId: string,
+  ): Observable<{ filename: string; blob: Blob }[]> {
+    return new Observable(observer => {
+      const snapshot = resultService.getCurrentResultSnapshot();
+      const files: { filename: string; blob: Blob }[] = [];
 
-    // Add data rows
-    results.forEach(record => {
-      const row = headers.map(header => {
-        let cell = record[header];
-        if (cell === null || cell === undefined) {
-          cell = "";
-        } else if (typeof cell === "object") {
-          // If the cell is an object (e.g., Date), convert it to string
-          cell = JSON.stringify(cell);
-        }
-        // Escape double quotes and commas in cell
-        if (typeof cell === "string" && (cell.includes(",") || cell.includes("\""))) {
-          cell = "\"" + cell.replace(/"/g, "\"\"") + "\"";
-        }
-        return cell;
+      snapshot?.forEach((s: any, index: number) => {
+        const fileContent = Object(s)["html-content"];
+        const blob = new Blob([fileContent], { type: "text/html;charset=utf-8" });
+        const filename = `result_${operatorId}_${index + 1}.html`;
+        files.push({ filename, blob });
       });
-      csvContent += row.join(",") + "\n";
-    });
 
-    // Create Blob and download
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8" });
+      observer.next(files);
+      observer.complete();
+    });
+  }
+
+  /**
+   * Convert the results array into CSV format and create a Blob.
+   */
+  private createCSVBlob(results: any[], operatorId: string): { filename: string; blob: Blob } {
+    const csv = Papa.unparse(results);  // Convert array of objects to CSV
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const filename = `result_${operatorId}.csv`;
-    this.fileSaverService.saveAs(blob, filename);
+    return { filename, blob };
   }
 }
