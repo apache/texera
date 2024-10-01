@@ -28,7 +28,7 @@ export class WorkflowResultExportService {
     private notificationService: NotificationService,
     private executeWorkflowService: ExecuteWorkflowService,
     private workflowResultService: WorkflowResultService,
-    private fileSaverService: FileSaverService,
+    private fileSaverService: FileSaverService
   ) {
     this.registerResultExportResponseHandler();
     this.registerResultToExportUpdateHandler();
@@ -52,7 +52,7 @@ export class WorkflowResultExportService {
         .getExecutionStateStream()
         .pipe(filter(({ previous, current }) => current.state === ExecutionState.Completed)),
       this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
-      this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream()
     ).subscribe(() => {
       // check if there are any results to export on highlighted operators (either paginated or snapshot)
       this.hasResultToExportOnHighlightedOperators =
@@ -60,10 +60,11 @@ export class WorkflowResultExportService {
         this.workflowActionService
           .getJointGraphWrapper()
           .getCurrentHighlightedOperatorIDs()
-          .filter(operatorId => this.workflowResultService.hasAnyResult(operatorId) ||
-            this.workflowResultService
-              .getResultService(operatorId)
-              ?.getCurrentResultSnapshot() !== undefined).length > 0;
+          .filter(
+            operatorId =>
+              this.workflowResultService.hasAnyResult(operatorId) ||
+              this.workflowResultService.getResultService(operatorId)?.getCurrentResultSnapshot() !== undefined
+          ).length > 0;
 
       // check if there are any results to export on all operators (either paginated or snapshot)
       this.hasResultToExportOnAllOperators =
@@ -72,10 +73,11 @@ export class WorkflowResultExportService {
           .getTexeraGraph()
           .getAllOperators()
           .map(operator => operator.operatorID)
-          .filter(operatorId => this.workflowResultService.hasAnyResult(operatorId) ||
-            this.workflowResultService
-              .getResultService(operatorId)
-              ?.getCurrentResultSnapshot() !== undefined).length > 0;
+          .filter(
+            operatorId =>
+              this.workflowResultService.hasAnyResult(operatorId) ||
+              this.workflowResultService.getResultService(operatorId)?.getCurrentResultSnapshot() !== undefined
+          ).length > 0;
     });
   }
 
@@ -88,8 +90,10 @@ export class WorkflowResultExportService {
     if (!download_all)
       operatorIds = [...this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()];
     else
-      operatorIds = this.workflowActionService.getTexeraGraph().getAllOperators().map(operator => operator.operatorID);
-
+      operatorIds = this.workflowActionService
+        .getTexeraGraph()
+        .getAllOperators()
+        .map(operator => operator.operatorID);
 
     const resultObservables: Observable<{ filename: string; blob: Blob }[]>[] = [];
 
@@ -142,7 +146,7 @@ export class WorkflowResultExportService {
     datasetIds: ReadonlyArray<number> = [],
     rowIndex: number,
     columnIndex: number,
-    filename: string,
+    filename: string
   ): void {
     if (!environment.exportExecutionResultEnabled || !this.hasResultToExportOnHighlightedOperators) {
       return;
@@ -182,7 +186,7 @@ export class WorkflowResultExportService {
    */
   private fetchAllPaginatedResultsAsCSV(
     paginatedResultService: OperatorPaginationResultService,
-    operatorId: string,
+    operatorId: string
   ): Observable<{ filename: string; blob: Blob }[]> {
     return new Observable(observer => {
       const results: any[] = [];
@@ -205,7 +209,7 @@ export class WorkflowResultExportService {
             const { filename, blob } = this.createCSVBlob(results, operatorId);
             observer.next([{ filename, blob }]);
             observer.complete();
-          }),
+          })
         )
         .subscribe();
     });
@@ -216,7 +220,7 @@ export class WorkflowResultExportService {
    */
   private fetchVisualizationResultsAsHTML(
     resultService: OperatorResultService,
-    operatorId: string,
+    operatorId: string
   ): Observable<{ filename: string; blob: Blob }[]> {
     return new Observable(observer => {
       const snapshot = resultService.getCurrentResultSnapshot();
@@ -238,7 +242,7 @@ export class WorkflowResultExportService {
    * Convert the results array into CSV format and create a Blob.
    */
   private createCSVBlob(results: any[], operatorId: string): { filename: string; blob: Blob } {
-    const csv = Papa.unparse(results);  // Convert array of objects to CSV
+    const csv = Papa.unparse(results); // Convert array of objects to CSV
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const filename = `result_${operatorId}.csv`;
     return { filename, blob };

@@ -18,7 +18,7 @@ export class ContextMenuComponent {
     public workflowActionService: WorkflowActionService,
     public operatorMenuService: OperatorMenuService,
     public workflowResultExportService: WorkflowResultExportService,
-    private workflowResultService: WorkflowResultService,
+    private workflowResultService: WorkflowResultService
   ) {
     this.registerWorkflowModifiableChangedHandler();
   }
