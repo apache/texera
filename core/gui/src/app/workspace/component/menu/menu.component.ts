@@ -55,6 +55,7 @@ import { ShareAccessComponent } from "src/app/dashboard/component/user/share-acc
 export class MenuComponent implements OnInit {
   public executionState: ExecutionState; // set this to true when the workflow is started
   public ExecutionState = ExecutionState; // make Angular HTML access enum definition
+  public emailNotificationEnabled: boolean = false;
   public isWorkflowValid: boolean = true; // this will check whether the workflow error or not
   public isWorkflowEmpty: boolean = false;
   public isSaving: boolean = false;
@@ -208,7 +209,10 @@ export class MenuComponent implements OnInit {
           text: "Run",
           icon: "play-circle",
           disable: false,
-          onClick: () => this.executeWorkflowService.executeWorkflow(this.currentExecutionName),
+          onClick: () => {
+            this.executeWorkflowService.setEmailNotificationEnabled(this.emailNotificationEnabled);
+            this.executeWorkflowService.executeWorkflow(this.currentExecutionName);
+          },
         };
       case ExecutionState.Initializing:
         return {

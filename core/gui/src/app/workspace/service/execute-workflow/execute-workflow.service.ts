@@ -71,7 +71,8 @@ export class ExecuteWorkflowService {
   // TODO: move this to another service, or redesign how this
   //   information is stored on the frontend.
   private assignedWorkerIds: Map<string, readonly string[]> = new Map();
-
+  private emailNotificationEnabled: boolean = false;
+  
   constructor(
     private workflowActionService: WorkflowActionService,
     private workflowWebsocketService: WorkflowWebsocketService,
@@ -167,6 +168,10 @@ export class ExecuteWorkflowService {
       return this.currentState.errorMessages;
     }
     return [];
+  }
+
+  public setEmailNotificationEnabled(enabled: boolean): void {
+    this.emailNotificationEnabled = enabled;
   }
 
   public executeWorkflow(executionName: string, targetOperatorId?: string): void {
@@ -302,14 +307,16 @@ export class ExecuteWorkflowService {
       return;
     }
     this.updateWorkflowActionLock(stateInfo);
-    const isTransitionFromRunningToNonRunning =
-      this.currentState.state === ExecutionState.Running &&
+    if (environment.userSystemEnabled && this.emailNotificationEnabled) {
+      const isTransitionFromRunningToNonRunning =
+        this.currentState.state === ExecutionState.Running &&
       [ExecutionState.Completed, ExecutionState.Failed, ExecutionState.Killed, ExecutionState.Paused].includes(
         stateInfo.state
       );
 
     if (isTransitionFromRunningToNonRunning) {
       this.sendWorkflowStatusEmail(stateInfo);
+      }
     }
     const previousState = this.currentState;
     // update current state
