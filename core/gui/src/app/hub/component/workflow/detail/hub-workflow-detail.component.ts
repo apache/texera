@@ -64,6 +64,7 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy {
 
   public pid?: number = undefined;
   userSystemEnabled = environment.userSystemEnabled;
+  private currentUser?: User;
   @ViewChild("codeEditor", { read: ViewContainerRef }) codeEditorViewRef!: ViewContainerRef;
   constructor(
     private userService: UserService,
@@ -83,6 +84,7 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy {
     if(!this.wid){
       this.wid = this.route.snapshot.params.id;
     }
+    this.currentUser = this.userService.getCurrentUser();
   }
 
   ngOnInit() {
@@ -128,50 +130,51 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy {
   loadWorkflowWithId(wid: number): void {
     // disable the workspace until the workflow is fetched from the backend
     this.workflowActionService.disableWorkflowModification();
-    this.hubWorkflowService
-      .retrievePublicWorkflow(wid)
-      .pipe(untilDestroyed(this))
-      .subscribe(
-        (workflow: Workflow) => {
-          this.workflowActionService.setNewSharedModel(wid, this.userService.getCurrentUser());
-          // remember URL fragment
-          const fragment = this.route.snapshot.fragment;
-          // load the fetched workflow
-          this.workflowActionService.reloadWorkflow(workflow);
-          this.workflowActionService.enableWorkflowModification();
-          // set the URL fragment to previous value
-          // because reloadWorkflow will highlight/unhighlight all elements
-          // which will change the URL fragment
-          this.router.navigate([], {
-            relativeTo: this.route,
-            fragment: fragment !== null ? fragment : undefined,
-            preserveFragment: false,
-          });
-          // highlight the operator, comment box, or link in the URL fragment
-          if (fragment) {
-            if (this.workflowActionService.getTexeraGraph().hasElementWithID(fragment)) {
-              this.workflowActionService.highlightElements(false, fragment);
-            } else {
-              this.notificationService.error(`Element ${fragment} doesn't exist`);
-              // remove the fragment from the URL
-              this.router.navigate([], { relativeTo: this.route });
-            }
+    let workflowObservable = this.currentUser
+      ? this.workflowPersistService.retrieveWorkflow(wid)
+      : this.hubWorkflowService.retrievePublicWorkflow(wid);
+    workflowObservable.pipe(untilDestroyed(this)).subscribe(
+      (workflow: Workflow) => {
+        this.workflowActionService.setNewSharedModel(wid, this.userService.getCurrentUser());
+        // remember URL fragment
+        const fragment = this.route.snapshot.fragment;
+        // load the fetched workflow
+        this.workflowActionService.reloadWorkflow(workflow);
+        this.workflowActionService.enableWorkflowModification();
+        // set the URL fragment to previous value
+        // because reloadWorkflow will highlight/unhighlight all elements
+        // which will change the URL fragment
+        this.router.navigate([], {
+          relativeTo: this.route,
+          fragment: fragment !== null ? fragment : undefined,
+          preserveFragment: false,
+        });
+        // highlight the operator, comment box, or link in the URL fragment
+        if (fragment) {
+          if (this.workflowActionService.getTexeraGraph().hasElementWithID(fragment)) {
+            this.workflowActionService.highlightElements(false, fragment);
+          } else {
+            this.notificationService.error(`Element ${fragment} doesn't exist`);
+            // remove the fragment from the URL
+            this.router.navigate([], { relativeTo: this.route });
           }
-          // clear stack
-          this.undoRedoService.clearUndoStack();
-          this.undoRedoService.clearRedoStack();
-        },
-        () => {
-          this.workflowActionService.resetAsNewWorkflow();
-          // enable workspace for modification
-          this.workflowActionService.enableWorkflowModification();
-          // clear stack
-          this.undoRedoService.clearUndoStack();
-          this.undoRedoService.clearRedoStack();
-          this.message.error("You don't have access to this workflow, please log in with an appropriate account");
         }
-      );
+        // clear stack
+        this.undoRedoService.clearUndoStack();
+        this.undoRedoService.clearRedoStack();
+      },
+      () => {
+        this.workflowActionService.resetAsNewWorkflow();
+        // enable workspace for modification
+        this.workflowActionService.enableWorkflowModification();
+        // clear stack
+        this.undoRedoService.clearUndoStack();
+        this.undoRedoService.clearRedoStack();
+        this.message.error("You don't have access to this workflow, please log in with an appropriate account");
+      }
+    );
   }
+
 
   registerLoadOperatorMetadata() {
     this.operatorMetadataService
