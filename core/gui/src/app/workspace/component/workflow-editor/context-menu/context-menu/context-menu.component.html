@@ -120,7 +120,7 @@
 
   <li
     nz-menu-item
-    *ngIf="checkIfOperatorHasAnyResult()"
+    *ngIf="workflowResultExportService.hasResultToExportOnHighlightedOperators"
     (click)="workflowResultExportService.exportOperatorsResultAsFile()">
     <span
       nz-icon

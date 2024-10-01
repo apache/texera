@@ -168,7 +168,7 @@
             (click)="onClickExportExecutionResult('csv')"
             [disabled]="
         !workflowResultExportService.exportExecutionResultEnabled ||
-        !workflowResultExportService.hasResultToExport
+        !workflowResultExportService.hasResultToExportOnHighlightedOperators
       "
             id="downloadExcelOptions"
             nz-button
@@ -182,7 +182,7 @@
             (click)="workflowResultExportService.exportOperatorsResultAsFile(true)"
             [disabled]="
         !workflowResultExportService.exportExecutionResultEnabled ||
-        !workflowResultExportService.hasResultToExport
+        !workflowResultExportService.hasResultToExportOnAllOperators
       "
             id="downloadZipWorkflow"
             nz-button

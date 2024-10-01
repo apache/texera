@@ -55,15 +55,6 @@ export class ContextMenuComponent {
       .subscribe(modifiable => (this.isWorkflowModifiable = modifiable));
   }
 
-  public checkIfOperatorHasAnyResult(): boolean {
-    const highlightedOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-    const resultService = this.workflowResultService.getResultService(highlightedOperatorIDs[0]);
-    return (
-      resultService?.getCurrentResultSnapshot() !== undefined ||
-      this.workflowResultService.hasAnyResult(highlightedOperatorIDs[0])
-    );
-  }
-
   public writeDownloadLabel(): string {
     const highlightedOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
     if (highlightedOperatorIDs.length > 1) {

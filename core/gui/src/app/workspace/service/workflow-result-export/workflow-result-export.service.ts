@@ -18,7 +18,8 @@ import { OperatorPaginationResultService } from "../workflow-result/workflow-res
   providedIn: "root",
 })
 export class WorkflowResultExportService {
-  hasResultToExport: boolean = false;
+  hasResultToExportOnHighlightedOperators: boolean = false;
+  hasResultToExportOnAllOperators: boolean = false;
   exportExecutionResultEnabled: boolean = environment.exportExecutionResultEnabled;
 
   constructor(
@@ -53,12 +54,28 @@ export class WorkflowResultExportService {
       this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream(),
     ).subscribe(() => {
-      this.hasResultToExport =
+      // check if there are any results to export on highlighted operators (either paginated or snapshot)
+      this.hasResultToExportOnHighlightedOperators =
         isNotInExecution(this.executeWorkflowService.getExecutionState().state) &&
         this.workflowActionService
           .getJointGraphWrapper()
           .getCurrentHighlightedOperatorIDs()
-          .filter(operatorId => this.workflowResultService.hasAnyResult(operatorId)).length > 0;
+          .filter(operatorId => this.workflowResultService.hasAnyResult(operatorId) ||
+            this.workflowResultService
+              .getResultService(operatorId)
+              ?.getCurrentResultSnapshot() !== undefined).length > 0;
+
+      // check if there are any results to export on all operators (either paginated or snapshot)
+      this.hasResultToExportOnAllOperators =
+        isNotInExecution(this.executeWorkflowService.getExecutionState().state) &&
+        this.workflowActionService
+          .getTexeraGraph()
+          .getAllOperators()
+          .map(operator => operator.operatorID)
+          .filter(operatorId => this.workflowResultService.hasAnyResult(operatorId) ||
+            this.workflowResultService
+              .getResultService(operatorId)
+              ?.getCurrentResultSnapshot() !== undefined).length > 0;
     });
   }
 
@@ -88,7 +105,7 @@ export class WorkflowResultExportService {
         resultObservables.push(observable);
       } else {
         // No result service available for this operatorId
-        this.notificationService.error(`No results available for operator ID: ${operatorId}`);
+        this.notificationService.warning(`No results available for operator ID: ${operatorId}`);
       }
     });
 
@@ -127,7 +144,7 @@ export class WorkflowResultExportService {
     columnIndex: number,
     filename: string,
   ): void {
-    if (!environment.exportExecutionResultEnabled || !this.hasResultToExport) {
+    if (!environment.exportExecutionResultEnabled || !this.hasResultToExportOnHighlightedOperators) {
       return;
     }
 
