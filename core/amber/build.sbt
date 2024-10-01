@@ -6,11 +6,6 @@ scalaVersion := "2.13.12"
 
 enablePlugins(JavaAppPackaging)
 
-val customTemplatePath = "../scripts"
-
-// Configure sbt native packager to use custom templates
-bashScriptTemplateLocation := baseDirectory.value / customTemplatePath / "bash-template"
-
 semanticdbEnabled := true
 semanticdbVersion := scalafixSemanticdb.revision
 
