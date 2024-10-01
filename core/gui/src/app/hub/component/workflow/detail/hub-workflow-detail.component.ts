@@ -83,16 +83,17 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
     private notificationService: NotificationService,
     private codeEditorService: CodeEditorService,
     private hubWorkflowService: HubWorkflowService,
-    private location: Location,
+    private location: Location
   ) {
-    if(!this.wid){
+    if (!this.wid) {
       this.wid = this.route.snapshot.params.id;
     }
     this.currentUser = this.userService.getCurrentUser();
   }
 
   ngOnInit() {
-    this.isHub = this.route.parent?.snapshot.url.some(segment => segment.path === "detail") ||
+    this.isHub =
+      this.route.parent?.snapshot.url.some(segment => segment.path === "detail") ||
       this.route.snapshot.url.some(segment => segment.path === "detail");
     this.hubWorkflowService
       .getOwnerUser(this.wid)
@@ -186,7 +187,6 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
       }
     );
   }
-
 
   registerLoadOperatorMetadata() {
     this.operatorMetadataService
