@@ -338,11 +338,14 @@
               [(ngModel)]="currentExecutionName"
               placeholder="Untitled Execution"
               [disabled]="!isWorkflowModifiable" />
-            <nz-switch
-              [(ngModel)]="emailNotificationEnabled"
-              nzCheckedChildren="Email Notification On"
-              nzUnCheckedChildren="Email Notification Off">
-            </nz-switch>
+            <div style="display: flex; align-items: center; gap: 10px">
+              <span>Email Notification</span>
+              <nz-switch
+                [(ngModel)]="emailNotificationEnabled"
+                nzCheckedChildren="On"
+                nzUnCheckedChildren="Off">
+              </nz-switch>
+            </div>
           </div>
         </ng-template>
         <div style="margin-left: 5px">
