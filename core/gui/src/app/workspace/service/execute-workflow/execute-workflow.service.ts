@@ -72,7 +72,14 @@ export class ExecuteWorkflowService {
   //   information is stored on the frontend.
   private assignedWorkerIds: Map<string, readonly string[]> = new Map();
   private emailNotificationEnabled: boolean = false;
-  
+
+  private readonly COMPLETED_PAUSED_OR_TERMINATED_STATES = [
+    ExecutionState.Completed,
+    ExecutionState.Failed,
+    ExecutionState.Killed,
+    ExecutionState.Paused,
+  ];
+
   constructor(
     private workflowActionService: WorkflowActionService,
     private workflowWebsocketService: WorkflowWebsocketService,
@@ -170,8 +177,13 @@ export class ExecuteWorkflowService {
     return [];
   }
 
-  public setEmailNotificationEnabled(enabled: boolean): void {
+  public executeWorkflowWithEmailNotification(
+    executionName: string,
+    enabled: boolean,
+    targetOperatorId?: string
+  ): void {
     this.emailNotificationEnabled = enabled;
+    this.executeWorkflow(executionName, targetOperatorId);
   }
 
   public executeWorkflow(executionName: string, targetOperatorId?: string): void {
@@ -307,17 +319,7 @@ export class ExecuteWorkflowService {
       return;
     }
     this.updateWorkflowActionLock(stateInfo);
-    if (environment.userSystemEnabled && this.emailNotificationEnabled) {
-      const isTransitionFromRunningToNonRunning =
-        this.currentState.state === ExecutionState.Running &&
-      [ExecutionState.Completed, ExecutionState.Failed, ExecutionState.Killed, ExecutionState.Paused].includes(
-        stateInfo.state
-      );
-
-    if (isTransitionFromRunningToNonRunning) {
-      this.sendWorkflowStatusEmail(stateInfo);
-      }
-    }
+    this.handleEmailNotification(stateInfo);
     const previousState = this.currentState;
     // update current state
     this.currentState = stateInfo;
@@ -326,6 +328,27 @@ export class ExecuteWorkflowService {
       previous: previousState,
       current: this.currentState,
     });
+  }
+
+  private handleEmailNotification(stateInfo: ExecutionStateInfo): void {
+    if (this.shouldSendEmailNotification(stateInfo)) {
+      this.sendWorkflowStatusEmail(stateInfo);
+    }
+  }
+
+  private shouldSendEmailNotification(stateInfo: ExecutionStateInfo): boolean {
+    return this.isEmailNotificationEnabled() && this.isTransitionFromRunningToCompletedPausedOrTerminated(stateInfo);
+  }
+
+  private isEmailNotificationEnabled(): boolean {
+    return environment.userSystemEnabled && this.emailNotificationEnabled;
+  }
+
+  private isTransitionFromRunningToCompletedPausedOrTerminated(stateInfo: ExecutionStateInfo): boolean {
+    return (
+      this.currentState.state === ExecutionState.Running &&
+      this.COMPLETED_PAUSED_OR_TERMINATED_STATES.includes(stateInfo.state)
+    );
   }
 
   /**

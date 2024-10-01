@@ -209,10 +209,11 @@ export class MenuComponent implements OnInit {
           text: "Run",
           icon: "play-circle",
           disable: false,
-          onClick: () => {
-            this.executeWorkflowService.setEmailNotificationEnabled(this.emailNotificationEnabled);
-            this.executeWorkflowService.executeWorkflow(this.currentExecutionName);
-          },
+          onClick: () =>
+            this.executeWorkflowService.executeWorkflowWithEmailNotification(
+              this.currentExecutionName,
+              this.emailNotificationEnabled
+            ),
         };
       case ExecutionState.Initializing:
         return {
