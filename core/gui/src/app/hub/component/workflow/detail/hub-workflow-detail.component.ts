@@ -26,6 +26,7 @@ import { of } from "rxjs";
 import { isDefined } from "../../../../common/util/predicate";
 import { HubWorkflowService } from "../../../service/workflow/hub-workflow.service";
 import { User } from "src/app/common/type/user";
+import { Location } from "@angular/common";
 
 @UntilDestroy()
 @Component({
@@ -33,9 +34,11 @@ import { User } from "src/app/common/type/user";
   templateUrl: "hub-workflow-detail.component.html",
   styleUrls: ["hub-workflow-detail.component.scss"],
 })
-export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy {
+export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnInit {
+  isHub: boolean = true;
   workflowName: string = "";
   ownerName: string = "";
+  workflowDescription: string = "";
   workflow = {
     steps: [
       {
@@ -79,7 +82,8 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy {
     private router: Router,
     private notificationService: NotificationService,
     private codeEditorService: CodeEditorService,
-    private hubWorkflowService: HubWorkflowService
+    private hubWorkflowService: HubWorkflowService,
+    private location: Location,
   ) {
     if(!this.wid){
       this.wid = this.route.snapshot.params.id;
@@ -88,6 +92,8 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy {
   }
 
   ngOnInit() {
+    this.isHub = this.route.parent?.snapshot.url.some(segment => segment.path === "detail") ||
+      this.route.snapshot.url.some(segment => segment.path === "detail");
     this.hubWorkflowService
       .getOwnerUser(this.wid)
       .pipe(untilDestroyed(this))
@@ -99,6 +105,12 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy {
       .pipe(untilDestroyed(this))
       .subscribe(workflowName => {
         this.workflowName = workflowName;
+      });
+    this.hubWorkflowService
+      .getWorkflowDescription(this.wid)
+      .pipe(untilDestroyed(this))
+      .subscribe(workflowDescription => {
+        this.workflowDescription = workflowDescription || "No description available";
       });
   }
 
@@ -208,5 +220,9 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy {
       .subscribe(wid => {
         this.workflowWebsocketService.reopenWebsocket(wid);
       });
+  }
+
+  goBack(): void {
+    this.location.back();
   }
 }
