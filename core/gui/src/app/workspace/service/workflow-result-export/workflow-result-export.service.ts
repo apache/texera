@@ -66,7 +66,12 @@ export class WorkflowResultExportService {
    * Export the operator results as files.
    * If multiple operatorIds are provided, results are zipped into a single file.
    */
-  exportOperatorsAsFile(operatorIds: string[]): void {
+  exportOperatorsAsFile(download_all: boolean = false): void {
+    let operatorIds: string[] = [];
+    if (!download_all)
+      operatorIds = [...this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()]
+
+
     const resultObservables: Observable<{ filename: string; blob: Blob }[]>[] = [];
 
     operatorIds.forEach(operatorId => {

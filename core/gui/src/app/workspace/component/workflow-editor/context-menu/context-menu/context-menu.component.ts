@@ -17,8 +17,8 @@ export class ContextMenuComponent {
   constructor(
     public workflowActionService: WorkflowActionService,
     public operatorMenuService: OperatorMenuService,
+    public workflowResultExportService: WorkflowResultExportService,
     private workflowResultService: WorkflowResultService,
-    private workflowResultExportService: WorkflowResultExportService
   ) {
     this.registerWorkflowModifiableChangedHandler();
   }
@@ -80,10 +80,5 @@ export class ContextMenuComponent {
       return "download result as CSV file";
     }
     return "download result";
-  }
-
-  public triggerDownloadResultOfOperator(): void {
-    const highlightedOperatorIDs = [...this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()]
-    this.workflowResultExportService.exportOperatorsAsFile(highlightedOperatorIDs);
   }
 }
