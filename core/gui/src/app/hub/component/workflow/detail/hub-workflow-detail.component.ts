@@ -1,4 +1,13 @@
-import { AfterViewInit, Component, OnInit, HostListener, OnDestroy, ViewChild, ViewContainerRef } from "@angular/core";
+import {
+  AfterViewInit,
+  Component,
+  OnInit,
+  HostListener,
+  OnDestroy,
+  ViewChild,
+  ViewContainerRef,
+  Input,
+} from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { ActivatedRoute, Router } from "@angular/router";
 import { environment } from "../../../../../environments/environment";
@@ -20,14 +29,13 @@ import { User } from "src/app/common/type/user";
 
 @UntilDestroy()
 @Component({
-  selector: "texera-hub-workflow-result",
+  selector: "texera-hub-workflow-detail",
   templateUrl: "hub-workflow-detail.component.html",
   styleUrls: ["hub-workflow-detail.component.scss"],
 })
 export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy {
-  wid: number;
   workflowName: string = "";
-  ownerUser!: User;
+  ownerName: string = "";
   workflow = {
     steps: [
       {
@@ -52,6 +60,7 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy {
       },
     ],
   };
+  @Input() wid!: number;
 
   public pid?: number = undefined;
   userSystemEnabled = environment.userSystemEnabled;
@@ -71,7 +80,9 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy {
     private codeEditorService: CodeEditorService,
     private hubWorkflowService: HubWorkflowService
   ) {
-    this.wid = this.route.snapshot.params.id;
+    if(!this.wid){
+      this.wid = this.route.snapshot.params.id;
+    }
   }
 
   ngOnInit() {
@@ -79,7 +90,7 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy {
       .getOwnerUser(this.wid)
       .pipe(untilDestroyed(this))
       .subscribe(owner => {
-        this.ownerUser = owner;
+        this.ownerName = owner.name;
       });
     this.hubWorkflowService
       .getWorkflowName(this.wid)

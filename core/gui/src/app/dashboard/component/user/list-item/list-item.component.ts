@@ -21,6 +21,7 @@ import { Workflow } from "src/app/common/type/workflow";
 import { FileSaverService } from "src/app/dashboard/service/user/file/file-saver.service";
 import { firstValueFrom } from "rxjs";
 import { SearchService } from "../../../service/user/search.service";
+import { HubWorkflowDetailComponent } from "../../../../hub/component/workflow/detail/hub-workflow-detail.component";
 
 @UntilDestroy()
 @Component({
@@ -66,7 +67,8 @@ export class ListItemComponent implements OnInit, OnChanges {
     private searchService: SearchService,
     private modalService: NzModalService,
     private workflowPersistService: WorkflowPersistService,
-    private fileSaverService: FileSaverService
+    private fileSaverService: FileSaverService,
+    private modal: NzModalService
   ) {}
 
   initializeEntry() {
@@ -235,6 +237,26 @@ export class ListItemComponent implements OnInit, OnChanges {
       return `${weeksAgo} weeks ago`;
     } else {
       return new Date(timestamp).toLocaleDateString();
+    }
+  }
+
+  openDetailModal(wid: number | undefined): void {
+    const modalRef = this.modal.create({
+      nzTitle: "Workflow Detail",
+      nzContent: HubWorkflowDetailComponent,
+      nzFooter: null,
+      nzStyle: { width: "60%" },
+      nzBodyStyle: { maxHeight: "70vh", overflow: "auto" },
+    });
+
+    const instance = modalRef.componentInstance;
+    if (instance) {
+      if (wid !== undefined) {
+        instance.wid = wid;
+      } else {
+        console.warn("wid is undefined, default handling can be added here");
+        instance.wid = 0;
+      }
     }
   }
 }
