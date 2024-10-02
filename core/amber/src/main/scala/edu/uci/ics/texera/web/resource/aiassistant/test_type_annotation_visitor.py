@@ -31,7 +31,6 @@ def global_function_with_return(a: int, b: int) -> int:
         untyped_vars = find_untyped_variables(global_functions_code, 1)
         assert untyped_vars == expected_result
 
-    # 2. Class Methods and Static Methods Test
     @pytest.fixture
     def class_methods_code(self):
         """This is the test for class methods and static methods"""
