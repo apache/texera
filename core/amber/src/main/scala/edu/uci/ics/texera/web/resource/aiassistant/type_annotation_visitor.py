@@ -54,11 +54,10 @@ class TypeAnnotationVisitor(ast.NodeVisitor):
         # Skip the "self" or "cls"
         if is_method and not is_staticmethod:
             start_index = 1
-        for i, arg in enumerate(all_args):
-            if i < start_index:
-                continue
+        for i, arg in enumerate(all_args[start_index:]):
             if not arg.annotation:
                 self.add_untyped_arg(arg)
+
 
     def add_untyped_arg(self, arg):
         start_line = arg.lineno + self.start_line_offset - 1
@@ -77,6 +76,7 @@ def find_untyped_variables(source_code, start_line):
 if __name__ == "__main__":
     encoded_code = sys.argv[1]
     start_line = int(sys.argv[2])
+    # Encoding the code to transmit multi-line code as a single command-line argument before, so we need to decode it here
     source_code = base64.b64decode(encoded_code).decode('utf-8')
     untyped_variables = find_untyped_variables(source_code, start_line)
     print(json.dumps(untyped_variables))

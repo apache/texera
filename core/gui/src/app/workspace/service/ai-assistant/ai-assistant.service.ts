@@ -13,13 +13,13 @@ export type TypeAnnotationResponse = {
   }>;
 };
 
-export interface UnannotatedArgument {
-  readonly name: string;
-  readonly startLine: number;
-  readonly startColumn: number;
-  readonly endLine: number;
-  readonly endColumn: number;
-}
+export interface UnannotatedArgument extends Readonly<{
+  name: string;
+  startLine: number;
+  startColumn: number;
+  endLine: number;
+  endColumn: number;
+}> {}
 
 interface UnannotatedArgumentItem {
   readonly underlying: {
@@ -101,6 +101,18 @@ export class AIAssistantService {
       .pipe(
         map(response => {
           if (response) {
+
+            const result = response.underlying.result.value.map(
+              (item: UnannotatedArgumentItem): UnannotatedArgument => ({
+                name: item.underlying.name.value,
+                startLine: item.underlying.startLine.value,
+                startColumn: item.underlying.startColumn.value,
+                endLine: item.underlying.endLine.value,
+                endColumn: item.underlying.endColumn.value,
+              })
+            );
+            console.log("Unannotated Arguments:", result);
+
             return response.underlying.result.value.map(
               (item: UnannotatedArgumentItem): UnannotatedArgument => ({
                 name: item.underlying.name.value,
@@ -117,7 +129,7 @@ export class AIAssistantService {
         }),
         catchError((error: unknown) => {
           console.error("Request to backend failed:", error);
-          return of([]);
+          throw new Error("Request to backend failed");
         })
       );
   }
