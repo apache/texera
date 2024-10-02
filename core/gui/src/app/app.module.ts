@@ -81,6 +81,7 @@ import { AdminGuardService } from "./dashboard/service/admin/guard/admin-guard.s
 import { ContextMenuComponent } from "./workspace/component/workflow-editor/context-menu/context-menu/context-menu.component";
 import { CoeditorUserIconComponent } from "./workspace/component/menu/coeditor-user-icon/coeditor-user-icon.component";
 import { InputAutoCompleteComponent } from "./workspace/component/input-autocomplete/input-autocomplete.component";
+import { DirectoryPathInputComponent } from "./workspace/component/directory-path-input/directory-path-input.component";
 import { CollabWrapperComponent } from "./common/formly/collab-wrapper/collab-wrapper/collab-wrapper.component";
 import { NzSwitchModule } from "ng-zorro-antd/switch";
 import { HomeComponent } from "./hub/component/home/home.component";
@@ -127,6 +128,7 @@ import { NzTreeViewModule } from "ng-zorro-antd/tree-view";
 import { NzNoAnimationModule } from "ng-zorro-antd/core/no-animation";
 import { TreeModule } from "@ali-hm/angular-tree-component";
 import { FileSelectionComponent } from "./workspace/component/file-selection/file-selection.component";
+import { DirectorySelectionComponent } from "./workspace/component/directory-selection/directory-selection.component";
 import { ResultExportationComponent } from "./workspace/component/result-exportation/result-exportation.component";
 import { ReportGenerationService } from "./workspace/service/report-generation/report-generation.service";
 import { ClusterComponent } from "./dashboard/component/user/cluster/cluster.component";
@@ -208,7 +210,9 @@ registerLocaleData(en);
     ContextMenuComponent,
     CoeditorUserIconComponent,
     InputAutoCompleteComponent,
+    DirectoryPathInputComponent,
     FileSelectionComponent,
+    DirectorySelectionComponent,
     CollabWrapperComponent,
     HomeComponent,
     UserWorkflowListItemComponent,

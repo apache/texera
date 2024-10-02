@@ -299,6 +299,19 @@ object DatasetResource {
       )
   }
 
+  def getDatasetPath(
+      did: UInteger,
+      dvid: UInteger
+  ): String = {
+    val versionHash = getDatasetVersionByID(context, dvid).getVersionHash
+    val datasetPath = PathUtils.getDatasetPath(did)
+    GitVersionControlLocalFileStorage
+      .retrieveDirectoryPathOfVersion(
+        PathUtils.getDatasetPath(did),
+        versionHash
+      )
+  }
+
   private def getFileNodesOfCertainVersion(
       ownerNode: DatasetFileNode,
       datasetName: String,
@@ -785,7 +798,7 @@ class DatasetResource {
         // if the file path is given, then only fetch the dataset and version this file is belonging to
         val decodedPathStr = URLDecoder.decode(filePathStr, StandardCharsets.UTF_8.name())
         val (ownerEmail, dataset, version, _) =
-          resolvePath(Paths.get(decodedPathStr), shouldContainFile = true)
+          resolvePath(Paths.get(decodedPathStr), shouldContainFile = false)
         val accessPrivilege = getDatasetUserAccessPrivilege(ctx, dataset.getDid, uid)
         if (
           accessPrivilege == DatasetUserAccessPrivilege.NONE && dataset.getIsPublic == DATASET_IS_PRIVATE

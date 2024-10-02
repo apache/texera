@@ -48,6 +48,17 @@ public class JGitVersionControl {
     }
   }
 
+  public static String getDirectoryPathOfCommit(Path repoPath, String commitHash) throws IOException {
+    try (Repository repository = new FileRepositoryBuilder()
+            .setGitDir(repoPath.resolve(".git").toFile())
+            .build();
+         RevWalk revWalk = new RevWalk(repository)) {
+
+      // The repository path is the directory path for the commit
+      return repoPath.toAbsolutePath().toString();
+    }
+  }
+
   public static InputStream readFileContentOfCommitAsInputStream(Path repoPath, String commitHash, Path filePath) throws IOException {
     if (!filePath.startsWith(repoPath)) {
       throw new IllegalArgumentException("File path must be under the repository path.");

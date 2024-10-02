@@ -11,9 +11,9 @@ import edu.uci.ics.texera.workflow.operators.util.OperatorFilePathUtils
 
 class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
   @JsonProperty(required = true)
-  @JsonSchemaTitle("FastQ Files")
-  @JsonPropertyDescription("Zip file containing FASTQ files")
-  val fastQFiles: String = ""
+  @JsonSchemaTitle("FastQ Dataset")
+  @JsonPropertyDescription("Dataset containing fastq files")
+  val directoryName: String = ""
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Reference Genomes")
@@ -35,10 +35,11 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
   }
 
   override def generatePythonCode(): String = {
-    // Convert the Scala fastQFiles into a file path
     val (filepath, fileDesc) =
-      OperatorFilePathUtils.determineFilePathOrDatasetFile(Some(fastQFiles))
-    val fastQFilePath = if (filepath != null) filepath else fileDesc.asFile().toPath.toString
+      OperatorFilePathUtils.determineFilePathOrDatasetFile(Some(directoryName), isFile = false)
+    val fastQDatasetPath = if (filepath != null) filepath else fileDesc.asDirectory()
+
+    println(fastQDatasetPath)
 
     // Convert the Scala referenceGenomes list to a Python list format
     val pythonReferenceGenomes = referenceGenomes
@@ -77,14 +78,11 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
        |
        |        def create_job_form_data(cluster_id, job_form):
        |            form_data = {
-       |                'cid': str(cluster_id)
+       |                'cid': str(cluster_id),
+       |                'reads_path': str(job_form.get('reads'))
        |            }
        |
-       |            # Append the 'reads' file from the form control
-       |            reads_file = job_form.get('reads')
        |            files = {}
-       |            if reads_file:
-       |                files['file'] = reads_file
        |
        |            # Append selected genomes and related files
        |            append_selected_genomes_to_form_data(form_data, files, job_form)
@@ -112,7 +110,7 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
        |
        |        # Example job_form dictionary using inputs from Scala
        |        job_form = {
-       |            'reads': open(r'${fastQFilePath}', 'rb'),
+       |            'reads': '${fastQDatasetPath}',
        |            'referenceGenome': ${pythonReferenceGenomes},
        |            'fastaFiles': ${pythonFastaFiles} if 'My Reference' in ${pythonReferenceGenomes} else [],
        |            'gtfFile': ${pythonGtfFile}

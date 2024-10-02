@@ -134,6 +134,10 @@ public class GitVersionControlLocalFileStorage {
     return JGitVersionControl.readFileContentOfCommitAsInputStream(baseRepoPath, commitHash, filePath);
   }
 
+  public static String retrieveDirectoryPathOfVersion(Path baseRepoPath, String versionCommitHashVal) throws Exception {
+    return JGitVersionControl.getDirectoryPathOfCommit(baseRepoPath, versionCommitHashVal);
+  }
+
   /**
    * Creates a temporary file and writes the content of a specific version of a file, identified by its commit hash, into this temporary file.
    * This method is useful for retrieving and working with specific versions of a file from a Git repository in a temporary and isolated manner.

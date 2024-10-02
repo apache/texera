@@ -2,14 +2,15 @@ package edu.uci.ics.amber.engine.common.storage
 
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource
 
-import java.io.{File, InputStream, FileOutputStream}
+import java.io.{File, FileOutputStream, InputStream}
 import java.net.URI
 import java.nio.file.{Files, Path}
 
-class DatasetFileDocument(fileFullPath: Path) extends VirtualDocument[Nothing] {
+class DatasetFileDocument(fileFullPath: Path, shouldContainFile: Boolean = true)
+    extends VirtualDocument[Nothing] {
 
   private val (_, dataset, datasetVersion, fileRelativePath) =
-    DatasetResource.resolvePath(fileFullPath, shouldContainFile = true)
+    DatasetResource.resolvePath(fileFullPath, shouldContainFile)
 
   private var tempFile: Option[File] = None
 
@@ -57,5 +58,9 @@ class DatasetFileDocument(fileFullPath: Path) extends VirtualDocument[Nothing] {
       case Some(file) => Files.delete(file.toPath)
       case None       => // Do nothing
     }
+  }
+
+  def asDirectory(): String = {
+    DatasetResource.getDatasetPath(dataset.getDid, datasetVersion.getDvid)
   }
 }

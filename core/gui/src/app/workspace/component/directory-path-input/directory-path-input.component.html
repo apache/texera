@@ -1,0 +1,23 @@
+<div [ngClass]="{'directory-path-input-container': isDirectorySelectionEnabled}">
+  <input
+    *ngIf="selectedDirectoryPath || !isDirectorySelectionEnabled"
+    nz-input
+    [readOnly]="isDirectorySelectionEnabled"
+    required
+    [formControl]="formControl"
+    [formlyAttributes]="field" />
+  <button
+    *ngIf="isDirectorySelectionEnabled"
+    nz-button
+    class="directory-select-button"
+    nzSize="small"
+    (click)="isDirectorySelectionEnabled && onClickOpenDirectorySelectionModal()">
+    {{ selectedDirectoryPath ? 'Reselect Dataset' : 'Select Dataset' }}
+  </button>
+</div>
+<div
+  class="alert alert-danger"
+  role="alert"
+  *ngIf="props.showError && formControl.errors">
+  <formly-validation-message [field]="field"></formly-validation-message>
+</div>

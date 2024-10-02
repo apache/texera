@@ -5,17 +5,16 @@ import { DatasetFileNode } from "../../../common/type/datasetVersionFileTree";
 import { DatasetVersion } from "../../../common/type/dataset";
 import { DashboardDataset } from "../../../dashboard/type/dashboard-dataset.interface";
 import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.service";
-import { parseFilePathToDatasetFile } from "../../../common/type/dataset-file";
 
 @UntilDestroy()
 @Component({
-  selector: "texera-file-selection-model",
-  templateUrl: "file-selection.component.html",
-  styleUrls: ["file-selection.component.scss"],
+  selector: "texera-directory-selection-modal",
+  templateUrl: "directory-selection.component.html",
+  styleUrls: ["directory-selection.component.scss"],
 })
-export class FileSelectionComponent implements OnInit {
+export class DirectorySelectionComponent {
   readonly datasets: ReadonlyArray<DashboardDataset> = inject(NZ_MODAL_DATA).datasets;
-  readonly selectedFilePath: string = inject(NZ_MODAL_DATA).selectedFilePath;
+  readonly selectedDirectoryPath: string = inject(NZ_MODAL_DATA).selectedDirectoryPath;
 
   selectedDataset?: DashboardDataset;
   selectedVersion?: DatasetVersion;
@@ -28,18 +27,11 @@ export class FileSelectionComponent implements OnInit {
     private datasetService: DatasetService
   ) {}
 
-  extractVersionPath(currentDisplayedFileName: string): string {
-    const pathParts = currentDisplayedFileName.split("/");
-
-    return `/${pathParts[1]}/${pathParts[2]}/${pathParts[3]}`;
-  }
-
   ngOnInit() {
-    // if users already select some file, then show that selected dataset & related version
-    if (this.selectedFilePath && this.selectedFilePath !== "") {
-      const versionPath = this.extractVersionPath(this.selectedFilePath);
+    // Load initial dataset and directory
+    if (this.selectedDirectoryPath && this.selectedDirectoryPath !== "") {
       this.datasetService
-        .retrieveAccessibleDatasets(false, false, versionPath)
+        .retrieveAccessibleDatasets(false, false, this.selectedDirectoryPath)
         .pipe(untilDestroyed(this))
         .subscribe(response => {
           const prevDataset = response.datasets[0];
@@ -96,7 +88,11 @@ export class FileSelectionComponent implements OnInit {
     }
   }
 
-  onFileTreeNodeSelected(node: DatasetFileNode) {
-    this.modalRef.close(node);
+  onSelectVersion() {
+    if (this.selectedVersion && this.selectedDataset) {
+      this.modalRef.close(
+        `${this.selectedDataset.ownerEmail}/${this.selectedDataset.dataset.name}/${this.selectedVersion.name}`
+      );
+    }
   }
 }
