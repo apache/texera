@@ -72,3 +72,20 @@ texera-mini-map {
   left: 20px;
   top: 20px;
 }
+
+.header-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+}
+
+.clone-button {
+  background-color: black;
+  color: white;
+  border-radius: 15px;
+  padding: 5px 10px;
+  cursor: pointer;
+  border: none;
+  box-shadow: none;
+}

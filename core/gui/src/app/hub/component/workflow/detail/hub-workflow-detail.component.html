@@ -12,7 +12,20 @@
 </button>
 
 <div class="container prevent-select">
-  <h1>Workflow Detail Page</h1>
+  <div class="header-info">
+    <div class="detail-title">
+      <h1>Workflow Detail Page</h1>
+    </div>
+    <div class="workflow-panel">
+      <button
+        *ngIf="isHub && isLogin"
+        (click)="cloneWorkflow()"
+        class="clone-button">
+        Copy & Edit
+      </button>
+    </div>
+  </div>
+
   <div class="workflow-info">
     <div>
       <h2>ID</h2>
