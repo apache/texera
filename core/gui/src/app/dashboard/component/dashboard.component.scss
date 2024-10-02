@@ -58,3 +58,38 @@ button {
 nz-content {
   position: relative;
 }
+
+.page-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.nav-links {
+  list-style-type: none;
+  height: 70px;
+  padding: 10px;
+  margin: 0;
+  overflow: hidden;
+  background-color: #f8f9fa;
+  vertical-align: baseline;
+}
+
+.nav-item {
+  float: left;
+  padding: 14px;
+}
+
+.nav-link {
+  color: black;
+  font-weight: bold;
+}
+
+#googleButton {
+  float: right;
+  padding: 5px 0;
+}
+
+.hidden {
+  display: none;
+}

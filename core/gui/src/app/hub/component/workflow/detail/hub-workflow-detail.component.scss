@@ -44,3 +44,31 @@ h1 {
 .workflow-step p {
   margin: 5px 0;
 }
+
+.preview-containers {
+  position: relative;
+  height: 600px;
+}
+
+texera-mini-map {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  //z-index: 3;
+}
+
+.prevent-select {
+  user-select: none;
+}
+
+.workflow-description {
+  padding: 10px;
+  background-color: #e9e9e9;
+  margin-top: 20px;
+}
+
+.go-back-button {
+  position: absolute;
+  left: 20px;
+  top: 20px;
+}
