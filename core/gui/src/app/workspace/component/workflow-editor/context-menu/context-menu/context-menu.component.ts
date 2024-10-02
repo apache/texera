@@ -2,6 +2,8 @@ import { Component } from "@angular/core";
 import { OperatorMenuService } from "src/app/workspace/service/operator-menu/operator-menu.service";
 import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/model/workflow-action.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { WorkflowResultService } from "src/app/workspace/service/workflow-result/workflow-result.service";
+import { WorkflowResultExportService } from "src/app/workspace/service/workflow-result-export/workflow-result-export.service";
 
 @UntilDestroy()
 @Component({
@@ -14,7 +16,9 @@ export class ContextMenuComponent {
 
   constructor(
     public workflowActionService: WorkflowActionService,
-    public operatorMenuService: OperatorMenuService
+    public operatorMenuService: OperatorMenuService,
+    public workflowResultExportService: WorkflowResultExportService,
+    private workflowResultService: WorkflowResultService
   ) {
     this.registerWorkflowModifiableChangedHandler();
   }
@@ -49,5 +53,23 @@ export class ContextMenuComponent {
       .getWorkflowModificationEnabledStream()
       .pipe(untilDestroyed(this))
       .subscribe(modifiable => (this.isWorkflowModifiable = modifiable));
+  }
+
+  public writeDownloadLabel(): string {
+    const highlightedOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+    if (highlightedOperatorIDs.length > 1) {
+      return "download multiple results";
+    }
+
+    const operatorId = highlightedOperatorIDs[0];
+
+    const resultService = this.workflowResultService.getResultService(operatorId);
+    if (resultService?.getCurrentResultSnapshot() !== undefined) {
+      return "download result as HTML file";
+    }
+    if (this.workflowResultService.hasAnyResult(operatorId)) {
+      return "download result as CSV file";
+    }
+    return "download result";
   }
 }

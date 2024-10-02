@@ -117,4 +117,15 @@
       nzTheme="outline"></span>
     execute to this operator
   </li>
+
+  <li
+    nz-menu-item
+    *ngIf="workflowResultExportService.hasResultToExportOnHighlightedOperators"
+    (click)="workflowResultExportService.exportOperatorsResultAsFile()">
+    <span
+      nz-icon
+      nzType="download"
+      nzTheme="outline"></span>
+    {{writeDownloadLabel()}}
+  </li>
 </ul>
