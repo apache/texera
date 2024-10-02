@@ -3,9 +3,9 @@ from type_annotation_visitor import find_untyped_variables
 
 class TestFunctionsAndMethods:
 
-    # 1. Global Functions Test
     @pytest.fixture
     def global_functions_code(self):
+        """This is the test for global function"""
         return """def global_function(a, b=2, /, c=3, *, d, e=5, **kwargs):
     pass
 
@@ -34,6 +34,7 @@ def global_function_with_return(a: int, b: int) -> int:
     # 2. Class Methods and Static Methods Test
     @pytest.fixture
     def class_methods_code(self):
+        """This is the test for class methods and static methods"""
         return """class MyClass:
     def instance_method_no_annotation(self, x, y):
         pass
@@ -70,20 +71,21 @@ def global_function_with_return(a: int, b: int) -> int:
         untyped_vars = find_untyped_variables(class_methods_code, 1)
         assert untyped_vars == expected_result
 
-    # 3. Lambda Functions Test
     @pytest.fixture
     def lambda_code(self):
+        """This is the test for lambda function"""
         return """lambda_function = lambda x, y, /, z=0, *, w=1: x + y + z + w
 lambda_function_with_annotation = lambda x: x * 2
 """
 
     def test_lambda_functions(self, lambda_code):
-        untyped_vars = find_untyped_variables(lambda_code, 1)
-        assert untyped_vars == []
+        with pytest.raises(ValueError) as exc_info:
+                find_untyped_variables(lambda_code, 1)
+        assert "Lambda functions do not support type annotation" in str(exc_info.value)
 
-    # 4. Comprehensive Functions Test
     @pytest.fixture
     def comprehensive_functions_code(self):
+        """This is the test for comprehensive function"""
         return """def default_args_function(a, b=2, /, c=3, *, d=4):
     pass
 
@@ -111,9 +113,9 @@ def function_without_return_annotation(a, b):
         untyped_vars = find_untyped_variables(comprehensive_functions_code, 1)
         assert untyped_vars == expected_result
 
-    # 5. Multi-line Functions Test
     @pytest.fixture
     def multi_line_function_code(self):
+        """This is the test for multi-line function"""
         return """def multi_line_function(
     a,
     b: int = 10,

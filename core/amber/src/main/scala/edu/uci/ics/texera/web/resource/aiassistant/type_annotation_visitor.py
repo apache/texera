@@ -22,6 +22,8 @@ class TypeAnnotationVisitor(ast.NodeVisitor):
     def visit(self, node):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             self.process_function(node)
+        elif isinstance(node, ast.Lambda):
+            raise ValueError("Lambda functions do not support type annotation")
         self.generic_visit(node)
 
     def process_function(self, node):
