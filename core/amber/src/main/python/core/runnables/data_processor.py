@@ -37,6 +37,7 @@ class DataProcessor(Runnable, Stoppable):
         while self._running.is_set():
             marker = self._context.marker_processing_manager.get_input_marker()
             tuple_ = self._context.tuple_processing_manager.current_input_tuple
+            print("DataProcessor: marker", marker, "tuple", tuple_)
             if marker is not None:
                 self.process_marker(marker)
             elif tuple_ is not None:
@@ -63,6 +64,7 @@ class DataProcessor(Runnable, Stoppable):
                     self._set_output_state(executor.process_state(marker, port_id))
                 elif isinstance(marker, EndOfInputPort):
                     self._set_output_state(executor.produce_state_on_finish(port_id))
+                    self._switch_context()
                     self._set_output_tuple(executor.on_finish(port_id))
 
         except Exception as err:
