@@ -1,4 +1,13 @@
-import { AfterViewInit, Component, OnInit, HostListener, OnDestroy, ViewChild, ViewContainerRef } from "@angular/core";
+import {
+  AfterViewInit,
+  Component,
+  OnInit,
+  HostListener,
+  OnDestroy,
+  ViewChild,
+  ViewContainerRef,
+  Input,
+} from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { ActivatedRoute, Router } from "@angular/router";
 import { environment } from "../../../../../environments/environment";
@@ -17,17 +26,19 @@ import { of } from "rxjs";
 import { isDefined } from "../../../../common/util/predicate";
 import { HubWorkflowService } from "../../../service/workflow/hub-workflow.service";
 import { User } from "src/app/common/type/user";
+import { Location } from "@angular/common";
 
 @UntilDestroy()
 @Component({
-  selector: "texera-hub-workflow-result",
+  selector: "texera-hub-workflow-detail",
   templateUrl: "hub-workflow-detail.component.html",
   styleUrls: ["hub-workflow-detail.component.scss"],
 })
-export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy {
-  wid: number;
+export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnInit {
+  isHub: boolean = true;
   workflowName: string = "";
-  ownerUser!: User;
+  ownerName: string = "";
+  workflowDescription: string = "";
   workflow = {
     steps: [
       {
@@ -52,9 +63,11 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy {
       },
     ],
   };
+  @Input() wid!: number;
 
   public pid?: number = undefined;
   userSystemEnabled = environment.userSystemEnabled;
+  private currentUser?: User;
   @ViewChild("codeEditor", { read: ViewContainerRef }) codeEditorViewRef!: ViewContainerRef;
   constructor(
     private userService: UserService,
@@ -69,23 +82,36 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy {
     private router: Router,
     private notificationService: NotificationService,
     private codeEditorService: CodeEditorService,
-    private hubWorkflowService: HubWorkflowService
+    private hubWorkflowService: HubWorkflowService,
+    private location: Location
   ) {
-    this.wid = this.route.snapshot.params.id;
+    if (!this.wid) {
+      this.wid = this.route.snapshot.params.id;
+    }
+    this.currentUser = this.userService.getCurrentUser();
   }
 
   ngOnInit() {
+    this.isHub =
+      this.route.parent?.snapshot.url.some(segment => segment.path === "detail") ||
+      this.route.snapshot.url.some(segment => segment.path === "detail");
     this.hubWorkflowService
       .getOwnerUser(this.wid)
       .pipe(untilDestroyed(this))
       .subscribe(owner => {
-        this.ownerUser = owner;
+        this.ownerName = owner.name;
       });
     this.hubWorkflowService
       .getWorkflowName(this.wid)
       .pipe(untilDestroyed(this))
       .subscribe(workflowName => {
         this.workflowName = workflowName;
+      });
+    this.hubWorkflowService
+      .getWorkflowDescription(this.wid)
+      .pipe(untilDestroyed(this))
+      .subscribe(workflowDescription => {
+        this.workflowDescription = workflowDescription || "No description available";
       });
   }
 
@@ -117,49 +143,49 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy {
   loadWorkflowWithId(wid: number): void {
     // disable the workspace until the workflow is fetched from the backend
     this.workflowActionService.disableWorkflowModification();
-    this.hubWorkflowService
-      .retrievePublicWorkflow(wid)
-      .pipe(untilDestroyed(this))
-      .subscribe(
-        (workflow: Workflow) => {
-          this.workflowActionService.setNewSharedModel(wid, this.userService.getCurrentUser());
-          // remember URL fragment
-          const fragment = this.route.snapshot.fragment;
-          // load the fetched workflow
-          this.workflowActionService.reloadWorkflow(workflow);
-          this.workflowActionService.enableWorkflowModification();
-          // set the URL fragment to previous value
-          // because reloadWorkflow will highlight/unhighlight all elements
-          // which will change the URL fragment
-          this.router.navigate([], {
-            relativeTo: this.route,
-            fragment: fragment !== null ? fragment : undefined,
-            preserveFragment: false,
-          });
-          // highlight the operator, comment box, or link in the URL fragment
-          if (fragment) {
-            if (this.workflowActionService.getTexeraGraph().hasElementWithID(fragment)) {
-              this.workflowActionService.highlightElements(false, fragment);
-            } else {
-              this.notificationService.error(`Element ${fragment} doesn't exist`);
-              // remove the fragment from the URL
-              this.router.navigate([], { relativeTo: this.route });
-            }
+    let workflowObservable = this.currentUser
+      ? this.workflowPersistService.retrieveWorkflow(wid)
+      : this.hubWorkflowService.retrievePublicWorkflow(wid);
+    workflowObservable.pipe(untilDestroyed(this)).subscribe(
+      (workflow: Workflow) => {
+        this.workflowActionService.setNewSharedModel(wid, this.userService.getCurrentUser());
+        // remember URL fragment
+        const fragment = this.route.snapshot.fragment;
+        // load the fetched workflow
+        this.workflowActionService.reloadWorkflow(workflow);
+        this.workflowActionService.enableWorkflowModification();
+        // set the URL fragment to previous value
+        // because reloadWorkflow will highlight/unhighlight all elements
+        // which will change the URL fragment
+        this.router.navigate([], {
+          relativeTo: this.route,
+          fragment: fragment !== null ? fragment : undefined,
+          preserveFragment: false,
+        });
+        // highlight the operator, comment box, or link in the URL fragment
+        if (fragment) {
+          if (this.workflowActionService.getTexeraGraph().hasElementWithID(fragment)) {
+            this.workflowActionService.highlightElements(false, fragment);
+          } else {
+            this.notificationService.error(`Element ${fragment} doesn't exist`);
+            // remove the fragment from the URL
+            this.router.navigate([], { relativeTo: this.route });
           }
-          // clear stack
-          this.undoRedoService.clearUndoStack();
-          this.undoRedoService.clearRedoStack();
-        },
-        () => {
-          this.workflowActionService.resetAsNewWorkflow();
-          // enable workspace for modification
-          this.workflowActionService.enableWorkflowModification();
-          // clear stack
-          this.undoRedoService.clearUndoStack();
-          this.undoRedoService.clearRedoStack();
-          this.message.error("You don't have access to this workflow, please log in with an appropriate account");
         }
-      );
+        // clear stack
+        this.undoRedoService.clearUndoStack();
+        this.undoRedoService.clearRedoStack();
+      },
+      () => {
+        this.workflowActionService.resetAsNewWorkflow();
+        // enable workspace for modification
+        this.workflowActionService.enableWorkflowModification();
+        // clear stack
+        this.undoRedoService.clearUndoStack();
+        this.undoRedoService.clearRedoStack();
+        this.message.error("You don't have access to this workflow, please log in with an appropriate account");
+      }
+    );
   }
 
   registerLoadOperatorMetadata() {
@@ -194,5 +220,9 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy {
       .subscribe(wid => {
         this.workflowWebsocketService.reopenWebsocket(wid);
       });
+  }
+
+  goBack(): void {
+    this.location.back();
   }
 }

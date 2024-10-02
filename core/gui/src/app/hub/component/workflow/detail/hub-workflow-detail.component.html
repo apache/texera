@@ -1,3 +1,16 @@
+<button
+  *ngIf="isHub"
+  nz-button
+  nzType="text"
+  nzSize="large"
+  class="go-back-button"
+  (click)="goBack()">
+  <span
+    nz-icon
+    nzType="arrow-left"
+    nzTheme="outline"></span>
+</button>
+
 <div class="container prevent-select">
   <h1>Workflow Detail Page</h1>
   <div class="workflow-info">
@@ -11,9 +24,14 @@
     </div>
     <div>
       <h2>Created By</h2>
-      <p>{{ ownerUser.name }}</p>
+      <p>{{ ownerName }}</p>
     </div>
   </div>
+  <div class="workflow-description">
+    <h2>Description</h2>
+    <p>{{workflowDescription}}</p>
+  </div>
+
   <h2>Preview</h2>
   <div class="preview-containers">
     <texera-workflow-editor></texera-workflow-editor>
