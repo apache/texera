@@ -168,7 +168,7 @@
             (click)="onClickExportExecutionResult('csv')"
             [disabled]="
         !workflowResultExportService.exportExecutionResultEnabled ||
-        !workflowResultExportService.hasResultToExport
+        !workflowResultExportService.hasResultToExportOnHighlightedOperators
       "
             id="downloadExcelOptions"
             nz-button
@@ -177,6 +177,20 @@
             <i
               nz-icon
               nzType="cloud-download"></i>
+          </button>
+          <button
+            (click)="workflowResultExportService.exportOperatorsResultAsFile(true)"
+            [disabled]="
+        !workflowResultExportService.exportExecutionResultEnabled ||
+        !workflowResultExportService.hasResultToExportOnAllOperators
+      "
+            id="downloadZipWorkflow"
+            nz-button
+            nz-dropdown
+            title="download all the operators result">
+            <i
+              nz-icon
+              nzType="download"></i>
           </button>
           <button
             (click)="operatorMenu.disableHighlightedOperators()"
