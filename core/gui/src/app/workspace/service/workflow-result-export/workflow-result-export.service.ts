@@ -107,9 +107,6 @@ export class WorkflowResultExportService {
       } else if (resultService) {
         const observable = this.fetchVisualizationResultsAsHTML(resultService, operatorId);
         resultObservables.push(observable);
-      } else {
-        // No result service available for this operatorId
-        this.notificationService.warning(`No results available for operator ID: ${operatorId}`);
       }
     });
 
@@ -130,7 +127,8 @@ export class WorkflowResultExportService {
           zip.file(file.filename, file.blob);
         });
         zip.generateAsync({ type: "blob" }).then((zipBlob: string | Blob) => {
-          const zipFilename = `results_${new Date().getTime()}.zip`;
+          const currentWorkflow = this.workflowActionService.getWorkflow();
+          const zipFilename = `results_${currentWorkflow.wid}_${currentWorkflow.name}.zip`;
           this.fileSaverService.saveAs(zipBlob, zipFilename);
         });
       }
