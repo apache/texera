@@ -13,13 +13,14 @@ export type TypeAnnotationResponse = {
   }>;
 };
 
-export interface UnannotatedArgument extends Readonly<{
-  name: string;
-  startLine: number;
-  startColumn: number;
-  endLine: number;
-  endColumn: number;
-}> {}
+export interface UnannotatedArgument
+  extends Readonly<{
+    name: string;
+    startLine: number;
+    startColumn: number;
+    endLine: number;
+    endColumn: number;
+  }> {}
 
 interface UnannotatedArgumentItem {
   readonly underlying: {
@@ -101,7 +102,6 @@ export class AIAssistantService {
       .pipe(
         map(response => {
           if (response) {
-
             const result = response.underlying.result.value.map(
               (item: UnannotatedArgumentItem): UnannotatedArgument => ({
                 name: item.underlying.name.value,
