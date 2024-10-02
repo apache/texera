@@ -4,7 +4,6 @@ from typing import Iterator, Optional, Union
 
 from pyamber import *
 from .udf.udf_operator import (
-    UDFOperator,
     UDFOperatorV2,
     UDFTableOperator,
     UDFBatchOperator,
@@ -12,10 +11,9 @@ from .udf.udf_operator import (
 )
 
 __all__ = [
-    "InputExhausted",
+    "State",
     "Tuple",
     "TupleLike",
-    "UDFOperator",
     "UDFOperatorV2",
     "Table",
     "TableLike",

@@ -48,7 +48,13 @@ class GanttChartOpDesc extends VisualizationOperator with PythonOperatorDescript
   @JsonSchemaTitle("Color Column")
   @JsonPropertyDescription("column to color tasks")
   @AutofillAttributeName
-  var color: String = _
+  var color: String = ""
+
+  @JsonProperty(required = false)
+  @JsonSchemaTitle("Pattern")
+  @JsonPropertyDescription("Add texture to the chart based on an attribute")
+  @AutofillAttributeName
+  var pattern: String = ""
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Schema.builder().add(new Attribute("html-content", AttributeType.STRING)).build()
@@ -72,9 +78,10 @@ class GanttChartOpDesc extends VisualizationOperator with PythonOperatorDescript
 
   def createPlotlyFigure(): String = {
     val colorSetting = if (color.nonEmpty) s", color='$color'" else ""
+    val patternParam = if (pattern.nonEmpty) s", pattern_shape='$pattern'" else ""
 
     s"""
-        |        fig = px.timeline(table, x_start='$start', x_end='$finish', y='$task' $colorSetting)
+        |        fig = px.timeline(table, x_start='$start', x_end='$finish', y='$task' $colorSetting $patternParam)
         |        fig.update_yaxes(autorange='reversed')
         |        fig.update_layout(margin=dict(t=0, b=0, l=0, r=0))
         |""".stripMargin

@@ -59,7 +59,7 @@
       <nz-button-group
         id="user-buttons"
         *ngIf="!displayParticularWorkflowVersion">
-        <a [routerLink]="'/dashboard/workflow'">
+        <a [routerLink]="'/dashboard/user/workflow'">
           <button
             *ngIf="userSystemEnabled"
             nz-button
@@ -137,22 +137,6 @@
             <i
               nz-icon
               nzType="border-outer"></i>
-          </button>
-          <button
-            (click)="onClickZoomOut()"
-            nz-button
-            title="zoom out">
-            <i
-              nz-icon
-              nzType="zoom-out"></i>
-          </button>
-          <button
-            (click)="onClickZoomIn()"
-            nz-button
-            title="zoom in">
-            <i
-              nz-icon
-              nzType="zoom-in"></i>
           </button>
           <button
             (click)="onClickRestoreZoomOffsetDefault()"
@@ -296,6 +280,16 @@
 
       <nz-button-group id="execution-buttons">
         <button
+          nz-button
+          id="share-button"
+          (click)="onClickOpenShareAccess()">
+          <span
+            nz-icon
+            nzType="share-alt"
+            nzTheme="outline"></span>
+          Share
+        </button>
+        <button
           (click)="handleKill()"
           [disabled]="
         executionState === ExecutionState.Uninitialized ||
@@ -313,9 +307,9 @@
         <button
           (click)="onClickRunHandler()"
           nz-popover
-          nzPopoverTitle="Enter Execution Name"
+          nzPopoverTitle="Execution Settings"
           [nzPopoverTrigger]="userSystemEnabled?'hover':null"
-          [nzPopoverContent]="execution_name"
+          [nzPopoverContent]="executionSettings"
           nzPopoverPlacement="bottom"
           [disabled]="runDisable || !workflowWebsocketService.isConnected || displayParticularWorkflowVersion"
           id="run-button"
@@ -338,11 +332,21 @@
             nz-icon
             nzType="database"></i>
         </button>
-        <ng-template #execution_name>
-          <input
-            [(ngModel)]="currentExecutionName"
-            placeholder="Untitled Execution"
-            [disabled]="!isWorkflowModifiable" />
+        <ng-template #executionSettings>
+          <div style="display: flex; flex-direction: column; gap: 10px">
+            <input
+              [(ngModel)]="currentExecutionName"
+              placeholder="Untitled Execution"
+              [disabled]="!isWorkflowModifiable" />
+            <div style="display: flex; align-items: center; gap: 10px">
+              <span>Email Notification</span>
+              <nz-switch
+                [(ngModel)]="emailNotificationEnabled"
+                nzCheckedChildren="On"
+                nzUnCheckedChildren="Off">
+              </nz-switch>
+            </div>
+          </div>
         </ng-template>
         <div style="margin-left: 5px">
           <nz-badge

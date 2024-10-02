@@ -63,11 +63,11 @@ The following is a workflow formulated using the Texera GUI in a Web browser, wh
 
 ## Publications (Computer Science):
 * (8/2024) Pasta: A Cost-Based Optimizer for Generating Pipelining Schedules for Dataflow DAGs, Xiaozhen Liu, Yicong Huang, Xinyuan Lin, Avinash Kumar, Sadeem Alsudais, and Chen Li, to appear in SIGMOD 2025.
-* (7/2024) Texera: A System for Collaborative and Interactive Data Analytics Using Workflows, Zuozhi Wang, Yicong Huang, Shengquan Ni, Avinash Kumar, Sadeem Alsudais, Xiaozhen Liu, Xinyuan Lin, Yunyan Ding and Chen Li, to appear in VLDB 2024, Scalable Data Science track.
+* (7/2024) Texera: A System for Collaborative and Interactive Data Analytics Using Workflows, Zuozhi Wang, Yicong Huang, Shengquan Ni, Avinash Kumar, Sadeem Alsudais, Xiaozhen Liu, Xinyuan Lin, Yunyan Ding and Chen Li, to appear in VLDB 2024, Scalable Data Science track [PDF](https://www.vldb.org/pvldb/vol17/p3580-wang.pdf), [Slides](https://chenli.ics.uci.edu/files/vldb2024-texera-presentation.pdf).
 * (3/2024) Demonstration of Udon: Line-by-line Debugging of User-Defined Functions in Data Workflows, Yicong Huang, Zuozhi Wang, and Chen Li, in SIGMOD 2024, **Best Demo Runner Up Award🏆**, [PDF](https://dl.acm.org/doi/10.1145/3626246.3654756). 
-* (2/2024) Data Science Tasks Implemented with Scripts versus GUI-Based Workflows: The Good, the Bad, and the Ugly, Alexander K Taylor, Yicong Huang, Junheng Hao, Xinyuan Lin, Xiusi Chen, Wei Wang, and Chen Li, in DataPlat Workshop at ICDE 2024 [PDF](https://ieeexplore.ieee.org/abstract/document/10555112). 
+* (2/2024) Data Science Tasks Implemented with Scripts versus GUI-Based Workflows: The Good, the Bad, and the Ugly, Alexander K Taylor, Yicong Huang, Junheng Hao, Xinyuan Lin, Xiusi Chen, Wei Wang, and Chen Li, in DataPlat Workshop at ICDE 2024 [PDF](https://ieeexplore.ieee.org/abstract/document/10555112), [Slides](https://chenli.ics.uci.edu/files/icde2024-dataplat-workshop.pdf). 
 * (8/2023) Building a Collaborative Data Analytics System: Opportunities and Challenges, Zuozhi Wang, Chen Li, in Tutorial at VLDB 2023 [PDF](https://www.vldb.org/pvldb/vol16/p3898-wang.pdf), [Slides](https://chenli.ics.uci.edu/files/vldb2023-texera-tutorial.pdf).
-* (8/2023) Udon: Efficient Debugging of User-Defined Functions in Big Data Systems with Line-by-Line Control, Yicong Huang, Zuozhi Wang, and Chen Li, in SIGMOD 2024 [PDF](https://dl.acm.org/doi/10.1145/3626712).
+* (8/2023) Udon: Efficient Debugging of User-Defined Functions in Big Data Systems with Line-by-Line Control, Yicong Huang, Zuozhi Wang, and Chen Li, in SIGMOD 2024 [PDF](https://dl.acm.org/doi/10.1145/3626712), [Slides](https://chenli.ics.uci.edu/files/sigmod2024-udon-presentation.pdf).
 * (8/2023) Improving Iterative Analytics in GUI-Based Data-Processing Systems with Visualization,
   Version Control, and Result Reuse, Sadeem Alsudais, Ph.D. Thesis [PDF](https://sadeemsaleh.github.io/Sadeem_phd_thesis.pdf).
 * (7/2023) Using Texera to Characterize Climate Change Discussions on Twitter During Wildfires, Shengquan Ni, Yicong Huang, Jessie W. Y. Ko, Alexander Taylor, Xiusi Chen, Avinash Kumar, Sadeem Alsudais, Zuozhi Wang, Xiaozhen Liu, Wei Wang, Suellen Hopfer, and Chen Li, in Data Science Day at KDD 2023.
@@ -123,4 +123,32 @@ This project is supported by the <a href="http://www.nsf.gov">National Science F
 * <a href="https://www.niddk.nih.gov/"><img src="https://github.com/Texera/texera/assets/17627829/d279897a-3efb-41c1-b2d3-8fd20c800ad7" alt="NIH NIDDK" height="30"/></a> This project is supported by an <a href="https://reporter.nih.gov/project-details/10818244">NIH NIDDK</a> award.
 
 
-* <a href="http://www.yourkit.com"><img src="https://www.yourkit.com/images/yklogo.png" alt="Yourkit" height="30"/></a>  [Yourkit](https://www.yourkit.com/) has given an open source license to use their profiler in this project. 
+* <a href="http://www.yourkit.com"><img src="https://www.yourkit.com/images/yklogo.png" alt="Yourkit" height="30"/></a>  [Yourkit](https://www.yourkit.com/) has given an open source license to use their profiler in this project.
+
+## Citation
+Please cite Texera as 
+```
+
+@article{DBLP:journals/pvldb/WangHNKALLDL24,
+  author       = {Zuozhi Wang and
+                  Yicong Huang and
+                  Shengquan Ni and
+                  Avinash Kumar and
+                  Sadeem Alsudais and
+                  Xiaozhen Liu and
+                  Xinyuan Lin and
+                  Yunyan Ding and
+                  Chen Li},
+  title        = {Texera: {A} System for Collaborative and Interactive Data Analytics
+                  Using Workflows},
+  journal      = {Proc. {VLDB} Endow.},
+  volume       = {17},
+  number       = {11},
+  pages        = {3580--3588},
+  year         = {2024},
+  url          = {https://www.vldb.org/pvldb/vol17/p3580-wang.pdf},
+  timestamp    = {Thu, 19 Sep 2024 13:09:37 +0200},
+  biburl       = {https://dblp.org/rec/journals/pvldb/WangHNKALLDL24.bib},
+  bibsource    = {dblp computer science bibliography, https://dblp.org}
+}
+```

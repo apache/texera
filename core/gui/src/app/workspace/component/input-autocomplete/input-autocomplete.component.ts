@@ -49,4 +49,8 @@ export class InputAutoCompleteComponent extends FieldType<FieldTypeConfig> {
   get isFileSelectionEnabled(): boolean {
     return environment.userSystemEnabled;
   }
+
+  get selectedFilePath(): string | null {
+    return this.formControl.value;
+  }
 }
