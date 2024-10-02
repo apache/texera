@@ -123,6 +123,18 @@
     *ngIf="isPrivateSearch"
     class="button-group">
     <button
+      *ngIf="entry.type==='workflow'"
+      nz-button
+      nzType="text"
+      class="dropdown-item"
+      title="Detail"
+      (click)="openDetailModal(this.entry.id)">
+      <i
+        nz-icon
+        nzTheme="outline"
+        nzType="eye"></i>
+    </button>
+    <button
       nz-button
       nzType="text"
       class="dropdown-item"

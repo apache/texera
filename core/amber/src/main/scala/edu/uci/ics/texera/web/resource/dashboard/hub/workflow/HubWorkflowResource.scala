@@ -92,4 +92,16 @@ class HubWorkflowResource {
       throw new ForbiddenException("No sufficient access privilege.")
     }
   }
+
+  @GET
+  @Path("/workflow_description")
+  def getWorkflowDescription(@QueryParam("wid") wid: UInteger): String = {
+    context
+      .select(
+        WORKFLOW.DESCRIPTION
+      )
+      .from(WORKFLOW)
+      .where(WORKFLOW.WID.eq(wid))
+      .fetchOneInto(classOf[String])
+  }
 }
