@@ -63,6 +63,7 @@ class DataProcessor(Runnable, Stoppable):
                     self._set_output_state(executor.process_state(marker, port_id))
                 elif isinstance(marker, EndOfInputPort):
                     self._set_output_state(executor.produce_state_on_finish(port_id))
+                    self._switch_context()
                     self._set_output_tuple(executor.on_finish(port_id))
 
         except Exception as err:
