@@ -42,7 +42,7 @@ class TexeraWorkflowCompilingService
       environment: Environment
   ): Unit = {
     // serve backend at /api/texera
-    environment.jersey.setUrlPattern("/api/texera/compile/*")
+    environment.jersey.setUrlPattern("/api/texera/*")
 
     // register the compilation endpoint
     environment.jersey.register(classOf[WorkflowCompilationResource])
