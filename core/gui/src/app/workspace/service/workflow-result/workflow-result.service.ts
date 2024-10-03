@@ -197,7 +197,7 @@ export class OperatorResultService {
   }
 }
 
-class OperatorPaginationResultService {
+export class OperatorPaginationResultService {
   private pendingRequests: Map<string, Subject<PaginatedResultEvent>> = new Map();
   private resultCache: Map<number, ReadonlyArray<object>> = new Map();
   private prevStatsCache: Record<string, Record<string, number>> = {};
