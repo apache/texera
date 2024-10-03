@@ -138,6 +138,7 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
        |            elif status == "failed":
        |                print("Job failed.")
        |                yield {
+       |                    'subdirectory': None,
        |                    'features_content': None,
        |                    'barcodes_content': None,
        |                    'matrix_content': None
