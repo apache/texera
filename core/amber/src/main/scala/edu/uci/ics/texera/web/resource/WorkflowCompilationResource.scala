@@ -10,8 +10,8 @@ import edu.uci.ics.texera.workflow.common.workflow.{PhysicalPlan, WorkflowCompil
 import org.jooq.types.UInteger
 
 import javax.annotation.security.RolesAllowed
-import javax.ws.rs.{Consumes, POST, Path, PathParam, Produces}
 import javax.ws.rs.core.MediaType
+import javax.ws.rs._
 
 case class WorkflowCompilationResponse(
     physicalPlan: Option[PhysicalPlan],
@@ -22,7 +22,7 @@ case class WorkflowCompilationResponse(
 @Consumes(Array(MediaType.APPLICATION_JSON))
 @Produces(Array(MediaType.APPLICATION_JSON))
 @RolesAllowed(Array("REGULAR", "ADMIN"))
-@Path("/compilation")
+@Path("/compile")
 class WorkflowCompilationResource extends LazyLogging {
   @POST
   @Path("/{wid}")

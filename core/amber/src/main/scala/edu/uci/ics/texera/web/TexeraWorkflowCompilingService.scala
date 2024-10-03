@@ -5,14 +5,8 @@ import com.github.toastshaman.dropwizard.auth.jwt.JwtAuthFilter
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.Utils
-import edu.uci.ics.texera.web.TexeraWebApplication.parseArgs
 import edu.uci.ics.texera.web.auth.JwtAuth.jwtConsumer
-import edu.uci.ics.texera.web.auth.{
-  GuestAuthFilter,
-  SessionUser,
-  UserAuthenticator,
-  UserRoleAuthorizer
-}
+import edu.uci.ics.texera.web.auth.{GuestAuthFilter, SessionUser, UserAuthenticator, UserRoleAuthorizer}
 import edu.uci.ics.texera.web.resource.WorkflowCompilationResource
 import io.dropwizard.auth.{AuthDynamicFeature, AuthValueFactoryProvider}
 import io.dropwizard.setup.{Bootstrap, Environment}
@@ -20,7 +14,6 @@ import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 
 object TexeraWorkflowCompilingService {
   def main(args: Array[String]): Unit = {
-    val argMap = parseArgs(args)
 
     new TexeraWorkflowCompilingService().run(
       "server",
@@ -49,7 +42,7 @@ class TexeraWorkflowCompilingService
       environment: Environment
   ): Unit = {
     // serve backend at /api/texera
-    environment.jersey.setUrlPattern("/api/texera/*")
+    environment.jersey.setUrlPattern("/api/texera/compile/*")
 
     // register the compilation endpoint
     environment.jersey.register(classOf[WorkflowCompilationResource])
