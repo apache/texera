@@ -40,4 +40,9 @@ export class HubWorkflowService {
       map(WorkflowUtilService.parseWorkflowInfo)
     );
   }
+
+  public getWorkflowDescription(wid: number): Observable<string> {
+    const params = new HttpParams().set("wid", wid);
+    return this.http.get(`${this.BASE_URL}/workflow_description/`, { params, responseType: "text" });
+  }
 }
