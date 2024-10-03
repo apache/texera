@@ -14,7 +14,7 @@ import javax.ws.rs.core.MediaType
 
 trait WorkflowCompilationResponse
 case class WorkflowCompilationSuccess(
-    plan: Option[PhysicalPlan],
+    physicalPlan: PhysicalPlan,
     operatorInputSchemas: Map[String, List[Option[List[Attribute]]]]
 ) extends WorkflowCompilationResponse
 
@@ -43,9 +43,9 @@ class WorkflowCompilationResource extends LazyLogging {
     val compilationResult = new WorkflowCompiler(context).compile(logicalPlanPojo)
 
     // Handle success case: No errors in the compilation result
-    if (compilationResult.operatorIdToError.isEmpty) {
+    if (compilationResult.operatorIdToError.isEmpty && compilationResult.physicalPlan.nonEmpty) {
       WorkflowCompilationSuccess(
-        plan = compilationResult.physicalPlan,
+        physicalPlan = compilationResult.physicalPlan.get,
         operatorInputSchemas = compilationResult.operatorIdToInputSchemas.map {
           case (operatorIdentity, schemas) =>
             val opId = operatorIdentity.id
