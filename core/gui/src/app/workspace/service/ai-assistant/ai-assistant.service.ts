@@ -13,6 +13,33 @@ export type TypeAnnotationResponse = {
   }>;
 };
 
+export interface UnannotatedArgument
+  extends Readonly<{
+    name: string;
+    startLine: number;
+    startColumn: number;
+    endLine: number;
+    endColumn: number;
+  }> {}
+
+interface UnannotatedArgumentItem {
+  readonly underlying: {
+    readonly name: { readonly value: string };
+    readonly startLine: { readonly value: number };
+    readonly startColumn: { readonly value: number };
+    readonly endLine: { readonly value: number };
+    readonly endColumn: { readonly value: number };
+  };
+}
+
+interface UnannotatedArgumentResponse {
+  readonly underlying: {
+    readonly result: {
+      readonly value: ReadonlyArray<UnannotatedArgumentItem>;
+    };
+  };
+}
+
 // Define AI model type
 export const AI_ASSISTANT_API_BASE_URL = `${AppSettings.getApiEndpoint()}/aiassistant`;
 export const AI_MODEL = {
@@ -65,5 +92,45 @@ export class AIAssistantService {
   public getTypeAnnotations(code: string, lineNumber: number, allcode: string): Observable<TypeAnnotationResponse> {
     const requestBody = { code, lineNumber, allcode };
     return this.http.post<TypeAnnotationResponse>(`${AI_ASSISTANT_API_BASE_URL}/annotationresult`, requestBody, {});
+  }
+
+  public locateUnannotated(selectedCode: string, startLine: number): Observable<UnannotatedArgument[]> {
+    const requestBody = { selectedCode, startLine };
+
+    return this.http
+      .post<UnannotatedArgumentResponse>(`${AI_ASSISTANT_API_BASE_URL}/annotate-argument`, requestBody)
+      .pipe(
+        map(response => {
+          if (response) {
+            const result = response.underlying.result.value.map(
+              (item: UnannotatedArgumentItem): UnannotatedArgument => ({
+                name: item.underlying.name.value,
+                startLine: item.underlying.startLine.value,
+                startColumn: item.underlying.startColumn.value,
+                endLine: item.underlying.endLine.value,
+                endColumn: item.underlying.endColumn.value,
+              })
+            );
+            console.log("Unannotated Arguments:", result);
+
+            return response.underlying.result.value.map(
+              (item: UnannotatedArgumentItem): UnannotatedArgument => ({
+                name: item.underlying.name.value,
+                startLine: item.underlying.startLine.value,
+                startColumn: item.underlying.startColumn.value,
+                endLine: item.underlying.endLine.value,
+                endColumn: item.underlying.endColumn.value,
+              })
+            );
+          } else {
+            console.error("Unexpected response format:", response);
+            return [];
+          }
+        }),
+        catchError((error: unknown) => {
+          console.error("Request to backend failed:", error);
+          throw new Error("Request to backend failed");
+        })
+      );
   }
 }
