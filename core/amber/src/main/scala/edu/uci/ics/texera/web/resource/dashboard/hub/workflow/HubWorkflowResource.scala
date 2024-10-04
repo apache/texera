@@ -108,11 +108,17 @@ class HubWorkflowResource {
   @GET
   @Path("/isLiked")
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def isLiked(@QueryParam("workflowId") workflowId: UInteger, @QueryParam("userId") userId: UInteger): Boolean  = {
+  def isLiked(
+      @QueryParam("workflowId") workflowId: UInteger,
+      @QueryParam("userId") userId: UInteger
+  ): Boolean = {
     val existingLike = context
       .selectFrom(WORKFLOW_USER_LIKES)
-      .where(WORKFLOW_USER_LIKES.UID.eq(userId)
-        .and(WORKFLOW_USER_LIKES.WID.eq(workflowId)))
+      .where(
+        WORKFLOW_USER_LIKES.UID
+          .eq(userId)
+          .and(WORKFLOW_USER_LIKES.WID.eq(workflowId))
+      )
       .fetchOne()
 
     existingLike != null
@@ -121,7 +127,7 @@ class HubWorkflowResource {
   @POST
   @Path("/like")
   @Consumes(Array(MediaType.APPLICATION_JSON))
-  def likeWorkflow(likeRequest: Array[UInteger]): Boolean  = {
+  def likeWorkflow(likeRequest: Array[UInteger]): Boolean = {
     if (likeRequest.length != 2) {
       return false
     }
@@ -131,12 +137,16 @@ class HubWorkflowResource {
 
     val existingLike = context
       .selectFrom(WORKFLOW_USER_LIKES)
-      .where(WORKFLOW_USER_LIKES.UID.eq(userId)
-        .and(WORKFLOW_USER_LIKES.WID.eq(workflowId)))
+      .where(
+        WORKFLOW_USER_LIKES.UID
+          .eq(userId)
+          .and(WORKFLOW_USER_LIKES.WID.eq(workflowId))
+      )
       .fetchOne()
 
     if (existingLike == null) {
-      context.insertInto(WORKFLOW_USER_LIKES)
+      context
+        .insertInto(WORKFLOW_USER_LIKES)
         .set(WORKFLOW_USER_LIKES.UID, userId)
         .set(WORKFLOW_USER_LIKES.WID, workflowId)
         .execute()
@@ -159,14 +169,21 @@ class HubWorkflowResource {
 
     val existingLike = context
       .selectFrom(WORKFLOW_USER_LIKES)
-      .where(WORKFLOW_USER_LIKES.UID.eq(userId)
-        .and(WORKFLOW_USER_LIKES.WID.eq(workflowId)))
+      .where(
+        WORKFLOW_USER_LIKES.UID
+          .eq(userId)
+          .and(WORKFLOW_USER_LIKES.WID.eq(workflowId))
+      )
       .fetchOne()
 
     if (existingLike != null) {
-      context.deleteFrom(WORKFLOW_USER_LIKES)
-        .where(WORKFLOW_USER_LIKES.UID.eq(userId)
-          .and(WORKFLOW_USER_LIKES.WID.eq(workflowId)))
+      context
+        .deleteFrom(WORKFLOW_USER_LIKES)
+        .where(
+          WORKFLOW_USER_LIKES.UID
+            .eq(userId)
+            .and(WORKFLOW_USER_LIKES.WID.eq(workflowId))
+        )
         .execute()
       true
     } else {

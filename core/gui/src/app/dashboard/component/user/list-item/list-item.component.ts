@@ -24,7 +24,6 @@ import { SearchService } from "../../../service/user/search.service";
 import { HubWorkflowDetailComponent } from "../../../../hub/component/workflow/detail/hub-workflow-detail.component";
 import { HubWorkflowService } from "../../../../hub/service/workflow/hub-workflow.service";
 
-
 @UntilDestroy()
 @Component({
   selector: "texera-list-item",

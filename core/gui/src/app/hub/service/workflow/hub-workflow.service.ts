@@ -54,7 +54,7 @@ export class HubWorkflowService {
 
   public isWorkflowLiked(workflowId: number, userId: number): Observable<boolean> {
     return this.http.get<boolean>(`${this.BASE_URL}/isLiked`, {
-      params: { workflowId: workflowId.toString(), userId: userId.toString() }
+      params: { workflowId: workflowId.toString(), userId: userId.toString() },
     });
   }
 

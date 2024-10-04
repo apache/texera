@@ -100,7 +100,7 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
         this.isLogin = this.userService.isLogin();
       });
     this.currentUser = this.userService.getCurrentUser();
-    this.currentUid = this.currentUser?.uid
+    this.currentUid = this.currentUser?.uid;
   }
 
   ngOnInit() {
