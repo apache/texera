@@ -81,11 +81,30 @@ texera-mini-map {
 }
 
 .clone-button {
-  background-color: black;
-  color: white;
-  border-radius: 15px;
-  padding: 5px 10px;
+  background-color: white;
+  color: black;
+  width: 38px;
+  height: 38px;
+  border-radius: 0;
+  padding: 0;
   cursor: pointer;
   border: none;
   box-shadow: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 10px;
+  margin-bottom: 10px;
+  transition: background-color 0.3s ease;
 }
+
+.clone-button:hover {
+  background-color: #e0e0e0;
+}
+
+.clone-button i {
+  font-size: 20px;
+}
+
+
+
