@@ -18,6 +18,8 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowOfProject;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowOfUser;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowRuntimeStatistics;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowUserAccess;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowUserClones;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowUserLikes;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowVersion;
 
 
@@ -96,6 +98,16 @@ public class Tables {
      * The table <code>texera_db.workflow_user_access</code>.
      */
     public static final WorkflowUserAccess WORKFLOW_USER_ACCESS = WorkflowUserAccess.WORKFLOW_USER_ACCESS;
+
+    /**
+     * The table <code>texera_db.workflow_user_clones</code>.
+     */
+    public static final WorkflowUserClones WORKFLOW_USER_CLONES = WorkflowUserClones.WORKFLOW_USER_CLONES;
+
+    /**
+     * The table <code>texera_db.workflow_user_likes</code>.
+     */
+    public static final WorkflowUserLikes WORKFLOW_USER_LIKES = WorkflowUserLikes.WORKFLOW_USER_LIKES;
 
     /**
      * The table <code>texera_db.workflow_version</code>.

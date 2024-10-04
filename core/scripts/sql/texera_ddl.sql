@@ -210,3 +210,21 @@ CREATE FULLTEXT INDEX `idx_dataset_version_name` ON `texera_db`.`dataset_version
 
 ALTER TABLE workflow
 ADD is_published BOOLEAN NOT NULL DEFAULT false;
+
+CREATE TABLE IF NOT EXISTS workflow_user_likes
+(
+    `uid` INT UNSIGNED NOT NULL,
+    `wid` INT UNSIGNED NOT NULL,
+    PRIMARY KEY (`uid`, `wid`),
+    FOREIGN KEY (`uid`) REFERENCES `user` (`uid`) ON DELETE CASCADE,
+    FOREIGN KEY (`wid`) REFERENCES `workflow` (`wid`) ON DELETE CASCADE
+    ) ENGINE = INNODB;
+
+CREATE TABLE IF NOT EXISTS workflow_user_clones
+(
+    `uid` INT UNSIGNED NOT NULL,
+    `wid` INT UNSIGNED NOT NULL,
+    PRIMARY KEY (`uid`, `wid`),
+    FOREIGN KEY (`uid`) REFERENCES `user` (`uid`) ON DELETE CASCADE,
+    FOREIGN KEY (`wid`) REFERENCES `workflow` (`wid`) ON DELETE CASCADE
+    ) ENGINE = INNODB;
