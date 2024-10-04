@@ -22,6 +22,8 @@ import { FileSaverService } from "src/app/dashboard/service/user/file/file-saver
 import { firstValueFrom } from "rxjs";
 import { SearchService } from "../../../service/user/search.service";
 import { HubWorkflowDetailComponent } from "../../../../hub/component/workflow/detail/hub-workflow-detail.component";
+import { HubWorkflowService } from "../../../../hub/service/workflow/hub-workflow.service";
+
 
 @UntilDestroy()
 @Component({
@@ -43,6 +45,7 @@ export class ListItemComponent implements OnInit, OnChanges {
   ROUTER_WORKFLOW_DETAIL_BASE_URL = "/dashboard/hub/workflow/search/result/detail";
   entryLink: string[] = [];
   public iconType: string = "";
+  isLiked: boolean = false;
   @Input() isPrivateSearch = false;
   @Input() editable = false;
   private _entry?: DashboardEntry;
@@ -68,7 +71,8 @@ export class ListItemComponent implements OnInit, OnChanges {
     private modalService: NzModalService,
     private workflowPersistService: WorkflowPersistService,
     private fileSaverService: FileSaverService,
-    private modal: NzModalService
+    private modal: NzModalService,
+    private hubWorkflowService: HubWorkflowService
   ) {}
 
   initializeEntry() {
@@ -102,11 +106,23 @@ export class ListItemComponent implements OnInit, OnChanges {
 
   ngOnInit(): void {
     this.initializeEntry();
+    if (this.entry.id !== undefined && this.currentUid !== undefined) {
+      // eslint-disable-next-line rxjs-angular/prefer-takeuntil
+      this.hubWorkflowService.isWorkflowLiked(this.entry.id, this.currentUid).subscribe((isLiked: boolean) => {
+        this.isLiked = isLiked;
+      });
+    }
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes["entry"]) {
       this.initializeEntry();
+    }
+    if (this.entry.id !== undefined && this.currentUid !== undefined) {
+      // eslint-disable-next-line rxjs-angular/prefer-takeuntil
+      this.hubWorkflowService.isWorkflowLiked(this.entry.id, this.currentUid).subscribe((isLiked: boolean) => {
+        this.isLiked = isLiked;
+      });
     }
   }
 
@@ -257,6 +273,35 @@ export class ListItemComponent implements OnInit, OnChanges {
         console.warn("wid is undefined, default handling can be added here");
         instance.wid = 0;
       }
+    }
+  }
+
+
+  toggleLike(workflowId: number | undefined, userId: number | undefined): void {
+    if (workflowId === undefined || userId === undefined) {
+      return;
+    }
+
+    if (this.isLiked) {
+      // eslint-disable-next-line rxjs-angular/prefer-takeuntil
+      this.hubWorkflowService.postUnlikeWorkflow(workflowId, userId).subscribe((success: boolean) => {
+        if (success) {
+          this.isLiked = false;
+          console.log("Successfully unliked the workflow");
+        } else {
+          console.error("Error unliking the workflow");
+        }
+      });
+    } else {
+      // eslint-disable-next-line rxjs-angular/prefer-takeuntil
+      this.hubWorkflowService.postLikeWorkflow(workflowId, userId).subscribe((success: boolean) => {
+        if (success) {
+          this.isLiked = true;
+          console.log("Successfully liked the workflow");
+        } else {
+          console.error("Error liking the workflow");
+        }
+      });
     }
   }
 }
