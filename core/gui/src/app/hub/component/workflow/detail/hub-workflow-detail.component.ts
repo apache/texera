@@ -41,6 +41,8 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
   workflowDescription: string = "";
   clonedWorklowId: number | undefined;
   isLogin = this.userService.isLogin();
+  isLiked: boolean = false;
+  currentUid: number | undefined;
 
   workflow = {
     steps: [
@@ -98,12 +100,14 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
         this.isLogin = this.userService.isLogin();
       });
     this.currentUser = this.userService.getCurrentUser();
+    this.currentUid = this.currentUser?.uid
   }
 
   ngOnInit() {
     this.isHub =
       this.route.parent?.snapshot.url.some(segment => segment.path === "detail") ||
       this.route.snapshot.url.some(segment => segment.path === "detail");
+
     this.hubWorkflowService
       .getOwnerUser(this.wid)
       .pipe(untilDestroyed(this))
@@ -122,6 +126,12 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
       .subscribe(workflowDescription => {
         this.workflowDescription = workflowDescription || "No description available";
       });
+    if (this.wid !== undefined && this.currentUid != undefined) {
+      // eslint-disable-next-line rxjs-angular/prefer-takeuntil
+      this.hubWorkflowService.isWorkflowLiked(this.wid, this.currentUid).subscribe((isLiked: boolean) => {
+        this.isLiked = isLiked;
+      });
+    }
   }
 
   ngAfterViewInit(): void {
@@ -243,5 +253,33 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
         this.clonedWorklowId = newWid;
         this.router.navigate([`/workflow/${this.clonedWorklowId}`]);
       });
+  }
+
+  toggleLike(workflowId: number | undefined, userId: number | undefined): void {
+    if (workflowId === undefined || userId === undefined) {
+      return;
+    }
+
+    if (this.isLiked) {
+      // eslint-disable-next-line rxjs-angular/prefer-takeuntil
+      this.hubWorkflowService.postUnlikeWorkflow(workflowId, userId).subscribe((success: boolean) => {
+        if (success) {
+          this.isLiked = false;
+          console.log("Successfully unliked the workflow");
+        } else {
+          console.error("Error unliking the workflow");
+        }
+      });
+    } else {
+      // eslint-disable-next-line rxjs-angular/prefer-takeuntil
+      this.hubWorkflowService.postLikeWorkflow(workflowId, userId).subscribe((success: boolean) => {
+        if (success) {
+          this.isLiked = true;
+          console.log("Successfully liked the workflow");
+        } else {
+          console.error("Error liking the workflow");
+        }
+      });
+    }
   }
 }

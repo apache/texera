@@ -18,6 +18,20 @@
     </div>
     <div class="workflow-panel">
       <button
+        nz-button
+        nzType="text"
+        class="dropdown-item like-button"
+        title="Like"
+        (click)="toggleLike(this.wid, this.currentUid)">
+        <i
+          nz-icon
+          [nzTheme]="isLiked ? 'fill' : 'outline'"
+          [nzType]="'heart'"
+          [ngClass]="isLiked ? 'liked' : 'not-liked'"
+          class="like-icon">
+        </i>
+      </button>
+      <button
         *ngIf="isHub && isLogin"
         (click)="cloneWorkflow()"
         class="clone-button">

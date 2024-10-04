@@ -276,7 +276,6 @@ export class ListItemComponent implements OnInit, OnChanges {
     }
   }
 
-
   toggleLike(workflowId: number | undefined, userId: number | undefined): void {
     if (workflowId === undefined || userId === undefined) {
       return;

@@ -190,17 +190,15 @@
     <button
       nz-button
       nzType="text"
-      class="dropdown-item"
+      class="dropdown-item like-button"
       title="Like"
       (click)="toggleLike(this.entry.id, this.currentUid)">
       <i
         nz-icon
         [nzTheme]="isLiked ? 'fill' : 'outline'"
         [nzType]="'heart'"
-        [ngStyle]="{
-      'color': isLiked ? 'red' : 'black',
-      'stroke-width': isLiked ? '2px' : '1px'
-      }">
+        [ngClass]="isLiked ? 'liked' : 'not-liked'"
+        class="like-icon">
       </i>
     </button>
   </div>

@@ -157,3 +157,33 @@
     }
   }
 }
+
+.like-button {
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    background-color: #f0f0f0;
+  }
+}
+
+.like-icon {
+  color: black;
+  stroke-width: 2px;
+  font-size: 18px;
+
+  &.liked {
+    color: red;
+  }
+
+  &.not-liked {
+    color: black;
+  }
+}
+
