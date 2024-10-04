@@ -509,7 +509,10 @@ export class CodeEditorComponent implements AfterViewInit, OnDestroy {
   public language: string = "";
   public languageTitle: string = "";
 
+  private monacoBinding?: MonacoBinding;
+
   private wrapper?: MonacoEditorLanguageClientWrapper;
+  
 
   public showAnnotationSuggestion: boolean = false;
   public currentCode: string = "";
@@ -651,9 +654,15 @@ export class CodeEditorComponent implements AfterViewInit, OnDestroy {
 
 
 
+    if (this.monacoBinding) {
+      this.monacoBinding.destroy();
+    }
+  
+    if (this.editor) {
+      this.editor.dispose();
+    }
+  
     if (this.wrapper) {
-      console.log("+++destroy12")
-      
       await this.wrapper.dispose(true);
     }
     
@@ -684,7 +693,7 @@ export class CodeEditorComponent implements AfterViewInit, OnDestroy {
             codeResources: {
               main: {
                 text: this.code ? this.code.toString() : 'print("Hello, World!")',
-                uri: `innnn-memory1-${this.operatorID}.py`
+                uri: `in-memory-${this.operatorID}.py`
               }
             },
             userConfiguration: {
@@ -736,6 +745,24 @@ export class CodeEditorComponent implements AfterViewInit, OnDestroy {
     //     this.workflowActionService.getTexeraGraph().getSharedModelAwareness()
     //   );
     // }
+
+    //有用
+    if (this.code && this.editor) {
+      // 如果已经有旧的 binding，先 dispose
+      if (this.monacoBinding) {
+        this.monacoBinding.destroy();  // 假设 destroy 是同步方法
+        this.monacoBinding = undefined;
+      }
+      
+    
+      // 创建新的 MonacoBinding
+      this.monacoBinding = new MonacoBinding(
+        this.code,
+        this.editor.getModel()!,
+        new Set([this.editor]),
+        this.workflowActionService.getTexeraGraph().getSharedModelAwareness()
+      );
+    }
 
     // Check if the AI provider is "openai"
     this.aiAssistantService
@@ -909,8 +936,16 @@ export class CodeEditorComponent implements AfterViewInit, OnDestroy {
     this.code?.insert(insertOffset, annotations);
   }
 
-  private initDiffEditor() {
-    if (this.code) {
+  private async initDiffEditor(): Promise<void> {
+    if (this.wrapper) {
+      await this.wrapper.dispose(true);
+    }
+    
+    if (this.code && !this.wrapper) {
+      // 如果已经有旧的绑定，先销毁
+  
+      this.wrapper = new MonacoEditorLanguageClientWrapper();
+  
       const currentWorkflowVersionCode = this.workflowActionService
         .getTempWorkflow()
         ?.content.operators?.filter(
@@ -918,8 +953,64 @@ export class CodeEditorComponent implements AfterViewInit, OnDestroy {
             operator.operatorID ===
             this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0]
         )?.[0].operatorProperties.code;
+  
+      const userConfig: UserConfig = {
+        wrapperConfig: {
+          editorAppConfig: {
+            $type: 'extended',  // 如果支持 diff 编辑器
+            codeResources: {
+              main: {
+                text: this.code.toString(),
+                uri: `in-memory-${this.operatorID}.py`
+                
+              },
+              original: {
+                text: currentWorkflowVersionCode,
+                uri: `in-memory-${this.operatorID}-version.py`
+              }
+            },
+            useDiffEditor: true,
+            userConfiguration: {
+              json: JSON.stringify({
+                'workbench.colorTheme': 'Default Dark Modern',
+              })
+            }
+          }
+        },
+        languageClientConfig: {
+          languageId: this.language || 'python',  // 例如使用 'python' 语言
+          options: {
+            $type: 'WebSocketUrl',
+            url: 'ws://localhost:3000/language-server',
+            startOptions: {
+              onCall: () => {
+                console.log('Language client started');
+              },
+              reportStatus: true,
+            }
+          }
+        }
+      };
+  
+      try {
+        // 使用 wrapper 初始化并开始 diff 编辑器
+        await this.wrapper.initAndStart(userConfig, this.editorElement.nativeElement);
+      } catch (e) {
+        console.error('Error during Monaco Editor initialization:', e);
+      }
+  
+      // 检查是否初始化完成
+      // const diffEditor = this.wrapper?.getDiffEditor();
+  
+      // if (this.code && diffEditor) {
+      //   diffEditor.setModel({
+      //     original: monaco.editor.createModel(currentWorkflowVersionCode || '', 'python'),
+      //     modified: monaco.editor.createModel(this.code.toString(), 'python'),
+      //   });
+      // }
     }
   }
+  
 
   onFocus() {
     this.workflowActionService.getJointGraphWrapper().highlightOperators(this.operatorID);
