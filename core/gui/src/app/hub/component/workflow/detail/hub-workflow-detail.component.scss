@@ -57,9 +57,9 @@ texera-mini-map {
   //z-index: 3;
 }
 
-.prevent-select {
-  user-select: none;
-}
+//.prevent-select {
+//  user-select: none;
+//}
 
 .workflow-description {
   padding: 10px;
@@ -81,9 +81,9 @@ texera-mini-map {
 }
 
 .workflow-panel {
-  display: flex; /* 使用 flexbox 布局 */
-  align-items: center; /* 垂直居中 */
-  gap: 10px; /* 控制两个按钮之间的间距 */
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .clone-button {
@@ -112,36 +112,6 @@ texera-mini-map {
   font-size: 20px;
 }
 
-//.like-button {
-//  background-color: transparent;
-//  border: none;
-//  cursor: pointer;
-//  padding: 0;
-//  margin: 0;
-//  display: inline-flex;
-//  align-items: center;
-//  justify-content: center;
-//
-//  &:hover {
-//    background-color: #f0f0f0;
-//  }
-//}
-//
-//.like-icon {
-//  color: black;
-//  stroke-width: 2px;
-//  font-size: 18px;
-//
-//  &.liked {
-//    color: red;
-//  }
-//
-//  &.not-liked {
-//    color: black;
-//  }
-//}
-//
-
 .like-button {
   background-color: white;
   color: black;
@@ -165,7 +135,7 @@ texera-mini-map {
 }
 
 .like-icon {
-  font-size: 20px; /* 保持与 clone-button 图标大小一致 */
+  font-size: 20px;
   color: black;
   stroke-width: 2px;
 
