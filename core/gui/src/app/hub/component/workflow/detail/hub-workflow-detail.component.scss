@@ -139,3 +139,10 @@ texera-mini-map {
 .like-button.liked span {
   color: red;
 }
+
+.disabled-button {
+  background-color: #f0f0f0;
+  color: #a0a0a0;
+  border-color: #d0d0d0;
+  cursor: not-allowed;
+}

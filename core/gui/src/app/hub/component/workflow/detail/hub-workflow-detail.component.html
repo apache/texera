@@ -45,6 +45,22 @@
           nzTheme="outline"></i>
         <span>{{ formatLikeCount(cloneCount) }}</span>
       </button>
+
+      <button
+        nz-button
+        nzType="text"
+        class="clone-button"
+        title="Copy"
+        *ngIf="isLogin"
+        [ngClass]="{ 'disabled-button': !isHub }"
+      [disabled]="!isHub"
+      (click)="cloneWorkflow()">
+      <i
+        nz-icon
+        nzType="copy"
+        nzTheme="outline"></i>
+      <span>{{ formatLikeCount(cloneCount) }}</span>
+      </button>
     </div>
   </div>
 
