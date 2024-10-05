@@ -17,46 +17,61 @@ import org.jgrapht.graph.DirectedAcyclicGraph
 import org.jgrapht.traverse.TopologicalOrderIterator
 import org.jgrapht.util.SupplierUtil
 
+import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters.{IteratorHasAsScala, ListHasAsScala, SetHasAsScala}
+import scala.util.{Failure, Success, Try}
 
 object PhysicalPlan {
-  def apply(context: WorkflowContext, logicalPlan: LogicalPlan): PhysicalPlan = {
+  def apply(
+      context: WorkflowContext,
+      logicalPlan: LogicalPlan,
+      errorList: Option[ArrayBuffer[(OperatorIdentity, Throwable)]]
+  ): PhysicalPlan = {
 
     var physicalPlan = PhysicalPlan(operators = Set.empty, links = Set.empty)
 
-    logicalPlan.getTopologicalOpIds.asScala.foreach(logicalOpId => {
-      val logicalOp = logicalPlan.getOperator(logicalOpId)
-      logicalOp.setContext(context)
+    logicalPlan.getTopologicalOpIds.asScala.foreach(logicalOpId =>
+      Try {
+        val logicalOp = logicalPlan.getOperator(logicalOpId)
+        logicalOp.setContext(context)
 
-      val subPlan = logicalOp.getPhysicalPlan(context.workflowId, context.executionId)
-      subPlan
-        .topologicalIterator()
-        .map(subPlan.getOperator)
-        .foreach({ physicalOp =>
-          {
-            val externalLinks = logicalPlan
-              .getUpstreamLinks(logicalOp.operatorIdentifier)
-              .filter(link => physicalOp.inputPorts.contains(link.toPortId))
-              .flatMap { link =>
-                physicalPlan
-                  .getPhysicalOpsOfLogicalOp(link.fromOpId)
-                  .find(_.outputPorts.contains(link.fromPortId))
-                  .map(fromOp =>
-                    PhysicalLink(fromOp.id, link.fromPortId, physicalOp.id, link.toPortId)
-                  )
-              }
+        val subPlan = logicalOp.getPhysicalPlan(context.workflowId, context.executionId)
+        subPlan
+          .topologicalIterator()
+          .map(subPlan.getOperator)
+          .foreach({ physicalOp =>
+            {
+              val externalLinks = logicalPlan
+                .getUpstreamLinks(logicalOp.operatorIdentifier)
+                .filter(link => physicalOp.inputPorts.contains(link.toPortId))
+                .flatMap { link =>
+                  physicalPlan
+                    .getPhysicalOpsOfLogicalOp(link.fromOpId)
+                    .find(_.outputPorts.contains(link.fromPortId))
+                    .map(fromOp =>
+                      PhysicalLink(fromOp.id, link.fromPortId, physicalOp.id, link.toPortId)
+                    )
+                }
 
-            val internalLinks = subPlan.getUpstreamPhysicalLinks(physicalOp.id)
+              val internalLinks = subPlan.getUpstreamPhysicalLinks(physicalOp.id)
 
-            // Add the operator to the physical plan
-            physicalPlan = physicalPlan.addOperator(physicalOp.propagateSchema())
+              // Add the operator to the physical plan
+              physicalPlan = physicalPlan.addOperator(physicalOp.propagateSchema())
 
-            // Add all the links to the physical plan
-            physicalPlan = (externalLinks ++ internalLinks)
-              .foldLeft(physicalPlan) { (plan, link) => plan.addLink(link) }
+              // Add all the links to the physical plan
+              physicalPlan = (externalLinks ++ internalLinks)
+                .foldLeft(physicalPlan) { (plan, link) => plan.addLink(link) }
+            }
+          })
+      } match {
+        case Success(_) =>
+        case Failure(err) =>
+          errorList match {
+            case Some(list) => list.append((logicalOpId, err))
+            case None       => throw err
           }
-        })
-    })
+      }
+    )
     physicalPlan
   }
 

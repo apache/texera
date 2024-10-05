@@ -164,6 +164,8 @@ object PhysicalOp {
   Array(
     "opExecInitInfo", // function type, ignore it
     "derivePartition", // function type, ignore it
+    "locationPreference", // runtime info, ignore it
+    "partitionRequirement", // runtime info, ignore it
     "inputPorts", // may contain very long stacktrace, ignore it
     "outputPorts", // same reason with above
     "propagateSchema" // function type, so ignore it
@@ -225,6 +227,8 @@ case class PhysicalOp(
     outputPorts.forall(port => port._2._2.isEmpty)
   }
 
+  // ignore it to prevent the serialization issue of python-based op
+  @JsonIgnore
   def isPythonBased: Boolean = {
     opExecInitInfo match {
       case opExecInfo: OpExecInitInfoWithCode =>

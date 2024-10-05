@@ -42,7 +42,7 @@ class SchemaPropagationResource extends LazyLogging {
     val logicalPlan = LogicalPlan(logicalPlanPojo)
 
     // the PhysicalPlan with topology expanded.
-    val physicalPlan = PhysicalPlan(context, logicalPlan)
+    val physicalPlan = PhysicalPlan(context, logicalPlan, None)
 
     // Extract physical input schemas, excluding internal ports
     val physicalInputSchemas = physicalPlan.operators.map { physicalOp =>
