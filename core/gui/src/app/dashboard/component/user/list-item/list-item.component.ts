@@ -77,14 +77,17 @@ export class ListItemComponent implements OnInit, OnChanges {
   initializeEntry() {
     if (this.entry.type === "workflow") {
       if (typeof this.entry.id === "number") {
-        this.searchService.getWorkflowOwners(this.entry.id).pipe(untilDestroyed(this)).subscribe((data: number[]) => {
-          this.owners = data;
-          if (this.currentUid !== undefined && this.owners.includes(this.currentUid)) {
-            this.entryLink = [this.ROUTER_WORKFLOW_BASE_URL, String(this.entry.id)];
-          } else {
-            this.entryLink = [this.ROUTER_WORKFLOW_DETAIL_BASE_URL, String(this.entry.id)];
-          }
-        });
+        this.searchService
+          .getWorkflowOwners(this.entry.id)
+          .pipe(untilDestroyed(this))
+          .subscribe((data: number[]) => {
+            this.owners = data;
+            if (this.currentUid !== undefined && this.owners.includes(this.currentUid)) {
+              this.entryLink = [this.ROUTER_WORKFLOW_BASE_URL, String(this.entry.id)];
+            } else {
+              this.entryLink = [this.ROUTER_WORKFLOW_DETAIL_BASE_URL, String(this.entry.id)];
+            }
+          });
       }
       // this.entryLink = this.ROUTER_WORKFLOW_BASE_URL + "/" + this.entry.id;
       this.iconType = "project";
@@ -105,9 +108,12 @@ export class ListItemComponent implements OnInit, OnChanges {
   ngOnInit(): void {
     this.initializeEntry();
     if (this.entry.id !== undefined && this.currentUid !== undefined) {
-      this.hubWorkflowService.isWorkflowLiked(this.entry.id, this.currentUid).pipe(untilDestroyed(this)).subscribe((isLiked: boolean) => {
-        this.isLiked = isLiked;
-      });
+      this.hubWorkflowService
+        .isWorkflowLiked(this.entry.id, this.currentUid)
+        .pipe(untilDestroyed(this))
+        .subscribe((isLiked: boolean) => {
+          this.isLiked = isLiked;
+        });
     }
   }
 
@@ -116,9 +122,12 @@ export class ListItemComponent implements OnInit, OnChanges {
       this.initializeEntry();
     }
     if (this.entry.id !== undefined && this.currentUid !== undefined) {
-      this.hubWorkflowService.isWorkflowLiked(this.entry.id, this.currentUid).pipe(untilDestroyed(this)).subscribe((isLiked: boolean) => {
-        this.isLiked = isLiked;
-      });
+      this.hubWorkflowService
+        .isWorkflowLiked(this.entry.id, this.currentUid)
+        .pipe(untilDestroyed(this))
+        .subscribe((isLiked: boolean) => {
+          this.isLiked = isLiked;
+        });
     }
   }
 
@@ -278,23 +287,29 @@ export class ListItemComponent implements OnInit, OnChanges {
     }
 
     if (this.isLiked) {
-      this.hubWorkflowService.postUnlikeWorkflow(workflowId, userId).pipe(untilDestroyed(this)).subscribe((success: boolean) => {
-        if (success) {
-          this.isLiked = false;
-          console.log("Successfully unliked the workflow");
-        } else {
-          console.error("Error unliking the workflow");
-        }
-      });
+      this.hubWorkflowService
+        .postUnlikeWorkflow(workflowId, userId)
+        .pipe(untilDestroyed(this))
+        .subscribe((success: boolean) => {
+          if (success) {
+            this.isLiked = false;
+            console.log("Successfully unliked the workflow");
+          } else {
+            console.error("Error unliking the workflow");
+          }
+        });
     } else {
-      this.hubWorkflowService.postLikeWorkflow(workflowId, userId).pipe(untilDestroyed(this)).subscribe((success: boolean) => {
-        if (success) {
-          this.isLiked = true;
-          console.log("Successfully liked the workflow");
-        } else {
-          console.error("Error liking the workflow");
-        }
-      });
+      this.hubWorkflowService
+        .postLikeWorkflow(workflowId, userId)
+        .pipe(untilDestroyed(this))
+        .subscribe((success: boolean) => {
+          if (success) {
+            this.isLiked = true;
+            console.log("Successfully liked the workflow");
+          } else {
+            console.error("Error liking the workflow");
+          }
+        });
     }
   }
 }

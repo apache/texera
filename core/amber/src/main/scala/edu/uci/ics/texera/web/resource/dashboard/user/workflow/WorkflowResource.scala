@@ -407,7 +407,8 @@ class WorkflowResource extends LazyLogging {
       .fetchOne()
 
     if (existingCloneRecord == null) {
-      context.insertInto(WORKFLOW_USER_CLONES)
+      context
+        .insertInto(WORKFLOW_USER_CLONES)
         .set(WORKFLOW_USER_CLONES.UID, sessionUser.getUid)
         .set(WORKFLOW_USER_CLONES.WID, wid)
         .execute()
