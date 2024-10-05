@@ -190,4 +190,30 @@ class HubWorkflowResource {
       false
     }
   }
+
+  @GET
+  @Path("/likeCount/{wid}")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def getLikeCount(@PathParam("wid") wid: UInteger): Int = {
+    val likeCount = context
+      .selectCount()
+      .from(WORKFLOW_USER_LIKES)
+      .where(WORKFLOW_USER_LIKES.WID.eq(wid))
+      .fetchOne(0, classOf[Int])
+
+    likeCount
+  }
+
+  @GET
+  @Path("/cloneCount/{wid}")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def getCloneCount(@PathParam("wid") wid: UInteger): Int = {
+    val cloneCount = context
+      .selectCount()
+      .from(WORKFLOW_USER_CLONES)
+      .where(WORKFLOW_USER_CLONES.WID.eq(wid))
+      .fetchOne(0, classOf[Int])
+
+    cloneCount
+  }
 }

@@ -65,4 +65,12 @@ export class HubWorkflowService {
   public postUnlikeWorkflow(workflowId: number, userId: number): Observable<boolean> {
     return this.http.post<boolean>(`${this.BASE_URL}/unlike`, [workflowId, userId]);
   }
+
+  public getLikeCount(wid: number): Observable<number> {
+    return this.http.get<number>(`${this.BASE_URL}/likeCount/${wid}`);
+  }
+
+  public getCloneCount(wid: number): Observable<number> {
+    return this.http.get<number>(`${this.BASE_URL}/cloneCount/${wid}`);
+  }
 }

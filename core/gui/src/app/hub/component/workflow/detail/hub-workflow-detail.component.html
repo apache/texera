@@ -22,6 +22,8 @@
         nzType="text"
         class="dropdown-item like-button"
         title="Like"
+        *ngIf="isLogin"
+        [ngClass]="{ liked: isLiked }"
         (click)="toggleLike(this.wid, this.currentUid)">
         <i
           nz-icon
@@ -30,6 +32,7 @@
           [ngClass]="isLiked ? 'liked' : 'not-liked'"
           class="like-icon">
         </i>
+        <span>{{ formatLikeCount(likeCount) }}</span>
       </button>
       <button
         *ngIf="isHub && isLogin"
@@ -40,6 +43,7 @@
           nz-icon
           nzType="copy"
           nzTheme="outline"></i>
+        <span>{{ formatLikeCount(cloneCount) }}</span>
       </button>
     </div>
   </div>

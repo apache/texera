@@ -60,7 +60,7 @@ export class DashboardComponent implements OnInit {
             return throwError(() => e);
           })
         )
-        // eslint-disable-next-line rxjs-angular/prefer-takeuntil
+        .pipe(untilDestroyed(this))
         .subscribe(() =>
           this.router.navigateByUrl(this.route.snapshot.queryParams["returnUrl"] || "/dashboard/user/workflow")
         );

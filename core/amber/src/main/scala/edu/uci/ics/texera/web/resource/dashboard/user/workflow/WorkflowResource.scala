@@ -399,6 +399,20 @@ class WorkflowResource extends LazyLogging {
       ),
       sessionUser
     )
+
+    val existingCloneRecord = context
+      .selectFrom(WORKFLOW_USER_CLONES)
+      .where(WORKFLOW_USER_CLONES.UID.eq(sessionUser.getUid))
+      .and(WORKFLOW_USER_CLONES.WID.eq(wid))
+      .fetchOne()
+
+    if (existingCloneRecord == null) {
+      context.insertInto(WORKFLOW_USER_CLONES)
+        .set(WORKFLOW_USER_CLONES.UID, sessionUser.getUid)
+        .set(WORKFLOW_USER_CLONES.WID, wid)
+        .execute()
+    }
+
     //TODO: copy the environment as well
     newWorkflow.workflow.getWid
   }

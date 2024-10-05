@@ -77,8 +77,7 @@ export class ListItemComponent implements OnInit, OnChanges {
   initializeEntry() {
     if (this.entry.type === "workflow") {
       if (typeof this.entry.id === "number") {
-        // eslint-disable-next-line rxjs-angular/prefer-takeuntil
-        this.searchService.getWorkflowOwners(this.entry.id).subscribe((data: number[]) => {
+        this.searchService.getWorkflowOwners(this.entry.id).pipe(untilDestroyed(this)).subscribe((data: number[]) => {
           this.owners = data;
           if (this.currentUid !== undefined && this.owners.includes(this.currentUid)) {
             this.entryLink = [this.ROUTER_WORKFLOW_BASE_URL, String(this.entry.id)];
@@ -106,8 +105,7 @@ export class ListItemComponent implements OnInit, OnChanges {
   ngOnInit(): void {
     this.initializeEntry();
     if (this.entry.id !== undefined && this.currentUid !== undefined) {
-      // eslint-disable-next-line rxjs-angular/prefer-takeuntil
-      this.hubWorkflowService.isWorkflowLiked(this.entry.id, this.currentUid).subscribe((isLiked: boolean) => {
+      this.hubWorkflowService.isWorkflowLiked(this.entry.id, this.currentUid).pipe(untilDestroyed(this)).subscribe((isLiked: boolean) => {
         this.isLiked = isLiked;
       });
     }
@@ -118,8 +116,7 @@ export class ListItemComponent implements OnInit, OnChanges {
       this.initializeEntry();
     }
     if (this.entry.id !== undefined && this.currentUid !== undefined) {
-      // eslint-disable-next-line rxjs-angular/prefer-takeuntil
-      this.hubWorkflowService.isWorkflowLiked(this.entry.id, this.currentUid).subscribe((isLiked: boolean) => {
+      this.hubWorkflowService.isWorkflowLiked(this.entry.id, this.currentUid).pipe(untilDestroyed(this)).subscribe((isLiked: boolean) => {
         this.isLiked = isLiked;
       });
     }
@@ -281,8 +278,7 @@ export class ListItemComponent implements OnInit, OnChanges {
     }
 
     if (this.isLiked) {
-      // eslint-disable-next-line rxjs-angular/prefer-takeuntil
-      this.hubWorkflowService.postUnlikeWorkflow(workflowId, userId).subscribe((success: boolean) => {
+      this.hubWorkflowService.postUnlikeWorkflow(workflowId, userId).pipe(untilDestroyed(this)).subscribe((success: boolean) => {
         if (success) {
           this.isLiked = false;
           console.log("Successfully unliked the workflow");
@@ -291,8 +287,7 @@ export class ListItemComponent implements OnInit, OnChanges {
         }
       });
     } else {
-      // eslint-disable-next-line rxjs-angular/prefer-takeuntil
-      this.hubWorkflowService.postLikeWorkflow(workflowId, userId).subscribe((success: boolean) => {
+      this.hubWorkflowService.postLikeWorkflow(workflowId, userId).pipe(untilDestroyed(this)).subscribe((success: boolean) => {
         if (success) {
           this.isLiked = true;
           console.log("Successfully liked the workflow");
