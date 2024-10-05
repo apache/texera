@@ -3,7 +3,6 @@ package edu.uci.ics.texera.web.resource
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute
 import edu.uci.ics.texera.workflow.common.workflow.{PhysicalPlan, WorkflowCompiler}
@@ -20,7 +19,7 @@ case class WorkflowCompilationSuccess(
 ) extends WorkflowCompilationResponse
 
 case class WorkflowCompilationFailure(
-    operatorErrors: List[WorkflowFatalError]
+    operatorErrors: Map[String, String]
 ) extends WorkflowCompilationResponse
 
 @Consumes(Array(MediaType.APPLICATION_JSON))
@@ -44,7 +43,7 @@ class WorkflowCompilationResource extends LazyLogging {
     val compilationResult = new WorkflowCompiler(context).compile(logicalPlanPojo)
 
     // Handle success case: No errors in the compilation result
-    if (compilationResult.operatorErrors.isEmpty && compilationResult.physicalPlan.nonEmpty) {
+    if (compilationResult.operatorIdToError.isEmpty && compilationResult.physicalPlan.nonEmpty) {
       WorkflowCompilationSuccess(
         physicalPlan = compilationResult.physicalPlan.get,
         operatorInputSchemas = compilationResult.operatorIdToInputSchemas.map {
@@ -62,7 +61,9 @@ class WorkflowCompilationResource extends LazyLogging {
     }
     // Handle failure case: Errors found during compilation
     else {
-      WorkflowCompilationFailure(operatorErrors = compilationResult.operatorErrors)
+      WorkflowCompilationFailure(operatorErrors = compilationResult.operatorIdToError.map {
+        case (operatorIdentity, error) => (operatorIdentity.id, error.toString)
+      })
     }
   }
 }
