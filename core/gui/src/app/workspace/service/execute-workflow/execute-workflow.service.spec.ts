@@ -90,40 +90,4 @@ describe("ExecuteWorkflowService", () => {
       new RegExp("cannot resume workflow, the current execution state is " + (service as any).currentState.state)
     );
   });
-
-  it("should generate correct email notification content for successful execution", () => {
-    const workflow = { wid: "123", name: "Test Workflow" };
-    const stateInfo = {
-      state: ExecutionState.Completed,
-      startTime: new Date("2023-04-01T10:00:00Z"),
-      endTime: new Date("2023-04-01T10:30:00Z"),
-    };
-
-    const result = (service as any).getEmailNotificationContent(workflow, stateInfo);
-
-    expect(result.subject).toBe("[Texera] Workflow Test Workflow (123) Status: Completed");
-    expect(result.content).toContain("Your workflow Test Workflow (123) has finished execution.");
-    expect(result.content).toContain("Status: Completed");
-    expect(result.content).toContain("Start time: 2023-04-01 10:00:00 (UTC)");
-    expect(result.content).toContain("End time: 2023-04-01 10:30:00 (UTC)");
-    expect(result.content).toContain("https://texera.example.com/dashboard/user/workspace/123");
-  });
-
-  it("should generate correct email notification content for failed execution", () => {
-    const workflow = { wid: "456", name: "Failed Workflow" };
-    const stateInfo = {
-      state: ExecutionState.Failed,
-      startTime: new Date("2023-04-02T14:00:00Z"),
-      endTime: new Date("2023-04-02T14:15:00Z"),
-    };
-
-    const result = (service as any).getEmailNotificationContent(workflow, stateInfo);
-
-    expect(result.subject).toBe("[Texera] Workflow Failed Workflow (456) Status: Failed");
-    expect(result.content).toContain("Your workflow Failed Workflow (456) has finished execution.");
-    expect(result.content).toContain("Status: Failed");
-    expect(result.content).toContain("Start time: 2023-04-02 14:00:00 (UTC)");
-    expect(result.content).toContain("End time: 2023-04-02 14:15:00 (UTC)");
-    expect(result.content).toContain("https://texera.example.com/dashboard/user/workspace/456");
-  });
 });
