@@ -34,17 +34,6 @@
         </i>
         <span>{{ formatLikeCount(likeCount) }}</span>
       </button>
-      <button
-        *ngIf="isHub && isLogin"
-        title="Copy"
-        (click)="cloneWorkflow()"
-        class="clone-button">
-        <i
-          nz-icon
-          nzType="copy"
-          nzTheme="outline"></i>
-        <span>{{ formatLikeCount(cloneCount) }}</span>
-      </button>
 
       <button
         nz-button
