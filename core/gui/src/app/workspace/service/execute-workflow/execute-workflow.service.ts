@@ -398,9 +398,9 @@ export class ExecuteWorkflowService {
       }) + " (UTC)";
 
     const baseUrl = this.document.location.origin;
-    const dashboardUrl = `${baseUrl}/dashboard/workspace/${workflow.wid}`;
+    const dashboardUrl = `${baseUrl}/dashboard/user/workspace/${workflow.wid}`;
 
-    const subject = `Workflow ${workflow.name} (${workflow.wid}) Status: ${stateInfo.state}`;
+    const subject = `[Texera] Workflow ${workflow.name} (${workflow.wid}) Status: ${stateInfo.state}`;
     const content = `
         Hello,
     

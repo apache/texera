@@ -100,6 +100,11 @@ export const defaultEnvironment = {
    * default data transfer batch size for workflows
    */
   defaultDataTransferBatchSize: 400,
+
+  /**
+   * Whether to send email notification when workflow execution is completed/failed/paused/killed
+   */
+  workflowEmailNotificationEnabled: false,
 };
 
 export type AppEnv = typeof defaultEnvironment;
