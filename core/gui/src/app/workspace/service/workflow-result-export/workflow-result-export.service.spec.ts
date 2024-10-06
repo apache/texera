@@ -44,7 +44,11 @@ describe("WorkflowResultExportService", () => {
 
     const wsSpy = jasmine.createSpyObj("WorkflowWebsocketService", ["subscribeToEvent", "send"]);
     wsSpy.subscribeToEvent.and.returnValue(of()); // Return an empty observable
-    const waSpy = jasmine.createSpyObj("WorkflowActionService", ["getJointGraphWrapper", "getTexeraGraph", "getWorkflow"]);
+    const waSpy = jasmine.createSpyObj("WorkflowActionService", [
+      "getJointGraphWrapper",
+      "getTexeraGraph",
+      "getWorkflow",
+    ]);
     waSpy.getJointGraphWrapper.and.returnValue(jointGraphWrapperSpy);
     waSpy.getTexeraGraph.and.returnValue(texeraGraphSpy);
     waSpy.getWorkflow.and.returnValue({ wid: "workflow1", name: "Test Workflow" });
@@ -95,7 +99,7 @@ describe("WorkflowResultExportService", () => {
     const paginatedResultServiceSpy = jasmine.createSpyObj("OperatorPaginationResultService", ["selectPage"]);
 
     // Mock the paginated result service for 'operator1'
-    workflowResultServiceSpy.getPaginatedResultService.and.callFake((operatorId) => {
+    workflowResultServiceSpy.getPaginatedResultService.and.callFake(operatorId => {
       if (operatorId === "operator1") {
         return paginatedResultServiceSpy;
       }
@@ -147,14 +151,14 @@ describe("WorkflowResultExportService", () => {
     expect(args[1]).toBe("result_operator1.csv");
   }));
 
-  it("should export a single visualization result as an HTML file when there is only one result", (done) => {
+  it("should export a single visualization result as an HTML file when there is only one result", done => {
     // Arrange
     jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.and.returnValue(["operator2"]);
 
     const resultServiceSpy = jasmine.createSpyObj("OperatorResultService", ["getCurrentResultSnapshot"]);
 
     // Mock the result service for 'operator2'
-    workflowResultServiceSpy.getResultService.and.callFake((operatorId) => {
+    workflowResultServiceSpy.getResultService.and.callFake(operatorId => {
       if (operatorId === "operator2") {
         return resultServiceSpy;
       }
@@ -163,9 +167,7 @@ describe("WorkflowResultExportService", () => {
     workflowResultServiceSpy.getPaginatedResultService.and.returnValue(undefined);
 
     // Mock the result snapshot with one result
-    const resultSnapshot = [
-      { "html-content": "<html><body><p>Visualization</p></body></html>" },
-    ];
+    const resultSnapshot = [{ "html-content": "<html><body><p>Visualization</p></body></html>" }];
 
     resultServiceSpy.getCurrentResultSnapshot.and.returnValue(resultSnapshot);
 
@@ -186,14 +188,14 @@ describe("WorkflowResultExportService", () => {
     service.exportOperatorsResultAsFile();
   });
 
-  it("should export multiple visualization results as a zip file when there are multiple results", (done) => {
+  it("should export multiple visualization results as a zip file when there are multiple results", done => {
     // Arrange
     jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.and.returnValue(["operator2"]);
 
     const resultServiceSpy = jasmine.createSpyObj("OperatorResultService", ["getCurrentResultSnapshot"]);
 
     // Mock the result service for 'operator2'
-    workflowResultServiceSpy.getResultService.and.callFake((operatorId) => {
+    workflowResultServiceSpy.getResultService.and.callFake(operatorId => {
       if (operatorId === "operator2") {
         return resultServiceSpy;
       }
@@ -213,14 +215,14 @@ describe("WorkflowResultExportService", () => {
     fileSaverServiceSpy.saveAs.and.callFake((blob: Blob, filename: string) => {
       expect(filename).toBe("results_workflow1_Test Workflow.zip");
 
-      JSZip.loadAsync(blob).then((zip) => {
+      JSZip.loadAsync(blob).then(zip => {
         expect(Object.keys(zip.files)).toContain("result_operator2_1.html");
         expect(Object.keys(zip.files)).toContain("result_operator2_2.html");
 
         Promise.all([
           zip.file("result_operator2_1.html")?.async("string"),
           zip.file("result_operator2_2.html")?.async("string"),
-        ]).then((contents) => {
+        ]).then(contents => {
           expect(contents[0]).toBe("<html><body><p>Visualization 1</p></body></html>");
           expect(contents[1]).toBe("<html><body><p>Visualization 2</p></body></html>");
           done();
@@ -231,5 +233,4 @@ describe("WorkflowResultExportService", () => {
     // Act
     service.exportOperatorsResultAsFile();
   });
-
 });

@@ -45,7 +45,10 @@ describe("ContextMenuComponent", () => {
     workflowActionServiceSpy.deleteOperatorsAndLinks.and.returnValue();
     workflowActionServiceSpy.deleteCommentBox.and.returnValue();
 
-    const workflowResultServiceSpy = jasmine.createSpyObj("WorkflowResultService", ["getResultService", "hasAnyResult"]);
+    const workflowResultServiceSpy = jasmine.createSpyObj("WorkflowResultService", [
+      "getResultService",
+      "hasAnyResult",
+    ]);
     const workflowResultExportServiceSpy = jasmine.createSpyObj("WorkflowResultExportService", [
       "exportOperatorsResultAsFile",
     ]);
@@ -80,12 +83,8 @@ describe("ContextMenuComponent", () => {
       imports: [HttpClientModule, ReactiveFormsModule, BrowserAnimationsModule, NzDropDownModule],
     }).compileComponents();
 
-    workflowActionService = TestBed.inject(
-      WorkflowActionService
-    ) as jasmine.SpyObj<WorkflowActionService>;
-    workflowResultService = TestBed.inject(
-      WorkflowResultService
-    ) as jasmine.SpyObj<WorkflowResultService>;
+    workflowActionService = TestBed.inject(WorkflowActionService) as jasmine.SpyObj<WorkflowActionService>;
+    workflowResultService = TestBed.inject(WorkflowResultService) as jasmine.SpyObj<WorkflowResultService>;
     workflowResultExportService = TestBed.inject(
       WorkflowResultExportService
     ) as jasmine.SpyObj<WorkflowResultExportService>;
