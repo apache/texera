@@ -22,6 +22,7 @@ import { AnnotationSuggestionComponent } from "./annotation-suggestion.component
 import { MonacoEditorLanguageClientWrapper, UserConfig } from 'monaco-editor-wrapper';
 import * as monaco from 'monaco-editor';
 import { from } from 'rxjs';
+import '@codingame/monaco-vscode-python-default-extension';
 
 /**
  * CodeEditorComponent is the content of the dialogue invoked by CodeareaCustomTemplateComponent.
