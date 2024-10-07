@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.cloudmapper
 
-import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
+import com.fasterxml.jackson.annotation.JsonProperty
 import com.kjetland.jackson.jsonSchema.annotations.{
   JsonSchemaInject,
   JsonSchemaString,
@@ -12,8 +12,6 @@ class ReferenceGenome {
   // Required field for selecting a reference genome.
   // This field is mandatory and must be filled by the user.
   @JsonProperty(required = true)
-  @JsonSchemaTitle("Reference Genome")
-  @JsonPropertyDescription("reference genome for sequence alignment")
   var referenceGenome: ReferenceGenomeEnum = _
 
   // Optional field for FastA files.

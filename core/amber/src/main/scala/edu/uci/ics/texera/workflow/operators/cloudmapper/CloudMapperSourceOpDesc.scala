@@ -16,9 +16,12 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
   val directoryName: String = ""
 
   @JsonProperty(required = true)
-  @JsonSchemaTitle("Reference Genomes")
-  @JsonPropertyDescription("Add one or more reference genomes")
-  var referenceGenomes: List[ReferenceGenome] = List()
+  var referenceGenome: ReferenceGenome = _
+
+  @JsonProperty(required = false)
+  @JsonSchemaTitle("Additional Reference Genomes")
+  @JsonPropertyDescription("Add one or more additional reference genomes (optional)")
+  var additionalReferenceGenomes: List[ReferenceGenome] = List()
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Cluster")
@@ -41,14 +44,21 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
 
     println(fastQDatasetPath)
 
-    // Convert the Scala referenceGenomes list to a Python list format
-    val pythonReferenceGenomes = referenceGenomes
+    // Convert the Scala referenceGenome to a Python string
+    val pythonReferenceGenome = s"'${referenceGenome.referenceGenome.getName}'"
+
+    // Convert the Scala additionalReferenceGenomes list to a Python list format
+    val pythonAdditionalReferenceGenomes = additionalReferenceGenomes
       .map(_.referenceGenome.getName)
       .map(name => s"'$name'")
       .mkString("[", ", ", "]")
 
-    // Convert the Scala referenceGenomes list to a Python list format for FASTA files
-    val pythonFastaFiles = referenceGenomes
+    // Combine main reference genome with additional ones
+    val pythonAllReferenceGenomes =
+      s"[${pythonReferenceGenome}] + ${pythonAdditionalReferenceGenomes}"
+
+    // Convert all reference genomes (main + additional) to a Python list format for FASTA files
+    val pythonFastaFiles = (referenceGenome :: additionalReferenceGenomes)
       .flatMap(_.fastAFiles)
       .map(file => {
         val (filepath, fileDesc) = OperatorFilePathUtils.determineFilePathOrDatasetFile(Some(file))
@@ -57,8 +67,8 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
       })
       .mkString("[", ", ", "]")
 
-    // Extract GTF file if exists for 'My Reference'
-    val pythonGtfFile = referenceGenomes
+    // Extract GTF file if exists for 'My Reference' (considering both main and additional reference genomes)
+    val pythonGtfFile = (referenceGenome :: additionalReferenceGenomes)
       .find(_.referenceGenome == ReferenceGenomeEnum.MY_REFERENCE)
       .flatMap(_.gtfFile)
       .map(file => {
@@ -111,8 +121,8 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
        |        # Example job_form dictionary using inputs from Scala
        |        job_form = {
        |            'reads': '${fastQDatasetPath}',
-       |            'referenceGenome': ${pythonReferenceGenomes},
-       |            'fastaFiles': ${pythonFastaFiles} if 'My Reference' in ${pythonReferenceGenomes} else [],
+       |            'referenceGenome': ${pythonAllReferenceGenomes},
+       |            'fastaFiles': ${pythonFastaFiles} if 'My Reference' in ${pythonAllReferenceGenomes} else [],
        |            'gtfFile': ${pythonGtfFile}
        |        }
        |
