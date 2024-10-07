@@ -148,10 +148,10 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
        |            elif status == "failed":
        |                print("Job failed.")
        |                yield {
-       |                    'subdirectory': None,
-       |                    'features_content': None,
-       |                    'barcodes_content': None,
-       |                    'matrix_content': None
+       |                    'Sample': None,
+       |                    'features.tsv': None,
+       |                    'barcodes.tsv': None,
+       |                    'matrix.mtx': None
        |                }
        |                return
        |
@@ -175,19 +175,19 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
        |
        |                # Yield the raw byte content for each subdirectory
        |                yield {
-       |                    'subdirectory': subdirectory,
-       |                    'features_content': features_content,
-       |                    'barcodes_content': barcodes_content,
-       |                    'matrix_content': matrix_content
+       |                    'Sample': subdirectory,
+       |                    'features.tsv': features_content,
+       |                    'barcodes.tsv': barcodes_content,
+       |                    'matrix.mtx': matrix_content
        |                }
        |        else:
        |            print(f"Failed to get the files. Status Code: {download_response.status_code}")
        |            print(f"Response Text: {download_response.text}")
        |            yield {
-       |                'subdirectory': None,
-       |                'features_content': None,
-       |                'barcodes_content': None,
-       |                'matrix_content': None
+       |                'Sample': None,
+       |                'features.tsv': None,
+       |                'barcodes.tsv': None,
+       |                'matrix.mtx': None
        |            }
     """.stripMargin
   }
@@ -204,10 +204,10 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
     Schema
       .builder()
       .add(
-        new Attribute("subdirectory", AttributeType.STRING),
-        new Attribute("features_content", AttributeType.BINARY),
-        new Attribute("barcodes_content", AttributeType.BINARY),
-        new Attribute("matrix_content", AttributeType.BINARY)
+        new Attribute("Sample", AttributeType.STRING),
+        new Attribute("features.tsv", AttributeType.BINARY),
+        new Attribute("barcodes.tsv", AttributeType.BINARY),
+        new Attribute("matrix.mtx", AttributeType.BINARY)
       )
       .build()
 }
