@@ -420,6 +420,9 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
               }
             },
             useDiffEditor: true,
+            diffEditorOptions: {  
+              readOnly: true,  
+            },
             userConfiguration: {
               json: JSON.stringify({
                 'workbench.colorTheme': 'Default Dark Modern',
