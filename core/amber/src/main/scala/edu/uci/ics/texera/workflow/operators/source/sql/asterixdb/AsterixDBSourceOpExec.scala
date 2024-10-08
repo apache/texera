@@ -298,9 +298,10 @@ class AsterixDBSourceOpExec private[asterixdb] (
             attribute.getType
           )
         ) match {
-          case Success(timestamp: Timestamp) => parseField(timestamp, AttributeType.LONG).asInstanceOf[Number]
-          case Success(otherTypes)           => otherTypes.asInstanceOf[Number]
-          case Failure(_)                    => 0
+          case Success(timestamp: Timestamp) =>
+            parseField(timestamp, AttributeType.LONG).asInstanceOf[Number]
+          case Success(otherTypes) => otherTypes.asInstanceOf[Number]
+          case Failure(_)          => 0
         }
 
       case None => 0

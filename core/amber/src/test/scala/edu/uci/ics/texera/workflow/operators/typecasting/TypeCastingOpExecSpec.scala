@@ -1,6 +1,12 @@
 package edu.uci.ics.texera.workflow.operators.typecasting
 
-import edu.uci.ics.amber.engine.common.model.tuple.{Attribute, AttributeType, Schema, SchemaEnforceable, Tuple}
+import edu.uci.ics.amber.engine.common.model.tuple.{
+  Attribute,
+  AttributeType,
+  Schema,
+  SchemaEnforceable,
+  Tuple
+}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 

@@ -16,11 +16,7 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
 }
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.StateRestoreConfig
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessor
-import edu.uci.ics.amber.engine.common.{
-  AmberRuntime,
-  CheckpointState,
-  CheckpointSupport
-}
+import edu.uci.ics.amber.engine.common.{AmberRuntime, CheckpointState, CheckpointSupport}
 import edu.uci.ics.amber.engine.common.SerializedState.{CP_STATE_KEY, DP_STATE_KEY}
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.executor.{OperatorExecutor, SourceOperatorExecutor}

@@ -1,6 +1,13 @@
 package edu.uci.ics.texera.workflow.operators.intervalJoin
 
-import edu.uci.ics.amber.engine.common.model.tuple.{Attribute, AttributeType, Schema, SchemaEnforceable, Tuple, TupleLike}
+import edu.uci.ics.amber.engine.common.model.tuple.{
+  Attribute,
+  AttributeType,
+  Schema,
+  SchemaEnforceable,
+  Tuple,
+  TupleLike
+}
 import edu.uci.ics.amber.engine.common.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
 import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
 import org.scalatest.BeforeAndAfter

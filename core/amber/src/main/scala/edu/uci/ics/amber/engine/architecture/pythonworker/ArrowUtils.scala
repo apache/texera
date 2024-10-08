@@ -1,7 +1,13 @@
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.common.model.tuple.{Attribute, AttributeType, AttributeTypeUtils, Schema, Tuple}
+import edu.uci.ics.amber.engine.common.model.tuple.{
+  Attribute,
+  AttributeType,
+  AttributeTypeUtils,
+  Schema,
+  Tuple
+}
 import AttributeTypeUtils.AttributeTypeException
 import org.apache.arrow.vector.types.FloatingPointPrecision
 import org.apache.arrow.vector.types.TimeUnit.MILLISECOND

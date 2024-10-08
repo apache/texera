@@ -31,7 +31,9 @@ object AttributeTypeUtils extends Serializable {
     for (i <- attributes.indices) {
       if (attributes.apply(i).getName.equals(attribute)) {
         resultType match {
-          case AttributeType.STRING | AttributeType.INTEGER | AttributeType.DOUBLE | AttributeType.LONG | AttributeType.BOOLEAN | AttributeType.TIMESTAMP | AttributeType.BINARY =>
+          case AttributeType.STRING | AttributeType.INTEGER | AttributeType.DOUBLE |
+              AttributeType.LONG | AttributeType.BOOLEAN | AttributeType.TIMESTAMP |
+              AttributeType.BINARY =>
             builder.add(attribute, resultType)
           case AttributeType.ANY | _ =>
             builder.add(attribute, attributes.apply(i).getType)
@@ -305,7 +307,7 @@ object AttributeTypeUtils extends Serializable {
       case AttributeType.INTEGER   => tryParseInteger(fieldValue)
       case AttributeType.TIMESTAMP => tryParseTimestamp(fieldValue)
       case AttributeType.BINARY    => tryParseString()
-      case _         => tryParseString()
+      case _                       => tryParseString()
     }
   }
 

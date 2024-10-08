@@ -2,7 +2,12 @@ package edu.uci.ics.texera.workflow.operators.source.scan.csvOld
 
 import com.github.tototoshi.csv.{CSVReader, DefaultCSVFormat}
 import edu.uci.ics.amber.engine.common.executor.SourceOperatorExecutor
-import edu.uci.ics.amber.engine.common.model.tuple.{Attribute, AttributeTypeUtils, Schema, TupleLike}
+import edu.uci.ics.amber.engine.common.model.tuple.{
+  Attribute,
+  AttributeTypeUtils,
+  Schema,
+  TupleLike
+}
 import edu.uci.ics.texera.workflow.operators.source.scan.FileDecodingMethod
 
 import scala.collection.compat.immutable.ArraySeq

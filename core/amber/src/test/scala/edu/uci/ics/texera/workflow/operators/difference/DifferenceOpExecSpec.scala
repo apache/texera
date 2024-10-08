@@ -1,6 +1,12 @@
 package edu.uci.ics.texera.workflow.operators.difference
 
-import edu.uci.ics.amber.engine.common.model.tuple.{Attribute, AttributeType, Schema, Tuple, TupleLike}
+import edu.uci.ics.amber.engine.common.model.tuple.{
+  Attribute,
+  AttributeType,
+  Schema,
+  Tuple,
+  TupleLike
+}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
