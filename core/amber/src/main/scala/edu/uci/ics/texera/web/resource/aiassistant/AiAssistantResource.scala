@@ -20,11 +20,11 @@ class AIAssistantResource {
   def isAIAssistantEnable: String = isEnabled
 
   /**
-   * Endpoint to get the operator comment from OpenAI.
-   * @param prompt The input prompt for the OpenAI model.
-   * @param user The authenticated session user.
-   * @return A response containing the generated comment from OpenAI or an error message.
-   */
+    * Endpoint to get the operator comment from OpenAI.
+    * @param prompt The input prompt for the OpenAI model.
+    * @param user The authenticated session user.
+    * @return A response containing the generated comment from OpenAI or an error message.
+    */
   @POST
   @Path("/openai")
   @Consumes(Array(MediaType.APPLICATION_JSON))
@@ -44,7 +44,8 @@ class AIAssistantResource {
 
     try {
       // Send the request to the OpenAI API using Unirest
-      val response = Unirest.post("https://api.openai.com/v1/chat/completions")
+      val response = Unirest
+        .post("https://api.openai.com/v1/chat/completions")
         .header("Authorization", s"Bearer ${AiAssistantManager.accountKey}")
         .header("Content-Type", "application/json")
         .body(requestBody)
