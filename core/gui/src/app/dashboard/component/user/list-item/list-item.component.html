@@ -192,14 +192,17 @@
       nzType="text"
       class="dropdown-item like-button"
       title="Like"
+      *ngIf="currentUid"
+      [ngClass]="{ liked: isLiked }"
       (click)="toggleLike(this.entry.id, this.currentUid)">
       <i
         nz-icon
         [nzTheme]="isLiked ? 'fill' : 'outline'"
-        [nzType]="'heart'"
+        [nzType]="'like'"
         [ngClass]="isLiked ? 'liked' : 'not-liked'"
         class="like-icon">
       </i>
+      <span>{{ formatLikeCount(likeCount) }}</span>
     </button>
   </div>
 </nz-card>
