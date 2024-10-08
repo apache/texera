@@ -112,8 +112,7 @@ export class ReportGenerationService {
     allResults: { operatorId: string; html: string }[]
   ): Observable<void> {
     return new Observable(observer => {
-      this.aiAnalystService.checkAIAssistantEnabled().subscribe(AIEnabled => {
-        console.log(`Processing ${operatorId}`);
+      this.aiAnalystService.isOpenAIEnabled().subscribe(AIEnabled => {
         try {
           // Retrieve the result service and paginated result service for the operator
           const resultService = this.workflowResultService.getResultService(operatorId);
@@ -402,7 +401,7 @@ export class ReportGenerationService {
       Again, the output comment should follow the format specified above and should be insightful for non-experts.`;
 
     // Call the openai function and pass the generated prompt
-    return this.aiAnalystService.openai(prompt);
+    return this.aiAnalystService.sendPromptToOpenAI(prompt);
   }
 
   /**
@@ -432,6 +431,6 @@ export class ReportGenerationService {
       Again, the output comment should follow the format specified above and should be insightful for non-experts.`;
 
     // Call the openai function and pass the generated prompt
-    return this.aiAnalystService.openai(prompt);
+    return this.aiAnalystService.sendPromptToOpenAI(prompt);
   }
 }

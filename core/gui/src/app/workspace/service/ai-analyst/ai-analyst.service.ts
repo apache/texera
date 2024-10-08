@@ -25,7 +25,7 @@ export class AiAnalystService {
    * @returns {Promise<boolean>} A promise that resolves to a boolean indicating whether the AI Assistant is enabled.
    *                             Returns `false` if the request fails or the response is undefined.
    */
-  public checkAIAssistantEnabled(): Observable<boolean> {
+  public isOpenAIEnabled(): Observable<boolean> {
     if (this.isAIAssistantEnabled !== null) {
       return of(this.isAIAssistantEnabled);
     }
@@ -46,7 +46,7 @@ export class AiAnalystService {
    * @returns {Promise<string>} A promise that resolves to a string containing the generated comment or an error message
    *                            if the generation fails or the AI Assistant is not enabled.
    */
-  public openai(inputPrompt: string): Observable<string> {
+  public sendPromptToOpenAI(inputPrompt: string): Observable<string> {
     const prompt = inputPrompt;
 
     const maxRetries = 2; // Maximum number of retries
@@ -55,7 +55,7 @@ export class AiAnalystService {
     // Create an observable to handle retries
     return new Observable<string>(observer => {
       // Check if AI Assistant is enabled
-      this.checkAIAssistantEnabled().subscribe(
+      this.isOpenAIEnabled().subscribe(
         (AIEnabled: boolean) => {
           if (!AIEnabled) {
             observer.next(""); // If AI Assistant is not enabled, return an empty string
