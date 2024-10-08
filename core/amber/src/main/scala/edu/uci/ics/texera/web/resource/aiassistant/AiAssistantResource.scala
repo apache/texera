@@ -20,11 +20,11 @@ class AIAssistantResource {
   def isAIAssistantEnable: String = isEnabled
 
   /**
-    * Endpoint to get the operator comment from OpenAI.
-    * @param prompt The input prompt for the OpenAI model.
-    * @param user The authenticated session user.
-    * @return A response containing the generated comment from OpenAI or an error message.
-    */
+   * Endpoint to get the operator comment from OpenAI.
+   * @param prompt The input prompt for the OpenAI model.
+   * @param user The authenticated session user.
+   * @return A response containing the generated comment from OpenAI or an error message.
+   */
   @POST
   @Path("/openai")
   @Consumes(Array(MediaType.APPLICATION_JSON))
@@ -40,31 +40,18 @@ class AIAssistantResource {
          |  "messages": [{"role": "user", "content": "$finalPrompt"}],
          |  "max_tokens": 1000
          |}
-       """.stripMargin
+     """.stripMargin
 
     try {
-      // Set up the connection to the OpenAI API
-      val url = new java.net.URL("https://api.openai.com/v1/chat/completions")
-      val connection = url.openConnection().asInstanceOf[java.net.HttpURLConnection]
-      connection.setRequestMethod("POST")
-      connection.setRequestProperty("Authorization", s"Bearer ${AiAssistantManager.accountKey}")
-      connection.setRequestProperty("Content-Type", "application/json")
-      connection.setDoOutput(true)
-
-      // Send the request to OpenAI API
-      connection.getOutputStream.write(requestBody.getBytes("UTF-8"))
-
-      // Get the response code and content from the API
-      val responseCode = connection.getResponseCode
-      val responseStream = connection.getInputStream
-      val responseString = scala.io.Source.fromInputStream(responseStream).mkString
-
-      // Close the stream and disconnect
-      responseStream.close()
-      connection.disconnect()
+      // Send the request to the OpenAI API using Unirest
+      val response = Unirest.post("https://api.openai.com/v1/chat/completions")
+        .header("Authorization", s"Bearer ${AiAssistantManager.accountKey}")
+        .header("Content-Type", "application/json")
+        .body(requestBody)
+        .asJson()
 
       // Return the response from the API
-      Response.status(responseCode).entity(responseString).build()
+      Response.status(response.getStatus).entity(response.getBody.toString).build()
     } catch {
       // Handle exceptions and return an error response
       case e: Exception =>
