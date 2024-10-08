@@ -4,8 +4,8 @@ import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.RUNNING
+import edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState
+import edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState.RUNNING
 
 object StartWorkflowHandler {
   final case class StartWorkflow() extends ControlCommand[WorkflowAggregatedState]

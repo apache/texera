@@ -3,7 +3,7 @@
 //
 // Protofile syntax: PROTO3
 
-package edu.uci.ics.texera.web.workflowruntimestate
+package edu.uci.ics.amber.engine.common.workflowruntimestate
 
 @SerialVersionUID(0L)
 final case class OperatorWorkerMapping(
@@ -69,13 +69,13 @@ final case class OperatorWorkerMapping(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion = edu.uci.ics.texera.web.workflowruntimestate.OperatorWorkerMapping
-    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.texera.web.OperatorWorkerMapping])
+    def companion = edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorWorkerMapping
+    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.OperatorWorkerMapping])
 }
 
-object OperatorWorkerMapping extends scalapb.GeneratedMessageCompanion[edu.uci.ics.texera.web.workflowruntimestate.OperatorWorkerMapping] {
-  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.texera.web.workflowruntimestate.OperatorWorkerMapping] = this
-  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.texera.web.workflowruntimestate.OperatorWorkerMapping = {
+object OperatorWorkerMapping extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorWorkerMapping] {
+  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorWorkerMapping] = this
+  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorWorkerMapping = {
     var __operatorId: _root_.scala.Predef.String = ""
     val __workerIds: _root_.scala.collection.immutable.VectorBuilder[_root_.scala.Predef.String] = new _root_.scala.collection.immutable.VectorBuilder[_root_.scala.Predef.String]
     var _done__ = false
@@ -90,15 +90,15 @@ object OperatorWorkerMapping extends scalapb.GeneratedMessageCompanion[edu.uci.i
         case tag => _input__.skipField(tag)
       }
     }
-    edu.uci.ics.texera.web.workflowruntimestate.OperatorWorkerMapping(
+    edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorWorkerMapping(
         operatorId = __operatorId,
         workerIds = __workerIds.result()
     )
   }
-  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.texera.web.workflowruntimestate.OperatorWorkerMapping] = _root_.scalapb.descriptors.Reads{
+  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorWorkerMapping] = _root_.scalapb.descriptors.Reads{
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
-      edu.uci.ics.texera.web.workflowruntimestate.OperatorWorkerMapping(
+      edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorWorkerMapping(
         operatorId = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Predef.String]).getOrElse(""),
         workerIds = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Seq[_root_.scala.Predef.String]]).getOrElse(_root_.scala.Seq.empty)
       )
@@ -109,11 +109,11 @@ object OperatorWorkerMapping extends scalapb.GeneratedMessageCompanion[edu.uci.i
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
-  lazy val defaultInstance = edu.uci.ics.texera.web.workflowruntimestate.OperatorWorkerMapping(
+  lazy val defaultInstance = edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorWorkerMapping(
     operatorId = "",
     workerIds = _root_.scala.Seq.empty
   )
-  implicit class OperatorWorkerMappingLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.OperatorWorkerMapping]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.OperatorWorkerMapping](_l) {
+  implicit class OperatorWorkerMappingLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorWorkerMapping]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorWorkerMapping](_l) {
     def operatorId: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.operatorId)((c_, f_) => c_.copy(operatorId = f_))
     def workerIds: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[_root_.scala.Predef.String]] = field(_.workerIds)((c_, f_) => c_.copy(workerIds = f_))
   }
@@ -122,9 +122,9 @@ object OperatorWorkerMapping extends scalapb.GeneratedMessageCompanion[edu.uci.i
   def of(
     operatorId: _root_.scala.Predef.String,
     workerIds: _root_.scala.Seq[_root_.scala.Predef.String]
-  ): _root_.edu.uci.ics.texera.web.workflowruntimestate.OperatorWorkerMapping = _root_.edu.uci.ics.texera.web.workflowruntimestate.OperatorWorkerMapping(
+  ): _root_.edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorWorkerMapping = _root_.edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorWorkerMapping(
     operatorId,
     workerIds
   )
-  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.texera.web.OperatorWorkerMapping])
+  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.OperatorWorkerMapping])
 }

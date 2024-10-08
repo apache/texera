@@ -26,8 +26,8 @@ import edu.uci.ics.texera.web.storage.{
   WorkflowResultStore,
   WorkflowStateStore
 }
-import edu.uci.ics.texera.web.workflowruntimestate.ExecutionMetadataStore
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{
+import edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionMetadataStore
+import edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState.{
   COMPLETED,
   FAILED,
   KILLED,

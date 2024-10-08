@@ -3,7 +3,7 @@
 //
 // Protofile syntax: PROTO3
 
-package edu.uci.ics.texera.web.workflowruntimestate
+package edu.uci.ics.amber.engine.common.workflowruntimestate
 
 sealed abstract class WorkflowAggregatedState(val value: _root_.scala.Int) extends _root_.scalapb.GeneratedEnum {
   type EnumType = WorkflowAggregatedState
@@ -17,8 +17,8 @@ sealed abstract class WorkflowAggregatedState(val value: _root_.scala.Int) exten
   def isFailed: _root_.scala.Boolean = false
   def isUnknown: _root_.scala.Boolean = false
   def isKilled: _root_.scala.Boolean = false
-  def companion: _root_.scalapb.GeneratedEnumCompanion[WorkflowAggregatedState] = edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
-  final def asRecognized: _root_.scala.Option[edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.Recognized] = if (isUnrecognized) _root_.scala.None else _root_.scala.Some(this.asInstanceOf[edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.Recognized])
+  def companion: _root_.scalapb.GeneratedEnumCompanion[WorkflowAggregatedState] = edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState
+  final def asRecognized: _root_.scala.Option[edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState.Recognized] = if (isUnrecognized) _root_.scala.None else _root_.scala.Some(this.asInstanceOf[edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState.Recognized])
 }
 
 object WorkflowAggregatedState extends _root_.scalapb.GeneratedEnumCompanion[WorkflowAggregatedState] {

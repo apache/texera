@@ -21,7 +21,7 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
+import edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState
 
 import scala.collection.Seq
 class RegionExecutionCoordinator(

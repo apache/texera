@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package edu.uci.ics.texera.web;
+package edu.uci.ics.amber.engine.common;
 
 import "edu/uci/ics/amber/engine/architecture/worker/controlcommands.proto";
 import "edu/uci/ics/amber/engine/architecture/worker/controlreturns.proto";

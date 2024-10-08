@@ -54,7 +54,7 @@ import edu.uci.ics.texera.web.resource.dashboard.user.workflow.{
 import edu.uci.ics.texera.web.resource.languageserver.PythonLanguageServerManager
 import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
 import edu.uci.ics.texera.web.storage.MongoDatabaseManager
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{COMPLETED, FAILED}
+import edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState.{COMPLETED, FAILED}
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import io.dropwizard.auth.{AuthDynamicFeature, AuthValueFactoryProvider}
 import io.dropwizard.setup.{Bootstrap, Environment}

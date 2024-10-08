@@ -26,15 +26,15 @@ import edu.uci.ics.texera.web.model.websocket.event.{
 }
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
-import edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
-import edu.uci.ics.texera.web.workflowruntimestate.{
+import edu.uci.ics.amber.engine.common.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
+import edu.uci.ics.amber.engine.common.workflowruntimestate.{
   OperatorMetrics,
   OperatorStatistics,
   OperatorWorkerMapping,
   WorkflowAggregatedState,
   WorkflowFatalError
 }
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.FAILED
+import edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState.FAILED
 
 import java.time.Instant
 import org.jooq.types.{UInteger, ULong}

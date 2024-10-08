@@ -3,14 +3,14 @@
 //
 // Protofile syntax: PROTO3
 
-package edu.uci.ics.texera.web.workflowruntimestate
+package edu.uci.ics.amber.engine.common.workflowruntimestate
 
 sealed abstract class FatalErrorType(val value: _root_.scala.Int) extends _root_.scalapb.GeneratedEnum {
   type EnumType = FatalErrorType
   def isCompilationError: _root_.scala.Boolean = false
   def isExecutionFailure: _root_.scala.Boolean = false
-  def companion: _root_.scalapb.GeneratedEnumCompanion[FatalErrorType] = edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType
-  final def asRecognized: _root_.scala.Option[edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.Recognized] = if (isUnrecognized) _root_.scala.None else _root_.scala.Some(this.asInstanceOf[edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.Recognized])
+  def companion: _root_.scalapb.GeneratedEnumCompanion[FatalErrorType] = edu.uci.ics.amber.engine.common.workflowruntimestate.FatalErrorType
+  final def asRecognized: _root_.scala.Option[edu.uci.ics.amber.engine.common.workflowruntimestate.FatalErrorType.Recognized] = if (isUnrecognized) _root_.scala.None else _root_.scala.Some(this.asInstanceOf[edu.uci.ics.amber.engine.common.workflowruntimestate.FatalErrorType.Recognized])
 }
 
 object FatalErrorType extends _root_.scalapb.GeneratedEnumCompanion[FatalErrorType] {

@@ -14,8 +14,8 @@ import edu.uci.ics.texera.web.model.websocket.event.{
 import edu.uci.ics.texera.web.model.websocket.request.WorkflowExecuteRequest
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{
+import edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState
+import edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState.{
   COMPLETED,
   FAILED,
   READY

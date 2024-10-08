@@ -298,7 +298,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
             attribute.getType
           )
         ) match {
-          case Success(timestamp: Timestamp) => parseField(timestamp, LONG).asInstanceOf[Number]
+          case Success(timestamp: Timestamp) => parseField(timestamp, AttributeType.LONG).asInstanceOf[Number]
           case Success(otherTypes)           => otherTypes.asInstanceOf[Number]
           case Failure(_)                    => 0
         }
@@ -326,11 +326,11 @@ class AsterixDBSourceOpExec private[asterixdb] (
     batchByAttribute match {
       case Some(attribute) =>
         attribute.getType match {
-          case LONG | INTEGER | DOUBLE =>
+          case AttributeType.LONG | AttributeType.INTEGER | AttributeType.DOUBLE =>
             String.valueOf(value)
-          case TIMESTAMP =>
+          case AttributeType.TIMESTAMP =>
             "datetime('" + formatter.format(new Timestamp(value.longValue).toInstant) + "')"
-          case BOOLEAN | STRING | ANY | _ =>
+          case AttributeType.BOOLEAN | AttributeType.STRING | AttributeType.ANY | _ =>
             throw new IllegalArgumentException("Unexpected type: " + attribute.getType)
         }
       case None =>

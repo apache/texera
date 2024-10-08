@@ -12,7 +12,7 @@ import edu.uci.ics.amber.engine.common.workflow.InputPort;
 import edu.uci.ics.amber.engine.common.workflow.OutputPort;
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity;
 import edu.uci.ics.amber.engine.common.IncrementalOutputMode;
-import edu.uci.ics.texera.workflow.common.ProgressiveUtils;
+import edu.uci.ics.amber.engine.common.ProgressiveUtils;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.amber.engine.common.executor.OperatorExecutor;
