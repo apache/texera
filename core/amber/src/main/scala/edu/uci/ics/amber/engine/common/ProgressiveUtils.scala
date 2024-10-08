@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.common
+package edu.uci.ics.amber.engine.common
 
 import edu.uci.ics.amber.engine.common.model.tuple.{Attribute, AttributeType, Schema, Tuple}
 

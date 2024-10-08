@@ -2,6 +2,7 @@ package edu.uci.ics.amber.engine.architecture.worker.managers
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo.generateJavaOpExec
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.InitializeExecutorHandler.InitializeExecutor
+import edu.uci.ics.amber.engine.common.executor.OperatorExecutor
 import edu.uci.ics.amber.engine.common.model.tuple.TupleLike
 import edu.uci.ics.amber.engine.common.{
   AmberLogging,
@@ -11,7 +12,6 @@ import edu.uci.ics.amber.engine.common.{
 }
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
-import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 
 class SerializationManager(val actorId: ActorVirtualIdentity) extends AmberLogging {
 

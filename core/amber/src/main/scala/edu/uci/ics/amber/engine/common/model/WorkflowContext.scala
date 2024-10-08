@@ -1,12 +1,7 @@
-package edu.uci.ics.texera.workflow.common
+package edu.uci.ics.amber.engine.common.model
+
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.texera.workflow.common.WorkflowContext.{
-  DEFAULT_EXECUTION_ID,
-  DEFAULT_WORKFLOW_ID,
-  DEFAULT_WORKFLOW_SETTINGS
-}
-
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowSettings
 
 object WorkflowContext {

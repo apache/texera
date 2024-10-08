@@ -1,9 +1,8 @@
-package edu.uci.ics.amber.engine.common
+package edu.uci.ics.amber.engine.common.executor
 
 import edu.uci.ics.amber.engine.common.model.tuple.{Tuple, TupleLike}
 import edu.uci.ics.amber.engine.common.storage.DatasetFileDocument
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
-import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 
 import java.io.{FileInputStream, InputStream}
 

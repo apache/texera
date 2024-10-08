@@ -8,9 +8,9 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateExecut
   UpdateMultipleExecutors
 }
 import edu.uci.ics.amber.engine.common.ambermessage.RequireAlignment
+import edu.uci.ics.amber.engine.common.model.PhysicalPlan
 import edu.uci.ics.amber.engine.common.virtualidentity.{ChannelMarkerIdentity, PhysicalOpIdentity}
 import edu.uci.ics.texera.workflow.common.operators.StateTransferFunc
-import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 import org.jgrapht.alg.connectivity.ConnectivityInspector
 
 import scala.collection.mutable

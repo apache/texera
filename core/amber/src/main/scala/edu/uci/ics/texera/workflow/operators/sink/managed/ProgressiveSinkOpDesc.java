@@ -11,11 +11,11 @@ import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity;
 import edu.uci.ics.amber.engine.common.workflow.InputPort;
 import edu.uci.ics.amber.engine.common.workflow.OutputPort;
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity;
-import edu.uci.ics.texera.workflow.common.IncrementalOutputMode;
+import edu.uci.ics.amber.engine.common.IncrementalOutputMode;
 import edu.uci.ics.texera.workflow.common.ProgressiveUtils;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
-import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor;
+import edu.uci.ics.amber.engine.common.executor.OperatorExecutor;
 import edu.uci.ics.amber.engine.common.model.tuple.Schema;
 import edu.uci.ics.texera.workflow.operators.sink.SinkOpDesc;
 import edu.uci.ics.texera.workflow.operators.sink.storage.SinkStorageReader;
@@ -30,7 +30,7 @@ import java.util.ArrayList;
 
 import java.util.function.Function;
 
-import static edu.uci.ics.texera.workflow.common.IncrementalOutputMode.SET_SNAPSHOT;
+import static edu.uci.ics.amber.engine.common.IncrementalOutputMode.SET_SNAPSHOT;
 import static java.util.Collections.singletonList;
 import static scala.jdk.javaapi.CollectionConverters.asScala;
 

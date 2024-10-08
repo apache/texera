@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.workflow.common.operators.map
 
+import edu.uci.ics.amber.engine.common.executor.OperatorExecutor
 import edu.uci.ics.amber.engine.common.model.tuple.{Tuple, TupleLike}
-import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 
 /**
   * Common operator executor of a map() function

@@ -1,8 +1,7 @@
-package edu.uci.ics.texera.workflow.common.operators
+package edu.uci.ics.amber.engine.common.executor
 
 import edu.uci.ics.amber.engine.common.model.tuple.{Tuple, TupleLike}
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
-import edu.uci.ics.texera.workflow.common.State
 
 trait OperatorExecutor {
 

@@ -15,10 +15,10 @@ import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{
   returnInvocationToV2
 }
 import edu.uci.ics.amber.engine.common.ambermessage._
+import edu.uci.ics.amber.engine.common.model.State
 import edu.uci.ics.amber.engine.common.model.tuple.{Schema, Tuple}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.texera.workflow.common.State
 import org.apache.arrow.flight._
 import org.apache.arrow.memory.{ArrowBuf, BufferAllocator, RootAllocator}
 import org.apache.arrow.vector.VectorSchemaRoot

@@ -11,6 +11,7 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
 import edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.client.AmberClient
+import edu.uci.ics.amber.engine.common.model.WorkflowContext
 import edu.uci.ics.amber.error.ErrorUtils.{getOperatorFromActorIdOpt, getStackTraceWithAllCauses}
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.Utils.maptoStatusCode
@@ -36,7 +37,6 @@ import edu.uci.ics.texera.web.workflowruntimestate.{
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.FAILED
 
 import java.time.Instant
-import edu.uci.ics.texera.workflow.common.WorkflowContext
 import org.jooq.types.{UInteger, ULong}
 
 import java.util

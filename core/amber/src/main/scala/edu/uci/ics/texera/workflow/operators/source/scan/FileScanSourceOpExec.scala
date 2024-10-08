@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.source.scan
 
-import edu.uci.ics.amber.engine.common.SourceOperatorExecutor
+import edu.uci.ics.amber.engine.common.executor.SourceOperatorExecutor
 import edu.uci.ics.amber.engine.common.model.tuple.TupleLike
 import edu.uci.ics.amber.engine.common.storage.DatasetFileDocument
 import edu.uci.ics.amber.engine.common.model.tuple.AttributeTypeUtils.parseField

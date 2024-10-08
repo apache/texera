@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.common;
+package edu.uci.ics.amber.engine.common;
 
 public enum IncrementalOutputMode {
     // sink outputs complete result set snapshot for each update
