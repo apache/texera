@@ -19,7 +19,8 @@ case class WorkflowCompilationSuccess(
 ) extends WorkflowCompilationResponse
 
 case class WorkflowCompilationFailure(
-    operatorErrors: Map[String, String]
+    operatorErrors: Map[String, String],
+    operatorInputSchemas: Map[String, List[Option[List[Attribute]]]]
 ) extends WorkflowCompilationResponse
 
 @Consumes(Array(MediaType.APPLICATION_JSON))
@@ -42,28 +43,33 @@ class WorkflowCompilationResource extends LazyLogging {
     // Compile the pojo using WorkflowCompiler
     val compilationResult = new WorkflowCompiler(context).compile(logicalPlanPojo)
 
+    val operatorInputSchemas = compilationResult.operatorIdToInputSchemas.map {
+      case (operatorIdentity, schemas) =>
+        val opId = operatorIdentity.id
+        val attributes = schemas.map { schema =>
+          if (schema.isEmpty)
+            None
+          else
+            Some(schema.get.attributes)
+        }
+        (opId, attributes)
+    }
+
     // Handle success case: No errors in the compilation result
     if (compilationResult.operatorIdToError.isEmpty && compilationResult.physicalPlan.nonEmpty) {
       WorkflowCompilationSuccess(
         physicalPlan = compilationResult.physicalPlan.get,
-        operatorInputSchemas = compilationResult.operatorIdToInputSchemas.map {
-          case (operatorIdentity, schemas) =>
-            val opId = operatorIdentity.id
-            val attributes = schemas.map { schema =>
-              if (schema.isEmpty)
-                None
-              else
-                Some(schema.get.attributes)
-            }
-            (opId, attributes)
-        }
+        operatorInputSchemas
       )
     }
     // Handle failure case: Errors found during compilation
     else {
-      WorkflowCompilationFailure(operatorErrors = compilationResult.operatorIdToError.map {
-        case (operatorIdentity, error) => (operatorIdentity.id, error.toString)
-      })
+      WorkflowCompilationFailure(
+        operatorErrors = compilationResult.operatorIdToError.map {
+          case (operatorIdentity, error) => (operatorIdentity.id, error.toString)
+        },
+        operatorInputSchemas
+      )
     }
   }
 }
