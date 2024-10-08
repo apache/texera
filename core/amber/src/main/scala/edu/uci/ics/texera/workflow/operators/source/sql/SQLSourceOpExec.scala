@@ -1,14 +1,11 @@
 package edu.uci.ics.texera.workflow.operators.source.sql
 
 import edu.uci.ics.amber.engine.common.SourceOperatorExecutor
-import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType._
-import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.{
+import edu.uci.ics.amber.engine.common.model.tuple.AttributeTypeUtils.{
   parseField,
   parseTimestamp
 }
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
+import edu.uci.ics.amber.engine.common.model.tuple.{Attribute, Schema, Tuple, TupleLike}
 
 import java.sql._
 import scala.collection.mutable.ArrayBuffer

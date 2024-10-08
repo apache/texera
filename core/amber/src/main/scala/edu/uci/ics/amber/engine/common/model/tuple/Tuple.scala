@@ -1,20 +1,19 @@
-package edu.uci.ics.texera.workflow.common.tuple
+package edu.uci.ics.amber.engine.common.model.tuple
 
 import com.fasterxml.jackson.annotation.{JsonCreator, JsonIgnore, JsonProperty}
-import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.node.ObjectNode
 import com.google.common.base.Preconditions.checkNotNull
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
-import edu.uci.ics.amber.engine.common.tuple.amber.SeqTupleLike
+import Tuple.checkSchemaMatchesFields
+import TupleUtils.document2Tuple
 import edu.uci.ics.texera.Utils
-import edu.uci.ics.texera.workflow.common.tuple.Tuple.checkSchemaMatchesFields
-import edu.uci.ics.texera.workflow.common.tuple.TupleUtils.document2Tuple
-import edu.uci.ics.texera.workflow.common.tuple.exception.TupleBuildingException
 import org.bson.Document
 import org.ehcache.sizeof.SizeOf
 
 import java.util
 import scala.collection.mutable
+
+class TupleBuildingException(errorMessage: String) extends RuntimeException(errorMessage) {}
 
 /**
   * Represents a tuple in a data processing workflow, encapsulating a schema and corresponding field values.

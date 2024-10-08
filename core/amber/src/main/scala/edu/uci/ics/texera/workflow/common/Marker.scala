@@ -1,7 +1,6 @@
 package edu.uci.ics.texera.workflow.common
 
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema, Attribute}
+import edu.uci.ics.amber.engine.common.model.tuple.{Attribute, AttributeType, Schema, Tuple}
 import scala.collection.mutable
 
 sealed trait Marker

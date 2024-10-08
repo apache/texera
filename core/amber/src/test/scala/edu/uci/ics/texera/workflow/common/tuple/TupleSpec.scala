@@ -1,8 +1,8 @@
 package edu.uci.ics.texera.workflow.common.tuple
 
-import edu.uci.ics.texera.workflow.common.tuple.TupleUtils.{json2tuple, tuple2json}
+import edu.uci.ics.amber.engine.common.model.tuple.{Attribute, AttributeType, Schema, Tuple, TupleBuildingException}
+import edu.uci.ics.amber.engine.common.model.tuple.TupleUtils.{json2tuple, tuple2json}
 import edu.uci.ics.texera.workflow.common.tuple.exception.TupleBuildingException
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalatest.flatspec.AnyFlatSpec
 
 import java.sql.Timestamp

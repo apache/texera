@@ -1,8 +1,6 @@
-package edu.uci.ics.amber.engine.common.tuple.amber
+package edu.uci.ics.amber.engine.common.model.tuple
 
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 

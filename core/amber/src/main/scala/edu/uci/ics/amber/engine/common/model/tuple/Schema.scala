@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.common.tuple.schema
+package edu.uci.ics.amber.engine.common.model.tuple
 
 import com.fasterxml.jackson.annotation.{JsonCreator, JsonIgnore, JsonProperty}
 import com.google.common.base.Preconditions.checkNotNull

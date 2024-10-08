@@ -1,10 +1,10 @@
 package edu.uci.ics.texera.web.resource
 
 import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.engine.common.model.tuple.Attribute
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.workflow.common.WorkflowContext
-import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute
 import edu.uci.ics.texera.workflow.common.workflow.{PhysicalPlan, WorkflowCompiler}
 import org.jooq.types.UInteger
 

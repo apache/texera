@@ -1,7 +1,6 @@
 package edu.uci.ics.texera.workflow.common.tuple.schema
 
-import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType._
-import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.{
+import edu.uci.ics.amber.engine.common.model.tuple.AttributeTypeUtils.{
   inferField,
   inferSchemaFromRows
 }

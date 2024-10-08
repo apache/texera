@@ -1,8 +1,6 @@
-package edu.uci.ics.texera.workflow.common.tuple.schema
+package edu.uci.ics.amber.engine.common.model.tuple
+
 import com.github.sisyphsu.dateparser.DateParserUtils
-import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType._
 import edu.uci.ics.texera.workflow.operators.typecasting.TypeCastingUnit
 
 import java.sql.Timestamp
@@ -33,9 +31,9 @@ object AttributeTypeUtils extends Serializable {
     for (i <- attributes.indices) {
       if (attributes.apply(i).getName.equals(attribute)) {
         resultType match {
-          case STRING | INTEGER | DOUBLE | LONG | BOOLEAN | TIMESTAMP | BINARY =>
+          case AttributeType.STRING | AttributeType.INTEGER | AttributeType.DOUBLE | AttributeType.LONG | AttributeType.BOOLEAN | AttributeType.TIMESTAMP | AttributeType.BINARY =>
             builder.add(attribute, resultType)
-          case ANY | _ =>
+          case AttributeType.ANY | _ =>
             builder.add(attribute, attributes.apply(i).getType)
         }
       } else {
@@ -105,14 +103,14 @@ object AttributeTypeUtils extends Serializable {
   ): Any = {
     if (field == null) return null
     attributeType match {
-      case INTEGER   => parseInteger(field)
-      case LONG      => parseLong(field)
-      case DOUBLE    => parseDouble(field)
-      case BOOLEAN   => parseBoolean(field)
-      case TIMESTAMP => parseTimestamp(field)
-      case STRING    => field.toString
-      case BINARY    => field
-      case ANY | _   => field
+      case AttributeType.INTEGER   => parseInteger(field)
+      case AttributeType.LONG      => parseLong(field)
+      case AttributeType.DOUBLE    => parseDouble(field)
+      case AttributeType.BOOLEAN   => parseBoolean(field)
+      case AttributeType.TIMESTAMP => parseTimestamp(field)
+      case AttributeType.STRING    => field.toString
+      case AttributeType.BINARY    => field
+      case AttributeType.ANY | _   => field
     }
   }
 
@@ -227,7 +225,7 @@ object AttributeTypeUtils extends Serializable {
 
     for (fields <- fieldsIterator) {
       if (attributeTypes.isEmpty) {
-        attributeTypes = Array.fill[AttributeType](fields.length)(INTEGER)
+        attributeTypes = Array.fill[AttributeType](fields.length)(AttributeType.INTEGER)
       }
       inferRow(attributeTypes, fields)
     }
@@ -245,51 +243,51 @@ object AttributeTypeUtils extends Serializable {
 
   private def tryParseInteger(fieldValue: Any): AttributeType = {
     if (fieldValue == null)
-      return INTEGER
+      return AttributeType.INTEGER
     allCatch opt parseInteger(fieldValue) match {
-      case Some(_) => INTEGER
+      case Some(_) => AttributeType.INTEGER
       case None    => tryParseLong(fieldValue)
     }
   }
 
   private def tryParseLong(fieldValue: Any): AttributeType = {
     if (fieldValue == null)
-      return LONG
+      return AttributeType.LONG
     allCatch opt parseLong(fieldValue) match {
-      case Some(_) => LONG
+      case Some(_) => AttributeType.LONG
       case None    => tryParseTimestamp(fieldValue)
     }
   }
 
   private def tryParseTimestamp(fieldValue: Any): AttributeType = {
     if (fieldValue == null)
-      return TIMESTAMP
+      return AttributeType.TIMESTAMP
     allCatch opt parseTimestamp(fieldValue) match {
-      case Some(_) => TIMESTAMP
+      case Some(_) => AttributeType.TIMESTAMP
       case None    => tryParseDouble(fieldValue)
     }
   }
 
   private def tryParseDouble(fieldValue: Any): AttributeType = {
     if (fieldValue == null)
-      return DOUBLE
+      return AttributeType.DOUBLE
     allCatch opt parseDouble(fieldValue) match {
-      case Some(_) => DOUBLE
+      case Some(_) => AttributeType.DOUBLE
       case None    => tryParseBoolean(fieldValue)
     }
   }
 
   private def tryParseBoolean(fieldValue: Any): AttributeType = {
     if (fieldValue == null)
-      return BOOLEAN
+      return AttributeType.BOOLEAN
     allCatch opt parseBoolean(fieldValue) match {
-      case Some(_) => BOOLEAN
+      case Some(_) => AttributeType.BOOLEAN
       case None    => tryParseString()
     }
   }
 
   private def tryParseString(): AttributeType = {
-    STRING
+    AttributeType.STRING
   }
 
   /**
@@ -300,13 +298,13 @@ object AttributeTypeUtils extends Serializable {
     */
   def inferField(attributeType: AttributeType, fieldValue: Any): AttributeType = {
     attributeType match {
-      case STRING    => tryParseString()
-      case BOOLEAN   => tryParseBoolean(fieldValue)
-      case DOUBLE    => tryParseDouble(fieldValue)
-      case LONG      => tryParseLong(fieldValue)
-      case INTEGER   => tryParseInteger(fieldValue)
-      case TIMESTAMP => tryParseTimestamp(fieldValue)
-      case BINARY    => tryParseString()
+      case AttributeType.STRING    => tryParseString()
+      case AttributeType.BOOLEAN   => tryParseBoolean(fieldValue)
+      case AttributeType.DOUBLE    => tryParseDouble(fieldValue)
+      case AttributeType.LONG      => tryParseLong(fieldValue)
+      case AttributeType.INTEGER   => tryParseInteger(fieldValue)
+      case AttributeType.TIMESTAMP => tryParseTimestamp(fieldValue)
+      case AttributeType.BINARY    => tryParseString()
       case _         => tryParseString()
     }
   }
