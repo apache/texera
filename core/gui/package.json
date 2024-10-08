@@ -58,14 +58,18 @@
 
 
     "monaco-languageclient": "8.8.3",
-    "vscode": "npm:@codingame/monaco-vscode-api@~8.0.4",
+    "vscode": "npm:@codingame/monaco-vscode-api@8.0.4",
     "monaco-editor-wrapper": "5.5.3",
 
-    "monaco-editor": "npm:@codingame/monaco-vscode-editor-api@~8.0.4",
+    "monaco-editor": "npm:@codingame/monaco-vscode-editor-api@8.0.4",
 
     "monaco-languageclient-examples": "2024.8.4",
 
-    "@codingame/monaco-vscode-python-default-extension": "~8.0.4",
+    "@codingame/monaco-vscode-python-default-extension": "8.0.4",
+
+    "@codingame/monaco-vscode-r-default-extension": "8.0.4",
+
+    "@codingame/monaco-vscode-java-default-extension": "8.0.4",
 
 
     "ng-zorro-antd": "16.2.2",
