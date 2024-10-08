@@ -6,12 +6,10 @@ import { YText } from "yjs/dist/src/types/YText";
 import { MonacoBinding } from "y-monaco";
 import { Subject } from "rxjs";
 import { takeUntil } from "rxjs/operators";
-import { MonacoLanguageClient } from "monaco-languageclient";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
 import { DomSanitizer, SafeStyle } from "@angular/platform-browser";
 import { Coeditor } from "../../../common/type/user";
 import { YType } from "../../types/shared-editing.interface";
-import { getWebsocketUrl } from "src/app/common/util/url";
 import { isUndefined } from "lodash";
 import { FormControl } from "@angular/forms";
 import { AIAssistantService, TypeAnnotationResponse } from "../../service/ai-assistant/ai-assistant.service";
@@ -44,13 +42,8 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   @ViewChild(AnnotationSuggestionComponent) annotationSuggestion!: AnnotationSuggestionComponent;
   private code?: YText;
   private editor?: any;
-  
-
   private wrapper?: MonacoEditorLanguageClientWrapper;
-
   private monacoBinding?: MonacoBinding;
-
-
 
   private workflowVersionStreamSubject: Subject<void> = new Subject<void>();
   private operatorID!: string;
@@ -186,14 +179,12 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   }
 
   private initMonaco(): void {
-    // 如果存在 wrapper，则先 dispose 旧的
     if (this.wrapper) {
       from(this.wrapper.dispose(true)).subscribe({
-        next: () => this.initializeMonacoEditor(), // 成功 dispose 后继续初始化编辑器
-        error: (e) => console.error('Error during Monaco Editor disposal:', e),
+        next: () => this.initializeMonacoEditor()
       });
     } else {
-      this.initializeMonacoEditor(); // 如果没有 wrapper，直接初始化
+      this.initializeMonacoEditor(); 
     }
   }
 
@@ -264,7 +255,6 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
                 );
               }
           
-              // 如果 AI Assistant 依赖于编辑器初始化成功
               this.aiAssistantService
                 .checkAIAssistantEnabled()
                 .pipe(untilDestroyed(this))
