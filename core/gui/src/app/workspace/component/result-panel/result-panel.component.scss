@@ -45,6 +45,8 @@ $type-colors: (
 #content {
   overflow-y: auto;
   padding-top: 38px;
+  width: inherit;
+  height: inherit;
 }
 
 #result-buttons {
