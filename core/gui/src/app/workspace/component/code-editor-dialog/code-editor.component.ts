@@ -7,14 +7,12 @@ import { MonacoBinding } from "y-monaco";
 import { Subject } from "rxjs";
 import { takeUntil } from "rxjs/operators";
 import { MonacoLanguageClient } from "monaco-languageclient";
-import { toSocket, WebSocketMessageReader, WebSocketMessageWriter } from "vscode-ws-jsonrpc";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
 import { DomSanitizer, SafeStyle } from "@angular/platform-browser";
 import { Coeditor } from "../../../common/type/user";
 import { YType } from "../../types/shared-editing.interface";
 import { getWebsocketUrl } from "src/app/common/util/url";
 import { isUndefined } from "lodash";
-import { CloseAction, ErrorAction } from "vscode-languageclient/lib/common/client.js";
 import { FormControl } from "@angular/forms";
 import { AIAssistantService, TypeAnnotationResponse } from "../../service/ai-assistant/ai-assistant.service";
 import { AnnotationSuggestionComponent } from "./annotation-suggestion.component";
@@ -23,6 +21,8 @@ import { MonacoEditorLanguageClientWrapper, UserConfig } from 'monaco-editor-wra
 import * as monaco from 'monaco-editor';
 import { from } from 'rxjs';
 import '@codingame/monaco-vscode-python-default-extension';
+import '@codingame/monaco-vscode-r-default-extension'
+import '@codingame/monaco-vscode-java-default-extension'
 
 /**
  * CodeEditorComponent is the content of the dialogue invoked by CodeareaCustomTemplateComponent.
@@ -170,6 +170,21 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     return this.sanitizer.bypassSecurityTrustHtml(textCSS);
   }
 
+  private getFileSuffixByLanguage(language: string): string {
+    switch (language.toLowerCase()) {
+      case 'python':
+        return '.py';
+      case 'r':
+        return '.r';
+      case 'javascript':
+        return '.js';
+      case 'java':
+        return '.java';
+      default:
+        return '.py'; 
+    }
+  }
+
   private initMonaco(): void {
     // 如果存在 wrapper，则先 dispose 旧的
     if (this.wrapper) {
@@ -184,7 +199,8 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
 
   private initializeMonacoEditor() {
     if (!this.wrapper && this.code) {
-        this.wrapper = new MonacoEditorLanguageClientWrapper();
+      const fileSuffix = this.getFileSuffixByLanguage(this.language);
+      this.wrapper = new MonacoEditorLanguageClientWrapper();
   
         const userConfig: UserConfig = {
           wrapperConfig: {
@@ -193,7 +209,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
               codeResources: {
                 main: {
                   text: this.code.toString(),
-                  uri: `in-memory-${this.operatorID}.py`
+                  uri: `in-memory-${this.operatorID}.${fileSuffix}`
                 }
               },
               userConfiguration: {
@@ -203,27 +219,26 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
               }
             }
           },
-          languageClientConfig: {
-            languageId: this.language || 'python',
+        };
+
+        if (this.language === 'python') {
+          userConfig.languageClientConfig = {
+            languageId: 'python',
             options: {
               $type: 'WebSocketUrl',
               url: 'ws://localhost:3000/language-server',
               startOptions: {
                 onCall: () => {
-                  console.log('Language client started');
+                  console.log('Python Language client started');
                 },
                 reportStatus: true,
               }
             }
-          }
-        };
-  
-        const initObservable = from(this.wrapper.initAndStart(userConfig, this.editorElement.nativeElement));
+          };
+        }
 
-        // 使用 subscribe 来处理 Promise 的结果
-        initObservable.subscribe({
+        from(this.wrapper.initAndStart(userConfig, this.editorElement.nativeElement)).subscribe({
             next: () => {
-              // 初始化 Monaco 编辑器和相关逻辑
               this.formControl.statusChanges.pipe(untilDestroyed(this)).subscribe(() => {
                 const editorInstance = this.wrapper?.getEditor();
                 if (editorInstance) {
@@ -282,9 +297,6 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
                     }
                   },
                 });
-            },
-            error: (e) => {
-              console.error('Error during Monaco Editor initialization:', e);
             }
           });
           
@@ -389,7 +401,6 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     if (this.wrapper) {
       from(this.wrapper.dispose(true)).subscribe({
         next: () => this.initializeDiffEditor(), 
-        error: (e) => console.error('Error during Monaco Editor disposal:', e),
       });
     } else {
       this.initializeDiffEditor(); 
