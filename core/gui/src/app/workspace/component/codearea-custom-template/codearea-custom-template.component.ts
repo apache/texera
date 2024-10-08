@@ -22,14 +22,14 @@ import { EditorStateService } from '../../service/editor-state/editor-state.serv
 export class CodeareaCustomTemplateComponent extends FieldType<FieldTypeConfig> implements OnInit, OnDestroy {
   componentRef: ComponentRef<CodeEditorComponent> | undefined;
   public isEditorOpen: boolean = false;
-  private operatorID: string = ''; // 用于存储当前的 operatorID
+  private operatorID: string = '';
 
   constructor(
     private coeditorPresenceService: CoeditorPresenceService,
     private codeEditorService: CodeEditorService,
     private changeDetectorRef: ChangeDetectorRef,
     private workflowActionService: WorkflowActionService,
-    private editorStateService: EditorStateService  // 注入服务
+    private editorStateService: EditorStateService 
   ) {
     super();
     this.coeditorPresenceService
