@@ -310,7 +310,6 @@ export class MenuComponent implements OnInit {
         },
         error: (e: unknown) => {
           this.notificationService.error((e as Error).message);
-
           // Close the notification on error
           this.notificationService.remove();
         },
