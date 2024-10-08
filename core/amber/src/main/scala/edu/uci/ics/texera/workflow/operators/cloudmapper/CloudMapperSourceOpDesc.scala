@@ -149,9 +149,9 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
        |                print("Job failed.")
        |                yield {
        |                    'Sample': None,
-       |                    'features.tsv': None,
-       |                    'barcodes.tsv': None,
-       |                    'matrix.mtx': None
+       |                    'features.tsv.gz': None,
+       |                    'barcodes.tsv.gz': None,
+       |                    'matrix.mtx.gz': None
        |                }
        |                return
        |
@@ -169,25 +169,25 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
        |
        |            for subdirectory, file_contents in all_file_contents.items():
        |                # Decode base64 content directly to bytes
-       |                features_content = base64.b64decode(file_contents['features.tsv'])
-       |                barcodes_content = base64.b64decode(file_contents['barcodes.tsv'])
-       |                matrix_content = base64.b64decode(file_contents['matrix.mtx'])
+       |                features_content = base64.b64decode(file_contents['features.tsv.gz'])
+       |                barcodes_content = base64.b64decode(file_contents['barcodes.tsv.gz'])
+       |                matrix_content = base64.b64decode(file_contents['matrix.mtx.gz'])
        |
        |                # Yield the raw byte content for each subdirectory
        |                yield {
        |                    'Sample': subdirectory,
-       |                    'features.tsv': features_content,
-       |                    'barcodes.tsv': barcodes_content,
-       |                    'matrix.mtx': matrix_content
+       |                    'features.tsv.gz': features_content,
+       |                    'barcodes.tsv.gz': barcodes_content,
+       |                    'matrix.mtx.gz': matrix_content
        |                }
        |        else:
        |            print(f"Failed to get the files. Status Code: {download_response.status_code}")
        |            print(f"Response Text: {download_response.text}")
        |            yield {
        |                'Sample': None,
-       |                'features.tsv': None,
-       |                'barcodes.tsv': None,
-       |                'matrix.mtx': None
+       |                'features.tsv.gz': None,
+       |                'barcodes.tsv.gz': None,
+       |                'matrix.mtx.gz': None
        |            }
     """.stripMargin
   }
@@ -205,9 +205,9 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
       .builder()
       .add(
         new Attribute("Sample", AttributeType.STRING),
-        new Attribute("features.tsv", AttributeType.BINARY),
-        new Attribute("barcodes.tsv", AttributeType.BINARY),
-        new Attribute("matrix.mtx", AttributeType.BINARY)
+        new Attribute("features.tsv.gz", AttributeType.BINARY),
+        new Attribute("barcodes.tsv.gz", AttributeType.BINARY),
+        new Attribute("matrix.mtx.gz", AttributeType.BINARY)
       )
       .build()
 }
