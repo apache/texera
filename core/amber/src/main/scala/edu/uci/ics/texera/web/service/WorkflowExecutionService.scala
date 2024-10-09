@@ -17,12 +17,19 @@ import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{
   COMPLETED,
   FAILED,
-  READY
+  KILLED,
+  PAUSED,
+  READY,
+  RUNNING
 }
 import edu.uci.ics.texera.web.{SubscriptionManager, TexeraWebApplication, WebsocketInput}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, WorkflowCompiler}
+import edu.uci.ics.texera.web.resource.{EmailMessage, GmailResource}
+import org.hibernate.validator.internal.constraintvalidators.hv.EmailValidator
 
+import java.time.{Instant, ZoneOffset}
+import java.time.format.DateTimeFormatter
 import scala.collection.mutable
 
 class WorkflowExecutionService(
@@ -41,6 +48,15 @@ class WorkflowExecutionService(
 
   val wsInput = new WebsocketInput(errorHandler)
 
+  private val COMPLETED_PAUSED_OR_TERMINATED_STATES: Set[WorkflowAggregatedState] = Set(
+    COMPLETED,
+    PAUSED,
+    FAILED,
+    KILLED
+  )
+
+  private val emailValidator = new EmailValidator()
+
   addSubscription(
     executionStateStore.metadataStore.registerDiffHandler((oldState, newState) => {
       val outputEvents = new mutable.ArrayBuffer[TexeraWebSocketEvent]()
@@ -51,6 +67,16 @@ class WorkflowExecutionService(
           outputEvents.append(WorkflowStateEvent("Recovering"))
         } else {
           outputEvents.append(WorkflowStateEvent(Utils.aggregatedStateToString(newState.state)))
+        }
+
+        // Send email notification if enabled and state transition is from RUNNING to COMPLETED, PAUSED, or TERMINATED
+        if (
+          request.emailNotificationEnabled &&
+          emailValidator.isValid(request.userEmail, null) &&
+          oldState.state == RUNNING &&
+          COMPLETED_PAUSED_OR_TERMINATED_STATES.contains(newState.state)
+        ) {
+          sendWorkflowStatusEmail(newState.state)
         }
       }
       // Check if new error occurred
@@ -117,6 +143,42 @@ class WorkflowExecutionService(
           }
         )
     )
+  }
+
+  private def sendWorkflowStatusEmail(state: WorkflowAggregatedState): Unit = {
+    val timestamp = DateTimeFormatter
+      .ofPattern("MMMM d, yyyy, h:mm:ss a '(UTC)'")
+      .withZone(ZoneOffset.UTC)
+      .format(Instant.now())
+
+    val dashboardUrl =
+      s"${request.baseUrl}/dashboard/user/workspace/${workflowContext.workflowId.id}"
+
+    val subject =
+      s"[Texera] Workflow ${request.workflowName} (${workflowContext.workflowId.id}) Status: $state"
+    val content = s"""
+      |Hello,
+      |
+      |The workflow with the following details has changed its state:
+      |
+      |- Workflow ID: ${workflowContext.workflowId.id}
+      |- Workflow Name: ${request.workflowName}
+      |- State: $state
+      |- Timestamp: $timestamp
+      |
+      |You can view more details by visiting: $dashboardUrl
+      |
+      |Regards,
+      |Texera Team
+    """.stripMargin
+
+    val emailMessage = EmailMessage(
+      receiver = request.userEmail,
+      subject = subject,
+      content = content
+    )
+
+    GmailResource.sendEmail(emailMessage, request.userEmail)
   }
 
   override def unsubscribeAll(): Unit = {

@@ -11,15 +11,13 @@ import javax.mail.{PasswordAuthentication, Session, Transport}
 import javax.ws.rs._
 
 case class EmailMessage(receiver: String, subject: String, content: String)
+
 @Path("/gmail")
 class GmailResource {
-  final private lazy val gmail = AmberConfig.gmail
-  final private lazy val password = AmberConfig.smtpPassword
-
   @GET
   @RolesAllowed(Array("ADMIN"))
   @Path("/sender/email")
-  def getSenderEmail: String = gmail
+  def getSenderEmail: String = GmailResource.gmail
 
   /**
     * Send an email to the user.
@@ -28,6 +26,16 @@ class GmailResource {
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/send")
   def sendEmail(emailMessage: EmailMessage, @Auth user: SessionUser): Unit = {
+    val recipientEmail = if (emailMessage.receiver.isEmpty) user.getEmail else emailMessage.receiver
+    GmailResource.sendEmail(emailMessage, recipientEmail)
+  }
+}
+
+object GmailResource {
+  final private lazy val gmail = AmberConfig.gmail
+  final private lazy val password = AmberConfig.smtpPassword
+
+  def sendEmail(emailMessage: EmailMessage, recipientEmail: String): Unit = {
     val prop = new Properties()
     prop.put("mail.smtp.host", "smtp.gmail.com")
     prop.put("mail.smtp.port", "465")
@@ -47,7 +55,7 @@ class GmailResource {
     email.setFrom(new InternetAddress("me"))
     email.addRecipient(
       javax.mail.Message.RecipientType.TO,
-      new InternetAddress(if (emailMessage.receiver == "") user.getEmail else emailMessage.receiver)
+      new InternetAddress(recipientEmail)
     )
     email.setSubject(emailMessage.subject)
     email.setText(emailMessage.content)
