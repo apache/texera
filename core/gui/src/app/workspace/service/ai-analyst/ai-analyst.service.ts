@@ -1,3 +1,12 @@
+// Define a response type for OpenAI API
+interface OpenAIResponse {
+  choices: {
+    message: {
+      content: string;
+    };
+  }[];
+}
+
 import { Injectable } from "@angular/core";
 import { HttpClient } from "@angular/common/http";
 import { firstValueFrom, of, catchError, Observable } from "rxjs";
@@ -49,49 +58,38 @@ export class AiAnalystService {
   public sendPromptToOpenAI(inputPrompt: string): Observable<string> {
     const prompt = inputPrompt;
 
-    const maxRetries = 2; // Maximum number of retries
-    let attempts = 0;
-
-    // Create an observable to handle retries
+    // Create an observable to handle the single request
     return new Observable<string>(observer => {
-      // Check if AI Assistant is enabled
       this.isOpenAIEnabled().subscribe(
         (AIEnabled: boolean) => {
           if (!AIEnabled) {
             observer.next(""); // If AI Assistant is not enabled, return an empty string
             observer.complete();
           } else {
-            // Retry logic for up to maxRetries attempts
-            const tryRequest = () => {
-              this.http
-                .post<any>(api_Url_Openai, { prompt })
-                .pipe(
-                  map(response => {
-                    const content = response.choices[0]?.message?.content.trim() || "";
-                    return content;
-                  })
-                )
-                .subscribe({
-                  next: content => {
-                    observer.next(content); // Return the response content if successful
-                    observer.complete();
-                  },
-                  error: (error: unknown) => {
-                    attempts++;
-                    if (attempts > maxRetries) {
-                      observer.error(`Failed after ${maxRetries + 1} attempts: ${error || "Unknown error"}`);
-                    } else {
-                      console.error(`Attempt ${attempts} failed:`, error);
-                      tryRequest(); // Retry if attempts are not exhausted
-                    }
-                  },
-                });
-            };
-            tryRequest(); // Start the first attempt
+            // Perform the HTTP request without retries
+            this.http
+              .post<OpenAIResponse>(api_Url_Openai, { prompt })
+              .pipe(
+                map(response => {
+                  const content = response.choices[0]?.message?.content.trim() || "";
+                  return content;
+                })
+              )
+              .subscribe({
+                next: content => {
+                  observer.next(content); // Return the response content if successful
+                  observer.complete();
+                },
+                error: () => {
+                  observer.next(""); // If there's an error, return an empty string
+                  observer.complete();
+                }
+              });
           }
         },
-        (error: unknown) => {
-          observer.error(`Error checking AI Assistant status: ${error || "Unknown error"}`);
+        () => {
+          observer.next(""); // If AI Assistant status check fails, return an empty string
+          observer.complete();
         }
       );
     });
