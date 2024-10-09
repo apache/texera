@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.source.cache
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, SchemaPropagationFunc}
+import edu.uci.ics.amber.engine.common.model.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.common.model.tuple.Schema
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ExecutionIdentity,

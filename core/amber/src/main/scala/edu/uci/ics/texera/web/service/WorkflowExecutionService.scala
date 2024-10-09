@@ -3,9 +3,9 @@ package edu.uci.ics.texera.web.service
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
+import edu.uci.ics.amber.engine.common.Utils
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.model.WorkflowContext
-import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.model.websocket.event.{
   TexeraWebSocketEvent,
   WorkflowErrorEvent,

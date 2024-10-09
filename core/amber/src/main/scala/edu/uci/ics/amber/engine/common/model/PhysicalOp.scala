@@ -1,4 +1,4 @@
-package edu.uci.ics.amber.engine.architecture.deploysemantics
+package edu.uci.ics.amber.engine.common.model
 
 import akka.actor.Deploy
 import akka.remote.RemoteScope

@@ -13,7 +13,7 @@ import com.google.api.services.sheets.v4.Sheets
 import com.google.api.services.sheets.v4.model.{Spreadsheet, SpreadsheetProperties, ValueRange}
 import edu.uci.ics.amber.engine.common.model.tuple.Tuple
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
-import edu.uci.ics.texera.Utils.retry
+import edu.uci.ics.amber.engine.common.Utils.retry
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.websocket.request.ResultExportRequest
 import edu.uci.ics.texera.web.model.websocket.response.ResultExportResponse

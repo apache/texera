@@ -3,7 +3,7 @@ package edu.uci.ics.amber.engine.common.model.tuple
 import com.fasterxml.jackson.databind.JsonNode
 import AttributeType._
 import AttributeTypeUtils.{inferSchemaFromRows, parseField}
-import edu.uci.ics.texera.Utils.objectMapper
+import edu.uci.ics.amber.engine.common.Utils.objectMapper
 import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONUtil.JSONToMap
 import org.bson.Document
 import org.bson.types.Binary

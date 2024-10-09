@@ -7,7 +7,7 @@ import edu.uci.ics.amber.engine.common.model.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.common.model.tuple.Schema
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.error.ErrorUtils.getStackTraceWithAllCauses
-import edu.uci.ics.texera.Utils.objectMapper
+import edu.uci.ics.amber.engine.common.Utils.objectMapper
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
 import edu.uci.ics.texera.web.storage.ExecutionStateStore

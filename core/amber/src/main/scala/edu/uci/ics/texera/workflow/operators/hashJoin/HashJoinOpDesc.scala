@@ -3,9 +3,8 @@ package edu.uci.ics.texera.workflow.operators.hashJoin
 import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc.HASH_JOIN_INTERNAL_KEY_NAME
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.common.model.PhysicalPlan
+import edu.uci.ics.amber.engine.common.model.{PhysicalOp, PhysicalPlan, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.common.model.tuple.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ExecutionIdentity,

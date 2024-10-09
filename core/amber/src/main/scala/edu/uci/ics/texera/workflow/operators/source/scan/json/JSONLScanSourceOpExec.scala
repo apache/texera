@@ -2,7 +2,7 @@ package edu.uci.ics.texera.workflow.operators.source.scan.json
 
 import edu.uci.ics.amber.engine.common.executor.SourceOperatorExecutor
 import edu.uci.ics.amber.engine.common.storage.DatasetFileDocument
-import edu.uci.ics.texera.Utils.objectMapper
+import edu.uci.ics.amber.engine.common.Utils.objectMapper
 import edu.uci.ics.amber.engine.common.model.tuple.AttributeTypeUtils.parseField
 import edu.uci.ics.amber.engine.common.model.tuple.{Schema, TupleLike}
 import edu.uci.ics.texera.workflow.operators.source.scan.FileDecodingMethod

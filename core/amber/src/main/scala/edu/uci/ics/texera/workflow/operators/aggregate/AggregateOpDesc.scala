@@ -2,9 +2,8 @@ package edu.uci.ics.texera.workflow.operators.aggregate
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.common.model.PhysicalPlan
+import edu.uci.ics.amber.engine.common.model.{PhysicalOp, PhysicalPlan, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.common.model.tuple.Schema
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ExecutionIdentity,

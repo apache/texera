@@ -9,12 +9,11 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
   WorkerAssignmentUpdate
 }
 import edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping
-import edu.uci.ics.amber.engine.common.AmberConfig
+import edu.uci.ics.amber.engine.common.{AmberConfig, Utils}
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.model.WorkflowContext
 import edu.uci.ics.amber.error.ErrorUtils.{getOperatorFromActorIdOpt, getStackTraceWithAllCauses}
-import edu.uci.ics.texera.Utils
-import edu.uci.ics.texera.Utils.maptoStatusCode
+import Utils.maptoStatusCode
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowRuntimeStatistics
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowRuntimeStatisticsDao
 import edu.uci.ics.texera.web.{SqlServer, SubscriptionManager}

@@ -7,13 +7,12 @@ import com.github.toastshaman.dropwizard.auth.jwt.JwtAuthFilter
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
 import edu.uci.ics.amber.engine.common.AmberRuntime.scheduleRecurringCallThroughActorSystem
-import edu.uci.ics.amber.engine.common.{AmberConfig, AmberRuntime}
+import edu.uci.ics.amber.engine.common.{AmberConfig, AmberRuntime, Utils}
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.model.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity
-import edu.uci.ics.texera.Utils
-import edu.uci.ics.texera.Utils.{maptoStatusCode, objectMapper}
+import Utils.{maptoStatusCode, objectMapper}
 import edu.uci.ics.texera.web.auth.JwtAuth.jwtConsumer
 import edu.uci.ics.texera.web.auth.{
   GuestAuthFilter,

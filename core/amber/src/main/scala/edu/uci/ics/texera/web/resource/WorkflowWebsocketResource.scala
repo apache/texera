@@ -6,7 +6,7 @@ import edu.uci.ics.amber.clustering.ClusterListener
 import edu.uci.ics.amber.engine.common.model.WorkflowContext
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.amber.error.ErrorUtils.getStackTraceWithAllCauses
-import edu.uci.ics.texera.Utils.objectMapper
+import edu.uci.ics.amber.engine.common.Utils.objectMapper
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.websocket.event.{
   CacheStatusUpdateEvent,

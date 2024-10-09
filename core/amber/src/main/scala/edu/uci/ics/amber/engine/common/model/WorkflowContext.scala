@@ -7,7 +7,6 @@ import edu.uci.ics.amber.engine.common.model.WorkflowContext.{
   DEFAULT_WORKFLOW_SETTINGS
 }
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.texera.workflow.common.workflow.WorkflowSettings
 
 object WorkflowContext {
   val DEFAULT_EXECUTION_ID: ExecutionIdentity = ExecutionIdentity(1L)

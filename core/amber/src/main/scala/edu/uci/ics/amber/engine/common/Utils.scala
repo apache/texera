@@ -1,4 +1,4 @@
-package edu.uci.ics.texera
+package edu.uci.ics.amber.engine.common
 
 import com.fasterxml.jackson.annotation.JsonInclude.Include
 import com.fasterxml.jackson.databind.ObjectMapper

@@ -6,7 +6,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode
 import com.google.common.base.Preconditions.checkNotNull
 import Tuple.checkSchemaMatchesFields
 import TupleUtils.document2Tuple
-import edu.uci.ics.texera.Utils
+import edu.uci.ics.amber.engine.common.Utils
 import org.bson.Document
 import org.ehcache.sizeof.SizeOf
 

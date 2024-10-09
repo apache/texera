@@ -2,7 +2,7 @@ package edu.uci.ics.texera.workflow.operators.filter;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp;
+import edu.uci.ics.amber.engine.common.model.PhysicalOp;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo;
 import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity;
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity;

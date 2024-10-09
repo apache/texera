@@ -1,12 +1,11 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.scheduling.RegionPlanGenerator.replaceVertex
 import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
   DefaultResourceAllocator,
   ExecutionClusterInfo
 }
-import edu.uci.ics.amber.engine.common.model.{PhysicalPlan, WorkflowContext}
+import edu.uci.ics.amber.engine.common.model.{PhysicalOp, PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.common.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage

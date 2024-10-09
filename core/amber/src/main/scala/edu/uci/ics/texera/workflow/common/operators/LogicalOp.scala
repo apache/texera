@@ -9,9 +9,8 @@ import com.fasterxml.jackson.annotation.{
   JsonTypeInfo
 }
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.common.executor.OperatorExecutor
-import edu.uci.ics.amber.engine.common.model.{PhysicalPlan, WorkflowContext}
+import edu.uci.ics.amber.engine.common.model.{PhysicalOp, PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.common.model.tuple.Schema
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ExecutionIdentity,
