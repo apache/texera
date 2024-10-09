@@ -22,8 +22,10 @@
   font-weight: 200;
   line-height: 14px;
   color: red;
+  overflow-x: auto;
   white-space: pre-line;
   margin-left: 30px;
+  user-select: text;
 }
 
 .error-category {
