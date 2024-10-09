@@ -1,5 +1,5 @@
-import { AfterViewInit, Component, Input, ViewChild } from "@angular/core";
-import { Router } from "@angular/router";
+import { AfterViewInit, Component, Input, OnInit, ViewChild } from "@angular/core";
+import { ActivatedRoute, Router } from "@angular/router";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { firstValueFrom, of } from "rxjs";
 import {
@@ -57,7 +57,7 @@ import { DashboardWorkflow } from "../../../type/dashboard-workflow.interface";
   templateUrl: "user-workflow.component.html",
   styleUrls: ["user-workflow.component.scss"],
 })
-export class UserWorkflowComponent implements AfterViewInit {
+export class UserWorkflowComponent implements AfterViewInit, OnInit {
   public ROUTER_WORKFLOW_BASE_URL = "/dashboard/user/workspace";
   private _searchResultsComponent?: SearchResultsComponent;
   public isLogin = this.userService.isLogin();
@@ -99,7 +99,7 @@ export class UserWorkflowComponent implements AfterViewInit {
     private modalService: NzModalService,
     private router: Router,
     private fileSaverService: FileSaverService,
-    private searchService: SearchService
+    private searchService: SearchService,
   ) {
     this.userService
       .userChanged()
@@ -115,6 +115,14 @@ export class UserWorkflowComponent implements AfterViewInit {
       return this.searchResultsComponent?.entries.filter(i => i.checked).length > 0;
     } else {
       return false;
+    }
+  }
+
+  ngOnInit(): void {
+    const cloneSuccess = sessionStorage.getItem("cloneSuccess");
+    if (cloneSuccess === "true") {
+      this.notificationService.success("Clone Successful");
+      sessionStorage.removeItem("cloneSuccess");
     }
   }
 
