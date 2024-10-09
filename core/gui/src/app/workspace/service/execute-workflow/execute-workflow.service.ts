@@ -27,6 +27,7 @@ import { intersection } from "../../../common/util/set";
 import { WorkflowSettings } from "../../../common/type/workflow";
 import { DOCUMENT } from "@angular/common";
 import { UserService } from "src/app/common/service/user/user.service";
+import { User } from "src/app/common/type/user";
 
 // TODO: change this declaration
 export const FORM_DEBOUNCE_TIME_MS = 150;
@@ -75,7 +76,6 @@ export class ExecuteWorkflowService {
     private workflowWebsocketService: WorkflowWebsocketService,
     private workflowStatusService: WorkflowStatusService,
     private notificationService: NotificationService,
-    private userService: UserService,
     @Inject(DOCUMENT) private document: Document
   ) {
     workflowWebsocketService.websocketEvent().subscribe(event => {
@@ -170,6 +170,7 @@ export class ExecuteWorkflowService {
   public executeWorkflowWithEmailNotification(
     executionName: string,
     emailNotificationEnabled: boolean,
+    user: User | undefined,
     targetOperatorId?: string
   ): void {
     const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(
@@ -179,11 +180,11 @@ export class ExecuteWorkflowService {
     const settings = this.workflowActionService.getWorkflowSettings();
     this.resetExecutionState();
     this.workflowStatusService.resetStatus();
-    this.sendExecutionRequest(executionName, logicalPlan, settings, emailNotificationEnabled);
+    this.sendExecutionRequest(executionName, logicalPlan, settings, emailNotificationEnabled, user);
   }
 
   public executeWorkflow(executionName: string, targetOperatorId?: string): void {
-    this.executeWorkflowWithEmailNotification(executionName, false, targetOperatorId);
+    this.executeWorkflowWithEmailNotification(executionName, false, undefined, targetOperatorId);
   }
 
   public executeWorkflowWithReplay(replayExecutionInfo: ReplayExecutionInfo): void {
@@ -196,6 +197,7 @@ export class ExecuteWorkflowService {
       logicalPlan,
       settings,
       false,
+      undefined,
       replayExecutionInfo
     );
   }
@@ -205,10 +207,10 @@ export class ExecuteWorkflowService {
     logicalPlan: LogicalPlan,
     workflowSettings: WorkflowSettings,
     emailNotificationEnabled: boolean,
+    user: User | undefined,
     replayExecutionInfo: ReplayExecutionInfo | undefined = undefined
   ): void {
     const workflow = this.workflowActionService.getWorkflow();
-    const user = this.userService.getCurrentUser();
 
     const workflowExecuteRequest = {
       executionName: executionName,
