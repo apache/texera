@@ -5,7 +5,7 @@ import { CodeEditorComponent } from "../code-editor-dialog/code-editor.component
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
 import { CodeEditorService } from "../../service/code-editor/code-editor.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
-import { EditorStateService } from '../../service/editor-state/editor-state.service';
+import { EditorStateService } from "../../service/editor-state/editor-state.service";
 
 /**
  * CodeareaCustomTemplateComponent is the custom template for 'codearea' type of formly field.
@@ -22,14 +22,14 @@ import { EditorStateService } from '../../service/editor-state/editor-state.serv
 export class CodeareaCustomTemplateComponent extends FieldType<FieldTypeConfig> implements OnInit, OnDestroy {
   componentRef: ComponentRef<CodeEditorComponent> | undefined;
   public isEditorOpen: boolean = false;
-  private operatorID: string = '';
+  private operatorID: string = "";
 
   constructor(
     private coeditorPresenceService: CoeditorPresenceService,
     private codeEditorService: CodeEditorService,
     private changeDetectorRef: ChangeDetectorRef,
     private workflowActionService: WorkflowActionService,
-    private editorStateService: EditorStateService 
+    private editorStateService: EditorStateService
   ) {
     super();
     this.coeditorPresenceService
@@ -44,10 +44,13 @@ export class CodeareaCustomTemplateComponent extends FieldType<FieldTypeConfig> 
 
   ngOnInit() {
     this.operatorID = this.getOperatorID();
-    this.editorStateService.getEditorState(this.operatorID).pipe(untilDestroyed(this)).subscribe(isOpen => {
-      this.isEditorOpen = isOpen;
-      this.changeDetectorRef.detectChanges();
-    });
+    this.editorStateService
+      .getEditorState(this.operatorID)
+      .pipe(untilDestroyed(this))
+      .subscribe(isOpen => {
+        this.isEditorOpen = isOpen;
+        this.changeDetectorRef.detectChanges();
+      });
   }
 
   openEditor(): void {
@@ -73,4 +76,3 @@ export class CodeareaCustomTemplateComponent extends FieldType<FieldTypeConfig> 
     return this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0];
   }
 }
-

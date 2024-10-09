@@ -6,23 +6,21 @@ import { YText } from "yjs/dist/src/types/YText";
 import { MonacoBinding } from "y-monaco";
 import { Subject, take } from "rxjs";
 import { takeUntil } from "rxjs/operators";
-import { MonacoLanguageClient } from "monaco-languageclient";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
 import { DomSanitizer, SafeStyle } from "@angular/platform-browser";
 import { Coeditor } from "../../../common/type/user";
 import { YType } from "../../types/shared-editing.interface";
-import { getWebsocketUrl } from "src/app/common/util/url";
 import { isUndefined } from "lodash";
 import { FormControl } from "@angular/forms";
 import { AIAssistantService, TypeAnnotationResponse } from "../../service/ai-assistant/ai-assistant.service";
 import { AnnotationSuggestionComponent } from "./annotation-suggestion.component";
 
-import { MonacoEditorLanguageClientWrapper, UserConfig } from 'monaco-editor-wrapper';
-import * as monaco from 'monaco-editor';
-import { from } from 'rxjs';
-import '@codingame/monaco-vscode-python-default-extension';
-import '@codingame/monaco-vscode-r-default-extension'
-import '@codingame/monaco-vscode-java-default-extension'
+import { MonacoEditorLanguageClientWrapper, UserConfig } from "monaco-editor-wrapper";
+import * as monaco from "monaco-editor";
+import { from } from "rxjs";
+import "@codingame/monaco-vscode-python-default-extension";
+import "@codingame/monaco-vscode-r-default-extension";
+import "@codingame/monaco-vscode-java-default-extension";
 
 /**
  * CodeEditorComponent is the content of the dialogue invoked by CodeareaCustomTemplateComponent.
@@ -172,27 +170,26 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
 
   private getFileSuffixByLanguage(language: string): string {
     switch (language.toLowerCase()) {
-      case 'python':
-        return '.py';
-      case 'r':
-        return '.r';
-      case 'javascript':
-        return '.js';
-      case 'java':
-        return '.java';
+      case "python":
+        return ".py";
+      case "r":
+        return ".r";
+      case "javascript":
+        return ".js";
+      case "java":
+        return ".java";
       default:
-        return '.py'; 
+        return ".py";
     }
   }
 
   private initMonaco(): void {
     if (this.wrapper) {
       from(this.wrapper.dispose(true)).subscribe({
-        next: () => this.initializeMonacoEditor(), 
-        error: (e) => console.error('Error during Monaco Editor disposal:', e),
+        next: () => this.initializeMonacoEditor(),
       });
     } else {
-      this.initializeMonacoEditor(); 
+      this.initializeMonacoEditor();
     }
   }
 
@@ -204,77 +201,76 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     if (!this.wrapper && this.code) {
       const fileSuffix = this.getFileSuffixByLanguage(this.language);
       this.wrapper = new MonacoEditorLanguageClientWrapper();
-  
-        const userConfig: UserConfig = {
-          wrapperConfig: {
-            editorAppConfig: {
-              $type: 'extended',
-              codeResources: {
-                main: {
-                  text: this.code.toString(),
-                  uri: `in-memory-${this.operatorID}.${fileSuffix}`
-                }
+
+      const userConfig: UserConfig = {
+        wrapperConfig: {
+          editorAppConfig: {
+            $type: "extended",
+            codeResources: {
+              main: {
+                text: this.code.toString(),
+                uri: `in-memory-${this.operatorID}.${fileSuffix}`,
               },
-              userConfiguration: {
-                json: JSON.stringify({
-                  'workbench.colorTheme': 'Default Dark Modern',
-                })
-              }
-            }
+            },
+            userConfiguration: {
+              json: JSON.stringify({
+                "workbench.colorTheme": "Default Dark Modern",
+              }),
+            },
+          },
+        },
+      };
+
+      if (this.language === "python") {
+        userConfig.languageClientConfig = {
+          languageId: "python",
+          options: {
+            $type: "WebSocketUrl",
+            url: "ws://localhost:3000/language-server",
+            startOptions: {
+              onCall: () => {
+                console.log("Python Language client started");
+              },
+              reportStatus: true,
+            },
           },
         };
+      }
 
-        if (this.language === 'python') {
-          userConfig.languageClientConfig = {
-            languageId: 'python',
-            options: {
-              $type: 'WebSocketUrl',
-              url: 'ws://localhost:3000/language-server',
-              startOptions: {
-                onCall: () => {
-                  console.log('Python Language client started');
-                },
-                reportStatus: true,
-              }
-            }
-          };
-        }
-
-        from(this.wrapper.initAndStart(userConfig, this.editorElement.nativeElement)).subscribe({
-            next: () => {
-              this.formControl.statusChanges.pipe(untilDestroyed(this)).subscribe(() => {
-                const editorInstance = this.wrapper?.getEditor();
-                if (editorInstance) {
-                  editorInstance.updateOptions({
-                    readOnly: this.formControl.disabled,
-                  });
-                }
+      from(this.wrapper.initAndStart(userConfig, this.editorElement.nativeElement)).subscribe({
+        next: () => {
+          this.formControl.statusChanges.pipe(untilDestroyed(this)).subscribe(() => {
+            const editorInstance = this.wrapper?.getEditor();
+            if (editorInstance) {
+              editorInstance.updateOptions({
+                readOnly: this.formControl.disabled,
               });
-          
-              this.editor = this.wrapper?.getEditor();
-          
-              if (this.code && this.editor) {
-                if (this.monacoBinding) {
-                  this.monacoBinding.destroy();  
-                  this.monacoBinding = undefined;
-                }
-          
-                this.monacoBinding = new MonacoBinding(
-                  this.code,
-                  this.editor.getModel()!,
-                  new Set([this.editor]),
-                  this.workflowActionService.getTexeraGraph().getSharedModelAwareness()
-                );
-              }
-          
-              this.setupAIAssistantActions();
             }
           });
-          
+
+          this.editor = this.wrapper?.getEditor();
+
+          if (this.code && this.editor) {
+            if (this.monacoBinding) {
+              this.monacoBinding.destroy();
+              this.monacoBinding = undefined;
+            }
+
+            this.monacoBinding = new MonacoBinding(
+              this.code,
+              this.editor.getModel()!,
+              new Set([this.editor]),
+              this.workflowActionService.getTexeraGraph().getSharedModelAwareness()
+            );
+          }
+
+          this.setupAIAssistantActions();
+        },
+      });
     }
   }
 
-  private setupAIAssistantActions(){
+  private setupAIAssistantActions() {
     // Check if the AI provider is "openai"
     this.aiAssistantService
       .checkAIAssistantEnabled()
@@ -507,10 +503,10 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   private initDiffEditor(): void {
     if (this.wrapper) {
       from(this.wrapper.dispose(true)).subscribe({
-        next: () => this.initializeDiffEditor(), 
+        next: () => this.initializeDiffEditor(),
       });
     } else {
-      this.initializeDiffEditor(); 
+      this.initializeDiffEditor();
     }
   }
 
@@ -524,55 +520,54 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
             operator.operatorID ===
             this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0]
         )?.[0].operatorProperties.code;
-        
-        const userConfig: UserConfig = {
-          wrapperConfig: {
-            editorAppConfig: {
-              $type: 'extended',
-              codeResources: {
-                main: {
-                  text: currentWorkflowVersionCode,
-                  uri: `in-memory-${this.operatorID}-version.py`,
-                },
-                original: {
-                  text: this.code.toString(),
-                  uri: `in-memory-${this.operatorID}.py`,
-                }
+
+      const userConfig: UserConfig = {
+        wrapperConfig: {
+          editorAppConfig: {
+            $type: "extended",
+            codeResources: {
+              main: {
+                text: currentWorkflowVersionCode,
+                uri: `in-memory-${this.operatorID}-version.py`,
               },
-              useDiffEditor: true,
-              diffEditorOptions: {  
-                readOnly: true,  
+              original: {
+                text: this.code.toString(),
+                uri: `in-memory-${this.operatorID}.py`,
               },
-              userConfiguration: {
-                json: JSON.stringify({
-                  'workbench.colorTheme': 'Default Dark Modern',
-                }),
-              }
+            },
+            useDiffEditor: true,
+            diffEditorOptions: {
+              readOnly: true,
+            },
+            userConfiguration: {
+              json: JSON.stringify({
+                "workbench.colorTheme": "Default Dark Modern",
+              }),
             },
           },
-          languageClientConfig: {
-            languageId: this.language || 'python',
-            options: {
-              $type: 'WebSocketUrl',
-              url: 'ws://localhost:3000/language-server',
-              startOptions: {
-                onCall: () => {
-                  console.log('Language client started');
-                },
-                reportStatus: true,
-              }
-            }
-          }
-        };
-    
-        try {
-          this.wrapper.initAndStart(userConfig, this.editorElement.nativeElement);
-        } catch (e) {
-          console.error('Error during Monaco Editor initialization:', e);
-        }
-      }
-   }
+        },
+        languageClientConfig: {
+          languageId: this.language || "python",
+          options: {
+            $type: "WebSocketUrl",
+            url: "ws://localhost:3000/language-server",
+            startOptions: {
+              onCall: () => {
+                console.log("Language client started");
+              },
+              reportStatus: true,
+            },
+          },
+        },
+      };
 
+      try {
+        this.wrapper.initAndStart(userConfig, this.editorElement.nativeElement);
+      } catch (e) {
+        console.error("Error during Monaco Editor initialization:", e);
+      }
+    }
+  }
 
   onFocus() {
     this.workflowActionService.getJointGraphWrapper().highlightOperators(this.operatorID);
