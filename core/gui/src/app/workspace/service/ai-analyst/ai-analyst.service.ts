@@ -83,7 +83,7 @@ export class AiAnalystService {
                 error: () => {
                   observer.next(""); // If there's an error, return an empty string
                   observer.complete();
-                }
+                },
               });
           }
         },
