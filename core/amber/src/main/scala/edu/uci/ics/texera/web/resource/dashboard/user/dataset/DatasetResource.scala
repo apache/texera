@@ -1068,68 +1068,8 @@ class DatasetResource {
       @QueryParam("path") pathStr: String,
       @Auth user: SessionUser
   ): Response = {
-    val uid = user.getUid
-    val decodedPathStr = URLDecoder.decode(pathStr, StandardCharsets.UTF_8.name())
-    val (_, dataset, dsVersion, _) =
-      resolvePath(Paths.get(decodedPathStr), shouldContainFile = false)
-
-    withTransaction(context) { ctx =>
-      val did = dataset.getDid
-      val dvid = dsVersion.getDvid
-
-      if (!userHasReadAccess(ctx, did, uid)) {
-        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-      }
-
-      val targetDatasetPath = PathUtils.getDatasetPath(did)
-      val datasetVersion = getDatasetVersionByID(ctx, dvid)
-      val versionHash = datasetVersion.getVersionHash
-
-      val fileNodes = GitVersionControlLocalFileStorage.retrieveRootFileNodesOfVersion(
-        targetDatasetPath,
-        versionHash
-      )
-
-      val streamingOutput = new StreamingOutput() {
-        override def write(outputStream: OutputStream): Unit = {
-          val zipOutputStream = new ZipOutputStream(outputStream)
-
-          try {
-            fileNodes.foreach { fileNode =>
-              val zipEntryName = fileNode.getRelativePath.toString
-
-              try {
-                zipOutputStream.putNextEntry(new ZipEntry(zipEntryName))
-
-                val filePath = fileNode.getAbsolutePath
-
-                Files.copy(filePath, zipOutputStream)
-
-              } catch {
-                case e: IOException =>
-                  throw new WebApplicationException(s"Error processing file: $zipEntryName", e)
-              } finally {
-                zipOutputStream.closeEntry()
-              }
-            }
-          } catch {
-            case e: IOException =>
-              throw new WebApplicationException("Error creating ZIP output stream", e)
-          } finally {
-            zipOutputStream.close()
-          }
-        }
-      }
-
-      Response
-        .ok(streamingOutput)
-        .header(
-          "Content-Disposition",
-          s"attachment; filename=${dataset.getName}-${datasetVersion.getName}.zip"
-        )
-        .`type`("application/zip")
-        .build()
-    }
+    val (dataset, dsVersion) = resolveAndValidatePath(pathStr, user)
+    createZipResponse(dataset, dsVersion)
   }
 
   @GET
@@ -1138,62 +1078,88 @@ class DatasetResource {
       @PathParam("did") did: UInteger,
       @Auth user: SessionUser
   ): Response = {
+    val (dataset, latestVersion) = getLatestVersionInfo(did, user)
+    createZipResponse(dataset, latestVersion)
+  }
+
+  private def resolveAndValidatePath(
+      pathStr: String,
+      user: SessionUser
+  ): (Dataset, DatasetVersion) = {
+    val uid = user.getUid
+    val decodedPathStr = URLDecoder.decode(pathStr, StandardCharsets.UTF_8.name())
+    val (_, dataset, dsVersion, _) =
+      resolvePath(Paths.get(decodedPathStr), shouldContainFile = false)
+
+    if (!userHasReadAccess(context, dataset.getDid, uid)) {
+      throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+    }
+
+    (dataset, dsVersion)
+  }
+
+  private def getLatestVersionInfo(did: UInteger, user: SessionUser): (Dataset, DatasetVersion) = {
     val uid = user.getUid
 
-    withTransaction(context) { ctx =>
-      if (!userHasReadAccess(ctx, did, uid)) {
-        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-      }
+    if (!userHasReadAccess(context, did, uid)) {
+      throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+    }
 
-      val dataset = getDatasetByID(ctx, did)
-      val latestVersion = getDatasetLatestVersion(ctx, did, uid)
-      val targetDatasetPath = PathUtils.getDatasetPath(did)
-      val versionHash = latestVersion.getVersionHash
+    val dataset = getDatasetByID(context, did)
+    val latestVersion = getDatasetLatestVersion(context, did, uid)
+    (dataset, latestVersion)
+  }
 
-      val fileNodes = GitVersionControlLocalFileStorage.retrieveRootFileNodesOfVersion(
-        targetDatasetPath,
-        versionHash
+  private def createZipResponse(dataset: Dataset, version: DatasetVersion): Response = {
+    val targetDatasetPath = PathUtils.getDatasetPath(dataset.getDid)
+    val fileNodes = GitVersionControlLocalFileStorage.retrieveRootFileNodesOfVersion(
+      targetDatasetPath,
+      version.getVersionHash
+    )
+
+    val streamingOutput = createStreamingOutput(fileNodes)
+
+    Response
+      .ok(streamingOutput)
+      .header(
+        "Content-Disposition",
+        s"attachment; filename=${dataset.getName}-${version.getName}.zip"
       )
+      .`type`("application/zip")
+      .build()
+  }
 
-      val streamingOutput = new StreamingOutput() {
-        override def write(outputStream: OutputStream): Unit = {
-          val zipOutputStream = new ZipOutputStream(outputStream)
+  private def createStreamingOutput(fileNodes: util.Set[PhysicalFileNode]): StreamingOutput = {
+    new StreamingOutput() {
+      override def write(outputStream: OutputStream): Unit = {
+        val zipOutputStream = new ZipOutputStream(outputStream)
 
-          try {
-            fileNodes.foreach { fileNode =>
-              val zipEntryName = fileNode.getRelativePath.toString
-
-              try {
-                zipOutputStream.putNextEntry(new ZipEntry(zipEntryName))
-
-                val filePath = fileNode.getAbsolutePath
-
-                Files.copy(filePath, zipOutputStream)
-
-              } catch {
-                case e: IOException =>
-                  throw new WebApplicationException(s"Error processing file: $zipEntryName", e)
-              } finally {
-                zipOutputStream.closeEntry()
-              }
-            }
-          } catch {
-            case e: IOException =>
-              throw new WebApplicationException("Error creating ZIP output stream", e)
-          } finally {
-            zipOutputStream.close()
+        try {
+          fileNodes.foreach { fileNode =>
+            addFileToZip(zipOutputStream, fileNode)
           }
+        } catch {
+          case e: IOException =>
+            throw new WebApplicationException("Error creating ZIP output stream", e)
+        } finally {
+          zipOutputStream.close()
         }
       }
+    }
+  }
 
-      Response
-        .ok(streamingOutput)
-        .header(
-          "Content-Disposition",
-          s"attachment; filename=${dataset.getName}.zip"
-        )
-        .`type`("application/zip")
-        .build()
+  private def addFileToZip(zipOutputStream: ZipOutputStream, fileNode: PhysicalFileNode): Unit = {
+    val zipEntryName = fileNode.getRelativePath.toString
+
+    try {
+      zipOutputStream.putNextEntry(new ZipEntry(zipEntryName))
+      val filePath = fileNode.getAbsolutePath
+      Files.copy(filePath, zipOutputStream)
+    } catch {
+      case e: IOException =>
+        throw new WebApplicationException(s"Error processing file: $zipEntryName", e)
+    } finally {
+      zipOutputStream.closeEntry()
     }
   }
 }
