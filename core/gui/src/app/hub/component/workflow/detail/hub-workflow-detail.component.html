@@ -17,13 +17,14 @@
       <h1>Workflow Detail Page</h1>
     </div>
     <div class="workflow-panel">
+      <!-- Like button -->
       <button
         nz-button
         nzType="text"
         class="dropdown-item like-button"
         title="Like"
-        *ngIf="isLogin"
-        [ngClass]="{ liked: isLiked }"
+        [ngClass]="{ liked: isLiked, 'disabled-button': !isLogin }"
+        [disabled]="!isLogin"
         (click)="toggleLike(this.wid, this.currentUid)">
         <i
           nz-icon
@@ -35,14 +36,14 @@
         <span>{{ formatLikeCount(likeCount) }}</span>
       </button>
 
+      <!-- Clone button -->
       <button
         nz-button
         nzType="text"
         class="clone-button"
         title="Copy"
-        *ngIf="isLogin"
-        [ngClass]="{ 'disabled-button': !isHub }"
-        [disabled]="!isHub"
+        [ngClass]="{ 'disabled-button': !isLogin || !isHub }"
+        [disabled]="!isLogin || !isHub"
         (click)="cloneWorkflow()">
         <i
           nz-icon
