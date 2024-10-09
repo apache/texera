@@ -22,7 +22,7 @@ import { SearchService } from "../../../service/user/search.service";
 import { SortMethod } from "../../../type/sort-method";
 import { isDefined } from "../../../../common/util/predicate";
 import { UserProjectService } from "../../../service/user/project/user-project.service";
-import { map, mergeMap, tap } from "rxjs/operators";
+import { map, mergeMap, switchMap, tap } from "rxjs/operators";
 import { environment } from "../../../../../environments/environment";
 import { DashboardWorkflow } from "../../../type/dashboard-workflow.interface";
 /**
@@ -345,74 +345,81 @@ export class UserWorkflowComponent implements AfterViewInit {
   public onClickUploadExistingWorkflowFromLocal = (file: NzUploadFile): Observable<boolean> => {
     const fileExtensionIndex = file.name.lastIndexOf(".");
 
-    const uploadPromise = (async () => {
-      if (file.name.substring(fileExtensionIndex) === ".zip") {
-        this.handleZipUploads(file as unknown as Blob);
-      } else {
-        this.handleFileUploads(file as unknown as Blob, file.name);
-      }
-      await this.search(true);
-      return false;
-    })();
+    let upload$: Observable<any>;
+    if (file.name.substring(fileExtensionIndex) === ".zip") {
+      upload$ = this.handleZipUploads(file as unknown as Blob);
+    } else {
+      upload$ = this.handleFileUploads(file as unknown as Blob, file.name);
+    }
 
-    return from(uploadPromise);
+    return upload$.pipe(
+      switchMap(() => from(this.search(true))),
+      tap(() => this.notificationService.success("Upload Successful")),
+      switchMap(() => of(false))
+    );
   };
 
   /**
    * process .zip file uploads
    */
-  private handleZipUploads(zipFile: Blob) {
+  private handleZipUploads(zipFile: Blob): Observable<any> {
     let zip = new JSZip();
-    zip.loadAsync(zipFile).then(zip => {
-      zip.forEach((relativePath, file) => {
-        file.async("blob").then(content => {
-          this.handleFileUploads(content, relativePath);
-        });
-      });
-    });
+    return from(zip.loadAsync(zipFile)).pipe(
+      switchMap(zip =>
+        from(
+          Promise.all(
+            Object.keys(zip.files).map(relativePath =>
+              zip.files[relativePath].async("blob").then(content => this.handleFileUploads(content, relativePath))
+            )
+          )
+        )
+      )
+    );
   }
 
   /**
    * Process .json file uploads
    */
-  private handleFileUploads(file: Blob, name: string) {
-    let reader = new FileReader();
-    reader.readAsText(file);
-    reader.onload = () => {
-      try {
-        const result = reader.result;
-        if (typeof result !== "string") {
-          throw new Error("Incorrect format: file is not a string");
+  private handleFileUploads(file: Blob, name: string): Observable<any> {
+    return new Observable(observer => {
+      let reader = new FileReader();
+      reader.readAsText(file);
+      reader.onload = () => {
+        try {
+          const result = reader.result;
+          if (typeof result !== "string") {
+            throw new Error("Incorrect format: file is not a string");
+          }
+          const workflowContent = JSON.parse(result) as WorkflowContent;
+          const fileExtensionIndex = name.lastIndexOf(".");
+          let workflowName = fileExtensionIndex === -1 ? name : name.substring(0, fileExtensionIndex);
+          if (workflowName.trim() === "") {
+            workflowName = DEFAULT_WORKFLOW_NAME;
+          }
+          this.workflowPersistService
+            .createWorkflow(workflowContent, workflowName)
+            .pipe(untilDestroyed(this))
+            .subscribe({
+              next: uploadedWorkflow => {
+                this.searchResultsComponent.entries = [
+                  ...this.searchResultsComponent.entries,
+                  new DashboardEntry(uploadedWorkflow),
+                ];
+                observer.next();
+                observer.complete();
+              },
+              error: (err: unknown) => {
+                observer.error(err);
+              },
+            });
+        } catch (error) {
+          this.notificationService.error(
+            "An error occurred when importing the workflow. Please import a workflow json file."
+          );
+          observer.error(error);
         }
-        const workflowContent = JSON.parse(result) as WorkflowContent;
-        const fileExtensionIndex = name.lastIndexOf(".");
-        let workflowName: string;
-        if (fileExtensionIndex === -1) {
-          workflowName = name;
-        } else {
-          workflowName = name.substring(0, fileExtensionIndex);
-        }
-        if (workflowName.trim() === "") {
-          workflowName = DEFAULT_WORKFLOW_NAME;
-        }
-        this.workflowPersistService
-          .createWorkflow(workflowContent, workflowName)
-          .pipe(untilDestroyed(this))
-          .subscribe({
-            next: uploadedWorkflow => {
-              this.searchResultsComponent.entries = [
-                ...this.searchResultsComponent.entries,
-                new DashboardEntry(uploadedWorkflow),
-              ];
-            },
-            error: (err: unknown) => alert(err),
-          });
-      } catch (error) {
-        this.notificationService.error(
-          "An error occurred when importing the workflow. Please import a workflow json file."
-        );
-      }
-    };
+      };
+    });
   }
 
   /**
