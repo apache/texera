@@ -69,7 +69,7 @@ export class DownloadService {
         this.fileSaverService.saveAs(blob, fileName);
         this.notificationService.info(successMessage);
       }),
-      catchError((error: Error) => {
+      catchError((error: unknown) => {
         this.notificationService.error(errorMessage);
         return throwError(() => error);
       })
