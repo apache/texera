@@ -188,7 +188,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   }
 
   private adjustPageSizeBasedOnPanelSize(panelHeight: number) {
-    const rowHeight = 36;
+    const rowHeight = 39; // use the rendered height of a row.
     let extra: number;
 
     if (this.sinkStorageMode == "mongodb") {

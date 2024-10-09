@@ -37,6 +37,7 @@ export class ListItemComponent implements OnInit, OnChanges {
   @ViewChild("descriptionInput") descriptionInput!: ElementRef;
   editingName = false;
   editingDescription = false;
+  likeCount: number = 0;
 
   ROUTER_WORKFLOW_BASE_URL = "/dashboard/user/workspace";
   ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user/project";
@@ -87,6 +88,12 @@ export class ListItemComponent implements OnInit, OnChanges {
             } else {
               this.entryLink = [this.ROUTER_WORKFLOW_DETAIL_BASE_URL, String(this.entry.id)];
             }
+          });
+        this.hubWorkflowService
+          .getLikeCount(this.entry.id)
+          .pipe(untilDestroyed(this))
+          .subscribe(count => {
+            this.likeCount = count;
           });
       }
       // this.entryLink = this.ROUTER_WORKFLOW_BASE_URL + "/" + this.entry.id;
@@ -293,6 +300,12 @@ export class ListItemComponent implements OnInit, OnChanges {
         .subscribe((success: boolean) => {
           if (success) {
             this.isLiked = false;
+            this.hubWorkflowService
+              .getLikeCount(workflowId)
+              .pipe(untilDestroyed(this))
+              .subscribe((count: number) => {
+                this.likeCount = count;
+              });
             console.log("Successfully unliked the workflow");
           } else {
             console.error("Error unliking the workflow");
@@ -305,11 +318,24 @@ export class ListItemComponent implements OnInit, OnChanges {
         .subscribe((success: boolean) => {
           if (success) {
             this.isLiked = true;
+            this.hubWorkflowService
+              .getLikeCount(workflowId)
+              .pipe(untilDestroyed(this))
+              .subscribe((count: number) => {
+                this.likeCount = count;
+              });
             console.log("Successfully liked the workflow");
           } else {
             console.error("Error liking the workflow");
           }
         });
     }
+  }
+
+  formatLikeCount(count: number): string {
+    if (count >= 1000) {
+      return (count / 1000).toFixed(1) + "k";
+    }
+    return count.toString();
   }
 }
