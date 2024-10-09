@@ -9,7 +9,6 @@ import {
   LogicalOperator,
   LogicalPlan,
 } from "../../types/execute-workflow.interface";
-import { environment } from "../../../../environments/environment";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import {
   WorkflowFatalError,
@@ -24,10 +23,8 @@ import { Version as version } from "src/environments/version";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { exhaustiveGuard } from "../../../common/util/switch";
 import { WorkflowStatusService } from "../workflow-status/workflow-status.service";
-import { isDefined } from "../../../common/util/predicate";
 import { intersection } from "../../../common/util/set";
-import { Workflow, WorkflowContent, WorkflowSettings } from "../../../common/type/workflow";
-import { GmailService } from "src/app/common/service/gmail/gmail.service";
+import { WorkflowSettings } from "../../../common/type/workflow";
 import { DOCUMENT } from "@angular/common";
 import { UserService } from "src/app/common/service/user/user.service";
 
@@ -72,13 +69,6 @@ export class ExecuteWorkflowService {
   // TODO: move this to another service, or redesign how this
   //   information is stored on the frontend.
   private assignedWorkerIds: Map<string, readonly string[]> = new Map();
-
-  private readonly COMPLETED_PAUSED_OR_TERMINATED_STATES = [
-    ExecutionState.Completed,
-    ExecutionState.Failed,
-    ExecutionState.Killed,
-    ExecutionState.Paused,
-  ];
 
   constructor(
     private workflowActionService: WorkflowActionService,
@@ -226,10 +216,12 @@ export class ExecuteWorkflowService {
       logicalPlan: logicalPlan,
       replayFromExecution: replayExecutionInfo,
       workflowSettings: workflowSettings,
-      emailNotificationEnabled: emailNotificationEnabled,
-      baseUrl: this.document.location.origin,
-      workflowName: workflow.name,
-      userEmail: user?.email,
+      emailNotificationConfig: {
+        enabled: emailNotificationEnabled,
+        baseUrl: this.document.location.origin,
+        workflowName: workflow.name,
+        userEmail: user?.email,
+      },
     };
     // wait for the form debounce to complete, then send
     window.setTimeout(() => {
