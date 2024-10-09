@@ -1074,17 +1074,53 @@ class DatasetResource {
       @Auth user: SessionUser
   ): Response = {
     val (dataset, version) = if (getLatest) {
-      validateParam(did != null, "Dataset ID (did) is required when getLatest is true")
       getLatestVersionInfo(did, user)
     } else {
-      validateParam(pathStr != null && pathStr.nonEmpty, "Path is required when getLatest is false")
       resolveAndValidatePath(pathStr, user)
     }
-    createZipResponse(dataset, version)
-  }
+    val targetDatasetPath = PathUtils.getDatasetPath(dataset.getDid)
+    val fileNodes = GitVersionControlLocalFileStorage.retrieveRootFileNodesOfVersion(
+      targetDatasetPath,
+      version.getVersionHash
+    )
 
-  private def validateParam(condition: Boolean, errorMessage: String): Unit = {
-    if (!condition) throw new BadRequestException(errorMessage)
+    val streamingOutput = new StreamingOutput {
+      override def write(outputStream: OutputStream): Unit = {
+        Using(new ZipOutputStream(outputStream)) { zipOutputStream =>
+          fileNodes.asScala.foreach { fileNode =>
+            val zipEntryName = fileNode.getRelativePath.toString
+            val filePath = fileNode.getAbsolutePath
+
+            try {
+              zipOutputStream.putNextEntry(new ZipEntry(zipEntryName))
+              Using(Files.newInputStream(filePath)) { inputStream =>
+                inputStream.transferTo(zipOutputStream)
+              }
+            } catch {
+              case e: IOException =>
+                // Log the error and continue with the next file
+                println(s"Error processing file: $zipEntryName - ${e.getMessage}")
+            } finally {
+              zipOutputStream.closeEntry()
+            }
+          }
+        }.recover {
+          case e: IOException =>
+            throw new WebApplicationException("Error creating ZIP output stream", e)
+          case NonFatal(e) =>
+            throw new WebApplicationException("Unexpected error while creating ZIP", e)
+        }
+      }
+    }
+
+    Response
+      .ok(streamingOutput)
+      .header(
+        "Content-Disposition",
+        s"attachment; filename=${dataset.getName}-${version.getName}.zip"
+      )
+      .`type`("application/zip")
+      .build()
   }
 
   private def resolveAndValidatePath(
@@ -1109,58 +1145,6 @@ class DatasetResource {
   private def validateUserAccess(did: UInteger, uid: UInteger): Unit = {
     if (!userHasReadAccess(context, did, uid)) {
       throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-    }
-  }
-
-  private def createZipResponse(dataset: Dataset, version: DatasetVersion): Response = {
-    val targetDatasetPath = PathUtils.getDatasetPath(dataset.getDid)
-    val fileNodes = GitVersionControlLocalFileStorage.retrieveRootFileNodesOfVersion(
-      targetDatasetPath,
-      version.getVersionHash
-    )
-
-    val streamingOutput = createStreamingOutput(fileNodes)
-
-    Response
-      .ok(streamingOutput)
-      .header(
-        "Content-Disposition",
-        s"attachment; filename=${dataset.getName}-${version.getName}.zip"
-      )
-      .`type`("application/zip")
-      .build()
-  }
-
-  private def createStreamingOutput(fileNodes: util.Set[PhysicalFileNode]): StreamingOutput = {
-    new StreamingOutput {
-      override def write(outputStream: OutputStream): Unit = {
-        Using(new ZipOutputStream(outputStream)) { zipOutputStream =>
-          fileNodes.asScala.foreach(addFileToZip(zipOutputStream, _))
-        }.recover {
-          case e: IOException =>
-            throw new WebApplicationException("Error creating ZIP output stream", e)
-          case NonFatal(e) =>
-            throw new WebApplicationException("Unexpected error while creating ZIP", e)
-        }
-      }
-    }
-  }
-
-  private def addFileToZip(zipOutputStream: ZipOutputStream, fileNode: PhysicalFileNode): Unit = {
-    val zipEntryName = fileNode.getRelativePath.toString
-    val filePath = fileNode.getAbsolutePath
-
-    try {
-      zipOutputStream.putNextEntry(new ZipEntry(zipEntryName))
-      Using(Files.newInputStream(filePath)) { inputStream =>
-        inputStream.transferTo(zipOutputStream)
-      }
-    } catch {
-      case e: IOException =>
-        // Log the error and continue with the next file
-        println(s"Error processing file: $zipEntryName - ${e.getMessage}")
-    } finally {
-      zipOutputStream.closeEntry()
     }
   }
 }

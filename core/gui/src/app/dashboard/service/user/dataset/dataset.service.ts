@@ -61,21 +61,21 @@ export class DatasetService {
     });
   }
 
-  private retrieveDatasetZip(params: HttpParams): Observable<Blob> {
+  public retrieveDatasetZip(options: { path?: string; did?: number }): Observable<Blob> {
+    let params = new HttpParams();
+
+    if (options.path) {
+      params = params.set("path", encodeURIComponent(options.path));
+    }
+    if (options.did) {
+      params = params.set("did", options.did.toString());
+      params = params.set("getLatest", "true");
+    }
+
     return this.http.get(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/version-zip`, {
       params,
       responseType: "blob",
     });
-  }
-
-  public retrieveDatasetVersionZip(path: string): Observable<Blob> {
-    const params = new HttpParams().set("path", encodeURIComponent(path));
-    return this.retrieveDatasetZip(params);
-  }
-
-  public retrieveDatasetLatestVersionZip(did: number): Observable<Blob> {
-    const params = new HttpParams().set("getLatest", "true").set("did", did.toString());
-    return this.retrieveDatasetZip(params);
   }
 
   public retrieveAccessibleDatasets(
