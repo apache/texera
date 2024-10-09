@@ -30,6 +30,7 @@ class AIAssistantResource {
   @Consumes(Array(MediaType.APPLICATION_JSON))
   def getAiComment(prompt: String, @Auth user: SessionUser): Response = {
     // Prepare the final prompt by escaping necessary characters
+    // Escape backslashes and double quotes in the prompt to prevent breaking the JSON format
     val finalPrompt = prompt.replace("\\", "\\\\").replace("\"", "\\\"")
 
     // Create the JSON request body
@@ -57,7 +58,7 @@ class AIAssistantResource {
       // Handle exceptions and return an error response
       case e: Exception =>
         e.printStackTrace()
-        Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("Error occurred").build()
+        Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("Error occur when requesting the OpenAI API").build()
     }
   }
 
