@@ -9,7 +9,7 @@ import { OperatorMetadataService } from "../operator-metadata/operator-metadata.
 import { StubOperatorMetadataService } from "../operator-metadata/stub-operator-metadata.service";
 import { JointUIService } from "../joint-ui/joint-ui.service";
 import { Observable, of } from "rxjs";
-import { Role, User } from '../../../common/type/user';
+import { Role, User } from "../../../common/type/user";
 
 import { mockLogicalPlan_scan_result, mockWorkflowPlan_scan_result } from "./mock-workflow-plan";
 import { HttpClient } from "@angular/common/http";
@@ -94,13 +94,21 @@ describe("ExecuteWorkflowService", () => {
   });
 
   it("should execute workflow with email notification successfully", () => {
-    const mockUser: User = { uid: 1, name: "Test User", email: "test@example.com", googleId: undefined, role: Role.REGULAR };
+    const mockUser: User = {
+      uid: 1,
+      name: "Test User",
+      email: "test@example.com",
+      googleId: undefined,
+      role: Role.REGULAR,
+    };
     const executionName = "Test Execution";
     const emailNotificationEnabled = true;
     const targetOperatorId = "test-operator-id";
 
     const logicalPlanSpy = spyOn(ExecuteWorkflowService, "getLogicalPlanRequest").and.returnValue({} as LogicalPlan);
-    const settingsSpy = spyOn(service["workflowActionService"], "getWorkflowSettings").and.returnValue({} as WorkflowSettings);
+    const settingsSpy = spyOn(service["workflowActionService"], "getWorkflowSettings").and.returnValue(
+      {} as WorkflowSettings
+    );
     const resetExecutionStateSpy = spyOn(service, "resetExecutionState");
     const resetStatusSpy = spyOn(service["workflowStatusService"], "resetStatus");
     const sendExecutionRequestSpy = spyOn(service, "sendExecutionRequest");
@@ -121,7 +129,13 @@ describe("ExecuteWorkflowService", () => {
   });
 
   it("should handle failure when executing workflow with email notification", () => {
-    const mockUser: User = { uid: 1, name: "Test User", email: "test@example.com", googleId: undefined, role: Role.REGULAR };
+    const mockUser: User = {
+      uid: 1,
+      name: "Test User",
+      email: "test@example.com",
+      googleId: undefined,
+      role: Role.REGULAR,
+    };
     const executionName = "Test Execution";
     const emailNotificationEnabled = true;
     const targetOperatorId = "test-operator-id";
