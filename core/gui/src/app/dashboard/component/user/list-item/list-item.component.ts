@@ -22,6 +22,8 @@ import { FileSaverService } from "src/app/dashboard/service/user/file/file-saver
 import { firstValueFrom } from "rxjs";
 import { SearchService } from "../../../service/user/search.service";
 import { HubWorkflowDetailComponent } from "../../../../hub/component/workflow/detail/hub-workflow-detail.component";
+import { DatasetService } from "src/app/dashboard/service/user/dataset/dataset.service";
+import { NotificationService } from "src/app/common/service/notification/notification.service";
 
 @UntilDestroy()
 @Component({
@@ -68,7 +70,9 @@ export class ListItemComponent implements OnInit, OnChanges {
     private modalService: NzModalService,
     private workflowPersistService: WorkflowPersistService,
     private fileSaverService: FileSaverService,
-    private modal: NzModalService
+    private modal: NzModalService,
+    private datasetService: DatasetService,
+    private notificationService: NotificationService
   ) {}
 
   initializeEntry() {
@@ -160,6 +164,38 @@ export class ListItemComponent implements OnInit, OnChanges {
             const fileName = workflowCopy.name + ".json";
             this.fileSaverService.saveAs(new Blob([workflowJson], { type: "text/plain;charset=utf-8" }), fileName);
           });
+      }
+    } else if (this.entry.type === "dataset") {
+      if (this.entry.id) {
+        this.datasetService
+          .retrieveDatasetLatestVersionZip(this.entry.id)
+          .pipe(untilDestroyed(this))
+          .subscribe({
+            next: blob => {
+              // Create URL for the ZIP blob
+              const url = URL.createObjectURL(blob);
+
+              // Create a temporary link element
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `${this.entry.name}.zip`; // Filename for ZIP file
+
+              // Append the link to the body
+              document.body.appendChild(a);
+              // Trigger the download
+              a.click();
+              // Remove the link after download
+              document.body.removeChild(a);
+              // Release the blob URL
+              URL.revokeObjectURL(url);
+
+              this.notificationService.info("The latest version of the dataset is downloading as ZIP");
+            },
+            error: (error: unknown) => {
+              this.notificationService.error("Error downloading the latest version of the dataset as ZIP");
+            },
+          });
+        // TODO
       }
     }
   }

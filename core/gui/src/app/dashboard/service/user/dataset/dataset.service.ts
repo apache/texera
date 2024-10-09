@@ -68,6 +68,12 @@ export class DatasetService {
     });
   }
 
+  public retrieveDatasetLatestVersionZip(did: number): Observable<Blob> {
+    return this.http.get(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/latest-version-zip`, {
+      responseType: "blob",
+    });
+  }
+
   public retrieveAccessibleDatasets(
     includeVersions: boolean = false,
     includeFileNodes: boolean = false,
