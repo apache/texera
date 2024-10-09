@@ -13,8 +13,8 @@ final case class ExecutionStatsStore(
     operatorWorkerMapping: _root_.scala.Seq[edu.uci.ics.texera.web.workflowruntimestate.OperatorWorkerMapping] = _root_.scala.Seq.empty
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[ExecutionStatsStore] {
     @transient
-    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
-    private[this] def __computeSerializedValue(): _root_.scala.Int = {
+    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
+    private[this] def __computeSerializedSize(): _root_.scala.Int = {
       var __size = 0
       
       {
@@ -41,12 +41,13 @@ final case class ExecutionStatsStore(
       __size
     }
     override def serializedSize: _root_.scala.Int = {
-      var read = __serializedSizeCachedValue
-      if (read == 0) {
-        read = __computeSerializedValue()
-        __serializedSizeCachedValue = read
+      var __size = __serializedSizeMemoized
+      if (__size == 0) {
+        __size = __computeSerializedSize() + 1
+        __serializedSizeMemoized = __size
       }
-      read
+      __size - 1
+      
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       {
@@ -77,11 +78,11 @@ final case class ExecutionStatsStore(
     def withStartTimeStamp(__v: _root_.scala.Long): ExecutionStatsStore = copy(startTimeStamp = __v)
     def withEndTimeStamp(__v: _root_.scala.Long): ExecutionStatsStore = copy(endTimeStamp = __v)
     def clearOperatorInfo = copy(operatorInfo = _root_.scala.collection.immutable.Map.empty)
-    def addOperatorInfo(__vs: (_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.OperatorMetrics)*): ExecutionStatsStore = addAllOperatorInfo(__vs)
+    def addOperatorInfo(__vs: (_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.OperatorMetrics) *): ExecutionStatsStore = addAllOperatorInfo(__vs)
     def addAllOperatorInfo(__vs: Iterable[(_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.OperatorMetrics)]): ExecutionStatsStore = copy(operatorInfo = operatorInfo ++ __vs)
     def withOperatorInfo(__v: _root_.scala.collection.immutable.Map[_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.OperatorMetrics]): ExecutionStatsStore = copy(operatorInfo = __v)
     def clearOperatorWorkerMapping = copy(operatorWorkerMapping = _root_.scala.Seq.empty)
-    def addOperatorWorkerMapping(__vs: edu.uci.ics.texera.web.workflowruntimestate.OperatorWorkerMapping*): ExecutionStatsStore = addAllOperatorWorkerMapping(__vs)
+    def addOperatorWorkerMapping(__vs: edu.uci.ics.texera.web.workflowruntimestate.OperatorWorkerMapping *): ExecutionStatsStore = addAllOperatorWorkerMapping(__vs)
     def addAllOperatorWorkerMapping(__vs: Iterable[edu.uci.ics.texera.web.workflowruntimestate.OperatorWorkerMapping]): ExecutionStatsStore = copy(operatorWorkerMapping = operatorWorkerMapping ++ __vs)
     def withOperatorWorkerMapping(__v: _root_.scala.Seq[edu.uci.ics.texera.web.workflowruntimestate.OperatorWorkerMapping]): ExecutionStatsStore = copy(operatorWorkerMapping = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
@@ -108,7 +109,7 @@ final case class ExecutionStatsStore(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion = edu.uci.ics.texera.web.workflowruntimestate.ExecutionStatsStore
+    def companion: edu.uci.ics.texera.web.workflowruntimestate.ExecutionStatsStore.type = edu.uci.ics.texera.web.workflowruntimestate.ExecutionStatsStore
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.texera.web.ExecutionStatsStore])
 }
 
@@ -180,8 +181,8 @@ object ExecutionStatsStore extends scalapb.GeneratedMessageCompanion[edu.uci.ics
       value: _root_.scala.Option[edu.uci.ics.texera.web.workflowruntimestate.OperatorMetrics] = _root_.scala.None
       ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[OperatorInfoEntry] {
       @transient
-      private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
-      private[this] def __computeSerializedValue(): _root_.scala.Int = {
+      private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
+      private[this] def __computeSerializedSize(): _root_.scala.Int = {
         var __size = 0
         
         {
@@ -197,12 +198,13 @@ object ExecutionStatsStore extends scalapb.GeneratedMessageCompanion[edu.uci.ics
         __size
       }
       override def serializedSize: _root_.scala.Int = {
-        var read = __serializedSizeCachedValue
-        if (read == 0) {
-          read = __computeSerializedValue()
-          __serializedSizeCachedValue = read
+        var __size = __serializedSizeMemoized
+        if (__size == 0) {
+          __size = __computeSerializedSize() + 1
+          __serializedSizeMemoized = __size
         }
-        read
+        __size - 1
+        
       }
       def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
         {
@@ -239,7 +241,7 @@ object ExecutionStatsStore extends scalapb.GeneratedMessageCompanion[edu.uci.ics
         }
       }
       def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-      def companion = edu.uci.ics.texera.web.workflowruntimestate.ExecutionStatsStore.OperatorInfoEntry
+      def companion: edu.uci.ics.texera.web.workflowruntimestate.ExecutionStatsStore.OperatorInfoEntry.type = edu.uci.ics.texera.web.workflowruntimestate.ExecutionStatsStore.OperatorInfoEntry
       // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.texera.web.ExecutionStatsStore.OperatorInfoEntry])
   }
   
@@ -256,7 +258,7 @@ object ExecutionStatsStore extends scalapb.GeneratedMessageCompanion[edu.uci.ics
           case 10 =>
             __key = _input__.readStringRequireUtf8()
           case 18 =>
-            __value = Option(__value.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.texera.web.workflowruntimestate.OperatorMetrics](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+            __value = _root_.scala.Option(__value.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.texera.web.workflowruntimestate.OperatorMetrics](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
           case tag => _input__.skipField(tag)
         }
       }
@@ -291,7 +293,7 @@ object ExecutionStatsStore extends scalapb.GeneratedMessageCompanion[edu.uci.ics
     )
     implicit class OperatorInfoEntryLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.ExecutionStatsStore.OperatorInfoEntry]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.ExecutionStatsStore.OperatorInfoEntry](_l) {
       def key: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.key)((c_, f_) => c_.copy(key = f_))
-      def value: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.OperatorMetrics] = field(_.getValue)((c_, f_) => c_.copy(value = Option(f_)))
+      def value: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.OperatorMetrics] = field(_.getValue)((c_, f_) => c_.copy(value = _root_.scala.Option(f_)))
       def optionalValue: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Option[edu.uci.ics.texera.web.workflowruntimestate.OperatorMetrics]] = field(_.value)((c_, f_) => c_.copy(value = f_))
     }
     final val KEY_FIELD_NUMBER = 1

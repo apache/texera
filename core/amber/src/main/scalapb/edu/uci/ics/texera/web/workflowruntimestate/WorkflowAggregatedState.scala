@@ -6,7 +6,8 @@
 package edu.uci.ics.texera.web.workflowruntimestate
 
 sealed abstract class WorkflowAggregatedState(val value: _root_.scala.Int) extends _root_.scalapb.GeneratedEnum {
-  type EnumType = WorkflowAggregatedState
+  type EnumType = edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
+  type RecognizedType = edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.Recognized
   def isUninitialized: _root_.scala.Boolean = false
   def isReady: _root_.scala.Boolean = false
   def isRunning: _root_.scala.Boolean = false
@@ -24,6 +25,7 @@ sealed abstract class WorkflowAggregatedState(val value: _root_.scala.Int) exten
 object WorkflowAggregatedState extends _root_.scalapb.GeneratedEnumCompanion[WorkflowAggregatedState] {
   sealed trait Recognized extends WorkflowAggregatedState
   implicit def enumCompanion: _root_.scalapb.GeneratedEnumCompanion[WorkflowAggregatedState] = this
+  
   @SerialVersionUID(0L)
   case object UNINITIALIZED extends WorkflowAggregatedState(0) with WorkflowAggregatedState.Recognized {
     val index = 0
@@ -96,8 +98,7 @@ object WorkflowAggregatedState extends _root_.scalapb.GeneratedEnumCompanion[Wor
   
   @SerialVersionUID(0L)
   final case class Unrecognized(unrecognizedValue: _root_.scala.Int) extends WorkflowAggregatedState(unrecognizedValue) with _root_.scalapb.UnrecognizedEnum
-  
-  lazy val values = scala.collection.immutable.Seq(UNINITIALIZED, READY, RUNNING, PAUSING, PAUSED, RESUMING, COMPLETED, FAILED, UNKNOWN, KILLED)
+  lazy val values: scala.collection.immutable.Seq[ValueType] = scala.collection.immutable.Seq(UNINITIALIZED, READY, RUNNING, PAUSING, PAUSED, RESUMING, COMPLETED, FAILED, UNKNOWN, KILLED)
   def fromValue(__value: _root_.scala.Int): WorkflowAggregatedState = __value match {
     case 0 => UNINITIALIZED
     case 1 => READY

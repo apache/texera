@@ -6,9 +6,9 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 object PingPongHandler {
-  case class Ping(i: Int, end: Int, to: ActorVirtualIdentity) extends ControlCommand[Int]
+  case class Ping(i: Int, end: Int, to: ActorVirtualIdentity)
 
-  case class Pong(i: Int, end: Int, to: ActorVirtualIdentity) extends ControlCommand[Int]
+  case class Pong(i: Int, end: Int, to: ActorVirtualIdentity)
 }
 
 trait PingPongHandler {

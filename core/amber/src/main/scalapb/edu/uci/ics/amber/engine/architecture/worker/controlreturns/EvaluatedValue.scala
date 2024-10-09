@@ -11,8 +11,8 @@ final case class EvaluatedValue(
     attributes: _root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue]
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[EvaluatedValue] {
     @transient
-    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
-    private[this] def __computeSerializedValue(): _root_.scala.Int = {
+    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
+    private[this] def __computeSerializedSize(): _root_.scala.Int = {
       var __size = 0
       if (value.isDefined) {
         val __value = value.get
@@ -25,12 +25,13 @@ final case class EvaluatedValue(
       __size
     }
     override def serializedSize: _root_.scala.Int = {
-      var read = __serializedSizeCachedValue
-      if (read == 0) {
-        read = __computeSerializedValue()
-        __serializedSizeCachedValue = read
+      var __size = __serializedSizeMemoized
+      if (__size == 0) {
+        __size = __computeSerializedSize() + 1
+        __serializedSizeMemoized = __size
       }
-      read
+      __size - 1
+      
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       value.foreach { __v =>
@@ -50,7 +51,7 @@ final case class EvaluatedValue(
     def clearValue: EvaluatedValue = copy(value = _root_.scala.None)
     def withValue(__v: edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue): EvaluatedValue = copy(value = Option(__v))
     def clearAttributes = copy(attributes = _root_.scala.Seq.empty)
-    def addAttributes(__vs: edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue*): EvaluatedValue = addAllAttributes(__vs)
+    def addAttributes(__vs: edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue *): EvaluatedValue = addAllAttributes(__vs)
     def addAllAttributes(__vs: Iterable[edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue]): EvaluatedValue = copy(attributes = attributes ++ __vs)
     def withAttributes(__v: _root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue]): EvaluatedValue = copy(attributes = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
@@ -67,7 +68,7 @@ final case class EvaluatedValue(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion = edu.uci.ics.amber.engine.architecture.worker.controlreturns.EvaluatedValue
+    def companion: edu.uci.ics.amber.engine.architecture.worker.controlreturns.EvaluatedValue.type = edu.uci.ics.amber.engine.architecture.worker.controlreturns.EvaluatedValue
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.EvaluatedValue])
 }
 
@@ -82,7 +83,7 @@ object EvaluatedValue extends scalapb.GeneratedMessageCompanion[edu.uci.ics.ambe
       _tag__ match {
         case 0 => _done__ = true
         case 10 =>
-          __value = Option(__value.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+          __value = _root_.scala.Option(__value.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 18 =>
           __attributes += _root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue](_input__)
         case tag => _input__.skipField(tag)
@@ -119,7 +120,7 @@ object EvaluatedValue extends scalapb.GeneratedMessageCompanion[edu.uci.ics.ambe
     attributes = _root_.scala.Seq.empty
   )
   implicit class EvaluatedValueLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlreturns.EvaluatedValue]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlreturns.EvaluatedValue](_l) {
-    def value: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue] = field(_.getValue)((c_, f_) => c_.copy(value = Option(f_)))
+    def value: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue] = field(_.getValue)((c_, f_) => c_.copy(value = _root_.scala.Option(f_)))
     def optionalValue: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue]] = field(_.value)((c_, f_) => c_.copy(value = f_))
     def attributes: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue]] = field(_.attributes)((c_, f_) => c_.copy(attributes = f_))
   }

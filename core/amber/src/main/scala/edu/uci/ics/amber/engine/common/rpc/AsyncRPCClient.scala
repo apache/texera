@@ -4,21 +4,15 @@ import com.twitter.util.{Future, Promise}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputGateway
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
 import edu.uci.ics.amber.engine.common.AmberLogging
-import edu.uci.ics.amber.engine.common.ambermessage.{
-  ChannelMarkerPayload,
-  ChannelMarkerType,
-  ControlPayload
-}
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
+import edu.uci.ics.amber.engine.common.ambermessage.{ChannelMarkerPayload, ChannelMarkerType, ControlPayload}
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation, TargetedInvocationHandler}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  ChannelIdentity,
-  ChannelMarkerIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity, ChannelMarkerIdentity}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CLIENT
 
+import java.lang.reflect.{InvocationHandler, Method, Proxy}
 import scala.collection.mutable
+import scala.reflect.ClassTag
 
 /** Motivation of having a separate module to handle control messages as RPCs:
   * In the old design, every control message and its response are handled by
@@ -43,34 +37,57 @@ object AsyncRPCClient {
   final val IgnoreReply = -1
   final val IgnoreReplyAndDoNotLog = -2
 
-  /** The invocation of a control command
-    * @param commandID
-    * @param command
-    */
-  case class ControlInvocation(commandID: Long, command: ControlCommand[_]) extends ControlPayload
+  case class ControlInvocation(reqName: String, payload: (Any, AsyncRPCContext), commandID: Long) extends ControlPayload
 
-  /** The invocation of a return to a promise.
-    * @param originalCommandID
-    * @param controlReturn
-    */
   case class ReturnInvocation(originalCommandID: Long, controlReturn: Any) extends ControlPayload
 
 }
 
-class AsyncRPCClient(
+class AsyncRPCClient[T:ClassTag](
     outputGateway: NetworkOutputGateway,
     val actorId: ActorVirtualIdentity
 ) extends AmberLogging {
 
-  private val unfulfilledPromises = mutable.HashMap[Long, WorkflowPromise[_]]()
+  private val unfulfilledPromises = mutable.HashMap[Long, Promise[Any]]()
   private var promiseID = 0L
+  val proxy: T = createProxy()
 
-  def send[T](cmd: ControlCommand[T], to: ActorVirtualIdentity): Future[T] = {
-    val (p, id) = createPromise[T]()
-    logger.debug(s"send request: $cmd to $to (controlID: $id)")
-    outputGateway.sendTo(to, ControlInvocation(id, cmd))
-    p
+  def mkContext(to: ActorVirtualIdentity): AsyncRPCContext = AsyncRPCContext(actorId, to)
+
+  private def createPromise(): (Promise[Any], Long) = {
+    promiseID += 1
+    val promise = new Promise[Any]()
+    unfulfilledPromises(promiseID) = promise
+    (promise, promiseID)
   }
+
+  def createInvocation(methodName: String, args:(Any, AsyncRPCContext)):(ControlInvocation, Future[Any]) = {
+    val (p, pid) = createPromise()
+    (ControlInvocation(methodName, args, pid), p)
+  }
+  private def createProxy()(implicit ct: ClassTag[T]): T = {
+    val handler = new InvocationHandler {
+
+      override def invoke(proxy: Any, method: Method, args: Array[AnyRef]): AnyRef = {
+        val (p, pid) = createPromise()
+        val context = args(1).asInstanceOf[AsyncRPCContext]
+        outputGateway.sendTo(context.receiver, ControlInvocation(method.getName, (args(0), context), pid))
+        p
+      }
+    }
+
+    Proxy.newProxyInstance(
+      getClassLoader(ct.runtimeClass),
+      Array(ct.runtimeClass),
+      handler
+    ).asInstanceOf[T]
+  }
+
+  // Helper to get the correct class loader
+  private def getClassLoader(cls: Class[_]): ClassLoader = {
+    Option(cls.getClassLoader).getOrElse(ClassLoader.getSystemClassLoader)
+  }
+
 
   def sendChannelMarker(
       markerId: ChannelMarkerIdentity,
@@ -86,22 +103,6 @@ class AsyncRPCClient(
     )
   }
 
-  def createInvocation[T](cmd: ControlCommand[T]): (ControlInvocation, Future[T]) = {
-    val (p, id) = createPromise[T]()
-    (ControlInvocation(id, cmd), p)
-  }
-
-  def sendToClient(cmd: ControlCommand[_]): Unit = {
-    outputGateway.sendTo(CLIENT, ControlInvocation(0, cmd))
-  }
-
-  private def createPromise[T](): (Promise[T], Long) = {
-    promiseID += 1
-    val promise = new WorkflowPromise[T]()
-    unfulfilledPromises(promiseID) = promise
-    (promise, promiseID)
-  }
-
   def fulfillPromise(ret: ReturnInvocation): Unit = {
     if (unfulfilledPromises.contains(ret.originalCommandID)) {
       val p = unfulfilledPromises(ret.originalCommandID)
@@ -109,9 +110,8 @@ class AsyncRPCClient(
         case error: Throwable =>
           p.setException(error)
         case _ =>
-          p.setValue(ret.controlReturn.asInstanceOf[p.returnType])
+          p.setValue(ret.controlReturn)
       }
-
       unfulfilledPromises.remove(ret.originalCommandID)
     }
   }

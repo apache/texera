@@ -1,0 +1,84 @@
+syntax = "proto3";
+package edu.uci.ics.amber.engine.architecture.worker;
+
+import "edu/uci/ics/amber/engine/common/virtualidentity.proto";
+import "scalapb/scalapb.proto";
+
+option (scalapb.options) = {
+  scope: FILE,
+  preserve_unknown_fields: false
+  no_default_values_in_constructor: true
+};
+
+service RPCTester {
+  rpc SendPing(Ping) returns (Pong){}
+  rpc SendPong(Pong) returns (Ping){}
+  rpc SendNested(Nested) returns (StringResponse){}
+  rpc SendPass(Pass) returns (StringResponse){}
+  rpc SendErrorCommand(ErrorCommand) returns (StringResponse) {}
+  rpc SendRecursion(Recursion) returns (StringResponse) {}
+  rpc SendCollect(Collect) returns (StringResponse) {}
+  rpc SendGenerateNumber(GenerateNumber) returns (IntResponse) {}
+  rpc SendMultiCall(MultiCall) returns (StringResponse) {}
+  rpc SendChain(Chain) returns (common.ActorVirtualIdentity) {}
+}
+
+message StringResponse {
+  string value = 1;
+}
+
+message IntResponse {
+  int32 value = 1;
+}
+
+// Ping message
+message Ping {
+  int32 i = 1;
+  int32 end = 2;
+  common.ActorVirtualIdentity to = 3;
+}
+
+// Pong message
+message Pong {
+  int32 i = 1;
+  int32 end = 2;
+  common.ActorVirtualIdentity to = 3;
+}
+
+// Pass message
+message Pass {
+  string value = 1;
+}
+
+// Nested message
+message Nested {
+  int32 k = 1;
+}
+
+// MultiCall message
+message MultiCall {
+  repeated common.ActorVirtualIdentity seq = 1;
+}
+
+// ErrorCommand message
+message ErrorCommand {
+}
+
+// Collect message
+message Collect {
+  repeated common.ActorVirtualIdentity workers = 1;
+}
+
+// GenerateNumber message
+message GenerateNumber {
+}
+
+// Chain message
+message Chain {
+  repeated common.ActorVirtualIdentity nexts = 1;
+}
+
+// Recursion message
+message Recursion {
+  int32 i = 1;
+}

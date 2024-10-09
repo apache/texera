@@ -13,8 +13,8 @@ final case class ExecutionMetadataStore(
     isRecovering: _root_.scala.Boolean = false
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[ExecutionMetadataStore] {
     @transient
-    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
-    private[this] def __computeSerializedValue(): _root_.scala.Int = {
+    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
+    private[this] def __computeSerializedSize(): _root_.scala.Int = {
       var __size = 0
       
       {
@@ -30,7 +30,7 @@ final case class ExecutionMetadataStore(
       
       {
         val __value = executionId
-        if (__value != edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity.defaultInstance) {
+        if (__value.serializedSize != 0) {
           __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
         }
       };
@@ -44,12 +44,13 @@ final case class ExecutionMetadataStore(
       __size
     }
     override def serializedSize: _root_.scala.Int = {
-      var read = __serializedSizeCachedValue
-      if (read == 0) {
-        read = __computeSerializedValue()
-        __serializedSizeCachedValue = read
+      var __size = __serializedSizeMemoized
+      if (__size == 0) {
+        __size = __computeSerializedSize() + 1
+        __serializedSizeMemoized = __size
       }
-      read
+      __size - 1
+      
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       {
@@ -66,7 +67,7 @@ final case class ExecutionMetadataStore(
       };
       {
         val __v = executionId
-        if (__v != edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity.defaultInstance) {
+        if (__v.serializedSize != 0) {
           _output__.writeTag(3, 2)
           _output__.writeUInt32NoTag(__v.serializedSize)
           __v.writeTo(_output__)
@@ -81,7 +82,7 @@ final case class ExecutionMetadataStore(
     }
     def withState(__v: edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState): ExecutionMetadataStore = copy(state = __v)
     def clearFatalErrors = copy(fatalErrors = _root_.scala.Seq.empty)
-    def addFatalErrors(__vs: edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError*): ExecutionMetadataStore = addAllFatalErrors(__vs)
+    def addFatalErrors(__vs: edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError *): ExecutionMetadataStore = addAllFatalErrors(__vs)
     def addAllFatalErrors(__vs: Iterable[edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError]): ExecutionMetadataStore = copy(fatalErrors = fatalErrors ++ __vs)
     def withFatalErrors(__v: _root_.scala.Seq[edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError]): ExecutionMetadataStore = copy(fatalErrors = __v)
     def withExecutionId(__v: edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity): ExecutionMetadataStore = copy(executionId = __v)
@@ -113,7 +114,7 @@ final case class ExecutionMetadataStore(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion = edu.uci.ics.texera.web.workflowruntimestate.ExecutionMetadataStore
+    def companion: edu.uci.ics.texera.web.workflowruntimestate.ExecutionMetadataStore.type = edu.uci.ics.texera.web.workflowruntimestate.ExecutionMetadataStore
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.texera.web.ExecutionMetadataStore])
 }
 

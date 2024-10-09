@@ -11,8 +11,8 @@ final case class BreakpointFault(
     faultedTuple: _root_.scala.Option[edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault.BreakpointTuple] = _root_.scala.None
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[BreakpointFault] {
     @transient
-    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
-    private[this] def __computeSerializedValue(): _root_.scala.Int = {
+    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
+    private[this] def __computeSerializedSize(): _root_.scala.Int = {
       var __size = 0
       
       {
@@ -28,12 +28,13 @@ final case class BreakpointFault(
       __size
     }
     override def serializedSize: _root_.scala.Int = {
-      var read = __serializedSizeCachedValue
-      if (read == 0) {
-        read = __computeSerializedValue()
-        __serializedSizeCachedValue = read
+      var __size = __serializedSizeMemoized
+      if (__size == 0) {
+        __size = __computeSerializedSize() + 1
+        __serializedSizeMemoized = __size
       }
-      read
+      __size - 1
+      
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       {
@@ -70,7 +71,7 @@ final case class BreakpointFault(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion = edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault
+    def companion: edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault.type = edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.texera.web.BreakpointFault])
 }
 
@@ -87,7 +88,7 @@ object BreakpointFault extends scalapb.GeneratedMessageCompanion[edu.uci.ics.tex
         case 10 =>
           __workerName = _input__.readStringRequireUtf8()
         case 18 =>
-          __faultedTuple = Option(__faultedTuple.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault.BreakpointTuple](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+          __faultedTuple = _root_.scala.Option(__faultedTuple.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault.BreakpointTuple](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case tag => _input__.skipField(tag)
       }
     }
@@ -130,8 +131,8 @@ object BreakpointFault extends scalapb.GeneratedMessageCompanion[edu.uci.ics.tex
       tuple: _root_.scala.Seq[_root_.scala.Predef.String] = _root_.scala.Seq.empty
       ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[BreakpointTuple] {
       @transient
-      private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
-      private[this] def __computeSerializedValue(): _root_.scala.Int = {
+      private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
+      private[this] def __computeSerializedSize(): _root_.scala.Int = {
         var __size = 0
         
         {
@@ -154,12 +155,13 @@ object BreakpointFault extends scalapb.GeneratedMessageCompanion[edu.uci.ics.tex
         __size
       }
       override def serializedSize: _root_.scala.Int = {
-        var read = __serializedSizeCachedValue
-        if (read == 0) {
-          read = __computeSerializedValue()
-          __serializedSizeCachedValue = read
+        var __size = __serializedSizeMemoized
+        if (__size == 0) {
+          __size = __computeSerializedSize() + 1
+          __serializedSizeMemoized = __size
         }
-        read
+        __size - 1
+        
       }
       def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
         {
@@ -182,7 +184,7 @@ object BreakpointFault extends scalapb.GeneratedMessageCompanion[edu.uci.ics.tex
       def withId(__v: _root_.scala.Long): BreakpointTuple = copy(id = __v)
       def withIsInput(__v: _root_.scala.Boolean): BreakpointTuple = copy(isInput = __v)
       def clearTuple = copy(tuple = _root_.scala.Seq.empty)
-      def addTuple(__vs: _root_.scala.Predef.String*): BreakpointTuple = addAllTuple(__vs)
+      def addTuple(__vs: _root_.scala.Predef.String *): BreakpointTuple = addAllTuple(__vs)
       def addAllTuple(__vs: Iterable[_root_.scala.Predef.String]): BreakpointTuple = copy(tuple = tuple ++ __vs)
       def withTuple(__v: _root_.scala.Seq[_root_.scala.Predef.String]): BreakpointTuple = copy(tuple = __v)
       def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
@@ -207,7 +209,7 @@ object BreakpointFault extends scalapb.GeneratedMessageCompanion[edu.uci.ics.tex
         }
       }
       def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-      def companion = edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault.BreakpointTuple
+      def companion: edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault.BreakpointTuple.type = edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault.BreakpointTuple
       // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.texera.web.BreakpointFault.BreakpointTuple])
   }
   
@@ -279,7 +281,7 @@ object BreakpointFault extends scalapb.GeneratedMessageCompanion[edu.uci.ics.tex
   
   implicit class BreakpointFaultLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault](_l) {
     def workerName: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.workerName)((c_, f_) => c_.copy(workerName = f_))
-    def faultedTuple: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault.BreakpointTuple] = field(_.getFaultedTuple)((c_, f_) => c_.copy(faultedTuple = Option(f_)))
+    def faultedTuple: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault.BreakpointTuple] = field(_.getFaultedTuple)((c_, f_) => c_.copy(faultedTuple = _root_.scala.Option(f_)))
     def optionalFaultedTuple: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Option[edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault.BreakpointTuple]] = field(_.faultedTuple)((c_, f_) => c_.copy(faultedTuple = f_))
   }
   final val WORKER_NAME_FIELD_NUMBER = 1

@@ -1,3 +1,4 @@
+
 name := "texera"
 organization := "edu.uci.ics"
 version := "0.1-SNAPSHOT"
@@ -5,7 +6,7 @@ version := "0.1-SNAPSHOT"
 scalaVersion := "2.13.12"
 
 enablePlugins(JavaAppPackaging)
-
+enablePlugins(Fs2Grpc)
 semanticdbEnabled := true
 semanticdbVersion := scalafixSemanticdb.revision
 
@@ -170,7 +171,8 @@ Compile / PB.targets := Seq(
 )
 
 libraryDependencies ++= Seq(
-  "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf"
+  "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf",
+  "io.grpc" % "grpc-netty-shaded" % scalapb.compiler.Version.grpcJavaVersion
 )
 // For ScalaPB 0.11.x:
 libraryDependencies += "com.thesamet.scalapb" %% "scalapb-json4s" % "0.12.0"
