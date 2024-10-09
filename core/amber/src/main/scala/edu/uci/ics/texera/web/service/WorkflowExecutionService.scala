@@ -45,6 +45,8 @@ class WorkflowExecutionService(
     request.emailNotificationConfig.userEmail
   )
 
+  private val emailNotificationService = new EmailNotificationService(emailNotifier)
+
   addSubscription(
     executionStateStore.metadataStore.registerDiffHandler((oldState, newState) => {
       val outputEvents = new mutable.ArrayBuffer[TexeraWebSocketEvent]()
@@ -52,11 +54,8 @@ class WorkflowExecutionService(
       if (newState.state != oldState.state || newState.isRecovering != oldState.isRecovering) {
         outputEvents.append(createStateEvent(newState))
 
-        if (
-          request.emailNotificationConfig.enabled &&
-          emailNotifier.shouldSendEmail(oldState.state, newState.state)
-        ) {
-          emailNotifier.sendStatusEmail(newState.state)
+        if (request.emailNotificationConfig.enabled) {
+          emailNotificationService.sendEmailNotification(oldState.state, newState.state)
         }
       }
 
@@ -143,6 +142,7 @@ class WorkflowExecutionService(
       executionStatsService.unsubscribeAll()
       executionReconfigurationService.unsubscribeAll()
     }
+    emailNotificationService.shutdown()
   }
 
 }
