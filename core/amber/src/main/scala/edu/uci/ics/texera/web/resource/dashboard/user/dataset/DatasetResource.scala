@@ -1056,39 +1056,35 @@ class DatasetResource {
   }
 
   /**
-    * Retrieves a ZIP file for a specific dataset version.
+    * Retrieves a ZIP file for a specific dataset version or the latest version.
     *
     * @param pathStr The dataset version path in the format: /ownerEmail/datasetName/versionName
     *                Example: /user@example.com/dataset/v1
-    *
-    * @param user the session user.
+    * @param getLatest When true, retrieves the latest version regardless of the provided path.
+    * @param did The dataset ID (used when getLatest is true).
+    * @param user The session user.
     * @return A Response containing the dataset version as a ZIP file.
     */
   @GET
   @Path("/version-zip")
   def retrieveDatasetVersionZip(
       @QueryParam("path") pathStr: String,
+      @QueryParam("getLatest") getLatest: Boolean,
+      @QueryParam("did") did: UInteger,
       @Auth user: SessionUser
   ): Response = {
-    val (dataset, dsVersion) = resolveAndValidatePath(pathStr, user)
-    createZipResponse(dataset, dsVersion)
+    val (dataset, version) = if (getLatest) {
+      validateParam(did != null, "Dataset ID (did) is required when getLatest is true")
+      getLatestVersionInfo(did, user)
+    } else {
+      validateParam(pathStr != null && pathStr.nonEmpty, "Path is required when getLatest is false")
+      resolveAndValidatePath(pathStr, user)
+    }
+    createZipResponse(dataset, version)
   }
 
-  /**
-    * Retrieves a ZIP file for the latest dataset version.
-    *
-    * @param did The dataset ID.
-    * @param user The session user.
-    * @return A Response containing the latest dataset version as a ZIP file.
-    */
-  @GET
-  @Path("/{did}/latest-version-zip")
-  def retrieveDatasetLatestVersionZip(
-      @PathParam("did") did: UInteger,
-      @Auth user: SessionUser
-  ): Response = {
-    val (dataset, latestVersion) = getLatestVersionInfo(did, user)
-    createZipResponse(dataset, latestVersion)
+  private def validateParam(condition: Boolean, errorMessage: String): Unit = {
+    if (!condition) throw new BadRequestException(errorMessage)
   }
 
   private def resolveAndValidatePath(
@@ -1136,18 +1132,16 @@ class DatasetResource {
   }
 
   private def createStreamingOutput(fileNodes: util.Set[PhysicalFileNode]): StreamingOutput = {
-    new StreamingOutput() {
+    new StreamingOutput {
       override def write(outputStream: OutputStream): Unit = {
         Using(new ZipOutputStream(outputStream)) { zipOutputStream =>
-          fileNodes.asScala.foreach { fileNode =>
-            addFileToZip(zipOutputStream, fileNode)
-          }
+          fileNodes.asScala.foreach(addFileToZip(zipOutputStream, _))
         }.recover {
           case e: IOException =>
             throw new WebApplicationException("Error creating ZIP output stream", e)
           case NonFatal(e) =>
             throw new WebApplicationException("Unexpected error while creating ZIP", e)
-        }.get // This will throw the exception if there was one
+        }
       }
     }
   }
@@ -1158,10 +1152,13 @@ class DatasetResource {
 
     try {
       zipOutputStream.putNextEntry(new ZipEntry(zipEntryName))
-      Files.copy(filePath, zipOutputStream)
+      Using(Files.newInputStream(filePath)) { inputStream =>
+        inputStream.transferTo(zipOutputStream)
+      }
     } catch {
       case e: IOException =>
-        throw new WebApplicationException(s"Error processing file: $zipEntryName", e)
+        // Log the error and continue with the next file
+        println(s"Error processing file: $zipEntryName - ${e.getMessage}")
     } finally {
       zipOutputStream.closeEntry()
     }

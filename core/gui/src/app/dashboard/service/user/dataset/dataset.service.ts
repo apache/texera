@@ -61,17 +61,21 @@ export class DatasetService {
     });
   }
 
-  public retrieveDatasetVersionZip(path: string): Observable<Blob> {
-    const encodedPath = encodeURIComponent(path);
-    return this.http.get(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/version-zip?path=${encodedPath}`, {
+  private retrieveDatasetZip(params: HttpParams): Observable<Blob> {
+    return this.http.get(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/version-zip`, {
+      params,
       responseType: "blob",
     });
   }
 
+  public retrieveDatasetVersionZip(path: string): Observable<Blob> {
+    const params = new HttpParams().set("path", encodeURIComponent(path));
+    return this.retrieveDatasetZip(params);
+  }
+
   public retrieveDatasetLatestVersionZip(did: number): Observable<Blob> {
-    return this.http.get(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/latest-version-zip`, {
-      responseType: "blob",
-    });
+    const params = new HttpParams().set("getLatest", "true").set("did", did.toString());
+    return this.retrieveDatasetZip(params);
   }
 
   public retrieveAccessibleDatasets(
