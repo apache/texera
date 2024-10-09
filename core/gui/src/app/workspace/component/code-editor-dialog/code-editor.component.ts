@@ -185,9 +185,11 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
 
   private initMonaco(): void {
     if (this.wrapper) {
-      from(this.wrapper.dispose(true)).subscribe({
-        next: () => this.initializeMonacoEditor(),
-      });
+      from(this.wrapper.dispose(true))
+        .pipe(takeUntil(this.componentDestroy))
+        .subscribe({
+          next: () => this.initializeMonacoEditor(),
+        });
     } else {
       this.initializeMonacoEditor();
     }
@@ -237,36 +239,38 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
         };
       }
 
-      from(this.wrapper.initAndStart(userConfig, this.editorElement.nativeElement)).subscribe({
-        next: () => {
-          this.formControl.statusChanges.pipe(untilDestroyed(this)).subscribe(() => {
-            const editorInstance = this.wrapper?.getEditor();
-            if (editorInstance) {
-              editorInstance.updateOptions({
-                readOnly: this.formControl.disabled,
-              });
+      from(this.wrapper.initAndStart(userConfig, this.editorElement.nativeElement))
+        .pipe(takeUntil(this.componentDestroy))
+        .subscribe({
+          next: () => {
+            this.formControl.statusChanges.pipe(untilDestroyed(this)).subscribe(() => {
+              const editorInstance = this.wrapper?.getEditor();
+              if (editorInstance) {
+                editorInstance.updateOptions({
+                  readOnly: this.formControl.disabled,
+                });
+              }
+            });
+
+            this.editor = this.wrapper?.getEditor();
+
+            if (this.code && this.editor) {
+              if (this.monacoBinding) {
+                this.monacoBinding.destroy();
+                this.monacoBinding = undefined;
+              }
+
+              this.monacoBinding = new MonacoBinding(
+                this.code,
+                this.editor.getModel()!,
+                new Set([this.editor]),
+                this.workflowActionService.getTexeraGraph().getSharedModelAwareness()
+              );
             }
-          });
 
-          this.editor = this.wrapper?.getEditor();
-
-          if (this.code && this.editor) {
-            if (this.monacoBinding) {
-              this.monacoBinding.destroy();
-              this.monacoBinding = undefined;
-            }
-
-            this.monacoBinding = new MonacoBinding(
-              this.code,
-              this.editor.getModel()!,
-              new Set([this.editor]),
-              this.workflowActionService.getTexeraGraph().getSharedModelAwareness()
-            );
-          }
-
-          this.setupAIAssistantActions();
-        },
-      });
+            this.setupAIAssistantActions();
+          },
+        });
     }
   }
 
@@ -502,9 +506,11 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
 
   private initDiffEditor(): void {
     if (this.wrapper) {
-      from(this.wrapper.dispose(true)).subscribe({
-        next: () => this.initializeDiffEditor(),
-      });
+      from(this.wrapper.dispose(true))
+        .pipe(takeUntil(this.componentDestroy))
+        .subscribe({
+          next: () => this.initializeDiffEditor(),
+        });
     } else {
       this.initializeDiffEditor();
     }
@@ -513,6 +519,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   private initializeDiffEditor(): void {
     if (this.code && !this.wrapper) {
       this.wrapper = new MonacoEditorLanguageClientWrapper();
+      const fileSuffix = this.getFileSuffixByLanguage(this.language);
       const currentWorkflowVersionCode = this.workflowActionService
         .getTempWorkflow()
         ?.content.operators?.filter(
@@ -528,11 +535,11 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
             codeResources: {
               main: {
                 text: currentWorkflowVersionCode,
-                uri: `in-memory-${this.operatorID}-version.py`,
+                uri: `in-memory-${this.operatorID}-version.${fileSuffix}`,
               },
               original: {
                 text: this.code.toString(),
-                uri: `in-memory-${this.operatorID}.py`,
+                uri: `in-memory-${this.operatorID}.${fileSuffix}`,
               },
             },
             useDiffEditor: true,
@@ -546,20 +553,22 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
             },
           },
         },
-        languageClientConfig: {
-          languageId: this.language || "python",
+      };
+      if (this.language === "python") {
+        userConfig.languageClientConfig = {
+          languageId: "python",
           options: {
             $type: "WebSocketUrl",
             url: "ws://localhost:3000/language-server",
             startOptions: {
               onCall: () => {
-                console.log("Language client started");
+                console.log("Python Language client started");
               },
               reportStatus: true,
             },
           },
-        },
-      };
+        };
+      }
 
       try {
         this.wrapper.initAndStart(userConfig, this.editorElement.nativeElement);
