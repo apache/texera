@@ -17,13 +17,9 @@ import {
   WorkflowPersistService,
   DEFAULT_WORKFLOW_NAME,
 } from "src/app/common/service/workflow-persist/workflow-persist.service";
-import { Workflow } from "src/app/common/type/workflow";
-import { FileSaverService } from "src/app/dashboard/service/user/file/file-saver.service";
 import { firstValueFrom } from "rxjs";
 import { SearchService } from "../../../service/user/search.service";
 import { HubWorkflowDetailComponent } from "../../../../hub/component/workflow/detail/hub-workflow-detail.component";
-import { DatasetService } from "src/app/dashboard/service/user/dataset/dataset.service";
-import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
 
 @UntilDestroy()
@@ -70,10 +66,7 @@ export class ListItemComponent implements OnInit, OnChanges {
     private searchService: SearchService,
     private modalService: NzModalService,
     private workflowPersistService: WorkflowPersistService,
-    private fileSaverService: FileSaverService,
     private modal: NzModalService,
-    private datasetService: DatasetService,
-    private notificationService: NotificationService,
     private downloadService: DownloadService
   ) {}
 
