@@ -1131,4 +1131,69 @@ class DatasetResource {
         .build()
     }
   }
+
+  @GET
+  @Path("/{did}/latest-version-zip")
+  def retrieveDatasetLatestVersionZip(
+      @PathParam("did") did: UInteger,
+      @Auth user: SessionUser
+  ): Response = {
+    val uid = user.getUid
+
+    withTransaction(context) { ctx =>
+      if (!userHasReadAccess(ctx, did, uid)) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+      }
+
+      val dataset = getDatasetByID(ctx, did)
+      val latestVersion = getDatasetLatestVersion(ctx, did, uid)
+      val targetDatasetPath = PathUtils.getDatasetPath(did)
+      val versionHash = latestVersion.getVersionHash
+
+      val fileNodes = GitVersionControlLocalFileStorage.retrieveRootFileNodesOfVersion(
+        targetDatasetPath,
+        versionHash
+      )
+
+      val streamingOutput = new StreamingOutput() {
+        override def write(outputStream: OutputStream): Unit = {
+          val zipOutputStream = new ZipOutputStream(outputStream)
+
+          try {
+            fileNodes.foreach { fileNode =>
+              val zipEntryName = fileNode.getRelativePath.toString
+
+              try {
+                zipOutputStream.putNextEntry(new ZipEntry(zipEntryName))
+
+                val filePath = fileNode.getAbsolutePath
+
+                Files.copy(filePath, zipOutputStream)
+
+              } catch {
+                case e: IOException =>
+                  throw new WebApplicationException(s"Error processing file: $zipEntryName", e)
+              } finally {
+                zipOutputStream.closeEntry()
+              }
+            }
+          } catch {
+            case e: IOException =>
+              throw new WebApplicationException("Error creating ZIP output stream", e)
+          } finally {
+            zipOutputStream.close()
+          }
+        }
+      }
+
+      Response
+        .ok(streamingOutput)
+        .header(
+          "Content-Disposition",
+          s"attachment; filename=${dataset.getName}.zip"
+        )
+        .`type`("application/zip")
+        .build()
+    }
+  }
 }
