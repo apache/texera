@@ -20,7 +20,7 @@ class AIAssistantResource {
   def isAIAssistantEnable: String = isEnabled
 
   /**
-    * Endpoint to get the operator comment from OpenAI.
+    * A way to send prompts to open ai
     * @param prompt The input prompt for the OpenAI model.
     * @param user The authenticated session user.
     * @return A response containing the generated comment from OpenAI or an error message.
@@ -28,7 +28,7 @@ class AIAssistantResource {
   @POST
   @Path("/openai")
   @Consumes(Array(MediaType.APPLICATION_JSON))
-  def getAiComment(prompt: String, @Auth user: SessionUser): Response = {
+  def sendPromptToOpenAIApi(prompt: String, @Auth user: SessionUser): Response = {
     // Prepare the final prompt by escaping necessary characters
     // Escape backslashes and double quotes in the prompt to prevent breaking the JSON format
     val finalPrompt = prompt.replace("\\", "\\\\").replace("\"", "\\\"")

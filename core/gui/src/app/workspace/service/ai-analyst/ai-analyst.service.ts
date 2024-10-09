@@ -6,8 +6,8 @@ import { WorkflowActionService } from "../workflow-graph/model/workflow-action.s
 import { AppSettings } from "../../../common/app-setting";
 
 const AI_ASSISTANT_API_BASE_URL = `${AppSettings.getApiEndpoint()}`;
-const apiUrlIsEnabled = `${AI_ASSISTANT_API_BASE_URL}/aiassistant/isenabled`;
-const apiUrlOpenai = `${AI_ASSISTANT_API_BASE_URL}/aiassistant/openai`;
+const api_Url_Is_Enabled = `${AI_ASSISTANT_API_BASE_URL}/aiassistant/isenabled`;
+const api_Url_Openai = `${AI_ASSISTANT_API_BASE_URL}/aiassistant/openai`;
 
 @Injectable({
   providedIn: "root",
@@ -30,7 +30,7 @@ export class AiAnalystService {
       return of(this.isAIAssistantEnabled);
     }
 
-    return this.http.get(apiUrlIsEnabled, { responseType: "text" }).pipe(
+    return this.http.get(api_Url_Is_Enabled, { responseType: "text" }).pipe(
       map(response => {
         const isEnabled = response === "OpenAI";
         return isEnabled;
@@ -64,7 +64,7 @@ export class AiAnalystService {
             // Retry logic for up to maxRetries attempts
             const tryRequest = () => {
               this.http
-                .post<any>(apiUrlOpenai, { prompt })
+                .post<any>(api_Url_Openai, { prompt })
                 .pipe(
                   map(response => {
                     const content = response.choices[0]?.message?.content.trim() || "";
