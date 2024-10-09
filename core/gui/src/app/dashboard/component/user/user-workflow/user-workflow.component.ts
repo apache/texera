@@ -349,7 +349,7 @@ export class UserWorkflowComponent implements AfterViewInit {
     } else {
       this.handleFileUploads(file as unknown as Blob, file.name);
     }
-    window.location.reload()
+    window.location.reload();
     return false;
   };
 
