@@ -58,7 +58,10 @@ class AIAssistantResource {
       // Handle exceptions and return an error response
       case e: Exception =>
         e.printStackTrace()
-        Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("Error occur when requesting the OpenAI API").build()
+        Response
+          .status(Response.Status.INTERNAL_SERVER_ERROR)
+          .entity("Error occur when requesting the OpenAI API")
+          .build()
     }
   }
 
