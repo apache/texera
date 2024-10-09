@@ -1,7 +1,7 @@
 import { AfterViewInit, Component, Input, ViewChild } from "@angular/core";
 import { Router } from "@angular/router";
 import { NzModalService } from "ng-zorro-antd/modal";
-import { firstValueFrom, of } from "rxjs";
+import { firstValueFrom, from, Observable, of } from "rxjs";
 import {
   DEFAULT_WORKFLOW_NAME,
   WorkflowPersistService,
@@ -342,15 +342,20 @@ export class UserWorkflowComponent implements AfterViewInit {
   /**
    * Verify Uploaded file name and upload the file
    */
-  public onClickUploadExistingWorkflowFromLocal = (file: NzUploadFile): boolean => {
+  public onClickUploadExistingWorkflowFromLocal = (file: NzUploadFile): Observable<boolean> => {
     const fileExtensionIndex = file.name.lastIndexOf(".");
-    if (file.name.substring(fileExtensionIndex) === ".zip") {
-      this.handleZipUploads(file as unknown as Blob);
-    } else {
-      this.handleFileUploads(file as unknown as Blob, file.name);
-    }
-    window.location.reload();
-    return false;
+
+    const uploadPromise = (async () => {
+      if (file.name.substring(fileExtensionIndex) === ".zip") {
+        this.handleZipUploads(file as unknown as Blob);
+      } else {
+        this.handleFileUploads(file as unknown as Blob, file.name);
+      }
+      await this.search(true);
+      return false;
+    })();
+
+    return from(uploadPromise);
   };
 
   /**
