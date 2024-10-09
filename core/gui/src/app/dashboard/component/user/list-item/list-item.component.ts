@@ -24,6 +24,7 @@ import { SearchService } from "../../../service/user/search.service";
 import { HubWorkflowDetailComponent } from "../../../../hub/component/workflow/detail/hub-workflow-detail.component";
 import { DatasetService } from "src/app/dashboard/service/user/dataset/dataset.service";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
+import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
 
 @UntilDestroy()
 @Component({
@@ -72,7 +73,8 @@ export class ListItemComponent implements OnInit, OnChanges {
     private fileSaverService: FileSaverService,
     private modal: NzModalService,
     private datasetService: DatasetService,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    private downloadService: DownloadService
   ) {}
 
   initializeEntry() {
@@ -146,59 +148,18 @@ export class ListItemComponent implements OnInit, OnChanges {
     }
   }
 
-  public onClickDownload(): void {
+  public onClickDownload = (): void => {
+    if (!this.entry.id) return;
+
     if (this.entry.type === "workflow") {
-      if (this.entry.id) {
-        this.workflowPersistService
-          .retrieveWorkflow(this.entry.id)
-          .pipe(untilDestroyed(this))
-          .subscribe(data => {
-            const workflowCopy: Workflow = {
-              ...data,
-              wid: undefined,
-              creationTime: undefined,
-              lastModifiedTime: undefined,
-              readonly: false,
-            };
-            const workflowJson = JSON.stringify(workflowCopy.content);
-            const fileName = workflowCopy.name + ".json";
-            this.fileSaverService.saveAs(new Blob([workflowJson], { type: "text/plain;charset=utf-8" }), fileName);
-          });
-      }
+      this.downloadService
+        .downloadWorkflow(this.entry.id, this.entry.workflow.workflow.name)
+        .pipe(untilDestroyed(this))
+        .subscribe();
     } else if (this.entry.type === "dataset") {
-      if (this.entry.id) {
-        this.datasetService
-          .retrieveDatasetLatestVersionZip(this.entry.id)
-          .pipe(untilDestroyed(this))
-          .subscribe({
-            next: blob => {
-              // Create URL for the ZIP blob
-              const url = URL.createObjectURL(blob);
-
-              // Create a temporary link element
-              const a = document.createElement("a");
-              a.href = url;
-              a.download = `${this.entry.name}.zip`; // Filename for ZIP file
-
-              // Append the link to the body
-              document.body.appendChild(a);
-              // Trigger the download
-              a.click();
-              // Remove the link after download
-              document.body.removeChild(a);
-              // Release the blob URL
-              URL.revokeObjectURL(url);
-
-              this.notificationService.info("The latest version of the dataset is downloading as ZIP");
-            },
-            error: (error: unknown) => {
-              this.notificationService.error("Error downloading the latest version of the dataset as ZIP");
-            },
-          });
-        // TODO
-      }
+      this.downloadService.downloadDataset(this.entry.id, this.entry.name).pipe(untilDestroyed(this)).subscribe();
     }
-  }
+  };
 
   onEditName(): void {
     this.editingName = true;
