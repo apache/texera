@@ -99,7 +99,7 @@ export class UserWorkflowComponent implements AfterViewInit, OnInit {
     private modalService: NzModalService,
     private router: Router,
     private fileSaverService: FileSaverService,
-    private searchService: SearchService,
+    private searchService: SearchService
   ) {
     this.userService
       .userChanged()
