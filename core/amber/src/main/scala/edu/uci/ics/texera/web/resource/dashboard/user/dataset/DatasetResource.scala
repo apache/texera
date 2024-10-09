@@ -91,6 +91,8 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters._
+import scala.util.Using
+import scala.util.control.NonFatal
 
 object DatasetResource {
   val DATASET_IS_PUBLIC: Byte = 1;
@@ -1072,6 +1074,13 @@ class DatasetResource {
     createZipResponse(dataset, dsVersion)
   }
 
+  /**
+    * Retrieves a ZIP file for the latest dataset version.
+    *
+    * @param did The dataset ID.
+    * @param user The session user.
+    * @return A Response containing the latest dataset version as a ZIP file.
+    */
   @GET
   @Path("/{did}/latest-version-zip")
   def retrieveDatasetLatestVersionZip(
@@ -1086,28 +1095,25 @@ class DatasetResource {
       pathStr: String,
       user: SessionUser
   ): (Dataset, DatasetVersion) = {
-    val uid = user.getUid
     val decodedPathStr = URLDecoder.decode(pathStr, StandardCharsets.UTF_8.name())
     val (_, dataset, dsVersion, _) =
       resolvePath(Paths.get(decodedPathStr), shouldContainFile = false)
 
-    if (!userHasReadAccess(context, dataset.getDid, uid)) {
-      throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-    }
-
+    validateUserAccess(dataset.getDid, user.getUid)
     (dataset, dsVersion)
   }
 
   private def getLatestVersionInfo(did: UInteger, user: SessionUser): (Dataset, DatasetVersion) = {
-    val uid = user.getUid
+    validateUserAccess(did, user.getUid)
+    val dataset = getDatasetByID(context, did)
+    val latestVersion = getDatasetLatestVersion(context, did, user.getUid)
+    (dataset, latestVersion)
+  }
 
+  private def validateUserAccess(did: UInteger, uid: UInteger): Unit = {
     if (!userHasReadAccess(context, did, uid)) {
       throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
     }
-
-    val dataset = getDatasetByID(context, did)
-    val latestVersion = getDatasetLatestVersion(context, did, uid)
-    (dataset, latestVersion)
   }
 
   private def createZipResponse(dataset: Dataset, version: DatasetVersion): Response = {
@@ -1132,28 +1138,26 @@ class DatasetResource {
   private def createStreamingOutput(fileNodes: util.Set[PhysicalFileNode]): StreamingOutput = {
     new StreamingOutput() {
       override def write(outputStream: OutputStream): Unit = {
-        val zipOutputStream = new ZipOutputStream(outputStream)
-
-        try {
-          fileNodes.foreach { fileNode =>
+        Using(new ZipOutputStream(outputStream)) { zipOutputStream =>
+          fileNodes.asScala.foreach { fileNode =>
             addFileToZip(zipOutputStream, fileNode)
           }
-        } catch {
+        }.recover {
           case e: IOException =>
             throw new WebApplicationException("Error creating ZIP output stream", e)
-        } finally {
-          zipOutputStream.close()
-        }
+          case NonFatal(e) =>
+            throw new WebApplicationException("Unexpected error while creating ZIP", e)
+        }.get // This will throw the exception if there was one
       }
     }
   }
 
   private def addFileToZip(zipOutputStream: ZipOutputStream, fileNode: PhysicalFileNode): Unit = {
     val zipEntryName = fileNode.getRelativePath.toString
+    val filePath = fileNode.getAbsolutePath
 
     try {
       zipOutputStream.putNextEntry(new ZipEntry(zipEntryName))
-      val filePath = fileNode.getAbsolutePath
       Files.copy(filePath, zipOutputStream)
     } catch {
       case e: IOException =>
