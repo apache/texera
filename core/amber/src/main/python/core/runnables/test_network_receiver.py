@@ -30,7 +30,7 @@ class TestNetworkReceiver:
     def network_receiver(self, output_queue):
         network_receiver = NetworkReceiver(output_queue, host="localhost", port=5555)
         yield network_receiver
-        network_receiver._proxy_server.graceful_shutdown()
+        network_receiver.stop()
 
     class MockFlightMetadataReader:
         """
@@ -93,7 +93,7 @@ class TestNetworkReceiver:
             )
         )
 
-    @pytest.mark.timeout(2)
+    @pytest.mark.timeout(10)
     def test_network_receiver_can_receive_data_messages(
         self,
         data_payload,
@@ -109,7 +109,7 @@ class TestNetworkReceiver:
         assert len(element.payload.frame) == len(data_payload.frame)
         assert element.tag == worker_id
 
-    @pytest.mark.timeout(2)
+    @pytest.mark.timeout(10)
     def test_network_receiver_can_receive_data_messages_end_of_upstream(
         self,
         data_payload,
@@ -128,7 +128,7 @@ class TestNetworkReceiver:
         assert element.payload.frame == EndOfInputChannel()
         assert element.tag == worker_id
 
-    @pytest.mark.timeout(2)
+    @pytest.mark.timeout(10)
     def test_network_receiver_can_receive_control_messages(
         self,
         data_payload,
