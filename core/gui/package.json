@@ -56,7 +56,6 @@
     "lodash-es": "4.17.21",
     "marked": "4.3.0",
     "monaco-languageclient": "8.8.3",
-    "vscode": "npm:@codingame/monaco-vscode-api@8.0.4",
     "monaco-editor-wrapper": "5.5.3",
     "monaco-editor": "npm:@codingame/monaco-vscode-editor-api@8.0.4",
     "monaco-languageclient-examples": "2024.8.4",
