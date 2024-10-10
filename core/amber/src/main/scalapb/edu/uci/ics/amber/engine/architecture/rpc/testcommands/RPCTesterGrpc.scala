@@ -7,102 +7,102 @@ package edu.uci.ics.amber.engine.architecture.rpc.testcommands
 
 
 object RPCTesterGrpc {
-  val METHOD_SEND_PING: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.testcommands.Ping, edu.uci.ics.amber.engine.architecture.rpc.testcommands.IntResponse] =
+  val METHOD_SEND_PING: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Ping, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse] =
     _root_.io.grpc.MethodDescriptor.newBuilder()
       .setType(_root_.io.grpc.MethodDescriptor.MethodType.UNARY)
       .setFullMethodName(_root_.io.grpc.MethodDescriptor.generateFullMethodName("edu.uci.ics.amber.engine.architecture.rpc.RPCTester", "SendPing"))
       .setSampledToLocalTracing(true)
-      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.testcommands.Ping])
-      .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.testcommands.IntResponse])
+      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Ping])
+      .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse])
       .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.testcommands.TestcommandsProto.javaDescriptor.getServices().get(0).getMethods().get(0)))
       .build()
   
-  val METHOD_SEND_PONG: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.testcommands.Pong, edu.uci.ics.amber.engine.architecture.rpc.testcommands.IntResponse] =
+  val METHOD_SEND_PONG: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Pong, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse] =
     _root_.io.grpc.MethodDescriptor.newBuilder()
       .setType(_root_.io.grpc.MethodDescriptor.MethodType.UNARY)
       .setFullMethodName(_root_.io.grpc.MethodDescriptor.generateFullMethodName("edu.uci.ics.amber.engine.architecture.rpc.RPCTester", "SendPong"))
       .setSampledToLocalTracing(true)
-      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.testcommands.Pong])
-      .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.testcommands.IntResponse])
+      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Pong])
+      .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse])
       .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.testcommands.TestcommandsProto.javaDescriptor.getServices().get(0).getMethods().get(1)))
       .build()
   
-  val METHOD_SEND_NESTED: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.testcommands.Nested, edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse] =
+  val METHOD_SEND_NESTED: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Nested, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse] =
     _root_.io.grpc.MethodDescriptor.newBuilder()
       .setType(_root_.io.grpc.MethodDescriptor.MethodType.UNARY)
       .setFullMethodName(_root_.io.grpc.MethodDescriptor.generateFullMethodName("edu.uci.ics.amber.engine.architecture.rpc.RPCTester", "SendNested"))
       .setSampledToLocalTracing(true)
-      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.testcommands.Nested])
-      .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse])
+      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Nested])
+      .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse])
       .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.testcommands.TestcommandsProto.javaDescriptor.getServices().get(0).getMethods().get(2)))
       .build()
   
-  val METHOD_SEND_PASS: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.testcommands.Pass, edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse] =
+  val METHOD_SEND_PASS: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Pass, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse] =
     _root_.io.grpc.MethodDescriptor.newBuilder()
       .setType(_root_.io.grpc.MethodDescriptor.MethodType.UNARY)
       .setFullMethodName(_root_.io.grpc.MethodDescriptor.generateFullMethodName("edu.uci.ics.amber.engine.architecture.rpc.RPCTester", "SendPass"))
       .setSampledToLocalTracing(true)
-      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.testcommands.Pass])
-      .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse])
+      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Pass])
+      .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse])
       .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.testcommands.TestcommandsProto.javaDescriptor.getServices().get(0).getMethods().get(3)))
       .build()
   
-  val METHOD_SEND_ERROR_COMMAND: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.testcommands.ErrorCommand, edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse] =
+  val METHOD_SEND_ERROR_COMMAND: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ErrorCommand, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse] =
     _root_.io.grpc.MethodDescriptor.newBuilder()
       .setType(_root_.io.grpc.MethodDescriptor.MethodType.UNARY)
       .setFullMethodName(_root_.io.grpc.MethodDescriptor.generateFullMethodName("edu.uci.ics.amber.engine.architecture.rpc.RPCTester", "SendErrorCommand"))
       .setSampledToLocalTracing(true)
-      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.testcommands.ErrorCommand])
-      .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse])
+      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ErrorCommand])
+      .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse])
       .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.testcommands.TestcommandsProto.javaDescriptor.getServices().get(0).getMethods().get(4)))
       .build()
   
-  val METHOD_SEND_RECURSION: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.testcommands.Recursion, edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse] =
+  val METHOD_SEND_RECURSION: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Recursion, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse] =
     _root_.io.grpc.MethodDescriptor.newBuilder()
       .setType(_root_.io.grpc.MethodDescriptor.MethodType.UNARY)
       .setFullMethodName(_root_.io.grpc.MethodDescriptor.generateFullMethodName("edu.uci.ics.amber.engine.architecture.rpc.RPCTester", "SendRecursion"))
       .setSampledToLocalTracing(true)
-      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.testcommands.Recursion])
-      .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse])
+      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Recursion])
+      .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse])
       .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.testcommands.TestcommandsProto.javaDescriptor.getServices().get(0).getMethods().get(5)))
       .build()
   
-  val METHOD_SEND_COLLECT: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.testcommands.Collect, edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse] =
+  val METHOD_SEND_COLLECT: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Collect, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse] =
     _root_.io.grpc.MethodDescriptor.newBuilder()
       .setType(_root_.io.grpc.MethodDescriptor.MethodType.UNARY)
       .setFullMethodName(_root_.io.grpc.MethodDescriptor.generateFullMethodName("edu.uci.ics.amber.engine.architecture.rpc.RPCTester", "SendCollect"))
       .setSampledToLocalTracing(true)
-      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.testcommands.Collect])
-      .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse])
+      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Collect])
+      .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse])
       .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.testcommands.TestcommandsProto.javaDescriptor.getServices().get(0).getMethods().get(6)))
       .build()
   
-  val METHOD_SEND_GENERATE_NUMBER: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.testcommands.GenerateNumber, edu.uci.ics.amber.engine.architecture.rpc.testcommands.IntResponse] =
+  val METHOD_SEND_GENERATE_NUMBER: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.GenerateNumber, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse] =
     _root_.io.grpc.MethodDescriptor.newBuilder()
       .setType(_root_.io.grpc.MethodDescriptor.MethodType.UNARY)
       .setFullMethodName(_root_.io.grpc.MethodDescriptor.generateFullMethodName("edu.uci.ics.amber.engine.architecture.rpc.RPCTester", "SendGenerateNumber"))
       .setSampledToLocalTracing(true)
-      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.testcommands.GenerateNumber])
-      .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.testcommands.IntResponse])
+      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.GenerateNumber])
+      .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse])
       .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.testcommands.TestcommandsProto.javaDescriptor.getServices().get(0).getMethods().get(7)))
       .build()
   
-  val METHOD_SEND_MULTI_CALL: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.testcommands.MultiCall, edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse] =
+  val METHOD_SEND_MULTI_CALL: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.MultiCall, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse] =
     _root_.io.grpc.MethodDescriptor.newBuilder()
       .setType(_root_.io.grpc.MethodDescriptor.MethodType.UNARY)
       .setFullMethodName(_root_.io.grpc.MethodDescriptor.generateFullMethodName("edu.uci.ics.amber.engine.architecture.rpc.RPCTester", "SendMultiCall"))
       .setSampledToLocalTracing(true)
-      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.testcommands.MultiCall])
-      .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse])
+      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.MultiCall])
+      .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse])
       .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.testcommands.TestcommandsProto.javaDescriptor.getServices().get(0).getMethods().get(8)))
       .build()
   
-  val METHOD_SEND_CHAIN: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.testcommands.Chain, edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity] =
+  val METHOD_SEND_CHAIN: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Chain, edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity] =
     _root_.io.grpc.MethodDescriptor.newBuilder()
       .setType(_root_.io.grpc.MethodDescriptor.MethodType.UNARY)
       .setFullMethodName(_root_.io.grpc.MethodDescriptor.generateFullMethodName("edu.uci.ics.amber.engine.architecture.rpc.RPCTester", "SendChain"))
       .setSampledToLocalTracing(true)
-      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.testcommands.Chain])
+      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Chain])
       .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity])
       .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.testcommands.TestcommandsProto.javaDescriptor.getServices().get(0).getMethods().get(9)))
       .build()
@@ -124,16 +124,16 @@ object RPCTesterGrpc {
   
   trait RPCTester extends _root_.scalapb.grpc.AbstractService {
     override def serviceCompanion: _root_.scalapb.grpc.ServiceCompanion[RPCTester] = RPCTester
-    def sendPing(request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.Ping): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.testcommands.IntResponse]
-    def sendPong(request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.Pong): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.testcommands.IntResponse]
-    def sendNested(request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.Nested): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse]
-    def sendPass(request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.Pass): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse]
-    def sendErrorCommand(request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.ErrorCommand): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse]
-    def sendRecursion(request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.Recursion): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse]
-    def sendCollect(request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.Collect): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse]
-    def sendGenerateNumber(request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.GenerateNumber): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.testcommands.IntResponse]
-    def sendMultiCall(request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.MultiCall): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse]
-    def sendChain(request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.Chain): scala.concurrent.Future[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]
+    def sendPing(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Ping): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse]
+    def sendPong(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Pong): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse]
+    def sendNested(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Nested): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse]
+    def sendPass(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Pass): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse]
+    def sendErrorCommand(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ErrorCommand): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse]
+    def sendRecursion(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Recursion): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse]
+    def sendCollect(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Collect): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse]
+    def sendGenerateNumber(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.GenerateNumber): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse]
+    def sendMultiCall(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.MultiCall): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse]
+    def sendChain(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Chain): scala.concurrent.Future[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]
   }
   
   object RPCTester extends _root_.scalapb.grpc.ServiceCompanion[RPCTester] {
@@ -144,61 +144,61 @@ object RPCTesterGrpc {
       _root_.io.grpc.ServerServiceDefinition.builder(SERVICE)
       .addMethod(
         METHOD_SEND_PING,
-        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.Ping, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.testcommands.IntResponse]) => {
+        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Ping, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse]) => {
           serviceImpl.sendPing(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
             executionContext)
         }))
       .addMethod(
         METHOD_SEND_PONG,
-        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.Pong, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.testcommands.IntResponse]) => {
+        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Pong, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse]) => {
           serviceImpl.sendPong(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
             executionContext)
         }))
       .addMethod(
         METHOD_SEND_NESTED,
-        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.Nested, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse]) => {
+        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Nested, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse]) => {
           serviceImpl.sendNested(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
             executionContext)
         }))
       .addMethod(
         METHOD_SEND_PASS,
-        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.Pass, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse]) => {
+        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Pass, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse]) => {
           serviceImpl.sendPass(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
             executionContext)
         }))
       .addMethod(
         METHOD_SEND_ERROR_COMMAND,
-        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.ErrorCommand, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse]) => {
+        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ErrorCommand, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse]) => {
           serviceImpl.sendErrorCommand(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
             executionContext)
         }))
       .addMethod(
         METHOD_SEND_RECURSION,
-        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.Recursion, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse]) => {
+        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Recursion, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse]) => {
           serviceImpl.sendRecursion(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
             executionContext)
         }))
       .addMethod(
         METHOD_SEND_COLLECT,
-        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.Collect, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse]) => {
+        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Collect, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse]) => {
           serviceImpl.sendCollect(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
             executionContext)
         }))
       .addMethod(
         METHOD_SEND_GENERATE_NUMBER,
-        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.GenerateNumber, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.testcommands.IntResponse]) => {
+        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.GenerateNumber, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse]) => {
           serviceImpl.sendGenerateNumber(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
             executionContext)
         }))
       .addMethod(
         METHOD_SEND_MULTI_CALL,
-        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.MultiCall, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse]) => {
+        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.MultiCall, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse]) => {
           serviceImpl.sendMultiCall(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
             executionContext)
         }))
       .addMethod(
         METHOD_SEND_CHAIN,
-        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.Chain, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]) => {
+        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Chain, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]) => {
           serviceImpl.sendChain(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
             executionContext)
         }))
@@ -207,56 +207,56 @@ object RPCTesterGrpc {
   
   trait RPCTesterBlockingClient {
     def serviceCompanion: _root_.scalapb.grpc.ServiceCompanion[RPCTester] = RPCTester
-    def sendPing(request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.Ping): edu.uci.ics.amber.engine.architecture.rpc.testcommands.IntResponse
-    def sendPong(request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.Pong): edu.uci.ics.amber.engine.architecture.rpc.testcommands.IntResponse
-    def sendNested(request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.Nested): edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse
-    def sendPass(request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.Pass): edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse
-    def sendErrorCommand(request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.ErrorCommand): edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse
-    def sendRecursion(request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.Recursion): edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse
-    def sendCollect(request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.Collect): edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse
-    def sendGenerateNumber(request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.GenerateNumber): edu.uci.ics.amber.engine.architecture.rpc.testcommands.IntResponse
-    def sendMultiCall(request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.MultiCall): edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse
-    def sendChain(request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.Chain): edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+    def sendPing(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Ping): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse
+    def sendPong(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Pong): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse
+    def sendNested(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Nested): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse
+    def sendPass(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Pass): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse
+    def sendErrorCommand(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ErrorCommand): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse
+    def sendRecursion(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Recursion): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse
+    def sendCollect(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Collect): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse
+    def sendGenerateNumber(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.GenerateNumber): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse
+    def sendMultiCall(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.MultiCall): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse
+    def sendChain(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Chain): edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
   }
   
   class RPCTesterBlockingStub(channel: _root_.io.grpc.Channel, options: _root_.io.grpc.CallOptions = _root_.io.grpc.CallOptions.DEFAULT) extends _root_.io.grpc.stub.AbstractStub[RPCTesterBlockingStub](channel, options) with RPCTesterBlockingClient {
-    override def sendPing(request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.Ping): edu.uci.ics.amber.engine.architecture.rpc.testcommands.IntResponse = {
+    override def sendPing(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Ping): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse = {
       _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_SEND_PING, options, request)
     }
     
-    override def sendPong(request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.Pong): edu.uci.ics.amber.engine.architecture.rpc.testcommands.IntResponse = {
+    override def sendPong(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Pong): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse = {
       _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_SEND_PONG, options, request)
     }
     
-    override def sendNested(request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.Nested): edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse = {
+    override def sendNested(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Nested): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse = {
       _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_SEND_NESTED, options, request)
     }
     
-    override def sendPass(request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.Pass): edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse = {
+    override def sendPass(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Pass): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse = {
       _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_SEND_PASS, options, request)
     }
     
-    override def sendErrorCommand(request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.ErrorCommand): edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse = {
+    override def sendErrorCommand(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ErrorCommand): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse = {
       _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_SEND_ERROR_COMMAND, options, request)
     }
     
-    override def sendRecursion(request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.Recursion): edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse = {
+    override def sendRecursion(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Recursion): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse = {
       _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_SEND_RECURSION, options, request)
     }
     
-    override def sendCollect(request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.Collect): edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse = {
+    override def sendCollect(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Collect): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse = {
       _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_SEND_COLLECT, options, request)
     }
     
-    override def sendGenerateNumber(request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.GenerateNumber): edu.uci.ics.amber.engine.architecture.rpc.testcommands.IntResponse = {
+    override def sendGenerateNumber(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.GenerateNumber): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse = {
       _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_SEND_GENERATE_NUMBER, options, request)
     }
     
-    override def sendMultiCall(request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.MultiCall): edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse = {
+    override def sendMultiCall(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.MultiCall): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse = {
       _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_SEND_MULTI_CALL, options, request)
     }
     
-    override def sendChain(request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.Chain): edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity = {
+    override def sendChain(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Chain): edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity = {
       _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_SEND_CHAIN, options, request)
     }
     
@@ -264,43 +264,43 @@ object RPCTesterGrpc {
   }
   
   class RPCTesterStub(channel: _root_.io.grpc.Channel, options: _root_.io.grpc.CallOptions = _root_.io.grpc.CallOptions.DEFAULT) extends _root_.io.grpc.stub.AbstractStub[RPCTesterStub](channel, options) with RPCTester {
-    override def sendPing(request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.Ping): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.testcommands.IntResponse] = {
+    override def sendPing(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Ping): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse] = {
       _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_SEND_PING, options, request)
     }
     
-    override def sendPong(request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.Pong): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.testcommands.IntResponse] = {
+    override def sendPong(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Pong): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse] = {
       _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_SEND_PONG, options, request)
     }
     
-    override def sendNested(request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.Nested): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse] = {
+    override def sendNested(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Nested): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse] = {
       _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_SEND_NESTED, options, request)
     }
     
-    override def sendPass(request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.Pass): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse] = {
+    override def sendPass(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Pass): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse] = {
       _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_SEND_PASS, options, request)
     }
     
-    override def sendErrorCommand(request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.ErrorCommand): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse] = {
+    override def sendErrorCommand(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ErrorCommand): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse] = {
       _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_SEND_ERROR_COMMAND, options, request)
     }
     
-    override def sendRecursion(request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.Recursion): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse] = {
+    override def sendRecursion(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Recursion): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse] = {
       _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_SEND_RECURSION, options, request)
     }
     
-    override def sendCollect(request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.Collect): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse] = {
+    override def sendCollect(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Collect): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse] = {
       _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_SEND_COLLECT, options, request)
     }
     
-    override def sendGenerateNumber(request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.GenerateNumber): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.testcommands.IntResponse] = {
+    override def sendGenerateNumber(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.GenerateNumber): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse] = {
       _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_SEND_GENERATE_NUMBER, options, request)
     }
     
-    override def sendMultiCall(request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.MultiCall): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse] = {
+    override def sendMultiCall(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.MultiCall): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse] = {
       _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_SEND_MULTI_CALL, options, request)
     }
     
-    override def sendChain(request: edu.uci.ics.amber.engine.architecture.rpc.testcommands.Chain): scala.concurrent.Future[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity] = {
+    override def sendChain(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Chain): scala.concurrent.Future[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity] = {
       _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_SEND_CHAIN, options, request)
     }
     

@@ -4,17 +4,18 @@ import akka.actor.{ActorRef, ActorSystem, PoisonPill, Props}
 import akka.testkit.{TestKit, TestProbe}
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.{GetActorRef, NetworkAck, NetworkMessage, RegisterActorRef}
 import edu.uci.ics.amber.engine.architecture.control.utils.TrivialControlTester
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands._
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ReturnInvocation
 import edu.uci.ics.amber.engine.architecture.rpc.testcommands.RPCTesterGrpc.{METHOD_SEND_CHAIN, METHOD_SEND_COLLECT, METHOD_SEND_ERROR_COMMAND, METHOD_SEND_MULTI_CALL, METHOD_SEND_NESTED, METHOD_SEND_PING, METHOD_SEND_RECURSION}
-import edu.uci.ics.amber.engine.architecture.rpc.testcommands._
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCContext
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CLIENT, CONTROLLER}
 import io.grpc.MethodDescriptor
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import scalapb.GeneratedMessage
 
 import scala.collection.mutable
 import scala.concurrent.duration._
@@ -29,7 +30,7 @@ class TrivialControlSpec
     TestKit.shutdownActorSystem(system)
   }
 
-  def testControl[T](numActors: Int, eventPairs: ((MethodDescriptor[_,_], Any), T)*): Unit = {
+  def testControl[T](numActors: Int, eventPairs: ((MethodDescriptor[_,_], ControlRequest), T)*): Unit = {
     val (events, expectedValues) = eventPairs.unzip
     val (probe, idMap) = setUp(numActors, events: _*)
     var flag = 0
@@ -48,7 +49,6 @@ class TrivialControlSpec
           0L // no queued credit
         )
         returnValue match {
-          case e: Throwable => throw e
           case _            => assert(returnValue.asInstanceOf[T] == expectedValues(id.toInt))
         }
         flag += 1
@@ -65,7 +65,7 @@ class TrivialControlSpec
 
   def setUp(
       numActors: Int,
-      cmd: (MethodDescriptor[_,_],Any)*
+      cmd: (MethodDescriptor[_,_], ControlRequest)*
   ): (TestProbe, mutable.HashMap[ActorVirtualIdentity, ActorRef]) = {
     val probe = TestProbe()
     val idMap = mutable.HashMap[ActorVirtualIdentity, ActorRef]()
@@ -86,7 +86,7 @@ class TrivialControlSpec
           WorkflowFIFOMessage(
             ChannelIdentity(CONTROLLER, ActorVirtualIdentity("0"), isControl = true),
             seqNum,
-            ControlInvocation(methodName, (msg, AsyncRPCContext(CONTROLLER, ActorVirtualIdentity("0"))), seqNum)
+            ControlInvocation(methodName, msg, AsyncRPCContext(CONTROLLER, ActorVirtualIdentity("0")), seqNum)
           )
         )
       )

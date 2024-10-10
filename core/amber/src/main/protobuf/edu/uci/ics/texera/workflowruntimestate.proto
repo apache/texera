@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package edu.uci.ics.texera.web;
 
-import "edu/uci/ics/amber/engine/architecture/worker/controlcommands.proto";
+import "edu/uci/ics/amber/engine/architecture/rpc/controlcommands.proto";
 import "edu/uci/ics/amber/engine/architecture/worker/controlreturns.proto";
 import "edu/uci/ics/amber/engine/architecture/worker/statistics.proto";
 import "edu/uci/ics/amber/engine/common/virtualidentity.proto";
@@ -58,7 +58,7 @@ message EvaluatedValueList{
 }
 
 message OperatorConsole{
-  repeated amber.engine.architecture.worker.ConsoleMessage console_messages = 1;
+  repeated edu.uci.ics.amber.engine.architecture.rpc.ConsoleMessage console_messages = 1;
   map<string, EvaluatedValueList> evaluate_expr_results = 2;
 }
 

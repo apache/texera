@@ -8,57 +8,35 @@ package edu.uci.ics.amber.engine.architecture.rpc.testcommands
 object TestcommandsProto extends _root_.scalapb.GeneratedFileObject {
   lazy val dependencies: Seq[_root_.scalapb.GeneratedFileObject] = Seq(
     edu.uci.ics.amber.engine.common.virtualidentity.VirtualidentityProto,
+    edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlcommandsProto,
+    edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlreturnsProto,
     scalapb.options.ScalapbProto
   )
-  lazy val messagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] =
-    Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]](
-      edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse,
-      edu.uci.ics.amber.engine.architecture.rpc.testcommands.IntResponse,
-      edu.uci.ics.amber.engine.architecture.rpc.testcommands.Ping,
-      edu.uci.ics.amber.engine.architecture.rpc.testcommands.Pong,
-      edu.uci.ics.amber.engine.architecture.rpc.testcommands.Pass,
-      edu.uci.ics.amber.engine.architecture.rpc.testcommands.Nested,
-      edu.uci.ics.amber.engine.architecture.rpc.testcommands.MultiCall,
-      edu.uci.ics.amber.engine.architecture.rpc.testcommands.ErrorCommand,
-      edu.uci.ics.amber.engine.architecture.rpc.testcommands.Collect,
-      edu.uci.ics.amber.engine.architecture.rpc.testcommands.GenerateNumber,
-      edu.uci.ics.amber.engine.architecture.rpc.testcommands.Chain,
-      edu.uci.ics.amber.engine.architecture.rpc.testcommands.Recursion
-    )
+  lazy val messagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   private lazy val ProtoBytes: _root_.scala.Array[Byte] =
       scalapb.Encoding.fromBase64(scala.collection.immutable.Seq(
   """CjxlZHUvdWNpL2ljcy9hbWJlci9lbmdpbmUvYXJjaGl0ZWN0dXJlL3JwYy90ZXN0Y29tbWFuZHMucHJvdG8SKWVkdS51Y2kua
   WNzLmFtYmVyLmVuZ2luZS5hcmNoaXRlY3R1cmUucnBjGjVlZHUvdWNpL2ljcy9hbWJlci9lbmdpbmUvY29tbW9uL3ZpcnR1YWxpZ
-  GVudGl0eS5wcm90bxoVc2NhbGFwYi9zY2FsYXBiLnByb3RvIjIKDlN0cmluZ1Jlc3BvbnNlEiAKBXZhbHVlGAEgASgJQgriPwcSB
-  XZhbHVlUgV2YWx1ZSIvCgtJbnRSZXNwb25zZRIgCgV2YWx1ZRgBIAEoBUIK4j8HEgV2YWx1ZVIFdmFsdWUiiwEKBFBpbmcSFAoBa
-  RgBIAEoBUIG4j8DEgFpUgFpEhoKA2VuZBgCIAEoBUII4j8FEgNlbmRSA2VuZBJRCgJ0bxgDIAEoCzI1LmVkdS51Y2kuaWNzLmFtY
-  mVyLmVuZ2luZS5jb21tb24uQWN0b3JWaXJ0dWFsSWRlbnRpdHlCCuI/BxICdG/wAQFSAnRvIosBCgRQb25nEhQKAWkYASABKAVCB
-  uI/AxIBaVIBaRIaCgNlbmQYAiABKAVCCOI/BRIDZW5kUgNlbmQSUQoCdG8YAyABKAsyNS5lZHUudWNpLmljcy5hbWJlci5lbmdpb
-  mUuY29tbW9uLkFjdG9yVmlydHVhbElkZW50aXR5QgriPwcSAnRv8AEBUgJ0byIoCgRQYXNzEiAKBXZhbHVlGAEgASgJQgriPwcSB
-  XZhbHVlUgV2YWx1ZSIeCgZOZXN0ZWQSFAoBaxgBIAEoBUIG4j8DEgFrUgFrIl4KCU11bHRpQ2FsbBJRCgNzZXEYASADKAsyNS5lZ
-  HUudWNpLmljcy5hbWJlci5lbmdpbmUuY29tbW9uLkFjdG9yVmlydHVhbElkZW50aXR5QgjiPwUSA3NlcVIDc2VxIg4KDEVycm9yQ
-  29tbWFuZCJoCgdDb2xsZWN0El0KB3dvcmtlcnMYASADKAsyNS5lZHUudWNpLmljcy5hbWJlci5lbmdpbmUuY29tbW9uLkFjdG9yV
-  mlydHVhbElkZW50aXR5QgziPwkSB3dvcmtlcnNSB3dvcmtlcnMiEAoOR2VuZXJhdGVOdW1iZXIiYAoFQ2hhaW4SVwoFbmV4dHMYA
-  SADKAsyNS5lZHUudWNpLmljcy5hbWJlci5lbmdpbmUuY29tbW9uLkFjdG9yVmlydHVhbElkZW50aXR5QgriPwcSBW5leHRzUgVuZ
-  Xh0cyIhCglSZWN1cnNpb24SFAoBaRgBIAEoBUIG4j8DEgFpUgFpMooKCglSUENUZXN0ZXISdQoIU2VuZFBpbmcSLy5lZHUudWNpL
-  mljcy5hbWJlci5lbmdpbmUuYXJjaGl0ZWN0dXJlLnJwYy5QaW5nGjYuZWR1LnVjaS5pY3MuYW1iZXIuZW5naW5lLmFyY2hpdGVjd
-  HVyZS5ycGMuSW50UmVzcG9uc2UiABJ1CghTZW5kUG9uZxIvLmVkdS51Y2kuaWNzLmFtYmVyLmVuZ2luZS5hcmNoaXRlY3R1cmUuc
-  nBjLlBvbmcaNi5lZHUudWNpLmljcy5hbWJlci5lbmdpbmUuYXJjaGl0ZWN0dXJlLnJwYy5JbnRSZXNwb25zZSIAEnwKClNlbmROZ
-  XN0ZWQSMS5lZHUudWNpLmljcy5hbWJlci5lbmdpbmUuYXJjaGl0ZWN0dXJlLnJwYy5OZXN0ZWQaOS5lZHUudWNpLmljcy5hbWJlc
-  i5lbmdpbmUuYXJjaGl0ZWN0dXJlLnJwYy5TdHJpbmdSZXNwb25zZSIAEngKCFNlbmRQYXNzEi8uZWR1LnVjaS5pY3MuYW1iZXIuZ
-  W5naW5lLmFyY2hpdGVjdHVyZS5ycGMuUGFzcxo5LmVkdS51Y2kuaWNzLmFtYmVyLmVuZ2luZS5hcmNoaXRlY3R1cmUucnBjLlN0c
-  mluZ1Jlc3BvbnNlIgASiAEKEFNlbmRFcnJvckNvbW1hbmQSNy5lZHUudWNpLmljcy5hbWJlci5lbmdpbmUuYXJjaGl0ZWN0dXJlL
-  nJwYy5FcnJvckNvbW1hbmQaOS5lZHUudWNpLmljcy5hbWJlci5lbmdpbmUuYXJjaGl0ZWN0dXJlLnJwYy5TdHJpbmdSZXNwb25zZ
-  SIAEoIBCg1TZW5kUmVjdXJzaW9uEjQuZWR1LnVjaS5pY3MuYW1iZXIuZW5naW5lLmFyY2hpdGVjdHVyZS5ycGMuUmVjdXJzaW9uG
-  jkuZWR1LnVjaS5pY3MuYW1iZXIuZW5naW5lLmFyY2hpdGVjdHVyZS5ycGMuU3RyaW5nUmVzcG9uc2UiABJ+CgtTZW5kQ29sbGVjd
-  BIyLmVkdS51Y2kuaWNzLmFtYmVyLmVuZ2luZS5hcmNoaXRlY3R1cmUucnBjLkNvbGxlY3QaOS5lZHUudWNpLmljcy5hbWJlci5lb
-  mdpbmUuYXJjaGl0ZWN0dXJlLnJwYy5TdHJpbmdSZXNwb25zZSIAEokBChJTZW5kR2VuZXJhdGVOdW1iZXISOS5lZHUudWNpLmljc
-  y5hbWJlci5lbmdpbmUuYXJjaGl0ZWN0dXJlLnJwYy5HZW5lcmF0ZU51bWJlcho2LmVkdS51Y2kuaWNzLmFtYmVyLmVuZ2luZS5hc
-  mNoaXRlY3R1cmUucnBjLkludFJlc3BvbnNlIgASggEKDVNlbmRNdWx0aUNhbGwSNC5lZHUudWNpLmljcy5hbWJlci5lbmdpbmUuY
-  XJjaGl0ZWN0dXJlLnJwYy5NdWx0aUNhbGwaOS5lZHUudWNpLmljcy5hbWJlci5lbmdpbmUuYXJjaGl0ZWN0dXJlLnJwYy5TdHJpb
-  mdSZXNwb25zZSIAEnYKCVNlbmRDaGFpbhIwLmVkdS51Y2kuaWNzLmFtYmVyLmVuZ2luZS5hcmNoaXRlY3R1cmUucnBjLkNoYWluG
-  jUuZWR1LnVjaS5pY3MuYW1iZXIuZW5naW5lLmNvbW1vbi5BY3RvclZpcnR1YWxJZGVudGl0eSIAQgniPwZIAFgAeAFiBnByb3RvM
-  w=="""
+  GVudGl0eS5wcm90bxo/ZWR1L3VjaS9pY3MvYW1iZXIvZW5naW5lL2FyY2hpdGVjdHVyZS9ycGMvY29udHJvbGNvbW1hbmRzLnByb
+  3RvGj5lZHUvdWNpL2ljcy9hbWJlci9lbmdpbmUvYXJjaGl0ZWN0dXJlL3JwYy9jb250cm9scmV0dXJucy5wcm90bxoVc2NhbGFwY
+  i9zY2FsYXBiLnByb3RvMooKCglSUENUZXN0ZXISdQoIU2VuZFBpbmcSLy5lZHUudWNpLmljcy5hbWJlci5lbmdpbmUuYXJjaGl0Z
+  WN0dXJlLnJwYy5QaW5nGjYuZWR1LnVjaS5pY3MuYW1iZXIuZW5naW5lLmFyY2hpdGVjdHVyZS5ycGMuSW50UmVzcG9uc2UiABJ1C
+  ghTZW5kUG9uZxIvLmVkdS51Y2kuaWNzLmFtYmVyLmVuZ2luZS5hcmNoaXRlY3R1cmUucnBjLlBvbmcaNi5lZHUudWNpLmljcy5hb
+  WJlci5lbmdpbmUuYXJjaGl0ZWN0dXJlLnJwYy5JbnRSZXNwb25zZSIAEnwKClNlbmROZXN0ZWQSMS5lZHUudWNpLmljcy5hbWJlc
+  i5lbmdpbmUuYXJjaGl0ZWN0dXJlLnJwYy5OZXN0ZWQaOS5lZHUudWNpLmljcy5hbWJlci5lbmdpbmUuYXJjaGl0ZWN0dXJlLnJwY
+  y5TdHJpbmdSZXNwb25zZSIAEngKCFNlbmRQYXNzEi8uZWR1LnVjaS5pY3MuYW1iZXIuZW5naW5lLmFyY2hpdGVjdHVyZS5ycGMuU
+  GFzcxo5LmVkdS51Y2kuaWNzLmFtYmVyLmVuZ2luZS5hcmNoaXRlY3R1cmUucnBjLlN0cmluZ1Jlc3BvbnNlIgASiAEKEFNlbmRFc
+  nJvckNvbW1hbmQSNy5lZHUudWNpLmljcy5hbWJlci5lbmdpbmUuYXJjaGl0ZWN0dXJlLnJwYy5FcnJvckNvbW1hbmQaOS5lZHUud
+  WNpLmljcy5hbWJlci5lbmdpbmUuYXJjaGl0ZWN0dXJlLnJwYy5TdHJpbmdSZXNwb25zZSIAEoIBCg1TZW5kUmVjdXJzaW9uEjQuZ
+  WR1LnVjaS5pY3MuYW1iZXIuZW5naW5lLmFyY2hpdGVjdHVyZS5ycGMuUmVjdXJzaW9uGjkuZWR1LnVjaS5pY3MuYW1iZXIuZW5na
+  W5lLmFyY2hpdGVjdHVyZS5ycGMuU3RyaW5nUmVzcG9uc2UiABJ+CgtTZW5kQ29sbGVjdBIyLmVkdS51Y2kuaWNzLmFtYmVyLmVuZ
+  2luZS5hcmNoaXRlY3R1cmUucnBjLkNvbGxlY3QaOS5lZHUudWNpLmljcy5hbWJlci5lbmdpbmUuYXJjaGl0ZWN0dXJlLnJwYy5Td
+  HJpbmdSZXNwb25zZSIAEokBChJTZW5kR2VuZXJhdGVOdW1iZXISOS5lZHUudWNpLmljcy5hbWJlci5lbmdpbmUuYXJjaGl0ZWN0d
+  XJlLnJwYy5HZW5lcmF0ZU51bWJlcho2LmVkdS51Y2kuaWNzLmFtYmVyLmVuZ2luZS5hcmNoaXRlY3R1cmUucnBjLkludFJlc3Bvb
+  nNlIgASggEKDVNlbmRNdWx0aUNhbGwSNC5lZHUudWNpLmljcy5hbWJlci5lbmdpbmUuYXJjaGl0ZWN0dXJlLnJwYy5NdWx0aUNhb
+  GwaOS5lZHUudWNpLmljcy5hbWJlci5lbmdpbmUuYXJjaGl0ZWN0dXJlLnJwYy5TdHJpbmdSZXNwb25zZSIAEnYKCVNlbmRDaGFpb
+  hIwLmVkdS51Y2kuaWNzLmFtYmVyLmVuZ2luZS5hcmNoaXRlY3R1cmUucnBjLkNoYWluGjUuZWR1LnVjaS5pY3MuYW1iZXIuZW5na
+  W5lLmNvbW1vbi5BY3RvclZpcnR1YWxJZGVudGl0eSIAQgniPwZIAFgAeAFiBnByb3RvMw=="""
       ).mkString)
   lazy val scalaDescriptor: _root_.scalapb.descriptors.FileDescriptor = {
     val scalaProto = com.google.protobuf.descriptor.FileDescriptorProto.parseFrom(ProtoBytes)
@@ -68,6 +46,8 @@ object TestcommandsProto extends _root_.scalapb.GeneratedFileObject {
     val javaProto = com.google.protobuf.DescriptorProtos.FileDescriptorProto.parseFrom(ProtoBytes)
     com.google.protobuf.Descriptors.FileDescriptor.buildFrom(javaProto, _root_.scala.Array(
       edu.uci.ics.amber.engine.common.virtualidentity.VirtualidentityProto.javaDescriptor,
+      edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlcommandsProto.javaDescriptor,
+      edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlreturnsProto.javaDescriptor,
       scalapb.options.ScalapbProto.javaDescriptor
     ))
   }

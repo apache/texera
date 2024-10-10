@@ -1,0 +1,66 @@
+syntax = "proto3";
+package edu.uci.ics.amber.engine.architecture.rpc;
+
+import "edu/uci/ics/amber/engine/common/virtualidentity.proto";
+import "edu/uci/ics/amber/engine/architecture/worker/controlreturns.proto";
+import "scalapb/scalapb.proto";
+
+option (scalapb.options) = {
+  scope: FILE,
+  preserve_unknown_fields: false
+  no_default_values_in_constructor: true
+};
+
+
+// The generic return message
+message ControlReturn {
+  // Oneof block for various return types
+  oneof sealed_value {
+    Empty empty = 2;
+    RetrieveWorkflowStateResponse retrieveWorkflowStateResponse = 3;
+    PropagateChannelMarkerResponse propagateChannelMarkerResponse = 4;
+    TakeGlobalCheckpointResponse takeGlobalCheckpointResponse = 5;
+    EvaluatePythonExpressionResponse evaluatePythonExpressionResponse = 6;
+    StartWorkflowResponse startWorkflowResponse = 7;
+    StringResponse stringResponse = 8;
+    IntResponse intResponse = 9;
+  }
+}
+
+message ReturnInvocation {
+  option (scalapb.message).extends = "edu.uci.ics.amber.engine.common.ambermessage.ControlPayload";
+  int64 commandId = 1;
+  ControlReturn returnValue = 2 [(scalapb.field).no_box = true];
+}
+
+
+message StringResponse {
+  string value = 1;
+}
+
+message IntResponse {
+  int32 value = 1;
+}
+
+message Empty {}
+
+message RetrieveWorkflowStateResponse {
+  map<string, Empty> state = 1;
+}
+
+
+message PropagateChannelMarkerResponse {
+  repeated common.ActorVirtualIdentity actors = 1;
+}
+
+message TakeGlobalCheckpointResponse {
+  int64 totalSize = 1;
+}
+
+message EvaluatePythonExpressionResponse {
+  repeated worker.EvaluatedValue values = 1;
+}
+
+message StartWorkflowResponse {
+  string workflowState = 1;
+}

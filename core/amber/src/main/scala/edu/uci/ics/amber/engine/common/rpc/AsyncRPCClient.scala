@@ -1,14 +1,17 @@
 package edu.uci.ics.amber.engine.common.rpc
 
 import com.twitter.util.{Future, Promise}
+import edu.uci.ics.amber.engine.architecture.controller.ClientEvent
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputGateway
-import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.ambermessage.{ChannelMarkerPayload, ChannelMarkerType, ControlPayload}
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity, ChannelMarkerIdentity}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CLIENT
 import io.grpc.MethodDescriptor
+import com.google.protobuf.any.{Any => ProtoAny}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, ControlInvocation, ControlRequest}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ReturnInvocation
+import scalapb.GeneratedMessage
 
 import java.lang.reflect.{InvocationHandler, Method, Proxy}
 import scala.collection.mutable
@@ -38,15 +41,14 @@ object AsyncRPCClient {
   final val IgnoreReplyAndDoNotLog = -2
 
   object ControlInvocation{
-    def apply(method:MethodDescriptor[_,_], payload:(Any, AsyncRPCContext), commandID:Long) = new ControlInvocation(method, payload, commandID)
-  }
-  case class ControlInvocation(reqName: String, payload: (Any, AsyncRPCContext), commandID: Long) extends ControlPayload{
-    def this(method:MethodDescriptor[_,_], payload:(Any, AsyncRPCContext), commandID:Long) = {
-      this(method.getBareMethodName, payload, commandID)
+    def apply(method:MethodDescriptor[_,_], payload:ControlRequest, context:AsyncRPCContext, commandID:Long): ControlInvocation = {
+      new ControlInvocation(method.getBareMethodName, payload, context, commandID)
+    }
+
+    def apply(methodName:String, payload: ControlRequest, context: AsyncRPCContext, commandID: Long): ControlInvocation = {
+      new ControlInvocation(methodName, payload, context, commandID)
     }
   }
-
-  case class ReturnInvocation(originalCommandID: Long, controlReturn: Any) extends ControlPayload
 
 }
 
@@ -68,9 +70,9 @@ class AsyncRPCClient[T:ClassTag](
     (promise, promiseID)
   }
 
-  def createInvocation(methodName: String, args:(Any, AsyncRPCContext)):(ControlInvocation, Future[Any]) = {
+  def createInvocation(methodName: String, message:ControlRequest, context:AsyncRPCContext):(ControlInvocation, Future[Any]) = {
     val (p, pid) = createPromise()
-    (ControlInvocation(methodName, args, pid), p)
+    (ControlInvocation(methodName, message, context, pid), p)
   }
   private def createProxy()(implicit ct: ClassTag[T]): T = {
     val handler = new InvocationHandler {
@@ -78,7 +80,8 @@ class AsyncRPCClient[T:ClassTag](
       override def invoke(proxy: Any, method: Method, args: Array[AnyRef]): AnyRef = {
         val (p, pid) = createPromise()
         val context = args(1).asInstanceOf[AsyncRPCContext]
-        outputGateway.sendTo(context.receiver, ControlInvocation(method.getName, (args(0), context), pid))
+        val msg = args(0).asInstanceOf[ControlRequest]
+        outputGateway.sendTo(context.receiver, ControlInvocation(method.getName, msg, context, pid))
         p
       }
     }
@@ -110,40 +113,28 @@ class AsyncRPCClient[T:ClassTag](
     )
   }
 
+  def sendToClient(clientEvent:ClientEvent): Unit = {
+    outputGateway.sendTo(
+      ChannelIdentity(actorId, CLIENT, isControl = true),
+      clientEvent
+    )
+  }
+
   def fulfillPromise(ret: ReturnInvocation): Unit = {
-    if (unfulfilledPromises.contains(ret.originalCommandID)) {
-      val p = unfulfilledPromises(ret.originalCommandID)
-      ret.controlReturn match {
-        case error: Throwable =>
-          p.setException(error)
-        case _ =>
-          p.setValue(ret.controlReturn)
-      }
-      unfulfilledPromises.remove(ret.originalCommandID)
+    if (unfulfilledPromises.contains(ret.commandId)) {
+      val p = unfulfilledPromises(ret.commandId)
+      p.setValue(ret.returnValue)
+      unfulfilledPromises.remove(ret.commandId)
     }
   }
 
   def logControlReply(ret: ReturnInvocation, channelId: ChannelIdentity): Unit = {
-    if (ret.originalCommandID == AsyncRPCClient.IgnoreReplyAndDoNotLog) {
+    if (ret.commandId == AsyncRPCClient.IgnoreReplyAndDoNotLog) {
       return
     }
-    if (ret.controlReturn != null) {
-      if (ret.controlReturn.isInstanceOf[WorkerStatistics]) {
-        return
-      }
-      logger.debug(
-        s"receive reply: ${ret.controlReturn.getClass.getSimpleName} from $channelId (controlID: ${ret.originalCommandID})"
-      )
-      ret.controlReturn match {
-        case throwable: Throwable =>
-          logger.error(s"received error from $channelId", throwable)
-        case _ =>
-      }
-    } else {
-      logger.info(
-        s"receive reply: null from $channelId (controlID: ${ret.originalCommandID})"
-      )
-    }
+    logger.info(
+      s"receive reply: ${ret.returnValue} from $channelId (controlID: ${ret.commandId})"
+    )
   }
 
 }

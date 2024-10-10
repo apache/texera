@@ -7,7 +7,6 @@ import edu.uci.ics.amber.engine.architecture.worker.{
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.FinalizeCheckpointHandler.FinalizeCheckpoint
 import edu.uci.ics.amber.engine.common.{CheckpointState, CheckpointSupport, SerializedState}
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.engine.common.virtualidentity.ChannelMarkerIdentity
 

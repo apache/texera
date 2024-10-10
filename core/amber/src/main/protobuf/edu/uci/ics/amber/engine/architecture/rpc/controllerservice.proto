@@ -1,0 +1,31 @@
+syntax = "proto3";
+package edu.uci.ics.amber.engine.architecture.rpc;
+
+import "edu/uci/ics/amber/engine/architecture/rpc/controlcommands.proto";
+import "edu/uci/ics/amber/engine/architecture/rpc/controlreturns.proto";
+import "scalapb/scalapb.proto";
+
+option (scalapb.options) = {
+  scope: FILE,
+  preserve_unknown_fields: false
+  no_default_values_in_constructor: true
+};
+
+
+service ControlService {
+  rpc SendRetrieveWorkflowState(RetrieveWorkflowStateRequest) returns (RetrieveWorkflowStateResponse);
+  rpc SendPropagateChannelMarker(PropagateChannelMarkerRequest) returns (PropagateChannelMarkerResponse);
+  rpc SendTakeGlobalCheckpoint(TakeGlobalCheckpointRequest) returns (TakeGlobalCheckpointResponse);
+  rpc SendDebugCommand(DebugCommandRequest) returns (Empty);
+  rpc SendEvaluatePythonExpression(EvaluatePythonExpressionRequest) returns (EvaluatePythonExpressionResponse);
+  rpc SendModifyLogic(ModifyLogicRequest) returns (Empty);
+  rpc SendRetryWorkflow(RetryWorkflowRequest) returns (Empty);
+  rpc SendConsoleMessageTriggered(ConsoleMessageTriggeredRequest) returns (Empty);
+  rpc SendPortCompleted(PortCompletedRequest) returns (Empty);
+  rpc SendStartWorkflow(StartWorkflowRequest) returns (StartWorkflowResponse);
+  rpc SendResumeWorkflow(ResumeWorkflowRequest) returns (Empty);
+  rpc SendPauseWorkflow(PauseWorkflowRequest) returns (Empty);
+  rpc SendWorkerStateUpdated(WorkerStateUpdatedRequest) returns (Empty);
+  rpc SendWorkerExecutionCompleted(WorkerExecutionCompletedRequest) returns (Empty);
+  rpc SendLinkWorkers(LinkWorkersRequest) returns (Empty);
+}

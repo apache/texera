@@ -2,6 +2,7 @@ package edu.uci.ics.amber.engine.common.rpc
 
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputGateway
+import edu.uci.ics.amber.engine.architecture.rpc.controllercommands.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
@@ -29,9 +30,10 @@ class AsyncRPCServer(
   }
 
   def receive(request: ControlInvocation, senderID: ActorVirtualIdentity): Unit = {
-    val methodName = request.reqName
-    val (requestArg, contextArg) = request.payload
-    val id = request.commandID
+    val methodName = request.methodName
+    val requestArg = request.command
+    val contextArg = request.context
+    val id = request.commandId
     logger.debug(
       s"receive command: ${methodName} from $senderID (controlID: ${id})"
     )

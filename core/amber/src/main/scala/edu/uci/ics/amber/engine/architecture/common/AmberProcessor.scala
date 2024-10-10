@@ -1,15 +1,11 @@
 package edu.uci.ics.amber.engine.architecture.common
 
-import edu.uci.ics.amber.engine.architecture.messaginglayer.{
-  InputGateway,
-  NetworkInputGateway,
-  NetworkOutputGateway
-}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.{InputGateway, NetworkInputGateway, NetworkOutputGateway}
+import edu.uci.ics.amber.engine.architecture.rpc.controllercommands.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.architecture.worker.managers.StatisticsManager
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowFIFOMessage}
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCServer}
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 

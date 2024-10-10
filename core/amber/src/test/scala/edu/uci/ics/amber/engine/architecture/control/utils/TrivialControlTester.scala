@@ -7,7 +7,7 @@ import edu.uci.ics.amber.engine.architecture.rpc.testcommands.RPCTesterFs2Grpc
 import edu.uci.ics.amber.engine.common.CheckpointState
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, DataPayload, WorkflowFIFOMessage}
-import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCContext}
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
 class TrivialControlTester(

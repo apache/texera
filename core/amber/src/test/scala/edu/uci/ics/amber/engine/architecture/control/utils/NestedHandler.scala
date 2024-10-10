@@ -2,7 +2,6 @@ package edu.uci.ics.amber.engine.architecture.control.utils
 
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.rpc.testcommands.{Nested, StringResponse, Pass}
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCContext
 
 trait NestedHandler {
   this: TesterAsyncRPCHandlerInitializer =>

@@ -4,7 +4,6 @@ import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{AllForOneStrategy, Props, SupervisorStrategy}
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkAck
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.execution.OperatorExecution
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   FaultToleranceConfig,
@@ -20,7 +19,6 @@ import edu.uci.ics.amber.engine.common.ambermessage.{
   ControlPayload,
   WorkflowFIFOMessage
 }
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.ExecutionStatsUpdate
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.common.{AmberConfig, CheckpointState, SerializedState}

@@ -3,17 +3,17 @@
 //
 // Protofile syntax: PROTO3
 
-package edu.uci.ics.amber.engine.architecture.worker.controlcommands
+package edu.uci.ics.amber.engine.architecture.rpc.controlcommands
 
 sealed abstract class ConsoleMessageType(val value: _root_.scala.Int) extends _root_.scalapb.GeneratedEnum {
-  type EnumType = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessageType
-  type RecognizedType = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessageType.Recognized
+  type EnumType = edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessageType
+  type RecognizedType = edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessageType.Recognized
   def isPrint: _root_.scala.Boolean = false
   def isError: _root_.scala.Boolean = false
   def isCommand: _root_.scala.Boolean = false
   def isDebugger: _root_.scala.Boolean = false
-  def companion: _root_.scalapb.GeneratedEnumCompanion[ConsoleMessageType] = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessageType
-  final def asRecognized: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessageType.Recognized] = if (isUnrecognized) _root_.scala.None else _root_.scala.Some(this.asInstanceOf[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessageType.Recognized])
+  def companion: _root_.scalapb.GeneratedEnumCompanion[ConsoleMessageType] = edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessageType
+  final def asRecognized: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessageType.Recognized] = if (isUnrecognized) _root_.scala.None else _root_.scala.Some(this.asInstanceOf[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessageType.Recognized])
 }
 
 object ConsoleMessageType extends _root_.scalapb.GeneratedEnumCompanion[ConsoleMessageType] {
@@ -58,6 +58,6 @@ object ConsoleMessageType extends _root_.scalapb.GeneratedEnumCompanion[ConsoleM
     case 3 => DEBUGGER
     case __other => Unrecognized(__other)
   }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.EnumDescriptor = ControlcommandsProto.javaDescriptor.getEnumTypes().get(0)
-  def scalaDescriptor: _root_.scalapb.descriptors.EnumDescriptor = ControlcommandsProto.scalaDescriptor.enums(0)
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.EnumDescriptor = ControlcommandsProto.javaDescriptor.getEnumTypes().get(1)
+  def scalaDescriptor: _root_.scalapb.descriptors.EnumDescriptor = ControlcommandsProto.scalaDescriptor.enums(1)
 }
