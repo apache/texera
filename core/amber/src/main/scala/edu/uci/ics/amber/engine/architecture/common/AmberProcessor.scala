@@ -13,7 +13,7 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, Re
 import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCServer}
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
-class AmberProcessor(
+abstract class AmberProcessor(
     val actorId: ActorVirtualIdentity,
     @transient var outputHandler: Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit
 ) extends AmberLogging
@@ -32,8 +32,7 @@ class AmberProcessor(
       }
     )
   // 2. RPC Layer
-  val asyncRPCClient: AsyncRPCClient =
-    new AsyncRPCClient(outputGateway, actorId)
+  def asyncRPCClient: AsyncRPCClient[_]
   val asyncRPCServer: AsyncRPCServer =
     new AsyncRPCServer(outputGateway, actorId)
 

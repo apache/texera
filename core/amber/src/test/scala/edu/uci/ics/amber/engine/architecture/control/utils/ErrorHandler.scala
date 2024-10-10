@@ -1,17 +1,15 @@
 package edu.uci.ics.amber.engine.architecture.control.utils
 
-import edu.uci.ics.amber.engine.architecture.control.utils.ErrorHandler.ErrorCommand
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
+import com.twitter.util.Future
+import edu.uci.ics.amber.engine.architecture.rpc.testcommands.{ErrorCommand, StringResponse}
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCContext
 
-object ErrorHandler {
-  case class ErrorCommand() extends ControlCommand[Unit]
-}
 
 trait ErrorHandler {
   this: TesterAsyncRPCHandlerInitializer =>
 
-  registerHandler { (x: ErrorCommand, sender) =>
-    throw new RuntimeException("this is an exception")
-
+  override def sendErrorCommand(request: ErrorCommand, ctx: AsyncRPCContext): Future[StringResponse] = {
+    throw new RuntimeException("this is an EXPECTED exception for testing")
   }
+
 }

@@ -3,7 +3,7 @@
 //
 // Protofile syntax: PROTO3
 
-package edu.uci.ics.amber.engine.architecture.worker.testcommands
+package edu.uci.ics.amber.engine.architecture.rpc.testcommands
 
 /** MultiCall message
   */
@@ -54,13 +54,13 @@ final case class MultiCall(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.architecture.worker.testcommands.MultiCall.type = edu.uci.ics.amber.engine.architecture.worker.testcommands.MultiCall
-    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.MultiCall])
+    def companion: edu.uci.ics.amber.engine.architecture.rpc.testcommands.MultiCall.type = edu.uci.ics.amber.engine.architecture.rpc.testcommands.MultiCall
+    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.rpc.MultiCall])
 }
 
-object MultiCall extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.testcommands.MultiCall] {
-  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.testcommands.MultiCall] = this
-  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.worker.testcommands.MultiCall = {
+object MultiCall extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.testcommands.MultiCall] {
+  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.testcommands.MultiCall] = this
+  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.rpc.testcommands.MultiCall = {
     val __seq: _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity] = new _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]
     var _done__ = false
     while (!_done__) {
@@ -72,14 +72,14 @@ object MultiCall extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.eng
         case tag => _input__.skipField(tag)
       }
     }
-    edu.uci.ics.amber.engine.architecture.worker.testcommands.MultiCall(
+    edu.uci.ics.amber.engine.architecture.rpc.testcommands.MultiCall(
         seq = __seq.result()
     )
   }
-  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.worker.testcommands.MultiCall] = _root_.scalapb.descriptors.Reads{
+  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.rpc.testcommands.MultiCall] = _root_.scalapb.descriptors.Reads{
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
-      edu.uci.ics.amber.engine.architecture.worker.testcommands.MultiCall(
+      edu.uci.ics.amber.engine.architecture.rpc.testcommands.MultiCall(
         seq = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]]).getOrElse(_root_.scala.Seq.empty)
       )
     case _ => throw new RuntimeException("Expected PMessage")
@@ -95,17 +95,17 @@ object MultiCall extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.eng
   }
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
-  lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.worker.testcommands.MultiCall(
+  lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.rpc.testcommands.MultiCall(
     seq = _root_.scala.Seq.empty
   )
-  implicit class MultiCallLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.testcommands.MultiCall]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.testcommands.MultiCall](_l) {
+  implicit class MultiCallLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.testcommands.MultiCall]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.testcommands.MultiCall](_l) {
     def seq: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]] = field(_.seq)((c_, f_) => c_.copy(seq = f_))
   }
   final val SEQ_FIELD_NUMBER = 1
   def of(
     seq: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]
-  ): _root_.edu.uci.ics.amber.engine.architecture.worker.testcommands.MultiCall = _root_.edu.uci.ics.amber.engine.architecture.worker.testcommands.MultiCall(
+  ): _root_.edu.uci.ics.amber.engine.architecture.rpc.testcommands.MultiCall = _root_.edu.uci.ics.amber.engine.architecture.rpc.testcommands.MultiCall(
     seq
   )
-  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.MultiCall])
+  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.MultiCall])
 }

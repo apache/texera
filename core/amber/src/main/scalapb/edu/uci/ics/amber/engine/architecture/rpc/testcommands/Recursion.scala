@@ -3,7 +3,7 @@
 //
 // Protofile syntax: PROTO3
 
-package edu.uci.ics.amber.engine.architecture.worker.testcommands
+package edu.uci.ics.amber.engine.architecture.rpc.testcommands
 
 /** Recursion message
   */
@@ -57,13 +57,13 @@ final case class Recursion(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.architecture.worker.testcommands.Recursion.type = edu.uci.ics.amber.engine.architecture.worker.testcommands.Recursion
-    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.Recursion])
+    def companion: edu.uci.ics.amber.engine.architecture.rpc.testcommands.Recursion.type = edu.uci.ics.amber.engine.architecture.rpc.testcommands.Recursion
+    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.rpc.Recursion])
 }
 
-object Recursion extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.testcommands.Recursion] {
-  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.testcommands.Recursion] = this
-  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.worker.testcommands.Recursion = {
+object Recursion extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.testcommands.Recursion] {
+  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.testcommands.Recursion] = this
+  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.rpc.testcommands.Recursion = {
     var __i: _root_.scala.Int = 0
     var _done__ = false
     while (!_done__) {
@@ -75,14 +75,14 @@ object Recursion extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.eng
         case tag => _input__.skipField(tag)
       }
     }
-    edu.uci.ics.amber.engine.architecture.worker.testcommands.Recursion(
+    edu.uci.ics.amber.engine.architecture.rpc.testcommands.Recursion(
         i = __i
     )
   }
-  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.worker.testcommands.Recursion] = _root_.scalapb.descriptors.Reads{
+  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.rpc.testcommands.Recursion] = _root_.scalapb.descriptors.Reads{
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
-      edu.uci.ics.amber.engine.architecture.worker.testcommands.Recursion(
+      edu.uci.ics.amber.engine.architecture.rpc.testcommands.Recursion(
         i = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Int]).getOrElse(0)
       )
     case _ => throw new RuntimeException("Expected PMessage")
@@ -92,17 +92,17 @@ object Recursion extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.eng
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
-  lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.worker.testcommands.Recursion(
+  lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.rpc.testcommands.Recursion(
     i = 0
   )
-  implicit class RecursionLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.testcommands.Recursion]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.testcommands.Recursion](_l) {
+  implicit class RecursionLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.testcommands.Recursion]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.testcommands.Recursion](_l) {
     def i: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Int] = field(_.i)((c_, f_) => c_.copy(i = f_))
   }
   final val I_FIELD_NUMBER = 1
   def of(
     i: _root_.scala.Int
-  ): _root_.edu.uci.ics.amber.engine.architecture.worker.testcommands.Recursion = _root_.edu.uci.ics.amber.engine.architecture.worker.testcommands.Recursion(
+  ): _root_.edu.uci.ics.amber.engine.architecture.rpc.testcommands.Recursion = _root_.edu.uci.ics.amber.engine.architecture.rpc.testcommands.Recursion(
     i
   )
-  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.Recursion])
+  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.Recursion])
 }

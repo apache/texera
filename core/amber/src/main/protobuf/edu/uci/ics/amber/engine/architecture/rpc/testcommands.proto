@@ -1,5 +1,5 @@
 syntax = "proto3";
-package edu.uci.ics.amber.engine.architecture.worker;
+package edu.uci.ics.amber.engine.architecture.rpc;
 
 import "edu/uci/ics/amber/engine/common/virtualidentity.proto";
 import "scalapb/scalapb.proto";
@@ -11,8 +11,8 @@ option (scalapb.options) = {
 };
 
 service RPCTester {
-  rpc SendPing(Ping) returns (Pong){}
-  rpc SendPong(Pong) returns (Ping){}
+  rpc SendPing(Ping) returns (IntResponse){}
+  rpc SendPong(Pong) returns (IntResponse){}
   rpc SendNested(Nested) returns (StringResponse){}
   rpc SendPass(Pass) returns (StringResponse){}
   rpc SendErrorCommand(ErrorCommand) returns (StringResponse) {}
@@ -35,14 +35,14 @@ message IntResponse {
 message Ping {
   int32 i = 1;
   int32 end = 2;
-  common.ActorVirtualIdentity to = 3;
+  common.ActorVirtualIdentity to = 3 [(scalapb.field).no_box = true];
 }
 
 // Pong message
 message Pong {
   int32 i = 1;
   int32 end = 2;
-  common.ActorVirtualIdentity to = 3;
+  common.ActorVirtualIdentity to = 3 [(scalapb.field).no_box = true];
 }
 
 // Pass message

@@ -3,14 +3,12 @@
 //
 // Protofile syntax: PROTO3
 
-package edu.uci.ics.amber.engine.architecture.worker.testcommands
+package edu.uci.ics.amber.engine.architecture.rpc.testcommands
 
-/** Pass message
-  */
 @SerialVersionUID(0L)
-final case class Pass(
+final case class StringResponse(
     value: _root_.scala.Predef.String
-    ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[Pass] {
+    ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[StringResponse] {
     @transient
     private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
     private[this] def __computeSerializedSize(): _root_.scala.Int = {
@@ -41,7 +39,7 @@ final case class Pass(
         }
       };
     }
-    def withValue(__v: _root_.scala.Predef.String): Pass = copy(value = __v)
+    def withValue(__v: _root_.scala.Predef.String): StringResponse = copy(value = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
         case 1 => {
@@ -57,13 +55,13 @@ final case class Pass(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.architecture.worker.testcommands.Pass.type = edu.uci.ics.amber.engine.architecture.worker.testcommands.Pass
-    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.Pass])
+    def companion: edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse.type = edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse
+    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.rpc.StringResponse])
 }
 
-object Pass extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.testcommands.Pass] {
-  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.testcommands.Pass] = this
-  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.worker.testcommands.Pass = {
+object StringResponse extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse] {
+  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse] = this
+  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse = {
     var __value: _root_.scala.Predef.String = ""
     var _done__ = false
     while (!_done__) {
@@ -75,34 +73,34 @@ object Pass extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.a
         case tag => _input__.skipField(tag)
       }
     }
-    edu.uci.ics.amber.engine.architecture.worker.testcommands.Pass(
+    edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse(
         value = __value
     )
   }
-  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.worker.testcommands.Pass] = _root_.scalapb.descriptors.Reads{
+  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse] = _root_.scalapb.descriptors.Reads{
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
-      edu.uci.ics.amber.engine.architecture.worker.testcommands.Pass(
+      edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse(
         value = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Predef.String]).getOrElse("")
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = TestcommandsProto.javaDescriptor.getMessageTypes().get(4)
-  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = TestcommandsProto.scalaDescriptor.messages(4)
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = TestcommandsProto.javaDescriptor.getMessageTypes().get(0)
+  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = TestcommandsProto.scalaDescriptor.messages(0)
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
-  lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.worker.testcommands.Pass(
+  lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse(
     value = ""
   )
-  implicit class PassLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.testcommands.Pass]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.testcommands.Pass](_l) {
+  implicit class StringResponseLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse](_l) {
     def value: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.value)((c_, f_) => c_.copy(value = f_))
   }
   final val VALUE_FIELD_NUMBER = 1
   def of(
     value: _root_.scala.Predef.String
-  ): _root_.edu.uci.ics.amber.engine.architecture.worker.testcommands.Pass = _root_.edu.uci.ics.amber.engine.architecture.worker.testcommands.Pass(
+  ): _root_.edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse = _root_.edu.uci.ics.amber.engine.architecture.rpc.testcommands.StringResponse(
     value
   )
-  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.Pass])
+  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.StringResponse])
 }

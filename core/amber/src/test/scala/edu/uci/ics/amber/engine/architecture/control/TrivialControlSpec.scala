@@ -2,26 +2,17 @@ package edu.uci.ics.amber.engine.architecture.control
 
 import akka.actor.{ActorRef, ActorSystem, PoisonPill, Props}
 import akka.testkit.{TestKit, TestProbe}
-import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.{
-  GetActorRef,
-  NetworkAck,
-  NetworkMessage,
-  RegisterActorRef
-}
-import edu.uci.ics.amber.engine.architecture.control.utils.ChainHandler.Chain
-import edu.uci.ics.amber.engine.architecture.control.utils.CollectHandler.Collect
-import edu.uci.ics.amber.engine.architecture.control.utils.ErrorHandler.ErrorCommand
-import edu.uci.ics.amber.engine.architecture.control.utils.MultiCallHandler.MultiCall
-import edu.uci.ics.amber.engine.architecture.control.utils.NestedHandler.Nested
-import edu.uci.ics.amber.engine.architecture.control.utils.PingPongHandler.Ping
-import edu.uci.ics.amber.engine.architecture.control.utils.RecursionHandler.Recursion
+import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.{GetActorRef, NetworkAck, NetworkMessage, RegisterActorRef}
 import edu.uci.ics.amber.engine.architecture.control.utils.TrivialControlTester
+import edu.uci.ics.amber.engine.architecture.rpc.testcommands.RPCTesterGrpc.{METHOD_SEND_CHAIN, METHOD_SEND_COLLECT, METHOD_SEND_ERROR_COMMAND, METHOD_SEND_MULTI_CALL, METHOD_SEND_NESTED, METHOD_SEND_PING, METHOD_SEND_RECURSION}
+import edu.uci.ics.amber.engine.architecture.rpc.testcommands._
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCContext
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
-import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
+import edu.uci.ics.amber.engine.common.virtualidentity.util.{CLIENT, CONTROLLER}
+import io.grpc.MethodDescriptor
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
@@ -38,7 +29,7 @@ class TrivialControlSpec
     TestKit.shutdownActorSystem(system)
   }
 
-  def testControl[T](numActors: Int, eventPairs: (ControlCommand[_], T)*): Unit = {
+  def testControl[T](numActors: Int, eventPairs: ((MethodDescriptor[_,_], Any), T)*): Unit = {
     val (events, expectedValues) = eventPairs.unzip
     val (probe, idMap) = setUp(numActors, events: _*)
     var flag = 0
@@ -74,7 +65,7 @@ class TrivialControlSpec
 
   def setUp(
       numActors: Int,
-      cmd: ControlCommand[_]*
+      cmd: (MethodDescriptor[_,_],Any)*
   ): (TestProbe, mutable.HashMap[ActorVirtualIdentity, ActorRef]) = {
     val probe = TestProbe()
     val idMap = mutable.HashMap[ActorVirtualIdentity, ActorRef]()
@@ -86,7 +77,8 @@ class TrivialControlSpec
     }
     idMap(CONTROLLER) = probe.ref
     var seqNum = 0
-    cmd.foreach { evt =>
+    cmd.foreach {
+      case (methodName, msg)=>
       probe.send(
         idMap(ActorVirtualIdentity("0")),
         NetworkMessage(
@@ -94,7 +86,7 @@ class TrivialControlSpec
           WorkflowFIFOMessage(
             ChannelIdentity(CONTROLLER, ActorVirtualIdentity("0"), isControl = true),
             seqNum,
-            ControlInvocation(seqNum, evt)
+            ControlInvocation(methodName, (msg, AsyncRPCContext(CONTROLLER, ActorVirtualIdentity("0"))), seqNum)
           )
         )
       )
@@ -106,14 +98,14 @@ class TrivialControlSpec
   "testers" should {
 
     "execute Ping Pong" in {
-      testControl(2, (Ping(1, 5, ActorVirtualIdentity("1")), 5))
+      testControl(2, ((METHOD_SEND_PING, Ping(1, 5, ActorVirtualIdentity("1"))), 5))
     }
 
     "execute Ping Pong 2 times" in {
       testControl(
         2,
-        (Ping(1, 4, ActorVirtualIdentity("1")), 4),
-        (Ping(10, 13, ActorVirtualIdentity("1")), 13)
+        ((METHOD_SEND_PING, Ping(1, 4, ActorVirtualIdentity("1"))), 4),
+        ((METHOD_SEND_PING, Ping(10, 13, ActorVirtualIdentity("1"))), 13)
       )
     }
 
@@ -121,7 +113,7 @@ class TrivialControlSpec
       testControl(
         10,
         (
-          Chain((1 to 9).map(i => ActorVirtualIdentity(i.toString))),
+          (METHOD_SEND_CHAIN, Chain((1 to 9).map(i => ActorVirtualIdentity(i.toString)))),
           ActorVirtualIdentity(9.toString)
         )
       )
@@ -130,28 +122,28 @@ class TrivialControlSpec
     "execute Collect" in {
       testControl(
         4,
-        (Collect((1 to 3).map(i => ActorVirtualIdentity(i.toString))), "finished")
+        ((METHOD_SEND_COLLECT, Collect((1 to 3).map(i => ActorVirtualIdentity(i.toString)))), "finished")
       )
     }
 
     "execute RecursiveCall" in {
-      testControl(1, (Recursion(0), "0"))
+      testControl(1, ((METHOD_SEND_RECURSION, Recursion(0)), "0"))
     }
 
     "execute MultiCall" in {
       testControl(
         10,
-        (MultiCall((1 to 9).map(i => ActorVirtualIdentity(i.toString))), "finished")
+        ((METHOD_SEND_MULTI_CALL, MultiCall((1 to 9).map(i => ActorVirtualIdentity(i.toString)))), "finished")
       )
     }
 
     "execute NestedCall" in {
-      testControl(1, (Nested(5), "Hello World!"))
+      testControl(1, ((METHOD_SEND_NESTED, Nested(5)), "Hello World!"))
     }
 
     "execute ErrorCall" in {
       assertThrows[RuntimeException] {
-        testControl(1, (ErrorCommand(), ()))
+        testControl(1, ((METHOD_SEND_ERROR_COMMAND, ErrorCommand()), ()))
       }
 
     }

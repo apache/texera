@@ -1,14 +1,13 @@
 package edu.uci.ics.amber.engine.architecture.control.utils
 
+import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkAck
 import edu.uci.ics.amber.engine.architecture.common.{AmberProcessor, WorkflowActor}
+import edu.uci.ics.amber.engine.architecture.rpc.testcommands.RPCTesterFs2Grpc
 import edu.uci.ics.amber.engine.common.CheckpointState
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
-import edu.uci.ics.amber.engine.common.ambermessage.{
-  ControlPayload,
-  DataPayload,
-  WorkflowFIFOMessage
-}
+import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, DataPayload, WorkflowFIFOMessage}
+import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCContext}
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
 class TrivialControlTester(
@@ -20,9 +19,11 @@ class TrivialControlTester(
       case Left(value)  => ???
       case Right(value) => transferService.send(value)
     }
-  )
+  ){
+    override def asyncRPCClient: AsyncRPCClient[_] = new AsyncRPCClient[RPCTesterFs2Grpc[Future, AsyncRPCContext]](outputGateway, actorId)
+  }
   val initializer =
-    new TesterAsyncRPCHandlerInitializer(ap.actorId, ap.asyncRPCClient, ap.asyncRPCServer)
+    new TesterAsyncRPCHandlerInitializer(ap.actorId, ap.asyncRPCClient.asInstanceOf[AsyncRPCClient[RPCTesterFs2Grpc[Future, AsyncRPCContext]]], ap.asyncRPCServer)
 
   override def handleInputMessage(id: Long, workflowMsg: WorkflowFIFOMessage): Unit = {
     val channel = ap.inputGateway.getChannel(workflowMsg.channelId)

@@ -3,7 +3,7 @@
 //
 // Protofile syntax: PROTO3
 
-package edu.uci.ics.amber.engine.architecture.worker.testcommands
+package edu.uci.ics.amber.engine.architecture.rpc.testcommands
 
 /** Collect message
   */
@@ -54,13 +54,13 @@ final case class Collect(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.architecture.worker.testcommands.Collect.type = edu.uci.ics.amber.engine.architecture.worker.testcommands.Collect
-    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.Collect])
+    def companion: edu.uci.ics.amber.engine.architecture.rpc.testcommands.Collect.type = edu.uci.ics.amber.engine.architecture.rpc.testcommands.Collect
+    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.rpc.Collect])
 }
 
-object Collect extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.testcommands.Collect] {
-  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.testcommands.Collect] = this
-  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.worker.testcommands.Collect = {
+object Collect extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.testcommands.Collect] {
+  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.testcommands.Collect] = this
+  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.rpc.testcommands.Collect = {
     val __workers: _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity] = new _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]
     var _done__ = false
     while (!_done__) {
@@ -72,14 +72,14 @@ object Collect extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engin
         case tag => _input__.skipField(tag)
       }
     }
-    edu.uci.ics.amber.engine.architecture.worker.testcommands.Collect(
+    edu.uci.ics.amber.engine.architecture.rpc.testcommands.Collect(
         workers = __workers.result()
     )
   }
-  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.worker.testcommands.Collect] = _root_.scalapb.descriptors.Reads{
+  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.rpc.testcommands.Collect] = _root_.scalapb.descriptors.Reads{
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
-      edu.uci.ics.amber.engine.architecture.worker.testcommands.Collect(
+      edu.uci.ics.amber.engine.architecture.rpc.testcommands.Collect(
         workers = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]]).getOrElse(_root_.scala.Seq.empty)
       )
     case _ => throw new RuntimeException("Expected PMessage")
@@ -95,17 +95,17 @@ object Collect extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engin
   }
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
-  lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.worker.testcommands.Collect(
+  lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.rpc.testcommands.Collect(
     workers = _root_.scala.Seq.empty
   )
-  implicit class CollectLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.testcommands.Collect]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.testcommands.Collect](_l) {
+  implicit class CollectLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.testcommands.Collect]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.testcommands.Collect](_l) {
     def workers: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]] = field(_.workers)((c_, f_) => c_.copy(workers = f_))
   }
   final val WORKERS_FIELD_NUMBER = 1
   def of(
     workers: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]
-  ): _root_.edu.uci.ics.amber.engine.architecture.worker.testcommands.Collect = _root_.edu.uci.ics.amber.engine.architecture.worker.testcommands.Collect(
+  ): _root_.edu.uci.ics.amber.engine.architecture.rpc.testcommands.Collect = _root_.edu.uci.ics.amber.engine.architecture.rpc.testcommands.Collect(
     workers
   )
-  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.Collect])
+  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.Collect])
 }

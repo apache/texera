@@ -3,7 +3,7 @@
 //
 // Protofile syntax: PROTO3
 
-package edu.uci.ics.amber.engine.architecture.worker.testcommands
+package edu.uci.ics.amber.engine.architecture.rpc.testcommands
 
 /** ErrorCommand message
   */
@@ -16,13 +16,13 @@ final case class ErrorCommand(
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = throw new MatchError(__fieldNumber)
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = throw new MatchError(__field)
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.architecture.worker.testcommands.ErrorCommand.type = edu.uci.ics.amber.engine.architecture.worker.testcommands.ErrorCommand
-    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.ErrorCommand])
+    def companion: edu.uci.ics.amber.engine.architecture.rpc.testcommands.ErrorCommand.type = edu.uci.ics.amber.engine.architecture.rpc.testcommands.ErrorCommand
+    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.rpc.ErrorCommand])
 }
 
-object ErrorCommand extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.testcommands.ErrorCommand] {
-  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.testcommands.ErrorCommand] = this
-  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.worker.testcommands.ErrorCommand = {
+object ErrorCommand extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.testcommands.ErrorCommand] {
+  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.testcommands.ErrorCommand] = this
+  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.rpc.testcommands.ErrorCommand = {
     var _done__ = false
     while (!_done__) {
       val _tag__ = _input__.readTag()
@@ -31,13 +31,13 @@ object ErrorCommand extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.
         case tag => _input__.skipField(tag)
       }
     }
-    edu.uci.ics.amber.engine.architecture.worker.testcommands.ErrorCommand(
+    edu.uci.ics.amber.engine.architecture.rpc.testcommands.ErrorCommand(
     )
   }
-  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.worker.testcommands.ErrorCommand] = _root_.scalapb.descriptors.Reads{
+  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.rpc.testcommands.ErrorCommand] = _root_.scalapb.descriptors.Reads{
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
-      edu.uci.ics.amber.engine.architecture.worker.testcommands.ErrorCommand(
+      edu.uci.ics.amber.engine.architecture.rpc.testcommands.ErrorCommand(
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
@@ -46,12 +46,12 @@ object ErrorCommand extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
-  lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.worker.testcommands.ErrorCommand(
+  lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.rpc.testcommands.ErrorCommand(
   )
-  implicit class ErrorCommandLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.testcommands.ErrorCommand]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.testcommands.ErrorCommand](_l) {
+  implicit class ErrorCommandLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.testcommands.ErrorCommand]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.testcommands.ErrorCommand](_l) {
   }
   def of(
-  ): _root_.edu.uci.ics.amber.engine.architecture.worker.testcommands.ErrorCommand = _root_.edu.uci.ics.amber.engine.architecture.worker.testcommands.ErrorCommand(
+  ): _root_.edu.uci.ics.amber.engine.architecture.rpc.testcommands.ErrorCommand = _root_.edu.uci.ics.amber.engine.architecture.rpc.testcommands.ErrorCommand(
   )
-  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.ErrorCommand])
+  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.ErrorCommand])
 }

@@ -55,7 +55,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
   def mkDataProcessor: DataProcessor = {
     val dp: DataProcessor =
       new DataProcessor(testWorkerId, outputHandler) {
-        override val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
+        override val asyncRPCClient: AsyncRPCClient[_] = mock[AsyncRPCClient[_]]
       }
     dp.initTimerService(adaptiveBatchingMonitor)
     dp

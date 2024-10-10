@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.engine.common.rpc
 
 import com.twitter.util.Future
+import edu.uci.ics.amber.engine.architecture.rpc.testcommands.{IntResponse, StringResponse}
 import edu.uci.ics.amber.engine.common.ambermessage.ChannelMarkerType
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity, ChannelMarkerIdentity}
@@ -11,11 +12,16 @@ class AsyncRPCHandlerInitializer[T](
     ctrlSource: AsyncRPCClient[T],
     ctrlReceiver: AsyncRPCServer
 ) {
+  implicit def returnAsFuture[R](ret: R): Future[R] = Future[R](ret)
+  implicit def actorIdAsContext(to: ActorVirtualIdentity): AsyncRPCContext = mkContext(to)
+  implicit def stringToResponse(s:String): StringResponse = StringResponse(s)
+  implicit def intToResponse(i:Int): IntResponse = IntResponse(i)
+
   // register all handlers
   ctrlReceiver.handler = this
 
   def getProxy:T = ctrlSource.proxy
-
+  def mkContext(to:ActorVirtualIdentity): AsyncRPCContext = ctrlSource.mkContext(to)
   def sendChannelMarker(
                          markerId: ChannelMarkerIdentity,
                          markerType: ChannelMarkerType,

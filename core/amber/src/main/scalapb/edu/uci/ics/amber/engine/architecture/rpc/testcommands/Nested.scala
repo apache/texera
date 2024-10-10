@@ -3,7 +3,7 @@
 //
 // Protofile syntax: PROTO3
 
-package edu.uci.ics.amber.engine.architecture.worker.testcommands
+package edu.uci.ics.amber.engine.architecture.rpc.testcommands
 
 /** Nested message
   */
@@ -57,13 +57,13 @@ final case class Nested(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.architecture.worker.testcommands.Nested.type = edu.uci.ics.amber.engine.architecture.worker.testcommands.Nested
-    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.Nested])
+    def companion: edu.uci.ics.amber.engine.architecture.rpc.testcommands.Nested.type = edu.uci.ics.amber.engine.architecture.rpc.testcommands.Nested
+    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.rpc.Nested])
 }
 
-object Nested extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.testcommands.Nested] {
-  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.testcommands.Nested] = this
-  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.worker.testcommands.Nested = {
+object Nested extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.testcommands.Nested] {
+  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.testcommands.Nested] = this
+  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.rpc.testcommands.Nested = {
     var __k: _root_.scala.Int = 0
     var _done__ = false
     while (!_done__) {
@@ -75,14 +75,14 @@ object Nested extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine
         case tag => _input__.skipField(tag)
       }
     }
-    edu.uci.ics.amber.engine.architecture.worker.testcommands.Nested(
+    edu.uci.ics.amber.engine.architecture.rpc.testcommands.Nested(
         k = __k
     )
   }
-  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.worker.testcommands.Nested] = _root_.scalapb.descriptors.Reads{
+  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.rpc.testcommands.Nested] = _root_.scalapb.descriptors.Reads{
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
-      edu.uci.ics.amber.engine.architecture.worker.testcommands.Nested(
+      edu.uci.ics.amber.engine.architecture.rpc.testcommands.Nested(
         k = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Int]).getOrElse(0)
       )
     case _ => throw new RuntimeException("Expected PMessage")
@@ -92,17 +92,17 @@ object Nested extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
-  lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.worker.testcommands.Nested(
+  lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.rpc.testcommands.Nested(
     k = 0
   )
-  implicit class NestedLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.testcommands.Nested]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.testcommands.Nested](_l) {
+  implicit class NestedLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.testcommands.Nested]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.testcommands.Nested](_l) {
     def k: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Int] = field(_.k)((c_, f_) => c_.copy(k = f_))
   }
   final val K_FIELD_NUMBER = 1
   def of(
     k: _root_.scala.Int
-  ): _root_.edu.uci.ics.amber.engine.architecture.worker.testcommands.Nested = _root_.edu.uci.ics.amber.engine.architecture.worker.testcommands.Nested(
+  ): _root_.edu.uci.ics.amber.engine.architecture.rpc.testcommands.Nested = _root_.edu.uci.ics.amber.engine.architecture.rpc.testcommands.Nested(
     k
   )
-  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.Nested])
+  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.Nested])
 }

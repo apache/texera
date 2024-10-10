@@ -3,16 +3,16 @@
 //
 // Protofile syntax: PROTO3
 
-package edu.uci.ics.amber.engine.architecture.worker.testcommands
+package edu.uci.ics.amber.engine.architecture.rpc.testcommands
 
-/** Ping message
+/** Pong message
   */
 @SerialVersionUID(0L)
-final case class Ping(
+final case class Pong(
     i: _root_.scala.Int,
     end: _root_.scala.Int,
-    to: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]
-    ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[Ping] {
+    to: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+    ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[Pong] {
     @transient
     private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
     private[this] def __computeSerializedSize(): _root_.scala.Int = {
@@ -31,9 +31,12 @@ final case class Ping(
           __size += _root_.com.google.protobuf.CodedOutputStream.computeInt32Size(2, __value)
         }
       };
-      if (to.isDefined) {
-        val __value = to.get
-        __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
+      
+      {
+        val __value = to
+        if (__value.serializedSize != 0) {
+          __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
+        }
       };
       __size
     }
@@ -59,18 +62,18 @@ final case class Ping(
           _output__.writeInt32(2, __v)
         }
       };
-      to.foreach { __v =>
-        val __m = __v
-        _output__.writeTag(3, 2)
-        _output__.writeUInt32NoTag(__m.serializedSize)
-        __m.writeTo(_output__)
+      {
+        val __v = to
+        if (__v.serializedSize != 0) {
+          _output__.writeTag(3, 2)
+          _output__.writeUInt32NoTag(__v.serializedSize)
+          __v.writeTo(_output__)
+        }
       };
     }
-    def withI(__v: _root_.scala.Int): Ping = copy(i = __v)
-    def withEnd(__v: _root_.scala.Int): Ping = copy(end = __v)
-    def getTo: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity = to.getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.defaultInstance)
-    def clearTo: Ping = copy(to = _root_.scala.None)
-    def withTo(__v: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity): Ping = copy(to = Option(__v))
+    def withI(__v: _root_.scala.Int): Pong = copy(i = __v)
+    def withEnd(__v: _root_.scala.Int): Pong = copy(end = __v)
+    def withTo(__v: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity): Pong = copy(to = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
         case 1 => {
@@ -81,7 +84,10 @@ final case class Ping(
           val __t = end
           if (__t != 0) __t else null
         }
-        case 3 => to.orNull
+        case 3 => {
+          val __t = to
+          if (__t != edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.defaultInstance) __t else null
+        }
       }
     }
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
@@ -89,17 +95,17 @@ final case class Ping(
       (__field.number: @_root_.scala.unchecked) match {
         case 1 => _root_.scalapb.descriptors.PInt(i)
         case 2 => _root_.scalapb.descriptors.PInt(end)
-        case 3 => to.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
+        case 3 => to.toPMessage
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.architecture.worker.testcommands.Ping.type = edu.uci.ics.amber.engine.architecture.worker.testcommands.Ping
-    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.Ping])
+    def companion: edu.uci.ics.amber.engine.architecture.rpc.testcommands.Pong.type = edu.uci.ics.amber.engine.architecture.rpc.testcommands.Pong
+    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.rpc.Pong])
 }
 
-object Ping extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.testcommands.Ping] {
-  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.testcommands.Ping] = this
-  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.worker.testcommands.Ping = {
+object Pong extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.testcommands.Pong] {
+  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.testcommands.Pong] = this
+  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.rpc.testcommands.Pong = {
     var __i: _root_.scala.Int = 0
     var __end: _root_.scala.Int = 0
     var __to: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity] = _root_.scala.None
@@ -113,28 +119,28 @@ object Ping extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.a
         case 16 =>
           __end = _input__.readInt32()
         case 26 =>
-          __to = _root_.scala.Option(__to.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+          __to = _root_.scala.Some(__to.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case tag => _input__.skipField(tag)
       }
     }
-    edu.uci.ics.amber.engine.architecture.worker.testcommands.Ping(
+    edu.uci.ics.amber.engine.architecture.rpc.testcommands.Pong(
         i = __i,
         end = __end,
-        to = __to
+        to = __to.getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.defaultInstance)
     )
   }
-  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.worker.testcommands.Ping] = _root_.scalapb.descriptors.Reads{
+  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.rpc.testcommands.Pong] = _root_.scalapb.descriptors.Reads{
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
-      edu.uci.ics.amber.engine.architecture.worker.testcommands.Ping(
+      edu.uci.ics.amber.engine.architecture.rpc.testcommands.Pong(
         i = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Int]).getOrElse(0),
         end = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Int]).getOrElse(0),
-        to = __fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]])
+        to = __fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).map(_.as[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]).getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.defaultInstance)
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = TestcommandsProto.javaDescriptor.getMessageTypes().get(2)
-  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = TestcommandsProto.scalaDescriptor.messages(2)
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = TestcommandsProto.javaDescriptor.getMessageTypes().get(3)
+  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = TestcommandsProto.scalaDescriptor.messages(3)
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = {
     var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
     (__number: @_root_.scala.unchecked) match {
@@ -144,16 +150,15 @@ object Ping extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.a
   }
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
-  lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.worker.testcommands.Ping(
+  lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.rpc.testcommands.Pong(
     i = 0,
     end = 0,
-    to = _root_.scala.None
+    to = edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.defaultInstance
   )
-  implicit class PingLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.testcommands.Ping]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.testcommands.Ping](_l) {
+  implicit class PongLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.testcommands.Pong]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.testcommands.Pong](_l) {
     def i: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Int] = field(_.i)((c_, f_) => c_.copy(i = f_))
     def end: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Int] = field(_.end)((c_, f_) => c_.copy(end = f_))
-    def to: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity] = field(_.getTo)((c_, f_) => c_.copy(to = _root_.scala.Option(f_)))
-    def optionalTo: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]] = field(_.to)((c_, f_) => c_.copy(to = f_))
+    def to: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity] = field(_.to)((c_, f_) => c_.copy(to = f_))
   }
   final val I_FIELD_NUMBER = 1
   final val END_FIELD_NUMBER = 2
@@ -161,11 +166,11 @@ object Ping extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.a
   def of(
     i: _root_.scala.Int,
     end: _root_.scala.Int,
-    to: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]
-  ): _root_.edu.uci.ics.amber.engine.architecture.worker.testcommands.Ping = _root_.edu.uci.ics.amber.engine.architecture.worker.testcommands.Ping(
+    to: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+  ): _root_.edu.uci.ics.amber.engine.architecture.rpc.testcommands.Pong = _root_.edu.uci.ics.amber.engine.architecture.rpc.testcommands.Pong(
     i,
     end,
     to
   )
-  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.Ping])
+  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.Pong])
 }

@@ -5,10 +5,10 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputGateway
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.ambermessage.{ChannelMarkerPayload, ChannelMarkerType, ControlPayload}
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation, TargetedInvocationHandler}
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity, ChannelMarkerIdentity}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CLIENT
+import io.grpc.MethodDescriptor
 
 import java.lang.reflect.{InvocationHandler, Method, Proxy}
 import scala.collection.mutable
@@ -37,7 +37,14 @@ object AsyncRPCClient {
   final val IgnoreReply = -1
   final val IgnoreReplyAndDoNotLog = -2
 
-  case class ControlInvocation(reqName: String, payload: (Any, AsyncRPCContext), commandID: Long) extends ControlPayload
+  object ControlInvocation{
+    def apply(method:MethodDescriptor[_,_], payload:(Any, AsyncRPCContext), commandID:Long) = new ControlInvocation(method, payload, commandID)
+  }
+  case class ControlInvocation(reqName: String, payload: (Any, AsyncRPCContext), commandID: Long) extends ControlPayload{
+    def this(method:MethodDescriptor[_,_], payload:(Any, AsyncRPCContext), commandID:Long) = {
+      this(method.getBareMethodName, payload, commandID)
+    }
+  }
 
   case class ReturnInvocation(originalCommandID: Long, controlReturn: Any) extends ControlPayload
 
