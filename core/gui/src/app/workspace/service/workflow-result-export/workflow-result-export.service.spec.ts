@@ -172,7 +172,7 @@ describe("WorkflowResultExportService", () => {
     resultServiceSpy.getCurrentResultSnapshot.and.returnValue(resultSnapshot);
 
     // Spy on the 'saveAs' method and capture the arguments when it's called
-    fileSaverServiceSpy.saveAs.and.callFake((blob: Blob, filename: string) => {
+    fileSaverServiceSpy.saveAs.and.callFake((data: Blob | string, filename?: string) => {
       expect(filename).toBe("result_operator2_1.html");
 
       const reader = new FileReader();
@@ -181,7 +181,7 @@ describe("WorkflowResultExportService", () => {
         expect(content).toBe("<html><body><p>Visualization</p></body></html>");
         done();
       };
-      reader.readAsText(blob);
+      reader.readAsText(data as Blob);
     });
 
     // Act
@@ -212,10 +212,10 @@ describe("WorkflowResultExportService", () => {
     resultServiceSpy.getCurrentResultSnapshot.and.returnValue(resultSnapshot);
 
     // Spy on the 'saveAs' method and capture the arguments when it's called
-    fileSaverServiceSpy.saveAs.and.callFake((blob: Blob, filename: string) => {
+    fileSaverServiceSpy.saveAs.and.callFake((data: Blob | string, filename?: string) => {
       expect(filename).toBe("results_workflow1_Test Workflow.zip");
 
-      JSZip.loadAsync(blob).then(zip => {
+      JSZip.loadAsync(data).then(zip => {
         expect(Object.keys(zip.files)).toContain("result_operator2_1.html");
         expect(Object.keys(zip.files)).toContain("result_operator2_2.html");
 

@@ -160,7 +160,7 @@
     <button
       nz-button
       nzType="text"
-      *ngIf="entry.type==='workflow'"
+      *ngIf="entry.type === 'workflow' || entry.type === 'dataset'"
       class="dropdown-item"
       title="Download"
       (click)="onClickDownload()">
