@@ -138,6 +138,7 @@ import { HubWorkflowResultComponent } from "./hub/component/workflow/result/hub-
 import { HubWorkflowComponent } from "./hub/component/workflow/hub-workflow.component";
 import { HubWorkflowSearchBarComponent } from "./hub/component/workflow/search-bar/hub-workflow-search-bar.component";
 import { HubWorkflowDetailComponent } from "./hub/component/workflow/detail/hub-workflow-detail.component";
+import { LandingPageComponent } from "./hub/component/landing-page/landing-page.component";
 
 registerLocaleData(en);
 
@@ -226,6 +227,7 @@ registerLocaleData(en);
     HubWorkflowDetailComponent,
     HubWorkflowResultComponent,
     GoogleLoginComponent,
+    LandingPageComponent,
   ],
   imports: [
     BrowserModule,

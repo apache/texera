@@ -1,15 +1,16 @@
 <ul>
   <li
-    *ngIf="!isLogin"
     nz-menu-item
-    nz-tooltip="Home page"
+    nz-tooltip="Home Page"
     nzMatchRouter="true"
     nzTooltipPlacement="right"
     routerLink="/dashboard/home">
     <span
       nz-icon
       nzType="home"></span>
-    <span>Home</span>
+    <span>
+      Home
+    </span>
   </li>
   <li
     nz-menu-item
@@ -21,5 +22,17 @@
       nz-icon
       nzType="project"></span>
     <span>Workflows</span>
+  </li>
+  <li
+    *ngIf="!isLogin"
+    nz-menu-item
+    nz-tooltip="About"
+    nzMatchRouter="true"
+    nzTooltipPlacement="right"
+    routerLink="/dashboard/about">
+    <span
+      nz-icon
+      nzType="info-circle"></span>
+    <span>About</span>
   </li>
 </ul>
