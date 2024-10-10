@@ -69,9 +69,8 @@ export class ListItemComponent implements OnInit, OnChanges {
     private searchService: SearchService,
     private modalService: NzModalService,
     private workflowPersistService: WorkflowPersistService,
-    private fileSaverService: FileSaverService,
     private modal: NzModalService,
-    private hubWorkflowService: HubWorkflowService
+    private hubWorkflowService: HubWorkflowService,
     private downloadService: DownloadService
   ) {}
 
