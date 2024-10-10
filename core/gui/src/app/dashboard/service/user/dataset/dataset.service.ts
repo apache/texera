@@ -61,6 +61,13 @@ export class DatasetService {
     });
   }
 
+  /**
+   * Retrieves a zip file of a dataset or a specific path within a dataset.
+   * @param options An object containing optional parameters:
+   *   - path: A string representing a specific file or directory path within the dataset
+   *   - did: A number representing the dataset ID
+   * @returns An Observable that emits a Blob containing the zip file
+   */
   public retrieveDatasetZip(options: { path?: string; did?: number }): Observable<Blob> {
     let params = new HttpParams();
 
