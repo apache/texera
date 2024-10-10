@@ -3,13 +3,7 @@ package edu.uci.ics.texera.web.service
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource
 import edu.uci.ics.texera.web.resource.{EmailMessage, GmailResource}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{
-  COMPLETED,
-  FAILED,
-  KILLED,
-  PAUSED,
-  RUNNING
-}
+import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState._
 import org.hibernate.validator.internal.constraintvalidators.hv.EmailValidator
 import org.jooq.types.UInteger
 
@@ -21,7 +15,7 @@ class WorkflowEmailNotifier(
     workflowId: Long,
     userEmail: String,
     sessionUri: URI
-) {
+) extends EmailNotifier {
   private val workflowName = WorkflowResource.getWorkflowName(UInteger.valueOf(workflowId))
   private val emailValidator = new EmailValidator()
   private val CompletedPausedOrTerminatedStates: Set[WorkflowAggregatedState] = Set(
@@ -31,28 +25,46 @@ class WorkflowEmailNotifier(
     KILLED
   )
 
-  def shouldSendEmail(
+  override def shouldSendEmail(
       oldState: WorkflowAggregatedState,
       newState: WorkflowAggregatedState
   ): Boolean = {
     oldState == RUNNING && CompletedPausedOrTerminatedStates.contains(newState)
   }
 
-  def sendStatusEmail(state: WorkflowAggregatedState): Unit = {
-    if (!emailValidator.isValid(userEmail, null)) {
+  override def sendStatusEmail(state: WorkflowAggregatedState): Unit = {
+    if (!isValidEmail(userEmail)) {
+      println(s"Invalid email address: $userEmail")
       return
     }
 
-    val timestamp = DateTimeFormatter
-      .ofPattern("MMMM d, yyyy, h:mm:ss a '(UTC)'")
-      .withZone(ZoneOffset.UTC)
-      .format(Instant.now())
+    val emailMessage = createEmailMessage(state)
 
-    val dashboardUrl =
-      s"http://${sessionUri.getHost}:${sessionUri.getPort}/dashboard/user/workspace/$workflowId"
+    try {
+      GmailResource.sendEmail(emailMessage, userEmail)
+    } catch {
+      case e: Exception => println(s"Failed to send email: ${e.getMessage}")
+    }
+  }
 
-    val subject = s"[Texera] Workflow $workflowName ($workflowId) Status: $state"
-    val content = s"""
+  private def isValidEmail(email: String): Boolean = emailValidator.isValid(email, null)
+
+  private def createEmailMessage(state: WorkflowAggregatedState): EmailMessage = {
+    EmailMessage(
+      receiver = userEmail,
+      subject = createEmailSubject(state),
+      content = createEmailContent(state)
+    )
+  }
+
+  private def createEmailSubject(state: WorkflowAggregatedState): String =
+    s"[Texera] Workflow $workflowName ($workflowId) Status: $state"
+
+  private def createEmailContent(state: WorkflowAggregatedState): String = {
+    val timestamp = formatTimestamp(Instant.now())
+    val dashboardUrl = createDashboardUrl()
+
+    s"""
       |Hello,
       |
       |The workflow with the following details has changed its state:
@@ -67,13 +79,14 @@ class WorkflowEmailNotifier(
       |Regards,
       |Texera Team
     """.stripMargin.trim
-
-    val emailMessage = EmailMessage(
-      receiver = userEmail,
-      subject = subject,
-      content = content
-    )
-
-    GmailResource.sendEmail(emailMessage, userEmail)
   }
+
+  private def formatTimestamp(instant: Instant): String =
+    DateTimeFormatter
+      .ofPattern("MMMM d, yyyy, h:mm:ss a '(UTC)'")
+      .withZone(ZoneOffset.UTC)
+      .format(instant)
+
+  private def createDashboardUrl(): String =
+    s"http://${sessionUri.getHost}:${sessionUri.getPort}/dashboard/user/workspace/$workflowId"
 }
