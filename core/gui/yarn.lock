@@ -9621,6 +9621,11 @@ monaco-editor-wrapper@5.5.3, monaco-editor-wrapper@~5.5.3:
     vscode-languageserver-protocol "~3.17.5"
     vscode-ws-jsonrpc "~3.3.2"
 
+monaco-editor@0.51.0:
+  version "0.51.0"
+  resolved "https://registry.yarnpkg.com/monaco-editor/-/monaco-editor-0.51.0.tgz#922a6103f6742b5a62fbb097276c5a6619d879db"
+  integrity sha512-xaGwVV1fq343cM7aOYB6lVE4Ugf0UyimdD/x5PWcWBMKENwectaEu77FAN7c5sFiyumqeJdX1RPTh1ocioyDjw==
+
 "monaco-editor@npm:@codingame/monaco-vscode-editor-api@8.0.4", "monaco-editor@npm:@codingame/monaco-vscode-editor-api@~8.0.4":
   version "8.0.4"
   resolved "https://registry.yarnpkg.com/@codingame/monaco-vscode-editor-api/-/monaco-vscode-editor-api-8.0.4.tgz#c0de7feca594f23159fd3ddd67fad9fda5f94fbb"
