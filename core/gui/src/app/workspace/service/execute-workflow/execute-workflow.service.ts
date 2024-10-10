@@ -170,7 +170,6 @@ export class ExecuteWorkflowService {
   public executeWorkflowWithEmailNotification(
     executionName: string,
     emailNotificationEnabled: boolean,
-    user: User | undefined,
     targetOperatorId?: string
   ): void {
     const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(
@@ -180,11 +179,11 @@ export class ExecuteWorkflowService {
     const settings = this.workflowActionService.getWorkflowSettings();
     this.resetExecutionState();
     this.workflowStatusService.resetStatus();
-    this.sendExecutionRequest(executionName, logicalPlan, settings, emailNotificationEnabled, user);
+    this.sendExecutionRequest(executionName, logicalPlan, settings, emailNotificationEnabled);
   }
 
   public executeWorkflow(executionName: string, targetOperatorId?: string): void {
-    this.executeWorkflowWithEmailNotification(executionName, false, undefined, targetOperatorId);
+    this.executeWorkflowWithEmailNotification(executionName, false, targetOperatorId);
   }
 
   public executeWorkflowWithReplay(replayExecutionInfo: ReplayExecutionInfo): void {
@@ -197,7 +196,6 @@ export class ExecuteWorkflowService {
       logicalPlan,
       settings,
       false,
-      undefined,
       replayExecutionInfo
     );
   }
@@ -207,23 +205,15 @@ export class ExecuteWorkflowService {
     logicalPlan: LogicalPlan,
     workflowSettings: WorkflowSettings,
     emailNotificationEnabled: boolean,
-    user: User | undefined,
     replayExecutionInfo: ReplayExecutionInfo | undefined = undefined
   ): void {
-    const workflow = this.workflowActionService.getWorkflow();
-
     const workflowExecuteRequest = {
       executionName: executionName,
       engineVersion: version.hash,
       logicalPlan: logicalPlan,
       replayFromExecution: replayExecutionInfo,
       workflowSettings: workflowSettings,
-      emailNotificationConfig: {
-        enabled: emailNotificationEnabled,
-        baseUrl: this.document.location.origin,
-        workflowName: workflow.name,
-        userEmail: user?.email,
-      },
+      emailNotificationEnabled: emailNotificationEnabled,
     };
     // wait for the form debounce to complete, then send
     window.setTimeout(() => {

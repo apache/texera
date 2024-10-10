@@ -212,8 +212,7 @@ export class MenuComponent implements OnInit {
           onClick: () =>
             this.executeWorkflowService.executeWorkflowWithEmailNotification(
               this.currentExecutionName,
-              this.emailNotificationEnabled && environment.userSystemEnabled,
-              this.userService.getCurrentUser()
+              this.emailNotificationEnabled && environment.userSystemEnabled
             ),
         };
       case ExecutionState.Initializing:

@@ -23,6 +23,7 @@ import edu.uci.ics.texera.web.{SubscriptionManager, TexeraWebApplication, Websoc
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, WorkflowCompiler}
 
+import java.net.URI
 import scala.collection.mutable
 
 class WorkflowExecutionService(
@@ -32,17 +33,18 @@ class WorkflowExecutionService(
     request: WorkflowExecuteRequest,
     val executionStateStore: ExecutionStateStore,
     errorHandler: Throwable => Unit,
-    lastCompletedLogicalPlan: Option[LogicalPlan]
+    lastCompletedLogicalPlan: Option[LogicalPlan],
+    userEmailOpt: Option[String],
+    sessionUri: URI
 ) extends SubscriptionManager
     with LazyLogging {
 
   val wsInput = new WebsocketInput(errorHandler)
 
   private val emailNotifier = new WorkflowEmailNotifier(
-    request.emailNotificationConfig.baseUrl,
-    request.emailNotificationConfig.workflowName,
-    workflowContext.workflowId.id.toString,
-    request.emailNotificationConfig.userEmail
+    workflowContext.workflowId.id,
+    userEmailOpt.get,
+    sessionUri
   )
 
   private val emailNotificationService = new EmailNotificationService(emailNotifier)
@@ -54,7 +56,7 @@ class WorkflowExecutionService(
       if (newState.state != oldState.state || newState.isRecovering != oldState.isRecovering) {
         outputEvents.append(createStateEvent(newState))
 
-        if (request.emailNotificationConfig.enabled) {
+        if (request.emailNotificationEnabled) {
           emailNotificationService.sendEmailNotification(oldState.state, newState.state)
         }
       }

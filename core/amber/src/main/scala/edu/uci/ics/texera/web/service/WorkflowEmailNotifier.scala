@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.web.service
 
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource
 import edu.uci.ics.texera.web.resource.{EmailMessage, GmailResource}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{
@@ -10,16 +11,18 @@ import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{
   RUNNING
 }
 import org.hibernate.validator.internal.constraintvalidators.hv.EmailValidator
+import org.jooq.types.UInteger
 
+import java.net.URI
 import java.time.{Instant, ZoneOffset}
 import java.time.format.DateTimeFormatter
 
 class WorkflowEmailNotifier(
-    baseUrl: String,
-    workflowName: String,
-    workflowId: String,
-    userEmail: String
+    workflowId: Long,
+    userEmail: String,
+    sessionUri: URI
 ) {
+  private val workflowName = WorkflowResource.getWorkflowName(UInteger.valueOf(workflowId))
   private val emailValidator = new EmailValidator()
   private val CompletedPausedOrTerminatedStates: Set[WorkflowAggregatedState] = Set(
     COMPLETED,
@@ -45,7 +48,8 @@ class WorkflowEmailNotifier(
       .withZone(ZoneOffset.UTC)
       .format(Instant.now())
 
-    val dashboardUrl = s"$baseUrl/dashboard/user/workspace/$workflowId"
+    val dashboardUrl =
+      s"http://${sessionUri.getHost}:${sessionUri.getPort}/dashboard/user/workspace/$workflowId"
 
     val subject = s"[Texera] Workflow $workflowName ($workflowId) Status: $state"
     val content = s"""
