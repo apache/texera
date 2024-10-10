@@ -1098,8 +1098,7 @@ class DatasetResource {
               }
             } catch {
               case e: IOException =>
-                // Log the error and continue with the next file
-                println(s"Error processing file: $zipEntryName - ${e.getMessage}")
+                throw new WebApplicationException(s"Error processing file: $zipEntryName", e)
             } finally {
               zipOutputStream.closeEntry()
             }
