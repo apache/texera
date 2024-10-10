@@ -1,0 +1,30 @@
+.landing-page-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  height: 100vh;
+  text-align: center;
+  padding-top: 50px;
+  background-color: #f0f2f5;
+}
+
+.title-text {
+  margin-bottom: 20px;
+}
+
+.title-text h2 {
+  font-size: 2.5rem;
+  margin-bottom: 10px;
+}
+
+.title-text p {
+  font-size: 1.25rem;
+  color: #555;
+}
+
+.search-bar-wrapper {
+  width: 80%;
+  max-width: 1200px;
+  margin-bottom: 40px;
+}
