@@ -94,13 +94,6 @@ describe("ExecuteWorkflowService", () => {
   });
 
   it("should execute workflow with email notification successfully", () => {
-    const mockUser: User = {
-      uid: 1,
-      name: "Test User",
-      email: "test@example.com",
-      googleId: undefined,
-      role: Role.REGULAR,
-    };
     const executionName = "Test Execution";
     const emailNotificationEnabled = true;
     const targetOperatorId = "test-operator-id";
@@ -113,7 +106,7 @@ describe("ExecuteWorkflowService", () => {
     const resetStatusSpy = spyOn(service["workflowStatusService"], "resetStatus");
     const sendExecutionRequestSpy = spyOn(service, "sendExecutionRequest");
 
-    service.executeWorkflowWithEmailNotification(executionName, emailNotificationEnabled, mockUser, targetOperatorId);
+    service.executeWorkflowWithEmailNotification(executionName, emailNotificationEnabled, targetOperatorId);
 
     expect(logicalPlanSpy).toHaveBeenCalledWith(service["workflowActionService"].getTexeraGraph(), targetOperatorId);
     expect(settingsSpy).toHaveBeenCalled();
@@ -123,19 +116,11 @@ describe("ExecuteWorkflowService", () => {
       executionName,
       jasmine.any(Object),
       jasmine.any(Object),
-      emailNotificationEnabled,
-      mockUser
+      emailNotificationEnabled
     );
   });
 
   it("should handle failure when executing workflow with email notification", () => {
-    const mockUser: User = {
-      uid: 1,
-      name: "Test User",
-      email: "test@example.com",
-      googleId: undefined,
-      role: Role.REGULAR,
-    };
     const executionName = "Test Execution";
     const emailNotificationEnabled = true;
     const targetOperatorId = "test-operator-id";
@@ -146,7 +131,7 @@ describe("ExecuteWorkflowService", () => {
     const sendExecutionRequestSpy = spyOn(service, "sendExecutionRequest");
 
     expect(() => {
-      service.executeWorkflowWithEmailNotification(executionName, emailNotificationEnabled, mockUser, targetOperatorId);
+      service.executeWorkflowWithEmailNotification(executionName, emailNotificationEnabled, targetOperatorId);
     }).toThrowError("Logical plan error");
 
     expect(logicalPlanSpy).toHaveBeenCalledWith(service["workflowActionService"].getTexeraGraph(), targetOperatorId);
