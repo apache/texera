@@ -178,4 +178,55 @@ describe("DownloadService", () => {
       },
     });
   });
+
+  it("should download workflows as ZIP successfully", done => {
+    const workflowEntries = [
+      { id: 1, name: "Workflow1" },
+      { id: 2, name: "Workflow2" },
+    ];
+    const mockBlob = new Blob(["zip content"], { type: "application/zip" });
+
+    spyOn(downloadService as any, "createWorkflowsZip").and.returnValue(of(mockBlob));
+
+    downloadService.downloadWorkflowsAsZip(workflowEntries).subscribe({
+      next: blob => {
+        expect(blob).toBe(mockBlob);
+        expect(notificationServiceSpy.info).toHaveBeenCalledWith("Starting to download workflows as ZIP");
+        expect((downloadService as any).createWorkflowsZip).toHaveBeenCalledWith(workflowEntries);
+        expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledWith(
+          mockBlob,
+          jasmine.stringMatching(/^workflowExports-.*\.zip$/)
+        );
+        expect(notificationServiceSpy.info).toHaveBeenCalledWith("Workflows have been downloaded as ZIP");
+        done();
+      },
+      error: (error: unknown) => {
+        fail("Should not have thrown an error");
+      },
+    });
+  });
+
+  it("should handle workflows ZIP download failure correctly", done => {
+    const workflowEntries = [
+      { id: 1, name: "Workflow1" },
+      { id: 2, name: "Workflow2" },
+    ];
+    const errorMessage = "Workflows ZIP download failed";
+
+    spyOn(downloadService as any, "createWorkflowsZip").and.returnValue(throwError(() => new Error(errorMessage)));
+
+    downloadService.downloadWorkflowsAsZip(workflowEntries).subscribe({
+      next: () => {
+        fail("Should have thrown an error");
+      },
+      error: (error: unknown) => {
+        expect(error).toBeTruthy();
+        expect(notificationServiceSpy.info).toHaveBeenCalledWith("Starting to download workflows as ZIP");
+        expect((downloadService as any).createWorkflowsZip).toHaveBeenCalledWith(workflowEntries);
+        expect(fileSaverServiceSpy.saveAs).not.toHaveBeenCalled();
+        expect(notificationServiceSpy.error).toHaveBeenCalledWith("Error downloading workflows as ZIP");
+        done();
+      },
+    });
+  });
 });

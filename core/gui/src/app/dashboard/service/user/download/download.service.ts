@@ -1,10 +1,11 @@
 import { Injectable } from "@angular/core";
-import { Observable, throwError } from "rxjs";
-import { map, tap, catchError } from "rxjs/operators";
+import { Observable, throwError, of, forkJoin } from "rxjs";
+import { map, tap, catchError, switchMap } from "rxjs/operators";
 import { FileSaverService } from "../file/file-saver.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { DatasetService } from "../dataset/dataset.service";
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
+import * as JSZip from "jszip";
 
 @Injectable({
   providedIn: "root",
@@ -59,6 +60,38 @@ export class DownloadService {
       `File ${filePath} has been downloaded`,
       `Error downloading file '${filePath}'`
     );
+  }
+
+  downloadWorkflowsAsZip(workflowEntries: Array<{ id: number; name: string }>): Observable<Blob> {
+    return this.downloadWithNotification(
+      () => this.createWorkflowsZip(workflowEntries),
+      `workflowExports-${new Date().toISOString()}.zip`,
+      "Starting to download workflows as ZIP",
+      "Workflows have been downloaded as ZIP",
+      "Error downloading workflows as ZIP"
+    );
+  }
+
+  private createWorkflowsZip(workflowEntries: Array<{ id: number; name: string }>): Observable<Blob> {
+    const zip = new JSZip();
+    const downloadObservables = workflowEntries.map(entry =>
+      this.downloadWorkflow(entry.id, entry.name).pipe(
+        tap(({ blob, fileName }) => {
+          zip.file(this.nameWorkflow(fileName, zip), blob);
+        })
+      )
+    );
+
+    return forkJoin(downloadObservables).pipe(switchMap(() => zip.generateAsync({ type: "blob" })));
+  }
+
+  private nameWorkflow(name: string, zip: JSZip): string {
+    let count = 0;
+    let copyName = name;
+    while (zip.file(copyName)) {
+      copyName = `${name.replace(".json", "")}-${++count}.json`;
+    }
+    return copyName;
   }
 
   private downloadWithNotification(
