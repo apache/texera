@@ -5,7 +5,6 @@ import { CodeEditorComponent } from "../code-editor-dialog/code-editor.component
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
 import { CodeEditorService } from "../../service/code-editor/code-editor.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
-import { EditorStateService } from "../../service/editor-state/editor-state.service";
 
 /**
  * CodeareaCustomTemplateComponent is the custom template for 'codearea' type of formly field.
@@ -28,8 +27,7 @@ export class CodeareaCustomTemplateComponent extends FieldType<FieldTypeConfig> 
     private coeditorPresenceService: CoeditorPresenceService,
     private codeEditorService: CodeEditorService,
     private changeDetectorRef: ChangeDetectorRef,
-    private workflowActionService: WorkflowActionService,
-    private editorStateService: EditorStateService
+    private workflowActionService: WorkflowActionService
   ) {
     super();
     this.coeditorPresenceService
@@ -44,7 +42,7 @@ export class CodeareaCustomTemplateComponent extends FieldType<FieldTypeConfig> 
 
   ngOnInit() {
     this.operatorID = this.getOperatorID();
-    this.editorStateService
+    this.codeEditorService
       .getEditorState(this.operatorID)
       .pipe(untilDestroyed(this))
       .subscribe(isOpen => {
@@ -59,17 +57,17 @@ export class CodeareaCustomTemplateComponent extends FieldType<FieldTypeConfig> 
     this.componentRef.instance.formControl = this.field.formControl;
     this.isEditorOpen = true;
 
-    this.editorStateService.setEditorState(this.operatorID, true);
+    this.codeEditorService.setEditorState(this.operatorID, true);
 
     this.componentRef.onDestroy(() => {
       this.isEditorOpen = false;
-      this.editorStateService.setEditorState(this.operatorID, false);
+      this.codeEditorService.setEditorState(this.operatorID, false);
       this.changeDetectorRef.detectChanges();
     });
   }
 
   ngOnDestroy() {
-    this.editorStateService.setEditorState(this.operatorID, this.isEditorOpen);
+    this.codeEditorService.setEditorState(this.operatorID, this.isEditorOpen);
   }
 
   private getOperatorID(): string {
