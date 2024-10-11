@@ -33,7 +33,8 @@ export class DownloadService {
     return this.downloadWithNotification(
       () => this.datasetService.retrieveDatasetZip({ did: id }),
       `${name}.zip`,
-      "The latest version of the dataset is downloading as ZIP",
+      "Starting to download the latest version of the dataset as ZIP",
+      "The latest version of the dataset has been downloaded as ZIP",
       "Error downloading the latest version of the dataset as ZIP"
     );
   }
@@ -42,7 +43,8 @@ export class DownloadService {
     return this.downloadWithNotification(
       () => this.datasetService.retrieveDatasetZip({ path: versionPath }),
       `${datasetName}-${versionName}.zip`,
-      `Version ${versionName} is downloading as ZIP`,
+      `Starting to download version ${versionName} as ZIP`,
+      `Version ${versionName} has been downloaded as ZIP`,
       `Error downloading version '${versionName}' as ZIP`
     );
   }
@@ -53,7 +55,8 @@ export class DownloadService {
     return this.downloadWithNotification(
       () => this.datasetService.retrieveDatasetVersionSingleFile(filePath),
       fileName,
-      `File ${filePath} is downloading`,
+      `Starting to download file ${filePath}`,
+      `File ${filePath} has been downloaded`,
       `Error downloading file '${filePath}'`
     );
   }
@@ -61,9 +64,11 @@ export class DownloadService {
   private downloadWithNotification(
     retrieveFunction: () => Observable<Blob>,
     fileName: string,
+    startMessage: string,
     successMessage: string,
     errorMessage: string
   ): Observable<Blob> {
+    this.notificationService.info(startMessage);
     return retrieveFunction().pipe(
       tap(blob => {
         this.fileSaverService.saveAs(blob, fileName);
