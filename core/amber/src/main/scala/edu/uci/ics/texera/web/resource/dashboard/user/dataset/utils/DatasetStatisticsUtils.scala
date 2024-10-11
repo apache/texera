@@ -3,7 +3,6 @@ package edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset.DATASET
 import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource.{DatasetQuota}
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.PathUtils.DATASETS_ROOT
 import org.jooq.types.UInteger
 import scala.jdk.CollectionConverters._
 
@@ -46,11 +45,16 @@ object DatasetStatisticsUtils {
       )
       .toList
   }
-  def getFolderSize(folderPath: Path): Long = {
+
+  private def getFolderSize(folderPath: Path): Long = {
+    calculateSize(folderPath, isInHiddenDirectory)
+  }
+
+  private def calculateSize(folderPath: Path, filter: Path => Boolean): Long = {
     val walk = Files.walk(folderPath)
     try {
       walk
-        .filter(Files.isRegularFile(_))
+        .filter(p => Files.isRegularFile(p) && !filter(p))
         .mapToLong(p => Files.readAttributes(p, classOf[BasicFileAttributes]).size())
         .sum()
     } finally {
@@ -58,17 +62,20 @@ object DatasetStatisticsUtils {
     }
   }
 
+  private def isInHiddenDirectory(path: Path): Boolean = {
+    path.iterator().asScala.exists(p => Files.isHidden(p))
+  }
+
   def getUserCreatedDatasets(uid: UInteger): List[DatasetQuota] = {
     val datasetList = getUserCreatedDatasetList(uid)
     datasetList.map { dataset =>
-      val datasetPath = DATASETS_ROOT.resolve(dataset.did.toString)
-      val size = getFolderSize(datasetPath)
+      val size = calculateDatasetSize(dataset.did)
       dataset.copy(size = size)
     }
   }
 
   def calculateDatasetSize(did: UInteger): Long = {
     val datasetPath = PathUtils.getDatasetPath(did)
-    getFolderSize(datasetPath)
+    calculateSize(datasetPath, isInHiddenDirectory)
   }
 }
