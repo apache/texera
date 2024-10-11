@@ -1,11 +1,12 @@
 import { Injectable } from "@angular/core";
-import { Observable, throwError, of, forkJoin } from "rxjs";
+import { Observable, throwError, of, forkJoin, from } from "rxjs";
 import { map, tap, catchError, switchMap } from "rxjs/operators";
 import { FileSaverService } from "../file/file-saver.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { DatasetService } from "../dataset/dataset.service";
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
 import * as JSZip from "jszip";
+import { Workflow } from "../../../../common/type/workflow";
 
 @Injectable({
   providedIn: "root",
@@ -112,5 +113,45 @@ export class DownloadService {
         return throwError(() => error);
       })
     );
+  }
+
+  public downloadOperatorsResult(
+    resultObservables: Observable<{ filename: string; blob: Blob }[]>[],
+    workflow: Workflow
+  ): Observable<Blob> {
+    return forkJoin(resultObservables).pipe(
+      map(filesArray => filesArray.flat()),
+      switchMap(files => {
+        if (files.length === 0) {
+          return throwError(() => new Error("No files to download"));
+        } else if (files.length === 1) {
+          // Single file, download directly
+          return this.downloadWithNotification(
+            () => of(files[0].blob),
+            files[0].filename,
+            "Starting to download operator result",
+            "Operator result has been downloaded",
+            "Error downloading operator result"
+          );
+        } else {
+          // Multiple files, create a zip
+          return this.downloadWithNotification(
+            () => this.createZip(files),
+            `results_${workflow.wid}_${workflow.name}.zip`,
+            "Starting to download operator results as ZIP",
+            "Operator results have been downloaded as ZIP",
+            "Error downloading operator results as ZIP"
+          );
+        }
+      })
+    );
+  }
+
+  private createZip(files: { filename: string; blob: Blob }[]): Observable<Blob> {
+    const zip = new JSZip();
+    files.forEach(file => {
+      zip.file(file.filename, file.blob);
+    });
+    return from(zip.generateAsync({ type: "blob" }));
   }
 }
