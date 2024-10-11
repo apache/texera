@@ -9,7 +9,6 @@ import {
   LogicalOperator,
   LogicalPlan,
 } from "../../types/execute-workflow.interface";
-import { environment } from "../../../../environments/environment";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import {
   WorkflowFatalError,
@@ -24,11 +23,11 @@ import { Version as version } from "src/environments/version";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { exhaustiveGuard } from "../../../common/util/switch";
 import { WorkflowStatusService } from "../workflow-status/workflow-status.service";
-import { isDefined } from "../../../common/util/predicate";
 import { intersection } from "../../../common/util/set";
-import { Workflow, WorkflowContent, WorkflowSettings } from "../../../common/type/workflow";
-import { GmailService } from "src/app/common/service/gmail/gmail.service";
+import { WorkflowSettings } from "../../../common/type/workflow";
 import { DOCUMENT } from "@angular/common";
+import { UserService } from "src/app/common/service/user/user.service";
+import { User } from "src/app/common/type/user";
 
 // TODO: change this declaration
 export const FORM_DEBOUNCE_TIME_MS = 150;
@@ -71,21 +70,12 @@ export class ExecuteWorkflowService {
   // TODO: move this to another service, or redesign how this
   //   information is stored on the frontend.
   private assignedWorkerIds: Map<string, readonly string[]> = new Map();
-  private emailNotificationEnabled: boolean = false;
-
-  private readonly COMPLETED_PAUSED_OR_TERMINATED_STATES = [
-    ExecutionState.Completed,
-    ExecutionState.Failed,
-    ExecutionState.Killed,
-    ExecutionState.Paused,
-  ];
 
   constructor(
     private workflowActionService: WorkflowActionService,
     private workflowWebsocketService: WorkflowWebsocketService,
     private workflowStatusService: WorkflowStatusService,
     private notificationService: NotificationService,
-    private gmailService: GmailService,
     @Inject(DOCUMENT) private document: Document
   ) {
     workflowWebsocketService.websocketEvent().subscribe(event => {
@@ -179,14 +169,9 @@ export class ExecuteWorkflowService {
 
   public executeWorkflowWithEmailNotification(
     executionName: string,
-    enabled: boolean,
+    emailNotificationEnabled: boolean,
     targetOperatorId?: string
   ): void {
-    this.emailNotificationEnabled = enabled;
-    this.executeWorkflow(executionName, targetOperatorId);
-  }
-
-  public executeWorkflow(executionName: string, targetOperatorId?: string): void {
     const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(
       this.workflowActionService.getTexeraGraph(),
       targetOperatorId
@@ -194,7 +179,11 @@ export class ExecuteWorkflowService {
     const settings = this.workflowActionService.getWorkflowSettings();
     this.resetExecutionState();
     this.workflowStatusService.resetStatus();
-    this.sendExecutionRequest(executionName, logicalPlan, settings);
+    this.sendExecutionRequest(executionName, logicalPlan, settings, emailNotificationEnabled);
+  }
+
+  public executeWorkflow(executionName: string, targetOperatorId?: string): void {
+    this.executeWorkflowWithEmailNotification(executionName, false, targetOperatorId);
   }
 
   public executeWorkflowWithReplay(replayExecutionInfo: ReplayExecutionInfo): void {
@@ -206,6 +195,7 @@ export class ExecuteWorkflowService {
       `Replay run of ${replayExecutionInfo.eid} to ${replayExecutionInfo.interaction}`,
       logicalPlan,
       settings,
+      false,
       replayExecutionInfo
     );
   }
@@ -214,6 +204,7 @@ export class ExecuteWorkflowService {
     executionName: string,
     logicalPlan: LogicalPlan,
     workflowSettings: WorkflowSettings,
+    emailNotificationEnabled: boolean,
     replayExecutionInfo: ReplayExecutionInfo | undefined = undefined
   ): void {
     const workflowExecuteRequest = {
@@ -222,6 +213,7 @@ export class ExecuteWorkflowService {
       logicalPlan: logicalPlan,
       replayFromExecution: replayExecutionInfo,
       workflowSettings: workflowSettings,
+      emailNotificationEnabled: emailNotificationEnabled,
     };
     // wait for the form debounce to complete, then send
     window.setTimeout(() => {
@@ -319,7 +311,6 @@ export class ExecuteWorkflowService {
       return;
     }
     this.updateWorkflowActionLock(stateInfo);
-    this.handleEmailNotification(stateInfo);
     const previousState = this.currentState;
     // update current state
     this.currentState = stateInfo;
@@ -328,27 +319,6 @@ export class ExecuteWorkflowService {
       previous: previousState,
       current: this.currentState,
     });
-  }
-
-  private handleEmailNotification(stateInfo: ExecutionStateInfo): void {
-    if (this.shouldSendEmailNotification(stateInfo)) {
-      this.sendWorkflowStatusEmail(stateInfo);
-    }
-  }
-
-  private shouldSendEmailNotification(stateInfo: ExecutionStateInfo): boolean {
-    return this.isEmailNotificationEnabled() && this.isTransitionFromRunningToCompletedPausedOrTerminated(stateInfo);
-  }
-
-  private isEmailNotificationEnabled(): boolean {
-    return environment.userSystemEnabled && this.emailNotificationEnabled;
-  }
-
-  private isTransitionFromRunningToCompletedPausedOrTerminated(stateInfo: ExecutionStateInfo): boolean {
-    return (
-      this.currentState.state === ExecutionState.Running &&
-      this.COMPLETED_PAUSED_OR_TERMINATED_STATES.includes(stateInfo.state)
-    );
   }
 
   /**
@@ -373,51 +343,6 @@ export class ExecuteWorkflowService {
       default:
         return exhaustiveGuard(stateInfo);
     }
-  }
-
-  /**
-   * Sends an email notification about the change in workflow state.
-   * This method constructs the email content with details such as the workflow ID, name,
-   * new state, and a timestamp, then sends it to the user's email address.
-   * The email is sent only if the current user is defined.
-   *
-   * @param stateInfo - The new execution state information containing the updated state of the workflow.
-   */
-  private sendWorkflowStatusEmail(stateInfo: ExecutionStateInfo): void {
-    const workflow = this.workflowActionService.getWorkflow();
-    const timestamp =
-      new Date().toLocaleString("en-US", {
-        timeZone: "UTC",
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-        hour: "numeric",
-        minute: "numeric",
-        second: "numeric",
-        hour12: true,
-      }) + " (UTC)";
-
-    const baseUrl = this.document.location.origin;
-    const dashboardUrl = `${baseUrl}/dashboard/user/workspace/${workflow.wid}`;
-
-    const subject = `[Texera] Workflow ${workflow.name} (${workflow.wid}) Status: ${stateInfo.state}`;
-    const content = `
-        Hello,
-    
-        The workflow with the following details has changed its state:
-    
-        - Workflow ID: ${workflow.wid}
-        - Workflow Name: ${workflow.name}
-        - State: ${stateInfo.state}
-        - Timestamp: ${timestamp}
-    
-        You can view more details by visiting: ${dashboardUrl}
-    
-        Regards,
-        Texera Team
-      `;
-
-    this.gmailService.sendEmail(subject, content);
   }
 
   /**

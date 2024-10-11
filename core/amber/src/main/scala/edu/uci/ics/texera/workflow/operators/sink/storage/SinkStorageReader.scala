@@ -1,7 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.sink.storage
 
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
+import edu.uci.ics.amber.engine.common.model.tuple.{Schema, Tuple}
 
 trait SinkStorageReader {
   var schema: Schema = _
