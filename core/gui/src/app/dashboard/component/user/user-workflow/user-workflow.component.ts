@@ -12,10 +12,9 @@ import { DashboardEntry, UserInfo } from "../../../type/dashboard-entry";
 import { UserService } from "../../../../common/service/user/user.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
-import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
+import { WorkflowContent } from "../../../../common/type/workflow";
 import { NzUploadFile } from "ng-zorro-antd/upload";
 import * as JSZip from "jszip";
-import { FileSaverService } from "../../../service/user/file/file-saver.service";
 import { FiltersComponent } from "../filters/filters.component";
 import { SearchResultsComponent } from "../search-results/search-results.component";
 import { SearchService } from "../../../service/user/search.service";
@@ -25,6 +24,7 @@ import { UserProjectService } from "../../../service/user/project/user-project.s
 import { map, mergeMap, tap } from "rxjs/operators";
 import { environment } from "../../../../../environments/environment";
 import { DashboardWorkflow } from "../../../type/dashboard-workflow.interface";
+import { DownloadService } from "../../../service/user/download/download.service";
 /**
  * Saved-workflow-section component contains information and functionality
  * of the saved workflows section and is re-used in the user projects section when a project is clicked
@@ -98,7 +98,7 @@ export class UserWorkflowComponent implements AfterViewInit {
     private notificationService: NotificationService,
     private modalService: NzModalService,
     private router: Router,
-    private fileSaverService: FileSaverService,
+    private downloadService: DownloadService,
     private searchService: SearchService
   ) {
     this.userService
@@ -412,43 +412,26 @@ export class UserWorkflowComponent implements AfterViewInit {
   /**
    * Download selected workflow as zip file
    */
-  public async onClickOpenDownloadZip() {
+  public onClickOpenDownloadZip(): void {
     const checkedEntries = this.searchResultsComponent.entries.filter(i => i.checked);
-    if (checkedEntries.length > 0) {
-      const zip = new JSZip();
-      try {
-        for (const entry of checkedEntries) {
-          if (!entry.workflow) {
-            throw new Error(
-              "Incorrect type of DashboardEntry provided to onClickOpenDownloadZip. Entry must be workflow."
-            );
-          }
-          const fileName = this.nameWorkflow(entry.workflow.workflow.name, zip) + ".json";
-          if (entry.workflow.workflow.wid) {
-            const workflowCopy: Workflow = {
-              ...(await firstValueFrom(
-                this.workflowPersistService.retrieveWorkflow(entry.workflow.workflow.wid).pipe(untilDestroyed(this))
-              )),
-              wid: undefined,
-              creationTime: undefined,
-              lastModifiedTime: undefined,
-              readonly: false,
-            };
-            const workflowJson = JSON.stringify(workflowCopy.content);
-            zip.file(fileName, workflowJson);
-          }
-        }
-      } catch (e) {
-        this.notificationService.error(`Workflow download failed. ${(e as Error).message}`);
-      }
-      let dateTime = new Date();
-      let filename = "workflowExports-" + dateTime.toISOString() + ".zip";
-      const content = await zip.generateAsync({ type: "blob" });
-      this.fileSaverService.saveAs(content, filename);
-      for (const entry of checkedEntries) {
-        entry.checked = false;
-      }
+    if (checkedEntries.length === 0) {
+      return;
     }
+
+    const workflowEntries = checkedEntries.map(entry => ({
+      id: entry.workflow.workflow.wid!,
+      name: entry.workflow.workflow.name,
+    }));
+
+    this.downloadService
+      .downloadWorkflowsAsZip(workflowEntries)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => {
+          checkedEntries.forEach(entry => (entry.checked = false));
+        },
+        error: (err: unknown) => console.error("Error downloading workflows:", err),
+      });
   }
 
   public onClickDuplicateSelectedWorkflows(): void {

@@ -15,6 +15,7 @@ import { of, EMPTY } from "rxjs";
 import { PaginatedResultEvent } from "../../types/workflow-websocket.interface";
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import * as JSZip from "jszip";
+import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
 
 describe("WorkflowResultExportService", () => {
   let service: WorkflowResultExportService;
@@ -23,7 +24,7 @@ describe("WorkflowResultExportService", () => {
   let notificationServiceSpy: jasmine.SpyObj<NotificationService>;
   let executeWorkflowServiceSpy: jasmine.SpyObj<ExecuteWorkflowService>;
   let workflowResultServiceSpy: jasmine.SpyObj<WorkflowResultService>;
-  let fileSaverServiceSpy: jasmine.SpyObj<FileSaverService>;
+  let downloadServiceSpy: jasmine.SpyObj<DownloadService>;
 
   let jointGraphWrapperSpy: jasmine.SpyObj<any>;
   let texeraGraphSpy: jasmine.SpyObj<any>;
@@ -63,7 +64,8 @@ describe("WorkflowResultExportService", () => {
       "getResultService",
       "getPaginatedResultService",
     ]);
-    const fsSpy = jasmine.createSpyObj("FileSaverService", ["saveAs"]);
+    const downloadSpy = jasmine.createSpyObj("DownloadService", ["downloadOperatorsResult"]);
+    downloadSpy.downloadOperatorsResult.and.returnValue(of(new Blob()));
 
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
@@ -74,7 +76,7 @@ describe("WorkflowResultExportService", () => {
         { provide: NotificationService, useValue: ntSpy },
         { provide: ExecuteWorkflowService, useValue: ewSpy },
         { provide: WorkflowResultService, useValue: wrSpy },
-        { provide: FileSaverService, useValue: fsSpy },
+        { provide: DownloadService, useValue: downloadSpy },
       ],
     });
 
@@ -85,7 +87,7 @@ describe("WorkflowResultExportService", () => {
     notificationServiceSpy = TestBed.inject(NotificationService) as jasmine.SpyObj<NotificationService>;
     executeWorkflowServiceSpy = TestBed.inject(ExecuteWorkflowService) as jasmine.SpyObj<ExecuteWorkflowService>;
     workflowResultServiceSpy = TestBed.inject(WorkflowResultService) as jasmine.SpyObj<WorkflowResultService>;
-    fileSaverServiceSpy = TestBed.inject(FileSaverService) as jasmine.SpyObj<FileSaverService>;
+    downloadServiceSpy = TestBed.inject(DownloadService) as jasmine.SpyObj<DownloadService>;
   });
 
   it("should be created", () => {
@@ -145,10 +147,16 @@ describe("WorkflowResultExportService", () => {
     tick();
 
     // Assert
-    expect(paginatedResultServiceSpy.selectPage.calls.count()).toBe(3);
-    expect(fileSaverServiceSpy.saveAs).toHaveBeenCalled();
-    const args = fileSaverServiceSpy.saveAs.calls.mostRecent().args;
-    expect(args[1]).toBe("result_operator1.csv");
+    expect(downloadServiceSpy.downloadOperatorsResult).toHaveBeenCalled();
+    const args = downloadServiceSpy.downloadOperatorsResult.calls.mostRecent().args;
+    expect(args[0]).toEqual(jasmine.any(Array));
+    expect(args[1]).toEqual(jasmine.objectContaining({ wid: jasmine.any(String) }));
+
+    const resultObservables = args[0];
+    resultObservables[0].subscribe(files => {
+      expect(files[0].filename).toBe("result_operator1.csv");
+      expect(files[0].blob).toEqual(jasmine.any(Blob));
+    });
   }));
 
   it("should export a single visualization result as an HTML file when there is only one result", done => {
@@ -171,9 +179,19 @@ describe("WorkflowResultExportService", () => {
 
     resultServiceSpy.getCurrentResultSnapshot.and.returnValue(resultSnapshot);
 
-    // Spy on the 'saveAs' method and capture the arguments when it's called
-    fileSaverServiceSpy.saveAs.and.callFake((data: Blob | string, filename?: string) => {
-      expect(filename).toBe("result_operator2_1.html");
+    downloadServiceSpy.downloadOperatorsResult.and.returnValue(of(new Blob()));
+
+    service.exportOperatorsResultAsFile();
+
+    expect(downloadServiceSpy.downloadOperatorsResult).toHaveBeenCalled();
+    const args = downloadServiceSpy.downloadOperatorsResult.calls.mostRecent().args;
+    expect(args[0]).toEqual(jasmine.any(Array));
+    expect(args[1]).toEqual(jasmine.objectContaining({ wid: jasmine.any(String) }));
+
+    const resultObservables = args[0];
+    resultObservables[0].subscribe(files => {
+      expect(files[0].filename).toBe("result_operator2_1.html");
+      expect(files[0].blob).toEqual(jasmine.any(Blob));
 
       const reader = new FileReader();
       reader.onload = () => {
@@ -181,7 +199,7 @@ describe("WorkflowResultExportService", () => {
         expect(content).toBe("<html><body><p>Visualization</p></body></html>");
         done();
       };
-      reader.readAsText(data as Blob);
+      reader.readAsText(files[0].blob);
     });
 
     // Act
@@ -211,23 +229,31 @@ describe("WorkflowResultExportService", () => {
 
     resultServiceSpy.getCurrentResultSnapshot.and.returnValue(resultSnapshot);
 
-    // Spy on the 'saveAs' method and capture the arguments when it's called
-    fileSaverServiceSpy.saveAs.and.callFake((data: Blob | string, filename?: string) => {
-      expect(filename).toBe("results_workflow1_Test Workflow.zip");
+    // Spy on the 'downloadOperatorsResult' method
+    downloadServiceSpy.downloadOperatorsResult.and.returnValue(of(new Blob()));
 
-      JSZip.loadAsync(data).then(zip => {
-        expect(Object.keys(zip.files)).toContain("result_operator2_1.html");
-        expect(Object.keys(zip.files)).toContain("result_operator2_2.html");
+    // Call the method that triggers the download
+    service.exportOperatorsResultAsFile();
 
-        Promise.all([
-          zip.file("result_operator2_1.html")?.async("string"),
-          zip.file("result_operator2_2.html")?.async("string"),
-        ]).then(contents => {
-          expect(contents[0]).toBe("<html><body><p>Visualization 1</p></body></html>");
-          expect(contents[1]).toBe("<html><body><p>Visualization 2</p></body></html>");
-          done();
-        });
-      });
+    // Check if downloadOperatorsResult was called with the correct arguments
+    expect(downloadServiceSpy.downloadOperatorsResult).toHaveBeenCalled();
+    const args = downloadServiceSpy.downloadOperatorsResult.calls.mostRecent().args;
+    expect(args[0]).toEqual(jasmine.any(Array)); // Check if the first argument is an array
+    expect(args[1]).toEqual(jasmine.objectContaining({ wid: jasmine.any(String) })); // Check if the second argument is a workflow object
+
+    // If you want to check the content of the observables, you can do something like this:
+    const resultObservables = args[0];
+    resultObservables[0].subscribe(files => {
+      expect(files[0].filename).toBe("result_operator2_1.html");
+      expect(files[0].blob).toEqual(jasmine.any(Blob));
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        const content = reader.result as string;
+        expect(content).toBe("<html><body><p>Visualization 1</p></body></html>");
+        done();
+      };
+      reader.readAsText(files[0].blob);
     });
 
     // Act

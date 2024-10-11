@@ -11,8 +11,8 @@ import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.ser
 import { ExecutionState, isNotInExecution } from "../../types/execute-workflow.interface";
 import { filter } from "rxjs/operators";
 import { OperatorResultService, WorkflowResultService } from "../workflow-result/workflow-result.service";
-import { FileSaverService } from "../../../dashboard/service/user/file/file-saver.service";
 import { OperatorPaginationResultService } from "../workflow-result/workflow-result.service";
+import { DownloadService } from "../../../dashboard/service/user/download/download.service";
 
 @Injectable({
   providedIn: "root",
@@ -28,7 +28,7 @@ export class WorkflowResultExportService {
     private notificationService: NotificationService,
     private executeWorkflowService: ExecuteWorkflowService,
     private workflowResultService: WorkflowResultService,
-    private fileSaverService: FileSaverService
+    private downloadService: DownloadService
   ) {
     this.registerResultExportResponseHandler();
     this.registerResultToExportUpdateHandler();
@@ -95,7 +95,7 @@ export class WorkflowResultExportService {
         .getAllOperators()
         .map(operator => operator.operatorID);
 
-    const resultObservables: Observable<{ filename: string; blob: Blob }[]>[] = [];
+    const resultObservables: Observable<any>[] = [];
 
     operatorIds.forEach(operatorId => {
       const resultService = this.workflowResultService.getResultService(operatorId);
@@ -114,25 +114,13 @@ export class WorkflowResultExportService {
       return;
     }
 
-    forkJoin(resultObservables).subscribe(filesArray => {
-      const files = filesArray.flat();
-
-      if (files.length === 1) {
-        // Only one file, save it directly
-        this.fileSaverService.saveAs(files[0].blob, files[0].filename);
-      } else if (files.length > 1) {
-        // Multiple files, zip them
-        const zip = new JSZip();
-        files.forEach(file => {
-          zip.file(file.filename, file.blob);
-        });
-        zip.generateAsync({ type: "blob" }).then((zipBlob: string | Blob) => {
-          const currentWorkflow = this.workflowActionService.getWorkflow();
-          const zipFilename = `results_${currentWorkflow.wid}_${currentWorkflow.name}.zip`;
-          this.fileSaverService.saveAs(zipBlob, zipFilename);
-        });
-      }
-    });
+    this.downloadService
+      .downloadOperatorsResult(resultObservables, this.workflowActionService.getWorkflow())
+      .subscribe({
+        error: (error: unknown) => {
+          console.error("Error exporting operator results:", error);
+        },
+      });
   }
 
   /**

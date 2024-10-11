@@ -9,11 +9,11 @@ import {
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { ShareAccessComponent } from "../../share-access/share-access.component";
 import { Workflow } from "../../../../../common/type/workflow";
-import { FileSaverService } from "../../../../service/user/file/file-saver.service";
 import { DashboardProject } from "../../../../type/dashboard-project.interface";
 import { UserProjectService } from "../../../../service/user/project/user-project.service";
 import { DashboardEntry } from "../../../../type/dashboard-entry";
 import { firstValueFrom } from "rxjs";
+import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
 
 @UntilDestroy()
 @Component({
@@ -62,8 +62,8 @@ export class UserWorkflowListItemComponent {
   constructor(
     private modalService: NzModalService,
     private workflowPersistService: WorkflowPersistService,
-    private fileSaverService: FileSaverService,
-    private userProjectService: UserProjectService
+    private userProjectService: UserProjectService,
+    private downloadService: DownloadService
   ) {
     this.userProjectService
       .getProjectList()
@@ -138,21 +138,10 @@ export class UserWorkflowListItemComponent {
    */
   public onClickDownloadWorkfllow(): void {
     if (this.workflow.wid) {
-      this.workflowPersistService
-        .retrieveWorkflow(this.workflow.wid)
+      this.downloadService
+        .downloadWorkflow(this.workflow.wid, this.workflow.name)
         .pipe(untilDestroyed(this))
-        .subscribe(data => {
-          const workflowCopy: Workflow = {
-            ...data,
-            wid: undefined,
-            creationTime: undefined,
-            lastModifiedTime: undefined,
-            readonly: false,
-          };
-          const workflowJson = JSON.stringify(workflowCopy.content);
-          const fileName = workflowCopy.name + ".json";
-          this.fileSaverService.saveAs(new Blob([workflowJson], { type: "text/plain;charset=utf-8" }), fileName);
-        });
+        .subscribe();
     }
   }
 
