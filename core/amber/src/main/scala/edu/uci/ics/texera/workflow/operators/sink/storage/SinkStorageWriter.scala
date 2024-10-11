@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.sink.storage
 
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
+import edu.uci.ics.amber.engine.common.model.tuple.Tuple
 
 trait SinkStorageWriter {
   def open(): Unit

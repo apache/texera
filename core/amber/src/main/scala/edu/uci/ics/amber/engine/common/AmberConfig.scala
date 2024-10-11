@@ -2,7 +2,6 @@ package edu.uci.ics.amber.engine.common
 
 import akka.actor.Address
 import com.typesafe.config.{Config, ConfigFactory}
-import edu.uci.ics.texera.Utils
 
 import java.io.File
 import java.net.URI
