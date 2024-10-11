@@ -91,6 +91,8 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters._
+import scala.util.Using
+import scala.util.control.NonFatal
 
 object DatasetResource {
   val DATASET_IS_PUBLIC: Byte = 1;
@@ -1054,81 +1056,106 @@ class DatasetResource {
   }
 
   /**
-    * Retrieves a ZIP file for a specific dataset version.
+    * Retrieves a ZIP file for a specific dataset version or the latest version.
     *
     * @param pathStr The dataset version path in the format: /ownerEmail/datasetName/versionName
     *                Example: /user@example.com/dataset/v1
-    *
-    * @param user the session user.
+    * @param getLatest When true, retrieves the latest version regardless of the provided path.
+    * @param did The dataset ID (used when getLatest is true).
+    * @param user The session user.
     * @return A Response containing the dataset version as a ZIP file.
     */
   @GET
   @Path("/version-zip")
   def retrieveDatasetVersionZip(
       @QueryParam("path") pathStr: String,
+      @QueryParam("getLatest") getLatest: Boolean,
+      @QueryParam("did") did: UInteger,
       @Auth user: SessionUser
   ): Response = {
-    val uid = user.getUid
-    val decodedPathStr = URLDecoder.decode(pathStr, StandardCharsets.UTF_8.name())
-    val (_, dataset, dsVersion, _) =
-      resolvePath(Paths.get(decodedPathStr), shouldContainFile = false)
+    val (dataset, version) = if (getLatest) {
+      getLatestVersionInfo(did, user)
+    } else {
+      resolveAndValidatePath(pathStr, user)
+    }
+    val targetDatasetPath = PathUtils.getDatasetPath(dataset.getDid)
+    val fileNodes = GitVersionControlLocalFileStorage.retrieveRootFileNodesOfVersion(
+      targetDatasetPath,
+      version.getVersionHash
+    )
 
-    withTransaction(context) { ctx =>
-      val did = dataset.getDid
-      val dvid = dsVersion.getDvid
+    val streamingOutput = new StreamingOutput {
+      override def write(outputStream: OutputStream): Unit = {
+        Using(new ZipOutputStream(outputStream)) { zipOutputStream =>
+          def addFileNodeToZip(fileNode: PhysicalFileNode): Unit = {
+            val relativePath = fileNode.getRelativePath.toString
 
-      if (!userHasReadAccess(ctx, did, uid)) {
-        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-      }
+            if (fileNode.isDirectory) {
+              // For directories, add a ZIP entry with a trailing slash
+              zipOutputStream.putNextEntry(new ZipEntry(relativePath + "/"))
+              zipOutputStream.closeEntry()
 
-      val targetDatasetPath = PathUtils.getDatasetPath(did)
-      val datasetVersion = getDatasetVersionByID(ctx, dvid)
-      val versionHash = datasetVersion.getVersionHash
-
-      val fileNodes = GitVersionControlLocalFileStorage.retrieveRootFileNodesOfVersion(
-        targetDatasetPath,
-        versionHash
-      )
-
-      val streamingOutput = new StreamingOutput() {
-        override def write(outputStream: OutputStream): Unit = {
-          val zipOutputStream = new ZipOutputStream(outputStream)
-
-          try {
-            fileNodes.foreach { fileNode =>
-              val zipEntryName = fileNode.getRelativePath.toString
-
+              // Recursively add children
+              fileNode.getChildren.asScala.foreach(addFileNodeToZip)
+            } else {
+              // For files, add the file content
               try {
-                zipOutputStream.putNextEntry(new ZipEntry(zipEntryName))
-
-                val filePath = fileNode.getAbsolutePath
-
-                Files.copy(filePath, zipOutputStream)
-
+                zipOutputStream.putNextEntry(new ZipEntry(relativePath))
+                Using(Files.newInputStream(fileNode.getAbsolutePath)) { inputStream =>
+                  inputStream.transferTo(zipOutputStream)
+                }
               } catch {
                 case e: IOException =>
-                  throw new WebApplicationException(s"Error processing file: $zipEntryName", e)
+                  throw new WebApplicationException(s"Error processing file: $relativePath", e)
               } finally {
                 zipOutputStream.closeEntry()
               }
             }
-          } catch {
-            case e: IOException =>
-              throw new WebApplicationException("Error creating ZIP output stream", e)
-          } finally {
-            zipOutputStream.close()
           }
+
+          // Start the recursive process for each root file node
+          fileNodes.asScala.foreach(addFileNodeToZip)
+        }.recover {
+          case e: IOException =>
+            throw new WebApplicationException("Error creating ZIP output stream", e)
+          case NonFatal(e) =>
+            throw new WebApplicationException("Unexpected error while creating ZIP", e)
         }
       }
+    }
 
-      Response
-        .ok(streamingOutput)
-        .header(
-          "Content-Disposition",
-          s"attachment; filename=${dataset.getName}-${datasetVersion.getName}.zip"
-        )
-        .`type`("application/zip")
-        .build()
+    Response
+      .ok(streamingOutput)
+      .header(
+        "Content-Disposition",
+        s"attachment; filename=${dataset.getName}-${version.getName}.zip"
+      )
+      .`type`("application/zip")
+      .build()
+  }
+
+  private def resolveAndValidatePath(
+      pathStr: String,
+      user: SessionUser
+  ): (Dataset, DatasetVersion) = {
+    val decodedPathStr = URLDecoder.decode(pathStr, StandardCharsets.UTF_8.name())
+    val (_, dataset, dsVersion, _) =
+      resolvePath(Paths.get(decodedPathStr), shouldContainFile = false)
+
+    validateUserAccess(dataset.getDid, user.getUid)
+    (dataset, dsVersion)
+  }
+
+  private def getLatestVersionInfo(did: UInteger, user: SessionUser): (Dataset, DatasetVersion) = {
+    validateUserAccess(did, user.getUid)
+    val dataset = getDatasetByID(context, did)
+    val latestVersion = getDatasetLatestVersion(context, did, user.getUid)
+    (dataset, latestVersion)
+  }
+
+  private def validateUserAccess(did: UInteger, uid: UInteger): Unit = {
+    if (!userHasReadAccess(context, did, uid)) {
+      throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
     }
   }
 }
