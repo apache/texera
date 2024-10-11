@@ -909,9 +909,9 @@ final case class PropagateChannelMarkerRequest(
     sourceOpToStartProp: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity],
     id: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ChannelMarkerIdentity],
     markerType: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType,
-    scope: _root_.scala.Option[com.google.protobuf.any.Any],
+    scope: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity],
     targetOps: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity],
-    markerCommand: _root_.scala.Option[com.google.protobuf.any.Any]
+    markerCommand: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlRequest
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlRequest.NonEmpty with scalapb.lenses.Updatable[PropagateChannelMarkerRequest] {
     @transient
     private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
@@ -932,17 +932,20 @@ final case class PropagateChannelMarkerRequest(
           __size += _root_.com.google.protobuf.CodedOutputStream.computeEnumSize(3, __value)
         }
       };
-      if (scope.isDefined) {
-        val __value = scope.get
+      scope.foreach { __item =>
+        val __value = __item
         __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
-      };
+      }
       targetOps.foreach { __item =>
         val __value = __item
         __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
       }
-      if (markerCommand.isDefined) {
-        val __value = markerCommand.get
-        __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
+      
+      {
+        val __value = edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PropagateChannelMarkerRequest._typemapper_markerCommand.toBase(markerCommand)
+        if (__value.serializedSize != 0) {
+          __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
+        }
       };
       __size
     }
@@ -986,11 +989,13 @@ final case class PropagateChannelMarkerRequest(
         _output__.writeUInt32NoTag(__m.serializedSize)
         __m.writeTo(_output__)
       };
-      markerCommand.foreach { __v =>
-        val __m = __v
-        _output__.writeTag(6, 2)
-        _output__.writeUInt32NoTag(__m.serializedSize)
-        __m.writeTo(_output__)
+      {
+        val __v = edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PropagateChannelMarkerRequest._typemapper_markerCommand.toBase(markerCommand)
+        if (__v.serializedSize != 0) {
+          _output__.writeTag(6, 2)
+          _output__.writeUInt32NoTag(__v.serializedSize)
+          __v.writeTo(_output__)
+        }
       };
     }
     def clearSourceOpToStartProp = copy(sourceOpToStartProp = _root_.scala.Seq.empty)
@@ -1001,16 +1006,15 @@ final case class PropagateChannelMarkerRequest(
     def clearId: PropagateChannelMarkerRequest = copy(id = _root_.scala.None)
     def withId(__v: edu.uci.ics.amber.engine.common.virtualidentity.ChannelMarkerIdentity): PropagateChannelMarkerRequest = copy(id = Option(__v))
     def withMarkerType(__v: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType): PropagateChannelMarkerRequest = copy(markerType = __v)
-    def getScope: com.google.protobuf.any.Any = scope.getOrElse(com.google.protobuf.any.Any.defaultInstance)
-    def clearScope: PropagateChannelMarkerRequest = copy(scope = _root_.scala.None)
-    def withScope(__v: com.google.protobuf.any.Any): PropagateChannelMarkerRequest = copy(scope = Option(__v))
+    def clearScope = copy(scope = _root_.scala.Seq.empty)
+    def addScope(__vs: edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity *): PropagateChannelMarkerRequest = addAllScope(__vs)
+    def addAllScope(__vs: Iterable[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity]): PropagateChannelMarkerRequest = copy(scope = scope ++ __vs)
+    def withScope(__v: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity]): PropagateChannelMarkerRequest = copy(scope = __v)
     def clearTargetOps = copy(targetOps = _root_.scala.Seq.empty)
     def addTargetOps(__vs: edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity *): PropagateChannelMarkerRequest = addAllTargetOps(__vs)
     def addAllTargetOps(__vs: Iterable[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity]): PropagateChannelMarkerRequest = copy(targetOps = targetOps ++ __vs)
     def withTargetOps(__v: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity]): PropagateChannelMarkerRequest = copy(targetOps = __v)
-    def getMarkerCommand: com.google.protobuf.any.Any = markerCommand.getOrElse(com.google.protobuf.any.Any.defaultInstance)
-    def clearMarkerCommand: PropagateChannelMarkerRequest = copy(markerCommand = _root_.scala.None)
-    def withMarkerCommand(__v: com.google.protobuf.any.Any): PropagateChannelMarkerRequest = copy(markerCommand = Option(__v))
+    def withMarkerCommand(__v: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlRequest): PropagateChannelMarkerRequest = copy(markerCommand = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
         case 1 => sourceOpToStartProp
@@ -1019,9 +1023,12 @@ final case class PropagateChannelMarkerRequest(
           val __t = markerType.javaValueDescriptor
           if (__t.getNumber() != 0) __t else null
         }
-        case 4 => scope.orNull
+        case 4 => scope
         case 5 => targetOps
-        case 6 => markerCommand.orNull
+        case 6 => {
+          val __t = edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PropagateChannelMarkerRequest._typemapper_markerCommand.toBase(markerCommand)
+          if (__t != edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlRequestMessage.defaultInstance) __t else null
+        }
       }
     }
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
@@ -1030,9 +1037,9 @@ final case class PropagateChannelMarkerRequest(
         case 1 => _root_.scalapb.descriptors.PRepeated(sourceOpToStartProp.iterator.map(_.toPMessage).toVector)
         case 2 => id.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
         case 3 => _root_.scalapb.descriptors.PEnum(markerType.scalaValueDescriptor)
-        case 4 => scope.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
+        case 4 => _root_.scalapb.descriptors.PRepeated(scope.iterator.map(_.toPMessage).toVector)
         case 5 => _root_.scalapb.descriptors.PRepeated(targetOps.iterator.map(_.toPMessage).toVector)
-        case 6 => markerCommand.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
+        case 6 => edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PropagateChannelMarkerRequest._typemapper_markerCommand.toBase(markerCommand).toPMessage
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
@@ -1046,9 +1053,9 @@ object PropagateChannelMarkerRequest extends scalapb.GeneratedMessageCompanion[e
     val __sourceOpToStartProp: _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity] = new _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity]
     var __id: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ChannelMarkerIdentity] = _root_.scala.None
     var __markerType: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType = edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType.REQUIRE_ALIGNMENT
-    var __scope: _root_.scala.Option[com.google.protobuf.any.Any] = _root_.scala.None
+    val __scope: _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity] = new _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity]
     val __targetOps: _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity] = new _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity]
-    var __markerCommand: _root_.scala.Option[com.google.protobuf.any.Any] = _root_.scala.None
+    var __markerCommand: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlRequestMessage] = _root_.scala.None
     var _done__ = false
     while (!_done__) {
       val _tag__ = _input__.readTag()
@@ -1061,11 +1068,11 @@ object PropagateChannelMarkerRequest extends scalapb.GeneratedMessageCompanion[e
         case 24 =>
           __markerType = edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType.fromValue(_input__.readEnum())
         case 34 =>
-          __scope = _root_.scala.Option(__scope.fold(_root_.scalapb.LiteParser.readMessage[com.google.protobuf.any.Any](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+          __scope += _root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity](_input__)
         case 42 =>
           __targetOps += _root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity](_input__)
         case 50 =>
-          __markerCommand = _root_.scala.Option(__markerCommand.fold(_root_.scalapb.LiteParser.readMessage[com.google.protobuf.any.Any](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+          __markerCommand = _root_.scala.Some(__markerCommand.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlRequestMessage](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case tag => _input__.skipField(tag)
       }
     }
@@ -1073,9 +1080,9 @@ object PropagateChannelMarkerRequest extends scalapb.GeneratedMessageCompanion[e
         sourceOpToStartProp = __sourceOpToStartProp.result(),
         id = __id,
         markerType = __markerType,
-        scope = __scope,
+        scope = __scope.result(),
         targetOps = __targetOps.result(),
-        markerCommand = __markerCommand
+        markerCommand = edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PropagateChannelMarkerRequest._typemapper_markerCommand.toCustom(__markerCommand.getOrElse(edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlRequestMessage.defaultInstance))
     )
   }
   implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PropagateChannelMarkerRequest] = _root_.scalapb.descriptors.Reads{
@@ -1085,9 +1092,9 @@ object PropagateChannelMarkerRequest extends scalapb.GeneratedMessageCompanion[e
         sourceOpToStartProp = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity]]).getOrElse(_root_.scala.Seq.empty),
         id = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ChannelMarkerIdentity]]),
         markerType = edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType.fromValue(__fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).map(_.as[_root_.scalapb.descriptors.EnumValueDescriptor]).getOrElse(edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType.REQUIRE_ALIGNMENT.scalaValueDescriptor).number),
-        scope = __fieldsMap.get(scalaDescriptor.findFieldByNumber(4).get).flatMap(_.as[_root_.scala.Option[com.google.protobuf.any.Any]]),
+        scope = __fieldsMap.get(scalaDescriptor.findFieldByNumber(4).get).map(_.as[_root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity]]).getOrElse(_root_.scala.Seq.empty),
         targetOps = __fieldsMap.get(scalaDescriptor.findFieldByNumber(5).get).map(_.as[_root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity]]).getOrElse(_root_.scala.Seq.empty),
-        markerCommand = __fieldsMap.get(scalaDescriptor.findFieldByNumber(6).get).flatMap(_.as[_root_.scala.Option[com.google.protobuf.any.Any]])
+        markerCommand = edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PropagateChannelMarkerRequest._typemapper_markerCommand.toCustom(__fieldsMap.get(scalaDescriptor.findFieldByNumber(6).get).map(_.as[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlRequestMessage]).getOrElse(edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlRequestMessage.defaultInstance))
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
@@ -1098,9 +1105,9 @@ object PropagateChannelMarkerRequest extends scalapb.GeneratedMessageCompanion[e
     (__number: @_root_.scala.unchecked) match {
       case 1 => __out = edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
       case 2 => __out = edu.uci.ics.amber.engine.common.virtualidentity.ChannelMarkerIdentity
-      case 4 => __out = com.google.protobuf.any.Any
+      case 4 => __out = edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
       case 5 => __out = edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
-      case 6 => __out = com.google.protobuf.any.Any
+      case 6 => __out = edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlRequestMessage
     }
     __out
   }
@@ -1114,20 +1121,18 @@ object PropagateChannelMarkerRequest extends scalapb.GeneratedMessageCompanion[e
     sourceOpToStartProp = _root_.scala.Seq.empty,
     id = _root_.scala.None,
     markerType = edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType.REQUIRE_ALIGNMENT,
-    scope = _root_.scala.None,
+    scope = _root_.scala.Seq.empty,
     targetOps = _root_.scala.Seq.empty,
-    markerCommand = _root_.scala.None
+    markerCommand = edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PropagateChannelMarkerRequest._typemapper_markerCommand.toCustom(edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlRequestMessage.defaultInstance)
   )
   implicit class PropagateChannelMarkerRequestLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PropagateChannelMarkerRequest]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PropagateChannelMarkerRequest](_l) {
     def sourceOpToStartProp: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity]] = field(_.sourceOpToStartProp)((c_, f_) => c_.copy(sourceOpToStartProp = f_))
     def id: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.ChannelMarkerIdentity] = field(_.getId)((c_, f_) => c_.copy(id = _root_.scala.Option(f_)))
     def optionalId: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ChannelMarkerIdentity]] = field(_.id)((c_, f_) => c_.copy(id = f_))
     def markerType: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType] = field(_.markerType)((c_, f_) => c_.copy(markerType = f_))
-    def scope: _root_.scalapb.lenses.Lens[UpperPB, com.google.protobuf.any.Any] = field(_.getScope)((c_, f_) => c_.copy(scope = _root_.scala.Option(f_)))
-    def optionalScope: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Option[com.google.protobuf.any.Any]] = field(_.scope)((c_, f_) => c_.copy(scope = f_))
+    def scope: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity]] = field(_.scope)((c_, f_) => c_.copy(scope = f_))
     def targetOps: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity]] = field(_.targetOps)((c_, f_) => c_.copy(targetOps = f_))
-    def markerCommand: _root_.scalapb.lenses.Lens[UpperPB, com.google.protobuf.any.Any] = field(_.getMarkerCommand)((c_, f_) => c_.copy(markerCommand = _root_.scala.Option(f_)))
-    def optionalMarkerCommand: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Option[com.google.protobuf.any.Any]] = field(_.markerCommand)((c_, f_) => c_.copy(markerCommand = f_))
+    def markerCommand: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlRequest] = field(_.markerCommand)((c_, f_) => c_.copy(markerCommand = f_))
   }
   final val SOURCEOPTOSTARTPROP_FIELD_NUMBER = 1
   final val ID_FIELD_NUMBER = 2
@@ -1135,13 +1140,15 @@ object PropagateChannelMarkerRequest extends scalapb.GeneratedMessageCompanion[e
   final val SCOPE_FIELD_NUMBER = 4
   final val TARGETOPS_FIELD_NUMBER = 5
   final val MARKERCOMMAND_FIELD_NUMBER = 6
+  @transient
+  private[controlcommands] val _typemapper_markerCommand: _root_.scalapb.TypeMapper[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlRequestMessage, edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlRequest] = implicitly[_root_.scalapb.TypeMapper[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlRequestMessage, edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlRequest]]
   def of(
     sourceOpToStartProp: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity],
     id: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ChannelMarkerIdentity],
     markerType: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType,
-    scope: _root_.scala.Option[com.google.protobuf.any.Any],
+    scope: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity],
     targetOps: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity],
-    markerCommand: _root_.scala.Option[com.google.protobuf.any.Any]
+    markerCommand: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlRequest
   ): _root_.edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PropagateChannelMarkerRequest = _root_.edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PropagateChannelMarkerRequest(
     sourceOpToStartProp,
     id,

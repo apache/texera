@@ -6,7 +6,7 @@ import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.{GetActorRef, 
 import edu.uci.ics.amber.engine.architecture.control.utils.TrivialControlTester
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands._
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ReturnInvocation
-import edu.uci.ics.amber.engine.architecture.rpc.testcommands.RPCTesterGrpc.{METHOD_SEND_CHAIN, METHOD_SEND_COLLECT, METHOD_SEND_ERROR_COMMAND, METHOD_SEND_MULTI_CALL, METHOD_SEND_NESTED, METHOD_SEND_PING, METHOD_SEND_RECURSION}
+import edu.uci.ics.amber.engine.architecture.rpc.testerservice.RPCTesterGrpc.{METHOD_SEND_CHAIN, METHOD_SEND_COLLECT, METHOD_SEND_ERROR_COMMAND, METHOD_SEND_MULTI_CALL, METHOD_SEND_NESTED, METHOD_SEND_PING, METHOD_SEND_RECURSION}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation

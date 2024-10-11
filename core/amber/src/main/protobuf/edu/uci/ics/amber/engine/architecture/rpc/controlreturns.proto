@@ -16,6 +16,7 @@ option (scalapb.options) = {
 message ControlReturn {
   // Oneof block for various return types
   oneof sealed_value {
+    ControlError error = 1;
     Empty empty = 2;
     RetrieveWorkflowStateResponse retrieveWorkflowStateResponse = 3;
     PropagateChannelMarkerResponse propagateChannelMarkerResponse = 4;
@@ -25,6 +26,11 @@ message ControlReturn {
     StringResponse stringResponse = 8;
     IntResponse intResponse = 9;
   }
+}
+
+message ControlError {
+  string errorMessage = 1;
+  string errorDetails = 2;
 }
 
 message ReturnInvocation {

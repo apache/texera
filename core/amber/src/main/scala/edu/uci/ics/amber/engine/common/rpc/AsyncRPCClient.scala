@@ -10,7 +10,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.util.CLIENT
 import io.grpc.MethodDescriptor
 import com.google.protobuf.any.{Any => ProtoAny}
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, ControlInvocation, ControlRequest}
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ReturnInvocation
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{ControlError, ReturnInvocation}
 import scalapb.GeneratedMessage
 
 import java.lang.reflect.{InvocationHandler, Method, Proxy}
@@ -123,7 +123,12 @@ class AsyncRPCClient[T:ClassTag](
   def fulfillPromise(ret: ReturnInvocation): Unit = {
     if (unfulfilledPromises.contains(ret.commandId)) {
       val p = unfulfilledPromises(ret.commandId)
-      p.setValue(ret.returnValue)
+      ret.returnValue match {
+        case err:ControlError =>
+          p.raise(new RuntimeException(err.errorMessage))
+        case other =>
+          p.setValue(other)
+      }
       unfulfilledPromises.remove(ret.commandId)
     }
   }

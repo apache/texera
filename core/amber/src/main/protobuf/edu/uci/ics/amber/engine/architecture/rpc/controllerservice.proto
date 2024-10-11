@@ -12,7 +12,7 @@ option (scalapb.options) = {
 };
 
 
-service ControlService {
+service ControllerService {
   rpc SendRetrieveWorkflowState(RetrieveWorkflowStateRequest) returns (RetrieveWorkflowStateResponse);
   rpc SendPropagateChannelMarker(PropagateChannelMarkerRequest) returns (PropagateChannelMarkerResponse);
   rpc SendTakeGlobalCheckpoint(TakeGlobalCheckpointRequest) returns (TakeGlobalCheckpointResponse);

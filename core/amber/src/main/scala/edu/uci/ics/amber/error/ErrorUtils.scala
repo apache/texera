@@ -1,6 +1,9 @@
 package edu.uci.ics.amber.error
 
 import com.google.protobuf.timestamp.Timestamp
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessage
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessageType.ERROR
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError
 import edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessage
 import edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessageType.ERROR
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
@@ -34,6 +37,12 @@ object ErrorUtils {
     val title = err.toString
     val message = err.getStackTrace.mkString("\n")
     ConsoleMessage(actorId.name, Timestamp(Instant.now), ERROR, source, title, message)
+  }
+
+  def mkControlError(err:Throwable):ControlError = {
+    val title = err.toString
+    val message = err.getStackTrace.mkString("\n")
+    ControlError(title, message)
   }
 
   def getStackTraceWithAllCauses(err: Throwable, topLevel: Boolean = true): String = {

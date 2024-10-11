@@ -3,7 +3,8 @@ package edu.uci.ics.amber.engine.architecture.control.utils
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkAck
 import edu.uci.ics.amber.engine.architecture.common.{AmberProcessor, WorkflowActor}
-import edu.uci.ics.amber.engine.architecture.rpc.testcommands.RPCTesterFs2Grpc
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.AsyncRPCContext
+import edu.uci.ics.amber.engine.architecture.rpc.testerservice.RPCTesterFs2Grpc
 import edu.uci.ics.amber.engine.common.CheckpointState
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, DataPayload, WorkflowFIFOMessage}

@@ -1,7 +1,8 @@
 package edu.uci.ics.amber.engine.architecture.common
 
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{InputGateway, NetworkInputGateway, NetworkOutputGateway}
-import edu.uci.ics.amber.engine.architecture.rpc.controllercommands.{ControlInvocation, ReturnInvocation}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlInvocation
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ReturnInvocation
 import edu.uci.ics.amber.engine.architecture.worker.managers.StatisticsManager
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import edu.uci.ics.amber.engine.common.AmberLogging

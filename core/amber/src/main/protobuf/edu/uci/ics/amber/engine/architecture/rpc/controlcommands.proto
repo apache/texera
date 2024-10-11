@@ -5,7 +5,6 @@ import "edu/uci/ics/amber/engine/common/virtualidentity.proto";
 import "edu/uci/ics/amber/engine/common/workflow.proto";
 import "scalapb/scalapb.proto";
 import "google/protobuf/timestamp.proto";
-import "google/protobuf/any.proto";
 
 option (scalapb.options) = {
   scope: FILE,
@@ -76,9 +75,9 @@ message PropagateChannelMarkerRequest {
   repeated common.PhysicalOpIdentity sourceOpToStartProp = 1;
   common.ChannelMarkerIdentity id = 2;
   ChannelMarkerType markerType = 3;
-  google.protobuf.Any scope = 4;
+  repeated common.PhysicalOpIdentity scope = 4;
   repeated common.PhysicalOpIdentity targetOps = 5;
-  google.protobuf.Any markerCommand = 6;
+  ControlRequest markerCommand = 6;
 }
 
 message TakeGlobalCheckpointRequest {

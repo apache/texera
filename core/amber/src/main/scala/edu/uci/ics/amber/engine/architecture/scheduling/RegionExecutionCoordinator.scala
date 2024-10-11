@@ -27,7 +27,7 @@ import scala.collection.Seq
 class RegionExecutionCoordinator(
     region: Region,
     workflowExecution: WorkflowExecution,
-    asyncRPCClient: AsyncRPCClient,
+    asyncRPCClient: AsyncRPCClient[_],
     controllerConfig: ControllerConfig
 ) {
   def execute(actorService: AkkaActorService): Future[Unit] = {

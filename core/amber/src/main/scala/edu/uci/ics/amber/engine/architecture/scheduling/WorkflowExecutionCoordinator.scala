@@ -14,7 +14,7 @@ class WorkflowExecutionCoordinator(
     getNextRegions: () => Set[Region],
     workflowExecution: WorkflowExecution,
     controllerConfig: ControllerConfig,
-    asyncRPCClient: AsyncRPCClient
+    asyncRPCClient: AsyncRPCClient[_]
 ) extends LazyLogging {
 
   private val executedRegions: mutable.ListBuffer[Set[Region]] = mutable.ListBuffer()

@@ -3,7 +3,7 @@
 //
 // Protofile syntax: PROTO3
 
-package edu.uci.ics.amber.engine.architecture.rpc.testcommands
+package edu.uci.ics.amber.engine.architecture.rpc.testerservice
 
 
 object RPCTesterGrpc {
@@ -14,7 +14,7 @@ object RPCTesterGrpc {
       .setSampledToLocalTracing(true)
       .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Ping])
       .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse])
-      .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.testcommands.TestcommandsProto.javaDescriptor.getServices().get(0).getMethods().get(0)))
+      .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.testerservice.TesterserviceProto.javaDescriptor.getServices().get(0).getMethods().get(0)))
       .build()
   
   val METHOD_SEND_PONG: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Pong, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse] =
@@ -24,7 +24,7 @@ object RPCTesterGrpc {
       .setSampledToLocalTracing(true)
       .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Pong])
       .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse])
-      .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.testcommands.TestcommandsProto.javaDescriptor.getServices().get(0).getMethods().get(1)))
+      .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.testerservice.TesterserviceProto.javaDescriptor.getServices().get(0).getMethods().get(1)))
       .build()
   
   val METHOD_SEND_NESTED: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Nested, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse] =
@@ -34,7 +34,7 @@ object RPCTesterGrpc {
       .setSampledToLocalTracing(true)
       .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Nested])
       .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse])
-      .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.testcommands.TestcommandsProto.javaDescriptor.getServices().get(0).getMethods().get(2)))
+      .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.testerservice.TesterserviceProto.javaDescriptor.getServices().get(0).getMethods().get(2)))
       .build()
   
   val METHOD_SEND_PASS: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Pass, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse] =
@@ -44,7 +44,7 @@ object RPCTesterGrpc {
       .setSampledToLocalTracing(true)
       .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Pass])
       .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse])
-      .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.testcommands.TestcommandsProto.javaDescriptor.getServices().get(0).getMethods().get(3)))
+      .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.testerservice.TesterserviceProto.javaDescriptor.getServices().get(0).getMethods().get(3)))
       .build()
   
   val METHOD_SEND_ERROR_COMMAND: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ErrorCommand, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse] =
@@ -54,7 +54,7 @@ object RPCTesterGrpc {
       .setSampledToLocalTracing(true)
       .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ErrorCommand])
       .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse])
-      .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.testcommands.TestcommandsProto.javaDescriptor.getServices().get(0).getMethods().get(4)))
+      .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.testerservice.TesterserviceProto.javaDescriptor.getServices().get(0).getMethods().get(4)))
       .build()
   
   val METHOD_SEND_RECURSION: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Recursion, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse] =
@@ -64,7 +64,7 @@ object RPCTesterGrpc {
       .setSampledToLocalTracing(true)
       .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Recursion])
       .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse])
-      .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.testcommands.TestcommandsProto.javaDescriptor.getServices().get(0).getMethods().get(5)))
+      .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.testerservice.TesterserviceProto.javaDescriptor.getServices().get(0).getMethods().get(5)))
       .build()
   
   val METHOD_SEND_COLLECT: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Collect, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse] =
@@ -74,7 +74,7 @@ object RPCTesterGrpc {
       .setSampledToLocalTracing(true)
       .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Collect])
       .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse])
-      .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.testcommands.TestcommandsProto.javaDescriptor.getServices().get(0).getMethods().get(6)))
+      .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.testerservice.TesterserviceProto.javaDescriptor.getServices().get(0).getMethods().get(6)))
       .build()
   
   val METHOD_SEND_GENERATE_NUMBER: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.GenerateNumber, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse] =
@@ -84,7 +84,7 @@ object RPCTesterGrpc {
       .setSampledToLocalTracing(true)
       .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.GenerateNumber])
       .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse])
-      .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.testcommands.TestcommandsProto.javaDescriptor.getServices().get(0).getMethods().get(7)))
+      .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.testerservice.TesterserviceProto.javaDescriptor.getServices().get(0).getMethods().get(7)))
       .build()
   
   val METHOD_SEND_MULTI_CALL: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.MultiCall, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse] =
@@ -94,7 +94,7 @@ object RPCTesterGrpc {
       .setSampledToLocalTracing(true)
       .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.MultiCall])
       .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse])
-      .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.testcommands.TestcommandsProto.javaDescriptor.getServices().get(0).getMethods().get(8)))
+      .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.testerservice.TesterserviceProto.javaDescriptor.getServices().get(0).getMethods().get(8)))
       .build()
   
   val METHOD_SEND_CHAIN: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Chain, edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity] =
@@ -104,12 +104,12 @@ object RPCTesterGrpc {
       .setSampledToLocalTracing(true)
       .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Chain])
       .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity])
-      .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.testcommands.TestcommandsProto.javaDescriptor.getServices().get(0).getMethods().get(9)))
+      .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.testerservice.TesterserviceProto.javaDescriptor.getServices().get(0).getMethods().get(9)))
       .build()
   
   val SERVICE: _root_.io.grpc.ServiceDescriptor =
     _root_.io.grpc.ServiceDescriptor.newBuilder("edu.uci.ics.amber.engine.architecture.rpc.RPCTester")
-      .setSchemaDescriptor(new _root_.scalapb.grpc.ConcreteProtoFileDescriptorSupplier(edu.uci.ics.amber.engine.architecture.rpc.testcommands.TestcommandsProto.javaDescriptor))
+      .setSchemaDescriptor(new _root_.scalapb.grpc.ConcreteProtoFileDescriptorSupplier(edu.uci.ics.amber.engine.architecture.rpc.testerservice.TesterserviceProto.javaDescriptor))
       .addMethod(METHOD_SEND_PING)
       .addMethod(METHOD_SEND_PONG)
       .addMethod(METHOD_SEND_NESTED)
@@ -138,8 +138,8 @@ object RPCTesterGrpc {
   
   object RPCTester extends _root_.scalapb.grpc.ServiceCompanion[RPCTester] {
     implicit def serviceCompanion: _root_.scalapb.grpc.ServiceCompanion[RPCTester] = this
-    def javaDescriptor: _root_.com.google.protobuf.Descriptors.ServiceDescriptor = edu.uci.ics.amber.engine.architecture.rpc.testcommands.TestcommandsProto.javaDescriptor.getServices().get(0)
-    def scalaDescriptor: _root_.scalapb.descriptors.ServiceDescriptor = edu.uci.ics.amber.engine.architecture.rpc.testcommands.TestcommandsProto.scalaDescriptor.services(0)
+    def javaDescriptor: _root_.com.google.protobuf.Descriptors.ServiceDescriptor = edu.uci.ics.amber.engine.architecture.rpc.testerservice.TesterserviceProto.javaDescriptor.getServices().get(0)
+    def scalaDescriptor: _root_.scalapb.descriptors.ServiceDescriptor = edu.uci.ics.amber.engine.architecture.rpc.testerservice.TesterserviceProto.scalaDescriptor.services(0)
     def bindService(serviceImpl: RPCTester, executionContext: scala.concurrent.ExecutionContext): _root_.io.grpc.ServerServiceDefinition =
       _root_.io.grpc.ServerServiceDefinition.builder(SERVICE)
       .addMethod(
@@ -319,6 +319,6 @@ object RPCTesterGrpc {
   
   def stub(channel: _root_.io.grpc.Channel): RPCTesterStub = new RPCTesterStub(channel)
   
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.ServiceDescriptor = edu.uci.ics.amber.engine.architecture.rpc.testcommands.TestcommandsProto.javaDescriptor.getServices().get(0)
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.ServiceDescriptor = edu.uci.ics.amber.engine.architecture.rpc.testerservice.TesterserviceProto.javaDescriptor.getServices().get(0)
   
 }
