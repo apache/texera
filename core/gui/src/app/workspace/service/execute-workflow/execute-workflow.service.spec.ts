@@ -9,12 +9,14 @@ import { OperatorMetadataService } from "../operator-metadata/operator-metadata.
 import { StubOperatorMetadataService } from "../operator-metadata/stub-operator-metadata.service";
 import { JointUIService } from "../joint-ui/joint-ui.service";
 import { Observable, of } from "rxjs";
+import { Role, User } from "../../../common/type/user";
 
 import { mockLogicalPlan_scan_result, mockWorkflowPlan_scan_result } from "./mock-workflow-plan";
 import { HttpClient } from "@angular/common/http";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { WorkflowSnapshotService } from "../../../dashboard/service/user/workflow-snapshot/workflow-snapshot.service";
 import { DOCUMENT } from "@angular/common";
+import { WorkflowSettings } from "src/app/common/type/workflow";
 
 class StubHttpClient {
   public post(): Observable<string> {
@@ -67,7 +69,7 @@ describe("ExecuteWorkflowService", () => {
     const logicalPlan: LogicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(mockWorkflowPlan_scan_result);
     const wsSendSpy = spyOn((service as any).workflowWebsocketService, "send");
     const settings = service["workflowActionService"].getWorkflowSettings();
-    service.sendExecutionRequest("", logicalPlan, settings);
+    service.sendExecutionRequest("", logicalPlan, settings, false, undefined);
     tick(FORM_DEBOUNCE_TIME_MS + 1);
     flush();
     expect(wsSendSpy).toHaveBeenCalledTimes(1);
@@ -89,5 +91,52 @@ describe("ExecuteWorkflowService", () => {
     }).toThrowError(
       new RegExp("cannot resume workflow, the current execution state is " + (service as any).currentState.state)
     );
+  });
+
+  it("should execute workflow with email notification successfully", () => {
+    const executionName = "Test Execution";
+    const emailNotificationEnabled = true;
+    const targetOperatorId = "test-operator-id";
+
+    const logicalPlanSpy = spyOn(ExecuteWorkflowService, "getLogicalPlanRequest").and.returnValue({} as LogicalPlan);
+    const settingsSpy = spyOn(service["workflowActionService"], "getWorkflowSettings").and.returnValue(
+      {} as WorkflowSettings
+    );
+    const resetExecutionStateSpy = spyOn(service, "resetExecutionState");
+    const resetStatusSpy = spyOn(service["workflowStatusService"], "resetStatus");
+    const sendExecutionRequestSpy = spyOn(service, "sendExecutionRequest");
+
+    service.executeWorkflowWithEmailNotification(executionName, emailNotificationEnabled, targetOperatorId);
+
+    expect(logicalPlanSpy).toHaveBeenCalledWith(service["workflowActionService"].getTexeraGraph(), targetOperatorId);
+    expect(settingsSpy).toHaveBeenCalled();
+    expect(resetExecutionStateSpy).toHaveBeenCalled();
+    expect(resetStatusSpy).toHaveBeenCalled();
+    expect(sendExecutionRequestSpy).toHaveBeenCalledWith(
+      executionName,
+      jasmine.any(Object),
+      jasmine.any(Object),
+      emailNotificationEnabled
+    );
+  });
+
+  it("should handle failure when executing workflow with email notification", () => {
+    const executionName = "Test Execution";
+    const emailNotificationEnabled = true;
+    const targetOperatorId = "test-operator-id";
+
+    const logicalPlanSpy = spyOn(ExecuteWorkflowService, "getLogicalPlanRequest").and.throwError("Logical plan error");
+    const resetExecutionStateSpy = spyOn(service, "resetExecutionState");
+    const resetStatusSpy = spyOn(service["workflowStatusService"], "resetStatus");
+    const sendExecutionRequestSpy = spyOn(service, "sendExecutionRequest");
+
+    expect(() => {
+      service.executeWorkflowWithEmailNotification(executionName, emailNotificationEnabled, targetOperatorId);
+    }).toThrowError("Logical plan error");
+
+    expect(logicalPlanSpy).toHaveBeenCalledWith(service["workflowActionService"].getTexeraGraph(), targetOperatorId);
+    expect(resetExecutionStateSpy).not.toHaveBeenCalled();
+    expect(resetStatusSpy).not.toHaveBeenCalled();
+    expect(sendExecutionRequestSpy).not.toHaveBeenCalled();
   });
 });

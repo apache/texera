@@ -1,110 +1,110 @@
-<div
-  [style.height]="dynamicHeight"
-  style="overflow-y: auto">
-  <nz-card
-    class="section-title"
-    [style.background]="backgroundColor">
-    <h2
-      class="page-title"
-      [style.color]="textColor">
-      Quota
-    </h2>
-  </nz-card>
-  <div>
-    <nz-tabset nzCentered>
-      <nz-tab nzTitle="Quota Table">
-        <div class="info-container">
-          <div class="info-box">
-            <h2 class="info-heading">Files Uploaded</h2>
-            <p class="info-content">{{ this.createdFiles.length }}</p>
+<div class="scrollable-container">
+  <div [style.height]="dynamicHeight">
+    <nz-card
+      class="section-title"
+      [style.background]="backgroundColor">
+      <h2
+        class="page-title"
+        [style.color]="textColor">
+        Quota
+      </h2>
+    </nz-card>
+    <div>
+      <nz-tabset nzCentered>
+        <nz-tab nzTitle="Quota Table">
+          <div class="info-container">
+            <div class="info-box">
+              <h2 class="info-heading">Files Uploaded</h2>
+              <p class="info-content">{{ this.createdFiles.length }}</p>
+            </div>
+            <div class="info-box">
+              <h2 class="info-heading">Datasets Uploaded</h2>
+              <p class="info-content">{{ this.totalUploadedDatasetCount }}</p>
+            </div>
+            <div class="info-box">
+              <h2 class="info-heading">Total Size of Datasets</h2>
+              <p class="info-content">{{ convertFileSize(this.totalUploadedDatasetSize) }}</p>
+            </div>
+            <div class="info-box">
+              <h2 class="info-heading">Workflows Created</h2>
+              <p class="info-content">{{ this.createdWorkflows.length }}</p>
+            </div>
+            <div class="info-box">
+              <h2 class="info-heading">Files with Access</h2>
+              <p class="info-content">{{ this.accessFiles.length }}</p>
+            </div>
+            <div class="info-box">
+              <h2 class="info-heading">Workflows with Access</h2>
+              <p class="info-content">{{ this.accessWorkflows.length }}</p>
+            </div>
+            <div class="info-box">
+              <h2 class="info-heading">Total Size of the Files</h2>
+              <p class="info-content">{{ convertFileSize(this.totalFileSize) }}</p>
+            </div>
+            <div class="info-box">
+              <h2 class="info-heading">Total Result Cache Size</h2>
+              <p class="info-content">{{ convertFileSize(this.totalMongoSize) }}</p>
+            </div>
           </div>
-          <div class="info-box">
-            <h2 class="info-heading">Datasets Uploaded</h2>
-            <p class="info-content">{{ this.totalUploadedDatasetCount }}</p>
+          <nz-card
+            class="section-title"
+            [style.backgroundColor]="backgroundColor">
+            <h2
+              class="page-title"
+              [style.color]="textColor">
+              Diagram
+            </h2>
+          </nz-card>
+          <div class="charts-grid">
+            <div id="sizePieChart"></div>
+            <div id="datasetLineChart"></div>
+            <div id="workflowLineChart"></div>
           </div>
-          <div class="info-box">
-            <h2 class="info-heading">Total Size of Datasets</h2>
-            <p class="info-content">{{ convertFileSize(this.totalUploadedDatasetSize) }}</p>
-          </div>
-          <div class="info-box">
-            <h2 class="info-heading">Workflows Created</h2>
-            <p class="info-content">{{ this.createdWorkflows.length }}</p>
-          </div>
-          <div class="info-box">
-            <h2 class="info-heading">Files with Access</h2>
-            <p class="info-content">{{ this.accessFiles.length }}</p>
-          </div>
-          <div class="info-box">
-            <h2 class="info-heading">Workflows with Access</h2>
-            <p class="info-content">{{ this.accessWorkflows.length }}</p>
-          </div>
-          <div class="info-box">
-            <h2 class="info-heading">Total Size of the Files</h2>
-            <p class="info-content">{{ convertFileSize(this.totalFileSize) }}</p>
-          </div>
-          <div class="info-box">
-            <h2 class="info-heading">Total Result Cache Size</h2>
-            <p class="info-content">{{ convertFileSize(this.totalMongoSize) }}</p>
-          </div>
-        </div>
-        <nz-card
-          class="section-title"
-          [style.backgroundColor]="backgroundColor">
-          <h2
-            class="page-title"
-            [style.color]="textColor">
-            Diagram
-          </h2>
-        </nz-card>
-        <div class="charts-grid">
-          <div id="sizePieChart"></div>
-          <div id="datasetLineChart"></div>
-          <div id="workflowLineChart"></div>
-        </div>
-      </nz-tab>
-      <nz-tab nzTitle="Result Cache">
-        <nz-collapse>
-          <nz-collapse-panel
-            *ngFor="let workflow of mongodbWorkflows"
-            [nzHeader]="workflow.workflowName">
-            <nz-table
-              #executionTable
-              [nzData]="workflow.executions"
-              [nzPageSize]="3"
-              nzFrontPagination="true">
-              <thead>
-                <tr>
-                  <th>Collection Name</th>
-                  <th>Execution ID</th>
-                  <th [nzSortFn]="sortByMongoDBSize">Cache Size</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr *ngFor="let execution of executionTable.data">
-                  <td>{{ execution.pointer }}</td>
-                  <td>{{ execution.eid }}</td>
-                  <td>{{ convertFileSize(execution.size) }}</td>
-                  <td>
-                    <button
-                      nz-popconfirm
-                      nzPopconfirmTitle="Confirm to delete selected workflows."
-                      nz-button
-                      nz-tooltip="delete collection"
-                      (nzOnConfirm)="deleteMongoCollection(execution.pointer, execution, execution.workflowName)"
-                      type="button">
-                      <i
-                        nz-icon
-                        nzTheme="outline"
-                        nzType="delete"></i>
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </nz-table>
-          </nz-collapse-panel>
-        </nz-collapse>
-      </nz-tab>
-    </nz-tabset>
+        </nz-tab>
+        <nz-tab nzTitle="Result Cache">
+          <nz-collapse>
+            <nz-collapse-panel
+              *ngFor="let workflow of mongodbWorkflows"
+              [nzHeader]="workflow.workflowName">
+              <nz-table
+                #executionTable
+                [nzData]="workflow.executions"
+                [nzPageSize]="3"
+                nzFrontPagination="true">
+                <thead>
+                  <tr>
+                    <th>Collection Name</th>
+                    <th>Execution ID</th>
+                    <th [nzSortFn]="sortByMongoDBSize">Cache Size</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let execution of executionTable.data">
+                    <td>{{ execution.pointer }}</td>
+                    <td>{{ execution.eid }}</td>
+                    <td>{{ convertFileSize(execution.size) }}</td>
+                    <td>
+                      <button
+                        nz-popconfirm
+                        nzPopconfirmTitle="Confirm to delete selected workflows."
+                        nz-button
+                        nz-tooltip="delete collection"
+                        (nzOnConfirm)="deleteMongoCollection(execution.pointer, execution, execution.workflowName)"
+                        type="button">
+                        <i
+                          nz-icon
+                          nzTheme="outline"
+                          nzType="delete"></i>
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </nz-table>
+            </nz-collapse-panel>
+          </nz-collapse>
+        </nz-tab>
+      </nz-tabset>
+    </div>
   </div>
 </div>
