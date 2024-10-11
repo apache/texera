@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.dataset
 
-import edu.uci.ics.texera.Utils.withTransaction
+import edu.uci.ics.amber.engine.common.Utils.withTransaction
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.common.AccessEntry
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.USER

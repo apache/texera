@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.source.sql.mysql
 
-import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
+import edu.uci.ics.amber.engine.common.model.tuple.{AttributeType, Schema}
 import edu.uci.ics.texera.workflow.operators.source.sql.mysql.MySQLConnUtil.connect
 import edu.uci.ics.texera.workflow.operators.source.sql.SQLSourceOpExec
 

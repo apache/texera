@@ -3,19 +3,19 @@ package edu.uci.ics.texera.workflow.common.workflow
 import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
+import edu.uci.ics.amber.engine.common.model.{PhysicalPlan, WorkflowContext}
+import edu.uci.ics.amber.engine.common.model.tuple.Schema
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.error.ErrorUtils.getStackTraceWithAllCauses
-import edu.uci.ics.texera.Utils.objectMapper
+import edu.uci.ics.amber.engine.common.Utils.objectMapper
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
-import edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.FAILED
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError
-import edu.uci.ics.texera.workflow.common.WorkflowContext
+import edu.uci.ics.amber.engine.common.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
+import edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState.FAILED
+import edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowFatalError
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants
 
