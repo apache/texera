@@ -1,7 +1,7 @@
 import { AfterViewInit, Component, Input, ViewChild } from "@angular/core";
 import { Router } from "@angular/router";
 import { NzModalService } from "ng-zorro-antd/modal";
-import { firstValueFrom, from, Observable, of } from "rxjs";
+import { firstValueFrom, from, lastValueFrom, Observable, of } from "rxjs";
 import {
   DEFAULT_WORKFLOW_NAME,
   WorkflowPersistService,
@@ -22,7 +22,7 @@ import { SearchService } from "../../../service/user/search.service";
 import { SortMethod } from "../../../type/sort-method";
 import { isDefined } from "../../../../common/util/predicate";
 import { UserProjectService } from "../../../service/user/project/user-project.service";
-import { map, mergeMap, switchMap, tap } from "rxjs/operators";
+import { catchError, map, mergeMap, switchMap, tap } from "rxjs/operators";
 import { environment } from "../../../../../environments/environment";
 import { DashboardWorkflow } from "../../../type/dashboard-workflow.interface";
 /**
@@ -345,7 +345,7 @@ export class UserWorkflowComponent implements AfterViewInit {
   public onClickUploadExistingWorkflowFromLocal = (file: NzUploadFile): Observable<boolean> => {
     const fileExtensionIndex = file.name.lastIndexOf(".");
 
-    let upload$: Observable<any>;
+    let upload$: Observable<void>;
     if (file.name.substring(fileExtensionIndex) === ".zip") {
       upload$ = this.handleZipUploads(file as unknown as Blob);
     } else {
@@ -355,33 +355,37 @@ export class UserWorkflowComponent implements AfterViewInit {
     return upload$.pipe(
       switchMap(() => from(this.search(true))),
       tap(() => this.notificationService.success("Upload Successful")),
-      switchMap(() => of(false))
+      map(() => true),
+      catchError(() => of(false))
     );
   };
 
   /**
    * process .zip file uploads
    */
-  private handleZipUploads(zipFile: Blob): Observable<any> {
+  private handleZipUploads(zipFile: Blob): Observable<void> {
     let zip = new JSZip();
     return from(zip.loadAsync(zipFile)).pipe(
       switchMap(zip =>
         from(
           Promise.all(
             Object.keys(zip.files).map(relativePath =>
-              zip.files[relativePath].async("blob").then(content => this.handleFileUploads(content, relativePath))
+              zip.files[relativePath]
+                .async("blob")
+                .then(content => lastValueFrom(this.handleFileUploads(content, relativePath)))
             )
           )
         )
-      )
+      ),
+      map(() => undefined)
     );
   }
 
   /**
    * Process .json file uploads
    */
-  private handleFileUploads(file: Blob, name: string): Observable<any> {
-    return new Observable(observer => {
+  private handleFileUploads(file: Blob, name: string): Observable<void> {
+    return new Observable<void>(observer => {
       let reader = new FileReader();
       reader.readAsText(file);
       reader.onload = () => {
@@ -405,6 +409,7 @@ export class UserWorkflowComponent implements AfterViewInit {
                   ...this.searchResultsComponent.entries,
                   new DashboardEntry(uploadedWorkflow),
                 ];
+                this.notificationService.success("Upload Workflow Successful");
                 observer.next();
                 observer.complete();
               },
