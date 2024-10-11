@@ -1,15 +1,14 @@
 // root project definition
 lazy val MicroServices = (project in file("."))
-  .aggregate(TexeraWorkflowCompilingService) // Add all subprojects
   .settings(
     name := "micro-services",
     version := "0.1.0"
   )
 
-// The template of the subproject: TexeraWorkflowCompilingService(as an example)
-// lazy val TexeraWorkflowCompilingService = (project in file("texera-workflow-compiling-service"))
+// The template of the subproject: WorkflowCompilingService(as an example)
+// lazy val WorkflowCompilingService = (project in file("workflow-compiling-service"))
 //  .settings(
-//    name := "TexeraWorkflowCompilingService",
+//    name := "WorkflowCompilingService",
 //    version := "0.1.0"
 //    libraryDependencies ++= Seq(
 //      "io.dropwizard" % "dropwizard-core" % "4.0.7",
@@ -19,3 +18,4 @@ lazy val MicroServices = (project in file("."))
 //      "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.17.2" // Jackson Scala module
 //    )
 //  )
+// once this subproject is defined, aggregate it to the MicroServices definition
