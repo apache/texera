@@ -1,8 +1,13 @@
 package edu.uci.ics.texera.workflow.operators.hashJoin
 
-import edu.uci.ics.amber.engine.common.tuple.amber.{SchemaEnforceable, TupleLike}
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
+import edu.uci.ics.amber.engine.common.model.tuple.{
+  Attribute,
+  AttributeType,
+  Schema,
+  SchemaEnforceable,
+  Tuple,
+  TupleLike
+}
 import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc.HASH_JOIN_INTERNAL_KEY_NAME
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec

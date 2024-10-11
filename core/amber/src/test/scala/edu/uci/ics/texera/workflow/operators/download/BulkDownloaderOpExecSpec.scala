@@ -1,12 +1,8 @@
 package edu.uci.ics.texera.workflow.operators.download
 
-import edu.uci.ics.texera.workflow.common.WorkflowContext
-import edu.uci.ics.texera.workflow.common.WorkflowContext.{
-  DEFAULT_EXECUTION_ID,
-  DEFAULT_WORKFLOW_ID
-}
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
+import edu.uci.ics.amber.engine.common.model.WorkflowContext
+import edu.uci.ics.amber.engine.common.model.tuple.{Attribute, AttributeType, Schema, Tuple}
+import WorkflowContext.{DEFAULT_EXECUTION_ID, DEFAULT_WORKFLOW_ID}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 class BulkDownloaderOpExecSpec extends AnyFlatSpec with BeforeAndAfter {

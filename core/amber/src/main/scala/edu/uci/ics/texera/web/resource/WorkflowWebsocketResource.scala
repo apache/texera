@@ -3,9 +3,10 @@ package edu.uci.ics.texera.web.resource
 import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.clustering.ClusterListener
+import edu.uci.ics.amber.engine.common.model.WorkflowContext
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.amber.error.ErrorUtils.getStackTraceWithAllCauses
-import edu.uci.ics.texera.Utils.objectMapper
+import edu.uci.ics.amber.engine.common.Utils.objectMapper
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.websocket.event.{
   CacheStatusUpdateEvent,
@@ -16,11 +17,13 @@ import edu.uci.ics.texera.web.model.websocket.request._
 import edu.uci.ics.texera.web.model.websocket.response._
 import edu.uci.ics.texera.web.service.{WorkflowCacheChecker, WorkflowService}
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
-import edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{PAUSED, RUNNING}
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError
+import edu.uci.ics.amber.engine.common.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
+import edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState.{
+  PAUSED,
+  RUNNING
+}
+import edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowFatalError
 import edu.uci.ics.texera.web.{ServletAwareConfigurator, SessionState}
-import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler
 
 import java.time.Instant
@@ -56,15 +59,10 @@ class WorkflowWebsocketResource extends LazyLogging {
   @OnMessage
   def myOnMsg(session: Session, message: String): Unit = {
     val request = objectMapper.readValue(message, classOf[TexeraWebSocketRequest])
-    val uidOpt = session.getUserProperties.asScala
-      .get(classOf[User].getName)
-      .map(_.asInstanceOf[User].getUid)
-    val userEmailOpt = session.getUserProperties.asScala
-      .get(classOf[User].getName)
-      .map(_.asInstanceOf[User].getEmail)
-    val user = session.getUserProperties.asScala
+    val userOpt = session.getUserProperties.asScala
       .get(classOf[User].getName)
       .map(_.asInstanceOf[User])
+    val uidOpt = userOpt.map(_.getUid)
 
     val sessionState = SessionState.getState(session.getId)
     val workflowStateOpt = sessionState.getCurrentWorkflowState
@@ -79,7 +77,7 @@ class WorkflowWebsocketResource extends LazyLogging {
           )
         case resultExportRequest: ResultExportRequest =>
           workflowStateOpt.foreach(state =>
-            sessionState.send(state.exportService.exportResult(user.get, resultExportRequest))
+            sessionState.send(state.exportService.exportResult(userOpt.get, resultExportRequest))
           )
         case modifyLogicRequest: ModifyLogicRequest =>
           if (workflowStateOpt.isDefined) {
@@ -128,8 +126,9 @@ class WorkflowWebsocketResource extends LazyLogging {
           }
         case workflowExecuteRequest: WorkflowExecuteRequest =>
           workflowStateOpt match {
-            case Some(workflow) => workflow.initExecutionService(workflowExecuteRequest, uidOpt)
-            case None           => throw new IllegalStateException("workflow is not initialized")
+            case Some(workflow) =>
+              workflow.initExecutionService(workflowExecuteRequest, userOpt, session.getRequestURI)
+            case None => throw new IllegalStateException("workflow is not initialized")
           }
         case other =>
           workflowStateOpt.map(_.executionService.getValue) match {
@@ -164,5 +163,4 @@ class WorkflowWebsocketResource extends LazyLogging {
     }
 
   }
-
 }
