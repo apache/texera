@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.web.storage
 
-import edu.uci.ics.texera.Utils.withLock
+import edu.uci.ics.amber.engine.common.Utils.withLock
 import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
 import io.reactivex.rxjava3.core.{Observable, Single}
 import io.reactivex.rxjava3.disposables.Disposable

@@ -3,10 +3,9 @@ package edu.uci.ics.texera.workflow.operators.sink.storage
 import com.mongodb.client.model.Sorts
 import com.mongodb.client.MongoCursor
 import edu.uci.ics.amber.engine.common.AmberConfig
+import edu.uci.ics.amber.engine.common.model.tuple.{Schema, Tuple}
 import edu.uci.ics.texera.web.storage.{MongoCollectionManager, MongoDatabaseManager}
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.TupleUtils.document2Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
+import edu.uci.ics.amber.engine.common.model.tuple.TupleUtils.document2Tuple
 import org.bson.Document
 
 import scala.collection.mutable

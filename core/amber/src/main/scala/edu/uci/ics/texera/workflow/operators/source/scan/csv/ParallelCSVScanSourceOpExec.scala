@@ -1,9 +1,13 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.csv
 
-import edu.uci.ics.amber.engine.common.SourceOperatorExecutor
-import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
+import edu.uci.ics.amber.engine.common.executor.SourceOperatorExecutor
+import edu.uci.ics.amber.engine.common.model.tuple.{
+  Attribute,
+  AttributeTypeUtils,
+  Schema,
+  TupleLike
+}
 import edu.uci.ics.texera.workflow.common.scanner.BufferedBlockReader
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeTypeUtils, Schema}
 import org.tukaani.xz.SeekableFileInputStream
 
 import java.io.File

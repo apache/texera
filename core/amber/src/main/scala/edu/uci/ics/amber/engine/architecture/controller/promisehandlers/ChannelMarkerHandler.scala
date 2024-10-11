@@ -5,6 +5,7 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandle
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ChannelMarkerHandler.PropagateChannelMarker
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.ambermessage.ChannelMarkerType
+import edu.uci.ics.amber.engine.common.model.PhysicalPlan
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
@@ -14,7 +15,6 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   ChannelMarkerIdentity,
   PhysicalOpIdentity
 }
-import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 
 object ChannelMarkerHandler {
 

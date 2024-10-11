@@ -7,9 +7,9 @@ import edu.stanford.nlp.pipeline.Annotation;
 import edu.stanford.nlp.sentiment.SentimentCoreAnnotations;
 import edu.stanford.nlp.trees.Tree;
 import edu.stanford.nlp.util.CoreMap;
-import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike;
+import edu.uci.ics.amber.engine.common.model.tuple.TupleLike;
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpExec;
-import edu.uci.ics.texera.workflow.common.tuple.Tuple;
+import edu.uci.ics.amber.engine.common.model.tuple.Tuple;
 import scala.Function1;
 
 import java.io.Serializable;

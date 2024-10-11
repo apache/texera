@@ -1,10 +1,10 @@
 package edu.uci.ics.texera.workflow.common.operators.filter
 
 import com.google.common.base.Preconditions
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.common.model.PhysicalOp
+import edu.uci.ics.amber.engine.common.model.tuple.Schema
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.operators.{LogicalOp, StateTransferFunc}
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 
 import scala.util.{Success, Try}
 

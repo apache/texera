@@ -1,9 +1,9 @@
 package edu.uci.ics.texera.workflow.operators.regex
 
+import edu.uci.ics.amber.engine.common.model.tuple.Tuple
 import java.util.regex.Pattern
 
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpExec
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 class RegexOpExec(regex: String, caseInsensitive: Boolean, attributeName: String)
     extends FilterOpExec {

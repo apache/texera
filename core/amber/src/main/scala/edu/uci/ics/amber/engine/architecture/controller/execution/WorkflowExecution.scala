@@ -3,8 +3,11 @@ package edu.uci.ics.amber.engine.architecture.controller.execution
 import edu.uci.ics.amber.engine.architecture.controller.execution.ExecutionUtils.aggregateMetrics
 import edu.uci.ics.amber.engine.architecture.scheduling.{Region, RegionIdentity}
 import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
-import edu.uci.ics.texera.web.workflowruntimestate.{OperatorMetrics, WorkflowAggregatedState}
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState._
+import edu.uci.ics.amber.engine.common.workflowruntimestate.{
+  OperatorMetrics,
+  WorkflowAggregatedState
+}
+import edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState._
 
 import scala.collection.mutable
 

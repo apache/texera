@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.web.resource
 
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.texera.Utils
+import edu.uci.ics.amber.engine.common.Utils
 import edu.uci.ics.texera.web.ServletAwareConfigurator
 import edu.uci.ics.texera.web.model.collab.event._
 import edu.uci.ics.texera.web.model.collab.request._

@@ -9,7 +9,6 @@ import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{
 }
 import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import org.apache.arrow.flight._
 import org.apache.arrow.memory.{ArrowBuf, BufferAllocator, RootAllocator}
 import org.apache.arrow.util.AutoCloseables
@@ -20,7 +19,8 @@ import java.net.ServerSocket
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
 import com.twitter.util.Promise
-import edu.uci.ics.texera.workflow.common.{EndOfInputChannel, StartOfInputChannel, State}
+import edu.uci.ics.amber.engine.common.model.{EndOfInputChannel, StartOfInputChannel, State}
+import edu.uci.ics.amber.engine.common.model.tuple.Tuple
 
 import java.nio.charset.Charset
 

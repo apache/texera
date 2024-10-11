@@ -1,8 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.source.apis.twitter.v2
 
-import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
+import edu.uci.ics.amber.engine.common.model.tuple.{Schema, Tuple, TupleLike}
 import edu.uci.ics.texera.workflow.operators.source.apis.twitter.TwitterSourceOpExec
 import edu.uci.ics.texera.workflow.operators.source.apis.twitter.v2.TwitterUtils.tweetDataToTuple
 import io.github.redouane59.twitter.dto.endpoints.AdditionalParameters

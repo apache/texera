@@ -1,8 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.limit
 
-import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
-import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
+import edu.uci.ics.amber.engine.common.executor.OperatorExecutor
+import edu.uci.ics.amber.engine.common.model.tuple.{Tuple, TupleLike}
 
 class LimitOpExec(limit: Int) extends OperatorExecutor {
   var count = 0

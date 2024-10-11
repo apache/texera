@@ -4,11 +4,12 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaString;
+import edu.uci.ics.amber.engine.common.model.tuple.AttributeTypeUtils;
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName;
 import edu.uci.ics.texera.workflow.common.metadata.annotations.HideAnnotation;
-import edu.uci.ics.texera.workflow.common.tuple.Tuple;
-import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
-import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils;
+import edu.uci.ics.amber.engine.common.model.tuple.Tuple;
+import edu.uci.ics.amber.engine.common.model.tuple.AttributeType;
+
 
 import java.sql.Timestamp;
 import java.util.Objects;

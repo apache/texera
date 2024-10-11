@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.filter;
 
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpExec;
-import edu.uci.ics.texera.workflow.common.tuple.Tuple;
+import edu.uci.ics.amber.engine.common.model.tuple.Tuple;
 import scala.Function1;
 
 import java.io.Serializable;

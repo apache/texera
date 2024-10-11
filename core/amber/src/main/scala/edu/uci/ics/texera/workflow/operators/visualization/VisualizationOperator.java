@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.visualization;
 
-import edu.uci.ics.texera.workflow.common.IncrementalOutputMode;
+import edu.uci.ics.amber.engine.common.IncrementalOutputMode;
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp;
 
 /**

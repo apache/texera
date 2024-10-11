@@ -1,9 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.sortPartitions
 
-import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
-import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType
+import edu.uci.ics.amber.engine.common.executor.OperatorExecutor
+import edu.uci.ics.amber.engine.common.model.tuple.{AttributeType, Tuple, TupleLike}
 
 import scala.collection.mutable.ArrayBuffer
 

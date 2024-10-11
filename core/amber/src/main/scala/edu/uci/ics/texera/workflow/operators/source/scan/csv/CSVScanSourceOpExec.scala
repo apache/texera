@@ -1,12 +1,11 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.csv
 
 import com.univocity.parsers.csv.{CsvFormat, CsvParser, CsvParserSettings}
+import edu.uci.ics.amber.engine.common.executor.SourceOperatorExecutor
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.amber.engine.common.{CheckpointState, CheckpointSupport}
-import edu.uci.ics.amber.engine.common.SourceOperatorExecutor
+import edu.uci.ics.amber.engine.common.model.tuple.{AttributeTypeUtils, Schema, TupleLike}
 import edu.uci.ics.amber.engine.common.storage.DatasetFileDocument
-import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
-import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeTypeUtils, Schema}
 import edu.uci.ics.texera.workflow.operators.source.scan.FileDecodingMethod
 
 import java.io.InputStreamReader

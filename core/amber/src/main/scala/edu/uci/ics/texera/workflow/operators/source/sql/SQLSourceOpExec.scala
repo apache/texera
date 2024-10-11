@@ -1,14 +1,14 @@
 package edu.uci.ics.texera.workflow.operators.source.sql
 
-import edu.uci.ics.amber.engine.common.SourceOperatorExecutor
-import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType._
-import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.{
-  parseField,
-  parseTimestamp
+import edu.uci.ics.amber.engine.common.executor.SourceOperatorExecutor
+import edu.uci.ics.amber.engine.common.model.tuple.AttributeTypeUtils.{parseField, parseTimestamp}
+import edu.uci.ics.amber.engine.common.model.tuple.{
+  Attribute,
+  AttributeType,
+  Schema,
+  Tuple,
+  TupleLike
 }
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 
 import java.sql._
 import scala.collection.mutable.ArrayBuffer
@@ -220,11 +220,11 @@ abstract class SQLSourceOpExec(
     batchByAttribute match {
       case Some(attribute) =>
         attribute.getType match {
-          case INTEGER | LONG | TIMESTAMP =>
+          case AttributeType.INTEGER | AttributeType.LONG | AttributeType.TIMESTAMP =>
             curLowerBound.longValue <= upperBound.longValue
-          case DOUBLE =>
+          case AttributeType.DOUBLE =>
             curLowerBound.doubleValue <= upperBound.doubleValue
-          case STRING | ANY | BOOLEAN | _ =>
+          case AttributeType.STRING | AttributeType.ANY | AttributeType.BOOLEAN | _ =>
             throw new IllegalArgumentException("Unexpected type: " + attribute.getType)
         }
       case None =>
@@ -274,13 +274,13 @@ abstract class SQLSourceOpExec(
     batchByAttribute match {
       case Some(attribute) =>
         attribute.getType match {
-          case INTEGER | LONG | TIMESTAMP =>
+          case AttributeType.INTEGER | AttributeType.LONG | AttributeType.TIMESTAMP =>
             nextLowerBound = curLowerBound.longValue + interval
             isLastBatch = nextLowerBound.longValue >= upperBound.longValue
-          case DOUBLE =>
+          case AttributeType.DOUBLE =>
             nextLowerBound = curLowerBound.doubleValue + interval
             isLastBatch = nextLowerBound.doubleValue >= upperBound.doubleValue
-          case BOOLEAN | STRING | ANY | _ =>
+          case AttributeType.BOOLEAN | AttributeType.STRING | AttributeType.ANY | _ =>
             throw new IllegalArgumentException("Unexpected type: " + attribute.getType)
         }
         queryBuilder ++= " AND " + attribute.getName +
@@ -310,11 +310,11 @@ abstract class SQLSourceOpExec(
     batchByAttribute match {
       case Some(attribute) =>
         attribute.getType match {
-          case LONG | INTEGER | DOUBLE =>
+          case AttributeType.LONG | AttributeType.INTEGER | AttributeType.DOUBLE =>
             String.valueOf(value)
-          case TIMESTAMP =>
+          case AttributeType.TIMESTAMP =>
             "'" + new Timestamp(value.longValue).toString + "'"
-          case BOOLEAN | STRING | ANY | _ =>
+          case AttributeType.BOOLEAN | AttributeType.STRING | AttributeType.ANY | _ =>
             throw new IllegalArgumentException("Unexpected type: " + attribute.getType)
         }
       case None =>
@@ -342,15 +342,15 @@ abstract class SQLSourceOpExec(
         val resultSet = preparedStatement.executeQuery
         resultSet.next
         schema.getAttribute(attribute.getName).getType match {
-          case INTEGER =>
+          case AttributeType.INTEGER =>
             result = resultSet.getInt(1)
-          case LONG =>
+          case AttributeType.LONG =>
             result = resultSet.getLong(1)
-          case TIMESTAMP =>
+          case AttributeType.TIMESTAMP =>
             result = resultSet.getTimestamp(1).getTime
-          case DOUBLE =>
+          case AttributeType.DOUBLE =>
             result = resultSet.getDouble(1)
-          case BOOLEAN | STRING | ANY | _ =>
+          case AttributeType.BOOLEAN | AttributeType.STRING | AttributeType.ANY | _ =>
             throw new IllegalStateException("Unexpected value: " + attribute.getType)
         }
         resultSet.close()
@@ -492,8 +492,8 @@ abstract class SQLSourceOpExec(
       if (min.get.equalsIgnoreCase("auto")) curLowerBound = fetchBatchByBoundary("MIN")
       else
         batchByAttribute.get.getType match {
-          case TIMESTAMP => curLowerBound = parseTimestamp(min.get).getTime
-          case LONG      => curLowerBound = min.get.toLong
+          case AttributeType.TIMESTAMP => curLowerBound = parseTimestamp(min.get).getTime
+          case AttributeType.LONG      => curLowerBound = min.get.toLong
           case _ =>
             throw new IllegalArgumentException(s"Unsupported type ${batchByAttribute.get.getType}")
         }
@@ -501,8 +501,8 @@ abstract class SQLSourceOpExec(
       if (max.get.equalsIgnoreCase("auto")) upperBound = fetchBatchByBoundary("MAX")
       else
         batchByAttribute.get.getType match {
-          case TIMESTAMP => upperBound = parseTimestamp(max.get).getTime
-          case LONG      => upperBound = max.get.toLong
+          case AttributeType.TIMESTAMP => upperBound = parseTimestamp(max.get).getTime
+          case AttributeType.LONG      => upperBound = max.get.toLong
           case _ =>
             throw new IllegalArgumentException(s"Unsupported type ${batchByAttribute.get.getType}")
         }

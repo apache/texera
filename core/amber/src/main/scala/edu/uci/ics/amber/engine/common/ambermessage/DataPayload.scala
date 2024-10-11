@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.common.ambermessage
 
-import edu.uci.ics.texera.workflow.common.Marker
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
+import edu.uci.ics.amber.engine.common.model.Marker
+import edu.uci.ics.amber.engine.common.model.tuple.Tuple
 
 sealed trait DataPayload extends WorkflowFIFOMessagePayload {}
 

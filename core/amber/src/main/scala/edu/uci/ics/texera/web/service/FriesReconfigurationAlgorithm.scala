@@ -1,16 +1,15 @@
 package edu.uci.ics.texera.web.service
 
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ChannelMarkerHandler.PropagateChannelMarker
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.scheduling.{Region, WorkflowExecutionCoordinator}
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateExecutorHandler.{
   UpdateExecutor,
   UpdateMultipleExecutors
 }
 import edu.uci.ics.amber.engine.common.ambermessage.RequireAlignment
+import edu.uci.ics.amber.engine.common.model.{PhysicalOp, PhysicalPlan}
 import edu.uci.ics.amber.engine.common.virtualidentity.{ChannelMarkerIdentity, PhysicalOpIdentity}
 import edu.uci.ics.texera.workflow.common.operators.StateTransferFunc
-import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 import org.jgrapht.alg.connectivity.ConnectivityInspector
 
 import scala.collection.mutable

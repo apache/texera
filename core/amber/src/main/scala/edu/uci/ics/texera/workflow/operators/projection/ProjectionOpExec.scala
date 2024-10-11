@@ -1,9 +1,8 @@
 package edu.uci.ics.texera.workflow.operators.projection
 
 import com.google.common.base.Preconditions
-import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
+import edu.uci.ics.amber.engine.common.model.tuple.{Tuple, TupleLike}
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpExec
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 import scala.collection.mutable
 

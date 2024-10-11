@@ -16,14 +16,11 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
 }
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.StateRestoreConfig
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessor
-import edu.uci.ics.amber.engine.common.{
-  AmberRuntime,
-  CheckpointState,
-  CheckpointSupport,
-  SourceOperatorExecutor
-}
+import edu.uci.ics.amber.engine.common.{AmberRuntime, CheckpointState, CheckpointSupport}
 import edu.uci.ics.amber.engine.common.SerializedState.{CP_STATE_KEY, DP_STATE_KEY}
 import edu.uci.ics.amber.engine.common.client.AmberClient
+import edu.uci.ics.amber.engine.common.executor.{OperatorExecutor, SourceOperatorExecutor}
+import edu.uci.ics.amber.engine.common.model.WorkflowContext
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ChannelMarkerIdentity,
   ExecutionIdentity,
@@ -33,9 +30,10 @@ import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.amber.engine.e2e.TestOperators
 import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{COMPLETED, PAUSED}
-import edu.uci.ics.texera.workflow.common.WorkflowContext
-import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
+import edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState.{
+  COMPLETED,
+  PAUSED
+}
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.workflow.LogicalLink
 import org.scalatest.BeforeAndAfterAll

@@ -5,7 +5,10 @@ import edu.uci.ics.amber.engine.architecture.scheduling.Region
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
 import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
-import edu.uci.ics.texera.web.workflowruntimestate.{OperatorMetrics, WorkflowAggregatedState}
+import edu.uci.ics.amber.engine.common.workflowruntimestate.{
+  OperatorMetrics,
+  WorkflowAggregatedState
+}
 
 import scala.collection.mutable
 

@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.aggregate
 
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
+import edu.uci.ics.amber.engine.common.model.tuple.Tuple
 
 /**
   * This class defines the necessary functions required by a distributed aggregation.

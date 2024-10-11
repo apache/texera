@@ -2,7 +2,7 @@ package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 
 import com.flipkart.zjsonpatch.{JsonDiff, JsonPatch}
 import edu.uci.ics.amber.engine.common.AmberConfig
-import edu.uci.ics.texera.Utils.objectMapper
+import edu.uci.ics.amber.engine.common.Utils.objectMapper
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.WORKFLOW_VERSION

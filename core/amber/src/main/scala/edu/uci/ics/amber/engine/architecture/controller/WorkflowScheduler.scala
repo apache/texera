@@ -7,9 +7,8 @@ import edu.uci.ics.amber.engine.architecture.scheduling.{
   Schedule
 }
 import edu.uci.ics.amber.engine.common.AmberConfig
-import edu.uci.ics.texera.workflow.common.WorkflowContext
+import edu.uci.ics.amber.engine.common.model.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
-import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 
 class WorkflowScheduler(workflowContext: WorkflowContext, opResultStorage: OpResultStorage)
     extends java.io.Serializable {

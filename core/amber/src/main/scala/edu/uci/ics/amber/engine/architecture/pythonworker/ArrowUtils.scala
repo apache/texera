@@ -1,14 +1,14 @@
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.AttributeTypeException
-import edu.uci.ics.texera.workflow.common.tuple.schema.{
+import edu.uci.ics.amber.engine.common.model.tuple.{
   Attribute,
   AttributeType,
   AttributeTypeUtils,
-  Schema
+  Schema,
+  Tuple
 }
+import AttributeTypeUtils.AttributeTypeException
 import org.apache.arrow.vector.types.FloatingPointPrecision
 import org.apache.arrow.vector.types.TimeUnit.MILLISECOND
 import org.apache.arrow.vector.types.pojo.ArrowType.PrimitiveType

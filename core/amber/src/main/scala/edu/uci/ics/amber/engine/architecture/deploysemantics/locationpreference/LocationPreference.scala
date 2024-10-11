@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference
 
 import akka.actor.Address
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.common.model.PhysicalOp
 
 case class AddressInfo(
     // the addresses of all worker nodes

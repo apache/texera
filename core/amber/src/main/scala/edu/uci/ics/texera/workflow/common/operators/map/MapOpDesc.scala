@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.common.operators.map
 
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.common.model.PhysicalOp
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.operators.{LogicalOp, StateTransferFunc}
 

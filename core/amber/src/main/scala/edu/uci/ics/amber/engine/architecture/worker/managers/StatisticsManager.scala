@@ -4,9 +4,8 @@ import edu.uci.ics.amber.engine.architecture.worker.statistics.{
   PortTupleCountMapping,
   WorkerStatistics
 }
-import edu.uci.ics.amber.engine.common.SinkOperatorExecutor
+import edu.uci.ics.amber.engine.common.executor.{OperatorExecutor, SinkOperatorExecutor}
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
-import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 
 import scala.collection.mutable
 

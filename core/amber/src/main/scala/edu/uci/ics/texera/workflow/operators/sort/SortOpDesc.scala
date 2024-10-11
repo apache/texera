@@ -1,10 +1,10 @@
 package edu.uci.ics.texera.workflow.operators.sort
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
+import edu.uci.ics.amber.engine.common.model.tuple.Schema
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 
 class SortOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(required = true)

@@ -2,7 +2,7 @@ package edu.uci.ics.texera.workflow.operators.filter;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp;
+import edu.uci.ics.amber.engine.common.model.PhysicalOp;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo;
 import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity;
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity;
@@ -11,7 +11,7 @@ import edu.uci.ics.amber.engine.common.workflow.OutputPort;
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
-import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor;
+import edu.uci.ics.amber.engine.common.executor.OperatorExecutor;
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc;
 import scala.Tuple2;
 

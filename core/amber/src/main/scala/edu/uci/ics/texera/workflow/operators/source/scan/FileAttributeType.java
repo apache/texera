@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.source.scan;
 
 import com.fasterxml.jackson.annotation.JsonValue;
-import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
+import edu.uci.ics.amber.engine.common.model.tuple.AttributeType;
 
 public enum FileAttributeType {
     STRING("string", AttributeType.STRING),
