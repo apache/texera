@@ -31,9 +31,10 @@ class HubWorkflowResource {
 
   @GET
   @Path("/count")
-  def getWorkflowCount: Integer = {
+  def getPublishedWorkflowCount: Integer = {
     context.selectCount
       .from(WORKFLOW)
+      .where(WORKFLOW.IS_PUBLISHED.eq(1.toByte))
       .fetchOne(0, classOf[Integer])
   }
 

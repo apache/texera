@@ -2,6 +2,16 @@
   <div class="title-text">
     <h2>Welcome to Texera!</h2>
     <p>Start your search journey with our powerful tools.</p>
+    <p>
+      There are
+      <a
+        href="javascript:void(0)"
+        (click)="navigateToSearch()"
+        class="underline-link">
+        {{ workflowCount }} workflows
+      </a>
+      available.
+    </p>
   </div>
 
   <!-- Search Bar -->
@@ -9,4 +19,3 @@
     <texera-search-bar></texera-search-bar>
   </div>
 </div>
-

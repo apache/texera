@@ -26,7 +26,7 @@ export class DashboardComponent implements OnInit {
   displayForum: boolean = true;
   displayNavbar: boolean = true;
   isCollpased: boolean = false;
-  routesWithoutNavbar: string[] = ["/workspace", "/home","/about"];
+  routesWithoutNavbar: string[] = ["/workspace", "/home", "/about"];
 
   constructor(
     private userService: UserService,
