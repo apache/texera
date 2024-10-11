@@ -163,6 +163,7 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
         storagePath: undefined,
         creationTime: undefined,
         versionHierarchy: undefined,
+        size: undefined,
       };
       const initialVersionName = this.form.get("versionDescription")?.value;
 
