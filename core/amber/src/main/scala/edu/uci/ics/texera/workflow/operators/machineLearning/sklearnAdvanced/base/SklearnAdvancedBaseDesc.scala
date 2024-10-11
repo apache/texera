@@ -2,6 +2,7 @@ package edu.uci.ics.texera.workflow.operators.machineLearning.sklearnAdvanced.ba
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import edu.uci.ics.amber.engine.common.model.tuple.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.{
   AutofillAttributeName,
@@ -9,7 +10,6 @@ import edu.uci.ics.texera.workflow.common.metadata.annotations.{
 }
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 
 trait ParamClass {
   def getName: String

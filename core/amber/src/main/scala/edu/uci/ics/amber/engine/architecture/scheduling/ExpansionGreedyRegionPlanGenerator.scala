@@ -2,11 +2,10 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
+import edu.uci.ics.amber.engine.common.model.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
-import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
-import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 import org.jgrapht.alg.connectivity.BiconnectivityInspector
 import org.jgrapht.graph.DirectedAcyclicGraph
 

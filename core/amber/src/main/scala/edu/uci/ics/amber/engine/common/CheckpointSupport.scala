@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.common
 
-import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
+import edu.uci.ics.amber.engine.common.model.tuple.TupleLike
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 
 trait CheckpointSupport {
