@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.dataset
 
-import edu.uci.ics.texera.Utils.withTransaction
+import edu.uci.ics.amber.engine.common.Utils.withTransaction
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.enums.DatasetUserAccessPrivilege
@@ -1087,22 +1087,34 @@ class DatasetResource {
     val streamingOutput = new StreamingOutput {
       override def write(outputStream: OutputStream): Unit = {
         Using(new ZipOutputStream(outputStream)) { zipOutputStream =>
-          fileNodes.asScala.foreach { fileNode =>
-            val zipEntryName = fileNode.getRelativePath.toString
-            val filePath = fileNode.getAbsolutePath
+          def addFileNodeToZip(fileNode: PhysicalFileNode): Unit = {
+            val relativePath = fileNode.getRelativePath.toString
 
-            try {
-              zipOutputStream.putNextEntry(new ZipEntry(zipEntryName))
-              Using(Files.newInputStream(filePath)) { inputStream =>
-                inputStream.transferTo(zipOutputStream)
-              }
-            } catch {
-              case e: IOException =>
-                throw new WebApplicationException(s"Error processing file: $zipEntryName", e)
-            } finally {
+            if (fileNode.isDirectory) {
+              // For directories, add a ZIP entry with a trailing slash
+              zipOutputStream.putNextEntry(new ZipEntry(relativePath + "/"))
               zipOutputStream.closeEntry()
+
+              // Recursively add children
+              fileNode.getChildren.asScala.foreach(addFileNodeToZip)
+            } else {
+              // For files, add the file content
+              try {
+                zipOutputStream.putNextEntry(new ZipEntry(relativePath))
+                Using(Files.newInputStream(fileNode.getAbsolutePath)) { inputStream =>
+                  inputStream.transferTo(zipOutputStream)
+                }
+              } catch {
+                case e: IOException =>
+                  throw new WebApplicationException(s"Error processing file: $relativePath", e)
+              } finally {
+                zipOutputStream.closeEntry()
+              }
             }
           }
+
+          // Start the recursive process for each root file node
+          fileNodes.asScala.foreach(addFileNodeToZip)
         }.recover {
           case e: IOException =>
             throw new WebApplicationException("Error creating ZIP output stream", e)
