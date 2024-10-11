@@ -19,7 +19,7 @@ describe("DownloadService", () => {
       "retrieveDatasetZip", // Add this method to the spy
     ]);
     const fileSaverSpy = jasmine.createSpyObj("FileSaverService", ["saveAs"]);
-    const notificationSpy = jasmine.createSpyObj("NotificationService", ["info", "error"]);
+    const notificationSpy = jasmine.createSpyObj("NotificationService", ["info", "success", "error"]);
     const workflowPersistSpy = jasmine.createSpyObj("WorkflowPersistService", ["getWorkflow"]);
 
     TestBed.configureTestingModule({
@@ -39,7 +39,7 @@ describe("DownloadService", () => {
     notificationServiceSpy = TestBed.inject(NotificationService) as jasmine.SpyObj<NotificationService>;
   });
 
-  it("should download a single file successfully", done => {
+  it("should download a single file successfully", (done: DoneFn) => {
     const filePath = "test/file.txt";
     const mockBlob = new Blob(["test content"], { type: "text/plain" });
 
@@ -51,11 +51,11 @@ describe("DownloadService", () => {
         expect(notificationServiceSpy.info).toHaveBeenCalledWith("Starting to download file test/file.txt");
         expect(datasetServiceSpy.retrieveDatasetVersionSingleFile).toHaveBeenCalledWith(filePath);
         expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledWith(mockBlob, "file.txt");
-        expect(notificationServiceSpy.info).toHaveBeenCalledWith("File test/file.txt has been downloaded");
+        expect(notificationServiceSpy.success).toHaveBeenCalledWith("File test/file.txt has been downloaded");
         done();
       },
       error: (error: unknown) => {
-        fail("Should not have thrown an error");
+        fail("Should not have thrown an error: " + error);
       },
     });
   });
@@ -96,7 +96,7 @@ describe("DownloadService", () => {
         );
         expect(datasetServiceSpy.retrieveDatasetZip).toHaveBeenCalledWith({ did: datasetId });
         expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledWith(mockBlob, "TestDataset.zip");
-        expect(notificationServiceSpy.info).toHaveBeenCalledWith(
+        expect(notificationServiceSpy.success).toHaveBeenCalledWith(
           "The latest version of the dataset has been downloaded as ZIP"
         );
         done();
@@ -147,7 +147,7 @@ describe("DownloadService", () => {
         expect(notificationServiceSpy.info).toHaveBeenCalledWith("Starting to download version v1.0 as ZIP");
         expect(datasetServiceSpy.retrieveDatasetZip).toHaveBeenCalledWith({ path: versionPath });
         expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledWith(mockBlob, "TestDataset-v1.0.zip");
-        expect(notificationServiceSpy.info).toHaveBeenCalledWith("Version v1.0 has been downloaded as ZIP");
+        expect(notificationServiceSpy.success).toHaveBeenCalledWith("Version v1.0 has been downloaded as ZIP");
         done();
       },
       error: (error: unknown) => {
@@ -197,7 +197,7 @@ describe("DownloadService", () => {
           mockBlob,
           jasmine.stringMatching(/^workflowExports-.*\.zip$/)
         );
-        expect(notificationServiceSpy.info).toHaveBeenCalledWith("Workflows have been downloaded as ZIP");
+        expect(notificationServiceSpy.success).toHaveBeenCalledWith("Workflows have been downloaded as ZIP");
         done();
       },
       error: (error: unknown) => {
