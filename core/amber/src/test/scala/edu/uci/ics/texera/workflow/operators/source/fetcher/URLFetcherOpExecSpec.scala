@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.source.fetcher
 
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
+import edu.uci.ics.amber.engine.common.model.tuple.Schema
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 

@@ -22,20 +22,20 @@ import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
 }
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
 import edu.uci.ics.amber.engine.common.ambermessage._
-import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
-import edu.uci.ics.amber.engine.common.tuple.amber.{
+import edu.uci.ics.amber.engine.common.executor.OperatorExecutor
+import edu.uci.ics.amber.engine.common.model.{EndOfInputChannel, StartOfInputChannel, State}
+import edu.uci.ics.amber.engine.common.model.tuple.{
   FinalizeExecutor,
   FinalizePort,
   SchemaEnforceable,
+  Tuple,
   TupleLike
 }
+import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.amber.error.ErrorUtils.{mkConsoleMessage, safely}
-import edu.uci.ics.texera.workflow.common.{EndOfInputChannel, StartOfInputChannel, State}
-import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 class DataProcessor(
     actorId: ActorVirtualIdentity,

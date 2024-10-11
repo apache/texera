@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
+import edu.uci.ics.amber.engine.common.model.tuple.Schema
 import edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 
 import scala.collection.mutable
 

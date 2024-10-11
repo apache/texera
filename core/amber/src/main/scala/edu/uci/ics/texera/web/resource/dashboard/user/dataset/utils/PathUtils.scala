@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils
 
-import edu.uci.ics.texera.Utils
+import edu.uci.ics.amber.engine.common.Utils
 import org.jooq.types.UInteger
 
 import java.nio.file.{Files, Path}
