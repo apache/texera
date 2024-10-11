@@ -14,7 +14,10 @@ import edu.uci.ics.texera.web.model.websocket.event.{
 import edu.uci.ics.texera.web.model.websocket.request.WorkflowExecuteRequest
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
-import edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState
+import edu.uci.ics.amber.engine.common.workflowruntimestate.{
+  ExecutionMetadataStore,
+  WorkflowAggregatedState
+}
 import edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState.{
   COMPLETED,
   FAILED,
@@ -23,6 +26,7 @@ import edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedSt
 import edu.uci.ics.texera.web.{SubscriptionManager, TexeraWebApplication, WebsocketInput}
 import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, WorkflowCompiler}
 
+import java.net.URI
 import scala.collection.mutable
 
 class WorkflowExecutionService(
@@ -32,34 +36,49 @@ class WorkflowExecutionService(
     request: WorkflowExecuteRequest,
     val executionStateStore: ExecutionStateStore,
     errorHandler: Throwable => Unit,
-    lastCompletedLogicalPlan: Option[LogicalPlan]
+    lastCompletedLogicalPlan: Option[LogicalPlan],
+    userEmailOpt: Option[String],
+    sessionUri: URI
 ) extends SubscriptionManager
     with LazyLogging {
 
-  logger.info("Creating a new execution.")
-  workflowContext.workflowSettings = request.workflowSettings
-
   val wsInput = new WebsocketInput(errorHandler)
+
+  private val emailNotifier = new WorkflowEmailNotifier(
+    workflowContext.workflowId.id,
+    userEmailOpt.get,
+    sessionUri
+  )
+
+  private val emailNotificationService = new EmailNotificationService(emailNotifier)
 
   addSubscription(
     executionStateStore.metadataStore.registerDiffHandler((oldState, newState) => {
       val outputEvents = new mutable.ArrayBuffer[TexeraWebSocketEvent]()
-      // Update workflow state
+
       if (newState.state != oldState.state || newState.isRecovering != oldState.isRecovering) {
-        // Check if is recovering
-        if (newState.isRecovering && newState.state != COMPLETED) {
-          outputEvents.append(WorkflowStateEvent("Recovering"))
-        } else {
-          outputEvents.append(WorkflowStateEvent(Utils.aggregatedStateToString(newState.state)))
+        outputEvents.append(createStateEvent(newState))
+
+        if (request.emailNotificationEnabled) {
+          emailNotificationService.sendEmailNotification(oldState.state, newState.state)
         }
       }
-      // Check if new error occurred
+
       if (newState.fatalErrors != oldState.fatalErrors) {
         outputEvents.append(WorkflowErrorEvent(newState.fatalErrors))
       }
+
       outputEvents
     })
   )
+
+  private def createStateEvent(state: ExecutionMetadataStore): WorkflowStateEvent = {
+    if (state.isRecovering && state.state != COMPLETED) {
+      WorkflowStateEvent("Recovering")
+    } else {
+      WorkflowStateEvent(Utils.aggregatedStateToString(state.state))
+    }
+  }
 
   var workflow: Workflow = _
 
@@ -128,6 +147,7 @@ class WorkflowExecutionService(
       executionStatsService.unsubscribeAll()
       executionReconfigurationService.unsubscribeAll()
     }
+    emailNotificationService.shutdown()
   }
 
 }

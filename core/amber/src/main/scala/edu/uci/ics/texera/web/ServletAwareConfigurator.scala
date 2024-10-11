@@ -41,7 +41,7 @@ class ServletAwareConfigurator extends ServerEndpointConfig.Configurator with La
             new User(
               UInteger.valueOf(claims.getClaimValue("userId").asInstanceOf[Long]),
               claims.getSubject,
-              null,
+              String.valueOf(claims.getClaimValue("email").asInstanceOf[String]),
               null,
               null,
               null,
