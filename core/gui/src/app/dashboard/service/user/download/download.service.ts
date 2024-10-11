@@ -8,6 +8,11 @@ import { WorkflowPersistService } from "src/app/common/service/workflow-persist/
 import * as JSZip from "jszip";
 import { Workflow } from "../../../../common/type/workflow";
 
+interface DownloadableItem {
+  blob: Blob;
+  fileName: string;
+}
+
 @Injectable({
   providedIn: "root",
 })
@@ -19,7 +24,7 @@ export class DownloadService {
     private workflowPersistService: WorkflowPersistService
   ) {}
 
-  downloadWorkflow(id: number, name: string): Observable<{ blob: Blob; fileName: string }> {
+  downloadWorkflow(id: number, name: string): Observable<DownloadableItem> {
     return this.workflowPersistService.retrieveWorkflow(id).pipe(
       map(({ wid, creationTime, lastModifiedTime, ...workflowCopy }) => {
         const workflowJson = JSON.stringify({ ...workflowCopy, readonly: false });
@@ -27,7 +32,7 @@ export class DownloadService {
         const blob = new Blob([workflowJson], { type: "text/plain;charset=utf-8" });
         return { blob, fileName };
       }),
-      tap(({ blob, fileName }) => this.fileSaverService.saveAs(blob, fileName))
+      tap(this.saveFile.bind(this))
     );
   }
 
@@ -105,14 +110,18 @@ export class DownloadService {
     this.notificationService.info(startMessage);
     return retrieveFunction().pipe(
       tap(blob => {
-        this.fileSaverService.saveAs(blob, fileName);
-        this.notificationService.info(successMessage);
+        this.saveFile({ blob, fileName });
+        this.notificationService.success(successMessage);
       }),
       catchError((error: unknown) => {
         this.notificationService.error(errorMessage);
         return throwError(() => error);
       })
     );
+  }
+
+  private saveFile({ blob, fileName }: DownloadableItem): void {
+    this.fileSaverService.saveAs(blob, fileName);
   }
 
   public downloadOperatorsResult(
