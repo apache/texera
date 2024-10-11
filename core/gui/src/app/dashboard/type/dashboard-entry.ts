@@ -76,7 +76,7 @@ export class DashboardEntry {
       this.ownerEmail = value.ownerEmail;
       this.ownerGoogleAvatar = "";
       this.ownerId = value.dataset.ownerUid;
-      this.size = value.dataset.size;
+      this.size = value.size;
     } else {
       throw new Error("Unexpected type in DashboardEntry.");
     }

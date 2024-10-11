@@ -40,6 +40,7 @@ import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{
   ERR_DATASET_NAME_ALREADY_EXISTS,
   ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE,
   ListDatasetsResponse,
+  calculateDatasetSize,
   context,
   createNewDatasetVersionFromFormData,
   getDashboardDataset,
@@ -57,7 +58,10 @@ import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.{
   PhysicalFileNode
 }
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.service.GitVersionControlLocalFileStorage
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.PathUtils
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.{
+  DatasetStatisticsUtils,
+  PathUtils
+}
 import io.dropwizard.auth.Auth
 import org.apache.commons.lang3.StringUtils
 import org.glassfish.jersey.media.multipart.{FormDataMultiPart, FormDataParam}
@@ -236,7 +240,8 @@ object DatasetResource {
       getOwner(ctx, did).getEmail,
       userAccessPrivilege,
       targetDataset.getOwnerUid == uid,
-      List()
+      List(),
+      calculateDatasetSize(did)
     )
   }
 
@@ -529,7 +534,8 @@ object DatasetResource {
           dataset = dataset,
           accessPrivilege = DatasetUserAccessPrivilege.READ,
           versions = List(),
-          ownerEmail = ownerEmail
+          ownerEmail = ownerEmail,
+          size = calculateDatasetSize(dataset.getDid)
         )
       })
   }
@@ -539,7 +545,8 @@ object DatasetResource {
       ownerEmail: String,
       accessPrivilege: EnumType,
       isOwner: Boolean,
-      versions: List[DashboardDatasetVersion]
+      versions: List[DashboardDatasetVersion],
+      size: Long
   )
 
   case class ListDatasetsResponse(
@@ -561,6 +568,11 @@ object DatasetResource {
   case class DatasetNameModification(did: UInteger, name: String)
 
   case class DatasetDescriptionModification(did: UInteger, description: String)
+
+  // Use the helper method from DatasetStatisticsUtils
+  private def calculateDatasetSize(did: UInteger): Long = {
+    DatasetStatisticsUtils.calculateDatasetSize(did)
+  }
 }
 
 @Produces(Array(MediaType.APPLICATION_JSON, "image/jpeg", "application/pdf"))
@@ -637,7 +649,8 @@ class DatasetResource {
         user.getEmail,
         DatasetUserAccessPrivilege.WRITE,
         isOwner = true,
-        versions = List()
+        versions = List(),
+        size = calculateDatasetSize(did)
       )
     }
   }
@@ -804,7 +817,8 @@ class DatasetResource {
               datasetVersion = version,
               fileNodes = List()
             )
-          )
+          ),
+          size = calculateDatasetSize(dataset.getDid)
         )
       } else {
         // first fetch all datasets user have explicit access to
@@ -829,7 +843,8 @@ class DatasetResource {
                 dataset = dataset,
                 accessPrivilege = datasetAccess.getPrivilege,
                 versions = List(),
-                ownerEmail = ownerEmail
+                ownerEmail = ownerEmail,
+                size = calculateDatasetSize(dataset.getDid)
               )
             })
         )
@@ -843,7 +858,8 @@ class DatasetResource {
               dataset = publicDataset.dataset,
               ownerEmail = publicDataset.ownerEmail,
               accessPrivilege = DatasetUserAccessPrivilege.READ,
-              versions = List()
+              versions = List(),
+              size = calculateDatasetSize(publicDataset.dataset.getDid)
             )
             accessibleDatasets = accessibleDatasets :+ dashboardDataset
           }
@@ -854,6 +870,7 @@ class DatasetResource {
       // iterate over datasets and retrieve the version
       accessibleDatasets = accessibleDatasets.map { dataset =>
         val did = dataset.dataset.getDid
+        val size = DatasetResource.calculateDatasetSize(did)
 
         DashboardDataset(
           isOwner = dataset.isOwner,
@@ -881,7 +898,8 @@ class DatasetResource {
             }
           } else {
             dataset.versions
-          }
+          },
+          size = calculateDatasetSize(did)
         )
       }
 
@@ -990,7 +1008,9 @@ class DatasetResource {
   ): DashboardDataset = {
     val uid = user.getUid
     withTransaction(context)(ctx => {
-      getDashboardDataset(ctx, did, uid)
+      val dashboardDataset = getDashboardDataset(ctx, did, uid)
+      val size = DatasetResource.calculateDatasetSize(did)
+      dashboardDataset.copy(size = size)
     })
   }
 

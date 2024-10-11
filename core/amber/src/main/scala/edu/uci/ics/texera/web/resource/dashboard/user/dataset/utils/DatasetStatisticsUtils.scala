@@ -46,7 +46,7 @@ object DatasetStatisticsUtils {
       )
       .toList
   }
-  private def getFolderSize(folderPath: Path): Long = {
+  def getFolderSize(folderPath: Path): Long = {
     val walk = Files.walk(folderPath)
     try {
       walk
@@ -65,5 +65,10 @@ object DatasetStatisticsUtils {
       val size = getFolderSize(datasetPath)
       dataset.copy(size = size)
     }
+  }
+
+  def calculateDatasetSize(did: UInteger): Long = {
+    val datasetPath = PathUtils.getDatasetPath(did)
+    getFolderSize(datasetPath)
   }
 }

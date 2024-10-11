@@ -19,5 +19,4 @@ export interface Dataset {
   description: string;
   creationTime: number | undefined;
   versionHierarchy: DatasetVersion[] | undefined;
-  size: number | undefined;
 }
