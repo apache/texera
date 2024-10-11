@@ -22,7 +22,7 @@ import { SearchService } from "../../../service/user/search.service";
 import { SortMethod } from "../../../type/sort-method";
 import { isDefined } from "../../../../common/util/predicate";
 import { UserProjectService } from "../../../service/user/project/user-project.service";
-import { catchError, map, mergeMap, switchMap, tap } from "rxjs/operators";
+import { map, mergeMap, switchMap, tap } from "rxjs/operators";
 import { environment } from "../../../../../environments/environment";
 import { DashboardWorkflow } from "../../../type/dashboard-workflow.interface";
 /**
@@ -355,8 +355,7 @@ export class UserWorkflowComponent implements AfterViewInit {
     return upload$.pipe(
       switchMap(() => from(this.search(true))),
       tap(() => this.notificationService.success("Upload Successful")),
-      map(() => true),
-      catchError(() => of(false))
+      switchMap(() => of(false))
     );
   };
 
@@ -409,7 +408,6 @@ export class UserWorkflowComponent implements AfterViewInit {
                   ...this.searchResultsComponent.entries,
                   new DashboardEntry(uploadedWorkflow),
                 ];
-                this.notificationService.success("Upload Workflow Successful");
                 observer.next();
                 observer.complete();
               },
