@@ -1,7 +1,7 @@
 import { AfterViewInit, Component, Input, OnInit, ViewChild } from "@angular/core";
 import { ActivatedRoute, Router } from "@angular/router";
 import { NzModalService } from "ng-zorro-antd/modal";
-import { firstValueFrom, of } from "rxjs";
+import { firstValueFrom, from, lastValueFrom, Observable, of } from "rxjs";
 import {
   DEFAULT_WORKFLOW_NAME,
   WorkflowPersistService,
@@ -12,19 +12,19 @@ import { DashboardEntry, UserInfo } from "../../../type/dashboard-entry";
 import { UserService } from "../../../../common/service/user/user.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
-import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
+import { WorkflowContent } from "../../../../common/type/workflow";
 import { NzUploadFile } from "ng-zorro-antd/upload";
 import * as JSZip from "jszip";
-import { FileSaverService } from "../../../service/user/file/file-saver.service";
 import { FiltersComponent } from "../filters/filters.component";
 import { SearchResultsComponent } from "../search-results/search-results.component";
 import { SearchService } from "../../../service/user/search.service";
 import { SortMethod } from "../../../type/sort-method";
 import { isDefined } from "../../../../common/util/predicate";
 import { UserProjectService } from "../../../service/user/project/user-project.service";
-import { map, mergeMap, tap } from "rxjs/operators";
+import { map, mergeMap, switchMap, tap } from "rxjs/operators";
 import { environment } from "../../../../../environments/environment";
 import { DashboardWorkflow } from "../../../type/dashboard-workflow.interface";
+import { DownloadService } from "../../../service/user/download/download.service";
 /**
  * Saved-workflow-section component contains information and functionality
  * of the saved workflows section and is re-used in the user projects section when a project is clicked
@@ -98,7 +98,7 @@ export class UserWorkflowComponent implements AfterViewInit, OnInit {
     private notificationService: NotificationService,
     private modalService: NzModalService,
     private router: Router,
-    private fileSaverService: FileSaverService,
+    private downloadService: DownloadService,
     private searchService: SearchService
   ) {
     this.userService
@@ -350,113 +350,112 @@ export class UserWorkflowComponent implements AfterViewInit, OnInit {
   /**
    * Verify Uploaded file name and upload the file
    */
-  public onClickUploadExistingWorkflowFromLocal = (file: NzUploadFile): boolean => {
+  public onClickUploadExistingWorkflowFromLocal = (file: NzUploadFile): Observable<boolean> => {
     const fileExtensionIndex = file.name.lastIndexOf(".");
+
+    let upload$: Observable<void>;
     if (file.name.substring(fileExtensionIndex) === ".zip") {
-      this.handleZipUploads(file as unknown as Blob);
+      upload$ = this.handleZipUploads(file as unknown as Blob);
     } else {
-      this.handleFileUploads(file as unknown as Blob, file.name);
+      upload$ = this.handleFileUploads(file as unknown as Blob, file.name);
     }
-    return false;
+
+    return upload$.pipe(
+      switchMap(() => from(this.search(true))),
+      tap(() => this.notificationService.success("Upload Successful")),
+      switchMap(() => of(false))
+    );
   };
 
   /**
    * process .zip file uploads
    */
-  private handleZipUploads(zipFile: Blob) {
+  private handleZipUploads(zipFile: Blob): Observable<void> {
     let zip = new JSZip();
-    zip.loadAsync(zipFile).then(zip => {
-      zip.forEach((relativePath, file) => {
-        file.async("blob").then(content => {
-          this.handleFileUploads(content, relativePath);
-        });
-      });
-    });
+    return from(zip.loadAsync(zipFile)).pipe(
+      switchMap(zip =>
+        from(
+          Promise.all(
+            Object.keys(zip.files).map(relativePath =>
+              zip.files[relativePath]
+                .async("blob")
+                .then(content => lastValueFrom(this.handleFileUploads(content, relativePath)))
+            )
+          )
+        )
+      ),
+      map(() => undefined)
+    );
   }
 
   /**
    * Process .json file uploads
    */
-  private handleFileUploads(file: Blob, name: string) {
-    let reader = new FileReader();
-    reader.readAsText(file);
-    reader.onload = () => {
-      try {
-        const result = reader.result;
-        if (typeof result !== "string") {
-          throw new Error("Incorrect format: file is not a string");
+  private handleFileUploads(file: Blob, name: string): Observable<void> {
+    return new Observable<void>(observer => {
+      let reader = new FileReader();
+      reader.readAsText(file);
+      reader.onload = () => {
+        try {
+          const result = reader.result;
+          if (typeof result !== "string") {
+            throw new Error("Incorrect format: file is not a string");
+          }
+          const workflowContent = JSON.parse(result) as WorkflowContent;
+          const fileExtensionIndex = name.lastIndexOf(".");
+          let workflowName = fileExtensionIndex === -1 ? name : name.substring(0, fileExtensionIndex);
+          if (workflowName.trim() === "") {
+            workflowName = DEFAULT_WORKFLOW_NAME;
+          }
+          this.workflowPersistService
+            .createWorkflow(workflowContent, workflowName)
+            .pipe(untilDestroyed(this))
+            .subscribe({
+              next: uploadedWorkflow => {
+                this.searchResultsComponent.entries = [
+                  ...this.searchResultsComponent.entries,
+                  new DashboardEntry(uploadedWorkflow),
+                ];
+                observer.next();
+                observer.complete();
+              },
+              error: (err: unknown) => {
+                observer.error(err);
+              },
+            });
+        } catch (error) {
+          this.notificationService.error(
+            "An error occurred when importing the workflow. Please import a workflow json file."
+          );
+          observer.error(error);
         }
-        const workflowContent = JSON.parse(result) as WorkflowContent;
-        const fileExtensionIndex = name.lastIndexOf(".");
-        let workflowName: string;
-        if (fileExtensionIndex === -1) {
-          workflowName = name;
-        } else {
-          workflowName = name.substring(0, fileExtensionIndex);
-        }
-        if (workflowName.trim() === "") {
-          workflowName = DEFAULT_WORKFLOW_NAME;
-        }
-        this.workflowPersistService
-          .createWorkflow(workflowContent, workflowName)
-          .pipe(untilDestroyed(this))
-          .subscribe({
-            next: uploadedWorkflow => {
-              this.searchResultsComponent.entries = [
-                ...this.searchResultsComponent.entries,
-                new DashboardEntry(uploadedWorkflow),
-              ];
-            },
-            error: (err: unknown) => alert(err),
-          });
-      } catch (error) {
-        this.notificationService.error(
-          "An error occurred when importing the workflow. Please import a workflow json file."
-        );
-      }
-    };
+      };
+    });
   }
 
   /**
    * Download selected workflow as zip file
    */
-  public async onClickOpenDownloadZip() {
+  public onClickOpenDownloadZip(): void {
     const checkedEntries = this.searchResultsComponent.entries.filter(i => i.checked);
-    if (checkedEntries.length > 0) {
-      const zip = new JSZip();
-      try {
-        for (const entry of checkedEntries) {
-          if (!entry.workflow) {
-            throw new Error(
-              "Incorrect type of DashboardEntry provided to onClickOpenDownloadZip. Entry must be workflow."
-            );
-          }
-          const fileName = this.nameWorkflow(entry.workflow.workflow.name, zip) + ".json";
-          if (entry.workflow.workflow.wid) {
-            const workflowCopy: Workflow = {
-              ...(await firstValueFrom(
-                this.workflowPersistService.retrieveWorkflow(entry.workflow.workflow.wid).pipe(untilDestroyed(this))
-              )),
-              wid: undefined,
-              creationTime: undefined,
-              lastModifiedTime: undefined,
-              readonly: false,
-            };
-            const workflowJson = JSON.stringify(workflowCopy.content);
-            zip.file(fileName, workflowJson);
-          }
-        }
-      } catch (e) {
-        this.notificationService.error(`Workflow download failed. ${(e as Error).message}`);
-      }
-      let dateTime = new Date();
-      let filename = "workflowExports-" + dateTime.toISOString() + ".zip";
-      const content = await zip.generateAsync({ type: "blob" });
-      this.fileSaverService.saveAs(content, filename);
-      for (const entry of checkedEntries) {
-        entry.checked = false;
-      }
+    if (checkedEntries.length === 0) {
+      return;
     }
+
+    const workflowEntries = checkedEntries.map(entry => ({
+      id: entry.workflow.workflow.wid!,
+      name: entry.workflow.workflow.name,
+    }));
+
+    this.downloadService
+      .downloadWorkflowsAsZip(workflowEntries)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => {
+          checkedEntries.forEach(entry => (entry.checked = false));
+        },
+        error: (err: unknown) => console.error("Error downloading workflows:", err),
+      });
   }
 
   public onClickDuplicateSelectedWorkflows(): void {

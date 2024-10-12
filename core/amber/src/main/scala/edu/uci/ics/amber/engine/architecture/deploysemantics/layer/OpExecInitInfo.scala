@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.deploysemantics.layer
 
-import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
+import edu.uci.ics.amber.engine.common.executor.OperatorExecutor
 import edu.uci.ics.texera.workflow.operators.udf.java.JavaRuntimeCompilation
 
 object OpExecInitInfo {

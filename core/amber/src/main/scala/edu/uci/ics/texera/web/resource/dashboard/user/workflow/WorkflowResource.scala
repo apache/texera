@@ -45,6 +45,14 @@ object WorkflowResource {
   )
   final private lazy val workflowOfProjectDao = new WorkflowOfProjectDao(context.configuration)
 
+  def getWorkflowName(wid: UInteger): String = {
+    val workflow = workflowDao.fetchOneByWid(wid)
+    if (workflow == null) {
+      throw new NotFoundException(s"Workflow with id $wid not found")
+    }
+    workflow.getName
+  }
+
   private def insertWorkflow(workflow: Workflow, user: User): Unit = {
     workflowDao.insert(workflow)
     workflowOfUserDao.insert(new WorkflowOfUser(user.getUid, workflow.getWid))
