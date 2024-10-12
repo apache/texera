@@ -137,6 +137,7 @@ import { GoogleLoginComponent } from "./dashboard/component/user/google-login/go
 import { HubWorkflowComponent } from "./hub/component/workflow/hub-workflow.component";
 import { HubWorkflowDetailComponent } from "./hub/component/workflow/detail/hub-workflow-detail.component";
 import { LandingPageComponent } from "./hub/component/landing-page/landing-page.component";
+import { BrowseSectionComponent } from "./hub/component/browse-section/browse-section.component";
 
 registerLocaleData(en);
 
@@ -224,6 +225,7 @@ registerLocaleData(en);
     HubWorkflowDetailComponent,
     GoogleLoginComponent,
     LandingPageComponent,
+    BrowseSectionComponent,
   ],
   imports: [
     BrowserModule,
