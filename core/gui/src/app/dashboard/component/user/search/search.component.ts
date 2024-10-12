@@ -64,19 +64,14 @@ export class SearchComponent implements AfterViewInit {
       if (keyword) {
         this.searchParam = keyword;
         this.updateMasterFilterList();
-      } else {
-        this.filters.masterFilterList = [];
-        this.search();
       }
     });
-    console.log(this.filters.getSearchKeywords());
   }
 
   async search(): Promise<void> {
     // if (this.filters.masterFilterList.length === 0) {
     //   return;
     // }
-    console.log(this.filters.getSearchKeywords());
     const sameList =
       this.filters.masterFilterList.length === this.masterFilterList.length &&
       this.filters.masterFilterList.every((v, i) => v === this.masterFilterList[i]);

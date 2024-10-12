@@ -18,19 +18,22 @@ export class LandingPageComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    console.log("in init")
     this.getWorkflowCount();
   }
 
   getWorkflowCount(): void {
+    console.log("in get count")
     this.hubWorkflowService
       .getWorkflowCount()
-      .pipe(untilDestroyed(this))
+      // eslint-disable-next-line rxjs-angular/prefer-takeuntil
       .subscribe((count: number) => {
         this.workflowCount = count;
+        console.log("after count")
       });
   }
 
   navigateToSearch(): void {
-    this.router.navigate(["/dashboard/search"], { queryParams: { q: "" } });
+    this.router.navigate(["/dashboard/hub/workflow/result"]);
   }
 }
