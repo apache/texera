@@ -559,11 +559,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
         };
       }
 
-      try {
-        this.wrapper.initAndStart(userConfig, this.editorElement.nativeElement);
-      } catch (e) {
-        console.error("Error during Monaco Editor initialization:", e);
-      }
+      this.wrapper.initAndStart(userConfig, this.editorElement.nativeElement);
     }
   }
 
