@@ -1,36 +1,57 @@
-.landing-page-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  height: 100vh;
-  text-align: center;
-  padding-top: 50px;
-  background-color: #f0f2f5;
-}
-
-.title-text {
-  margin-bottom: 20px;
-}
-
-.title-text h2 {
-  font-size: 2.5rem;
-  margin-bottom: 10px;
-}
-
-.title-text p {
-  font-size: 1.25rem;
-  color: #555;
-}
-
 .search-bar-wrapper {
-  width: 80%;
+  width: 100%;
   max-width: 1200px;
   margin-bottom: 40px;
 }
 
-.underline-link {
-  text-decoration: underline;
-  color: blue;
-  cursor: pointer;
+.landing-page-container {
+  display: flex;
+  flex-direction: column;
+  padding: 32px 20px 0 20px;
+  align-items: center;
+  height: 100%;
+  width: 100%;
 }
+
+.search-bar {
+  max-width: 1200px;
+  width: 100%;
+}
+
+.section-intro {
+  max-width: 1200px;
+  margin-top: 20px;
+  padding: 20px 0;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.section-intro-text {
+  max-width: 500px;
+}
+
+.section-intro-text > h1 {
+  font-size: 40px;
+  font-weight: bold;
+  margin: 0;
+}
+
+.section-intro-text > p {
+  color: grey;
+  font-size: 13px;
+  font-weight: 300;
+  margin-bottom: 20px;
+}
+
+.section-intro-img {
+  max-height: 176px;
+}
+
+.browse-section {
+  max-width: 1200px;
+  width: 100%;
+  padding-bottom: 40px;
+}
+

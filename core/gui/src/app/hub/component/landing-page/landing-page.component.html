@@ -1,17 +1,22 @@
 <div class="landing-page-container">
-  <div class="title-text">
-    <h2>Welcome to Texera!</h2>
-    <p>Start your search journey with our powerful tools.</p>
-    <p>
-      There are
-      <a
-        href="javascript:void(0)"
-        (click)="navigateToSearch()"
-        class="underline-link">
-        {{ workflowCount }} workflows
-      </a>
-      available.
-    </p>
+  <div class="section-intro">
+
+    <div class="section-intro-text">
+      <h1>Texera Hub</h1>
+      <p>
+        Join our community to explore public workflows, collaborate with others, and enhance your data analytics
+        capabilities. Access
+        <a href="javascript:void(0)" (click)="navigateToSearch()">
+          {{workflowCount}} workflows
+        </a>
+        provided by Texera and our community.
+      </p>
+    </div>
+
+    <img
+      class="section-intro-img"
+      src="../../../../../assets/svg/hub_icon.svg"
+      alt="hub icon" />
   </div>
 
   <!-- Search Bar -->
