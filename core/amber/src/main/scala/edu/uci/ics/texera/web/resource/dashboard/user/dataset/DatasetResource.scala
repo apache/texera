@@ -4,15 +4,61 @@ import edu.uci.ics.amber.engine.common.Utils.withTransaction
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.enums.DatasetUserAccessPrivilege
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{DatasetDao, DatasetUserAccessDao, DatasetVersionDao}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{Dataset, DatasetUserAccess, DatasetVersion, User}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
+  DatasetDao,
+  DatasetUserAccessDao,
+  DatasetVersionDao
+}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{
+  Dataset,
+  DatasetUserAccess,
+  DatasetVersion,
+  User
+}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset.DATASET
 import edu.uci.ics.texera.web.model.jooq.generated.tables.User.USER
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetVersion.DATASET_VERSION
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetAccessResource.{getDatasetUserAccessPrivilege, getOwner, userHasReadAccess, userHasWriteAccess, userOwnDataset}
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{DATASET_IS_PRIVATE, DATASET_IS_PUBLIC, DashboardDataset, DashboardDatasetVersion, DatasetDescriptionModification, DatasetIDs, DatasetNameModification, DatasetVersionRootFileNodes, DatasetVersionRootFileNodesResponse, DatasetVersions, ERR_DATASET_CREATION_FAILED_MESSAGE, ERR_DATASET_NAME_ALREADY_EXISTS, ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE, ListDatasetsResponse, calculateDatasetSize, calculateDatasetVersionSize, context, createNewDatasetVersionFromFormData, getDashboardDataset, getDatasetByID, getDatasetVersionByID, getDatasetVersions, getFileNodesOfCertainVersion, getLatestDatasetVersionWithAccessCheck, getUserDatasets, resolvePath, retrievePublicDatasets}
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.{DatasetFileNode, PhysicalFileNode}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetAccessResource.{
+  getDatasetUserAccessPrivilege,
+  getOwner,
+  userHasReadAccess,
+  userHasWriteAccess,
+  userOwnDataset
+}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{
+  DATASET_IS_PRIVATE,
+  DATASET_IS_PUBLIC,
+  DashboardDataset,
+  DashboardDatasetVersion,
+  DatasetDescriptionModification,
+  DatasetIDs,
+  DatasetNameModification,
+  DatasetVersionRootFileNodes,
+  DatasetVersionRootFileNodesResponse,
+  DatasetVersions,
+  ERR_DATASET_CREATION_FAILED_MESSAGE,
+  ERR_DATASET_NAME_ALREADY_EXISTS,
+  ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE,
+  ListDatasetsResponse,
+  calculateDatasetSize,
+  calculateDatasetVersionSize,
+  context,
+  createNewDatasetVersionFromFormData,
+  getDashboardDataset,
+  getDatasetByID,
+  getDatasetVersionByID,
+  getDatasetVersions,
+  getFileNodesOfCertainVersion,
+  getLatestDatasetVersionWithAccessCheck,
+  getUserDatasets,
+  resolvePath,
+  retrievePublicDatasets
+}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.{
+  DatasetFileNode,
+  PhysicalFileNode
+}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.service.GitVersionControlLocalFileStorage
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.PathUtils
 import io.dropwizard.auth.Auth
@@ -30,7 +76,19 @@ import java.util.zip.{ZipEntry, ZipOutputStream}
 import java.util
 import java.util.concurrent.locks.ReentrantLock
 import javax.annotation.security.RolesAllowed
-import javax.ws.rs.{BadRequestException, Consumes, ForbiddenException, GET, NotFoundException, POST, Path, PathParam, Produces, QueryParam, WebApplicationException}
+import javax.ws.rs.{
+  BadRequestException,
+  Consumes,
+  ForbiddenException,
+  GET,
+  NotFoundException,
+  POST,
+  Path,
+  PathParam,
+  Produces,
+  QueryParam,
+  WebApplicationException
+}
 import javax.ws.rs.core.{MediaType, Response, StreamingOutput}
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable
@@ -562,7 +620,10 @@ object DatasetResource {
     }
   }
 
-  case class DatasetVersionRootFileNodesResponse(rootFileNodes: DatasetVersionRootFileNodes, size: Long)
+  case class DatasetVersionRootFileNodesResponse(
+      rootFileNodes: DatasetVersionRootFileNodes,
+      size: Long
+  )
 }
 
 @Produces(Array(MediaType.APPLICATION_JSON, "image/jpeg", "application/pdf"))
@@ -982,7 +1043,7 @@ class DatasetResource {
           Map((dataset.ownerEmail, datasetName, datasetVersion.getName) -> fileNodes.toList)
         )
         .head
-      
+
       DatasetVersionRootFileNodesResponse(
         DatasetVersionRootFileNodes(
           getFileNodesOfCertainVersion(ownerFileNode, datasetName, datasetVersion.getName)
