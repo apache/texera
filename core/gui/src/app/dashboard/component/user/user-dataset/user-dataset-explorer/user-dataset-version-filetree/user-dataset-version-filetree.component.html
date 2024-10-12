@@ -18,6 +18,7 @@
           nzType="file"
           nzTheme="outline"></i>
         {{ node.data.name }}
+        <span *ngIf="!node.data.children"> ({{ node.data.size }} KB) </span>
         <button
           nz-button
           nzType="link"

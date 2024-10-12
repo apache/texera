@@ -226,6 +226,7 @@ export class UserDatasetExplorerComponent implements OnInit {
             currentNode = currentNode.children[0];
           }
           this.loadFileContent(currentNode);
+          console.log(currentNode.size);
         });
   }
 
