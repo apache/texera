@@ -519,46 +519,37 @@ object DatasetResource {
 
   case class DatasetDescriptionModification(did: UInteger, description: String)
 
-  def calculateDatasetVersionSize(did: UInteger, dvid: UInteger): Long = {
+  private def calculateSize(did: UInteger, versionHash: Option[String] = None): Long = {
     Try {
-      val datasetVersion = getDatasetVersionByID(context, dvid)
-      val versionHash = datasetVersion.getVersionHash
       val datasetPath = PathUtils.getDatasetPath(did)
+      val hash = versionHash.getOrElse {
+        fetchLatestDatasetVersionInternal(context, did)
+          .map(_.getVersionHash)
+          .getOrElse(throw new NoSuchElementException("No versions found for this dataset"))
+      }
 
       val fileNodes = GitVersionControlLocalFileStorage.retrieveRootFileNodesOfVersion(
         datasetPath,
-        versionHash
+        hash
       )
 
       calculateSizeFromPhysicalNodes(fileNodes)
     } match {
       case Success(size) => size
       case Failure(exception) =>
-        println(s"Error calculating dataset version size: ${exception.getMessage}")
+        val errorMessage = versionHash.map(_ => "dataset version").getOrElse("dataset")
+        println(s"Error calculating $errorMessage size: ${exception.getMessage}")
         0L
     }
   }
 
+  def calculateDatasetVersionSize(did: UInteger, dvid: UInteger): Long = {
+    val versionHash = getDatasetVersionByID(context, dvid).getVersionHash
+    calculateSize(did, Some(versionHash))
+  }
+
   def calculateDatasetSize(did: UInteger): Long = {
-    Try {
-      val latestVersion = fetchLatestDatasetVersionInternal(context, did)
-        .map(_.getVersionHash)
-        .getOrElse(throw new NoSuchElementException("No versions found for this dataset"))
-
-      val datasetPath = PathUtils.getDatasetPath(did)
-
-      val fileNodes = GitVersionControlLocalFileStorage.retrieveRootFileNodesOfVersion(
-        datasetPath,
-        latestVersion
-      )
-
-      calculateSizeFromPhysicalNodes(fileNodes)
-    } match {
-      case Success(size) => size
-      case Failure(exception) =>
-        println(s"Error calculating dataset size: ${exception.getMessage}")
-        0L
-    }
+    calculateSize(did)
   }
 
   private def calculateSizeFromPhysicalNodes(nodes: java.util.Set[PhysicalFileNode]): Long = {
