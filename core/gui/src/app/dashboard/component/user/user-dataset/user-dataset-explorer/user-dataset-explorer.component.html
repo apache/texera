@@ -24,7 +24,14 @@
     <nz-card *ngIf="isDisplayingDataset()">
       <div style="display: flex; justify-content: space-between; align-items: center">
         <div>
-          <h3 class="file-title"><b>{{currentDisplayedFileName}}</b></h3>
+          <h3 class="file-title">
+            <b>{{currentDisplayedFileName}}</b>
+            <span
+              class="file-size"
+              *ngIf="currentFileSize">
+              {{ formatSize(currentFileSize) }}
+            </span>
+          </h3>
         </div>
         <div style="display: flex">
           <button

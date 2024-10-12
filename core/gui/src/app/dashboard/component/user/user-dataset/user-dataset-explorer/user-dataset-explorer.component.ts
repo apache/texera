@@ -8,6 +8,7 @@ import { DatasetVersion } from "../../../../../common/type/dataset";
 import { switchMap } from "rxjs/operators";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { DownloadService } from "../../../../service/user/download/download.service";
+import { formatSize } from "src/app/common/util/size-formatter.util";
 
 @UntilDestroy()
 @Component({
@@ -23,6 +24,7 @@ export class UserDatasetExplorerComponent implements OnInit {
   public userDatasetAccessLevel: "READ" | "WRITE" | "NONE" = "NONE";
 
   public currentDisplayedFileName: string = "";
+  public currentFileSize: number | undefined;
 
   public isRightBarCollapsed = false;
   public isMaximized = false;
@@ -181,6 +183,7 @@ export class UserDatasetExplorerComponent implements OnInit {
 
   loadFileContent(node: DatasetFileNode) {
     this.currentDisplayedFileName = getFullPathFromDatasetFileNode(node);
+    this.currentFileSize = node.size;
   }
 
   onClickDownloadCurrentFile = (): void => {
@@ -226,7 +229,6 @@ export class UserDatasetExplorerComponent implements OnInit {
             currentNode = currentNode.children[0];
           }
           this.loadFileContent(currentNode);
-          console.log(currentNode.size);
         });
   }
 
@@ -241,4 +243,6 @@ export class UserDatasetExplorerComponent implements OnInit {
   userHasWriteAccess(): boolean {
     return this.userDatasetAccessLevel == "WRITE";
   }
+
+  formatSize = formatSize;
 }
