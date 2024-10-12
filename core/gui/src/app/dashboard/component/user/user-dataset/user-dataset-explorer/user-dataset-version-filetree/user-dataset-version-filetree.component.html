@@ -6,7 +6,7 @@
     <ng-template
       #treeNodeTemplate
       let-node>
-      <span title="{{ node.data.name }}">
+      <span class="tree-node-content" title="{{ node.data.name }}">
         <i
           *ngIf="node.data.children"
           nz-icon
