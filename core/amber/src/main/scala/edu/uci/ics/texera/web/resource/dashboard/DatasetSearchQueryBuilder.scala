@@ -14,8 +14,8 @@ import edu.uci.ics.texera.web.resource.dashboard.FulltextSearchQueryUtils.{
   getFullTextSearchFilter,
   getSubstringSearchFilter
 }
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.DashboardDataset
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.DatasetStatisticsUtils
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 object DatasetSearchQueryBuilder extends SearchQueryBuilder {
@@ -89,7 +89,7 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder {
         ),
       dataset.getOwnerUid == uid,
       List(),
-      DatasetStatisticsUtils.calculateDatasetSize(dataset.getDid)
+      DatasetResource.calculateDatasetSize(dataset.getDid)
     )
     DashboardClickableFileEntry(
       resourceType = SearchQueryBuilder.DATASET_RESOURCE_TYPE,

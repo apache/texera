@@ -45,10 +45,10 @@ import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{
   createNewDatasetVersionFromFormData,
   getDashboardDataset,
   getDatasetByID,
-  getDatasetLatestVersion,
   getDatasetVersionByID,
   getDatasetVersions,
   getFileNodesOfCertainVersion,
+  getLatestDatasetVersionWithAccessCheck,
   getUserDatasets,
   resolvePath,
   retrievePublicDatasets
@@ -58,10 +58,7 @@ import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.{
   PhysicalFileNode
 }
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.service.GitVersionControlLocalFileStorage
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.{
-  DatasetStatisticsUtils,
-  PathUtils
-}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.PathUtils
 import io.dropwizard.auth.Auth
 import org.apache.commons.lang3.StringUtils
 import org.glassfish.jersey.media.multipart.{FormDataMultiPart, FormDataParam}
@@ -95,8 +92,10 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters._
+import scala.jdk.OptionConverters._
 import scala.util.Using
 import scala.util.control.NonFatal
+import scala.util.{Failure, Success, Try}
 
 object DatasetResource {
   val DATASET_IS_PUBLIC: Byte = 1;
@@ -270,25 +269,32 @@ object DatasetResource {
   // this function retrieve the latest DatasetVersion from DB
   // the latest here means the one with latest creation time
   // read access will be checked
-  def getDatasetLatestVersion(ctx: DSLContext, did: UInteger, uid: UInteger): DatasetVersion = {
+  private def fetchLatestDatasetVersionInternal(
+      ctx: DSLContext,
+      did: UInteger
+  ): Option[DatasetVersion] = {
+    ctx
+      .selectFrom(DATASET_VERSION)
+      .where(DATASET_VERSION.DID.eq(did))
+      .orderBy(DATASET_VERSION.CREATION_TIME.desc())
+      .limit(1)
+      .fetchOptionalInto(classOf[DatasetVersion])
+      .toScala
+  }
+
+  def getLatestDatasetVersionWithAccessCheck(
+      ctx: DSLContext,
+      did: UInteger,
+      uid: UInteger
+  ): DatasetVersion = {
     if (!userHasReadAccess(ctx, did, uid)) {
       throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
     }
 
-    val latestVersion: DatasetVersion = ctx
-      .selectFrom(DATASET_VERSION)
-      .where(DATASET_VERSION.DID.eq(did))
-      .orderBy(
-        DATASET_VERSION.CREATION_TIME.desc()
-      ) // Assuming latest version is the one with the most recent creation time
-      .limit(1) // Limit to only one result
-      .fetchOneInto(classOf[DatasetVersion])
-
-    if (latestVersion == null) {
-      throw new NotFoundException(ERR_DATASET_VERSION_NOT_FOUND_MESSAGE)
+    fetchLatestDatasetVersionInternal(ctx, did) match {
+      case Some(latestVersion) => latestVersion
+      case None                => throw new NotFoundException(ERR_DATASET_VERSION_NOT_FOUND_MESSAGE)
     }
-
-    latestVersion
   }
 
   def getDatasetFile(
@@ -569,9 +575,36 @@ object DatasetResource {
 
   case class DatasetDescriptionModification(did: UInteger, description: String)
 
-  // Use the helper method from DatasetStatisticsUtils
-  private def calculateDatasetSize(did: UInteger): Long = {
-    DatasetStatisticsUtils.calculateDatasetSize(did)
+  def calculateDatasetSize(did: UInteger): Long = {
+    Try {
+      val latestVersion = fetchLatestDatasetVersionInternal(context, did)
+        .map(_.getVersionHash)
+        .getOrElse(throw new NoSuchElementException("No versions found for this dataset"))
+
+      val datasetPath = PathUtils.getDatasetPath(did)
+
+      val fileNodes = GitVersionControlLocalFileStorage.retrieveRootFileNodesOfVersion(
+        datasetPath,
+        latestVersion
+      )
+
+      calculateSizeFromPhysicalNodes(fileNodes)
+    } match {
+      case Success(size) => size
+      case Failure(exception) =>
+        println(s"Error calculating dataset size: ${exception.getMessage}")
+        0L
+    }
+  }
+
+  private def calculateSizeFromPhysicalNodes(nodes: java.util.Set[PhysicalFileNode]): Long = {
+    nodes.asScala.foldLeft(0L) { (totalSize, node) =>
+      totalSize + (if (node.isDirectory) {
+                     calculateSizeFromPhysicalNodes(node.getChildren)
+                   } else {
+                     Try(Files.size(node.getAbsolutePath)).getOrElse(0L)
+                   })
+    }
   }
 }
 
@@ -899,7 +932,7 @@ class DatasetResource {
           } else {
             dataset.versions
           },
-          size = calculateDatasetSize(did)
+          size = size
         )
       }
 
@@ -944,7 +977,7 @@ class DatasetResource {
         throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
       }
       val dataset = getDatasetByID(ctx, did)
-      val latestVersion = getDatasetLatestVersion(ctx, did, uid)
+      val latestVersion = getLatestDatasetVersionWithAccessCheck(ctx, did, uid)
       val datasetPath = PathUtils.getDatasetPath(did)
 
       val ownerNode = DatasetFileNode
@@ -1169,7 +1202,7 @@ class DatasetResource {
   private def getLatestVersionInfo(did: UInteger, user: SessionUser): (Dataset, DatasetVersion) = {
     validateUserAccess(did, user.getUid)
     val dataset = getDatasetByID(context, did)
-    val latestVersion = getDatasetLatestVersion(context, did, user.getUid)
+    val latestVersion = getLatestDatasetVersionWithAccessCheck(context, did, user.getUid)
     (dataset, latestVersion)
   }
 
