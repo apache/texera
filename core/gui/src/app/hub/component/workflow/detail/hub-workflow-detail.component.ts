@@ -39,6 +39,9 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
   workflowName: string = "";
   ownerName: string = "";
   workflowDescription: string = "";
+  clonedWorklowId: number | undefined;
+  isLogin = this.userService.isLogin();
+
   workflow = {
     steps: [
       {
@@ -88,6 +91,12 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
     if (!this.wid) {
       this.wid = this.route.snapshot.params.id;
     }
+    this.userService
+      .userChanged()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        this.isLogin = this.userService.isLogin();
+      });
     this.currentUser = this.userService.getCurrentUser();
   }
 
@@ -224,5 +233,15 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
 
   goBack(): void {
     this.location.back();
+  }
+
+  cloneWorkflow(): void {
+    this.hubWorkflowService
+      .cloneWorkflow(Number(this.wid))
+      .pipe(untilDestroyed(this))
+      .subscribe(newWid => {
+        this.clonedWorklowId = newWid;
+        this.router.navigate([`/workflow/${this.clonedWorklowId}`]);
+      });
   }
 }

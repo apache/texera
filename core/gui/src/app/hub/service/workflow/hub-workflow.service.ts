@@ -8,6 +8,8 @@ import { Workflow } from "../../../common/type/workflow";
 import { filter, map } from "rxjs/operators";
 import { WorkflowUtilService } from "../../../workspace/service/workflow-graph/util/workflow-util.service";
 
+export const WORKFLOW_BASE_URL = `${AppSettings.getApiEndpoint()}/workflow`;
+
 @Injectable({
   providedIn: "root",
 })
@@ -44,5 +46,9 @@ export class HubWorkflowService {
   public getWorkflowDescription(wid: number): Observable<string> {
     const params = new HttpParams().set("wid", wid);
     return this.http.get(`${this.BASE_URL}/workflow_description/`, { params, responseType: "text" });
+  }
+
+  public cloneWorkflow(wid: number): Observable<number> {
+    return this.http.post<number>(`${WORKFLOW_BASE_URL}/clone/${wid}`, null);
   }
 }
