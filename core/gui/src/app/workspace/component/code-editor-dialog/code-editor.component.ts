@@ -230,12 +230,6 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
           options: {
             $type: "WebSocketUrl",
             url: getWebsocketUrl("/python-language-server", "3000"),
-            startOptions: {
-              onCall: () => {
-                console.log("Python Language client started");
-              },
-              reportStatus: true,
-            },
           },
         };
       }
@@ -561,12 +555,6 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
           options: {
             $type: "WebSocketUrl",
             url: getWebsocketUrl("/python-language-server", "3000"),
-            startOptions: {
-              onCall: () => {
-                console.log("Python Language client started");
-              },
-              reportStatus: true,
-            },
           },
         };
       }
