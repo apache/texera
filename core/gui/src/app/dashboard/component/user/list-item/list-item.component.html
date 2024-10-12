@@ -114,13 +114,9 @@
           </texera-user-avatar>
         </div>
         <div class="resource-info-grid">
+          <div class="resource-info">{{ entry.type === 'dataset' ? 'Size: ' + formatSize(entry.size) : '' }}</div>
           <div class="resource-info">Created: {{ formatTime(entry.creationTime) }}</div>
           <div class="resource-info">Edited: {{ formatTime(entry.lastModifiedTime) }}</div>
-          <div
-            class="resource-info"
-            *ngIf="entry.type === 'dataset'">
-            Size: {{ formatSize(entry.size) }}
-          </div>
         </div>
       </div>
     </div>
