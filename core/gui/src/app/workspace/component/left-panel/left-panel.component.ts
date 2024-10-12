@@ -78,7 +78,11 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
     localStorage.setItem("left-panel-height", String(this.height));
     localStorage.setItem("left-panel-order", String(this.order));
     localStorage.setItem("left-panel-index", String(this.currentIndex));
-    localStorage.setItem("left-panel-style", document.getElementById("left-container")!.style.cssText);
+
+    const leftContainer = document.getElementById("left-container");
+    if (leftContainer) {
+      localStorage.setItem("left-panel-style", leftContainer.style.cssText);
+    }
   }
 
   openFrame(i: number) {

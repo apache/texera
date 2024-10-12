@@ -50,7 +50,11 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     localStorage.setItem("right-panel-width", String(this.width));
     localStorage.setItem("right-panel-height", String(this.height));
-    localStorage.setItem("right-panel-style", document.getElementById("right-container")!.style.cssText);
+
+    const rightContainer = document.getElementById("right-container");
+    if (rightContainer) {
+      localStorage.setItem("right-panel-style", rightContainer.style.cssText);
+    }
   }
 
   /**
