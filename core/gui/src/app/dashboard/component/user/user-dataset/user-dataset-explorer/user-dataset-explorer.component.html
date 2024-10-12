@@ -26,8 +26,14 @@
         <div class="file-info">
           <h3 class="file-title">
             <b>{{currentDisplayedFileName}}</b>
-            <span *ngIf="currentFileSize" class="file-size">
-              <i nz-icon nzType="file" nzTheme="outline" class="icon-file"></i>
+            <span
+              *ngIf="currentFileSize"
+              class="file-size">
+              <i
+                nz-icon
+                nzType="file"
+                nzTheme="outline"
+                class="icon-file"></i>
               {{ formatSize(currentFileSize) }}
             </span>
           </h3>
@@ -162,8 +168,14 @@
               nzTheme="outline"></i>
           </button>
         </div>
-        <div *ngIf="selectedVersion" class="version-size">
-          <i nz-icon nzType="database" nzTheme="outline" class="icon-database"></i>
+        <div
+          *ngIf="selectedVersion"
+          class="version-size">
+          <i
+            nz-icon
+            nzType="database"
+            nzTheme="outline"
+            class="icon-database"></i>
           Version Size: {{ formatSize(currentDatasetVersionSize) }}
         </div>
       </div>
