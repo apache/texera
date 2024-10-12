@@ -1,9 +1,8 @@
 package edu.uci.ics.texera.workflow.common.storage
 
+import edu.uci.ics.amber.engine.common.model.tuple.{Attribute, AttributeType, Schema, Tuple}
 import edu.uci.ics.amber.engine.common.storage.BufferedItemWriter
 import edu.uci.ics.amber.engine.common.storage.mongodb.MemoryDocument
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 

@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.workflow.common.operators
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfoWithCode
-import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, SchemaPropagationFunc}
+import edu.uci.ics.amber.engine.common.model.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 
 trait PythonOperatorDescriptor extends LogicalOp {
