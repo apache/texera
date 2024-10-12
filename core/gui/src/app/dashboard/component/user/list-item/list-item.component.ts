@@ -21,6 +21,7 @@ import { firstValueFrom } from "rxjs";
 import { SearchService } from "../../../service/user/search.service";
 import { HubWorkflowDetailComponent } from "../../../../hub/component/workflow/detail/hub-workflow-detail.component";
 import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
+import { formatSize } from "src/app/common/util/size-formatter.util";
 
 @UntilDestroy()
 @Component({
@@ -250,15 +251,5 @@ export class ListItemComponent implements OnInit, OnChanges {
     }
   }
 
-  private readonly BYTES_PER_UNIT = 1024;
-  private readonly SIZE_UNITS = ["Bytes", "KB", "MB", "GB", "TB"];
-
-  formatSize = (bytes?: number): string => {
-    if (bytes === undefined || bytes <= 0) return "0 Bytes";
-
-    const unitIndex = Math.min(Math.floor(Math.log(bytes) / Math.log(this.BYTES_PER_UNIT)), this.SIZE_UNITS.length - 1);
-    const size = bytes / Math.pow(this.BYTES_PER_UNIT, unitIndex);
-
-    return `${size.toFixed(2)} ${this.SIZE_UNITS[unitIndex]}`;
-  };
+  formatSize = formatSize;
 }

@@ -24,7 +24,7 @@
           </div>
           <div class="info-box">
             <h2 class="info-heading">Total Size of Datasets</h2>
-            <p class="info-content">{{ convertFileSize(this.totalUploadedDatasetSize) }}</p>
+            <p class="info-content">{{ formatSize(this.totalUploadedDatasetSize) }}</p>
           </div>
           <div class="info-box">
             <h2 class="info-heading">Workflows Created</h2>
@@ -40,11 +40,11 @@
           </div>
           <div class="info-box">
             <h2 class="info-heading">Total Size of the Files</h2>
-            <p class="info-content">{{ convertFileSize(this.totalFileSize) }}</p>
+            <p class="info-content">{{ formatSize(this.totalFileSize) }}</p>
           </div>
           <div class="info-box">
             <h2 class="info-heading">Total Result Cache Size</h2>
-            <p class="info-content">{{ convertFileSize(this.totalMongoSize) }}</p>
+            <p class="info-content">{{ formatSize(this.totalMongoSize) }}</p>
           </div>
         </div>
         <nz-card
@@ -84,7 +84,7 @@
                 <tr *ngFor="let execution of executionTable.data">
                   <td>{{ execution.pointer }}</td>
                   <td>{{ execution.eid }}</td>
-                  <td>{{ convertFileSize(execution.size) }}</td>
+                  <td>{{ formatSize(execution.size) }}</td>
                   <td>
                     <button
                       nz-popconfirm

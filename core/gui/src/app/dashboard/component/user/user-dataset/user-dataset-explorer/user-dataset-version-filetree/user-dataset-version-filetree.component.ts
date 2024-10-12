@@ -2,6 +2,7 @@ import { UntilDestroy } from "@ngneat/until-destroy";
 import { AfterViewInit, Component, EventEmitter, Input, Output, ViewChild } from "@angular/core";
 import { DatasetFileNode, getFullPathFromDatasetFileNode } from "../../../../../../common/type/datasetVersionFileTree";
 import { ITreeOptions, TREE_ACTIONS } from "@ali-hm/angular-tree-component";
+import { formatSize } from "src/app/common/util/size-formatter.util";
 
 @UntilDestroy()
 @Component({
@@ -55,4 +56,6 @@ export class UserDatasetVersionFiletreeComponent implements AfterViewInit {
       this.tree.treeModel.expandAll();
     }
   }
+
+  formatSize = formatSize;
 }
