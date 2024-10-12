@@ -6,9 +6,8 @@ import { DashboardEntry } from "../../../dashboard/type/dashboard-entry";
   templateUrl: "./browse-section.component.html",
   styleUrls: ["./browse-section.component.scss"],
 })
-export class BrowseSectionComponent{
+export class BrowseSectionComponent {
   @Input() workflows: DashboardEntry[] = [];
   @Input() sectionTitle: string = "";
   defaultBackground: string = "../../../../../assets/card_background.jpg";
-
 }

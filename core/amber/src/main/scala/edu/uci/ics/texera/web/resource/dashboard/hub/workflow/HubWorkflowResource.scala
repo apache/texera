@@ -8,7 +8,10 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{User, Workflow}
 import edu.uci.ics.texera.web.resource.dashboard.hub.workflow.HubWorkflowResource.fetchDashboardWorkflowsByWids
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.{DashboardWorkflow, WorkflowWithPrivilege}
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.{
+  DashboardWorkflow,
+  WorkflowWithPrivilege
+}
 import org.jooq.impl.DSL
 
 import scala.jdk.CollectionConverters._
@@ -35,8 +38,10 @@ object HubWorkflowResource {
           WORKFLOW_OF_USER.UID.as("ownerId")
         )
         .from(WORKFLOW)
-        .join(WORKFLOW_OF_USER).on(WORKFLOW.WID.eq(WORKFLOW_OF_USER.WID))
-        .join(USER).on(WORKFLOW_OF_USER.UID.eq(USER.UID))
+        .join(WORKFLOW_OF_USER)
+        .on(WORKFLOW.WID.eq(WORKFLOW_OF_USER.WID))
+        .join(USER)
+        .on(WORKFLOW_OF_USER.UID.eq(USER.UID))
         .where(WORKFLOW.WID.in(wids: _*))
         .fetch()
         .asScala
@@ -282,7 +287,8 @@ class HubWorkflowResource {
       .orderBy(DSL.count(WORKFLOW_USER_LIKES.WID).desc())
       .limit(8)
       .fetchInto(classOf[UInteger])
-      .asScala.toSeq
+      .asScala
+      .toSeq
 
     println(fetchDashboardWorkflowsByWids(topLovedWorkflowsWids))
 
@@ -300,7 +306,8 @@ class HubWorkflowResource {
       .orderBy(DSL.count(WORKFLOW_USER_CLONES.WID).desc())
       .limit(8)
       .fetchInto(classOf[UInteger])
-      .asScala.toSeq
+      .asScala
+      .toSeq
 
     println(fetchDashboardWorkflowsByWids(topClonedWorkflowsWids))
 

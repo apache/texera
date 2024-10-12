@@ -22,19 +22,19 @@ export class LandingPageComponent implements OnInit {
   constructor(
     private hubWorkflowService: HubWorkflowService,
     private router: Router,
-    private searchService: SearchService,
+    private searchService: SearchService
   ) {}
 
   ngOnInit(): void {
     this.getWorkflowCount();
     this.fetchTopWorkflows(
       this.hubWorkflowService.getTopLovedWorkflows(),
-      (workflows) => (this.topLovedWorkflows = workflows),
+      workflows => (this.topLovedWorkflows = workflows),
       "Top Loved Workflows"
     );
     this.fetchTopWorkflows(
       this.hubWorkflowService.getTopClonedWorkflows(),
-      (workflows) => (this.topClonedWorkflows = workflows),
+      workflows => (this.topClonedWorkflows = workflows),
       "Top Cloned Workflows"
     );
   }
@@ -67,7 +67,7 @@ export class LandingPageComponent implements OnInit {
         // 提取出所有者的 userIds
         map((workflows: DashboardWorkflow[]) => {
           const userIds = new Set<number>();
-          workflows.forEach((workflow) => {
+          workflows.forEach(workflow => {
             userIds.add(workflow.ownerId);
           });
           return { workflows, userIds: Array.from(userIds) };
@@ -75,7 +75,7 @@ export class LandingPageComponent implements OnInit {
         switchMap(({ workflows, userIds }) =>
           this.searchService.getUserInfo(userIds).pipe(
             map((userIdToInfoMap: { [key: number]: UserInfo }) => {
-              const dashboardEntries = workflows.map((workflow) => {
+              const dashboardEntries = workflows.map(workflow => {
                 const userInfo = userIdToInfoMap[workflow.ownerId];
                 const entry = new DashboardEntry(workflow);
                 if (userInfo) {
