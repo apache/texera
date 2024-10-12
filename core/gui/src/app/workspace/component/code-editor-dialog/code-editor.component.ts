@@ -3,6 +3,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
 import { YText } from "yjs/dist/src/types/YText";
+import { getWebsocketUrl } from "src/app/common/util/url";
 import { MonacoBinding } from "y-monaco";
 import { Subject, take } from "rxjs";
 import { takeUntil } from "rxjs/operators";
@@ -228,7 +229,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
           languageId: "python",
           options: {
             $type: "WebSocketUrl",
-            url: "ws://localhost:3000/language-server",
+            url: getWebsocketUrl("/python-language-server", "3000"),
             startOptions: {
               onCall: () => {
                 console.log("Python Language client started");
@@ -559,7 +560,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
           languageId: "python",
           options: {
             $type: "WebSocketUrl",
-            url: "ws://localhost:3000/language-server",
+            url: getWebsocketUrl("/python-language-server", "3000"),
             startOptions: {
               onCall: () => {
                 console.log("Python Language client started");
