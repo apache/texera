@@ -163,6 +163,11 @@
               nzTheme="outline"></i>
           </button>
         </div>
+        <div
+          *ngIf="selectedVersion"
+          class="version-size">
+          <span>Version Size: {{ formatSize(currentDatasetVersionSize) }}</span>
+        </div>
       </div>
       <texera-user-dataset-version-filetree
         [fileTreeNodes]="fileTreeNodeList"

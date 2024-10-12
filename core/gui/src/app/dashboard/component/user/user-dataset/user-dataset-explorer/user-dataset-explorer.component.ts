@@ -25,6 +25,7 @@ export class UserDatasetExplorerComponent implements OnInit {
 
   public currentDisplayedFileName: string = "";
   public currentFileSize: number | undefined;
+  public currentDatasetVersionSize: number | undefined;
 
   public isRightBarCollapsed = false;
   public isMaximized = false;
@@ -222,8 +223,9 @@ export class UserDatasetExplorerComponent implements OnInit {
       this.datasetService
         .retrieveDatasetVersionFileTree(this.did, this.selectedVersion.dvid)
         .pipe(untilDestroyed(this))
-        .subscribe(dataNodeList => {
-          this.fileTreeNodeList = dataNodeList;
+        .subscribe(data => {
+          this.fileTreeNodeList = data.fileNodes;
+          this.currentDatasetVersionSize = data.size;
           let currentNode = this.fileTreeNodeList[0];
           while (currentNode.type === "directory" && currentNode.children) {
             currentNode = currentNode.children[0];
