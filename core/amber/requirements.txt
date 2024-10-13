@@ -1,7 +1,7 @@
 wheel==0.41.2
-numpy==1.24.4
+numpy==1.26.4
 pandas==1.5.3
-flake8==4.0.1
+flake8==7.1.1
 black==24.3.0
 iniconfig==1.1.1
 loguru==0.7.0
@@ -20,8 +20,8 @@ dataclasses==0.6
 Deprecated==1.2.14
 fs==2.4.16
 praw==7.6.1
-python-lsp-server[all]==1.5.0
-python-lsp-server[websockets]==1.5.0
+python-lsp-server[all]==1.12.0
+python-lsp-server[websockets]==1.12.0
 bidict==0.22.0
 cached_property==1.5.2
 psutil==5.9.0

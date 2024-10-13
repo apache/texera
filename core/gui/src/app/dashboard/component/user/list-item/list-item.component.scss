@@ -209,3 +209,15 @@
   color: red;
 }
 
+.disabled-like {
+  background-color: #e0e0e0;
+  color: #a0a0a0;
+  border-color: #d0d0d0;
+  //cursor: not-allowed;
+}
+
+.disabled-like:hover {
+  background-color: #f0f0f0;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
+  color: #a0a0a0;
+}

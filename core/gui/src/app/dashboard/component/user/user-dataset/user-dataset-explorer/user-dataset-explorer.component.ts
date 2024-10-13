@@ -7,6 +7,7 @@ import { DatasetFileNode, getFullPathFromDatasetFileNode } from "../../../../../
 import { DatasetVersion } from "../../../../../common/type/dataset";
 import { switchMap } from "rxjs/operators";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
+import { DownloadService } from "../../../../service/user/download/download.service";
 
 @UntilDestroy()
 @Component({
@@ -38,7 +39,8 @@ export class UserDatasetExplorerComponent implements OnInit {
     private route: ActivatedRoute,
     private router: Router,
     private datasetService: DatasetService,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    private downloadService: DownloadService
   ) {}
 
   // item for control the resizeable sider
@@ -181,37 +183,11 @@ export class UserDatasetExplorerComponent implements OnInit {
     this.currentDisplayedFileName = getFullPathFromDatasetFileNode(node);
   }
 
-  onClickDownloadCurrentFile() {
-    if (this.did && this.selectedVersion && this.selectedVersion.dvid) {
-      this.datasetService
-        .retrieveDatasetVersionSingleFile(this.currentDisplayedFileName)
-        .pipe(untilDestroyed(this))
-        .subscribe({
-          next: blob => {
-            // download this blob, the filename is the direct name of this file(e.g., /a/b/c.txt, name would be c.txt)
-            const url = URL.createObjectURL(blob);
+  onClickDownloadCurrentFile = (): void => {
+    if (!this.did || !this.selectedVersion?.dvid) return;
 
-            // Create a temporary link element
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = this.currentDisplayedFileName.split("/").pop() || "download"; // Extract the file name
-
-            // Append the link to the body
-            document.body.appendChild(a);
-            // Trigger the download
-            a.click();
-            // Remove the link after download
-            document.body.removeChild(a);
-            // Release the blob URL
-            URL.revokeObjectURL(url);
-            this.notificationService.info(`File ${this.currentDisplayedFileName} is downloading`);
-          },
-          error: (error: unknown) => {
-            this.notificationService.error(`Error downloading file '${this.currentDisplayedFileName}'`);
-          },
-        });
-    }
-  }
+    this.downloadService.downloadSingleFile(this.currentDisplayedFileName).pipe(untilDestroyed(this)).subscribe();
+  };
 
   extractVersionPath(currentDisplayedFileName: string): string {
     const pathParts = currentDisplayedFileName.split("/");
@@ -219,39 +195,15 @@ export class UserDatasetExplorerComponent implements OnInit {
     return `/${pathParts[1]}/${pathParts[2]}/${pathParts[3]}`;
   }
 
-  onClickDownloadVersionAsZip() {
-    if (this.did && this.selectedVersion && this.selectedVersion.dvid) {
-      const versionPath = this.extractVersionPath(this.currentDisplayedFileName);
-      this.datasetService
-        .retrieveDatasetVersionZip(versionPath)
-        .pipe(untilDestroyed(this))
-        .subscribe({
-          next: blob => {
-            // Create URL for the ZIP blob
-            const url = URL.createObjectURL(blob);
+  onClickDownloadVersionAsZip = (): void => {
+    if (!this.did || !this.selectedVersion?.dvid) return;
 
-            // Create a temporary link element
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `${this.datasetName}-${this.selectedVersion?.name}.zip`; // Filename for ZIP file
-
-            // Append the link to the body
-            document.body.appendChild(a);
-            // Trigger the download
-            a.click();
-            // Remove the link after download
-            document.body.removeChild(a);
-            // Release the blob URL
-            URL.revokeObjectURL(url);
-
-            this.notificationService.info(`Version ${this.selectedVersion?.name} is downloading as ZIP`);
-          },
-          error: (error: unknown) => {
-            this.notificationService.error(`Error downloading version '${this.selectedVersion?.name}' as ZIP`);
-          },
-        });
-    }
-  }
+    const versionPath = this.extractVersionPath(this.currentDisplayedFileName);
+    this.downloadService
+      .downloadDatasetVersion(versionPath, this.datasetName, this.selectedVersion.name)
+      .pipe(untilDestroyed(this))
+      .subscribe();
+  };
 
   onClickScaleTheView() {
     this.isMaximized = !this.isMaximized;
