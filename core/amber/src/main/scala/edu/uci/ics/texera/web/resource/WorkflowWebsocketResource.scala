@@ -59,15 +59,10 @@ class WorkflowWebsocketResource extends LazyLogging {
   @OnMessage
   def myOnMsg(session: Session, message: String): Unit = {
     val request = objectMapper.readValue(message, classOf[TexeraWebSocketRequest])
-    val uidOpt = session.getUserProperties.asScala
-      .get(classOf[User].getName)
-      .map(_.asInstanceOf[User].getUid)
-    val userEmailOpt = session.getUserProperties.asScala
-      .get(classOf[User].getName)
-      .map(_.asInstanceOf[User].getEmail)
-    val user = session.getUserProperties.asScala
+    val userOpt = session.getUserProperties.asScala
       .get(classOf[User].getName)
       .map(_.asInstanceOf[User])
+    val uidOpt = userOpt.map(_.getUid)
 
     val sessionState = SessionState.getState(session.getId)
     val workflowStateOpt = sessionState.getCurrentWorkflowState
@@ -82,7 +77,7 @@ class WorkflowWebsocketResource extends LazyLogging {
           )
         case resultExportRequest: ResultExportRequest =>
           workflowStateOpt.foreach(state =>
-            sessionState.send(state.exportService.exportResult(user.get, resultExportRequest))
+            sessionState.send(state.exportService.exportResult(userOpt.get, resultExportRequest))
           )
         case modifyLogicRequest: ModifyLogicRequest =>
           if (workflowStateOpt.isDefined) {
@@ -131,8 +126,9 @@ class WorkflowWebsocketResource extends LazyLogging {
           }
         case workflowExecuteRequest: WorkflowExecuteRequest =>
           workflowStateOpt match {
-            case Some(workflow) => workflow.initExecutionService(workflowExecuteRequest, uidOpt)
-            case None           => throw new IllegalStateException("workflow is not initialized")
+            case Some(workflow) =>
+              workflow.initExecutionService(workflowExecuteRequest, userOpt, session.getRequestURI)
+            case None => throw new IllegalStateException("workflow is not initialized")
           }
         case other =>
           workflowStateOpt.map(_.executionService.getValue) match {
@@ -167,5 +163,4 @@ class WorkflowWebsocketResource extends LazyLogging {
     }
 
   }
-
 }
