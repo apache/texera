@@ -216,4 +216,61 @@ class HubWorkflowResource {
 
     cloneCount
   }
+
+  @POST
+  @Path("/view")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  def viewWorkflow(viewRequest: Array[UInteger]): Boolean = {
+
+    val workflowId = viewRequest(0)
+
+    val widInTable = context
+      .fetchExists(
+        context
+          .selectFrom(WORKFLOW_VIEW_COUNT)
+          .where(WORKFLOW_VIEW_COUNT.WID.eq(workflowId))
+      )
+
+    if (!widInTable) {
+      context
+        .insertInto(WORKFLOW_VIEW_COUNT)
+        .set(WORKFLOW_VIEW_COUNT.WID, workflowId)
+        .set(WORKFLOW_VIEW_COUNT.VIEW_COUNT, UInteger.valueOf(0))
+        .execute();
+    }
+
+    context
+      .update(WORKFLOW_VIEW_COUNT)
+      .set(WORKFLOW_VIEW_COUNT.VIEW_COUNT, WORKFLOW_VIEW_COUNT.VIEW_COUNT.add(1))
+      .where(WORKFLOW_VIEW_COUNT.WID.eq(workflowId))
+      .execute()
+    true
+  }
+
+  @GET
+  @Path("/viewCount/{wid}")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def getViewCount(@PathParam("wid") wid: UInteger): Int = {
+
+    val widInTable = context
+      .fetchExists(
+        context
+          .selectFrom(WORKFLOW_VIEW_COUNT)
+          .where(WORKFLOW_VIEW_COUNT.WID.eq(wid))
+      )
+
+    if (!widInTable) {
+      context
+        .insertInto(WORKFLOW_VIEW_COUNT)
+        .set(WORKFLOW_VIEW_COUNT.WID, wid)
+        .set(WORKFLOW_VIEW_COUNT.VIEW_COUNT, UInteger.valueOf(0))
+        .execute();
+    }
+
+    context
+      .select(WORKFLOW_VIEW_COUNT.VIEW_COUNT)
+      .from(WORKFLOW_VIEW_COUNT)
+      .where(WORKFLOW_VIEW_COUNT.WID.eq(wid))
+      .fetchOneInto(classOf[Int])
+  }
 }
