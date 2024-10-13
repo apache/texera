@@ -41,7 +41,7 @@ import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{
   ERR_DATASET_NAME_ALREADY_EXISTS,
   ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE,
   ListDatasetsResponse,
-  calculateDatasetSize,
+  calculateLatestDatasetVersionSize,
   calculateDatasetVersionSize,
   context,
   createNewDatasetVersionFromFormData,
@@ -242,7 +242,7 @@ object DatasetResource {
       userAccessPrivilege,
       targetDataset.getOwnerUid == uid,
       List(),
-      calculateDatasetSize(did)
+      calculateLatestDatasetVersionSize(did)
     )
   }
 
@@ -543,7 +543,7 @@ object DatasetResource {
           accessPrivilege = DatasetUserAccessPrivilege.READ,
           versions = List(),
           ownerEmail = ownerEmail,
-          size = calculateDatasetSize(dataset.getDid)
+          size = calculateLatestDatasetVersionSize(dataset.getDid)
         )
       })
   }
@@ -577,6 +577,10 @@ object DatasetResource {
 
   case class DatasetDescriptionModification(did: UInteger, description: String)
 
+  /*
+   If versionHash is provided, calculate the size of the specific version of the dataset.
+   Otherwise, calculate the size of the latest version of the dataset.
+   */
   private def calculateSize(did: UInteger, versionHash: Option[String] = None): Long = {
     Try {
       val datasetPath = PathUtils.getDatasetPath(did)
@@ -606,7 +610,7 @@ object DatasetResource {
     calculateSize(did, Some(versionHash))
   }
 
-  def calculateDatasetSize(did: UInteger): Long = {
+  def calculateLatestDatasetVersionSize(did: UInteger): Long = {
     calculateSize(did)
   }
 
@@ -701,7 +705,7 @@ class DatasetResource {
         DatasetUserAccessPrivilege.WRITE,
         isOwner = true,
         versions = List(),
-        size = calculateDatasetSize(did)
+        size = calculateLatestDatasetVersionSize(did)
       )
     }
   }
@@ -869,7 +873,7 @@ class DatasetResource {
               fileNodes = List()
             )
           ),
-          size = calculateDatasetSize(dataset.getDid)
+          size = calculateLatestDatasetVersionSize(dataset.getDid)
         )
       } else {
         // first fetch all datasets user have explicit access to
@@ -895,7 +899,7 @@ class DatasetResource {
                 accessPrivilege = datasetAccess.getPrivilege,
                 versions = List(),
                 ownerEmail = ownerEmail,
-                size = calculateDatasetSize(dataset.getDid)
+                size = calculateLatestDatasetVersionSize(dataset.getDid)
               )
             })
         )
@@ -910,7 +914,7 @@ class DatasetResource {
               ownerEmail = publicDataset.ownerEmail,
               accessPrivilege = DatasetUserAccessPrivilege.READ,
               versions = List(),
-              size = calculateDatasetSize(publicDataset.dataset.getDid)
+              size = calculateLatestDatasetVersionSize(publicDataset.dataset.getDid)
             )
             accessibleDatasets = accessibleDatasets :+ dashboardDataset
           }
@@ -921,7 +925,7 @@ class DatasetResource {
       // iterate over datasets and retrieve the version
       accessibleDatasets = accessibleDatasets.map { dataset =>
         val did = dataset.dataset.getDid
-        val size = DatasetResource.calculateDatasetSize(did)
+        val size = DatasetResource.calculateLatestDatasetVersionSize(did)
 
         DashboardDataset(
           isOwner = dataset.isOwner,
@@ -1062,7 +1066,7 @@ class DatasetResource {
     val uid = user.getUid
     withTransaction(context)(ctx => {
       val dashboardDataset = getDashboardDataset(ctx, did, uid)
-      val size = DatasetResource.calculateDatasetSize(did)
+      val size = DatasetResource.calculateLatestDatasetVersionSize(did)
       dashboardDataset.copy(size = size)
     })
   }

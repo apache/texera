@@ -89,7 +89,7 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder {
         ),
       dataset.getOwnerUid == uid,
       List(),
-      DatasetResource.calculateDatasetSize(dataset.getDid)
+      DatasetResource.calculateLatestDatasetVersionSize(dataset.getDid)
     )
     DashboardClickableFileEntry(
       resourceType = SearchQueryBuilder.DATASET_RESOURCE_TYPE,

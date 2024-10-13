@@ -48,7 +48,7 @@ object DatasetStatisticsUtils {
   def getUserCreatedDatasets(uid: UInteger): List[DatasetQuota] = {
     val datasetList = getUserCreatedDatasetList(uid)
     datasetList.map { dataset =>
-      val size = DatasetResource.calculateDatasetSize(dataset.did)
+      val size = DatasetResource.calculateLatestDatasetVersionSize(dataset.did)
       dataset.copy(size = size)
     }
   }
