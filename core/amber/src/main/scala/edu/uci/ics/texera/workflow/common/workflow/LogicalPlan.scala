@@ -1,13 +1,13 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
 import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.engine.common.model.WorkflowContext
+import edu.uci.ics.amber.engine.common.model.tuple.Schema
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
-import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import org.jgrapht.graph.DirectedAcyclicGraph
 import org.jgrapht.util.SupplierUtil
 

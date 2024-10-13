@@ -1,8 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.text
 
-import edu.uci.ics.amber.engine.common.tuple.amber.SchemaEnforceable
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
+import edu.uci.ics.amber.engine.common.model.tuple.{AttributeType, Schema, SchemaEnforceable, Tuple}
 import edu.uci.ics.texera.workflow.operators.source.scan.{
   FileAttributeType,
   FileDecodingMethod,

@@ -7,7 +7,7 @@ import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowExecutionsDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowVersionResource._
-import edu.uci.ics.texera.workflow.common.WorkflowContext.DEFAULT_EXECUTION_ID
+import edu.uci.ics.amber.engine.common.model.WorkflowContext.DEFAULT_EXECUTION_ID
 import org.jooq.types.UInteger
 
 import java.sql.Timestamp

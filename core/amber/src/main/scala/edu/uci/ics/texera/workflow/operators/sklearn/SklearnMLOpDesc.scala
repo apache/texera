@@ -7,6 +7,7 @@ import com.kjetland.jackson.jsonSchema.annotations.{
   JsonSchemaString,
   JsonSchemaTitle
 }
+import edu.uci.ics.amber.engine.common.model.tuple.{AttributeType, Schema}
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.{
   AutofillAttributeName,
@@ -15,7 +16,6 @@ import edu.uci.ics.texera.workflow.common.metadata.annotations.{
 }
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
-import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 
 abstract class SklearnMLOpDesc extends PythonOperatorDescriptor {
 

@@ -11,8 +11,8 @@ import edu.uci.ics.amber.engine.architecture.logreplay.ReplayLogManager
 import edu.uci.ics.amber.engine.architecture.scheduling.WorkflowExecutionCoordinator
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
+import edu.uci.ics.amber.engine.common.model.WorkflowContext
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 
 class ControllerProcessor(

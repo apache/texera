@@ -1,12 +1,12 @@
 package edu.uci.ics.texera.web.resource
 import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.engine.common.Utils
+import edu.uci.ics.amber.engine.common.model.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
-import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.http.response.SchemaPropagationResponse
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
-import edu.uci.ics.texera.workflow.common.WorkflowContext
-import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, PhysicalPlan}
+import edu.uci.ics.texera.workflow.common.workflow.LogicalPlan
 import io.dropwizard.auth.Auth
 import org.jooq.types.UInteger
 
