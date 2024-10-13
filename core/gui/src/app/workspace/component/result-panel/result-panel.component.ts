@@ -76,7 +76,11 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     localStorage.setItem("result-panel-width", String(this.width));
     localStorage.setItem("result-panel-height", String(this.height));
-    localStorage.setItem("result-panel-style", document.getElementById("result-container")!.style.cssText);
+
+    const resultContainer = document.getElementById("result-container");
+    if (resultContainer) {
+      localStorage.setItem("result-panel-style", resultContainer.style.cssText);
+    }
   }
 
   handleResultPanelForVersionPreview() {
