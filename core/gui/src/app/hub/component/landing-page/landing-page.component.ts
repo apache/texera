@@ -64,7 +64,6 @@ export class LandingPageComponent implements OnInit {
       .pipe(
         // eslint-disable-next-line rxjs/no-unsafe-takeuntil
         untilDestroyed(this),
-        // 提取出所有者的 userIds
         map((workflows: DashboardWorkflow[]) => {
           const userIds = new Set<number>();
           workflows.forEach(workflow => {

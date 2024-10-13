@@ -1,25 +1,26 @@
 .results-container {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   width: 100%;
   padding: 20px;
 
   .results-title {
     font-size: 24px;
     margin-bottom: 20px;
-    text-align: center;
+    text-align: left;
+    width: 100%;
+    padding-left: 10px;
   }
 
   .workflow-cards {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-gap: 10px;
     width: 100%;
-    max-width: 1200px;
+    max-width: 1350px;
 
     .workflow-card {
-      flex: 1 1 calc(25% - 20px);
       margin: 10px;
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
       border-radius: 8px;
