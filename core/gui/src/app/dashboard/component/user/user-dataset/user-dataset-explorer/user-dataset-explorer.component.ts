@@ -246,5 +246,6 @@ export class UserDatasetExplorerComponent implements OnInit {
     return this.userDatasetAccessLevel == "WRITE";
   }
 
+  // alias for formatSize
   formatSize = formatSize;
 }

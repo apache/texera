@@ -251,5 +251,6 @@ export class ListItemComponent implements OnInit, OnChanges {
     }
   }
 
+  // alias for formatSize
   formatSize = formatSize;
 }

@@ -10,8 +10,9 @@
 
 /* Styles for the file tree container */
 .file-tree-container {
-  height: 100%;
-  overflow: auto;
+  max-height: 500px; /* Adjust the max-height as needed */
+  overflow-y: auto; /* Enables vertical scrolling when content exceeds max-height */
+  overflow-x: auto; /* Prevents horizontal scrolling */
 }
 
 //tree-root .fa-file {
@@ -25,20 +26,3 @@
 //  white-space: nowrap;
 //  overflow: hidden;
 //}
-
-.file-size {
-  font-size: 12px;
-  color: #8c8c8c;
-  margin-left: auto;
-}
-
-.tree-node-content {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.delete-button {
-  padding: 0 4px;
-  margin-left: 8px;
-}

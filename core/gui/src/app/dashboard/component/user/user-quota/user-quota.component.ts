@@ -276,6 +276,7 @@ export class UserQuotaComponent implements OnInit {
       });
   }
 
+  // alias for formatSize
   formatSize = formatSize;
 
   public sortByMongoDBSize: NzTableSortFn<MongoExecution> = (a: MongoExecution, b: MongoExecution) => b.size - a.size;
