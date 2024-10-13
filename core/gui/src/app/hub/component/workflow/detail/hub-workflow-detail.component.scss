@@ -4,6 +4,13 @@ body {
   padding: 0;
   background-color: #f4f4f4;
 }
+.hub-workflow-detail-container {
+  height: 100vh;
+  width: 100%;
+  overflow-y: auto;
+
+}
+
 .container {
   width: 80%;
   margin: 30px auto 0;
