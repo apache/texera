@@ -619,7 +619,7 @@ object DatasetResource {
       totalSize + (if (node.isDirectory) {
                      calculateSizeFromPhysicalNodes(node.getChildren)
                    } else {
-                     Try(Files.size(node.getAbsolutePath)).getOrElse(0L)
+                     node.getSize
                    })
     }
   }
