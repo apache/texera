@@ -6,15 +6,6 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 
-object AssignPortHandler {
-
-  final case class AssignPort(
-      portId: PortIdentity,
-      input: Boolean,
-      schema: Schema
-  ) extends ControlCommand[Unit]
-}
-
 trait AssignPortHandler {
   this: DataProcessorRPCHandlerInitializer =>
 

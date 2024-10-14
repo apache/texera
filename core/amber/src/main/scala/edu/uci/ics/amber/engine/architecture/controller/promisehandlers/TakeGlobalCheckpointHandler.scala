@@ -2,37 +2,26 @@ package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ChannelMarkerHandler.PropagateChannelMarker
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.TakeGlobalCheckpointHandler.TakeGlobalCheckpoint
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.FinalizeCheckpointHandler.FinalizeCheckpoint
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PrepareCheckpointHandler.PrepareCheckpoint
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, TakeGlobalCheckpointRequest}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.TakeGlobalCheckpointResponse
 import edu.uci.ics.amber.engine.common.{CheckpointState, SerializedState}
-import edu.uci.ics.amber.engine.common.ambermessage.NoAlignment
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
-import edu.uci.ics.amber.engine.common.virtualidentity.ChannelMarkerIdentity
 
 import java.net.URI
 
-object TakeGlobalCheckpointHandler {
-  final case class TakeGlobalCheckpoint(
-      estimationOnly: Boolean,
-      checkpointId: ChannelMarkerIdentity,
-      destination: URI
-  ) extends ControlCommand[Long] // return the total size
-}
 trait TakeGlobalCheckpointHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
-  registerHandler { (msg: TakeGlobalCheckpoint, sender) =>
+  override def sendTakeGlobalCheckpoint(msg: TakeGlobalCheckpointRequest, ctx: AsyncRPCContext): Future[TakeGlobalCheckpointResponse] = {
     var estimationOnly = msg.estimationOnly
+    val destinationURI = new URI(msg.destination)
     @transient val storage =
-      SequentialRecordStorage.getStorage[CheckpointState](Some(msg.destination))
+      SequentialRecordStorage.getStorage[CheckpointState](Some(destinationURI))
     if (storage.containsFolder(msg.checkpointId.toString)) {
       logger.info("skip checkpoint since its already taken")
       estimationOnly = true
     }
-    val uri = msg.destination.resolve(msg.checkpointId.toString)
+    val uri = destinationURI.resolve(msg.checkpointId.toString)
     var totalSize = 0L
     val physicalOpIdsToTakeCheckpoint = cp.workflowScheduler.physicalPlan.operators.map(_.id)
     execute(
@@ -46,7 +35,7 @@ trait TakeGlobalCheckpointHandler {
         physicalOpIdsToTakeCheckpoint,
         PrepareCheckpoint(msg.checkpointId, estimationOnly)
       ),
-      sender
+      ctx.sender
     ).flatMap { ret =>
       Future
         .collect(ret.map {
@@ -85,4 +74,5 @@ trait TakeGlobalCheckpointHandler {
         }
     }
   }
+
 }

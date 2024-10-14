@@ -8,15 +8,6 @@ import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
 import edu.uci.ics.texera.web.service.FriesReconfigurationAlgorithm
 import edu.uci.ics.texera.workflow.common.operators.StateTransferFunc
 
-object ReconfigureHandler {
-
-  final case class Reconfigure(
-      reconfigurations: List[(PhysicalOp, Option[StateTransferFunc])],
-      reconfigurationId: String
-  ) extends ControlCommand[Unit]
-
-}
-
 trait ReconfigureHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 

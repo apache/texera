@@ -16,18 +16,6 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.workflow.common.operators.StateTransferFunc
 
-object UpdateExecutorHandler {
-  case class UpdateExecutor(
-      physicalOp: PhysicalOp,
-      stateTransferFunc: Option[StateTransferFunc]
-  ) extends ControlCommand[Unit]
-
-  case class UpdateMultipleExecutors(executorsToUpdate: List[UpdateExecutor])
-      extends ControlCommand[Unit]
-
-  case class UpdateExecutorCompleted(workerId: ActorVirtualIdentity) extends ControlCommand[Unit]
-}
-
 /** Get queue and other resource usage of this worker
   *
   * possible sender: controller(by ControllerInitiateMonitoring)

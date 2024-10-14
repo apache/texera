@@ -1,0 +1,32 @@
+syntax = "proto3";
+package edu.uci.ics.amber.engine.architecture.rpc;
+
+import "edu/uci/ics/amber/engine/architecture/rpc/controlcommands.proto";
+import "edu/uci/ics/amber/engine/architecture/rpc/controlreturns.proto";
+import "scalapb/scalapb.proto";
+
+option (scalapb.options) = {
+  scope: FILE,
+  preserve_unknown_fields: false
+  no_default_values_in_constructor: true
+};
+
+// RPC Service
+service WorkerService {
+  rpc AddInputChannel(AddInputChannelRequest) returns (Empty);
+  rpc AddPartitioning(AddPartitioningRequest) returns (Empty);
+  rpc AssignPort(AssignPortRequest) returns (Empty);
+  rpc FinalizeCheckpoint(FinalizeCheckpointRequest) returns (FinalizeCheckpointResponse);
+  rpc FlushNetworkBuffer(Empty) returns (Empty);
+  rpc InitializeExecutor(InitializeExecutorRequest) returns (Empty);
+  rpc OpenExecutor(Empty) returns (Empty);
+  rpc PauseWorker(Empty) returns (WorkerStateResponse);
+  rpc PrepareCheckpoint(FinalizeCheckpointRequest) returns (Empty);
+  rpc QueryStatistics(Empty) returns (WorkerMetricsResponse);
+  rpc ResumeWorker(Empty) returns (WorkerStateResponse);
+  rpc RetrieveState(Empty) returns (Empty);
+  rpc StartWorker(Empty) returns (WorkerStateResponse);
+  rpc UpdateExecutor(UpdateExecutorRequest) returns (Empty);
+  rpc UpdateMultipleExecutors(UpdateMultipleExecutorsRequest) returns (Empty);
+  rpc UpdateExecutorCompleted(UpdateExecutorCompletedRequest) returns (Empty);
+}

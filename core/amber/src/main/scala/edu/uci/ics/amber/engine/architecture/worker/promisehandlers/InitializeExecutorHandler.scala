@@ -7,13 +7,6 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.InitializeEx
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 
-object InitializeExecutorHandler {
-  final case class InitializeExecutor(
-      totalWorkerCount: Int,
-      opExecInitInfo: OpExecInitInfo,
-      isSource: Boolean
-  ) extends ControlCommand[Unit]
-}
 
 trait InitializeExecutorHandler {
   this: DataProcessorRPCHandlerInitializer =>

@@ -7,11 +7,6 @@ import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{PAUS
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 
-object AddPartitioningHandler {
-  final case class AddPartitioning(tag: PhysicalLink, partitioning: Partitioning)
-      extends ControlCommand[Unit]
-}
-
 trait AddPartitioningHandler {
   this: DataProcessorRPCHandlerInitializer =>
 

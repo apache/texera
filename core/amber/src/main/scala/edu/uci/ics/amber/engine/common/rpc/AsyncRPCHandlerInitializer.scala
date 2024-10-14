@@ -4,7 +4,7 @@ import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ClientEvent
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands._
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns._
-import edu.uci.ics.amber.engine.common.ambermessage.ChannelMarkerType
+import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity, ChannelMarkerIdentity}
 
 import scala.language.implicitConversions
@@ -23,11 +23,12 @@ class AsyncRPCHandlerInitializer[T](
 
   def getProxy:T = ctrlSource.proxy
   def mkContext(to:ActorVirtualIdentity): AsyncRPCContext = ctrlSource.mkContext(to)
+
   def sendChannelMarker(
                          markerId: ChannelMarkerIdentity,
                          markerType: ChannelMarkerType,
                          scope: Set[ChannelIdentity],
-                         cmdMapping: Map[ActorVirtualIdentity, ControlInvocation],
+                         cmdMapping: Map[String, ControlInvocation],
                          to: ChannelIdentity
                        ): Unit = {
     ctrlSource.sendChannelMarker(markerId, markerType, scope, cmdMapping, to)

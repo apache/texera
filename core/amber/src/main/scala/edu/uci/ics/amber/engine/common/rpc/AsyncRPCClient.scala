@@ -9,7 +9,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, Ch
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CLIENT
 import io.grpc.MethodDescriptor
 import com.google.protobuf.any.{Any => ProtoAny}
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, ControlInvocation, ControlRequest}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, ChannelMarkerPayload, ChannelMarkerType, ControlInvocation, ControlRequest}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{ControlError, ReturnInvocation}
 import scalapb.GeneratedMessage
 
@@ -103,13 +103,13 @@ class AsyncRPCClient[T:ClassTag](
       markerId: ChannelMarkerIdentity,
       markerType: ChannelMarkerType,
       scope: Set[ChannelIdentity],
-      cmdMapping: Map[ActorVirtualIdentity, ControlInvocation],
+      cmdMapping: Map[String, ControlInvocation],
       channelId: ChannelIdentity
   ): Unit = {
     logger.debug(s"send marker: $markerId to $channelId")
     outputGateway.sendTo(
       channelId,
-      ChannelMarkerPayload(markerId, markerType, scope, cmdMapping)
+      ChannelMarkerPayload(markerId, markerType, scope.toSeq, cmdMapping)
     )
   }
 

@@ -3,8 +3,10 @@ package edu.uci.ics.amber.engine.architecture.rpc;
 
 import "edu/uci/ics/amber/engine/common/virtualidentity.proto";
 import "edu/uci/ics/amber/engine/common/workflow.proto";
+import "edu/uci/ics/amber/engine/architecture/worker/statistics.proto";
 import "scalapb/scalapb.proto";
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/any.proto";
 
 option (scalapb.options) = {
   scope: FILE,
@@ -39,6 +41,14 @@ message ControlRequest {
     GenerateNumber generateNumber = 23;
     MultiCall multiCall = 24;
     Chain chain = 25;
+    AddInputChannelRequest addInputChannelRequest = 26;
+    AddPartitioningRequest addPartitioningRequest = 27;
+    AssignPortRequest assignPortRequest = 28;
+    FinalizeCheckpointRequest finalizeCheckpointRequest = 29;
+    InitializeExecutorRequest initializeExecutorRequest = 30;
+    UpdateExecutorRequest updateExecutorRequest = 31;
+    UpdateMultipleExecutorsRequest updateMultipleExecutorsRequest = 32;
+    UpdateExecutorCompletedRequest updateExecutorCompletedRequest = 33;
   }
 }
 
@@ -65,7 +75,8 @@ enum ChannelMarkerType {
 
 // Message for ChannelMarkerPayload
 message ChannelMarkerPayload {
-  common.ChannelMarkerIdentity id = 1;
+  option (scalapb.message).extends = "edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessagePayload";
+  common.ChannelMarkerIdentity id = 1 [(scalapb.field).no_box = true];
   ChannelMarkerType markerType = 2;
   repeated common.ChannelIdentity scope = 3;
   map<string, ControlInvocation> commandMapping = 4;
@@ -73,11 +84,12 @@ message ChannelMarkerPayload {
 
 message PropagateChannelMarkerRequest {
   repeated common.PhysicalOpIdentity sourceOpToStartProp = 1;
-  common.ChannelMarkerIdentity id = 2;
+  common.ChannelMarkerIdentity id = 2 [(scalapb.field).no_box = true];
   ChannelMarkerType markerType = 3;
   repeated common.PhysicalOpIdentity scope = 4;
   repeated common.PhysicalOpIdentity targetOps = 5;
   ControlRequest markerCommand = 6;
+  string markerMethodName = 7;
 }
 
 message TakeGlobalCheckpointRequest {
@@ -99,8 +111,8 @@ message EvaluatePythonExpressionRequest {
 }
 
 message ModifyLogicRequest {
-  string newOp = 1;
-  string stateTransferFunc = 2; // Simplified for the request
+  common.PhysicalOpIdentity newOp = 1;
+  google.protobuf.Any stateTransferFunc = 2;
 }
 
 message RetryWorkflowRequest {
@@ -115,6 +127,7 @@ enum ConsoleMessageType{
 }
 
 message ConsoleMessage {
+  option (scalapb.message).extends = "edu.uci.ics.amber.engine.architecture.controller.ClientEvent";
   string worker_id = 1;
   google.protobuf.Timestamp timestamp = 2  [(scalapb.field).no_box = true];
   ConsoleMessageType msg_type = 3;
@@ -126,7 +139,7 @@ message ConsoleMessage {
 message RetrieveWorkflowStateRequest {}
 
 message ConsoleMessageTriggeredRequest {
-  ConsoleMessage consoleMessage = 1;
+  ConsoleMessage consoleMessage = 1 [(scalapb.field).no_box = true];
 }
 
 message PortCompletedRequest {
@@ -142,13 +155,13 @@ message ResumeWorkflowRequest {}
 message PauseWorkflowRequest {}
 
 message WorkerStateUpdatedRequest {
-  string state = 1; // Simplified worker state as string for the request
+  worker.WorkerState state = 1;
 }
 
 message WorkerExecutionCompletedRequest {}
 
 message LinkWorkersRequest {
-  string link = 1; // Simplified PhysicalLink as a string for the request
+  common.PhysicalLink link = 1 [(scalapb.field).no_box = true];
 }
 
 // Ping message
@@ -201,4 +214,45 @@ message Chain {
 // Recursion message
 message Recursion {
   int32 i = 1;
+}
+
+// Messages for the commands
+message AddInputChannelRequest {
+  string channelId = 1;
+  string portId = 2;
+}
+
+message AddPartitioningRequest {
+  string tag = 1;
+  string partitioning = 2;
+}
+
+message AssignPortRequest {
+  string portId = 1;
+  bool input = 2;
+  map<string, string> schema = 3;
+}
+
+message FinalizeCheckpointRequest {
+  string checkpointId = 1;
+  string writeTo = 2;
+}
+
+message InitializeExecutorRequest {
+  int32 totalWorkerCount = 1;
+  google.protobuf.Any opExecInitInfo = 2;
+  bool isSource = 3;
+}
+
+message UpdateExecutorRequest {
+  common.PhysicalOpIdentity physicalOp = 1;
+  google.protobuf.Any stateTransferFunc = 2;
+}
+
+message UpdateMultipleExecutorsRequest {
+  repeated UpdateExecutorRequest executorsToUpdate = 1;
+}
+
+message UpdateExecutorCompletedRequest {
+  common.ActorVirtualIdentity workerId = 1;
 }

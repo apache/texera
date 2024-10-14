@@ -1,27 +1,24 @@
 package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ConsoleMessageHandler.ConsoleMessageTriggered
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
-import edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessage
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, ConsoleMessageTriggeredRequest, PauseWorkflowRequest}
+import edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerServiceGrpc.METHOD_SEND_PAUSE_WORKFLOW
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
-
-object ConsoleMessageHandler {
-  case class ConsoleMessageTriggered(consoleMessage: ConsoleMessage) extends ControlCommand[Unit]
-}
 
 trait ConsoleMessageHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
-  registerHandler[ConsoleMessageTriggered, Unit] { (msg, sender) =>
-    {
-      if (msg.consoleMessage.msgType.isError) {
-        // if its an error message, pause the workflow
-        execute(PauseWorkflow(), CONTROLLER)
-      }
 
-      // forward message to frontend
-      sendToClient(msg)
+  override def sendConsoleMessageTriggered(msg: ConsoleMessageTriggeredRequest, ctx:AsyncRPCContext): Empty = {
+    if (msg.consoleMessage.msgType.isError) {
+      // if its an error message, pause the workflow
+      execute(ControlInvocation(METHOD_SEND_PAUSE_WORKFLOW, PauseWorkflowRequest(), ctx, 0))
     }
+
+    // forward message to frontend
+    sendToClient(msg.consoleMessage)
+    Empty()
   }
+
 }

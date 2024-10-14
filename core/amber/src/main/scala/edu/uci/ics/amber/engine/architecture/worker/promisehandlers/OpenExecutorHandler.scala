@@ -4,11 +4,6 @@ import edu.uci.ics.amber.engine.architecture.worker.DataProcessorRPCHandlerIniti
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenExecutorHandler.OpenExecutor
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 
-object OpenExecutorHandler {
-
-  final case class OpenExecutor() extends ControlCommand[Unit]
-}
-
 trait OpenExecutorHandler {
   this: DataProcessorRPCHandlerInitializer =>
   registerHandler { (_: OpenExecutor, sender) =>

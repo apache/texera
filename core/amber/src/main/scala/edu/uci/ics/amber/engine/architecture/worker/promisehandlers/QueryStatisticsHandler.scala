@@ -5,10 +5,6 @@ import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerMetrics
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 
-object QueryStatisticsHandler {
-  final case class QueryStatistics() extends ControlCommand[WorkerMetrics]
-}
-
 trait QueryStatisticsHandler {
   this: DataProcessorRPCHandlerInitializer =>
 

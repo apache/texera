@@ -7,14 +7,6 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 
-object AddInputChannelHandler {
-
-  final case class AddInputChannel(
-      channelId: ChannelIdentity,
-      portId: PortIdentity
-  ) extends ControlCommand[Unit]
-}
-
 trait AddInputChannelHandler {
   this: DataProcessorRPCHandlerInitializer =>
 

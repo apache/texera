@@ -13,10 +13,6 @@ import edu.uci.ics.amber.engine.common.virtualidentity.util.SOURCE_STARTER_ACTOR
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.common.{EndOfInputChannel, StartOfInputChannel}
 
-object StartHandler {
-  final case class StartWorker() extends ControlCommand[WorkerState]
-}
-
 trait StartHandler {
   this: DataProcessorRPCHandlerInitializer =>
 

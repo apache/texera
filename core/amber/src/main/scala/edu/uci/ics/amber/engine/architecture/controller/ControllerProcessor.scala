@@ -6,7 +6,6 @@ import edu.uci.ics.amber.engine.architecture.controller.execution.WorkflowExecut
 import edu.uci.ics.amber.engine.architecture.logreplay.ReplayLogManager
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.AsyncRPCContext
 import edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerServiceFs2Grpc
-import edu.uci.ics.amber.engine.architecture.rpc.testerservice.RPCTesterFs2Grpc
 import edu.uci.ics.amber.engine.architecture.scheduling.WorkflowExecutionCoordinator
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage

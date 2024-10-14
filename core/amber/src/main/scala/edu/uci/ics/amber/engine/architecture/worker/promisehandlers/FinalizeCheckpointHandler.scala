@@ -5,7 +5,6 @@ import edu.uci.ics.amber.engine.architecture.worker.{
   WorkflowWorker
 }
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.FinalizeCheckpointHandler.FinalizeCheckpoint
 import edu.uci.ics.amber.engine.common.{CheckpointState, CheckpointSupport, SerializedState}
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.engine.common.virtualidentity.ChannelMarkerIdentity
@@ -13,11 +12,6 @@ import edu.uci.ics.amber.engine.common.virtualidentity.ChannelMarkerIdentity
 import java.net.URI
 import java.util.concurrent.CompletableFuture
 import scala.collection.mutable.ArrayBuffer
-
-object FinalizeCheckpointHandler {
-  final case class FinalizeCheckpoint(checkpointId: ChannelMarkerIdentity, writeTo: URI)
-      extends ControlCommand[Long]
-}
 
 trait FinalizeCheckpointHandler {
   this: DataProcessorRPCHandlerInitializer =>

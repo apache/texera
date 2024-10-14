@@ -13,7 +13,7 @@ final case class ConsoleMessage(
     source: _root_.scala.Predef.String,
     title: _root_.scala.Predef.String,
     message: _root_.scala.Predef.String
-    ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[ConsoleMessage] {
+    ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[ConsoleMessage] with edu.uci.ics.amber.engine.architecture.controller.ClientEvent {
     @transient
     private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
     private[this] def __computeSerializedSize(): _root_.scala.Int = {

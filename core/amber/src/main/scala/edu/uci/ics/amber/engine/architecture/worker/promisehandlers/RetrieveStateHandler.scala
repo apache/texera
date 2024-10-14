@@ -4,10 +4,6 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.RetrieveStat
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 
-object RetrieveStateHandler {
-  final case class RetrieveState() extends ControlCommand[Unit]
-}
-
 trait RetrieveStateHandler {
   this: DataProcessorRPCHandlerInitializer =>
 

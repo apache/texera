@@ -1,8 +1,8 @@
 syntax = "proto3";
 package edu.uci.ics.amber.engine.architecture.rpc;
 
-import "edu/uci/ics/amber/engine/common/virtualidentity.proto";
 import "edu/uci/ics/amber/engine/architecture/worker/controlreturns.proto";
+import "edu/uci/ics/texera/workflowruntimestate.proto";
 import "scalapb/scalapb.proto";
 
 option (scalapb.options) = {
@@ -25,6 +25,8 @@ message ControlReturn {
     StartWorkflowResponse startWorkflowResponse = 7;
     StringResponse stringResponse = 8;
     IntResponse intResponse = 9;
+    WorkerStateResponse workerStateResponse = 10;
+    WorkerMetricsResponse workerMetricsResponse = 11;
   }
 }
 
@@ -51,12 +53,15 @@ message IntResponse {
 message Empty {}
 
 message RetrieveWorkflowStateResponse {
-  map<string, Empty> state = 1;
+  map<string, string> state = 1;
 }
 
+message FinalizeCheckpointResponse {
+  int64 size = 1;
+}
 
 message PropagateChannelMarkerResponse {
-  repeated common.ActorVirtualIdentity actors = 1;
+  map<string, ControlReturn> returns = 1;
 }
 
 message TakeGlobalCheckpointResponse {
@@ -68,5 +73,13 @@ message EvaluatePythonExpressionResponse {
 }
 
 message StartWorkflowResponse {
-  string workflowState = 1;
+  edu.uci.ics.texera.web.WorkflowAggregatedState workflowState = 1;
+}
+
+message WorkerStateResponse {
+  string state = 1;  // Adjust if WorkerState is more complex
+}
+
+message WorkerMetricsResponse {
+  string metrics = 1;  // Adjust if WorkerMetrics is more complex
 }

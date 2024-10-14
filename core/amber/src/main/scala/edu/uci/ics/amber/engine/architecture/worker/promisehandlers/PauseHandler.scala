@@ -6,11 +6,6 @@ import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{PAUSED, READY, RUNNING}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 
-object PauseHandler {
-
-  final case class PauseWorker() extends ControlCommand[WorkerState]
-}
-
 trait PauseHandler {
   this: DataProcessorRPCHandlerInitializer =>
 

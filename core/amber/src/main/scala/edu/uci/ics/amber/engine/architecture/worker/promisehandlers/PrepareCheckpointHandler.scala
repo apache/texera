@@ -14,11 +14,6 @@ import edu.uci.ics.amber.engine.common.virtualidentity.ChannelMarkerIdentity
 import java.util.concurrent.CompletableFuture
 import scala.collection.mutable
 
-object PrepareCheckpointHandler {
-  final case class PrepareCheckpoint(checkpointId: ChannelMarkerIdentity, estimationOnly: Boolean)
-      extends ControlCommand[Unit]
-}
-
 trait PrepareCheckpointHandler {
   this: DataProcessorRPCHandlerInitializer =>
 
