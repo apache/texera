@@ -113,6 +113,7 @@
             [isOwner]="entry.ownerId === this.currentUid">
           </texera-user-avatar>
         </div>
+        <div class="resource-time-info">{{ formatViewCount(viewCount) + " " + (viewCount === 1 ? "view" : "views") }} </div>
         <div class="resource-time-info">Created: {{ formatTime(entry.creationTime) }}</div>
         <div class="resource-time-info">Edited: {{ formatTime(entry.lastModifiedTime) }}</div>
       </div>

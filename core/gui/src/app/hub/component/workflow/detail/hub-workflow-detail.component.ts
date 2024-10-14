@@ -130,19 +130,10 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
       this.hubWorkflowService
         .postViewWorkflow(this.wid)
         .pipe(untilDestroyed(this))
-        .subscribe(success => {
-          if (!success) {
-            console.log("error updating view count")
-          }
-        })
-
-      this.hubWorkflowService
-        .getViewCount(this.wid)
-        .pipe(untilDestroyed(this))
         .subscribe(count => {
           this.viewCount = count;
           console.log(this.viewCount)
-        });
+        })
     }
 
     this.hubWorkflowService
