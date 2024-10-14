@@ -1,3 +1,4 @@
+// register a new custom module and add the custom serializer into it
 package edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils;
 
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.type.PhysicalFileNode;
@@ -131,7 +132,14 @@ public class JGitVersionControl {
 
         while (treeWalk.next()) {
           Path fullPath = repoPath.resolve(treeWalk.getPathString());
-          PhysicalFileNode currentNode = createOrGetNode(pathToFileNodeMap, repoPath, fullPath);
+          long size = 0;
+          if (!treeWalk.isSubtree()) {
+            // Get file size for non-directory entries
+            ObjectId objectId = treeWalk.getObjectId(0);
+            ObjectLoader loader = repository.open(objectId);
+            size = loader.getSize();
+          }
+          PhysicalFileNode currentNode = createOrGetNode(pathToFileNodeMap, repoPath, fullPath, size);
 
           if (treeWalk.isSubtree()) {
             treeWalk.enterSubtree();
@@ -158,8 +166,12 @@ public class JGitVersionControl {
     return rootNodes;
   }
 
+  private static PhysicalFileNode createOrGetNode(Map<String, PhysicalFileNode> map, Path repoPath, Path path, long size) {
+    return map.computeIfAbsent(path.toString(), k -> new PhysicalFileNode(repoPath, path, size));
+  }
+
   private static PhysicalFileNode createOrGetNode(Map<String, PhysicalFileNode> map, Path repoPath, Path path) {
-    return map.computeIfAbsent(path.toString(), k -> new PhysicalFileNode(repoPath, path));
+    return map.computeIfAbsent(path.toString(), k -> new PhysicalFileNode(repoPath, path, 0));
   }
 
   private static void ensureParentChildLink(Map<String, PhysicalFileNode> map, Path repoPath, Path childPath, PhysicalFileNode childNode) {
