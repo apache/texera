@@ -172,7 +172,7 @@ export class WorkflowResultExportService {
     binaryDataColumns: Set<string>
   ): void {
     pageData.table.forEach((row, rowIndex) => {
-      const folderName = `entry_${(currentPage - 1) * pageSize + rowIndex + 1}`;
+      const folderName = `row_${(currentPage - 1) * pageSize + rowIndex + 1}`;
       this.processBinaryDataColumns(row, binaryDataColumns, folderName, zip);
     });
   }
