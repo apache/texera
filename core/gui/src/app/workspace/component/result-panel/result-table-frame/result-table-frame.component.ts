@@ -55,6 +55,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   prevTableStats: Record<string, Record<string, number>> = {};
   widthPercent: string = "";
   sinkStorageMode: string = "";
+  hasBinaryData: boolean = true;
 
   constructor(
     private executeWorkflowService: ExecuteWorkflowService,
@@ -373,5 +374,10 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       },
       nzFooter: null,
     });
+  }
+
+  downloadAllBinaryData(): void {
+    // Implement the logic to download all binary data
+    console.log("Downloading all binary data");
   }
 }
