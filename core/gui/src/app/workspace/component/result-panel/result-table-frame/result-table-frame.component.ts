@@ -14,6 +14,7 @@ import { style } from "@angular/animations";
 import { isBase64, isBinary, trimAndFormatData } from "src/app/common/util/json";
 import { ResultExportationComponent } from "../../result-exportation/result-exportation.component";
 import { WorkflowResultExportService } from "src/app/workspace/service/workflow-result-export/workflow-result-export.service";
+import { ChangeDetectorRef } from "@angular/core";
 
 export const TABLE_COLUMN_TEXT_LIMIT = 100;
 export const PRETTY_JSON_TEXT_LIMIT = 50000;
@@ -66,7 +67,8 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     private workflowResultService: WorkflowResultService,
     private resizeService: PanelResizeService,
     private sanitizer: DomSanitizer,
-    private workflowResultExportService: WorkflowResultExportService
+    private workflowResultExportService: WorkflowResultExportService,
+    private changeDetectorRef: ChangeDetectorRef
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -104,6 +106,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
         if (opUpdate.dirtyPageIndices.includes(this.currentPageIndex)) {
           this.changePaginatedResultData();
         }
+        this.changeDetectorRef.detectChanges();
       });
 
     this.workflowResultService
@@ -298,6 +301,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       .subscribe(pageData => {
         if (this.currentPageIndex === pageData.pageIndex) {
           this.setupResultTable(pageData.table, paginatedResultService.getCurrentTotalNumTuples());
+          this.changeDetectorRef.detectChanges();
         }
       });
   }
@@ -318,6 +322,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     }
 
     this.isLoadingResult = false;
+    this.changeDetectorRef.detectChanges();
 
     // creates a shallow copy of the readonly response.result,
     //  this copy will be has type object[] because MatTableDataSource's input needs to be object[]

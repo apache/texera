@@ -124,6 +124,9 @@ export class WorkflowResultExportService {
       });
   }
 
+  /**
+   * Export all binary data as a ZIP file.
+   */
   exportAllBinaryDataAsZIP(binaryDataColumns: Set<string>, operatorId: string): void {
     const paginatedResultService = this.workflowResultService.getPaginatedResultService(operatorId);
 
@@ -131,8 +134,14 @@ export class WorkflowResultExportService {
       return;
     }
 
-    console.log("Binary data columns:", binaryDataColumns);
+    this.createZipFromPaginatedData(paginatedResultService, binaryDataColumns, operatorId);
+  }
 
+  private createZipFromPaginatedData(
+    paginatedResultService: OperatorPaginationResultService,
+    binaryDataColumns: Set<string>,
+    operatorId: string
+  ): void {
     const zip = new JSZip();
     let currentPage = 1;
     const pageSize = 10;
@@ -145,40 +154,54 @@ export class WorkflowResultExportService {
         )
       )
       .subscribe({
-        next: (pageData: PaginatedResultEvent) => {
-          console.log("Page data:", pageData);
-          pageData.table.forEach((row, rowIndex) => {
-            const folderName = `entry_${(currentPage - 1) * pageSize + rowIndex + 1}`;
-            binaryDataColumns.forEach(name => {
-              const binaryData = row[name];
-              if (typeof binaryData === "string" && (isBase64(binaryData) || isBinary(binaryData))) {
-                const blob = this.base64ToBlob(binaryData);
-                zip.folder(folderName)?.file(name, blob);
-              } else {
-                console.warn(`Invalid binary data for column ${name} at row ${rowIndex}`);
-              }
-            });
-          });
-        },
-        complete: async () => {
-          try {
-            const content = await zip.generateAsync({ type: "blob" });
-            const fileName = `binary_data_${operatorId}.zip`;
-            this.downloadService
-              .downloadOperatorsResult(
-                [of([{ filename: fileName, blob: content }])],
-                this.workflowActionService.getWorkflow()
-              )
-              .subscribe({
-                error: (error: unknown) => {
-                  console.error("Error exporting binary data:", error);
-                },
-              });
-          } catch (error) {
-            console.error("Error generating ZIP file:", error);
-          }
-        },
+        next: (pageData: PaginatedResultEvent) =>
+          this.processPage(pageData, currentPage, pageSize, zip, binaryDataColumns),
+        complete: () => this.finalizeZip(zip, operatorId),
       });
+  }
+
+  private processPage(
+    pageData: PaginatedResultEvent,
+    currentPage: number,
+    pageSize: number,
+    zip: JSZip,
+    binaryDataColumns: Set<string>
+  ): void {
+    pageData.table.forEach((row, rowIndex) => {
+      const folderName = `entry_${(currentPage - 1) * pageSize + rowIndex + 1}`;
+      this.processBinaryDataColumns(row, binaryDataColumns, folderName, zip);
+    });
+  }
+
+  private processBinaryDataColumns(row: any, binaryDataColumns: Set<string>, folderName: string, zip: JSZip): void {
+    binaryDataColumns.forEach(name => {
+      const binaryData = row[name];
+      if (typeof binaryData === "string" && (isBase64(binaryData) || isBinary(binaryData))) {
+        const blob = this.base64ToBlob(binaryData);
+        zip.folder(folderName)?.file(name, blob);
+      } else {
+        console.warn(`Invalid binary data for column ${name}`);
+      }
+    });
+  }
+
+  private async finalizeZip(zip: JSZip, operatorId: string): Promise<void> {
+    try {
+      const content = await zip.generateAsync({ type: "blob" });
+      const fileName = `binary_data_${operatorId}.zip`;
+      this.downloadService
+        .downloadOperatorsResult(
+          [of([{ filename: fileName, blob: content }])],
+          this.workflowActionService.getWorkflow()
+        )
+        .subscribe({
+          error: (error: unknown) => {
+            console.error("Error exporting binary data:", error);
+          },
+        });
+    } catch (error) {
+      console.error("Error generating ZIP file:", error);
+    }
   }
 
   private base64ToBlob(base64: string): Blob {
