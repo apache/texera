@@ -4,7 +4,7 @@ import { Injectable } from "@angular/core";
 import { environment } from "../../../../environments/environment";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
-import { EMPTY, expand, finalize, forkJoin, merge, Observable } from "rxjs";
+import { EMPTY, expand, finalize, forkJoin, merge, Observable, of } from "rxjs";
 import { PaginatedResultEvent, ResultExportResponse } from "../../types/workflow-websocket.interface";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
@@ -13,6 +13,7 @@ import { filter } from "rxjs/operators";
 import { OperatorResultService, WorkflowResultService } from "../workflow-result/workflow-result.service";
 import { OperatorPaginationResultService } from "../workflow-result/workflow-result.service";
 import { DownloadService } from "../../../dashboard/service/user/download/download.service";
+import { isBase64, isBinary } from "src/app/common/util/json";
 
 @Injectable({
   providedIn: "root",
@@ -121,6 +122,74 @@ export class WorkflowResultExportService {
           console.error("Error exporting operator results:", error);
         },
       });
+  }
+
+  exportAllBinaryDataAsZIP(binaryDataColumns: Set<string>, operatorId: string): void {
+    const paginatedResultService = this.workflowResultService.getPaginatedResultService(operatorId);
+
+    if (!paginatedResultService) {
+      return;
+    }
+
+    console.log("Binary data columns:", binaryDataColumns);
+
+    const zip = new JSZip();
+    let currentPage = 1;
+    const pageSize = 10;
+
+    paginatedResultService
+      .selectPage(currentPage, pageSize)
+      .pipe(
+        expand((pageData: PaginatedResultEvent) =>
+          pageData.table.length === pageSize ? paginatedResultService.selectPage(++currentPage, pageSize) : EMPTY
+        )
+      )
+      .subscribe({
+        next: (pageData: PaginatedResultEvent) => {
+          console.log("Page data:", pageData);
+          pageData.table.forEach((row, rowIndex) => {
+            const folderName = `entry_${(currentPage - 1) * pageSize + rowIndex + 1}`;
+            binaryDataColumns.forEach(name => {
+              const binaryData = row[name];
+              if (typeof binaryData === "string" && (isBase64(binaryData) || isBinary(binaryData))) {
+                const blob = this.base64ToBlob(binaryData);
+                zip.folder(folderName)?.file(name, blob);
+              } else {
+                console.warn(`Invalid binary data for column ${name} at row ${rowIndex}`);
+              }
+            });
+          });
+        },
+        complete: async () => {
+          try {
+            const content = await zip.generateAsync({ type: "blob" });
+            const fileName = `binary_data_${operatorId}.zip`;
+            this.downloadService
+              .downloadOperatorsResult(
+                [of([{ filename: fileName, blob: content }])],
+                this.workflowActionService.getWorkflow()
+              )
+              .subscribe({
+                error: (error: unknown) => {
+                  console.error("Error exporting binary data:", error);
+                },
+              });
+          } catch (error) {
+            console.error("Error generating ZIP file:", error);
+          }
+        },
+      });
+  }
+
+  private base64ToBlob(base64: string): Blob {
+    const byteCharacters = atob(base64);
+    const byteArray = new Uint8Array(byteCharacters.length);
+
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteArray[i] = byteCharacters.charCodeAt(i);
+    }
+
+    return new Blob([byteArray]);
   }
 
   /**
