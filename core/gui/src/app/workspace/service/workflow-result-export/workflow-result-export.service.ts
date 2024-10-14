@@ -14,6 +14,7 @@ import { OperatorResultService, WorkflowResultService } from "../workflow-result
 import { OperatorPaginationResultService } from "../workflow-result/workflow-result.service";
 import { DownloadService } from "../../../dashboard/service/user/download/download.service";
 import { isBase64, isBinary } from "src/app/common/util/json";
+import { Buffer } from "buffer";
 
 @Injectable({
   providedIn: "root",
@@ -131,6 +132,7 @@ export class WorkflowResultExportService {
     const paginatedResultService = this.workflowResultService.getPaginatedResultService(operatorId);
 
     if (!paginatedResultService) {
+      this.notificationService.error("No paginated result service found for the operator.");
       return;
     }
 
@@ -151,12 +153,15 @@ export class WorkflowResultExportService {
       .pipe(
         expand((pageData: PaginatedResultEvent) =>
           pageData.table.length === pageSize ? paginatedResultService.selectPage(++currentPage, pageSize) : EMPTY
-        )
+        ),
+        finalize(() => this.finalizeZip(zip, operatorId))
       )
       .subscribe({
         next: (pageData: PaginatedResultEvent) =>
           this.processPage(pageData, currentPage, pageSize, zip, binaryDataColumns),
-        complete: () => this.finalizeZip(zip, operatorId),
+        error: (error: unknown) => {
+          console.error("Error processing paginated data:", error);
+        },
       });
   }
 
@@ -180,7 +185,7 @@ export class WorkflowResultExportService {
         const blob = this.base64ToBlob(binaryData);
         zip.folder(folderName)?.file(name, blob);
       } else {
-        console.warn(`Invalid binary data for column ${name}`);
+        console.warn(`Invalid binary data for column ${name} in ${folderName}`);
       }
     });
   }
@@ -205,11 +210,11 @@ export class WorkflowResultExportService {
   }
 
   private base64ToBlob(base64: string): Blob {
-    const byteCharacters = atob(base64);
-    const byteArray = new Uint8Array(byteCharacters.length);
+    const buffer = Buffer.from(base64.split(",")[1] || base64, "base64");
+    const byteArray = new Uint8Array(buffer);
 
-    for (let i = 0; i < byteCharacters.length; i++) {
-      byteArray[i] = byteCharacters.charCodeAt(i);
+    for (let i = 0; i < byteArray.length; i++) {
+      byteArray[i] = buffer[i];
     }
 
     return new Blob([byteArray]);
