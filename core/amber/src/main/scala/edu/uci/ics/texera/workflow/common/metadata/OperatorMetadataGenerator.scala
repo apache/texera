@@ -10,6 +10,7 @@ import edu.uci.ics.amber.engine.common.Utils.objectMapper
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.operators.source.scan.csv.CSVScanSourceOpDesc
+import edu.uci.ics.texera.workflow.operators.udf.python.source.PythonUDFSourceOpDescV2
 
 import java.util
 import scala.jdk.CollectionConverters.{IteratorHasAsScala, ListHasAsScala}
@@ -78,7 +79,7 @@ object OperatorMetadataGenerator {
   def main(args: Array[String]): Unit = {
     // run this if you want to check the json schema generated for an operator descriptor
     // replace the argument with the class of your operator descriptor
-    println(generateOperatorJsonSchema(classOf[CSVScanSourceOpDesc]).toPrettyString)
+    println(generateOperatorJsonSchema(classOf[PythonUDFSourceOpDescV2]).toPrettyString)
   }
 
   def generateOperatorJsonSchema(opDescClass: Class[_ <: LogicalOp]): JsonNode = {
