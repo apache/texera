@@ -132,7 +132,6 @@ export class WorkflowResultExportService {
     const paginatedResultService = this.workflowResultService.getPaginatedResultService(operatorId);
 
     if (!paginatedResultService) {
-      this.notificationService.error("No paginated result service found for the operator.");
       return;
     }
 
