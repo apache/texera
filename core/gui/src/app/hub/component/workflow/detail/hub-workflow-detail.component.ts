@@ -45,6 +45,8 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
   currentUid: number | undefined;
   likeCount: number = 0;
   cloneCount: number = 0;
+  displayPreciseViewCount = false;
+  viewCount: number = 0;
 
   workflow = {
     steps: [
@@ -123,6 +125,23 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
         .pipe(untilDestroyed(this))
         .subscribe(count => {
           this.cloneCount = count;
+        });
+
+      this.hubWorkflowService
+        .postViewWorkflow(this.wid)
+        .pipe(untilDestroyed(this))
+        .subscribe(success => {
+          if (!success) {
+            console.log("error updating view count")
+          }
+        })
+
+      this.hubWorkflowService
+        .getViewCount(this.wid)
+        .pipe(untilDestroyed(this))
+        .subscribe(count => {
+          this.viewCount = count;
+          console.log(this.viewCount)
         });
     }
 
@@ -325,5 +344,16 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
       return (count / 1000).toFixed(1) + "k";
     }
     return count.toString();
+  }
+
+  formatViewCount(count: number): string {
+    if (!this.displayPreciseViewCount && count >= 1000) {
+      return (count / 1000).toFixed(1) + "k";
+    }
+    return count.toString();
+  }
+
+  changeViewDisplayStyle() {
+    this.displayPreciseViewCount = !this.displayPreciseViewCount;
   }
 }

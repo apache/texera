@@ -244,6 +244,7 @@ class HubWorkflowResource {
       .set(WORKFLOW_VIEW_COUNT.VIEW_COUNT, WORKFLOW_VIEW_COUNT.VIEW_COUNT.add(1))
       .where(WORKFLOW_VIEW_COUNT.WID.eq(workflowId))
       .execute()
+    println("######################## view workflow ran")
     true
   }
 
@@ -258,6 +259,8 @@ class HubWorkflowResource {
           .selectFrom(WORKFLOW_VIEW_COUNT)
           .where(WORKFLOW_VIEW_COUNT.WID.eq(wid))
       )
+    println("######################## get view count running")
+    println(widInTable)
 
     if (!widInTable) {
       context
