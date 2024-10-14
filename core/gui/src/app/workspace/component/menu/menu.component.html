@@ -164,33 +164,38 @@
               nz-icon
               nzType="comment"></i>
           </button>
-          <button
-            (click)="onClickExportExecutionResult('csv')"
-            [disabled]="
+          <nz-dropdown-menu #exportMenu="nzDropdownMenu">
+            <ul nz-menu>
+              <li
+                nz-menu-item
+                (click)="onClickExportExecutionResult('csv')"
+                [class.disabled-menu-item]="
         !workflowResultExportService.exportExecutionResultEnabled ||
         !workflowResultExportService.hasResultToExportOnHighlightedOperators
-      "
-            id="downloadExcelOptions"
-            nz-button
-            nz-dropdown
-            title="export execution result">
-            <i
-              nz-icon
-              nzType="cloud-download"></i>
-          </button>
-          <button
-            (click)="workflowResultExportService.exportOperatorsResultAsFile(true)"
-            [disabled]="
+      ">
+                Export Execution Result
+              </li>
+              <li
+                nz-menu-item
+                (click)="workflowResultExportService.exportOperatorsResultAsFile(true)"
+                [class.disabled-menu-item]="
         !workflowResultExportService.exportExecutionResultEnabled ||
         !workflowResultExportService.hasResultToExportOnAllOperators
-      "
-            id="downloadZipWorkflow"
+      ">
+                Download All Operators Result
+              </li>
+            </ul>
+          </nz-dropdown-menu>
+          <button
             nz-button
             nz-dropdown
-            title="download all the operators result">
-            <i
-              nz-icon
-              nzType="download"></i>
+            [nzDropdownMenu]="exportMenu"
+            [disabled]="
+    !workflowResultExportService.exportExecutionResultEnabled ||
+    !workflowResultExportService.hasResultToExportOnAllOperators
+  "
+            title="">
+            <i nz-icon nzType="cloud-download"></i>
           </button>
           <button
             (click)="operatorMenu.disableHighlightedOperators()"
