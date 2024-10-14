@@ -21,13 +21,16 @@ const api_Url_Openai = `${AI_ASSISTANT_API_BASE_URL}/aiassistant/openai`;
 @Injectable({
   providedIn: "root",
 })
+/**
+ * This class `AiAnalystService` is responsible for integrating with the AI Assistant feature to generate insightful comments
+ * based on the provided prompts. It is mainly used for generating automated feedback or explanations for workflow components
+ */
 export class AiAnalystService {
   private isAIAssistantEnabled: boolean | null = null;
   constructor(
     private http: HttpClient,
     public workflowActionService: WorkflowActionService
   ) {}
-
   /**
    * Checks if the AI Assistant feature is enabled by sending a request to the API.
    *
