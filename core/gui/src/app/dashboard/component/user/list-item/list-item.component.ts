@@ -21,6 +21,7 @@ import { firstValueFrom } from "rxjs";
 import { SearchService } from "../../../service/user/search.service";
 import { HubWorkflowDetailComponent } from "../../../../hub/component/workflow/detail/hub-workflow-detail.component";
 import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
+import { formatSize } from "src/app/common/util/size-formatter.util";
 
 @UntilDestroy()
 @Component({
@@ -249,4 +250,7 @@ export class ListItemComponent implements OnInit, OnChanges {
       }
     }
   }
+
+  // alias for formatSize
+  formatSize = formatSize;
 }
