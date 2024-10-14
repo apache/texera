@@ -82,8 +82,8 @@ export class DirectorySelectionComponent {
       this.datasetService
         .retrieveDatasetVersionFileTree(this.selectedDataset.dataset.did, this.selectedVersion.dvid)
         .pipe(untilDestroyed(this))
-        .subscribe(fileNodes => {
-          this.suggestedFileTreeNodes = fileNodes;
+        .subscribe(response => {
+          this.suggestedFileTreeNodes = response.fileNodes;
         });
     }
   }
