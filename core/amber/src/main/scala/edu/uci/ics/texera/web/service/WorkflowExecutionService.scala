@@ -44,13 +44,15 @@ class WorkflowExecutionService(
 
   val wsInput = new WebsocketInput(errorHandler)
 
-  private val emailNotifier = new WorkflowEmailNotifier(
-    workflowContext.workflowId.id,
-    userEmailOpt.get,
-    sessionUri
+  private val emailNotificationService = userEmailOpt.map(email =>
+    new EmailNotificationService(
+      new WorkflowEmailNotifier(
+        workflowContext.workflowId.id,
+        email,
+        sessionUri
+      )
+    )
   )
-
-  private val emailNotificationService = new EmailNotificationService(emailNotifier)
 
   addSubscription(
     executionStateStore.metadataStore.registerDiffHandler((oldState, newState) => {
@@ -59,8 +61,8 @@ class WorkflowExecutionService(
       if (newState.state != oldState.state || newState.isRecovering != oldState.isRecovering) {
         outputEvents.append(createStateEvent(newState))
 
-        if (request.emailNotificationEnabled) {
-          emailNotificationService.sendEmailNotification(oldState.state, newState.state)
+        if (request.emailNotificationEnabled && emailNotificationService.nonEmpty) {
+          emailNotificationService.get.sendEmailNotification(oldState.state, newState.state)
         }
       }
 
@@ -147,7 +149,10 @@ class WorkflowExecutionService(
       executionStatsService.unsubscribeAll()
       executionReconfigurationService.unsubscribeAll()
     }
-    emailNotificationService.shutdown()
+    if (emailNotificationService.nonEmpty) {
+      emailNotificationService.get.shutdown()
+    }
+
   }
 
 }
