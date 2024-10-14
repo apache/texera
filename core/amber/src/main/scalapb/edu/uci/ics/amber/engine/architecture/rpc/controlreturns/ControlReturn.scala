@@ -1650,12 +1650,9 @@ object IntResponse extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.e
   // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.IntResponse])
 }
 
-/** @param state
-  *   Adjust if WorkerState is more complex
-  */
 @SerialVersionUID(0L)
 final case class WorkerStateResponse(
-    state: _root_.scala.Predef.String
+    state: edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturn.NonEmpty with scalapb.lenses.Updatable[WorkerStateResponse] {
     @transient
     private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
@@ -1663,9 +1660,9 @@ final case class WorkerStateResponse(
       var __size = 0
       
       {
-        val __value = state
-        if (!__value.isEmpty) {
-          __size += _root_.com.google.protobuf.CodedOutputStream.computeStringSize(1, __value)
+        val __value = state.value
+        if (__value != 0) {
+          __size += _root_.com.google.protobuf.CodedOutputStream.computeEnumSize(1, __value)
         }
       };
       __size
@@ -1681,25 +1678,25 @@ final case class WorkerStateResponse(
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       {
-        val __v = state
-        if (!__v.isEmpty) {
-          _output__.writeString(1, __v)
+        val __v = state.value
+        if (__v != 0) {
+          _output__.writeEnum(1, __v)
         }
       };
     }
-    def withState(__v: _root_.scala.Predef.String): WorkerStateResponse = copy(state = __v)
+    def withState(__v: edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState): WorkerStateResponse = copy(state = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
         case 1 => {
-          val __t = state
-          if (__t != "") __t else null
+          val __t = state.javaValueDescriptor
+          if (__t.getNumber() != 0) __t else null
         }
       }
     }
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
       _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
       (__field.number: @_root_.scala.unchecked) match {
-        case 1 => _root_.scalapb.descriptors.PString(state)
+        case 1 => _root_.scalapb.descriptors.PEnum(state.scalaValueDescriptor)
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
@@ -1710,14 +1707,14 @@ final case class WorkerStateResponse(
 object WorkerStateResponse extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerStateResponse] {
   implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerStateResponse] = this
   def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerStateResponse = {
-    var __state: _root_.scala.Predef.String = ""
+    var __state: edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState = edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.UNINITIALIZED
     var _done__ = false
     while (!_done__) {
       val _tag__ = _input__.readTag()
       _tag__ match {
         case 0 => _done__ = true
-        case 10 =>
-          __state = _input__.readStringRequireUtf8()
+        case 8 =>
+          __state = edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.fromValue(_input__.readEnum())
         case tag => _input__.skipField(tag)
       }
     }
@@ -1729,7 +1726,7 @@ object WorkerStateResponse extends scalapb.GeneratedMessageCompanion[edu.uci.ics
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
       edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerStateResponse(
-        state = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Predef.String]).getOrElse("")
+        state = edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.fromValue(__fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scalapb.descriptors.EnumValueDescriptor]).getOrElse(edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.UNINITIALIZED.scalaValueDescriptor).number)
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
@@ -1737,28 +1734,29 @@ object WorkerStateResponse extends scalapb.GeneratedMessageCompanion[edu.uci.ics
   def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlreturnsProto.scalaDescriptor.messages(12)
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
-  def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
+  def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = {
+    (__fieldNumber: @_root_.scala.unchecked) match {
+      case 1 => edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState
+    }
+  }
   lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerStateResponse(
-    state = ""
+    state = edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.UNINITIALIZED
   )
   implicit class WorkerStateResponseLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerStateResponse]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerStateResponse](_l) {
-    def state: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.state)((c_, f_) => c_.copy(state = f_))
+    def state: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState] = field(_.state)((c_, f_) => c_.copy(state = f_))
   }
   final val STATE_FIELD_NUMBER = 1
   def of(
-    state: _root_.scala.Predef.String
+    state: edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState
   ): _root_.edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerStateResponse = _root_.edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerStateResponse(
     state
   )
   // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.WorkerStateResponse])
 }
 
-/** @param metrics
-  *   Adjust if WorkerMetrics is more complex
-  */
 @SerialVersionUID(0L)
 final case class WorkerMetricsResponse(
-    metrics: _root_.scala.Predef.String
+    metrics: edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerMetrics
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturn.NonEmpty with scalapb.lenses.Updatable[WorkerMetricsResponse] {
     @transient
     private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
@@ -1767,8 +1765,8 @@ final case class WorkerMetricsResponse(
       
       {
         val __value = metrics
-        if (!__value.isEmpty) {
-          __size += _root_.com.google.protobuf.CodedOutputStream.computeStringSize(1, __value)
+        if (__value.serializedSize != 0) {
+          __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
         }
       };
       __size
@@ -1785,24 +1783,26 @@ final case class WorkerMetricsResponse(
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       {
         val __v = metrics
-        if (!__v.isEmpty) {
-          _output__.writeString(1, __v)
+        if (__v.serializedSize != 0) {
+          _output__.writeTag(1, 2)
+          _output__.writeUInt32NoTag(__v.serializedSize)
+          __v.writeTo(_output__)
         }
       };
     }
-    def withMetrics(__v: _root_.scala.Predef.String): WorkerMetricsResponse = copy(metrics = __v)
+    def withMetrics(__v: edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerMetrics): WorkerMetricsResponse = copy(metrics = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
         case 1 => {
           val __t = metrics
-          if (__t != "") __t else null
+          if (__t != edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerMetrics.defaultInstance) __t else null
         }
       }
     }
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
       _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
       (__field.number: @_root_.scala.unchecked) match {
-        case 1 => _root_.scalapb.descriptors.PString(metrics)
+        case 1 => metrics.toPMessage
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
@@ -1813,43 +1813,49 @@ final case class WorkerMetricsResponse(
 object WorkerMetricsResponse extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerMetricsResponse] {
   implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerMetricsResponse] = this
   def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerMetricsResponse = {
-    var __metrics: _root_.scala.Predef.String = ""
+    var __metrics: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerMetrics] = _root_.scala.None
     var _done__ = false
     while (!_done__) {
       val _tag__ = _input__.readTag()
       _tag__ match {
         case 0 => _done__ = true
         case 10 =>
-          __metrics = _input__.readStringRequireUtf8()
+          __metrics = _root_.scala.Some(__metrics.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerMetrics](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case tag => _input__.skipField(tag)
       }
     }
     edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerMetricsResponse(
-        metrics = __metrics
+        metrics = __metrics.getOrElse(edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerMetrics.defaultInstance)
     )
   }
   implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerMetricsResponse] = _root_.scalapb.descriptors.Reads{
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
       edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerMetricsResponse(
-        metrics = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Predef.String]).getOrElse("")
+        metrics = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerMetrics]).getOrElse(edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerMetrics.defaultInstance)
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
   def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlreturnsProto.javaDescriptor.getMessageTypes().get(13)
   def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlreturnsProto.scalaDescriptor.messages(13)
-  def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
+  def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = {
+    var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
+    (__number: @_root_.scala.unchecked) match {
+      case 1 => __out = edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerMetrics
+    }
+    __out
+  }
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
   lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerMetricsResponse(
-    metrics = ""
+    metrics = edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerMetrics.defaultInstance
   )
   implicit class WorkerMetricsResponseLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerMetricsResponse]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerMetricsResponse](_l) {
-    def metrics: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.metrics)((c_, f_) => c_.copy(metrics = f_))
+    def metrics: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerMetrics] = field(_.metrics)((c_, f_) => c_.copy(metrics = f_))
   }
   final val METRICS_FIELD_NUMBER = 1
   def of(
-    metrics: _root_.scala.Predef.String
+    metrics: edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerMetrics
   ): _root_.edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerMetricsResponse = _root_.edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerMetricsResponse(
     metrics
   )

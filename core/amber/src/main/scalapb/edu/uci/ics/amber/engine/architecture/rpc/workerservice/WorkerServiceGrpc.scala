@@ -87,12 +87,12 @@ object WorkerServiceGrpc {
       .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerserviceProto.javaDescriptor.getServices().get(0).getMethods().get(7)))
       .build()
   
-  val METHOD_PREPARE_CHECKPOINT: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.FinalizeCheckpointRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty] =
+  val METHOD_PREPARE_CHECKPOINT: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PrepareCheckpointRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty] =
     _root_.io.grpc.MethodDescriptor.newBuilder()
       .setType(_root_.io.grpc.MethodDescriptor.MethodType.UNARY)
       .setFullMethodName(_root_.io.grpc.MethodDescriptor.generateFullMethodName("edu.uci.ics.amber.engine.architecture.rpc.WorkerService", "PrepareCheckpoint"))
       .setSampledToLocalTracing(true)
-      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.FinalizeCheckpointRequest])
+      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PrepareCheckpointRequest])
       .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty])
       .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerserviceProto.javaDescriptor.getServices().get(0).getMethods().get(8)))
       .build()
@@ -157,16 +157,6 @@ object WorkerServiceGrpc {
       .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerserviceProto.javaDescriptor.getServices().get(0).getMethods().get(14)))
       .build()
   
-  val METHOD_UPDATE_EXECUTOR_COMPLETED: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.UpdateExecutorCompletedRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty] =
-    _root_.io.grpc.MethodDescriptor.newBuilder()
-      .setType(_root_.io.grpc.MethodDescriptor.MethodType.UNARY)
-      .setFullMethodName(_root_.io.grpc.MethodDescriptor.generateFullMethodName("edu.uci.ics.amber.engine.architecture.rpc.WorkerService", "UpdateExecutorCompleted"))
-      .setSampledToLocalTracing(true)
-      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.UpdateExecutorCompletedRequest])
-      .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty])
-      .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerserviceProto.javaDescriptor.getServices().get(0).getMethods().get(15)))
-      .build()
-  
   val SERVICE: _root_.io.grpc.ServiceDescriptor =
     _root_.io.grpc.ServiceDescriptor.newBuilder("edu.uci.ics.amber.engine.architecture.rpc.WorkerService")
       .setSchemaDescriptor(new _root_.scalapb.grpc.ConcreteProtoFileDescriptorSupplier(edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerserviceProto.javaDescriptor))
@@ -185,7 +175,6 @@ object WorkerServiceGrpc {
       .addMethod(METHOD_START_WORKER)
       .addMethod(METHOD_UPDATE_EXECUTOR)
       .addMethod(METHOD_UPDATE_MULTIPLE_EXECUTORS)
-      .addMethod(METHOD_UPDATE_EXECUTOR_COMPLETED)
       .build()
   
   /** RPC Service
@@ -200,14 +189,13 @@ object WorkerServiceGrpc {
     def initializeExecutor(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.InitializeExecutorRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty]
     def openExecutor(request: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty]
     def pauseWorker(request: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerStateResponse]
-    def prepareCheckpoint(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.FinalizeCheckpointRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty]
+    def prepareCheckpoint(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PrepareCheckpointRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty]
     def queryStatistics(request: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerMetricsResponse]
     def resumeWorker(request: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerStateResponse]
     def retrieveState(request: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty]
     def startWorker(request: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerStateResponse]
     def updateExecutor(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.UpdateExecutorRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty]
     def updateMultipleExecutors(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.UpdateMultipleExecutorsRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty]
-    def updateExecutorCompleted(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.UpdateExecutorCompletedRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty]
   }
   
   object WorkerService extends _root_.scalapb.grpc.ServiceCompanion[WorkerService] {
@@ -266,7 +254,7 @@ object WorkerServiceGrpc {
         }))
       .addMethod(
         METHOD_PREPARE_CHECKPOINT,
-        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.FinalizeCheckpointRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty]) => {
+        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PrepareCheckpointRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty]) => {
           serviceImpl.prepareCheckpoint(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
             executionContext)
         }))
@@ -306,12 +294,6 @@ object WorkerServiceGrpc {
           serviceImpl.updateMultipleExecutors(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
             executionContext)
         }))
-      .addMethod(
-        METHOD_UPDATE_EXECUTOR_COMPLETED,
-        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.UpdateExecutorCompletedRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty]) => {
-          serviceImpl.updateExecutorCompleted(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
-            executionContext)
-        }))
       .build()
   }
   
@@ -327,14 +309,13 @@ object WorkerServiceGrpc {
     def initializeExecutor(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.InitializeExecutorRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty
     def openExecutor(request: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty
     def pauseWorker(request: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerStateResponse
-    def prepareCheckpoint(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.FinalizeCheckpointRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty
+    def prepareCheckpoint(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PrepareCheckpointRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty
     def queryStatistics(request: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerMetricsResponse
     def resumeWorker(request: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerStateResponse
     def retrieveState(request: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty
     def startWorker(request: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerStateResponse
     def updateExecutor(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.UpdateExecutorRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty
     def updateMultipleExecutors(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.UpdateMultipleExecutorsRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty
-    def updateExecutorCompleted(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.UpdateExecutorCompletedRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty
   }
   
   class WorkerServiceBlockingStub(channel: _root_.io.grpc.Channel, options: _root_.io.grpc.CallOptions = _root_.io.grpc.CallOptions.DEFAULT) extends _root_.io.grpc.stub.AbstractStub[WorkerServiceBlockingStub](channel, options) with WorkerServiceBlockingClient {
@@ -370,7 +351,7 @@ object WorkerServiceGrpc {
       _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_PAUSE_WORKER, options, request)
     }
     
-    override def prepareCheckpoint(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.FinalizeCheckpointRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty = {
+    override def prepareCheckpoint(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PrepareCheckpointRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty = {
       _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_PREPARE_CHECKPOINT, options, request)
     }
     
@@ -396,10 +377,6 @@ object WorkerServiceGrpc {
     
     override def updateMultipleExecutors(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.UpdateMultipleExecutorsRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty = {
       _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_UPDATE_MULTIPLE_EXECUTORS, options, request)
-    }
-    
-    override def updateExecutorCompleted(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.UpdateExecutorCompletedRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty = {
-      _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_UPDATE_EXECUTOR_COMPLETED, options, request)
     }
     
     override def build(channel: _root_.io.grpc.Channel, options: _root_.io.grpc.CallOptions): WorkerServiceBlockingStub = new WorkerServiceBlockingStub(channel, options)
@@ -438,7 +415,7 @@ object WorkerServiceGrpc {
       _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_PAUSE_WORKER, options, request)
     }
     
-    override def prepareCheckpoint(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.FinalizeCheckpointRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty] = {
+    override def prepareCheckpoint(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PrepareCheckpointRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty] = {
       _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_PREPARE_CHECKPOINT, options, request)
     }
     
@@ -464,10 +441,6 @@ object WorkerServiceGrpc {
     
     override def updateMultipleExecutors(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.UpdateMultipleExecutorsRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty] = {
       _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_UPDATE_MULTIPLE_EXECUTORS, options, request)
-    }
-    
-    override def updateExecutorCompleted(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.UpdateExecutorCompletedRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty] = {
-      _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_UPDATE_EXECUTOR_COMPLETED, options, request)
     }
     
     override def build(channel: _root_.io.grpc.Channel, options: _root_.io.grpc.CallOptions): WorkerServiceStub = new WorkerServiceStub(channel, options)

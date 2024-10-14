@@ -1,20 +1,13 @@
 package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
+import com.twitter.util.Future
+import edu.uci.ics.amber.engine.architecture.controller.UpdateExecutorCompleted
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
-  OpExecInitInfoWithCode,
-  OpExecInitInfoWithFunc
-}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecInitInfoWithCode, OpExecInitInfoWithFunc}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, UpdateExecutorRequest, UpdateMultipleExecutorsRequest}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateExecutorHandler.{
-  UpdateExecutor,
-  UpdateExecutorCompleted,
-  UpdateMultipleExecutors
-}
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.texera.workflow.common.operators.StateTransferFunc
 
 /** Get queue and other resource usage of this worker
   *
@@ -23,21 +16,23 @@ import edu.uci.ics.texera.workflow.common.operators.StateTransferFunc
 trait UpdateExecutorHandler {
   this: DataProcessorRPCHandlerInitializer =>
 
-  registerHandler { (msg: UpdateExecutor, _) =>
+  override def updateExecutor(msg: UpdateExecutorRequest, ctx: AsyncRPCContext): Future[Empty] = {
     performUpdateExecutor(msg)
     sendToClient(UpdateExecutorCompleted(this.actorId))
+    Empty()
   }
 
-  registerHandler { (msg: UpdateMultipleExecutors, _) =>
+  override def updateMultipleExecutors(msg: UpdateMultipleExecutorsRequest, ctx: AsyncRPCContext): Future[Empty] = {
     msg.executorsToUpdate
-      .find(_.physicalOp.id == VirtualIdentityUtils.getPhysicalOpId(actorId))
+      .find(_.physicalOp == VirtualIdentityUtils.getPhysicalOpId(actorId))
       .foreach { executorToUpdate =>
         performUpdateExecutor(executorToUpdate)
         sendToClient(UpdateExecutorCompleted(this.actorId))
       }
+    Empty()
   }
 
-  private def performUpdateExecutor(updateExecutor: UpdateExecutor): Unit = {
+  private def performUpdateExecutor(updateExecutor: UpdateExecutorRequest): Unit = {
     val oldOpExecState = dp.executor
     dp.executor = updateExecutor.physicalOp.opExecInitInfo match {
       case OpExecInitInfoWithCode(codeGen) =>

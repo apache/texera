@@ -19,3 +19,5 @@ case class ReportCurrentProcessingTuple(
 case class WorkerAssignmentUpdate(workerMapping: Map[String, Seq[String]]) extends ClientEvent
 
 final case class FatalError(e: Throwable, fromActor: Option[ActorVirtualIdentity] = None) extends ClientEvent
+
+case class UpdateExecutorCompleted(id:ActorVirtualIdentity) extends ClientEvent

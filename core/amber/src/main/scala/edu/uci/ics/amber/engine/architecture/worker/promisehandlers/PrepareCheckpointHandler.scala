@@ -1,14 +1,12 @@
 package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
-import edu.uci.ics.amber.engine.architecture.worker.{
-  DataProcessorRPCHandlerInitializer,
-  WorkflowWorker
-}
+import com.twitter.util.Future
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, FinalizeCheckpointRequest, PrepareCheckpointRequest}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty
+import edu.uci.ics.amber.engine.architecture.worker.{DataProcessorRPCHandlerInitializer, WorkflowWorker}
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PrepareCheckpointHandler.PrepareCheckpoint
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.{CheckpointState, CheckpointSupport, SerializedState}
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ChannelMarkerIdentity
 
 import java.util.concurrent.CompletableFuture
@@ -17,7 +15,7 @@ import scala.collection.mutable
 trait PrepareCheckpointHandler {
   this: DataProcessorRPCHandlerInitializer =>
 
-  registerHandler { (msg: PrepareCheckpoint, sender) =>
+  override def prepareCheckpoint(msg: PrepareCheckpointRequest, ctx: AsyncRPCContext): Future[Empty] = {
     logger.info("Start to take checkpoint")
     if (!msg.estimationOnly) {
       dp.serializationManager.registerSerialization(() => {
@@ -26,7 +24,9 @@ trait PrepareCheckpointHandler {
     } else {
       logger.info(s"Checkpoint is estimation-only. do nothing.")
     }
+    Empty()
   }
+
 
   private def serializeWorkerState(checkpointId: ChannelMarkerIdentity): Unit = {
     val chkpt = new CheckpointState()

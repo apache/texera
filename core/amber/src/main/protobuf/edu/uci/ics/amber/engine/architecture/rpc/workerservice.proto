@@ -21,12 +21,11 @@ service WorkerService {
   rpc InitializeExecutor(InitializeExecutorRequest) returns (Empty);
   rpc OpenExecutor(Empty) returns (Empty);
   rpc PauseWorker(Empty) returns (WorkerStateResponse);
-  rpc PrepareCheckpoint(FinalizeCheckpointRequest) returns (Empty);
+  rpc PrepareCheckpoint(PrepareCheckpointRequest) returns (Empty);
   rpc QueryStatistics(Empty) returns (WorkerMetricsResponse);
   rpc ResumeWorker(Empty) returns (WorkerStateResponse);
   rpc RetrieveState(Empty) returns (Empty);
   rpc StartWorker(Empty) returns (WorkerStateResponse);
   rpc UpdateExecutor(UpdateExecutorRequest) returns (Empty);
   rpc UpdateMultipleExecutors(UpdateMultipleExecutorsRequest) returns (Empty);
-  rpc UpdateExecutorCompleted(UpdateExecutorCompletedRequest) returns (Empty);
 }

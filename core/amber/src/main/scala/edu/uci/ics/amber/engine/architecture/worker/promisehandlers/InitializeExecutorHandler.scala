@@ -1,25 +1,24 @@
 package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
+import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo.generateJavaOpExec
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, InitializeExecutorRequest}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.InitializeExecutorHandler.InitializeExecutor
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 
 
 trait InitializeExecutorHandler {
   this: DataProcessorRPCHandlerInitializer =>
 
-  registerHandler { (msg: InitializeExecutor, sender) =>
-    {
-      dp.serializationManager.setOpInitialization(msg)
-      dp.executor = generateJavaOpExec(
-        msg.opExecInitInfo,
-        VirtualIdentityUtils.getWorkerIndex(actorId),
-        msg.totalWorkerCount
-      )
-    }
-
+  override def initializeExecutor(msg: InitializeExecutorRequest, ctx: AsyncRPCContext): Future[Empty] = {
+    dp.serializationManager.setOpInitialization(msg)
+    dp.executor = generateJavaOpExec(
+      msg.opExecInitInfo,
+      VirtualIdentityUtils.getWorkerIndex(actorId),
+      msg.totalWorkerCount
+    )
   }
+
 }

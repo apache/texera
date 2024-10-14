@@ -1,7 +1,8 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
 import com.twitter.util.Future
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.AsyncRPCContext
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AddInputChannelRequest, AddPartitioningRequest, AssignPortRequest, AsyncRPCContext, FinalizeCheckpointRequest, InitializeExecutorRequest, UpdateExecutorCompletedRequest, UpdateExecutorRequest, UpdateMultipleExecutorsRequest}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{Empty, FinalizeCheckpointResponse, WorkerMetricsResponse, WorkerStateResponse}
 import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceFs2Grpc
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers._
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCHandlerInitializer
@@ -16,7 +17,6 @@ class DataProcessorRPCHandlerInitializer(val dp: DataProcessor)
     with OpenExecutorHandler
     with PauseHandler
     with AddPartitioningHandler
-    with QueryCurrentInputTupleHandler
     with QueryStatisticsHandler
     with ResumeHandler
     with StartHandler

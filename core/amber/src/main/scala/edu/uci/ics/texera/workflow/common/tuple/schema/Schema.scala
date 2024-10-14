@@ -70,6 +70,12 @@ case class Schema @JsonCreator() (
 }
 
 object Schema {
+
+  def fromRawSchema(raw:Map[String,String]):Schema = {
+    Schema(raw.map { case (name, attrType) =>
+      new Attribute(name, AttributeType.valueOf(attrType))
+    }.toList)
+  }
   def builder(): Builder = Builder()
 
   case class Builder(private var attributes: List[Attribute] = List.empty) {
