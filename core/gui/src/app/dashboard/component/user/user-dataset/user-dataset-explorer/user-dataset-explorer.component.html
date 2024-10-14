@@ -23,8 +23,20 @@
     style="background-color: white">
     <nz-card *ngIf="isDisplayingDataset()">
       <div style="display: flex; justify-content: space-between; align-items: center">
-        <div>
-          <h3 class="file-title"><b>{{currentDisplayedFileName}}</b></h3>
+        <div class="file-info">
+          <h3 class="file-title">
+            <b>{{currentDisplayedFileName}}</b>
+            <span
+              *ngIf="currentFileSize"
+              class="file-size">
+              <i
+                nz-icon
+                nzType="file"
+                nzTheme="outline"
+                class="icon-file"></i>
+              {{ formatSize(currentFileSize) }}
+            </span>
+          </h3>
         </div>
         <div style="display: flex">
           <button
@@ -155,6 +167,16 @@
               nzType="download"
               nzTheme="outline"></i>
           </button>
+        </div>
+        <div
+          *ngIf="selectedVersion"
+          class="version-size">
+          <i
+            nz-icon
+            nzType="database"
+            nzTheme="outline"
+            class="icon-database"></i>
+          Version Size: {{ formatSize(currentDatasetVersionSize) }}
         </div>
       </div>
       <texera-user-dataset-version-filetree

@@ -57,15 +57,20 @@
   justify-content: space-between;
   align-items: center;
   margin-right: 16px;
+
   .resource-owner {
-    display: flex;
-    align-items: center;
-    justify-content: start;
-    em {
-      margin-right: 8px;
-    }
+    flex: 0 0 auto; // Prevent the avatar from growing or shrinking
+    margin-right: 24px; // Add space to the right of the avatar
   }
-  .resource-time-info {
+
+  .resource-info-grid {
+    flex: 1; // Allow the grid to take up remaining space
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+
+  .resource-info {
     font-size: 13px;
     font-weight: 400;
     color: grey;

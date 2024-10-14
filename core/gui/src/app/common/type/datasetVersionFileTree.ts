@@ -4,6 +4,7 @@ export interface DatasetFileNode {
   children?: DatasetFileNode[]; // Only populated if 'type' is 'directory'
   parentDir: string;
   ownerEmail?: string;
+  size?: number; // Only populated if 'type' is 'file'
 }
 
 export function getFullPathFromDatasetFileNode(node: DatasetFileNode): string {

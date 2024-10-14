@@ -7,6 +7,7 @@ import { UserQuotaService } from "src/app/dashboard/service/user/quota/user-quot
 import { AdminUserService } from "src/app/dashboard/service/admin/user/admin-user.service";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
 import * as Plotly from "plotly.js-basic-dist-min";
+import { formatSize } from "src/app/common/util/size-formatter.util";
 
 type UserServiceType = AdminUserService | UserQuotaService;
 
@@ -275,19 +276,8 @@ export class UserQuotaComponent implements OnInit {
       });
   }
 
-  convertFileSize(sizeInBytes: number): string {
-    const units = ["B", "KB", "MB", "GB", "TB"];
-
-    let size = sizeInBytes;
-    let unitIndex = 0;
-
-    while (size >= 1024 && unitIndex < units.length - 1) {
-      size /= 1024;
-      unitIndex++;
-    }
-
-    return `${size.toFixed(2)} ${units[unitIndex]}`;
-  }
+  // alias for formatSize
+  formatSize = formatSize;
 
   public sortByMongoDBSize: NzTableSortFn<MongoExecution> = (a: MongoExecution, b: MongoExecution) => b.size - a.size;
 }

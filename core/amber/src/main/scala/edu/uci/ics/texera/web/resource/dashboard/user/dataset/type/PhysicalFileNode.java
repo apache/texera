@@ -10,14 +10,15 @@ import java.util.Set;
 
 public class PhysicalFileNode {
   private final Path absoluteFilePath;
-
   private final Path relativeFilePath;
   private final Set<PhysicalFileNode> children;
+  private long size;
 
-  public PhysicalFileNode(Path repoPath, Path path) {
+  public PhysicalFileNode(Path repoPath, Path path, long size) {
     this.absoluteFilePath = path;
     this.relativeFilePath = repoPath.relativize(this.absoluteFilePath);
     this.children = new HashSet<>();
+    this.size = size;
   }
 
   public boolean isFile() {
@@ -85,5 +86,9 @@ public class PhysicalFileNode {
         getAllFileRelativePathsHelper(node.getChildren(), filePaths);
       }
     }
+  }
+
+  public long getSize() {
+    return size;
   }
 }

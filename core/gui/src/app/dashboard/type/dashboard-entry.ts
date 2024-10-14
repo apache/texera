@@ -22,6 +22,7 @@ export class DashboardEntry {
   ownerEmail: string | undefined;
   ownerGoogleAvatar: string | undefined;
   ownerId: number | undefined;
+  size: number | undefined;
 
   constructor(public value: DashboardWorkflow | DashboardProject | DashboardFile | DashboardDataset) {
     if (isDashboardWorkflow(value)) {
@@ -36,6 +37,7 @@ export class DashboardEntry {
       this.ownerEmail = "";
       this.ownerGoogleAvatar = "";
       this.ownerId = value.ownerId;
+      this.size = 0;
     } else if (isDashboardProject(value)) {
       this.type = "project";
       this.id = value.pid;
@@ -48,6 +50,7 @@ export class DashboardEntry {
       this.ownerEmail = "";
       this.ownerGoogleAvatar = "";
       this.ownerId = value.ownerId;
+      this.size = 0;
     } else if (isDashboardFile(value)) {
       this.type = "file";
       this.id = value.file.fid;
@@ -60,6 +63,7 @@ export class DashboardEntry {
       this.ownerEmail = value.ownerEmail;
       this.ownerGoogleAvatar = "";
       this.ownerId = value.file.ownerUid;
+      this.size = value.file.size;
     } else if (isDashboardDataset(value)) {
       this.type = "dataset";
       this.id = value.dataset.did;
@@ -72,6 +76,7 @@ export class DashboardEntry {
       this.ownerEmail = value.ownerEmail;
       this.ownerGoogleAvatar = "";
       this.ownerId = value.dataset.ownerUid;
+      this.size = value.size;
     } else {
       throw new Error("Unexpected type in DashboardEntry.");
     }

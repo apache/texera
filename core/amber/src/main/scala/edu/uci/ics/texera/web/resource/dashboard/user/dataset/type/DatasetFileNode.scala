@@ -13,6 +13,7 @@ class DatasetFileNode(
     val nodeType: String, // "file" or "directory"
     val parent: DatasetFileNode, // the parent node
     val ownerEmail: String,
+    val size: Option[Long] = None, // size of the file in bytes, None if directory
     var children: Option[List[DatasetFileNode]] = None // Only populated if 'type' is 'directory'
 ) {
 
@@ -24,6 +25,7 @@ class DatasetFileNode(
   def getNodeType: String = nodeType
   def getParent: DatasetFileNode = parent
   def getOwnerEmail: String = ownerEmail
+  def getSize: Option[Long] = size
 
   def getChildren: List[DatasetFileNode] = children.getOrElse(List())
 
@@ -100,6 +102,8 @@ object DatasetFileNode {
 
       val fileType =
         if (Files.isDirectory(currentPhysicalNode.getAbsolutePath)) "directory" else "file"
+      val fileSize =
+        if (fileType == "file") Some(Files.size(currentPhysicalNode.getAbsolutePath)) else None
       val existingNode = currentParent.getChildren.find(child =>
         child.getName == nodeName && child.getNodeType == fileType
       )
@@ -108,7 +112,8 @@ object DatasetFileNode {
           nodeName,
           fileType,
           currentParent,
-          ownerEmail
+          ownerEmail,
+          fileSize
         )
         currentParent.children = Some(currentParent.getChildren :+ newNode)
         newNode

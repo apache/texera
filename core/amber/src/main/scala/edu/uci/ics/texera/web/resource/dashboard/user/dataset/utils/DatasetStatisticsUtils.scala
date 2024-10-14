@@ -2,13 +2,11 @@ package edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset.DATASET
-import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource.{DatasetQuota}
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.PathUtils.DATASETS_ROOT
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource
+import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource.DatasetQuota
 import org.jooq.types.UInteger
-import scala.jdk.CollectionConverters._
 
-import java.nio.file.{Files, Path}
-import java.nio.file.attribute.BasicFileAttributes
+import scala.jdk.CollectionConverters._
 
 object DatasetStatisticsUtils {
   final private lazy val context = SqlServer.createDSLContext()
@@ -46,23 +44,11 @@ object DatasetStatisticsUtils {
       )
       .toList
   }
-  private def getFolderSize(folderPath: Path): Long = {
-    val walk = Files.walk(folderPath)
-    try {
-      walk
-        .filter(Files.isRegularFile(_))
-        .mapToLong(p => Files.readAttributes(p, classOf[BasicFileAttributes]).size())
-        .sum()
-    } finally {
-      walk.close()
-    }
-  }
 
   def getUserCreatedDatasets(uid: UInteger): List[DatasetQuota] = {
     val datasetList = getUserCreatedDatasetList(uid)
     datasetList.map { dataset =>
-      val datasetPath = DATASETS_ROOT.resolve(dataset.did.toString)
-      val size = getFolderSize(datasetPath)
+      val size = DatasetResource.calculateLatestDatasetVersionSize(dataset.did)
       dataset.copy(size = size)
     }
   }

@@ -171,12 +171,20 @@ export class DatasetService {
    * @param did
    * @param dvid
    */
-  public retrieveDatasetVersionFileTree(did: number, dvid: number): Observable<DatasetFileNode[]> {
+  public retrieveDatasetVersionFileTree(
+    did: number,
+    dvid: number
+  ): Observable<{ fileNodes: DatasetFileNode[]; size: number }> {
     return this.http
-      .get<{
-        fileNodes: DatasetFileNode[];
-      }>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/${DATASET_VERSION_BASE_URL}/${dvid}/rootFileNodes`)
-      .pipe(map(response => response.fileNodes));
+      .get<DatasetVersionRootFileNodesResponse>(
+        `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/${DATASET_VERSION_BASE_URL}/${dvid}/rootFileNodes`
+      )
+      .pipe(
+        map(response => ({
+          fileNodes: response.rootFileNodes.fileNodes,
+          size: response.size,
+        }))
+      );
   }
 
   public deleteDatasets(dids: number[]): Observable<Response> {
@@ -205,4 +213,11 @@ export class DatasetService {
       {}
     );
   }
+}
+
+interface DatasetVersionRootFileNodesResponse {
+  rootFileNodes: {
+    fileNodes: DatasetFileNode[];
+  };
+  size: number;
 }
