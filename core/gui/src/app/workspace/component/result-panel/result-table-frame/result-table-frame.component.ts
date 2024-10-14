@@ -55,8 +55,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   prevTableStats: Record<string, Record<string, number>> = {};
   widthPercent: string = "";
   sinkStorageMode: string = "";
-  hasBinaryData: boolean = true;
-
+  hasBinaryData: boolean = false;
   constructor(
     private executeWorkflowService: ExecuteWorkflowService,
     private modalService: NzModalService,
@@ -356,6 +355,11 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   }
 
   trimTableCell(cellContent: any): string {
+    if (typeof cellContent === "string") {
+      if (isBase64(cellContent) || isBinary(cellContent)) {
+        this.hasBinaryData = true;
+      }
+    }
     return trimAndFormatData(cellContent, TABLE_COLUMN_TEXT_LIMIT);
   }
 
