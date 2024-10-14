@@ -196,6 +196,23 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     }
   }
 
+  private checkPythonLanguageServerAvailability(): Promise<boolean> {
+    return new Promise(resolve => {
+      const socket = new WebSocket(getWebsocketUrl("/python-language-server", "3000"));
+  
+      // 连接成功的情况下，服务器在线
+      socket.onopen = () => {
+        socket.close();
+        resolve(true);
+      };
+  
+      // 连接失败的情况下，服务器不在线
+      socket.onerror = () => {
+        resolve(false);
+      };
+    });
+  }
+  
   /**
    * Create a Monaco editor and connect it to MonacoBinding.
    * @private
@@ -222,50 +239,50 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
             },
           },
         },
-      };
-
-      if (this.language === "python") {
-        userConfig.languageClientConfig = {
-          languageId: "python",
-          options: {
-            $type: "WebSocketUrl",
-            url: getWebsocketUrl("/python-language-server", "3000"),
-          },
-        };
       }
-
-      from(this.wrapper.initAndStart(userConfig, this.editorElement.nativeElement))
-        .pipe(takeUntil(this.componentDestroy))
-        .subscribe({
-          next: () => {
-            this.formControl.statusChanges.pipe(untilDestroyed(this)).subscribe(() => {
-              const editorInstance = this.wrapper?.getEditor();
-              if (editorInstance) {
-                editorInstance.updateOptions({
-                  readOnly: this.formControl.disabled,
-                });
+  
+      // 将 Promise 转换为 Observable，然后使用 subscribe 来处理
+      from(this.checkPythonLanguageServerAvailability()).subscribe(isServerAvailable => {
+        if (isServerAvailable && this.language === "python") {
+          userConfig.languageClientConfig = {
+            languageId: "python",
+            options: {
+              $type: "WebSocketUrl",
+              url: getWebsocketUrl("/python-language-server", "3000"),
+            },
+          };
+        }
+  
+        // 初始化Monaco编辑器
+        from(this.wrapper!.initAndStart(userConfig, this.editorElement.nativeElement))
+          .pipe(takeUntil(this.componentDestroy))
+          .subscribe({
+            next: () => {
+              this.formControl.statusChanges.pipe(untilDestroyed(this)).subscribe(() => {
+                const editorInstance = this.wrapper?.getEditor();
+                if (editorInstance) {
+                  editorInstance.updateOptions({
+                    readOnly: this.formControl.disabled,
+                  });
+                }
+              });
+              this.editor = this.wrapper?.getEditor();
+              if (this.code && this.editor) {
+                if (this.monacoBinding) {
+                  this.monacoBinding.destroy();
+                  this.monacoBinding = undefined;
+                }
+                this.monacoBinding = new MonacoBinding(
+                  this.code,
+                  this.editor.getModel()!,
+                  new Set([this.editor]),
+                  this.workflowActionService.getTexeraGraph().getSharedModelAwareness()
+                );
               }
-            });
-
-            this.editor = this.wrapper?.getEditor();
-
-            if (this.code && this.editor) {
-              if (this.monacoBinding) {
-                this.monacoBinding.destroy();
-                this.monacoBinding = undefined;
-              }
-
-              this.monacoBinding = new MonacoBinding(
-                this.code,
-                this.editor.getModel()!,
-                new Set([this.editor]),
-                this.workflowActionService.getTexeraGraph().getSharedModelAwareness()
-              );
-            }
-
-            this.setupAIAssistantActions();
-          },
-        });
+              this.setupAIAssistantActions();
+            },
+          });
+      });
     }
   }
 
