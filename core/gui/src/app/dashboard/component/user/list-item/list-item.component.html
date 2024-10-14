@@ -113,7 +113,9 @@
             [isOwner]="entry.ownerId === this.currentUid">
           </texera-user-avatar>
         </div>
-        <div class="resource-time-info">
+        <div
+          class="resource-time-info"
+          *ngIf="entry.type==='workflow'">
           {{ formatViewCount(viewCount) + " " + (viewCount === 1 ? "view" : "views") }}
         </div>
         <div class="resource-time-info">Created: {{ formatTime(entry.creationTime) }}</div>
