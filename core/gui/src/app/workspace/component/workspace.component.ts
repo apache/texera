@@ -22,6 +22,7 @@ import { WorkflowConsoleService } from "../service/workflow-console/workflow-con
 import { OperatorReuseCacheStatusService } from "../service/workflow-status/operator-reuse-cache-status.service";
 import { CodeEditorService } from "../service/code-editor/code-editor.service";
 import { WorkflowMetadata } from "src/app/dashboard/type/workflow-metadata.interface";
+import {HubWorkflowService} from "../../hub/service/workflow/hub-workflow.service";
 
 export const SAVE_DEBOUNCE_TIME_IN_MS = 5000;
 
@@ -59,6 +60,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     private message: NzMessageService,
     private router: Router,
     private notificationService: NotificationService,
+    private hubWorkflowService: HubWorkflowService,
     private codeEditorService: CodeEditorService
   ) {}
 
@@ -104,13 +106,13 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
 
     if (this.userSystemEnabled) {
       this.registerReEstablishWebsocketUponWIdChange();
+      this.updateViewCount();
     } else {
       let wid = this.route.snapshot.params.id ?? 0;
       this.workflowWebsocketService.openWebsocket(wid);
     }
 
     this.registerLoadOperatorMetadata();
-
     this.codeEditorService.vc = this.codeEditorViewRef;
   }
 
@@ -273,5 +275,13 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
         this.writeAccess = !metadata.readonly;
         this.workflowWebsocketService.reopenWebsocket(metadata.wid as number);
       });
+  }
+
+  updateViewCount() {
+    let wid = this.route.snapshot.params.id;
+    this.hubWorkflowService
+      .postViewWorkflow(wid)
+      .pipe(untilDestroyed(this))
+      .subscribe();
   }
 }
