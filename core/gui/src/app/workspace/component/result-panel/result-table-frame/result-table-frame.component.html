@@ -6,119 +6,134 @@
 <div
   [hidden]="!currentColumns"
   class="result-table">
-  <nz-table
-    #basicTable
-    (nzQueryParams)="onTableQueryParamsChange($event)"
-    [nzData]="currentResult"
-    [nzFrontPagination]="isFrontPagination"
-    [nzLoading]="isLoadingResult"
-    [nzPageIndex]="currentPageIndex"
-    [nzPageSize]="pageSize"
-    [nzPaginationPosition]="'bottom'"
-    [nzScroll]="{ x: 'max-content'}"
-    [nzSize]="'small'"
-    [nzTableLayout]="'fixed'"
-    [nzTotal]="totalNumTuples"
-    nzBordered="true">
-    <thead>
-      <tr>
-        <th
-          *ngFor="let column of currentColumns; let i = index"
-          ngClass="header-size"
-          style="text-align: center"
-          nzWidth="widthPercent">
-          {{ column.header }}
-        </th>
-      </tr>
-      <tr
-        *ngIf="tableStats && prevTableStats && sinkStorageMode === 'mongodb'"
-        #statsRow
-        class="custom-stats-row">
-        <th *ngFor="let column of currentColumns">
-          <div class="statsHeader">
-            <ng-container
-              *ngIf="tableStats[column.header] && prevTableStats[column.header] && tableStats[column.header]['min'] !== undefined">
-              <div class="statsLine">
-                <h5 class="leftAlign">Min</h5>
-                <h5 class="rightAlign">
-                  <span [innerHTML]="compare(column.header, 'min')"></span>
-                </h5>
-              </div>
-            </ng-container>
-            <ng-container
-              *ngIf="tableStats[column.header] && prevTableStats[column.header] && tableStats[column.header]['mean'] !== undefined">
-              <div class="statsLine">
-                <h5 class="leftAlign">Average</h5>
-                <h5 class="rightAlign">
-                  <span [innerHTML]="compare(column.header, 'mean')"></span>
-                </h5>
-              </div>
-            </ng-container>
-            <ng-container
-              *ngIf="tableStats[column.header] && prevTableStats[column.header] && tableStats[column.header]['max'] !== undefined">
-              <div class="statsLine">
-                <h5 class="leftAlign">Max</h5>
-                <h5 class="rightAlign">
-                  <span [innerHTML]="compare(column.header, 'max')"></span>
-                </h5>
-              </div>
-            </ng-container>
-            <ng-container
-              *ngIf="tableStats[column.header] && prevTableStats[column.header] && tableStats[column.header]['firstPercent'] !== undefined">
-              <div class="statsLine">
-                <h5 class="leftAlign">
-                  {{tableStats[column.header]['firstCat']}}
-                  <span *ngIf="tableStats[column.header]['reachedLimit'] === 1"> (approximate)</span>
-                </h5>
-                <h5 class="rightAlign"><span [innerHTML]="compare(column.header, 'firstPercent')"></span>%</h5>
-              </div>
-            </ng-container>
-            <ng-container
-              *ngIf="tableStats[column.header] && prevTableStats[column.header] && tableStats[column.header]['secondPercent'] !== undefined">
-              <div class="statsLine">
-                <h5 class="leftAlign">
-                  {{tableStats[column.header]['secondCat']}}
-                  <span *ngIf="tableStats[column.header]['reachedLimit'] === 1"> (approximate)</span>
-                </h5>
-                <h5 class="rightAlign"><span [innerHTML]="compare(column.header, 'secondPercent')"></span>%</h5>
-              </div>
-            </ng-container>
-            <ng-container
-              *ngIf="tableStats[column.header] && prevTableStats[column.header] && tableStats[column.header]['other'] !== undefined">
-              <div class="statsLine">
-                <h5 class="leftAlign">
-                  Other
-                  <span *ngIf="tableStats[column.header]['reachedLimit'] === 1"> (approximate)</span>
-                </h5>
-                <h5 class="rightAlign"><span [innerHTML]="compare(column.header, 'other')"></span>%</h5>
-              </div>
-            </ng-container>
-          </div>
-        </th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr
-        *ngFor="let row of basicTable.data; let i = index"
-        class="table-row-hover">
-        <td
-          *ngFor="let column of currentColumns; let columnIndex = index"
-          class="table-cell"
-          nzEllipsis
-          (click)="open(i, row)">
-          <span class="cell-content">{{ column.getCell(row) }}</span>
-          <button
-            (click)="downloadData(currentResult[i][column.columnDef], i, columnIndex, column.columnDef); $event.stopPropagation()"
-            nz-button
-            nzType="link"
-            class="download-button"
-            title="Download data">
-            <i
-              nz-icon
-              nzType="cloud-download"></i>
-          </button>
-        </td>
-      </tr>
-    </tbody>
-  </nz-table>
+  <div class="table-container">
+    <nz-table
+      #basicTable
+      (nzQueryParams)="onTableQueryParamsChange($event)"
+      [nzData]="currentResult"
+      [nzFrontPagination]="isFrontPagination"
+      [nzLoading]="isLoadingResult"
+      [nzPageIndex]="currentPageIndex"
+      [nzPageSize]="pageSize"
+      [nzPaginationPosition]="'bottom'"
+      [nzScroll]="{ x: 'max-content'}"
+      [nzSize]="'small'"
+      [nzTableLayout]="'fixed'"
+      [nzTotal]="totalNumTuples"
+      nzBordered="true">
+      <thead>
+        <tr>
+          <th
+            *ngFor="let column of currentColumns; let i = index"
+            ngClass="header-size"
+            style="text-align: center"
+            nzWidth="widthPercent">
+            {{ column.header }}
+          </th>
+        </tr>
+        <tr
+          *ngIf="tableStats && prevTableStats && sinkStorageMode === 'mongodb'"
+          #statsRow
+          class="custom-stats-row">
+          <th *ngFor="let column of currentColumns">
+            <div class="statsHeader">
+              <ng-container
+                *ngIf="tableStats[column.header] && prevTableStats[column.header] && tableStats[column.header]['min'] !== undefined">
+                <div class="statsLine">
+                  <h5 class="leftAlign">Min</h5>
+                  <h5 class="rightAlign">
+                    <span [innerHTML]="compare(column.header, 'min')"></span>
+                  </h5>
+                </div>
+              </ng-container>
+              <ng-container
+                *ngIf="tableStats[column.header] && prevTableStats[column.header] && tableStats[column.header]['mean'] !== undefined">
+                <div class="statsLine">
+                  <h5 class="leftAlign">Average</h5>
+                  <h5 class="rightAlign">
+                    <span [innerHTML]="compare(column.header, 'mean')"></span>
+                  </h5>
+                </div>
+              </ng-container>
+              <ng-container
+                *ngIf="tableStats[column.header] && prevTableStats[column.header] && tableStats[column.header]['max'] !== undefined">
+                <div class="statsLine">
+                  <h5 class="leftAlign">Max</h5>
+                  <h5 class="rightAlign">
+                    <span [innerHTML]="compare(column.header, 'max')"></span>
+                  </h5>
+                </div>
+              </ng-container>
+              <ng-container
+                *ngIf="tableStats[column.header] && prevTableStats[column.header] && tableStats[column.header]['firstPercent'] !== undefined">
+                <div class="statsLine">
+                  <h5 class="leftAlign">
+                    {{tableStats[column.header]['firstCat']}}
+                    <span *ngIf="tableStats[column.header]['reachedLimit'] === 1"> (approximate)</span>
+                  </h5>
+                  <h5 class="rightAlign"><span [innerHTML]="compare(column.header, 'firstPercent')"></span>%</h5>
+                </div>
+              </ng-container>
+              <ng-container
+                *ngIf="tableStats[column.header] && prevTableStats[column.header] && tableStats[column.header]['secondPercent'] !== undefined">
+                <div class="statsLine">
+                  <h5 class="leftAlign">
+                    {{tableStats[column.header]['secondCat']}}
+                    <span *ngIf="tableStats[column.header]['reachedLimit'] === 1"> (approximate)</span>
+                  </h5>
+                  <h5 class="rightAlign"><span [innerHTML]="compare(column.header, 'secondPercent')"></span>%</h5>
+                </div>
+              </ng-container>
+              <ng-container
+                *ngIf="tableStats[column.header] && prevTableStats[column.header] && tableStats[column.header]['other'] !== undefined">
+                <div class="statsLine">
+                  <h5 class="leftAlign">
+                    Other
+                    <span *ngIf="tableStats[column.header]['reachedLimit'] === 1"> (approximate)</span>
+                  </h5>
+                  <h5 class="rightAlign"><span [innerHTML]="compare(column.header, 'other')"></span>%</h5>
+                </div>
+              </ng-container>
+            </div>
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr
+          *ngFor="let row of basicTable.data; let i = index"
+          class="table-row-hover">
+          <td
+            *ngFor="let column of currentColumns; let columnIndex = index"
+            class="table-cell"
+            nzEllipsis
+            (click)="open(i, row)">
+            <span class="cell-content">{{ column.getCell(row) }}</span>
+            <button
+              (click)="downloadData(currentResult[i][column.columnDef], i, columnIndex, column.columnDef); $event.stopPropagation()"
+              nz-button
+              nzType="link"
+              class="download-button"
+              title="Download data">
+              <i
+                nz-icon
+                nzType="cloud-download"></i>
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </nz-table>
+
+    <button
+      *ngIf="hasBinaryData"
+      (click)="downloadAllBinaryData()"
+      nz-button
+      nzType="default"
+      nzSize="small"
+      class="download-all-button">
+      <i
+        nz-icon
+        nzType="download"></i>
+      Download All Binary Data
+    </button>
+  </div>
 </div>
