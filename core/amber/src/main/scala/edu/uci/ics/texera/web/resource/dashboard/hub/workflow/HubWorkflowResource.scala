@@ -237,8 +237,7 @@ class HubWorkflowResource {
         .set(WORKFLOW_VIEW_COUNT.WID, workflowId)
         .set(WORKFLOW_VIEW_COUNT.VIEW_COUNT, UInteger.valueOf(1))
         .execute();
-    }
-    else {
+    } else {
       context
         .update(WORKFLOW_VIEW_COUNT)
         .set(WORKFLOW_VIEW_COUNT.VIEW_COUNT, WORKFLOW_VIEW_COUNT.VIEW_COUNT.add(1))

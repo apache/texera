@@ -132,8 +132,8 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
         .pipe(untilDestroyed(this))
         .subscribe(count => {
           this.viewCount = count;
-          console.log(this.viewCount)
-        })
+          console.log(this.viewCount);
+        });
     }
 
     this.hubWorkflowService

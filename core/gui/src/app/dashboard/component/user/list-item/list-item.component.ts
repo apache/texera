@@ -100,7 +100,7 @@ export class ListItemComponent implements OnInit, OnChanges {
           .pipe(untilDestroyed(this))
           .subscribe(count => {
             this.viewCount = count;
-          })
+          });
       }
       // this.entryLink = this.ROUTER_WORKFLOW_BASE_URL + "/" + this.entry.id;
       this.iconType = "project";
@@ -283,7 +283,7 @@ export class ListItemComponent implements OnInit, OnChanges {
           .pipe(untilDestroyed(this))
           .subscribe(count => {
             this.viewCount = count + 1; // hacky fix to display view correctly
-          })
+          });
       } else {
         console.warn("wid is undefined, default handling can be added here");
         instance.wid = 0;
@@ -348,5 +348,4 @@ export class ListItemComponent implements OnInit, OnChanges {
     }
     return count.toString();
   }
-
 }
