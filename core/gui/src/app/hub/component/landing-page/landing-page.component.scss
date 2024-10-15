@@ -2,12 +2,17 @@
   width: 100%;
   max-width: 1400px;
   margin-bottom: 40px;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  background-color: white;
+  padding: 10px 0;
 }
 
 .landing-page-container {
   display: flex;
   flex-direction: column;
-  padding: 32px 133px 0 133px;
+  padding: 0 133px;
   align-items: center;
   height: 100%;
   width: 100%;
