@@ -1,6 +1,10 @@
 package edu.uci.ics.amber.core.workflow
 
-import edu.uci.ics.amber.core.workflow.WorkflowContext.{DEFAULT_EXECUTION_ID, DEFAULT_WORKFLOW_ID, DEFAULT_WORKFLOW_SETTINGS}
+import edu.uci.ics.amber.core.workflow.WorkflowContext.{
+  DEFAULT_EXECUTION_ID,
+  DEFAULT_WORKFLOW_ID,
+  DEFAULT_WORKFLOW_SETTINGS
+}
 import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 
 object WorkflowContext {

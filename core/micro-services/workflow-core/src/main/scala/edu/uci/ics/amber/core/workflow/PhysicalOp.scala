@@ -4,7 +4,12 @@ import com.fasterxml.jackson.annotation.{JsonIgnore, JsonIgnoreProperties}
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.executor.{OpExecInitInfo, OpExecInitInfoWithCode}
 import edu.uci.ics.amber.core.tuple.Schema
-import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, OperatorIdentity, PhysicalOpIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.virtualidentity.{
+  ExecutionIdentity,
+  OperatorIdentity,
+  PhysicalOpIdentity,
+  WorkflowIdentity
+}
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
@@ -57,7 +62,7 @@ object PhysicalOp {
       executionId,
       opExecInitInfo,
       parallelizable = false,
-      locationPreference = Option(new PreferController())
+      locationPreference = Some(PreferController)
     )
 
   def oneToOnePhysicalOp(
@@ -131,7 +136,7 @@ object PhysicalOp {
       opExecInitInfo: OpExecInitInfo
   ): PhysicalOp = {
     manyToOnePhysicalOp(physicalOpId, workflowId, executionId, opExecInitInfo)
-      .withLocationPreference(Option(new PreferController()))
+      .withLocationPreference(Some(PreferController))
   }
 }
 

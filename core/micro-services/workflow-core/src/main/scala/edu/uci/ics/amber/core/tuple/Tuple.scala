@@ -91,7 +91,8 @@ case class Tuple @JsonCreator() (
   def asKeyValuePairJson(): ObjectNode = {
     val objectNode = JSONUtils.objectMapper.createObjectNode()
     this.schema.getAttributeNames.foreach { attrName =>
-      val valueNode = JSONUtils.objectMapper.convertValue(this.getField(attrName), classOf[JsonNode])
+      val valueNode =
+        JSONUtils.objectMapper.convertValue(this.getField(attrName), classOf[JsonNode])
       objectNode.set[ObjectNode](attrName, valueNode)
     }
     objectNode
