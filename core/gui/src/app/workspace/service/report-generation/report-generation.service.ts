@@ -23,48 +23,74 @@ export class ReportGenerationService {
   public generateWorkflowSnapshot(workflowName: string): Observable<string> {
     return new Observable((observer: Observer<string>) => {
       const element = document.querySelector("#workflow-editor") as HTMLElement;
-      if (element) {
-        // Ensure all resources are loaded
-        const promises: Promise<void>[] = [];
-        const images = element.querySelectorAll("image");
 
-        // Create promises for each image to ensure they are loaded
-        images.forEach(img => {
-          const imgSrc = img.getAttribute("xlink:href");
-          if (imgSrc) {
-            promises.push(
-              new Promise((resolve, reject) => {
-                const imgElement = new Image();
-                imgElement.src = imgSrc;
-                imgElement.onload = () => resolve();
-                imgElement.onerror = () => reject();
-              })
-            );
-          }
-        });
-
-        // Wait for all images to load
-        Promise.all(promises)
-          .then(() => {
-            // Capture the snapshot using html2canvas
-            return html2canvas(element, {
-              logging: true,
-              useCORS: true,
-              allowTaint: true,
-              foreignObjectRendering: true,
-            });
-          })
-          .then((canvas: HTMLCanvasElement) => {
-            const dataUrl: string = canvas.toDataURL("image/png");
-            observer.next(dataUrl);
-            observer.complete();
-          })
-          .catch((error: any) => {
-            observer.error(error);
-          });
-      } else {
+      if (!element) {
         observer.error("Workflow editor element not found");
+        return;
       }
+
+      // Query all the images (from SVG or other tags)
+      const images = element.querySelectorAll("image");
+
+      // Create promises to load and convert images to Base64
+      const promises: Promise<void>[] = Array.from(images).map(img => {
+        const imgSrc = img.getAttribute("xlink:href") || img.getAttribute("href");
+
+        if (imgSrc) {
+          return this.fetchImageAsBase64(imgSrc)
+            .then(base64 => {
+              // Set the Base64 image as the source of the SVG or img element
+              img.setAttribute("href", base64);
+            })
+            .catch(error => {
+              console.error(`Failed to load image: ${imgSrc}`, error);
+            });
+        }
+
+        return Promise.resolve(); // If there's no src, resolve immediately
+      });
+
+      // Wait for all images to be converted to Base64
+      Promise.all(promises)
+        .then(() => {
+          // Render the element after all images are ready
+          return html2canvas(element, {
+            logging: true,
+            useCORS: true,
+            allowTaint: true,
+            foreignObjectRendering: true,
+          });
+        })
+        .then((canvas: HTMLCanvasElement) => {
+          const dataUrl: string = canvas.toDataURL("image/png");
+          observer.next(dataUrl);
+          observer.complete();
+        })
+        .catch(error => {
+          observer.error(error);
+        });
+    });
+  }
+
+  private fetchImageAsBase64(imageUrl: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.onload = function () {
+        const reader = new FileReader();
+        reader.onloadend = function () {
+          resolve(reader.result as string); // Base64 string result
+        };
+        reader.onerror = function () {
+          reject("Failed to convert image to Base64");
+        };
+        reader.readAsDataURL(xhr.response); // Convert to Base64
+      };
+      xhr.onerror = function () {
+        reject(`Failed to load image from ${imageUrl}`);
+      };
+      xhr.open("GET", imageUrl);
+      xhr.responseType = "blob"; // Get the image as binary data
+      xhr.send();
     });
   }
 

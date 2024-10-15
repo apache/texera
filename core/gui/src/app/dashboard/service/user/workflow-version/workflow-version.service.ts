@@ -33,7 +33,7 @@ const ID_FILED_FOR_ELEMENTS_CONFIG: { [key: string]: string } = {
   providedIn: "root",
 })
 export class WorkflowVersionService {
-  public modificationEnabledBeforeTempWorkflow = true;
+  private modificationEnabledBeforeTempWorkflow: boolean | undefined;
   public operatorPropertyDiff: { [key: string]: Map<String, String> } = {};
   private displayParticularWorkflowVersion = new BehaviorSubject<boolean>(false);
   private differentOpIDsList: DifferentOpIDsList = { modified: [], added: [], deleted: [] };
@@ -57,8 +57,12 @@ export class WorkflowVersionService {
     return this.displayParticularWorkflowVersion.asObservable();
   }
 
+  public get canRestoreVersion(): boolean {
+    return this.modificationEnabledBeforeTempWorkflow !== undefined && this.modificationEnabledBeforeTempWorkflow;
+  }
+
   public displayReadonlyWorkflow(workflow: Workflow) {
-    this.modificationEnabledBeforeTempWorkflow = this.workflowActionService.checkWorkflowModificationEnabled();
+    this.saveModificationState();
     // we need to display the version on the paper but keep the original workflow in the background
     this.workflowActionService.setTempWorkflow(this.workflowActionService.getWorkflow());
     // disable persist to DB because it is read only
@@ -203,7 +207,7 @@ export class WorkflowVersionService {
     this.workflowActionService.resetTempWorkflow();
     this.workflowPersistService.setWorkflowPersistFlag(true);
     this.setDisplayParticularVersion(false);
-    if (!this.modificationEnabledBeforeTempWorkflow) this.workflowActionService.disableWorkflowModification();
+    this.restoreModificationState();
   }
 
   public closeReadonlyWorkflowDisplay() {
@@ -219,7 +223,7 @@ export class WorkflowVersionService {
     // after reloading the workflow, we can enable the undoredo service
     this.undoRedoService.enableWorkFlowModification();
     this.workflowPersistService.setWorkflowPersistFlag(true);
-    if (!this.modificationEnabledBeforeTempWorkflow) this.workflowActionService.disableWorkflowModification();
+    this.restoreModificationState();
   }
 
   public closeParticularVersionDisplay() {
@@ -255,5 +259,20 @@ export class WorkflowVersionService {
         filter((updatedWorkflow: Workflow) => updatedWorkflow != null),
         map(WorkflowUtilService.parseWorkflowInfo)
       );
+  }
+
+  private saveModificationState(): void {
+    if (this.modificationEnabledBeforeTempWorkflow === undefined) {
+      this.modificationEnabledBeforeTempWorkflow = this.workflowActionService.checkWorkflowModificationEnabled();
+    }
+  }
+
+  private restoreModificationState(): void {
+    if (this.modificationEnabledBeforeTempWorkflow !== undefined) {
+      if (!this.modificationEnabledBeforeTempWorkflow) {
+        this.workflowActionService.disableWorkflowModification();
+      }
+      this.modificationEnabledBeforeTempWorkflow = undefined;
+    }
   }
 }
