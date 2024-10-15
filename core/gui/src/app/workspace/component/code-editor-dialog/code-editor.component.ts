@@ -239,46 +239,48 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
         },
       };
 
-      from(this.checkPythonLanguageServerAvailability()).subscribe(isServerAvailable => {
-        if (isServerAvailable && this.language === "python") {
-          userConfig.languageClientConfig = {
-            languageId: "python",
-            options: {
-              $type: "WebSocketUrl",
-              url: getWebsocketUrl("/python-language-server", "3000"),
-            },
-          };
-        }
+      from(this.checkPythonLanguageServerAvailability())
+        .pipe(takeUntil(this.componentDestroy))
+        .subscribe(isServerAvailable => {
+          if (isServerAvailable && this.language === "python") {
+            userConfig.languageClientConfig = {
+              languageId: "python",
+              options: {
+                $type: "WebSocketUrl",
+                url: getWebsocketUrl("/python-language-server", "3000"),
+              },
+            };
+          }
 
-        from(this.wrapper!.initAndStart(userConfig, this.editorElement.nativeElement))
-          .pipe(takeUntil(this.componentDestroy))
-          .subscribe({
-            next: () => {
-              this.formControl.statusChanges.pipe(untilDestroyed(this)).subscribe(() => {
-                const editorInstance = this.wrapper?.getEditor();
-                if (editorInstance) {
-                  editorInstance.updateOptions({
-                    readOnly: this.formControl.disabled,
-                  });
+          from(this.wrapper!.initAndStart(userConfig, this.editorElement.nativeElement))
+            .pipe(takeUntil(this.componentDestroy))
+            .subscribe({
+              next: () => {
+                this.formControl.statusChanges.pipe(untilDestroyed(this)).subscribe(() => {
+                  const editorInstance = this.wrapper?.getEditor();
+                  if (editorInstance) {
+                    editorInstance.updateOptions({
+                      readOnly: this.formControl.disabled,
+                    });
+                  }
+                });
+                this.editor = this.wrapper?.getEditor();
+                if (this.code && this.editor) {
+                  if (this.monacoBinding) {
+                    this.monacoBinding.destroy();
+                    this.monacoBinding = undefined;
+                  }
+                  this.monacoBinding = new MonacoBinding(
+                    this.code,
+                    this.editor.getModel()!,
+                    new Set([this.editor]),
+                    this.workflowActionService.getTexeraGraph().getSharedModelAwareness()
+                  );
                 }
-              });
-              this.editor = this.wrapper?.getEditor();
-              if (this.code && this.editor) {
-                if (this.monacoBinding) {
-                  this.monacoBinding.destroy();
-                  this.monacoBinding = undefined;
-                }
-                this.monacoBinding = new MonacoBinding(
-                  this.code,
-                  this.editor.getModel()!,
-                  new Set([this.editor]),
-                  this.workflowActionService.getTexeraGraph().getSharedModelAwareness()
-                );
-              }
-              this.setupAIAssistantActions();
-            },
-          });
-      });
+                this.setupAIAssistantActions();
+              },
+            });
+        });
     }
   }
 
