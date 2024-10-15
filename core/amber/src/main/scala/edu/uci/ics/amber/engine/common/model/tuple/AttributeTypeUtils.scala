@@ -63,7 +63,7 @@ object AttributeTypeUtils extends Serializable {
   ): TupleLike =
     TupleLike(
       tuple.getSchema.getAttributes.map { attr =>
-        val targetType = targetTypes(attr.getName)
+        val targetType = targetTypes.getOrElse(attr.getName, attr.getType)
         parseField(tuple.getField(attr.getName), targetType)
       }
     )
