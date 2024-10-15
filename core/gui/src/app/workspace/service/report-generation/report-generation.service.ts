@@ -364,9 +364,7 @@ export class ReportGenerationService {
           <h2>${workflowName} Static State</h2>
           <img src="${workflowSnapshot}" alt="Workflow Snapshot" style="display: block; margin: 0 auto; width: 80%;">
         </div>
-        ${allResults
-        .map(result => `<div class="operator-result">${result}</div>`)
-        .join("")}
+        ${allResults.map(result => `<div class="operator-result">${result}</div>`).join("")}
         <div style="text-align: center; margin-top: 20px;">
           <div class="comment-box">
             <h3>Summary</h3>
@@ -388,7 +386,6 @@ export class ReportGenerationService {
       URL.revokeObjectURL(url);
     });
   }
-
 
   /**
    * Generates an insightful comment for the given operator information by utilizing the AI Assistant service.
