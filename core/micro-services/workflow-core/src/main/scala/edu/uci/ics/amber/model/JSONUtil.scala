@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
 object JSONUtil {
+
   /**
     * A singleton object for configuring the Jackson `ObjectMapper` to handle JSON serialization and deserialization
     * in Scala. This custom `ObjectMapper` is tailored for Scala, ensuring compatibility with Scala types

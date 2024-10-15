@@ -58,9 +58,9 @@ object AttributeTypeUtils extends Serializable {
     *                        as specified by the typeCastingUnits.
     */
   def tupleCasting(
-                    tuple: Tuple,
-                    targetTypes: Map[String, AttributeType]
-                  ): TupleLike =
+      tuple: Tuple,
+      targetTypes: Map[String, AttributeType]
+  ): TupleLike =
     TupleLike(
       tuple.getSchema.getAttributes.map { attr =>
         val targetType = targetTypes(attr.getName)

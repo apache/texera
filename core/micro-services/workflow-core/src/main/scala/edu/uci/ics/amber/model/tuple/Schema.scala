@@ -185,13 +185,17 @@ object Schema {
 
     private def checkAttributeNotExists(attributeName: String): Unit = {
       if (attributeNames.contains(attributeName.toLowerCase)) {
-        throw new RuntimeException(s"edu.ics.uci.amber.model.tuple.model.Attribute $attributeName already exists in the schema")
+        throw new RuntimeException(
+          s"edu.ics.uci.amber.model.tuple.model.Attribute $attributeName already exists in the schema"
+        )
       }
     }
 
     private def checkAttributeExists(attributeName: String): Unit = {
       if (!attributeNames.contains(attributeName.toLowerCase)) {
-        throw new RuntimeException(s"edu.ics.uci.amber.model.tuple.model.Attribute $attributeName does not exist in the schema")
+        throw new RuntimeException(
+          s"edu.ics.uci.amber.model.tuple.model.Attribute $attributeName does not exist in the schema"
+        )
       }
     }
   }
