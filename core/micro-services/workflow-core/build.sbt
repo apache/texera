@@ -25,6 +25,10 @@ conflictManager := ConflictManager.latestRevision
 // ensuring no parallel execution of multiple tasks
 concurrentRestrictions in Global += Tags.limit(Tags.Test, 1)
 
+
+
+/////////////////////////////////////////////////////////////////////////////
+// ScalaPB related
 // Excluding some proto files:
 PB.generate / excludeFilter := "scalapb.proto"
 
@@ -50,6 +54,18 @@ libraryDependencies += "com.thesamet.scalapb" %% "scalapb-json4s" % "0.12.0"
 // enable protobuf compilation in Test
 Test / PB.protoSources += PB.externalSourcePath.value
 
+
+/////////////////////////////////////////////////////////////////////////////
+// Test related
+// https://mvnrepository.com/artifact/org.scalamock/scalamock
+libraryDependencies += "org.scalamock" %% "scalamock" % "5.2.0" % Test
+// https://mvnrepository.com/artifact/ch.vorburger.mariaDB4j/mariaDB4j
+libraryDependencies += "ch.vorburger.mariaDB4j" % "mariaDB4j" % "2.4.0" % Test
+// https://www.scalatest.org/getting_started_with_fun_suite
+libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.15" % Test
+// JUnit related dependencies
+libraryDependencies += "junit" % "junit" % "4.13.2" % Test // JUnit dependency for Java tests
+libraryDependencies += "com.novocode" % "junit-interface" % "0.11" % Test // SBT interface for JUnit
 
 
 val jacksonVersion = "2.15.1"
@@ -90,3 +106,4 @@ libraryDependencies += "org.jgrapht" % "jgrapht-core" % "1.4.0"
 
 // https://mvnrepository.com/artifact/com.typesafe.scala-logging/scala-logging
 libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5"
+
