@@ -10,4 +10,5 @@ export interface DashboardDataset {
     datasetVersion: DatasetVersion;
     fileNodes: DatasetFileNode[];
   }[];
+  size?: number;
 }

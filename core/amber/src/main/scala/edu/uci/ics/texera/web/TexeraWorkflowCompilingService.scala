@@ -3,9 +3,7 @@ package edu.uci.ics.texera.web
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.github.toastshaman.dropwizard.auth.jwt.JwtAuthFilter
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.common.AmberConfig
-import edu.uci.ics.texera.Utils
-import edu.uci.ics.texera.web.TexeraWebApplication.parseArgs
+import edu.uci.ics.amber.engine.common.{AmberConfig, Utils}
 import edu.uci.ics.texera.web.auth.JwtAuth.jwtConsumer
 import edu.uci.ics.texera.web.auth.{
   GuestAuthFilter,
@@ -20,7 +18,6 @@ import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 
 object TexeraWorkflowCompilingService {
   def main(args: Array[String]): Unit = {
-    val argMap = parseArgs(args)
 
     new TexeraWorkflowCompilingService().run(
       "server",

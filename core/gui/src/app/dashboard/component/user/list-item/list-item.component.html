@@ -102,7 +102,7 @@
 
     <div
       nz-col
-      nzSpan="12">
+      [nzSpan]="12">
       <div class="edit-info">
         <div class="resource-owner">
           <texera-user-avatar
@@ -113,8 +113,11 @@
             [isOwner]="entry.ownerId === this.currentUid">
           </texera-user-avatar>
         </div>
-        <div class="resource-time-info">Created: {{ formatTime(entry.creationTime) }}</div>
-        <div class="resource-time-info">Edited: {{ formatTime(entry.lastModifiedTime) }}</div>
+        <div class="resource-info-grid">
+          <div class="resource-info">{{ entry.type === 'dataset' ? 'Size: ' + formatSize(entry.size) : '' }}</div>
+          <div class="resource-info">Created: {{ formatTime(entry.creationTime) }}</div>
+          <div class="resource-info">Edited: {{ formatTime(entry.lastModifiedTime) }}</div>
+        </div>
       </div>
     </div>
   </div>
@@ -122,6 +125,18 @@
   <div
     *ngIf="isPrivateSearch"
     class="button-group">
+    <button
+      *ngIf="entry.type==='workflow'"
+      nz-button
+      nzType="text"
+      class="dropdown-item"
+      title="Detail"
+      (click)="openDetailModal(this.entry.id)">
+      <i
+        nz-icon
+        nzTheme="outline"
+        nzType="eye"></i>
+    </button>
     <button
       nz-button
       nzType="text"
@@ -148,7 +163,7 @@
     <button
       nz-button
       nzType="text"
-      *ngIf="entry.type==='workflow'"
+      *ngIf="entry.type === 'workflow' || entry.type === 'dataset'"
       class="dropdown-item"
       title="Download"
       (click)="onClickDownload()">

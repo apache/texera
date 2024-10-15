@@ -17,10 +17,11 @@ import {
   WorkflowPersistService,
   DEFAULT_WORKFLOW_NAME,
 } from "src/app/common/service/workflow-persist/workflow-persist.service";
-import { Workflow } from "src/app/common/type/workflow";
-import { FileSaverService } from "src/app/dashboard/service/user/file/file-saver.service";
 import { firstValueFrom } from "rxjs";
 import { SearchService } from "../../../service/user/search.service";
+import { HubWorkflowDetailComponent } from "../../../../hub/component/workflow/detail/hub-workflow-detail.component";
+import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
+import { formatSize } from "src/app/common/util/size-formatter.util";
 
 @UntilDestroy()
 @Component({
@@ -66,7 +67,8 @@ export class ListItemComponent implements OnInit, OnChanges {
     private searchService: SearchService,
     private modalService: NzModalService,
     private workflowPersistService: WorkflowPersistService,
-    private fileSaverService: FileSaverService
+    private modal: NzModalService,
+    private downloadService: DownloadService
   ) {}
 
   initializeEntry() {
@@ -140,27 +142,18 @@ export class ListItemComponent implements OnInit, OnChanges {
     }
   }
 
-  public onClickDownload(): void {
+  public onClickDownload = (): void => {
+    if (!this.entry.id) return;
+
     if (this.entry.type === "workflow") {
-      if (this.entry.id) {
-        this.workflowPersistService
-          .retrieveWorkflow(this.entry.id)
-          .pipe(untilDestroyed(this))
-          .subscribe(data => {
-            const workflowCopy: Workflow = {
-              ...data,
-              wid: undefined,
-              creationTime: undefined,
-              lastModifiedTime: undefined,
-              readonly: false,
-            };
-            const workflowJson = JSON.stringify(workflowCopy.content);
-            const fileName = workflowCopy.name + ".json";
-            this.fileSaverService.saveAs(new Blob([workflowJson], { type: "text/plain;charset=utf-8" }), fileName);
-          });
-      }
+      this.downloadService
+        .downloadWorkflow(this.entry.id, this.entry.workflow.workflow.name)
+        .pipe(untilDestroyed(this))
+        .subscribe();
+    } else if (this.entry.type === "dataset") {
+      this.downloadService.downloadDataset(this.entry.id, this.entry.name).pipe(untilDestroyed(this)).subscribe();
     }
-  }
+  };
 
   onEditName(): void {
     this.editingName = true;
@@ -237,4 +230,27 @@ export class ListItemComponent implements OnInit, OnChanges {
       return new Date(timestamp).toLocaleDateString();
     }
   }
+
+  openDetailModal(wid: number | undefined): void {
+    const modalRef = this.modal.create({
+      nzTitle: "Workflow Detail",
+      nzContent: HubWorkflowDetailComponent,
+      nzFooter: null,
+      nzStyle: { width: "60%" },
+      nzBodyStyle: { maxHeight: "70vh", overflow: "auto" },
+    });
+
+    const instance = modalRef.componentInstance;
+    if (instance) {
+      if (wid !== undefined) {
+        instance.wid = wid;
+      } else {
+        console.warn("wid is undefined, default handling can be added here");
+        instance.wid = 0;
+      }
+    }
+  }
+
+  // alias for formatSize
+  formatSize = formatSize;
 }

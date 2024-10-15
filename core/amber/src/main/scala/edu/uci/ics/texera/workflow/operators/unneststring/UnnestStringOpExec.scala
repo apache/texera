@@ -1,8 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.unneststring
 
-import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
+import edu.uci.ics.amber.engine.common.model.tuple.{Tuple, TupleLike}
 import edu.uci.ics.texera.workflow.common.operators.flatmap.FlatMapOpExec
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 class UnnestStringOpExec(attributeName: String, delimiter: String) extends FlatMapOpExec {
 
