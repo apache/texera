@@ -287,8 +287,8 @@ export class ReportGenerationService {
       <head>
         <title>Operator Results</title>
         <!-- Link to JSONEditor CSS file -->
-       <link href="https://cdn.jsdelivr.net/npm/jsoneditor@10.1.0/dist/jsoneditor.min.css" rel="stylesheet" type="text/css" />
-       <script src="https://cdn.jsdelivr.net/npm/jsoneditor@10.1.0/dist/jsoneditor.min.js"></script>
+        <link href="https://cdn.jsdelivr.net/npm/jsoneditor@10.1.0/dist/jsoneditor.min.css" rel="stylesheet" type="text/css" />
+        <script src="https://cdn.jsdelivr.net/npm/jsoneditor@10.1.0/dist/jsoneditor.min.js"></script>
         <style>
           .button {
             margin-top: 20px;
@@ -303,9 +303,6 @@ export class ReportGenerationService {
           .button:hover {
             background-color: #e8e8e8;
           }
-          .hidden-input {
-            display: none;
-          }
           .json-editor-container {
             height: 400px;
           }
@@ -314,12 +311,29 @@ export class ReportGenerationService {
             padding: 10px;
             border: 1px solid #ccc;
             border-radius: 5px;
+            width: 80%;
+            margin: 0 auto;
           }
           .editable-comment-box {
             width: 100%;
             margin-top: 10px;
             border: 1px solid black;
             padding: 10px;
+            text-align: left;
+          }
+          .operator-result {
+            margin: 20px auto;
+            width: 80%;
+            text-align: left;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0 auto;
+          }
+          th, td {
+            border: none;
+            padding: 8px;
             text-align: left;
           }
         </style>
@@ -348,9 +362,11 @@ export class ReportGenerationService {
       <body>
         <div style="text-align: center;">
           <h2>${workflowName} Static State</h2>
-          <img src="${workflowSnapshot}" alt="Workflow Snapshot" style="display: block; margin: 0 auto; width: 80%">
+          <img src="${workflowSnapshot}" alt="Workflow Snapshot" style="display: block; margin: 0 auto; width: 80%;">
         </div>
-        ${allResults.join("")}
+        ${allResults
+        .map(result => `<div class="operator-result">${result}</div>`)
+        .join("")}
         <div style="text-align: center; margin-top: 20px;">
           <div class="comment-box">
             <h3>Summary</h3>
@@ -372,6 +388,7 @@ export class ReportGenerationService {
       URL.revokeObjectURL(url);
     });
   }
+
 
   /**
    * Generates an insightful comment for the given operator information by utilizing the AI Assistant service.
