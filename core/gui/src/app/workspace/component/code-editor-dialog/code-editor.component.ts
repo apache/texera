@@ -199,18 +199,18 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   private checkPythonLanguageServerAvailability(): Promise<boolean> {
     return new Promise(resolve => {
       const socket = new WebSocket(getWebsocketUrl("/python-language-server", "3000"));
-  
+
       socket.onopen = () => {
         socket.close();
         resolve(true);
       };
-  
+
       socket.onerror = () => {
         resolve(false);
       };
     });
   }
-  
+
   /**
    * Create a Monaco editor and connect it to MonacoBinding.
    * @private
@@ -237,8 +237,8 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
             },
           },
         },
-      }
-  
+      };
+
       from(this.checkPythonLanguageServerAvailability()).subscribe(isServerAvailable => {
         if (isServerAvailable && this.language === "python") {
           userConfig.languageClientConfig = {
@@ -249,7 +249,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
             },
           };
         }
-  
+
         from(this.wrapper!.initAndStart(userConfig, this.editorElement.nativeElement))
           .pipe(takeUntil(this.componentDestroy))
           .subscribe({
