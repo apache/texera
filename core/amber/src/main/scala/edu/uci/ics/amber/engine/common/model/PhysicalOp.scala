@@ -154,7 +154,7 @@ object PhysicalOp {
       opExecInitInfo: OpExecInitInfo
   ): PhysicalOp = {
     manyToOnePhysicalOp(physicalOpId, workflowId, executionId, opExecInitInfo)
-      .withLocationPreference(Option(PreferController))
+      .withLocationPreference(Some(PreferController))
   }
 }
 
