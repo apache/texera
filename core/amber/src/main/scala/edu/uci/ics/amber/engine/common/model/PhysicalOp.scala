@@ -10,8 +10,8 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
   OpExecInitInfo,
   OpExecInitInfoWithCode
 }
+import edu.uci.ics.amber.engine.architecture.deploysemantics.AddressInfo
 import edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference.{
-  AddressInfo,
   LocationPreference,
   PreferController,
   RoundRobinPreference
