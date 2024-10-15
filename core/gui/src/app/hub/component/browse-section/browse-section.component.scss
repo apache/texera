@@ -32,12 +32,20 @@
         font-size: 18px;
         margin: 10px 0;
         text-align: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
       .card-description {
         padding: 0 15px;
         font-size: 14px;
         color: #666;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
       .footer {
