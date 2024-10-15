@@ -200,13 +200,11 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     return new Promise(resolve => {
       const socket = new WebSocket(getWebsocketUrl("/python-language-server", "3000"));
   
-      // 连接成功的情况下，服务器在线
       socket.onopen = () => {
         socket.close();
         resolve(true);
       };
   
-      // 连接失败的情况下，服务器不在线
       socket.onerror = () => {
         resolve(false);
       };
@@ -241,7 +239,6 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
         },
       }
   
-      // 将 Promise 转换为 Observable，然后使用 subscribe 来处理
       from(this.checkPythonLanguageServerAvailability()).subscribe(isServerAvailable => {
         if (isServerAvailable && this.language === "python") {
           userConfig.languageClientConfig = {
@@ -253,7 +250,6 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
           };
         }
   
-        // 初始化Monaco编辑器
         from(this.wrapper!.initAndStart(userConfig, this.editorElement.nativeElement))
           .pipe(takeUntil(this.componentDestroy))
           .subscribe({
