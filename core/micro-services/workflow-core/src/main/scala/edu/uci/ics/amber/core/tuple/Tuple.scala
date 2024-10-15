@@ -1,4 +1,4 @@
-package edu.uci.ics.amber.model.tuple
+package edu.uci.ics.amber.core.tuple
 
 import Tuple.checkSchemaMatchesFields
 import TupleUtils.document2Tuple
@@ -6,7 +6,7 @@ import com.fasterxml.jackson.annotation.{JsonCreator, JsonIgnore, JsonProperty}
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.google.common.base.Preconditions.checkNotNull
-import edu.uci.ics.amber.model.Utils
+import edu.uci.ics.amber.core.Utils
 import org.ehcache.sizeof.SizeOf
 import org.bson.Document
 import java.util

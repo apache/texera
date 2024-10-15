@@ -1,4 +1,4 @@
-package edu.uci.ics.amber.model.executor
+package edu.uci.ics.amber.core.executor
 
 import java.io.ByteArrayOutputStream
 import java.net.URI

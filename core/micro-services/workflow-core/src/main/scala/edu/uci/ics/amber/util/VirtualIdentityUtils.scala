@@ -1,11 +1,6 @@
-package edu.uci.ics.amber.model
+package edu.uci.ics.amber.util
 
-import edu.uci.ics.amber.virtualidentity.{
-  ActorVirtualIdentity,
-  OperatorIdentity,
-  PhysicalOpIdentity,
-  WorkflowIdentity
-}
+import edu.uci.ics.amber.virtualidentity.{ActorVirtualIdentity, OperatorIdentity, PhysicalOpIdentity, WorkflowIdentity}
 
 import scala.util.matching.Regex
 

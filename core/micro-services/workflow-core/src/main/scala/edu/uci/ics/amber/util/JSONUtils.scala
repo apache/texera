@@ -1,10 +1,10 @@
-package edu.uci.ics.amber.model
+package edu.uci.ics.amber.util
 
 import com.fasterxml.jackson.databind.JsonNode
 
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
-object JSONUtil {
+object JSONUtils {
 
   /**
     * A singleton object for configuring the Jackson `ObjectMapper` to handle JSON serialization and deserialization

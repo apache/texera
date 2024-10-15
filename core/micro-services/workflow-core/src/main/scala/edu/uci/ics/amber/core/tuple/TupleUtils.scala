@@ -1,8 +1,8 @@
-package edu.uci.ics.amber.model.tuple
+package edu.uci.ics.amber.core.tuple
 
 import com.fasterxml.jackson.databind.JsonNode
-import edu.uci.ics.amber.model.JSONUtil.JSONToMap
-import edu.uci.ics.amber.model.Utils.objectMapper
+import edu.uci.ics.amber.util.JSONUtils.JSONToMap
+import edu.uci.ics.amber.core.Utils.objectMapper
 import AttributeTypeUtils.{inferSchemaFromRows, parseField}
 import AttributeType.BINARY
 import org.bson.Document

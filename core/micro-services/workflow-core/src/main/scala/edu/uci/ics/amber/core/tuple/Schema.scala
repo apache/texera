@@ -1,4 +1,4 @@
-package edu.uci.ics.amber.model.tuple
+package edu.uci.ics.amber.core.tuple
 
 import com.fasterxml.jackson.annotation.{JsonCreator, JsonIgnore, JsonProperty}
 import com.google.common.base.Preconditions.checkNotNull

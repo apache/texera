@@ -1,4 +1,4 @@
-package edu.uci.ics.amber.model
+package edu.uci.ics.amber.core.workflow
 
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}

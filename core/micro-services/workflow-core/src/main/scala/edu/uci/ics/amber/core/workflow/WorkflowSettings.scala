@@ -1,3 +1,3 @@
-package edu.uci.ics.amber.model
+package edu.uci.ics.amber.core.workflow
 
 case class WorkflowSettings(dataTransferBatchSize: Int)

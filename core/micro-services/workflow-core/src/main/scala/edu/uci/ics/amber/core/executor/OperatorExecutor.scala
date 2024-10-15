@@ -1,7 +1,7 @@
-package edu.uci.ics.amber.model.executor
+package edu.uci.ics.amber.core.executor
 
-import edu.uci.ics.amber.model.State
-import edu.uci.ics.amber.model.tuple.{Tuple, TupleLike}
+import edu.uci.ics.amber.core.marker.State
+import edu.uci.ics.amber.core.tuple.{Tuple, TupleLike}
 import edu.uci.ics.amber.workflow.PortIdentity
 
 trait OperatorExecutor {
