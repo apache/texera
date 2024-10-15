@@ -6,9 +6,10 @@ import com.fasterxml.jackson.annotation.{JsonCreator, JsonIgnore, JsonProperty}
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.google.common.base.Preconditions.checkNotNull
-import edu.uci.ics.amber.core.Utils
+import edu.uci.ics.amber.util.JSONUtils
 import org.ehcache.sizeof.SizeOf
 import org.bson.Document
+
 import java.util
 import scala.collection.mutable
 
@@ -88,9 +89,9 @@ case class Tuple @JsonCreator() (
     s"Tuple [schema=$schema, fields=${fieldVals.mkString("[", ", ", "]")}]"
 
   def asKeyValuePairJson(): ObjectNode = {
-    val objectNode = Utils.objectMapper.createObjectNode()
+    val objectNode = JSONUtils.objectMapper.createObjectNode()
     this.schema.getAttributeNames.foreach { attrName =>
-      val valueNode = Utils.objectMapper.convertValue(this.getField(attrName), classOf[JsonNode])
+      val valueNode = JSONUtils.objectMapper.convertValue(this.getField(attrName), classOf[JsonNode])
       objectNode.set[ObjectNode](attrName, valueNode)
     }
     objectNode
