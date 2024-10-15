@@ -348,7 +348,7 @@ export class ReportGenerationService {
       <body>
         <div style="text-align: center;">
           <h2>${workflowName} Static State</h2>
-          <img src="${workflowSnapshot}" alt="Workflow Snapshot" style="width: 100%; max-width: 800px;">
+          <img src="${workflowSnapshot}" alt="Workflow Snapshot" style="display: block; margin: 0 auto; width: 80%">
         </div>
         ${allResults.join("")}
         <div style="text-align: center; margin-top: 20px;">
