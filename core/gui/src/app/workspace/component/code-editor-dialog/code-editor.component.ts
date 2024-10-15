@@ -576,19 +576,21 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
         },
       };
 
-      from(this.checkPythonLanguageServerAvailability()).subscribe(isServerAvailable => {
-        if (isServerAvailable && this.language === "python") {
-          userConfig.languageClientConfig = {
-            languageId: "python",
-            options: {
-              $type: "WebSocketUrl",
-              url: getWebsocketUrl("/python-language-server", "3000"),
-            },
-          };
-        }
+      from(this.checkPythonLanguageServerAvailability())
+        .pipe(takeUntil(this.componentDestroy))
+        .subscribe(isServerAvailable => {
+          if (isServerAvailable && this.language === "python") {
+            userConfig.languageClientConfig = {
+              languageId: "python",
+              options: {
+                $type: "WebSocketUrl",
+                url: getWebsocketUrl("/python-language-server", "3000"),
+              },
+            };
+          }
 
-        this.wrapper!.initAndStart(userConfig, this.editorElement.nativeElement);
-      });
+          this.wrapper!.initAndStart(userConfig, this.editorElement.nativeElement);
+        });
     }
   }
 
