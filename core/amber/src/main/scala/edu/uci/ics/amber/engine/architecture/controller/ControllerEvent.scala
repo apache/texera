@@ -1,9 +1,12 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
+import edu.uci.ics.amber.engine.common.model.tuple.Tuple
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.texera.web.workflowruntimestate.{OperatorMetrics, WorkflowAggregatedState}
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
+import edu.uci.ics.amber.engine.common.workflowruntimestate.{
+  OperatorMetrics,
+  WorkflowAggregatedState
+}
 
 object ControllerEvent {
 

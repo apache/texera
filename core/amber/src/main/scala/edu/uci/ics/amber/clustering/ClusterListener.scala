@@ -12,10 +12,13 @@ import edu.uci.ics.amber.error.ErrorUtils.getStackTraceWithAllCauses
 import edu.uci.ics.texera.web.SessionState
 import edu.uci.ics.texera.web.model.websocket.response.ClusterStatusUpdateEvent
 import edu.uci.ics.texera.web.service.{WorkflowExecutionService, WorkflowService}
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{COMPLETED, FAILED}
+import edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState.{
+  COMPLETED,
+  FAILED
+}
 import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
-import edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError
+import edu.uci.ics.amber.engine.common.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
+import edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowFatalError
 
 import java.time.Instant
 import scala.collection.mutable.ArrayBuffer

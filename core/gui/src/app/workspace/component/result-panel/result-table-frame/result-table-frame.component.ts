@@ -13,6 +13,8 @@ import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 import { style } from "@angular/animations";
 import { isBase64, isBinary, trimAndFormatData } from "src/app/common/util/json";
 import { ResultExportationComponent } from "../../result-exportation/result-exportation.component";
+import { WorkflowResultExportService } from "src/app/workspace/service/workflow-result-export/workflow-result-export.service";
+import { ChangeDetectorRef } from "@angular/core";
 
 export const TABLE_COLUMN_TEXT_LIMIT = 100;
 export const PRETTY_JSON_TEXT_LIMIT = 50000;
@@ -55,6 +57,8 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   prevTableStats: Record<string, Record<string, number>> = {};
   widthPercent: string = "";
   sinkStorageMode: string = "";
+  hasBinaryData: boolean = false;
+  binaryDataColumns: Set<string> = new Set();
 
   constructor(
     private executeWorkflowService: ExecuteWorkflowService,
@@ -62,7 +66,9 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     private workflowActionService: WorkflowActionService,
     private workflowResultService: WorkflowResultService,
     private resizeService: PanelResizeService,
-    private sanitizer: DomSanitizer
+    private sanitizer: DomSanitizer,
+    private workflowResultExportService: WorkflowResultExportService,
+    private changeDetectorRef: ChangeDetectorRef
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -100,6 +106,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
         if (opUpdate.dirtyPageIndices.includes(this.currentPageIndex)) {
           this.changePaginatedResultData();
         }
+        this.changeDetectorRef.detectChanges();
       });
 
     this.workflowResultService
@@ -294,6 +301,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       .subscribe(pageData => {
         if (this.currentPageIndex === pageData.pageIndex) {
           this.setupResultTable(pageData.table, paginatedResultService.getCurrentTotalNumTuples());
+          this.changeDetectorRef.detectChanges();
         }
       });
   }
@@ -314,6 +322,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     }
 
     this.isLoadingResult = false;
+    this.changeDetectorRef.detectChanges();
 
     // creates a shallow copy of the readonly response.result,
     //  this copy will be has type object[] because MatTableDataSource's input needs to be object[]
@@ -339,14 +348,19 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
    * @param columns
    */
   generateColumns(columns: { columnKey: any; columnText: string }[]): TableColumn[] {
-    return columns.map(col => ({
+    return columns.map((col, index) => ({
       columnDef: col.columnKey,
       header: col.columnText,
       getCell: (row: IndexableObject) => {
         if (row[col.columnKey] === null) {
           return "NULL"; // Explicitly show NULL for null values
         } else if (row[col.columnKey] !== undefined) {
-          return this.trimTableCell(row[col.columnKey]);
+          const cellValue = row[col.columnKey];
+          if (typeof cellValue === "string" && (isBase64(cellValue) || isBinary(cellValue))) {
+            this.hasBinaryData = true;
+            this.binaryDataColumns.add(col.columnText);
+          }
+          return this.trimTableCell(cellValue);
         } else {
           return ""; // Keep empty string for undefined values
         }
@@ -373,5 +387,12 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       },
       nzFooter: null,
     });
+  }
+
+  downloadAllBinaryData(): void {
+    if (!this.operatorId) {
+      return;
+    }
+    this.workflowResultExportService.exportAllBinaryDataAsZIP(this.binaryDataColumns, this.operatorId);
   }
 }

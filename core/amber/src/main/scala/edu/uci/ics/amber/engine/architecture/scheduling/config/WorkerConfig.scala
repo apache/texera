@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.scheduling.config
 
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.common.model.PhysicalOp
 import edu.uci.ics.amber.engine.common.{AmberConfig, VirtualIdentityUtils}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 

@@ -1,9 +1,13 @@
 package edu.uci.ics.texera.workflow.operators.unneststring
 
-import edu.uci.ics.amber.engine.common.tuple.amber.SchemaEnforceable
+import edu.uci.ics.amber.engine.common.model.tuple.{
+  Attribute,
+  AttributeType,
+  Schema,
+  SchemaEnforceable,
+  Tuple
+}
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 

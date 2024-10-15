@@ -5,7 +5,7 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerExecuti
 import edu.uci.ics.amber.engine.architecture.worker.statistics.{PortTupleCountMapping, WorkerState}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
-import edu.uci.ics.texera.web.workflowruntimestate.{
+import edu.uci.ics.amber.engine.common.workflowruntimestate.{
   OperatorMetrics,
   OperatorStatistics,
   WorkflowAggregatedState
