@@ -9,7 +9,7 @@ trait DebugCommandHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
   override def sendDebugCommand(msg:DebugCommandRequest, ctx:AsyncRPCContext):Empty = {
-    getProxy.sendDebugCommand(msg, mkContext(ActorVirtualIdentity(msg.workerId)))
+    workerInterface(msg, mkContext(ActorVirtualIdentity(msg.workerId)))
     Empty()
   }
 

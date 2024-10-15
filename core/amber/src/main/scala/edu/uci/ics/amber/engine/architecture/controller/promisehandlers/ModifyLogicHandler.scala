@@ -6,6 +6,7 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ConsoleM
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ModifyLogicHandler.ModifyLogic
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.UpdatePythonExecutorHandler.UpdatePythonExecutor
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlRequestMessage.SealedValue.UpdateExecutorRequest
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, ModifyLogicRequest}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateExecutorHandler.UpdateExecutor
@@ -22,9 +23,9 @@ trait ModifyLogicHandler {
 
 
   override def sendModifyLogic(msg: ModifyLogicRequest, ctx: AsyncRPCContext): Future[Empty] = {
-    val operator = cp.workflowScheduler.physicalPlan.getOperator(msg.newOp.id)
+    val operator = cp.workflowScheduler.physicalPlan.getOperator(msg.newOp)
     val opExecution = cp.workflowExecution.getRunningRegionExecutions
-      .map(_.getOperatorExecution(msg.newOp.id))
+      .map(_.getOperatorExecution(msg.newOp))
       .head
     val workerCommand = if (operator.isPythonBased) {
       UpdatePythonExecutor(
@@ -32,7 +33,7 @@ trait ModifyLogicHandler {
         isSource = operator.isSourceOperator
       )
     } else {
-      UpdateExecutor(msg.newOp, msg.stateTransferFunc)
+      UpdateExecutorRequest(msg.newOp, msg.stateTransferFunc)
     }
     Future
       .collect(opExecution.getWorkerIds.map { worker =>

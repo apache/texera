@@ -5,6 +5,8 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandle
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, ResumeWorkflowRequest}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
+import edu.uci.ics.amber.engine.architecture.controller.ExecutionStatsUpdate
+
 
 /** resume the entire workflow
   *
@@ -22,11 +24,11 @@ trait ResumeHandler {
           .flatMap(_.getAllOperatorExecutions.map(_._2))
           .flatMap(_.getWorkerIds)
           .map { workerId =>
-            send(ResumeWorker(), workerId).map { state =>
+            workerInterface.resumeWorker(Empty(), mkContext(workerId)).map { resp =>
               cp.workflowExecution
                 .getLatestOperatorExecution(VirtualIdentityUtils.getPhysicalOpId(workerId))
                 .getWorkerExecution(workerId)
-                .setState(state)
+                .setState(resp.state)
             }
           }
           .toSeq
@@ -40,6 +42,7 @@ trait ResumeHandler {
         )
         cp.controllerTimerService
           .enableStatusUpdate() //re-enabled it since it is disabled in pause
+        Empty()
       }
   }
 

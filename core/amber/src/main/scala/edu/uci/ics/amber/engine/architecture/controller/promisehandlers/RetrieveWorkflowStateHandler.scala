@@ -24,7 +24,7 @@ trait RetrieveWorkflowStateHandler {
       cp.workflowScheduler.physicalPlan.operators.map(_.id),
       RetrieveStateRequest()
     )
-    getProxy.sendPropagateChannelMarker(
+    controllerInterface.sendPropagateChannelMarker(
       markerMessage, mkContext(SELF)
     ).map { ret =>
       RetrieveWorkflowStateResponse(ret.returns.map {

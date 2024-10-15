@@ -29,7 +29,7 @@ abstract class AmberProcessor(
       }
     )
   // 2. RPC Layer
-  def asyncRPCClient: AsyncRPCClient[_]
+  val asyncRPCClient = new AsyncRPCClient(outputGateway, actorId)
   val asyncRPCServer: AsyncRPCServer =
     new AsyncRPCServer(outputGateway, actorId)
 

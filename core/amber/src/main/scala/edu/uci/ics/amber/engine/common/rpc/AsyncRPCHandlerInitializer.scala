@@ -3,7 +3,9 @@ package edu.uci.ics.amber.engine.common.rpc
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ClientEvent
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands._
+import edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerServiceFs2Grpc
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns._
+import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceFs2Grpc
 import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity, ChannelMarkerIdentity}
 
@@ -21,7 +23,8 @@ class AsyncRPCHandlerInitializer[T](
   // register all handlers
   ctrlReceiver.handler = this
 
-  def getProxy:T = ctrlSource.proxy
+  def controllerInterface: ControllerServiceFs2Grpc[Future, AsyncRPCContext] = ctrlSource.controllerProxy
+  def workerInterface: WorkerServiceFs2Grpc[Future, AsyncRPCContext] = ctrlSource.workerProxy
   def mkContext(to:ActorVirtualIdentity): AsyncRPCContext = ctrlSource.mkContext(to)
 
   def sendChannelMarker(

@@ -23,7 +23,7 @@ trait WorkerExecutionCompletedHandler {
     // because the worker might be killed before the next query statistics interval
     // and the user sees the last update before completion
     val statsRequest =
-    execute(ControllerInitiateQueryStatistics(Option(List(ctx.sender))), CONTROLLER)
+    controllerInterface(ControllerInitiateQueryStatistics(Option(List(ctx.sender))), CONTROLLER)
 
     Future
       .collect(Seq(statsRequest))

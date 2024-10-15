@@ -1837,16 +1837,19 @@ object EvaluatePythonExpressionRequest extends scalapb.GeneratedMessageCompanion
 
 @SerialVersionUID(0L)
 final case class ModifyLogicRequest(
-    newOp: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity],
+    newOp: edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity,
     stateTransferFunc: _root_.scala.Option[com.google.protobuf.any.Any]
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlRequest.NonEmpty with scalapb.lenses.Updatable[ModifyLogicRequest] {
     @transient
     private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
     private[this] def __computeSerializedSize(): _root_.scala.Int = {
       var __size = 0
-      if (newOp.isDefined) {
-        val __value = newOp.get
-        __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
+      
+      {
+        val __value = newOp
+        if (__value.serializedSize != 0) {
+          __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
+        }
       };
       if (stateTransferFunc.isDefined) {
         val __value = stateTransferFunc.get
@@ -1864,11 +1867,13 @@ final case class ModifyLogicRequest(
       
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
-      newOp.foreach { __v =>
-        val __m = __v
-        _output__.writeTag(1, 2)
-        _output__.writeUInt32NoTag(__m.serializedSize)
-        __m.writeTo(_output__)
+      {
+        val __v = newOp
+        if (__v.serializedSize != 0) {
+          _output__.writeTag(1, 2)
+          _output__.writeUInt32NoTag(__v.serializedSize)
+          __v.writeTo(_output__)
+        }
       };
       stateTransferFunc.foreach { __v =>
         val __m = __v
@@ -1877,22 +1882,23 @@ final case class ModifyLogicRequest(
         __m.writeTo(_output__)
       };
     }
-    def getNewOp: edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity = newOp.getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity.defaultInstance)
-    def clearNewOp: ModifyLogicRequest = copy(newOp = _root_.scala.None)
-    def withNewOp(__v: edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity): ModifyLogicRequest = copy(newOp = Option(__v))
+    def withNewOp(__v: edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity): ModifyLogicRequest = copy(newOp = __v)
     def getStateTransferFunc: com.google.protobuf.any.Any = stateTransferFunc.getOrElse(com.google.protobuf.any.Any.defaultInstance)
     def clearStateTransferFunc: ModifyLogicRequest = copy(stateTransferFunc = _root_.scala.None)
     def withStateTransferFunc(__v: com.google.protobuf.any.Any): ModifyLogicRequest = copy(stateTransferFunc = Option(__v))
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
-        case 1 => newOp.orNull
+        case 1 => {
+          val __t = newOp
+          if (__t != edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity.defaultInstance) __t else null
+        }
         case 2 => stateTransferFunc.orNull
       }
     }
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
       _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
       (__field.number: @_root_.scala.unchecked) match {
-        case 1 => newOp.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
+        case 1 => newOp.toPMessage
         case 2 => stateTransferFunc.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
       }
     }
@@ -1912,14 +1918,14 @@ object ModifyLogicRequest extends scalapb.GeneratedMessageCompanion[edu.uci.ics.
       _tag__ match {
         case 0 => _done__ = true
         case 10 =>
-          __newOp = _root_.scala.Option(__newOp.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+          __newOp = _root_.scala.Some(__newOp.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 18 =>
           __stateTransferFunc = _root_.scala.Option(__stateTransferFunc.fold(_root_.scalapb.LiteParser.readMessage[com.google.protobuf.any.Any](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case tag => _input__.skipField(tag)
       }
     }
     edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ModifyLogicRequest(
-        newOp = __newOp,
+        newOp = __newOp.getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity.defaultInstance),
         stateTransferFunc = __stateTransferFunc
     )
   }
@@ -1927,7 +1933,7 @@ object ModifyLogicRequest extends scalapb.GeneratedMessageCompanion[edu.uci.ics.
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
       edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ModifyLogicRequest(
-        newOp = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity]]),
+        newOp = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity]).getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity.defaultInstance),
         stateTransferFunc = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).flatMap(_.as[_root_.scala.Option[com.google.protobuf.any.Any]])
       )
     case _ => throw new RuntimeException("Expected PMessage")
@@ -1945,19 +1951,18 @@ object ModifyLogicRequest extends scalapb.GeneratedMessageCompanion[edu.uci.ics.
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
   lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ModifyLogicRequest(
-    newOp = _root_.scala.None,
+    newOp = edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity.defaultInstance,
     stateTransferFunc = _root_.scala.None
   )
   implicit class ModifyLogicRequestLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ModifyLogicRequest]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ModifyLogicRequest](_l) {
-    def newOp: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity] = field(_.getNewOp)((c_, f_) => c_.copy(newOp = _root_.scala.Option(f_)))
-    def optionalNewOp: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity]] = field(_.newOp)((c_, f_) => c_.copy(newOp = f_))
+    def newOp: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity] = field(_.newOp)((c_, f_) => c_.copy(newOp = f_))
     def stateTransferFunc: _root_.scalapb.lenses.Lens[UpperPB, com.google.protobuf.any.Any] = field(_.getStateTransferFunc)((c_, f_) => c_.copy(stateTransferFunc = _root_.scala.Option(f_)))
     def optionalStateTransferFunc: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Option[com.google.protobuf.any.Any]] = field(_.stateTransferFunc)((c_, f_) => c_.copy(stateTransferFunc = f_))
   }
   final val NEWOP_FIELD_NUMBER = 1
   final val STATETRANSFERFUNC_FIELD_NUMBER = 2
   def of(
-    newOp: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity],
+    newOp: edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity,
     stateTransferFunc: _root_.scala.Option[com.google.protobuf.any.Any]
   ): _root_.edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ModifyLogicRequest = _root_.edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ModifyLogicRequest(
     newOp,

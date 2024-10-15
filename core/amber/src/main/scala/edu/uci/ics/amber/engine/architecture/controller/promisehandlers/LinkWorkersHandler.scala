@@ -2,7 +2,7 @@ package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, LinkWorkersRequest}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AddInputChannelRequest, AddPartitioningRequest, AsyncRPCContext, LinkWorkersRequest}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 
@@ -25,17 +25,17 @@ trait LinkWorkersHandler {
       .flatMap(channelId => {
         linkExecution.initChannelExecution(channelId)
         Seq(
-          send(AddPartitioning(msg.link, linkConfig.partitioning), channelId.fromWorkerId),
-          send(
-            AddInputChannel(channelId, msg.link.toPortId),
-            channelId.toWorkerId
+          workerInterface.addPartitioning(AddPartitioningRequest(msg.link, linkConfig.partitioning), mkContext(channelId.fromWorkerId)),
+          workerInterface.addInputChannel(
+            AddInputChannelRequest(channelId, msg.link.toPortId),
+            mkContext(channelId.toWorkerId)
           )
         )
       })
 
     Future.collect(futures).map { _ =>
       // returns when all has completed
-
+      Empty()
     }
   }
 

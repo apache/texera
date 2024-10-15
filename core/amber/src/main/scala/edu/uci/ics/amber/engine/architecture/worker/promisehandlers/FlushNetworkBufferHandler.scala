@@ -11,6 +11,7 @@ trait FlushNetworkBufferHandler {
 
   override def flushNetworkBuffer(request: Empty, ctx: AsyncRPCContext): Future[Empty] = {
     dp.outputManager.flush()
+    Empty()
   }
 
 }

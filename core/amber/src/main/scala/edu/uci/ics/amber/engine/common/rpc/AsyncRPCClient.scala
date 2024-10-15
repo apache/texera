@@ -10,7 +10,9 @@ import edu.uci.ics.amber.engine.common.virtualidentity.util.CLIENT
 import io.grpc.MethodDescriptor
 import com.google.protobuf.any.{Any => ProtoAny}
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, ChannelMarkerPayload, ChannelMarkerType, ControlInvocation, ControlRequest}
+import edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerServiceFs2Grpc
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{ControlError, ReturnInvocation}
+import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceFs2Grpc
 import scalapb.GeneratedMessage
 
 import java.lang.reflect.{InvocationHandler, Method, Proxy}
@@ -52,14 +54,15 @@ object AsyncRPCClient {
 
 }
 
-class AsyncRPCClient[T:ClassTag](
+class AsyncRPCClient(
     outputGateway: NetworkOutputGateway,
     val actorId: ActorVirtualIdentity
 ) extends AmberLogging {
 
   private val unfulfilledPromises = mutable.HashMap[Long, Promise[Any]]()
   private var promiseID = 0L
-  val proxy: T = createProxy()
+  val controllerProxy: ControllerServiceFs2Grpc[Future, AsyncRPCContext] = createProxy()
+  val workerProxy: WorkerServiceFs2Grpc[Future, AsyncRPCContext] = createProxy()
 
   def mkContext(to: ActorVirtualIdentity): AsyncRPCContext = AsyncRPCContext(actorId, to)
 
@@ -74,7 +77,7 @@ class AsyncRPCClient[T:ClassTag](
     val (p, pid) = createPromise()
     (ControlInvocation(methodName, message, context, pid), p)
   }
-  private def createProxy()(implicit ct: ClassTag[T]): T = {
+  private def createProxy[T]()(implicit ct: ClassTag[T]): T = {
     val handler = new InvocationHandler {
 
       override def invoke(proxy: Any, method: Method, args: Array[AnyRef]): AnyRef = {

@@ -3,9 +3,10 @@ package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, PauseWorkflowRequest}
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{Empty, WorkerMetricsResponse}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
+import edu.uci.ics.amber.engine.architecture.controller.{ExecutionStatsUpdate, ExecutionStateUpdate}
 
 import scala.collection.mutable
 
@@ -36,14 +37,13 @@ trait PauseHandler {
                     .map { worker =>
                       val workerExecution = opExecution.getWorkerExecution(worker)
                       // send a pause message
-                      send(PauseWorker(), worker).flatMap { state =>
-                        workerExecution.setState(state)
-                        send(QueryStatistics(), worker)
+                      workerInterface.pauseWorker(Empty(), mkContext(worker)).flatMap { resp =>
+                        workerExecution.setState(resp.state)
+                        workerInterface.queryStatistics(Empty(), mkContext(worker))
                           // get the stats and current input tuple from the worker
                           .map {
-                            case (metrics, tuple) =>
+                            case WorkerMetricsResponse(metrics) =>
                               workerExecution.setStats(metrics.workerStatistics)
-                              buffer.append((tuple, worker))
                           }
                       }
                     }.toSeq
@@ -61,7 +61,7 @@ trait PauseHandler {
         sendToClient(ExecutionStateUpdate(cp.workflowExecution.getState))
         logger.info(s"workflow paused")
       }
-      .unit
+    Empty()
   }
 
 }

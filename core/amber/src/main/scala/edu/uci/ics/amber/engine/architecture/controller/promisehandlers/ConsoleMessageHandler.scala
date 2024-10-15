@@ -5,7 +5,7 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContex
 import edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerServiceGrpc.METHOD_SEND_PAUSE_WORKFLOW
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
-import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
+import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
 
 trait ConsoleMessageHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
@@ -13,7 +13,7 @@ trait ConsoleMessageHandler {
   override def sendConsoleMessageTriggered(msg: ConsoleMessageTriggeredRequest, ctx:AsyncRPCContext): Empty = {
     if (msg.consoleMessage.msgType.isError) {
       // if its an error message, pause the workflow
-      execute(ControlInvocation(METHOD_SEND_PAUSE_WORKFLOW, PauseWorkflowRequest(), ctx, 0))
+      controllerInterface.sendPauseWorkflow(PauseWorkflowRequest(), mkContext(SELF))
     }
 
     // forward message to frontend
