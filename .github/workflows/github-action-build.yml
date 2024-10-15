@@ -87,8 +87,6 @@ jobs:
         java-version: [ 11 ]
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Prepare ENV
-        run: sudo apt-get install libncurses5
       - name: Checkout Texera
         uses: actions/checkout@v2
       - name: Setup Java
