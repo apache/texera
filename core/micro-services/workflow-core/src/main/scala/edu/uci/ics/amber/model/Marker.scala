@@ -1,6 +1,6 @@
-package edu.ics.uci.amber.model
+package edu.uci.ics.amber.model
 
-import edu.ics.uci.amber.model.tuple.{Attribute, AttributeType, Schema, Tuple}
+import edu.uci.ics.amber.model.tuple.{Attribute, AttributeType, Schema, Tuple}
 
 import scala.collection.mutable
 

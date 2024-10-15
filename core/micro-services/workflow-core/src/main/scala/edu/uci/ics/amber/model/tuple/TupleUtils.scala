@@ -1,12 +1,10 @@
-package edu.ics.uci.amber.model.tuple
-
-
+package edu.uci.ics.amber.model.tuple
 
 import com.fasterxml.jackson.databind.JsonNode
-import edu.ics.uci.amber.model.JSONUtil.JSONToMap
-import edu.ics.uci.amber.model.Utils.objectMapper
-import edu.ics.uci.amber.model.tuple.AttributeTypeUtils.{inferSchemaFromRows, parseField}
-import edu.ics.uci.amber.model.tuple.AttributeType.BINARY
+import edu.uci.ics.amber.model.JSONUtil.JSONToMap
+import edu.uci.ics.amber.model.Utils.objectMapper
+import AttributeTypeUtils.{inferSchemaFromRows, parseField}
+import AttributeType.BINARY
 import org.bson.Document
 import org.bson.types.Binary
 

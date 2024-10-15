@@ -1,4 +1,4 @@
-package edu.ics.uci.amber.model.tuple
+package edu.uci.ics.amber.model.tuple
 
 import edu.uci.ics.amber.workflow.PortIdentity
 

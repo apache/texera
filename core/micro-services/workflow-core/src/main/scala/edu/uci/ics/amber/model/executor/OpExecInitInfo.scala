@@ -1,4 +1,4 @@
-package edu.ics.uci.amber.model.executor
+package edu.uci.ics.amber.model.executor
 
 object OpExecInitInfo {
 

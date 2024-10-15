@@ -1,4 +1,4 @@
-package edu.ics.uci.amber.model
+package edu.uci.ics.amber.model
 
 import com.fasterxml.jackson.databind.JsonNode
 
