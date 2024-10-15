@@ -80,7 +80,7 @@ object PhysicalOp {
       executionId,
       opExecInitInfo,
       parallelizable = false,
-      locationPreference = Option(PreferController)
+      locationPreference = Some(PreferController)
     )
 
   def oneToOnePhysicalOp(
