@@ -22,6 +22,6 @@ lazy val MicroServices = (project in file("."))
     name := "micro-services",
     version := "0.1.0",
     organization := "edu.uci.ics",
-    scalaVersion := "2.13.10",
+    scalaVersion := "2.13.12",
     publishMavenStyle := true
   )

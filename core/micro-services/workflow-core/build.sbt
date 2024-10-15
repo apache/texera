@@ -1,4 +1,3 @@
-
 name := "workflow-core"
 
 version := "0.1.0"
@@ -36,8 +35,11 @@ PB.protocVersion := "3.19.4"
 Compile / PB.targets := Seq(
   scalapb.gen(
     singleLineToProtoString = true
-  ) -> (Compile / sourceDirectory).value / "scalapb"
+  ) -> (sourceManaged in Compile).value
 )
+
+// Mark the ScalaPB-generated directory as a generated source root
+managedSourceDirectories in Compile += (sourceManaged in Compile).value
 
 libraryDependencies ++= Seq(
   "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf"
@@ -82,3 +84,9 @@ libraryDependencies += "com.google.guava" % "guava" % "31.1-jre"
 
 // https://mvnrepository.com/artifact/org.ehcache/sizeof
 libraryDependencies += "org.ehcache" % "sizeof" % "0.4.3"
+
+// https://mvnrepository.com/artifact/org.jgrapht/jgrapht-core
+libraryDependencies += "org.jgrapht" % "jgrapht-core" % "1.4.0"
+
+// https://mvnrepository.com/artifact/com.typesafe.scala-logging/scala-logging
+libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5"
