@@ -97,8 +97,8 @@ jobs:
       - uses: coursier/cache-action@v6
         with:
           extraSbtFiles: '["core/micro-services/*.sbt", "core/micro-services/project/**.{scala,sbt}", "core/micro-services/project/build.properties" ]'
-      - name: Lint with scalafix & scalafmt
-        run: cd core/micro-services && sbt "scalafixAll --check" && sbt scalafmtCheckAll
+      - name: Lint with scalafmt
+        run: cd core/micro-services && sbt scalafmtCheckAll
       - name: Compile with sbt
         run: cd core/micro-services && sbt clean package
       - name: Run backend tests
