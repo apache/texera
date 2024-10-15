@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.common.model
 
-import akka.actor.Deploy
+import akka.actor.{Address, Deploy}
 import akka.remote.RemoteScope
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonIgnoreProperties}
 import com.typesafe.scalalogging.LazyLogging
@@ -10,8 +10,8 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
   OpExecInitInfo,
   OpExecInitInfoWithCode
 }
+import edu.uci.ics.amber.engine.architecture.deploysemantics.AddressInfo
 import edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference.{
-  AddressInfo,
   LocationPreference,
   PreferController,
   RoundRobinPreference
@@ -80,7 +80,7 @@ object PhysicalOp {
       executionId,
       opExecInitInfo,
       parallelizable = false,
-      locationPreference = Option(new PreferController())
+      locationPreference = Some(PreferController)
     )
 
   def oneToOnePhysicalOp(
@@ -154,7 +154,7 @@ object PhysicalOp {
       opExecInitInfo: OpExecInitInfo
   ): PhysicalOp = {
     manyToOnePhysicalOp(physicalOpId, workflowId, executionId, opExecInitInfo)
-      .withLocationPreference(Option(new PreferController()))
+      .withLocationPreference(Some(PreferController))
   }
 }
 
@@ -539,8 +539,17 @@ case class PhysicalOp(
     operatorConfig.workerConfigs.foreach(workerConfig => {
       val workerId = workerConfig.workerId
       val workerIndex = VirtualIdentityUtils.getWorkerIndex(workerId)
-      val locationPreference = this.locationPreference.getOrElse(new RoundRobinPreference())
-      val preferredAddress = locationPreference.getPreferredLocation(addressInfo, this, workerIndex)
+      val locationPreference = this.locationPreference.getOrElse(RoundRobinPreference)
+      val preferredAddress: Address = locationPreference match {
+        case PreferController =>
+          addressInfo.controllerAddress
+        case RoundRobinPreference =>
+          assert(
+            addressInfo.allAddresses.nonEmpty,
+            "Execution failed to start, no available computation nodes"
+          )
+          addressInfo.allAddresses(workerIndex % addressInfo.allAddresses.length)
+      }
 
       val workflowWorker = if (this.isPythonBased) {
         PythonWorkflowWorker.props(workerConfig)
