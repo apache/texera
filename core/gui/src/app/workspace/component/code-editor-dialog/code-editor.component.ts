@@ -184,18 +184,6 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     }
   }
 
-  private initMonaco(): void {
-    if (this.wrapper) {
-      from(this.wrapper.dispose(true))
-        .pipe(takeUntil(this.componentDestroy))
-        .subscribe({
-          next: () => this.initializeMonacoEditor(),
-        });
-    } else {
-      this.initializeMonacoEditor();
-    }
-  }
-
   private checkPythonLanguageServerAvailability(): Promise<boolean> {
     return new Promise(resolve => {
       const socket = new WebSocket(getWebsocketUrl("/python-language-server", "3000"));
@@ -209,6 +197,24 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
         resolve(false);
       };
     });
+  }
+
+  private initMonaco(): void {
+    if (this.wrapper) {
+      from(this.wrapper.dispose(true))
+        .pipe(takeUntil(this.componentDestroy))
+        .subscribe({
+          next: () => {
+            if (this.componentRef) {
+              this.componentRef.destroy();
+            }
+
+            this.initializeMonacoEditor();
+          },
+        });
+    } else {
+      this.initializeMonacoEditor();
+    }
   }
 
   /**
@@ -519,7 +525,12 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
       from(this.wrapper.dispose(true))
         .pipe(takeUntil(this.componentDestroy))
         .subscribe({
-          next: () => this.initializeDiffEditor(),
+          next: () => {
+            if (this.componentRef) {
+              this.componentRef.destroy();
+            }
+            this.initializeDiffEditor();
+          },
         });
     } else {
       this.initializeDiffEditor();
@@ -564,7 +575,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
           },
         },
       };
-      
+
       from(this.checkPythonLanguageServerAvailability()).subscribe(isServerAvailable => {
         if (isServerAvailable && this.language === "python") {
           userConfig.languageClientConfig = {
