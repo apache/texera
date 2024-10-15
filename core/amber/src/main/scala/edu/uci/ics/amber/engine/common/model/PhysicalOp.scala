@@ -80,7 +80,7 @@ object PhysicalOp {
       executionId,
       opExecInitInfo,
       parallelizable = false,
-      locationPreference = Option(PreferController)
+      locationPreference = Some(PreferController)
     )
 
   def oneToOnePhysicalOp(
@@ -154,7 +154,7 @@ object PhysicalOp {
       opExecInitInfo: OpExecInitInfo
   ): PhysicalOp = {
     manyToOnePhysicalOp(physicalOpId, workflowId, executionId, opExecInitInfo)
-      .withLocationPreference(Option(PreferController))
+      .withLocationPreference(Some(PreferController))
   }
 }
 
