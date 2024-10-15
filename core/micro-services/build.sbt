@@ -1,15 +1,8 @@
-// root project definition
-lazy val MicroServices = (project in file("."))
-  .settings(
-    name := "micro-services",
-    version := "0.1.0"
-  )
-
 // The template of the subproject: WorkflowCompilingService(as an example)
 // lazy val WorkflowCompilingService = (project in file("workflow-compiling-service"))
 //  .settings(
 //    name := "WorkflowCompilingService",
-//    version := "0.1.0"
+//    version := "0.1.0",
 //    libraryDependencies ++= Seq(
 //      "io.dropwizard" % "dropwizard-core" % "4.0.7",
 //      "com.typesafe" % "config" % "1.4.1",
@@ -19,3 +12,16 @@ lazy val MicroServices = (project in file("."))
 //    )
 //  )
 // once this subproject is defined, aggregate it to the MicroServices definition
+
+lazy val WorkflowCore = project in file("workflow-core")
+
+// root project definition
+lazy val MicroServices = (project in file("."))
+  .aggregate(WorkflowCore)
+  .settings(
+    name := "micro-services",
+    version := "0.1.0",
+    organization := "edu.uci.ics",
+    scalaVersion := "2.13.10",
+    publishMavenStyle := true
+  )
