@@ -212,6 +212,8 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
       };
     }
 
+
+    // init monaco editor, optionally with attempt on language client.
     from(this.editorWrapper.initAndStart(userConfig, this.editorElement.nativeElement))
       .pipe(
         switchMap(() => of(this.editorWrapper.getEditor())),
@@ -219,15 +221,9 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
         filter(isDefined),
         untilDestroyed(this),
       )
-      .subscribe(
-        (editor: IStandaloneCodeEditor) => {
-          this.formControl.statusChanges.pipe(untilDestroyed(this)).subscribe(() => {
-            if (isDefined(editor)) {
-              editor.updateOptions({ readOnly: this.formControl.disabled });
-            }
-          });
-
-          if (!this.code || !editor) {
+      .subscribe((editor: IStandaloneCodeEditor) => {
+          editor.updateOptions({ readOnly: this.formControl.disabled });
+          if (!this.code) {
             return;
           }
           if (this.monacoBinding) {
@@ -450,7 +446,6 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   }
 
   private initDiffEditor(): void {
-
     from(this.editorWrapper.dispose(true))
       .pipe(untilDestroyed(this))
       .subscribe({
