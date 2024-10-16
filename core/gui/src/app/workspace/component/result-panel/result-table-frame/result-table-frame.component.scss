@@ -1,5 +1,5 @@
 :host ::ng-deep .ant-table-pagination.ant-pagination {
-  margin: 10px;
+  margin: 16px 0;
 }
 
 // make the pagination button to the left
@@ -99,4 +99,20 @@ th.header-size {
       opacity: 1;
     }
   }
+}
+
+.table-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.table-container {
+  position: relative;
+}
+
+.download-all-button {
+  position: absolute;
+  bottom: 16px;
+  right: 0;
 }
