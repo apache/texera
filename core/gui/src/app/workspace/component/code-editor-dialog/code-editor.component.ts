@@ -5,7 +5,7 @@ import { WorkflowVersionService } from "../../../dashboard/service/user/workflow
 import { YText } from "yjs/dist/src/types/YText";
 import { getWebsocketUrl } from "src/app/common/util/url";
 import { MonacoBinding } from "y-monaco";
-import { from, Subject, take } from "rxjs";
+import { catchError, from, of, Subject, take } from "rxjs";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
 import { DomSanitizer, SafeStyle } from "@angular/platform-browser";
 import { Coeditor } from "../../../common/type/user";
@@ -21,6 +21,7 @@ import "@codingame/monaco-vscode-r-default-extension";
 import "@codingame/monaco-vscode-java-default-extension";
 import { isDefined } from "../../../common/util/predicate";
 import { editor } from "vscode/editor.api";
+import { filter, switchMap } from "rxjs/operators";
 import IStandaloneCodeEditor = editor.IStandaloneCodeEditor;
 
 /**
@@ -107,6 +108,14 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
         .get("operatorProperties") as YType<Readonly<{ [key: string]: any }>>
     ).get("code") as YText;
 
+
+  }
+
+  ngAfterViewInit() {
+    // hacky solution to reset view after view is rendered.
+    const style = localStorage.getItem(this.currentOperatorId);
+    if (style) this.containerElement.nativeElement.style.cssText = style;
+
     // start editor
     this.workflowVersionService
       .getDisplayParticularVersionStream()
@@ -118,12 +127,6 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
           this.initializeMonacoEditor();
         }
       });
-  }
-
-  ngAfterViewInit() {
-    // hacky solution to reset view after view is rendered.
-    const style = localStorage.getItem(this.currentOperatorId);
-    if (style) this.containerElement.nativeElement.style.cssText = style;
   }
 
   ngOnDestroy(): void {
@@ -171,21 +174,6 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     }
   }
 
-  private checkLanguageServerAvailability(websocketUrl: string): Promise<boolean> {
-    return new Promise(resolve => {
-      const socket = new WebSocket(websocketUrl);
-
-      socket.onopen = () => {
-        socket.close();
-        resolve(true);
-      };
-
-      socket.onerror = () => {
-        resolve(false);
-      };
-    });
-  }
-
   /**
    * Create a Monaco editor and connect it to MonacoBinding.
    * @private
@@ -211,52 +199,52 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
       },
     };
 
-    const languageServerWebsocketUrl = getWebsocketUrl("/python-language-server", "3000")
-    from(this.checkLanguageServerAvailability(languageServerWebsocketUrl))
-      .pipe(untilDestroyed(this))
-      .subscribe(isServerAvailable => {
-        if (isServerAvailable && this.language === "python") {
-          userConfig.languageClientConfig = {
-            languageId: this.language,
-            options: {
-              $type: "WebSocketUrl",
-              url: languageServerWebsocketUrl,
-            },
-          };
-        }
+    // optionally, configure python language client.
+    // it may fail if no valid connection is established, yet the failure would be ignored.
+    const languageServerWebsocketUrl = getWebsocketUrl("/python-language-server", "3000");
+    if (this.language === "python") {
+      userConfig.languageClientConfig = {
+        languageId: this.language,
+        options: {
+          $type: "WebSocketUrl",
+          url: languageServerWebsocketUrl,
+        },
+      };
+    }
 
-        from(this.editorWrapper.initAndStart(userConfig, this.editorElement.nativeElement))
-          .pipe(untilDestroyed(this))
-          .subscribe({
-            next: () => {
-              const editor = this.editorWrapper.getEditor();
-              this.formControl.statusChanges.pipe(untilDestroyed(this)).subscribe(() => {
-                if (isDefined(editor)) {
-                  editor.updateOptions({ readOnly: this.formControl.disabled});
-                }
-              });
-
-              if (!this.code || !editor) {
-                return;
-              }
-              if (this.monacoBinding) {
-                this.monacoBinding.destroy();
-              }
-              this.monacoBinding = new MonacoBinding(
-                this.code,
-                editor.getModel()!,
-                new Set([editor]),
-                this.workflowActionService.getTexeraGraph().getSharedModelAwareness(),
-              );
-
-              this.setupAIAssistantActions(editor);
-            },
+    from(this.editorWrapper.initAndStart(userConfig, this.editorElement.nativeElement))
+      .pipe(
+        switchMap(() => of(this.editorWrapper.getEditor())),
+        catchError((err) => of(this.editorWrapper.getEditor())),
+        filter(isDefined),
+        untilDestroyed(this),
+      )
+      .subscribe(
+        (editor: IStandaloneCodeEditor) => {
+          this.formControl.statusChanges.pipe(untilDestroyed(this)).subscribe(() => {
+            if (isDefined(editor)) {
+              editor.updateOptions({ readOnly: this.formControl.disabled });
+            }
           });
-      });
 
+          if (!this.code || !editor) {
+            return;
+          }
+          if (this.monacoBinding) {
+            this.monacoBinding.destroy();
+          }
+          this.monacoBinding = new MonacoBinding(
+            this.code,
+            editor.getModel()!,
+            new Set([editor]),
+            this.workflowActionService.getTexeraGraph().getSharedModelAwareness(),
+          );
+          this.setupAIAssistantActions(editor);
+        },
+      );
   }
 
-  private setupAIAssistantActions(editor:IStandaloneCodeEditor) {
+  private setupAIAssistantActions(editor: IStandaloneCodeEditor) {
     // Check if the AI provider is "openai"
     this.aiAssistantService
       .checkAIAssistantEnabled()
@@ -278,12 +266,12 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
                   return;
                 }
                 // All the code in Python UDF
-                const allcode = model.getValue();
+                const allCode = model.getValue();
                 // Content of user selected code
-                const code = model.getValueInRange(selection);
+                const userSelectedCode = model.getValueInRange(selection);
                 // Start line of the selected code
                 const lineNumber = selection.startLineNumber;
-                this.handleTypeAnnotation(code, selection, editor, lineNumber, allcode);
+                this.handleTypeAnnotation(userSelectedCode, selection, editor, lineNumber, allCode);
               },
             });
           }
@@ -294,9 +282,9 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
             label: "Add All Type Annotations",
             contextMenuGroupId: "1_modification",
             contextMenuOrder: 1.1,
-            run: (ed: monaco.editor.IStandaloneCodeEditor) => {
-              const selection = ed.getSelection();
-              const model = ed.getModel();
+            run: (editor: monaco.editor.IStandaloneCodeEditor) => {
+              const selection = editor.getSelection();
+              const model = editor.getModel();
               if (!model || !selection) {
                 return;
               }
@@ -356,26 +344,17 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
                       },
                     ]);
 
-                    this.handleTypeAnnotation(
-                      variableCode,
-                      variableRange,
-                      ed as monaco.editor.IStandaloneCodeEditor,
-                      variableLineNumber,
-                      allCode,
-                    );
+                    this.handleTypeAnnotation(variableCode, variableRange, editor, variableLineNumber, allCode);
 
                     lastLine = variableLineNumber;
 
                     // Make sure the currVariable will not go to the next one until the user click the accept/decline button
-                    if (this.userResponseSubject !== undefined) {
-                      const userResponseSubject = this.userResponseSubject;
-                      // Only take one response (accept/decline)
-                      const subscription = userResponseSubject
-                        .pipe(take(1))
+                    if (isDefined(this.userResponseSubject)) {
+                      this.userResponseSubject
+                        .pipe(take(1)) // Only take one response (accept/decline)
                         .pipe(untilDestroyed(this))
                         .subscribe(() => {
                           highlight.clear();
-                          subscription.unsubscribe();
                           processNextVariable(index + 1);
                         });
                     }
@@ -388,45 +367,34 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
       });
   }
 
-  private handleTypeAnnotation(
-    code: string,
-    range: monaco.Range,
-    editor: monaco.editor.IStandaloneCodeEditor,
-    lineNumber: number,
-    allcode: string,
-  ): void {
+  private handleTypeAnnotation(code: string, range: monaco.Range, editor: monaco.editor.IStandaloneCodeEditor, lineNumber: number, allCode: string): void {
     this.aiAssistantService
-      .getTypeAnnotations(code, lineNumber, allcode)
+      .getTypeAnnotations(code, lineNumber, allCode)
       .pipe(untilDestroyed(this))
-      .subscribe({
-        next: (response: TypeAnnotationResponse) => {
-          const choices = response.choices || [];
-          if (choices.length > 0 && choices[0].message && choices[0].message.content) {
-            this.currentSuggestion = choices[0].message.content.trim();
-            this.currentCode = code;
-            this.currentRange = range;
+      .subscribe((response: TypeAnnotationResponse) => {
+        const choices = response.choices || [];
+        if (!(choices.length > 0 && choices[0].message && choices[0].message.content)) {
+          throw Error("Error: OpenAI response does not contain valid message content " + response);
+        }
+        this.currentSuggestion = choices[0].message.content.trim();
+        this.currentCode = code;
+        this.currentRange = range;
 
-            const position = editor.getScrolledVisiblePosition(range.getStartPosition());
-            if (position) {
-              this.suggestionTop = position.top + 100;
-              this.suggestionLeft = position.left + 100;
-            }
+        const position = editor.getScrolledVisiblePosition(range.getStartPosition());
+        if (position) {
+          this.suggestionTop = position.top + 100;
+          this.suggestionLeft = position.left + 100;
+        }
 
-            this.showAnnotationSuggestion = true;
+        this.showAnnotationSuggestion = true;
 
-            if (this.annotationSuggestion) {
-              this.annotationSuggestion.code = this.currentCode;
-              this.annotationSuggestion.suggestion = this.currentSuggestion;
-              this.annotationSuggestion.top = this.suggestionTop;
-              this.annotationSuggestion.left = this.suggestionLeft;
-            }
-          } else {
-            console.error("Error: OpenAI response does not contain valid message content", response);
-          }
-        },
-        error: (error: unknown) => {
-          console.error("Error fetching type annotations:", error);
-        },
+        if (!this.annotationSuggestion) {
+          return;
+        }
+        this.annotationSuggestion.code = this.currentCode;
+        this.annotationSuggestion.suggestion = this.currentSuggestion;
+        this.annotationSuggestion.top = this.suggestionTop;
+        this.annotationSuggestion.left = this.suggestionLeft;
       });
   }
 
@@ -533,21 +501,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
         },
       };
 
-      from(this.checkLanguageServerAvailability(getWebsocketUrl("/python-language-server", "3000")))
-        .pipe(untilDestroyed(this))
-        .subscribe(isServerAvailable => {
-          if (isServerAvailable && this.language === "python") {
-            userConfig.languageClientConfig = {
-              languageId: "python",
-              options: {
-                $type: "WebSocketUrl",
-                url: getWebsocketUrl("/python-language-server", "3000"),
-              },
-            };
-          }
-
-          this.editorWrapper.initAndStart(userConfig, this.editorElement.nativeElement);
-        });
+      this.editorWrapper.initAndStart(userConfig, this.editorElement.nativeElement);
     }
   }
 
