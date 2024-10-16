@@ -116,18 +116,30 @@ describe("WorkflowResultExportService", () => {
         operatorID: "operator1",
         pageIndex: 0,
         table: Array.from({ length: 10 }, (_, i) => ({ column1: `value${i}`, column2: `value${i}` })),
+        schema: [
+          { attributeName: "column1", attributeType: "string" },
+          { attributeName: "column2", attributeType: "string" },
+        ],
       },
       {
         requestID: "request1",
         operatorID: "operator1",
         pageIndex: 1,
         table: Array.from({ length: 10 }, (_, i) => ({ column1: `value${i + 10}`, column2: `value${i + 10}` })),
+        schema: [
+          { attributeName: "column1", attributeType: "string" },
+          { attributeName: "column2", attributeType: "string" },
+        ],
       },
       {
         requestID: "request1",
         operatorID: "operator1",
         pageIndex: 2,
         table: [{ column1: "value20", column2: "value20" }],
+        schema: [
+          { attributeName: "column1", attributeType: "string" },
+          { attributeName: "column2", attributeType: "string" },
+        ],
       },
     ];
 
