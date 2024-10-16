@@ -42,6 +42,7 @@ class WorkflowExecutionService(
 ) extends SubscriptionManager
     with LazyLogging {
 
+  workflowContext.workflowSettings = request.workflowSettings
   val wsInput = new WebsocketInput(errorHandler)
 
   private val emailNotificationService = userEmailOpt.map(email =>
