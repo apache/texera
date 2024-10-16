@@ -41,7 +41,7 @@
           *ngIf="displayParticularWorkflowVersion"
           nz-button
           nzType="primary"
-          [disabled]="!workflowVersionService.modificationEnabledBeforeTempWorkflow"
+          [disabled]="!workflowVersionService.canRestoreVersion"
           (click)="revertToVersion()"
           style="width: 160px">
           Restore this version
@@ -118,18 +118,17 @@
             nz-icon
             nzType="download"></i>
         </button>
-
-        <button
-          (click)="onClickGenerateReport()"
-          nz-button
-          title="generate report">
-          <i
-            nz-icon
-            nzType="cloud-download"></i>
-        </button>
       </nz-button-group>
       <ng-template #utilities>
         <nz-button-group>
+          <button
+            (click)="onClickGenerateReport()"
+            nz-button
+            title="generate report">
+            <i
+              nz-icon
+              nzType="printer"></i>
+          </button>
           <button
             (click)="onClickToggleGrids()"
             nz-button
