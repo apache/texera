@@ -2,8 +2,8 @@ package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, PauseWorkflowRequest}
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{Empty, WorkerMetricsResponse}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, EmptyRequest}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{EmptyReturn, WorkerMetricsResponse}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.amber.engine.architecture.controller.{ExecutionStatsUpdate, ExecutionStateUpdate}
@@ -18,7 +18,7 @@ import scala.collection.mutable
 trait PauseHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
-  override def sendPauseWorkflow(request: PauseWorkflowRequest, ctx: AsyncRPCContext): Future[Empty] = {
+  override def pauseWorkflow(request: EmptyRequest, ctx: AsyncRPCContext): Future[EmptyReturn] = {
     cp.controllerTimerService.disableStatusUpdate() // to be enabled in resume
     Future
       .collect(
@@ -37,9 +37,9 @@ trait PauseHandler {
                     .map { worker =>
                       val workerExecution = opExecution.getWorkerExecution(worker)
                       // send a pause message
-                      workerInterface.pauseWorker(Empty(), mkContext(worker)).flatMap { resp =>
+                      workerInterface.pauseWorker(EmptyRequest(), mkContext(worker)).flatMap { resp =>
                         workerExecution.setState(resp.state)
-                        workerInterface.queryStatistics(Empty(), mkContext(worker))
+                        workerInterface.queryStatistics(EmptyRequest(), mkContext(worker))
                           // get the stats and current input tuple from the worker
                           .map {
                             case WorkerMetricsResponse(metrics) =>
@@ -61,7 +61,7 @@ trait PauseHandler {
         sendToClient(ExecutionStateUpdate(cp.workflowExecution.getState))
         logger.info(s"workflow paused")
       }
-    Empty()
+    EmptyReturn()
   }
 
 }

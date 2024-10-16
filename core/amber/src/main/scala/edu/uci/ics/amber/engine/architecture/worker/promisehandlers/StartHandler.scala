@@ -1,8 +1,8 @@
 package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
 import com.twitter.util.Future
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.AsyncRPCContext
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{Empty, WorkerStateResponse}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{EmptyRequest, AsyncRPCContext}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerStateResponse
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{READY, RUNNING}
 import edu.uci.ics.amber.engine.common.SourceOperatorExecutor
@@ -16,7 +16,7 @@ import edu.uci.ics.texera.workflow.common.{EndOfInputChannel, StartOfInputChanne
 trait StartHandler {
   this: DataProcessorRPCHandlerInitializer =>
 
-  override def startWorker(request: Empty, ctx: AsyncRPCContext): Future[WorkerStateResponse] = {
+  override def startWorker(request: EmptyRequest, ctx: AsyncRPCContext): Future[WorkerStateResponse] = {
     logger.info("Starting the worker.")
     if (dp.executor.isInstanceOf[SourceOperatorExecutor]) {
       dp.stateManager.assertState(READY)

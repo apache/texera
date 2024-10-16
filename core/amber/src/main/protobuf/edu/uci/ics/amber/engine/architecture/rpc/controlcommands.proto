@@ -23,14 +23,9 @@ message ControlRequest {
     EvaluatePythonExpressionRequest evaluatePythonExpressionRequest = 4;
     ModifyLogicRequest modifyLogicRequest = 5;
     RetryWorkflowRequest retryWorkflowRequest = 6;
-    RetrieveWorkflowStateRequest retrieveWorkflowStateRequest = 7;
     ConsoleMessageTriggeredRequest consoleMessageTriggeredRequest = 8;
     PortCompletedRequest portCompletedRequest = 9;
-    StartWorkflowRequest startWorkflowRequest = 10;
-    ResumeWorkflowRequest resumeWorkflowRequest = 11;
-    PauseWorkflowRequest pauseWorkflowRequest = 12;
     WorkerStateUpdatedRequest workerStateUpdatedRequest = 13;
-    WorkerExecutionCompletedRequest workerExecutionCompletedRequest = 14;
     LinkWorkersRequest linkWorkersRequest = 15;
     Ping ping = 16;
     Pong pong = 17;
@@ -48,9 +43,13 @@ message ControlRequest {
     FinalizeCheckpointRequest finalizeCheckpointRequest = 29;
     InitializeExecutorRequest initializeExecutorRequest = 30;
     UpdateExecutorRequest updateExecutorRequest = 31;
-    UpdateMultipleExecutorsRequest updateMultipleExecutorsRequest = 32;
+    EmptyRequest emptyRequest = 33;
+    PrepareCheckpointRequest prepareCheckpointRequest = 34;
+    QueryStatisticsRequest queryStatisticsRequest = 35;
   }
 }
+
+message EmptyRequest{}
 
 message AsyncRPCContext {
   option (scalapb.message).no_box = true;
@@ -60,7 +59,6 @@ message AsyncRPCContext {
 
 message ControlInvocation {
   option (scalapb.message).extends = "edu.uci.ics.amber.engine.common.ambermessage.ControlPayload";
-  option (scalapb.message).no_box = true;
   string methodName = 1;
   ControlRequest command = 2 [(scalapb.field).no_box = true];
   AsyncRPCContext context = 3;
@@ -94,10 +92,14 @@ message PropagateChannelMarkerRequest {
 
 message TakeGlobalCheckpointRequest {
   bool estimationOnly = 1;
-  common.ChannelMarkerIdentity checkpointId = 2;
+  common.ChannelMarkerIdentity checkpointId = 2 [(scalapb.field).no_box = true];
   string destination = 3;
 }
 
+message WorkflowReconfigureRequest{
+  ModifyLogicRequest reconfiguration = 1 [(scalapb.field).no_box = true];
+  string reconfigurationId = 2;
+}
 
 
 message DebugCommandRequest {
@@ -111,8 +113,7 @@ message EvaluatePythonExpressionRequest {
 }
 
 message ModifyLogicRequest {
-  common.PhysicalOpIdentity newOp = 1 [(scalapb.field).no_box = true];
-  google.protobuf.Any stateTransferFunc = 2;
+  repeated UpdateExecutorRequest updateRequest = 1;
 }
 
 message RetryWorkflowRequest {
@@ -136,29 +137,18 @@ message ConsoleMessage {
   string message = 6;
 }
 
-message RetrieveWorkflowStateRequest {}
-
 message ConsoleMessageTriggeredRequest {
   ConsoleMessage consoleMessage = 1 [(scalapb.field).no_box = true];
 }
 
 message PortCompletedRequest {
-  common.PortIdentity portId = 1;
+  common.PortIdentity portId = 1 [(scalapb.field).no_box = true];
   bool input = 2;
 }
 
-message StartWorkflowRequest {}
-
-
-message ResumeWorkflowRequest {}
-
-message PauseWorkflowRequest {}
-
 message WorkerStateUpdatedRequest {
-  worker.WorkerState state = 1;
+  worker.WorkerState state = 1 [(scalapb.field).no_box = true];
 }
-
-message WorkerExecutionCompletedRequest {}
 
 message LinkWorkersRequest {
   common.PhysicalLink link = 1 [(scalapb.field).no_box = true];
@@ -240,20 +230,21 @@ message FinalizeCheckpointRequest {
 
 message InitializeExecutorRequest {
   int32 totalWorkerCount = 1;
-  google.protobuf.Any opExecInitInfo = 2;
+  google.protobuf.Any opExecInitInfo = 2 [(scalapb.field).no_box = true];
   bool isSource = 3;
 }
 
 message UpdateExecutorRequest {
-  common.PhysicalOpIdentity physicalOp = 1 [(scalapb.field).no_box = true];
-  google.protobuf.Any stateTransferFunc = 2;
-}
-
-message UpdateMultipleExecutorsRequest {
-  repeated UpdateExecutorRequest executorsToUpdate = 1;
+  common.PhysicalOpIdentity targetOpId = 1 [(scalapb.field).no_box = true];
+  google.protobuf.Any newExecutor = 2 [(scalapb.field).no_box = true];
+  google.protobuf.Any stateTransferFunc = 3;
 }
 
 message PrepareCheckpointRequest{
   common.ChannelMarkerIdentity checkpointId = 1 [(scalapb.field).no_box = true];
   bool estimationOnly = 2;
+}
+
+message QueryStatisticsRequest{
+  repeated common.ActorVirtualIdentity filterByWorkers = 1;
 }

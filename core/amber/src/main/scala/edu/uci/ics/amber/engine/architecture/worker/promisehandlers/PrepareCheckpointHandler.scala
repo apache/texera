@@ -2,7 +2,7 @@ package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, FinalizeCheckpointRequest, PrepareCheckpointRequest}
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 import edu.uci.ics.amber.engine.architecture.worker.{DataProcessorRPCHandlerInitializer, WorkflowWorker}
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
@@ -15,7 +15,7 @@ import scala.collection.mutable
 trait PrepareCheckpointHandler {
   this: DataProcessorRPCHandlerInitializer =>
 
-  override def prepareCheckpoint(msg: PrepareCheckpointRequest, ctx: AsyncRPCContext): Future[Empty] = {
+  override def prepareCheckpoint(msg: PrepareCheckpointRequest, ctx: AsyncRPCContext): Future[EmptyReturn] = {
     logger.info("Start to take checkpoint")
     if (!msg.estimationOnly) {
       dp.serializationManager.registerSerialization(() => {
@@ -24,7 +24,7 @@ trait PrepareCheckpointHandler {
     } else {
       logger.info(s"Checkpoint is estimation-only. do nothing.")
     }
-    Empty()
+    EmptyReturn()
   }
 
 

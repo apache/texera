@@ -158,8 +158,8 @@ object ChannelMarkerPayload extends scalapb.GeneratedMessageCompanion[edu.uci.ic
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(3)
-  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(3)
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(4)
+  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(4)
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = {
     var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
     (__number: @_root_.scala.unchecked) match {
@@ -187,7 +187,7 @@ object ChannelMarkerPayload extends scalapb.GeneratedMessageCompanion[edu.uci.ic
   @SerialVersionUID(0L)
   final case class CommandMappingEntry(
       key: _root_.scala.Predef.String,
-      value: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlInvocation
+      value: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlInvocation]
       ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[CommandMappingEntry] {
       @transient
       private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
@@ -200,12 +200,9 @@ object ChannelMarkerPayload extends scalapb.GeneratedMessageCompanion[edu.uci.ic
             __size += _root_.com.google.protobuf.CodedOutputStream.computeStringSize(1, __value)
           }
         };
-        
-        {
-          val __value = value
-          if (__value.serializedSize != 0) {
-            __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
-          }
+        if (value.isDefined) {
+          val __value = value.get
+          __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
         };
         __size
       }
@@ -225,34 +222,31 @@ object ChannelMarkerPayload extends scalapb.GeneratedMessageCompanion[edu.uci.ic
             _output__.writeString(1, __v)
           }
         };
-        {
-          val __v = value
-          if (__v.serializedSize != 0) {
-            _output__.writeTag(2, 2)
-            _output__.writeUInt32NoTag(__v.serializedSize)
-            __v.writeTo(_output__)
-          }
+        value.foreach { __v =>
+          val __m = __v
+          _output__.writeTag(2, 2)
+          _output__.writeUInt32NoTag(__m.serializedSize)
+          __m.writeTo(_output__)
         };
       }
       def withKey(__v: _root_.scala.Predef.String): CommandMappingEntry = copy(key = __v)
-      def withValue(__v: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlInvocation): CommandMappingEntry = copy(value = __v)
+      def getValue: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlInvocation = value.getOrElse(edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlInvocation.defaultInstance)
+      def clearValue: CommandMappingEntry = copy(value = _root_.scala.None)
+      def withValue(__v: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlInvocation): CommandMappingEntry = copy(value = Option(__v))
       def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
         (__fieldNumber: @_root_.scala.unchecked) match {
           case 1 => {
             val __t = key
             if (__t != "") __t else null
           }
-          case 2 => {
-            val __t = value
-            if (__t != edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlInvocation.defaultInstance) __t else null
-          }
+          case 2 => value.orNull
         }
       }
       def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
         _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
         (__field.number: @_root_.scala.unchecked) match {
           case 1 => _root_.scalapb.descriptors.PString(key)
-          case 2 => value.toPMessage
+          case 2 => value.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
         }
       }
       def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
@@ -273,13 +267,13 @@ object ChannelMarkerPayload extends scalapb.GeneratedMessageCompanion[edu.uci.ic
           case 10 =>
             __key = _input__.readStringRequireUtf8()
           case 18 =>
-            __value = _root_.scala.Some(__value.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlInvocation](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+            __value = _root_.scala.Option(__value.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlInvocation](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
           case tag => _input__.skipField(tag)
         }
       }
       edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerPayload.CommandMappingEntry(
           key = __key,
-          value = __value.getOrElse(edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlInvocation.defaultInstance)
+          value = __value
       )
     }
     implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerPayload.CommandMappingEntry] = _root_.scalapb.descriptors.Reads{
@@ -287,7 +281,7 @@ object ChannelMarkerPayload extends scalapb.GeneratedMessageCompanion[edu.uci.ic
         _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
         edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerPayload.CommandMappingEntry(
           key = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Predef.String]).getOrElse(""),
-          value = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlInvocation]).getOrElse(edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlInvocation.defaultInstance)
+          value = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlInvocation]])
         )
       case _ => throw new RuntimeException("Expected PMessage")
     }
@@ -304,20 +298,21 @@ object ChannelMarkerPayload extends scalapb.GeneratedMessageCompanion[edu.uci.ic
     def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
     lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerPayload.CommandMappingEntry(
       key = "",
-      value = edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlInvocation.defaultInstance
+      value = _root_.scala.None
     )
     implicit class CommandMappingEntryLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerPayload.CommandMappingEntry]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerPayload.CommandMappingEntry](_l) {
       def key: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.key)((c_, f_) => c_.copy(key = f_))
-      def value: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlInvocation] = field(_.value)((c_, f_) => c_.copy(value = f_))
+      def value: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlInvocation] = field(_.getValue)((c_, f_) => c_.copy(value = _root_.scala.Option(f_)))
+      def optionalValue: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlInvocation]] = field(_.value)((c_, f_) => c_.copy(value = f_))
     }
     final val KEY_FIELD_NUMBER = 1
     final val VALUE_FIELD_NUMBER = 2
     @transient
     implicit val keyValueMapper: _root_.scalapb.TypeMapper[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerPayload.CommandMappingEntry, (_root_.scala.Predef.String, edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlInvocation)] =
-      _root_.scalapb.TypeMapper[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerPayload.CommandMappingEntry, (_root_.scala.Predef.String, edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlInvocation)](__m => (__m.key, __m.value))(__p => edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerPayload.CommandMappingEntry(__p._1, __p._2))
+      _root_.scalapb.TypeMapper[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerPayload.CommandMappingEntry, (_root_.scala.Predef.String, edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlInvocation)](__m => (__m.key, __m.getValue))(__p => edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerPayload.CommandMappingEntry(__p._1, Some(__p._2)))
     def of(
       key: _root_.scala.Predef.String,
-      value: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlInvocation
+      value: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlInvocation]
     ): _root_.edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerPayload.CommandMappingEntry = _root_.edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerPayload.CommandMappingEntry(
       key,
       value

@@ -1,8 +1,6 @@
 syntax = "proto3";
 package edu.uci.ics.amber.engine.architecture.rpc;
 
-import "edu/uci/ics/amber/engine/architecture/worker/controlreturns.proto";
-import "edu/uci/ics/texera/workflowruntimestate.proto";
 import "edu/uci/ics/amber/engine/architecture/worker/statistics.proto";
 import "scalapb/scalapb.proto";
 
@@ -18,7 +16,7 @@ message ControlReturn {
   // Oneof block for various return types
   oneof sealed_value {
     ControlError error = 1;
-    Empty empty = 2;
+    EmptyReturn emptyReturn = 2;
     RetrieveWorkflowStateResponse retrieveWorkflowStateResponse = 3;
     PropagateChannelMarkerResponse propagateChannelMarkerResponse = 4;
     TakeGlobalCheckpointResponse takeGlobalCheckpointResponse = 5;
@@ -30,6 +28,8 @@ message ControlReturn {
     WorkerMetricsResponse workerMetricsResponse = 11;
   }
 }
+
+message EmptyReturn {}
 
 message ControlError {
   string errorMessage = 1;
@@ -51,8 +51,6 @@ message IntResponse {
   int32 value = 1;
 }
 
-message Empty {}
-
 message RetrieveWorkflowStateResponse {
   map<string, string> state = 1;
 }
@@ -69,12 +67,38 @@ message TakeGlobalCheckpointResponse {
   int64 totalSize = 1;
 }
 
+message TypedValue {
+  string expression = 1;
+  string value_ref = 2;
+  string value_str = 3;
+  string value_type = 4;
+  bool expandable = 5;
+}
+
+message EvaluatedValue {
+  TypedValue value = 1;
+  repeated TypedValue attributes = 2;
+}
+
 message EvaluatePythonExpressionResponse {
-  repeated worker.EvaluatedValue values = 1;
+  repeated EvaluatedValue values = 1;
+}
+
+enum WorkflowAggregatedState {
+  UNINITIALIZED = 0;
+  READY = 1;
+  RUNNING = 2;
+  PAUSING = 3;
+  PAUSED = 4;
+  RESUMING = 5;
+  COMPLETED = 6;
+  FAILED = 7;
+  UNKNOWN = 8;
+  KILLED = 9;
 }
 
 message StartWorkflowResponse {
-  edu.uci.ics.texera.web.WorkflowAggregatedState workflowState = 1 [(scalapb.field).no_box = true];
+  WorkflowAggregatedState workflowState = 1 [(scalapb.field).no_box = true];
 }
 
 message WorkerStateResponse {

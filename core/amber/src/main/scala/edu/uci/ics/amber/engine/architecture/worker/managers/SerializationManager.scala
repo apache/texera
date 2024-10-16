@@ -1,8 +1,9 @@
 package edu.uci.ics.amber.engine.architecture.worker.managers
 
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo.generateJavaOpExec
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.InitializeExecutorRequest
-import edu.uci.ics.amber.engine.common.{AmberLogging, CheckpointState, CheckpointSupport, VirtualIdentityUtils}
+import edu.uci.ics.amber.engine.common.{AmberLogging, AmberRuntime, CheckpointState, CheckpointSupport, VirtualIdentityUtils}
 import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
@@ -19,8 +20,9 @@ class SerializationManager(val actorId: ActorVirtualIdentity) extends AmberLoggi
   def restoreExecutorState(
       chkpt: CheckpointState
   ): (OperatorExecutor, Iterator[(TupleLike, Option[PortIdentity])]) = {
+    val opExecInitInfo: OpExecInitInfo = AmberRuntime.serde.deserialize(execInitMsg.opExecInitInfo.value.toByteArray, classOf[OpExecInitInfo]).get
     val executor = generateJavaOpExec(
-      execInitMsg.opExecInitInfo,
+      opExecInitInfo,
       VirtualIdentityUtils.getWorkerIndex(actorId),
       execInitMsg.totalWorkerCount
     )

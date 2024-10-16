@@ -1,21 +1,15 @@
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import com.twitter.util.{Await, Promise}
-import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{
-  ActorCommandElement,
-  ControlElement,
-  ControlElementV2,
-  DataElement
-}
+import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{ActorCommandElement, ControlElement, ControlElementV2, DataElement}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlInvocation
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ReturnInvocation
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.actormessage.{ActorCommand, PythonActorMessage}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{
-  controlInvocationToV2,
-  returnInvocationToV2
-}
-import edu.uci.ics.amber.engine.common.ambermessage.{PythonControlMessage, _}
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
+import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, ControlPayloadV2, DataFrame, DataPayload, MarkerFrame, PythonControlMessage, PythonDataHeader}
+import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{controlInvocationToV2, returnInvocationToV2}
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.workflow.common.State
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
@@ -90,9 +84,7 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
         case DataElement(dataPayload, channel) =>
           sendData(dataPayload, channel.fromWorkerId)
         case ControlElement(cmd, channel) =>
-          sendControlV1(channel.fromWorkerId, cmd)
-        case ControlElementV2(cmd, channel) =>
-          sendControlV2(channel.fromWorkerId, cmd)
+          sendControl(channel.fromWorkerId, cmd)
         case ActorCommandElement(cmd) =>
           sendActorCommand(cmd)
 
@@ -112,11 +104,19 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     }
   }
 
-  def sendControlV2(
+  def sendControl(
       from: ActorVirtualIdentity,
-      payload: ControlPayloadV2
+      payload: ControlPayload
   ): Result = {
-    val controlMessage = PythonControlMessage(from, payload)
+    var payloadV2 = ControlPayloadV2.defaultInstance
+    payloadV2 = payload match {
+      case c:ControlInvocation =>
+        payloadV2.withControlInvocation(c)
+      case r:ReturnInvocation =>
+        payloadV2.withReturnInvocation(r)
+      case _ => ???
+    }
+    val controlMessage = PythonControlMessage(from, payloadV2)
     val action: Action = new Action("control", controlMessage.toByteArray)
     sendCreditedAction(action)
   }
@@ -145,17 +145,6 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     assert(!results.hasNext)
 
     result
-  }
-
-  private def sendControlV1(from: ActorVirtualIdentity, payload: ControlPayload): Unit = {
-    payload match {
-      case controlInvocation: ControlInvocation =>
-        val controlInvocationV2: ControlInvocationV2 = controlInvocationToV2(controlInvocation)
-        sendControlV2(from, controlInvocationV2)
-      case returnInvocation: ReturnInvocation =>
-        val returnInvocationV2: ReturnInvocationV2 = returnInvocationToV2(returnInvocation)
-        sendControlV2(from, returnInvocationV2)
-    }
   }
 
   private def writeArrowStream(

@@ -3,8 +3,7 @@ package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AddInputChannelRequest, AddPartitioningRequest, AsyncRPCContext, LinkWorkersRequest}
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty
-import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 
 /** add a data transfer partitioning to the sender workers and update input linking
   * for the receiver workers of a link strategy.
@@ -14,7 +13,7 @@ import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 trait LinkWorkersHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
-  override def sendLinkWorkers(msg: LinkWorkersRequest, ctx: AsyncRPCContext): Future[Empty] = {
+  override def linkWorkers(msg: LinkWorkersRequest, ctx: AsyncRPCContext): Future[EmptyReturn] = {
     val region = cp.workflowExecutionCoordinator.getRegionOfLink(msg.link)
     val resourceConfig = region.resourceConfig.get
     val linkConfig = resourceConfig.linkConfigs(msg.link)
@@ -35,7 +34,7 @@ trait LinkWorkersHandler {
 
     Future.collect(futures).map { _ =>
       // returns when all has completed
-      Empty()
+      EmptyReturn()
     }
   }
 

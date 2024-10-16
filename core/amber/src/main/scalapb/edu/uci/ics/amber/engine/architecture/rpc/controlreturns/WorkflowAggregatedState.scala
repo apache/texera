@@ -3,11 +3,11 @@
 //
 // Protofile syntax: PROTO3
 
-package edu.uci.ics.texera.web.workflowruntimestate
+package edu.uci.ics.amber.engine.architecture.rpc.controlreturns
 
 sealed abstract class WorkflowAggregatedState(val value: _root_.scala.Int) extends _root_.scalapb.GeneratedEnum {
-  type EnumType = edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
-  type RecognizedType = edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.Recognized
+  type EnumType = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
+  type RecognizedType = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.Recognized
   def isUninitialized: _root_.scala.Boolean = false
   def isReady: _root_.scala.Boolean = false
   def isRunning: _root_.scala.Boolean = false
@@ -18,8 +18,8 @@ sealed abstract class WorkflowAggregatedState(val value: _root_.scala.Int) exten
   def isFailed: _root_.scala.Boolean = false
   def isUnknown: _root_.scala.Boolean = false
   def isKilled: _root_.scala.Boolean = false
-  def companion: _root_.scalapb.GeneratedEnumCompanion[WorkflowAggregatedState] = edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
-  final def asRecognized: _root_.scala.Option[edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.Recognized] = if (isUnrecognized) _root_.scala.None else _root_.scala.Some(this.asInstanceOf[edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.Recognized])
+  def companion: _root_.scalapb.GeneratedEnumCompanion[WorkflowAggregatedState] = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
+  final def asRecognized: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.Recognized] = if (isUnrecognized) _root_.scala.None else _root_.scala.Some(this.asInstanceOf[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.Recognized])
 }
 
 object WorkflowAggregatedState extends _root_.scalapb.GeneratedEnumCompanion[WorkflowAggregatedState] {
@@ -112,6 +112,6 @@ object WorkflowAggregatedState extends _root_.scalapb.GeneratedEnumCompanion[Wor
     case 9 => KILLED
     case __other => Unrecognized(__other)
   }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.EnumDescriptor = WorkflowruntimestateProto.javaDescriptor.getEnumTypes().get(1)
-  def scalaDescriptor: _root_.scalapb.descriptors.EnumDescriptor = WorkflowruntimestateProto.scalaDescriptor.enums(1)
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.EnumDescriptor = ControlreturnsProto.javaDescriptor.getEnumTypes().get(0)
+  def scalaDescriptor: _root_.scalapb.descriptors.EnumDescriptor = ControlreturnsProto.scalaDescriptor.enums(0)
 }

@@ -3,7 +3,7 @@
 //
 // Protofile syntax: PROTO3
 
-package edu.uci.ics.amber.engine.architecture.worker.controlreturns
+package edu.uci.ics.amber.engine.architecture.rpc.controlreturns
 
 @SerialVersionUID(0L)
 final case class TypedValue(
@@ -135,13 +135,13 @@ final case class TypedValue(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue.type = edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue
-    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.TypedValue])
+    def companion: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.TypedValue.type = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.TypedValue
+    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.rpc.TypedValue])
 }
 
-object TypedValue extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue] {
-  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue] = this
-  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue = {
+object TypedValue extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.TypedValue] {
+  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.TypedValue] = this
+  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.TypedValue = {
     var __expression: _root_.scala.Predef.String = ""
     var __valueRef: _root_.scala.Predef.String = ""
     var __valueStr: _root_.scala.Predef.String = ""
@@ -165,7 +165,7 @@ object TypedValue extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.en
         case tag => _input__.skipField(tag)
       }
     }
-    edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue(
+    edu.uci.ics.amber.engine.architecture.rpc.controlreturns.TypedValue(
         expression = __expression,
         valueRef = __valueRef,
         valueStr = __valueStr,
@@ -173,10 +173,10 @@ object TypedValue extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.en
         expandable = __expandable
     )
   }
-  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue] = _root_.scalapb.descriptors.Reads{
+  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.TypedValue] = _root_.scalapb.descriptors.Reads{
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
-      edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue(
+      edu.uci.ics.amber.engine.architecture.rpc.controlreturns.TypedValue(
         expression = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Predef.String]).getOrElse(""),
         valueRef = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Predef.String]).getOrElse(""),
         valueStr = __fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).map(_.as[_root_.scala.Predef.String]).getOrElse(""),
@@ -185,19 +185,19 @@ object TypedValue extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.en
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlreturnsProto.javaDescriptor.getMessageTypes().get(2)
-  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlreturnsProto.scalaDescriptor.messages(2)
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlreturnsProto.javaDescriptor.getMessageTypes().get(10)
+  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlreturnsProto.scalaDescriptor.messages(10)
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
-  lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue(
+  lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.TypedValue(
     expression = "",
     valueRef = "",
     valueStr = "",
     valueType = "",
     expandable = false
   )
-  implicit class TypedValueLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue](_l) {
+  implicit class TypedValueLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.TypedValue]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.TypedValue](_l) {
     def expression: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.expression)((c_, f_) => c_.copy(expression = f_))
     def valueRef: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.valueRef)((c_, f_) => c_.copy(valueRef = f_))
     def valueStr: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.valueStr)((c_, f_) => c_.copy(valueStr = f_))
@@ -215,12 +215,12 @@ object TypedValue extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.en
     valueStr: _root_.scala.Predef.String,
     valueType: _root_.scala.Predef.String,
     expandable: _root_.scala.Boolean
-  ): _root_.edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue = _root_.edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue(
+  ): _root_.edu.uci.ics.amber.engine.architecture.rpc.controlreturns.TypedValue = _root_.edu.uci.ics.amber.engine.architecture.rpc.controlreturns.TypedValue(
     expression,
     valueRef,
     valueStr,
     valueType,
     expandable
   )
-  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.TypedValue])
+  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.TypedValue])
 }

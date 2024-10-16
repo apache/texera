@@ -2,12 +2,9 @@ package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, StartWorkflowRequest}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, EmptyRequest}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.RUNNING
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StartWorkflowResponse
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.RUNNING
 
 
 /** start the workflow by starting the source workers
@@ -18,7 +15,7 @@ import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.RUNNI
 trait StartWorkflowHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
-  override def sendStartWorkflow(request: StartWorkflowRequest, ctx: AsyncRPCContext): Future[StartWorkflowResponse] = {
+  override def startWorkflow(request: EmptyRequest, ctx: AsyncRPCContext): Future[StartWorkflowResponse] = {
     if (cp.workflowExecution.getState.isUninitialized) {
       cp.workflowExecutionCoordinator
         .executeNextRegions(cp.actorService)

@@ -1,24 +1,27 @@
 package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
+import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, ConsoleMessageTriggeredRequest, PauseWorkflowRequest}
-import edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerServiceGrpc.METHOD_SEND_PAUSE_WORKFLOW
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, ConsoleMessageTriggeredRequest, EmptyRequest}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
 
 trait ConsoleMessageHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
-  override def sendConsoleMessageTriggered(msg: ConsoleMessageTriggeredRequest, ctx:AsyncRPCContext): Empty = {
+  override def consoleMessageTriggered(msg: ConsoleMessageTriggeredRequest, ctx:AsyncRPCContext): Future[EmptyReturn] = {
     if (msg.consoleMessage.msgType.isError) {
       // if its an error message, pause the workflow
-      controllerInterface.sendPauseWorkflow(PauseWorkflowRequest(), mkContext(SELF))
+      controllerInterface.pauseWorkflow(EmptyRequest(), mkContext(SELF)).map{
+        ret =>
+        // forward message to frontend
+        sendToClient(msg.consoleMessage)
+        EmptyReturn()
+      }
+    }else{
+      sendToClient(msg.consoleMessage)
+      EmptyReturn()
     }
-
-    // forward message to frontend
-    sendToClient(msg.consoleMessage)
-    Empty()
   }
 
 }

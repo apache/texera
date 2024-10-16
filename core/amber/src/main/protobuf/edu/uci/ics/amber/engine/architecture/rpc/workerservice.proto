@@ -13,19 +13,20 @@ option (scalapb.options) = {
 
 // RPC Service
 service WorkerService {
-  rpc AddInputChannel(AddInputChannelRequest) returns (Empty);
-  rpc AddPartitioning(AddPartitioningRequest) returns (Empty);
-  rpc AssignPort(AssignPortRequest) returns (Empty);
+  rpc AddInputChannel(AddInputChannelRequest) returns (EmptyReturn);
+  rpc AddPartitioning(AddPartitioningRequest) returns (EmptyReturn);
+  rpc AssignPort(AssignPortRequest) returns (EmptyReturn);
   rpc FinalizeCheckpoint(FinalizeCheckpointRequest) returns (FinalizeCheckpointResponse);
-  rpc FlushNetworkBuffer(Empty) returns (Empty);
-  rpc InitializeExecutor(InitializeExecutorRequest) returns (Empty);
-  rpc OpenExecutor(Empty) returns (Empty);
-  rpc PauseWorker(Empty) returns (WorkerStateResponse);
-  rpc PrepareCheckpoint(PrepareCheckpointRequest) returns (Empty);
-  rpc QueryStatistics(Empty) returns (WorkerMetricsResponse);
-  rpc ResumeWorker(Empty) returns (WorkerStateResponse);
-  rpc RetrieveState(Empty) returns (Empty);
-  rpc StartWorker(Empty) returns (WorkerStateResponse);
-  rpc UpdateExecutor(UpdateExecutorRequest) returns (Empty);
-  rpc UpdateMultipleExecutors(UpdateMultipleExecutorsRequest) returns (Empty);
+  rpc FlushNetworkBuffer(EmptyRequest) returns (EmptyReturn);
+  rpc InitializeExecutor(InitializeExecutorRequest) returns (EmptyReturn);
+  rpc OpenExecutor(EmptyRequest) returns (EmptyReturn);
+  rpc PauseWorker(EmptyRequest) returns (WorkerStateResponse);
+  rpc PrepareCheckpoint(PrepareCheckpointRequest) returns (EmptyReturn);
+  rpc QueryStatistics(EmptyRequest) returns (WorkerMetricsResponse);
+  rpc ResumeWorker(EmptyRequest) returns (WorkerStateResponse);
+  rpc RetrieveState(EmptyRequest) returns (EmptyReturn);
+  rpc StartWorker(EmptyRequest) returns (WorkerStateResponse);
+  rpc ModifyLogic(ModifyLogicRequest) returns (EmptyReturn);
+  rpc DebugCommand(DebugCommandRequest) returns (EmptyReturn);
+  rpc EvaluatePythonExpression(EvaluatePythonExpressionRequest) returns (EvaluatedValue);
 }

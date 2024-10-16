@@ -1,12 +1,12 @@
 package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
-import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
+import edu.uci.ics.amber.engine.architecture.controller.{ControllerAsyncRPCHandlerInitializer, FatalError}
 import edu.uci.ics.amber.engine.architecture.scheduling.GlobalPortIdentity
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, PortCompletedRequest}
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, EmptyRequest, PortCompletedRequest, QueryStatisticsRequest}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 
@@ -22,15 +22,11 @@ import scala.collection.Seq
 trait PortCompletedHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
-  override def sendPortCompleted(msg: PortCompletedRequest, ctx: AsyncRPCContext): Future[Empty] = {
-    val statsRequest =
-      execute(ControllerInitiateQueryStatistics(Option(List(sender))), CONTROLLER)
-
-    Future
-      .collect(Seq(statsRequest))
-      .flatMap { _ =>
+  override def portCompleted(msg: PortCompletedRequest, ctx: AsyncRPCContext): Future[EmptyReturn] = {
+      controllerInterface.controllerInitiateQueryStatistics(QueryStatisticsRequest(scala.Seq(ctx.sender)), CONTROLLER)
+      .map { _ =>
         val globalPortId = GlobalPortIdentity(
-          VirtualIdentityUtils.getPhysicalOpId(sender),
+          VirtualIdentityUtils.getPhysicalOpId(ctx.sender),
           msg.portId,
           input = msg.input
         )
@@ -38,8 +34,8 @@ trait PortCompletedHandler {
           case Some(region) =>
             val regionExecution = cp.workflowExecution.getRegionExecution(region.id)
             val operatorExecution =
-              regionExecution.getOperatorExecution(VirtualIdentityUtils.getPhysicalOpId(sender))
-            val workerExecution = operatorExecution.getWorkerExecution(sender)
+              regionExecution.getOperatorExecution(VirtualIdentityUtils.getPhysicalOpId(ctx.sender))
+            val workerExecution = operatorExecution.getWorkerExecution(ctx.sender)
 
             // set the port on this worker to be completed
             (if (msg.input) workerExecution.getInputPortExecution(msg.portId)
@@ -61,13 +57,11 @@ trait PortCompletedHandler {
                   case other =>
                     sendToClient(FatalError(other, None))
                 }
-            } else {
-              // if the port is not completed yet, do nothing
-              Future(())
             }
           case None => // currently "start" and "end" ports are not part of a region, thus no region can be found.
           // do nothing.
         }
+        EmptyReturn()
       }
   }
 

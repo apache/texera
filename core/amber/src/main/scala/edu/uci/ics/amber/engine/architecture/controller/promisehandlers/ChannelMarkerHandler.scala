@@ -11,7 +11,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, Ch
 trait ChannelMarkerHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
-  override def sendPropagateChannelMarker(msg: PropagateChannelMarkerRequest, ctx:AsyncRPCContext): Future[PropagateChannelMarkerResponse] = {
+  override def propagateChannelMarker(msg: PropagateChannelMarkerRequest, ctx:AsyncRPCContext): Future[PropagateChannelMarkerResponse] = {
     // step1: create separate control commands for each target actor.
     val inputSet = msg.targetOps.flatMap { target =>
       cp.workflowExecution.getRunningRegionExecutions

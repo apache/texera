@@ -8,7 +8,6 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager.{
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners._
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings._
 import edu.uci.ics.amber.engine.common.AmberLogging
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.tuple.amber.{
   FinalizeExecutor,
   FinalizePort,
@@ -23,8 +22,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import scala.collection.mutable
 
 object OutputManager {
-
-  final case class FlushNetworkBuffer() extends ControlCommand[Unit]
 
   // create a corresponding partitioner for the given partitioning policy
   def toPartitioner(partitioning: Partitioning, actorId: ActorVirtualIdentity): Partitioner = {

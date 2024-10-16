@@ -12,16 +12,21 @@ option (scalapb.options) = {
 };
 
 message Backpressure {
-  bool enable_backpressure = 1;
+  bool enableBackpressure = 1;
 }
 
 message CreditUpdate {
 }
 
+message ShutdownDPThread{
+
+}
+
 message ActorCommand {
   oneof sealed_value {
       Backpressure backpressure = 1;
-      CreditUpdate credit_update = 2;
+      CreditUpdate creditUpdate = 2;
+      ShutdownDPThread shutdownDPThread = 3;
   }
 }
 

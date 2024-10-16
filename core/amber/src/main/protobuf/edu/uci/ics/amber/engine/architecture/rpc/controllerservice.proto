@@ -13,19 +13,19 @@ option (scalapb.options) = {
 
 
 service ControllerService {
-  rpc SendRetrieveWorkflowState(RetrieveWorkflowStateRequest) returns (RetrieveWorkflowStateResponse);
-  rpc SendPropagateChannelMarker(PropagateChannelMarkerRequest) returns (PropagateChannelMarkerResponse);
-  rpc SendTakeGlobalCheckpoint(TakeGlobalCheckpointRequest) returns (TakeGlobalCheckpointResponse);
-  rpc SendDebugCommand(DebugCommandRequest) returns (Empty);
-  rpc SendEvaluatePythonExpression(EvaluatePythonExpressionRequest) returns (EvaluatePythonExpressionResponse);
-  rpc SendModifyLogic(ModifyLogicRequest) returns (Empty);
-  rpc SendRetryWorkflow(RetryWorkflowRequest) returns (Empty);
-  rpc SendConsoleMessageTriggered(ConsoleMessageTriggeredRequest) returns (Empty);
-  rpc SendPortCompleted(PortCompletedRequest) returns (Empty);
-  rpc SendStartWorkflow(StartWorkflowRequest) returns (StartWorkflowResponse);
-  rpc SendResumeWorkflow(ResumeWorkflowRequest) returns (Empty);
-  rpc SendPauseWorkflow(PauseWorkflowRequest) returns (Empty);
-  rpc SendWorkerStateUpdated(WorkerStateUpdatedRequest) returns (Empty);
-  rpc SendWorkerExecutionCompleted(WorkerExecutionCompletedRequest) returns (Empty);
-  rpc SendLinkWorkers(LinkWorkersRequest) returns (Empty);
+  rpc RetrieveWorkflowState(EmptyRequest) returns (RetrieveWorkflowStateResponse);
+  rpc PropagateChannelMarker(PropagateChannelMarkerRequest) returns (PropagateChannelMarkerResponse);
+  rpc TakeGlobalCheckpoint(TakeGlobalCheckpointRequest) returns (TakeGlobalCheckpointResponse);
+  rpc DebugCommand(DebugCommandRequest) returns (EmptyReturn);
+  rpc EvaluatePythonExpression(EvaluatePythonExpressionRequest) returns (EvaluatePythonExpressionResponse);
+  rpc ConsoleMessageTriggered(ConsoleMessageTriggeredRequest) returns (EmptyReturn);
+  rpc PortCompleted(PortCompletedRequest) returns (EmptyReturn);
+  rpc StartWorkflow(EmptyRequest) returns (StartWorkflowResponse);
+  rpc ResumeWorkflow(EmptyRequest) returns (EmptyReturn);
+  rpc PauseWorkflow(EmptyRequest) returns (EmptyReturn);
+  rpc WorkerStateUpdated(WorkerStateUpdatedRequest) returns (EmptyReturn);
+  rpc WorkerExecutionCompleted(EmptyRequest) returns (EmptyReturn);
+  rpc LinkWorkers(LinkWorkersRequest) returns (EmptyReturn);
+  rpc ControllerInitiateQueryStatistics(QueryStatisticsRequest) returns (EmptyReturn);
+  rpc ReconfigureWorkflow(WorkflowReconfigureRequest) returns (EmptyReturn);
 }

@@ -11,8 +11,8 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, Ch
 
 import scala.language.implicitConversions
 
-class AsyncRPCHandlerInitializer[T](
-    ctrlSource: AsyncRPCClient[T],
+class AsyncRPCHandlerInitializer(
+    ctrlSource: AsyncRPCClient,
     ctrlReceiver: AsyncRPCServer
 ) {
   implicit def returnAsFuture[R](ret: R): Future[R] = Future[R](ret)

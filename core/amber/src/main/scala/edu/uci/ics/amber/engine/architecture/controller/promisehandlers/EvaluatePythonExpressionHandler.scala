@@ -9,7 +9,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 trait EvaluatePythonExpressionHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
-  override def sendEvaluatePythonExpression(msg: EvaluatePythonExpressionRequest, ctx: AsyncRPCContext): Future[EvaluatePythonExpressionResponse] = {
+  override def evaluatePythonExpression(msg: EvaluatePythonExpressionRequest, ctx: AsyncRPCContext): Future[EvaluatePythonExpressionResponse] = {
     val logicalOpId = new OperatorIdentity(msg.operatorId)
     val physicalOps = cp.workflowScheduler.physicalPlan.getPhysicalOpsOfLogicalOp(logicalOpId)
     if (physicalOps.size != 1) {
@@ -24,11 +24,11 @@ trait EvaluatePythonExpressionHandler {
     Future
       .collect(
         opExecution.getWorkerIds
-          .map(worker => send(EvaluateExpression(msg.expression), worker))
+          .map(worker => workerInterface.evaluatePythonExpression(msg, mkContext(worker)))
           .toList
       )
       .map(evaluatedValues => {
-        evaluatedValues.toList
+        EvaluatePythonExpressionResponse(evaluatedValues)
       })
   }
 

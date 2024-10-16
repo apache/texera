@@ -1,11 +1,12 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessagePayload
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.texera.web.workflowruntimestate.{OperatorMetrics, WorkflowAggregatedState}
+import edu.uci.ics.texera.web.workflowruntimestate.OperatorMetrics
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
-sealed trait ClientEvent extends WorkflowFIFOMessagePayload
+trait ClientEvent extends WorkflowFIFOMessagePayload
 
 case class ExecutionStateUpdate(state: WorkflowAggregatedState) extends ClientEvent
 

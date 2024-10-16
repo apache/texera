@@ -3,17 +3,19 @@ package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType.NO_ALIGNMENT
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, TakeGlobalCheckpointRequest}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, FinalizeCheckpointRequest, PrepareCheckpointRequest, PropagateChannelMarkerRequest, TakeGlobalCheckpointRequest}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.TakeGlobalCheckpointResponse
+import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.METHOD_PREPARE_CHECKPOINT
 import edu.uci.ics.amber.engine.common.{CheckpointState, SerializedState}
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 import java.net.URI
 
 trait TakeGlobalCheckpointHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
-  override def sendTakeGlobalCheckpoint(msg: TakeGlobalCheckpointRequest, ctx: AsyncRPCContext): Future[TakeGlobalCheckpointResponse] = {
+  override def takeGlobalCheckpoint(msg: TakeGlobalCheckpointRequest, ctx: AsyncRPCContext): Future[TakeGlobalCheckpointResponse] = {
     var estimationOnly = msg.estimationOnly
     val destinationURI = new URI(msg.destination)
     @transient val storage =
@@ -25,30 +27,31 @@ trait TakeGlobalCheckpointHandler {
     val uri = destinationURI.resolve(msg.checkpointId.toString)
     var totalSize = 0L
     val physicalOpIdsToTakeCheckpoint = cp.workflowScheduler.physicalPlan.operators.map(_.id)
-    controllerInterface.sendPropagateChannelMarker(
-      PropagateChannelMarker(
+    controllerInterface.propagateChannelMarker(
+      PropagateChannelMarkerRequest(
         cp.workflowExecution.getAllRegionExecutions
-          .flatMap(_.getAllOperatorExecutions.map(_._1))
-          .toSet,
+          .flatMap(_.getAllOperatorExecutions.map(_._1)).toSeq,
         msg.checkpointId,
         NO_ALIGNMENT,
-        cp.workflowScheduler.physicalPlan,
-        physicalOpIdsToTakeCheckpoint,
-        PrepareCheckpoint(msg.checkpointId, estimationOnly)
+        cp.workflowScheduler.physicalPlan.operators.map(_.id).toSeq,
+        physicalOpIdsToTakeCheckpoint.toSeq,
+        PrepareCheckpointRequest(msg.checkpointId, estimationOnly),
+        METHOD_PREPARE_CHECKPOINT.getBareMethodName
       ),
       ctx.sender
     ).flatMap { ret =>
       Future
-        .collect(ret.map {
+        .collect(ret.returns.map {
           case (workerId, _) =>
-            send(FinalizeCheckpoint(msg.checkpointId, uri), workerId)
-              .onSuccess { size =>
-                totalSize += size
+            val destActor = ActorVirtualIdentity(workerId)
+            workerInterface.finalizeCheckpoint(FinalizeCheckpointRequest(msg.checkpointId, uri.toString), mkContext(destActor))
+              .onSuccess { resp =>
+                totalSize += resp.size
               }
               .onFailure { err =>
                 throw err // TODO: handle failures.
               }
-        })
+        }.toSeq)
         .map { _ =>
           logger.info("Start to take checkpoint")
           val chkpt = new CheckpointState()
@@ -71,7 +74,7 @@ trait TakeGlobalCheckpointHandler {
           }
           totalSize += chkpt.size()
           logger.info(s"global checkpoint finalized, total size = $totalSize")
-          totalSize
+          TakeGlobalCheckpointResponse(totalSize)
         }
     }
   }

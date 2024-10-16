@@ -7,193 +7,193 @@ package edu.uci.ics.amber.engine.architecture.rpc.controllerservice
 
 
 object ControllerServiceGrpc {
-  val METHOD_SEND_RETRIEVE_WORKFLOW_STATE: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.RetrieveWorkflowStateRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.RetrieveWorkflowStateResponse] =
+  val METHOD_RETRIEVE_WORKFLOW_STATE: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.RetrieveWorkflowStateResponse] =
     _root_.io.grpc.MethodDescriptor.newBuilder()
       .setType(_root_.io.grpc.MethodDescriptor.MethodType.UNARY)
-      .setFullMethodName(_root_.io.grpc.MethodDescriptor.generateFullMethodName("edu.uci.ics.amber.engine.architecture.rpc.ControllerService", "SendRetrieveWorkflowState"))
+      .setFullMethodName(_root_.io.grpc.MethodDescriptor.generateFullMethodName("edu.uci.ics.amber.engine.architecture.rpc.ControllerService", "RetrieveWorkflowState"))
       .setSampledToLocalTracing(true)
-      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.RetrieveWorkflowStateRequest])
+      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest])
       .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.RetrieveWorkflowStateResponse])
       .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerserviceProto.javaDescriptor.getServices().get(0).getMethods().get(0)))
       .build()
   
-  val METHOD_SEND_PROPAGATE_CHANNEL_MARKER: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PropagateChannelMarkerRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.PropagateChannelMarkerResponse] =
+  val METHOD_PROPAGATE_CHANNEL_MARKER: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PropagateChannelMarkerRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.PropagateChannelMarkerResponse] =
     _root_.io.grpc.MethodDescriptor.newBuilder()
       .setType(_root_.io.grpc.MethodDescriptor.MethodType.UNARY)
-      .setFullMethodName(_root_.io.grpc.MethodDescriptor.generateFullMethodName("edu.uci.ics.amber.engine.architecture.rpc.ControllerService", "SendPropagateChannelMarker"))
+      .setFullMethodName(_root_.io.grpc.MethodDescriptor.generateFullMethodName("edu.uci.ics.amber.engine.architecture.rpc.ControllerService", "PropagateChannelMarker"))
       .setSampledToLocalTracing(true)
       .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PropagateChannelMarkerRequest])
       .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.PropagateChannelMarkerResponse])
       .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerserviceProto.javaDescriptor.getServices().get(0).getMethods().get(1)))
       .build()
   
-  val METHOD_SEND_TAKE_GLOBAL_CHECKPOINT: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.TakeGlobalCheckpointRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.TakeGlobalCheckpointResponse] =
+  val METHOD_TAKE_GLOBAL_CHECKPOINT: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.TakeGlobalCheckpointRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.TakeGlobalCheckpointResponse] =
     _root_.io.grpc.MethodDescriptor.newBuilder()
       .setType(_root_.io.grpc.MethodDescriptor.MethodType.UNARY)
-      .setFullMethodName(_root_.io.grpc.MethodDescriptor.generateFullMethodName("edu.uci.ics.amber.engine.architecture.rpc.ControllerService", "SendTakeGlobalCheckpoint"))
+      .setFullMethodName(_root_.io.grpc.MethodDescriptor.generateFullMethodName("edu.uci.ics.amber.engine.architecture.rpc.ControllerService", "TakeGlobalCheckpoint"))
       .setSampledToLocalTracing(true)
       .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.TakeGlobalCheckpointRequest])
       .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.TakeGlobalCheckpointResponse])
       .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerserviceProto.javaDescriptor.getServices().get(0).getMethods().get(2)))
       .build()
   
-  val METHOD_SEND_DEBUG_COMMAND: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.DebugCommandRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty] =
+  val METHOD_DEBUG_COMMAND: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.DebugCommandRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] =
     _root_.io.grpc.MethodDescriptor.newBuilder()
       .setType(_root_.io.grpc.MethodDescriptor.MethodType.UNARY)
-      .setFullMethodName(_root_.io.grpc.MethodDescriptor.generateFullMethodName("edu.uci.ics.amber.engine.architecture.rpc.ControllerService", "SendDebugCommand"))
+      .setFullMethodName(_root_.io.grpc.MethodDescriptor.generateFullMethodName("edu.uci.ics.amber.engine.architecture.rpc.ControllerService", "DebugCommand"))
       .setSampledToLocalTracing(true)
       .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.DebugCommandRequest])
-      .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty])
+      .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn])
       .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerserviceProto.javaDescriptor.getServices().get(0).getMethods().get(3)))
       .build()
   
-  val METHOD_SEND_EVALUATE_PYTHON_EXPRESSION: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EvaluatePythonExpressionRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EvaluatePythonExpressionResponse] =
+  val METHOD_EVALUATE_PYTHON_EXPRESSION: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EvaluatePythonExpressionRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EvaluatePythonExpressionResponse] =
     _root_.io.grpc.MethodDescriptor.newBuilder()
       .setType(_root_.io.grpc.MethodDescriptor.MethodType.UNARY)
-      .setFullMethodName(_root_.io.grpc.MethodDescriptor.generateFullMethodName("edu.uci.ics.amber.engine.architecture.rpc.ControllerService", "SendEvaluatePythonExpression"))
+      .setFullMethodName(_root_.io.grpc.MethodDescriptor.generateFullMethodName("edu.uci.ics.amber.engine.architecture.rpc.ControllerService", "EvaluatePythonExpression"))
       .setSampledToLocalTracing(true)
       .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EvaluatePythonExpressionRequest])
       .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EvaluatePythonExpressionResponse])
       .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerserviceProto.javaDescriptor.getServices().get(0).getMethods().get(4)))
       .build()
   
-  val METHOD_SEND_MODIFY_LOGIC: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ModifyLogicRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty] =
+  val METHOD_CONSOLE_MESSAGE_TRIGGERED: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessageTriggeredRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] =
     _root_.io.grpc.MethodDescriptor.newBuilder()
       .setType(_root_.io.grpc.MethodDescriptor.MethodType.UNARY)
-      .setFullMethodName(_root_.io.grpc.MethodDescriptor.generateFullMethodName("edu.uci.ics.amber.engine.architecture.rpc.ControllerService", "SendModifyLogic"))
+      .setFullMethodName(_root_.io.grpc.MethodDescriptor.generateFullMethodName("edu.uci.ics.amber.engine.architecture.rpc.ControllerService", "ConsoleMessageTriggered"))
       .setSampledToLocalTracing(true)
-      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ModifyLogicRequest])
-      .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty])
+      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessageTriggeredRequest])
+      .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn])
       .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerserviceProto.javaDescriptor.getServices().get(0).getMethods().get(5)))
       .build()
   
-  val METHOD_SEND_RETRY_WORKFLOW: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.RetryWorkflowRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty] =
+  val METHOD_PORT_COMPLETED: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PortCompletedRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] =
     _root_.io.grpc.MethodDescriptor.newBuilder()
       .setType(_root_.io.grpc.MethodDescriptor.MethodType.UNARY)
-      .setFullMethodName(_root_.io.grpc.MethodDescriptor.generateFullMethodName("edu.uci.ics.amber.engine.architecture.rpc.ControllerService", "SendRetryWorkflow"))
+      .setFullMethodName(_root_.io.grpc.MethodDescriptor.generateFullMethodName("edu.uci.ics.amber.engine.architecture.rpc.ControllerService", "PortCompleted"))
       .setSampledToLocalTracing(true)
-      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.RetryWorkflowRequest])
-      .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty])
+      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PortCompletedRequest])
+      .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn])
       .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerserviceProto.javaDescriptor.getServices().get(0).getMethods().get(6)))
       .build()
   
-  val METHOD_SEND_CONSOLE_MESSAGE_TRIGGERED: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessageTriggeredRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty] =
+  val METHOD_START_WORKFLOW: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StartWorkflowResponse] =
     _root_.io.grpc.MethodDescriptor.newBuilder()
       .setType(_root_.io.grpc.MethodDescriptor.MethodType.UNARY)
-      .setFullMethodName(_root_.io.grpc.MethodDescriptor.generateFullMethodName("edu.uci.ics.amber.engine.architecture.rpc.ControllerService", "SendConsoleMessageTriggered"))
+      .setFullMethodName(_root_.io.grpc.MethodDescriptor.generateFullMethodName("edu.uci.ics.amber.engine.architecture.rpc.ControllerService", "StartWorkflow"))
       .setSampledToLocalTracing(true)
-      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessageTriggeredRequest])
-      .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty])
+      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest])
+      .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StartWorkflowResponse])
       .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerserviceProto.javaDescriptor.getServices().get(0).getMethods().get(7)))
       .build()
   
-  val METHOD_SEND_PORT_COMPLETED: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PortCompletedRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty] =
+  val METHOD_RESUME_WORKFLOW: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] =
     _root_.io.grpc.MethodDescriptor.newBuilder()
       .setType(_root_.io.grpc.MethodDescriptor.MethodType.UNARY)
-      .setFullMethodName(_root_.io.grpc.MethodDescriptor.generateFullMethodName("edu.uci.ics.amber.engine.architecture.rpc.ControllerService", "SendPortCompleted"))
+      .setFullMethodName(_root_.io.grpc.MethodDescriptor.generateFullMethodName("edu.uci.ics.amber.engine.architecture.rpc.ControllerService", "ResumeWorkflow"))
       .setSampledToLocalTracing(true)
-      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PortCompletedRequest])
-      .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty])
+      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest])
+      .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn])
       .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerserviceProto.javaDescriptor.getServices().get(0).getMethods().get(8)))
       .build()
   
-  val METHOD_SEND_START_WORKFLOW: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.StartWorkflowRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StartWorkflowResponse] =
+  val METHOD_PAUSE_WORKFLOW: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] =
     _root_.io.grpc.MethodDescriptor.newBuilder()
       .setType(_root_.io.grpc.MethodDescriptor.MethodType.UNARY)
-      .setFullMethodName(_root_.io.grpc.MethodDescriptor.generateFullMethodName("edu.uci.ics.amber.engine.architecture.rpc.ControllerService", "SendStartWorkflow"))
+      .setFullMethodName(_root_.io.grpc.MethodDescriptor.generateFullMethodName("edu.uci.ics.amber.engine.architecture.rpc.ControllerService", "PauseWorkflow"))
       .setSampledToLocalTracing(true)
-      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.StartWorkflowRequest])
-      .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StartWorkflowResponse])
+      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest])
+      .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn])
       .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerserviceProto.javaDescriptor.getServices().get(0).getMethods().get(9)))
       .build()
   
-  val METHOD_SEND_RESUME_WORKFLOW: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ResumeWorkflowRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty] =
+  val METHOD_WORKER_STATE_UPDATED: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.WorkerStateUpdatedRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] =
     _root_.io.grpc.MethodDescriptor.newBuilder()
       .setType(_root_.io.grpc.MethodDescriptor.MethodType.UNARY)
-      .setFullMethodName(_root_.io.grpc.MethodDescriptor.generateFullMethodName("edu.uci.ics.amber.engine.architecture.rpc.ControllerService", "SendResumeWorkflow"))
+      .setFullMethodName(_root_.io.grpc.MethodDescriptor.generateFullMethodName("edu.uci.ics.amber.engine.architecture.rpc.ControllerService", "WorkerStateUpdated"))
       .setSampledToLocalTracing(true)
-      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ResumeWorkflowRequest])
-      .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty])
+      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.WorkerStateUpdatedRequest])
+      .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn])
       .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerserviceProto.javaDescriptor.getServices().get(0).getMethods().get(10)))
       .build()
   
-  val METHOD_SEND_PAUSE_WORKFLOW: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PauseWorkflowRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty] =
+  val METHOD_WORKER_EXECUTION_COMPLETED: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] =
     _root_.io.grpc.MethodDescriptor.newBuilder()
       .setType(_root_.io.grpc.MethodDescriptor.MethodType.UNARY)
-      .setFullMethodName(_root_.io.grpc.MethodDescriptor.generateFullMethodName("edu.uci.ics.amber.engine.architecture.rpc.ControllerService", "SendPauseWorkflow"))
+      .setFullMethodName(_root_.io.grpc.MethodDescriptor.generateFullMethodName("edu.uci.ics.amber.engine.architecture.rpc.ControllerService", "WorkerExecutionCompleted"))
       .setSampledToLocalTracing(true)
-      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PauseWorkflowRequest])
-      .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty])
+      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest])
+      .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn])
       .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerserviceProto.javaDescriptor.getServices().get(0).getMethods().get(11)))
       .build()
   
-  val METHOD_SEND_WORKER_STATE_UPDATED: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.WorkerStateUpdatedRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty] =
+  val METHOD_LINK_WORKERS: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.LinkWorkersRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] =
     _root_.io.grpc.MethodDescriptor.newBuilder()
       .setType(_root_.io.grpc.MethodDescriptor.MethodType.UNARY)
-      .setFullMethodName(_root_.io.grpc.MethodDescriptor.generateFullMethodName("edu.uci.ics.amber.engine.architecture.rpc.ControllerService", "SendWorkerStateUpdated"))
+      .setFullMethodName(_root_.io.grpc.MethodDescriptor.generateFullMethodName("edu.uci.ics.amber.engine.architecture.rpc.ControllerService", "LinkWorkers"))
       .setSampledToLocalTracing(true)
-      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.WorkerStateUpdatedRequest])
-      .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty])
+      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.LinkWorkersRequest])
+      .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn])
       .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerserviceProto.javaDescriptor.getServices().get(0).getMethods().get(12)))
       .build()
   
-  val METHOD_SEND_WORKER_EXECUTION_COMPLETED: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.WorkerExecutionCompletedRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty] =
+  val METHOD_CONTROLLER_INITIATE_QUERY_STATISTICS: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.QueryStatisticsRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] =
     _root_.io.grpc.MethodDescriptor.newBuilder()
       .setType(_root_.io.grpc.MethodDescriptor.MethodType.UNARY)
-      .setFullMethodName(_root_.io.grpc.MethodDescriptor.generateFullMethodName("edu.uci.ics.amber.engine.architecture.rpc.ControllerService", "SendWorkerExecutionCompleted"))
+      .setFullMethodName(_root_.io.grpc.MethodDescriptor.generateFullMethodName("edu.uci.ics.amber.engine.architecture.rpc.ControllerService", "ControllerInitiateQueryStatistics"))
       .setSampledToLocalTracing(true)
-      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.WorkerExecutionCompletedRequest])
-      .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty])
+      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.QueryStatisticsRequest])
+      .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn])
       .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerserviceProto.javaDescriptor.getServices().get(0).getMethods().get(13)))
       .build()
   
-  val METHOD_SEND_LINK_WORKERS: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.LinkWorkersRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty] =
+  val METHOD_RECONFIGURE_WORKFLOW: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.WorkflowReconfigureRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] =
     _root_.io.grpc.MethodDescriptor.newBuilder()
       .setType(_root_.io.grpc.MethodDescriptor.MethodType.UNARY)
-      .setFullMethodName(_root_.io.grpc.MethodDescriptor.generateFullMethodName("edu.uci.ics.amber.engine.architecture.rpc.ControllerService", "SendLinkWorkers"))
+      .setFullMethodName(_root_.io.grpc.MethodDescriptor.generateFullMethodName("edu.uci.ics.amber.engine.architecture.rpc.ControllerService", "ReconfigureWorkflow"))
       .setSampledToLocalTracing(true)
-      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.LinkWorkersRequest])
-      .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty])
+      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.WorkflowReconfigureRequest])
+      .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn])
       .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerserviceProto.javaDescriptor.getServices().get(0).getMethods().get(14)))
       .build()
   
   val SERVICE: _root_.io.grpc.ServiceDescriptor =
     _root_.io.grpc.ServiceDescriptor.newBuilder("edu.uci.ics.amber.engine.architecture.rpc.ControllerService")
       .setSchemaDescriptor(new _root_.scalapb.grpc.ConcreteProtoFileDescriptorSupplier(edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerserviceProto.javaDescriptor))
-      .addMethod(METHOD_SEND_RETRIEVE_WORKFLOW_STATE)
-      .addMethod(METHOD_SEND_PROPAGATE_CHANNEL_MARKER)
-      .addMethod(METHOD_SEND_TAKE_GLOBAL_CHECKPOINT)
-      .addMethod(METHOD_SEND_DEBUG_COMMAND)
-      .addMethod(METHOD_SEND_EVALUATE_PYTHON_EXPRESSION)
-      .addMethod(METHOD_SEND_MODIFY_LOGIC)
-      .addMethod(METHOD_SEND_RETRY_WORKFLOW)
-      .addMethod(METHOD_SEND_CONSOLE_MESSAGE_TRIGGERED)
-      .addMethod(METHOD_SEND_PORT_COMPLETED)
-      .addMethod(METHOD_SEND_START_WORKFLOW)
-      .addMethod(METHOD_SEND_RESUME_WORKFLOW)
-      .addMethod(METHOD_SEND_PAUSE_WORKFLOW)
-      .addMethod(METHOD_SEND_WORKER_STATE_UPDATED)
-      .addMethod(METHOD_SEND_WORKER_EXECUTION_COMPLETED)
-      .addMethod(METHOD_SEND_LINK_WORKERS)
+      .addMethod(METHOD_RETRIEVE_WORKFLOW_STATE)
+      .addMethod(METHOD_PROPAGATE_CHANNEL_MARKER)
+      .addMethod(METHOD_TAKE_GLOBAL_CHECKPOINT)
+      .addMethod(METHOD_DEBUG_COMMAND)
+      .addMethod(METHOD_EVALUATE_PYTHON_EXPRESSION)
+      .addMethod(METHOD_CONSOLE_MESSAGE_TRIGGERED)
+      .addMethod(METHOD_PORT_COMPLETED)
+      .addMethod(METHOD_START_WORKFLOW)
+      .addMethod(METHOD_RESUME_WORKFLOW)
+      .addMethod(METHOD_PAUSE_WORKFLOW)
+      .addMethod(METHOD_WORKER_STATE_UPDATED)
+      .addMethod(METHOD_WORKER_EXECUTION_COMPLETED)
+      .addMethod(METHOD_LINK_WORKERS)
+      .addMethod(METHOD_CONTROLLER_INITIATE_QUERY_STATISTICS)
+      .addMethod(METHOD_RECONFIGURE_WORKFLOW)
       .build()
   
   trait ControllerService extends _root_.scalapb.grpc.AbstractService {
     override def serviceCompanion: _root_.scalapb.grpc.ServiceCompanion[ControllerService] = ControllerService
-    def sendRetrieveWorkflowState(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.RetrieveWorkflowStateRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.RetrieveWorkflowStateResponse]
-    def sendPropagateChannelMarker(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PropagateChannelMarkerRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.PropagateChannelMarkerResponse]
-    def sendTakeGlobalCheckpoint(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.TakeGlobalCheckpointRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.TakeGlobalCheckpointResponse]
-    def sendDebugCommand(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.DebugCommandRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty]
-    def sendEvaluatePythonExpression(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EvaluatePythonExpressionRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EvaluatePythonExpressionResponse]
-    def sendModifyLogic(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ModifyLogicRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty]
-    def sendRetryWorkflow(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.RetryWorkflowRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty]
-    def sendConsoleMessageTriggered(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessageTriggeredRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty]
-    def sendPortCompleted(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PortCompletedRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty]
-    def sendStartWorkflow(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.StartWorkflowRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StartWorkflowResponse]
-    def sendResumeWorkflow(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ResumeWorkflowRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty]
-    def sendPauseWorkflow(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PauseWorkflowRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty]
-    def sendWorkerStateUpdated(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.WorkerStateUpdatedRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty]
-    def sendWorkerExecutionCompleted(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.WorkerExecutionCompletedRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty]
-    def sendLinkWorkers(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.LinkWorkersRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty]
+    def retrieveWorkflowState(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.RetrieveWorkflowStateResponse]
+    def propagateChannelMarker(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PropagateChannelMarkerRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.PropagateChannelMarkerResponse]
+    def takeGlobalCheckpoint(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.TakeGlobalCheckpointRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.TakeGlobalCheckpointResponse]
+    def debugCommand(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.DebugCommandRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]
+    def evaluatePythonExpression(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EvaluatePythonExpressionRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EvaluatePythonExpressionResponse]
+    def consoleMessageTriggered(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessageTriggeredRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]
+    def portCompleted(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PortCompletedRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]
+    def startWorkflow(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StartWorkflowResponse]
+    def resumeWorkflow(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]
+    def pauseWorkflow(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]
+    def workerStateUpdated(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.WorkerStateUpdatedRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]
+    def workerExecutionCompleted(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]
+    def linkWorkers(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.LinkWorkersRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]
+    def controllerInitiateQueryStatistics(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.QueryStatisticsRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]
+    def reconfigureWorkflow(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.WorkflowReconfigureRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]
   }
   
   object ControllerService extends _root_.scalapb.grpc.ServiceCompanion[ControllerService] {
@@ -203,93 +203,93 @@ object ControllerServiceGrpc {
     def bindService(serviceImpl: ControllerService, executionContext: scala.concurrent.ExecutionContext): _root_.io.grpc.ServerServiceDefinition =
       _root_.io.grpc.ServerServiceDefinition.builder(SERVICE)
       .addMethod(
-        METHOD_SEND_RETRIEVE_WORKFLOW_STATE,
-        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.RetrieveWorkflowStateRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.RetrieveWorkflowStateResponse]) => {
-          serviceImpl.sendRetrieveWorkflowState(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
+        METHOD_RETRIEVE_WORKFLOW_STATE,
+        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.RetrieveWorkflowStateResponse]) => {
+          serviceImpl.retrieveWorkflowState(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
             executionContext)
         }))
       .addMethod(
-        METHOD_SEND_PROPAGATE_CHANNEL_MARKER,
+        METHOD_PROPAGATE_CHANNEL_MARKER,
         _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PropagateChannelMarkerRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.PropagateChannelMarkerResponse]) => {
-          serviceImpl.sendPropagateChannelMarker(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
+          serviceImpl.propagateChannelMarker(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
             executionContext)
         }))
       .addMethod(
-        METHOD_SEND_TAKE_GLOBAL_CHECKPOINT,
+        METHOD_TAKE_GLOBAL_CHECKPOINT,
         _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.TakeGlobalCheckpointRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.TakeGlobalCheckpointResponse]) => {
-          serviceImpl.sendTakeGlobalCheckpoint(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
+          serviceImpl.takeGlobalCheckpoint(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
             executionContext)
         }))
       .addMethod(
-        METHOD_SEND_DEBUG_COMMAND,
-        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.DebugCommandRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty]) => {
-          serviceImpl.sendDebugCommand(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
+        METHOD_DEBUG_COMMAND,
+        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.DebugCommandRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]) => {
+          serviceImpl.debugCommand(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
             executionContext)
         }))
       .addMethod(
-        METHOD_SEND_EVALUATE_PYTHON_EXPRESSION,
+        METHOD_EVALUATE_PYTHON_EXPRESSION,
         _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EvaluatePythonExpressionRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EvaluatePythonExpressionResponse]) => {
-          serviceImpl.sendEvaluatePythonExpression(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
+          serviceImpl.evaluatePythonExpression(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
             executionContext)
         }))
       .addMethod(
-        METHOD_SEND_MODIFY_LOGIC,
-        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ModifyLogicRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty]) => {
-          serviceImpl.sendModifyLogic(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
+        METHOD_CONSOLE_MESSAGE_TRIGGERED,
+        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessageTriggeredRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]) => {
+          serviceImpl.consoleMessageTriggered(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
             executionContext)
         }))
       .addMethod(
-        METHOD_SEND_RETRY_WORKFLOW,
-        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.RetryWorkflowRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty]) => {
-          serviceImpl.sendRetryWorkflow(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
+        METHOD_PORT_COMPLETED,
+        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PortCompletedRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]) => {
+          serviceImpl.portCompleted(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
             executionContext)
         }))
       .addMethod(
-        METHOD_SEND_CONSOLE_MESSAGE_TRIGGERED,
-        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessageTriggeredRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty]) => {
-          serviceImpl.sendConsoleMessageTriggered(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
+        METHOD_START_WORKFLOW,
+        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StartWorkflowResponse]) => {
+          serviceImpl.startWorkflow(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
             executionContext)
         }))
       .addMethod(
-        METHOD_SEND_PORT_COMPLETED,
-        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PortCompletedRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty]) => {
-          serviceImpl.sendPortCompleted(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
+        METHOD_RESUME_WORKFLOW,
+        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]) => {
+          serviceImpl.resumeWorkflow(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
             executionContext)
         }))
       .addMethod(
-        METHOD_SEND_START_WORKFLOW,
-        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.StartWorkflowRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StartWorkflowResponse]) => {
-          serviceImpl.sendStartWorkflow(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
+        METHOD_PAUSE_WORKFLOW,
+        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]) => {
+          serviceImpl.pauseWorkflow(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
             executionContext)
         }))
       .addMethod(
-        METHOD_SEND_RESUME_WORKFLOW,
-        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ResumeWorkflowRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty]) => {
-          serviceImpl.sendResumeWorkflow(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
+        METHOD_WORKER_STATE_UPDATED,
+        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.WorkerStateUpdatedRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]) => {
+          serviceImpl.workerStateUpdated(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
             executionContext)
         }))
       .addMethod(
-        METHOD_SEND_PAUSE_WORKFLOW,
-        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PauseWorkflowRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty]) => {
-          serviceImpl.sendPauseWorkflow(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
+        METHOD_WORKER_EXECUTION_COMPLETED,
+        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]) => {
+          serviceImpl.workerExecutionCompleted(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
             executionContext)
         }))
       .addMethod(
-        METHOD_SEND_WORKER_STATE_UPDATED,
-        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.WorkerStateUpdatedRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty]) => {
-          serviceImpl.sendWorkerStateUpdated(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
+        METHOD_LINK_WORKERS,
+        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.LinkWorkersRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]) => {
+          serviceImpl.linkWorkers(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
             executionContext)
         }))
       .addMethod(
-        METHOD_SEND_WORKER_EXECUTION_COMPLETED,
-        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.WorkerExecutionCompletedRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty]) => {
-          serviceImpl.sendWorkerExecutionCompleted(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
+        METHOD_CONTROLLER_INITIATE_QUERY_STATISTICS,
+        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.QueryStatisticsRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]) => {
+          serviceImpl.controllerInitiateQueryStatistics(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
             executionContext)
         }))
       .addMethod(
-        METHOD_SEND_LINK_WORKERS,
-        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.LinkWorkersRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty]) => {
-          serviceImpl.sendLinkWorkers(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
+        METHOD_RECONFIGURE_WORKFLOW,
+        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.WorkflowReconfigureRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]) => {
+          serviceImpl.reconfigureWorkflow(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
             executionContext)
         }))
       .build()
@@ -297,146 +297,146 @@ object ControllerServiceGrpc {
   
   trait ControllerServiceBlockingClient {
     def serviceCompanion: _root_.scalapb.grpc.ServiceCompanion[ControllerService] = ControllerService
-    def sendRetrieveWorkflowState(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.RetrieveWorkflowStateRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.RetrieveWorkflowStateResponse
-    def sendPropagateChannelMarker(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PropagateChannelMarkerRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.PropagateChannelMarkerResponse
-    def sendTakeGlobalCheckpoint(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.TakeGlobalCheckpointRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.TakeGlobalCheckpointResponse
-    def sendDebugCommand(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.DebugCommandRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty
-    def sendEvaluatePythonExpression(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EvaluatePythonExpressionRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EvaluatePythonExpressionResponse
-    def sendModifyLogic(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ModifyLogicRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty
-    def sendRetryWorkflow(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.RetryWorkflowRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty
-    def sendConsoleMessageTriggered(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessageTriggeredRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty
-    def sendPortCompleted(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PortCompletedRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty
-    def sendStartWorkflow(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.StartWorkflowRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StartWorkflowResponse
-    def sendResumeWorkflow(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ResumeWorkflowRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty
-    def sendPauseWorkflow(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PauseWorkflowRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty
-    def sendWorkerStateUpdated(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.WorkerStateUpdatedRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty
-    def sendWorkerExecutionCompleted(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.WorkerExecutionCompletedRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty
-    def sendLinkWorkers(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.LinkWorkersRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty
+    def retrieveWorkflowState(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.RetrieveWorkflowStateResponse
+    def propagateChannelMarker(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PropagateChannelMarkerRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.PropagateChannelMarkerResponse
+    def takeGlobalCheckpoint(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.TakeGlobalCheckpointRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.TakeGlobalCheckpointResponse
+    def debugCommand(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.DebugCommandRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
+    def evaluatePythonExpression(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EvaluatePythonExpressionRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EvaluatePythonExpressionResponse
+    def consoleMessageTriggered(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessageTriggeredRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
+    def portCompleted(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PortCompletedRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
+    def startWorkflow(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StartWorkflowResponse
+    def resumeWorkflow(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
+    def pauseWorkflow(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
+    def workerStateUpdated(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.WorkerStateUpdatedRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
+    def workerExecutionCompleted(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
+    def linkWorkers(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.LinkWorkersRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
+    def controllerInitiateQueryStatistics(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.QueryStatisticsRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
+    def reconfigureWorkflow(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.WorkflowReconfigureRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
   }
   
   class ControllerServiceBlockingStub(channel: _root_.io.grpc.Channel, options: _root_.io.grpc.CallOptions = _root_.io.grpc.CallOptions.DEFAULT) extends _root_.io.grpc.stub.AbstractStub[ControllerServiceBlockingStub](channel, options) with ControllerServiceBlockingClient {
-    override def sendRetrieveWorkflowState(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.RetrieveWorkflowStateRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.RetrieveWorkflowStateResponse = {
-      _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_SEND_RETRIEVE_WORKFLOW_STATE, options, request)
+    override def retrieveWorkflowState(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.RetrieveWorkflowStateResponse = {
+      _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_RETRIEVE_WORKFLOW_STATE, options, request)
     }
     
-    override def sendPropagateChannelMarker(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PropagateChannelMarkerRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.PropagateChannelMarkerResponse = {
-      _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_SEND_PROPAGATE_CHANNEL_MARKER, options, request)
+    override def propagateChannelMarker(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PropagateChannelMarkerRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.PropagateChannelMarkerResponse = {
+      _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_PROPAGATE_CHANNEL_MARKER, options, request)
     }
     
-    override def sendTakeGlobalCheckpoint(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.TakeGlobalCheckpointRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.TakeGlobalCheckpointResponse = {
-      _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_SEND_TAKE_GLOBAL_CHECKPOINT, options, request)
+    override def takeGlobalCheckpoint(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.TakeGlobalCheckpointRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.TakeGlobalCheckpointResponse = {
+      _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_TAKE_GLOBAL_CHECKPOINT, options, request)
     }
     
-    override def sendDebugCommand(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.DebugCommandRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty = {
-      _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_SEND_DEBUG_COMMAND, options, request)
+    override def debugCommand(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.DebugCommandRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn = {
+      _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_DEBUG_COMMAND, options, request)
     }
     
-    override def sendEvaluatePythonExpression(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EvaluatePythonExpressionRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EvaluatePythonExpressionResponse = {
-      _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_SEND_EVALUATE_PYTHON_EXPRESSION, options, request)
+    override def evaluatePythonExpression(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EvaluatePythonExpressionRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EvaluatePythonExpressionResponse = {
+      _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_EVALUATE_PYTHON_EXPRESSION, options, request)
     }
     
-    override def sendModifyLogic(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ModifyLogicRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty = {
-      _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_SEND_MODIFY_LOGIC, options, request)
+    override def consoleMessageTriggered(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessageTriggeredRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn = {
+      _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_CONSOLE_MESSAGE_TRIGGERED, options, request)
     }
     
-    override def sendRetryWorkflow(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.RetryWorkflowRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty = {
-      _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_SEND_RETRY_WORKFLOW, options, request)
+    override def portCompleted(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PortCompletedRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn = {
+      _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_PORT_COMPLETED, options, request)
     }
     
-    override def sendConsoleMessageTriggered(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessageTriggeredRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty = {
-      _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_SEND_CONSOLE_MESSAGE_TRIGGERED, options, request)
+    override def startWorkflow(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StartWorkflowResponse = {
+      _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_START_WORKFLOW, options, request)
     }
     
-    override def sendPortCompleted(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PortCompletedRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty = {
-      _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_SEND_PORT_COMPLETED, options, request)
+    override def resumeWorkflow(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn = {
+      _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_RESUME_WORKFLOW, options, request)
     }
     
-    override def sendStartWorkflow(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.StartWorkflowRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StartWorkflowResponse = {
-      _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_SEND_START_WORKFLOW, options, request)
+    override def pauseWorkflow(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn = {
+      _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_PAUSE_WORKFLOW, options, request)
     }
     
-    override def sendResumeWorkflow(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ResumeWorkflowRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty = {
-      _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_SEND_RESUME_WORKFLOW, options, request)
+    override def workerStateUpdated(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.WorkerStateUpdatedRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn = {
+      _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_WORKER_STATE_UPDATED, options, request)
     }
     
-    override def sendPauseWorkflow(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PauseWorkflowRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty = {
-      _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_SEND_PAUSE_WORKFLOW, options, request)
+    override def workerExecutionCompleted(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn = {
+      _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_WORKER_EXECUTION_COMPLETED, options, request)
     }
     
-    override def sendWorkerStateUpdated(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.WorkerStateUpdatedRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty = {
-      _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_SEND_WORKER_STATE_UPDATED, options, request)
+    override def linkWorkers(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.LinkWorkersRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn = {
+      _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_LINK_WORKERS, options, request)
     }
     
-    override def sendWorkerExecutionCompleted(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.WorkerExecutionCompletedRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty = {
-      _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_SEND_WORKER_EXECUTION_COMPLETED, options, request)
+    override def controllerInitiateQueryStatistics(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.QueryStatisticsRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn = {
+      _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_CONTROLLER_INITIATE_QUERY_STATISTICS, options, request)
     }
     
-    override def sendLinkWorkers(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.LinkWorkersRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty = {
-      _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_SEND_LINK_WORKERS, options, request)
+    override def reconfigureWorkflow(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.WorkflowReconfigureRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn = {
+      _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_RECONFIGURE_WORKFLOW, options, request)
     }
     
     override def build(channel: _root_.io.grpc.Channel, options: _root_.io.grpc.CallOptions): ControllerServiceBlockingStub = new ControllerServiceBlockingStub(channel, options)
   }
   
   class ControllerServiceStub(channel: _root_.io.grpc.Channel, options: _root_.io.grpc.CallOptions = _root_.io.grpc.CallOptions.DEFAULT) extends _root_.io.grpc.stub.AbstractStub[ControllerServiceStub](channel, options) with ControllerService {
-    override def sendRetrieveWorkflowState(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.RetrieveWorkflowStateRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.RetrieveWorkflowStateResponse] = {
-      _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_SEND_RETRIEVE_WORKFLOW_STATE, options, request)
+    override def retrieveWorkflowState(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.RetrieveWorkflowStateResponse] = {
+      _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_RETRIEVE_WORKFLOW_STATE, options, request)
     }
     
-    override def sendPropagateChannelMarker(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PropagateChannelMarkerRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.PropagateChannelMarkerResponse] = {
-      _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_SEND_PROPAGATE_CHANNEL_MARKER, options, request)
+    override def propagateChannelMarker(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PropagateChannelMarkerRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.PropagateChannelMarkerResponse] = {
+      _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_PROPAGATE_CHANNEL_MARKER, options, request)
     }
     
-    override def sendTakeGlobalCheckpoint(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.TakeGlobalCheckpointRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.TakeGlobalCheckpointResponse] = {
-      _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_SEND_TAKE_GLOBAL_CHECKPOINT, options, request)
+    override def takeGlobalCheckpoint(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.TakeGlobalCheckpointRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.TakeGlobalCheckpointResponse] = {
+      _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_TAKE_GLOBAL_CHECKPOINT, options, request)
     }
     
-    override def sendDebugCommand(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.DebugCommandRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty] = {
-      _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_SEND_DEBUG_COMMAND, options, request)
+    override def debugCommand(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.DebugCommandRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] = {
+      _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_DEBUG_COMMAND, options, request)
     }
     
-    override def sendEvaluatePythonExpression(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EvaluatePythonExpressionRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EvaluatePythonExpressionResponse] = {
-      _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_SEND_EVALUATE_PYTHON_EXPRESSION, options, request)
+    override def evaluatePythonExpression(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EvaluatePythonExpressionRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EvaluatePythonExpressionResponse] = {
+      _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_EVALUATE_PYTHON_EXPRESSION, options, request)
     }
     
-    override def sendModifyLogic(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ModifyLogicRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty] = {
-      _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_SEND_MODIFY_LOGIC, options, request)
+    override def consoleMessageTriggered(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessageTriggeredRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] = {
+      _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_CONSOLE_MESSAGE_TRIGGERED, options, request)
     }
     
-    override def sendRetryWorkflow(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.RetryWorkflowRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty] = {
-      _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_SEND_RETRY_WORKFLOW, options, request)
+    override def portCompleted(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PortCompletedRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] = {
+      _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_PORT_COMPLETED, options, request)
     }
     
-    override def sendConsoleMessageTriggered(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessageTriggeredRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty] = {
-      _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_SEND_CONSOLE_MESSAGE_TRIGGERED, options, request)
+    override def startWorkflow(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StartWorkflowResponse] = {
+      _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_START_WORKFLOW, options, request)
     }
     
-    override def sendPortCompleted(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PortCompletedRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty] = {
-      _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_SEND_PORT_COMPLETED, options, request)
+    override def resumeWorkflow(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] = {
+      _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_RESUME_WORKFLOW, options, request)
     }
     
-    override def sendStartWorkflow(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.StartWorkflowRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StartWorkflowResponse] = {
-      _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_SEND_START_WORKFLOW, options, request)
+    override def pauseWorkflow(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] = {
+      _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_PAUSE_WORKFLOW, options, request)
     }
     
-    override def sendResumeWorkflow(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ResumeWorkflowRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty] = {
-      _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_SEND_RESUME_WORKFLOW, options, request)
+    override def workerStateUpdated(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.WorkerStateUpdatedRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] = {
+      _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_WORKER_STATE_UPDATED, options, request)
     }
     
-    override def sendPauseWorkflow(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PauseWorkflowRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty] = {
-      _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_SEND_PAUSE_WORKFLOW, options, request)
+    override def workerExecutionCompleted(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] = {
+      _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_WORKER_EXECUTION_COMPLETED, options, request)
     }
     
-    override def sendWorkerStateUpdated(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.WorkerStateUpdatedRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty] = {
-      _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_SEND_WORKER_STATE_UPDATED, options, request)
+    override def linkWorkers(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.LinkWorkersRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] = {
+      _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_LINK_WORKERS, options, request)
     }
     
-    override def sendWorkerExecutionCompleted(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.WorkerExecutionCompletedRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty] = {
-      _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_SEND_WORKER_EXECUTION_COMPLETED, options, request)
+    override def controllerInitiateQueryStatistics(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.QueryStatisticsRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] = {
+      _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_CONTROLLER_INITIATE_QUERY_STATISTICS, options, request)
     }
     
-    override def sendLinkWorkers(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.LinkWorkersRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty] = {
-      _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_SEND_LINK_WORKERS, options, request)
+    override def reconfigureWorkflow(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.WorkflowReconfigureRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] = {
+      _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_RECONFIGURE_WORKFLOW, options, request)
     }
     
     override def build(channel: _root_.io.grpc.Channel, options: _root_.io.grpc.CallOptions): ControllerServiceStub = new ControllerServiceStub(channel, options)

@@ -4,8 +4,6 @@ import com.google.protobuf.timestamp.Timestamp
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessage
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessageType.ERROR
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError
-import edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessage
-import edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessageType.ERROR
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 

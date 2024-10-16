@@ -7,20 +7,33 @@ package edu.uci.ics.amber.engine.common.ambermessage
 
 object AmbermessageProto extends _root_.scalapb.GeneratedFileObject {
   lazy val dependencies: Seq[_root_.scalapb.GeneratedFileObject] = Seq(
+    edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlcommandsProto,
+    edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlreturnsProto,
     edu.uci.ics.amber.engine.common.virtualidentity.VirtualidentityProto,
     scalapb.options.ScalapbProto
   )
   lazy val messagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] =
     Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]](
-      edu.uci.ics.amber.engine.common.ambermessage.PythonDataHeader
+      edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2,
+      edu.uci.ics.amber.engine.common.ambermessage.PythonDataHeader,
+      edu.uci.ics.amber.engine.common.ambermessage.PythonControlMessage
     )
   private lazy val ProtoBytes: _root_.scala.Array[Byte] =
       scalapb.Encoding.fromBase64(scala.collection.immutable.Seq(
   """CjJlZHUvdWNpL2ljcy9hbWJlci9lbmdpbmUvY29tbW9uL2FtYmVybWVzc2FnZS5wcm90bxIfZWR1LnVjaS5pY3MuYW1iZXIuZ
-  W5naW5lLmNvbW1vbho1ZWR1L3VjaS9pY3MvYW1iZXIvZW5naW5lL2NvbW1vbi92aXJ0dWFsaWRlbnRpdHkucHJvdG8aFXNjYWxhc
-  GIvc2NhbGFwYi5wcm90byKdAQoQUHl0aG9uRGF0YUhlYWRlchJUCgN0YWcYASABKAsyNS5lZHUudWNpLmljcy5hbWJlci5lbmdpb
-  mUuY29tbW9uLkFjdG9yVmlydHVhbElkZW50aXR5QgviPwgSA3RhZ/ABAVIDdGFnEjMKDHBheWxvYWRfdHlwZRgCIAEoCUIQ4j8NE
-  gtwYXlsb2FkVHlwZVILcGF5bG9hZFR5cGVCCeI/BkgAWAB4AWIGcHJvdG8z"""
+  W5naW5lLmNvbW1vbho/ZWR1L3VjaS9pY3MvYW1iZXIvZW5naW5lL2FyY2hpdGVjdHVyZS9ycGMvY29udHJvbGNvbW1hbmRzLnByb
+  3RvGj5lZHUvdWNpL2ljcy9hbWJlci9lbmdpbmUvYXJjaGl0ZWN0dXJlL3JwYy9jb250cm9scmV0dXJucy5wcm90bxo1ZWR1L3Vja
+  S9pY3MvYW1iZXIvZW5naW5lL2NvbW1vbi92aXJ0dWFsaWRlbnRpdHkucHJvdG8aFXNjYWxhcGIvc2NhbGFwYi5wcm90byKpAgoQQ
+  29udHJvbFBheWxvYWRWMhKFAQoSY29udHJvbF9pbnZvY2F0aW9uGAEgASgLMjwuZWR1LnVjaS5pY3MuYW1iZXIuZW5naW5lLmFyY
+  2hpdGVjdHVyZS5ycGMuQ29udHJvbEludm9jYXRpb25CFuI/ExIRY29udHJvbEludm9jYXRpb25IAFIRY29udHJvbEludm9jYXRpb
+  24SgQEKEXJldHVybl9pbnZvY2F0aW9uGAIgASgLMjsuZWR1LnVjaS5pY3MuYW1iZXIuZW5naW5lLmFyY2hpdGVjdHVyZS5ycGMuU
+  mV0dXJuSW52b2NhdGlvbkIV4j8SEhByZXR1cm5JbnZvY2F0aW9uSABSEHJldHVybkludm9jYXRpb25CCQoHY29udGVudCKdAQoQU
+  Hl0aG9uRGF0YUhlYWRlchJUCgN0YWcYASABKAsyNS5lZHUudWNpLmljcy5hbWJlci5lbmdpbmUuY29tbW9uLkFjdG9yVmlydHVhb
+  ElkZW50aXR5QgviPwgSA3RhZ/ABAVIDdGFnEjMKDHBheWxvYWRfdHlwZRgCIAEoCUIQ4j8NEgtwYXlsb2FkVHlwZVILcGF5bG9hZ
+  FR5cGUiygEKFFB5dGhvbkNvbnRyb2xNZXNzYWdlElQKA3RhZxgBIAEoCzI1LmVkdS51Y2kuaWNzLmFtYmVyLmVuZ2luZS5jb21tb
+  24uQWN0b3JWaXJ0dWFsSWRlbnRpdHlCC+I/CBIDdGFn8AEBUgN0YWcSXAoHcGF5bG9hZBgCIAEoCzIxLmVkdS51Y2kuaWNzLmFtY
+  mVyLmVuZ2luZS5jb21tb24uQ29udHJvbFBheWxvYWRWMkIP4j8MEgdwYXlsb2Fk8AEBUgdwYXlsb2FkQgniPwZIAFgAeAFiBnByb
+  3RvMw=="""
       ).mkString)
   lazy val scalaDescriptor: _root_.scalapb.descriptors.FileDescriptor = {
     val scalaProto = com.google.protobuf.descriptor.FileDescriptorProto.parseFrom(ProtoBytes)
@@ -29,6 +42,8 @@ object AmbermessageProto extends _root_.scalapb.GeneratedFileObject {
   lazy val javaDescriptor: com.google.protobuf.Descriptors.FileDescriptor = {
     val javaProto = com.google.protobuf.DescriptorProtos.FileDescriptorProto.parseFrom(ProtoBytes)
     com.google.protobuf.Descriptors.FileDescriptor.buildFrom(javaProto, _root_.scala.Array(
+      edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlcommandsProto.javaDescriptor,
+      edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlreturnsProto.javaDescriptor,
       edu.uci.ics.amber.engine.common.virtualidentity.VirtualidentityProto.javaDescriptor,
       scalapb.options.ScalapbProto.javaDescriptor
     ))

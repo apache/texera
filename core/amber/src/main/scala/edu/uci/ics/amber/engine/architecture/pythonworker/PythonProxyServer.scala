@@ -3,10 +3,6 @@ package edu.uci.ics.amber.engine.architecture.pythonworker
 import com.google.common.primitives.Longs
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputGateway
 import edu.uci.ics.amber.engine.common.AmberLogging
-import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{
-  controlInvocationToV1,
-  returnInvocationToV1
-}
 import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
@@ -20,6 +16,8 @@ import java.net.ServerSocket
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
 import com.twitter.util.Promise
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ReturnInvocation
+import edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.Content.{ControlInvocation => ControlInvocationV2, ReturnInvocation => ReturnInvocationV2}
 import edu.uci.ics.texera.workflow.common.{EndOfInputChannel, StartOfInputChannel, State}
 
 import java.nio.charset.Charset
@@ -40,17 +38,17 @@ private class AmberProducer(
     action.getType match {
       case "control" =>
         val pythonControlMessage = PythonControlMessage.parseFrom(action.getBody)
-        pythonControlMessage.payload match {
-          case returnInvocation: ReturnInvocationV2 =>
+        pythonControlMessage.payload.content match {
+          case r: ReturnInvocationV2 =>
             outputPort.sendTo(
               to = pythonControlMessage.tag,
-              payload = returnInvocationToV1(actorId, returnInvocation)
+              payload = r.value
             )
 
-          case controlInvocation: ControlInvocationV2 =>
+          case c: ControlInvocationV2 =>
             outputPort.sendTo(
               to = pythonControlMessage.tag,
-              payload = controlInvocationToV1(controlInvocation)
+              payload = c.value
             )
           case payload =>
             throw new RuntimeException(s"not supported payload $payload")

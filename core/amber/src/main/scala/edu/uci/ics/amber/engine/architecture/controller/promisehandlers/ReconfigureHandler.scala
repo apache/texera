@@ -1,9 +1,9 @@
 package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
+import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ReconfigureHandler.Reconfigure
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, WorkflowReconfigureRequest}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
 import edu.uci.ics.texera.web.service.FriesReconfigurationAlgorithm
 import edu.uci.ics.texera.workflow.common.operators.StateTransferFunc
@@ -11,16 +11,17 @@ import edu.uci.ics.texera.workflow.common.operators.StateTransferFunc
 trait ReconfigureHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
-  registerHandler[Reconfigure, Unit] { (msg, sender) =>
-    {
-      val epochMarkers = FriesReconfigurationAlgorithm.scheduleReconfigurations(
-        cp.workflowExecutionCoordinator,
-        msg.reconfigurations,
-        msg.reconfigurationId
-      )
-      epochMarkers.foreach(epoch => {
-        send(epoch, SELF)
-      })
-    }
+  override def reconfigureWorkflow(msg: WorkflowReconfigureRequest, ctx: AsyncRPCContext): Future[EmptyReturn] = {
+    val epochMarkers = FriesReconfigurationAlgorithm.scheduleReconfigurations(
+      cp.workflowExecutionCoordinator,
+      msg.reconfiguration,
+      msg.reconfigurationId
+    )
+    epochMarkers.foreach(epoch => {
+      controllerInterface.propagateChannelMarker(epoch, SELF)
+    })
+    EmptyReturn()
   }
+
+
 }

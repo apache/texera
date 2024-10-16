@@ -2,12 +2,12 @@ package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.UpdateExecutorCompleted
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecInitInfoWithCode, OpExecInitInfoWithFunc}
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, UpdateExecutorRequest, UpdateMultipleExecutorsRequest}
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.Empty
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecInitInfo, OpExecInitInfoWithCode, OpExecInitInfoWithFunc}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, ModifyLogicRequest, UpdateExecutorRequest}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
-import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
+import edu.uci.ics.amber.engine.common.{AmberRuntime, VirtualIdentityUtils}
+import edu.uci.ics.texera.workflow.common.operators.StateTransferFunc
 
 /** Get queue and other resource usage of this worker
   *
@@ -16,33 +16,32 @@ import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 trait UpdateExecutorHandler {
   this: DataProcessorRPCHandlerInitializer =>
 
-  override def updateExecutor(msg: UpdateExecutorRequest, ctx: AsyncRPCContext): Future[Empty] = {
-    performUpdateExecutor(msg)
-    sendToClient(UpdateExecutorCompleted(this.actorId))
-    Empty()
-  }
-
-  override def updateMultipleExecutors(msg: UpdateMultipleExecutorsRequest, ctx: AsyncRPCContext): Future[Empty] = {
-    msg.executorsToUpdate
-      .find(_.physicalOp == VirtualIdentityUtils.getPhysicalOpId(actorId))
-      .foreach { executorToUpdate =>
-        performUpdateExecutor(executorToUpdate)
+  override def modifyLogic(msg: ModifyLogicRequest, ctx: AsyncRPCContext): Future[EmptyReturn] = {
+    msg.updateRequest.find(_.targetOpId == VirtualIdentityUtils.getPhysicalOpId(this.actorId)) match {
+      case Some(value) =>
+        performUpdateExecutor(value)
         sendToClient(UpdateExecutorCompleted(this.actorId))
-      }
-    Empty()
+      case None =>
+        // do nothing
+    }
+    EmptyReturn()
   }
 
-  private def performUpdateExecutor(updateExecutor: UpdateExecutorRequest): Unit = {
+  private def performUpdateExecutor(req: UpdateExecutorRequest): Unit = {
     val oldOpExecState = dp.executor
-    dp.executor = updateExecutor.physicalOp.opExecInitInfo match {
+    val bytes = req.newExecutor.value.toByteArray
+    val opExecInitInfo: OpExecInitInfo = AmberRuntime.serde.deserialize(bytes, classOf[OpExecInitInfo]).get
+    dp.executor = opExecInitInfo match {
       case OpExecInitInfoWithCode(codeGen) =>
         ??? // TODO: compile and load java/scala operator here
       case OpExecInitInfoWithFunc(opGen) =>
         opGen(VirtualIdentityUtils.getWorkerIndex(actorId), 1)
     }
 
-    if (updateExecutor.stateTransferFunc.nonEmpty) {
-      updateExecutor.stateTransferFunc.get.apply(oldOpExecState, dp.executor)
+    if (req.stateTransferFunc.nonEmpty) {
+      val bytesForStateTransfer = req.stateTransferFunc.get.value.toByteArray
+      val stateTransferFunc: StateTransferFunc = AmberRuntime.serde.deserialize(bytesForStateTransfer, classOf[StateTransferFunc]).get
+      stateTransferFunc.apply(oldOpExecState, dp.executor)
     }
     dp.executor.open()
   }
