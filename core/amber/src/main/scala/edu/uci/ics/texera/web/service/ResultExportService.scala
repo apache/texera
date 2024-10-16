@@ -18,7 +18,10 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.websocket.request.ResultExportRequest
 import edu.uci.ics.texera.web.model.websocket.response.ResultExportResponse
 import edu.uci.ics.texera.web.resource.GoogleResource
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.createNewDatasetVersionByAddingFiles
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{
+  createNewDatasetVersionByAddingFiles,
+  sanitizePath
+}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.PathUtils
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowVersionResource
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
@@ -101,7 +104,9 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
       .now()
       .truncatedTo(ChronoUnit.SECONDS)
       .format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"))
-    val fileName = s"${request.workflowName}-v$latestVersion-${request.operatorName}-$timestamp.csv"
+    val fileName = sanitizePath(
+      s"${request.workflowName}-v$latestVersion-${request.operatorName}-$timestamp.csv"
+    )
 
     // add files to datasets
     request.datasetIds.foreach(did => {

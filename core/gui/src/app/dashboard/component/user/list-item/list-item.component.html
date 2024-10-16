@@ -102,7 +102,7 @@
 
     <div
       nz-col
-      nzSpan="12">
+      [nzSpan]="12">
       <div class="edit-info">
         <div class="resource-owner">
           <texera-user-avatar
@@ -118,8 +118,11 @@
           *ngIf="entry.type==='workflow'">
           {{ formatViewCount(viewCount) + " " + (viewCount === 1 ? "view" : "views") }}
         </div>
-        <div class="resource-time-info">Created: {{ formatTime(entry.creationTime) }}</div>
-        <div class="resource-time-info">Edited: {{ formatTime(entry.lastModifiedTime) }}</div>
+        <div class="resource-info-grid">
+          <div class="resource-info">{{ entry.type === 'dataset' ? 'Size: ' + formatSize(entry.size) : '' }}</div>
+          <div class="resource-info">Created: {{ formatTime(entry.creationTime) }}</div>
+          <div class="resource-info">Edited: {{ formatTime(entry.lastModifiedTime) }}</div>
+        </div>
       </div>
     </div>
   </div>

@@ -26,6 +26,9 @@ public class DatasetFileNodeSerializer extends StdSerializer<DatasetFileNode> {
     gen.writeStringField("type", value.getNodeType());
     gen.writeStringField("parentDir", value.getParent().getFilePath());
     gen.writeStringField("ownerEmail", value.getOwnerEmail());
+    if (value.getNodeType().equals("file")) {
+      gen.writeObjectField("size", value.getSize());
+    }
     if (value.getNodeType().equals("directory")) {
       gen.writeFieldName("children");
       gen.writeStartArray();

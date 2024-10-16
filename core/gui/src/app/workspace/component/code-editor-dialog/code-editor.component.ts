@@ -184,12 +184,33 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     }
   }
 
+  private checkPythonLanguageServerAvailability(): Promise<boolean> {
+    return new Promise(resolve => {
+      const socket = new WebSocket(getWebsocketUrl("/python-language-server", "3000"));
+
+      socket.onopen = () => {
+        socket.close();
+        resolve(true);
+      };
+
+      socket.onerror = () => {
+        resolve(false);
+      };
+    });
+  }
+
   private initMonaco(): void {
     if (this.wrapper) {
       from(this.wrapper.dispose(true))
         .pipe(takeUntil(this.componentDestroy))
         .subscribe({
-          next: () => this.initializeMonacoEditor(),
+          next: () => {
+            if (this.componentRef) {
+              this.componentRef.destroy();
+            }
+
+            this.initializeMonacoEditor();
+          },
         });
     } else {
       this.initializeMonacoEditor();
@@ -224,47 +245,47 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
         },
       };
 
-      if (this.language === "python") {
-        userConfig.languageClientConfig = {
-          languageId: "python",
-          options: {
-            $type: "WebSocketUrl",
-            url: getWebsocketUrl("/python-language-server", "3000"),
-          },
-        };
-      }
-
-      from(this.wrapper.initAndStart(userConfig, this.editorElement.nativeElement))
+      from(this.checkPythonLanguageServerAvailability())
         .pipe(takeUntil(this.componentDestroy))
-        .subscribe({
-          next: () => {
-            this.formControl.statusChanges.pipe(untilDestroyed(this)).subscribe(() => {
-              const editorInstance = this.wrapper?.getEditor();
-              if (editorInstance) {
-                editorInstance.updateOptions({
-                  readOnly: this.formControl.disabled,
+        .subscribe(isServerAvailable => {
+          if (isServerAvailable && this.language === "python") {
+            userConfig.languageClientConfig = {
+              languageId: "python",
+              options: {
+                $type: "WebSocketUrl",
+                url: getWebsocketUrl("/python-language-server", "3000"),
+              },
+            };
+          }
+
+          from(this.wrapper!.initAndStart(userConfig, this.editorElement.nativeElement))
+            .pipe(takeUntil(this.componentDestroy))
+            .subscribe({
+              next: () => {
+                this.formControl.statusChanges.pipe(untilDestroyed(this)).subscribe(() => {
+                  const editorInstance = this.wrapper?.getEditor();
+                  if (editorInstance) {
+                    editorInstance.updateOptions({
+                      readOnly: this.formControl.disabled,
+                    });
+                  }
                 });
-              }
+                this.editor = this.wrapper?.getEditor();
+                if (this.code && this.editor) {
+                  if (this.monacoBinding) {
+                    this.monacoBinding.destroy();
+                    this.monacoBinding = undefined;
+                  }
+                  this.monacoBinding = new MonacoBinding(
+                    this.code,
+                    this.editor.getModel()!,
+                    new Set([this.editor]),
+                    this.workflowActionService.getTexeraGraph().getSharedModelAwareness()
+                  );
+                }
+                this.setupAIAssistantActions();
+              },
             });
-
-            this.editor = this.wrapper?.getEditor();
-
-            if (this.code && this.editor) {
-              if (this.monacoBinding) {
-                this.monacoBinding.destroy();
-                this.monacoBinding = undefined;
-              }
-
-              this.monacoBinding = new MonacoBinding(
-                this.code,
-                this.editor.getModel()!,
-                new Set([this.editor]),
-                this.workflowActionService.getTexeraGraph().getSharedModelAwareness()
-              );
-            }
-
-            this.setupAIAssistantActions();
-          },
         });
     }
   }
@@ -504,7 +525,12 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
       from(this.wrapper.dispose(true))
         .pipe(takeUntil(this.componentDestroy))
         .subscribe({
-          next: () => this.initializeDiffEditor(),
+          next: () => {
+            if (this.componentRef) {
+              this.componentRef.destroy();
+            }
+            this.initializeDiffEditor();
+          },
         });
     } else {
       this.initializeDiffEditor();
@@ -549,17 +575,22 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
           },
         },
       };
-      if (this.language === "python") {
-        userConfig.languageClientConfig = {
-          languageId: "python",
-          options: {
-            $type: "WebSocketUrl",
-            url: getWebsocketUrl("/python-language-server", "3000"),
-          },
-        };
-      }
 
-      this.wrapper.initAndStart(userConfig, this.editorElement.nativeElement);
+      from(this.checkPythonLanguageServerAvailability())
+        .pipe(takeUntil(this.componentDestroy))
+        .subscribe(isServerAvailable => {
+          if (isServerAvailable && this.language === "python") {
+            userConfig.languageClientConfig = {
+              languageId: "python",
+              options: {
+                $type: "WebSocketUrl",
+                url: getWebsocketUrl("/python-language-server", "3000"),
+              },
+            };
+          }
+
+          this.wrapper!.initAndStart(userConfig, this.editorElement.nativeElement);
+        });
     }
   }
 

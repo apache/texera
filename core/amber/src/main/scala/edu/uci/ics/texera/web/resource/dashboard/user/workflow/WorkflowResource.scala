@@ -12,6 +12,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   WorkflowUserAccessDao
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
+import edu.uci.ics.texera.web.resource.dashboard.hub.workflow.HubWorkflowResource.recordUserActivity
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasReadAccess
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource._
 import io.dropwizard.auth.Auth
@@ -27,6 +28,8 @@ import javax.ws.rs.core.MediaType
 import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters.IterableHasAsScala
 import scala.util.control.NonFatal
+import javax.servlet.http.HttpServletRequest
+import javax.ws.rs.core.Context
 
 /**
   * This file handles various request related to saved-workflows.
@@ -393,7 +396,11 @@ class WorkflowResource extends LazyLogging {
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/clone/{wid}")
-  def cloneWorkflow(@PathParam("wid") wid: UInteger, @Auth sessionUser: SessionUser): UInteger = {
+  def cloneWorkflow(
+      @PathParam("wid") wid: UInteger,
+      @Auth sessionUser: SessionUser,
+      @Context request: HttpServletRequest
+  ): UInteger = {
     val workflow: Workflow = workflowDao.fetchOneByWid(wid)
     val newWorkflow: DashboardWorkflow = createWorkflow(
       new Workflow(
@@ -407,6 +414,8 @@ class WorkflowResource extends LazyLogging {
       ),
       sessionUser
     )
+
+    recordUserActivity(request, sessionUser.getUid, wid, "clone")
 
     val existingCloneRecord = context
       .selectFrom(WORKFLOW_USER_CLONES)
