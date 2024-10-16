@@ -357,4 +357,3 @@ class HubWorkflowResource {
     fetchDashboardWorkflowsByWids(topClonedWorkflowsWids)
   }
 }
-
