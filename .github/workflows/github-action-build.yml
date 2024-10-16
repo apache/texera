@@ -80,6 +80,30 @@ jobs:
       - name: Run backend tests
         run: cd core/amber && sbt -v -J-Xmx2G test
 
+  micro-services:
+    strategy:
+      matrix:
+        os: [ ubuntu-latest ]
+        java-version: [ 11 ]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout Texera
+        uses: actions/checkout@v2
+      - name: Setup Java
+        uses: actions/setup-java@v2
+        with:
+          distribution: 'temurin'
+          java-version: ${{ matrix.java-version }}
+      - uses: coursier/cache-action@v6
+        with:
+          extraSbtFiles: '["core/micro-services/*.sbt", "core/micro-services/project/**.{scala,sbt}", "core/micro-services/project/build.properties" ]'
+      - name: Lint with scalafmt
+        run: cd core/micro-services && sbt scalafmtCheckAll
+      - name: Compile with sbt
+        run: cd core/micro-services && sbt clean package
+      - name: Run backend tests
+        run: cd core/micro-services && sbt test
+
   python_udf:
     runs-on: ${{ matrix.os }}
     strategy:
