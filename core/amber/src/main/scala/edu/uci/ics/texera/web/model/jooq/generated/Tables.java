@@ -11,6 +11,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.Project;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.ProjectUserAccess;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.PublicProject;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.User;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.UserActivity;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.UserConfig;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Workflow;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowExecutions;
@@ -63,6 +64,11 @@ public class Tables {
      * The table <code>texera_db.user</code>.
      */
     public static final User USER = User.USER;
+
+    /**
+     * The table <code>texera_db.user_activity</code>.
+     */
+    public static final UserActivity USER_ACTIVITY = UserActivity.USER_ACTIVITY;
 
     /**
      * The table <code>texera_db.user_config</code>.
