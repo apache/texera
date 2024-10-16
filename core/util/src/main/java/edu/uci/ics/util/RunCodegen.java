@@ -25,10 +25,10 @@ import java.nio.file.Path;
 public class RunCodegen {
 
     public static void main(String[] args) throws Exception {
-        Path jooqXmlPath = Path.of("core").resolve("util").resolve("conf").resolve("jooq-conf.xml");
+        Path jooqXmlPath = Path.of("conf").resolve("jooq-conf.xml");
         Configuration jooqConfig = GenerationTool.load(Files.newInputStream(jooqXmlPath));
 
-        Path jdbcConfPath = Path.of("core").resolve("amber").resolve("src").resolve("main").resolve("resources").resolve("application.conf");
+        Path jdbcConfPath = Path.of("..").resolve("amber").resolve("src").resolve("main").resolve("resources").resolve("application.conf");
         Config jdbcConfig = ConfigFactory.parseFile(jdbcConfPath.toFile());
 
         Jdbc jooqJdbcConfig = new Jdbc();

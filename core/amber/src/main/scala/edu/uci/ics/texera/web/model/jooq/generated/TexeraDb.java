@@ -11,6 +11,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.Project;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.ProjectUserAccess;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.PublicProject;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.User;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.UserActivity;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.UserConfig;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Workflow;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowExecutions;
@@ -37,7 +38,7 @@ import org.jooq.impl.SchemaImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class TexeraDb extends SchemaImpl {
 
-    private static final long serialVersionUID = -1537460404;
+    private static final long serialVersionUID = 271495359;
 
     /**
      * The reference instance of <code>texera_db</code>
@@ -78,6 +79,11 @@ public class TexeraDb extends SchemaImpl {
      * The table <code>texera_db.user</code>.
      */
     public final User USER = edu.uci.ics.texera.web.model.jooq.generated.tables.User.USER;
+
+    /**
+     * The table <code>texera_db.user_activity</code>.
+     */
+    public final UserActivity USER_ACTIVITY = edu.uci.ics.texera.web.model.jooq.generated.tables.UserActivity.USER_ACTIVITY;
 
     /**
      * The table <code>texera_db.user_config</code>.
@@ -158,6 +164,7 @@ public class TexeraDb extends SchemaImpl {
             ProjectUserAccess.PROJECT_USER_ACCESS,
             PublicProject.PUBLIC_PROJECT,
             User.USER,
+            UserActivity.USER_ACTIVITY,
             UserConfig.USER_CONFIG,
             Workflow.WORKFLOW,
             WorkflowExecutions.WORKFLOW_EXECUTIONS,

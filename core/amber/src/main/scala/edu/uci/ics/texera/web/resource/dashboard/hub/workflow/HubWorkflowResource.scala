@@ -7,6 +7,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{User, Workflow}
 import edu.uci.ics.texera.web.resource.dashboard.hub.workflow.HubWorkflowResource.fetchDashboardWorkflowsByWids
+import edu.uci.ics.texera.web.resource.dashboard.hub.workflow.HubWorkflowResource.recordUserActivity
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.{
   DashboardWorkflow,
@@ -21,9 +22,16 @@ import javax.ws.rs.core.MediaType
 import org.jooq.types.UInteger
 
 import java.util.Collections
+import java.util.regex.Pattern
+import javax.servlet.http.HttpServletRequest
+import javax.ws.rs.core.Context
 
 object HubWorkflowResource {
   final private lazy val context = SqlServer.createDSLContext()
+
+  final private val ipv4Pattern: Pattern = Pattern.compile(
+    "^([0-9]{1,3}\\.){3}[0-9]{1,3}$"
+  )
 
   def fetchDashboardWorkflowsByWids(wids: Seq[UInteger]): util.List[DashboardWorkflow] = {
     if (wids.nonEmpty) {
@@ -69,6 +77,33 @@ object HubWorkflowResource {
         .asJava
     } else {
       Collections.emptyList[DashboardWorkflow]()
+    }
+  }
+
+  def recordUserActivity(
+      request: HttpServletRequest,
+      userId: UInteger = UInteger.valueOf(0),
+      workflowId: UInteger,
+      action: String
+  ): Unit = {
+    val userIp = request.getRemoteAddr()
+//    println(s"User IP from getRemoteAddr: $userIp")
+
+    if (ipv4Pattern.matcher(userIp).matches()) {
+      context
+        .insertInto(USER_ACTIVITY)
+        .set(USER_ACTIVITY.UID, userId)
+        .set(USER_ACTIVITY.WID, workflowId)
+        .set(USER_ACTIVITY.IP, userIp)
+        .set(USER_ACTIVITY.ACTIVATE, action)
+        .execute()
+    } else {
+      context
+        .insertInto(USER_ACTIVITY)
+        .set(USER_ACTIVITY.UID, userId)
+        .set(USER_ACTIVITY.WID, workflowId)
+        .set(USER_ACTIVITY.ACTIVATE, action)
+        .execute()
     }
   }
 }
@@ -187,7 +222,7 @@ class HubWorkflowResource {
   @POST
   @Path("/like")
   @Consumes(Array(MediaType.APPLICATION_JSON))
-  def likeWorkflow(likeRequest: Array[UInteger]): Boolean = {
+  def likeWorkflow(@Context request: HttpServletRequest, likeRequest: Array[UInteger]): Boolean = {
     if (likeRequest.length != 2) {
       return false
     }
@@ -210,6 +245,8 @@ class HubWorkflowResource {
         .set(WORKFLOW_USER_LIKES.UID, userId)
         .set(WORKFLOW_USER_LIKES.WID, workflowId)
         .execute()
+
+      recordUserActivity(request, userId, workflowId, "like")
       true
     } else {
       false
@@ -219,7 +256,10 @@ class HubWorkflowResource {
   @POST
   @Path("/unlike")
   @Consumes(Array(MediaType.APPLICATION_JSON))
-  def unlikeWorkflow(likeRequest: Array[UInteger]): Boolean = {
+  def unlikeWorkflow(
+      @Context request: HttpServletRequest,
+      likeRequest: Array[UInteger]
+  ): Boolean = {
     if (likeRequest.length != 2) {
       return false
     }
@@ -245,6 +285,8 @@ class HubWorkflowResource {
             .and(WORKFLOW_USER_LIKES.WID.eq(workflowId))
         )
         .execute()
+
+      recordUserActivity(request, userId, workflowId, "unlike")
       true
     } else {
       false
@@ -273,6 +315,7 @@ class HubWorkflowResource {
       .from(WORKFLOW_USER_CLONES)
       .where(WORKFLOW_USER_CLONES.WID.eq(wid))
       .fetchOne(0, classOf[Int])
+
     cloneCount
   }
 
@@ -314,3 +357,4 @@ class HubWorkflowResource {
     fetchDashboardWorkflowsByWids(topClonedWorkflowsWids)
   }
 }
+

@@ -22,6 +22,7 @@ import { SearchService } from "../../../service/user/search.service";
 import { HubWorkflowDetailComponent } from "../../../../hub/component/workflow/detail/hub-workflow-detail.component";
 import { HubWorkflowService } from "../../../../hub/service/workflow/hub-workflow.service";
 import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
+import { formatSize } from "src/app/common/util/size-formatter.util";
 
 @UntilDestroy()
 @Component({
@@ -328,4 +329,7 @@ export class ListItemComponent implements OnInit, OnChanges {
     }
     return count.toString();
   }
+
+  // alias for formatSize
+  formatSize = formatSize;
 }
