@@ -122,7 +122,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
       .pipe(untilDestroyed(this))
       .subscribe((displayParticularVersion: boolean) => {
         if (displayParticularVersion) {
-          this.initDiffEditor();
+          this.initializeDiffEditor();
         } else {
           this.initializeMonacoEditor();
         }
@@ -238,6 +238,44 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
           this.setupAIAssistantActions(editor);
         },
       );
+  }
+
+  private initializeDiffEditor(): void {
+    const fileSuffix = this.getFileSuffixByLanguage(this.language);
+    const currentWorkflowVersionCode = this.workflowActionService
+      .getTempWorkflow()
+      ?.content.operators?.filter(operator => operator.operatorID === this.currentOperatorId,
+      )?.[0].operatorProperties.code;
+
+    const userConfig: UserConfig = {
+      wrapperConfig: {
+        editorAppConfig: {
+          $type: "extended",
+          codeResources: {
+            main: {
+              text: currentWorkflowVersionCode,
+              uri: `in-memory-${this.currentOperatorId}-version.${fileSuffix}`,
+            },
+            original: {
+              text: this.code?.toString() ?? "",
+              uri: `in-memory-${this.currentOperatorId}.${fileSuffix}`,
+            },
+          },
+          useDiffEditor: true,
+          diffEditorOptions: {
+            readOnly: true,
+          },
+          userConfiguration: {
+            json: JSON.stringify({
+              "workbench.colorTheme": "Default Dark Modern",
+            }),
+          },
+        },
+      },
+    };
+
+    this.editorWrapper.initAndStart(userConfig, this.editorElement.nativeElement);
+
   }
 
   private setupAIAssistantActions(editor: IStandaloneCodeEditor) {
@@ -445,60 +483,6 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     this.code?.insert(insertOffset, annotations);
   }
 
-  private initDiffEditor(): void {
-    from(this.editorWrapper.dispose(true))
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: () => {
-          if (this.componentRef) {
-            this.componentRef.destroy();
-          }
-          this.initializeDiffEditor();
-        },
-      });
-  }
-
-  private initializeDiffEditor(): void {
-    if (this.code) {
-      const fileSuffix = this.getFileSuffixByLanguage(this.language);
-      const currentWorkflowVersionCode = this.workflowActionService
-        .getTempWorkflow()
-        ?.content.operators?.filter(
-          operator =>
-            operator.operatorID ===
-            this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0],
-        )?.[0].operatorProperties.code;
-
-      const userConfig: UserConfig = {
-        wrapperConfig: {
-          editorAppConfig: {
-            $type: "extended",
-            codeResources: {
-              main: {
-                text: currentWorkflowVersionCode,
-                uri: `in-memory-${this.currentOperatorId}-version.${fileSuffix}`,
-              },
-              original: {
-                text: this.code.toString(),
-                uri: `in-memory-${this.currentOperatorId}.${fileSuffix}`,
-              },
-            },
-            useDiffEditor: true,
-            diffEditorOptions: {
-              readOnly: true,
-            },
-            userConfiguration: {
-              json: JSON.stringify({
-                "workbench.colorTheme": "Default Dark Modern",
-              }),
-            },
-          },
-        },
-      };
-
-      this.editorWrapper.initAndStart(userConfig, this.editorElement.nativeElement);
-    }
-  }
 
   onFocus() {
     this.workflowActionService.getJointGraphWrapper().highlightOperators(this.currentOperatorId);
