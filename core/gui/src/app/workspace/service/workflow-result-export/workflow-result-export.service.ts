@@ -13,7 +13,6 @@ import { filter } from "rxjs/operators";
 import { OperatorResultService, WorkflowResultService } from "../workflow-result/workflow-result.service";
 import { OperatorPaginationResultService } from "../workflow-result/workflow-result.service";
 import { DownloadService } from "../../../dashboard/service/user/download/download.service";
-import { isBase64, isBinary } from "src/app/common/util/json";
 import { Buffer } from "buffer";
 
 @Injectable({
@@ -180,12 +179,11 @@ export class WorkflowResultExportService {
   private processBinaryDataColumns(row: any, binaryDataColumns: Set<string>, folderName: string, zip: JSZip): void {
     binaryDataColumns.forEach(name => {
       const binaryData = row[name];
-      if (typeof binaryData === "string" && (isBase64(binaryData) || isBinary(binaryData))) {
-        const blob = this.base64ToBlob(binaryData);
-        zip.folder(folderName)?.file(name, blob);
-      } else {
-        console.warn(`Invalid binary data for column ${name} in ${folderName}`);
+      if (binaryData === null) {
+        return;
       }
+      const blob = this.base64ToBlob(binaryData);
+      zip.folder(folderName)?.file(name, blob);
     });
   }
 

@@ -11,10 +11,14 @@ import { RowModalComponent } from "../result-panel-modal.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 import { style } from "@angular/animations";
-import { isBase64, isBinary, trimAndFormatData } from "src/app/common/util/json";
+import { trimAndFormatData } from "src/app/common/util/json";
 import { ResultExportationComponent } from "../../result-exportation/result-exportation.component";
 import { WorkflowResultExportService } from "src/app/workspace/service/workflow-result-export/workflow-result-export.service";
 import { ChangeDetectorRef } from "@angular/core";
+import {
+  AttributeType,
+  SchemaAttribute,
+} from "src/app/workspace/service/dynamic-schema/schema-propagation/schema-propagation.service";
 
 export const TABLE_COLUMN_TEXT_LIMIT = 100;
 export const PRETTY_JSON_TEXT_LIMIT = 50000;
@@ -59,6 +63,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   sinkStorageMode: string = "";
   hasBinaryData: boolean = false;
   binaryDataColumns: Set<string> = new Set();
+  private schema: ReadonlyArray<SchemaAttribute> = [];
 
   constructor(
     private executeWorkflowService: ExecuteWorkflowService,
@@ -83,6 +88,8 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
 
         this.tableStats = paginatedResultService.getStats();
         this.prevTableStats = this.tableStats;
+        this.schema = paginatedResultService.getSchema();
+        this.updateBinaryDataInfo();
       }
     }
   }
@@ -143,6 +150,14 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
         this.currentPageIndex -= 1;
       }
     });
+
+    if (this.operatorId) {
+      const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.operatorId);
+      if (paginatedResultService) {
+        this.schema = paginatedResultService.getSchema();
+        this.updateBinaryDataInfo();
+      }
+    }
   }
 
   checkKeys(
@@ -301,6 +316,8 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       .subscribe(pageData => {
         if (this.currentPageIndex === pageData.pageIndex) {
           this.setupResultTable(pageData.table, paginatedResultService.getCurrentTotalNumTuples());
+          this.schema = pageData.schema;
+          this.updateBinaryDataInfo();
           this.changeDetectorRef.detectChanges();
         }
       });
@@ -355,12 +372,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
         if (row[col.columnKey] === null) {
           return "NULL"; // Explicitly show NULL for null values
         } else if (row[col.columnKey] !== undefined) {
-          const cellValue = row[col.columnKey];
-          if (typeof cellValue === "string" && (isBase64(cellValue) || isBinary(cellValue))) {
-            this.hasBinaryData = true;
-            this.binaryDataColumns.add(col.columnText);
-          }
-          return this.trimTableCell(cellValue);
+          return this.trimTableCell(row[col.columnKey], this.schema[index].attributeType);
         } else {
           return ""; // Keep empty string for undefined values
         }
@@ -368,8 +380,8 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     }));
   }
 
-  trimTableCell(cellContent: any): string {
-    return trimAndFormatData(cellContent, TABLE_COLUMN_TEXT_LIMIT);
+  trimTableCell(cellContent: any, attributeType: AttributeType): string {
+    return trimAndFormatData(cellContent, attributeType, TABLE_COLUMN_TEXT_LIMIT);
   }
 
   downloadData(data: any, rowIndex: number, columnIndex: number, columnName: string): void {
@@ -394,5 +406,18 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       return;
     }
     this.workflowResultExportService.exportAllBinaryDataAsZIP(this.binaryDataColumns, this.operatorId);
+  }
+
+  private updateBinaryDataInfo(): void {
+    if (this.hasBinaryData) {
+      return;
+    }
+
+    for (const attribute of this.schema) {
+      if (attribute.attributeType === "binary") {
+        this.binaryDataColumns.add(attribute.attributeName);
+        this.hasBinaryData = true;
+      }
+    }
   }
 }

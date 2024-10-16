@@ -10,15 +10,10 @@
 import { IndexableObject } from "../../workspace/types/result-table.interface";
 import validator from "validator";
 import deepMap from "deep-map";
-
-export function isBase64(str: string): boolean {
-  return validator.isBase64(str);
-}
-
-export function isBinary(str: string): boolean {
-  const binaryRegex = /^[01]+$/;
-  return binaryRegex.test(str);
-}
+import {
+  AttributeType,
+  SchemaAttribute,
+} from "src/app/workspace/service/dynamic-schema/schema-propagation/schema-propagation.service";
 
 export function formatBinaryData(value: string): string {
   const length = value.length;
@@ -34,14 +29,14 @@ export function formatBinaryData(value: string): string {
   return `bytes'${leadingBytes}...${trailingBytes}' (length: ${length})`;
 }
 
-export function trimAndFormatData(value: any, maxLen: number): string {
+export function trimAndFormatData(value: any, attributeType: AttributeType, maxLen: number): string {
   if (value === null) {
     return "NULL";
   }
-  if (typeof value === "string") {
-    if (isBase64(value) || isBinary(value)) {
-      return formatBinaryData(value);
-    }
+  if (attributeType === "binary") {
+    return formatBinaryData(value);
+  }
+  if (attributeType === "string") {
     if (value.length > maxLen) {
       return value.substring(0, maxLen) + "...";
     }
@@ -49,6 +44,13 @@ export function trimAndFormatData(value: any, maxLen: number): string {
   return value?.toString() ?? "";
 }
 
-export function trimDisplayJsonData(rowData: IndexableObject, maxLen: number): Record<string, unknown> {
-  return deepMap<Record<string, unknown>>(rowData, value => trimAndFormatData(value, maxLen));
+export function trimDisplayJsonData(
+  rowData: IndexableObject,
+  schema: ReadonlyArray<SchemaAttribute>,
+  maxLen: number
+): Record<string, unknown> {
+  return deepMap<Record<string, unknown>>(rowData, (value, key) => {
+    const attributeType = schema.find(attr => attr.attributeName === key)?.attributeType ?? "string";
+    return trimAndFormatData(value, attributeType, maxLen);
+  });
 }

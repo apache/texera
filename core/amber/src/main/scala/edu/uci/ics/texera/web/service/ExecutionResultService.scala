@@ -330,7 +330,10 @@ class ExecutionResultService(
     val mappedResults = paginationIterable
       .map(tuple => tuple.asKeyValuePairJson())
       .toList
-    PaginatedResultEvent.apply(request, mappedResults)
+    val attributes = paginationIterable.headOption
+      .map(_.getSchema.getAttributes)
+      .getOrElse(List.empty)
+    PaginatedResultEvent.apply(request, mappedResults, attributes)
   }
 
   private def onResultUpdate(): Unit = {

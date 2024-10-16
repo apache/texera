@@ -45,7 +45,7 @@ export class RowModalComponent implements OnChanges {
       ?.selectTuple(this.rowIndex, this.resizeService.pageSize)
       .pipe(untilDestroyed(this))
       .subscribe(res => {
-        this.currentDisplayRowData = trimDisplayJsonData(res, PRETTY_JSON_TEXT_LIMIT);
+        this.currentDisplayRowData = trimDisplayJsonData(res.tuple, res.schema, PRETTY_JSON_TEXT_LIMIT);
       });
   }
 }
