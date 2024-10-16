@@ -83,7 +83,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     private workflowActionService: WorkflowActionService,
     private workflowVersionService: WorkflowVersionService,
     public coeditorPresenceService: CoeditorPresenceService,
-    private aiAssistantService: AIAssistantService,
+    private aiAssistantService: AIAssistantService
   ) {
     this.currentOperatorId = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0];
     const operatorType = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId).operatorType;
@@ -107,8 +107,6 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
         .getSharedOperatorType(this.currentOperatorId)
         .get("operatorProperties") as YType<Readonly<{ [key: string]: any }>>
     ).get("code") as YText;
-
-
   }
 
   ngAfterViewInit() {
@@ -212,40 +210,38 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
       };
     }
 
-
     // init monaco editor, optionally with attempt on language client.
     from(this.editorWrapper.initAndStart(userConfig, this.editorElement.nativeElement))
       .pipe(
         switchMap(() => of(this.editorWrapper.getEditor())),
-        catchError((err) => of(this.editorWrapper.getEditor())),
+        catchError(() => of(this.editorWrapper.getEditor())),
         filter(isDefined),
-        untilDestroyed(this),
+        untilDestroyed(this)
       )
       .subscribe((editor: IStandaloneCodeEditor) => {
-          editor.updateOptions({ readOnly: this.formControl.disabled });
-          if (!this.code) {
-            return;
-          }
-          if (this.monacoBinding) {
-            this.monacoBinding.destroy();
-          }
-          this.monacoBinding = new MonacoBinding(
-            this.code,
-            editor.getModel()!,
-            new Set([editor]),
-            this.workflowActionService.getTexeraGraph().getSharedModelAwareness(),
-          );
-          this.setupAIAssistantActions(editor);
-        },
-      );
+        editor.updateOptions({ readOnly: this.formControl.disabled });
+        if (!this.code) {
+          return;
+        }
+        if (this.monacoBinding) {
+          this.monacoBinding.destroy();
+        }
+        this.monacoBinding = new MonacoBinding(
+          this.code,
+          editor.getModel()!,
+          new Set([editor]),
+          this.workflowActionService.getTexeraGraph().getSharedModelAwareness()
+        );
+        this.setupAIAssistantActions(editor);
+      });
   }
 
   private initializeDiffEditor(): void {
     const fileSuffix = this.getFileSuffixByLanguage(this.language);
     const currentWorkflowVersionCode = this.workflowActionService
       .getTempWorkflow()
-      ?.content.operators?.filter(operator => operator.operatorID === this.currentOperatorId,
-      )?.[0].operatorProperties.code;
+      ?.content.operators?.filter(operator => operator.operatorID === this.currentOperatorId)?.[0]
+      .operatorProperties.code;
 
     const userConfig: UserConfig = {
       wrapperConfig: {
@@ -275,7 +271,6 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     };
 
     this.editorWrapper.initAndStart(userConfig, this.editorElement.nativeElement);
-
   }
 
   private setupAIAssistantActions(editor: IStandaloneCodeEditor) {
@@ -364,7 +359,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
                       currVariable.startLine,
                       currVariable.startColumn + offset,
                       currVariable.endLine,
-                      currVariable.endColumn + offset,
+                      currVariable.endColumn + offset
                     );
 
                     const highlight = editor.createDecorationsCollection([
@@ -401,7 +396,13 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
       });
   }
 
-  private handleTypeAnnotation(code: string, range: monaco.Range, editor: monaco.editor.IStandaloneCodeEditor, lineNumber: number, allCode: string): void {
+  private handleTypeAnnotation(
+    code: string,
+    range: monaco.Range,
+    editor: monaco.editor.IStandaloneCodeEditor,
+    lineNumber: number,
+    allCode: string
+  ): void {
     this.aiAssistantService
       .getTypeAnnotations(code, lineNumber, allCode)
       .pipe(untilDestroyed(this))
@@ -444,7 +445,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
         this.currentRange.startLineNumber,
         this.currentRange.startColumn,
         this.currentRange.endLineNumber,
-        this.currentRange.endColumn,
+        this.currentRange.endColumn
       );
 
       this.insertTypeAnnotations(this.editorWrapper.getEditor()!, selection, this.currentSuggestion);
@@ -474,7 +475,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   private insertTypeAnnotations(
     editor: monaco.editor.IStandaloneCodeEditor,
     selection: monaco.Selection,
-    annotations: string,
+    annotations: string
   ) {
     const endLineNumber = selection.endLineNumber;
     const endColumn = selection.endColumn;
@@ -482,7 +483,6 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     const insertOffset = editor.getModel()?.getOffsetAt(insertPosition) || 0;
     this.code?.insert(insertOffset, annotations);
   }
-
 
   onFocus() {
     this.workflowActionService.getJointGraphWrapper().highlightOperators(this.currentOperatorId);
