@@ -151,7 +151,8 @@ export class MenuComponent implements OnInit {
         this.applyRunButtonBehavior(this.getRunButtonBehavior());
       });
 
-    this.hasResultToExportOnAllOperators$ = this.workflowResultExportService.hasResultToExportOnAllOperators.asObservable();
+    this.hasResultToExportOnAllOperators$ =
+      this.workflowResultExportService.hasResultToExportOnAllOperators.asObservable();
 
     this.registerWorkflowMetadataDisplayRefresh();
     this.handleWorkflowVersionDisplay();
@@ -544,9 +545,7 @@ export class MenuComponent implements OnInit {
   }
 
   showExportMenu(): Observable<boolean> {
-    return combineLatest([
-      this.hasResultToExportOnAllOperators$
-    ]).pipe(
+    return combineLatest([this.hasResultToExportOnAllOperators$]).pipe(
       map(([hasAllOperatorsResults]) => hasAllOperatorsResults)
     );
   }
