@@ -19,7 +19,6 @@ import java.util.regex.Pattern
 import javax.servlet.http.HttpServletRequest
 import javax.ws.rs.core.Context
 
-
 object HubWorkflowResource {
   final private lazy val context = SqlServer.createDSLContext()
 
@@ -27,7 +26,12 @@ object HubWorkflowResource {
     "^([0-9]{1,3}\\.){3}[0-9]{1,3}$"
   )
 
-  def recordUserActivity(request: HttpServletRequest, userId: UInteger = UInteger.valueOf(0), workflowId: UInteger, action: String): Unit = {
+  def recordUserActivity(
+      request: HttpServletRequest,
+      userId: UInteger = UInteger.valueOf(0),
+      workflowId: UInteger,
+      action: String
+  ): Unit = {
     val userIp = request.getRemoteAddr()
 //    println(s"User IP from getRemoteAddr: $userIp")
 
@@ -197,7 +201,10 @@ class HubWorkflowResource {
   @POST
   @Path("/unlike")
   @Consumes(Array(MediaType.APPLICATION_JSON))
-  def unlikeWorkflow(@Context request: HttpServletRequest, likeRequest: Array[UInteger]): Boolean = {
+  def unlikeWorkflow(
+      @Context request: HttpServletRequest,
+      likeRequest: Array[UInteger]
+  ): Boolean = {
     if (likeRequest.length != 2) {
       return false
     }
