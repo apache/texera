@@ -15,7 +15,7 @@ import { WorkflowActionService } from "../../service/workflow-graph/model/workfl
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
 import { WorkflowResultExportService } from "../../service/workflow-result-export/workflow-result-export.service";
-import { debounceTime, filter, mergeMap, tap } from "rxjs/operators";
+import { debounceTime, filter, map, mergeMap, tap } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
@@ -25,7 +25,7 @@ import { saveAs } from "file-saver";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { OperatorMenuService } from "../../service/operator-menu/operator-menu.service";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
-import { firstValueFrom, Subscription, timer } from "rxjs";
+import { BehaviorSubject, combineLatest, firstValueFrom, Observable, Subscription, timer } from "rxjs";
 import { isDefined } from "../../../common/util/predicate";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { ResultExportationComponent } from "../result-exportation/result-exportation.component";
@@ -61,6 +61,7 @@ export class MenuComponent implements OnInit {
   public isSaving: boolean = false;
   public isWorkflowModifiable: boolean = false;
   public workflowId?: number;
+  public hasResultToExportOnAllOperators$: Observable<boolean> = new BehaviorSubject<boolean>(false);
 
   @Input() public writeAccess: boolean = false;
   @Input() public pid?: number = undefined;
@@ -149,6 +150,8 @@ export class MenuComponent implements OnInit {
         this.isWorkflowValid = Object.keys(value.errors).length === 0;
         this.applyRunButtonBehavior(this.getRunButtonBehavior());
       });
+
+    this.hasResultToExportOnAllOperators$ = this.workflowResultExportService.hasResultToExportOnAllOperators.asObservable();
 
     this.registerWorkflowMetadataDisplayRefresh();
     this.handleWorkflowVersionDisplay();
@@ -540,11 +543,11 @@ export class MenuComponent implements OnInit {
       .subscribe(metadata => (this.workflowId = metadata.wid));
   }
 
-  showExportMenu(): boolean {
-    return (
-      this.workflowResultExportService.exportExecutionResultEnabled &&
-      (this.workflowResultExportService.hasResultToExportOnHighlightedOperators ||
-        this.workflowResultExportService.hasResultToExportOnAllOperators)
+  showExportMenu(): Observable<boolean> {
+    return combineLatest([
+      this.hasResultToExportOnAllOperators$
+    ]).pipe(
+      map(([hasAllOperatorsResults]) => hasAllOperatorsResults)
     );
   }
 

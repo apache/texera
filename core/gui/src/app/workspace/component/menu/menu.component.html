@@ -189,9 +189,10 @@
             nz-button
             nz-dropdown
             [nzDropdownMenu]="exportMenu"
+            [nzTrigger]="(showExportMenu() | async) ? 'hover' : 'click'"
             [disabled]="
     !workflowResultExportService.exportExecutionResultEnabled ||
-    !workflowResultExportService.hasResultToExportOnAllOperators
+    (hasResultToExportOnAllOperators$ | async) === false
   "
             title="">
             <i
