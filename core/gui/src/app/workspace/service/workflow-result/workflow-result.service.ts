@@ -14,6 +14,7 @@ import { map, Observable, of, pairwise, ReplaySubject, startWith, Subject, Behav
 import { v4 as uuid } from "uuid";
 import { IndexableObject } from "../../types/result-table.interface";
 import { isDefined } from "../../../common/util/predicate";
+import { AttributeType, SchemaAttribute } from "../dynamic-schema/schema-propagation/schema-propagation.service";
 
 /**
  * WorkflowResultService manages the result data of a workflow execution.
@@ -204,14 +205,16 @@ export class OperatorPaginationResultService {
   private statsCache: Record<string, Record<string, number>> = {};
   private currentPageIndex: number = 1;
   private currentTotalNumTuples: number = 0;
+  private schema: ReadonlyArray<SchemaAttribute> = [];
 
   constructor(
     public operatorID: string,
     private workflowWebsocketService: WorkflowWebsocketService
   ) {
-    this.workflowWebsocketService
-      .subscribeToEvent("PaginatedResultEvent")
-      .subscribe(event => this.handlePaginationResult(event));
+    this.workflowWebsocketService.subscribeToEvent("PaginatedResultEvent").subscribe(event => {
+      this.schema = event.schema;
+      this.handlePaginationResult(event);
+    });
   }
 
   public getStats(): Record<string, Record<string, number>> {
@@ -230,11 +233,23 @@ export class OperatorPaginationResultService {
     return this.currentTotalNumTuples;
   }
 
-  public selectTuple(tupleIndex: number, pageSize: number): Observable<IndexableObject> {
+  public getSchema(): ReadonlyArray<SchemaAttribute> {
+    return this.schema;
+  }
+
+  public selectTuple(
+    tupleIndex: number,
+    pageSize: number
+  ): Observable<{ tuple: IndexableObject; schema: ReadonlyArray<SchemaAttribute> }> {
     // calculate the page index
     // remember that page index starts from 1
     const pageIndex = Math.floor(tupleIndex / pageSize) + 1;
-    return this.selectPage(pageIndex, pageSize).pipe(map(p => p.table[tupleIndex % pageSize]));
+    return this.selectPage(pageIndex, pageSize).pipe(
+      map(p => ({
+        tuple: p.table[tupleIndex % pageSize],
+        schema: this.schema,
+      }))
+    );
   }
 
   public selectPage(pageIndex: number, pageSize: number): Observable<PaginatedResultEvent> {
@@ -248,6 +263,7 @@ export class OperatorPaginationResultService {
         operatorID: this.operatorID,
         pageIndex: pageIndex,
         table: pageCache,
+        schema: this.schema,
       });
     } else {
       // fetch result data from server

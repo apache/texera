@@ -1,7 +1,6 @@
 package edu.uci.ics.amber.engine.common.model.tuple
 
 import com.github.sisyphsu.dateparser.DateParserUtils
-import edu.uci.ics.texera.workflow.operators.typecasting.TypeCastingUnit
 
 import java.sql.Timestamp
 import scala.util.Try
@@ -53,22 +52,18 @@ object AttributeTypeUtils extends Serializable {
     * its value is included in the result tuple without type conversion.
     *
     * @param tuple           The source tuple whose fields are to be casted.
-    * @param typeCastingUnits A list of type casting units specifying the attribute names
-    *                         and their corresponding target types for casting.
+    * @param targetTypes     A mapping of attribute names to their target types, which specifies how to cast each field.
+    *                        If an attribute is not present in the map, no casting is applied to it.
     * @return                A new instance of TupleLike with fields casted to the target types
     *                        as specified by the typeCastingUnits.
     */
   def tupleCasting(
       tuple: Tuple,
-      typeCastingUnits: List[TypeCastingUnit]
+      targetTypes: Map[String, AttributeType]
   ): TupleLike =
     TupleLike(
       tuple.getSchema.getAttributes.map { attr =>
-        val targetType = typeCastingUnits
-          .find(_.attribute == attr.getName)
-          .map(_.resultType)
-          .getOrElse(attr.getType)
-
+        val targetType = targetTypes.getOrElse(attr.getName, attr.getType)
         parseField(tuple.getField(attr.getName), targetType)
       }
     )
@@ -117,7 +112,7 @@ object AttributeTypeUtils extends Serializable {
   }
 
   @throws[AttributeTypeException]
-  def parseInteger(fieldValue: Any): Integer = {
+  private def parseInteger(fieldValue: Any): Integer = {
     fieldValue match {
       case str: String                => str.trim.toInt
       case int: Integer               => int
@@ -133,7 +128,7 @@ object AttributeTypeUtils extends Serializable {
   }
 
   @throws[AttributeTypeException]
-  def parseLong(fieldValue: Any): java.lang.Long = {
+  private def parseLong(fieldValue: Any): java.lang.Long = {
     fieldValue match {
       case str: String                => str.trim.toLong
       case int: Integer               => int.toLong
@@ -182,7 +177,7 @@ object AttributeTypeUtils extends Serializable {
   }
 
   @throws[AttributeTypeException]
-  def parseBoolean(fieldValue: Any): java.lang.Boolean = {
+  private def parseBoolean(fieldValue: Any): java.lang.Boolean = {
     val parseError = new AttributeTypeException(
       s"not able to parse type ${fieldValue.getClass} to Boolean: ${fieldValue.toString}"
     )
@@ -207,7 +202,7 @@ object AttributeTypeUtils extends Serializable {
     * @param fields data fields to be parsed
     * @return
     */
-  def inferRow(
+  private def inferRow(
       attributeTypes: Array[AttributeType],
       fields: Array[Any]
   ): Unit = {
