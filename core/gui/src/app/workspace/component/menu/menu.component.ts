@@ -540,5 +540,13 @@ export class MenuComponent implements OnInit {
       .subscribe(metadata => (this.workflowId = metadata.wid));
   }
 
+  showExportMenu(): boolean {
+    return (
+      this.workflowResultExportService.exportExecutionResultEnabled &&
+      (this.workflowResultExportService.hasResultToExportOnHighlightedOperators ||
+        this.workflowResultExportService.hasResultToExportOnAllOperators)
+    );
+  }
+
   protected readonly environment = environment;
 }

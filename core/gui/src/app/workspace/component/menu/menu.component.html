@@ -165,7 +165,7 @@
               nzType="comment"></i>
           </button>
           <nz-dropdown-menu #exportMenu="nzDropdownMenu">
-            <ul nz-menu>
+            <ul nz-menu *ngIf="showExportMenu()">
               <li
                 nz-menu-item
                 (click)="onClickExportExecutionResult('csv')"
