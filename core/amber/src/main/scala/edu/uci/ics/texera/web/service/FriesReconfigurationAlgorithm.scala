@@ -7,7 +7,7 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
 }
 import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.METHOD_MODIFY_LOGIC
 import edu.uci.ics.amber.engine.architecture.scheduling.{Region, WorkflowExecutionCoordinator}
-import edu.uci.ics.amber.engine.common.model.{PhysicalOp, PhysicalPlan}
+import edu.uci.ics.amber.engine.common.model.PhysicalPlan
 import edu.uci.ics.amber.engine.common.virtualidentity.{ChannelMarkerIdentity, PhysicalOpIdentity}
 import org.jgrapht.alg.connectivity.ConnectivityInspector
 
