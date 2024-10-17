@@ -243,7 +243,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     const fileSuffix = this.getFileSuffixByLanguage(this.language);
     const latestVersionOperator = this.workflowActionService
       .getTempWorkflow()
-      ?.content.operators?.find(operator => operator.operatorID === this.currentOperatorId);
+      ?.content.operators?.find(({ operatorID }) => operatorID === this.currentOperatorId);
     const latestVersionCode: string = latestVersionOperator?.operatorProperties?.code ?? "";
     const oldVersionCode: string = this.code?.toString() ?? "";
     const userConfig: UserConfig = {
