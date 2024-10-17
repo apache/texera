@@ -85,7 +85,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     private workflowActionService: WorkflowActionService,
     private workflowVersionService: WorkflowVersionService,
     public coeditorPresenceService: CoeditorPresenceService,
-    private aiAssistantService: AIAssistantService,
+    private aiAssistantService: AIAssistantService
   ) {
     this.currentOperatorId = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0];
     const operatorType = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId).operatorType;
@@ -219,7 +219,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
         switchMap(() => of(this.editorWrapper.getEditor())),
         catchError(() => of(this.editorWrapper.getEditor())),
         filter(isDefined),
-        untilDestroyed(this),
+        untilDestroyed(this)
       )
       .subscribe((editor: IStandaloneCodeEditor) => {
         editor.updateOptions({ readOnly: this.formControl.disabled });
@@ -233,7 +233,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
           this.code,
           editor.getModel()!,
           new Set([editor]),
-          this.workflowActionService.getTexeraGraph().getSharedModelAwareness(),
+          this.workflowActionService.getTexeraGraph().getSharedModelAwareness()
         );
         this.setupAIAssistantActions(editor);
       });
@@ -242,7 +242,8 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   private initializeDiffEditor(): void {
     const fileSuffix = this.getFileSuffixByLanguage(this.language);
     const oldVersionOperator = this.workflowActionService
-      .getTempWorkflow()?.content.operators?.find(operator => operator.operatorID === this.currentOperatorId);
+      .getTempWorkflow()
+      ?.content.operators?.find(operator => operator.operatorID === this.currentOperatorId);
     const oldVersionCode: string = oldVersionOperator?.operatorProperties.code ?? "";
     const currentVersionCode: string = this.code?.toString() ?? "";
     const userConfig: UserConfig = {
@@ -361,7 +362,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
                       currVariable.startLine,
                       currVariable.startColumn + offset,
                       currVariable.endLine,
-                      currVariable.endColumn + offset,
+                      currVariable.endColumn + offset
                     );
 
                     const highlight = editor.createDecorationsCollection([
@@ -403,7 +404,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     range: monaco.Range,
     editor: monaco.editor.IStandaloneCodeEditor,
     lineNumber: number,
-    allCode: string,
+    allCode: string
   ): void {
     this.aiAssistantService
       .getTypeAnnotations(code, lineNumber, allCode)
@@ -447,7 +448,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
         this.currentRange.startLineNumber,
         this.currentRange.startColumn,
         this.currentRange.endLineNumber,
-        this.currentRange.endColumn,
+        this.currentRange.endColumn
       );
 
       this.insertTypeAnnotations(this.editorWrapper.getEditor()!, selection, this.currentSuggestion);
@@ -477,7 +478,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   private insertTypeAnnotations(
     editor: monaco.editor.IStandaloneCodeEditor,
     selection: monaco.Selection,
-    annotations: string,
+    annotations: string
   ) {
     const endLineNumber = selection.endLineNumber;
     const endColumn = selection.endColumn;
