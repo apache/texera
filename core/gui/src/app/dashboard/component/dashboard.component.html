@@ -148,6 +148,17 @@
         </ul>
       </li>
     </ul>
+    <li class="logo-section">
+      <img
+        *ngIf="isCollpased"
+        alt="mini-logo"
+        src="../../../../assets/logos/dknet-favicon-32x32.png" />
+      <img
+        *ngIf="!isCollpased"
+        alt="logo"
+        height="75"
+        src="../../../../assets/logos/dknet-logo.png" />
+    </li>
   </nz-sider>
 
   <div class="page-container">
