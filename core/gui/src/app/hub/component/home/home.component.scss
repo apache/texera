@@ -2,6 +2,10 @@
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 20px;
+  // Add these properties to create a scrollable container
+  height: calc(100vh - 100px); // Adjust the 100px value as needed
+  overflow-y: auto;
+  padding-bottom: 80px;
 }
 
 .content {
@@ -55,7 +59,6 @@ iframe {
   }
 }
 
-// Add custom scrollbar styles
 .content-wrapper::-webkit-scrollbar {
   width: 8px;
 }
