@@ -59,7 +59,8 @@ class AmberClient(
     }
   }
 
-  val controllerInterface: ControllerServiceFs2Grpc[Future, Unit] = createProxy()
+  val controllerInterface: ControllerServiceFs2Grpc[Future, Unit] =
+    createProxy[ControllerServiceFs2Grpc[Future, Unit]]()
 
   private def createProxy[T]()(implicit ct: ClassTag[T]): T = {
     val handler = new InvocationHandler {
