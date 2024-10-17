@@ -1,6 +1,6 @@
 wheel==0.41.2
 numpy==1.26.4
-pandas==2.1.4
+pandas==2.2.2
 flake8==7.1.1
 black==24.3.0
 iniconfig==1.1.1
