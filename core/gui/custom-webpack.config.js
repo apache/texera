@@ -4,13 +4,16 @@ module.exports = {
       {
         test: /\.css$/,
         use: ["style-loader", "css-loader"],
-        include: [require("path").resolve(__dirname, "node_modules/monaco-editor")],
+        include: [
+          require("path").resolve(__dirname, "node_modules/monaco-editor"),
+          require("path").resolve(__dirname, "node_modules/monaco-breakpoints")
+        ],
       },
     ],
     parser: {
       javascript: {
-          url: true
-      }
-    }
+        url: true,
+      },
+    },
   },
 };

@@ -31,6 +31,7 @@ import { NzModalService } from "ng-zorro-antd/modal";
 import { ResultExportationComponent } from "../result-exportation/result-exportation.component";
 import { ReportGenerationService } from "../../service/report-generation/report-generation.service";
 import { ShareAccessComponent } from "src/app/dashboard/component/user/share-access/share-access.component";
+import { UdfDebugService } from "../../service/operator-debug/udf-debug.service";
 /**
  * MenuComponent is the top level menu bar that shows
  *  the Texera title and workflow execution button
@@ -102,7 +103,8 @@ export class MenuComponent implements OnInit {
     public operatorMenu: OperatorMenuService,
     public coeditorPresenceService: CoeditorPresenceService,
     private modalService: NzModalService,
-    private reportGenerationService: ReportGenerationService
+    private reportGenerationService: ReportGenerationService,
+    private udfDebugService: UdfDebugService,
   ) {
     workflowWebsocketService
       .subscribeToEvent("ExecutionDurationUpdateEvent")
@@ -205,6 +207,10 @@ export class MenuComponent implements OnInit {
       case ExecutionState.Completed:
       case ExecutionState.Killed:
       case ExecutionState.Failed:
+        // assuming there is only one workflow running.
+        // reset all states.
+        this.workflowWebsocketService.clearDebugCommands();
+        this.udfDebugService.clearDebugStates();
         return {
           text: "Run",
           icon: "play-circle",

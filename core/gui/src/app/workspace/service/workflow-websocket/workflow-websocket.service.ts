@@ -2,6 +2,7 @@ import { Injectable } from "@angular/core";
 import { interval, Observable, Subject, Subscription, timer } from "rxjs";
 import { webSocket, WebSocketSubject } from "rxjs/webSocket";
 import {
+  FrontendDebugCommand,
   TexeraWebsocketEvent,
   TexeraWebsocketEventTypeMap,
   TexeraWebsocketEventTypes,
@@ -13,6 +14,7 @@ import { delayWhen, filter, map, retryWhen, tap } from "rxjs/operators";
 import { environment } from "../../../../environments/environment";
 import { AuthService } from "../../../common/service/user/auth.service";
 import { getWebsocketUrl } from "src/app/common/util/url";
+import { ExecutionState } from "../../types/execute-workflow.interface";
 
 export const WS_HEARTBEAT_INTERVAL_MS = 10000;
 export const WS_RECONNECT_INTERVAL_MS = 3000;
@@ -29,6 +31,9 @@ export class WorkflowWebsocketService {
   private websocket?: WebSocketSubject<TexeraWebsocketEvent | TexeraWebsocketRequest>;
   private wsWithReconnectSubscription?: Subscription;
   private readonly webSocketResponseSubject: Subject<TexeraWebsocketEvent> = new Subject();
+  private requestQueue: Array<FrontendDebugCommand> = [];
+  private assignedWorkerIds: Map<string, readonly string[]> = new Map();
+  public executionInitiator = false;
 
   constructor() {
     // setup heartbeat
@@ -56,6 +61,12 @@ export class WorkflowWebsocketService {
       type,
       ...payload,
     } as any as TexeraWebsocketRequest;
+    if(request.type === "WorkflowKillRequest"){
+      this.assignedWorkerIds.clear();
+    }
+    if(request.type === "WorkflowExecuteRequest"){
+      this.executionInitiator = true;
+    }
     this.websocket?.next(request);
   }
 
@@ -98,6 +109,16 @@ export class WorkflowWebsocketService {
       if (evt.type === "ClusterStatusUpdateEvent") {
         this.numWorkers = evt.numWorkers;
       }
+      if(evt.type === "WorkflowStateEvent"){
+        if(evt.state === ExecutionState.Completed || evt.state === ExecutionState.Killed || evt.state === ExecutionState.Failed){
+          this.assignedWorkerIds.clear();
+          this.executionInitiator = false;
+        }
+      }
+      if(evt.type === "WorkerAssignmentUpdateEvent"){
+        this.assignedWorkerIds.set(evt.operatorId, evt.workerIds);
+        this.processQueue();
+      }
       this.isConnected = true;
     });
   }
@@ -105,5 +126,70 @@ export class WorkflowWebsocketService {
   public reopenWebsocket(wId: number) {
     this.closeWebsocket();
     this.openWebsocket(wId);
+  }
+
+
+  public clearDebugCommands(){
+    this.requestQueue = [];
+  }
+
+  public getWorkerIds(operatorId: string): ReadonlyArray<string> {
+    return this.assignedWorkerIds.get(operatorId) || [];
+  }
+
+
+  public prepareDebugCommand(payload:FrontendDebugCommand){
+    this.requestQueue.push(payload);
+    this.processQueue();
+  }
+
+  private sendDebugCommandRequest(request: FrontendDebugCommand, workerId: string): void {
+    let cmd: string = "";
+    if(request.command === "break"){
+      cmd = "break "+request.line;
+      if(request.condition !== ""){
+        cmd += " ,"+request.condition
+      }
+    }else if(request.command === "clear"){
+      cmd = "clear "+request.breakpointId;
+    }else if(request.command === "condition"){
+      cmd = "condition "+request.breakpointId+" "+request.condition;
+    }else{
+      cmd = request.command
+    }
+    console.log("sending", {
+      operatorId: request.operatorId,
+      workerId,
+      cmd,
+    });
+    this.send("DebugCommandRequest", {
+      operatorId: request.operatorId,
+      workerId,
+      cmd,
+    });
+  }
+
+  private processQueue(): void {
+    // Process the request queue
+    let initialQueueLength = this.requestQueue.length;
+
+    // Loop through the initial length of the queue to prevent infinite loops with continuously failing items
+    for (let i = 0; i < initialQueueLength; i++) {
+      const request = this.requestQueue.shift();
+      if (request) {
+        console.log("got this request", request);
+        if (this.assignedWorkerIds.has(request.operatorId)) {
+          const workerIds = this.assignedWorkerIds.get(request.operatorId);
+          if (workerIds) {
+            for (let workerId of workerIds) {
+              this.sendDebugCommandRequest(request, workerId);
+            }
+          }
+        } else {
+          // If the condition is not met, push the request back to the end of the queue
+          this.requestQueue.push(request);
+        }
+      }
+    }
   }
 }

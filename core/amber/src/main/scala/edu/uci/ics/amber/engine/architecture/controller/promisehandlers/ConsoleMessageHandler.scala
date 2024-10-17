@@ -15,11 +15,6 @@ trait ConsoleMessageHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
   registerHandler[ConsoleMessageTriggered, Unit] { (msg, sender) =>
     {
-      if (msg.consoleMessage.msgType.isError) {
-        // if its an error message, pause the workflow
-        execute(PauseWorkflow(), CONTROLLER)
-      }
-
       // forward message to frontend
       sendToClient(msg)
     }

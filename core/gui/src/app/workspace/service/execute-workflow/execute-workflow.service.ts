@@ -266,11 +266,11 @@ export class ExecuteWorkflowService {
     this.workflowWebsocketService.send("WorkflowResumeRequest", {});
   }
 
-  public skipTuples(workers: ReadonlyArray<string>): void {
+  public skipTuples(workerIds: ReadonlyArray<string>): void {
     if (this.currentState.state !== ExecutionState.Paused) {
       throw new Error("cannot skip tuples, the current execution state is " + this.currentState.state);
     }
-    this.workflowWebsocketService.send("SkipTupleRequest", { workers });
+    this.workflowWebsocketService.send("SkipTupleRequest", { workerIds });
   }
 
   public retryExecution(workers: ReadonlyArray<string>): void {

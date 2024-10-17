@@ -56,6 +56,7 @@ class PauseManager:
         logger.debug("resume by " + str(pause_type))
         if pause_type in self._global_pauses:
             self._global_pauses.remove(pause_type)
+            self._global_pauses.clear()
         # del self._specific_input_pauses[pause_type]
 
         # still globally paused no action, don't need to resume anything

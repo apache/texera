@@ -20,6 +20,7 @@ export class SharedModel {
   public commentBoxMap: Y.Map<YType<CommentBox>>;
   public operatorLinkMap: Y.Map<OperatorLink>;
   public elementPositionMap: Y.Map<Point>;
+  public debugState: Y.Map<any>;
   public undoManager: Y.UndoManager;
   public clientId: string;
 
@@ -36,6 +37,7 @@ export class SharedModel {
     public user?: User
   ) {
     // Initialize Y-structures.
+    this.debugState = this.yDoc.getMap("debugActions");
     this.operatorIDMap = this.yDoc.getMap("operatorIDMap");
     this.commentBoxMap = this.yDoc.getMap("commentBoxMap");
     this.operatorLinkMap = this.yDoc.getMap("operatorLinkMap");

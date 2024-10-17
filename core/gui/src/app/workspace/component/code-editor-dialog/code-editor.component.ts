@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, ComponentRef, ElementRef, OnDestroy, ViewChild } from "@angular/core";
+import { AfterViewInit, Component, ComponentRef, ElementRef, OnDestroy, Renderer2, ViewChild } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
@@ -20,9 +20,37 @@ import "@codingame/monaco-vscode-python-default-extension";
 import "@codingame/monaco-vscode-r-default-extension";
 import "@codingame/monaco-vscode-java-default-extension";
 import { isDefined } from "../../../common/util/predicate";
-import { editor } from "vscode/editor.api";
-import { filter, switchMap } from "rxjs/operators";
+import { editor } from "monaco-editor/esm/vs/editor/editor.api.js";
+import { filter, map, switchMap } from "rxjs/operators";
+import { EditorMouseEvent, EditorMouseTarget } from "monaco-breakpoints/dist/types";
+import { MonacoBreakpoint } from "monaco-breakpoints";
+import { BreakpointManager, UdfDebugService } from "../../service/operator-debug/udf-debug.service";
+import { ConsoleUpdateEvent } from "../../types/workflow-common.interface";
+import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
+import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import IStandaloneCodeEditor = editor.IStandaloneCodeEditor;
+import MouseTargetType = editor.MouseTargetType;
+import ModelDecorationOptions = monaco.editor.IModelDecorationOptions;
+
+export type Range = monaco.IRange;
+
+export enum BreakpointEnum {
+  Exist,
+  Hover,
+}
+
+export const CONDITIONAL_BREAKPOINT_OPTIONS: ModelDecorationOptions = {
+  glyphMarginClassName: "monaco-conditional-breakpoint",
+};
+
+export const BREAKPOINT_OPTIONS: ModelDecorationOptions = {
+  glyphMarginClassName: "monaco-breakpoint",
+};
+
+export const BREAKPOINT_HOVER_OPTIONS: ModelDecorationOptions = {
+  glyphMarginClassName: "monaco-hover-breakpoint",
+};
+
 
 export const LANGUAGE_SERVER_CONNECTION_TIMEOUT_MS = 1000;
 
@@ -48,6 +76,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
 
   private workflowVersionStreamSubject: Subject<void> = new Subject<void>();
   private currentOperatorId!: string;
+  private breakpointManager: BreakpointManager | undefined;
   public title: string | undefined;
   public formControl!: FormControl;
   public componentRef: ComponentRef<CodeEditorComponent> | undefined;
@@ -71,6 +100,10 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   private userResponseSubject?: Subject<void>;
   private isMultipleVariables: boolean = false;
 
+  public isUpdatingBreakpoints = false;
+  public instance: MonacoBreakpoint | undefined = undefined;
+  public lastBreakLine = 0;
+
   private generateLanguageTitle(language: string): string {
     return `${language.charAt(0).toUpperCase()}${language.slice(1)} UDF`;
   }
@@ -85,7 +118,11 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     private workflowActionService: WorkflowActionService,
     private workflowVersionService: WorkflowVersionService,
     public coeditorPresenceService: CoeditorPresenceService,
-    private aiAssistantService: AIAssistantService
+    private aiAssistantService: AIAssistantService,
+    public executeWorkflowService: ExecuteWorkflowService,
+    public workflowWebsocketService: WorkflowWebsocketService,
+    public udfDebugService: UdfDebugService,
+    private renderer: Renderer2,
   ) {
     this.currentOperatorId = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0];
     const operatorType = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId).operatorType;
@@ -115,6 +152,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     // hacky solution to reset view after view is rendered.
     const style = localStorage.getItem(this.currentOperatorId);
     if (style) this.containerElement.nativeElement.style.cssText = style;
+    this.breakpointManager = this.udfDebugService.getOrCreateManager(this.currentOperatorId);
 
     // start editor
     this.workflowVersionService
@@ -127,6 +165,120 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
           this.initializeMonacoEditor();
         }
       });
+
+    this.workflowWebsocketService
+      .subscribeToEvent("ConsoleUpdateEvent")
+      .pipe(untilDestroyed(this))
+      .subscribe((pythonConsoleUpdateEvent: ConsoleUpdateEvent) => {
+        const operatorId = pythonConsoleUpdateEvent.operatorId;
+        pythonConsoleUpdateEvent.messages
+          .filter(consoleMessage => consoleMessage.msgType.name === "DEBUGGER")
+          .map(
+            consoleMessage => {
+              console.log(consoleMessage);
+              const pattern = /^Breakpoint (\d+).*\.py:(\d+)\s*$/;
+              return consoleMessage.title.match(pattern);
+            },
+          )
+          .filter(isDefined)
+          .forEach(match => {
+            const breakpoint = Number(match[1]);
+            const lineNumber = Number(match[2]);
+            this.breakpointManager?.assignBreakpointId(lineNumber, breakpoint);
+          });
+
+        if (pythonConsoleUpdateEvent.messages.length === 0) {
+          return;
+        }
+        let lastMsg = pythonConsoleUpdateEvent.messages[pythonConsoleUpdateEvent.messages.length - 1];
+        if (lastMsg.title.startsWith("break")) {
+          this.lastBreakLine = Number(lastMsg.title.split(" ")[1]);
+        }
+        if (lastMsg.title.startsWith("*** Blank or comment")) {
+          this.isUpdatingBreakpoints = true;
+          this.instance!["lineNumberAndDecorationIdMap"].forEach((v: string, k: number, m: Map<number, string>) => {
+            if (k === this.lastBreakLine) {
+              console.log("removing " + k);
+              this.breakpointManager?.removeBreakpoint(k);
+              this.instance!["removeSpecifyDecoration"](v, k);
+            }
+          });
+          this.isUpdatingBreakpoints = false;
+        }
+      });
+  }
+
+  private getMouseEventTarget(e: EditorMouseEvent) {
+    return { ...(e.target as EditorMouseTarget) };
+  }
+
+  showTooltip(mouseX: number, mouseY: number, lineNum: number, breakpointManager: BreakpointManager): void {
+    // Create tooltip element
+    const tooltip = this.renderer.createElement("div");
+    this.renderer.addClass(tooltip, "custom-tooltip");
+
+    // Create header element
+    const header = this.renderer.createElement("div");
+    this.renderer.addClass(header, "tooltip-header");
+    this.renderer.setProperty(header, "innerText", `Condition on line ${lineNum}:`);
+
+    // Create textarea element
+    const textarea = this.renderer.createElement("textarea");
+    this.renderer.addClass(textarea, "custom-textarea");
+    let oldCondition = breakpointManager.getCondition(lineNum);
+    this.renderer.setProperty(textarea, "value", oldCondition ?? "");
+
+    // Append header and textarea to tooltip
+    this.renderer.appendChild(tooltip, header);
+    this.renderer.appendChild(tooltip, textarea);
+
+    // Append tooltip to the document body
+    this.renderer.appendChild(document.body, tooltip);
+    textarea.focus();
+    // Function to remove the tooltip
+    const removeTooltip = () => {
+      const inputValue = textarea.value;
+      if (inputValue != oldCondition) {
+        breakpointManager.setCondition(lineNum, inputValue);
+      }
+      if (removeTooltipListener) {
+        removeTooltipListener();
+      }
+      if (removeFocusoutListener) {
+        removeFocusoutListener();
+      }
+      // Add fade-out class
+      this.renderer.addClass(tooltip, "fade-out");
+      // Remove tooltip after the transition ends
+      const transitionEndListener = this.renderer.listen(tooltip, "transitionend", () => {
+        tooltip.remove();
+        transitionEndListener();
+      });
+    };
+
+    // Listen for Enter key press to exit edit mode
+    const removeTooltipListener = this.renderer.listen(textarea, "keydown", (event: KeyboardEvent) => {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        removeTooltip(); // Trigger fade-out and remove the tooltip
+      }
+    });
+
+    // Listen for focusout event to remove the tooltip after 1 second
+    const removeFocusoutListener = this.renderer.listen(textarea, "focusout", () => {
+      setTimeout(removeTooltip, 300);
+    });
+
+    // Calculate tooltip dimensions after appending to the DOM
+    const tooltipRect = tooltip.getBoundingClientRect();
+
+    // Adjust the position to appear at the left side of the mouse
+    const adjustedX = mouseX - tooltipRect.width - 10; // Subtracting width and adding some offset to the left
+    const adjustedY = mouseY - tooltipRect.height / 2;
+
+    // Update tooltip position
+    this.renderer.setStyle(tooltip, "top", `${adjustedY}px`);
+    this.renderer.setStyle(tooltip, "left", `${adjustedX}px`);
   }
 
   ngOnDestroy(): void {
@@ -143,6 +295,24 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
       this.workflowVersionStreamSubject.next();
       this.workflowVersionStreamSubject.complete();
     }
+  }
+
+  private restoreBreakpoints(instance: MonacoBreakpoint, lineNums: string[]) {
+    console.log("trying to restore " + lineNums);
+    this.isUpdatingBreakpoints = true;
+    instance["lineNumberAndDecorationIdMap"].forEach((v: string, k: number, m: Map<number, string>) => {
+      instance["removeSpecifyDecoration"](v, k);
+    });
+    for (let lineNumber of lineNums) {
+      const range: monaco.IRange = {
+        startLineNumber: Number(lineNumber),
+        endLineNumber: Number(lineNumber),
+        startColumn: 0,
+        endColumn: 0,
+      };
+      instance["createSpecifyDecoration"](range);
+    }
+    this.isUpdatingBreakpoints = false;
   }
 
   /**
@@ -219,10 +389,11 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
         switchMap(() => of(this.editorWrapper.getEditor())),
         catchError(() => of(this.editorWrapper.getEditor())),
         filter(isDefined),
-        untilDestroyed(this)
+        untilDestroyed(this),
       )
       .subscribe((editor: IStandaloneCodeEditor) => {
         editor.updateOptions({ readOnly: this.formControl.disabled });
+
         if (!this.code) {
           return;
         }
@@ -233,9 +404,10 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
           this.code,
           editor.getModel()!,
           new Set([editor]),
-          this.workflowActionService.getTexeraGraph().getSharedModelAwareness()
+          this.workflowActionService.getTexeraGraph().getSharedModelAwareness(),
         );
         this.setupAIAssistantActions(editor);
+        this.setupDebuggingActions(editor);
       });
   }
 
@@ -274,6 +446,127 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     };
 
     this.editorWrapper.initAndStart(userConfig, this.editorElement.nativeElement);
+  }
+
+  private onMouseLeftClick(e: EditorMouseEvent, editor:IStandaloneCodeEditor) {
+
+
+      const model = editor.getModel()!;
+      const { type, range, detail, position } = this.getMouseEventTarget(e);
+      if (model && type === MouseTargetType.GUTTER_GLYPH_MARGIN) {
+        // This indicates that the current position of the mouse is over the total number of lines in the editor
+        if (detail.isAfterLines) {
+          return;
+        }
+        const lineNumber = position.lineNumber;
+        this.udfDebugService.addOrRemoveBreakpoint(this.currentOperatorId, lineNumber);
+
+        const decorationId =
+          this.instance!["lineNumberAndDecorationIdMap"].get(lineNumber);
+
+        /**
+         * If a breakpoint exists on the current line,
+         * it indicates that the current action is to remove the breakpoint
+         */
+        if (decorationId) {
+          this.instance!["removeSpecifyDecoration"](decorationId, lineNumber);
+        } else {
+          this.instance!["createSpecifyDecoration"](range);
+        }
+
+
+      }
+  }
+
+  private setupDebuggingActions(editor: IStandaloneCodeEditor) {
+    this.instance = new MonacoBreakpoint({ editor });
+    this.instance["createBreakpointDecoration"] = (
+      range: Range,
+      breakpointEnum: BreakpointEnum,
+    ): { options: editor.IModelDecorationOptions; range: Range } => {
+      let condition = this.breakpointManager?.getCondition(range.startLineNumber);
+      let isConditional = false;
+      if (condition && condition !== "") {
+        isConditional = true;
+      }
+      return {
+        range,
+        options:
+          breakpointEnum === BreakpointEnum.Exist
+            ? (isConditional ? CONDITIONAL_BREAKPOINT_OPTIONS : BREAKPOINT_OPTIONS)
+            : BREAKPOINT_HOVER_OPTIONS,
+      };
+    };
+    this.instance["mouseDownDisposable"]?.dispose();
+
+    this.instance["mouseDownDisposable"] = editor.onMouseDown(    (evt: EditorMouseEvent) => {
+        if (evt.event.rightButton) {
+          return;
+        }
+      this.onMouseLeftClick(evt, editor);
+      }
+    );
+
+    (this.instance).on("breakpointChanged", lineNums => {
+      if (this.isUpdatingBreakpoints) {
+        return;
+      }
+      this.breakpointManager?.setBreakpoints(lineNums.map(n => String(n)));
+      console.log("breakpointChanged: " + lineNums);
+    });
+
+    this.breakpointManager?.getBreakpointHitStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(lineNum => {
+        console.log("highlight " + lineNum);
+        this.instance!.removeHighlight();
+        if (lineNum != 0) {
+          this.instance!.setLineHighlight(lineNum);
+        }
+      });
+    this.breakpointManager?.getLineNumToBreakpointMappingStream().pipe(untilDestroyed(this)).subscribe(
+      mapping => {
+        console.log("trigger" + mapping);
+        this.restoreBreakpoints(this.instance!, Array.from(mapping.keys()));
+      });
+
+    editor.onContextMenu((e: EditorMouseEvent) => {
+      const { type, range, detail, position } = this.getMouseEventTarget(e);
+      if (type === MouseTargetType.GUTTER_GLYPH_MARGIN) {
+
+        // This indicates that the current position of the mouse is over the total number of lines in the editor
+        if (detail.isAfterLines) {
+          return;
+        }
+
+        // Get the layout info of the editor
+        const layoutInfo = editor.getLayoutInfo()!;
+
+        // Get the range start line number
+        const startLineNumber = range.startLineNumber;
+
+        if (!this.instance!["lineNumberAndDecorationIdMap"].has(startLineNumber)) {
+          return;
+        }
+        // Get the top position for the start line number
+        const topForLineNumber = editor.getTopForLineNumber(startLineNumber);
+        // Calculate the middle y position for the line number
+        const lineHeight = editor.getOption(monaco.editor.EditorOption.lineHeight);
+        const middleForLineNumber = topForLineNumber + lineHeight / 2;
+
+        // Get the editor's DOM node and its bounding rect
+        const editorDomNode = editor.getDomNode()!;
+        const editorRect = editorDomNode.getBoundingClientRect();
+
+        // Calculate x and y positions
+        const x = editorRect.left + layoutInfo.glyphMarginLeft - editor.getScrollLeft();
+        const y = editorRect.top + middleForLineNumber - editor.getScrollTop();
+
+        this.showTooltip(x, y, startLineNumber, this.breakpointManager!);
+      }
+    });
+
+
   }
 
   private setupAIAssistantActions(editor: IStandaloneCodeEditor) {
@@ -362,7 +655,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
                       currVariable.startLine,
                       currVariable.startColumn + offset,
                       currVariable.endLine,
-                      currVariable.endColumn + offset
+                      currVariable.endColumn + offset,
                     );
 
                     const highlight = editor.createDecorationsCollection([
@@ -374,7 +667,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
                           className: "annotation-highlight",
                         },
                       },
-                    ]);
+                    ])!;
 
                     this.handleTypeAnnotation(variableCode, variableRange, editor, variableLineNumber, allCode);
 
@@ -404,7 +697,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     range: monaco.Range,
     editor: monaco.editor.IStandaloneCodeEditor,
     lineNumber: number,
-    allCode: string
+    allCode: string,
   ): void {
     this.aiAssistantService
       .getTypeAnnotations(code, lineNumber, allCode)
@@ -448,7 +741,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
         this.currentRange.startLineNumber,
         this.currentRange.startColumn,
         this.currentRange.endLineNumber,
-        this.currentRange.endColumn
+        this.currentRange.endColumn,
       );
 
       this.insertTypeAnnotations(this.editorWrapper.getEditor()!, selection, this.currentSuggestion);
@@ -478,7 +771,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   private insertTypeAnnotations(
     editor: monaco.editor.IStandaloneCodeEditor,
     selection: monaco.Selection,
-    annotations: string
+    annotations: string,
   ) {
     const endLineNumber = selection.endLineNumber;
     const endColumn = selection.endColumn;
@@ -489,5 +782,11 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
 
   onFocus() {
     this.workflowActionService.getJointGraphWrapper().highlightOperators(this.currentOperatorId);
+  }
+
+  onMouseLeave() {
+    if (this.instance) {
+      this.instance!["removeHoverDecoration"]();
+    }
   }
 }

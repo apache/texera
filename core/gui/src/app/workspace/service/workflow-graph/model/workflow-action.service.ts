@@ -65,7 +65,7 @@ export const DEFAULT_SETTINGS = {
   providedIn: "root",
 })
 export class WorkflowActionService {
-  private readonly texeraGraph: WorkflowGraph;
+  public readonly texeraGraph: WorkflowGraph;
   private readonly jointGraph: joint.dia.Graph;
   private readonly jointGraphWrapper: JointGraphWrapper;
   private readonly syncTexeraModel: SyncTexeraModel;

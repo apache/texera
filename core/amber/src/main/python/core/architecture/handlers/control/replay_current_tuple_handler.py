@@ -20,5 +20,6 @@ class ReplayCurrentTupleHandler(ControlHandler):
                 [context.tuple_processing_manager.current_input_tuple],
                 context.tuple_processing_manager.current_input_tuple_iter,
             )
+            context.pause_manager.resume(PauseType.USER_PAUSE)
             context.pause_manager.resume(PauseType.EXCEPTION_PAUSE)
         return None

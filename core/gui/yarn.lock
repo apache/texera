@@ -9383,6 +9383,11 @@ mobx@~4.14.1:
   resolved "https://registry.yarnpkg.com/mobx/-/mobx-4.14.1.tgz#0dc5622523363f6f5b467a5a0c4c99846b789748"
   integrity sha512-Oyg7Sr7r78b+QPYLufJyUmxTWcqeQ96S1nmtyur3QL8SeI6e0TqcKKcxbG+sVJLWANhHQkBW/mDmgG5DDC4fdw==
 
+monaco-breakpoints@0.1.2:
+  version "0.1.2"
+  resolved "https://registry.yarnpkg.com/monaco-breakpoints/-/monaco-breakpoints-0.1.2.tgz#a612e1ffbd2fbe25dc57c489c2f5dfe8221fde18"
+  integrity sha512-9h7CNP2g2omh7LkhH9BWSudZt5W1Ahv47XmKsuginkQQUnmtbdDE6Iehe7AFRD3B3nC9c1nWW9YW775LgoPOUQ==
+
 monaco-editor-wrapper@5.5.3:
   version "5.5.3"
   resolved "https://registry.yarnpkg.com/monaco-editor-wrapper/-/monaco-editor-wrapper-5.5.3.tgz#32030c4af292e086f318bae58033369c0721a0eb"
