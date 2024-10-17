@@ -13,7 +13,7 @@ import edu.uci.ics.texera.workflow.common.operators.StateTransferFunc
   *
   * possible sender: controller(by ControllerInitiateMonitoring)
   */
-trait UpdateExecutorHandler {
+trait ModifyLogicHandler {
   this: DataProcessorRPCHandlerInitializer =>
 
   override def modifyLogic(msg: ModifyLogicRequest, ctx: AsyncRPCContext): Future[EmptyReturn] = {

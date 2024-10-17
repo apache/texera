@@ -161,9 +161,9 @@ class DataProcessor(
             s"input tuple count = ${statisticsManager.getInputTupleCount}, " +
             s"output tuple count = ${statisticsManager.getOutputTupleCount}"
         )
-        asyncRPCClient.controllerProxy.workerExecutionCompleted(EmptyRequest(), asyncRPCClient.mkContext(CONTROLLER))
+        asyncRPCClient.controllerInterface.workerExecutionCompleted(EmptyRequest(), asyncRPCClient.mkContext(CONTROLLER))
       case FinalizePort(portId, input) =>
-        asyncRPCClient.controllerProxy.portCompleted(PortCompletedRequest(portId, input), asyncRPCClient.mkContext(CONTROLLER))
+        asyncRPCClient.controllerInterface.portCompleted(PortCompletedRequest(portId, input), asyncRPCClient.mkContext(CONTROLLER))
       case schemaEnforceable: SchemaEnforceable =>
         if (outputPortOpt.isEmpty) {
           statisticsManager.increaseOutputTupleCount(outputManager.getSingleOutputPortIdentity)
@@ -198,7 +198,7 @@ class DataProcessor(
           READY,
           RUNNING,
           () => {
-            asyncRPCClient.controllerProxy.workerStateUpdated(
+            asyncRPCClient.controllerInterface.workerStateUpdated(
               WorkerStateUpdatedRequest(stateManager.getCurrentState),
               asyncRPCClient.mkContext(CONTROLLER)
             )
@@ -269,7 +269,7 @@ class DataProcessor(
   }
 
   private[this] def handleExecutorException(e: Throwable): Unit = {
-    asyncRPCClient.controllerProxy.consoleMessageTriggered(
+    asyncRPCClient.controllerInterface.consoleMessageTriggered(
       ConsoleMessageTriggeredRequest(mkConsoleMessage(actorId, e)),
       asyncRPCClient.mkContext(CONTROLLER)
     )

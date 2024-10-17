@@ -3,29 +3,16 @@ package edu.uci.ics.amber.engine.common.client
 import akka.actor.{Actor, ActorRef}
 import akka.pattern.StatusReply.Ack
 import com.twitter.util.Promise
-import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.{
-  CreditRequest,
-  CreditResponse,
-  NetworkAck,
-  NetworkMessage
-}
-import edu.uci.ics.amber.engine.architecture.controller.Controller.WorkflowRecoveryStatus
-import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerConfig}
+import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.{CreditRequest, CreditResponse, NetworkAck, NetworkMessage}
+import edu.uci.ics.amber.engine.architecture.controller.{ClientEvent, Controller, ControllerConfig, WorkflowRecoveryStatus}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, ControlInvocation, ControlRequest}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{ControlError, ControlReturn, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.AmberLogging
-import edu.uci.ics.amber.engine.common.ambermessage.{
-  ControlPayload,
-  DataPayload,
-  WorkflowFIFOMessage,
-  WorkflowRecoveryMessage
-}
-import edu.uci.ics.amber.engine.common.client.ClientActor.{
-  ClosureRequest,
-  CommandRequest,
-  InitializeRequest,
-  ObservableRequest
-}
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
+import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, DataPayload, WorkflowFIFOMessage, WorkflowRecoveryMessage}
+import edu.uci.ics.amber.engine.common.client.ClientActor.{ClosureRequest, CommandRequest, InitializeRequest, ObservableRequest}
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
+import edu.uci.ics.amber.engine.common.virtualidentity.util.{CLIENT, CONTROLLER}
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
@@ -43,23 +30,23 @@ private[client] object ClientActor {
   )
   case class ObservableRequest(pf: PartialFunction[Any, Unit])
   case class ClosureRequest[T](closure: () => T)
-  case class CommandRequest(command: ControlCommand[_], promise: Promise[Any])
+  case class CommandRequest(methodName:String, command: ControlRequest, promise: Promise[ControlReturn])
 }
 
 private[client] class ClientActor extends Actor with AmberLogging {
   var actorId: ActorVirtualIdentity = ActorVirtualIdentity("Client")
   var controller: ActorRef = _
   var controlId = 0L
-  val promiseMap = new mutable.LongMap[Promise[Any]]()
+  val promiseMap = new mutable.LongMap[Promise[ControlReturn]]()
   var handlers: PartialFunction[Any, Unit] = PartialFunction.empty
 
   private def getQueuedCredit(channelId: ChannelIdentity): Long = {
     0L // client does not have queued credits
   }
 
-  private def handleControl(control: Any): Unit = {
-    if (handlers.isDefinedAt(control)) {
-      handlers(control)
+  private def handleClientEvent(evt: ClientEvent): Unit = {
+    if (handlers.isDefinedAt(evt)) {
+      handlers(evt)
     }
   }
 
@@ -80,12 +67,14 @@ private[client] class ClientActor extends Actor with AmberLogging {
           sender() ! e
       }
     case commandRequest: CommandRequest =>
-      controller ! ControlInvocation(controlId, commandRequest.command)
+      controller ! AsyncRPCClient.ControlInvocation(commandRequest.methodName, commandRequest.command, AsyncRPCContext(CLIENT, CONTROLLER), controlId)
       promiseMap(controlId) = commandRequest.promise
       controlId += 1
     case req: ObservableRequest =>
       handlers = req.pf orElse handlers
       sender() ! scala.runtime.BoxedUnit.UNIT
+    case event: ClientEvent =>
+      handleClientEvent(event)
     case NetworkMessage(
           mId,
           fifoMsg @ WorkflowFIFOMessage(_, _, payload)
@@ -94,13 +83,11 @@ private[client] class ClientActor extends Actor with AmberLogging {
       payload match {
         case payload: ControlPayload =>
           payload match {
-            case ControlInvocation(_, command) => handleControl(command)
             case ReturnInvocation(originalCommandID, controlReturn) =>
-              handleControl(controlReturn)
               if (promiseMap.contains(originalCommandID)) {
                 controlReturn match {
-                  case t: Throwable =>
-                    promiseMap(originalCommandID).setException(t)
+                  case t: ControlError =>
+                    promiseMap(originalCommandID).setException(new RuntimeException(t.errorMessage))
                   case other =>
                     promiseMap(originalCommandID).setValue(other)
                 }
@@ -114,8 +101,6 @@ private[client] class ClientActor extends Actor with AmberLogging {
     case x: WorkflowRecoveryMessage =>
       sender() ! Ack
       controller ! x
-    case x: WorkflowRecoveryStatus =>
-      handleControl(x)
     case other =>
       logger.warn("client actor cannot handle " + other) //skip
   }

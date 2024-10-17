@@ -1,8 +1,8 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
 import com.twitter.util.Future
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AddInputChannelRequest, AddPartitioningRequest, AssignPortRequest, AsyncRPCContext, FinalizeCheckpointRequest, InitializeExecutorRequest, UpdateExecutorRequest}
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{ FinalizeCheckpointResponse, WorkerMetricsResponse, WorkerStateResponse}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AddInputChannelRequest, AddPartitioningRequest, AssignPortRequest, AsyncRPCContext, DebugCommandRequest, EvaluatePythonExpressionRequest, FinalizeCheckpointRequest, InitializeExecutorRequest, UpdateExecutorRequest}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{EmptyReturn, EvaluatedValue, FinalizeCheckpointResponse, WorkerMetricsResponse, WorkerStateResponse}
 import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceFs2Grpc
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers._
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCHandlerInitializer
@@ -22,11 +22,14 @@ class DataProcessorRPCHandlerInitializer(val dp: DataProcessor)
     with StartHandler
     with AssignPortHandler
     with AddInputChannelHandler
-    with ShutdownDPThreadHandler
     with FlushNetworkBufferHandler
-    with UpdateExecutorHandler
+    with ModifyLogicHandler
     with RetrieveStateHandler
     with PrepareCheckpointHandler
     with FinalizeCheckpointHandler {
   val actorId: ActorVirtualIdentity = dp.actorId
+
+  override def debugCommand(request: DebugCommandRequest, ctx: AsyncRPCContext): Future[EmptyReturn] = ???
+
+  override def evaluatePythonExpression(request: EvaluatePythonExpressionRequest, ctx: AsyncRPCContext): Future[EvaluatedValue] = ???
 }

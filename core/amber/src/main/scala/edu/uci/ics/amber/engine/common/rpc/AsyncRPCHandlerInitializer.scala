@@ -23,8 +23,8 @@ class AsyncRPCHandlerInitializer(
   // register all handlers
   ctrlReceiver.handler = this
 
-  def controllerInterface: ControllerServiceFs2Grpc[Future, AsyncRPCContext] = ctrlSource.controllerProxy
-  def workerInterface: WorkerServiceFs2Grpc[Future, AsyncRPCContext] = ctrlSource.workerProxy
+  def controllerInterface: ControllerServiceFs2Grpc[Future, AsyncRPCContext] = ctrlSource.controllerInterface
+  def workerInterface: WorkerServiceFs2Grpc[Future, AsyncRPCContext] = ctrlSource.workerInterface
   def mkContext(to:ActorVirtualIdentity): AsyncRPCContext = ctrlSource.mkContext(to)
 
   def sendChannelMarker(
@@ -41,7 +41,7 @@ class AsyncRPCHandlerInitializer(
     ctrlSource.sendToClient(clientEvent)
   }
 
-  def createInvocation(methodName: String, payload: Any, to: ActorVirtualIdentity): (ControlInvocation, Future[Any]) =
-    ctrlSource.createInvocation(methodName, (payload, ctrlSource.mkContext(to)))
+  def createInvocation(methodName: String, payload: ControlRequest, to: ActorVirtualIdentity): (ControlInvocation, Future[ControlReturn]) =
+    ctrlSource.createInvocation(methodName, payload, ctrlSource.mkContext(to))
 
 }

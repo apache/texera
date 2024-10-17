@@ -4,36 +4,20 @@ import akka.actor.{ActorSystem, Props}
 import akka.serialization.SerializationExtension
 import com.twitter.util.{Await, Duration}
 import edu.uci.ics.amber.clustering.SingleNodeListener
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.ExecutionStateUpdate
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
-import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ControllerProcessor}
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.TakeGlobalCheckpointHandler.TakeGlobalCheckpoint
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
-  OpExecInitInfoWithCode,
-  OpExecInitInfoWithFunc
-}
+import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ControllerProcessor, ExecutionStateUpdate}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecInitInfoWithCode, OpExecInitInfoWithFunc}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{EmptyRequest, TakeGlobalCheckpointRequest}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{COMPLETED, PAUSED}
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.StateRestoreConfig
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessor
-import edu.uci.ics.amber.engine.common.{
-  AmberRuntime,
-  CheckpointState,
-  CheckpointSupport,
-  SourceOperatorExecutor
-}
+import edu.uci.ics.amber.engine.common.{AmberRuntime, CheckpointState, CheckpointSupport, SourceOperatorExecutor}
 import edu.uci.ics.amber.engine.common.SerializedState.{CP_STATE_KEY, DP_STATE_KEY}
 import edu.uci.ics.amber.engine.common.client.AmberClient
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ChannelMarkerIdentity,
-  ExecutionIdentity,
-  WorkflowIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ChannelMarkerIdentity, ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.amber.engine.e2e.TestOperators
 import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{COMPLETED, PAUSED}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
@@ -128,13 +112,13 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
       ControllerConfig.default,
       error => {}
     )
-    Await.result(client1.sendAsync(StartWorkflow()))
+    Await.result(client1.controllerInterface.startWorkflow(EmptyRequest(), ()))
     Thread.sleep(100)
-    Await.result(client1.sendAsync(PauseWorkflow()))
+    Await.result(client1.controllerInterface.pauseWorkflow(EmptyRequest(), ()))
     val checkpointId = ChannelMarkerIdentity(s"Checkpoint_test_1")
     val uri = new URI("ram:///recovery-logs/tmp/")
     Await.result(
-      client1.sendAsync(TakeGlobalCheckpoint(estimationOnly = false, checkpointId, uri)),
+      client1.controllerInterface.takeGlobalCheckpoint(TakeGlobalCheckpointRequest(estimationOnly = false, checkpointId, uri.toString), ()),
       Duration.fromSeconds(30)
     )
     client1.shutdown()
@@ -157,8 +141,8 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
       }
     }
     Thread.sleep(100)
-    assert(Await.result(client2.sendAsync(StartWorkflow())) == PAUSED)
-    Await.result(client2.sendAsync(ResumeWorkflow()))
+    assert(Await.result(client2.controllerInterface.startWorkflow(EmptyRequest(), ())).workflowState == PAUSED)
+    Await.result(client2.controllerInterface.resumeWorkflow(EmptyRequest(), ()))
     completableFuture.get(30000, TimeUnit.MILLISECONDS)
   }
 

@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.web.model.websocket.event
 
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.ReportCurrentProcessingTuple
+import edu.uci.ics.amber.engine.architecture.controller.ReportCurrentProcessingTuple
 import edu.uci.ics.texera.web.model.websocket.event.OperatorCurrentTuplesUpdateEvent.WorkerTuples
 
 object OperatorCurrentTuplesUpdateEvent {

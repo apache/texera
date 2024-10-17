@@ -6,7 +6,6 @@ import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkAck
 import edu.uci.ics.amber.engine.architecture.controller.execution.OperatorExecution
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{FaultToleranceConfig, StateRestoreConfig}
-import edu.uci.ics.amber.engine.architecture.controller.Controller.{ReplayStatusUpdate, WorkflowRecoveryStatus}
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{ChannelMarkerPayload, ControlInvocation}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowFIFOMessage}
@@ -50,9 +49,6 @@ object Controller {
         controllerConfig
       )
     )
-
-  final case class ReplayStatusUpdate(id: ActorVirtualIdentity, status: Boolean)
-  final case class WorkflowRecoveryStatus(isRecovering: Boolean)
 }
 
 class Controller(

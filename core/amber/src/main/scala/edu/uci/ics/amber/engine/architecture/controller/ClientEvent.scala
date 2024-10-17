@@ -22,3 +22,7 @@ case class WorkerAssignmentUpdate(workerMapping: Map[String, Seq[String]]) exten
 final case class FatalError(e: Throwable, fromActor: Option[ActorVirtualIdentity] = None) extends ClientEvent
 
 case class UpdateExecutorCompleted(id:ActorVirtualIdentity) extends ClientEvent
+
+final case class ReplayStatusUpdate(id: ActorVirtualIdentity, status: Boolean) extends ClientEvent
+
+final case class WorkflowRecoveryStatus(isRecovering: Boolean) extends ClientEvent

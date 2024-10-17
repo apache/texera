@@ -44,7 +44,7 @@ class AsyncRPCServer(
     methodCache.get(key) match {
       case Some(method) =>
         // Exact match found
-        invokeMethod(method, requestArg, contextArg, id)
+        invokeMethod(method, requestArg, contextArg, id, senderID)
       case None =>
         // Attempt to find a compatible method
         methodsByName.get(methodName) match {

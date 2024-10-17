@@ -18,6 +18,7 @@ class ControllerAsyncRPCHandlerInitializer(
     with WorkerExecutionCompletedHandler
     with WorkerStateUpdatedHandler
     with PauseHandler
+    with ReconfigureHandler
     with QueryWorkerStatisticsHandler
     with ResumeHandler
     with StartWorkflowHandler

@@ -2,6 +2,7 @@ package edu.uci.ics.texera.web.service
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{COMPLETED, FAILED, READY}
 import edu.uci.ics.amber.engine.common.client.AmberClient
@@ -97,12 +98,11 @@ class WorkflowExecutionService(
     executionStateStore.statsStore.updateState(stats =>
       stats.withStartTimeStamp(System.currentTimeMillis())
     )
-    client.sendAsyncWithCallback[WorkflowAggregatedState](
-      StartWorkflowRequest(),
-      state =>
+    client.controllerInterface.startWorkflow(EmptyRequest(), ()).onSuccess(
+      resp =>
         executionStateStore.metadataStore.updateState(metadataStore =>
           if (metadataStore.state != FAILED) {
-            updateWorkflowState(state, metadataStore)
+            updateWorkflowState(resp.workflowState, metadataStore)
           } else {
             metadataStore
           }

@@ -117,7 +117,7 @@ class RegionExecutionCoordinator(
             workerConfigs.map(_.workerId).map { workerId =>
               val bytes = AmberRuntime.serde.serialize(physicalOp.opExecInitInfo).get
               asyncRPCClient
-                .workerProxy.initializeExecutor(
+                .workerInterface.initializeExecutor(
                   InitializeExecutorRequest(
                     workerConfigs.length,
                     Any.of("edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo", ByteString.copyFrom(bytes)),
@@ -154,7 +154,7 @@ class RegionExecutionCoordinator(
             resourceConfig.operatorConfigs(globalPortId.opId).workerConfigs.map(_.workerId).map {
               workerId =>
                 asyncRPCClient
-                  .workerProxy.assignPort(AssignPortRequest(globalPortId.portId, globalPortId.input, schema.toRawSchema), asyncRPCClient.mkContext(workerId))
+                  .workerInterface.assignPort(AssignPortRequest(globalPortId.portId, globalPortId.input, schema.toRawSchema), asyncRPCClient.mkContext(workerId))
             }
         }
         .toSeq
@@ -163,7 +163,7 @@ class RegionExecutionCoordinator(
 
   private def connectChannels(links: Set[PhysicalLink]): Future[Seq[EmptyReturn]] = {
     Future.collect(
-      links.map { link: PhysicalLink => asyncRPCClient.controllerProxy.linkWorkers(LinkWorkersRequest(link), asyncRPCClient.mkContext(CONTROLLER)) }.toSeq
+      links.map { link: PhysicalLink => asyncRPCClient.controllerInterface.linkWorkers(LinkWorkersRequest(link), asyncRPCClient.mkContext(CONTROLLER)) }.toSeq
     )
   }
 
@@ -176,7 +176,7 @@ class RegionExecutionCoordinator(
             workflowExecution.getRegionExecution(region.id).getOperatorExecution(opId).getWorkerIds
           )
           .map { workerId =>
-            asyncRPCClient.workerProxy.openExecutor(EmptyRequest(), asyncRPCClient.mkContext(workerId))
+            asyncRPCClient.workerInterface.openExecutor(EmptyRequest(), asyncRPCClient.mkContext(workerId))
           }
           .toSeq
       )
@@ -198,7 +198,7 @@ class RegionExecutionCoordinator(
             .getWorkerIds
             .map { workerId =>
               asyncRPCClient
-                .workerProxy.startWorker(EmptyRequest(), asyncRPCClient.mkContext(workerId))
+                .workerInterface.startWorker(EmptyRequest(), asyncRPCClient.mkContext(workerId))
                 .map(resp =>
                   // update worker state
                   workflowExecution

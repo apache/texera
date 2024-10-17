@@ -4,14 +4,14 @@ import com.twitter.util.{Future, Promise}
 import edu.uci.ics.amber.engine.architecture.controller.ClientEvent
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputGateway
 import edu.uci.ics.amber.engine.common.AmberLogging
-import edu.uci.ics.amber.engine.common.ambermessage.{ChannelMarkerPayload, ChannelMarkerType, ControlPayload}
+import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity, ChannelMarkerIdentity}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CLIENT
 import io.grpc.MethodDescriptor
 import com.google.protobuf.any.{Any => ProtoAny}
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, ChannelMarkerPayload, ChannelMarkerType, ControlInvocation, ControlRequest}
 import edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerServiceFs2Grpc
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{ControlError, ReturnInvocation}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{ControlError, ControlReturn, ReturnInvocation}
 import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceFs2Grpc
 import scalapb.GeneratedMessage
 
@@ -59,25 +59,25 @@ class AsyncRPCClient(
     val actorId: ActorVirtualIdentity
 ) extends AmberLogging {
 
-  private val unfulfilledPromises = mutable.HashMap[Long, Promise[Any]]()
+  private val unfulfilledPromises = mutable.HashMap[Long, Promise[ControlReturn]]()
   private var promiseID = 0L
-  val controllerProxy: ControllerServiceFs2Grpc[Future, AsyncRPCContext] = createProxy()
-  val workerProxy: WorkerServiceFs2Grpc[Future, AsyncRPCContext] = createProxy()
+  val controllerInterface: ControllerServiceFs2Grpc[Future, AsyncRPCContext] = createProxy()
+  val workerInterface: WorkerServiceFs2Grpc[Future, AsyncRPCContext] = createProxy()
 
   def mkContext(to: ActorVirtualIdentity): AsyncRPCContext = AsyncRPCContext(actorId, to)
 
-  private def createPromise(): (Promise[Any], Long) = {
+  private def createPromise(): (Promise[ControlReturn], Long) = {
     promiseID += 1
-    val promise = new Promise[Any]()
+    val promise = new Promise[ControlReturn]()
     unfulfilledPromises(promiseID) = promise
     (promise, promiseID)
   }
 
-  def createInvocation(methodName: String, message:ControlRequest, context:AsyncRPCContext):(ControlInvocation, Future[Any]) = {
+  def createInvocation(methodName: String, message:ControlRequest, context:AsyncRPCContext):(ControlInvocation, Future[ControlReturn]) = {
     val (p, pid) = createPromise()
     (ControlInvocation(methodName, message, context, pid), p)
   }
-  private def createProxy[T]()(implicit ct: ClassTag[T]): T = {
+  protected def createProxy[T]()(implicit ct: ClassTag[T]): T = {
     val handler = new InvocationHandler {
 
       override def invoke(proxy: Any, method: Method, args: Array[AnyRef]): AnyRef = {
