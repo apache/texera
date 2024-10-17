@@ -252,12 +252,12 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
           $type: "extended",
           codeResources: {
             main: {
-              text: latestVersionCode,
-              uri: `in-memory-${this.currentOperatorId}.${fileSuffix}`,
-            },
-            original: {
               text: oldVersionCode,
               uri: `in-memory-${this.currentOperatorId}-version.${fileSuffix}`,
+            },
+            original: {
+              text: latestVersionCode,
+              uri: `in-memory-${this.currentOperatorId}.${fileSuffix}`,
             },
           },
           useDiffEditor: true,
