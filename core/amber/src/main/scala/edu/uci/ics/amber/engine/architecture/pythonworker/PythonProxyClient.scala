@@ -1,13 +1,25 @@
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import com.twitter.util.{Await, Promise}
-import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{ActorCommandElement, ControlElement, ControlElementV2, DataElement}
+import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{
+  ActorCommandElement,
+  ControlElement,
+  DataElement
+}
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlInvocation
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ReturnInvocation
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.actormessage.{ActorCommand, PythonActorMessage}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, ControlPayloadV2, DataFrame, DataPayload, MarkerFrame, PythonControlMessage, PythonDataHeader}
+import edu.uci.ics.amber.engine.common.ambermessage.{
+  ControlPayload,
+  ControlPayloadV2,
+  DataFrame,
+  DataPayload,
+  MarkerFrame,
+  PythonControlMessage,
+  PythonDataHeader
+}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.workflow.common.State
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
@@ -108,9 +120,9 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
   ): Result = {
     var payloadV2 = ControlPayloadV2.defaultInstance
     payloadV2 = payload match {
-      case c:ControlInvocation =>
+      case c: ControlInvocation =>
         payloadV2.withControlInvocation(c)
-      case r:ReturnInvocation =>
+      case r: ReturnInvocation =>
         payloadV2.withReturnInvocation(r)
       case _ => ???
     }

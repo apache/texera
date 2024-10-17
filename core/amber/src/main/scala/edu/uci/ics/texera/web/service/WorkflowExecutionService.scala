@@ -3,11 +3,18 @@ package edu.uci.ics.texera.web.service
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{COMPLETED, FAILED, READY}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
+  COMPLETED,
+  FAILED,
+  READY
+}
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.texera.Utils
-import edu.uci.ics.texera.web.model.websocket.event.{TexeraWebSocketEvent, WorkflowErrorEvent, WorkflowStateEvent}
+import edu.uci.ics.texera.web.model.websocket.event.{
+  TexeraWebSocketEvent,
+  WorkflowErrorEvent,
+  WorkflowStateEvent
+}
 import edu.uci.ics.texera.web.model.websocket.request.WorkflowExecuteRequest
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
@@ -98,8 +105,9 @@ class WorkflowExecutionService(
     executionStateStore.statsStore.updateState(stats =>
       stats.withStartTimeStamp(System.currentTimeMillis())
     )
-    client.controllerInterface.startWorkflow(EmptyRequest(), ()).onSuccess(
-      resp =>
+    client.controllerInterface
+      .startWorkflow(EmptyRequest(), ())
+      .onSuccess(resp =>
         executionStateStore.metadataStore.updateState(metadataStore =>
           if (metadataStore.state != FAILED) {
             updateWorkflowState(resp.workflowState, metadataStore)
@@ -107,7 +115,7 @@ class WorkflowExecutionService(
             metadataStore
           }
         )
-    )
+      )
   }
 
   override def unsubscribeAll(): Unit = {

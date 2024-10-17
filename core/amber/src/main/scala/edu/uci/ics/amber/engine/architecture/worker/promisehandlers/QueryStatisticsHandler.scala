@@ -9,7 +9,10 @@ import edu.uci.ics.amber.engine.architecture.worker.DataProcessorRPCHandlerIniti
 trait QueryStatisticsHandler {
   this: DataProcessorRPCHandlerInitializer =>
 
-  override def queryStatistics(request: EmptyRequest, ctx: AsyncRPCContext): Future[WorkerMetricsResponse] = {
+  override def queryStatistics(
+      request: EmptyRequest,
+      ctx: AsyncRPCContext
+  ): Future[WorkerMetricsResponse] = {
     WorkerMetricsResponse(WorkerMetrics(dp.stateManager.getCurrentState, dp.collectStatistics()))
   }
 

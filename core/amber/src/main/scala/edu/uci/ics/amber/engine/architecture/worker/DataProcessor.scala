@@ -3,17 +3,37 @@ package edu.uci.ics.amber.engine.architecture.worker
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.common.AmberProcessor
 import edu.uci.ics.amber.engine.architecture.logreplay.ReplayLogManager
-import edu.uci.ics.amber.engine.architecture.messaginglayer.{InputManager, OutputManager, WorkerTimerService}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.{
+  InputManager,
+  OutputManager,
+  WorkerTimerService
+}
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType.REQUIRE_ALIGNMENT
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{ChannelMarkerPayload, ConsoleMessageTriggeredRequest, EmptyRequest, PortCompletedRequest, WorkerStateUpdatedRequest}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
+  ChannelMarkerPayload,
+  ConsoleMessageTriggeredRequest,
+  EmptyRequest,
+  PortCompletedRequest,
+  WorkerStateUpdatedRequest
+}
+import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import edu.uci.ics.amber.engine.architecture.worker.managers.SerializationManager
-import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{COMPLETED, READY, RUNNING}
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
+  COMPLETED,
+  READY,
+  RUNNING
+}
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
 import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
-import edu.uci.ics.amber.engine.common.tuple.amber.{FinalizeExecutor, FinalizePort, SchemaEnforceable, TupleLike}
-import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
+import edu.uci.ics.amber.engine.common.tuple.amber.{
+  FinalizeExecutor,
+  FinalizePort,
+  SchemaEnforceable,
+  TupleLike
+}
+import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.amber.error.ErrorUtils.{mkConsoleMessage, safely}
@@ -24,7 +44,7 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 class DataProcessor(
     actorId: ActorVirtualIdentity,
     outputHandler: Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit
-) extends AmberProcessor(actorId, outputHandler)
+) extends AmberProcessor(actorId, outputHandler, WorkerServiceGrpc.SERVICE)
     with Serializable {
 
   @transient var executor: OperatorExecutor = _
@@ -161,9 +181,15 @@ class DataProcessor(
             s"input tuple count = ${statisticsManager.getInputTupleCount}, " +
             s"output tuple count = ${statisticsManager.getOutputTupleCount}"
         )
-        asyncRPCClient.controllerInterface.workerExecutionCompleted(EmptyRequest(), asyncRPCClient.mkContext(CONTROLLER))
+        asyncRPCClient.controllerInterface.workerExecutionCompleted(
+          EmptyRequest(),
+          asyncRPCClient.mkContext(CONTROLLER)
+        )
       case FinalizePort(portId, input) =>
-        asyncRPCClient.controllerInterface.portCompleted(PortCompletedRequest(portId, input), asyncRPCClient.mkContext(CONTROLLER))
+        asyncRPCClient.controllerInterface.portCompleted(
+          PortCompletedRequest(portId, input),
+          asyncRPCClient.mkContext(CONTROLLER)
+        )
       case schemaEnforceable: SchemaEnforceable =>
         if (outputPortOpt.isEmpty) {
           statisticsManager.increaseOutputTupleCount(outputManager.getSingleOutputPortIdentity)

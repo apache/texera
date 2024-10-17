@@ -1,16 +1,20 @@
 package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
-import edu.uci.ics.amber.engine.architecture.controller.{ControllerAsyncRPCHandlerInitializer, FatalError}
+import edu.uci.ics.amber.engine.architecture.controller.{
+  ControllerAsyncRPCHandlerInitializer,
+  FatalError
+}
 import edu.uci.ics.amber.engine.architecture.scheduling.GlobalPortIdentity
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, EmptyRequest, PortCompletedRequest, QueryStatisticsRequest}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
+  AsyncRPCContext,
+  PortCompletedRequest,
+  QueryStatisticsRequest
+}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
-import edu.uci.ics.amber.engine.common.workflow.PortIdentity
-
-import scala.collection.Seq
 
 /** Notify the completion of a port:
   * - For input port, it means the worker has finished consuming and processing all the data
@@ -22,8 +26,12 @@ import scala.collection.Seq
 trait PortCompletedHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
-  override def portCompleted(msg: PortCompletedRequest, ctx: AsyncRPCContext): Future[EmptyReturn] = {
-      controllerInterface.controllerInitiateQueryStatistics(QueryStatisticsRequest(scala.Seq(ctx.sender)), CONTROLLER)
+  override def portCompleted(
+      msg: PortCompletedRequest,
+      ctx: AsyncRPCContext
+  ): Future[EmptyReturn] = {
+    controllerInterface
+      .controllerInitiateQueryStatistics(QueryStatisticsRequest(scala.Seq(ctx.sender)), CONTROLLER)
       .map { _ =>
         val globalPortId = GlobalPortIdentity(
           VirtualIdentityUtils.getPhysicalOpId(ctx.sender),
@@ -39,7 +47,7 @@ trait PortCompletedHandler {
 
             // set the port on this worker to be completed
             (if (msg.input) workerExecution.getInputPortExecution(msg.portId)
-            else workerExecution.getOutputPortExecution(msg.portId)).setCompleted()
+             else workerExecution.getOutputPortExecution(msg.portId)).setCompleted()
 
             // check if the port on this operator is completed
             val isPortCompleted =

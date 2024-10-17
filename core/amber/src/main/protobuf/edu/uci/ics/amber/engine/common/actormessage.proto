@@ -18,15 +18,10 @@ message Backpressure {
 message CreditUpdate {
 }
 
-message ShutdownDPThread{
-
-}
-
 message ActorCommand {
   oneof sealed_value {
       Backpressure backpressure = 1;
       CreditUpdate creditUpdate = 2;
-      ShutdownDPThread shutdownDPThread = 3;
   }
 }
 

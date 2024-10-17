@@ -16,7 +16,10 @@ import edu.uci.ics.texera.workflow.common.{EndOfInputChannel, StartOfInputChanne
 trait StartHandler {
   this: DataProcessorRPCHandlerInitializer =>
 
-  override def startWorker(request: EmptyRequest, ctx: AsyncRPCContext): Future[WorkerStateResponse] = {
+  override def startWorker(
+      request: EmptyRequest,
+      ctx: AsyncRPCContext
+  ): Future[WorkerStateResponse] = {
     logger.info("Starting the worker.")
     if (dp.executor.isInstanceOf[SourceOperatorExecutor]) {
       dp.stateManager.assertState(READY)

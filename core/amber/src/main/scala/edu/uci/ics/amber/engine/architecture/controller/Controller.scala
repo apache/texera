@@ -5,11 +5,17 @@ import akka.actor.{AllForOneStrategy, Props, SupervisorStrategy}
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkAck
 import edu.uci.ics.amber.engine.architecture.controller.execution.OperatorExecution
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{FaultToleranceConfig, StateRestoreConfig}
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{ChannelMarkerPayload, ControlInvocation}
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
+  FaultToleranceConfig,
+  StateRestoreConfig
+}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
+  ChannelMarkerPayload,
+  ControlInvocation
+}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowFIFOMessage}
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity
 import edu.uci.ics.amber.engine.common.{AmberConfig, CheckpointState, SerializedState}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CLIENT, CONTROLLER, SELF}
 import edu.uci.ics.texera.workflow.common.WorkflowContext

@@ -4,7 +4,7 @@ import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.control.utils.TrivialControlTester.ControlTesterRPCClient
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.AsyncRPCContext
 import edu.uci.ics.amber.engine.architecture.rpc.testerservice.RPCTesterFs2Grpc
-import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCHandlerInitializer, AsyncRPCServer}
+import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCHandlerInitializer, AsyncRPCServer}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 class TesterAsyncRPCHandlerInitializer(
@@ -12,7 +12,7 @@ class TesterAsyncRPCHandlerInitializer(
     source: ControlTesterRPCClient,
     receiver: AsyncRPCServer
 ) extends AsyncRPCHandlerInitializer(source, receiver)
-  with RPCTesterFs2Grpc[Future, AsyncRPCContext]
+    with RPCTesterFs2Grpc[Future, AsyncRPCContext]
     with PingPongHandler
     with ChainHandler
     with MultiCallHandler

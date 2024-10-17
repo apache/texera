@@ -79,7 +79,7 @@ class DataProcessingSpec
           completion.setDone()
         }
       })
-    Await.result(client.controllerInterface.startWorkflow(EmptyRequest(),()))
+    Await.result(client.controllerInterface.startWorkflow(EmptyRequest(), ()))
     Await.result(completion, Duration.fromMinutes(1))
     results
   }

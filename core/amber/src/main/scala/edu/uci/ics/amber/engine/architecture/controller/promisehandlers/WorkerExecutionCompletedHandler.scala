@@ -1,11 +1,17 @@
 package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
-import edu.uci.ics.amber.engine.architecture.controller.{ControllerAsyncRPCHandlerInitializer, ExecutionStateUpdate}
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, EmptyRequest, QueryStatisticsRequest}
+import edu.uci.ics.amber.engine.architecture.controller.{
+  ControllerAsyncRPCHandlerInitializer,
+  ExecutionStateUpdate
+}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
+  AsyncRPCContext,
+  EmptyRequest,
+  QueryStatisticsRequest
+}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
-import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
-
+import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
 
 /** indicate a worker has completed its execution
   * i.e. received and processed all data from upstreams
@@ -17,13 +23,19 @@ import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
 trait WorkerExecutionCompletedHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
-  override def workerExecutionCompleted(msg: EmptyRequest, ctx: AsyncRPCContext): Future[EmptyReturn] = {
+  override def workerExecutionCompleted(
+      msg: EmptyRequest,
+      ctx: AsyncRPCContext
+  ): Future[EmptyReturn] = {
 
     // after worker execution is completed, query statistics immediately one last time
     // because the worker might be killed before the next query statistics interval
     // and the user sees the last update before completion
     val statsRequest =
-    controllerInterface.controllerInitiateQueryStatistics(QueryStatisticsRequest(Seq(ctx.sender)), mkContext(SELF))
+      controllerInterface.controllerInitiateQueryStatistics(
+        QueryStatisticsRequest(Seq(ctx.sender)),
+        mkContext(SELF)
+      )
 
     Future
       .collect(Seq(statsRequest))

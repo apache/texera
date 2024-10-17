@@ -6,20 +6,24 @@ import edu.uci.ics.amber.engine.architecture.common.{AmberProcessor, WorkflowAct
 import edu.uci.ics.amber.engine.architecture.control.utils.TrivialControlTester.ControlTesterRPCClient
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputGateway
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.AsyncRPCContext
-import edu.uci.ics.amber.engine.architecture.rpc.testerservice.RPCTesterFs2Grpc
+import edu.uci.ics.amber.engine.architecture.rpc.testerservice.{RPCTesterFs2Grpc, RPCTesterGrpc}
 import edu.uci.ics.amber.engine.common.CheckpointState
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
-import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, DataPayload, WorkflowFIFOMessage}
+import edu.uci.ics.amber.engine.common.ambermessage.{
+  ControlPayload,
+  DataPayload,
+  WorkflowFIFOMessage
+}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
-object TrivialControlTester{
-  class ControlTesterRPCClient(outputGateway:NetworkOutputGateway, actorId:ActorVirtualIdentity) extends AsyncRPCClient(outputGateway, actorId){
-    val getProxy: RPCTesterFs2Grpc[Future, AsyncRPCContext] = createProxy()
+object TrivialControlTester {
+  class ControlTesterRPCClient(outputGateway: NetworkOutputGateway, actorId: ActorVirtualIdentity)
+      extends AsyncRPCClient(outputGateway, actorId) {
+    val getProxy: RPCTesterFs2Grpc[Future, AsyncRPCContext] =
+      createProxy[RPCTesterFs2Grpc[Future, AsyncRPCContext]]()
   }
 }
-
-
 
 class TrivialControlTester(
     id: ActorVirtualIdentity
@@ -29,8 +33,9 @@ class TrivialControlTester(
     {
       case Left(value)  => ???
       case Right(value) => transferService.send(value)
-    }
-  ){
+    },
+    RPCTesterGrpc.SERVICE
+  ) {
     override val asyncRPCClient = new ControlTesterRPCClient(outputGateway, id)
   }
   val initializer =

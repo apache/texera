@@ -9,7 +9,10 @@ import edu.uci.ics.amber.engine.architecture.worker.DataProcessorRPCHandlerIniti
 trait FlushNetworkBufferHandler {
   this: DataProcessorRPCHandlerInitializer =>
 
-  override def flushNetworkBuffer(request: EmptyRequest, ctx: AsyncRPCContext): Future[EmptyReturn] = {
+  override def flushNetworkBuffer(
+      request: EmptyRequest,
+      ctx: AsyncRPCContext
+  ): Future[EmptyReturn] = {
     dp.outputManager.flush()
     EmptyReturn()
   }

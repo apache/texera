@@ -3,14 +3,33 @@ package edu.uci.ics.amber.engine.common.client
 import akka.actor.{Actor, ActorRef}
 import akka.pattern.StatusReply.Ack
 import com.twitter.util.Promise
-import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.{CreditRequest, CreditResponse, NetworkAck, NetworkMessage}
-import edu.uci.ics.amber.engine.architecture.controller.{ClientEvent, Controller, ControllerConfig, WorkflowRecoveryStatus}
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, ControlInvocation, ControlRequest}
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{ControlError, ControlReturn, ReturnInvocation}
+import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.{
+  CreditRequest,
+  CreditResponse,
+  NetworkAck,
+  NetworkMessage
+}
+import edu.uci.ics.amber.engine.architecture.controller.{ClientEvent, Controller, ControllerConfig}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, ControlRequest}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{
+  ControlError,
+  ControlReturn,
+  ReturnInvocation
+}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.AmberLogging
-import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, DataPayload, WorkflowFIFOMessage, WorkflowRecoveryMessage}
-import edu.uci.ics.amber.engine.common.client.ClientActor.{ClosureRequest, CommandRequest, InitializeRequest, ObservableRequest}
+import edu.uci.ics.amber.engine.common.ambermessage.{
+  ControlPayload,
+  DataPayload,
+  WorkflowFIFOMessage,
+  WorkflowRecoveryMessage
+}
+import edu.uci.ics.amber.engine.common.client.ClientActor.{
+  ClosureRequest,
+  CommandRequest,
+  InitializeRequest,
+  ObservableRequest
+}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CLIENT, CONTROLLER}
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
@@ -30,7 +49,11 @@ private[client] object ClientActor {
   )
   case class ObservableRequest(pf: PartialFunction[Any, Unit])
   case class ClosureRequest[T](closure: () => T)
-  case class CommandRequest(methodName:String, command: ControlRequest, promise: Promise[ControlReturn])
+  case class CommandRequest(
+      methodName: String,
+      command: ControlRequest,
+      promise: Promise[ControlReturn]
+  )
 }
 
 private[client] class ClientActor extends Actor with AmberLogging {
@@ -67,7 +90,12 @@ private[client] class ClientActor extends Actor with AmberLogging {
           sender() ! e
       }
     case commandRequest: CommandRequest =>
-      controller ! AsyncRPCClient.ControlInvocation(commandRequest.methodName, commandRequest.command, AsyncRPCContext(CLIENT, CONTROLLER), controlId)
+      controller ! AsyncRPCClient.ControlInvocation(
+        commandRequest.methodName,
+        commandRequest.command,
+        AsyncRPCContext(CLIENT, CONTROLLER),
+        controlId
+      )
       promiseMap(controlId) = commandRequest.promise
       controlId += 1
     case req: ObservableRequest =>

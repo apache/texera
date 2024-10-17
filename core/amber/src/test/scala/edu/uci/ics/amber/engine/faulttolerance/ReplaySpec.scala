@@ -3,7 +3,12 @@ package edu.uci.ics.amber.engine.faulttolerance
 import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestKit}
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage.SequentialRecordReader
-import edu.uci.ics.amber.engine.architecture.logreplay.{ProcessingStep, ReplayLogManagerImpl, ReplayLogRecord, ReplayOrderEnforcer}
+import edu.uci.ics.amber.engine.architecture.logreplay.{
+  ProcessingStep,
+  ReplayLogManagerImpl,
+  ReplayLogRecord,
+  ReplayOrderEnforcer
+}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkInputGateway
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, EmptyRequest}
 import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.METHOD_START_WORKER
@@ -63,7 +68,16 @@ class ReplaySpec
       inputGateway
         .getChannel(channelId)
         .acceptMessage(
-          WorkflowFIFOMessage(channelId, seq, ControlInvocation(METHOD_START_WORKER, EmptyRequest(), AsyncRPCContext(CONTROLLER, actorId), 0))
+          WorkflowFIFOMessage(
+            channelId,
+            seq,
+            ControlInvocation(
+              METHOD_START_WORKER,
+              EmptyRequest(),
+              AsyncRPCContext(CONTROLLER, actorId),
+              0
+            )
+          )
         )
     }
     val orderEnforcer = new ReplayOrderEnforcer(logManager, logRecords, -1, () => {})

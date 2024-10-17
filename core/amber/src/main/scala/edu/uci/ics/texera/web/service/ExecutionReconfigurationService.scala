@@ -3,13 +3,20 @@ package edu.uci.ics.texera.web.service
 import com.google.protobuf.ByteString
 import com.google.protobuf.any.Any
 import edu.uci.ics.amber.engine.architecture.controller.{UpdateExecutorCompleted, Workflow}
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{ModifyLogicRequest => AmberModifyLogicRequest, UpdateExecutorRequest, WorkflowReconfigureRequest}
-import edu.uci.ics.amber.engine.common.{AmberConfig, AmberRuntime}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
+  ModifyLogicRequest => AmberModifyLogicRequest,
+  UpdateExecutorRequest,
+  WorkflowReconfigureRequest
+}
+import edu.uci.ics.amber.engine.common.AmberRuntime
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.texera.web.SubscriptionManager
 import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
 import edu.uci.ics.texera.web.model.websocket.request.ModifyLogicRequest
-import edu.uci.ics.texera.web.model.websocket.response.{ModifyLogicCompletedEvent, ModifyLogicResponse}
+import edu.uci.ics.texera.web.model.websocket.response.{
+  ModifyLogicCompletedEvent,
+  ModifyLogicResponse
+}
 import edu.uci.ics.texera.web.storage.{ExecutionReconfigurationStore, ExecutionStateStore}
 
 import java.util.UUID
@@ -92,18 +99,26 @@ class ExecutionReconfigurationService(
 
     // schedule all pending reconfigurations to the engine
     val reconfigurationId = UUID.randomUUID().toString
-    val modifyLogicReq = AmberModifyLogicRequest(reconfigurations.map{
+    val modifyLogicReq = AmberModifyLogicRequest(reconfigurations.map {
       case (op, stateTransferFunc) =>
         val bytes = AmberRuntime.serde.serialize(op.opExecInitInfo).get
-        val protoAny = Any.of("edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo", ByteString.copyFrom(bytes))
-        val stateTransferFuncOpt = stateTransferFunc.map{
-          func =>
-            val bytes = AmberRuntime.serde.serialize(func).get
-            Any.of("edu.uci.ics.texera.workflow.common.operators.StateTransferFunc", ByteString.copyFrom(bytes))
+        val protoAny = Any.of(
+          "edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo",
+          ByteString.copyFrom(bytes)
+        )
+        val stateTransferFuncOpt = stateTransferFunc.map { func =>
+          val bytes = AmberRuntime.serde.serialize(func).get
+          Any.of(
+            "edu.uci.ics.texera.workflow.common.operators.StateTransferFunc",
+            ByteString.copyFrom(bytes)
+          )
         }
         UpdateExecutorRequest(op.id, protoAny, stateTransferFuncOpt)
     })
-    client.controllerInterface.reconfigureWorkflow(WorkflowReconfigureRequest(modifyLogicReq, reconfigurationId), ())
+    client.controllerInterface.reconfigureWorkflow(
+      WorkflowReconfigureRequest(modifyLogicReq, reconfigurationId),
+      ()
+    )
 
     // clear all un-scheduled reconfigurations, start a new reconfiguration ID
     stateStore.reconfigurationStore.updateState(_ =>

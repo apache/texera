@@ -23,5 +23,5 @@ service RPCTester {
   rpc SendCollect(Collect) returns (StringResponse) {}
   rpc SendGenerateNumber(GenerateNumber) returns (IntResponse) {}
   rpc SendMultiCall(MultiCall) returns (StringResponse) {}
-  rpc SendChain(Chain) returns (common.ActorVirtualIdentity) {}
+  rpc SendChain(Chain) returns (StringResponse) {}
 }

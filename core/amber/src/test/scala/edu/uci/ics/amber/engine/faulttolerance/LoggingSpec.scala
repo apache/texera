@@ -3,15 +3,33 @@ package edu.uci.ics.amber.engine.faulttolerance
 import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestKit}
 import edu.uci.ics.amber.engine.architecture.logreplay.{ReplayLogManager, ReplayLogRecord}
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AddPartitioningRequest, AsyncRPCContext, EmptyRequest}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
+  AddPartitioningRequest,
+  AsyncRPCContext,
+  EmptyRequest
+}
 import edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerServiceGrpc.METHOD_WORKER_EXECUTION_COMPLETED
-import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{METHOD_ADD_PARTITIONING, METHOD_PAUSE_WORKER, METHOD_RESUME_WORKER, METHOD_START_WORKER}
+import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{
+  METHOD_ADD_PARTITIONING,
+  METHOD_PAUSE_WORKER,
+  METHOD_RESUME_WORKER,
+  METHOD_START_WORKER
+}
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
-import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, WorkflowFIFOMessage, WorkflowFIFOMessagePayload}
+import edu.uci.ics.amber.engine.common.ambermessage.{
+  DataFrame,
+  WorkflowFIFOMessage,
+  WorkflowFIFOMessagePayload
+}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity, OperatorIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  ChannelIdentity,
+  OperatorIdentity,
+  PhysicalOpIdentity
+}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
 import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
@@ -35,10 +53,30 @@ class LoggingSpec
   private val mockPolicy =
     OneToOnePartitioning(10, Seq(ChannelIdentity(identifier1, identifier2, isControl = false)))
   val payloadToLog: Array[WorkflowFIFOMessagePayload] = Array(
-    ControlInvocation(METHOD_START_WORKER, EmptyRequest(), AsyncRPCContext(CONTROLLER, identifier1), 0),
-    ControlInvocation(METHOD_ADD_PARTITIONING, AddPartitioningRequest(mockLink, mockPolicy), AsyncRPCContext(CONTROLLER, identifier1), 0),
-    ControlInvocation(METHOD_PAUSE_WORKER, EmptyRequest(), AsyncRPCContext(CONTROLLER, identifier1), 0),
-    ControlInvocation(METHOD_RESUME_WORKER, EmptyRequest(), AsyncRPCContext(CONTROLLER, identifier1), 0),
+    ControlInvocation(
+      METHOD_START_WORKER,
+      EmptyRequest(),
+      AsyncRPCContext(CONTROLLER, identifier1),
+      0
+    ),
+    ControlInvocation(
+      METHOD_ADD_PARTITIONING,
+      AddPartitioningRequest(mockLink, mockPolicy),
+      AsyncRPCContext(CONTROLLER, identifier1),
+      0
+    ),
+    ControlInvocation(
+      METHOD_PAUSE_WORKER,
+      EmptyRequest(),
+      AsyncRPCContext(CONTROLLER, identifier1),
+      0
+    ),
+    ControlInvocation(
+      METHOD_RESUME_WORKER,
+      EmptyRequest(),
+      AsyncRPCContext(CONTROLLER, identifier1),
+      0
+    ),
     DataFrame(
       (0 to 400)
         .map(i =>
@@ -53,8 +91,18 @@ class LoggingSpec
         )
         .toArray
     ),
-    ControlInvocation(METHOD_START_WORKER, EmptyRequest(), AsyncRPCContext(CONTROLLER, identifier1), 0),
-    ControlInvocation(METHOD_WORKER_EXECUTION_COMPLETED, EmptyRequest(), AsyncRPCContext(identifier1, CONTROLLER), 0),
+    ControlInvocation(
+      METHOD_START_WORKER,
+      EmptyRequest(),
+      AsyncRPCContext(CONTROLLER, identifier1),
+      0
+    ),
+    ControlInvocation(
+      METHOD_WORKER_EXECUTION_COMPLETED,
+      EmptyRequest(),
+      AsyncRPCContext(identifier1, CONTROLLER),
+      0
+    )
   )
 
   "determinant logger" should "log processing steps in local storage" in {

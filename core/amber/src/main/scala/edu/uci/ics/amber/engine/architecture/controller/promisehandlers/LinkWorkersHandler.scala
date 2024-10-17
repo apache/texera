@@ -2,7 +2,12 @@ package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AddInputChannelRequest, AddPartitioningRequest, AsyncRPCContext, LinkWorkersRequest}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
+  AddInputChannelRequest,
+  AddPartitioningRequest,
+  AsyncRPCContext,
+  LinkWorkersRequest
+}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 
 /** add a data transfer partitioning to the sender workers and update input linking
@@ -24,7 +29,10 @@ trait LinkWorkersHandler {
       .flatMap(channelId => {
         linkExecution.initChannelExecution(channelId)
         Seq(
-          workerInterface.addPartitioning(AddPartitioningRequest(msg.link, linkConfig.partitioning), mkContext(channelId.fromWorkerId)),
+          workerInterface.addPartitioning(
+            AddPartitioningRequest(msg.link, linkConfig.partitioning),
+            mkContext(channelId.fromWorkerId)
+          ),
           workerInterface.addInputChannel(
             AddInputChannelRequest(channelId, msg.link.toPortId),
             mkContext(channelId.toWorkerId)
@@ -37,6 +45,5 @@ trait LinkWorkersHandler {
       EmptyReturn()
     }
   }
-
 
 }

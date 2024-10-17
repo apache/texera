@@ -97,13 +97,13 @@ object RPCTesterGrpc {
       .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.testerservice.TesterserviceProto.javaDescriptor.getServices().get(0).getMethods().get(8)))
       .build()
   
-  val METHOD_SEND_CHAIN: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Chain, edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity] =
+  val METHOD_SEND_CHAIN: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Chain, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse] =
     _root_.io.grpc.MethodDescriptor.newBuilder()
       .setType(_root_.io.grpc.MethodDescriptor.MethodType.UNARY)
       .setFullMethodName(_root_.io.grpc.MethodDescriptor.generateFullMethodName("edu.uci.ics.amber.engine.architecture.rpc.RPCTester", "SendChain"))
       .setSampledToLocalTracing(true)
       .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Chain])
-      .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity])
+      .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse])
       .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.testerservice.TesterserviceProto.javaDescriptor.getServices().get(0).getMethods().get(9)))
       .build()
   
@@ -133,7 +133,7 @@ object RPCTesterGrpc {
     def sendCollect(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Collect): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse]
     def sendGenerateNumber(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.GenerateNumber): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse]
     def sendMultiCall(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.MultiCall): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse]
-    def sendChain(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Chain): scala.concurrent.Future[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]
+    def sendChain(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Chain): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse]
   }
   
   object RPCTester extends _root_.scalapb.grpc.ServiceCompanion[RPCTester] {
@@ -198,7 +198,7 @@ object RPCTesterGrpc {
         }))
       .addMethod(
         METHOD_SEND_CHAIN,
-        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Chain, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]) => {
+        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Chain, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse]) => {
           serviceImpl.sendChain(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
             executionContext)
         }))
@@ -216,7 +216,7 @@ object RPCTesterGrpc {
     def sendCollect(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Collect): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse
     def sendGenerateNumber(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.GenerateNumber): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse
     def sendMultiCall(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.MultiCall): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse
-    def sendChain(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Chain): edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+    def sendChain(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Chain): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse
   }
   
   class RPCTesterBlockingStub(channel: _root_.io.grpc.Channel, options: _root_.io.grpc.CallOptions = _root_.io.grpc.CallOptions.DEFAULT) extends _root_.io.grpc.stub.AbstractStub[RPCTesterBlockingStub](channel, options) with RPCTesterBlockingClient {
@@ -256,7 +256,7 @@ object RPCTesterGrpc {
       _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_SEND_MULTI_CALL, options, request)
     }
     
-    override def sendChain(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Chain): edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity = {
+    override def sendChain(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Chain): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse = {
       _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_SEND_CHAIN, options, request)
     }
     
@@ -300,7 +300,7 @@ object RPCTesterGrpc {
       _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_SEND_MULTI_CALL, options, request)
     }
     
-    override def sendChain(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Chain): scala.concurrent.Future[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity] = {
+    override def sendChain(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Chain): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse] = {
       _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_SEND_CHAIN, options, request)
     }
     

@@ -1,11 +1,17 @@
 package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
-import edu.uci.ics.amber.engine.architecture.controller.{ControllerAsyncRPCHandlerInitializer, ExecutionStatsUpdate}
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, EmptyRequest, QueryStatisticsRequest}
+import edu.uci.ics.amber.engine.architecture.controller.{
+  ControllerAsyncRPCHandlerInitializer,
+  ExecutionStatsUpdate
+}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
+  AsyncRPCContext,
+  EmptyRequest,
+  QueryStatisticsRequest
+}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 /** Get statistics from all the workers
   *
@@ -14,11 +20,14 @@ import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 trait QueryWorkerStatisticsHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
-  override def controllerInitiateQueryStatistics(msg: QueryStatisticsRequest, ctx: AsyncRPCContext):Future[EmptyReturn] = {
+  override def controllerInitiateQueryStatistics(
+      msg: QueryStatisticsRequest,
+      ctx: AsyncRPCContext
+  ): Future[EmptyReturn] = {
     // send to specified workers (or all workers by default)
-    val workers = if(msg.filterByWorkers.nonEmpty) {
+    val workers = if (msg.filterByWorkers.nonEmpty) {
       msg.filterByWorkers
-    }else{
+    } else {
       cp.workflowExecution.getAllRegionExecutions
         .flatMap(_.getAllOperatorExecutions.map(_._2))
         .flatMap(_.getWorkerIds)
@@ -28,14 +37,16 @@ trait QueryWorkerStatisticsHandler {
     val requests = workers
       .map(workerId =>
         // must immediately update worker state and stats after reply
-        workerInterface.queryStatistics(EmptyRequest(), workerId).map(resp => {
-          val workerExecution =
-            cp.workflowExecution
-              .getLatestOperatorExecution(VirtualIdentityUtils.getPhysicalOpId(workerId))
-              .getWorkerExecution(workerId)
-          workerExecution.setState(resp.metrics.workerState)
-          workerExecution.setStats(resp.metrics.workerStatistics)
-        })
+        workerInterface
+          .queryStatistics(EmptyRequest(), workerId)
+          .map(resp => {
+            val workerExecution =
+              cp.workflowExecution
+                .getLatestOperatorExecution(VirtualIdentityUtils.getPhysicalOpId(workerId))
+                .getWorkerExecution(workerId)
+            workerExecution.setState(resp.metrics.workerState)
+            workerExecution.setStats(resp.metrics.workerStatistics)
+          })
       )
       .toSeq
 

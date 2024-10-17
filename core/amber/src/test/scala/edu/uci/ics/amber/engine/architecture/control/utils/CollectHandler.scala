@@ -11,14 +11,21 @@ trait CollectHandler {
 
   override def sendCollect(request: Collect, ctx: AsyncRPCContext): Future[StringResponse] = {
     println(s"start collecting numbers.")
-    val p = Future.collect(request.workers.indices.map(i => getProxy.sendGenerateNumber(GenerateNumber(), mkContext(request.workers(i)))))
+    val p = Future.collect(
+      request.workers.indices.map(i =>
+        getProxy.sendGenerateNumber(GenerateNumber(), mkContext(request.workers(i)))
+      )
+    )
     p.map { res =>
       println(s"collected: ${res.mkString(" ")}")
       StringResponse("finished")
     }
   }
 
-  override def sendGenerateNumber(request: GenerateNumber, ctx: AsyncRPCContext): Future[IntResponse] = {
+  override def sendGenerateNumber(
+      request: GenerateNumber,
+      ctx: AsyncRPCContext
+  ): Future[IntResponse] = {
     IntResponse(Random.nextInt())
   }
 

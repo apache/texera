@@ -1,15 +1,17 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
-import com.twitter.util.Future
-import edu.uci.ics.amber.engine.architecture.common.{AkkaActorRefMappingService, AkkaActorService, AkkaMessageTransferService, AmberProcessor}
+import edu.uci.ics.amber.engine.architecture.common.{
+  AkkaActorRefMappingService,
+  AkkaActorService,
+  AkkaMessageTransferService,
+  AmberProcessor
+}
 import edu.uci.ics.amber.engine.architecture.controller.execution.WorkflowExecution
 import edu.uci.ics.amber.engine.architecture.logreplay.ReplayLogManager
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.AsyncRPCContext
-import edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerServiceFs2Grpc
+import edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerServiceGrpc
 import edu.uci.ics.amber.engine.architecture.scheduling.WorkflowExecutionCoordinator
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
@@ -20,7 +22,7 @@ class ControllerProcessor(
     controllerConfig: ControllerConfig,
     actorId: ActorVirtualIdentity,
     outputHandler: Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit
-) extends AmberProcessor(actorId, outputHandler) {
+) extends AmberProcessor(actorId, outputHandler, ControllerServiceGrpc.SERVICE) {
 
   val workflowExecution: WorkflowExecution = WorkflowExecution()
   val workflowScheduler: WorkflowScheduler = new WorkflowScheduler(workflowContext, opResultStorage)

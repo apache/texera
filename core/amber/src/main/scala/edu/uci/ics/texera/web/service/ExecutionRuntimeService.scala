@@ -2,13 +2,22 @@ package edu.uci.ics.texera.web.service
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.ExecutionStateUpdate
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{EmptyRequest, TakeGlobalCheckpointRequest}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
+  EmptyRequest,
+  TakeGlobalCheckpointRequest
+}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState._
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.FaultToleranceConfig
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.virtualidentity.ChannelMarkerIdentity
 import edu.uci.ics.texera.web.{SubscriptionManager, WebsocketInput}
-import edu.uci.ics.texera.web.model.websocket.request.{SkipTupleRequest, WorkflowCheckpointRequest, WorkflowKillRequest, WorkflowPauseRequest, WorkflowResumeRequest}
+import edu.uci.ics.texera.web.model.websocket.request.{
+  SkipTupleRequest,
+  WorkflowCheckpointRequest,
+  WorkflowKillRequest,
+  WorkflowPauseRequest,
+  WorkflowResumeRequest
+}
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
 
@@ -53,12 +62,13 @@ class ExecutionRuntimeService(
     stateStore.metadataStore.updateState(metadataStore =>
       updateWorkflowState(RESUMING, metadataStore)
     )
-    client.controllerInterface.resumeWorkflow(EmptyRequest(), ()).onSuccess(
-      _ =>
+    client.controllerInterface
+      .resumeWorkflow(EmptyRequest(), ())
+      .onSuccess(_ =>
         stateStore.metadataStore.updateState(metadataStore =>
           updateWorkflowState(RUNNING, metadataStore)
         )
-    )
+      )
   }))
 
   // Receive Kill
@@ -78,7 +88,10 @@ class ExecutionRuntimeService(
     )
     val checkpointId = ChannelMarkerIdentity(s"Checkpoint_${UUID.randomUUID().toString}")
     val uri = logConf.get.writeTo.resolve(checkpointId.toString)
-    client.controllerInterface.takeGlobalCheckpoint(TakeGlobalCheckpointRequest(estimationOnly = false, checkpointId, uri.toString), ())
+    client.controllerInterface.takeGlobalCheckpoint(
+      TakeGlobalCheckpointRequest(estimationOnly = false, checkpointId, uri.toString),
+      ()
+    )
   }))
 
 }

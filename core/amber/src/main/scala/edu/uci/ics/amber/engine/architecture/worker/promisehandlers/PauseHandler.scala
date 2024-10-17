@@ -9,7 +9,10 @@ import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{PAUS
 trait PauseHandler {
   this: DataProcessorRPCHandlerInitializer =>
 
-  override def pauseWorker(request: EmptyRequest, ctx: AsyncRPCContext): Future[WorkerStateResponse] = {
+  override def pauseWorker(
+      request: EmptyRequest,
+      ctx: AsyncRPCContext
+  ): Future[WorkerStateResponse] = {
     if (dp.stateManager.confirmState(RUNNING, READY)) {
       dp.pauseManager.pause(UserPause)
       dp.stateManager.transitTo(PAUSED)

@@ -6,7 +6,10 @@ import akka.cluster.Cluster
 import com.google.protobuf.timestamp.Timestamp
 import com.twitter.util.{Await, Future}
 import edu.uci.ics.amber.clustering.ClusterListener.numWorkerNodesInCluster
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{COMPLETED, FAILED}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
+  COMPLETED,
+  FAILED
+}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberLogging}
 import edu.uci.ics.amber.error.ErrorUtils.getStackTraceWithAllCauses

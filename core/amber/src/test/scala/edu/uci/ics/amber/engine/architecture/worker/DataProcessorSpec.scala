@@ -2,7 +2,10 @@ package edu.uci.ics.amber.engine.architecture.worker
 
 import edu.uci.ics.amber.engine.architecture.messaginglayer.WorkerTimerService
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, EmptyRequest}
-import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{METHOD_FLUSH_NETWORK_BUFFER, METHOD_OPEN_EXECUTOR}
+import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{
+  METHOD_FLUSH_NETWORK_BUFFER,
+  METHOD_OPEN_EXECUTOR
+}
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.READY
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
@@ -10,8 +13,13 @@ import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, MarkerFrame, Wor
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
-import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity, OperatorIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  ChannelIdentity,
+  OperatorIdentity,
+  PhysicalOpIdentity
+}
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.common.EndOfInputChannel
 import edu.uci.ics.texera.workflow.common.WorkflowContext.DEFAULT_WORKFLOW_ID
@@ -95,7 +103,12 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     dp.outputManager.addPort(outputPortId, schema)
     dp.processControlPayload(
       ChannelIdentity(CONTROLLER, testWorkerId, isControl = true),
-      ControlInvocation(METHOD_OPEN_EXECUTOR, EmptyRequest(), AsyncRPCContext(CONTROLLER, testWorkerId), 0)
+      ControlInvocation(
+        METHOD_OPEN_EXECUTOR,
+        EmptyRequest(),
+        AsyncRPCContext(CONTROLLER, testWorkerId),
+        0
+      )
     )
     dp.processDataPayload(
       ChannelIdentity(senderWorkerId, testWorkerId, isControl = false),
@@ -149,7 +162,12 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     dp.outputManager.addPort(outputPortId, schema)
     dp.processControlPayload(
       ChannelIdentity(CONTROLLER, testWorkerId, isControl = true),
-      ControlInvocation(METHOD_OPEN_EXECUTOR, EmptyRequest(), AsyncRPCContext(CONTROLLER, testWorkerId), 0)
+      ControlInvocation(
+        METHOD_OPEN_EXECUTOR,
+        EmptyRequest(),
+        AsyncRPCContext(CONTROLLER, testWorkerId),
+        0
+      )
     )
     dp.processDataPayload(
       ChannelIdentity(senderWorkerId, testWorkerId, isControl = false),
@@ -158,7 +176,12 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     while (dp.inputManager.hasUnfinishedInput || dp.outputManager.hasUnfinishedOutput) {
       dp.processControlPayload(
         ChannelIdentity(CONTROLLER, testWorkerId, isControl = true),
-        ControlInvocation(METHOD_FLUSH_NETWORK_BUFFER, EmptyRequest(), AsyncRPCContext(CONTROLLER, testWorkerId), 1)
+        ControlInvocation(
+          METHOD_FLUSH_NETWORK_BUFFER,
+          EmptyRequest(),
+          AsyncRPCContext(CONTROLLER, testWorkerId),
+          1
+        )
       )
       dp.continueDataProcessing()
     }

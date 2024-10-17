@@ -7,7 +7,6 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.architecture.controller.ExecutionStatsUpdate
 
-
 /** resume the entire workflow
   *
   * possible sender: controller, client

@@ -1,8 +1,14 @@
 package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
-import edu.uci.ics.amber.engine.architecture.controller.{ControllerAsyncRPCHandlerInitializer, ExecutionStatsUpdate}
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, WorkerStateUpdatedRequest}
+import edu.uci.ics.amber.engine.architecture.controller.{
+  ControllerAsyncRPCHandlerInitializer,
+  ExecutionStatsUpdate
+}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
+  AsyncRPCContext,
+  WorkerStateUpdatedRequest
+}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 
@@ -13,7 +19,10 @@ import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 trait WorkerStateUpdatedHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
-  override def workerStateUpdated(msg: WorkerStateUpdatedRequest, ctx: AsyncRPCContext): Future[EmptyReturn] = {
+  override def workerStateUpdated(
+      msg: WorkerStateUpdatedRequest,
+      ctx: AsyncRPCContext
+  ): Future[EmptyReturn] = {
     val physicalOpId = VirtualIdentityUtils.getPhysicalOpId(ctx.sender)
     // set the state
     cp.workflowExecution.getRunningRegionExecutions

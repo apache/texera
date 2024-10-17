@@ -4,13 +4,17 @@ import akka.actor.{ActorSystem, Address, PoisonPill, Props}
 import akka.pattern._
 import akka.util.Timeout
 import com.twitter.util.{Future, Promise}
-import edu.uci.ics.amber.engine.architecture.controller.{ClientEvent, ControllerConfig}
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, ControlInvocation, ControlRequest}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlRequest
 import edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerServiceFs2Grpc
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturn
 import edu.uci.ics.amber.engine.common.FutureBijection._
 import edu.uci.ics.amber.engine.common.ambermessage.{NotifyFailedNode, WorkflowRecoveryMessage}
-import edu.uci.ics.amber.engine.common.client.ClientActor.{ClosureRequest, CommandRequest, InitializeRequest, ObservableRequest}
+import edu.uci.ics.amber.engine.common.client.ClientActor.{
+  CommandRequest,
+  InitializeRequest,
+  ObservableRequest
+}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CLIENT
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
@@ -69,17 +73,18 @@ class AmberClient(
       }
     }
 
-    Proxy.newProxyInstance(
-      getClassLoader(ct.runtimeClass),
-      Array(ct.runtimeClass),
-      handler
-    ).asInstanceOf[T]
+    Proxy
+      .newProxyInstance(
+        getClassLoader(ct.runtimeClass),
+        Array(ct.runtimeClass),
+        handler
+      )
+      .asInstanceOf[T]
   }
 
   private def getClassLoader(cls: Class[_]): ClassLoader = {
     Option(cls.getClassLoader).getOrElse(ClassLoader.getSystemClassLoader)
   }
-
 
   def notifyNodeFailure(address: Address): Future[Any] = {
     if (!isActive) {

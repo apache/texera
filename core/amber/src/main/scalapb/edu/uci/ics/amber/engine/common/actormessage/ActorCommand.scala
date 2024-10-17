@@ -23,13 +23,11 @@ object ActorCommand {
     override def toCustom(__base: edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage): edu.uci.ics.amber.engine.common.actormessage.ActorCommand = __base.sealedValue match {
       case __v: edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage.SealedValue.Backpressure => __v.value
       case __v: edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage.SealedValue.CreditUpdate => __v.value
-      case __v: edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage.SealedValue.ShutdownDPThread => __v.value
       case edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage.SealedValue.Empty => Empty
     }
     override def toBase(__custom: edu.uci.ics.amber.engine.common.actormessage.ActorCommand): edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage = edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage(__custom match {
       case __v: edu.uci.ics.amber.engine.common.actormessage.Backpressure => edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage.SealedValue.Backpressure(__v)
       case __v: edu.uci.ics.amber.engine.common.actormessage.CreditUpdate => edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage.SealedValue.CreditUpdate(__v)
-      case __v: edu.uci.ics.amber.engine.common.actormessage.ShutdownDPThread => edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage.SealedValue.ShutdownDPThread(__v)
       case Empty => edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage.SealedValue.Empty
     })
   }
@@ -48,10 +46,6 @@ final case class ActorCommandMessage(
       };
       if (sealedValue.creditUpdate.isDefined) {
         val __value = sealedValue.creditUpdate.get
-        __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
-      };
-      if (sealedValue.shutdownDPThread.isDefined) {
-        val __value = sealedValue.shutdownDPThread.get
         __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
       };
       __size
@@ -78,26 +72,17 @@ final case class ActorCommandMessage(
         _output__.writeUInt32NoTag(__m.serializedSize)
         __m.writeTo(_output__)
       };
-      sealedValue.shutdownDPThread.foreach { __v =>
-        val __m = __v
-        _output__.writeTag(3, 2)
-        _output__.writeUInt32NoTag(__m.serializedSize)
-        __m.writeTo(_output__)
-      };
     }
     def getBackpressure: edu.uci.ics.amber.engine.common.actormessage.Backpressure = sealedValue.backpressure.getOrElse(edu.uci.ics.amber.engine.common.actormessage.Backpressure.defaultInstance)
     def withBackpressure(__v: edu.uci.ics.amber.engine.common.actormessage.Backpressure): ActorCommandMessage = copy(sealedValue = edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage.SealedValue.Backpressure(__v))
     def getCreditUpdate: edu.uci.ics.amber.engine.common.actormessage.CreditUpdate = sealedValue.creditUpdate.getOrElse(edu.uci.ics.amber.engine.common.actormessage.CreditUpdate.defaultInstance)
     def withCreditUpdate(__v: edu.uci.ics.amber.engine.common.actormessage.CreditUpdate): ActorCommandMessage = copy(sealedValue = edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage.SealedValue.CreditUpdate(__v))
-    def getShutdownDPThread: edu.uci.ics.amber.engine.common.actormessage.ShutdownDPThread = sealedValue.shutdownDPThread.getOrElse(edu.uci.ics.amber.engine.common.actormessage.ShutdownDPThread.defaultInstance)
-    def withShutdownDPThread(__v: edu.uci.ics.amber.engine.common.actormessage.ShutdownDPThread): ActorCommandMessage = copy(sealedValue = edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage.SealedValue.ShutdownDPThread(__v))
     def clearSealedValue: ActorCommandMessage = copy(sealedValue = edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage.SealedValue.Empty)
     def withSealedValue(__v: edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage.SealedValue): ActorCommandMessage = copy(sealedValue = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
         case 1 => sealedValue.backpressure.orNull
         case 2 => sealedValue.creditUpdate.orNull
-        case 3 => sealedValue.shutdownDPThread.orNull
       }
     }
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
@@ -105,7 +90,6 @@ final case class ActorCommandMessage(
       (__field.number: @_root_.scala.unchecked) match {
         case 1 => sealedValue.backpressure.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
         case 2 => sealedValue.creditUpdate.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
-        case 3 => sealedValue.shutdownDPThread.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
@@ -127,8 +111,6 @@ object ActorCommandMessage extends scalapb.GeneratedMessageCompanion[edu.uci.ics
           __sealedValue = edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage.SealedValue.Backpressure(__sealedValue.backpressure.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.actormessage.Backpressure](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 18 =>
           __sealedValue = edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage.SealedValue.CreditUpdate(__sealedValue.creditUpdate.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.actormessage.CreditUpdate](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
-        case 26 =>
-          __sealedValue = edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage.SealedValue.ShutdownDPThread(__sealedValue.shutdownDPThread.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.actormessage.ShutdownDPThread](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case tag => _input__.skipField(tag)
       }
     }
@@ -142,19 +124,17 @@ object ActorCommandMessage extends scalapb.GeneratedMessageCompanion[edu.uci.ics
       edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage(
         sealedValue = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.common.actormessage.Backpressure]]).map(edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage.SealedValue.Backpressure(_))
             .orElse[edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.common.actormessage.CreditUpdate]]).map(edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage.SealedValue.CreditUpdate(_)))
-            .orElse[edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.common.actormessage.ShutdownDPThread]]).map(edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage.SealedValue.ShutdownDPThread(_)))
             .getOrElse(edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage.SealedValue.Empty)
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ActormessageProto.javaDescriptor.getMessageTypes().get(3)
-  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ActormessageProto.scalaDescriptor.messages(3)
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ActormessageProto.javaDescriptor.getMessageTypes().get(2)
+  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ActormessageProto.scalaDescriptor.messages(2)
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = {
     var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
     (__number: @_root_.scala.unchecked) match {
       case 1 => __out = edu.uci.ics.amber.engine.common.actormessage.Backpressure
       case 2 => __out = edu.uci.ics.amber.engine.common.actormessage.CreditUpdate
-      case 3 => __out = edu.uci.ics.amber.engine.common.actormessage.ShutdownDPThread
     }
     __out
   }
@@ -168,10 +148,8 @@ object ActorCommandMessage extends scalapb.GeneratedMessageCompanion[edu.uci.ics
     def isDefined: _root_.scala.Boolean = true
     def isBackpressure: _root_.scala.Boolean = false
     def isCreditUpdate: _root_.scala.Boolean = false
-    def isShutdownDPThread: _root_.scala.Boolean = false
     def backpressure: _root_.scala.Option[edu.uci.ics.amber.engine.common.actormessage.Backpressure] = _root_.scala.None
     def creditUpdate: _root_.scala.Option[edu.uci.ics.amber.engine.common.actormessage.CreditUpdate] = _root_.scala.None
-    def shutdownDPThread: _root_.scala.Option[edu.uci.ics.amber.engine.common.actormessage.ShutdownDPThread] = _root_.scala.None
   }
   object SealedValue {
     @SerialVersionUID(0L)
@@ -197,23 +175,14 @@ object ActorCommandMessage extends scalapb.GeneratedMessageCompanion[edu.uci.ics
       override def creditUpdate: _root_.scala.Option[edu.uci.ics.amber.engine.common.actormessage.CreditUpdate] = Some(value)
       override def number: _root_.scala.Int = 2
     }
-    @SerialVersionUID(0L)
-    final case class ShutdownDPThread(value: edu.uci.ics.amber.engine.common.actormessage.ShutdownDPThread) extends edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage.SealedValue {
-      type ValueType = edu.uci.ics.amber.engine.common.actormessage.ShutdownDPThread
-      override def isShutdownDPThread: _root_.scala.Boolean = true
-      override def shutdownDPThread: _root_.scala.Option[edu.uci.ics.amber.engine.common.actormessage.ShutdownDPThread] = Some(value)
-      override def number: _root_.scala.Int = 3
-    }
   }
   implicit class ActorCommandMessageLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage](_l) {
     def backpressure: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.actormessage.Backpressure] = field(_.getBackpressure)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage.SealedValue.Backpressure(f_)))
     def creditUpdate: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.actormessage.CreditUpdate] = field(_.getCreditUpdate)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage.SealedValue.CreditUpdate(f_)))
-    def shutdownDPThread: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.actormessage.ShutdownDPThread] = field(_.getShutdownDPThread)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage.SealedValue.ShutdownDPThread(f_)))
     def sealedValue: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage.SealedValue] = field(_.sealedValue)((c_, f_) => c_.copy(sealedValue = f_))
   }
   final val BACKPRESSURE_FIELD_NUMBER = 1
   final val CREDITUPDATE_FIELD_NUMBER = 2
-  final val SHUTDOWNDPTHREAD_FIELD_NUMBER = 3
   def of(
     sealedValue: edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage.SealedValue
   ): _root_.edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage = _root_.edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage(
@@ -369,53 +338,4 @@ object CreditUpdate extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.
   ): _root_.edu.uci.ics.amber.engine.common.actormessage.CreditUpdate = _root_.edu.uci.ics.amber.engine.common.actormessage.CreditUpdate(
   )
   // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.CreditUpdate])
-}
-
-@SerialVersionUID(0L)
-final case class ShutdownDPThread(
-    ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.common.actormessage.ActorCommand.NonEmpty with scalapb.lenses.Updatable[ShutdownDPThread] {
-    final override def serializedSize: _root_.scala.Int = 0
-    def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
-    }
-    def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = throw new MatchError(__fieldNumber)
-    def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = throw new MatchError(__field)
-    def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.common.actormessage.ShutdownDPThread.type = edu.uci.ics.amber.engine.common.actormessage.ShutdownDPThread
-    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.ShutdownDPThread])
-}
-
-object ShutdownDPThread extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.actormessage.ShutdownDPThread] {
-  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.actormessage.ShutdownDPThread] = this
-  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.common.actormessage.ShutdownDPThread = {
-    var _done__ = false
-    while (!_done__) {
-      val _tag__ = _input__.readTag()
-      _tag__ match {
-        case 0 => _done__ = true
-        case tag => _input__.skipField(tag)
-      }
-    }
-    edu.uci.ics.amber.engine.common.actormessage.ShutdownDPThread(
-    )
-  }
-  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.common.actormessage.ShutdownDPThread] = _root_.scalapb.descriptors.Reads{
-    case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
-      _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
-      edu.uci.ics.amber.engine.common.actormessage.ShutdownDPThread(
-      )
-    case _ => throw new RuntimeException("Expected PMessage")
-  }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ActormessageProto.javaDescriptor.getMessageTypes().get(2)
-  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ActormessageProto.scalaDescriptor.messages(2)
-  def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
-  lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
-  def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
-  lazy val defaultInstance = edu.uci.ics.amber.engine.common.actormessage.ShutdownDPThread(
-  )
-  implicit class ShutdownDPThreadLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.actormessage.ShutdownDPThread]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.common.actormessage.ShutdownDPThread](_l) {
-  }
-  def of(
-  ): _root_.edu.uci.ics.amber.engine.common.actormessage.ShutdownDPThread = _root_.edu.uci.ics.amber.engine.common.actormessage.ShutdownDPThread(
-  )
-  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.ShutdownDPThread])
 }

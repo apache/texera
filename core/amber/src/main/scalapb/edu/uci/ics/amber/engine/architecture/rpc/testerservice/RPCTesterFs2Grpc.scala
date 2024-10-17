@@ -12,7 +12,7 @@ trait RPCTesterFs2Grpc[F[_], A] {
   def sendCollect(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Collect, ctx: A): F[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse]
   def sendGenerateNumber(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.GenerateNumber, ctx: A): F[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse]
   def sendMultiCall(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.MultiCall, ctx: A): F[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse]
-  def sendChain(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Chain, ctx: A): F[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]
+  def sendChain(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Chain, ctx: A): F[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse]
 }
 
 object RPCTesterFs2Grpc extends _root_.fs2.grpc.GeneratedCompanion[RPCTesterFs2Grpc] {
@@ -65,7 +65,7 @@ object RPCTesterFs2Grpc extends _root_.fs2.grpc.GeneratedCompanion[RPCTesterFs2G
         _root_.fs2.grpc.client.Fs2ClientCall[F](channel, edu.uci.ics.amber.engine.architecture.rpc.testerservice.RPCTesterGrpc.METHOD_SEND_MULTI_CALL, dispatcher, clientOptions).flatMap(_.unaryToUnaryCall(request, m))
       }
     }
-    def sendChain(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Chain, ctx: A): F[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity] = {
+    def sendChain(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Chain, ctx: A): F[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse] = {
       mkMetadata(ctx).flatMap { m =>
         _root_.fs2.grpc.client.Fs2ClientCall[F](channel, edu.uci.ics.amber.engine.architecture.rpc.testerservice.RPCTesterGrpc.METHOD_SEND_CHAIN, dispatcher, clientOptions).flatMap(_.unaryToUnaryCall(request, m))
       }
@@ -84,7 +84,7 @@ object RPCTesterFs2Grpc extends _root_.fs2.grpc.GeneratedCompanion[RPCTesterFs2G
       .addMethod(edu.uci.ics.amber.engine.architecture.rpc.testerservice.RPCTesterGrpc.METHOD_SEND_COLLECT, _root_.fs2.grpc.server.Fs2ServerCallHandler[F](dispatcher, serverOptions).unaryToUnaryCall[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Collect, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse]((r, m) => mkCtx(m).flatMap(serviceImpl.sendCollect(r, _))))
       .addMethod(edu.uci.ics.amber.engine.architecture.rpc.testerservice.RPCTesterGrpc.METHOD_SEND_GENERATE_NUMBER, _root_.fs2.grpc.server.Fs2ServerCallHandler[F](dispatcher, serverOptions).unaryToUnaryCall[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.GenerateNumber, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse]((r, m) => mkCtx(m).flatMap(serviceImpl.sendGenerateNumber(r, _))))
       .addMethod(edu.uci.ics.amber.engine.architecture.rpc.testerservice.RPCTesterGrpc.METHOD_SEND_MULTI_CALL, _root_.fs2.grpc.server.Fs2ServerCallHandler[F](dispatcher, serverOptions).unaryToUnaryCall[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.MultiCall, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse]((r, m) => mkCtx(m).flatMap(serviceImpl.sendMultiCall(r, _))))
-      .addMethod(edu.uci.ics.amber.engine.architecture.rpc.testerservice.RPCTesterGrpc.METHOD_SEND_CHAIN, _root_.fs2.grpc.server.Fs2ServerCallHandler[F](dispatcher, serverOptions).unaryToUnaryCall[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Chain, edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]((r, m) => mkCtx(m).flatMap(serviceImpl.sendChain(r, _))))
+      .addMethod(edu.uci.ics.amber.engine.architecture.rpc.testerservice.RPCTesterGrpc.METHOD_SEND_CHAIN, _root_.fs2.grpc.server.Fs2ServerCallHandler[F](dispatcher, serverOptions).unaryToUnaryCall[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Chain, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse]((r, m) => mkCtx(m).flatMap(serviceImpl.sendChain(r, _))))
       .build()
   }
 

@@ -10,7 +10,6 @@ import edu.uci.ics.amber.engine.architecture.controller.{ExecutionStatsUpdate, E
 
 import scala.collection.mutable
 
-
 /** pause the entire workflow
   *
   * possible sender: client, controller
@@ -37,14 +36,16 @@ trait PauseHandler {
                     .map { worker =>
                       val workerExecution = opExecution.getWorkerExecution(worker)
                       // send a pause message
-                      workerInterface.pauseWorker(EmptyRequest(), mkContext(worker)).flatMap { resp =>
-                        workerExecution.setState(resp.state)
-                        workerInterface.queryStatistics(EmptyRequest(), mkContext(worker))
-                          // get the stats and current input tuple from the worker
-                          .map {
-                            case WorkerMetricsResponse(metrics) =>
-                              workerExecution.setStats(metrics.workerStatistics)
-                          }
+                      workerInterface.pauseWorker(EmptyRequest(), mkContext(worker)).flatMap {
+                        resp =>
+                          workerExecution.setState(resp.state)
+                          workerInterface
+                            .queryStatistics(EmptyRequest(), mkContext(worker))
+                            // get the stats and current input tuple from the worker
+                            .map {
+                              case WorkerMetricsResponse(metrics) =>
+                                workerExecution.setStats(metrics.workerStatistics)
+                            }
                       }
                     }.toSeq
                 )

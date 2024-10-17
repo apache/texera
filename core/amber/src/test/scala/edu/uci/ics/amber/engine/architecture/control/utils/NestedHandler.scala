@@ -8,14 +8,14 @@ trait NestedHandler {
   this: TesterAsyncRPCHandlerInitializer =>
 
   override def sendNested(request: Nested, ctx: AsyncRPCContext): Future[StringResponse] = {
-    getProxy.sendPass(Pass("Hello"), myID)
-      .flatMap(ret => getProxy.sendPass(Pass(ret + " "), myID))
-      .flatMap(ret => getProxy.sendPass(Pass(ret + "World!"), myID))
+    getProxy
+      .sendPass(Pass("Hello"), myID)
+      .flatMap(ret => getProxy.sendPass(Pass(ret.value + " "), myID))
+      .flatMap(ret => getProxy.sendPass(Pass(ret.value + "World!"), myID))
   }
 
   override def sendPass(request: Pass, ctx: AsyncRPCContext): Future[StringResponse] = {
     StringResponse(request.value)
   }
-
 
 }
