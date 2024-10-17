@@ -55,7 +55,7 @@
   </nz-dropdown-menu>
 
   <a
-    *ngIf="this.isLogin"
+    [hidden]="!isLogin"
     [nzDropdownMenu]="ownerSearchOptions"
     nz-dropdown
     nzTrigger="click"
