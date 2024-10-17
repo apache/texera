@@ -69,7 +69,7 @@ final case class WorkflowFatalError(
         __serializedSizeMemoized = __size
       }
       __size - 1
-
+      
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       {
@@ -157,7 +157,7 @@ final case class WorkflowFatalError(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowFatalError.type = edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError
+    def companion: edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowFatalError.type = edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowFatalError
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.WorkflowFatalError])
 }
 

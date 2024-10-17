@@ -34,7 +34,7 @@ final case class BreakpointFault(
         __serializedSizeMemoized = __size
       }
       __size - 1
-
+      
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       {
@@ -71,7 +71,7 @@ final case class BreakpointFault(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.common.workflowruntimestate.BreakpointFault.type = edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault
+    def companion: edu.uci.ics.amber.engine.common.workflowruntimestate.BreakpointFault.type = edu.uci.ics.amber.engine.common.workflowruntimestate.BreakpointFault
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.BreakpointFault])
 }
 
@@ -161,7 +161,7 @@ object BreakpointFault extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amb
           __serializedSizeMemoized = __size
         }
         __size - 1
-
+        
       }
       def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
         {
@@ -209,7 +209,7 @@ object BreakpointFault extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amb
         }
       }
       def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-      def companion: edu.uci.ics.amber.engine.common.workflowruntimestate.BreakpointFault.BreakpointTuple.type = edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault.BreakpointTuple
+      def companion: edu.uci.ics.amber.engine.common.workflowruntimestate.BreakpointFault.BreakpointTuple.type = edu.uci.ics.amber.engine.common.workflowruntimestate.BreakpointFault.BreakpointTuple
       // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.BreakpointFault.BreakpointTuple])
   }
   

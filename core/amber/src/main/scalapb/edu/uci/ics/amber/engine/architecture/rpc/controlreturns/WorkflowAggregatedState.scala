@@ -3,11 +3,7 @@
 //
 // Protofile syntax: PROTO3
 
-<<<<<<<< HEAD:core/amber/src/main/scalapb/edu/uci/ics/amber/engine/architecture/rpc/controlreturns/WorkflowAggregatedState.scala
 package edu.uci.ics.amber.engine.architecture.rpc.controlreturns
-========
-package edu.uci.ics.amber.engine.common.workflowruntimestate
->>>>>>>> master:core/amber/src/main/scalapb/edu/uci/ics/amber/engine/common/workflowruntimestate/WorkflowAggregatedState.scala
 
 sealed abstract class WorkflowAggregatedState(val value: _root_.scala.Int) extends _root_.scalapb.GeneratedEnum {
   type EnumType = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
@@ -22,13 +18,8 @@ sealed abstract class WorkflowAggregatedState(val value: _root_.scala.Int) exten
   def isFailed: _root_.scala.Boolean = false
   def isUnknown: _root_.scala.Boolean = false
   def isKilled: _root_.scala.Boolean = false
-<<<<<<<< HEAD:core/amber/src/main/scalapb/edu/uci/ics/amber/engine/architecture/rpc/controlreturns/WorkflowAggregatedState.scala
   def companion: _root_.scalapb.GeneratedEnumCompanion[WorkflowAggregatedState] = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
   final def asRecognized: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.Recognized] = if (isUnrecognized) _root_.scala.None else _root_.scala.Some(this.asInstanceOf[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.Recognized])
-========
-  def companion: _root_.scalapb.GeneratedEnumCompanion[WorkflowAggregatedState] = edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState
-  final def asRecognized: _root_.scala.Option[edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState.Recognized] = if (isUnrecognized) _root_.scala.None else _root_.scala.Some(this.asInstanceOf[edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState.Recognized])
->>>>>>>> master:core/amber/src/main/scalapb/edu/uci/ics/amber/engine/common/workflowruntimestate/WorkflowAggregatedState.scala
 }
 
 object WorkflowAggregatedState extends _root_.scalapb.GeneratedEnumCompanion[WorkflowAggregatedState] {

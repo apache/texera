@@ -31,7 +31,7 @@ final case class OperatorConsole(
         __serializedSizeMemoized = __size
       }
       __size - 1
-
+      
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       consoleMessages.foreach { __v =>
@@ -69,7 +69,7 @@ final case class OperatorConsole(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorConsole.type = edu.uci.ics.texera.web.workflowruntimestate.OperatorConsole
+    def companion: edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorConsole.type = edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorConsole
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.OperatorConsole])
 }
 
@@ -152,7 +152,7 @@ object OperatorConsole extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amb
           __serializedSizeMemoized = __size
         }
         __size - 1
-
+        
       }
       def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
         {
@@ -189,7 +189,7 @@ object OperatorConsole extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amb
         }
       }
       def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-      def companion: edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorConsole.EvaluateExprResultsEntry.type = edu.uci.ics.texera.web.workflowruntimestate.OperatorConsole.EvaluateExprResultsEntry
+      def companion: edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorConsole.EvaluateExprResultsEntry.type = edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorConsole.EvaluateExprResultsEntry
       // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.OperatorConsole.EvaluateExprResultsEntry])
   }
   

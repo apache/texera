@@ -34,7 +34,7 @@ final case class OperatorWorkerMapping(
         __serializedSizeMemoized = __size
       }
       __size - 1
-
+      
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       {
@@ -70,7 +70,7 @@ final case class OperatorWorkerMapping(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorWorkerMapping.type = edu.uci.ics.texera.web.workflowruntimestate.OperatorWorkerMapping
+    def companion: edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorWorkerMapping.type = edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorWorkerMapping
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.OperatorWorkerMapping])
 }
 

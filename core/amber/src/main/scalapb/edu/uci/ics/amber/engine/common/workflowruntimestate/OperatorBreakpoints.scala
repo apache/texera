@@ -26,7 +26,7 @@ final case class OperatorBreakpoints(
         __serializedSizeMemoized = __size
       }
       __size - 1
-
+      
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       unresolvedBreakpoints.foreach { __v =>
@@ -52,7 +52,7 @@ final case class OperatorBreakpoints(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorBreakpoints.type = edu.uci.ics.texera.web.workflowruntimestate.OperatorBreakpoints
+    def companion: edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorBreakpoints.type = edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorBreakpoints
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.OperatorBreakpoints])
 }
 

@@ -26,7 +26,7 @@ final case class EvaluatedValueList(
         __serializedSizeMemoized = __size
       }
       __size - 1
-
+      
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       values.foreach { __v =>
@@ -52,7 +52,7 @@ final case class EvaluatedValueList(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.common.workflowruntimestate.EvaluatedValueList.type = edu.uci.ics.texera.web.workflowruntimestate.EvaluatedValueList
+    def companion: edu.uci.ics.amber.engine.common.workflowruntimestate.EvaluatedValueList.type = edu.uci.ics.amber.engine.common.workflowruntimestate.EvaluatedValueList
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.EvaluatedValueList])
 }
 

@@ -26,7 +26,7 @@ final case class ExecutionConsoleStore(
         __serializedSizeMemoized = __size
       }
       __size - 1
-
+      
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       operatorConsole.foreach { __v =>
@@ -52,7 +52,7 @@ final case class ExecutionConsoleStore(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionConsoleStore.type = edu.uci.ics.texera.web.workflowruntimestate.ExecutionConsoleStore
+    def companion: edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionConsoleStore.type = edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionConsoleStore
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.ExecutionConsoleStore])
 }
 
@@ -128,7 +128,7 @@ object ExecutionConsoleStore extends scalapb.GeneratedMessageCompanion[edu.uci.i
           __serializedSizeMemoized = __size
         }
         __size - 1
-
+        
       }
       def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
         {
@@ -165,7 +165,7 @@ object ExecutionConsoleStore extends scalapb.GeneratedMessageCompanion[edu.uci.i
         }
       }
       def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-      def companion: edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionConsoleStore.OperatorConsoleEntry.type = edu.uci.ics.texera.web.workflowruntimestate.ExecutionConsoleStore.OperatorConsoleEntry
+      def companion: edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionConsoleStore.OperatorConsoleEntry.type = edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionConsoleStore.OperatorConsoleEntry
       // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.ExecutionConsoleStore.OperatorConsoleEntry])
   }
   

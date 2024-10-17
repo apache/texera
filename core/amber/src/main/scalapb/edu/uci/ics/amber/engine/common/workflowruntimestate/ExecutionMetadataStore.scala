@@ -8,7 +8,7 @@ package edu.uci.ics.amber.engine.common.workflowruntimestate
 @SerialVersionUID(0L)
 final case class ExecutionMetadataStore(
     state: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.UNINITIALIZED,
-    fatalErrors: _root_.scala.Seq[edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError] = _root_.scala.Seq.empty,
+    fatalErrors: _root_.scala.Seq[edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowFatalError] = _root_.scala.Seq.empty,
     executionId: edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity = edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity.defaultInstance,
     isRecovering: _root_.scala.Boolean = false
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[ExecutionMetadataStore] {
@@ -50,7 +50,7 @@ final case class ExecutionMetadataStore(
         __serializedSizeMemoized = __size
       }
       __size - 1
-
+      
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       {
@@ -114,15 +114,15 @@ final case class ExecutionMetadataStore(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionMetadataStore.type = edu.uci.ics.texera.web.workflowruntimestate.ExecutionMetadataStore
+    def companion: edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionMetadataStore.type = edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionMetadataStore
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.ExecutionMetadataStore])
 }
 
-object ExecutionMetadataStore extends scalapb.GeneratedMessageCompanion[edu.uci.ics.texera.web.workflowruntimestate.ExecutionMetadataStore] {
-  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.texera.web.workflowruntimestate.ExecutionMetadataStore] = this
-  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.texera.web.workflowruntimestate.ExecutionMetadataStore = {
+object ExecutionMetadataStore extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionMetadataStore] {
+  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionMetadataStore] = this
+  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionMetadataStore = {
     var __state: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.UNINITIALIZED
-    val __fatalErrors: _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError] = new _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError]
+    val __fatalErrors: _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowFatalError] = new _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowFatalError]
     var __executionId: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity] = _root_.scala.None
     var __isRecovering: _root_.scala.Boolean = false
     var _done__ = false
@@ -151,9 +151,9 @@ object ExecutionMetadataStore extends scalapb.GeneratedMessageCompanion[edu.uci.
   implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionMetadataStore] = _root_.scalapb.descriptors.Reads{
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
-      edu.uci.ics.texera.web.workflowruntimestate.ExecutionMetadataStore(
+      edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionMetadataStore(
         state = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.fromValue(__fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scalapb.descriptors.EnumValueDescriptor]).getOrElse(edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.UNINITIALIZED.scalaValueDescriptor).number),
-        fatalErrors = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Seq[edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError]]).getOrElse(_root_.scala.Seq.empty),
+        fatalErrors = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Seq[edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowFatalError]]).getOrElse(_root_.scala.Seq.empty),
         executionId = __fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).map(_.as[edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity]).getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity.defaultInstance),
         isRecovering = __fieldsMap.get(scalaDescriptor.findFieldByNumber(4).get).map(_.as[_root_.scala.Boolean]).getOrElse(false)
       )
@@ -175,15 +175,15 @@ object ExecutionMetadataStore extends scalapb.GeneratedMessageCompanion[edu.uci.
       case 1 => edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
     }
   }
-  lazy val defaultInstance = edu.uci.ics.texera.web.workflowruntimestate.ExecutionMetadataStore(
+  lazy val defaultInstance = edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionMetadataStore(
     state = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.UNINITIALIZED,
     fatalErrors = _root_.scala.Seq.empty,
     executionId = edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity.defaultInstance,
     isRecovering = false
   )
-  implicit class ExecutionMetadataStoreLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.ExecutionMetadataStore]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.ExecutionMetadataStore](_l) {
+  implicit class ExecutionMetadataStoreLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionMetadataStore]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionMetadataStore](_l) {
     def state: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState] = field(_.state)((c_, f_) => c_.copy(state = f_))
-    def fatalErrors: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError]] = field(_.fatalErrors)((c_, f_) => c_.copy(fatalErrors = f_))
+    def fatalErrors: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowFatalError]] = field(_.fatalErrors)((c_, f_) => c_.copy(fatalErrors = f_))
     def executionId: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity] = field(_.executionId)((c_, f_) => c_.copy(executionId = f_))
     def isRecovering: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Boolean] = field(_.isRecovering)((c_, f_) => c_.copy(isRecovering = f_))
   }
@@ -193,7 +193,7 @@ object ExecutionMetadataStore extends scalapb.GeneratedMessageCompanion[edu.uci.
   final val IS_RECOVERING_FIELD_NUMBER = 4
   def of(
     state: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState,
-    fatalErrors: _root_.scala.Seq[edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError],
+    fatalErrors: _root_.scala.Seq[edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowFatalError],
     executionId: edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity,
     isRecovering: _root_.scala.Boolean
   ): _root_.edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionMetadataStore = _root_.edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionMetadataStore(

@@ -63,7 +63,7 @@ final case class OperatorStatistics(
         __serializedSizeMemoized = __size
       }
       __size - 1
-
+      
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       inputCount.foreach { __v =>
@@ -149,7 +149,7 @@ final case class OperatorStatistics(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorStatistics.type = edu.uci.ics.texera.web.workflowruntimestate.OperatorStatistics
+    def companion: edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorStatistics.type = edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorStatistics
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.OperatorStatistics])
 }
 

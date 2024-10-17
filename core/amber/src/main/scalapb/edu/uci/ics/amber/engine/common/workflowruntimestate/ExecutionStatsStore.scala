@@ -47,7 +47,7 @@ final case class ExecutionStatsStore(
         __serializedSizeMemoized = __size
       }
       __size - 1
-
+      
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       {
@@ -109,7 +109,7 @@ final case class ExecutionStatsStore(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionStatsStore.type = edu.uci.ics.texera.web.workflowruntimestate.ExecutionStatsStore
+    def companion: edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionStatsStore.type = edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionStatsStore
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.ExecutionStatsStore])
 }
 
@@ -204,7 +204,7 @@ object ExecutionStatsStore extends scalapb.GeneratedMessageCompanion[edu.uci.ics
           __serializedSizeMemoized = __size
         }
         __size - 1
-
+        
       }
       def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
         {
@@ -241,7 +241,7 @@ object ExecutionStatsStore extends scalapb.GeneratedMessageCompanion[edu.uci.ics
         }
       }
       def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-      def companion: edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionStatsStore.OperatorInfoEntry.type = edu.uci.ics.texera.web.workflowruntimestate.ExecutionStatsStore.OperatorInfoEntry
+      def companion: edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionStatsStore.OperatorInfoEntry.type = edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionStatsStore.OperatorInfoEntry
       // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.ExecutionStatsStore.OperatorInfoEntry])
   }
   

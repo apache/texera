@@ -6,8 +6,8 @@
 package edu.uci.ics.amber.engine.common.workflowruntimestate
 
 sealed abstract class FatalErrorType(val value: _root_.scala.Int) extends _root_.scalapb.GeneratedEnum {
-  type EnumType = edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType
-  type RecognizedType = edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.Recognized
+  type EnumType = edu.uci.ics.amber.engine.common.workflowruntimestate.FatalErrorType
+  type RecognizedType = edu.uci.ics.amber.engine.common.workflowruntimestate.FatalErrorType.Recognized
   def isCompilationError: _root_.scala.Boolean = false
   def isExecutionFailure: _root_.scala.Boolean = false
   def companion: _root_.scalapb.GeneratedEnumCompanion[FatalErrorType] = edu.uci.ics.amber.engine.common.workflowruntimestate.FatalErrorType

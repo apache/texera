@@ -1,7 +1,6 @@
 syntax = "proto3";
 package edu.uci.ics.amber.engine.architecture.rpc;
 
-import "edu/uci/ics/amber/engine/common/virtualidentity.proto";
 import "edu/uci/ics/amber/engine/architecture/rpc/controlcommands.proto";
 import "edu/uci/ics/amber/engine/architecture/rpc/controlreturns.proto";
 import "scalapb/scalapb.proto";
