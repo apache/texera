@@ -6,7 +6,7 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregat
 import edu.uci.ics.amber.engine.architecture.worker.statistics.{PortTupleCountMapping, WorkerState}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
-import edu.uci.ics.texera.web.workflowruntimestate.{OperatorMetrics, OperatorStatistics}
+import edu.uci.ics.amber.engine.common.workflowruntimestate.{OperatorMetrics, OperatorStatistics}
 
 import java.util
 import scala.jdk.CollectionConverters._

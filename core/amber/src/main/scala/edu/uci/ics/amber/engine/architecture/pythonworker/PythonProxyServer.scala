@@ -5,7 +5,6 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputGateway
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import org.apache.arrow.flight._
 import org.apache.arrow.memory.{ArrowBuf, BufferAllocator, RootAllocator}
 import org.apache.arrow.util.AutoCloseables
@@ -20,7 +19,8 @@ import edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.Content.{
   ControlInvocation => ControlInvocationV2,
   ReturnInvocation => ReturnInvocationV2
 }
-import edu.uci.ics.texera.workflow.common.{EndOfInputChannel, StartOfInputChannel, State}
+import edu.uci.ics.amber.engine.common.model.{EndOfInputChannel, StartOfInputChannel, State}
+import edu.uci.ics.amber.engine.common.model.tuple.Tuple
 
 import java.nio.charset.Charset
 

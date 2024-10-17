@@ -13,12 +13,14 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
 }
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
+import edu.uci.ics.amber.engine.common.model.WorkflowContext
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ChannelMarkerIdentity,
   ExecutionIdentity,
   WorkflowIdentity
 }
 import edu.uci.ics.amber.error.ErrorUtils.{getOperatorFromActorIdOpt, getStackTraceWithAllCauses}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
 import edu.uci.ics.texera.web.model.websocket.request.WorkflowExecuteRequest
 import edu.uci.ics.texera.web.service.WorkflowService.mkWorkflowStateId
@@ -26,8 +28,13 @@ import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
 import edu.uci.ics.texera.web.storage.{ExecutionStateStore, WorkflowStateStore}
 import edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError
+import edu.uci.ics.amber.engine.common.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
+import edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState.{
+  COMPLETED,
+  FAILED
+}
+import edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowFatalError
 import edu.uci.ics.texera.web.{SubscriptionManager, WorkflowLifecycleManager}
-import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.workflow.LogicalPlan
 import io.reactivex.rxjava3.disposables.{CompositeDisposable, Disposable}
@@ -147,11 +154,13 @@ class WorkflowService(
     new WorkflowContext(workflowId)
   }
 
-  def initExecutionService(req: WorkflowExecuteRequest, uidOpt: Option[UInteger]): Unit = {
-    if (executionService.getValue != null) {
-      //unsubscribe all
-      executionService.getValue.unsubscribeAll()
-    }
+  def initExecutionService(
+      req: WorkflowExecuteRequest,
+      userOpt: Option[User],
+      sessionUri: URI
+  ): Unit = {
+    val (uidOpt, userEmailOpt) = userOpt.map(user => (user.getUid, user.getEmail)).unzip
+
     val workflowContext: WorkflowContext = createWorkflowContext()
     var controllerConf = ControllerConfig.default
 
@@ -234,7 +243,9 @@ class WorkflowService(
         req,
         executionStateStore,
         errorHandler,
-        lastCompletedLogicalPlan
+        lastCompletedLogicalPlan,
+        userEmailOpt,
+        sessionUri
       )
       lifeCycleManager.registerCleanUpOnStateChange(executionStateStore)
       executionService.onNext(execution)

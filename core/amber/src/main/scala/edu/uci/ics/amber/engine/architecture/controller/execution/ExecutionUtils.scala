@@ -2,7 +2,7 @@ package edu.uci.ics.amber.engine.architecture.controller.execution
 
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
 import edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping
-import edu.uci.ics.texera.web.workflowruntimestate.{OperatorMetrics, OperatorStatistics}
+import edu.uci.ics.amber.engine.common.workflowruntimestate.{OperatorMetrics, OperatorStatistics}
 
 object ExecutionUtils {
 

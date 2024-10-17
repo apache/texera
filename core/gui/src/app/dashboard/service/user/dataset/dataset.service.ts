@@ -61,9 +61,26 @@ export class DatasetService {
     });
   }
 
-  public retrieveDatasetVersionZip(path: string): Observable<Blob> {
-    const encodedPath = encodeURIComponent(path);
-    return this.http.get(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/version-zip?path=${encodedPath}`, {
+  /**
+   * Retrieves a zip file of a dataset or a specific path within a dataset.
+   * @param options An object containing optional parameters:
+   *   - path: A string representing a specific file or directory path within the dataset
+   *   - did: A number representing the dataset ID
+   * @returns An Observable that emits a Blob containing the zip file
+   */
+  public retrieveDatasetZip(options: { path?: string; did?: number }): Observable<Blob> {
+    let params = new HttpParams();
+
+    if (options.path) {
+      params = params.set("path", encodeURIComponent(options.path));
+    }
+    if (options.did) {
+      params = params.set("did", options.did.toString());
+      params = params.set("getLatest", "true");
+    }
+
+    return this.http.get(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/version-zip`, {
+      params,
       responseType: "blob",
     });
   }
@@ -154,12 +171,20 @@ export class DatasetService {
    * @param did
    * @param dvid
    */
-  public retrieveDatasetVersionFileTree(did: number, dvid: number): Observable<DatasetFileNode[]> {
+  public retrieveDatasetVersionFileTree(
+    did: number,
+    dvid: number
+  ): Observable<{ fileNodes: DatasetFileNode[]; size: number }> {
     return this.http
-      .get<{
-        fileNodes: DatasetFileNode[];
-      }>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/${DATASET_VERSION_BASE_URL}/${dvid}/rootFileNodes`)
-      .pipe(map(response => response.fileNodes));
+      .get<DatasetVersionRootFileNodesResponse>(
+        `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/${DATASET_VERSION_BASE_URL}/${dvid}/rootFileNodes`
+      )
+      .pipe(
+        map(response => ({
+          fileNodes: response.rootFileNodes.fileNodes,
+          size: response.size,
+        }))
+      );
   }
 
   public deleteDatasets(dids: number[]): Observable<Response> {
@@ -188,4 +213,11 @@ export class DatasetService {
       {}
     );
   }
+}
+
+interface DatasetVersionRootFileNodesResponse {
+  rootFileNodes: {
+    fileNodes: DatasetFileNode[];
+  };
+  size: number;
 }

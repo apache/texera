@@ -11,8 +11,14 @@ import { RowModalComponent } from "../result-panel-modal.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 import { style } from "@angular/animations";
-import { isBase64, isBinary, trimAndFormatData } from "src/app/common/util/json";
+import { trimAndFormatData } from "src/app/common/util/json";
 import { ResultExportationComponent } from "../../result-exportation/result-exportation.component";
+import { WorkflowResultExportService } from "src/app/workspace/service/workflow-result-export/workflow-result-export.service";
+import { ChangeDetectorRef } from "@angular/core";
+import {
+  AttributeType,
+  SchemaAttribute,
+} from "src/app/workspace/service/dynamic-schema/schema-propagation/schema-propagation.service";
 
 export const TABLE_COLUMN_TEXT_LIMIT = 100;
 export const PRETTY_JSON_TEXT_LIMIT = 50000;
@@ -55,6 +61,9 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   prevTableStats: Record<string, Record<string, number>> = {};
   widthPercent: string = "";
   sinkStorageMode: string = "";
+  hasBinaryData: boolean = false;
+  binaryDataColumns: Set<string> = new Set();
+  private schema: ReadonlyArray<SchemaAttribute> = [];
 
   constructor(
     private executeWorkflowService: ExecuteWorkflowService,
@@ -62,7 +71,9 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     private workflowActionService: WorkflowActionService,
     private workflowResultService: WorkflowResultService,
     private resizeService: PanelResizeService,
-    private sanitizer: DomSanitizer
+    private sanitizer: DomSanitizer,
+    private workflowResultExportService: WorkflowResultExportService,
+    private changeDetectorRef: ChangeDetectorRef
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -77,6 +88,8 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
 
         this.tableStats = paginatedResultService.getStats();
         this.prevTableStats = this.tableStats;
+        this.schema = paginatedResultService.getSchema();
+        this.updateBinaryDataInfo();
       }
     }
   }
@@ -100,6 +113,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
         if (opUpdate.dirtyPageIndices.includes(this.currentPageIndex)) {
           this.changePaginatedResultData();
         }
+        this.changeDetectorRef.detectChanges();
       });
 
     this.workflowResultService
@@ -136,6 +150,14 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
         this.currentPageIndex -= 1;
       }
     });
+
+    if (this.operatorId) {
+      const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.operatorId);
+      if (paginatedResultService) {
+        this.schema = paginatedResultService.getSchema();
+        this.updateBinaryDataInfo();
+      }
+    }
   }
 
   checkKeys(
@@ -294,6 +316,9 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       .subscribe(pageData => {
         if (this.currentPageIndex === pageData.pageIndex) {
           this.setupResultTable(pageData.table, paginatedResultService.getCurrentTotalNumTuples());
+          this.schema = pageData.schema;
+          this.updateBinaryDataInfo();
+          this.changeDetectorRef.detectChanges();
         }
       });
   }
@@ -314,6 +339,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     }
 
     this.isLoadingResult = false;
+    this.changeDetectorRef.detectChanges();
 
     // creates a shallow copy of the readonly response.result,
     //  this copy will be has type object[] because MatTableDataSource's input needs to be object[]
@@ -339,14 +365,14 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
    * @param columns
    */
   generateColumns(columns: { columnKey: any; columnText: string }[]): TableColumn[] {
-    return columns.map(col => ({
+    return columns.map((col, index) => ({
       columnDef: col.columnKey,
       header: col.columnText,
       getCell: (row: IndexableObject) => {
         if (row[col.columnKey] === null) {
           return "NULL"; // Explicitly show NULL for null values
         } else if (row[col.columnKey] !== undefined) {
-          return this.trimTableCell(row[col.columnKey]);
+          return this.trimTableCell(row[col.columnKey], this.schema[index].attributeType);
         } else {
           return ""; // Keep empty string for undefined values
         }
@@ -354,8 +380,8 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     }));
   }
 
-  trimTableCell(cellContent: any): string {
-    return trimAndFormatData(cellContent, TABLE_COLUMN_TEXT_LIMIT);
+  trimTableCell(cellContent: any, attributeType: AttributeType): string {
+    return trimAndFormatData(cellContent, attributeType, TABLE_COLUMN_TEXT_LIMIT);
   }
 
   downloadData(data: any, rowIndex: number, columnIndex: number, columnName: string): void {
@@ -373,5 +399,25 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       },
       nzFooter: null,
     });
+  }
+
+  downloadAllBinaryData(): void {
+    if (!this.operatorId) {
+      return;
+    }
+    this.workflowResultExportService.exportAllBinaryDataAsZIP(this.binaryDataColumns, this.operatorId);
+  }
+
+  private updateBinaryDataInfo(): void {
+    if (this.hasBinaryData) {
+      return;
+    }
+
+    for (const attribute of this.schema) {
+      if (attribute.attributeType === "binary") {
+        this.binaryDataColumns.add(attribute.attributeName);
+        this.hasBinaryData = true;
+      }
+    }
   }
 }

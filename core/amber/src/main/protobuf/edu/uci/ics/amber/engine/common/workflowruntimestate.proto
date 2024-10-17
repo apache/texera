@@ -1,0 +1,97 @@
+syntax = "proto3";
+
+package edu.uci.ics.amber.engine.common;
+
+import "edu/uci/ics/amber/engine/architecture/rpc/controlcommands.proto";
+import "edu/uci/ics/amber/engine/architecture/rpc/controlreturns.proto";
+import "edu/uci/ics/amber/engine/architecture/worker/statistics.proto";
+import "edu/uci/ics/amber/engine/common/virtualidentity.proto";
+import "google/protobuf/timestamp.proto";
+import "scalapb/scalapb.proto";
+
+option (scalapb.options) = {
+  scope: FILE,
+  preserve_unknown_fields: false
+  no_default_values_in_constructor: false
+};
+
+enum FatalErrorType{
+  COMPILATION_ERROR = 0;
+  EXECUTION_FAILURE = 1;
+}
+
+
+message BreakpointFault{
+  message BreakpointTuple{
+    int64 id = 1;
+    bool is_input = 2;
+    repeated string tuple = 3;
+  }
+
+  string worker_name = 1;
+  BreakpointTuple faulted_tuple = 2;
+}
+
+message OperatorBreakpoints{
+  repeated BreakpointFault unresolved_breakpoints = 1;
+}
+
+message ExecutionBreakpointStore{
+  map<string, OperatorBreakpoints> operator_info = 1;
+}
+
+message EvaluatedValueList{
+  repeated amber.engine.architecture.rpc.EvaluatedValue values = 1;
+}
+
+message OperatorConsole{
+  repeated edu.uci.ics.amber.engine.architecture.rpc.ConsoleMessage console_messages = 1;
+  map<string, EvaluatedValueList> evaluate_expr_results = 2;
+}
+
+message ExecutionConsoleStore{
+  map<string, OperatorConsole> operator_console = 1;
+}
+
+message OperatorWorkerMapping{
+  string operatorId = 1;
+  repeated string workerIds = 2;
+}
+
+message OperatorStatistics{
+  repeated amber.engine.architecture.worker.PortTupleCountMapping input_count = 1;
+  repeated amber.engine.architecture.worker.PortTupleCountMapping output_count = 2;
+  int32 num_workers = 3;
+  int64 data_processing_time = 4;
+  int64 control_processing_time = 5;
+  int64 idle_time = 6;
+}
+
+message OperatorMetrics{
+  edu.uci.ics.amber.engine.architecture.rpc.WorkflowAggregatedState operator_state = 1 [(scalapb.field).no_box = true];
+  OperatorStatistics operator_statistics = 2 [(scalapb.field).no_box = true];
+}
+
+message ExecutionStatsStore {
+  int64 startTimeStamp = 1;
+  int64 endTimeStamp = 2;
+  map<string, OperatorMetrics> operator_info = 3;
+  repeated OperatorWorkerMapping operator_worker_mapping = 4;
+}
+
+
+message WorkflowFatalError {
+  FatalErrorType type = 1;
+  google.protobuf.Timestamp timestamp = 2 [(scalapb.field).no_box = true];
+  string message = 3;
+  string details = 4;
+  string operatorId = 5;
+  string workerId = 6;
+}
+
+message ExecutionMetadataStore{
+  edu.uci.ics.amber.engine.architecture.rpc.WorkflowAggregatedState state = 1;
+  repeated WorkflowFatalError fatal_errors = 2;
+  edu.uci.ics.amber.engine.common.ExecutionIdentity executionId = 3 [(scalapb.field).no_box = true];
+  bool is_recovering = 4;
+}

@@ -11,11 +11,11 @@ import edu.uci.ics.amber.engine.architecture.controller.{
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.FAILED
 import edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping
-import edu.uci.ics.amber.engine.common.AmberConfig
+import edu.uci.ics.amber.engine.common.{AmberConfig, Utils}
 import edu.uci.ics.amber.engine.common.client.AmberClient
+import edu.uci.ics.amber.engine.common.model.WorkflowContext
 import edu.uci.ics.amber.error.ErrorUtils.{getOperatorFromActorIdOpt, getStackTraceWithAllCauses}
-import edu.uci.ics.texera.Utils
-import edu.uci.ics.texera.Utils.maptoStatusCode
+import Utils.maptoStatusCode
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowRuntimeStatistics
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowRuntimeStatisticsDao
 import edu.uci.ics.texera.web.{SqlServer, SubscriptionManager}
@@ -27,16 +27,16 @@ import edu.uci.ics.texera.web.model.websocket.event.{
 }
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
-import edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
-import edu.uci.ics.texera.web.workflowruntimestate.{
+import edu.uci.ics.amber.engine.common.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
+import edu.uci.ics.amber.engine.common.workflowruntimestate.{
   OperatorMetrics,
   OperatorStatistics,
   OperatorWorkerMapping,
   WorkflowFatalError
 }
+import edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState.FAILED
 
 import java.time.Instant
-import edu.uci.ics.texera.workflow.common.WorkflowContext
 import org.jooq.types.{UInteger, ULong}
 
 import java.util

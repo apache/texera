@@ -1,45 +1,14 @@
 package edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference
 
-import akka.actor.Address
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+// LocationPreference defines where operators should run.
+sealed trait LocationPreference extends Serializable
 
-case class AddressInfo(
-    // the addresses of all worker nodes
-    allAddresses: Array[Address],
-    // the address of the controller
-    controllerAddress: Address
-)
+// PreferController: Run on the controller node.
+// Example: For scan operators reading files or sink operators writing results on the controller.
+object PreferController extends LocationPreference
 
-trait LocationPreference extends Serializable {
-
-  def getPreferredLocation(
-      addressInfo: AddressInfo,
-      physicalOp: PhysicalOp,
-      workerIndex: Int
-  ): Address
-
-}
-
-class PreferController extends LocationPreference {
-  override def getPreferredLocation(
-      addressInfo: AddressInfo,
-      physicalOp: PhysicalOp,
-      workerIndex: Int
-  ): Address = {
-    addressInfo.controllerAddress
-  }
-}
-
-class RoundRobinPreference extends LocationPreference {
-  override def getPreferredLocation(
-      addressInfo: AddressInfo,
-      physicalOp: PhysicalOp,
-      workerIndex: Int
-  ): Address = {
-    assert(
-      addressInfo.allAddresses.nonEmpty,
-      "Execution failed to start, no available computation nodes"
-    )
-    addressInfo.allAddresses(workerIndex % addressInfo.allAddresses.length)
-  }
-}
+// RoundRobinPreference: Distribute across worker nodes, per operator.
+// Example:
+// - Operator A: Worker 1 -> Node 1, Worker 2 -> Node 2, Worker 3 -> Node 3
+// - Operator B: Worker 1 -> Node 1, Worker 2 -> Node 2
+object RoundRobinPreference extends LocationPreference

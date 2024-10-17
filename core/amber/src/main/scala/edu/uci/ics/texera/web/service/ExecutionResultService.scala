@@ -11,10 +11,11 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregat
   KILLED
 }
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.RUNNING
-import edu.uci.ics.amber.engine.common.{AmberConfig, AmberRuntime}
+import edu.uci.ics.amber.engine.common.{AmberConfig, AmberRuntime, IncrementalOutputMode}
 import edu.uci.ics.amber.engine.common.client.AmberClient
+import edu.uci.ics.amber.engine.common.model.tuple.Tuple
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
-import edu.uci.ics.texera.workflow.common.IncrementalOutputMode.{SET_DELTA, SET_SNAPSHOT}
+import edu.uci.ics.amber.engine.common.IncrementalOutputMode.{SET_DELTA, SET_SNAPSHOT}
 import edu.uci.ics.texera.web.model.websocket.event.{
   PaginatedResultEvent,
   TexeraWebSocketEvent,
@@ -29,10 +30,15 @@ import edu.uci.ics.texera.web.storage.{
   WorkflowStateStore
 }
 import edu.uci.ics.texera.web.workflowruntimestate.ExecutionMetadataStore
+import edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionMetadataStore
+import edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState.{
+  COMPLETED,
+  FAILED,
+  KILLED,
+  RUNNING
+}
 import edu.uci.ics.texera.web.SubscriptionManager
-import edu.uci.ics.texera.workflow.common.IncrementalOutputMode
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.workflow.LogicalPlan
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 
@@ -328,7 +334,10 @@ class ExecutionResultService(
     val mappedResults = paginationIterable
       .map(tuple => tuple.asKeyValuePairJson())
       .toList
-    PaginatedResultEvent.apply(request, mappedResults)
+    val attributes = paginationIterable.headOption
+      .map(_.getSchema.getAttributes)
+      .getOrElse(List.empty)
+    PaginatedResultEvent.apply(request, mappedResults, attributes)
   }
 
   private def onResultUpdate(): Unit = {
