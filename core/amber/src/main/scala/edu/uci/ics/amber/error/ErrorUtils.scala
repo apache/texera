@@ -37,7 +37,7 @@ object ErrorUtils {
     ConsoleMessage(actorId.name, Timestamp(Instant.now), ERROR, source, title, message)
   }
 
-  def mkControlError(err:Throwable):ControlError = {
+  def mkControlError(err: Throwable): ControlError = {
     val title = err.toString
     val message = err.getStackTrace.mkString("\n")
     ControlError(title, message)

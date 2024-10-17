@@ -1,9 +1,15 @@
 package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
 import com.twitter.util.Future
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, FinalizeCheckpointRequest}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
+  AsyncRPCContext,
+  FinalizeCheckpointRequest
+}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.FinalizeCheckpointResponse
-import edu.uci.ics.amber.engine.architecture.worker.{DataProcessorRPCHandlerInitializer, WorkflowWorker}
+import edu.uci.ics.amber.engine.architecture.worker.{
+  DataProcessorRPCHandlerInitializer,
+  WorkflowWorker
+}
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import edu.uci.ics.amber.engine.common.{CheckpointState, CheckpointSupport, SerializedState}
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
@@ -15,7 +21,10 @@ import scala.collection.mutable.ArrayBuffer
 trait FinalizeCheckpointHandler {
   this: DataProcessorRPCHandlerInitializer =>
 
-  override def finalizeCheckpoint(msg: FinalizeCheckpointRequest, ctx: AsyncRPCContext): Future[FinalizeCheckpointResponse] = {
+  override def finalizeCheckpoint(
+      msg: FinalizeCheckpointRequest,
+      ctx: AsyncRPCContext
+  ): Future[FinalizeCheckpointResponse] = {
     val checkpointSize = if (dp.channelMarkerManager.checkpoints.contains(msg.checkpointId)) {
       val waitFuture = new CompletableFuture[Unit]()
       val chkpt = dp.channelMarkerManager.checkpoints(msg.checkpointId)

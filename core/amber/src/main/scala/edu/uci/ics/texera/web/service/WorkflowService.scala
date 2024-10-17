@@ -3,11 +3,21 @@ package edu.uci.ics.texera.web.service
 import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{COMPLETED, FAILED}
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{FaultToleranceConfig, StateRestoreConfig}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
+  COMPLETED,
+  FAILED
+}
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
+  FaultToleranceConfig,
+  StateRestoreConfig
+}
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.virtualidentity.{ChannelMarkerIdentity, ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ChannelMarkerIdentity,
+  ExecutionIdentity,
+  WorkflowIdentity
+}
 import edu.uci.ics.amber.error.ErrorUtils.{getOperatorFromActorIdOpt, getStackTraceWithAllCauses}
 import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
 import edu.uci.ics.texera.web.model.websocket.request.WorkflowExecuteRequest
