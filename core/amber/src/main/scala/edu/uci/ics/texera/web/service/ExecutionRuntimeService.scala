@@ -20,7 +20,6 @@ import edu.uci.ics.texera.web.model.websocket.request.{
 }
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
-import edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState._
 
 import java.util.UUID
 

@@ -29,14 +29,7 @@ import edu.uci.ics.texera.web.storage.{
   WorkflowResultStore,
   WorkflowStateStore
 }
-import edu.uci.ics.texera.web.workflowruntimestate.ExecutionMetadataStore
 import edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionMetadataStore
-import edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState.{
-  COMPLETED,
-  FAILED,
-  KILLED,
-  RUNNING
-}
 import edu.uci.ics.texera.web.SubscriptionManager
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.workflow.LogicalPlan

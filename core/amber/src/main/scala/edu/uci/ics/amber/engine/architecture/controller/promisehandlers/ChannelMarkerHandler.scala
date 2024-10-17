@@ -12,19 +12,8 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{
   PropagateChannelMarkerResponse
 }
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
-import edu.uci.ics.amber.engine.common.ambermessage.ChannelMarkerType
-import edu.uci.ics.amber.engine.common.model.PhysicalPlan
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  ChannelIdentity,
-  ChannelMarkerIdentity,
-  PhysicalOpIdentity
-}
-
 trait ChannelMarkerHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 

@@ -34,7 +34,6 @@ import edu.uci.ics.amber.engine.common.workflowruntimestate.{
   OperatorWorkerMapping,
   WorkflowFatalError
 }
-import edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState.FAILED
 
 import java.time.Instant
 import org.jooq.types.{UInteger, ULong}

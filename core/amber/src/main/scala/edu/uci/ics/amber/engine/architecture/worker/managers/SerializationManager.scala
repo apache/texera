@@ -3,7 +3,6 @@ package edu.uci.ics.amber.engine.architecture.worker.managers
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo.generateJavaOpExec
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.InitializeExecutorRequest
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.InitializeExecutorHandler.InitializeExecutor
 import edu.uci.ics.amber.engine.common.executor.OperatorExecutor
 import edu.uci.ics.amber.engine.common.model.tuple.TupleLike
 import edu.uci.ics.amber.engine.common.{
