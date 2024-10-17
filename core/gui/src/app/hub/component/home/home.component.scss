@@ -1,9 +1,80 @@
+.content-wrapper {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
 .content {
-  text-align: center;
+  text-align: left;
+  line-height: 1.6;
+}
+
+h2 {
+  color: #2c3e50;
+  margin-bottom: 20px;
+}
+
+h3 {
+  color: #34495e;
+  margin-top: 30px;
+  margin-bottom: 15px;
+}
+
+p {
+  margin-bottom: 15px;
+}
+
+ul {
+  padding-left: 20px;
+  margin-bottom: 20px;
+}
+
+li {
+  margin-bottom: 10px;
+}
+
+strong {
+  color: #3498db;
+}
+
+iframe {
+  margin-top: 30px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 #logo {
   height: 70px;
   padding: 0;
   margin-right: 14px;
+}
+
+// Media query for responsiveness
+@media (max-width: 768px) {
+  .content-wrapper {
+    padding: 0 15px;
+  }
+
+  iframe {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+  }
+}
+
+// Add custom scrollbar styles
+.content-wrapper::-webkit-scrollbar {
+  width: 8px;
+}
+
+.content-wrapper::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.content-wrapper::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+.content-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #555;
 }
