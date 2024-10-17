@@ -241,18 +241,18 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
 
   private initializeDiffEditor(): void {
     const fileSuffix = this.getFileSuffixByLanguage(this.language);
-    const oldVersionOperator = this.workflowActionService
+    const latestVersionOperator = this.workflowActionService
       .getTempWorkflow()
       ?.content.operators?.find(operator => operator.operatorID === this.currentOperatorId);
-    const oldVersionCode: string = oldVersionOperator?.operatorProperties.code ?? "";
-    const currentVersionCode: string = this.code?.toString() ?? "";
+    const latestVersionCode: string = latestVersionOperator?.operatorProperties.code ?? "";
+    const oldVersionCode: string = this.code?.toString() ?? "";
     const userConfig: UserConfig = {
       wrapperConfig: {
         editorAppConfig: {
           $type: "extended",
           codeResources: {
             main: {
-              text: currentVersionCode,
+              text: latestVersionCode,
               uri: `in-memory-${this.currentOperatorId}.${fileSuffix}`,
             },
             original: {
