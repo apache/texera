@@ -2,27 +2,64 @@
   nz-row
   nzJustify="space-around"
   nzAlign="middle"
-  style="margin-top: 100px">
-  <div
-    nz-col
-    nzFlex="auto"
-    class="content">
-    <h2>Collaborative Data Analytics Using Workflows</h2>
-    <p>
-      <br />
-      <i>Texera supports scalable computation and enables advanced AI/ML techniques.</i>
-      <br />
-      <i>"Collaboration" is a key focus, and we enable an experience similar to Google Docs, but for data analytics.</i>
-      <br />
-    </p>
-    <iframe
-      width="560"
-      height="315"
-      src="https://www.youtube-nocookie.com/embed/2gfPUZNsoBs"
-      title="YouTube video player"
-      frameborder="0"
-      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-      allowfullscreen></iframe>
+  style="margin-top: 20px">
+  <div class="content-wrapper">
+    <div
+      nz-col
+      nzFlex="auto"
+      class="content">
+      <h2>Cloud-based Computing Platform for Diabetes Research</h2>
+      <p>
+        This cloud-based computing platform, powered by <a href="https://github.com/Texera/texera">Texera</a>, brings
+        data science and AI/ML to the diabetes research community and facilitates interdisciplinary collaborations among
+        users. By enabling a GUI-based workflow interface, it allows diabetes researchers, including those with limited
+        or no coding skills, to participate in the life cycle of a data science project and use the latest AI/ML
+        technology. It also allows experienced IT experts to implement their custom logic using their favorite
+        programming languages.
+      </p>
+      <p>
+        Texera offers several strengths that lower barriers for NIDDK researchers to utilize state-of-the-art AI/ML
+        techniques and support multiple data modalities. These strengths include:
+      </p>
+      <ul>
+        <li>
+          <strong>Collaborative functionalities:</strong> It supports features such as real-time shared editing, shared
+          execution, version control, commenting, and debugging.
+        </li>
+        <li>
+          <strong>Multi-language support:</strong> It supports multiple script languages such as Python, R, Java, and
+          Scala. This flexibility accommodates different programming preferences and facilitates the adoption of
+          advanced AI/ML techniques.
+        </li>
+        <li>
+          <strong>Elasticity and reproducibility:</strong> It allows users to elastically request computing resources
+          from public clouds (e.g., Amazon AWS) to form clusters to conduct computationally expensive tasks and enjoy
+          the pay-as-you-go model.
+        </li>
+        <li>
+          <strong>Sharing:</strong> The platform allows community users to publish their data sets and workflows, and
+          choose the collaborators to share the resources with.
+        </li>
+      </ul>
+      <p>The following is a screenshot of a workflow being edited by two collaborators.</p>
+      <img
+        src="assets/sequence-alignment-workflow.png"
+        alt="Sequence Alignment Workflow"
+        style="max-width: 90%; height: auto; display: block; margin: 0 auto" />
+      <p>
+        Please check the latest
+        <a
+          href="https://texera.github.io/blog/using-texera-to-perform-single-cell-rna-sequencing-analysis-with-r-language/"
+          >blog</a
+        >
+        about using Texera to perform single-cell RNA sequencing analysis with R Language.
+      </p>
+      <p>
+        The platform is supported by the National Science Foundation under the award
+        <a href="https://www.nsf.gov/awardsearch/showAward?AWD_ID=2107150">IIS-2107150</a> and
+        <a href="https://reporter.nih.gov/project-details/10818244">NIH NIDDK</a>.
+      </p>
+    </div>
   </div>
   <texera-local-login
     *ngIf="localLogin"
