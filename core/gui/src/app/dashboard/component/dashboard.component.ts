@@ -66,28 +66,36 @@ export class DashboardComponent implements OnInit {
         );
     }
 
-    if (window.location.hostname === "localhost") {
-      console.warn("Skipping forum authentication in local environment.");
-    } else if (!document.cookie.includes("flarum_remember") && this.isLogin) {
+    if (!document.cookie.includes("flarum_remember") && this.isLogin) {
       this.flarumService
-        .auth()
+        .checkForumHealth()
         .pipe(untilDestroyed(this))
-        .subscribe({
-          next: (response: any) => {
-            document.cookie = `flarum_remember=${response.token};path=/`;
-          },
-          error: (err: unknown) => {
-            if ((err as HttpErrorResponse).status === 404) {
-              this.displayForum = false;
-            } else {
-              this.flarumService
-                .register()
-                .pipe(untilDestroyed(this))
-                .subscribe(() => this.ngOnInit());
-            }
-          },
+        .subscribe((isHealthy: boolean) => {
+          if (!isHealthy) {
+            return;
+          }
+
+          this.flarumService
+            .auth()
+            .pipe(untilDestroyed(this))
+            .subscribe({
+              next: (response: any) => {
+                document.cookie = `flarum_remember=${response.token};path=/`;
+              },
+              error: (err: unknown) => {
+                if ((err as HttpErrorResponse).status === 404) {
+                  this.displayForum = false;
+                } else {
+                  this.flarumService
+                    .register()
+                    .pipe(untilDestroyed(this))
+                    .subscribe(() => this.ngOnInit());
+                }
+              },
+            });
         });
     }
+
     this.router.events.pipe(untilDestroyed(this)).subscribe(() => {
       this.checkRoute();
     });
