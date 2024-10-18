@@ -170,7 +170,6 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
   public onClickContinue(): void {
     for (let worker of this.workerIds) {
       this.udfDebugService.doContinue(this.operatorId, worker);
-
     }
   }
 

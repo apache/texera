@@ -9,16 +9,17 @@ import { WorkflowStatusService } from "../workflow-status/workflow-status.servic
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
 
 export class BreakpointManager {
-
-
-  constructor(private workflowWebsocketService: WorkflowWebsocketService,
-              private workflowStatusService: WorkflowStatusService,
-              private currentOperatorId: string,
-              private lineNumToBreakpointMapping: Y.Map<UDFBreakpointInfo>) {
-
-
+  constructor(
+    private workflowWebsocketService: WorkflowWebsocketService,
+    private workflowStatusService: WorkflowStatusService,
+    private currentOperatorId: string,
+    private lineNumToBreakpointMapping: Y.Map<UDFBreakpointInfo>
+  ) {
     workflowStatusService.getStatusUpdateStream().subscribe(event => {
-      if (event[this.currentOperatorId]?.operatorState !== OperatorState.Running || event[this.currentOperatorId]?.operatorState !== OperatorState.Paused) {
+      if (
+        event[this.currentOperatorId]?.operatorState !== OperatorState.Running ||
+        event[this.currentOperatorId]?.operatorState !== OperatorState.Paused
+      ) {
         this.executionActive = true;
       }
       if (event[this.currentOperatorId]?.operatorState === OperatorState.Initializing) {
@@ -65,13 +66,10 @@ export class BreakpointManager {
         }
       });
     });
-
   }
-
 
   private debugCommandQueue: DebugCommandRequest[] = [];
   private executionActive = false;
-
 
   private queueCommand(cmd: DebugCommandRequest) {
     this.debugCommandQueue.push(cmd);
@@ -89,7 +87,6 @@ export class BreakpointManager {
     }
   }
 
-
   public resetState() {
     this.executionActive = false;
     this.debugCommandQueue = [];
@@ -97,11 +94,9 @@ export class BreakpointManager {
     this.setHitLineNum(0);
   }
 
-
   private hasBreakpoint(lineNum: number): boolean {
     return this.lineNumToBreakpointMapping.has(String(lineNum));
   }
-
 
   public getCondition(lineNum: number): string {
     let line = String(lineNum);
@@ -121,7 +116,6 @@ export class BreakpointManager {
       workerId: "1",
       cmd: "condition " + info.breakpointId + " " + info.condition,
     });
-
   }
 
   public setContinue() {
@@ -144,9 +138,7 @@ export class BreakpointManager {
     }
     let breakpointInfo = this.lineNumToBreakpointMapping.get(line)!;
     this.lineNumToBreakpointMapping.set(line, { ...breakpointInfo, hit: true });
-
   }
-
 
   addOrRemoveBreakpoint(lineNum: number, workerIds: readonly string[]) {
     if (this.hasBreakpoint(lineNum)) {
@@ -192,7 +184,7 @@ export class BreakpointManager {
     return undefined;
   }
 
-  private extractBreakpointInfo(title: string): { breakpointId?: number, lineNum?: number } {
+  private extractBreakpointInfo(title: string): { breakpointId?: number; lineNum?: number } {
     const match = title.match(/(?:Breakpoint|Deleted breakpoint) (\d+) at .+:(\d+)/);
     return {
       breakpointId: match ? parseInt(match[1], 10) : undefined,
@@ -226,9 +218,8 @@ export class UdfDebugService {
     private workflowWebsocketService: WorkflowWebsocketService,
     private workflowActionService: WorkflowActionService,
     private workflowStatusService: WorkflowStatusService,
-    private executeWorkflowService: ExecuteWorkflowService) {
-
-  }
+    private executeWorkflowService: ExecuteWorkflowService
+  ) {}
 
   public getOrCreateManager(operatorId: string): BreakpointManager {
     let debugState = this.workflowActionService.texeraGraph.sharedModel.debugState;
@@ -236,13 +227,24 @@ export class UdfDebugService {
       debugState.set(operatorId, new Y.Map<UDFBreakpointInfo>());
     }
     if (!this.breakpointManagers.has(operatorId)) {
-      this.breakpointManagers.set(operatorId, new BreakpointManager(this.workflowWebsocketService, this.workflowStatusService, operatorId, debugState.get(operatorId)));
+      this.breakpointManagers.set(
+        operatorId,
+        new BreakpointManager(
+          this.workflowWebsocketService,
+          this.workflowStatusService,
+          operatorId,
+          debugState.get(operatorId)
+        )
+      );
     }
     return this.breakpointManagers.get(operatorId)!;
   }
 
   doModifyBreakpoint(operatorId: string, lineNumber: number) {
-    this.getOrCreateManager(operatorId).addOrRemoveBreakpoint(lineNumber, this.executeWorkflowService.getWorkerIds(operatorId));
+    this.getOrCreateManager(operatorId).addOrRemoveBreakpoint(
+      lineNumber,
+      this.executeWorkflowService.getWorkerIds(operatorId)
+    );
   }
 
   doContinue(operatorId: string, workerId: string) {

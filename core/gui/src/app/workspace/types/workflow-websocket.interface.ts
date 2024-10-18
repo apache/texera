@@ -175,10 +175,10 @@ export type WorkflowStateInfo = Readonly<{
 }>;
 
 export type UDFBreakpointInfo = Readonly<{
-  breakpointId:number | undefined;
-  condition:string;
-  hit:boolean;
-}>
+  breakpointId: number | undefined;
+  condition: string;
+  hit: boolean;
+}>;
 
 export type TexeraWebsocketRequestTypeMap = {
   EditingTimeCompilationRequest: LogicalPlan;

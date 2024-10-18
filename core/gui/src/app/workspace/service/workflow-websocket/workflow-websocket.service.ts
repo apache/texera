@@ -61,7 +61,7 @@ export class WorkflowWebsocketService {
       type,
       ...payload,
     } as any as TexeraWebsocketRequest;
-    if(request.type === "WorkflowExecuteRequest"){
+    if (request.type === "WorkflowExecuteRequest") {
       this.executionInitiator = true;
     }
     this.websocket?.next(request);
@@ -106,8 +106,12 @@ export class WorkflowWebsocketService {
       if (evt.type === "ClusterStatusUpdateEvent") {
         this.numWorkers = evt.numWorkers;
       }
-      if(evt.type === "WorkflowStateEvent"){
-        if(evt.state === ExecutionState.Completed || evt.state === ExecutionState.Killed || evt.state === ExecutionState.Failed){
+      if (evt.type === "WorkflowStateEvent") {
+        if (
+          evt.state === ExecutionState.Completed ||
+          evt.state === ExecutionState.Killed ||
+          evt.state === ExecutionState.Failed
+        ) {
           this.executionInitiator = false;
         }
       }
@@ -120,20 +124,16 @@ export class WorkflowWebsocketService {
     this.openWebsocket(wId);
   }
 
-
-  public clearDebugCommands(){
+  public clearDebugCommands() {
     this.requestQueue = [];
   }
 
-
-
-  public sendDebugCommand(payload:DebugCommandRequest){
+  public sendDebugCommand(payload: DebugCommandRequest) {
     this.requestQueue.push(payload);
     this.processQueue();
   }
 
-  private sendDebugCommandRequest( cmd: DebugCommandRequest): void {
-
+  private sendDebugCommandRequest(cmd: DebugCommandRequest): void {
     console.log("sending", cmd);
     this.send("DebugCommandRequest", cmd);
   }
@@ -146,7 +146,7 @@ export class WorkflowWebsocketService {
     for (let i = 0; i < initialQueueLength; i++) {
       const request = this.requestQueue.shift();
       if (request) {
-          this.sendDebugCommandRequest(request);
+        this.sendDebugCommandRequest(request);
       }
     }
   }

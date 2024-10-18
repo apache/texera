@@ -50,7 +50,6 @@
   top: -5px;
 }
 
-
 .custom-tooltip {
   position: absolute;
   background: #333;
@@ -102,9 +101,8 @@
   font-weight: bold;
 }
 
-
 ::ng-deep .cgmr.codicon.monaco-conditional-breakpoint::before {
-  content: '?';
+  content: "?";
   position: absolute;
   top: 50%;
   left: 50%;
