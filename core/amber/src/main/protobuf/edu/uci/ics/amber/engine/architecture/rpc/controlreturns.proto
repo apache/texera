@@ -32,9 +32,16 @@ message ControlReturn {
 
 message EmptyReturn {}
 
+enum ErrorLanguage {
+  PYTHON = 0;
+  SCALA = 1;
+}
+
 message ControlError {
   string errorMessage = 1;
   string errorDetails = 2;
+  string stackTrace = 3;
+  ErrorLanguage language = 4;
 }
 
 message ReturnInvocation {

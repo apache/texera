@@ -26,6 +26,7 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{
 }
 import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceFs2Grpc
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.createProxy
+import edu.uci.ics.amber.error.ErrorUtils.reconstructThrowable
 
 import java.lang.reflect.{InvocationHandler, Method, Proxy}
 import scala.collection.mutable
@@ -161,7 +162,7 @@ class AsyncRPCClient(
       val p = unfulfilledPromises(ret.commandId)
       ret.returnValue match {
         case err: ControlError =>
-          p.raise(new RuntimeException(err.errorMessage))
+          p.raise(reconstructThrowable(err))
         case other =>
           p.setValue(other)
       }

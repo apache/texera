@@ -34,6 +34,7 @@ import edu.uci.ics.amber.engine.common.model.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CLIENT, CONTROLLER}
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import edu.uci.ics.amber.error.ErrorUtils.reconstructThrowable
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 
 import scala.collection.mutable
@@ -112,17 +113,17 @@ private[client] class ClientActor extends Actor with AmberLogging {
               if (promiseMap.contains(originalCommandID)) {
                 controlReturn match {
                   case t: ControlError =>
-                    promiseMap(originalCommandID).setException(new RuntimeException(t.errorMessage))
+                    promiseMap(originalCommandID).setException(reconstructThrowable(t))
                   case other =>
                     promiseMap(originalCommandID).setValue(other)
                 }
                 promiseMap.remove(originalCommandID)
               }
-            case o => println(o)
+            case o => logger.warn(s"Amber Client should not receive control invocation: $o")
           }
         case _: DataPayload     => ???
         case event: ClientEvent => handleClientEvent(event)
-        case o                  => println(o)
+        case msg                => logger.info(s"Amber Client received: $msg")
       }
     case x: WorkflowRecoveryMessage =>
       sender() ! Ack

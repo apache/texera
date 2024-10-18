@@ -2,7 +2,11 @@ package edu.uci.ics.amber.engine.common.rpc
 
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputGateway
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlInvocation
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
+  AsyncRPCContext,
+  ControlInvocation,
+  ControlRequest
+}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{ControlReturn, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
@@ -18,10 +22,6 @@ class AsyncRPCServer(
 
   var handler: AnyRef = _
 
-  // Define the MethodKey case class
-  private case class MethodKey(name: String, paramTypes: Seq[Class[_]])
-
-  // Secondary cache mapping method names to methods
   @transient
   private lazy val methodsByName: Map[String, Method] = {
     val mapping = mutable.HashMap[String, Method]()
@@ -37,12 +37,8 @@ class AsyncRPCServer(
     val contextArg = request.context
     val id = request.commandId
     logger.debug(
-      s"receive command: ${methodName} from $senderID (controlID: ${id})"
+      s"receive command: ${methodName} with payload ${requestArg} from $senderID (controlID: ${id})"
     )
-
-    val paramTypes = Seq(requestArg.getClass, contextArg.getClass)
-    val key = MethodKey(methodName, paramTypes)
-
     methodsByName.get(methodName) match {
       case Some(method) =>
         invokeMethod(method, requestArg, contextArg, id, senderID)
@@ -53,14 +49,14 @@ class AsyncRPCServer(
 
   private def invokeMethod(
       method: Method,
-      requestArg: Any,
-      contextArg: Any,
+      requestArg: ControlRequest,
+      contextArg: AsyncRPCContext,
       id: Long,
       senderID: ActorVirtualIdentity
   ): Unit = {
     try {
       val result =
-        method.invoke(handler, requestArg.asInstanceOf[AnyRef], contextArg.asInstanceOf[AnyRef])
+        method.invoke(handler, requestArg, contextArg)
       result
         .asInstanceOf[Future[ControlReturn]]
         .onSuccess { ret =>

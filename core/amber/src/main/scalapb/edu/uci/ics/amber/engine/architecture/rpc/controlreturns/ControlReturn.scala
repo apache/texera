@@ -506,7 +506,9 @@ object ControlReturnMessage extends scalapb.GeneratedMessageCompanion[edu.uci.ic
 @SerialVersionUID(0L)
 final case class ControlError(
     errorMessage: _root_.scala.Predef.String,
-    errorDetails: _root_.scala.Predef.String
+    errorDetails: _root_.scala.Predef.String,
+    stackTrace: _root_.scala.Predef.String,
+    language: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ErrorLanguage
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturn.NonEmpty with scalapb.lenses.Updatable[ControlError] {
     @transient
     private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
@@ -524,6 +526,20 @@ final case class ControlError(
         val __value = errorDetails
         if (!__value.isEmpty) {
           __size += _root_.com.google.protobuf.CodedOutputStream.computeStringSize(2, __value)
+        }
+      };
+      
+      {
+        val __value = stackTrace
+        if (!__value.isEmpty) {
+          __size += _root_.com.google.protobuf.CodedOutputStream.computeStringSize(3, __value)
+        }
+      };
+      
+      {
+        val __value = language.value
+        if (__value != 0) {
+          __size += _root_.com.google.protobuf.CodedOutputStream.computeEnumSize(4, __value)
         }
       };
       __size
@@ -550,9 +566,23 @@ final case class ControlError(
           _output__.writeString(2, __v)
         }
       };
+      {
+        val __v = stackTrace
+        if (!__v.isEmpty) {
+          _output__.writeString(3, __v)
+        }
+      };
+      {
+        val __v = language.value
+        if (__v != 0) {
+          _output__.writeEnum(4, __v)
+        }
+      };
     }
     def withErrorMessage(__v: _root_.scala.Predef.String): ControlError = copy(errorMessage = __v)
     def withErrorDetails(__v: _root_.scala.Predef.String): ControlError = copy(errorDetails = __v)
+    def withStackTrace(__v: _root_.scala.Predef.String): ControlError = copy(stackTrace = __v)
+    def withLanguage(__v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ErrorLanguage): ControlError = copy(language = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
         case 1 => {
@@ -563,6 +593,14 @@ final case class ControlError(
           val __t = errorDetails
           if (__t != "") __t else null
         }
+        case 3 => {
+          val __t = stackTrace
+          if (__t != "") __t else null
+        }
+        case 4 => {
+          val __t = language.javaValueDescriptor
+          if (__t.getNumber() != 0) __t else null
+        }
       }
     }
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
@@ -570,6 +608,8 @@ final case class ControlError(
       (__field.number: @_root_.scala.unchecked) match {
         case 1 => _root_.scalapb.descriptors.PString(errorMessage)
         case 2 => _root_.scalapb.descriptors.PString(errorDetails)
+        case 3 => _root_.scalapb.descriptors.PString(stackTrace)
+        case 4 => _root_.scalapb.descriptors.PEnum(language.scalaValueDescriptor)
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
@@ -582,6 +622,8 @@ object ControlError extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.
   def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError = {
     var __errorMessage: _root_.scala.Predef.String = ""
     var __errorDetails: _root_.scala.Predef.String = ""
+    var __stackTrace: _root_.scala.Predef.String = ""
+    var __language: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ErrorLanguage = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ErrorLanguage.PYTHON
     var _done__ = false
     while (!_done__) {
       val _tag__ = _input__.readTag()
@@ -591,12 +633,18 @@ object ControlError extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.
           __errorMessage = _input__.readStringRequireUtf8()
         case 18 =>
           __errorDetails = _input__.readStringRequireUtf8()
+        case 26 =>
+          __stackTrace = _input__.readStringRequireUtf8()
+        case 32 =>
+          __language = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ErrorLanguage.fromValue(_input__.readEnum())
         case tag => _input__.skipField(tag)
       }
     }
     edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError(
         errorMessage = __errorMessage,
-        errorDetails = __errorDetails
+        errorDetails = __errorDetails,
+        stackTrace = __stackTrace,
+        language = __language
     )
   }
   implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError] = _root_.scalapb.descriptors.Reads{
@@ -604,7 +652,9 @@ object ControlError extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
       edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError(
         errorMessage = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Predef.String]).getOrElse(""),
-        errorDetails = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Predef.String]).getOrElse("")
+        errorDetails = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Predef.String]).getOrElse(""),
+        stackTrace = __fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).map(_.as[_root_.scala.Predef.String]).getOrElse(""),
+        language = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ErrorLanguage.fromValue(__fieldsMap.get(scalaDescriptor.findFieldByNumber(4).get).map(_.as[_root_.scalapb.descriptors.EnumValueDescriptor]).getOrElse(edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ErrorLanguage.PYTHON.scalaValueDescriptor).number)
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
@@ -612,23 +662,37 @@ object ControlError extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.
   def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlreturnsProto.scalaDescriptor.messages(2)
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
-  def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
+  def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = {
+    (__fieldNumber: @_root_.scala.unchecked) match {
+      case 4 => edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ErrorLanguage
+    }
+  }
   lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError(
     errorMessage = "",
-    errorDetails = ""
+    errorDetails = "",
+    stackTrace = "",
+    language = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ErrorLanguage.PYTHON
   )
   implicit class ControlErrorLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError](_l) {
     def errorMessage: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.errorMessage)((c_, f_) => c_.copy(errorMessage = f_))
     def errorDetails: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.errorDetails)((c_, f_) => c_.copy(errorDetails = f_))
+    def stackTrace: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.stackTrace)((c_, f_) => c_.copy(stackTrace = f_))
+    def language: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ErrorLanguage] = field(_.language)((c_, f_) => c_.copy(language = f_))
   }
   final val ERRORMESSAGE_FIELD_NUMBER = 1
   final val ERRORDETAILS_FIELD_NUMBER = 2
+  final val STACKTRACE_FIELD_NUMBER = 3
+  final val LANGUAGE_FIELD_NUMBER = 4
   def of(
     errorMessage: _root_.scala.Predef.String,
-    errorDetails: _root_.scala.Predef.String
+    errorDetails: _root_.scala.Predef.String,
+    stackTrace: _root_.scala.Predef.String,
+    language: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ErrorLanguage
   ): _root_.edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError = _root_.edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError(
     errorMessage,
-    errorDetails
+    errorDetails,
+    stackTrace,
+    language
   )
   // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.ControlError])
 }
