@@ -68,12 +68,10 @@ export class SearchComponent implements AfterViewInit {
         this.searchParam = keyword;
         this.updateMasterFilterList();
       }
-    });
 
-    setTimeout(() => {
       this.searchKeywords = this.filters.getSearchKeywords();
       this.cdr.detectChanges();
-    }, 0);
+    });
   }
 
   async search(): Promise<void> {
