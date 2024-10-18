@@ -15,6 +15,7 @@ import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc
 import edu.uci.ics.amber.engine.common.{CheckpointState, SerializedState}
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
 
 import java.net.URI
 
@@ -49,7 +50,7 @@ trait TakeGlobalCheckpointHandler {
           PrepareCheckpointRequest(msg.checkpointId, estimationOnly),
           METHOD_PREPARE_CHECKPOINT.getBareMethodName
         ),
-        ctx.sender
+        mkContext(SELF)
       )
       .flatMap { ret =>
         Future

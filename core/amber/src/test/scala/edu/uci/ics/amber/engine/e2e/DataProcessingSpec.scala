@@ -26,7 +26,7 @@ import java.sql.PreparedStatement
 import scala.concurrent.duration.DurationInt
 
 class DataProcessingSpec
-    extends TestKit(ActorSystem("DataProcessingSpec"))
+    extends TestKit(ActorSystem("DataProcessingSpec", AmberRuntime.akkaConfig))
     with ImplicitSender
     with AnyFlatSpecLike
     with BeforeAndAfterAll
@@ -36,7 +36,7 @@ class DataProcessingSpec
 
   var inMemoryMySQLInstance: Option[DB] = None
 
-  val resultStorage = new OpResultStorage()
+  val resultStorage = new OpResultStorage() {}
 
   override def beforeAll(): Unit = {
     system.actorOf(Props[SingleNodeListener](), "cluster-info")

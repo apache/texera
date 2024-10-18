@@ -7,16 +7,13 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{ControlReturn, 
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.error.ErrorUtils.mkControlError
-import io.grpc.ServiceDescriptor
 
 import java.lang.reflect.Method
-import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 
 class AsyncRPCServer(
     outputGateway: NetworkOutputGateway,
-    val actorId: ActorVirtualIdentity,
-    serviceDescriptor: ServiceDescriptor
+    val actorId: ActorVirtualIdentity
 ) extends AmberLogging {
 
   var handler: AnyRef = _
@@ -24,19 +21,12 @@ class AsyncRPCServer(
   // Define the MethodKey case class
   private case class MethodKey(name: String, paramTypes: Seq[Class[_]])
 
-  // Cache to store methods based on method name and parameter types
-  private val methodCache: TrieMap[MethodKey, Method] = TrieMap()
-
   // Secondary cache mapping method names to methods
+  @transient
   private lazy val methodsByName: Map[String, Method] = {
     val mapping = mutable.HashMap[String, Method]()
-    serviceDescriptor.getMethods.forEach { method =>
-      val targetMethodName = method.getBareMethodName.toLowerCase
-      val handlerMethod =
-        handler.getClass.getMethods.find(m => m.getName.toLowerCase == targetMethodName)
-      if (handlerMethod.nonEmpty) {
-        mapping(targetMethodName) = handlerMethod.get
-      }
+    handler.getClass.getMethods.foreach { method =>
+      mapping(method.getName.toLowerCase) = method
     }
     mapping.toMap
   }
@@ -53,20 +43,11 @@ class AsyncRPCServer(
     val paramTypes = Seq(requestArg.getClass, contextArg.getClass)
     val key = MethodKey(methodName, paramTypes)
 
-    methodCache.get(key) match {
+    methodsByName.get(methodName) match {
       case Some(method) =>
-        // Exact match found
         invokeMethod(method, requestArg, contextArg, id, senderID)
       case None =>
-        // Attempt to find a compatible method
-        methodsByName.get(methodName) match {
-          case Some(method) =>
-            // Cache this method for future calls
-            methodCache.put(key, method)
-            invokeMethod(method, requestArg, contextArg, id, senderID)
-          case None =>
-            logger.error(s"No methods found with name $methodName")
-        }
+        logger.error(s"No methods found with name $methodName")
     }
   }
 

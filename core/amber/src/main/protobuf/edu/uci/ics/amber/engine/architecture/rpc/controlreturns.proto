@@ -26,6 +26,7 @@ message ControlReturn {
     IntResponse intResponse = 9;
     WorkerStateResponse workerStateResponse = 10;
     WorkerMetricsResponse workerMetricsResponse = 11;
+    FinalizeCheckpointResponse finalizeCheckpointResponse = 12;
   }
 }
 

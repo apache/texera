@@ -100,8 +100,6 @@ private[client] class ClientActor extends Actor with AmberLogging {
     case req: ObservableRequest =>
       handlers = req.pf orElse handlers
       sender() ! scala.runtime.BoxedUnit.UNIT
-    case event: ClientEvent =>
-      handleClientEvent(event)
     case NetworkMessage(
           mId,
           fifoMsg @ WorkflowFIFOMessage(_, _, payload)
@@ -120,10 +118,11 @@ private[client] class ClientActor extends Actor with AmberLogging {
                 }
                 promiseMap.remove(originalCommandID)
               }
-            case _ => ???
+            case o => println(o)
           }
-        case _: DataPayload => ???
-        case o              => println(o)
+        case _: DataPayload     => ???
+        case event: ClientEvent => handleClientEvent(event)
+        case o                  => println(o)
       }
     case x: WorkflowRecoveryMessage =>
       sender() ! Ack

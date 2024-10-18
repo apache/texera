@@ -16,7 +16,6 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
   PortCompletedRequest,
   WorkerStateUpdatedRequest
 }
-import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import edu.uci.ics.amber.engine.architecture.worker.managers.SerializationManager
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
@@ -44,7 +43,7 @@ import edu.uci.ics.amber.error.ErrorUtils.{mkConsoleMessage, safely}
 class DataProcessor(
     actorId: ActorVirtualIdentity,
     outputHandler: Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit
-) extends AmberProcessor(actorId, outputHandler, WorkerServiceGrpc.SERVICE)
+) extends AmberProcessor(actorId, outputHandler)
     with Serializable {
 
   @transient var executor: OperatorExecutor = _

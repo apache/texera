@@ -22,7 +22,7 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import scala.concurrent.duration._
 
 class PauseSpec
-    extends TestKit(ActorSystem("PauseSpec"))
+    extends TestKit(ActorSystem("PauseSpec", AmberRuntime.akkaConfig))
     with ImplicitSender
     with AnyFlatSpecLike
     with BeforeAndAfterAll {

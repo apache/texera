@@ -49,5 +49,4 @@ trait WorkerExecutionCompletedHandler {
       })
     EmptyReturn()
   }
-
 }

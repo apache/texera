@@ -13,7 +13,6 @@ import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, MarkerFrame, Wor
 import edu.uci.ics.amber.engine.common.executor.OperatorExecutor
 import edu.uci.ics.amber.engine.common.model.EndOfInputChannel
 import edu.uci.ics.amber.engine.common.model.tuple.{AttributeType, Schema, Tuple, TupleLike}
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.common.virtualidentity.{
@@ -53,10 +52,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     .toArray
 
   def mkDataProcessor: DataProcessor = {
-    val dp: DataProcessor =
-      new DataProcessor(testWorkerId, outputHandler) {
-        override val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
-      }
+    val dp: DataProcessor = new DataProcessor(testWorkerId, outputHandler)
     dp.initTimerService(adaptiveBatchingMonitor)
     dp
   }
@@ -94,6 +90,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     (adaptiveBatchingMonitor.startAdaptiveBatching _).expects().anyNumberOfTimes()
     (adaptiveBatchingMonitor.stopAdaptiveBatching _).expects().once()
     (executor.close _).expects().once()
+    (outputHandler.apply _).expects(*).anyNumberOfTimes()
     dp.inputManager.addPort(inputPortId, schema)
     dp.inputGateway
       .getChannel(ChannelIdentity(senderWorkerId, testWorkerId, isControl = false))

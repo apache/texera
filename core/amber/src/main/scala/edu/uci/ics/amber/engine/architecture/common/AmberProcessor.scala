@@ -13,12 +13,10 @@ import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCServer}
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
-import io.grpc.ServiceDescriptor
 
 abstract class AmberProcessor(
     val actorId: ActorVirtualIdentity,
-    @transient var outputHandler: Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit,
-    serviceDescriptor: ServiceDescriptor
+    @transient var outputHandler: Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit
 ) extends AmberLogging
     with Serializable {
 
@@ -37,7 +35,7 @@ abstract class AmberProcessor(
   // 2. RPC Layer
   val asyncRPCClient = new AsyncRPCClient(outputGateway, actorId)
   val asyncRPCServer: AsyncRPCServer =
-    new AsyncRPCServer(outputGateway, actorId, serviceDescriptor)
+    new AsyncRPCServer(outputGateway, actorId)
 
   // statistics manager
   val statisticsManager: StatisticsManager = new StatisticsManager()

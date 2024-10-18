@@ -4,12 +4,26 @@ import com.twitter.util.{Future, Promise}
 import edu.uci.ics.amber.engine.architecture.controller.ClientEvent
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputGateway
 import edu.uci.ics.amber.engine.common.AmberLogging
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity, ChannelMarkerIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  ChannelIdentity,
+  ChannelMarkerIdentity
+}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CLIENT
 import io.grpc.MethodDescriptor
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, ChannelMarkerPayload, ChannelMarkerType, ControlInvocation, ControlRequest}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
+  AsyncRPCContext,
+  ChannelMarkerPayload,
+  ChannelMarkerType,
+  ControlInvocation,
+  ControlRequest
+}
 import edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerServiceFs2Grpc
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{ControlError, ControlReturn, ReturnInvocation}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{
+  ControlError,
+  ControlReturn,
+  ReturnInvocation
+}
 import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceFs2Grpc
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.createProxy
 
@@ -60,8 +74,10 @@ object AsyncRPCClient {
     }
   }
 
-
-  def createProxy[T](createPromise:() => (Promise[ControlReturn], Long), outputGateway: NetworkOutputGateway)(implicit ct: ClassTag[T]): T = {
+  def createProxy[T](
+      createPromise: () => (Promise[ControlReturn], Long),
+      outputGateway: NetworkOutputGateway
+  )(implicit ct: ClassTag[T]): T = {
     val handler = new InvocationHandler {
 
       override def invoke(proxy: Any, method: Method, args: Array[AnyRef]): AnyRef = {
@@ -96,9 +112,9 @@ class AsyncRPCClient(
 
   private val unfulfilledPromises = mutable.HashMap[Long, Promise[ControlReturn]]()
   private var promiseID = 0L
-  val controllerInterface: ControllerServiceFs2Grpc[Future, AsyncRPCContext] =
+  @transient lazy val controllerInterface: ControllerServiceFs2Grpc[Future, AsyncRPCContext] =
     createProxy[ControllerServiceFs2Grpc[Future, AsyncRPCContext]](createPromise, outputGateway)
-  val workerInterface: WorkerServiceFs2Grpc[Future, AsyncRPCContext] =
+  @transient lazy val workerInterface: WorkerServiceFs2Grpc[Future, AsyncRPCContext] =
     createProxy[WorkerServiceFs2Grpc[Future, AsyncRPCContext]](createPromise, outputGateway)
 
   def mkContext(to: ActorVirtualIdentity): AsyncRPCContext = AsyncRPCContext(actorId, to)
@@ -118,7 +134,6 @@ class AsyncRPCClient(
     val (p, pid) = createPromise()
     (ControlInvocation(methodName, message, context, pid), p)
   }
-
 
   def sendChannelMarker(
       markerId: ChannelMarkerIdentity,

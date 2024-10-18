@@ -8,18 +8,46 @@ import com.google.protobuf.any.{Any => ProtoAny}
 import edu.uci.ics.amber.clustering.SingleNodeListener
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkMessage
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AddInputChannelRequest, AddPartitioningRequest, AssignPortRequest, AsyncRPCContext, ControlInvocation, EmptyRequest, InitializeExecutorRequest}
-import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{METHOD_ADD_INPUT_CHANNEL, METHOD_ADD_PARTITIONING, METHOD_ASSIGN_PORT, METHOD_FLUSH_NETWORK_BUFFER, METHOD_INITIALIZE_EXECUTOR}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
+  AddInputChannelRequest,
+  AddPartitioningRequest,
+  AssignPortRequest,
+  AsyncRPCContext,
+  ControlInvocation,
+  EmptyRequest,
+  InitializeExecutorRequest
+}
+import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{
+  METHOD_ADD_INPUT_CHANNEL,
+  METHOD_ADD_PARTITIONING,
+  METHOD_ASSIGN_PORT,
+  METHOD_FLUSH_NETWORK_BUFFER,
+  METHOD_INITIALIZE_EXECUTOR
+}
 import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{MainThreadDelegateMessage, WorkerReplayInitialization}
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
+  MainThreadDelegateMessage,
+  WorkerReplayInitialization
+}
 import edu.uci.ics.amber.engine.common.AmberRuntime
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, DataPayload, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.executor.OperatorExecutor
-import edu.uci.ics.amber.engine.common.model.tuple.{Attribute, AttributeType, Schema, Tuple, TupleLike}
+import edu.uci.ics.amber.engine.common.model.tuple.{
+  Attribute,
+  AttributeType,
+  Schema,
+  Tuple,
+  TupleLike
+}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity, OperatorIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  ChannelIdentity,
+  OperatorIdentity,
+  PhysicalOpIdentity
+}
 import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
@@ -30,8 +58,14 @@ import scala.collection.mutable
 import scala.concurrent.duration.MILLISECONDS
 import scala.util.Random
 
+class DummyOperatorExecutor extends OperatorExecutor {
+  override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
+    Iterator(tuple)
+  }
+}
+
 class WorkerSpec
-    extends TestKit(ActorSystem("WorkerSpec"))
+    extends TestKit(ActorSystem("WorkerSpec", AmberRuntime.akkaConfig))
     with ImplicitSender
     with AnyFlatSpecLike
     with BeforeAndAfterAll
@@ -58,25 +92,6 @@ class WorkerSpec
   private val identifier1 = ActorVirtualIdentity("Worker:WF1-E1-op-layer-1")
   private val identifier2 = ActorVirtualIdentity("Worker:WF1-E1-op-layer-2")
 
-  private val mockOpExecutor = new OperatorExecutor {
-    override def open(): Unit = println("opened!")
-
-    override def close(): Unit = println("closed!")
-
-    override def processTupleMultiPort(
-        tuple: Tuple,
-        port: Int
-    ): Iterator[(TupleLike, Option[PortIdentity])] = {
-      Iterator((tuple, None))
-    }
-    override def onFinishMultiPort(
-        port: Int
-    ): Iterator[(TupleLike, Option[PortIdentity])] = {
-      Iterator()
-    }
-
-    override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = ???
-  }
   private val operatorIdentity = OperatorIdentity("testOperator")
 
   private val mockPortId = PortIdentity()
@@ -172,7 +187,9 @@ class WorkerSpec
       AsyncRPCContext(CONTROLLER, identifier1),
       3
     )
-    val opInit = OpExecInitInfo((_, _) => mockOpExecutor)
+    val opInit = OpExecInitInfo((_, _) => {
+      new DummyOperatorExecutor()
+    })
     val bytes = AmberRuntime.serde.serialize(opInit).get
     val protoAny = ProtoAny.of(
       "edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo",
