@@ -21,7 +21,7 @@ object TrivialControlTester {
   class ControlTesterRPCClient(outputGateway: NetworkOutputGateway, actorId: ActorVirtualIdentity)
       extends AsyncRPCClient(outputGateway, actorId) {
     val getProxy: RPCTesterFs2Grpc[Future, AsyncRPCContext] =
-      createProxy[RPCTesterFs2Grpc[Future, AsyncRPCContext]]()
+      AsyncRPCClient.createProxy[RPCTesterFs2Grpc[Future, AsyncRPCContext]](createPromise, outputGateway)
   }
 }
 

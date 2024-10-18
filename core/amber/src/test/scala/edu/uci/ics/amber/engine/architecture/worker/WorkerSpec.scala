@@ -1,52 +1,25 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
 import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.serialization.SerializationExtension
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit}
 import com.google.protobuf.ByteString
 import com.google.protobuf.any.{Any => ProtoAny}
 import edu.uci.ics.amber.clustering.SingleNodeListener
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkMessage
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
-  AddInputChannelRequest,
-  AddPartitioningRequest,
-  AssignPortRequest,
-  AsyncRPCContext,
-  ControlInvocation,
-  EmptyRequest,
-  InitializeExecutorRequest
-}
-import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{
-  METHOD_ADD_INPUT_CHANNEL,
-  METHOD_ADD_PARTITIONING,
-  METHOD_ASSIGN_PORT,
-  METHOD_FLUSH_NETWORK_BUFFER,
-  METHOD_INITIALIZE_EXECUTOR
-}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AddInputChannelRequest, AddPartitioningRequest, AssignPortRequest, AsyncRPCContext, ControlInvocation, EmptyRequest, InitializeExecutorRequest}
+import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{METHOD_ADD_INPUT_CHANNEL, METHOD_ADD_PARTITIONING, METHOD_ASSIGN_PORT, METHOD_FLUSH_NETWORK_BUFFER, METHOD_INITIALIZE_EXECUTOR}
 import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
-  MainThreadDelegateMessage,
-  WorkerReplayInitialization
-}
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{MainThreadDelegateMessage, WorkerReplayInitialization}
 import edu.uci.ics.amber.engine.common.AmberRuntime
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, DataPayload, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.executor.OperatorExecutor
-import edu.uci.ics.amber.engine.common.model.tuple.{
-  Attribute,
-  AttributeType,
-  Schema,
-  Tuple,
-  TupleLike
-}
+import edu.uci.ics.amber.engine.common.model.tuple.{Attribute, AttributeType, Schema, Tuple, TupleLike}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  ChannelIdentity,
-  OperatorIdentity,
-  PhysicalOpIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity, OperatorIdentity, PhysicalOpIdentity}
 import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
@@ -77,6 +50,7 @@ class WorkerSpec
 
   override def beforeAll(): Unit = {
     system.actorOf(Props[SingleNodeListener](), "cluster-info")
+    AmberRuntime.serde = SerializationExtension(system)
   }
   override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)

@@ -4,27 +4,14 @@ import com.twitter.util.{Future, Promise}
 import edu.uci.ics.amber.engine.architecture.controller.ClientEvent
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputGateway
 import edu.uci.ics.amber.engine.common.AmberLogging
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  ChannelIdentity,
-  ChannelMarkerIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity, ChannelMarkerIdentity}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CLIENT
 import io.grpc.MethodDescriptor
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
-  AsyncRPCContext,
-  ChannelMarkerPayload,
-  ChannelMarkerType,
-  ControlInvocation,
-  ControlRequest
-}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, ChannelMarkerPayload, ChannelMarkerType, ControlInvocation, ControlRequest}
 import edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerServiceFs2Grpc
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{
-  ControlError,
-  ControlReturn,
-  ReturnInvocation
-}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{ControlError, ControlReturn, ReturnInvocation}
 import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceFs2Grpc
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.createProxy
 
 import java.lang.reflect.{InvocationHandler, Method, Proxy}
 import scala.collection.mutable
@@ -73,38 +60,8 @@ object AsyncRPCClient {
     }
   }
 
-}
 
-class AsyncRPCClient(
-    outputGateway: NetworkOutputGateway,
-    val actorId: ActorVirtualIdentity
-) extends AmberLogging {
-
-  private val unfulfilledPromises = mutable.HashMap[Long, Promise[ControlReturn]]()
-  private var promiseID = 0L
-  val controllerInterface: ControllerServiceFs2Grpc[Future, AsyncRPCContext] =
-    createProxy[ControllerServiceFs2Grpc[Future, AsyncRPCContext]]()
-  val workerInterface: WorkerServiceFs2Grpc[Future, AsyncRPCContext] =
-    createProxy[WorkerServiceFs2Grpc[Future, AsyncRPCContext]]()
-
-  def mkContext(to: ActorVirtualIdentity): AsyncRPCContext = AsyncRPCContext(actorId, to)
-
-  private def createPromise(): (Promise[ControlReturn], Long) = {
-    promiseID += 1
-    val promise = new Promise[ControlReturn]()
-    unfulfilledPromises(promiseID) = promise
-    (promise, promiseID)
-  }
-
-  def createInvocation(
-      methodName: String,
-      message: ControlRequest,
-      context: AsyncRPCContext
-  ): (ControlInvocation, Future[ControlReturn]) = {
-    val (p, pid) = createPromise()
-    (ControlInvocation(methodName, message, context, pid), p)
-  }
-  protected def createProxy[T]()(implicit ct: ClassTag[T]): T = {
+  def createProxy[T](createPromise:() => (Promise[ControlReturn], Long), outputGateway: NetworkOutputGateway)(implicit ct: ClassTag[T]): T = {
     val handler = new InvocationHandler {
 
       override def invoke(proxy: Any, method: Method, args: Array[AnyRef]): AnyRef = {
@@ -129,6 +86,39 @@ class AsyncRPCClient(
   private def getClassLoader(cls: Class[_]): ClassLoader = {
     Option(cls.getClassLoader).getOrElse(ClassLoader.getSystemClassLoader)
   }
+
+}
+
+class AsyncRPCClient(
+    outputGateway: NetworkOutputGateway,
+    val actorId: ActorVirtualIdentity
+) extends AmberLogging {
+
+  private val unfulfilledPromises = mutable.HashMap[Long, Promise[ControlReturn]]()
+  private var promiseID = 0L
+  val controllerInterface: ControllerServiceFs2Grpc[Future, AsyncRPCContext] =
+    createProxy[ControllerServiceFs2Grpc[Future, AsyncRPCContext]](createPromise, outputGateway)
+  val workerInterface: WorkerServiceFs2Grpc[Future, AsyncRPCContext] =
+    createProxy[WorkerServiceFs2Grpc[Future, AsyncRPCContext]](createPromise, outputGateway)
+
+  def mkContext(to: ActorVirtualIdentity): AsyncRPCContext = AsyncRPCContext(actorId, to)
+
+  protected def createPromise(): (Promise[ControlReturn], Long) = {
+    promiseID += 1
+    val promise = new Promise[ControlReturn]()
+    unfulfilledPromises(promiseID) = promise
+    (promise, promiseID)
+  }
+
+  def createInvocation(
+      methodName: String,
+      message: ControlRequest,
+      context: AsyncRPCContext
+  ): (ControlInvocation, Future[ControlReturn]) = {
+    val (p, pid) = createPromise()
+    (ControlInvocation(methodName, message, context, pid), p)
+  }
+
 
   def sendChannelMarker(
       markerId: ChannelMarkerIdentity,

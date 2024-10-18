@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.engine.e2e
 
 import akka.actor.{ActorSystem, Props}
+import akka.serialization.SerializationExtension
 import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
 import ch.vorburger.mariadb4j.DB
@@ -9,6 +10,7 @@ import edu.uci.ics.amber.clustering.SingleNodeListener
 import edu.uci.ics.amber.engine.architecture.controller._
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.COMPLETED
+import edu.uci.ics.amber.engine.common.AmberRuntime
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.model.tuple.{AttributeType, Tuple}
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
@@ -38,6 +40,7 @@ class DataProcessingSpec
 
   override def beforeAll(): Unit = {
     system.actorOf(Props[SingleNodeListener](), "cluster-info")
+    AmberRuntime.serde = SerializationExtension(system)
   }
   override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)

@@ -123,7 +123,7 @@ private[client] class ClientActor extends Actor with AmberLogging {
             case _ => ???
           }
         case _: DataPayload => ???
-        case _              => ???
+        case o              => println(o)
       }
     case x: WorkflowRecoveryMessage =>
       sender() ! Ack
