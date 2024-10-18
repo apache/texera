@@ -39,7 +39,7 @@
             <packageName>edu.uci.ics.texera.web.model.jooq.generated</packageName>
 
             <!-- The destination directory of your generated classes. Using Maven directory layout here -->
-            <directory>../amber/src/main/scala</directory>
+            <directory>core/amber/src/main/scala</directory>
         </target>
     </generator>
 </configuration>
