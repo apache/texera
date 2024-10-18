@@ -65,7 +65,10 @@ export class DashboardComponent implements OnInit {
           this.router.navigateByUrl(this.route.snapshot.queryParams["returnUrl"] || "/dashboard/user/workflow")
         );
     }
-    if (!document.cookie.includes("flarum_remember") && this.isLogin) {
+
+    if (window.location.hostname === "localhost") {
+      console.warn("Skipping forum authentication in local environment.");
+    } else if (!document.cookie.includes("flarum_remember") && this.isLogin) {
       this.flarumService
         .auth()
         .pipe(untilDestroyed(this))
@@ -74,7 +77,7 @@ export class DashboardComponent implements OnInit {
             document.cookie = `flarum_remember=${response.token};path=/`;
           },
           error: (err: unknown) => {
-            if ((err as HttpErrorResponse).status == 404) {
+            if ((err as HttpErrorResponse).status === 404) {
               this.displayForum = false;
             } else {
               this.flarumService
