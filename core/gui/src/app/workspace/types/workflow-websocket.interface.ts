@@ -174,17 +174,10 @@ export type WorkflowStateInfo = Readonly<{
   state: ExecutionState;
 }>;
 
-export type FrontendDebugCommand = Readonly<{
-  operatorId: string;
-  command:string;
-  line: number;
-  breakpointId:number;
-  condition:string;
-}>
-
 export type UDFBreakpointInfo = Readonly<{
   breakpointId:number | undefined;
   condition:string;
+  hit:boolean;
 }>
 
 export type TexeraWebsocketRequestTypeMap = {

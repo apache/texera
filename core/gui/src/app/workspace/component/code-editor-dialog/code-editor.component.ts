@@ -21,7 +21,7 @@ import "@codingame/monaco-vscode-r-default-extension";
 import "@codingame/monaco-vscode-java-default-extension";
 import { isDefined } from "../../../common/util/predicate";
 import { editor } from "monaco-editor/esm/vs/editor/editor.api.js";
-import { filter, map, switchMap } from "rxjs/operators";
+import { filter, switchMap } from "rxjs/operators";
 import { EditorMouseEvent, EditorMouseTarget } from "monaco-breakpoints/dist/types";
 import { MonacoBreakpoint } from "monaco-breakpoints";
 import { BreakpointManager, UdfDebugService } from "../../service/operator-debug/udf-debug.service";
@@ -100,7 +100,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   private userResponseSubject?: Subject<void>;
   private isMultipleVariables: boolean = false;
 
-  public isUpdatingBreakpoints = false;
+  public isRenderingBreakpoints = false;
   public instance: MonacoBreakpoint | undefined = undefined;
   public lastBreakLine = 0;
 
@@ -170,23 +170,22 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
       .subscribeToEvent("ConsoleUpdateEvent")
       .pipe(untilDestroyed(this))
       .subscribe((pythonConsoleUpdateEvent: ConsoleUpdateEvent) => {
-        const operatorId = pythonConsoleUpdateEvent.operatorId;
-        pythonConsoleUpdateEvent.messages
-          .filter(consoleMessage => consoleMessage.msgType.name === "DEBUGGER")
-          .map(
-            consoleMessage => {
-              console.log(consoleMessage);
-              const pattern = /^Breakpoint (\d+).*\.py:(\d+)\s*$/;
-              return consoleMessage.title.match(pattern);
-            },
-          )
-          .filter(isDefined)
-          .forEach(match => {
-            const breakpoint = Number(match[1]);
-            const lineNumber = Number(match[2]);
-            this.breakpointManager?.assignBreakpointId(lineNumber, breakpoint);
-          });
-
+        // pythonConsoleUpdateEvent.messages
+        //   .filter(consoleMessage => consoleMessage.msgType.name === "DEBUGGER")
+        //   .map(
+        //     consoleMessage => {
+        //       console.log(consoleMessage);
+        //       const pattern = /^Breakpoint (\d+).*\.py:(\d+)\s*$/;
+        //       return consoleMessage.title.match(pattern);
+        //     },
+        //   )
+        //   .filter(isDefined)
+        //   .forEach(match => {
+        //     const breakpoint = Number(match[1]);
+        //     const lineNumber = Number(match[2]);
+        //     this.breakpointManager?.assignBreakpointId(lineNumber, breakpoint);
+        //   });
+        //
         if (pythonConsoleUpdateEvent.messages.length === 0) {
           return;
         }
@@ -194,17 +193,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
         if (lastMsg.title.startsWith("break")) {
           this.lastBreakLine = Number(lastMsg.title.split(" ")[1]);
         }
-        if (lastMsg.title.startsWith("*** Blank or comment")) {
-          this.isUpdatingBreakpoints = true;
-          this.instance!["lineNumberAndDecorationIdMap"].forEach((v: string, k: number, m: Map<number, string>) => {
-            if (k === this.lastBreakLine) {
-              console.log("removing " + k);
-              this.breakpointManager?.removeBreakpoint(k);
-              this.instance!["removeSpecifyDecoration"](v, k);
-            }
-          });
-          this.isUpdatingBreakpoints = false;
-        }
+
       });
   }
 
@@ -297,23 +286,6 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     }
   }
 
-  private restoreBreakpoints(instance: MonacoBreakpoint, lineNums: string[]) {
-    console.log("trying to restore " + lineNums);
-    this.isUpdatingBreakpoints = true;
-    instance["lineNumberAndDecorationIdMap"].forEach((v: string, k: number, m: Map<number, string>) => {
-      instance["removeSpecifyDecoration"](v, k);
-    });
-    for (let lineNumber of lineNums) {
-      const range: monaco.IRange = {
-        startLineNumber: Number(lineNumber),
-        endLineNumber: Number(lineNumber),
-        startColumn: 0,
-        endColumn: 0,
-      };
-      instance["createSpecifyDecoration"](range);
-    }
-    this.isUpdatingBreakpoints = false;
-  }
 
   /**
    * Specify the co-editor's cursor style. This step is missing from MonacoBinding.
@@ -448,125 +420,68 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     this.editorWrapper.initAndStart(userConfig, this.editorElement.nativeElement);
   }
 
-  private onMouseLeftClick(e: EditorMouseEvent, editor:IStandaloneCodeEditor) {
-
-
-      const model = editor.getModel()!;
-      const { type, range, detail, position } = this.getMouseEventTarget(e);
-      if (model && type === MouseTargetType.GUTTER_GLYPH_MARGIN) {
-        // This indicates that the current position of the mouse is over the total number of lines in the editor
-        if (detail.isAfterLines) {
-          return;
-        }
-        const lineNumber = position.lineNumber;
-        this.udfDebugService.addOrRemoveBreakpoint(this.currentOperatorId, lineNumber);
-
-        const decorationId =
-          this.instance!["lineNumberAndDecorationIdMap"].get(lineNumber);
-
-        /**
-         * If a breakpoint exists on the current line,
-         * it indicates that the current action is to remove the breakpoint
-         */
-        if (decorationId) {
-          this.instance!["removeSpecifyDecoration"](decorationId, lineNumber);
-        } else {
-          this.instance!["createSpecifyDecoration"](range);
-        }
-
-
-      }
-  }
 
   private setupDebuggingActions(editor: IStandaloneCodeEditor) {
+    console.log("current bps:", this.udfDebugService.getOrCreateManager(this.currentOperatorId).getCurrentBreakpoints());
     this.instance = new MonacoBreakpoint({ editor });
-    this.instance["createBreakpointDecoration"] = (
-      range: Range,
-      breakpointEnum: BreakpointEnum,
-    ): { options: editor.IModelDecorationOptions; range: Range } => {
-      let condition = this.breakpointManager?.getCondition(range.startLineNumber);
-      let isConditional = false;
-      if (condition && condition !== "") {
-        isConditional = true;
-      }
-      return {
-        range,
-        options:
-          breakpointEnum === BreakpointEnum.Exist
-            ? (isConditional ? CONDITIONAL_BREAKPOINT_OPTIONS : BREAKPOINT_OPTIONS)
-            : BREAKPOINT_HOVER_OPTIONS,
-      };
-    };
     this.instance["mouseDownDisposable"]?.dispose();
 
-    this.instance["mouseDownDisposable"] = editor.onMouseDown(    (evt: EditorMouseEvent) => {
-        if (evt.event.rightButton) {
-          return;
+    this.instance["mouseDownDisposable"] = editor.onMouseDown((evt: EditorMouseEvent) => {
+        const { type, detail, position } = this.getMouseEventTarget(evt);
+        const model = editor.getModel()!;
+        if (model && type === MouseTargetType.GUTTER_GLYPH_MARGIN) {
+          if (detail.isAfterLines) {
+            return;
+          }
+          if (evt.event.rightButton) {
+            this.onMouseRightClick(evt, position.lineNumber, editor);
+          } else {
+            this.onMouseLeftClick(evt, position.lineNumber);
+          }
         }
-      this.onMouseLeftClick(evt, editor);
-      }
+      },
     );
 
-    (this.instance).on("breakpointChanged", lineNums => {
-      if (this.isUpdatingBreakpoints) {
-        return;
-      }
-      this.breakpointManager?.setBreakpoints(lineNums.map(n => String(n)));
-      console.log("breakpointChanged: " + lineNums);
-    });
+    this.breakpointManager?.getLineNumToBreakpointMapping().observe(evt => {
+      let lineNum: number;
+      evt.changes.keys.forEach((change, lineNum) => {
+        switch (change.action) {
+          case "add":
+            const addedValue = evt.target.get(lineNum)!;
+            if (isDefined(addedValue.breakpointId)) {
+              console.log("adding a breakpoint at ", lineNum);
+              this.instance!["createSpecifyDecoration"]({
+                startLineNumber: Number(lineNum),
+                endLineNumber: Number(lineNum),
+                startColumn: 0,
+                endColumn: 0,
+              });
+            }
 
-    this.breakpointManager?.getBreakpointHitStream()
-      .pipe(untilDestroyed(this))
-      .subscribe(lineNum => {
-        console.log("highlight " + lineNum);
-        this.instance!.removeHighlight();
-        if (lineNum != 0) {
-          this.instance!.setLineHighlight(lineNum);
+            break;
+          case "delete":
+            const deletedValue = change.oldValue;
+            if (isDefined(deletedValue.breakpointId)) {
+              console.log("deleting a breakpoint at ", lineNum);
+              const decorationId = this.instance!["lineNumberAndDecorationIdMap"].get(Number(lineNum));
+              this.instance!["removeSpecifyDecoration"](decorationId, Number(lineNum));
+            }
+            break;
+          case "update":
+            // this.setCondition(Number(key), change.oldValue);
+            console.log(evt.target.get(lineNum));
+            const newValue = evt.target.get(lineNum)!;
+            // if old hit is false and the new hit is true, then set the hit line number
+            if (newValue.hit) {
+              this.instance?.setLineHighlight(Number(lineNum));
+            }
+            if (!newValue.hit) {
+              this.instance?.removeHighlight();
+            }
+            break;
         }
       });
-    this.breakpointManager?.getLineNumToBreakpointMappingStream().pipe(untilDestroyed(this)).subscribe(
-      mapping => {
-        console.log("trigger" + mapping);
-        this.restoreBreakpoints(this.instance!, Array.from(mapping.keys()));
-      });
-
-    editor.onContextMenu((e: EditorMouseEvent) => {
-      const { type, range, detail, position } = this.getMouseEventTarget(e);
-      if (type === MouseTargetType.GUTTER_GLYPH_MARGIN) {
-
-        // This indicates that the current position of the mouse is over the total number of lines in the editor
-        if (detail.isAfterLines) {
-          return;
-        }
-
-        // Get the layout info of the editor
-        const layoutInfo = editor.getLayoutInfo()!;
-
-        // Get the range start line number
-        const startLineNumber = range.startLineNumber;
-
-        if (!this.instance!["lineNumberAndDecorationIdMap"].has(startLineNumber)) {
-          return;
-        }
-        // Get the top position for the start line number
-        const topForLineNumber = editor.getTopForLineNumber(startLineNumber);
-        // Calculate the middle y position for the line number
-        const lineHeight = editor.getOption(monaco.editor.EditorOption.lineHeight);
-        const middleForLineNumber = topForLineNumber + lineHeight / 2;
-
-        // Get the editor's DOM node and its bounding rect
-        const editorDomNode = editor.getDomNode()!;
-        const editorRect = editorDomNode.getBoundingClientRect();
-
-        // Calculate x and y positions
-        const x = editorRect.left + layoutInfo.glyphMarginLeft - editor.getScrollLeft();
-        const y = editorRect.top + middleForLineNumber - editor.getScrollTop();
-
-        this.showTooltip(x, y, startLineNumber, this.breakpointManager!);
-      }
     });
-
-
   }
 
   private setupAIAssistantActions(editor: IStandaloneCodeEditor) {
@@ -784,9 +699,38 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     this.workflowActionService.getJointGraphWrapper().highlightOperators(this.currentOperatorId);
   }
 
-  onMouseLeave() {
-    if (this.instance) {
-      this.instance!["removeHoverDecoration"]();
+
+  private onMouseLeftClick(e: EditorMouseEvent, lineNum: number) {
+
+
+    // This indicates that the current position of the mouse is over the total number of lines in the editor
+    this.udfDebugService.doModifyBreakpoint(this.currentOperatorId, lineNum);
+
+  }
+
+
+  private onMouseRightClick(evt: EditorMouseEvent, lineNum: number, editor: IStandaloneCodeEditor) {
+    if (!this.instance!["lineNumberAndDecorationIdMap"].has(lineNum)) {
+      return;
     }
+    // Get the layout info of the editor
+    const layoutInfo = editor.getLayoutInfo()!;
+
+    // Get the top position for the start line number
+    const topPixel = editor.getTopForLineNumber(lineNum);
+
+    // Calculate the middle y position for the line number
+    const lineHeight = editor.getOption(monaco.editor.EditorOption.lineHeight);
+    const middleForLineNumber = topPixel + lineHeight / 2;
+
+    // Get the editor's DOM node and its bounding rect
+    const editorDomNode = editor.getDomNode()!;
+    const editorRect = editorDomNode.getBoundingClientRect();
+
+    // Calculate x and y positions
+    const x = editorRect.left + layoutInfo.glyphMarginLeft - editor.getScrollLeft();
+    const y = editorRect.top + middleForLineNumber - editor.getScrollTop();
+
+    this.showTooltip(x, y, lineNum, this.breakpointManager!);
   }
 }

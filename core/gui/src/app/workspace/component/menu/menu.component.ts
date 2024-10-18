@@ -210,7 +210,6 @@ export class MenuComponent implements OnInit {
         // assuming there is only one workflow running.
         // reset all states.
         this.workflowWebsocketService.clearDebugCommands();
-        this.udfDebugService.clearDebugStates();
         return {
           text: "Run",
           icon: "play-circle",
