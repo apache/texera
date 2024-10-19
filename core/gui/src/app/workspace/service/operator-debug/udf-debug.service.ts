@@ -58,7 +58,7 @@ export class BreakpointManager {
               // You can add more logic here, such as removing the breakpoint
             }
           }
-          if (msg.title.startsWith("New condition set for breakpoint")){
+          if (msg.title.startsWith("New condition set for breakpoint")) {
             // pass
           }
         } else if (msg.msgType.name == "ERROR") {
@@ -109,7 +109,7 @@ export class BreakpointManager {
     return info.condition;
   }
 
-  public setCondition(lineNum: number, condition: string, workerIds:readonly string[]) {
+  public setCondition(lineNum: number, condition: string, workerIds: readonly string[]) {
     let line = String(lineNum);
     let info = this.lineNumToBreakpointMapping.get(line)!;
     console.log("set condition!!", lineNum, condition);
@@ -118,10 +118,9 @@ export class BreakpointManager {
         operatorId: this.currentOperatorId,
         workerId,
         cmd: "condition " + info.breakpointId + " " + condition,
-      })
+      });
     });
     this.lineNumToBreakpointMapping.set(line, { ...info, condition: condition });
-
   }
 
   public setContinue() {
@@ -246,10 +245,14 @@ export class UdfDebugService {
     return this.breakpointManagers.get(operatorId)!;
   }
 
-  doUpdateBreakpointCondition(operatorId:string, lineNumber: number, condition: string) {
+  doUpdateBreakpointCondition(operatorId: string, lineNumber: number, condition: string) {
     // if new condition is not the same as the saved one, update it
     if (condition !== this.getOrCreateManager(operatorId).getCondition(lineNumber)) {
-      this.getOrCreateManager(operatorId).setCondition(lineNumber, condition, this.executeWorkflowService.getWorkerIds(operatorId));
+      this.getOrCreateManager(operatorId).setCondition(
+        lineNumber,
+        condition,
+        this.executeWorkflowService.getWorkerIds(operatorId)
+      );
     }
   }
 

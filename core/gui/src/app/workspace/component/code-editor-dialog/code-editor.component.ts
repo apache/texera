@@ -1,10 +1,4 @@
-import {
-  AfterViewInit,
-  Component,
-  ComponentRef,
-  ElementRef,
-  OnDestroy, ViewChild,
-} from "@angular/core";
+import { AfterViewInit, Component, ComponentRef, ElementRef, OnDestroy, ViewChild } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
@@ -75,7 +69,6 @@ export const LANGUAGE_SERVER_CONNECTION_TIMEOUT_MS = 1000;
   styleUrls: ["code-editor.component.scss"],
 })
 export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy {
-
   @ViewChild("editor", { static: true }) editorElement!: ElementRef;
   @ViewChild("container", { static: true }) containerElement!: ElementRef;
   @ViewChild(AnnotationSuggestionComponent) annotationSuggestion!: AnnotationSuggestionComponent;
@@ -112,8 +105,8 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   public lastBreakLine = 0;
 
   public breakpointConditionLine: number | undefined = undefined;
-  public breakpointConditionMouseX: number| undefined = undefined;
-  public breakpointConditionMouseY: number| undefined = undefined;
+  public breakpointConditionMouseX: number | undefined = undefined;
+  public breakpointConditionMouseY: number | undefined = undefined;
   private generateLanguageTitle(language: string): string {
     return `${language.charAt(0).toUpperCase()}${language.slice(1)} UDF`;
   }
@@ -192,8 +185,6 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   private getMouseEventTarget(e: EditorMouseEvent) {
     return { ...(e.target as EditorMouseTarget) };
   }
-
-
 
   ngOnDestroy(): void {
     this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("editingCode", false);
@@ -285,7 +276,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
         switchMap(() => of(this.editorWrapper.getEditor())),
         catchError(() => of(this.editorWrapper.getEditor())),
         filter(isDefined),
-        untilDestroyed(this),
+        untilDestroyed(this)
       )
       .subscribe((editor: IStandaloneCodeEditor) => {
         editor.updateOptions({ readOnly: this.formControl.disabled });
@@ -300,7 +291,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
           this.code,
           editor.getModel()!,
           new Set([editor]),
-          this.workflowActionService.getTexeraGraph().getSharedModelAwareness(),
+          this.workflowActionService.getTexeraGraph().getSharedModelAwareness()
         );
         this.setupAIAssistantActions(editor);
         this.setupDebuggingActions(editor);
@@ -359,7 +350,9 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
         range,
         options:
           breakpointEnum === BreakpointEnum.Exist
-            ? (isConditional ? CONDITIONAL_BREAKPOINT_OPTIONS : BREAKPOINT_OPTIONS)
+            ? isConditional
+              ? CONDITIONAL_BREAKPOINT_OPTIONS
+              : BREAKPOINT_OPTIONS
             : BREAKPOINT_HOVER_OPTIONS,
       };
     };
@@ -417,7 +410,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
             if (!newValue.hit) {
               this.instance?.removeHighlight();
             }
-            if (oldValue.condition!== newValue.condition) {
+            if (oldValue.condition !== newValue.condition) {
               const decorationId = this.instance!["lineNumberAndDecorationIdMap"].get(Number(lineNum));
               this.instance!["removeSpecifyDecoration"](decorationId, Number(lineNum));
               this.instance!["createSpecifyDecoration"]({
@@ -520,7 +513,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
                       currVariable.startLine,
                       currVariable.startColumn + offset,
                       currVariable.endLine,
-                      currVariable.endColumn + offset,
+                      currVariable.endColumn + offset
                     );
 
                     const highlight = editor.createDecorationsCollection([
@@ -562,7 +555,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     range: monaco.Range,
     editor: monaco.editor.IStandaloneCodeEditor,
     lineNumber: number,
-    allCode: string,
+    allCode: string
   ): void {
     this.aiAssistantService
       .getTypeAnnotations(code, lineNumber, allCode)
@@ -606,7 +599,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
         this.currentRange.startLineNumber,
         this.currentRange.startColumn,
         this.currentRange.endLineNumber,
-        this.currentRange.endColumn,
+        this.currentRange.endColumn
       );
 
       this.insertTypeAnnotations(this.editorWrapper.getEditor()!, selection, this.currentSuggestion);
@@ -636,7 +629,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   private insertTypeAnnotations(
     editor: monaco.editor.IStandaloneCodeEditor,
     selection: monaco.Selection,
-    annotations: string,
+    annotations: string
   ) {
     const endLineNumber = selection.endLineNumber;
     const endColumn = selection.endColumn;

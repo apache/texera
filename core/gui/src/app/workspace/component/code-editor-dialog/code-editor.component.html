@@ -35,8 +35,7 @@
   [lineNum]="breakpointConditionLine"
   [mouseX]="breakpointConditionMouseX"
   [mouseY]="breakpointConditionMouseY"
-  (closeEmitter) = "closeBreakpointConditionInput()"
-></texera-breakpoint-condition-input>
+  (closeEmitter)="closeBreakpointConditionInput()"></texera-breakpoint-condition-input>
 
 <texera-annotation-suggestion
   *ngIf="showAnnotationSuggestion"

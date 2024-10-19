@@ -29,8 +29,7 @@ export class BreakpointConditionInputComponent implements AfterViewChecked, OnCh
 
   condition = "";
 
-  constructor(private udfDebugService: UdfDebugService) {
-  }
+  constructor(private udfDebugService: UdfDebugService) {}
 
   isVisible(): boolean {
     return isDefined(this.lineNum);
@@ -53,7 +52,7 @@ export class BreakpointConditionInputComponent implements AfterViewChecked, OnCh
   @HostListener("focusout")
   handleEvent(event?: KeyboardEvent): void {
     if (!event || (event.key === "Enter" && !event.shiftKey)) {
-      event?.preventDefault();  // Prevent default only for Enter key event
+      event?.preventDefault(); // Prevent default only for Enter key event
       this.updateConditionAndClose();
     }
   }

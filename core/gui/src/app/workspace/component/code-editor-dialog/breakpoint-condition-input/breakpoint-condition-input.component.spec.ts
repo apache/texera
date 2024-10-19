@@ -8,7 +8,7 @@ describe("BreakpointConditionInputComponent", () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      declarations: [BreakpointConditionInputComponent]
+      declarations: [BreakpointConditionInputComponent],
     });
     fixture = TestBed.createComponent(BreakpointConditionInputComponent);
     component = fixture.componentInstance;
