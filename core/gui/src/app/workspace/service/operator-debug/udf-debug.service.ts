@@ -110,17 +110,19 @@ export class BreakpointManager {
   }
 
   public setCondition(lineNum: number, condition: string, workerIds: readonly string[]) {
-    let line = String(lineNum);
-    let info = this.lineNumToBreakpointMapping.get(line)!;
-    console.log("set condition!!", lineNum, condition);
+    const breakpointInfo = this.lineNumToBreakpointMapping.get(String(lineNum));
+    if (!isDefined(breakpointInfo)) {
+      return;
+    }
     workerIds.forEach(workerId => {
       this.queueCommand({
         operatorId: this.currentOperatorId,
         workerId,
-        cmd: "condition " + info.breakpointId + " " + condition,
+        cmd: "condition " + breakpointInfo!.breakpointId + " " + condition,
       });
     });
-    this.lineNumToBreakpointMapping.set(line, { ...info, condition: condition });
+
+    this.lineNumToBreakpointMapping.set(String(lineNum), { ...breakpointInfo, condition: condition });
   }
 
   public setContinue() {

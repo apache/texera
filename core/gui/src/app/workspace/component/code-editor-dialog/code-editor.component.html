@@ -30,19 +30,15 @@
   </ng-container>
 </div>
 
-<texera-breakpoint-condition-input
-  [operatorId]="this.currentOperatorId"
-  [lineNum]="breakpointConditionLine"
-  [mouseX]="breakpointConditionMouseX"
-  [mouseY]="breakpointConditionMouseY"
-  (closeEmitter)="closeBreakpointConditionInput()"></texera-breakpoint-condition-input>
+<ng-container #debuggerContainer
+              *ngComponentOutlet="codeDebuggerComponent; inputs: {monacoEditor:this.editorToPass, currentOperatorId: this.currentOperatorId}">
 
-<texera-annotation-suggestion
-  *ngIf="showAnnotationSuggestion"
-  [code]="currentCode"
-  [suggestion]="currentSuggestion"
-  [top]="suggestionTop"
-  [left]="suggestionLeft"
-  (accept)="acceptCurrentAnnotation()"
-  (decline)="rejectCurrentAnnotation()">
-</texera-annotation-suggestion>
+  <texera-annotation-suggestion
+    *ngIf="showAnnotationSuggestion"
+    [code]="currentCode"
+    [suggestion]="currentSuggestion"
+    [top]="suggestionTop"
+    [left]="suggestionLeft"
+    (accept)="acceptCurrentAnnotation()"
+    (decline)="rejectCurrentAnnotation()">
+  </texera-annotation-suggestion>
