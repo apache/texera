@@ -29,7 +29,8 @@ export class BreakpointManager {
         this.executionActive = true;
       }
       if (event[this.currentOperatorId]?.operatorState === OperatorState.Uninitialized) {
-        this.resetState();
+        this.getDebugState().clear();
+        this.executionActive = false;
       }
     });
 
@@ -77,30 +78,8 @@ export class BreakpointManager {
     });
   }
 
-  private debugCommandQueue: DebugCommandRequest[] = [];
   private executionActive = false;
 
-  private queueCommand(cmd: DebugCommandRequest) {
-    this.debugCommandQueue.push(cmd);
-    if (this.executionActive) {
-      this.sendCommand();
-    } else {
-      console.log("execution is not active");
-    }
-  }
-
-  private sendCommand() {
-    if (this.debugCommandQueue.length > 0) {
-      let payload = this.debugCommandQueue.shift();
-      this.workflowWebsocketService.sendDebugCommand(payload!);
-    }
-  }
-
-  public resetState() {
-    this.executionActive = false;
-    this.debugCommandQueue = [];
-    this.getDebugState().clear();
-  }
 
   private hasBreakpoint(lineNum: number): boolean {
     return this.getDebugState().has(String(lineNum));
@@ -121,7 +100,7 @@ export class BreakpointManager {
       return;
     }
     workerIds.forEach(workerId => {
-      this.queueCommand({
+      this.workflowWebsocketService.sendDebugCommand({
         operatorId: this.currentOperatorId,
         workerId,
         cmd: "condition " + breakpointInfo!.breakpointId + " " + condition,
@@ -162,7 +141,7 @@ export class BreakpointManager {
     const breakpointId = this.getDebugState().get(String(lineNum))?.breakpointId || "";
 
     workerIds.forEach(workerId => {
-      this.queueCommand({
+      this.workflowWebsocketService.sendDebugCommand({
         operatorId: this.currentOperatorId,
         workerId,
         cmd: `${cmd} ${cmd === "clear" ? breakpointId : lineNum}`,
