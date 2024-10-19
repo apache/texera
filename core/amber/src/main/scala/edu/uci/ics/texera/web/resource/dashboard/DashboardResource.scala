@@ -17,7 +17,7 @@ import org.jooq.types.UInteger
 import java.net.{HttpURLConnection, URL}
 import java.util
 import scala.jdk.CollectionConverters._
-import scala.util.{Failure, Success, Try}
+import scala.util.Try
 object DashboardResource {
   case class DashboardClickableFileEntry(
       resourceType: String,

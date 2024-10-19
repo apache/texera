@@ -50,7 +50,6 @@ export class SearchComponent implements AfterViewInit {
     private userService: UserService,
     private activatedRoute: ActivatedRoute,
     private cdr: ChangeDetectorRef
-
   ) {
     this.userService
       .userChanged()

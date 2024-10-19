@@ -72,7 +72,7 @@ export class FiltersComponent implements OnInit {
     private notificationService: NotificationService,
     private userProjectService: UserProjectService,
     private workflowPersistService: WorkflowPersistService,
-    private cdr: ChangeDetectorRef,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
