@@ -7,7 +7,7 @@ import {
   OnChanges,
   SimpleChanges,
   ViewChild,
-  ElementRef,
+  ElementRef, ChangeDetectorRef,
 } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzModalService } from "ng-zorro-antd/modal";
@@ -68,7 +68,8 @@ export class ListItemComponent implements OnInit, OnChanges {
     private modalService: NzModalService,
     private workflowPersistService: WorkflowPersistService,
     private modal: NzModalService,
-    private downloadService: DownloadService
+    private downloadService: DownloadService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   initializeEntry() {
@@ -82,6 +83,7 @@ export class ListItemComponent implements OnInit, OnChanges {
           } else {
             this.entryLink = [this.ROUTER_WORKFLOW_DETAIL_BASE_URL, String(this.entry.id)];
           }
+          setTimeout(() => this.cdr.detectChanges(), 0);
         });
       }
       // this.entryLink = this.ROUTER_WORKFLOW_BASE_URL + "/" + this.entry.id;
