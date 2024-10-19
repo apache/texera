@@ -130,7 +130,7 @@ export class CodeDebuggerComponent implements AfterViewInit, SafeStyle {
    * @private
    */
   private registerBreakpointRenderingHandler() {
-    this.udfDebugService.getOrCreateManager(this.currentOperatorId).getLineNumToBreakpointMapping().observe(evt => {
+    this.udfDebugService.getOrCreateManager(this.currentOperatorId).getDebugState().observe(evt => {
       evt.changes.keys.forEach((change, lineNum) => {
         switch (change.action) {
           case "add":
