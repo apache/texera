@@ -1,4 +1,10 @@
-import { AfterViewInit, Component, ComponentRef, ElementRef, OnDestroy, Renderer2, ViewChild } from "@angular/core";
+import {
+  AfterViewInit,
+  Component,
+  ComponentRef,
+  ElementRef,
+  OnDestroy, ViewChild,
+} from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
@@ -28,6 +34,7 @@ import { BreakpointManager, UdfDebugService } from "../../service/operator-debug
 import { ConsoleUpdateEvent } from "../../types/workflow-common.interface";
 import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
+import { BreakpointConditionInputComponent } from "./breakpoint-condition-input/breakpoint-condition-input.component";
 import IStandaloneCodeEditor = editor.IStandaloneCodeEditor;
 import MouseTargetType = editor.MouseTargetType;
 import ModelDecorationOptions = monaco.editor.IModelDecorationOptions;
@@ -68,14 +75,16 @@ export const LANGUAGE_SERVER_CONNECTION_TIMEOUT_MS = 1000;
   styleUrls: ["code-editor.component.scss"],
 })
 export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy {
+
   @ViewChild("editor", { static: true }) editorElement!: ElementRef;
   @ViewChild("container", { static: true }) containerElement!: ElementRef;
   @ViewChild(AnnotationSuggestionComponent) annotationSuggestion!: AnnotationSuggestionComponent;
+  @ViewChild(BreakpointConditionInputComponent) breakpointConditionInput!: BreakpointConditionInputComponent;
   private code?: YText;
-
   private workflowVersionStreamSubject: Subject<void> = new Subject<void>();
-  private currentOperatorId!: string;
+  public currentOperatorId!: string;
   private breakpointManager: BreakpointManager | undefined;
+
   public title: string | undefined;
   public formControl!: FormControl;
   public componentRef: ComponentRef<CodeEditorComponent> | undefined;
@@ -99,10 +108,12 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   private userResponseSubject?: Subject<void>;
   private isMultipleVariables: boolean = false;
 
-  public isRenderingBreakpoints = false;
   public instance: MonacoBreakpoint | undefined = undefined;
   public lastBreakLine = 0;
 
+  public breakpointConditionLine: number | undefined = undefined;
+  public breakpointConditionMouseX: number| undefined = undefined;
+  public breakpointConditionMouseY: number| undefined = undefined;
   private generateLanguageTitle(language: string): string {
     return `${language.charAt(0).toUpperCase()}${language.slice(1)} UDF`;
   }
@@ -120,8 +131,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     private aiAssistantService: AIAssistantService,
     public executeWorkflowService: ExecuteWorkflowService,
     public workflowWebsocketService: WorkflowWebsocketService,
-    public udfDebugService: UdfDebugService,
-    private renderer: Renderer2
+    public udfDebugService: UdfDebugService
   ) {
     this.currentOperatorId = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0];
     const operatorType = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId).operatorType;
@@ -169,22 +179,6 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
       .subscribeToEvent("ConsoleUpdateEvent")
       .pipe(untilDestroyed(this))
       .subscribe((pythonConsoleUpdateEvent: ConsoleUpdateEvent) => {
-        // pythonConsoleUpdateEvent.messages
-        //   .filter(consoleMessage => consoleMessage.msgType.name === "DEBUGGER")
-        //   .map(
-        //     consoleMessage => {
-        //       console.log(consoleMessage);
-        //       const pattern = /^Breakpoint (\d+).*\.py:(\d+)\s*$/;
-        //       return consoleMessage.title.match(pattern);
-        //     },
-        //   )
-        //   .filter(isDefined)
-        //   .forEach(match => {
-        //     const breakpoint = Number(match[1]);
-        //     const lineNumber = Number(match[2]);
-        //     this.breakpointManager?.assignBreakpointId(lineNumber, breakpoint);
-        //   });
-        //
         if (pythonConsoleUpdateEvent.messages.length === 0) {
           return;
         }
@@ -199,74 +193,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     return { ...(e.target as EditorMouseTarget) };
   }
 
-  showTooltip(mouseX: number, mouseY: number, lineNum: number, breakpointManager: BreakpointManager): void {
-    // Create tooltip element
-    const tooltip = this.renderer.createElement("div");
-    this.renderer.addClass(tooltip, "custom-tooltip");
 
-    // Create header element
-    const header = this.renderer.createElement("div");
-    this.renderer.addClass(header, "tooltip-header");
-    this.renderer.setProperty(header, "innerText", `Condition on line ${lineNum}:`);
-
-    // Create textarea element
-    const textarea = this.renderer.createElement("textarea");
-    this.renderer.addClass(textarea, "custom-textarea");
-    let oldCondition = breakpointManager.getCondition(lineNum);
-    this.renderer.setProperty(textarea, "value", oldCondition ?? "");
-
-    // Append header and textarea to tooltip
-    this.renderer.appendChild(tooltip, header);
-    this.renderer.appendChild(tooltip, textarea);
-
-    // Append tooltip to the document body
-    this.renderer.appendChild(document.body, tooltip);
-    textarea.focus();
-    // Function to remove the tooltip
-    const removeTooltip = () => {
-      const inputValue = textarea.value;
-      if (inputValue != oldCondition) {
-        breakpointManager.setCondition(lineNum, inputValue);
-      }
-      if (removeTooltipListener) {
-        removeTooltipListener();
-      }
-      if (removeFocusoutListener) {
-        removeFocusoutListener();
-      }
-      // Add fade-out class
-      this.renderer.addClass(tooltip, "fade-out");
-      // Remove tooltip after the transition ends
-      const transitionEndListener = this.renderer.listen(tooltip, "transitionend", () => {
-        tooltip.remove();
-        transitionEndListener();
-      });
-    };
-
-    // Listen for Enter key press to exit edit mode
-    const removeTooltipListener = this.renderer.listen(textarea, "keydown", (event: KeyboardEvent) => {
-      if (event.key === "Enter" && !event.shiftKey) {
-        event.preventDefault();
-        removeTooltip(); // Trigger fade-out and remove the tooltip
-      }
-    });
-
-    // Listen for focusout event to remove the tooltip after 1 second
-    const removeFocusoutListener = this.renderer.listen(textarea, "focusout", () => {
-      setTimeout(removeTooltip, 300);
-    });
-
-    // Calculate tooltip dimensions after appending to the DOM
-    const tooltipRect = tooltip.getBoundingClientRect();
-
-    // Adjust the position to appear at the left side of the mouse
-    const adjustedX = mouseX - tooltipRect.width - 10; // Subtracting width and adding some offset to the left
-    const adjustedY = mouseY - tooltipRect.height / 2;
-
-    // Update tooltip position
-    this.renderer.setStyle(tooltip, "top", `${adjustedY}px`);
-    this.renderer.setStyle(tooltip, "left", `${adjustedX}px`);
-  }
 
   ngOnDestroy(): void {
     this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("editingCode", false);
@@ -358,7 +285,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
         switchMap(() => of(this.editorWrapper.getEditor())),
         catchError(() => of(this.editorWrapper.getEditor())),
         filter(isDefined),
-        untilDestroyed(this)
+        untilDestroyed(this),
       )
       .subscribe((editor: IStandaloneCodeEditor) => {
         editor.updateOptions({ readOnly: this.formControl.disabled });
@@ -373,7 +300,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
           this.code,
           editor.getModel()!,
           new Set([editor]),
-          this.workflowActionService.getTexeraGraph().getSharedModelAwareness()
+          this.workflowActionService.getTexeraGraph().getSharedModelAwareness(),
         );
         this.setupAIAssistantActions(editor);
         this.setupDebuggingActions(editor);
@@ -418,11 +345,25 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   }
 
   private setupDebuggingActions(editor: IStandaloneCodeEditor) {
-    console.log(
-      "current bps:",
-      this.udfDebugService.getOrCreateManager(this.currentOperatorId).getCurrentBreakpoints()
-    );
     this.instance = new MonacoBreakpoint({ editor });
+    this.instance["createBreakpointDecoration"] = (
+      range: Range,
+      breakpointEnum: BreakpointEnum
+    ): { options: editor.IModelDecorationOptions; range: Range } => {
+      let condition = this.breakpointManager?.getCondition(range.startLineNumber);
+      let isConditional = false;
+      if (condition && condition !== "") {
+        isConditional = true;
+      }
+      return {
+        range,
+        options:
+          breakpointEnum === BreakpointEnum.Exist
+            ? (isConditional ? CONDITIONAL_BREAKPOINT_OPTIONS : BREAKPOINT_OPTIONS)
+            : BREAKPOINT_HOVER_OPTIONS,
+      };
+    };
+
     this.instance["mouseDownDisposable"]?.dispose();
 
     this.instance["mouseDownDisposable"] = editor.onMouseDown((evt: EditorMouseEvent) => {
@@ -433,15 +374,14 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
           return;
         }
         if (evt.event.rightButton) {
-          this.onMouseRightClick(evt, position.lineNumber, editor);
+          this.onMouseRightClick(position.lineNumber, editor);
         } else {
-          this.onMouseLeftClick(evt, position.lineNumber);
+          this.onMouseLeftClick(position.lineNumber);
         }
       }
     });
 
     this.breakpointManager?.getLineNumToBreakpointMapping().observe(evt => {
-      let lineNum: number;
       evt.changes.keys.forEach((change, lineNum) => {
         switch (change.action) {
           case "add":
@@ -468,6 +408,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
           case "update":
             // this.setCondition(Number(key), change.oldValue);
             console.log(evt.target.get(lineNum));
+            const oldValue = change.oldValue;
             const newValue = evt.target.get(lineNum)!;
             // if old hit is false and the new hit is true, then set the hit line number
             if (newValue.hit) {
@@ -475,6 +416,17 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
             }
             if (!newValue.hit) {
               this.instance?.removeHighlight();
+            }
+            if (oldValue.condition!== newValue.condition) {
+              const decorationId = this.instance!["lineNumberAndDecorationIdMap"].get(Number(lineNum));
+              this.instance!["removeSpecifyDecoration"](decorationId, Number(lineNum));
+              this.instance!["createSpecifyDecoration"]({
+                startLineNumber: Number(lineNum),
+                endLineNumber: Number(lineNum),
+                startColumn: 0,
+                endColumn: 0,
+              });
+              // this.instance?.
             }
             break;
         }
@@ -568,7 +520,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
                       currVariable.startLine,
                       currVariable.startColumn + offset,
                       currVariable.endLine,
-                      currVariable.endColumn + offset
+                      currVariable.endColumn + offset,
                     );
 
                     const highlight = editor.createDecorationsCollection([
@@ -610,7 +562,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     range: monaco.Range,
     editor: monaco.editor.IStandaloneCodeEditor,
     lineNumber: number,
-    allCode: string
+    allCode: string,
   ): void {
     this.aiAssistantService
       .getTypeAnnotations(code, lineNumber, allCode)
@@ -654,7 +606,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
         this.currentRange.startLineNumber,
         this.currentRange.startColumn,
         this.currentRange.endLineNumber,
-        this.currentRange.endColumn
+        this.currentRange.endColumn,
       );
 
       this.insertTypeAnnotations(this.editorWrapper.getEditor()!, selection, this.currentSuggestion);
@@ -684,7 +636,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   private insertTypeAnnotations(
     editor: monaco.editor.IStandaloneCodeEditor,
     selection: monaco.Selection,
-    annotations: string
+    annotations: string,
   ) {
     const endLineNumber = selection.endLineNumber;
     const endColumn = selection.endColumn;
@@ -697,33 +649,33 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     this.workflowActionService.getJointGraphWrapper().highlightOperators(this.currentOperatorId);
   }
 
-  private onMouseLeftClick(e: EditorMouseEvent, lineNum: number) {
+  private onMouseLeftClick(lineNum: number) {
     // This indicates that the current position of the mouse is over the total number of lines in the editor
     this.udfDebugService.doModifyBreakpoint(this.currentOperatorId, lineNum);
   }
 
-  private onMouseRightClick(evt: EditorMouseEvent, lineNum: number, editor: IStandaloneCodeEditor) {
+  private onMouseRightClick(lineNum: number, editor: IStandaloneCodeEditor) {
     if (!this.instance!["lineNumberAndDecorationIdMap"].has(lineNum)) {
+      console.log("no breakpoint found");
       return;
     }
-    // Get the layout info of the editor
+
     const layoutInfo = editor.getLayoutInfo()!;
-
-    // Get the top position for the start line number
     const topPixel = editor.getTopForLineNumber(lineNum);
-
-    // Calculate the middle y position for the line number
     const lineHeight = editor.getOption(monaco.editor.EditorOption.lineHeight);
-    const middleForLineNumber = topPixel + lineHeight / 2;
 
-    // Get the editor's DOM node and its bounding rect
-    const editorDomNode = editor.getDomNode()!;
-    const editorRect = editorDomNode.getBoundingClientRect();
+    const editorRect = editor.getDomNode()!.getBoundingClientRect();
 
-    // Calculate x and y positions
     const x = editorRect.left + layoutInfo.glyphMarginLeft - editor.getScrollLeft();
-    const y = editorRect.top + middleForLineNumber - editor.getScrollTop();
+    const y = editorRect.top + topPixel + lineHeight / 2 - editor.getScrollTop();
 
-    this.showTooltip(x, y, lineNum, this.breakpointManager!);
+    this.breakpointConditionLine = undefined;
+    this.breakpointConditionMouseX = x;
+    this.breakpointConditionMouseY = y;
+    this.breakpointConditionLine = lineNum;
+  }
+
+  closeBreakpointConditionInput() {
+    this.breakpointConditionLine = undefined;
   }
 }

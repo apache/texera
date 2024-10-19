@@ -22,7 +22,7 @@ export class BreakpointManager {
       ) {
         this.executionActive = true;
       }
-      if (event[this.currentOperatorId]?.operatorState === OperatorState.Initializing) {
+      if (event[this.currentOperatorId]?.operatorState === OperatorState.Uninitialized) {
         this.resetState();
       }
     });
@@ -58,6 +58,9 @@ export class BreakpointManager {
               // You can add more logic here, such as removing the breakpoint
             }
           }
+          if (msg.title.startsWith("New condition set for breakpoint")){
+            // pass
+          }
         } else if (msg.msgType.name == "ERROR") {
           const lineNum = this.extractLineNumberException(msg.source);
           if (isDefined(lineNum)) {
@@ -91,7 +94,6 @@ export class BreakpointManager {
     this.executionActive = false;
     this.debugCommandQueue = [];
     this.lineNumToBreakpointMapping.clear();
-    this.setHitLineNum(0);
   }
 
   private hasBreakpoint(lineNum: number): boolean {
@@ -107,15 +109,19 @@ export class BreakpointManager {
     return info.condition;
   }
 
-  public setCondition(lineNum: number, condition: string) {
+  public setCondition(lineNum: number, condition: string, workerIds:readonly string[]) {
     let line = String(lineNum);
     let info = this.lineNumToBreakpointMapping.get(line)!;
-    this.lineNumToBreakpointMapping.set(line, { ...info, condition: condition });
-    this.queueCommand({
-      operatorId: this.currentOperatorId,
-      workerId: "1",
-      cmd: "condition " + info.breakpointId + " " + info.condition,
+    console.log("set condition!!", lineNum, condition);
+    workerIds.forEach(workerId => {
+      this.queueCommand({
+        operatorId: this.currentOperatorId,
+        workerId,
+        cmd: "condition " + info.breakpointId + " " + condition,
+      })
     });
+    this.lineNumToBreakpointMapping.set(line, { ...info, condition: condition });
+
   }
 
   public setContinue() {
@@ -238,6 +244,13 @@ export class UdfDebugService {
       );
     }
     return this.breakpointManagers.get(operatorId)!;
+  }
+
+  doUpdateBreakpointCondition(operatorId:string, lineNumber: number, condition: string) {
+    // if new condition is not the same as the saved one, update it
+    if (condition !== this.getOrCreateManager(operatorId).getCondition(lineNumber)) {
+      this.getOrCreateManager(operatorId).setCondition(lineNumber, condition, this.executeWorkflowService.getWorkerIds(operatorId));
+    }
   }
 
   doModifyBreakpoint(operatorId: string, lineNumber: number) {

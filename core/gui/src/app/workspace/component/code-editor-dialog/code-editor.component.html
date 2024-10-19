@@ -9,7 +9,7 @@
     id="title"
     (focus)="onFocus()"
     cdkDragHandle>
-    {{languageTitle}} : {{ title }}
+    {{ languageTitle }} : {{ title }}
     <button
       nz-button
       nzType="text"
@@ -29,6 +29,14 @@
     <div [innerHTML]="this.getCoeditorCursorStyles(user)"></div>
   </ng-container>
 </div>
+
+<texera-breakpoint-condition-input
+  [operatorId]="this.currentOperatorId"
+  [lineNum]="breakpointConditionLine"
+  [mouseX]="breakpointConditionMouseX"
+  [mouseY]="breakpointConditionMouseY"
+  (closeEmitter) = "closeBreakpointConditionInput()"
+></texera-breakpoint-condition-input>
 
 <texera-annotation-suggestion
   *ngIf="showAnnotationSuggestion"
