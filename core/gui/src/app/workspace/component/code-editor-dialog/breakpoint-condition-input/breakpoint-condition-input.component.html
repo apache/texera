@@ -1,7 +1,7 @@
 <div
   *ngIf="isVisible()"
   class="custom-tooltip"
-  [ngStyle]="{ top: mouseY! + 'px', left: (mouseX! - 160) + 'px' }">
+  [ngStyle]="{ top: top() + 'px', left: (left() - 160) + 'px' }">
   <div class="tooltip-header">Condition on line {{ lineNum }}:</div>
   <textarea
     #conditionTextarea

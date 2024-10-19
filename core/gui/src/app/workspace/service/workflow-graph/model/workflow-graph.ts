@@ -15,6 +15,9 @@ import { CoeditorState, User } from "../../../../common/type/user";
 import { createYTypeFromObject, updateYTypeFromObject, YType } from "../../../types/shared-editing.interface";
 import { Awareness } from "y-protocols/awareness";
 import * as Y from "yjs";
+import { isDefined } from "../../../../common/util/predicate";
+import { UDFBreakpointInfo } from "../../../types/workflow-websocket.interface";
+
 
 // define the restricted methods that could change the graph
 type restrictedMethods =
@@ -63,7 +66,7 @@ export function isSink(operator: OperatorPredicate): boolean {
 
 export function isPythonUdf(operator: OperatorPredicate): boolean {
   return [PYTHON_UDF_V2_OP_TYPE, PYTHON_UDF_SOURCE_V2_OP_TYPE, DUAL_INPUT_PORTS_PYTHON_UDF_V2_OP_TYPE].includes(
-    operator.operatorType
+    operator.operatorType,
   );
 }
 
@@ -139,12 +142,12 @@ export class WorkflowGraph {
   constructor(
     operatorPredicates: OperatorPredicate[] = [],
     operatorLinks: OperatorLink[] = [],
-    commentBoxes: CommentBox[] = []
+    commentBoxes: CommentBox[] = [],
   ) {
     operatorPredicates.forEach(op => this.sharedModel.operatorIDMap.set(op.operatorID, createYTypeFromObject(op)));
     operatorLinks.forEach(link => this.sharedModel.operatorLinkMap.set(link.linkID, link));
     commentBoxes.forEach(commentBox =>
-      this.sharedModel.commentBoxMap.set(commentBox.commentBoxID, createYTypeFromObject(commentBox))
+      this.sharedModel.commentBoxMap.set(commentBox.commentBoxID, createYTypeFromObject(commentBox)),
     );
     this.newYDocLoadedSubject.next(undefined);
   }
@@ -423,8 +426,8 @@ export class WorkflowGraph {
   public getDisabledOperators(): ReadonlySet<string> {
     return new Set(
       Array.from(this.sharedModel.operatorIDMap.keys() as IterableIterator<string>).filter(op =>
-        this.isOperatorDisabled(op)
-      )
+        this.isOperatorDisabled(op),
+      ),
     );
   }
 
@@ -476,8 +479,8 @@ export class WorkflowGraph {
   public getOperatorsToViewResult(): ReadonlySet<string> {
     return new Set(
       Array.from(this.sharedModel.operatorIDMap.keys() as IterableIterator<string>).filter(op =>
-        this.isViewingResult(op)
-      )
+        this.isViewingResult(op),
+      ),
     );
   }
 
@@ -530,8 +533,8 @@ export class WorkflowGraph {
   public getOperatorsMarkedForReuseResult(): ReadonlySet<string> {
     return new Set(
       Array.from(this.sharedModel.operatorIDMap.keys() as IterableIterator<string>).filter(op =>
-        this.isMarkedForReuseResult(op)
-      )
+        this.isMarkedForReuseResult(op),
+      ),
     );
   }
 
@@ -586,12 +589,23 @@ export class WorkflowGraph {
     return commentBox.toJSON();
   }
 
+  public getOrCreateOperatorDebugState(operatorId: string): Y.Map<UDFBreakpointInfo> {
+    const fetch = this.sharedModel.debugState.get(operatorId);
+    if (isDefined(fetch)) {
+      return fetch;
+    } else {
+      const newState= new Y.Map<UDFBreakpointInfo>();
+      this.sharedModel.debugState.set(operatorId, newState);
+      return newState;
+    }
+  }
+
   /**
    * Returns an array of all operators in the graph.
    */
   public getAllOperators(): OperatorPredicate[] {
     return Array.from(this.sharedModel.operatorIDMap.values() as IterableIterator<YType<OperatorPredicate>>).map(v =>
-      v.toJSON()
+      v.toJSON(),
     );
   }
 
@@ -609,7 +623,7 @@ export class WorkflowGraph {
    */
   public getAllCommentBoxes(): CommentBox[] {
     return Array.from(this.sharedModel.commentBoxMap.values() as IterableIterator<YType<CommentBox>>).map(v =>
-      v.toJSON()
+      v.toJSON(),
     );
   }
 
@@ -815,7 +829,7 @@ export class WorkflowGraph {
     console.log("setting ", operatorID, newProperty);
 
     const previousProperty = this.getSharedOperatorType(operatorID).get(
-      "operatorProperties"
+      "operatorProperties",
     ) as YType<OperatorPropertiesType>;
 
     // set the new copy back to the operator ID map
@@ -830,13 +844,13 @@ export class WorkflowGraph {
     if (portDescriptionSharedType === undefined) return;
     portDescriptionSharedType.set(
       "partitionRequirement",
-      createYTypeFromObject<PartitionInfo>((newProperty as PortProperty).partitionInfo) as unknown as PartitionInfo
+      createYTypeFromObject<PartitionInfo>((newProperty as PortProperty).partitionInfo) as unknown as PartitionInfo,
     );
     portDescriptionSharedType.set(
       "dependencies",
       createYTypeFromObject<Array<{ id: number; internal: boolean }>>(
-        (newProperty as PortProperty).dependencies
-      ) as unknown as Y.Array<number>
+        (newProperty as PortProperty).dependencies,
+      ) as unknown as Y.Array<number>,
     );
   }
 
@@ -1115,7 +1129,7 @@ export class WorkflowGraph {
       const allOperators = this.getAllOperators();
       const allLinks = this.getAllEnabledLinks();
       const terminalOperators = allOperators.filter(
-        operator => !allLinks.some(link => link.source.operatorID === operator.operatorID)
+        operator => !allLinks.some(link => link.source.operatorID === operator.operatorID),
       );
 
       terminalOperators.forEach(terminalOperator => dfs(terminalOperator.operatorID, this));

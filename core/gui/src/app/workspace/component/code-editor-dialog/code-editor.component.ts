@@ -22,7 +22,6 @@ import "@codingame/monaco-vscode-java-default-extension";
 import { isDefined } from "../../../common/util/predicate";
 import { editor } from "monaco-editor/esm/vs/editor/editor.api.js";
 import { filter, switchMap } from "rxjs/operators";
-import { BreakpointManager } from "../../service/operator-debug/udf-debug.service";
 import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { BreakpointConditionInputComponent } from "./breakpoint-condition-input/breakpoint-condition-input.component";

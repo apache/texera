@@ -1,59 +1,38 @@
 import { AfterViewInit, Component, Input, ViewChild } from "@angular/core";
 import { UntilDestroy } from "@ngneat/until-destroy";
 import { SafeStyle } from "@angular/platform-browser";
-import * as monaco from "monaco-editor";
 import "@codingame/monaco-vscode-python-default-extension";
 import "@codingame/monaco-vscode-r-default-extension";
 import "@codingame/monaco-vscode-java-default-extension";
 import { isDefined } from "../../../common/util/predicate";
 import { editor } from "monaco-editor/esm/vs/editor/editor.api.js";
-import { EditorMouseEvent, EditorMouseTarget } from "monaco-breakpoints/dist/types";
+import {
+  EditorMouseEvent,
+  EditorMouseTarget,
+  ModelDecorationOptions,
+  MonacoEditor,
+  Range,
+} from "monaco-breakpoints/dist/types";
 import { MonacoBreakpoint } from "monaco-breakpoints";
-import { BreakpointManager, UdfDebugService } from "../../service/operator-debug/udf-debug.service";
+import { UdfDebugService } from "../../service/operator-debug/udf-debug.service";
 import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { BreakpointConditionInputComponent } from "./breakpoint-condition-input/breakpoint-condition-input.component";
-import IStandaloneCodeEditor = editor.IStandaloneCodeEditor;
 import MouseTargetType = editor.MouseTargetType;
-import ModelDecorationOptions = monaco.editor.IModelDecorationOptions;
-
-export type Range = monaco.IRange;
-
-export enum BreakpointEnum {
-  Exist,
-  Hover,
-}
-
-export const CONDITIONAL_BREAKPOINT_OPTIONS: ModelDecorationOptions = {
-  glyphMarginClassName: "monaco-conditional-breakpoint",
-};
-
-export const BREAKPOINT_OPTIONS: ModelDecorationOptions = {
-  glyphMarginClassName: "monaco-breakpoint",
-};
-
-export const BREAKPOINT_HOVER_OPTIONS: ModelDecorationOptions = {
-  glyphMarginClassName: "monaco-hover-breakpoint",
-};
 
 
 @UntilDestroy()
 @Component({
   selector: "texera-code-debugger",
   templateUrl: "code-debugger.component.html",
-  // styleUrls: ["code-debugger.component.scss"],
 })
 export class CodeDebuggerComponent implements AfterViewInit, SafeStyle {
-  @Input() monacoEditor!: IStandaloneCodeEditor;
+  @Input() monacoEditor!: MonacoEditor;
   @Input() currentOperatorId!: string;
   @ViewChild(BreakpointConditionInputComponent) breakpointConditionInput!: BreakpointConditionInputComponent;
 
-  private breakpointManager: BreakpointManager | undefined;
-
-  public instance: MonacoBreakpoint | undefined = undefined;
+  public monacoBreakpoint: MonacoBreakpoint | undefined = undefined;
   public breakpointConditionLine: number | undefined = undefined;
-  public breakpointConditionMouseX: number | undefined = undefined;
-  public breakpointConditionMouseY: number | undefined = undefined;
 
   constructor(
     public executeWorkflowService: ExecuteWorkflowService,
@@ -63,74 +42,82 @@ export class CodeDebuggerComponent implements AfterViewInit, SafeStyle {
   }
 
   ngAfterViewInit() {
-    this.breakpointManager = this.udfDebugService.getOrCreateManager(this.currentOperatorId);
     this.setupDebuggingActions(this.monacoEditor);
     this.registerBreakpointRenderingHandler();
   }
 
-  private setupDebuggingActions(editor: IStandaloneCodeEditor) {
-    this.instance = new MonacoBreakpoint({ editor });
-    this.instance["createBreakpointDecoration"] = (
+  private setupDebuggingActions(editor: MonacoEditor) {
+    // mimic the enum in monaco-breakpoints
+    enum BreakpointEnum {
+      Exist,
+    }
+
+    this.monacoBreakpoint = new MonacoBreakpoint({ editor });
+    // override the default createBreakpointDecoration so that it considers
+    //  1) hovering breakpoints;
+    //  2) exist breakpoints;
+    //  3) conditional breakpoints. (conditional breakpoints are also exist breakpoints)
+    this.monacoBreakpoint["createBreakpointDecoration"] = (
       range: Range,
       breakpointEnum: BreakpointEnum,
-    ): { options: editor.IModelDecorationOptions; range: Range } => {
-      let condition = this.breakpointManager?.getCondition(range.startLineNumber);
-      let isConditional = false;
-      if (condition && condition !== "") {
-        isConditional = true;
-      }
-      return {
-        range,
-        options:
-          breakpointEnum === BreakpointEnum.Exist
-            ? isConditional
-              ? CONDITIONAL_BREAKPOINT_OPTIONS
-              : BREAKPOINT_OPTIONS
-            : BREAKPOINT_HOVER_OPTIONS,
-      };
+    ): { range: Range, options: ModelDecorationOptions } => {
+      const condition = this.udfDebugService
+        .getOrCreateManager(this.currentOperatorId)
+        .getCondition(range.startLineNumber);
+
+      const isConditional = Boolean(condition?.trim());
+      const exists = breakpointEnum === BreakpointEnum.Exist;
+
+      const glyphMarginClassName = exists ? isConditional
+          ? "monaco-conditional-breakpoint"
+          : "monaco-breakpoint"
+        : "monaco-hover-breakpoint";
+
+      return { range, options: { glyphMarginClassName } };
     };
 
-    this.instance["mouseDownDisposable"]?.dispose();
-
-    this.instance["mouseDownDisposable"] = editor.onMouseDown((evt: EditorMouseEvent) => {
+    // override the default mouseDownDisposable to handle
+    //  1) left click to add/remove breakpoints;
+    //  2) right click to open breakpoint condition input.
+    this.monacoBreakpoint["mouseDownDisposable"]?.dispose();
+    this.monacoBreakpoint["mouseDownDisposable"] = editor.onMouseDown((evt: EditorMouseEvent) => {
       const { type, detail, position } = { ...(evt.target as EditorMouseTarget) };
       const model = editor.getModel()!;
       if (model && type === MouseTargetType.GUTTER_GLYPH_MARGIN) {
         if (detail.isAfterLines) {
           return;
         }
-        if (evt.event.rightButton) {
-          this.onMouseRightClick(position.lineNumber, editor);
-        } else {
+        if (evt.event.leftButton) {
           this.onMouseLeftClick(position.lineNumber);
+        } else {
+          this.onMouseRightClick(position.lineNumber);
         }
       }
     });
-
-
   }
 
+  /**
+   * This function is called when the user left clicks on the gutter of the editor.
+   * It adds or removes a breakpoint on the line number that the user clicked on.
+   * @param lineNum the line number that the user clicked on
+   * @private
+   */
   private onMouseLeftClick(lineNum: number) {
     // This indicates that the current position of the mouse is over the total number of lines in the editor
     this.udfDebugService.doModifyBreakpoint(this.currentOperatorId, lineNum);
   }
 
-  private onMouseRightClick(lineNum: number, editor: IStandaloneCodeEditor) {
-    if (!this.instance!["lineNumberAndDecorationIdMap"].has(lineNum)) {
+  /**
+   * This function is called when the user right clicks on the gutter of the editor.
+   * It opens the breakpoint condition input for the line number that the user clicked on.
+   * @param lineNum   the line number that the user clicked on
+   * @private
+   */
+  private onMouseRightClick(lineNum: number) {
+    if (!this.monacoBreakpoint!["lineNumberAndDecorationIdMap"].has(lineNum)) {
       return;
     }
 
-    const layoutInfo = editor.getLayoutInfo()!;
-    const topPixel = editor.getTopForLineNumber(lineNum);
-    const lineHeight = editor.getOption(monaco.editor.EditorOption.lineHeight);
-
-    const editorRect = editor.getDomNode()!.getBoundingClientRect();
-
-    const x = editorRect.left + layoutInfo.glyphMarginLeft - editor.getScrollLeft();
-    const y = editorRect.top + topPixel + lineHeight / 2 - editor.getScrollTop();
-
-    this.breakpointConditionMouseX = x;
-    this.breakpointConditionMouseY = y;
     this.breakpointConditionLine = lineNum;
   }
 
@@ -138,56 +125,57 @@ export class CodeDebuggerComponent implements AfterViewInit, SafeStyle {
     this.breakpointConditionLine = undefined;
   }
 
+  /**
+   * This function registers a handler that listens to the changes in the lineNumToBreakpointMapping.
+   * @private
+   */
   private registerBreakpointRenderingHandler() {
-    this.breakpointManager?.getLineNumToBreakpointMapping().observe(evt => {
+    this.udfDebugService.getOrCreateManager(this.currentOperatorId).getLineNumToBreakpointMapping().observe(evt => {
       evt.changes.keys.forEach((change, lineNum) => {
         switch (change.action) {
           case "add":
             const addedValue = evt.target.get(lineNum)!;
             if (isDefined(addedValue.breakpointId)) {
-              console.log("adding a breakpoint at ", lineNum);
-              this.instance!["createSpecifyDecoration"]({
-                startLineNumber: Number(lineNum),
-                endLineNumber: Number(lineNum),
-                startColumn: 0,
-                endColumn: 0,
-              });
+              this.createBreakpointDecoration(Number(lineNum));
             }
-
             break;
           case "delete":
             const deletedValue = change.oldValue;
             if (isDefined(deletedValue.breakpointId)) {
-              console.log("deleting a breakpoint at ", lineNum);
-              const decorationId = this.instance!["lineNumberAndDecorationIdMap"].get(Number(lineNum));
-              this.instance!["removeSpecifyDecoration"](decorationId, Number(lineNum));
+              this.removeBreakpointDecoration(Number(lineNum));
             }
             break;
           case "update":
-            // this.setCondition(Number(key), change.oldValue);
-            console.log(evt.target.get(lineNum));
             const oldValue = change.oldValue;
             const newValue = evt.target.get(lineNum)!;
-            // if old hit is false and the new hit is true, then set the hit line number
             if (newValue.hit) {
-              this.instance?.setLineHighlight(Number(lineNum));
+              this.monacoBreakpoint?.setLineHighlight(Number(lineNum));
             }
             if (!newValue.hit) {
-              this.instance?.removeHighlight();
+              this.monacoBreakpoint?.removeHighlight();
             }
             if (oldValue.condition !== newValue.condition) {
-              const decorationId = this.instance!["lineNumberAndDecorationIdMap"].get(Number(lineNum));
-              this.instance!["removeSpecifyDecoration"](decorationId, Number(lineNum));
-              this.instance!["createSpecifyDecoration"]({
-                startLineNumber: Number(lineNum),
-                endLineNumber: Number(lineNum),
-                startColumn: 0,
-                endColumn: 0,
-              });
+              // recreate the decoration with condition
+              this.removeBreakpointDecoration(Number(lineNum));
+              this.createBreakpointDecoration(Number(lineNum));
             }
             break;
         }
       });
     });
+  }
+
+  private createBreakpointDecoration(lineNum: number) {
+    this.monacoBreakpoint!["createSpecifyDecoration"]({
+      startLineNumber: Number(lineNum),
+      endLineNumber: Number(lineNum),
+      startColumn: 0,
+      endColumn: 0,
+    });
+  }
+
+  private removeBreakpointDecoration(lineNum: number) {
+    const decorationId = this.monacoBreakpoint!["lineNumberAndDecorationIdMap"].get(lineNum);
+    this.monacoBreakpoint!["removeSpecifyDecoration"](decorationId, lineNum);
   }
 }

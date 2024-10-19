@@ -1,7 +1,6 @@
-import * as Y from "yjs";
 import { Injectable } from "@angular/core";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
-import { DebugCommandRequest, UDFBreakpointInfo } from "../../types/workflow-websocket.interface";
+import { DebugCommandRequest } from "../../types/workflow-websocket.interface";
 import { OperatorState } from "../../types/execute-workflow.interface";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { isDefined } from "../../../common/util/predicate";
@@ -9,12 +8,17 @@ import { WorkflowStatusService } from "../workflow-status/workflow-status.servic
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
 
 export class BreakpointManager {
+
   constructor(
     private workflowWebsocketService: WorkflowWebsocketService,
     private workflowStatusService: WorkflowStatusService,
+    private workflowActionService: WorkflowActionService,
     private currentOperatorId: string,
-    private lineNumToBreakpointMapping: Y.Map<UDFBreakpointInfo>
   ) {
+    this.workflowActionService.texeraGraph.getOrCreateOperatorDebugState(currentOperatorId);
+
+
+
     workflowStatusService.getStatusUpdateStream().subscribe(event => {
       if (
         event[this.currentOperatorId]?.operatorState !== OperatorState.Running ||
@@ -36,14 +40,14 @@ export class BreakpointManager {
         if (msg.source == "(Pdb)" && msg.msgType.name == "DEBUGGER") {
           console.log("received ", msg.title);
           if (msg.title.startsWith(">")) {
-            const lineNum = this.extractLineNumber(msg.title);
+            const { lineNum } = this.extractInfo(msg.title);
             if (isDefined(lineNum)) {
               this.setHitLineNum(lineNum);
             }
           }
           if (msg.title.startsWith("Breakpoint")) {
             // Handle breakpoint added case
-            const { breakpointId, lineNum } = this.extractBreakpointInfo(msg.title);
+            const { breakpointId, lineNum } = this.extractInfo(msg.title);
             if (isDefined(breakpointId) && isDefined(lineNum)) {
               this.addBreakpoint(lineNum, breakpointId, "");
               // You can add more logic here, such as storing the breakpoint ID
@@ -51,7 +55,7 @@ export class BreakpointManager {
           }
           if (msg.title.startsWith("Deleted")) {
             // Handle breakpoint removed case
-            const { breakpointId, lineNum } = this.extractBreakpointInfo(msg.title);
+            const { breakpointId, lineNum } = this.extractInfo(msg.title);
             if (isDefined(breakpointId) && isDefined(lineNum)) {
               console.log(`Breakpoint removed with ID: ${breakpointId}`);
               this.removeBreakpoint(lineNum);
@@ -62,7 +66,7 @@ export class BreakpointManager {
             // pass
           }
         } else if (msg.msgType.name == "ERROR") {
-          const lineNum = this.extractLineNumberException(msg.source);
+          const { lineNum } = this.extractInfo(msg.source);
           if (isDefined(lineNum)) {
             this.setHitLineNum(lineNum);
           }
@@ -93,24 +97,24 @@ export class BreakpointManager {
   public resetState() {
     this.executionActive = false;
     this.debugCommandQueue = [];
-    this.lineNumToBreakpointMapping.clear();
+    this.workflowActionService.texeraGraph.getOrCreateOperatorDebugState(this.currentOperatorId).clear();
   }
 
   private hasBreakpoint(lineNum: number): boolean {
-    return this.lineNumToBreakpointMapping.has(String(lineNum));
+    return this.workflowActionService.texeraGraph.getOrCreateOperatorDebugState(this.currentOperatorId).has(String(lineNum));
   }
 
   public getCondition(lineNum: number): string {
     let line = String(lineNum);
-    if (!this.lineNumToBreakpointMapping.has(line)) {
+    if (!this.workflowActionService.texeraGraph.getOrCreateOperatorDebugState(this.currentOperatorId).has(line)) {
       return "";
     }
-    let info = this.lineNumToBreakpointMapping.get(line)!;
+    let info = this.workflowActionService.texeraGraph.getOrCreateOperatorDebugState(this.currentOperatorId).get(line)!;
     return info.condition;
   }
 
   public setCondition(lineNum: number, condition: string, workerIds: readonly string[]) {
-    const breakpointInfo = this.lineNumToBreakpointMapping.get(String(lineNum));
+    const breakpointInfo = this.workflowActionService.texeraGraph.getOrCreateOperatorDebugState(this.currentOperatorId).get(String(lineNum));
     if (!isDefined(breakpointInfo)) {
       return;
     }
@@ -122,29 +126,28 @@ export class BreakpointManager {
       });
     });
 
-    this.lineNumToBreakpointMapping.set(String(lineNum), { ...breakpointInfo, condition: condition });
+    this.workflowActionService.texeraGraph.getOrCreateOperatorDebugState(this.currentOperatorId).set(String(lineNum), { ...breakpointInfo, condition: condition });
   }
 
   public setContinue() {
     // for each breakpoint in this.lineNumToBreakpointMapping, if breakpointId is undefined, remove it. and if hit is true, set it to false.
-    this.lineNumToBreakpointMapping.forEach((value, key) => {
+    this.workflowActionService.texeraGraph.getOrCreateOperatorDebugState(this.currentOperatorId).forEach((value, key) => {
       if (value.hit) {
-        this.lineNumToBreakpointMapping.set(key, { ...value, hit: false });
+        this.workflowActionService.texeraGraph.getOrCreateOperatorDebugState(this.currentOperatorId).set(key, { ...value, hit: false });
       }
       if (value.breakpointId === undefined) {
-        this.lineNumToBreakpointMapping.delete(key);
+        this.workflowActionService.texeraGraph.getOrCreateOperatorDebugState(this.currentOperatorId).delete(key);
       }
     });
   }
 
   public setHitLineNum(lineNum: number) {
-    console.log("set hit on ", lineNum);
     let line = String(lineNum);
-    if (!this.lineNumToBreakpointMapping.has(line)) {
-      this.lineNumToBreakpointMapping.set(line, { breakpointId: undefined, condition: "", hit: true });
+    if (!this.workflowActionService.texeraGraph.getOrCreateOperatorDebugState(this.currentOperatorId).has(line)) {
+      this.workflowActionService.texeraGraph.getOrCreateOperatorDebugState(this.currentOperatorId).set(line, { breakpointId: undefined, condition: "", hit: true });
     }
-    let breakpointInfo = this.lineNumToBreakpointMapping.get(line)!;
-    this.lineNumToBreakpointMapping.set(line, { ...breakpointInfo, hit: true });
+    let breakpointInfo = this.workflowActionService.texeraGraph.getOrCreateOperatorDebugState(this.currentOperatorId).get(line)!;
+    this.workflowActionService.texeraGraph.getOrCreateOperatorDebugState(this.currentOperatorId).set(line, { ...breakpointInfo, hit: true });
   }
 
   addOrRemoveBreakpoint(lineNum: number, workerIds: readonly string[]) {
@@ -154,7 +157,7 @@ export class BreakpointManager {
         this.queueCommand({
           operatorId: this.currentOperatorId,
           workerId: workerId,
-          cmd: "clear " + this.lineNumToBreakpointMapping.get(String(lineNum))?.breakpointId,
+          cmd: "clear " + this.workflowActionService.texeraGraph.getOrCreateOperatorDebugState(this.currentOperatorId).get(String(lineNum))?.breakpointId,
         });
       });
     } else {
@@ -170,48 +173,37 @@ export class BreakpointManager {
   }
 
   addBreakpoint(lineNum: number, breakpointId: number, condition: string) {
-    this.lineNumToBreakpointMapping.set(String(lineNum), { breakpointId, condition, hit: false });
+    this.workflowActionService.texeraGraph.getOrCreateOperatorDebugState(this.currentOperatorId).set(String(lineNum), { breakpointId, condition, hit: false });
   }
 
   removeBreakpoint(lineNum: number) {
-    this.lineNumToBreakpointMapping.delete(String(lineNum));
+    this.workflowActionService.texeraGraph.getOrCreateOperatorDebugState(this.currentOperatorId).delete(String(lineNum));
   }
 
   getCurrentBreakpoints() {
-    return Array.from(this.lineNumToBreakpointMapping.keys());
+    return Array.from(this.workflowActionService.texeraGraph.getOrCreateOperatorDebugState(this.currentOperatorId).keys());
   }
 
-  private extractLineNumber(message: string): number | undefined {
-    const regex = /\.py\((\d+)\)/;
-    const match = message.match(regex);
-
-    if (match && match[1]) {
-      return parseInt(match[1]);
-    }
-    return undefined;
-  }
-
-  private extractBreakpointInfo(title: string): { breakpointId?: number; lineNum?: number } {
-    const match = title.match(/(?:Breakpoint|Deleted breakpoint) (\d+) at .+:(\d+)/);
-    return {
-      breakpointId: match ? parseInt(match[1], 10) : undefined,
-      lineNum: match ? parseInt(match[2], 10) : undefined,
-    };
-  }
-
-  private extractLineNumberException(message: string): number | undefined {
-    const regex = /:(\d+)/;
-    const match = message.match(regex);
-
-    if (match && match[1]) {
-      return parseInt(match[1]);
+  private extractInfo(message: string): { breakpointId?: number; lineNum?: number } {
+    const breakpointMatch = message.match(/(?:Breakpoint|Deleted breakpoint) (\d+) at .+:(\d+)/);
+    if (breakpointMatch) {
+      return {
+        breakpointId: parseInt(breakpointMatch[1], 10),
+        lineNum: parseInt(breakpointMatch[2], 10),
+      };
     }
 
-    return undefined;
+    const lineNumberMatch = message.match(/\.py\((\d+)\)|:(\d+)/);
+    if (lineNumberMatch) {
+      const lineNum = parseInt(lineNumberMatch[1] || lineNumberMatch[2], 10);
+      return { lineNum };
+    }
+
+    return {};
   }
 
   public getLineNumToBreakpointMapping() {
-    return this.lineNumToBreakpointMapping;
+    return this.workflowActionService.texeraGraph.getOrCreateOperatorDebugState(this.currentOperatorId);
   }
 }
 
@@ -225,23 +217,24 @@ export class UdfDebugService {
     private workflowWebsocketService: WorkflowWebsocketService,
     private workflowActionService: WorkflowActionService,
     private workflowStatusService: WorkflowStatusService,
-    private executeWorkflowService: ExecuteWorkflowService
-  ) {}
+    private executeWorkflowService: ExecuteWorkflowService,
+  ) {
+    // for each operator, create a breakpoint manager
+    this.workflowActionService.texeraGraph.getAllOperators().forEach(op => {
+      this.getOrCreateManager(op.operatorID);
+    });
+  }
 
   public getOrCreateManager(operatorId: string): BreakpointManager {
-    let debugState = this.workflowActionService.texeraGraph.sharedModel.debugState;
-    if (!debugState.has(operatorId)) {
-      debugState.set(operatorId, new Y.Map<UDFBreakpointInfo>());
-    }
     if (!this.breakpointManagers.has(operatorId)) {
       this.breakpointManagers.set(
         operatorId,
         new BreakpointManager(
           this.workflowWebsocketService,
           this.workflowStatusService,
+          this.workflowActionService,
           operatorId,
-          debugState.get(operatorId)
-        )
+        ),
       );
     }
     return this.breakpointManagers.get(operatorId)!;
@@ -253,7 +246,7 @@ export class UdfDebugService {
       this.getOrCreateManager(operatorId).setCondition(
         lineNumber,
         condition,
-        this.executeWorkflowService.getWorkerIds(operatorId)
+        this.executeWorkflowService.getWorkerIds(operatorId),
       );
     }
   }
@@ -261,7 +254,7 @@ export class UdfDebugService {
   doModifyBreakpoint(operatorId: string, lineNumber: number) {
     this.getOrCreateManager(operatorId).addOrRemoveBreakpoint(
       lineNumber,
-      this.executeWorkflowService.getWorkerIds(operatorId)
+      this.executeWorkflowService.getWorkerIds(operatorId),
     );
   }
 

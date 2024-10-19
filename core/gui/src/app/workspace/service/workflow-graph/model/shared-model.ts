@@ -2,11 +2,12 @@ import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
 import { Awareness } from "y-protocols/awareness";
 import { CommentBox, OperatorLink, OperatorPredicate, Point } from "../../../types/workflow-common.interface";
-import { User, CoeditorState } from "../../../../common/type/user";
+import { CoeditorState, User } from "../../../../common/type/user";
 import { getWebsocketUrl } from "../../../../common/util/url";
 import { v4 as uuid } from "uuid";
 import { YType } from "../../../types/shared-editing.interface";
 import { environment } from "../../../../../environments/environment";
+import { UDFBreakpointInfo } from "../../../types/workflow-websocket.interface";
 
 /**
  * SharedModel encapsulates everything related to real-time shared editing for the current workflow.
@@ -20,7 +21,7 @@ export class SharedModel {
   public commentBoxMap: Y.Map<YType<CommentBox>>;
   public operatorLinkMap: Y.Map<OperatorLink>;
   public elementPositionMap: Y.Map<Point>;
-  public debugState: Y.Map<any>;
+  public debugState: Y.Map<Y.Map<UDFBreakpointInfo>>;
   public undoManager: Y.UndoManager;
   public clientId: string;
 
@@ -34,7 +35,7 @@ export class SharedModel {
    */
   constructor(
     public wid?: number,
-    public user?: User
+    public user?: User,
   ) {
     // Initialize Y-structures.
     this.debugState = this.yDoc.getMap("debugActions");
@@ -48,7 +49,7 @@ export class SharedModel {
       [this.operatorIDMap, this.elementPositionMap, this.operatorLinkMap, this.commentBoxMap],
       {
         captureTimeout: 100,
-      }
+      },
     );
 
     // Generate editing room number.
@@ -103,7 +104,8 @@ export class SharedModel {
     this.awareness.destroy();
     try {
       if (this.wsProvider.shouldConnect && this.wsProvider.wsconnected) this.wsProvider.disconnect();
-    } catch (e) {}
+    } catch (e) {
+    }
     this.yDoc.destroy();
   }
 }
