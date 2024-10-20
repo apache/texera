@@ -11,13 +11,11 @@ import io.dropwizard.auth.Auth
 import org.jooq.{Field, OrderField}
 
 import javax.ws.rs._
-import javax.ws.rs.core.{MediaType, Response}
+import javax.ws.rs.core.MediaType
 import org.jooq.types.UInteger
 
-import java.net.{HttpURLConnection, URL}
 import java.util
 import scala.jdk.CollectionConverters._
-import scala.util.Try
 object DashboardResource {
   case class DashboardClickableFileEntry(
       resourceType: String,
@@ -217,24 +215,5 @@ class DashboardResource {
       .fetch()
 
     records.getValues(WORKFLOW_USER_ACCESS.UID)
-  }
-
-  @GET
-  @Path("/forumHealth")
-  @Produces(Array(MediaType.APPLICATION_JSON))
-  def forumHealthCheck(): Response = {
-    val forumApiUrl = sys.env.getOrElse("FORUM_API_URL", "http://localhost:4200/forum/api/token")
-
-    val isForumAvailable = Try {
-      val connection = new URL(forumApiUrl).openConnection().asInstanceOf[HttpURLConnection]
-      connection.setConnectTimeout(5000)
-      connection.setReadTimeout(5000)
-      connection.setRequestMethod("GET")
-      connection.connect()
-      connection.getResponseCode == 200
-    }.getOrElse(false)
-
-    val status = Map("forumAvailable" -> isForumAvailable)
-    Response.ok(status).build()
   }
 }

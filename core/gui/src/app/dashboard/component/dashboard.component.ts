@@ -65,37 +65,26 @@ export class DashboardComponent implements OnInit {
           this.router.navigateByUrl(this.route.snapshot.queryParams["returnUrl"] || "/dashboard/user/workflow")
         );
     }
-
     if (!document.cookie.includes("flarum_remember") && this.isLogin) {
       this.flarumService
-        .checkForumHealth()
+        .auth()
         .pipe(untilDestroyed(this))
-        .subscribe((isHealthy: boolean) => {
-          if (!isHealthy) {
-            return;
-          }
-
-          this.flarumService
-            .auth()
-            .pipe(untilDestroyed(this))
-            .subscribe({
-              next: (response: any) => {
-                document.cookie = `flarum_remember=${response.token};path=/`;
-              },
-              error: (err: unknown) => {
-                if ((err as HttpErrorResponse).status === 404) {
-                  this.displayForum = false;
-                } else {
-                  this.flarumService
-                    .register()
-                    .pipe(untilDestroyed(this))
-                    .subscribe(() => this.ngOnInit());
-                }
-              },
-            });
+        .subscribe({
+          next: (response: any) => {
+            document.cookie = `flarum_remember=${response.token};path=/`;
+          },
+          error: (err: unknown) => {
+            if ((err as HttpErrorResponse).status == 404) {
+              this.displayForum = false;
+            } else {
+              this.flarumService
+                .register()
+                .pipe(untilDestroyed(this))
+                .subscribe(() => this.ngOnInit());
+            }
+          },
         });
     }
-
     this.router.events.pipe(untilDestroyed(this)).subscribe(() => {
       this.checkRoute();
     });

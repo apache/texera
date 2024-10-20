@@ -25,17 +25,4 @@ export class FlarumService {
       { headers: { "Content-Type": "application/json" }, withCredentials: true }
     );
   }
-
-  checkForumHealth(): Observable<boolean> {
-    return this.http.get<{ forumAvailable: boolean }>(`${AppSettings.getApiEndpoint()}/dashboard/forumHealth`).pipe(
-      map(response => {
-        // console.log("Health check response:", response);
-        return response.forumAvailable;
-      }),
-      catchError((error: unknown) => {
-        // console.warn("Forum health check failed:", error);
-        return of(false);
-      })
-    );
-  }
 }
