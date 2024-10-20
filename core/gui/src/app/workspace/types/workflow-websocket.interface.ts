@@ -181,7 +181,7 @@ export type TexeraWebsocketRequestTypeMap = {
   ResultExportRequest: ResultExportRequest;
   ResultPaginationRequest: PaginationRequest;
   RetryRequest: { workers: ReadonlyArray<string> };
-  SkipTupleRequest: { workerIds: ReadonlyArray<string> };
+  SkipTupleRequest: { workers: ReadonlyArray<string> };
   WorkflowExecuteRequest: WorkflowExecuteRequest;
   WorkflowKillRequest: {};
   WorkflowPauseRequest: {};

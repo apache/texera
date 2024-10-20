@@ -15,14 +15,14 @@
         [nzUnCheckedChildren]="unCheckedTemplate"></nz-switch>
       Show Timestamp
       <ng-template #checkedTemplate
-        ><span
-          nz-icon
-          nzType="check"></span
+      ><span
+        nz-icon
+        nzType="check"></span
       ></ng-template>
       <ng-template #unCheckedTemplate
-        ><span
-          nz-icon
-          nzType="close"></span
+      ><span
+        nz-icon
+        nzType="close"></span
       ></ng-template>
     </li>
     <li nz-menu-item>
@@ -32,14 +32,14 @@
         [nzUnCheckedChildren]="unCheckedTemplate"></nz-switch>
       Show Source
       <ng-template #checkedTemplate
-        ><span
-          nz-icon
-          nzType="check"></span
+      ><span
+        nz-icon
+        nzType="check"></span
       ></ng-template>
       <ng-template #unCheckedTemplate
-        ><span
-          nz-icon
-          nzType="close"></span
+      ><span
+        nz-icon
+        nzType="close"></span
       ></ng-template>
     </li>
   </ul>
@@ -81,7 +81,7 @@
             <ng-template #customHeader>
               <div class="collapse-message-header">{{ entry.title }}</div>
             </ng-template>
-            <div class="console-message">{{entry.message}}</div>
+            <div class="console-message">{{ entry.message }}</div>
           </nz-collapse-panel>
         </nz-collapse>
         <div
@@ -104,7 +104,7 @@
             <nz-tag
               *ngIf="showSource"
               class="source-tag">
-              {{entry.source}}
+              {{ entry.source }}
             </nz-tag>
           </div>
           <div
@@ -113,13 +113,14 @@
             <nz-tag
               *ngIf="showTimestamp"
               class="timestamp-tag">
-              {{(entry.timestamp.seconds * 1000 + entry.timestamp.nanos * 0.000001) | date : "M-d-yy, HH:mm:ss.SSS"}}
+              {{ (entry.timestamp.seconds * 1000 + entry.timestamp.nanos * 0.000001) | date : "M-d-yy, HH:mm:ss.SSS" }}
             </nz-tag>
             <nz-tag
               *ngIf="entry.workerId"
               class="worker-tag"
               [nzColor]="getWorkerColor(getWorkerIndex(entry.workerId))">
-              {{workerIdToAbbr(entry.workerId)}}</nz-tag
+              {{ workerIdToAbbr(entry.workerId) }}
+            </nz-tag
             >
           </div>
         </div>
@@ -134,19 +135,20 @@
   [nzAddOnBefore]="addOnBeforeTemplate"
   class="console-input-container">
   <div>
-    <!--    <button-->
-    <!--      (click)="onClickSkipTuples()"-->
-    <!--      [disabled]="false"-->
-    <!--      nzSize="small"-->
-    <!--      nz-tooltip-->
-    <!--      nzTooltipTitle="Skip the faulty Tuple"-->
-    <!--      nz-button>-->
-    <!--      <span-->
-    <!--        nz-icon-->
-    <!--        nzType="delete-row"-->
-    <!--        nzTheme="outline"></span>-->
-    <!--      Skip Tuple-->
-    <!--    </button>-->
+    <button
+      (click)="onClickSkipTuples()"
+      [disabled]="false"
+      nzSize="small"
+      nz-tooltip
+      nzTooltipTitle="Skip the faulty Tuple"
+      nz-button>
+      <span
+        nz-icon
+        nzType="delete-row"
+        nzTheme="outline">
+      </span>
+      Skip Tuple
+    </button>
     <button
       (click)="onClickRetryTuples()"
       [disabled]="false"
