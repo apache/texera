@@ -206,8 +206,6 @@ export class MenuComponent implements OnInit {
       case ExecutionState.Completed:
       case ExecutionState.Killed:
       case ExecutionState.Failed:
-        // assuming there is only one workflow running.
-        // reset all states.
         return {
           text: "Run",
           icon: "play-circle",

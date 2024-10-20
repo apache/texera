@@ -21,18 +21,12 @@ export class BreakpointManager {
     // initialize debug state if not created already
     this.workflowActionService.getTexeraGraph().getOrCreateOperatorDebugState(currentOperatorId);
 
-    workflowStatusService.getStatusUpdateStream().subscribe(event => {
-      if (
-        event[this.currentOperatorId]?.operatorState !== OperatorState.Running ||
-        event[this.currentOperatorId]?.operatorState !== OperatorState.Paused
-      ) {
-        this.executionActive = true;
-      }
-      if (event[this.currentOperatorId]?.operatorState === OperatorState.Uninitialized) {
+    this.workflowStatusService
+      .getStatusUpdateStream()
+      .pipe(filter(event => event[this.currentOperatorId]?.operatorState === OperatorState.Uninitialized))
+      .subscribe(() => {
         this.getDebugState().clear();
-        this.executionActive = false;
-      }
-    });
+      });
 
     const messageStream = workflowWebsocketService.subscribeToEvent("ConsoleUpdateEvent").pipe(
       // only listen to events from the current operator
@@ -44,7 +38,7 @@ export class BreakpointManager {
       filter(msg => msg.source == "(Pdb)" && msg.msgType.name == "DEBUGGER")
     );
     const errorMessageStream = messageStream.pipe(filter(msg => msg.msgType.name == "ERROR"));
-    console.log("creating subscriptions");
+
     debugMessageStream
       .pipe(
         filter(msg => msg.title.startsWith(">")),
@@ -85,8 +79,6 @@ export class BreakpointManager {
       }
     });
   }
-
-  private executionActive = false;
 
   private hasBreakpoint(lineNum: number): boolean {
     return this.getDebugState().has(String(lineNum));

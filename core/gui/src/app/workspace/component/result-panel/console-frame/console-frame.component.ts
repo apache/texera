@@ -161,13 +161,14 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
       this.notificationService.error((e as Error).message);
     }
   }
-  public onClickStep(): void {
+
+  onClickStep(): void {
     for (let worker of this.workerIds) {
       this.udfDebugService.doStep(this.operatorId, worker);
     }
   }
 
-  public onClickContinue(): void {
+  onClickContinue(): void {
     for (let worker of this.workerIds) {
       this.udfDebugService.doContinue(this.operatorId, worker);
     }
