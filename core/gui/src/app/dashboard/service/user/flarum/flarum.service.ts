@@ -2,8 +2,6 @@ import { Injectable } from "@angular/core";
 import { HttpClient } from "@angular/common/http";
 import { UserService } from "../../../../common/service/user/user.service";
 import { AppSettings } from "../../../../common/app-setting";
-import { catchError, map } from "rxjs/operators";
-import { Observable, of } from "rxjs";
 
 @Injectable({
   providedIn: "root",
