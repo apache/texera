@@ -7,35 +7,151 @@ import { WorkflowStatusService } from "../workflow-status/workflow-status.servic
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
 import { filter, map, switchMap } from "rxjs/operators";
 
-export class BreakpointManager {
-  public getDebugState() {
-    return this.workflowActionService.getTexeraGraph().getOrCreateOperatorDebugState(this.currentOperatorId);
-  }
-
+/**
+ * This service provides functionalities for debugging UDF operators.
+ */
+@Injectable({
+  providedIn: "root",
+})
+export class UdfDebugService {
   constructor(
     private workflowWebsocketService: WorkflowWebsocketService,
-    private workflowStatusService: WorkflowStatusService,
     private workflowActionService: WorkflowActionService,
-    private currentOperatorId: string,
+    private workflowStatusService: WorkflowStatusService,
+    private executeWorkflowService: ExecuteWorkflowService
   ) {
-    // initialize debug state if not created already
-    this.workflowActionService.getTexeraGraph().getOrCreateOperatorDebugState(currentOperatorId);
+    // Initializes debug handlers for all operators in the workflow graph.
+    const graph = this.workflowActionService.getTexeraGraph();
+    graph.getAllOperators().forEach(op => {
+      graph.createOperatorDebugState(op.operatorID);
+      this.registerOperatorStateChangeHandler(op.operatorID);
+      this.registerConsoleUpdateHandler(op.operatorID);
+    });
+  }
 
+  /**
+   * Retrieves the debug state for a specific operator.
+   *
+   * @param operatorId - The unique ID of the operator.
+   * @returns A Y.Map containing the operator's debug state.
+   */
+  getDebugState(operatorId: string) {
+    return this.workflowActionService.getTexeraGraph().getOperatorDebugState(operatorId);
+  }
+
+  /**
+   * Gets the condition of a breakpoint for a specific line.
+   *
+   * @param operatorId - The unique ID of the operator.
+   * @param lineNumber - The line number where the breakpoint is set.
+   * @returns The condition string for the breakpoint.
+   */
+  getCondition(operatorId: string, lineNumber: number): string {
+    const line = String(lineNumber);
+    const debugState = this.getDebugState(operatorId);
+    return debugState.has(line) ? debugState.get(line)!.condition : "";
+  }
+
+  /**
+   * Updates the condition of a breakpoint if it differs from the existing one.
+   *
+   * @param operatorId - The unique ID of the operator.
+   * @param lineNumber - The line number where the breakpoint is set.
+   * @param condition - The new condition to be applied to the breakpoint.
+   */
+  doUpdateBreakpointCondition(operatorId: string, lineNumber: number, condition: string) {
+    if (condition === this.getCondition(operatorId, lineNumber)) return;
+
+    const workerIds = this.executeWorkflowService.getWorkerIds(operatorId);
+    const debugState = this.getDebugState(operatorId);
+    const breakpointInfo = debugState.get(String(lineNumber));
+
+    if (isDefined(breakpointInfo)) {
+      workerIds.forEach(workerId => {
+        this.workflowWebsocketService.send("DebugCommandRequest", {
+          operatorId,
+          workerId,
+          cmd: `condition ${breakpointInfo.breakpointId} ${condition}`,
+        });
+      });
+      debugState.set(String(lineNumber), { ...breakpointInfo, condition });
+    }
+  }
+
+  /**
+   * Adds or removes a breakpoint based on its existence.
+   *
+   * @param operatorId - The unique ID of the operator.
+   * @param lineNumber - The line number to add or remove the breakpoint from.
+   */
+  doModifyBreakpoint(operatorId: string, lineNumber: number) {
+    const workerIds = this.executeWorkflowService.getWorkerIds(operatorId);
+    const debugState = this.getDebugState(operatorId);
+    const cmd = debugState.has(String(lineNumber)) ? "clear" : "break";
+    const breakpointId = debugState.get(String(lineNumber))?.breakpointId || "";
+
+    workerIds.forEach(workerId => {
+      this.workflowWebsocketService.send("DebugCommandRequest", {
+        operatorId,
+        workerId,
+        cmd: `${cmd} ${cmd === "clear" ? breakpointId : lineNumber}`,
+      });
+    });
+  }
+
+  /**
+   * Continues the execution by resetting the temporary breakpoints.
+   *
+   * @param operatorId - The unique ID of the operator.
+   * @param workerId - The ID of the worker to continue execution on.
+   */
+  doContinue(operatorId: string, workerId: string) {
+    this.markContinue(operatorId);
+    this.workflowWebsocketService.send("DebugCommandRequest", {
+      operatorId,
+      workerId,
+      cmd: "continue",
+    });
+  }
+
+  /**
+   * Steps through the execution.
+   *
+   * @param operatorId - The unique ID of the operator.
+   * @param workerId - The ID of the worker to step execution on.
+   */
+  doStep(operatorId: string, workerId: string) {
+    this.markContinue(operatorId);
+    this.workflowWebsocketService.send("DebugCommandRequest", {
+      operatorId,
+      workerId,
+      cmd: "next",
+    });
+  }
+
+  /**
+   * Registers a handler for state changes of an operator.
+   *
+   * @param operatorId - The unique ID of the operator.
+   */
+  private registerOperatorStateChangeHandler(operatorId: string) {
     this.workflowStatusService
       .getStatusUpdateStream()
-      .pipe(filter(event => event[this.currentOperatorId]?.operatorState === OperatorState.Uninitialized))
-      .subscribe(() => {
-        this.getDebugState().clear();
-      });
+      .pipe(filter(event => event[operatorId]?.operatorState === OperatorState.Uninitialized))
+      .subscribe(() => this.getDebugState(operatorId).clear());
+  }
 
-    const debugMessageStream =
-      workflowWebsocketService.subscribeToEvent("ConsoleUpdateEvent").pipe(
-        // only listen to events from the current operator
-        filter(evt => evt.operatorId === this.currentOperatorId),
-        filter(evt => evt.messages.length > 0),
-        switchMap(evt => evt.messages),
-        filter(msg => msg.source == "(Pdb)" && msg.msgType.name == "DEBUGGER"),
-      );
+  /**
+   * Registers console update handlers for an operator.
+   *
+   * @param operatorId - The unique ID of the operator.
+   */
+  private registerConsoleUpdateHandler(operatorId: string) {
+    const debugMessageStream = this.workflowWebsocketService.subscribeToEvent("ConsoleUpdateEvent").pipe(
+      filter(evt => evt.operatorId === operatorId && evt.messages.length > 0),
+      switchMap(evt => evt.messages),
+      filter(msg => msg.source === "(Pdb)" && msg.msgType.name === "DEBUGGER")
+    );
 
     // Handle stepping message.
     // Example:
@@ -43,12 +159,11 @@ export class BreakpointManager {
     debugMessageStream
       .pipe(
         filter(msg => msg.title.startsWith(">")),
-        map(msg => this.extractInfo(msg.title)),
+        map(msg => this.extractInfo(msg.title))
       )
       .subscribe(({ lineNum }) => {
-        if (isDefined(lineNum)) {
-          this.setHit(lineNum);
-        }
+        if (!isDefined(lineNum)) return;
+        this.markBreakpointAsHit(operatorId, lineNum);
       });
 
     // Handle breakpoint creation message.
@@ -57,14 +172,17 @@ export class BreakpointManager {
     debugMessageStream
       .pipe(
         filter(msg => msg.title.startsWith("Breakpoint")),
-        map(msg => this.extractInfo(msg.title)),
+        map(msg => this.extractInfo(msg.title))
       )
       .subscribe(({ breakpointId, lineNum }) => {
         if (isDefined(breakpointId) && isDefined(lineNum)) {
-          this.addBreakpoint(lineNum, breakpointId, "");
+          this.getDebugState(operatorId).set(String(lineNum), {
+            breakpointId,
+            condition: "",
+            hit: false,
+          });
         }
       });
-
 
     // Handle breakpoint deletion message.
     // Example:
@@ -72,176 +190,55 @@ export class BreakpointManager {
     debugMessageStream
       .pipe(
         filter(msg => msg.title.startsWith("Deleted")),
-        map(msg => this.extractInfo(msg.title)),
+        map(msg => this.extractInfo(msg.title))
       )
-      .subscribe(({ breakpointId, lineNum }) => {
-        if (isDefined(breakpointId) && isDefined(lineNum)) {
-          this.removeBreakpoint(lineNum);
-        }
+      .subscribe(({ lineNum }) => {
+        if (isDefined(lineNum)) this.getDebugState(operatorId).delete(String(lineNum));
       });
   }
 
-  getCondition(lineNum: number): string {
-    let line = String(lineNum);
-    if (!this.getDebugState().has(line)) {
-      return "";
+  /**
+   * Marks a breakpoint as hit, creating a temporary one if needed.
+   *
+   * @param operatorId - The unique ID of the operator.
+   * @param lineNum - The line number of the breakpoint to mark as hit.
+   */
+  private markBreakpointAsHit(operatorId: string, lineNum: number) {
+    const line = String(lineNum);
+    const debugState = this.getDebugState(operatorId);
+    if (!debugState.has(line)) {
+      debugState.set(line, { breakpointId: undefined, condition: "", hit: false });
     }
-    let info = this.getDebugState().get(line)!;
-    return info.condition;
+    const breakpoint = debugState.get(line)!;
+    debugState.set(line, { ...breakpoint, hit: true });
   }
 
-  setCondition(lineNum: number, condition: string, workerIds: readonly string[]) {
-    const breakpointInfo = this.getDebugState().get(String(lineNum));
-    if (!isDefined(breakpointInfo)) {
-      return;
-    }
-    workerIds.forEach(workerId => {
-      this.workflowWebsocketService.send("DebugCommandRequest", {
-        operatorId: this.currentOperatorId,
-        workerId,
-        cmd: "condition " + breakpointInfo!.breakpointId + " " + condition,
-      });
-    });
-
-    this.getDebugState().set(String(lineNum), { ...breakpointInfo, condition: condition });
-  }
-
-  setContinue() {
-    this.getDebugState().forEach((value, key) => {
-      // first unset hit to trigger breakpoint update event
-      if (value.hit) {
-        this.getDebugState().set(key, { ...value, hit: false });
-      }
-      // then remove any temporary breakpoints
-      if (value.breakpointId === undefined) {
-        this.getDebugState().delete(key);
-      }
+  /**
+   * Resets hit status and removes temporary breakpoints.
+   *
+   * @param operatorId - The unique ID of the operator.
+   */
+  private markContinue(operatorId: string) {
+    const debugState = this.getDebugState(operatorId);
+    debugState.forEach((value, key) => {
+      if (value.hit) debugState.set(key, { ...value, hit: false });
+      if (!value.breakpointId) debugState.delete(key);
     });
   }
 
-  setHit(lineNum: number) {
-    let line = String(lineNum);
-    // If the line has no breakpoint, create a temporary one.
-    // The temporary breakpoint will not have a breakpointId.
-    // And it will be removed after hit for once.
-    if (!this.getDebugState().has(line)) {
-      this.addBreakpoint(lineNum, undefined, "");
-    }
-
-    // set the hit flag to true, trigger breakpoint update event.
-    let breakpoint = this.getDebugState().get(line)!;
-    this.getDebugState().set(line, { ...breakpoint, hit: true });
-  }
-
-  setBreakpoint(lineNum: number, workerIds: readonly string[]) {
-    const cmd = this.getDebugState().has(String(lineNum)) ? "clear" : "break";
-    const breakpointId = this.getDebugState().get(String(lineNum))?.breakpointId || "";
-
-    workerIds.forEach(workerId => {
-      this.workflowWebsocketService.send("DebugCommandRequest", {
-        operatorId: this.currentOperatorId,
-        workerId,
-        cmd: `${cmd} ${cmd === "clear" ? breakpointId : lineNum}`,
-      });
-    });
-  }
-
-  addBreakpoint(lineNum: number, breakpointId: number | undefined, condition: string) {
-    this.getDebugState().set(String(lineNum), { breakpointId, condition, hit: false });
-  }
-
-  removeBreakpoint(lineNum: number) {
-    this.getDebugState().delete(String(lineNum));
-  }
-
+  /**
+   * Extracts breakpoint information from a message.
+   *
+   * @param message - The message string containing breakpoint information.
+   * @returns An object containing breakpointId and lineNum.
+   */
   private extractInfo(message: string): { breakpointId?: number; lineNum?: number } {
-    const breakpointMatch = message.match(/(?:Breakpoint|Deleted breakpoint) (\d+) at .+:(\d+)/);
-    if (breakpointMatch) {
-      return {
-        breakpointId: parseInt(breakpointMatch[1], 10),
-        lineNum: parseInt(breakpointMatch[2], 10),
-      };
-    }
+    const match = message.match(/(?:Breakpoint|Deleted breakpoint) (\d+) at .+:(\d+)/);
+    if (match) return { breakpointId: parseInt(match[1], 10), lineNum: parseInt(match[2], 10) };
 
-    const lineNumberMatch = message.match(/\.py\((\d+)\)|:(\d+)/);
-    if (lineNumberMatch) {
-      const lineNum = parseInt(lineNumberMatch[1] || lineNumberMatch[2], 10);
-      return { lineNum };
-    }
+    const lineMatch = message.match(/\.py\((\d+)\)|:(\d+)/);
+    if (lineMatch) return { lineNum: parseInt(lineMatch[1] || lineMatch[2], 10) };
 
     return {};
-  }
-}
-
-@Injectable({
-  providedIn: "root",
-})
-export class UdfDebugService {
-  private breakpointManagers: Map<string, BreakpointManager> = new Map();
-
-  constructor(
-    private workflowWebsocketService: WorkflowWebsocketService,
-    private workflowActionService: WorkflowActionService,
-    private workflowStatusService: WorkflowStatusService,
-    private executeWorkflowService: ExecuteWorkflowService,
-  ) {
-    // for each operator, create a breakpoint manager
-    this.workflowActionService
-      .getTexeraGraph()
-      .getAllOperators()
-      .forEach(op => {
-        this.getOrCreateManager(op.operatorID);
-      });
-  }
-
-  public getOrCreateManager(operatorId: string): BreakpointManager {
-    if (!this.breakpointManagers.has(operatorId)) {
-      this.breakpointManagers.set(
-        operatorId,
-        new BreakpointManager(
-          this.workflowWebsocketService,
-          this.workflowStatusService,
-          this.workflowActionService,
-          operatorId,
-        ),
-      );
-    }
-    return this.breakpointManagers.get(operatorId)!;
-  }
-
-  doUpdateBreakpointCondition(operatorId: string, lineNumber: number, condition: string) {
-    // if new condition is not the same as the saved one, update it
-    if (condition !== this.getOrCreateManager(operatorId).getCondition(lineNumber)) {
-      this.getOrCreateManager(operatorId).setCondition(
-        lineNumber,
-        condition,
-        this.executeWorkflowService.getWorkerIds(operatorId),
-      );
-    }
-  }
-
-  doModifyBreakpoint(operatorId: string, lineNumber: number) {
-    this.getOrCreateManager(operatorId).setBreakpoint(
-      lineNumber,
-      this.executeWorkflowService.getWorkerIds(operatorId),
-    );
-  }
-
-  doContinue(operatorId: string, workerId: string) {
-    this.getOrCreateManager(operatorId).setContinue();
-    this.workflowWebsocketService.send("DebugCommandRequest", {
-      operatorId,
-      workerId,
-      cmd: "continue",
-    });
-  }
-
-  doStep(operatorId: string, workerId: string) {
-    this.getOrCreateManager(operatorId).setContinue();
-    this.workflowWebsocketService.send("DebugCommandRequest", {
-      operatorId,
-      workerId,
-      cmd: "next",
-    });
   }
 }

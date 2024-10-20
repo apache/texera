@@ -588,15 +588,18 @@ export class WorkflowGraph {
     return commentBox.toJSON();
   }
 
-  public getOrCreateOperatorDebugState(operatorId: string): Y.Map<BreakpointInfo> {
-    const fetch = this.sharedModel.debugState.get(operatorId);
-    if (isDefined(fetch)) {
-      return fetch;
-    } else {
-      const newState = new Y.Map<BreakpointInfo>();
-      this.sharedModel.debugState.set(operatorId, newState);
-      return newState;
+  public createOperatorDebugState(operatorId: string) {
+    if (this.sharedModel.debugState.has(operatorId)) {
+      return;
     }
+    this.sharedModel.debugState.set(operatorId, new Y.Map<BreakpointInfo>());
+  }
+
+  public getOperatorDebugState(operatorId: string): Y.Map<BreakpointInfo> {
+    if (!this.sharedModel.debugState.has(operatorId)) {
+      throw new Error(`operator ${operatorId} does not have a debug state`);
+    }
+    return this.sharedModel.debugState.get(operatorId)!;
   }
 
   /**

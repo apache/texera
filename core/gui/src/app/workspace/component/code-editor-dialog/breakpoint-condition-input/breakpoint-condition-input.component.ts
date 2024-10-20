@@ -38,7 +38,7 @@ export class BreakpointConditionInputComponent implements AfterViewChecked, OnCh
       return;
     }
     // when the line number changes, update the condition
-    this.condition = this.udfDebugService.getOrCreateManager(this.operatorId).getCondition(this.lineNum!) ?? "";
+    this.condition = this.udfDebugService.getCondition(this.operatorId, this.lineNum!) ?? "";
   }
 
   ngAfterViewChecked(): void {

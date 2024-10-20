@@ -57,9 +57,7 @@ export class CodeDebuggerComponent implements AfterViewInit, SafeStyle {
       range: Range,
       breakpointEnum: BreakpointEnum
     ): { range: Range; options: ModelDecorationOptions } => {
-      const condition = this.udfDebugService
-        .getOrCreateManager(this.currentOperatorId)
-        .getCondition(range.startLineNumber);
+      const condition = this.udfDebugService.getCondition(this.currentOperatorId, range.startLineNumber);
 
       const isConditional = Boolean(condition?.trim());
       const exists = breakpointEnum === BreakpointEnum.Exist;
@@ -127,42 +125,39 @@ export class CodeDebuggerComponent implements AfterViewInit, SafeStyle {
    * @private
    */
   private registerBreakpointRenderingHandler() {
-    this.udfDebugService
-      .getOrCreateManager(this.currentOperatorId)
-      .getDebugState()
-      .observe(evt => {
-        evt.changes.keys.forEach((change, lineNum) => {
-          switch (change.action) {
-            case "add":
-              const addedValue = evt.target.get(lineNum)!;
-              if (isDefined(addedValue.breakpointId)) {
-                this.createBreakpointDecoration(Number(lineNum));
-              }
-              break;
-            case "delete":
-              const deletedValue = change.oldValue;
-              if (isDefined(deletedValue.breakpointId)) {
-                this.removeBreakpointDecoration(Number(lineNum));
-              }
-              break;
-            case "update":
-              const oldValue = change.oldValue;
-              const newValue = evt.target.get(lineNum)!;
-              if (newValue.hit) {
-                this.monacoBreakpoint?.setLineHighlight(Number(lineNum));
-              }
-              if (!newValue.hit) {
-                this.monacoBreakpoint?.removeHighlight();
-              }
-              if (oldValue.condition !== newValue.condition) {
-                // recreate the decoration with condition
-                this.removeBreakpointDecoration(Number(lineNum));
-                this.createBreakpointDecoration(Number(lineNum));
-              }
-              break;
-          }
-        });
+    this.udfDebugService.getDebugState(this.currentOperatorId).observe(evt => {
+      evt.changes.keys.forEach((change, lineNum) => {
+        switch (change.action) {
+          case "add":
+            const addedValue = evt.target.get(lineNum)!;
+            if (isDefined(addedValue.breakpointId)) {
+              this.createBreakpointDecoration(Number(lineNum));
+            }
+            break;
+          case "delete":
+            const deletedValue = change.oldValue;
+            if (isDefined(deletedValue.breakpointId)) {
+              this.removeBreakpointDecoration(Number(lineNum));
+            }
+            break;
+          case "update":
+            const oldValue = change.oldValue;
+            const newValue = evt.target.get(lineNum)!;
+            if (newValue.hit) {
+              this.monacoBreakpoint?.setLineHighlight(Number(lineNum));
+            }
+            if (!newValue.hit) {
+              this.monacoBreakpoint?.removeHighlight();
+            }
+            if (oldValue.condition !== newValue.condition) {
+              // recreate the decoration with condition
+              this.removeBreakpointDecoration(Number(lineNum));
+              this.createBreakpointDecoration(Number(lineNum));
+            }
+            break;
+        }
       });
+    });
   }
 
   private createBreakpointDecoration(lineNum: number) {
@@ -178,14 +173,11 @@ export class CodeDebuggerComponent implements AfterViewInit, SafeStyle {
   }
 
   private rerenderExistingBreakpoints() {
-    this.udfDebugService
-      .getOrCreateManager(this.currentOperatorId)
-      .getDebugState()
-      .forEach(({ breakpointId }, lineNumStr) => {
-        if (!isDefined(breakpointId)) {
-          return;
-        }
-        this.createBreakpointDecoration(Number(lineNumStr));
-      });
+    this.udfDebugService.getDebugState(this.currentOperatorId).forEach(({ breakpointId }, lineNumStr) => {
+      if (!isDefined(breakpointId)) {
+        return;
+      }
+      this.createBreakpointDecoration(Number(lineNumStr));
+    });
   }
 }
