@@ -5,7 +5,7 @@ import { WorkflowVersionService } from "../../../dashboard/service/user/workflow
 import { YText } from "yjs/dist/src/types/YText";
 import { getWebsocketUrl } from "src/app/common/util/url";
 import { MonacoBinding } from "y-monaco";
-import { catchError, from, of, Subject, take } from "rxjs";
+import { catchError, from, of, Subject, take, timeout } from "rxjs";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
 import { DomSanitizer, SafeStyle } from "@angular/platform-browser";
 import { Coeditor } from "../../../common/type/user";
@@ -23,6 +23,8 @@ import { isDefined } from "../../../common/util/predicate";
 import { editor } from "vscode/editor.api";
 import { filter, switchMap } from "rxjs/operators";
 import IStandaloneCodeEditor = editor.IStandaloneCodeEditor;
+
+export const LANGUAGE_SERVER_CONNECTION_TIMEOUT_MS = 1000;
 
 /**
  * CodeEditorComponent is the content of the dialogue invoked by CodeareaCustomTemplateComponent.
@@ -213,6 +215,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     // init monaco editor, optionally with attempt on language client.
     from(this.editorWrapper.initAndStart(userConfig, this.editorElement.nativeElement))
       .pipe(
+        timeout(LANGUAGE_SERVER_CONNECTION_TIMEOUT_MS),
         switchMap(() => of(this.editorWrapper.getEditor())),
         catchError(() => of(this.editorWrapper.getEditor())),
         filter(isDefined),
@@ -238,23 +241,23 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
 
   private initializeDiffEditor(): void {
     const fileSuffix = this.getFileSuffixByLanguage(this.language);
-    const currentWorkflowVersionCode = this.workflowActionService
+    const latestVersionOperator = this.workflowActionService
       .getTempWorkflow()
-      ?.content.operators?.filter(operator => operator.operatorID === this.currentOperatorId)?.[0]
-      .operatorProperties.code;
-
+      ?.content.operators?.find(({ operatorID }) => operatorID === this.currentOperatorId);
+    const latestVersionCode: string = latestVersionOperator?.operatorProperties?.code ?? "";
+    const oldVersionCode: string = this.code?.toString() ?? "";
     const userConfig: UserConfig = {
       wrapperConfig: {
         editorAppConfig: {
           $type: "extended",
           codeResources: {
             main: {
-              text: currentWorkflowVersionCode,
-              uri: `in-memory-${this.currentOperatorId}-version.${fileSuffix}`,
+              text: latestVersionCode,
+              uri: `in-memory-${this.currentOperatorId}.${fileSuffix}`,
             },
             original: {
-              text: this.code?.toString() ?? "",
-              uri: `in-memory-${this.currentOperatorId}.${fileSuffix}`,
+              text: oldVersionCode,
+              uri: `in-memory-${this.currentOperatorId}-version.${fileSuffix}`,
             },
           },
           useDiffEditor: true,
