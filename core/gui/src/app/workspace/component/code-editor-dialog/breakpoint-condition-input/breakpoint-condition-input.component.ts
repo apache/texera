@@ -39,7 +39,7 @@ export class BreakpointConditionInputComponent implements AfterViewChecked, OnCh
   }
 
   ngAfterViewChecked(): void {
-    if (!this.isVisible()) {
+    if (!this.isVisible) {
       return;
     }
 
@@ -69,7 +69,7 @@ export class BreakpointConditionInputComponent implements AfterViewChecked, OnCh
     return (editorRect?.top || 0) + topPixel - this.monacoEditor.getScrollTop();
   }
 
-  public isVisible(): boolean {
+  get isVisible(): boolean {
     return isDefined(this.lineNum);
   }
 
