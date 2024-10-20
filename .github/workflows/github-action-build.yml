@@ -42,7 +42,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-yarn-cache-v6-
       - name: Prepare Yarn 4.5.1
-        run: corepack enable && corepack prepare yarn@4.5.1 --activate
+        run: corepack enable && corepack prepare yarn@4.5.1 --activate && yarn set version 4.5.1 --cwd core/gui
       - name: Install dependency
         run: yarn --cwd core/gui install --immutable --network-timeout=100000
       - name: Lint with Prettier & ESLint
