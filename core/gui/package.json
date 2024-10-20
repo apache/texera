@@ -93,7 +93,8 @@
   },
   "resolutions": {
     "vscode": "npm:@codingame/monaco-vscode-api@8.0.4",
-    "monaco-editor": "npm:@codingame/monaco-vscode-editor-api@8.0.4"
+    "monaco-editor": "npm:@codingame/monaco-vscode-editor-api@8.0.4",
+    "webpack": "5.88.2"
   },
   "devDependencies": {
     "@angular-builders/custom-webpack": "16.0.1",
