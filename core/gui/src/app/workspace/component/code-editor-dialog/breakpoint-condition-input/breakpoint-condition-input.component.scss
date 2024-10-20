@@ -1,4 +1,4 @@
-.custom-tooltip {
+.condition-input-popup {
   position: absolute;
   background: #333;
   color: #fff;
@@ -10,19 +10,19 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  width: 150px;
+  width: 240px;
   opacity: 1;
   transition: opacity 1s ease-in-out;
 }
 
-.custom-tooltip .tooltip-header {
+.condition-input-popup .tooltip-header {
   font-weight: bold;
   margin-bottom: 5px;
   white-space: nowrap;
   flex-shrink: 0;
 }
 
-.custom-tooltip .custom-textarea {
+.condition-input-popup .condition-textarea {
   width: 100%;
   height: 50px;
   resize: vertical;
@@ -32,7 +32,7 @@
   padding: 5px;
 }
 
-.custom-tooltip.fade-out {
+.condition-input-popup.fade-out {
   opacity: 0;
   pointer-events: none;
 }
