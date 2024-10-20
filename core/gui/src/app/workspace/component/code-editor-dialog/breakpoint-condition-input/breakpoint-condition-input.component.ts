@@ -28,7 +28,6 @@ export class BreakpointConditionInputComponent implements AfterViewChecked, OnCh
 
   @ViewChild("conditionTextarea") textarea!: ElementRef<HTMLTextAreaElement>;
 
-
   left(): number {
     if (isDefined(this.monacoEditor)) {
       const { glyphMarginLeft } = this.monacoEditor.getLayoutInfo()!;
@@ -36,9 +35,9 @@ export class BreakpointConditionInputComponent implements AfterViewChecked, OnCh
       return editorLeft + glyphMarginLeft - this.monacoEditor.getScrollLeft();
     }
     return 0;
-  };
+  }
   top(): number {
-    if (isDefined(this.monacoEditor) && isDefined(this.lineNum)){
+    if (isDefined(this.monacoEditor) && isDefined(this.lineNum)) {
       const topPixel = this.monacoEditor.getTopForLineNumber(this.lineNum);
       const lineHeight = this.monacoEditor.getOption(monaco.editor.EditorOption.lineHeight);
       const { left: editorLeft, top: editorTop } = this.monacoEditor.getDomNode()!.getBoundingClientRect();
@@ -48,10 +47,7 @@ export class BreakpointConditionInputComponent implements AfterViewChecked, OnCh
   }
   condition = "";
 
-  constructor(private udfDebugService: UdfDebugService) {
-
-  }
-
+  constructor(private udfDebugService: UdfDebugService) {}
 
   isVisible(): boolean {
     return isDefined(this.lineNum);

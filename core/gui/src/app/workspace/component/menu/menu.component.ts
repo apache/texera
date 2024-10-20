@@ -103,7 +103,7 @@ export class MenuComponent implements OnInit {
     public operatorMenu: OperatorMenuService,
     public coeditorPresenceService: CoeditorPresenceService,
     private modalService: NzModalService,
-    private reportGenerationService: ReportGenerationService,
+    private reportGenerationService: ReportGenerationService
   ) {
     workflowWebsocketService
       .subscribeToEvent("ExecutionDurationUpdateEvent")

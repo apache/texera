@@ -138,7 +138,6 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
       });
   }
 
-
   ngOnDestroy(): void {
     this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("editingCode", false);
     localStorage.setItem(this.currentOperatorId, this.containerElement.nativeElement.style.cssText);
@@ -290,7 +289,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
 
   private initCodeDebuggerComponent(editor: IStandaloneCodeEditor) {
     this.codeDebuggerComponent = CodeDebuggerComponent;
-    this.editorToPass = editor
+    this.editorToPass = editor;
   }
 
   private setupAIAssistantActions(editor: IStandaloneCodeEditor) {

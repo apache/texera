@@ -30,9 +30,9 @@
   </ng-container>
 </div>
 
-<ng-container #debuggerContainer
-              *ngComponentOutlet="codeDebuggerComponent; inputs: {monacoEditor:this.editorToPass, currentOperatorId: this.currentOperatorId}">
-
+<ng-container
+  #debuggerContainer
+  *ngComponentOutlet="codeDebuggerComponent; inputs: {monacoEditor:this.editorToPass, currentOperatorId: this.currentOperatorId}">
   <texera-annotation-suggestion
     *ngIf="showAnnotationSuggestion"
     [code]="currentCode"
@@ -42,3 +42,4 @@
     (accept)="acceptCurrentAnnotation()"
     (decline)="rejectCurrentAnnotation()">
   </texera-annotation-suggestion>
+</ng-container>

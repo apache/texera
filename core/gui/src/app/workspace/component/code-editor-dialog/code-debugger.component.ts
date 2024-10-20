@@ -18,7 +18,6 @@ import { UdfDebugService } from "../../service/operator-debug/udf-debug.service"
 import { BreakpointConditionInputComponent } from "./breakpoint-condition-input/breakpoint-condition-input.component";
 import MouseTargetType = editor.MouseTargetType;
 
-
 @UntilDestroy()
 @Component({
   selector: "texera-code-debugger",
@@ -32,16 +31,15 @@ export class CodeDebuggerComponent implements AfterViewInit, SafeStyle {
   public monacoBreakpoint: MonacoBreakpoint | undefined = undefined;
   public breakpointConditionLine: number | undefined = undefined;
 
-  constructor(private udfDebugService: UdfDebugService) {
-  }
+  constructor(private udfDebugService: UdfDebugService) {}
 
   ngAfterViewInit() {
-    this.setupDebuggingActions(this.monacoEditor);
+    this.setupMonacoBreakpointMethods(this.monacoEditor);
     this.rerenderExistingBreakpoints();
     this.registerBreakpointRenderingHandler();
   }
 
-  private setupDebuggingActions(editor: MonacoEditor) {
+  private setupMonacoBreakpointMethods(editor: MonacoEditor) {
     // mimic the enum in monaco-breakpoints
     enum BreakpointEnum {
       Exist,
@@ -54,8 +52,8 @@ export class CodeDebuggerComponent implements AfterViewInit, SafeStyle {
     //  3) conditional breakpoints. (conditional breakpoints are also exist breakpoints)
     this.monacoBreakpoint["createBreakpointDecoration"] = (
       range: Range,
-      breakpointEnum: BreakpointEnum,
-    ): { range: Range, options: ModelDecorationOptions } => {
+      breakpointEnum: BreakpointEnum
+    ): { range: Range; options: ModelDecorationOptions } => {
       const condition = this.udfDebugService
         .getOrCreateManager(this.currentOperatorId)
         .getCondition(range.startLineNumber);
@@ -63,7 +61,8 @@ export class CodeDebuggerComponent implements AfterViewInit, SafeStyle {
       const isConditional = Boolean(condition?.trim());
       const exists = breakpointEnum === BreakpointEnum.Exist;
 
-      const glyphMarginClassName = exists ? isConditional
+      const glyphMarginClassName = exists
+        ? isConditional
           ? "monaco-conditional-breakpoint"
           : "monaco-breakpoint"
         : "monaco-hover-breakpoint";
@@ -125,39 +124,42 @@ export class CodeDebuggerComponent implements AfterViewInit, SafeStyle {
    * @private
    */
   private registerBreakpointRenderingHandler() {
-    this.udfDebugService.getOrCreateManager(this.currentOperatorId).getDebugState().observe(evt => {
-      evt.changes.keys.forEach((change, lineNum) => {
-        switch (change.action) {
-          case "add":
-            const addedValue = evt.target.get(lineNum)!;
-            if (isDefined(addedValue.breakpointId)) {
-              this.createBreakpointDecoration(Number(lineNum));
-            }
-            break;
-          case "delete":
-            const deletedValue = change.oldValue;
-            if (isDefined(deletedValue.breakpointId)) {
-              this.removeBreakpointDecoration(Number(lineNum));
-            }
-            break;
-          case "update":
-            const oldValue = change.oldValue;
-            const newValue = evt.target.get(lineNum)!;
-            if (newValue.hit) {
-              this.monacoBreakpoint?.setLineHighlight(Number(lineNum));
-            }
-            if (!newValue.hit) {
-              this.monacoBreakpoint?.removeHighlight();
-            }
-            if (oldValue.condition !== newValue.condition) {
-              // recreate the decoration with condition
-              this.removeBreakpointDecoration(Number(lineNum));
-              this.createBreakpointDecoration(Number(lineNum));
-            }
-            break;
-        }
+    this.udfDebugService
+      .getOrCreateManager(this.currentOperatorId)
+      .getDebugState()
+      .observe(evt => {
+        evt.changes.keys.forEach((change, lineNum) => {
+          switch (change.action) {
+            case "add":
+              const addedValue = evt.target.get(lineNum)!;
+              if (isDefined(addedValue.breakpointId)) {
+                this.createBreakpointDecoration(Number(lineNum));
+              }
+              break;
+            case "delete":
+              const deletedValue = change.oldValue;
+              if (isDefined(deletedValue.breakpointId)) {
+                this.removeBreakpointDecoration(Number(lineNum));
+              }
+              break;
+            case "update":
+              const oldValue = change.oldValue;
+              const newValue = evt.target.get(lineNum)!;
+              if (newValue.hit) {
+                this.monacoBreakpoint?.setLineHighlight(Number(lineNum));
+              }
+              if (!newValue.hit) {
+                this.monacoBreakpoint?.removeHighlight();
+              }
+              if (oldValue.condition !== newValue.condition) {
+                // recreate the decoration with condition
+                this.removeBreakpointDecoration(Number(lineNum));
+                this.createBreakpointDecoration(Number(lineNum));
+              }
+              break;
+          }
+        });
       });
-    });
   }
 
   private createBreakpointDecoration(lineNum: number) {
@@ -173,11 +175,14 @@ export class CodeDebuggerComponent implements AfterViewInit, SafeStyle {
   }
 
   private rerenderExistingBreakpoints() {
-    this.udfDebugService.getOrCreateManager(this.currentOperatorId).getDebugState().forEach(({breakpointId}, lineNumStr) => {
-      if (!isDefined(breakpointId)) {
-        return;
-      }
-      this.createBreakpointDecoration(Number(lineNumStr));
-    });
+    this.udfDebugService
+      .getOrCreateManager(this.currentOperatorId)
+      .getDebugState()
+      .forEach(({ breakpointId }, lineNumStr) => {
+        if (!isDefined(breakpointId)) {
+          return;
+        }
+        this.createBreakpointDecoration(Number(lineNumStr));
+      });
   }
 }

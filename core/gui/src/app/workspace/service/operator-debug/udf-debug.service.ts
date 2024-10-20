@@ -16,7 +16,7 @@ export class BreakpointManager {
     private workflowWebsocketService: WorkflowWebsocketService,
     private workflowStatusService: WorkflowStatusService,
     private workflowActionService: WorkflowActionService,
-    private currentOperatorId: string,
+    private currentOperatorId: string
   ) {
     // initialize debug state if not created already
     this.workflowActionService.texeraGraph.getOrCreateOperatorDebugState(currentOperatorId);
@@ -34,50 +34,52 @@ export class BreakpointManager {
       }
     });
 
-    const messageStream = workflowWebsocketService.subscribeToEvent("ConsoleUpdateEvent")
-      .pipe(
-        // only listen to events from the current operator
-        filter(evt => evt.operatorId === this.currentOperatorId),
-        filter(evt => evt.messages.length > 0),
-        switchMap(evt => evt.messages),
-      );
-    const debugMessageStream = messageStream.pipe(filter(msg => msg.source == "(Pdb)" && msg.msgType.name == "DEBUGGER"));
+    const messageStream = workflowWebsocketService.subscribeToEvent("ConsoleUpdateEvent").pipe(
+      // only listen to events from the current operator
+      filter(evt => evt.operatorId === this.currentOperatorId),
+      filter(evt => evt.messages.length > 0),
+      switchMap(evt => evt.messages)
+    );
+    const debugMessageStream = messageStream.pipe(
+      filter(msg => msg.source == "(Pdb)" && msg.msgType.name == "DEBUGGER")
+    );
     const errorMessageStream = messageStream.pipe(filter(msg => msg.msgType.name == "ERROR"));
     console.log("creating subscriptions");
     debugMessageStream
       .pipe(
         filter(msg => msg.title.startsWith(">")),
-        map(msg => this.extractInfo(msg.title)),
-      ).subscribe(({ lineNum }) => {
-      if (isDefined(lineNum)) {
-        this.setHit(lineNum);
-      }
-    });
+        map(msg => this.extractInfo(msg.title))
+      )
+      .subscribe(({ lineNum }) => {
+        if (isDefined(lineNum)) {
+          this.setHit(lineNum);
+        }
+      });
 
-    debugMessageStream.pipe(
-      filter(msg => msg.title.startsWith("Breakpoint")),
-      map(msg => this.extractInfo(msg.title)),
-    ).subscribe(({ breakpointId, lineNum }) => {
+    debugMessageStream
+      .pipe(
+        filter(msg => msg.title.startsWith("Breakpoint")),
+        map(msg => this.extractInfo(msg.title))
+      )
+      .subscribe(({ breakpointId, lineNum }) => {
         if (isDefined(breakpointId) && isDefined(lineNum)) {
           this.addBreakpoint(lineNum, breakpointId, "");
         }
-      },
-    );
+      });
 
     debugMessageStream
       .pipe(
         filter(msg => msg.title.startsWith("Deleted")),
-        map(msg => this.extractInfo(msg.title)),
-      ).subscribe(({ breakpointId, lineNum }) => {
-      // Handle breakpoint removed case
-      if (isDefined(breakpointId) && isDefined(lineNum)) {
-        this.removeBreakpoint(lineNum);
-      }
-    });
+        map(msg => this.extractInfo(msg.title))
+      )
+      .subscribe(({ breakpointId, lineNum }) => {
+        // Handle breakpoint removed case
+        if (isDefined(breakpointId) && isDefined(lineNum)) {
+          this.removeBreakpoint(lineNum);
+        }
+      });
 
-    errorMessageStream.pipe(
-      map(msg => this.extractInfo(msg.title)),
-    ).subscribe(({ lineNum }) => {
+    errorMessageStream.pipe(map(msg => this.extractInfo(msg.title))).subscribe(({ lineNum }) => {
       if (isDefined(lineNum)) {
         this.setHit(lineNum);
       }
@@ -85,7 +87,6 @@ export class BreakpointManager {
   }
 
   private executionActive = false;
-
 
   private hasBreakpoint(lineNum: number): boolean {
     return this.getDebugState().has(String(lineNum));
@@ -196,7 +197,7 @@ export class UdfDebugService {
     private workflowWebsocketService: WorkflowWebsocketService,
     private workflowActionService: WorkflowActionService,
     private workflowStatusService: WorkflowStatusService,
-    private executeWorkflowService: ExecuteWorkflowService,
+    private executeWorkflowService: ExecuteWorkflowService
   ) {
     // for each operator, create a breakpoint manager
     this.workflowActionService.texeraGraph.getAllOperators().forEach(op => {
@@ -212,8 +213,8 @@ export class UdfDebugService {
           this.workflowWebsocketService,
           this.workflowStatusService,
           this.workflowActionService,
-          operatorId,
-        ),
+          operatorId
+        )
       );
     }
     return this.breakpointManagers.get(operatorId)!;
@@ -225,7 +226,7 @@ export class UdfDebugService {
       this.getOrCreateManager(operatorId).setCondition(
         lineNumber,
         condition,
-        this.executeWorkflowService.getWorkerIds(operatorId),
+        this.executeWorkflowService.getWorkerIds(operatorId)
       );
     }
   }
@@ -233,7 +234,7 @@ export class UdfDebugService {
   doModifyBreakpoint(operatorId: string, lineNumber: number) {
     this.getOrCreateManager(operatorId).addOrRemoveBreakpoint(
       lineNumber,
-      this.executeWorkflowService.getWorkerIds(operatorId),
+      this.executeWorkflowService.getWorkerIds(operatorId)
     );
   }
 

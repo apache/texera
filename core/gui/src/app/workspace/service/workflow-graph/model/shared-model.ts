@@ -35,7 +35,7 @@ export class SharedModel {
    */
   constructor(
     public wid?: number,
-    public user?: User,
+    public user?: User
   ) {
     // Initialize Y-structures.
     this.debugState = this.yDoc.getMap("debugActions");
@@ -49,7 +49,7 @@ export class SharedModel {
       [this.operatorIDMap, this.elementPositionMap, this.operatorLinkMap, this.commentBoxMap],
       {
         captureTimeout: 100,
-      },
+      }
     );
 
     // Generate editing room number.
@@ -104,8 +104,7 @@ export class SharedModel {
     this.awareness.destroy();
     try {
       if (this.wsProvider.shouldConnect && this.wsProvider.wsconnected) this.wsProvider.disconnect();
-    } catch (e) {
-    }
+    } catch (e) {}
     this.yDoc.destroy();
   }
 }

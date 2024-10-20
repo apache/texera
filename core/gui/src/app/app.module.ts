@@ -229,7 +229,7 @@ registerLocaleData(en);
     HubWorkflowResultComponent,
     GoogleLoginComponent,
     BreakpointConditionInputComponent,
-    CodeDebuggerComponent
+    CodeDebuggerComponent,
   ],
   imports: [
     BrowserModule,
