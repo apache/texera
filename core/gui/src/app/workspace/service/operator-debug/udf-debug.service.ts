@@ -16,7 +16,7 @@ export class BreakpointManager {
     private workflowWebsocketService: WorkflowWebsocketService,
     private workflowStatusService: WorkflowStatusService,
     private workflowActionService: WorkflowActionService,
-    private currentOperatorId: string
+    private currentOperatorId: string,
   ) {
     // initialize debug state if not created already
     this.workflowActionService.getTexeraGraph().getOrCreateOperatorDebugState(currentOperatorId);
@@ -28,21 +28,22 @@ export class BreakpointManager {
         this.getDebugState().clear();
       });
 
-    const messageStream = workflowWebsocketService.subscribeToEvent("ConsoleUpdateEvent").pipe(
-      // only listen to events from the current operator
-      filter(evt => evt.operatorId === this.currentOperatorId),
-      filter(evt => evt.messages.length > 0),
-      switchMap(evt => evt.messages)
-    );
-    const debugMessageStream = messageStream.pipe(
-      filter(msg => msg.source == "(Pdb)" && msg.msgType.name == "DEBUGGER")
-    );
-    const errorMessageStream = messageStream.pipe(filter(msg => msg.msgType.name == "ERROR"));
+    const debugMessageStream =
+      workflowWebsocketService.subscribeToEvent("ConsoleUpdateEvent").pipe(
+        // only listen to events from the current operator
+        filter(evt => evt.operatorId === this.currentOperatorId),
+        filter(evt => evt.messages.length > 0),
+        switchMap(evt => evt.messages),
+        filter(msg => msg.source == "(Pdb)" && msg.msgType.name == "DEBUGGER"),
+      );
 
+    // Handle stepping message.
+    // Example:
+    //   > /path/to/file.py(10)<module>()
     debugMessageStream
       .pipe(
         filter(msg => msg.title.startsWith(">")),
-        map(msg => this.extractInfo(msg.title))
+        map(msg => this.extractInfo(msg.title)),
       )
       .subscribe(({ lineNum }) => {
         if (isDefined(lineNum)) {
@@ -50,10 +51,13 @@ export class BreakpointManager {
         }
       });
 
+    // Handle breakpoint creation message.
+    // Example:
+    //   Breakpoint 1 at /path/to/file.py:10
     debugMessageStream
       .pipe(
         filter(msg => msg.title.startsWith("Breakpoint")),
-        map(msg => this.extractInfo(msg.title))
+        map(msg => this.extractInfo(msg.title)),
       )
       .subscribe(({ breakpointId, lineNum }) => {
         if (isDefined(breakpointId) && isDefined(lineNum)) {
@@ -61,30 +65,23 @@ export class BreakpointManager {
         }
       });
 
+
+    // Handle breakpoint deletion message.
+    // Example:
+    //   Deleted breakpoint 1 at /path/to/file.py:10
     debugMessageStream
       .pipe(
         filter(msg => msg.title.startsWith("Deleted")),
-        map(msg => this.extractInfo(msg.title))
+        map(msg => this.extractInfo(msg.title)),
       )
       .subscribe(({ breakpointId, lineNum }) => {
-        // Handle breakpoint removed case
         if (isDefined(breakpointId) && isDefined(lineNum)) {
           this.removeBreakpoint(lineNum);
         }
       });
-
-    errorMessageStream.pipe(map(msg => this.extractInfo(msg.title))).subscribe(({ lineNum }) => {
-      if (isDefined(lineNum)) {
-        this.setHit(lineNum);
-      }
-    });
   }
 
-  private hasBreakpoint(lineNum: number): boolean {
-    return this.getDebugState().has(String(lineNum));
-  }
-
-  public getCondition(lineNum: number): string {
+  getCondition(lineNum: number): string {
     let line = String(lineNum);
     if (!this.getDebugState().has(line)) {
       return "";
@@ -93,7 +90,7 @@ export class BreakpointManager {
     return info.condition;
   }
 
-  public setCondition(lineNum: number, condition: string, workerIds: readonly string[]) {
+  setCondition(lineNum: number, condition: string, workerIds: readonly string[]) {
     const breakpointInfo = this.getDebugState().get(String(lineNum));
     if (!isDefined(breakpointInfo)) {
       return;
@@ -109,7 +106,7 @@ export class BreakpointManager {
     this.getDebugState().set(String(lineNum), { ...breakpointInfo, condition: condition });
   }
 
-  public setContinue() {
+  setContinue() {
     this.getDebugState().forEach((value, key) => {
       // first unset hit to trigger breakpoint update event
       if (value.hit) {
@@ -122,12 +119,13 @@ export class BreakpointManager {
     });
   }
 
-  public setHit(lineNum: number) {
+  setHit(lineNum: number) {
     let line = String(lineNum);
-    // if the line has no breakpoint, create a temporary one.
-    // this temporary breakpoint will be removed after hit.
+    // If the line has no breakpoint, create a temporary one.
+    // The temporary breakpoint will not have a breakpointId.
+    // And it will be removed after hit for once.
     if (!this.getDebugState().has(line)) {
-      this.getDebugState().set(line, { breakpointId: undefined, condition: "", hit: false });
+      this.addBreakpoint(lineNum, undefined, "");
     }
 
     // set the hit flag to true, trigger breakpoint update event.
@@ -135,8 +133,8 @@ export class BreakpointManager {
     this.getDebugState().set(line, { ...breakpoint, hit: true });
   }
 
-  addOrRemoveBreakpoint(lineNum: number, workerIds: readonly string[]) {
-    const cmd = this.hasBreakpoint(lineNum) ? "clear" : "break";
+  setBreakpoint(lineNum: number, workerIds: readonly string[]) {
+    const cmd = this.getDebugState().has(String(lineNum)) ? "clear" : "break";
     const breakpointId = this.getDebugState().get(String(lineNum))?.breakpointId || "";
 
     workerIds.forEach(workerId => {
@@ -148,16 +146,12 @@ export class BreakpointManager {
     });
   }
 
-  addBreakpoint(lineNum: number, breakpointId: number, condition: string) {
+  addBreakpoint(lineNum: number, breakpointId: number | undefined, condition: string) {
     this.getDebugState().set(String(lineNum), { breakpointId, condition, hit: false });
   }
 
   removeBreakpoint(lineNum: number) {
     this.getDebugState().delete(String(lineNum));
-  }
-
-  getCurrentBreakpoints() {
-    return Array.from(this.getDebugState().keys());
   }
 
   private extractInfo(message: string): { breakpointId?: number; lineNum?: number } {
@@ -189,7 +183,7 @@ export class UdfDebugService {
     private workflowWebsocketService: WorkflowWebsocketService,
     private workflowActionService: WorkflowActionService,
     private workflowStatusService: WorkflowStatusService,
-    private executeWorkflowService: ExecuteWorkflowService
+    private executeWorkflowService: ExecuteWorkflowService,
   ) {
     // for each operator, create a breakpoint manager
     this.workflowActionService
@@ -208,8 +202,8 @@ export class UdfDebugService {
           this.workflowWebsocketService,
           this.workflowStatusService,
           this.workflowActionService,
-          operatorId
-        )
+          operatorId,
+        ),
       );
     }
     return this.breakpointManagers.get(operatorId)!;
@@ -221,15 +215,15 @@ export class UdfDebugService {
       this.getOrCreateManager(operatorId).setCondition(
         lineNumber,
         condition,
-        this.executeWorkflowService.getWorkerIds(operatorId)
+        this.executeWorkflowService.getWorkerIds(operatorId),
       );
     }
   }
 
   doModifyBreakpoint(operatorId: string, lineNumber: number) {
-    this.getOrCreateManager(operatorId).addOrRemoveBreakpoint(
+    this.getOrCreateManager(operatorId).setBreakpoint(
       lineNumber,
-      this.executeWorkflowService.getWorkerIds(operatorId)
+      this.executeWorkflowService.getWorkerIds(operatorId),
     );
   }
 
