@@ -8,6 +8,7 @@ import {
   PartitionInfo,
   PortDescription,
   PortProperty,
+  BreakpointInfo,
 } from "../../../types/workflow-common.interface";
 import { isEqual } from "lodash-es";
 import { SharedModel } from "./shared-model";
@@ -16,7 +17,6 @@ import { createYTypeFromObject, updateYTypeFromObject, YType } from "../../../ty
 import { Awareness } from "y-protocols/awareness";
 import * as Y from "yjs";
 import { isDefined } from "../../../../common/util/predicate";
-import { UDFBreakpointInfo } from "../../../types/workflow-websocket.interface";
 
 // define the restricted methods that could change the graph
 type restrictedMethods =
@@ -588,12 +588,12 @@ export class WorkflowGraph {
     return commentBox.toJSON();
   }
 
-  public getOrCreateOperatorDebugState(operatorId: string): Y.Map<UDFBreakpointInfo> {
+  public getOrCreateOperatorDebugState(operatorId: string): Y.Map<BreakpointInfo> {
     const fetch = this.sharedModel.debugState.get(operatorId);
     if (isDefined(fetch)) {
       return fetch;
     } else {
-      const newState = new Y.Map<UDFBreakpointInfo>();
+      const newState = new Y.Map<BreakpointInfo>();
       this.sharedModel.debugState.set(operatorId, newState);
       return newState;
     }

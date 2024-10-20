@@ -1,13 +1,18 @@
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
 import { Awareness } from "y-protocols/awareness";
-import { CommentBox, OperatorLink, OperatorPredicate, Point } from "../../../types/workflow-common.interface";
+import {
+  CommentBox,
+  OperatorLink,
+  OperatorPredicate,
+  Point,
+  BreakpointInfo,
+} from "../../../types/workflow-common.interface";
 import { CoeditorState, User } from "../../../../common/type/user";
 import { getWebsocketUrl } from "../../../../common/util/url";
 import { v4 as uuid } from "uuid";
 import { YType } from "../../../types/shared-editing.interface";
 import { environment } from "../../../../../environments/environment";
-import { UDFBreakpointInfo } from "../../../types/workflow-websocket.interface";
 
 /**
  * SharedModel encapsulates everything related to real-time shared editing for the current workflow.
@@ -21,7 +26,7 @@ export class SharedModel {
   public commentBoxMap: Y.Map<YType<CommentBox>>;
   public operatorLinkMap: Y.Map<OperatorLink>;
   public elementPositionMap: Y.Map<Point>;
-  public debugState: Y.Map<Y.Map<UDFBreakpointInfo>>;
+  public debugState: Y.Map<Y.Map<BreakpointInfo>>;
   public undoManager: Y.UndoManager;
   public clientId: string;
 
