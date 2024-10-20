@@ -208,7 +208,6 @@ export class MenuComponent implements OnInit {
       case ExecutionState.Failed:
         // assuming there is only one workflow running.
         // reset all states.
-        this.workflowWebsocketService.clearDebugCommands();
         return {
           text: "Run",
           icon: "play-circle",

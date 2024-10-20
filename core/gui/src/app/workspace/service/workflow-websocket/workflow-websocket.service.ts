@@ -2,7 +2,6 @@ import { Injectable } from "@angular/core";
 import { interval, Observable, Subject, Subscription, timer } from "rxjs";
 import { webSocket, WebSocketSubject } from "rxjs/webSocket";
 import {
-  DebugCommandRequest,
   TexeraWebsocketEvent,
   TexeraWebsocketEventTypeMap,
   TexeraWebsocketEventTypes,
@@ -14,7 +13,6 @@ import { delayWhen, filter, map, retryWhen, tap } from "rxjs/operators";
 import { environment } from "../../../../environments/environment";
 import { AuthService } from "../../../common/service/user/auth.service";
 import { getWebsocketUrl } from "src/app/common/util/url";
-import { ExecutionState } from "../../types/execute-workflow.interface";
 
 export const WS_HEARTBEAT_INTERVAL_MS = 10000;
 export const WS_RECONNECT_INTERVAL_MS = 3000;
@@ -31,9 +29,6 @@ export class WorkflowWebsocketService {
   private websocket?: WebSocketSubject<TexeraWebsocketEvent | TexeraWebsocketRequest>;
   private wsWithReconnectSubscription?: Subscription;
   private readonly webSocketResponseSubject: Subject<TexeraWebsocketEvent> = new Subject();
-  private requestQueue: Array<DebugCommandRequest> = [];
-  private assignedWorkerIds: Map<string, readonly string[]> = new Map();
-  public executionInitiator = false;
 
   constructor() {
     // setup heartbeat
@@ -61,9 +56,6 @@ export class WorkflowWebsocketService {
       type,
       ...payload,
     } as any as TexeraWebsocketRequest;
-    if (request.type === "WorkflowExecuteRequest") {
-      this.executionInitiator = true;
-    }
     this.websocket?.next(request);
   }
 
@@ -106,15 +98,6 @@ export class WorkflowWebsocketService {
       if (evt.type === "ClusterStatusUpdateEvent") {
         this.numWorkers = evt.numWorkers;
       }
-      if (evt.type === "WorkflowStateEvent") {
-        if (
-          evt.state === ExecutionState.Completed ||
-          evt.state === ExecutionState.Killed ||
-          evt.state === ExecutionState.Failed
-        ) {
-          this.executionInitiator = false;
-        }
-      }
       this.isConnected = true;
     });
   }
@@ -122,32 +105,5 @@ export class WorkflowWebsocketService {
   public reopenWebsocket(wId: number) {
     this.closeWebsocket();
     this.openWebsocket(wId);
-  }
-
-  public clearDebugCommands() {
-    this.requestQueue = [];
-  }
-
-  public sendDebugCommand(payload: DebugCommandRequest) {
-    this.requestQueue.push(payload);
-    this.processQueue();
-  }
-
-  private sendDebugCommandRequest(cmd: DebugCommandRequest): void {
-    console.log("sending", cmd);
-    this.send("DebugCommandRequest", cmd);
-  }
-
-  private processQueue(): void {
-    // Process the request queue
-    let initialQueueLength = this.requestQueue.length;
-
-    // Loop through the initial length of the queue to prevent infinite loops with continuously failing items
-    for (let i = 0; i < initialQueueLength; i++) {
-      const request = this.requestQueue.shift();
-      if (request) {
-        this.sendDebugCommandRequest(request);
-      }
-    }
   }
 }

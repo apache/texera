@@ -107,7 +107,7 @@ export class BreakpointManager {
       return;
     }
     workerIds.forEach(workerId => {
-      this.workflowWebsocketService.sendDebugCommand({
+      this.workflowWebsocketService.send("DebugCommandRequest", {
         operatorId: this.currentOperatorId,
         workerId,
         cmd: "condition " + breakpointInfo!.breakpointId + " " + condition,
@@ -148,7 +148,7 @@ export class BreakpointManager {
     const breakpointId = this.getDebugState().get(String(lineNum))?.breakpointId || "";
 
     workerIds.forEach(workerId => {
-      this.workflowWebsocketService.sendDebugCommand({
+      this.workflowWebsocketService.send("DebugCommandRequest", {
         operatorId: this.currentOperatorId,
         workerId,
         cmd: `${cmd} ${cmd === "clear" ? breakpointId : lineNum}`,
