@@ -9,7 +9,7 @@ import { filter, map, switchMap } from "rxjs/operators";
 
 export class BreakpointManager {
   public getDebugState() {
-    return this.workflowActionService.texeraGraph.getOrCreateOperatorDebugState(this.currentOperatorId);
+    return this.workflowActionService.getTexeraGraph().getOrCreateOperatorDebugState(this.currentOperatorId);
   }
 
   constructor(
@@ -19,7 +19,7 @@ export class BreakpointManager {
     private currentOperatorId: string
   ) {
     // initialize debug state if not created already
-    this.workflowActionService.texeraGraph.getOrCreateOperatorDebugState(currentOperatorId);
+    this.workflowActionService.getTexeraGraph().getOrCreateOperatorDebugState(currentOperatorId);
 
     workflowStatusService.getStatusUpdateStream().subscribe(event => {
       if (
@@ -200,9 +200,12 @@ export class UdfDebugService {
     private executeWorkflowService: ExecuteWorkflowService
   ) {
     // for each operator, create a breakpoint manager
-    this.workflowActionService.texeraGraph.getAllOperators().forEach(op => {
-      this.getOrCreateManager(op.operatorID);
-    });
+    this.workflowActionService
+      .getTexeraGraph()
+      .getAllOperators()
+      .forEach(op => {
+        this.getOrCreateManager(op.operatorID);
+      });
   }
 
   public getOrCreateManager(operatorId: string): BreakpointManager {
