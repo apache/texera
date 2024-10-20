@@ -92,9 +92,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     private workflowActionService: WorkflowActionService,
     private workflowVersionService: WorkflowVersionService,
     public coeditorPresenceService: CoeditorPresenceService,
-    private aiAssistantService: AIAssistantService,
-    public executeWorkflowService: ExecuteWorkflowService,
-    public workflowWebsocketService: WorkflowWebsocketService
+    private aiAssistantService: AIAssistantService
   ) {
     this.currentOperatorId = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0];
     const operatorType = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId).operatorType;
@@ -232,7 +230,6 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
       )
       .subscribe((editor: IStandaloneCodeEditor) => {
         editor.updateOptions({ readOnly: this.formControl.disabled });
-
         if (!this.code) {
           return;
         }
@@ -390,7 +387,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
                           className: "annotation-highlight",
                         },
                       },
-                    ])!;
+                    ]);
 
                     this.handleTypeAnnotation(variableCode, variableRange, editor, variableLineNumber, allCode);
 
@@ -479,7 +476,6 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   }
 
   // Called when the user clicks the "decline" button
-
   public rejectCurrentAnnotation(): void {
     // Do nothing except for closing the UI
     this.showAnnotationSuggestion = false;
