@@ -15,8 +15,6 @@ import {
 } from "monaco-breakpoints/dist/types";
 import { MonacoBreakpoint } from "monaco-breakpoints";
 import { UdfDebugService } from "../../service/operator-debug/udf-debug.service";
-import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
-import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { BreakpointConditionInputComponent } from "./breakpoint-condition-input/breakpoint-condition-input.component";
 import MouseTargetType = editor.MouseTargetType;
 
@@ -34,15 +32,12 @@ export class CodeDebuggerComponent implements AfterViewInit, SafeStyle {
   public monacoBreakpoint: MonacoBreakpoint | undefined = undefined;
   public breakpointConditionLine: number | undefined = undefined;
 
-  constructor(
-    public executeWorkflowService: ExecuteWorkflowService,
-    public workflowWebsocketService: WorkflowWebsocketService,
-    public udfDebugService: UdfDebugService,
-  ) {
+  constructor(private udfDebugService: UdfDebugService) {
   }
 
   ngAfterViewInit() {
     this.setupDebuggingActions(this.monacoEditor);
+    this.rerenderExistingBreakpoints();
     this.registerBreakpointRenderingHandler();
   }
 
@@ -169,13 +164,20 @@ export class CodeDebuggerComponent implements AfterViewInit, SafeStyle {
     this.monacoBreakpoint!["createSpecifyDecoration"]({
       startLineNumber: Number(lineNum),
       endLineNumber: Number(lineNum),
-      startColumn: 0,
-      endColumn: 0,
     });
   }
 
   private removeBreakpointDecoration(lineNum: number) {
     const decorationId = this.monacoBreakpoint!["lineNumberAndDecorationIdMap"].get(lineNum);
     this.monacoBreakpoint!["removeSpecifyDecoration"](decorationId, lineNum);
+  }
+
+  private rerenderExistingBreakpoints() {
+    this.udfDebugService.getOrCreateManager(this.currentOperatorId).getDebugState().forEach(({breakpointId}, lineNumStr) => {
+      if (!isDefined(breakpointId)) {
+        return;
+      }
+      this.createBreakpointDecoration(Number(lineNumStr));
+    });
   }
 }

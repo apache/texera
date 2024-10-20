@@ -104,7 +104,6 @@ export class MenuComponent implements OnInit {
     public coeditorPresenceService: CoeditorPresenceService,
     private modalService: NzModalService,
     private reportGenerationService: ReportGenerationService,
-    private udfDebugService: UdfDebugService
   ) {
     workflowWebsocketService
       .subscribeToEvent("ExecutionDurationUpdateEvent")

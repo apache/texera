@@ -1,11 +1,11 @@
 import { Injectable } from "@angular/core";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
-import { DebugCommandRequest } from "../../types/workflow-websocket.interface";
 import { OperatorState } from "../../types/execute-workflow.interface";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { isDefined } from "../../../common/util/predicate";
 import { WorkflowStatusService } from "../workflow-status/workflow-status.service";
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
+import { filter, map, switchMap } from "rxjs/operators";
 
 export class BreakpointManager {
   public getDebugState() {
@@ -34,47 +34,53 @@ export class BreakpointManager {
       }
     });
 
-    workflowWebsocketService.subscribeToEvent("ConsoleUpdateEvent").subscribe(evt => {
-      if (evt.messages.length === 0) {
-        return;
+    const messageStream = workflowWebsocketService.subscribeToEvent("ConsoleUpdateEvent")
+      .pipe(
+        // only listen to events from the current operator
+        filter(evt => evt.operatorId === this.currentOperatorId),
+        filter(evt => evt.messages.length > 0),
+        switchMap(evt => evt.messages),
+      );
+    const debugMessageStream = messageStream.pipe(filter(msg => msg.source == "(Pdb)" && msg.msgType.name == "DEBUGGER"));
+    const errorMessageStream = messageStream.pipe(filter(msg => msg.msgType.name == "ERROR"));
+    console.log("creating subscriptions");
+    debugMessageStream
+      .pipe(
+        filter(msg => msg.title.startsWith(">")),
+        map(msg => this.extractInfo(msg.title)),
+      ).subscribe(({ lineNum }) => {
+      if (isDefined(lineNum)) {
+        this.setHit(lineNum);
       }
+    });
 
-      evt.messages.forEach(msg => {
-        if (msg.source == "(Pdb)" && msg.msgType.name == "DEBUGGER") {
-          console.log("received ", msg.title);
-          if (msg.title.startsWith(">")) {
-            const { lineNum } = this.extractInfo(msg.title);
-            if (isDefined(lineNum)) {
-              this.setHit(lineNum);
-            }
-          }
-          if (msg.title.startsWith("Breakpoint")) {
-            // Handle breakpoint added case
-            const { breakpointId, lineNum } = this.extractInfo(msg.title);
-            if (isDefined(breakpointId) && isDefined(lineNum)) {
-              this.addBreakpoint(lineNum, breakpointId, "");
-              // You can add more logic here, such as storing the breakpoint ID
-            }
-          }
-          if (msg.title.startsWith("Deleted")) {
-            // Handle breakpoint removed case
-            const { breakpointId, lineNum } = this.extractInfo(msg.title);
-            if (isDefined(breakpointId) && isDefined(lineNum)) {
-              console.log(`Breakpoint removed with ID: ${breakpointId}`);
-              this.removeBreakpoint(lineNum);
-              // You can add more logic here, such as removing the breakpoint
-            }
-          }
-          if (msg.title.startsWith("New condition set for breakpoint")) {
-            // pass
-          }
-        } else if (msg.msgType.name == "ERROR") {
-          const { lineNum } = this.extractInfo(msg.source);
-          if (isDefined(lineNum)) {
-            this.setHit(lineNum);
-          }
+    debugMessageStream.pipe(
+      filter(msg => msg.title.startsWith("Breakpoint")),
+      map(msg => this.extractInfo(msg.title)),
+    ).subscribe(({ breakpointId, lineNum }) => {
+        if (isDefined(breakpointId) && isDefined(lineNum)) {
+          this.addBreakpoint(lineNum, breakpointId, "");
         }
-      });
+      },
+    );
+
+    debugMessageStream
+      .pipe(
+        filter(msg => msg.title.startsWith("Deleted")),
+        map(msg => this.extractInfo(msg.title)),
+      ).subscribe(({ breakpointId, lineNum }) => {
+      // Handle breakpoint removed case
+      if (isDefined(breakpointId) && isDefined(lineNum)) {
+        this.removeBreakpoint(lineNum);
+      }
+    });
+
+    errorMessageStream.pipe(
+      map(msg => this.extractInfo(msg.title)),
+    ).subscribe(({ lineNum }) => {
+      if (isDefined(lineNum)) {
+        this.setHit(lineNum);
+      }
     });
   }
 
@@ -233,7 +239,6 @@ export class UdfDebugService {
 
   doContinue(operatorId: string, workerId: string) {
     this.getOrCreateManager(operatorId).setContinue();
-    // TODO: make this queue command
     this.workflowWebsocketService.send("DebugCommandRequest", {
       operatorId,
       workerId,
@@ -243,7 +248,6 @@ export class UdfDebugService {
 
   doStep(operatorId: string, workerId: string) {
     this.getOrCreateManager(operatorId).setContinue();
-    // TODO: make this queue command
     this.workflowWebsocketService.send("DebugCommandRequest", {
       operatorId,
       workerId,
