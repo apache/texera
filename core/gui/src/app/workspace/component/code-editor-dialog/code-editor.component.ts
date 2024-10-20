@@ -13,20 +13,16 @@ import { YType } from "../../types/shared-editing.interface";
 import { FormControl } from "@angular/forms";
 import { AIAssistantService, TypeAnnotationResponse } from "../../service/ai-assistant/ai-assistant.service";
 import { AnnotationSuggestionComponent } from "./annotation-suggestion.component";
-
 import { MonacoEditorLanguageClientWrapper, UserConfig } from "monaco-editor-wrapper";
 import * as monaco from "monaco-editor";
 import "@codingame/monaco-vscode-python-default-extension";
 import "@codingame/monaco-vscode-r-default-extension";
 import "@codingame/monaco-vscode-java-default-extension";
 import { isDefined } from "../../../common/util/predicate";
-import { editor } from "monaco-editor/esm/vs/editor/editor.api.js";
 import { filter, switchMap } from "rxjs/operators";
-import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
-import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { BreakpointConditionInputComponent } from "./breakpoint-condition-input/breakpoint-condition-input.component";
-import IStandaloneCodeEditor = editor.IStandaloneCodeEditor;
 import { CodeDebuggerComponent } from "./code-debugger.component";
+import { MonacoEditor } from "monaco-breakpoints/dist/types";
 
 export const LANGUAGE_SERVER_CONNECTION_TIMEOUT_MS = 1000;
 
@@ -76,7 +72,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   private userResponseSubject?: Subject<void>;
   private isMultipleVariables: boolean = false;
   public codeDebuggerComponent!: Type<any> | null;
-  public editorToPass!: IStandaloneCodeEditor;
+  public editorToPass!: MonacoEditor;
 
   private generateLanguageTitle(language: string): string {
     return `${language.charAt(0).toUpperCase()}${language.slice(1)} UDF`;
@@ -228,7 +224,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
         filter(isDefined),
         untilDestroyed(this)
       )
-      .subscribe((editor: IStandaloneCodeEditor) => {
+      .subscribe((editor: MonacoEditor) => {
         editor.updateOptions({ readOnly: this.formControl.disabled });
         if (!this.code) {
           return;
@@ -284,12 +280,12 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     this.editorWrapper.initAndStart(userConfig, this.editorElement.nativeElement);
   }
 
-  private initCodeDebuggerComponent(editor: IStandaloneCodeEditor) {
+  private initCodeDebuggerComponent(editor: MonacoEditor) {
     this.codeDebuggerComponent = CodeDebuggerComponent;
     this.editorToPass = editor;
   }
 
-  private setupAIAssistantActions(editor: IStandaloneCodeEditor) {
+  private setupAIAssistantActions(editor: MonacoEditor) {
     // Check if the AI provider is "openai"
     this.aiAssistantService
       .checkAIAssistantEnabled()
@@ -303,7 +299,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
               label: "Add Type Annotation",
               contextMenuGroupId: "1_modification",
               contextMenuOrder: 1.0,
-              run: (editor: monaco.editor.IStandaloneCodeEditor) => {
+              run: (editor: MonacoEditor) => {
                 // User selected code (including range and content)
                 const selection = editor.getSelection();
                 const model = editor.getModel();
@@ -327,7 +323,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
             label: "Add All Type Annotations",
             contextMenuGroupId: "1_modification",
             contextMenuOrder: 1.1,
-            run: (editor: monaco.editor.IStandaloneCodeEditor) => {
+            run: (editor: MonacoEditor) => {
               const selection = editor.getSelection();
               const model = editor.getModel();
               if (!model || !selection) {
@@ -415,7 +411,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   private handleTypeAnnotation(
     code: string,
     range: monaco.Range,
-    editor: monaco.editor.IStandaloneCodeEditor,
+    editor: MonacoEditor,
     lineNumber: number,
     allCode: string
   ): void {
@@ -488,11 +484,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     }
   }
 
-  private insertTypeAnnotations(
-    editor: monaco.editor.IStandaloneCodeEditor,
-    selection: monaco.Selection,
-    annotations: string
-  ) {
+  private insertTypeAnnotations(editor: MonacoEditor, selection: monaco.Selection, annotations: string) {
     const endLineNumber = selection.endLineNumber;
     const endColumn = selection.endColumn;
     const insertPosition = new monaco.Position(endLineNumber, endColumn);

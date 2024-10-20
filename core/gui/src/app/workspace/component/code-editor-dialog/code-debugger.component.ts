@@ -18,6 +18,9 @@ import { UdfDebugService } from "../../service/operator-debug/udf-debug.service"
 import { BreakpointConditionInputComponent } from "./breakpoint-condition-input/breakpoint-condition-input.component";
 import MouseTargetType = editor.MouseTargetType;
 
+/**
+ * This component is the main component for the code debugger.
+ */
 @UntilDestroy()
 @Component({
   selector: "texera-code-debugger",

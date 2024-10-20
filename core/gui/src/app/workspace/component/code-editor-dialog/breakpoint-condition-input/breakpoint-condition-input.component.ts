@@ -14,6 +14,9 @@ import { UdfDebugService } from "../../../service/operator-debug/udf-debug.servi
 import { isDefined } from "../../../../common/util/predicate";
 import { MonacoEditor } from "monaco-breakpoints/dist/types";
 
+/**
+ * This component is a dialog that allows users to input a condition for a breakpoint.
+ */
 @Component({
   selector: "texera-breakpoint-condition-input",
   templateUrl: "./breakpoint-condition-input.component.html",
