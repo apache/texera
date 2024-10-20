@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnInit, Output } from "@angular/core";
+import { ChangeDetectorRef, Component, EventEmitter, Input, OnInit, Output } from "@angular/core";
 import { OperatorMetadataService } from "src/app/workspace/service/operator-metadata/operator-metadata.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { Observable, of } from "rxjs";
@@ -71,37 +71,41 @@ export class FiltersComponent implements OnInit {
     private operatorMetadataService: OperatorMetadataService,
     private notificationService: NotificationService,
     private userProjectService: UserProjectService,
-    private workflowPersistService: WorkflowPersistService
-  ) {
+    private workflowPersistService: WorkflowPersistService,
+    private cdr: ChangeDetectorRef
+  ) {}
+
+  ngOnInit(): void {
+    this.setupUserProject();
+    this.searchParameterBackendSetup();
+  }
+
+  private setupUserProject(): void {
     this.userService
       .userChanged()
       .pipe(
-        // eslint-disable-next-line rxjs/no-unsafe-takeuntil
-        untilDestroyed(this),
         switchMap(() => {
           this.isLogin = this.userService.isLogin();
+          this.cdr.detectChanges();
           if (this.isLogin) {
             return this.userProjectService.getProjectList() as Observable<DashboardProject[]>;
           } else {
             return of([] as DashboardProject[]);
           }
-        })
+        }),
+        untilDestroyed(this)
       )
       .subscribe((userProjectsList: DashboardProject[]) => {
-        if (userProjectsList != null && userProjectsList.length > 0) {
-          // map project ID to project object
+        if (userProjectsList && userProjectsList.length > 0) {
           this.userProjectsMap = new Map(userProjectsList.map(userProject => [userProject.pid, userProject]));
-          // store the projects containing these workflows
-          this.userProjectsDropdown = userProjectsList.map(proj => {
-            return { pid: proj.pid, name: proj.name, checked: false };
-          });
+          this.userProjectsDropdown = userProjectsList.map(proj => ({
+            pid: proj.pid,
+            name: proj.name,
+            checked: false,
+          }));
           this.userProjectsLoaded = true;
         }
       });
-  }
-
-  ngOnInit(): void {
-    this.searchParameterBackendSetup();
   }
 
   /**

@@ -1,4 +1,4 @@
-import { Component, AfterViewInit, ViewChild } from "@angular/core";
+import { Component, AfterViewInit, ViewChild, ChangeDetectorRef } from "@angular/core";
 import { DashboardEntry, UserInfo } from "../../../type/dashboard-entry";
 import { SearchService } from "../../../service/user/search.service";
 import { FiltersComponent } from "../filters/filters.component";
@@ -23,6 +23,7 @@ export class SearchComponent implements AfterViewInit {
   private isLogin = this.userService.isLogin();
   private includePublic = true;
   currentUid = this.userService.getCurrentUser()?.uid;
+  searchKeywords: string[] = [];
 
   selectedType: "project" | "workflow" | "dataset" | null = null;
   lastSelectedType: "project" | "workflow" | "dataset" | null = null;
@@ -47,7 +48,8 @@ export class SearchComponent implements AfterViewInit {
     private location: Location,
     private searchService: SearchService,
     private userService: UserService,
-    private activatedRoute: ActivatedRoute
+    private activatedRoute: ActivatedRoute,
+    private cdr: ChangeDetectorRef
   ) {
     this.userService
       .userChanged()
@@ -65,6 +67,9 @@ export class SearchComponent implements AfterViewInit {
         this.searchParam = keyword;
         this.updateMasterFilterList();
       }
+
+      this.searchKeywords = this.filters.getSearchKeywords();
+      this.cdr.detectChanges();
     });
   }
 

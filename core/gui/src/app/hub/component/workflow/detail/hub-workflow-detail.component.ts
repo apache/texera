@@ -141,7 +141,9 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
   ngOnDestroy() {
     if (this.workflowPersistService.isWorkflowPersistEnabled()) {
       const workflow = this.workflowActionService.getWorkflow();
-      this.workflowPersistService.persistWorkflow(workflow).pipe(untilDestroyed(this)).subscribe();
+      if (this.isLogin) {
+        this.workflowPersistService.persistWorkflow(workflow).pipe(untilDestroyed(this)).subscribe();
+      }
     }
 
     this.codeEditorViewRef.clear();

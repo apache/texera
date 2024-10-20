@@ -15,8 +15,7 @@
       <i
         nz-icon
         nzType="form"
-        nzTheme="outline"
-        nz-tooltip="Modification Time"></i>
+        nzTheme="outline"></i>
     </button>
   </a>
 
@@ -42,8 +41,7 @@
       <i
         nz-icon
         nzType="calendar"
-        nzTheme="outline"
-        nz-tooltip="Creation Time"></i>
+        nzTheme="outline"></i>
     </button>
   </a>
   <nz-dropdown-menu #ctimeSearchOptions="nzDropdownMenu">
@@ -55,7 +53,7 @@
   </nz-dropdown-menu>
 
   <a
-    *ngIf="this.isLogin"
+    [hidden]="!isLogin"
     [nzDropdownMenu]="ownerSearchOptions"
     nz-dropdown
     nzTrigger="click"
@@ -69,8 +67,7 @@
       <i
         nz-icon
         nzTheme="outline"
-        nzType="user"
-        nz-tooltip="Owner"></i>
+        nzType="user"></i>
     </button>
   </a>
   <nz-dropdown-menu #ownerSearchOptions="nzDropdownMenu">
@@ -104,8 +101,7 @@
       <i
         nz-icon
         nzTheme="outline"
-        nzType="ordered-list"
-        nz-tooltip="Workflow ID"></i>
+        nzType="ordered-list"></i>
     </button>
   </a>
   <nz-dropdown-menu #IDSearchOptions="nzDropdownMenu">
@@ -138,8 +134,7 @@
       <i
         nz-icon
         nzType="appstore"
-        nzTheme="outline"
-        nz-tooltip="Operators"></i>
+        nzTheme="outline"></i>
     </button>
   </a>
   <nz-dropdown-menu #operatorSearchOptions="nzDropdownMenu">
@@ -165,7 +160,7 @@
   </nz-dropdown-menu>
 
   <a
-    *ngIf="pid === null"
+    *ngIf="pid === undefined"
     [nzDropdownMenu]="projectSearchOptions"
     nz-dropdown
     nzTrigger="click"
@@ -179,8 +174,7 @@
       <i
         nz-icon
         nzType="file"
-        nzTheme="outline"
-        nz-tooltip="Projects"></i>
+        nzTheme="outline"></i>
     </button>
   </a>
   <nz-dropdown-menu #projectSearchOptions="nzDropdownMenu">
