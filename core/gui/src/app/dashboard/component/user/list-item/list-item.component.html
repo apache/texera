@@ -114,10 +114,8 @@
           </texera-user-avatar>
         </div>
         <div class="resource-info-grid">
-          <div
-            class="resource-info"
-            *ngIf="entry.type==='workflow'">
-            {{ formatViewCount(viewCount) + " " + (viewCount === 1 ? "view" : "views") }}
+          <div class="resource-info">
+            {{ entry.type==='workflow' ? formatViewCount(viewCount) + " " + (viewCount === 1 ? "view" : "views") : ''}}
           </div>
           <div class="resource-info">{{ entry.type === 'dataset' ? 'Size: ' + formatSize(entry.size) : '' }}</div>
           <div class="resource-info">Created: {{ formatTime(entry.creationTime) }}</div>
