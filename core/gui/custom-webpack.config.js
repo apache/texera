@@ -7,10 +7,10 @@ module.exports = {
         include: [require("path").resolve(__dirname, "node_modules/monaco-editor")],
       },
     ],
-  },
-  parser: {
-    javascript: {
-      url: true,
+    parser: {
+      javascript: {
+        url: true,
+      },
     },
   },
 };
