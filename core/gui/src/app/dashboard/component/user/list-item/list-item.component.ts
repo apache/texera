@@ -8,6 +8,7 @@ import {
   SimpleChanges,
   ViewChild,
   ElementRef,
+  ChangeDetectorRef,
 } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzModalService } from "ng-zorro-antd/modal";
@@ -73,23 +74,23 @@ export class ListItemComponent implements OnInit, OnChanges {
     private workflowPersistService: WorkflowPersistService,
     private modal: NzModalService,
     private hubWorkflowService: HubWorkflowService,
-    private downloadService: DownloadService
+    private downloadService: DownloadService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   initializeEntry() {
     if (this.entry.type === "workflow") {
       if (typeof this.entry.id === "number") {
-        this.searchService
-          .getWorkflowOwners(this.entry.id)
-          .pipe(untilDestroyed(this))
-          .subscribe((data: number[]) => {
-            this.owners = data;
-            if (this.currentUid !== undefined && this.owners.includes(this.currentUid)) {
-              this.entryLink = [this.ROUTER_WORKFLOW_BASE_URL, String(this.entry.id)];
-            } else {
-              this.entryLink = [this.ROUTER_WORKFLOW_DETAIL_BASE_URL, String(this.entry.id)];
-            }
-          });
+        // eslint-disable-next-line rxjs-angular/prefer-takeuntil
+        this.searchService.getWorkflowOwners(this.entry.id).subscribe((data: number[]) => {
+          this.owners = data;
+          if (this.currentUid !== undefined && this.owners.includes(this.currentUid)) {
+            this.entryLink = [this.ROUTER_WORKFLOW_BASE_URL, String(this.entry.id)];
+          } else {
+            this.entryLink = [this.ROUTER_WORKFLOW_DETAIL_BASE_URL, String(this.entry.id)];
+          }
+          setTimeout(() => this.cdr.detectChanges(), 0);
+        });
         this.hubWorkflowService
           .getLikeCount(this.entry.id)
           .pipe(untilDestroyed(this))

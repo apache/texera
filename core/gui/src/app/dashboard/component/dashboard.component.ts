@@ -36,7 +36,11 @@ export class DashboardComponent implements OnInit {
     private route: ActivatedRoute,
     private googleAuthService: GoogleAuthService,
     private notificationService: NotificationService
-  ) {
+  ) {}
+
+  ngOnInit(): void {
+    this.isCollpased = false;
+
     this.userService
       .userChanged()
       .pipe(untilDestroyed(this))
@@ -45,10 +49,6 @@ export class DashboardComponent implements OnInit {
         this.isAdmin = this.userService.isAdmin();
         this.cdr.detectChanges();
       });
-  }
-
-  ngOnInit(): void {
-    this.isCollpased = false;
 
     if (!this.isLogin) {
       this.googleAuthService.googleAuthInit(document.getElementById("googleButton"));
