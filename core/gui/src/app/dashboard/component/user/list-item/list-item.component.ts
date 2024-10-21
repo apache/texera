@@ -8,6 +8,7 @@ import {
   SimpleChanges,
   ViewChild,
   ElementRef,
+  ChangeDetectorRef,
 } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzModalService } from "ng-zorro-antd/modal";
@@ -21,6 +22,7 @@ import { firstValueFrom } from "rxjs";
 import { SearchService } from "../../../service/user/search.service";
 import { HubWorkflowDetailComponent } from "../../../../hub/component/workflow/detail/hub-workflow-detail.component";
 import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
+import { formatSize } from "src/app/common/util/size-formatter.util";
 
 @UntilDestroy()
 @Component({
@@ -67,7 +69,8 @@ export class ListItemComponent implements OnInit, OnChanges {
     private modalService: NzModalService,
     private workflowPersistService: WorkflowPersistService,
     private modal: NzModalService,
-    private downloadService: DownloadService
+    private downloadService: DownloadService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   initializeEntry() {
@@ -81,6 +84,7 @@ export class ListItemComponent implements OnInit, OnChanges {
           } else {
             this.entryLink = [this.ROUTER_WORKFLOW_DETAIL_BASE_URL, String(this.entry.id)];
           }
+          setTimeout(() => this.cdr.detectChanges(), 0);
         });
       }
       // this.entryLink = this.ROUTER_WORKFLOW_BASE_URL + "/" + this.entry.id;
@@ -249,4 +253,7 @@ export class ListItemComponent implements OnInit, OnChanges {
       }
     }
   }
+
+  // alias for formatSize
+  formatSize = formatSize;
 }
