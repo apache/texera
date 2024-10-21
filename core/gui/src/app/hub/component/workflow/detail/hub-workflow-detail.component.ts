@@ -128,7 +128,7 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
         });
 
       this.hubWorkflowService
-        .postViewWorkflow(this.wid)
+        .postViewWorkflow(this.wid, this.currentUid ? this.currentUid : 0)
         .pipe(untilDestroyed(this))
         .subscribe(count => {
           this.viewCount = count;

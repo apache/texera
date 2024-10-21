@@ -74,8 +74,8 @@ export class HubWorkflowService {
     return this.http.get<number>(`${this.BASE_URL}/cloneCount/${wid}`);
   }
 
-  public postViewWorkflow(workflowId: number): Observable<number> {
-    return this.http.post<number>(`${this.BASE_URL}/view`, [workflowId]);
+  public postViewWorkflow(workflowId: number, userId: number): Observable<number> {
+    return this.http.post<number>(`${this.BASE_URL}/view`, [workflowId, userId]);
   }
 
   public getViewCount(wid: number): Observable<number> {

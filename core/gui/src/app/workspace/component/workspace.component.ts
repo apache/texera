@@ -279,6 +279,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
 
   updateViewCount() {
     let wid = this.route.snapshot.params.id;
-    this.hubWorkflowService.postViewWorkflow(wid).pipe(untilDestroyed(this)).subscribe();
+    let uid = this.userService.getCurrentUser()?.uid;
+    this.hubWorkflowService.postViewWorkflow(wid, uid ? uid : 0).pipe(untilDestroyed(this)).subscribe();
   }
 }

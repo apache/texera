@@ -267,9 +267,11 @@ class HubWorkflowResource {
   @POST
   @Path("/view")
   @Consumes(Array(MediaType.APPLICATION_JSON))
-  def viewWorkflow(viewRequest: Array[UInteger]): Int = {
+  def viewWorkflow(@Context request: HttpServletRequest,
+                    viewRequest: Array[UInteger]): Int = {
 
     val workflowId = viewRequest(0)
+    val userId = viewRequest(1)
 
     val widInTable = context
       .fetchExists(
@@ -291,6 +293,7 @@ class HubWorkflowResource {
         .where(WORKFLOW_VIEW_COUNT.WID.eq(workflowId))
         .execute()
     }
+    recordUserActivity(request, userId, workflowId, "view")
     context
       .select(WORKFLOW_VIEW_COUNT.VIEW_COUNT)
       .from(WORKFLOW_VIEW_COUNT)
