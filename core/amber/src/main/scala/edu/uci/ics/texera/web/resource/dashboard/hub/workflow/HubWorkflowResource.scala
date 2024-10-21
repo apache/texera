@@ -267,8 +267,7 @@ class HubWorkflowResource {
   @POST
   @Path("/view")
   @Consumes(Array(MediaType.APPLICATION_JSON))
-  def viewWorkflow(@Context request: HttpServletRequest,
-                    viewRequest: Array[UInteger]): Int = {
+  def viewWorkflow(@Context request: HttpServletRequest, viewRequest: Array[UInteger]): Int = {
 
     val workflowId = viewRequest(0)
     val userId = viewRequest(1)
