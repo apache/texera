@@ -21,3 +21,6 @@ src/environments/version.ts
 !.yarn/plugins
 !.yarn/sdks
 !.yarn/versions
+
+# nx migration
+/migrations.json
