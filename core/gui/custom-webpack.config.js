@@ -9,8 +9,8 @@ module.exports = {
     ],
     parser: {
       javascript: {
-        url: true,
-      },
-    },
+          url: true
+      }
+    }
   },
 };
