@@ -91,18 +91,18 @@ object HubWorkflowResource {
 
     if (ipv4Pattern.matcher(userIp).matches()) {
       context
-        .insertInto(USER_ACTIVITY)
-        .set(USER_ACTIVITY.UID, userId)
-        .set(USER_ACTIVITY.WID, workflowId)
-        .set(USER_ACTIVITY.IP, userIp)
-        .set(USER_ACTIVITY.ACTIVATE, action)
+        .insertInto(WORKFLOW_USER_ACTIVITY)
+        .set(WORKFLOW_USER_ACTIVITY.UID, userId)
+        .set(WORKFLOW_USER_ACTIVITY.WID, workflowId)
+        .set(WORKFLOW_USER_ACTIVITY.IP, userIp)
+        .set(WORKFLOW_USER_ACTIVITY.ACTIVATE, action)
         .execute()
     } else {
       context
-        .insertInto(USER_ACTIVITY)
-        .set(USER_ACTIVITY.UID, userId)
-        .set(USER_ACTIVITY.WID, workflowId)
-        .set(USER_ACTIVITY.ACTIVATE, action)
+        .insertInto(WORKFLOW_USER_ACTIVITY)
+        .set(WORKFLOW_USER_ACTIVITY.UID, userId)
+        .set(WORKFLOW_USER_ACTIVITY.WID, workflowId)
+        .set(WORKFLOW_USER_ACTIVITY.ACTIVATE, action)
         .execute()
     }
   }
