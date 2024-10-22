@@ -33,6 +33,9 @@
     "@angular/platform-browser-dynamic": "16.2.12",
     "@angular/router": "16.2.12",
     "@auth0/angular-jwt": "5.1.0",
+    "@codingame/monaco-vscode-java-default-extension": "8.0.4",
+    "@codingame/monaco-vscode-python-default-extension": "8.0.4",
+    "@codingame/monaco-vscode-r-default-extension": "8.0.4",
     "@loaders.gl/core": "3.4.2",
     "@luma.gl/core": "8.5.20",
     "@ngneat/until-destroy": "8.1.4",
@@ -55,13 +58,9 @@
     "jszip": "3.10.1",
     "lodash-es": "4.17.21",
     "marked": "4.3.0",
-    "monaco-languageclient": "8.8.3",
-    "monaco-editor-wrapper": "5.5.3",
-    "@codingame/monaco-vscode-python-default-extension": "8.0.4",
-    "@codingame/monaco-vscode-r-default-extension": "8.0.4",
-    "@codingame/monaco-vscode-java-default-extension": "8.0.4",
-    "vscode": "npm:@codingame/monaco-vscode-api@8.0.4",
     "monaco-editor": "npm:@codingame/monaco-vscode-editor-api@8.0.4",
+    "monaco-editor-wrapper": "5.5.3",
+    "monaco-languageclient": "8.8.3",
     "ng-zorro-antd": "16.2.2",
     "ng2-pdf-viewer": "9.1.5",
     "ngx-color-picker": "12.0.1",
@@ -83,6 +82,7 @@
     "tslib": "2.3.1",
     "uuid": "8.3.2",
     "validator": "13.12.0",
+    "vscode": "npm:@codingame/monaco-vscode-api@8.0.4",
     "vscode-ws-jsonrpc": "3.3.2",
     "y-monaco": "0.1.5",
     "y-protocols": "1.0.5",
@@ -90,6 +90,11 @@
     "y-websocket": "1.4.0",
     "yjs": "13.5.41",
     "zone.js": "0.13.0"
+  },
+  "resolutions": {
+    "vscode": "npm:@codingame/monaco-vscode-api@8.0.4",
+    "monaco-editor": "npm:@codingame/monaco-vscode-editor-api@8.0.4",
+    "webpack": "5.89.0"
   },
   "devDependencies": {
     "@angular-builders/custom-webpack": "16.0.1",
@@ -100,8 +105,8 @@
     "@angular/cli": "16.2.12",
     "@angular/compiler-cli": "16.2.12",
     "@nrwl/cli": "15.9.7",
-    "@nrwl/nx-cloud": "18.0.0",
-    "@nx/angular": "18.2.0",
+    "@nrwl/nx-cloud": "19.1.0",
+    "@nx/angular": "20.0.3",
     "@types/backbone": "1.4.15",
     "@types/dagre": "0.7.47",
     "@types/file-saver": "2.0.5",
@@ -135,7 +140,7 @@
     "karma-jasmine": "4.0.1",
     "karma-jasmine-html-reporter": "1.7.0",
     "nodecat": "2.0.0",
-    "nx": "18.2.0",
+    "nx": "20.0.3",
     "nz-tslint-rules": "0.901.2",
     "prettier": "3.2.5",
     "prettier-eslint-cli": "8.0.1",
@@ -149,5 +154,6 @@
   "browserslist": [
     "defaults",
     "not ie <= 11"
-  ]
+  ],
+  "packageManager": "yarn@4.5.1"
 }

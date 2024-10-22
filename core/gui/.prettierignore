@@ -6,3 +6,7 @@ node_modules
 **/environments/version.ts
 
 .angular
+
+/.nx/cache
+
+/.nx/workspace-data
