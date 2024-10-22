@@ -4,23 +4,26 @@ import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websock
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowStatusService } from "../workflow-status/workflow-status.service";
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
-import { Subject } from "rxjs";
-import { OperatorState } from "../../types/execute-workflow.interface";
+import { Observable, Subject } from "rxjs";
+import { OperatorState, OperatorStatistics } from "../../types/execute-workflow.interface";
 import { WorkflowGraphReadonly } from "../workflow-graph/model/workflow-graph";
 import { mockPoint, mockPythonUDFPredicate } from "../workflow-graph/model/mock-workflow-data";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../operator-metadata/stub-operator-metadata.service";
 import * as Y from "yjs";
+import { ConsoleUpdateEvent } from "../../types/workflow-common.interface";
+import { TexeraWebsocketEvent } from "../../types/workflow-websocket.interface";
 
-describe("UdfDebugService", () => {
+describe("UdfDebugServiceSpec", () => {
   let service: UdfDebugService;
   let workflowActionService: WorkflowActionService;
   let mockWorkflowWebsocketService: jasmine.SpyObj<WorkflowWebsocketService>;
   let mockWorkflowStatusService: jasmine.SpyObj<WorkflowStatusService>;
   let mockExecuteWorkflowService: jasmine.SpyObj<ExecuteWorkflowService>;
-  let statusUpdateStream: Subject<any>;
-  let consoleUpdateEventStream: Subject<any>;
+  let statusUpdateStream: Subject<Record<string, OperatorStatistics>>;
+  let consoleUpdateEventStream: Subject<ConsoleUpdateEvent>;
   let texeraGraph: WorkflowGraphReadonly;
+  let stubWorker = "worker1";
 
   beforeEach(() => {
     // Create mock services
@@ -34,8 +37,10 @@ describe("UdfDebugService", () => {
 
     // Set mock return values
     mockWorkflowStatusService.getStatusUpdateStream.and.returnValue(statusUpdateStream.asObservable());
-    mockWorkflowWebsocketService.subscribeToEvent.and.returnValue(consoleUpdateEventStream.asObservable());
-    mockExecuteWorkflowService.getWorkerIds.and.returnValue(["worker1"]);
+    mockWorkflowWebsocketService.subscribeToEvent.and.returnValue(
+      consoleUpdateEventStream.asObservable() as Observable<TexeraWebsocketEvent>
+    );
+    mockExecuteWorkflowService.getWorkerIds.and.returnValue([stubWorker]);
 
     // Configure the TestBed
     TestBed.configureTestingModule({
@@ -55,9 +60,10 @@ describe("UdfDebugService", () => {
     workflowActionService = TestBed.inject(WorkflowActionService);
     texeraGraph = workflowActionService.getTexeraGraph();
     workflowActionService.addOperator(mockPythonUDFPredicate, mockPoint);
-    // Spy on the necessary methods of TexeraGraphStub if needed
+    // Spy on the necessary methods
     spyOn(texeraGraph, "createOperatorDebugState").and.callThrough();
     spyOn(texeraGraph, "getOperatorDebugState").and.callThrough();
+
     service = TestBed.inject(UdfDebugService);
   });
 
@@ -98,7 +104,7 @@ describe("UdfDebugService", () => {
 
     expect(mockWorkflowWebsocketService.send).toHaveBeenCalledWith("DebugCommandRequest", {
       operatorId: mockPythonUDFPredicate.operatorID,
-      workerId: "worker1",
+      workerId: stubWorker,
       cmd: "condition 1 x < 10",
     });
 
@@ -122,11 +128,11 @@ describe("UdfDebugService", () => {
 
     expect(mockWorkflowWebsocketService.send).toHaveBeenCalledWith("DebugCommandRequest", {
       operatorId: mockPythonUDFPredicate.operatorID,
-      workerId: "worker1",
+      workerId: stubWorker,
       cmd: "clear 1",
     });
 
-    expect(debugState.has("1")).toBeTrue(); // The state is not cleared here; depending on implementation
+    expect(debugState.has("1")).toBeTrue(); // The state is supposed to be cleared later by console update events.
   });
 
   it("should modify a breakpoint (add new)", () => {
@@ -136,7 +142,7 @@ describe("UdfDebugService", () => {
 
     expect(mockWorkflowWebsocketService.send).toHaveBeenCalledWith("DebugCommandRequest", {
       operatorId: mockPythonUDFPredicate.operatorID,
-      workerId: "worker1",
+      workerId: stubWorker,
       cmd: "break 10",
     });
 
@@ -145,21 +151,21 @@ describe("UdfDebugService", () => {
   });
 
   it("should continue the workflow execution", () => {
-    service.doContinue(mockPythonUDFPredicate.operatorID, "worker1");
+    service.doContinue(mockPythonUDFPredicate.operatorID, stubWorker);
 
     expect(mockWorkflowWebsocketService.send).toHaveBeenCalledWith("DebugCommandRequest", {
       operatorId: mockPythonUDFPredicate.operatorID,
-      workerId: "worker1",
+      workerId: stubWorker,
       cmd: "continue",
     });
   });
 
   it("should step through the workflow execution", () => {
-    service.doStep(mockPythonUDFPredicate.operatorID, "worker1");
+    service.doStep(mockPythonUDFPredicate.operatorID, stubWorker);
 
     expect(mockWorkflowWebsocketService.send).toHaveBeenCalledWith("DebugCommandRequest", {
       operatorId: mockPythonUDFPredicate.operatorID,
-      workerId: "worker1",
+      workerId: stubWorker,
       cmd: "next",
     });
   });
@@ -180,13 +186,16 @@ describe("UdfDebugService", () => {
   });
 
   it("should handle console update events (breakpoint creation)", () => {
-    const message = {
+    const message: ConsoleUpdateEvent = {
       operatorId: mockPythonUDFPredicate.operatorID,
       messages: [
         {
+          workerId: stubWorker,
+          timestamp: { nanos: 0, seconds: 0 },
           title: "Breakpoint 1 at /path/to/file.py:10",
           source: "(Pdb)",
           msgType: { name: "DEBUGGER" },
+          message: "",
         },
       ],
     };
@@ -205,9 +214,12 @@ describe("UdfDebugService", () => {
       operatorId: mockPythonUDFPredicate.operatorID,
       messages: [
         {
+          workerId: stubWorker,
+          timestamp: { nanos: 0, seconds: 0 },
           title: "Deleted breakpoint 1 at /path/to/file.py:10",
           source: "(Pdb)",
           msgType: { name: "DEBUGGER" },
+          message: "",
         },
       ],
     };
@@ -218,23 +230,28 @@ describe("UdfDebugService", () => {
   });
 
   it("should handle console update events (stepping message)", () => {
-    const debugState = service.getDebugState(mockPythonUDFPredicate.operatorID);
-    spyOn(service as any, "markBreakpointAsHit");
+    spyOn(service as any, "markBreakpointAsHit").and.callThrough();
 
     const message = {
       operatorId: mockPythonUDFPredicate.operatorID,
       messages: [
         {
+          workerId: stubWorker,
+          timestamp: { nanos: 0, seconds: 0 },
           title: "> /path/to/file.py(10)<module>()",
           source: "(Pdb)",
           msgType: { name: "DEBUGGER" },
+          message: "",
         },
       ],
     };
 
     consoleUpdateEventStream.next(message);
 
-    expect((service as any).markBreakpointAsHit).toHaveBeenCalledWith(mockPythonUDFPredicate.operatorID, 10);
+    expect((service as UdfDebugService)["markBreakpointAsHit"]).toHaveBeenCalledWith(
+      mockPythonUDFPredicate.operatorID,
+      10
+    );
   });
 
   it("should mark a breakpoint as hit", () => {
