@@ -84,7 +84,7 @@ export class DashboardComponent implements OnInit {
       this.checkRoute();
     });
 
-    this.router.events.pipe(untilDestroyed(this)).subscribe((event) => {
+    this.router.events.pipe(untilDestroyed(this)).subscribe(event => {
       if (event instanceof NavigationEnd) {
         this.checkRoute();
         this.showLinks = event.url.includes("about");
