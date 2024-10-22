@@ -14,8 +14,8 @@ import * as Y from "yjs";
 
 describe("UdfDebugService", () => {
   let service: UdfDebugService;
-  let mockWorkflowWebsocketService: jasmine.SpyObj<WorkflowWebsocketService>;
   let workflowActionService: WorkflowActionService;
+  let mockWorkflowWebsocketService: jasmine.SpyObj<WorkflowWebsocketService>;
   let mockWorkflowStatusService: jasmine.SpyObj<WorkflowStatusService>;
   let mockExecuteWorkflowService: jasmine.SpyObj<ExecuteWorkflowService>;
   let statusUpdateStream: Subject<any>;
@@ -50,7 +50,7 @@ describe("UdfDebugService", () => {
         { provide: WorkflowStatusService, useValue: mockWorkflowStatusService },
         { provide: ExecuteWorkflowService, useValue: mockExecuteWorkflowService },
       ],
-    }).compileComponents();
+    });
 
     workflowActionService = TestBed.inject(WorkflowActionService);
     texeraGraph = workflowActionService.getTexeraGraph();
