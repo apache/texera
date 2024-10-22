@@ -41,8 +41,10 @@ jobs:
           key: ${{ runner.os }}-yarn-cache-v6-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
             ${{ runner.os }}-yarn-cache-v6-
+      - name: Prepare Yarn 4.5.1
+        run: corepack enable && corepack prepare yarn@4.5.1 --activate && yarn --cwd core/gui set version 4.5.1
       - name: Install dependency
-        run: yarn --cwd core/gui install --frozen-lockfile --progress=false --network-timeout=100000
+        run: yarn --cwd core/gui install --immutable --network-timeout=100000
       - name: Lint with Prettier & ESLint
         run: yarn --cwd core/gui format:ci
       - name: Run frontend unit tests
