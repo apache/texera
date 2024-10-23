@@ -1,4 +1,4 @@
-import {AfterViewInit, ChangeDetectorRef, Component, Input, ViewChild} from "@angular/core";
+import { AfterViewInit, ChangeDetectorRef, Component, Input, ViewChild } from "@angular/core";
 import { Router } from "@angular/router";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { firstValueFrom, from, lastValueFrom, Observable, of } from "rxjs";
@@ -25,7 +25,7 @@ import { map, mergeMap, switchMap, tap } from "rxjs/operators";
 import { environment } from "../../../../../environments/environment";
 import { DashboardWorkflow } from "../../../type/dashboard-workflow.interface";
 import { DownloadService } from "../../../service/user/download/download.service";
-import {NzMessageService} from "ng-zorro-antd/message";
+import { NzMessageService } from "ng-zorro-antd/message";
 /**
  * Saved-workflow-section component contains information and functionality
  * of the saved workflows section and is re-used in the user projects section when a project is clicked
@@ -551,7 +551,6 @@ export class UserWorkflowComponent implements AfterViewInit {
       }
     }
   }
-
 
   toggleBatchSelect() {
     this.isBatchSelectEnabled = !this.isBatchSelectEnabled;
