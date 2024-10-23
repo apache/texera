@@ -19,8 +19,8 @@ class JavaUDFOpDesc extends LogicalOp {
     required = true,
     defaultValue =
       "import edu.uci.ics.texera.workflow.common.operators.map.MapOpExec;\n" +
-        "import edu.uci.ics.texera.workflow.common.tuple.Tuple;\n" +
-        "import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike;\n" +
+        "import edu.uci.ics.amber.engine.common.model.tuple.Tuple;\n" +
+        "import edu.uci.ics.amber.engine.common.model.tuple.TupleLike;\n" +
         "import scala.Function1;\n" +
         "import java.io.Serializable;\n" +
         "\n" +
