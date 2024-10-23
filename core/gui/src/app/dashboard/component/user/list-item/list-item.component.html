@@ -1,8 +1,10 @@
 <nz-card
   [nzBodyStyle]="{padding: '5px'}"
-  class="list-item-card">
+  class="list-item-card"
+  [class.selected]="entry.checked"
+  (click)="onCardClick()">
   <div
-    [routerLink]="entryLink"
+    [routerLink]="!isBatchSelectEnabled ? entryLink : null"
     nz-row
     nzAlign="middle">
     <!-- Icon Column -->
@@ -32,7 +34,7 @@
         <!-- Edit Name Buttons -->
         <div
           class="edit-button-group"
-          *ngIf="isPrivateSearch">
+          *ngIf="isPrivateSearch && !isBatchSelectEnabled">
           <button
             nz-button
             nzType="text"
@@ -69,7 +71,7 @@
         <!-- Edit Description Buttons -->
         <div
           class="edit-button-group"
-          *ngIf="isPrivateSearch">
+          *ngIf="isPrivateSearch && !isBatchSelectEnabled">
           <button
             nz-button
             nzType="text"
@@ -123,7 +125,7 @@
   </div>
 
   <div
-    *ngIf="isPrivateSearch"
+    *ngIf="isPrivateSearch && !isBatchSelectEnabled"
     class="button-group">
     <button
       *ngIf="entry.type==='workflow'"

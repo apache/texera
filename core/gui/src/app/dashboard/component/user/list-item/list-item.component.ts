@@ -8,7 +8,7 @@ import {
   SimpleChanges,
   ViewChild,
   ElementRef,
-  ChangeDetectorRef,
+  ChangeDetectorRef, HostListener,
 } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzModalService } from "ng-zorro-antd/modal";
@@ -32,6 +32,7 @@ import { formatSize } from "src/app/common/util/size-formatter.util";
 })
 export class ListItemComponent implements OnInit, OnChanges {
   private owners: number[] = [];
+  @Input() isBatchSelectEnabled = false;
   @Input() currentUid: number | undefined;
   @ViewChild("nameInput") nameInput!: ElementRef;
   @ViewChild("descriptionInput") descriptionInput!: ElementRef;
@@ -105,6 +106,7 @@ export class ListItemComponent implements OnInit, OnChanges {
 
   ngOnInit(): void {
     this.initializeEntry();
+    console.log(this.isBatchSelectEnabled)
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -256,4 +258,11 @@ export class ListItemComponent implements OnInit, OnChanges {
 
   // alias for formatSize
   formatSize = formatSize;
+
+  @HostListener("click")
+  onCardClick() {
+    if (this.isBatchSelectEnabled) {
+      this.entry.checked = !this.entry.checked;
+    }
+  }
 }
