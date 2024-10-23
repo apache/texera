@@ -24,6 +24,7 @@ export class SearchResultsComponent {
   @Output() deleted = new EventEmitter<DashboardEntry>();
   @Output() duplicated = new EventEmitter<DashboardEntry>();
   @Output() modified = new EventEmitter<DashboardEntry>();
+  public isBatchSelectEnabled = false;
 
   constructor(private userService: UserService) {}
 
@@ -53,5 +54,13 @@ export class SearchResultsComponent {
     } finally {
       this.loading = false;
     }
+  }
+
+  setBatchSelect(enabled: boolean) {
+    this.isBatchSelectEnabled = enabled;
+  }
+
+  clearAllSelections() {
+    this.entries.forEach(entry => (entry.checked = false));
   }
 }

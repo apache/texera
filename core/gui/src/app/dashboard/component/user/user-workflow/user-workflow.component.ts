@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, Input, ViewChild } from "@angular/core";
+import {AfterViewInit, ChangeDetectorRef, Component, Input, ViewChild} from "@angular/core";
 import { Router } from "@angular/router";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { firstValueFrom, from, lastValueFrom, Observable, of } from "rxjs";
@@ -25,6 +25,7 @@ import { map, mergeMap, switchMap, tap } from "rxjs/operators";
 import { environment } from "../../../../../environments/environment";
 import { DashboardWorkflow } from "../../../type/dashboard-workflow.interface";
 import { DownloadService } from "../../../service/user/download/download.service";
+import {NzMessageService} from "ng-zorro-antd/message";
 /**
  * Saved-workflow-section component contains information and functionality
  * of the saved workflows section and is re-used in the user projects section when a project is clicked
@@ -90,6 +91,7 @@ export class UserWorkflowComponent implements AfterViewInit {
   @Input() public accessLevel?: string = undefined;
   public sortMethod = SortMethod.EditTimeDesc;
   lastSortMethod: SortMethod | null = null;
+  public isBatchSelectEnabled = false;
 
   constructor(
     private userService: UserService,
@@ -99,7 +101,9 @@ export class UserWorkflowComponent implements AfterViewInit {
     private modalService: NzModalService,
     private router: Router,
     private downloadService: DownloadService,
-    private searchService: SearchService
+    private searchService: SearchService,
+    private cdr: ChangeDetectorRef,
+    private message: NzMessageService
   ) {
     this.userService
       .userChanged()
@@ -444,7 +448,8 @@ export class UserWorkflowComponent implements AfterViewInit {
       .pipe(untilDestroyed(this))
       .subscribe({
         next: () => {
-          checkedEntries.forEach(entry => (entry.checked = false));
+          this.searchResultsComponent.clearAllSelections();
+          this.cdr.detectChanges();
         },
         error: (err: unknown) => console.error("Error downloading workflows:", err),
       });
@@ -474,6 +479,9 @@ export class UserWorkflowComponent implements AfterViewInit {
                 ...duplicatedWorkflowsInfo.map(duplicatedWorkflowInfo => new DashboardEntry(duplicatedWorkflowInfo)),
                 ...this.searchResultsComponent.entries,
               ];
+
+              this.searchResultsComponent.clearAllSelections();
+              this.cdr.detectChanges();
             }, // TODO: fix this with notification component
             error: (err: unknown) => alert(err),
           });
@@ -488,6 +496,9 @@ export class UserWorkflowComponent implements AfterViewInit {
                 ...duplicatedWorkflowsInfo.map(duplicatedWorkflowInfo => new DashboardEntry(duplicatedWorkflowInfo)),
                 ...this.searchResultsComponent.entries,
               ];
+
+              this.searchResultsComponent.clearAllSelections();
+              this.cdr.detectChanges();
             }, // TODO: fix this with notification component
             error: (err: unknown) => alert(err),
           });
@@ -539,5 +550,20 @@ export class UserWorkflowComponent implements AfterViewInit {
         copyName = name + "-" + ++count;
       }
     }
+  }
+
+
+  toggleBatchSelect() {
+    this.isBatchSelectEnabled = !this.isBatchSelectEnabled;
+
+    if (!this.isBatchSelectEnabled) {
+      this.searchResultsComponent.clearAllSelections();
+    }
+
+    const message = this.isBatchSelectEnabled ? "Batch selection enabled." : "Batch selection disabled.";
+    this.message.info(message);
+
+    this.searchResultsComponent.setBatchSelect(this.isBatchSelectEnabled);
+    this.cdr.detectChanges();
   }
 }

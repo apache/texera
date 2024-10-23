@@ -106,7 +106,6 @@ export class ListItemComponent implements OnInit, OnChanges {
 
   ngOnInit(): void {
     this.initializeEntry();
-    console.log(this.isBatchSelectEnabled)
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -259,10 +258,10 @@ export class ListItemComponent implements OnInit, OnChanges {
   // alias for formatSize
   formatSize = formatSize;
 
-  @HostListener("click")
   onCardClick() {
     if (this.isBatchSelectEnabled) {
       this.entry.checked = !this.entry.checked;
+      this.cdr.markForCheck();
     }
   }
 }

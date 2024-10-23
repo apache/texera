@@ -33,6 +33,17 @@
               nzTheme="outline"></i>
           </button>
         </nz-upload>
+        <nz-badge [nzDot]="isBatchSelectEnabled" class="custom-badge">
+          <button
+            (click)="toggleBatchSelect()"
+            nz-button
+            nzType="default"
+          nz-tooltip="Toggle batch selection mode"
+          nzTooltipPlacement="bottom"
+          title="Batch Select">
+          <i nz-icon nzType="select" nzTheme="outline"></i>
+          </button>
+        </nz-badge>
         <button
           *ngIf="multiWorkflowsOperationButtonEnabled()"
           (click)="onClickOpenDownloadZip()"
