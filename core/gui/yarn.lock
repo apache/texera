@@ -11122,7 +11122,7 @@ __metadata:
     karma-jasmine-html-reporter: "npm:1.7.0"
     lodash-es: "npm:4.17.21"
     marked: "npm:4.3.0"
-    monaco-breakpoints: "npm:0.1.2"
+    monaco-breakpoints: "npm:0.2.0"
     monaco-editor: "npm:@codingame/monaco-vscode-editor-api@8.0.4"
     monaco-editor-wrapper: "npm:5.5.3"
     monaco-languageclient: "npm:8.8.3"
@@ -13820,12 +13820,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"monaco-breakpoints@npm:0.1.2":
-  version: 0.1.2
-  resolution: "monaco-breakpoints@npm:0.1.2"
+"monaco-breakpoints@npm:0.2.0":
+  version: 0.2.0
+  resolution: "monaco-breakpoints@npm:0.2.0"
   peerDependencies:
     monaco-editor: ^0.39.0
-  checksum: 10c0/61e8b62fccb3afa06834fda86b6334c0fff04f9ec46008f888b7e38fdc1267a78e1e77729332ea072c49b23b3b89735cc746f95bc8148e9be6e22d51c0c887c4
+  checksum: 10c0/4161b4e3c0afd8d1c68b880ad3e36c16acc1105f733e584c261c61d35a67274290a9db14dcd8e5c669e293aedd5f4f8c2525c7872ea98895e1cd15ef77852152
   languageName: node
   linkType: hard
 

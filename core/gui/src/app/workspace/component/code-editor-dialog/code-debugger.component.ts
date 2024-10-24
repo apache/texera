@@ -48,7 +48,14 @@ export class CodeDebuggerComponent implements AfterViewInit, SafeStyle {
       Exist,
     }
 
-    this.monacoBreakpoint = new MonacoBreakpoint({ editor });
+    this.monacoBreakpoint = new MonacoBreakpoint({ editor, hoverMessage: {
+        added: {
+          value: "Click to remove the breakpoint."
+        },
+        unAdded: {
+          value: "Click to add a breakpoint at this line."
+        }
+      }});
     // override the default createBreakpointDecoration so that it considers
     //  1) hovering breakpoints;
     //  2) exist breakpoints;
