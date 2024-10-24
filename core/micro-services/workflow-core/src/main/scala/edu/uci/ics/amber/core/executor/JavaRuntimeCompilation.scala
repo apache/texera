@@ -9,7 +9,7 @@ object JavaRuntimeCompilation {
   val compiler: JavaCompiler = ToolProvider.getSystemJavaCompiler
 
   def compileCode(code: String): Class[_] = {
-    val packageName = "edu.uci.ics.amber.operator.operators.udf.java"
+    val packageName = "edu.uci.ics.texera.workflow.operators.udf.java"
 
     //to hide it from user we will append the package in the udf code.
     val codeToCompile = s"package $packageName;\n$code"
