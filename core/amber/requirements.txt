@@ -1,13 +1,13 @@
 wheel==0.41.2
 numpy==1.26.4
-pandas==1.5.3
+pandas==2.2.2
 flake8==7.1.1
 black==24.3.0
 iniconfig==1.1.1
 loguru==0.7.0
 pyarrow==14.0.1
 pytest==7.4.0
-python-dateutil==2.8.1
+python-dateutil==2.8.2
 pytest-timeout==2.2.0
 protobuf==3.20.3
 betterproto==2.0.0b3
