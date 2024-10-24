@@ -145,8 +145,7 @@ export class CodeDebuggerComponent implements AfterViewInit, SafeStyle {
             const newValue = evt.target.get(lineNum)!;
             if (newValue.hit) {
               this.monacoBreakpoint?.setLineHighlight(Number(lineNum));
-            }
-            if (!newValue.hit) {
+            } else {
               this.monacoBreakpoint?.removeHighlight();
             }
             if (oldValue.condition !== newValue.condition) {
