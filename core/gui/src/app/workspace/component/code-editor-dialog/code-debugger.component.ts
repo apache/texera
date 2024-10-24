@@ -1,5 +1,5 @@
 import { AfterViewInit, Component, Input, ViewChild } from "@angular/core";
-import { UntilDestroy } from "@ngneat/until-destroy";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { SafeStyle } from "@angular/platform-browser";
 import "@codingame/monaco-vscode-python-default-extension";
 import "@codingame/monaco-vscode-r-default-extension";
@@ -16,6 +16,9 @@ import {
 import { MonacoBreakpoint } from "monaco-breakpoints";
 import { UdfDebugService } from "../../service/operator-debug/udf-debug.service";
 import { BreakpointConditionInputComponent } from "./breakpoint-condition-input/breakpoint-condition-input.component";
+import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
+import { distinctUntilChanged, map } from "rxjs/operators";
+import { OperatorState } from "../../types/execute-workflow.interface";
 import MouseTargetType = editor.MouseTargetType;
 
 /**
@@ -34,35 +37,40 @@ export class CodeDebuggerComponent implements AfterViewInit, SafeStyle {
   public monacoBreakpoint: MonacoBreakpoint | undefined = undefined;
   public breakpointConditionLine: number | undefined = undefined;
 
-  constructor(private udfDebugService: UdfDebugService) {}
+  constructor(private udfDebugService: UdfDebugService,
+              private workflowStatusService: WorkflowStatusService) {
+  }
 
   ngAfterViewInit() {
-    this.setupMonacoBreakpointMethods(this.monacoEditor);
-    this.rerenderExistingBreakpoints();
+    this.registerStatusChangeHandler();
     this.registerBreakpointRenderingHandler();
   }
 
   private setupMonacoBreakpointMethods(editor: MonacoEditor) {
+    console.log("setup");
+
     // mimic the enum in monaco-breakpoints
     enum BreakpointEnum {
       Exist,
     }
 
-    this.monacoBreakpoint = new MonacoBreakpoint({ editor, hoverMessage: {
+    this.monacoBreakpoint = new MonacoBreakpoint({
+      editor, hoverMessage: {
         added: {
-          value: "Click to remove the breakpoint."
+          value: "Click to remove the breakpoint.",
         },
         unAdded: {
-          value: "Click to add a breakpoint at this line."
-        }
-      }});
+          value: "Click to add a breakpoint at this line.",
+        },
+      },
+    });
     // override the default createBreakpointDecoration so that it considers
     //  1) hovering breakpoints;
     //  2) exist breakpoints;
     //  3) conditional breakpoints. (conditional breakpoints are also exist breakpoints)
     this.monacoBreakpoint["createBreakpointDecoration"] = (
       range: Range,
-      breakpointEnum: BreakpointEnum
+      breakpointEnum: BreakpointEnum,
     ): { range: Range; options: ModelDecorationOptions } => {
       const condition = this.udfDebugService.getCondition(this.currentOperatorId, range.startLineNumber);
 
@@ -96,6 +104,14 @@ export class CodeDebuggerComponent implements AfterViewInit, SafeStyle {
         }
       }
     });
+  }
+
+  private removeMonacoBreakpointMethods() {
+    if (!isDefined(this.monacoBreakpoint)) {
+      return;
+    }
+    this.monacoBreakpoint["mouseDownDisposable"]?.dispose();
+    this.monacoBreakpoint.dispose();
   }
 
   /**
@@ -184,6 +200,26 @@ export class CodeDebuggerComponent implements AfterViewInit, SafeStyle {
         return;
       }
       this.createBreakpointDecoration(Number(lineNumStr));
+    });
+  }
+
+  private registerStatusChangeHandler() {
+    this.workflowStatusService.getStatusUpdateStream()
+      .pipe(
+        map(event => event[this.currentOperatorId]?.operatorState === OperatorState.Running || event[this.currentOperatorId]?.operatorState === OperatorState.Paused),
+        distinctUntilChanged(),
+        untilDestroyed(this),
+      ).subscribe((enable) => {
+
+      // Only enable the breakpoint methods if the operator is running or paused
+      if (enable) {
+        this.setupMonacoBreakpointMethods(this.monacoEditor);
+        this.rerenderExistingBreakpoints();
+      } else {
+
+        // for other states, remove the breakpoint methods
+        this.removeMonacoBreakpointMethods();
+      }
     });
   }
 }
