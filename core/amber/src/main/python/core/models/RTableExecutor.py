@@ -60,9 +60,6 @@ class RTableExecutor(TableOperator):
             )
             output_pyarrow_table = rarrow_to_py_table(output_rarrow_table)
 
-        if output_pyarrow_table.num_rows == 0:
-            return []
-
         for field_accessor in ArrowTableTupleProvider(output_pyarrow_table):
             yield Tuple(
                 {name: field_accessor for name in output_pyarrow_table.column_names}
