@@ -32,6 +32,7 @@ import { formatSize } from "src/app/common/util/size-formatter.util";
 })
 export class ListItemComponent implements OnInit, OnChanges {
   private owners: number[] = [];
+  private originalName: string = "";
   @Input() currentUid: number | undefined;
   @ViewChild("nameInput") nameInput!: ElementRef;
   @ViewChild("descriptionInput") descriptionInput!: ElementRef;
@@ -159,6 +160,7 @@ export class ListItemComponent implements OnInit, OnChanges {
   };
 
   onEditName(): void {
+    this.originalName = this.entry.name;
     this.editingName = true;
     setTimeout(() => {
       if (this.nameInput) {
@@ -183,14 +185,23 @@ export class ListItemComponent implements OnInit, OnChanges {
   }
 
   public confirmUpdateWorkflowCustomName(name: string): void {
+    const workflowName = name || DEFAULT_WORKFLOW_NAME;
+    
     this.workflowPersistService
-      .updateWorkflowName(this.entry.id, name || DEFAULT_WORKFLOW_NAME)
+      .updateWorkflowName(this.entry.id, workflowName)
       .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        this.entry.name = name || DEFAULT_WORKFLOW_NAME;
-      })
-      .add(() => {
-        this.editingName = false;
+      .subscribe({
+        next: () => {
+          this.entry.name = workflowName;
+        },
+        error: (err) => {
+          console.error("Failed to update workflow name:", err);
+          this.entry.name = this.originalName;
+          this.editingName = false;
+        },
+        complete: () => {
+          this.editingName = false;
+        }
       });
   }
 
