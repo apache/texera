@@ -32,6 +32,8 @@ import { formatSize } from "src/app/common/util/size-formatter.util";
 })
 export class ListItemComponent implements OnInit, OnChanges {
   private owners: number[] = [];
+  public originalName: string = "";
+  public originalDescription: string | undefined = undefined;
   @Input() currentUid: number | undefined;
   @ViewChild("nameInput") nameInput!: ElementRef;
   @ViewChild("descriptionInput") descriptionInput!: ElementRef;
@@ -159,6 +161,7 @@ export class ListItemComponent implements OnInit, OnChanges {
   };
 
   onEditName(): void {
+    this.originalName = this.entry.name;
     this.editingName = true;
     setTimeout(() => {
       if (this.nameInput) {
@@ -171,6 +174,7 @@ export class ListItemComponent implements OnInit, OnChanges {
   }
 
   onEditDescription(): void {
+    this.originalDescription = this.entry.description;
     this.editingDescription = true;
     setTimeout(() => {
       if (this.descriptionInput) {
@@ -182,30 +186,56 @@ export class ListItemComponent implements OnInit, OnChanges {
     }, 0);
   }
 
-  public confirmUpdateWorkflowCustomName(name: string): void {
-    this.workflowPersistService
-      .updateWorkflowName(this.entry.id, name || DEFAULT_WORKFLOW_NAME)
+  private updateWorkflowProperty(
+    updateMethod: (id: number | undefined, value: string) => any,
+    propertyName: "name" | "description",
+    newValue: string,
+    originalValue: string | undefined
+  ): void {
+    updateMethod(this.entry.id, newValue)
       .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        this.entry.name = name || DEFAULT_WORKFLOW_NAME;
-      })
-      .add(() => {
-        this.editingName = false;
+      .subscribe({
+        next: () => {
+          this.entry[propertyName] = newValue;
+        },
+        error: (err: unknown) => {
+          console.error(`Failed to update workflow ${propertyName}:`, err);
+          // Use a fallback empty string if originalValue is undefined
+          this.entry[propertyName] = originalValue ?? "";
+          this.setEditingState(propertyName, false);
+        },
+        complete: () => {
+          this.setEditingState(propertyName, false);
+        },
       });
   }
 
-  public confirmUpdateWorkflowCustomDescription(description: string | undefined): void {
-    const updatedDescription = description !== undefined ? description : "";
+  private setEditingState(propertyName: "name" | "description", state: boolean): void {
+    if (propertyName === "name") {
+      this.editingName = state;
+    } else if (propertyName === "description") {
+      this.editingDescription = state;
+    }
+  }
 
-    this.workflowPersistService
-      .updateWorkflowDescription(this.entry.id, updatedDescription)
-      .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        this.entry.description = updatedDescription;
-      })
-      .add(() => {
-        this.editingDescription = false;
-      });
+  public confirmUpdateWorkflowCustomName(name: string): void {
+    const workflowName = name || DEFAULT_WORKFLOW_NAME;
+    this.updateWorkflowProperty(
+      this.workflowPersistService.updateWorkflowName.bind(this.workflowPersistService),
+      "name",
+      workflowName,
+      this.originalName
+    );
+  }
+
+  public confirmUpdateWorkflowCustomDescription(description: string | undefined): void {
+    const updatedDescription = description ?? "";
+    this.updateWorkflowProperty(
+      this.workflowPersistService.updateWorkflowDescription.bind(this.workflowPersistService),
+      "description",
+      updatedDescription,
+      this.originalDescription
+    );
   }
 
   formatTime(timestamp: number | undefined): string {
