@@ -90,12 +90,14 @@ export class FilesUploaderComponent {
           successfulUploads.forEach(fileUploadItem => {
             this.addFileToNewUploadsFileTree(fileUploadItem.name, fileUploadItem);
           });
-          this.showFileUploadBanner("success", `${successfulUploads.length} files uploaded successfully!`);
+          const successMessage = `${successfulUploads.length} file${successfulUploads.length > 1 ? "s" : ""} selected successfully!`;
+          this.showFileUploadBanner("success", successMessage);
         }
 
         const failedCount = results.length - successfulUploads.length;
         if (failedCount > 0) {
-          this.showFileUploadBanner("error", `${failedCount} files failed to upload.`);
+          const errorMessage = `${failedCount} file${failedCount > 1 ? "s" : ""} failed to be selected.`;
+          this.showFileUploadBanner("error", errorMessage);
         }
 
         this.uploadedFiles.emit(Array.from(this.newUploadNodeToFileItems.values()));
