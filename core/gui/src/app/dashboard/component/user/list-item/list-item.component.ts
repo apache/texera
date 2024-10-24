@@ -186,46 +186,56 @@ export class ListItemComponent implements OnInit, OnChanges {
     }, 0);
   }
 
-  public confirmUpdateWorkflowCustomName(name: string): void {
-    const workflowName = name || DEFAULT_WORKFLOW_NAME;
-
-    this.workflowPersistService
-      .updateWorkflowName(this.entry.id, workflowName)
+  private updateWorkflowProperty(
+    updateMethod: (id: number | undefined, value: string) => any,
+    propertyName: "name" | "description",
+    newValue: string,
+    originalValue: string | undefined
+  ): void {
+    updateMethod(this.entry.id, newValue)
       .pipe(untilDestroyed(this))
       .subscribe({
         next: () => {
-          this.entry.name = workflowName;
+          this.entry[propertyName] = newValue;
         },
         error: (err: unknown) => {
-          console.error("Failed to update workflow name:", err);
-          this.entry.name = this.originalName;
-          this.editingName = false;
+          console.error(`Failed to update workflow ${propertyName}:`, err);
+          // Use a fallback empty string if originalValue is undefined
+          this.entry[propertyName] = originalValue ?? "";
+          this.setEditingState(propertyName, false);
         },
         complete: () => {
-          this.editingName = false;
+          this.setEditingState(propertyName, false);
         },
       });
   }
 
-  public confirmUpdateWorkflowCustomDescription(description: string | undefined): void {
-    const updatedDescription = description !== undefined ? description : "";
+  private setEditingState(propertyName: "name" | "description", state: boolean): void {
+    if (propertyName === "name") {
+      this.editingName = state;
+    } else if (propertyName === "description") {
+      this.editingDescription = state;
+    }
+  }
 
-    this.workflowPersistService
-      .updateWorkflowDescription(this.entry.id, updatedDescription)
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: () => {
-          this.entry.description = updatedDescription;
-        },
-        error: (err: unknown) => {
-          console.error("Failed to update workflow description:", err);
-          this.entry.description = this.originalDescription;
-          this.editingDescription = false;
-        },
-        complete: () => {
-          this.editingDescription = false;
-        },
-      });
+  public confirmUpdateWorkflowCustomName(name: string): void {
+    const workflowName = name || DEFAULT_WORKFLOW_NAME;
+    this.updateWorkflowProperty(
+      this.workflowPersistService.updateWorkflowName.bind(this.workflowPersistService),
+      "name",
+      workflowName,
+      this.originalName
+    );
+  }
+
+  public confirmUpdateWorkflowCustomDescription(description: string | undefined): void {
+    const updatedDescription = description ?? "";
+    this.updateWorkflowProperty(
+      this.workflowPersistService.updateWorkflowDescription.bind(this.workflowPersistService),
+      "description",
+      updatedDescription,
+      this.originalDescription
+    );
   }
 
   formatTime(timestamp: number | undefined): string {
