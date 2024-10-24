@@ -93,6 +93,14 @@ class WorkflowEmailNotifier(
       .withZone(ZoneOffset.UTC)
       .format(instant)
 
-  private def createDashboardUrl(): String =
-    s"http://${sessionUri.getHost}:${sessionUri.getPort}/dashboard/user/workspace/$workflowId"
+  private def createDashboardUrl(): String = {
+    val host = sessionUri.getHost
+    val port = sessionUri.getPort
+    val path = s"/dashboard/user/workspace/$workflowId"
+    if (port == -1 || port == 80 || port == 443) {
+      s"http://$host$path"
+    } else {
+      s"http://$host:$port$path"
+    }
+  }
 }
