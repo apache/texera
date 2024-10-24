@@ -186,7 +186,7 @@ export class ListItemComponent implements OnInit, OnChanges {
 
   public confirmUpdateWorkflowCustomName(name: string): void {
     const workflowName = name || DEFAULT_WORKFLOW_NAME;
-    
+
     this.workflowPersistService
       .updateWorkflowName(this.entry.id, workflowName)
       .pipe(untilDestroyed(this))
@@ -194,14 +194,14 @@ export class ListItemComponent implements OnInit, OnChanges {
         next: () => {
           this.entry.name = workflowName;
         },
-        error: (err) => {
+        error: (err: unknown) => {
           console.error("Failed to update workflow name:", err);
           this.entry.name = this.originalName;
           this.editingName = false;
         },
         complete: () => {
           this.editingName = false;
-        }
+        },
       });
   }
 
