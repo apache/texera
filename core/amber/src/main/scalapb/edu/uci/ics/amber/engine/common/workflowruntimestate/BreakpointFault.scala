@@ -88,7 +88,7 @@ object BreakpointFault extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amb
         case 10 =>
           __workerName = _input__.readStringRequireUtf8()
         case 18 =>
-          __faultedTuple = _root_.scala.Option(__faultedTuple.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.workflowruntimestate.BreakpointFault.BreakpointTuple](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+          __faultedTuple = Option(__faultedTuple.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.workflowruntimestate.BreakpointFault.BreakpointTuple](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case tag => _input__.skipField(tag)
       }
     }
@@ -281,7 +281,7 @@ object BreakpointFault extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amb
   
   implicit class BreakpointFaultLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.workflowruntimestate.BreakpointFault]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.common.workflowruntimestate.BreakpointFault](_l) {
     def workerName: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.workerName)((c_, f_) => c_.copy(workerName = f_))
-    def faultedTuple: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.workflowruntimestate.BreakpointFault.BreakpointTuple] = field(_.getFaultedTuple)((c_, f_) => c_.copy(faultedTuple = _root_.scala.Option(f_)))
+    def faultedTuple: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.workflowruntimestate.BreakpointFault.BreakpointTuple] = field(_.getFaultedTuple)((c_, f_) => c_.copy(faultedTuple = Option(f_)))
     def optionalFaultedTuple: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Option[edu.uci.ics.amber.engine.common.workflowruntimestate.BreakpointFault.BreakpointTuple]] = field(_.faultedTuple)((c_, f_) => c_.copy(faultedTuple = f_))
   }
   final val WORKER_NAME_FIELD_NUMBER = 1

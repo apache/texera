@@ -6,8 +6,7 @@
 package edu.uci.ics.amber.engine.architecture.rpc.controlreturns
 
 sealed abstract class ErrorLanguage(val value: _root_.scala.Int) extends _root_.scalapb.GeneratedEnum {
-  type EnumType = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ErrorLanguage
-  type RecognizedType = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ErrorLanguage.Recognized
+  type EnumType = ErrorLanguage
   def isPython: _root_.scala.Boolean = false
   def isScala: _root_.scala.Boolean = false
   def companion: _root_.scalapb.GeneratedEnumCompanion[ErrorLanguage] = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ErrorLanguage
@@ -34,7 +33,7 @@ object ErrorLanguage extends _root_.scalapb.GeneratedEnumCompanion[ErrorLanguage
   
   @SerialVersionUID(0L)
   final case class Unrecognized(unrecognizedValue: _root_.scala.Int) extends ErrorLanguage(unrecognizedValue) with _root_.scalapb.UnrecognizedEnum
-  lazy val values: scala.collection.immutable.Seq[ValueType] = scala.collection.immutable.Seq(PYTHON, SCALA)
+  lazy val values = scala.collection.immutable.Seq(PYTHON, SCALA)
   def fromValue(__value: _root_.scala.Int): ErrorLanguage = __value match {
     case 0 => PYTHON
     case 1 => SCALA

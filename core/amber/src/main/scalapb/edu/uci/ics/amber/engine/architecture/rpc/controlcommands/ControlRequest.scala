@@ -4480,7 +4480,7 @@ object UpdateExecutorRequest extends scalapb.GeneratedMessageCompanion[edu.uci.i
         case 18 =>
           __newExecutor = _root_.scala.Some(__newExecutor.fold(_root_.scalapb.LiteParser.readMessage[com.google.protobuf.any.Any](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 26 =>
-          __stateTransferFunc = _root_.scala.Option(__stateTransferFunc.fold(_root_.scalapb.LiteParser.readMessage[com.google.protobuf.any.Any](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+          __stateTransferFunc = Option(__stateTransferFunc.fold(_root_.scalapb.LiteParser.readMessage[com.google.protobuf.any.Any](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case tag => _input__.skipField(tag)
       }
     }
@@ -4521,7 +4521,7 @@ object UpdateExecutorRequest extends scalapb.GeneratedMessageCompanion[edu.uci.i
   implicit class UpdateExecutorRequestLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlcommands.UpdateExecutorRequest]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlcommands.UpdateExecutorRequest](_l) {
     def targetOpId: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity] = field(_.targetOpId)((c_, f_) => c_.copy(targetOpId = f_))
     def newExecutor: _root_.scalapb.lenses.Lens[UpperPB, com.google.protobuf.any.Any] = field(_.newExecutor)((c_, f_) => c_.copy(newExecutor = f_))
-    def stateTransferFunc: _root_.scalapb.lenses.Lens[UpperPB, com.google.protobuf.any.Any] = field(_.getStateTransferFunc)((c_, f_) => c_.copy(stateTransferFunc = _root_.scala.Option(f_)))
+    def stateTransferFunc: _root_.scalapb.lenses.Lens[UpperPB, com.google.protobuf.any.Any] = field(_.getStateTransferFunc)((c_, f_) => c_.copy(stateTransferFunc = Option(f_)))
     def optionalStateTransferFunc: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Option[com.google.protobuf.any.Any]] = field(_.stateTransferFunc)((c_, f_) => c_.copy(stateTransferFunc = f_))
   }
   final val TARGETOPID_FIELD_NUMBER = 1

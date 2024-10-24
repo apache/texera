@@ -191,7 +191,7 @@ object WorkerServiceGrpc {
   /** RPC Service
     */
   trait WorkerService extends _root_.scalapb.grpc.AbstractService {
-    override def serviceCompanion: _root_.scalapb.grpc.ServiceCompanion[WorkerService] = WorkerService
+    override def serviceCompanion = WorkerService
     def addInputChannel(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.AddInputChannelRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]
     def addPartitioning(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.AddPartitioningRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]
     def assignPort(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.AssignPortRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]
@@ -218,99 +218,115 @@ object WorkerServiceGrpc {
       _root_.io.grpc.ServerServiceDefinition.builder(SERVICE)
       .addMethod(
         METHOD_ADD_INPUT_CHANNEL,
-        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.AddInputChannelRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]) => {
-          serviceImpl.addInputChannel(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
-            executionContext)
+        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall(new _root_.io.grpc.stub.ServerCalls.UnaryMethod[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.AddInputChannelRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] {
+          override def invoke(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.AddInputChannelRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]): _root_.scala.Unit =
+            serviceImpl.addInputChannel(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
+              executionContext)
         }))
       .addMethod(
         METHOD_ADD_PARTITIONING,
-        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.AddPartitioningRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]) => {
-          serviceImpl.addPartitioning(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
-            executionContext)
+        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall(new _root_.io.grpc.stub.ServerCalls.UnaryMethod[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.AddPartitioningRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] {
+          override def invoke(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.AddPartitioningRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]): _root_.scala.Unit =
+            serviceImpl.addPartitioning(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
+              executionContext)
         }))
       .addMethod(
         METHOD_ASSIGN_PORT,
-        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.AssignPortRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]) => {
-          serviceImpl.assignPort(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
-            executionContext)
+        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall(new _root_.io.grpc.stub.ServerCalls.UnaryMethod[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.AssignPortRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] {
+          override def invoke(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.AssignPortRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]): _root_.scala.Unit =
+            serviceImpl.assignPort(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
+              executionContext)
         }))
       .addMethod(
         METHOD_FINALIZE_CHECKPOINT,
-        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.FinalizeCheckpointRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.FinalizeCheckpointResponse]) => {
-          serviceImpl.finalizeCheckpoint(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
-            executionContext)
+        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall(new _root_.io.grpc.stub.ServerCalls.UnaryMethod[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.FinalizeCheckpointRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.FinalizeCheckpointResponse] {
+          override def invoke(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.FinalizeCheckpointRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.FinalizeCheckpointResponse]): _root_.scala.Unit =
+            serviceImpl.finalizeCheckpoint(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
+              executionContext)
         }))
       .addMethod(
         METHOD_FLUSH_NETWORK_BUFFER,
-        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]) => {
-          serviceImpl.flushNetworkBuffer(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
-            executionContext)
+        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall(new _root_.io.grpc.stub.ServerCalls.UnaryMethod[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] {
+          override def invoke(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]): _root_.scala.Unit =
+            serviceImpl.flushNetworkBuffer(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
+              executionContext)
         }))
       .addMethod(
         METHOD_INITIALIZE_EXECUTOR,
-        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.InitializeExecutorRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]) => {
-          serviceImpl.initializeExecutor(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
-            executionContext)
+        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall(new _root_.io.grpc.stub.ServerCalls.UnaryMethod[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.InitializeExecutorRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] {
+          override def invoke(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.InitializeExecutorRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]): _root_.scala.Unit =
+            serviceImpl.initializeExecutor(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
+              executionContext)
         }))
       .addMethod(
         METHOD_OPEN_EXECUTOR,
-        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]) => {
-          serviceImpl.openExecutor(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
-            executionContext)
+        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall(new _root_.io.grpc.stub.ServerCalls.UnaryMethod[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] {
+          override def invoke(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]): _root_.scala.Unit =
+            serviceImpl.openExecutor(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
+              executionContext)
         }))
       .addMethod(
         METHOD_PAUSE_WORKER,
-        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerStateResponse]) => {
-          serviceImpl.pauseWorker(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
-            executionContext)
+        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall(new _root_.io.grpc.stub.ServerCalls.UnaryMethod[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerStateResponse] {
+          override def invoke(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerStateResponse]): _root_.scala.Unit =
+            serviceImpl.pauseWorker(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
+              executionContext)
         }))
       .addMethod(
         METHOD_PREPARE_CHECKPOINT,
-        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PrepareCheckpointRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]) => {
-          serviceImpl.prepareCheckpoint(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
-            executionContext)
+        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall(new _root_.io.grpc.stub.ServerCalls.UnaryMethod[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PrepareCheckpointRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] {
+          override def invoke(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.PrepareCheckpointRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]): _root_.scala.Unit =
+            serviceImpl.prepareCheckpoint(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
+              executionContext)
         }))
       .addMethod(
         METHOD_QUERY_STATISTICS,
-        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerMetricsResponse]) => {
-          serviceImpl.queryStatistics(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
-            executionContext)
+        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall(new _root_.io.grpc.stub.ServerCalls.UnaryMethod[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerMetricsResponse] {
+          override def invoke(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerMetricsResponse]): _root_.scala.Unit =
+            serviceImpl.queryStatistics(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
+              executionContext)
         }))
       .addMethod(
         METHOD_RESUME_WORKER,
-        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerStateResponse]) => {
-          serviceImpl.resumeWorker(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
-            executionContext)
+        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall(new _root_.io.grpc.stub.ServerCalls.UnaryMethod[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerStateResponse] {
+          override def invoke(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerStateResponse]): _root_.scala.Unit =
+            serviceImpl.resumeWorker(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
+              executionContext)
         }))
       .addMethod(
         METHOD_RETRIEVE_STATE,
-        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]) => {
-          serviceImpl.retrieveState(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
-            executionContext)
+        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall(new _root_.io.grpc.stub.ServerCalls.UnaryMethod[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] {
+          override def invoke(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]): _root_.scala.Unit =
+            serviceImpl.retrieveState(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
+              executionContext)
         }))
       .addMethod(
         METHOD_START_WORKER,
-        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerStateResponse]) => {
-          serviceImpl.startWorker(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
-            executionContext)
+        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall(new _root_.io.grpc.stub.ServerCalls.UnaryMethod[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerStateResponse] {
+          override def invoke(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerStateResponse]): _root_.scala.Unit =
+            serviceImpl.startWorker(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
+              executionContext)
         }))
       .addMethod(
         METHOD_MODIFY_LOGIC,
-        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ModifyLogicRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]) => {
-          serviceImpl.modifyLogic(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
-            executionContext)
+        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall(new _root_.io.grpc.stub.ServerCalls.UnaryMethod[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ModifyLogicRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] {
+          override def invoke(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ModifyLogicRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]): _root_.scala.Unit =
+            serviceImpl.modifyLogic(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
+              executionContext)
         }))
       .addMethod(
         METHOD_DEBUG_COMMAND,
-        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.DebugCommandRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]) => {
-          serviceImpl.debugCommand(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
-            executionContext)
+        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall(new _root_.io.grpc.stub.ServerCalls.UnaryMethod[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.DebugCommandRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] {
+          override def invoke(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.DebugCommandRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]): _root_.scala.Unit =
+            serviceImpl.debugCommand(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
+              executionContext)
         }))
       .addMethod(
         METHOD_EVALUATE_PYTHON_EXPRESSION,
-        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall((request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EvaluatePythonExpressionRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EvaluatedValue]) => {
-          serviceImpl.evaluatePythonExpression(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
-            executionContext)
+        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall(new _root_.io.grpc.stub.ServerCalls.UnaryMethod[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EvaluatePythonExpressionRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EvaluatedValue] {
+          override def invoke(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EvaluatePythonExpressionRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EvaluatedValue]): _root_.scala.Unit =
+            serviceImpl.evaluatePythonExpression(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
+              executionContext)
         }))
       .build()
   }
@@ -318,7 +334,7 @@ object WorkerServiceGrpc {
   /** RPC Service
     */
   trait WorkerServiceBlockingClient {
-    def serviceCompanion: _root_.scalapb.grpc.ServiceCompanion[WorkerService] = WorkerService
+    def serviceCompanion = WorkerService
     def addInputChannel(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.AddInputChannelRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
     def addPartitioning(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.AddPartitioningRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
     def assignPort(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.AssignPortRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn

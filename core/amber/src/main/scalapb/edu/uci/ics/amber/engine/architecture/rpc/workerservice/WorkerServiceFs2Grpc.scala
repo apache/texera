@@ -23,8 +23,6 @@ trait WorkerServiceFs2Grpc[F[_], A] {
 
 object WorkerServiceFs2Grpc extends _root_.fs2.grpc.GeneratedCompanion[WorkerServiceFs2Grpc] {
   
-  def serviceDescriptor: _root_.io.grpc.ServiceDescriptor = edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.SERVICE
-  
   def mkClient[F[_]: _root_.cats.effect.Async, A](dispatcher: _root_.cats.effect.std.Dispatcher[F], channel: _root_.io.grpc.Channel, mkMetadata: A => F[_root_.io.grpc.Metadata], clientOptions: _root_.fs2.grpc.client.ClientOptions): WorkerServiceFs2Grpc[F, A] = new WorkerServiceFs2Grpc[F, A] {
     def addInputChannel(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.AddInputChannelRequest, ctx: A): F[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] = {
       mkMetadata(ctx).flatMap { m =>

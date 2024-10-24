@@ -8,8 +8,7 @@ package edu.uci.ics.amber.engine.architecture.rpc.controlcommands
 /** Enum for ChannelMarkerType
   */
 sealed abstract class ChannelMarkerType(val value: _root_.scala.Int) extends _root_.scalapb.GeneratedEnum {
-  type EnumType = edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType
-  type RecognizedType = edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType.Recognized
+  type EnumType = ChannelMarkerType
   def isRequireAlignment: _root_.scala.Boolean = false
   def isNoAlignment: _root_.scala.Boolean = false
   def companion: _root_.scalapb.GeneratedEnumCompanion[ChannelMarkerType] = edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType
@@ -36,7 +35,7 @@ object ChannelMarkerType extends _root_.scalapb.GeneratedEnumCompanion[ChannelMa
   
   @SerialVersionUID(0L)
   final case class Unrecognized(unrecognizedValue: _root_.scala.Int) extends ChannelMarkerType(unrecognizedValue) with _root_.scalapb.UnrecognizedEnum
-  lazy val values: scala.collection.immutable.Seq[ValueType] = scala.collection.immutable.Seq(REQUIRE_ALIGNMENT, NO_ALIGNMENT)
+  lazy val values = scala.collection.immutable.Seq(REQUIRE_ALIGNMENT, NO_ALIGNMENT)
   def fromValue(__value: _root_.scala.Int): ChannelMarkerType = __value match {
     case 0 => REQUIRE_ALIGNMENT
     case 1 => NO_ALIGNMENT

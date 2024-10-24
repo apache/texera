@@ -22,8 +22,6 @@ trait ControllerServiceFs2Grpc[F[_], A] {
 
 object ControllerServiceFs2Grpc extends _root_.fs2.grpc.GeneratedCompanion[ControllerServiceFs2Grpc] {
   
-  def serviceDescriptor: _root_.io.grpc.ServiceDescriptor = edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerServiceGrpc.SERVICE
-  
   def mkClient[F[_]: _root_.cats.effect.Async, A](dispatcher: _root_.cats.effect.std.Dispatcher[F], channel: _root_.io.grpc.Channel, mkMetadata: A => F[_root_.io.grpc.Metadata], clientOptions: _root_.fs2.grpc.client.ClientOptions): ControllerServiceFs2Grpc[F, A] = new ControllerServiceFs2Grpc[F, A] {
     def retrieveWorkflowState(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest, ctx: A): F[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.RetrieveWorkflowStateResponse] = {
       mkMetadata(ctx).flatMap { m =>

@@ -6,8 +6,7 @@
 package edu.uci.ics.amber.engine.architecture.rpc.controlcommands
 
 sealed abstract class ConsoleMessageType(val value: _root_.scala.Int) extends _root_.scalapb.GeneratedEnum {
-  type EnumType = edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessageType
-  type RecognizedType = edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessageType.Recognized
+  type EnumType = ConsoleMessageType
   def isPrint: _root_.scala.Boolean = false
   def isError: _root_.scala.Boolean = false
   def isCommand: _root_.scala.Boolean = false
@@ -50,7 +49,7 @@ object ConsoleMessageType extends _root_.scalapb.GeneratedEnumCompanion[ConsoleM
   
   @SerialVersionUID(0L)
   final case class Unrecognized(unrecognizedValue: _root_.scala.Int) extends ConsoleMessageType(unrecognizedValue) with _root_.scalapb.UnrecognizedEnum
-  lazy val values: scala.collection.immutable.Seq[ValueType] = scala.collection.immutable.Seq(PRINT, ERROR, COMMAND, DEBUGGER)
+  lazy val values = scala.collection.immutable.Seq(PRINT, ERROR, COMMAND, DEBUGGER)
   def fromValue(__value: _root_.scala.Int): ConsoleMessageType = __value match {
     case 0 => PRINT
     case 1 => ERROR

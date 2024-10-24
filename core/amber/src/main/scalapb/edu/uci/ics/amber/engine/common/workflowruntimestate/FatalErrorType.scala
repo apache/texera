@@ -6,8 +6,7 @@
 package edu.uci.ics.amber.engine.common.workflowruntimestate
 
 sealed abstract class FatalErrorType(val value: _root_.scala.Int) extends _root_.scalapb.GeneratedEnum {
-  type EnumType = edu.uci.ics.amber.engine.common.workflowruntimestate.FatalErrorType
-  type RecognizedType = edu.uci.ics.amber.engine.common.workflowruntimestate.FatalErrorType.Recognized
+  type EnumType = FatalErrorType
   def isCompilationError: _root_.scala.Boolean = false
   def isExecutionFailure: _root_.scala.Boolean = false
   def companion: _root_.scalapb.GeneratedEnumCompanion[FatalErrorType] = edu.uci.ics.amber.engine.common.workflowruntimestate.FatalErrorType
@@ -34,7 +33,7 @@ object FatalErrorType extends _root_.scalapb.GeneratedEnumCompanion[FatalErrorTy
   
   @SerialVersionUID(0L)
   final case class Unrecognized(unrecognizedValue: _root_.scala.Int) extends FatalErrorType(unrecognizedValue) with _root_.scalapb.UnrecognizedEnum
-  lazy val values: scala.collection.immutable.Seq[ValueType] = scala.collection.immutable.Seq(COMPILATION_ERROR, EXECUTION_FAILURE)
+  lazy val values = scala.collection.immutable.Seq(COMPILATION_ERROR, EXECUTION_FAILURE)
   def fromValue(__value: _root_.scala.Int): FatalErrorType = __value match {
     case 0 => COMPILATION_ERROR
     case 1 => EXECUTION_FAILURE

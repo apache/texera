@@ -6,8 +6,7 @@
 package edu.uci.ics.amber.engine.architecture.rpc.controlreturns
 
 sealed abstract class WorkflowAggregatedState(val value: _root_.scala.Int) extends _root_.scalapb.GeneratedEnum {
-  type EnumType = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
-  type RecognizedType = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.Recognized
+  type EnumType = WorkflowAggregatedState
   def isUninitialized: _root_.scala.Boolean = false
   def isReady: _root_.scala.Boolean = false
   def isRunning: _root_.scala.Boolean = false
@@ -98,7 +97,7 @@ object WorkflowAggregatedState extends _root_.scalapb.GeneratedEnumCompanion[Wor
   
   @SerialVersionUID(0L)
   final case class Unrecognized(unrecognizedValue: _root_.scala.Int) extends WorkflowAggregatedState(unrecognizedValue) with _root_.scalapb.UnrecognizedEnum
-  lazy val values: scala.collection.immutable.Seq[ValueType] = scala.collection.immutable.Seq(UNINITIALIZED, READY, RUNNING, PAUSING, PAUSED, RESUMING, COMPLETED, FAILED, UNKNOWN, KILLED)
+  lazy val values = scala.collection.immutable.Seq(UNINITIALIZED, READY, RUNNING, PAUSING, PAUSED, RESUMING, COMPLETED, FAILED, UNKNOWN, KILLED)
   def fromValue(__value: _root_.scala.Int): WorkflowAggregatedState = __value match {
     case 0 => UNINITIALIZED
     case 1 => READY

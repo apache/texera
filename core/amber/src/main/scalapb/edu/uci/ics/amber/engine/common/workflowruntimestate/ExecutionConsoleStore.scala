@@ -182,7 +182,7 @@ object ExecutionConsoleStore extends scalapb.GeneratedMessageCompanion[edu.uci.i
           case 10 =>
             __key = _input__.readStringRequireUtf8()
           case 18 =>
-            __value = _root_.scala.Option(__value.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorConsole](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+            __value = Option(__value.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorConsole](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
           case tag => _input__.skipField(tag)
         }
       }
@@ -217,7 +217,7 @@ object ExecutionConsoleStore extends scalapb.GeneratedMessageCompanion[edu.uci.i
     )
     implicit class OperatorConsoleEntryLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionConsoleStore.OperatorConsoleEntry]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionConsoleStore.OperatorConsoleEntry](_l) {
       def key: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.key)((c_, f_) => c_.copy(key = f_))
-      def value: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorConsole] = field(_.getValue)((c_, f_) => c_.copy(value = _root_.scala.Option(f_)))
+      def value: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorConsole] = field(_.getValue)((c_, f_) => c_.copy(value = Option(f_)))
       def optionalValue: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Option[edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorConsole]] = field(_.value)((c_, f_) => c_.copy(value = f_))
     }
     final val KEY_FIELD_NUMBER = 1

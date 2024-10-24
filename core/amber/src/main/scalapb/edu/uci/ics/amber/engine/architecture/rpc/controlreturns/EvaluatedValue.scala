@@ -83,7 +83,7 @@ object EvaluatedValue extends scalapb.GeneratedMessageCompanion[edu.uci.ics.ambe
       _tag__ match {
         case 0 => _done__ = true
         case 10 =>
-          __value = _root_.scala.Option(__value.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.TypedValue](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+          __value = Option(__value.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.TypedValue](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 18 =>
           __attributes += _root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.TypedValue](_input__)
         case tag => _input__.skipField(tag)
@@ -120,7 +120,7 @@ object EvaluatedValue extends scalapb.GeneratedMessageCompanion[edu.uci.ics.ambe
     attributes = _root_.scala.Seq.empty
   )
   implicit class EvaluatedValueLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EvaluatedValue]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EvaluatedValue](_l) {
-    def value: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.TypedValue] = field(_.getValue)((c_, f_) => c_.copy(value = _root_.scala.Option(f_)))
+    def value: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.TypedValue] = field(_.getValue)((c_, f_) => c_.copy(value = Option(f_)))
     def optionalValue: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.TypedValue]] = field(_.value)((c_, f_) => c_.copy(value = f_))
     def attributes: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.TypedValue]] = field(_.attributes)((c_, f_) => c_.copy(attributes = f_))
   }

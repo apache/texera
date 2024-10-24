@@ -17,8 +17,6 @@ trait RPCTesterFs2Grpc[F[_], A] {
 
 object RPCTesterFs2Grpc extends _root_.fs2.grpc.GeneratedCompanion[RPCTesterFs2Grpc] {
   
-  def serviceDescriptor: _root_.io.grpc.ServiceDescriptor = edu.uci.ics.amber.engine.architecture.rpc.testerservice.RPCTesterGrpc.SERVICE
-  
   def mkClient[F[_]: _root_.cats.effect.Async, A](dispatcher: _root_.cats.effect.std.Dispatcher[F], channel: _root_.io.grpc.Channel, mkMetadata: A => F[_root_.io.grpc.Metadata], clientOptions: _root_.fs2.grpc.client.ClientOptions): RPCTesterFs2Grpc[F, A] = new RPCTesterFs2Grpc[F, A] {
     def sendPing(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.Ping, ctx: A): F[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse] = {
       mkMetadata(ctx).flatMap { m =>
