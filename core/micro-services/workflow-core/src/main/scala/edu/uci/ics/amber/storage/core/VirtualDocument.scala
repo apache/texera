@@ -7,7 +7,7 @@ import java.net.URI
   * VirtualDocument provides the abstraction of doing read/write/copy/delete operations over a single resource in Texera system.
   * Note that all methods have a default implementation. This is because one document implementation may not be able to reasonably support all methods.
   * e.g. for dataset file, supports for read/write using file stream are essential, whereas read & write using index are hard to support and are semantically meaningless
- *
+  *
   * @tparam T the type of data that can use index to read and write.
   */
 abstract class VirtualDocument[T] {

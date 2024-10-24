@@ -26,18 +26,37 @@ object WorkflowCoreConfig {
     val javaConf = yaml.load(inputStream).asInstanceOf[JMap[String, Any]].asScala.toMap
 
     // Ensure the mongodb section is also converted to a Scala Map
-    val mongodbMap = javaConf("storage").asInstanceOf[Map[String, Any]]("mongodb").asInstanceOf[JMap[String, Any]].asScala.toMap
-    javaConf.updated("storage", javaConf("storage").asInstanceOf[Map[String, Any]].updated("mongodb", mongodbMap)) // Update conf with mongodb as Scala Map
+    val storageMap = javaConf("storage").asInstanceOf[JMap[String, Any]].asScala.toMap
+    val mongodbMap = storageMap("mongodb").asInstanceOf[JMap[String, Any]].asScala.toMap
+
+    // Ensure the user-sys section is also converted to a Scala Map
+    val userSysMap = javaConf("user-sys").asInstanceOf[JMap[String, Any]].asScala.toMap
+
+    // Update the configuration map with properly converted sub-maps
+    javaConf
+      .updated("storage", storageMap.updated("mongodb", mongodbMap))
+      .updated("user-sys", userSysMap)
   }
 
   // Extract values from the configuration file for storage
-  val storageMode: String = conf("storage").asInstanceOf[Map[String, String]]("mode")
+  val storageMode: String =
+    conf("storage").asInstanceOf[Map[String, Any]]("mode").asInstanceOf[String]
 
   // For user-system
-  val userSysEnabled: Boolean = conf("user-sys").asInstanceOf[Map[String, Boolean]]("enable")
+  val userSysEnabled: Boolean =
+    conf("user-sys").asInstanceOf[Map[String, Any]]("enable").asInstanceOf[Boolean]
 
   // For MongoDB specifics
-  val mongodbUrl: String = conf("storage").asInstanceOf[Map[String, Any]]("mongodb").asInstanceOf[Map[String, String]]("url")
-  val mongodbDatabaseName: String = conf("storage").asInstanceOf[Map[String, Any]]("mongodb").asInstanceOf[Map[String, String]]("database")
-  val mongodbBatchSize: Int = conf("storage").asInstanceOf[Map[String, Any]]("mongodb").asInstanceOf[Map[String, Int]]("commit-batch-size")
+  val mongodbUrl: String = conf("storage")
+    .asInstanceOf[Map[String, Any]]("mongodb")
+    .asInstanceOf[Map[String, Any]]("url")
+    .asInstanceOf[String]
+  val mongodbDatabaseName: String = conf("storage")
+    .asInstanceOf[Map[String, Any]]("mongodb")
+    .asInstanceOf[Map[String, Any]]("database")
+    .asInstanceOf[String]
+  val mongodbBatchSize: Int = conf("storage")
+    .asInstanceOf[Map[String, Any]]("mongodb")
+    .asInstanceOf[Map[String, Any]]("commit-batch-size")
+    .asInstanceOf[Int]
 }

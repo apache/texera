@@ -86,7 +86,7 @@ object DatasetResource {
 
   private def getDatasetPath(
       did: UInteger
-                            ): Path = {
+  ): Path = {
     PathUtils.userResourcesConfigPath.resolve("datasets").resolve(did.toString)
   }
 
@@ -141,10 +141,10 @@ object DatasetResource {
   }
 
   def getDatasetFile(
-                      did: UInteger,
-                      dvid: UInteger,
-                      fileRelativePath: java.nio.file.Path
-                    ): InputStream = {
+      did: UInteger,
+      dvid: UInteger,
+      fileRelativePath: java.nio.file.Path
+  ): InputStream = {
     val versionHash = getDatasetVersionByID(context, dvid).getVersionHash
     val datasetPath = getDatasetPath(did)
     GitVersionControlLocalFileStorage
