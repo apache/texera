@@ -32,7 +32,8 @@ import { formatSize } from "src/app/common/util/size-formatter.util";
 })
 export class ListItemComponent implements OnInit, OnChanges {
   private owners: number[] = [];
-  private originalName: string = "";
+  public originalName: string = "";
+  public originalDescription: string | undefined = undefined;
   @Input() currentUid: number | undefined;
   @ViewChild("nameInput") nameInput!: ElementRef;
   @ViewChild("descriptionInput") descriptionInput!: ElementRef;
@@ -173,6 +174,7 @@ export class ListItemComponent implements OnInit, OnChanges {
   }
 
   onEditDescription(): void {
+    this.originalDescription = this.entry.description;
     this.editingDescription = true;
     setTimeout(() => {
       if (this.descriptionInput) {
@@ -211,11 +213,18 @@ export class ListItemComponent implements OnInit, OnChanges {
     this.workflowPersistService
       .updateWorkflowDescription(this.entry.id, updatedDescription)
       .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        this.entry.description = updatedDescription;
-      })
-      .add(() => {
-        this.editingDescription = false;
+      .subscribe({
+        next: () => {
+          this.entry.description = updatedDescription;
+        },
+        error: (err: unknown) => {
+          console.error("Failed to update workflow description:", err);
+          this.entry.description = this.originalDescription;
+          this.editingDescription = false;
+        },
+        complete: () => {
+          this.editingDescription = false;
+        },
       });
   }
 
