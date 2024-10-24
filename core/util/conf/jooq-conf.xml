@@ -43,6 +43,7 @@
         </target>
     </generator>
     <generator>
+        <!-- The generator for micro-services/dao -->
         <generate>
             <generatedAnnotation>false</generatedAnnotation>
 
