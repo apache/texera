@@ -251,12 +251,28 @@ export const mockUnionSchema: OperatorSchema = {
   operatorVersion: "union1",
 };
 
+export const mockPythonUDFSchema: OperatorSchema = {
+  operatorType: "PythonUDF",
+  additionalMetadata: {
+    userFriendlyName: "Python UDF",
+    operatorDescription: "custom operator in Java",
+    operatorGroupName: "UDF",
+    inputPorts: [{}],
+    outputPorts: [{}],
+  },
+  jsonSchema: {
+    properties: {},
+    type: "object",
+  },
+  operatorVersion: "p1",
+};
+
 export const mockJavaUDFSchema: OperatorSchema = {
   operatorType: "JavaUDF",
   additionalMetadata: {
     userFriendlyName: "Java UDF",
     operatorDescription: "custom operator in Java",
-    operatorGroupName: "Analysis",
+    operatorGroupName: "UDF",
     inputPorts: [{}],
     outputPorts: [{}],
   },
@@ -278,6 +294,7 @@ export const mockOperatorSchemaList: ReadonlyArray<OperatorSchema> = [
   mockMultiInputOutputSchema,
   mockPresetEnabledSchema,
   mockUnionSchema,
+  mockPythonUDFSchema,
   mockJavaUDFSchema,
 ];
 

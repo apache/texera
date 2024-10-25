@@ -9,7 +9,7 @@
     id="title"
     (focus)="onFocus()"
     cdkDragHandle>
-    {{languageTitle}} : {{ title }}
+    {{ languageTitle }} : {{ title }}
     <button
       nz-button
       nzType="text"
@@ -29,6 +29,10 @@
     <div [innerHTML]="this.getCoeditorCursorStyles(user)"></div>
   </ng-container>
 </div>
+
+<ng-container
+  *ngComponentOutlet="codeDebuggerComponent; inputs: {monacoEditor:this.editorToPass, currentOperatorId: this.currentOperatorId}">
+</ng-container>
 
 <texera-annotation-suggestion
   *ngIf="showAnnotationSuggestion"

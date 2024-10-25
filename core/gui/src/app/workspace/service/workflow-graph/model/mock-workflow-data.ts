@@ -92,6 +92,17 @@ export const mockJavaUDFPredicate: OperatorPredicate = {
   isDisabled: false,
 };
 
+export const mockPythonUDFPredicate: OperatorPredicate = {
+  operatorID: "7",
+  operatorType: "PythonUDF",
+  operatorVersion: "p1",
+  operatorProperties: {},
+  inputPorts: [{ portID: "input-0" }],
+  outputPorts: [{ portID: "output-0" }],
+  showAdvanced: false,
+  isDisabled: false,
+};
+
 export const mockScanResultLink: OperatorLink = {
   linkID: "link-1",
   source: {

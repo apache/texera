@@ -17,6 +17,8 @@ class WorkerDebugCommandHandler(ControlHandler):
         context.debug_manager.put_debug_command(translated_command)
 
         # allow MainLoop to switch into DataProcessor.
+        context.pause_manager.resume(PauseType.USER_PAUSE)
+        context.pause_manager.resume(PauseType.EXCEPTION_PAUSE)
         context.pause_manager.resume(PauseType.DEBUG_PAUSE)
 
     @staticmethod

@@ -101,3 +101,9 @@ export type ConsoleUpdateEvent = Readonly<{
   operatorId: string;
   messages: ReadonlyArray<ConsoleMessage>;
 }>;
+
+export type BreakpointInfo = Readonly<{
+  breakpointId: number | undefined;
+  condition: string;
+  hit: boolean;
+}>;

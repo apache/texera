@@ -58,6 +58,7 @@
     "jszip": "3.10.1",
     "lodash-es": "4.17.21",
     "marked": "4.3.0",
+    "monaco-breakpoints": "0.2.0",
     "monaco-editor": "npm:@codingame/monaco-vscode-editor-api@8.0.4",
     "monaco-editor-wrapper": "5.5.3",
     "monaco-languageclient": "8.8.3",

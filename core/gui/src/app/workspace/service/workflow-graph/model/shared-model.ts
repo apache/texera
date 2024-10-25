@@ -1,8 +1,14 @@
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
 import { Awareness } from "y-protocols/awareness";
-import { CommentBox, OperatorLink, OperatorPredicate, Point } from "../../../types/workflow-common.interface";
-import { User, CoeditorState } from "../../../../common/type/user";
+import {
+  CommentBox,
+  OperatorLink,
+  OperatorPredicate,
+  Point,
+  BreakpointInfo,
+} from "../../../types/workflow-common.interface";
+import { CoeditorState, User } from "../../../../common/type/user";
 import { getWebsocketUrl } from "../../../../common/util/url";
 import { v4 as uuid } from "uuid";
 import { YType } from "../../../types/shared-editing.interface";
@@ -20,6 +26,7 @@ export class SharedModel {
   public commentBoxMap: Y.Map<YType<CommentBox>>;
   public operatorLinkMap: Y.Map<OperatorLink>;
   public elementPositionMap: Y.Map<Point>;
+  public debugState: Y.Map<Y.Map<BreakpointInfo>>;
   public undoManager: Y.UndoManager;
   public clientId: string;
 
@@ -36,6 +43,7 @@ export class SharedModel {
     public user?: User
   ) {
     // Initialize Y-structures.
+    this.debugState = this.yDoc.getMap("debugActions");
     this.operatorIDMap = this.yDoc.getMap("operatorIDMap");
     this.commentBoxMap = this.yDoc.getMap("commentBoxMap");
     this.operatorLinkMap = this.yDoc.getMap("operatorLinkMap");
