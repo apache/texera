@@ -184,10 +184,11 @@ export class UdfDebugService {
           });
         }
 
-        // if exist any breakpoint is hit in the debugState, do continue
-        if (Array.from(debugState.values()).some(breakpoint => breakpoint.hit)) {
+        // if exist any breakpoint is hit in the debugState, we do not send continue
+        if (this.isHittingBreakpoint(operatorId)) {
           return;
         }
+
         // otherwise, send continue
         this.executeWorkflowService.getWorkerIds(operatorId).map(workerId => this.doContinue(operatorId, workerId));
       });
@@ -215,6 +216,14 @@ export class UdfDebugService {
         if (breakpointInfo.hit) {
           debugState.set(String(lineNum), { ...breakpointInfo, breakpointId: undefined });
         }
+
+        // if exist any breakpoint is hit in the debugState, we do not send continue
+        if (this.isHittingBreakpoint(operatorId)) {
+          return;
+        }
+
+        // otherwise, send continue
+        this.executeWorkflowService.getWorkerIds(operatorId).map(workerId => this.doContinue(operatorId, workerId));
       });
   }
 
@@ -261,5 +270,11 @@ export class UdfDebugService {
     if (lineMatch) return { lineNum: parseInt(lineMatch[1] || lineMatch[2], 10) };
 
     return {};
+  }
+
+  private isHittingBreakpoint(operatorId:string): boolean {
+    // Check if any breakpoint is hit in the debug state
+    const debugState = this.getDebugState(operatorId);
+    return Array.from(debugState.values()).some(breakpoint => breakpoint.hit);
   }
 }
