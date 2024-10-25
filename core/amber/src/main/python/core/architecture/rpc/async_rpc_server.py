@@ -52,7 +52,7 @@ class AsyncRPCServer:
     def __init__(self, output_queue: InternalQueue, context: Context):
         self._context = context
         self._output_queue = output_queue
-        self._handlers: dict[type(ControlRequest), ControlHandler] = dict()
+        self._handlers: dict[(str, ControlRequest), ControlHandler] = dict()
         self.register(NoOpHandler())
         self.register(StartWorkerHandler())
         self.register(PauseWorkerHandler())
