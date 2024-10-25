@@ -10,8 +10,8 @@ final case class ControlReturnV2(
     value: edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.Value
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[ControlReturnV2] {
     @transient
-    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
-    private[this] def __computeSerializedSize(): _root_.scala.Int = {
+    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
+    private[this] def __computeSerializedValue(): _root_.scala.Int = {
       var __size = 0
       if (value.controlException.isDefined) {
         val __value = value.controlException.get
@@ -36,13 +36,12 @@ final case class ControlReturnV2(
       __size
     }
     override def serializedSize: _root_.scala.Int = {
-      var __size = __serializedSizeMemoized
-      if (__size == 0) {
-        __size = __computeSerializedSize() + 1
-        __serializedSizeMemoized = __size
+      var read = __serializedSizeCachedValue
+      if (read == 0) {
+        read = __computeSerializedValue()
+        __serializedSizeCachedValue = read
       }
-      __size - 1
-      
+      read
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       value.controlException.foreach { __v =>
@@ -106,7 +105,7 @@ final case class ControlReturnV2(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.type = edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2
+    def companion = edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.ControlReturnV2])
 }
 

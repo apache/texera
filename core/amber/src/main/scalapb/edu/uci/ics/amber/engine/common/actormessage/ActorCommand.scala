@@ -37,8 +37,8 @@ final case class ActorCommandMessage(
     sealedValue: edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage.SealedValue
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[ActorCommandMessage] {
     @transient
-    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
-    private[this] def __computeSerializedSize(): _root_.scala.Int = {
+    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
+    private[this] def __computeSerializedValue(): _root_.scala.Int = {
       var __size = 0
       if (sealedValue.backpressure.isDefined) {
         val __value = sealedValue.backpressure.get
@@ -51,13 +51,12 @@ final case class ActorCommandMessage(
       __size
     }
     override def serializedSize: _root_.scala.Int = {
-      var __size = __serializedSizeMemoized
-      if (__size == 0) {
-        __size = __computeSerializedSize() + 1
-        __serializedSizeMemoized = __size
+      var read = __serializedSizeCachedValue
+      if (read == 0) {
+        read = __computeSerializedValue()
+        __serializedSizeCachedValue = read
       }
-      __size - 1
-      
+      read
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       sealedValue.backpressure.foreach { __v =>
@@ -93,7 +92,7 @@ final case class ActorCommandMessage(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage.type = edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage
+    def companion = edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage
     def toActorCommand: edu.uci.ics.amber.engine.common.actormessage.ActorCommand = edu.uci.ics.amber.engine.common.actormessage.ActorCommand.ActorCommandTypeMapper.toCustom(this)
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.ActorCommand])
 }
@@ -196,8 +195,8 @@ final case class Backpressure(
     enableBackpressure: _root_.scala.Boolean
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.common.actormessage.ActorCommand.NonEmpty with scalapb.lenses.Updatable[Backpressure] {
     @transient
-    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
-    private[this] def __computeSerializedSize(): _root_.scala.Int = {
+    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
+    private[this] def __computeSerializedValue(): _root_.scala.Int = {
       var __size = 0
       
       {
@@ -209,13 +208,12 @@ final case class Backpressure(
       __size
     }
     override def serializedSize: _root_.scala.Int = {
-      var __size = __serializedSizeMemoized
-      if (__size == 0) {
-        __size = __computeSerializedSize() + 1
-        __serializedSizeMemoized = __size
+      var read = __serializedSizeCachedValue
+      if (read == 0) {
+        read = __computeSerializedValue()
+        __serializedSizeCachedValue = read
       }
-      __size - 1
-      
+      read
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       {
@@ -241,7 +239,7 @@ final case class Backpressure(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.common.actormessage.Backpressure.type = edu.uci.ics.amber.engine.common.actormessage.Backpressure
+    def companion = edu.uci.ics.amber.engine.common.actormessage.Backpressure
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.Backpressure])
 }
 
@@ -300,7 +298,7 @@ final case class CreditUpdate(
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = throw new MatchError(__fieldNumber)
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = throw new MatchError(__field)
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.common.actormessage.CreditUpdate.type = edu.uci.ics.amber.engine.common.actormessage.CreditUpdate
+    def companion = edu.uci.ics.amber.engine.common.actormessage.CreditUpdate
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.CreditUpdate])
 }
 

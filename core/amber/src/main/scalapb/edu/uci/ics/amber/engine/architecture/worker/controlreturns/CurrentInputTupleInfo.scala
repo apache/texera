@@ -14,7 +14,7 @@ final case class CurrentInputTupleInfo(
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = throw new MatchError(__fieldNumber)
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = throw new MatchError(__field)
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.architecture.worker.controlreturns.CurrentInputTupleInfo.type = edu.uci.ics.amber.engine.architecture.worker.controlreturns.CurrentInputTupleInfo
+    def companion = edu.uci.ics.amber.engine.architecture.worker.controlreturns.CurrentInputTupleInfo
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.CurrentInputTupleInfo])
 }
 

@@ -37,8 +37,8 @@ final case class ControlPayloadV2Message(
     sealedValue: edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message.SealedValue
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[ControlPayloadV2Message] {
     @transient
-    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
-    private[this] def __computeSerializedSize(): _root_.scala.Int = {
+    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
+    private[this] def __computeSerializedValue(): _root_.scala.Int = {
       var __size = 0
       if (sealedValue.controlInvocation.isDefined) {
         val __value = sealedValue.controlInvocation.get
@@ -51,13 +51,12 @@ final case class ControlPayloadV2Message(
       __size
     }
     override def serializedSize: _root_.scala.Int = {
-      var __size = __serializedSizeMemoized
-      if (__size == 0) {
-        __size = __computeSerializedSize() + 1
-        __serializedSizeMemoized = __size
+      var read = __serializedSizeCachedValue
+      if (read == 0) {
+        read = __computeSerializedValue()
+        __serializedSizeCachedValue = read
       }
-      __size - 1
-      
+      read
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       sealedValue.controlInvocation.foreach { __v =>
@@ -93,7 +92,7 @@ final case class ControlPayloadV2Message(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message.type = edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message
+    def companion = edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message
     def toControlPayloadV2: edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2 = edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.ControlPayloadV2TypeMapper.toCustom(this)
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.ControlPayloadV2])
 }
@@ -197,8 +196,8 @@ final case class ControlInvocationV2(
     command: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.NonEmpty with scalapb.lenses.Updatable[ControlInvocationV2] {
     @transient
-    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
-    private[this] def __computeSerializedSize(): _root_.scala.Int = {
+    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
+    private[this] def __computeSerializedValue(): _root_.scala.Int = {
       var __size = 0
       
       {
@@ -210,20 +209,19 @@ final case class ControlInvocationV2(
       
       {
         val __value = edu.uci.ics.amber.engine.common.ambermessage.ControlInvocationV2._typemapper_command.toBase(command)
-        if (__value.serializedSize != 0) {
+        if (__value != edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.defaultInstance) {
           __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
         }
       };
       __size
     }
     override def serializedSize: _root_.scala.Int = {
-      var __size = __serializedSizeMemoized
-      if (__size == 0) {
-        __size = __computeSerializedSize() + 1
-        __serializedSizeMemoized = __size
+      var read = __serializedSizeCachedValue
+      if (read == 0) {
+        read = __computeSerializedValue()
+        __serializedSizeCachedValue = read
       }
-      __size - 1
-      
+      read
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       {
@@ -234,7 +232,7 @@ final case class ControlInvocationV2(
       };
       {
         val __v = edu.uci.ics.amber.engine.common.ambermessage.ControlInvocationV2._typemapper_command.toBase(command)
-        if (__v.serializedSize != 0) {
+        if (__v != edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.defaultInstance) {
           _output__.writeTag(2, 2)
           _output__.writeUInt32NoTag(__v.serializedSize)
           __v.writeTo(_output__)
@@ -263,7 +261,7 @@ final case class ControlInvocationV2(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.common.ambermessage.ControlInvocationV2.type = edu.uci.ics.amber.engine.common.ambermessage.ControlInvocationV2
+    def companion = edu.uci.ics.amber.engine.common.ambermessage.ControlInvocationV2
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.ControlInvocationV2])
 }
 
@@ -337,8 +335,8 @@ final case class ReturnInvocationV2(
     controlReturn: edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.NonEmpty with scalapb.lenses.Updatable[ReturnInvocationV2] {
     @transient
-    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
-    private[this] def __computeSerializedSize(): _root_.scala.Int = {
+    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
+    private[this] def __computeSerializedValue(): _root_.scala.Int = {
       var __size = 0
       
       {
@@ -350,20 +348,19 @@ final case class ReturnInvocationV2(
       
       {
         val __value = controlReturn
-        if (__value.serializedSize != 0) {
+        if (__value != edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.defaultInstance) {
           __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
         }
       };
       __size
     }
     override def serializedSize: _root_.scala.Int = {
-      var __size = __serializedSizeMemoized
-      if (__size == 0) {
-        __size = __computeSerializedSize() + 1
-        __serializedSizeMemoized = __size
+      var read = __serializedSizeCachedValue
+      if (read == 0) {
+        read = __computeSerializedValue()
+        __serializedSizeCachedValue = read
       }
-      __size - 1
-      
+      read
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       {
@@ -374,7 +371,7 @@ final case class ReturnInvocationV2(
       };
       {
         val __v = controlReturn
-        if (__v.serializedSize != 0) {
+        if (__v != edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.defaultInstance) {
           _output__.writeTag(2, 2)
           _output__.writeUInt32NoTag(__v.serializedSize)
           __v.writeTo(_output__)
@@ -403,7 +400,7 @@ final case class ReturnInvocationV2(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.common.ambermessage.ReturnInvocationV2.type = edu.uci.ics.amber.engine.common.ambermessage.ReturnInvocationV2
+    def companion = edu.uci.ics.amber.engine.common.ambermessage.ReturnInvocationV2
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.ReturnInvocationV2])
 }
 

@@ -71,8 +71,8 @@ final case class ControlCommandV2Message(
     sealedValue: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[ControlCommandV2Message] {
     @transient
-    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
-    private[this] def __computeSerializedSize(): _root_.scala.Int = {
+    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
+    private[this] def __computeSerializedValue(): _root_.scala.Int = {
       var __size = 0
       if (sealedValue.startWorker.isDefined) {
         val __value = sealedValue.startWorker.get
@@ -153,13 +153,12 @@ final case class ControlCommandV2Message(
       __size
     }
     override def serializedSize: _root_.scala.Int = {
-      var __size = __serializedSizeMemoized
-      if (__size == 0) {
-        __size = __computeSerializedSize() + 1
-        __serializedSizeMemoized = __size
+      var read = __serializedSizeCachedValue
+      if (read == 0) {
+        read = __computeSerializedValue()
+        __serializedSizeCachedValue = read
       }
-      __size - 1
-      
+      read
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       sealedValue.startWorker.foreach { __v =>
@@ -365,7 +364,7 @@ final case class ControlCommandV2Message(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.type = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message
+    def companion = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message
     def toControlCommandV2: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2 = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2.ControlCommandV2TypeMapper.toCustom(this)
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.ControlCommandV2])
 }
@@ -727,7 +726,7 @@ final case class StartWorkerV2(
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = throw new MatchError(__fieldNumber)
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = throw new MatchError(__field)
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.architecture.worker.controlcommands.StartWorkerV2.type = edu.uci.ics.amber.engine.architecture.worker.controlcommands.StartWorkerV2
+    def companion = edu.uci.ics.amber.engine.architecture.worker.controlcommands.StartWorkerV2
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.StartWorkerV2])
 }
 
@@ -776,7 +775,7 @@ final case class PauseWorkerV2(
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = throw new MatchError(__fieldNumber)
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = throw new MatchError(__field)
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.architecture.worker.controlcommands.PauseWorkerV2.type = edu.uci.ics.amber.engine.architecture.worker.controlcommands.PauseWorkerV2
+    def companion = edu.uci.ics.amber.engine.architecture.worker.controlcommands.PauseWorkerV2
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.PauseWorkerV2])
 }
 
@@ -825,7 +824,7 @@ final case class ResumeWorkerV2(
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = throw new MatchError(__fieldNumber)
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = throw new MatchError(__field)
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ResumeWorkerV2.type = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ResumeWorkerV2
+    def companion = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ResumeWorkerV2
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.ResumeWorkerV2])
 }
 
@@ -872,13 +871,13 @@ final case class AssignPortV2(
     schema: _root_.scala.collection.immutable.Map[_root_.scala.Predef.String, _root_.scala.Predef.String]
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2.NonEmpty with scalapb.lenses.Updatable[AssignPortV2] {
     @transient
-    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
-    private[this] def __computeSerializedSize(): _root_.scala.Int = {
+    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
+    private[this] def __computeSerializedValue(): _root_.scala.Int = {
       var __size = 0
       
       {
         val __value = portId
-        if (__value.serializedSize != 0) {
+        if (__value != edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance) {
           __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
         }
       };
@@ -896,18 +895,17 @@ final case class AssignPortV2(
       __size
     }
     override def serializedSize: _root_.scala.Int = {
-      var __size = __serializedSizeMemoized
-      if (__size == 0) {
-        __size = __computeSerializedSize() + 1
-        __serializedSizeMemoized = __size
+      var read = __serializedSizeCachedValue
+      if (read == 0) {
+        read = __computeSerializedValue()
+        __serializedSizeCachedValue = read
       }
-      __size - 1
-      
+      read
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       {
         val __v = portId
-        if (__v.serializedSize != 0) {
+        if (__v != edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance) {
           _output__.writeTag(1, 2)
           _output__.writeUInt32NoTag(__v.serializedSize)
           __v.writeTo(_output__)
@@ -929,7 +927,7 @@ final case class AssignPortV2(
     def withPortId(__v: edu.uci.ics.amber.engine.common.workflow.PortIdentity): AssignPortV2 = copy(portId = __v)
     def withInput(__v: _root_.scala.Boolean): AssignPortV2 = copy(input = __v)
     def clearSchema = copy(schema = _root_.scala.collection.immutable.Map.empty)
-    def addSchema(__vs: (_root_.scala.Predef.String, _root_.scala.Predef.String) *): AssignPortV2 = addAllSchema(__vs)
+    def addSchema(__vs: (_root_.scala.Predef.String, _root_.scala.Predef.String)*): AssignPortV2 = addAllSchema(__vs)
     def addAllSchema(__vs: Iterable[(_root_.scala.Predef.String, _root_.scala.Predef.String)]): AssignPortV2 = copy(schema = schema ++ __vs)
     def withSchema(__v: _root_.scala.collection.immutable.Map[_root_.scala.Predef.String, _root_.scala.Predef.String]): AssignPortV2 = copy(schema = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
@@ -954,7 +952,7 @@ final case class AssignPortV2(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.architecture.worker.controlcommands.AssignPortV2.type = edu.uci.ics.amber.engine.architecture.worker.controlcommands.AssignPortV2
+    def companion = edu.uci.ics.amber.engine.architecture.worker.controlcommands.AssignPortV2
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.AssignPortV2])
 }
 
@@ -1020,8 +1018,8 @@ object AssignPortV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.
       value: _root_.scala.Predef.String
       ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[SchemaEntry] {
       @transient
-      private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
-      private[this] def __computeSerializedSize(): _root_.scala.Int = {
+      private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
+      private[this] def __computeSerializedValue(): _root_.scala.Int = {
         var __size = 0
         
         {
@@ -1040,13 +1038,12 @@ object AssignPortV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.
         __size
       }
       override def serializedSize: _root_.scala.Int = {
-        var __size = __serializedSizeMemoized
-        if (__size == 0) {
-          __size = __computeSerializedSize() + 1
-          __serializedSizeMemoized = __size
+        var read = __serializedSizeCachedValue
+        if (read == 0) {
+          read = __computeSerializedValue()
+          __serializedSizeCachedValue = read
         }
-        __size - 1
-        
+        read
       }
       def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
         {
@@ -1084,7 +1081,7 @@ object AssignPortV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.
         }
       }
       def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-      def companion: edu.uci.ics.amber.engine.architecture.worker.controlcommands.AssignPortV2.SchemaEntry.type = edu.uci.ics.amber.engine.architecture.worker.controlcommands.AssignPortV2.SchemaEntry
+      def companion = edu.uci.ics.amber.engine.architecture.worker.controlcommands.AssignPortV2.SchemaEntry
       // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.AssignPortV2.SchemaEntry])
   }
   
@@ -1175,38 +1172,37 @@ final case class AddPartitioningV2(
     partitioning: edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2.NonEmpty with scalapb.lenses.Updatable[AddPartitioningV2] {
     @transient
-    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
-    private[this] def __computeSerializedSize(): _root_.scala.Int = {
+    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
+    private[this] def __computeSerializedValue(): _root_.scala.Int = {
       var __size = 0
       
       {
         val __value = tag
-        if (__value.serializedSize != 0) {
+        if (__value != edu.uci.ics.amber.engine.common.workflow.PhysicalLink.defaultInstance) {
           __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
         }
       };
       
       {
         val __value = edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2._typemapper_partitioning.toBase(partitioning)
-        if (__value.serializedSize != 0) {
+        if (__value != edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.defaultInstance) {
           __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
         }
       };
       __size
     }
     override def serializedSize: _root_.scala.Int = {
-      var __size = __serializedSizeMemoized
-      if (__size == 0) {
-        __size = __computeSerializedSize() + 1
-        __serializedSizeMemoized = __size
+      var read = __serializedSizeCachedValue
+      if (read == 0) {
+        read = __computeSerializedValue()
+        __serializedSizeCachedValue = read
       }
-      __size - 1
-      
+      read
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       {
         val __v = tag
-        if (__v.serializedSize != 0) {
+        if (__v != edu.uci.ics.amber.engine.common.workflow.PhysicalLink.defaultInstance) {
           _output__.writeTag(1, 2)
           _output__.writeUInt32NoTag(__v.serializedSize)
           __v.writeTo(_output__)
@@ -1214,7 +1210,7 @@ final case class AddPartitioningV2(
       };
       {
         val __v = edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2._typemapper_partitioning.toBase(partitioning)
-        if (__v.serializedSize != 0) {
+        if (__v != edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.defaultInstance) {
           _output__.writeTag(2, 2)
           _output__.writeUInt32NoTag(__v.serializedSize)
           __v.writeTo(_output__)
@@ -1243,7 +1239,7 @@ final case class AddPartitioningV2(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2.type = edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2
+    def companion = edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.AddPartitioningV2])
 }
 
@@ -1318,38 +1314,37 @@ final case class AddInputChannelV2(
     portId: edu.uci.ics.amber.engine.common.workflow.PortIdentity
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2.NonEmpty with scalapb.lenses.Updatable[AddInputChannelV2] {
     @transient
-    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
-    private[this] def __computeSerializedSize(): _root_.scala.Int = {
+    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
+    private[this] def __computeSerializedValue(): _root_.scala.Int = {
       var __size = 0
       
       {
         val __value = channelId
-        if (__value.serializedSize != 0) {
+        if (__value != edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity.defaultInstance) {
           __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
         }
       };
       
       {
         val __value = portId
-        if (__value.serializedSize != 0) {
+        if (__value != edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance) {
           __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
         }
       };
       __size
     }
     override def serializedSize: _root_.scala.Int = {
-      var __size = __serializedSizeMemoized
-      if (__size == 0) {
-        __size = __computeSerializedSize() + 1
-        __serializedSizeMemoized = __size
+      var read = __serializedSizeCachedValue
+      if (read == 0) {
+        read = __computeSerializedValue()
+        __serializedSizeCachedValue = read
       }
-      __size - 1
-      
+      read
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       {
         val __v = channelId
-        if (__v.serializedSize != 0) {
+        if (__v != edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity.defaultInstance) {
           _output__.writeTag(1, 2)
           _output__.writeUInt32NoTag(__v.serializedSize)
           __v.writeTo(_output__)
@@ -1357,7 +1352,7 @@ final case class AddInputChannelV2(
       };
       {
         val __v = portId
-        if (__v.serializedSize != 0) {
+        if (__v != edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance) {
           _output__.writeTag(2, 2)
           _output__.writeUInt32NoTag(__v.serializedSize)
           __v.writeTo(_output__)
@@ -1386,7 +1381,7 @@ final case class AddInputChannelV2(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddInputChannelV2.type = edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddInputChannelV2
+    def companion = edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddInputChannelV2
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.AddInputChannelV2])
 }
 
@@ -1462,7 +1457,7 @@ final case class QueryStatisticsV2(
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = throw new MatchError(__fieldNumber)
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = throw new MatchError(__field)
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryStatisticsV2.type = edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryStatisticsV2
+    def companion = edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryStatisticsV2
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.QueryStatisticsV2])
 }
 
@@ -1511,7 +1506,7 @@ final case class QueryCurrentInputTupleV2(
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = throw new MatchError(__fieldNumber)
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = throw new MatchError(__field)
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryCurrentInputTupleV2.type = edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryCurrentInputTupleV2
+    def companion = edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryCurrentInputTupleV2
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.QueryCurrentInputTupleV2])
 }
 
@@ -1560,7 +1555,7 @@ final case class OpenExecutorV2(
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = throw new MatchError(__fieldNumber)
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = throw new MatchError(__field)
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenExecutorV2.type = edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenExecutorV2
+    def companion = edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenExecutorV2
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.OpenExecutorV2])
 }
 
@@ -1606,13 +1601,13 @@ final case class PortCompletedV2(
     input: _root_.scala.Boolean
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2.NonEmpty with scalapb.lenses.Updatable[PortCompletedV2] {
     @transient
-    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
-    private[this] def __computeSerializedSize(): _root_.scala.Int = {
+    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
+    private[this] def __computeSerializedValue(): _root_.scala.Int = {
       var __size = 0
       
       {
         val __value = portId
-        if (__value.serializedSize != 0) {
+        if (__value != edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance) {
           __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
         }
       };
@@ -1626,18 +1621,17 @@ final case class PortCompletedV2(
       __size
     }
     override def serializedSize: _root_.scala.Int = {
-      var __size = __serializedSizeMemoized
-      if (__size == 0) {
-        __size = __computeSerializedSize() + 1
-        __serializedSizeMemoized = __size
+      var read = __serializedSizeCachedValue
+      if (read == 0) {
+        read = __computeSerializedValue()
+        __serializedSizeCachedValue = read
       }
-      __size - 1
-      
+      read
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       {
         val __v = portId
-        if (__v.serializedSize != 0) {
+        if (__v != edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance) {
           _output__.writeTag(1, 2)
           _output__.writeUInt32NoTag(__v.serializedSize)
           __v.writeTo(_output__)
@@ -1672,7 +1666,7 @@ final case class PortCompletedV2(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.architecture.worker.controlcommands.PortCompletedV2.type = edu.uci.ics.amber.engine.architecture.worker.controlcommands.PortCompletedV2
+    def companion = edu.uci.ics.amber.engine.architecture.worker.controlcommands.PortCompletedV2
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.PortCompletedV2])
 }
 
@@ -1743,8 +1737,8 @@ final case class SchedulerTimeSlotEventV2(
     timeSlotExpired: _root_.scala.Boolean
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2.NonEmpty with scalapb.lenses.Updatable[SchedulerTimeSlotEventV2] {
     @transient
-    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
-    private[this] def __computeSerializedSize(): _root_.scala.Int = {
+    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
+    private[this] def __computeSerializedValue(): _root_.scala.Int = {
       var __size = 0
       
       {
@@ -1756,13 +1750,12 @@ final case class SchedulerTimeSlotEventV2(
       __size
     }
     override def serializedSize: _root_.scala.Int = {
-      var __size = __serializedSizeMemoized
-      if (__size == 0) {
-        __size = __computeSerializedSize() + 1
-        __serializedSizeMemoized = __size
+      var read = __serializedSizeCachedValue
+      if (read == 0) {
+        read = __computeSerializedValue()
+        __serializedSizeCachedValue = read
       }
-      __size - 1
-      
+      read
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       {
@@ -1788,7 +1781,7 @@ final case class SchedulerTimeSlotEventV2(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.architecture.worker.controlcommands.SchedulerTimeSlotEventV2.type = edu.uci.ics.amber.engine.architecture.worker.controlcommands.SchedulerTimeSlotEventV2
+    def companion = edu.uci.ics.amber.engine.architecture.worker.controlcommands.SchedulerTimeSlotEventV2
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.SchedulerTimeSlotEventV2])
 }
 
@@ -1845,8 +1838,8 @@ final case class InitializeExecutorV2(
     isSource: _root_.scala.Boolean
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2.NonEmpty with scalapb.lenses.Updatable[InitializeExecutorV2] {
     @transient
-    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
-    private[this] def __computeSerializedSize(): _root_.scala.Int = {
+    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
+    private[this] def __computeSerializedValue(): _root_.scala.Int = {
       var __size = 0
       
       {
@@ -1872,13 +1865,12 @@ final case class InitializeExecutorV2(
       __size
     }
     override def serializedSize: _root_.scala.Int = {
-      var __size = __serializedSizeMemoized
-      if (__size == 0) {
-        __size = __computeSerializedSize() + 1
-        __serializedSizeMemoized = __size
+      var read = __serializedSizeCachedValue
+      if (read == 0) {
+        read = __computeSerializedValue()
+        __serializedSizeCachedValue = read
       }
-      __size - 1
-      
+      read
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       {
@@ -1928,7 +1920,7 @@ final case class InitializeExecutorV2(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeExecutorV2.type = edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeExecutorV2
+    def companion = edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeExecutorV2
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.InitializeExecutorV2])
 }
 
@@ -2004,8 +1996,8 @@ final case class UpdateExecutorV2(
     isSource: _root_.scala.Boolean
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2.NonEmpty with scalapb.lenses.Updatable[UpdateExecutorV2] {
     @transient
-    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
-    private[this] def __computeSerializedSize(): _root_.scala.Int = {
+    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
+    private[this] def __computeSerializedValue(): _root_.scala.Int = {
       var __size = 0
       
       {
@@ -2024,13 +2016,12 @@ final case class UpdateExecutorV2(
       __size
     }
     override def serializedSize: _root_.scala.Int = {
-      var __size = __serializedSizeMemoized
-      if (__size == 0) {
-        __size = __computeSerializedSize() + 1
-        __serializedSizeMemoized = __size
+      var read = __serializedSizeCachedValue
+      if (read == 0) {
+        read = __computeSerializedValue()
+        __serializedSizeCachedValue = read
       }
-      __size - 1
-      
+      read
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       {
@@ -2068,7 +2059,7 @@ final case class UpdateExecutorV2(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateExecutorV2.type = edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateExecutorV2
+    def companion = edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateExecutorV2
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.UpdateExecutorV2])
 }
 
@@ -2133,31 +2124,30 @@ final case class PythonConsoleMessageV2(
     message: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessage
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2.NonEmpty with scalapb.lenses.Updatable[PythonConsoleMessageV2] {
     @transient
-    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
-    private[this] def __computeSerializedSize(): _root_.scala.Int = {
+    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
+    private[this] def __computeSerializedValue(): _root_.scala.Int = {
       var __size = 0
       
       {
         val __value = message
-        if (__value.serializedSize != 0) {
+        if (__value != edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessage.defaultInstance) {
           __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
         }
       };
       __size
     }
     override def serializedSize: _root_.scala.Int = {
-      var __size = __serializedSizeMemoized
-      if (__size == 0) {
-        __size = __computeSerializedSize() + 1
-        __serializedSizeMemoized = __size
+      var read = __serializedSizeCachedValue
+      if (read == 0) {
+        read = __computeSerializedValue()
+        __serializedSizeCachedValue = read
       }
-      __size - 1
-      
+      read
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       {
         val __v = message
-        if (__v.serializedSize != 0) {
+        if (__v != edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessage.defaultInstance) {
           _output__.writeTag(1, 2)
           _output__.writeUInt32NoTag(__v.serializedSize)
           __v.writeTo(_output__)
@@ -2180,7 +2170,7 @@ final case class PythonConsoleMessageV2(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonConsoleMessageV2.type = edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonConsoleMessageV2
+    def companion = edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonConsoleMessageV2
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.PythonConsoleMessageV2])
 }
 
@@ -2245,7 +2235,7 @@ final case class ReplayCurrentTupleV2(
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = throw new MatchError(__fieldNumber)
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = throw new MatchError(__field)
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ReplayCurrentTupleV2.type = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ReplayCurrentTupleV2
+    def companion = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ReplayCurrentTupleV2
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.ReplayCurrentTupleV2])
 }
 
@@ -2290,8 +2280,8 @@ final case class EvaluateExpressionV2(
     expression: _root_.scala.Predef.String
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2.NonEmpty with scalapb.lenses.Updatable[EvaluateExpressionV2] {
     @transient
-    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
-    private[this] def __computeSerializedSize(): _root_.scala.Int = {
+    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
+    private[this] def __computeSerializedValue(): _root_.scala.Int = {
       var __size = 0
       
       {
@@ -2303,13 +2293,12 @@ final case class EvaluateExpressionV2(
       __size
     }
     override def serializedSize: _root_.scala.Int = {
-      var __size = __serializedSizeMemoized
-      if (__size == 0) {
-        __size = __computeSerializedSize() + 1
-        __serializedSizeMemoized = __size
+      var read = __serializedSizeCachedValue
+      if (read == 0) {
+        read = __computeSerializedValue()
+        __serializedSizeCachedValue = read
       }
-      __size - 1
-      
+      read
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       {
@@ -2335,7 +2324,7 @@ final case class EvaluateExpressionV2(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.architecture.worker.controlcommands.EvaluateExpressionV2.type = edu.uci.ics.amber.engine.architecture.worker.controlcommands.EvaluateExpressionV2
+    def companion = edu.uci.ics.amber.engine.architecture.worker.controlcommands.EvaluateExpressionV2
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.EvaluateExpressionV2])
 }
 
@@ -2390,8 +2379,8 @@ final case class WorkerDebugCommandV2(
     cmd: _root_.scala.Predef.String
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2.NonEmpty with scalapb.lenses.Updatable[WorkerDebugCommandV2] {
     @transient
-    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
-    private[this] def __computeSerializedSize(): _root_.scala.Int = {
+    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
+    private[this] def __computeSerializedValue(): _root_.scala.Int = {
       var __size = 0
       
       {
@@ -2403,13 +2392,12 @@ final case class WorkerDebugCommandV2(
       __size
     }
     override def serializedSize: _root_.scala.Int = {
-      var __size = __serializedSizeMemoized
-      if (__size == 0) {
-        __size = __computeSerializedSize() + 1
-        __serializedSizeMemoized = __size
+      var read = __serializedSizeCachedValue
+      if (read == 0) {
+        read = __computeSerializedValue()
+        __serializedSizeCachedValue = read
       }
-      __size - 1
-      
+      read
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       {
@@ -2435,7 +2423,7 @@ final case class WorkerDebugCommandV2(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerDebugCommandV2.type = edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerDebugCommandV2
+    def companion = edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerDebugCommandV2
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.WorkerDebugCommandV2])
 }
 
@@ -2494,7 +2482,7 @@ final case class WorkerExecutionCompletedV2(
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = throw new MatchError(__fieldNumber)
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = throw new MatchError(__field)
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2.type = edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2
+    def companion = edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.WorkerExecutionCompletedV2])
 }
 
@@ -2543,7 +2531,7 @@ final case class NoOpV2(
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = throw new MatchError(__fieldNumber)
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = throw new MatchError(__field)
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.architecture.worker.controlcommands.NoOpV2.type = edu.uci.ics.amber.engine.architecture.worker.controlcommands.NoOpV2
+    def companion = edu.uci.ics.amber.engine.architecture.worker.controlcommands.NoOpV2
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.NoOpV2])
 }
 

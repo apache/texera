@@ -11,8 +11,8 @@ final case class EvaluatedValue(
     attributes: _root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue]
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[EvaluatedValue] {
     @transient
-    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
-    private[this] def __computeSerializedSize(): _root_.scala.Int = {
+    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
+    private[this] def __computeSerializedValue(): _root_.scala.Int = {
       var __size = 0
       if (value.isDefined) {
         val __value = value.get
@@ -25,13 +25,12 @@ final case class EvaluatedValue(
       __size
     }
     override def serializedSize: _root_.scala.Int = {
-      var __size = __serializedSizeMemoized
-      if (__size == 0) {
-        __size = __computeSerializedSize() + 1
-        __serializedSizeMemoized = __size
+      var read = __serializedSizeCachedValue
+      if (read == 0) {
+        read = __computeSerializedValue()
+        __serializedSizeCachedValue = read
       }
-      __size - 1
-      
+      read
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       value.foreach { __v =>
@@ -51,7 +50,7 @@ final case class EvaluatedValue(
     def clearValue: EvaluatedValue = copy(value = _root_.scala.None)
     def withValue(__v: edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue): EvaluatedValue = copy(value = Option(__v))
     def clearAttributes = copy(attributes = _root_.scala.Seq.empty)
-    def addAttributes(__vs: edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue *): EvaluatedValue = addAllAttributes(__vs)
+    def addAttributes(__vs: edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue*): EvaluatedValue = addAllAttributes(__vs)
     def addAllAttributes(__vs: Iterable[edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue]): EvaluatedValue = copy(attributes = attributes ++ __vs)
     def withAttributes(__v: _root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue]): EvaluatedValue = copy(attributes = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
@@ -68,7 +67,7 @@ final case class EvaluatedValue(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.architecture.worker.controlreturns.EvaluatedValue.type = edu.uci.ics.amber.engine.architecture.worker.controlreturns.EvaluatedValue
+    def companion = edu.uci.ics.amber.engine.architecture.worker.controlreturns.EvaluatedValue
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.EvaluatedValue])
 }
 
