@@ -8,7 +8,7 @@ export interface DatasetFileNode {
 }
 
 export function getFullPathFromDatasetFileNode(node: DatasetFileNode): string {
-  return `${node.parentDir}/${node.name}`;
+  return `file://${node.parentDir}/${node.name}`;
 }
 
 export function getPathsUnderOrEqualDatasetFileNode(node: DatasetFileNode): string[] {

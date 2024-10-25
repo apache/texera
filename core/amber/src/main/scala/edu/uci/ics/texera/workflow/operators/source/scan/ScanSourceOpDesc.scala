@@ -12,6 +12,7 @@ import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, Oper
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import org.apache.commons.lang3.builder.EqualsBuilder
 
+import java.net.URI
 import java.nio.file.Paths
 
 abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
@@ -64,15 +65,16 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
     if (fileName.isEmpty) {
       throw new RuntimeException("no input file name")
     }
-
-    if (AmberConfig.isUserSystemEnabled) {
-      // if user system is defined, a datasetFileDesc will be initialized, which is the handle of reading file from the dataset
-      datasetFile = Some(new DatasetFileDocument(Paths.get(fileName.get)))
+    val datasetFilePathPrefix = "file://"
+    if (fileName.get.startsWith(datasetFilePathPrefix)) {
+      // filePath starts with file://, a datasetFileDesc will be initialized, which is the handle of reading file from the dataset
+      datasetFile = Some(
+        new DatasetFileDocument(Paths.get(fileName.get.substring(datasetFilePathPrefix.length)))
+      )
     } else {
       // otherwise, the fileName will be inputted by user, which is the filePath.
       filePath = fileName
     }
-
   }
 
   override def operatorInfo: OperatorInfo = {
@@ -87,16 +89,20 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
 
   def inferSchema(): Schema
 
-  // resolve the file path based on whether the user system is enabled
-  // it will check for the presence of the given filePath/Desc
+  // get the source file descriptor from the fields
+  // either the datasetFile or the filePath should be defined
   def determineFilePathOrDatasetFile(): (String, DatasetFileDocument) = {
-    if (AmberConfig.isUserSystemEnabled) {
-      val file = datasetFile.getOrElse(
-        throw new RuntimeException("Dataset file descriptor is not provided.")
-      )
+    if (
+      (datasetFile.isEmpty && filePath.isEmpty)
+      || (datasetFile.isDefined && filePath.isDefined)
+    ) {
+      throw new RuntimeException("Source file descriptor is not set.")
+    }
+    if (datasetFile.isDefined) {
+      val file = datasetFile.get
       (null, file)
     } else {
-      val filepath = filePath.getOrElse(throw new RuntimeException("File path is not provided."))
+      val filepath = filePath.get
       (filepath, null)
     }
   }
