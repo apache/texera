@@ -3,7 +3,6 @@ package edu.uci.ics.texera.workflow.operators.source.scan
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.model.WorkflowContext
 import edu.uci.ics.amber.engine.common.model.tuple.Schema
 import edu.uci.ics.amber.engine.common.storage.DatasetFileDocument
@@ -12,7 +11,6 @@ import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, Oper
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import org.apache.commons.lang3.builder.EqualsBuilder
 
-import java.net.URI
 import java.nio.file.Paths
 
 abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
