@@ -20,9 +20,6 @@ object WorkflowCoreConfig {
       .updated("user-sys", userSysMap)
   }
 
-  val userSysEnabled: Boolean =
-    conf("user-sys").asInstanceOf[Map[String, Any]]("enable").asInstanceOf[Boolean]
-
   val storageMode: String =
     conf("storage").asInstanceOf[Map[String, Any]]("mode").asInstanceOf[String]
 

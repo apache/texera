@@ -3,12 +3,11 @@ package edu.uci.ics.amber.storage.dataset
 import edu.uci.ics.amber.util.ResourceUtils.withTransaction
 import edu.uci.ics.amber.util.PathUtils
 
-import edu.uci.ics.texera.SqlServer
-import edu.uci.ics.texera.model.jooq.generated.tables.pojos.{Dataset, DatasetVersion}
-import edu.uci.ics.texera.model.jooq.generated.tables.Dataset.DATASET
-import edu.uci.ics.texera.model.jooq.generated.tables.DatasetVersion.DATASET_VERSION
-import edu.uci.ics.texera.model.jooq.generated.tables.User.USER
-import edu.uci.ics.texera.model.jooq.generated.tables.daos.{DatasetDao, DatasetVersionDao}
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{Dataset, DatasetVersion}
+import edu.uci.ics.texera.dao.jooq.generated.tables.Dataset.DATASET
+import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetVersion.DATASET_VERSION
+import edu.uci.ics.texera.dao.jooq.generated.tables.User.USER
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{DatasetDao, DatasetVersionDao}
 import org.jooq.DSLContext
 import org.jooq.tools.StringUtils
 import org.jooq.types.UInteger
@@ -18,8 +17,6 @@ import java.nio.file.{Path, Paths}
 import jakarta.ws.rs.{NotFoundException, BadRequestException}
 
 object DatasetResource {
-
-  private val context = SqlServer.createDSLContext()
 
   // error messages
   val ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE = "User has no read access to this dataset"
@@ -84,8 +81,8 @@ object DatasetResource {
     version
   }
 
-  private def getDatasetPath(
-      did: UInteger
+  def getDatasetPath(
+      did: Int
   ): Path = {
     PathUtils.userResourcesConfigPath.resolve("datasets").resolve(did.toString)
   }
@@ -98,6 +95,7 @@ object DatasetResource {
   // e.g. /bob@texera.com/twitterDataset/v1
   //      ownerName is bob@texera.com; datasetName is twitterDataset, versionName is v1
   def resolvePath(
+      context: DSLContext,
       path: java.nio.file.Path,
       shouldContainFile: Boolean
   ): (String, Dataset, DatasetVersion, Option[java.nio.file.Path]) = {
@@ -138,20 +136,5 @@ object DatasetResource {
 
       (ownerEmail, dataset, datasetVersion, fileRelativePath)
     }
-  }
-
-  def getDatasetFile(
-      did: UInteger,
-      dvid: UInteger,
-      fileRelativePath: java.nio.file.Path
-  ): InputStream = {
-    val versionHash = getDatasetVersionByID(context, dvid).getVersionHash
-    val datasetPath = getDatasetPath(did)
-    GitVersionControlLocalFileStorage
-      .retrieveFileContentOfVersionAsInputStream(
-        datasetPath,
-        versionHash,
-        datasetPath.resolve(fileRelativePath)
-      )
   }
 }

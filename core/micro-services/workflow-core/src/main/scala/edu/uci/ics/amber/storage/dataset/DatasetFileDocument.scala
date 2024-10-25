@@ -6,10 +6,7 @@ import java.io.{File, FileOutputStream, InputStream}
 import java.net.URI
 import java.nio.file.{Files, Path}
 
-class DatasetFileDocument(fileFullPath: Path) extends VirtualDocument[Nothing] {
-
-  private val (_, dataset, datasetVersion, fileRelativePath) =
-    DatasetResource.resolvePath(fileFullPath, shouldContainFile = true)
+class DatasetFileDocument(did: Int, versionHash: String, fileRelativePath: Path) extends VirtualDocument[Nothing] {
 
   private var tempFile: Option[File] = None
 
@@ -19,12 +16,13 @@ class DatasetFileDocument(fileFullPath: Path) extends VirtualDocument[Nothing] {
     )
 
   override def asInputStream(): InputStream = {
-    fileRelativePath match {
-      case Some(path) =>
-        DatasetResource.getDatasetFile(dataset.getDid, datasetVersion.getDvid, path)
-      case None =>
-        throw new IllegalArgumentException("File relative path is missing.")
-    }
+    val datasetPath = DatasetResource.getDatasetPath(did)
+    GitVersionControlLocalFileStorage
+      .retrieveFileContentOfVersionAsInputStream(
+        datasetPath,
+        versionHash,
+        datasetPath.resolve(fileRelativePath)
+      )
   }
 
   override def asFile(): File = {
