@@ -1,4 +1,0 @@
-jdbc:
-  url: "jdbc:mysql://localhost:3306/texera_db?serverTimezone=UTC"
-  username: "root"
-  password: "123456"
