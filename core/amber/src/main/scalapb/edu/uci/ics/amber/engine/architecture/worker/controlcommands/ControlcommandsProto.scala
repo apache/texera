@@ -108,8 +108,9 @@ object ControlcommandsProto extends _root_.scalapb.GeneratedFileObject {
   XBsZXRlZBhlIAEoCzJILmVkdS51Y2kuaWNzLmFtYmVyLmVuZ2luZS5hcmNoaXRlY3R1cmUud29ya2VyLldvcmtlckV4ZWN1dGlvb
   kNvbXBsZXRlZFYyQh3iPxoSGHdvcmtlckV4ZWN1dGlvbkNvbXBsZXRlZEgAUhh3b3JrZXJFeGVjdXRpb25Db21wbGV0ZWQSVwoFb
   m9fb3AYj04gASgLMjQuZWR1LnVjaS5pY3MuYW1iZXIuZW5naW5lLmFyY2hpdGVjdHVyZS53b3JrZXIuTm9PcFYyQgniPwYSBG5vT
-  3BIAFIEbm9PcEIOCgxzZWFsZWRfdmFsdWUqRQoSQ29uc29sZU1lc3NhZ2VUeXBlEgkKBVBSSU5UEAASCQoFRVJST1IQARILCgdDT
-  01NQU5EEAISDAoIREVCVUdHRVIQA0IJ4j8GSABYAHgBYgZwcm90bzM="""
+  3BIAFIEbm9PcEIOCgxzZWFsZWRfdmFsdWUqegoSQ29uc29sZU1lc3NhZ2VUeXBlEhUKBVBSSU5UEAAaCuI/BxIFUFJJTlQSFQoFR
+  VJST1IQARoK4j8HEgVFUlJPUhIZCgdDT01NQU5EEAIaDOI/CRIHQ09NTUFORBIbCghERUJVR0dFUhADGg3iPwoSCERFQlVHR0VSQ
+  gniPwZIAFgAeAFiBnByb3RvMw=="""
       ).mkString)
   lazy val scalaDescriptor: _root_.scalapb.descriptors.FileDescriptor = {
     val scalaProto = com.google.protobuf.descriptor.FileDescriptorProto.parseFrom(ProtoBytes)

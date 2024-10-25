@@ -19,6 +19,7 @@ sealed abstract class WorkerState(val value: _root_.scala.Int) extends _root_.sc
 object WorkerState extends _root_.scalapb.GeneratedEnumCompanion[WorkerState] {
   sealed trait Recognized extends WorkerState
   implicit def enumCompanion: _root_.scalapb.GeneratedEnumCompanion[WorkerState] = this
+  
   @SerialVersionUID(0L)
   case object UNINITIALIZED extends WorkerState(0) with WorkerState.Recognized {
     val index = 0
@@ -56,7 +57,6 @@ object WorkerState extends _root_.scalapb.GeneratedEnumCompanion[WorkerState] {
   
   @SerialVersionUID(0L)
   final case class Unrecognized(unrecognizedValue: _root_.scala.Int) extends WorkerState(unrecognizedValue) with _root_.scalapb.UnrecognizedEnum
-  
   lazy val values = scala.collection.immutable.Seq(UNINITIALIZED, READY, RUNNING, PAUSED, COMPLETED)
   def fromValue(__value: _root_.scala.Int): WorkerState = __value match {
     case 0 => UNINITIALIZED

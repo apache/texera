@@ -11,15 +11,12 @@ class ControllerAsyncRPCHandlerInitializer(
     with AmberLogging
     with LinkWorkersHandler
     with WorkerExecutionCompletedHandler
-    with WorkerStateUpdatedHandler
     with PauseHandler
     with QueryWorkerStatisticsHandler
     with ResumeHandler
     with StartWorkflowHandler
     with PortCompletedHandler
     with ConsoleMessageHandler
-    with RetryWorkflowHandler
-    with ModifyLogicHandler
     with EvaluatePythonExpressionHandler
     with DebugCommandHandler
     with TakeGlobalCheckpointHandler

@@ -5,7 +5,6 @@ import com.twitter.util.{Await, Duration}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ConsoleMessageHandler.ConsoleMessageTriggered
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.EvaluatePythonExpressionHandler.EvaluatePythonExpression
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.DebugCommandHandler.DebugCommand
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.RetryWorkflowHandler.RetryWorkflow
 import edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessage
 import edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessageType.COMMAND
 import edu.uci.ics.amber.engine.common.{AmberConfig, VirtualIdentityUtils}
@@ -13,18 +12,12 @@ import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
 import edu.uci.ics.texera.web.model.websocket.event.python.ConsoleUpdateEvent
-import edu.uci.ics.texera.web.model.websocket.request.RetryRequest
 import edu.uci.ics.texera.web.model.websocket.request.python.{
   DebugCommandRequest,
   PythonExpressionEvaluateRequest
 }
 import edu.uci.ics.texera.web.model.websocket.response.python.PythonExpressionEvaluateResponse
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
-import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
-import edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState.{
-  RESUMING,
-  RUNNING
-}
 import edu.uci.ics.amber.engine.common.workflowruntimestate.{
   EvaluatedValueList,
   ExecutionConsoleStore,
@@ -106,20 +99,6 @@ class ExecutionConsoleService(
       )
     }
   }
-
-  //Receive retry request
-  addSubscription(wsInput.subscribe((req: RetryRequest, uidOpt) => {
-    stateStore.metadataStore.updateState(metadataStore =>
-      updateWorkflowState(RESUMING, metadataStore)
-    )
-    client.sendAsyncWithCallback[Unit](
-      RetryWorkflow(req.workers.map(x => ActorVirtualIdentity(x))),
-      _ =>
-        stateStore.metadataStore.updateState(metadataStore =>
-          updateWorkflowState(RUNNING, metadataStore)
-        )
-    )
-  }))
 
   //Receive evaluate python expression
   addSubscription(wsInput.subscribe((req: PythonExpressionEvaluateRequest, uidOpt) => {
