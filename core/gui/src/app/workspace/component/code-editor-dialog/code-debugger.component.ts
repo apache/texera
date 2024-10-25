@@ -52,7 +52,7 @@ export class CodeDebuggerComponent implements AfterViewInit, SafeStyle {
     enum BreakpointEnum {
       Exist,
     }
-    
+
     this.monacoBreakpoint = new MonacoBreakpoint({
       editor,
       hoverMessage: {
