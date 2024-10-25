@@ -175,13 +175,21 @@ export class UdfDebugService {
         map(msg => this.extractInfo(msg.title))
       )
       .subscribe(({ breakpointId, lineNum }) => {
+        const debugState = this.getDebugState(operatorId);
         if (isDefined(breakpointId) && isDefined(lineNum)) {
-          this.getDebugState(operatorId).set(String(lineNum), {
+          debugState.set(String(lineNum), {
             breakpointId,
             condition: "",
             hit: false,
           });
         }
+
+        // if exist any breakpoint is hit in the debugState, do continue
+        if (Array.from(debugState.values()).some(breakpoint => breakpoint.hit)) {
+          return;
+        }
+        // otherwise, send continue
+        this.executeWorkflowService.getWorkerIds(operatorId).map(workerId => this.doContinue(operatorId, workerId));
       });
 
     // Handle breakpoint deletion message.

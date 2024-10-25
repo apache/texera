@@ -206,6 +206,52 @@ describe("UdfDebugServiceSpec", () => {
     expect(debugState.get("10")).toEqual({ breakpointId: 1, condition: "", hit: false });
   });
 
+  it("should not call doContinue if a breakpoint is hit", () => {
+    const debugState = service.getDebugState(mockPythonUDFPredicate.operatorID);
+    debugState.set("10", { breakpointId: 1, condition: "", hit: true });
+
+    const message: ConsoleUpdateEvent = {
+      operatorId: mockPythonUDFPredicate.operatorID,
+      messages: [
+        {
+          workerId: stubWorker,
+          timestamp: { nanos: 0, seconds: 0 },
+          title: "Breakpoint 2 at /path/to/file.py:11",
+          source: "(Pdb)",
+          msgType: { name: "DEBUGGER" },
+          message: "",
+        },
+      ],
+    };
+
+    spyOn(service, "doContinue");
+    consoleUpdateEventStream.next(message);
+
+    expect(service.doContinue).not.toHaveBeenCalled();
+  });
+
+  it("should call doContinue for all workers if no breakpoints are hit", () => {
+    const message: ConsoleUpdateEvent = {
+      operatorId: mockPythonUDFPredicate.operatorID,
+      messages: [
+        {
+          workerId: stubWorker,
+          timestamp: { nanos: 0, seconds: 0 },
+          title: "Breakpoint 1 at /path/to/file.py:10",
+          source: "(Pdb)",
+          msgType: { name: "DEBUGGER" },
+          message: "",
+        },
+      ],
+    };
+
+    spyOn(service, "doContinue");
+    consoleUpdateEventStream.next(message);
+
+    expect(service.doContinue).toHaveBeenCalled();
+    expect(service.doContinue).toHaveBeenCalledWith(mockPythonUDFPredicate.operatorID, "worker1");
+  });
+
   it("should handle console update events (breakpoint deletion)", () => {
     const debugState = service.getDebugState(mockPythonUDFPredicate.operatorID);
     debugState.set("10", { breakpointId: 1, condition: "", hit: false });
