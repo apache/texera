@@ -150,7 +150,7 @@ export class UdfDebugService {
     const debugMessageStream = this.workflowWebsocketService.subscribeToEvent("ConsoleUpdateEvent").pipe(
       filter(evt => evt.operatorId === operatorId && evt.messages.length > 0),
       switchMap(evt => evt.messages),
-      filter(msg => msg.source === "(Pdb)" && msg.msgType.name === "DEBUGGER"),
+      filter(msg => msg.source === "(Pdb)" && msg.msgType.name === "DEBUGGER")
     );
 
     // Handle stepping message.
@@ -159,7 +159,7 @@ export class UdfDebugService {
     debugMessageStream
       .pipe(
         filter(msg => msg.title.startsWith(">")),
-        map(msg => this.extractInfo(msg.title)),
+        map(msg => this.extractInfo(msg.title))
       )
       .subscribe(({ lineNum }) => {
         if (!isDefined(lineNum)) return;
@@ -172,7 +172,7 @@ export class UdfDebugService {
     debugMessageStream
       .pipe(
         filter(msg => msg.title.startsWith("Breakpoint")),
-        map(msg => this.extractInfo(msg.title)),
+        map(msg => this.extractInfo(msg.title))
       )
       .subscribe(({ breakpointId, lineNum }) => {
         if (isDefined(breakpointId) && isDefined(lineNum)) {
@@ -190,7 +190,7 @@ export class UdfDebugService {
     debugMessageStream
       .pipe(
         filter(msg => msg.title.startsWith("Deleted")),
-        map(msg => this.extractInfo(msg.title)),
+        map(msg => this.extractInfo(msg.title))
       )
       .subscribe(({ lineNum }) => {
         if (!isDefined(lineNum)) {

@@ -37,25 +37,25 @@ export class CodeDebuggerComponent implements AfterViewInit, SafeStyle {
   public monacoBreakpoint: MonacoBreakpoint | undefined = undefined;
   public breakpointConditionLine: number | undefined = undefined;
 
-  constructor(private udfDebugService: UdfDebugService,
-              private workflowStatusService: WorkflowStatusService) {
-  }
+  constructor(
+    private udfDebugService: UdfDebugService,
+    private workflowStatusService: WorkflowStatusService
+  ) {}
 
   ngAfterViewInit() {
     this.registerStatusChangeHandler();
     this.registerBreakpointRenderingHandler();
   }
 
-  private setupMonacoBreakpointMethods(editor: MonacoEditor) {
-    console.log("setup");
-
+  setupMonacoBreakpointMethods(editor: MonacoEditor) {
     // mimic the enum in monaco-breakpoints
     enum BreakpointEnum {
       Exist,
     }
-
+    
     this.monacoBreakpoint = new MonacoBreakpoint({
-      editor, hoverMessage: {
+      editor,
+      hoverMessage: {
         added: {
           value: "Click to remove the breakpoint.",
         },
@@ -70,7 +70,7 @@ export class CodeDebuggerComponent implements AfterViewInit, SafeStyle {
     //  3) conditional breakpoints. (conditional breakpoints are also exist breakpoints)
     this.monacoBreakpoint["createBreakpointDecoration"] = (
       range: Range,
-      breakpointEnum: BreakpointEnum,
+      breakpointEnum: BreakpointEnum
     ): { range: Range; options: ModelDecorationOptions } => {
       const condition = this.udfDebugService.getCondition(this.currentOperatorId, range.startLineNumber);
 
@@ -106,7 +106,7 @@ export class CodeDebuggerComponent implements AfterViewInit, SafeStyle {
     });
   }
 
-  private removeMonacoBreakpointMethods() {
+  removeMonacoBreakpointMethods() {
     if (!isDefined(this.monacoBreakpoint)) {
       return;
     }
@@ -194,7 +194,7 @@ export class CodeDebuggerComponent implements AfterViewInit, SafeStyle {
     this.monacoBreakpoint!["removeSpecifyDecoration"](decorationId, lineNum);
   }
 
-  private rerenderExistingBreakpoints() {
+  rerenderExistingBreakpoints() {
     this.udfDebugService.getDebugState(this.currentOperatorId).forEach(({ breakpointId }, lineNumStr) => {
       if (!isDefined(breakpointId)) {
         return;
@@ -204,22 +204,27 @@ export class CodeDebuggerComponent implements AfterViewInit, SafeStyle {
   }
 
   private registerStatusChangeHandler() {
-    this.workflowStatusService.getStatusUpdateStream()
+    this.workflowStatusService
+      .getStatusUpdateStream()
       .pipe(
-        map(event => event[this.currentOperatorId]?.operatorState === OperatorState.Running || event[this.currentOperatorId]?.operatorState === OperatorState.Paused),
+        map(
+          event =>
+            event[this.currentOperatorId]?.operatorState === OperatorState.Running ||
+            event[this.currentOperatorId]?.operatorState === OperatorState.Paused
+        ),
         distinctUntilChanged(),
-        untilDestroyed(this),
-      ).subscribe((enable) => {
-
-      // Only enable the breakpoint methods if the operator is running or paused
-      if (enable) {
-        this.setupMonacoBreakpointMethods(this.monacoEditor);
-        this.rerenderExistingBreakpoints();
-      } else {
-
-        // for other states, remove the breakpoint methods
-        this.removeMonacoBreakpointMethods();
-      }
-    });
+        untilDestroyed(this)
+      )
+      .subscribe(enable => {
+        console.log("enable", enable);
+        // Only enable the breakpoint methods if the operator is running or paused
+        if (enable) {
+          this.setupMonacoBreakpointMethods(this.monacoEditor);
+          this.rerenderExistingBreakpoints();
+        } else {
+          // for other states, remove the breakpoint methods
+          this.removeMonacoBreakpointMethods();
+        }
+      });
   }
 }
