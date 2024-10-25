@@ -332,6 +332,71 @@ describe("UdfDebugServiceSpec", () => {
     expect(service.doContinue).not.toHaveBeenCalled();
   });
 
+  it("should call doContinue for all workers if no breakpoints are hit", () => {
+    const operatorId = mockPythonUDFPredicate.operatorID;
+
+    // Ensure no breakpoints are hit in the debug state
+    const debugState = service.getDebugState(operatorId);
+    debugState.set("10", { breakpointId: 1, condition: "", hit: false });
+
+    const message: ConsoleUpdateEvent = {
+      operatorId,
+      messages: [
+        {
+          workerId: stubWorker,
+          timestamp: { nanos: 0, seconds: 0 },
+          title: "*** Blank or comment",
+          source: "(Pdb)",
+          msgType: { name: "DEBUGGER" },
+          message: "",
+        },
+      ],
+    };
+
+    spyOn(service, "doContinue"); // Spy on the doContinue method
+
+    consoleUpdateEventStream.next(message); // Emit the message
+
+
+  });
+
+  it("should handle console update events (breakpoint blank message)", () => {
+    const operatorId = mockPythonUDFPredicate.operatorID;
+
+    // Set a hit breakpoint in the debug state
+    const debugState = service.getDebugState(operatorId);
+    debugState.set("10", { breakpointId: 1, condition: "", hit: true });
+
+    const message: ConsoleUpdateEvent = {
+      operatorId,
+      messages: [
+        {
+          workerId: stubWorker,
+          timestamp: { nanos: 0, seconds: 0 },
+          title: "*** Blank or comment",
+          source: "(Pdb)",
+          msgType: { name: "DEBUGGER" },
+          message: "",
+        },
+      ],
+    };
+
+    spyOn(service, "doContinue");
+
+    consoleUpdateEventStream.next(message); // Emit the message
+
+    // Ensure doContinue was not called due to a hit breakpoint
+    expect(service.doContinue).not.toHaveBeenCalled();
+
+    debugState.delete("10");
+
+    consoleUpdateEventStream.next(message); // Emit the message
+
+    // Ensure doContinue is called for each worker
+    expect(service.doContinue).toHaveBeenCalled();
+    expect(service.doContinue).toHaveBeenCalledWith(operatorId, "worker1");
+  });
+
   it("should handle console update events (stepping message)", () => {
     spyOn(service as any, "markBreakpointAsHit").and.callThrough();
 

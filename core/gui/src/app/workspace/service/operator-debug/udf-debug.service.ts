@@ -184,13 +184,7 @@ export class UdfDebugService {
           });
         }
 
-        // if exist any breakpoint is hit in the debugState, we do not send continue
-        if (this.isHittingBreakpoint(operatorId)) {
-          return;
-        }
-
-        // otherwise, send continue
-        this.executeWorkflowService.getWorkerIds(operatorId).map(workerId => this.doContinue(operatorId, workerId));
+        this.continueIfNotHittingBreakpoint(operatorId);
       });
 
     // Handle breakpoint deletion message.
@@ -217,14 +211,19 @@ export class UdfDebugService {
           debugState.set(String(lineNum), { ...breakpointInfo, breakpointId: undefined });
         }
 
-        // if exist any breakpoint is hit in the debugState, we do not send continue
-        if (this.isHittingBreakpoint(operatorId)) {
-          return;
-        }
-
-        // otherwise, send continue
-        this.executeWorkflowService.getWorkerIds(operatorId).map(workerId => this.doContinue(operatorId, workerId));
+        this.continueIfNotHittingBreakpoint(operatorId);
       });
+
+    // Handle breakpoint blank message.
+    // Example:
+    //   *** Blank or comment
+    debugMessageStream
+      .pipe(
+        filter(msg => msg.title.startsWith("*** Blank or comment")),
+      )
+      .subscribe(() => {
+        this.continueIfNotHittingBreakpoint(operatorId);
+      })
   }
 
   /**
@@ -276,5 +275,14 @@ export class UdfDebugService {
     // Check if any breakpoint is hit in the debug state
     const debugState = this.getDebugState(operatorId);
     return Array.from(debugState.values()).some(breakpoint => breakpoint.hit);
+  }
+
+  private continueIfNotHittingBreakpoint(operatorId: string) {
+    // if exist any breakpoint is hit in the debugState, we do not send continue
+    if (this.isHittingBreakpoint(operatorId)) {
+      return;
+    }
+    // otherwise, send continue
+    this.executeWorkflowService.getWorkerIds(operatorId).forEach(workerId => this.doContinue(operatorId, workerId));
   }
 }
