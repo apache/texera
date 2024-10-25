@@ -1,14 +1,13 @@
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { BreakpointConditionInputComponent } from "./breakpoint-condition-input.component";
 import { UdfDebugService } from "../../../service/operator-debug/udf-debug.service";
-import { ElementRef, SimpleChanges } from "@angular/core";
+import { SimpleChanges } from "@angular/core";
 import * as monaco from "monaco-editor";
 
 describe("BreakpointConditionInputComponent", () => {
   let component: BreakpointConditionInputComponent;
   let fixture: ComponentFixture<BreakpointConditionInputComponent>;
   let mockUdfDebugService: jasmine.SpyObj<UdfDebugService>;
-
   let editorElement: HTMLElement;
 
   beforeEach(async () => {
@@ -35,10 +34,6 @@ describe("BreakpointConditionInputComponent", () => {
       language: "javascript",
     });
 
-    // Mock textarea element
-    const textareaElement = document.createElement("textarea");
-    component.conditionTextarea = new ElementRef<HTMLTextAreaElement>(textareaElement);
-
     // Set required inputs
     component.operatorId = "test-operator";
     component.lineNum = 1;
@@ -50,6 +45,7 @@ describe("BreakpointConditionInputComponent", () => {
     // Clean up the editor and DOM element after each test
     component.monacoEditor.dispose();
     editorElement.remove();
+    component.closeEmitter.emit();
   });
 
   it("should create the component", () => {
@@ -71,14 +67,6 @@ describe("BreakpointConditionInputComponent", () => {
     component.ngOnChanges(changes);
 
     expect(component.condition).toBe("existing condition");
-  });
-
-  it("should focus the textarea when visible", () => {
-    const focusSpy = spyOn(component.conditionTextarea.nativeElement, "focus");
-
-    component.ngAfterViewChecked(); // Call lifecycle hook
-
-    expect(focusSpy).toHaveBeenCalled();
   });
 
   it("should handle Enter key event and save the condition", () => {

@@ -22,32 +22,33 @@ import { MonacoEditor } from "monaco-breakpoints/dist/types";
   templateUrl: "./breakpoint-condition-input.component.html",
   styleUrls: ["./breakpoint-condition-input.component.scss"],
 })
-export class BreakpointConditionInputComponent implements AfterViewChecked, OnChanges {
+export class BreakpointConditionInputComponent implements OnChanges {
   constructor(private udfDebugService: UdfDebugService) {}
 
   @Input() operatorId = "";
   @Input() lineNum?: number;
   @Input() monacoEditor!: MonacoEditor;
   @Output() closeEmitter = new EventEmitter<void>();
-  @ViewChild("conditionTextarea") conditionTextarea!: ElementRef<HTMLTextAreaElement>;
-
   public condition = "";
-
+  public topPosition: string = "0px";
+  public leftPosition: string = "0px";
   ngOnChanges(changes: SimpleChanges): void {
     if (!isDefined(changes["lineNum"]?.currentValue)) {
       return;
     }
     // when the line number changes, update the condition
     this.condition = this.udfDebugService.getCondition(this.operatorId, this.lineNum!) ?? "";
-  }
 
-  ngAfterViewChecked(): void {
-    if (!this.isVisible) {
-      return;
-    }
-
-    // focus the textarea when it is visible
-    this.conditionTextarea?.nativeElement.focus();
+    // update position
+    const layoutInfo = this.monacoEditor.getLayoutInfo();
+    const editorRect = this.monacoEditor.getDomNode()?.getBoundingClientRect();
+    const topValue =
+      (editorRect?.top || 0) +
+      this.monacoEditor.getBottomForLineNumber(this.lineNum!) -
+      this.monacoEditor.getScrollTop();
+    const leftValue = (editorRect?.left || 0) + (layoutInfo?.glyphMarginLeft || 0) - 160;
+    this.topPosition = `${topValue}px`;
+    this.leftPosition = `${leftValue}px`;
   }
 
   public left(): number {
@@ -58,7 +59,7 @@ export class BreakpointConditionInputComponent implements AfterViewChecked, OnCh
     // Calculate the left position of the input popup based on the editor layout
     const { glyphMarginLeft } = this.monacoEditor.getLayoutInfo()!;
     const { left } = this.monacoEditor.getDomNode()!.getBoundingClientRect();
-    return left + glyphMarginLeft - this.monacoEditor.getScrollLeft();
+    return left + glyphMarginLeft - this.monacoEditor.getScrollLeft() - 160;
   }
 
   public top(): number {
