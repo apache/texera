@@ -175,9 +175,8 @@ export class UdfDebugService {
         map(msg => this.extractInfo(msg.title))
       )
       .subscribe(({ breakpointId, lineNum }) => {
-        const debugState = this.getDebugState(operatorId);
         if (isDefined(breakpointId) && isDefined(lineNum)) {
-          debugState.set(String(lineNum), {
+          this.getDebugState(operatorId).set(String(lineNum), {
             breakpointId,
             condition: "",
             hit: false,
@@ -267,18 +266,32 @@ export class UdfDebugService {
     return {};
   }
 
+  /**
+   * Checks if any breakpoint is currently hit (paused) in the debug state
+   * for the given operator.
+   *
+   * @param {string} operatorId - The unique ID of the operator.
+   * @returns {boolean} - Returns `true` if any breakpoint is hit, otherwise `false`.
+   */
   private isHittingBreakpoint(operatorId: string): boolean {
-    // Check if any breakpoint is hit in the debug state
     const debugState = this.getDebugState(operatorId);
     return Array.from(debugState.values()).some(breakpoint => breakpoint.hit);
   }
 
-  private continueIfNotHittingBreakpoint(operatorId: string) {
-    // if exist any breakpoint is hit in the debugState, we do not send continue
+  /**
+   * Sends a "continue" command to all workers of the specified operator
+   * if no breakpoints are currently hit. If a breakpoint is hit, the
+   * function exits without sending the "continue" command.
+   *
+   * @param {string} operatorId - The unique ID of the operator.
+   */
+  private continueIfNotHittingBreakpoint(operatorId: string): void {
+    // If any breakpoint is hit, do not send the "continue" command.
     if (this.isHittingBreakpoint(operatorId)) {
       return;
     }
-    // otherwise, send continue
+
+    // Retrieve all worker IDs and send the "continue" command to each worker.
     this.executeWorkflowService.getWorkerIds(operatorId).forEach(workerId => this.doContinue(operatorId, workerId));
   }
 }
