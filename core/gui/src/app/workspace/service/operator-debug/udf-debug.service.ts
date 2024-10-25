@@ -217,13 +217,9 @@ export class UdfDebugService {
     // Handle breakpoint blank message.
     // Example:
     //   *** Blank or comment
-    debugMessageStream
-      .pipe(
-        filter(msg => msg.title.startsWith("*** Blank or comment")),
-      )
-      .subscribe(() => {
-        this.continueIfNotHittingBreakpoint(operatorId);
-      })
+    debugMessageStream.pipe(filter(msg => msg.title.startsWith("*** Blank or comment"))).subscribe(() => {
+      this.continueIfNotHittingBreakpoint(operatorId);
+    });
   }
 
   /**
@@ -271,7 +267,7 @@ export class UdfDebugService {
     return {};
   }
 
-  private isHittingBreakpoint(operatorId:string): boolean {
+  private isHittingBreakpoint(operatorId: string): boolean {
     // Check if any breakpoint is hit in the debug state
     const debugState = this.getDebugState(operatorId);
     return Array.from(debugState.values()).some(breakpoint => breakpoint.hit);

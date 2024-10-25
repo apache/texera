@@ -356,8 +356,6 @@ describe("UdfDebugServiceSpec", () => {
     spyOn(service, "doContinue"); // Spy on the doContinue method
 
     consoleUpdateEventStream.next(message); // Emit the message
-
-
   });
 
   it("should handle console update events (breakpoint blank message)", () => {
