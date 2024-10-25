@@ -24,6 +24,7 @@ import { HubWorkflowDetailComponent } from "../../../../hub/component/workflow/d
 import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
 import { formatSize } from "src/app/common/util/size-formatter.util";
 
+
 @UntilDestroy()
 @Component({
   selector: "texera-list-item",
@@ -114,6 +115,12 @@ export class ListItemComponent implements OnInit, OnChanges {
     if (changes["entry"]) {
       this.initializeEntry();
     }
+  }
+
+  onCheckboxChange(entry: DashboardEntry): void {
+    entry.checked = !entry.checked;
+    console.log(`Entry ${entry.id} selected: ${entry.checked}`);
+    this.cdr.markForCheck();
   }
 
   public async onClickOpenShareAccess(): Promise<void> {
@@ -288,10 +295,5 @@ export class ListItemComponent implements OnInit, OnChanges {
   // alias for formatSize
   formatSize = formatSize;
 
-  onCardClick() {
-    if (this.isBatchSelectEnabled) {
-      this.entry.checked = !this.entry.checked;
-      this.cdr.markForCheck();
-    }
-  }
+
 }

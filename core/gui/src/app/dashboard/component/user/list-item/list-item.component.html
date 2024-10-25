@@ -1,27 +1,24 @@
 <nz-card
-  [nzBodyStyle]="{padding: '5px'}"
+  [nzBodyStyle]="{padding: '5px', height:'69px'}"
   class="list-item-card"
-  [class.selected]="entry.checked"
-  (click)="onCardClick()">
+  [class.selected]="entry.checked">
   <div
-    [routerLink]="!isBatchSelectEnabled ? entryLink : null"
+    [routerLink]="entryLink"
     nz-row
-    nzAlign="middle">
-    <!-- Icon Column -->
-    <div
-      nz-col
-      nzSpan="1">
-      <div class="type-icon-div">
-        <i
-          nz-icon
-          [nzType]="iconType"></i>
-      </div>
-    </div>
+    nzAlign="middle"
+    class="custom-row">
 
-    <!-- ID Column -->
-    <div
-      nz-col
-      nzSpan="1">
+    <div nz-col nzSpan="2" class="checkbox-icon-group">
+      <div class="checkbox-container" (click)="$event.stopPropagation()">
+        <label class="clickable-area">
+          <input
+            type="checkbox"
+            class="large-checkbox"
+            [checked]="entry.checked"
+            (change)="onCheckboxChange(entry)" />
+        </label>
+      </div>
+      <i nz-icon [nzType]="iconType" class="type-icon"></i>
       <div class="resource-id">
         <em>#{{ entry.id }}</em>
       </div>
