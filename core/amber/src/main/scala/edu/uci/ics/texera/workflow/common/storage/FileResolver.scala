@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.common.storage
 
-import java.nio.file.{Files, Path, Paths}
+import java.nio.file.{Files, Paths}
 import edu.uci.ics.amber.engine.common.storage.DatasetFileDocument
 import org.apache.commons.vfs2.FileNotFoundException
 
