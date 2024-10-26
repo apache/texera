@@ -77,6 +77,25 @@
   }
 }
 
+.checkbox-container {
+  display: none;
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  left: 0;
+  bottom: 0;
+  justify-content: left;
+  align-items: center;
+  transition: none;
+  top: 50%;
+  transform: translate(10%, -50%);
+}
+
+.list-item-card:hover .checkbox-container {
+  display: flex;
+  z-index: 10;
+}
+
 .button-group {
   display: none;
   position: absolute;
@@ -127,7 +146,9 @@
   line-height: 1.5;
   max-height: 18px;
   overflow: hidden;
-  transition: border-color 0.3s, box-shadow 0.3s;
+  transition:
+    border-color 0.3s,
+    box-shadow 0.3s;
 }
 
 .name-container .description-container {
@@ -163,16 +184,10 @@
   }
 }
 
-.checkbox-icon-group {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  padding-left: 5px;
-}
-
-.type-icon {
+.type-icon-div {
   text-align: center;
   font-size: 38px;
+  margin-left: 30px;
 }
 
 .custom-row {
@@ -203,15 +218,17 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background-color 0.3s ease;
+  opacity: 0.7;
 
   &:hover {
     background-color: #d9d9d9;
+    opacity: 0.7;
   }
 
   .list-item-card.selected & {
     &:hover {
       background-color: #cceeff;
+      opacity: 0.7;
     }
   }
 }

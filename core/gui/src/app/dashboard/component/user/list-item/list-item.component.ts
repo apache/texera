@@ -24,7 +24,6 @@ import { HubWorkflowDetailComponent } from "../../../../hub/component/workflow/d
 import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
 import { formatSize } from "src/app/common/util/size-formatter.util";
 
-
 @UntilDestroy()
 @Component({
   selector: "texera-list-item",
@@ -293,6 +292,4 @@ export class ListItemComponent implements OnInit, OnChanges {
 
   // alias for formatSize
   formatSize = formatSize;
-
-
 }
