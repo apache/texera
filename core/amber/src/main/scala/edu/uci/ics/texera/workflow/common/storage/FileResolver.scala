@@ -4,7 +4,7 @@ import java.nio.file.{Files, Path, Paths}
 import edu.uci.ics.amber.engine.common.storage.DatasetFileDocument
 import org.apache.commons.vfs2.FileNotFoundException
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{Success, Try}
 
 object FileResolver {
 
