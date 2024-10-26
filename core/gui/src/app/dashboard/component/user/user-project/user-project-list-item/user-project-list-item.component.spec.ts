@@ -1,9 +1,13 @@
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { UserProjectListItemComponent } from "./user-project-list-item.component";
-import { HttpClient, HttpHandler } from "@angular/common/http";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { UserProjectService } from "../../../../service/user/project/user-project.service";
 import { DashboardProject } from "../../../../type/dashboard-project.interface";
+import { HttpClientTestingModule } from "@angular/common/http/testing";
+import { NzModalService } from "ng-zorro-antd/modal";
+import { StubUserService } from "../../../../../common/service/user/stub-user.service";
+import { UserService } from "../../../../../common/service/user/user.service";
+import { HighlightSearchTermsPipe } from "../../user-workflow/user-workflow-list-item/highlight-search-terms.pipe";
 
 describe("UserProjectListItemComponent", () => {
   let component: UserProjectListItemComponent;
@@ -21,8 +25,14 @@ describe("UserProjectListItemComponent", () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [UserProjectListItemComponent],
-      providers: [HttpClient, HttpHandler, NotificationService, UserProjectService],
+      declarations: [UserProjectListItemComponent, HighlightSearchTermsPipe],
+      providers: [
+        NotificationService,
+        UserProjectService,
+        NzModalService,
+        { provide: UserService, useClass: StubUserService },
+      ],
+      imports: [HttpClientTestingModule],
     }).compileComponents();
   });
 
@@ -32,5 +42,9 @@ describe("UserProjectListItemComponent", () => {
     component.entry = testProject;
     component.editable = true;
     fixture.detectChanges();
+  });
+
+  it("should create", () => {
+    expect(component).toBeTruthy();
   });
 });

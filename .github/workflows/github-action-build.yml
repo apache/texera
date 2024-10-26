@@ -17,30 +17,31 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os:
-          - ubuntu-latest
-          - macos-latest
-          - windows-latest
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: macos-latest
+            arch: arm64
+          - os: ubuntu-latest
+            arch: x64
+          - os: windows-latest
+            arch: x64
         node-version:
           - 18
-        architecture:
-          - x64
     steps:
       - name: Checkout Texera
         uses: actions/checkout@v2
       - name: Setup node
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          architecture: ${{ matrix.architecture }}
+          architecture: ${{ matrix.arch }}
       - uses: actions/cache@v2
         with:
           path: |
             core/gui/node_modules
-            core/gui/multi-target/node_modules
-          key: ${{ runner.os }}-yarn-cache-v6-${{ hashFiles('**/yarn.lock') }}
+          key: ${{ runner.os }}-${{ matrix.arch }}-${{ matrix.node-version }}-yarn-cache-v1-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
-            ${{ runner.os }}-yarn-cache-v6-
+            ${{ runner.os }}-${{ matrix.arch }}-${{ matrix.node-version }}-yarn-cache-v1-
       - name: Prepare Yarn 4.5.1
         run: corepack enable && corepack prepare yarn@4.5.1 --activate && yarn --cwd core/gui set version 4.5.1
       - name: Install dependency

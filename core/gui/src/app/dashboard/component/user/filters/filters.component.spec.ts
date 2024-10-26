@@ -6,9 +6,10 @@ import { OperatorMetadataService } from "src/app/workspace/service/operator-meta
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
 import { StubWorkflowPersistService } from "src/app/common/service/workflow-persist/stub-workflow-persist.service";
 import { testWorkflowEntries } from "../../user-dashboard-test-fixtures";
-import { HttpClient, HttpHandler } from "@angular/common/http";
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
-import { JwtHelperService, JWT_OPTIONS } from "@auth0/angular-jwt";
+import { JWT_OPTIONS, JwtHelperService } from "@auth0/angular-jwt";
+import { FormsModule } from "@angular/forms";
+import { HttpClientTestingModule } from "@angular/common/http/testing";
 
 describe("FiltersComponent", () => {
   let component: FiltersComponent;
@@ -18,14 +19,12 @@ describe("FiltersComponent", () => {
     await TestBed.configureTestingModule({
       declarations: [FiltersComponent],
       providers: [
-        HttpClient,
-        HttpHandler,
         JwtHelperService,
         { provide: JWT_OPTIONS, useValue: {} },
         { provide: WorkflowPersistService, useValue: new StubWorkflowPersistService(testWorkflowEntries) },
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
       ],
-      imports: [NzDropDownModule],
+      imports: [NzDropDownModule, FormsModule, HttpClientTestingModule],
     }).compileComponents();
   });
 

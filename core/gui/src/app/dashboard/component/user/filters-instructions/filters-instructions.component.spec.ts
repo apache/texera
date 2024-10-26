@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 
 import { FiltersInstructionsComponent } from "./filters-instructions.component";
+import { NzPopoverModule } from "ng-zorro-antd/popover";
 
 describe("FiltersInstructionsComponent", () => {
   let component: FiltersInstructionsComponent;
@@ -9,6 +10,7 @@ describe("FiltersInstructionsComponent", () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       declarations: [FiltersInstructionsComponent],
+      imports: [NzPopoverModule],
     }).compileComponents();
   });
 
