@@ -28,7 +28,6 @@ class DataProcessorRPCHandlerInitializer(val dp: DataProcessor)
     with AssignPortHandler
     with AddInputChannelHandler
     with FlushNetworkBufferHandler
-    with ModifyLogicHandler
     with RetrieveStateHandler
     with PrepareCheckpointHandler
     with FinalizeCheckpointHandler {

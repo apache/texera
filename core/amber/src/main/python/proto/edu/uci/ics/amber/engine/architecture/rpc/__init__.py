@@ -811,21 +811,6 @@ class WorkerServiceStub(betterproto.ServiceStub):
             WorkerStateResponse,
         )
 
-    async def modify_logic(
-        self, *, update_request: Optional[List["UpdateExecutorRequest"]] = None
-    ) -> "EmptyReturn":
-        update_request = update_request or []
-
-        request = ModifyLogicRequest()
-        if update_request is not None:
-            request.update_request = update_request
-
-        return await self._unary_unary(
-            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/ModifyLogic",
-            request,
-            EmptyReturn,
-        )
-
     async def debug_command(
         self, *, worker_id: str = "", cmd: str = ""
     ) -> "EmptyReturn":
@@ -1349,11 +1334,6 @@ class WorkerServiceBase(ServiceBase):
     async def start_worker(self) -> "WorkerStateResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def modify_logic(
-        self, update_request: Optional[List["UpdateExecutorRequest"]]
-    ) -> "EmptyReturn":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
     async def debug_command(self, worker_id: str, cmd: str) -> "EmptyReturn":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
@@ -1495,16 +1475,6 @@ class WorkerServiceBase(ServiceBase):
         response = await self.start_worker(**request_kwargs)
         await stream.send_message(response)
 
-    async def __rpc_modify_logic(self, stream: grpclib.server.Stream) -> None:
-        request = await stream.recv_message()
-
-        request_kwargs = {
-            "update_request": request.update_request,
-        }
-
-        response = await self.modify_logic(**request_kwargs)
-        await stream.send_message(response)
-
     async def __rpc_debug_command(self, stream: grpclib.server.Stream) -> None:
         request = await stream.recv_message()
 
@@ -1614,12 +1584,6 @@ class WorkerServiceBase(ServiceBase):
                 grpclib.const.Cardinality.UNARY_UNARY,
                 EmptyRequest,
                 WorkerStateResponse,
-            ),
-            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/ModifyLogic": grpclib.const.Handler(
-                self.__rpc_modify_logic,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                ModifyLogicRequest,
-                EmptyReturn,
             ),
             "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/DebugCommand": grpclib.const.Handler(
                 self.__rpc_debug_command,
