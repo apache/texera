@@ -6,7 +6,6 @@ import scala.util.{Failure, Success, Try}
 
 object ScanSourceFileResolver {
 
-  // Define the custom error type for when a source file is not found
   case class SourceFileNotFound(message: String) extends Exception(message)
 
   /**
