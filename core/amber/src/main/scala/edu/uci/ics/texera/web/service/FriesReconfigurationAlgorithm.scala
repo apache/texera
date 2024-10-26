@@ -92,23 +92,23 @@ object FriesReconfigurationAlgorithm {
       val componentPlan = mcsPlan.getSubPlan(componentSet)
 
       // generate the reconfiguration command for this component
-      val reconfigCommands =
-        reconfiguration.updateRequest
-          .filter(req => component.contains(req.targetOpId))
-      val reconfigTargets = reconfigCommands.map(_.targetOpId)
-
-      // find the source operators of the component
-      val sources = componentSet.intersect(mcsPlan.getSourceOperatorIds)
-      epochMarkers += PropagateChannelMarkerRequest(
-        sources.toSeq,
-        ChannelMarkerIdentity(epochMarkerId),
-        REQUIRE_ALIGNMENT,
-        componentPlan.operators.map(_.id).toSeq,
-        reconfigTargets,
-        ModifyLogicRequest(reconfigCommands),
-        METHOD_MODIFY_LOGIC.getBareMethodName
-      )
-    })
+//      val reconfigCommands =
+//        reconfiguration.updateRequest
+//          .filter(req => component.contains(req.targetOpId))
+//      val reconfigTargets = reconfigCommands.map(_.targetOpId)
+//
+//      // find the source operators of the component
+//      val sources = componentSet.intersect(mcsPlan.getSourceOperatorIds)
+//      epochMarkers += PropagateChannelMarkerRequest(
+//        sources.toSeq,
+//        ChannelMarkerIdentity(epochMarkerId),
+//        REQUIRE_ALIGNMENT,
+//        componentPlan.operators.map(_.id).toSeq,
+//        reconfigTargets,
+//        ModifyLogicRequest(reconfigCommands),
+//        METHOD_MODIFY_LOGIC.getBareMethodName
+//      )
+//    })
 
     epochMarkers.toList
   }

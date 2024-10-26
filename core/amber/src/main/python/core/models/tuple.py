@@ -49,6 +49,9 @@ class ArrowTableTupleProvider:
         Provide the field accessor of the next tuple.
         If current chunk is exhausted, move to the first tuple of the next chunk.
         """
+        if self._table.num_columns == 0:
+            # empty table
+            raise StopIteration
         if self._current_idx >= len(self._table.column(0).chunks[self._current_chunk]):
             self._current_idx = 0
             self._current_chunk += 1

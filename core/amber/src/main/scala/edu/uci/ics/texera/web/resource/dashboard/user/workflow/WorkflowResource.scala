@@ -103,6 +103,28 @@ object WorkflowResource {
 
   case class WorkflowIDs(wids: List[UInteger], pid: Option[UInteger])
 
+  private def updateWorkflowField(
+      workflow: Workflow,
+      sessionUser: SessionUser,
+      updateFunction: Workflow => Unit
+  ): Unit = {
+    val wid = workflow.getWid
+    val user = sessionUser.getUser
+
+    if (
+      workflowOfUserExists(wid, user.getUid) || WorkflowAccessResource.hasWriteAccess(
+        wid,
+        user.getUid
+      )
+    ) {
+      val userWorkflow = workflowDao.fetchOneByWid(wid)
+      updateFunction(userWorkflow)
+      workflowDao.update(userWorkflow)
+    } else {
+      throw new ForbiddenException("No sufficient access privilege.")
+    }
+  }
+
 }
 @Produces(Array(MediaType.APPLICATION_JSON))
 @RolesAllowed(Array("REGULAR", "ADMIN"))
@@ -466,11 +488,6 @@ class WorkflowResource extends LazyLogging {
     }
   }
 
-  /**
-    * This method updates the name of a given workflow
-    *
-    * @return Response
-    */
   @POST
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
@@ -479,18 +496,7 @@ class WorkflowResource extends LazyLogging {
       workflow: Workflow,
       @Auth sessionUser: SessionUser
   ): Unit = {
-    val wid = workflow.getWid
-    val name = workflow.getName
-    val user = sessionUser.getUser
-    if (!WorkflowAccessResource.hasWriteAccess(wid, user.getUid)) {
-      throw new ForbiddenException("No sufficient access privilege.")
-    } else if (!workflowOfUserExists(wid, user.getUid)) {
-      throw new BadRequestException("The workflow does not exist.")
-    } else {
-      val userWorkflow = workflowDao.fetchOneByWid(wid)
-      userWorkflow.setName(name)
-      workflowDao.update(userWorkflow)
-    }
+    updateWorkflowField(workflow, sessionUser, _.setName(workflow.getName))
   }
 
   @POST
@@ -501,19 +507,7 @@ class WorkflowResource extends LazyLogging {
       workflow: Workflow,
       @Auth sessionUser: SessionUser
   ): Unit = {
-    val wid = workflow.getWid
-    val description = workflow.getDescription
-    val user = sessionUser.getUser
-
-    if (!WorkflowAccessResource.hasWriteAccess(wid, user.getUid)) {
-      throw new ForbiddenException("No sufficient access privilege.")
-    } else if (!workflowOfUserExists(wid, user.getUid)) {
-      throw new BadRequestException("The workflow does not exist.")
-    } else {
-      val userWorkflow = workflowDao.fetchOneByWid(wid)
-      userWorkflow.setDescription(description)
-      workflowDao.update(userWorkflow)
-    }
+    updateWorkflowField(workflow, sessionUser, _.setDescription(workflow.getDescription))
   }
 
   @PUT

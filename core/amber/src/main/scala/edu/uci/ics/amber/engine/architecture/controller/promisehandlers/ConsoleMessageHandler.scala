@@ -17,17 +17,9 @@ trait ConsoleMessageHandler {
       msg: ConsoleMessageTriggeredRequest,
       ctx: AsyncRPCContext
   ): Future[EmptyReturn] = {
-    if (msg.consoleMessage.msgType.isError) {
-      // if its an error message, pause the workflow
-      controllerInterface.pauseWorkflow(EmptyRequest(), mkContext(SELF)).map { ret =>
-        // forward message to frontend
-        sendToClient(msg.consoleMessage)
-        EmptyReturn()
-      }
-    } else {
+    // forward message to frontend
       sendToClient(msg.consoleMessage)
       EmptyReturn()
-    }
   }
 
 }

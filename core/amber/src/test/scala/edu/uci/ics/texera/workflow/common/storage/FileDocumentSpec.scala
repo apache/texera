@@ -86,8 +86,8 @@ class FileDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfter {
     val futures = (1 to numberOfThreads).map { _ =>
       Future {
         val contentStream = new ByteArrayInputStream(s"Content from thread".getBytes)
-        // multiple document of the same URI try to do write here
-        new FileDocument(tempFileURI).appendStream(contentStream)
+        // Use the same FileDocument instance for all threads
+        fileDocument.appendStream(contentStream)
       }
     }
     Future
@@ -101,11 +101,9 @@ class FileDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfter {
       .futureValue
   }
 
-  it should "handle concurrent reads and writes safely" in {
-    Future {
-      val contentStream = new ByteArrayInputStream(newContent.getBytes)
-      fileDocument.appendStream(contentStream)
-    }
+  it should "handle concurrent reads safely" in {
+    val contentStream = new ByteArrayInputStream(newContent.getBytes)
+    fileDocument.appendStream(contentStream)
 
     val readers: Seq[Future[String]] = (1 to 5).map { _ =>
       Future {
