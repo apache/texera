@@ -25,7 +25,6 @@ import { map, mergeMap, switchMap, tap } from "rxjs/operators";
 import { environment } from "../../../../../environments/environment";
 import { DashboardWorkflow } from "../../../type/dashboard-workflow.interface";
 import { DownloadService } from "../../../service/user/download/download.service";
-import { NzMessageService } from "ng-zorro-antd/message";
 /**
  * Saved-workflow-section component contains information and functionality
  * of the saved workflows section and is re-used in the user projects section when a project is clicked
@@ -91,7 +90,6 @@ export class UserWorkflowComponent implements AfterViewInit {
   @Input() public accessLevel?: string = undefined;
   public sortMethod = SortMethod.EditTimeDesc;
   lastSortMethod: SortMethod | null = null;
-  public isBatchSelectEnabled = false;
 
   constructor(
     private userService: UserService,
@@ -103,7 +101,6 @@ export class UserWorkflowComponent implements AfterViewInit {
     private downloadService: DownloadService,
     private searchService: SearchService,
     private cdr: ChangeDetectorRef,
-    private message: NzMessageService
   ) {
     this.userService
       .userChanged()
@@ -552,17 +549,12 @@ export class UserWorkflowComponent implements AfterViewInit {
     }
   }
 
-  toggleBatchSelect() {
-    this.isBatchSelectEnabled = !this.isBatchSelectEnabled;
-
-    if (!this.isBatchSelectEnabled) {
+  public toggleSelection(): void {
+    const allSelected = this.searchResultsComponent.entries.every(entry => entry.checked);
+    if (allSelected) {
       this.searchResultsComponent.clearAllSelections();
+    } else {
+      this.searchResultsComponent.selectAll();
     }
-
-    const message = this.isBatchSelectEnabled ? "Batch selection enabled." : "Batch selection disabled.";
-    this.message.info(message);
-
-    this.searchResultsComponent.setBatchSelect(this.isBatchSelectEnabled);
-    this.cdr.detectChanges();
   }
 }

@@ -56,8 +56,8 @@ export class SearchResultsComponent {
     }
   }
 
-  setBatchSelect(enabled: boolean) {
-    this.isBatchSelectEnabled = enabled;
+  selectAll(): void {
+    this.entries.forEach(entry => (entry.checked = true));
   }
 
   clearAllSelections() {

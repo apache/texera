@@ -33,7 +33,6 @@ import { formatSize } from "src/app/common/util/size-formatter.util";
 })
 export class ListItemComponent implements OnInit, OnChanges {
   private owners: number[] = [];
-  @Input() isBatchSelectEnabled = false;
   public originalName: string = "";
   public originalDescription: string | undefined = undefined;
   @Input() currentUid: number | undefined;

@@ -31,7 +31,7 @@
         <!-- Edit Name Buttons -->
         <div
           class="edit-button-group"
-          *ngIf="isPrivateSearch && !isBatchSelectEnabled">
+          *ngIf="isPrivateSearch">
           <button
             nz-button
             nzType="text"
@@ -68,7 +68,7 @@
         <!-- Edit Description Buttons -->
         <div
           class="edit-button-group"
-          *ngIf="isPrivateSearch && !isBatchSelectEnabled">
+          *ngIf="isPrivateSearch">
           <button
             nz-button
             nzType="text"
@@ -122,7 +122,7 @@
   </div>
 
   <div
-    *ngIf="isPrivateSearch && !isBatchSelectEnabled"
+    *ngIf="isPrivateSearch"
     class="button-group">
     <button
       *ngIf="entry.type==='workflow'"
