@@ -17,7 +17,7 @@ trait ControllerServiceFs2Grpc[F[_], A] {
   def workerExecutionCompleted(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest, ctx: A): F[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]
   def linkWorkers(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.LinkWorkersRequest, ctx: A): F[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]
   def controllerInitiateQueryStatistics(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.QueryStatisticsRequest, ctx: A): F[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]
-  def reconfigureWorkflow(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.WorkflowReconfigureRequest, ctx: A): F[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]
+  def retryWorkflow(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.RetryWorkflowRequest, ctx: A): F[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]
 }
 
 object ControllerServiceFs2Grpc extends _root_.fs2.grpc.GeneratedCompanion[ControllerServiceFs2Grpc] {
@@ -93,9 +93,9 @@ object ControllerServiceFs2Grpc extends _root_.fs2.grpc.GeneratedCompanion[Contr
         _root_.fs2.grpc.client.Fs2ClientCall[F](channel, edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerServiceGrpc.METHOD_CONTROLLER_INITIATE_QUERY_STATISTICS, dispatcher, clientOptions).flatMap(_.unaryToUnaryCall(request, m))
       }
     }
-    def reconfigureWorkflow(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.WorkflowReconfigureRequest, ctx: A): F[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] = {
+    def retryWorkflow(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.RetryWorkflowRequest, ctx: A): F[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] = {
       mkMetadata(ctx).flatMap { m =>
-        _root_.fs2.grpc.client.Fs2ClientCall[F](channel, edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerServiceGrpc.METHOD_RECONFIGURE_WORKFLOW, dispatcher, clientOptions).flatMap(_.unaryToUnaryCall(request, m))
+        _root_.fs2.grpc.client.Fs2ClientCall[F](channel, edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerServiceGrpc.METHOD_RETRY_WORKFLOW, dispatcher, clientOptions).flatMap(_.unaryToUnaryCall(request, m))
       }
     }
   }
@@ -117,7 +117,7 @@ object ControllerServiceFs2Grpc extends _root_.fs2.grpc.GeneratedCompanion[Contr
       .addMethod(edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerServiceGrpc.METHOD_WORKER_EXECUTION_COMPLETED, _root_.fs2.grpc.server.Fs2ServerCallHandler[F](dispatcher, serverOptions).unaryToUnaryCall[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]((r, m) => mkCtx(m).flatMap(serviceImpl.workerExecutionCompleted(r, _))))
       .addMethod(edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerServiceGrpc.METHOD_LINK_WORKERS, _root_.fs2.grpc.server.Fs2ServerCallHandler[F](dispatcher, serverOptions).unaryToUnaryCall[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.LinkWorkersRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]((r, m) => mkCtx(m).flatMap(serviceImpl.linkWorkers(r, _))))
       .addMethod(edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerServiceGrpc.METHOD_CONTROLLER_INITIATE_QUERY_STATISTICS, _root_.fs2.grpc.server.Fs2ServerCallHandler[F](dispatcher, serverOptions).unaryToUnaryCall[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.QueryStatisticsRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]((r, m) => mkCtx(m).flatMap(serviceImpl.controllerInitiateQueryStatistics(r, _))))
-      .addMethod(edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerServiceGrpc.METHOD_RECONFIGURE_WORKFLOW, _root_.fs2.grpc.server.Fs2ServerCallHandler[F](dispatcher, serverOptions).unaryToUnaryCall[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.WorkflowReconfigureRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]((r, m) => mkCtx(m).flatMap(serviceImpl.reconfigureWorkflow(r, _))))
+      .addMethod(edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerServiceGrpc.METHOD_RETRY_WORKFLOW, _root_.fs2.grpc.server.Fs2ServerCallHandler[F](dispatcher, serverOptions).unaryToUnaryCall[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.RetryWorkflowRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]((r, m) => mkCtx(m).flatMap(serviceImpl.retryWorkflow(r, _))))
       .build()
   }
 

@@ -136,7 +136,8 @@ class RegionExecutionCoordinator(
                     "edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo",
                     ByteString.copyFrom(bytes)
                   ),
-                  physicalOp.isSourceOperator
+                  physicalOp.isSourceOperator,
+                  "scala"
                 ),
                 asyncRPCClient.mkContext(workerId)
               )

@@ -197,7 +197,7 @@ class WorkerSpec
     )
     val initializeOperatorLogic = AsyncRPCClient.ControlInvocation(
       METHOD_INITIALIZE_EXECUTOR,
-      InitializeExecutorRequest(1, protoAny, isSource = false),
+      InitializeExecutorRequest(1, protoAny, isSource = false, "scala"),
       AsyncRPCContext(CONTROLLER, identifier1),
       4
     )

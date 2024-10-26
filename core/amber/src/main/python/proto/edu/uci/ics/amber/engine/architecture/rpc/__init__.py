@@ -1062,20 +1062,17 @@ class ControllerServiceStub(betterproto.ServiceStub):
             EmptyReturn,
         )
 
-    async def reconfigure_workflow(
-        self,
-        *,
-        reconfiguration: "ModifyLogicRequest" = None,
-        reconfiguration_id: str = "",
+    async def retry_workflow(
+        self, *, workers: Optional[List["__common__.ActorVirtualIdentity"]] = None
     ) -> "EmptyReturn":
+        workers = workers or []
 
-        request = WorkflowReconfigureRequest()
-        if reconfiguration is not None:
-            request.reconfiguration = reconfiguration
-        request.reconfiguration_id = reconfiguration_id
+        request = RetryWorkflowRequest()
+        if workers is not None:
+            request.workers = workers
 
         return await self._unary_unary(
-            "/edu.uci.ics.amber.engine.architecture.rpc.ControllerService/ReconfigureWorkflow",
+            "/edu.uci.ics.amber.engine.architecture.rpc.ControllerService/RetryWorkflow",
             request,
             EmptyReturn,
         )
@@ -1707,8 +1704,8 @@ class ControllerServiceBase(ServiceBase):
     ) -> "EmptyReturn":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def reconfigure_workflow(
-        self, reconfiguration: "ModifyLogicRequest", reconfiguration_id: str
+    async def retry_workflow(
+        self, workers: Optional[List["__common__.ActorVirtualIdentity"]]
     ) -> "EmptyReturn":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
@@ -1865,15 +1862,14 @@ class ControllerServiceBase(ServiceBase):
         response = await self.controller_initiate_query_statistics(**request_kwargs)
         await stream.send_message(response)
 
-    async def __rpc_reconfigure_workflow(self, stream: grpclib.server.Stream) -> None:
+    async def __rpc_retry_workflow(self, stream: grpclib.server.Stream) -> None:
         request = await stream.recv_message()
 
         request_kwargs = {
-            "reconfiguration": request.reconfiguration,
-            "reconfiguration_id": request.reconfiguration_id,
+            "workers": request.workers,
         }
 
-        response = await self.reconfigure_workflow(**request_kwargs)
+        response = await self.retry_workflow(**request_kwargs)
         await stream.send_message(response)
 
     def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
@@ -1962,10 +1958,10 @@ class ControllerServiceBase(ServiceBase):
                 QueryStatisticsRequest,
                 EmptyReturn,
             ),
-            "/edu.uci.ics.amber.engine.architecture.rpc.ControllerService/ReconfigureWorkflow": grpclib.const.Handler(
-                self.__rpc_reconfigure_workflow,
+            "/edu.uci.ics.amber.engine.architecture.rpc.ControllerService/RetryWorkflow": grpclib.const.Handler(
+                self.__rpc_retry_workflow,
                 grpclib.const.Cardinality.UNARY_UNARY,
-                WorkflowReconfigureRequest,
+                RetryWorkflowRequest,
                 EmptyReturn,
             ),
         }

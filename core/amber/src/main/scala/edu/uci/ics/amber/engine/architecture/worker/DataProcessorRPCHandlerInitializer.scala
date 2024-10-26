@@ -4,6 +4,7 @@ import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
   AsyncRPCContext,
   DebugCommandRequest,
+  EmptyRequest,
   EvaluatePythonExpressionRequest
 }
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{EmptyReturn, EvaluatedValue}
@@ -42,4 +43,7 @@ class DataProcessorRPCHandlerInitializer(val dp: DataProcessor)
       request: EvaluatePythonExpressionRequest,
       ctx: AsyncRPCContext
   ): Future[EvaluatedValue] = ???
+
+  override def retryCurrentTuple(request: EmptyRequest, ctx: AsyncRPCContext): Future[EmptyReturn] =
+    ???
 }

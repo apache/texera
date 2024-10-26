@@ -147,12 +147,12 @@ object ControllerServiceGrpc {
       .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerserviceProto.javaDescriptor.getServices().get(0).getMethods().get(13)))
       .build()
   
-  val METHOD_RECONFIGURE_WORKFLOW: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.WorkflowReconfigureRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] =
+  val METHOD_RETRY_WORKFLOW: _root_.io.grpc.MethodDescriptor[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.RetryWorkflowRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] =
     _root_.io.grpc.MethodDescriptor.newBuilder()
       .setType(_root_.io.grpc.MethodDescriptor.MethodType.UNARY)
-      .setFullMethodName(_root_.io.grpc.MethodDescriptor.generateFullMethodName("edu.uci.ics.amber.engine.architecture.rpc.ControllerService", "ReconfigureWorkflow"))
+      .setFullMethodName(_root_.io.grpc.MethodDescriptor.generateFullMethodName("edu.uci.ics.amber.engine.architecture.rpc.ControllerService", "RetryWorkflow"))
       .setSampledToLocalTracing(true)
-      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.WorkflowReconfigureRequest])
+      .setRequestMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.RetryWorkflowRequest])
       .setResponseMarshaller(_root_.scalapb.grpc.Marshaller.forMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn])
       .setSchemaDescriptor(_root_.scalapb.grpc.ConcreteProtoMethodDescriptorSupplier.fromMethodDescriptor(edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerserviceProto.javaDescriptor.getServices().get(0).getMethods().get(14)))
       .build()
@@ -174,7 +174,7 @@ object ControllerServiceGrpc {
       .addMethod(METHOD_WORKER_EXECUTION_COMPLETED)
       .addMethod(METHOD_LINK_WORKERS)
       .addMethod(METHOD_CONTROLLER_INITIATE_QUERY_STATISTICS)
-      .addMethod(METHOD_RECONFIGURE_WORKFLOW)
+      .addMethod(METHOD_RETRY_WORKFLOW)
       .build()
   
   trait ControllerService extends _root_.scalapb.grpc.AbstractService {
@@ -193,7 +193,7 @@ object ControllerServiceGrpc {
     def workerExecutionCompleted(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]
     def linkWorkers(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.LinkWorkersRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]
     def controllerInitiateQueryStatistics(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.QueryStatisticsRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]
-    def reconfigureWorkflow(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.WorkflowReconfigureRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]
+    def retryWorkflow(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.RetryWorkflowRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]
   }
   
   object ControllerService extends _root_.scalapb.grpc.ServiceCompanion[ControllerService] {
@@ -301,10 +301,10 @@ object ControllerServiceGrpc {
               executionContext)
         }))
       .addMethod(
-        METHOD_RECONFIGURE_WORKFLOW,
-        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall(new _root_.io.grpc.stub.ServerCalls.UnaryMethod[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.WorkflowReconfigureRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] {
-          override def invoke(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.WorkflowReconfigureRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]): _root_.scala.Unit =
-            serviceImpl.reconfigureWorkflow(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
+        METHOD_RETRY_WORKFLOW,
+        _root_.io.grpc.stub.ServerCalls.asyncUnaryCall(new _root_.io.grpc.stub.ServerCalls.UnaryMethod[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.RetryWorkflowRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] {
+          override def invoke(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.RetryWorkflowRequest, observer: _root_.io.grpc.stub.StreamObserver[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]): _root_.scala.Unit =
+            serviceImpl.retryWorkflow(request).onComplete(scalapb.grpc.Grpc.completeObserver(observer))(
               executionContext)
         }))
       .build()
@@ -326,7 +326,7 @@ object ControllerServiceGrpc {
     def workerExecutionCompleted(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
     def linkWorkers(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.LinkWorkersRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
     def controllerInitiateQueryStatistics(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.QueryStatisticsRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
-    def reconfigureWorkflow(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.WorkflowReconfigureRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
+    def retryWorkflow(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.RetryWorkflowRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
   }
   
   class ControllerServiceBlockingStub(channel: _root_.io.grpc.Channel, options: _root_.io.grpc.CallOptions = _root_.io.grpc.CallOptions.DEFAULT) extends _root_.io.grpc.stub.AbstractStub[ControllerServiceBlockingStub](channel, options) with ControllerServiceBlockingClient {
@@ -386,8 +386,8 @@ object ControllerServiceGrpc {
       _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_CONTROLLER_INITIATE_QUERY_STATISTICS, options, request)
     }
     
-    override def reconfigureWorkflow(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.WorkflowReconfigureRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn = {
-      _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_RECONFIGURE_WORKFLOW, options, request)
+    override def retryWorkflow(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.RetryWorkflowRequest): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn = {
+      _root_.scalapb.grpc.ClientCalls.blockingUnaryCall(channel, METHOD_RETRY_WORKFLOW, options, request)
     }
     
     override def build(channel: _root_.io.grpc.Channel, options: _root_.io.grpc.CallOptions): ControllerServiceBlockingStub = new ControllerServiceBlockingStub(channel, options)
@@ -450,8 +450,8 @@ object ControllerServiceGrpc {
       _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_CONTROLLER_INITIATE_QUERY_STATISTICS, options, request)
     }
     
-    override def reconfigureWorkflow(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.WorkflowReconfigureRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] = {
-      _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_RECONFIGURE_WORKFLOW, options, request)
+    override def retryWorkflow(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.RetryWorkflowRequest): scala.concurrent.Future[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] = {
+      _root_.scalapb.grpc.ClientCalls.asyncUnaryCall(channel, METHOD_RETRY_WORKFLOW, options, request)
     }
     
     override def build(channel: _root_.io.grpc.Channel, options: _root_.io.grpc.CallOptions): ControllerServiceStub = new ControllerServiceStub(channel, options)
