@@ -8,16 +8,17 @@ import scala.util.{Failure, Success, Try}
 
 object FileResolver {
 
-  type ResolverOutput = Either[String, DatasetFileDocument]
+  type FileResolverOutput = Either[String, DatasetFileDocument]
 
   /**
     * Attempts to resolve the given fileName using a list of resolver functions.
     *
     * @param fileName the name of the file to resolve
+    * @throws FileNotFoundException if the file cannot be resolved by any resolver
     * @return Either[String, DatasetFileDocument] - the resolved path as a String or a DatasetFileDocument
     */
-  def resolve(fileName: String): ResolverOutput = {
-    val resolvers: List[String => ResolverOutput] = List(localResolveFunc, remoteResolveFunc)
+  def resolve(fileName: String): FileResolverOutput = {
+    val resolvers: List[String => FileResolverOutput] = List(localResolveFunc, datasetResolveFunc)
 
     // Try each resolver function in sequence
     resolvers.iterator
@@ -25,20 +26,20 @@ object FileResolver {
       .collectFirst {
         case Success(output) => output
       }
-      .getOrElse(throw new FileNotFoundException(s"Source file '$fileName' could not be resolved"))
+      .getOrElse(throw new FileNotFoundException(fileName))
   }
 
   /**
     * Attempts to resolve a local file path.
-    *
+    * @throws FileNotFoundException if the local file does not exist
     * @param fileName the name of the file to check
     */
-  private def localResolveFunc(fileName: String): ResolverOutput = {
+  private def localResolveFunc(fileName: String): FileResolverOutput = {
     val filePath = Paths.get(fileName)
     if (Files.exists(filePath)) {
       Left(fileName) // File exists locally, return the path as a string in the Left
     } else {
-      throw new FileNotFoundException(s"Local file '$fileName' does not exist")
+      throw new FileNotFoundException(s"Local file $fileName does not exist")
     }
   }
 
@@ -46,12 +47,12 @@ object FileResolver {
     * Attempts to resolve a DatasetFileDocument.
     *
     * @param fileName the name of the file to attempt resolving as a DatasetFileDocument
+    * @return Either[String, DatasetFileDocument] - Right(document) if creation succeeds
+    * @throws FileNotFoundException if the dataset file does not exist or cannot be created
     */
-  private def remoteResolveFunc(fileName: String): ResolverOutput = {
+  private def datasetResolveFunc(fileName: String): FileResolverOutput = {
     val filePath = Paths.get(fileName)
-    Try(new DatasetFileDocument(filePath)) match {
-      case Success(document) => Right(document)
-      case Failure(_)        => throw new FileNotFoundException(s"Remote file '$fileName' cannot be resolved as DatasetFileDocument")
-    }
+    val document = new DatasetFileDocument(filePath) // This will throw if creation fails
+    Right(document)
   }
 }

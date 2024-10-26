@@ -12,8 +12,6 @@ import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescrip
 import edu.uci.ics.texera.workflow.common.storage.FileResolver
 import org.apache.commons.lang3.builder.EqualsBuilder
 
-import java.nio.file.Paths
-
 abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
 
   /** in the case we do not want to read the entire large file, but only
@@ -32,11 +30,9 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
   @JsonPropertyDescription("decoding charset to use on input")
   var fileEncoding: FileDecodingMethod = FileDecodingMethod.UTF_8
 
+  // Unified file handle, can be either a local path (String) or DatasetFileDocument
   @JsonIgnore
-  var filePath: Option[String] = None
-
-  @JsonIgnore
-  var datasetFile: Option[DatasetFileDocument] = None
+  var fileHandle: FileResolver.FileResolverOutput = _
 
   @JsonIgnore
   var fileTypeName: Option[String] = None
@@ -54,7 +50,7 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
   var offset: Option[Int] = None
 
   override def sourceSchema(): Schema = {
-    if (filePath.isEmpty && datasetFile.isEmpty) return null
+    if (fileHandle.isLeft && fileHandle.left.toOption.isEmpty) return null
     inferSchema()
   }
 
@@ -65,20 +61,14 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
       throw new RuntimeException("no input file name")
     }
 
-    FileResolver.resolve(fileName.get) match {
-      case Left(path) =>
-        filePath = Some(path)
-        datasetFile = None
-      case Right(document) =>
-        filePath = None
-        datasetFile = Some(document)
-    }
+    // Resolve the file and assign the result to fileHandle
+    fileHandle = FileResolver.resolve(fileName.get)
   }
 
   override def operatorInfo: OperatorInfo = {
     OperatorInfo(
-      userFriendlyName = s"${fileTypeName.get} File Scan",
-      operatorDescription = s"Scan data from a ${fileTypeName.get} file",
+      userFriendlyName = s"${fileTypeName.getOrElse("Unknown")} File Scan",
+      operatorDescription = s"Scan data from a ${fileTypeName.getOrElse("Unknown")} file",
       OperatorGroupConstants.INPUT_GROUP,
       inputPorts = List.empty,
       outputPorts = List(OutputPort())
@@ -87,24 +77,14 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
 
   def inferSchema(): Schema
 
-  // get the source file descriptor from the fields
-  // either the datasetFile or the filePath should be defined
+  // Get the source file descriptor from the fileHandle
   def determineFilePathOrDatasetFile(): (String, DatasetFileDocument) = {
-    if (
-      (datasetFile.isEmpty && filePath.isEmpty)
-      || (datasetFile.isDefined && filePath.isDefined)
-    ) {
-      throw new RuntimeException("Source file descriptor is not set.")
-    }
-    if (datasetFile.isDefined) {
-      val file = datasetFile.get
-      (null, file)
-    } else {
-      val filepath = filePath.get
-      (filepath, null)
+    fileHandle match {
+      case Left(path)      => (path, null) // File path is a local path as String
+      case Right(document) => (null, document) // File is a DatasetFileDocument
     }
   }
 
   override def equals(that: Any): Boolean =
-    EqualsBuilder.reflectionEquals(this, that, "context", "filePath")
+    EqualsBuilder.reflectionEquals(this, that, "context", "fileHandle")
 }
