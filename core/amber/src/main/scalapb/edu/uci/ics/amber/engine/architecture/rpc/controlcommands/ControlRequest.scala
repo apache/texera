@@ -4206,7 +4206,8 @@ object FinalizeCheckpointRequest extends scalapb.GeneratedMessageCompanion[edu.u
 final case class InitializeExecutorRequest(
     totalWorkerCount: _root_.scala.Int,
     opExecInitInfo: com.google.protobuf.any.Any,
-    isSource: _root_.scala.Boolean
+    isSource: _root_.scala.Boolean,
+    language: _root_.scala.Predef.String
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlRequest.NonEmpty with scalapb.lenses.Updatable[InitializeExecutorRequest] {
     @transient
     private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
@@ -4231,6 +4232,13 @@ final case class InitializeExecutorRequest(
         val __value = isSource
         if (__value != false) {
           __size += _root_.com.google.protobuf.CodedOutputStream.computeBoolSize(3, __value)
+        }
+      };
+      
+      {
+        val __value = language
+        if (!__value.isEmpty) {
+          __size += _root_.com.google.protobuf.CodedOutputStream.computeStringSize(4, __value)
         }
       };
       __size
@@ -4265,10 +4273,17 @@ final case class InitializeExecutorRequest(
           _output__.writeBool(3, __v)
         }
       };
+      {
+        val __v = language
+        if (!__v.isEmpty) {
+          _output__.writeString(4, __v)
+        }
+      };
     }
     def withTotalWorkerCount(__v: _root_.scala.Int): InitializeExecutorRequest = copy(totalWorkerCount = __v)
     def withOpExecInitInfo(__v: com.google.protobuf.any.Any): InitializeExecutorRequest = copy(opExecInitInfo = __v)
     def withIsSource(__v: _root_.scala.Boolean): InitializeExecutorRequest = copy(isSource = __v)
+    def withLanguage(__v: _root_.scala.Predef.String): InitializeExecutorRequest = copy(language = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
         case 1 => {
@@ -4283,6 +4298,10 @@ final case class InitializeExecutorRequest(
           val __t = isSource
           if (__t != false) __t else null
         }
+        case 4 => {
+          val __t = language
+          if (__t != "") __t else null
+        }
       }
     }
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
@@ -4291,6 +4310,7 @@ final case class InitializeExecutorRequest(
         case 1 => _root_.scalapb.descriptors.PInt(totalWorkerCount)
         case 2 => opExecInitInfo.toPMessage
         case 3 => _root_.scalapb.descriptors.PBoolean(isSource)
+        case 4 => _root_.scalapb.descriptors.PString(language)
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
@@ -4304,6 +4324,7 @@ object InitializeExecutorRequest extends scalapb.GeneratedMessageCompanion[edu.u
     var __totalWorkerCount: _root_.scala.Int = 0
     var __opExecInitInfo: _root_.scala.Option[com.google.protobuf.any.Any] = _root_.scala.None
     var __isSource: _root_.scala.Boolean = false
+    var __language: _root_.scala.Predef.String = ""
     var _done__ = false
     while (!_done__) {
       val _tag__ = _input__.readTag()
@@ -4315,13 +4336,16 @@ object InitializeExecutorRequest extends scalapb.GeneratedMessageCompanion[edu.u
           __opExecInitInfo = _root_.scala.Some(__opExecInitInfo.fold(_root_.scalapb.LiteParser.readMessage[com.google.protobuf.any.Any](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 24 =>
           __isSource = _input__.readBool()
+        case 34 =>
+          __language = _input__.readStringRequireUtf8()
         case tag => _input__.skipField(tag)
       }
     }
     edu.uci.ics.amber.engine.architecture.rpc.controlcommands.InitializeExecutorRequest(
         totalWorkerCount = __totalWorkerCount,
         opExecInitInfo = __opExecInitInfo.getOrElse(com.google.protobuf.any.Any.defaultInstance),
-        isSource = __isSource
+        isSource = __isSource,
+        language = __language
     )
   }
   implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.InitializeExecutorRequest] = _root_.scalapb.descriptors.Reads{
@@ -4330,7 +4354,8 @@ object InitializeExecutorRequest extends scalapb.GeneratedMessageCompanion[edu.u
       edu.uci.ics.amber.engine.architecture.rpc.controlcommands.InitializeExecutorRequest(
         totalWorkerCount = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Int]).getOrElse(0),
         opExecInitInfo = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[com.google.protobuf.any.Any]).getOrElse(com.google.protobuf.any.Any.defaultInstance),
-        isSource = __fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).map(_.as[_root_.scala.Boolean]).getOrElse(false)
+        isSource = __fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).map(_.as[_root_.scala.Boolean]).getOrElse(false),
+        language = __fieldsMap.get(scalaDescriptor.findFieldByNumber(4).get).map(_.as[_root_.scala.Predef.String]).getOrElse("")
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
@@ -4348,24 +4373,29 @@ object InitializeExecutorRequest extends scalapb.GeneratedMessageCompanion[edu.u
   lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.rpc.controlcommands.InitializeExecutorRequest(
     totalWorkerCount = 0,
     opExecInitInfo = com.google.protobuf.any.Any.defaultInstance,
-    isSource = false
+    isSource = false,
+    language = ""
   )
   implicit class InitializeExecutorRequestLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlcommands.InitializeExecutorRequest]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlcommands.InitializeExecutorRequest](_l) {
     def totalWorkerCount: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Int] = field(_.totalWorkerCount)((c_, f_) => c_.copy(totalWorkerCount = f_))
     def opExecInitInfo: _root_.scalapb.lenses.Lens[UpperPB, com.google.protobuf.any.Any] = field(_.opExecInitInfo)((c_, f_) => c_.copy(opExecInitInfo = f_))
     def isSource: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Boolean] = field(_.isSource)((c_, f_) => c_.copy(isSource = f_))
+    def language: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.language)((c_, f_) => c_.copy(language = f_))
   }
   final val TOTALWORKERCOUNT_FIELD_NUMBER = 1
   final val OPEXECINITINFO_FIELD_NUMBER = 2
   final val ISSOURCE_FIELD_NUMBER = 3
+  final val LANGUAGE_FIELD_NUMBER = 4
   def of(
     totalWorkerCount: _root_.scala.Int,
     opExecInitInfo: com.google.protobuf.any.Any,
-    isSource: _root_.scala.Boolean
+    isSource: _root_.scala.Boolean,
+    language: _root_.scala.Predef.String
   ): _root_.edu.uci.ics.amber.engine.architecture.rpc.controlcommands.InitializeExecutorRequest = _root_.edu.uci.ics.amber.engine.architecture.rpc.controlcommands.InitializeExecutorRequest(
     totalWorkerCount,
     opExecInitInfo,
-    isSource
+    isSource,
+    language
   )
   // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.InitializeExecutorRequest])
 }

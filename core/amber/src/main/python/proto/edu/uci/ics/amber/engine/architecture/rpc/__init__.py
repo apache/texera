@@ -333,6 +333,7 @@ class InitializeExecutorRequest(betterproto.Message):
         betterproto.message_field(2)
     )
     is_source: bool = betterproto.bool_field(3)
+    language: str = betterproto.string_field(4)
 
 
 @dataclass(eq=False, repr=False)
@@ -706,6 +707,7 @@ class WorkerServiceStub(betterproto.ServiceStub):
         total_worker_count: int = 0,
         op_exec_init_info: "betterproto_lib_google_protobuf.Any" = None,
         is_source: bool = False,
+        language: str = "",
     ) -> "EmptyReturn":
 
         request = InitializeExecutorRequest()
@@ -713,6 +715,7 @@ class WorkerServiceStub(betterproto.ServiceStub):
         if op_exec_init_info is not None:
             request.op_exec_init_info = op_exec_init_info
         request.is_source = is_source
+        request.language = language
 
         return await self._unary_unary(
             "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/InitializeExecutor",
@@ -784,6 +787,16 @@ class WorkerServiceStub(betterproto.ServiceStub):
 
         return await self._unary_unary(
             "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/RetrieveState",
+            request,
+            EmptyReturn,
+        )
+
+    async def retry_current_tuple(self) -> "EmptyReturn":
+
+        request = EmptyRequest()
+
+        return await self._unary_unary(
+            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/RetryCurrentTuple",
             request,
             EmptyReturn,
         )
@@ -1309,6 +1322,7 @@ class WorkerServiceBase(ServiceBase):
         total_worker_count: int,
         op_exec_init_info: "betterproto_lib_google_protobuf.Any",
         is_source: bool,
+        language: str,
     ) -> "EmptyReturn":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
@@ -1330,6 +1344,9 @@ class WorkerServiceBase(ServiceBase):
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def retrieve_state(self) -> "EmptyReturn":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def retry_current_tuple(self) -> "EmptyReturn":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def start_worker(self) -> "WorkerStateResponse":
@@ -1408,6 +1425,7 @@ class WorkerServiceBase(ServiceBase):
             "total_worker_count": request.total_worker_count,
             "op_exec_init_info": request.op_exec_init_info,
             "is_source": request.is_source,
+            "language": request.language,
         }
 
         response = await self.initialize_executor(**request_kwargs)
@@ -1462,6 +1480,14 @@ class WorkerServiceBase(ServiceBase):
         request_kwargs = {}
 
         response = await self.retrieve_state(**request_kwargs)
+        await stream.send_message(response)
+
+    async def __rpc_retry_current_tuple(self, stream: grpclib.server.Stream) -> None:
+        request = await stream.recv_message()
+
+        request_kwargs = {}
+
+        response = await self.retry_current_tuple(**request_kwargs)
         await stream.send_message(response)
 
     async def __rpc_start_worker(self, stream: grpclib.server.Stream) -> None:
@@ -1576,6 +1602,12 @@ class WorkerServiceBase(ServiceBase):
             ),
             "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/RetrieveState": grpclib.const.Handler(
                 self.__rpc_retrieve_state,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                EmptyRequest,
+                EmptyReturn,
+            ),
+            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/RetryCurrentTuple": grpclib.const.Handler(
+                self.__rpc_retry_current_tuple,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 EmptyRequest,
                 EmptyReturn,

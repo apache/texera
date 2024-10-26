@@ -1,11 +1,16 @@
 from core.architecture.handlers.control.control_handler_base import ControlHandler
-from core.architecture.managers.context import Context
-from proto.edu.uci.ics.amber.engine.architecture.worker import AddInputChannelV2
+from proto.edu.uci.ics.amber.engine.architecture.rpc import (
+    WorkerServiceBase,
+    EmptyReturn,
+)
+from proto.edu.uci.ics.amber.engine.common import ChannelIdentity, PortIdentity
 
 
 class AddInputChannelHandler(ControlHandler):
-    cmd = AddInputChannelV2
-
-    def __call__(self, context: Context, command: AddInputChannelV2, *args, **kwargs):
-        context.input_manager.register_input(command.channel_id, command.port_id)
-        return None
+    def add_input_channel(
+        self,
+        channel_id: ChannelIdentity,
+        port_id: PortIdentity,
+    ) -> EmptyReturn:
+        self.context.input_manager.register_input(channel_id, port_id)
+        return EmptyReturn()

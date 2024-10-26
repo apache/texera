@@ -1,13 +1,18 @@
-from proto.edu.uci.ics.amber.engine.architecture.worker import InitializeExecutorV2
+from betterproto.lib.google.protobuf import Any
+
 from core.architecture.handlers.control.control_handler_base import ControlHandler
-from core.architecture.managers.context import Context
+from proto.edu.uci.ics.amber.engine.architecture.rpc import EmptyReturn
 
 
 class InitializeExecutorHandler(ControlHandler):
-    cmd = InitializeExecutorV2
 
-    def __call__(self, context: Context, command: cmd, *args, **kwargs):
-        context.executor_manager.initialize_executor(
-            command.code, command.is_source, command.language
-        )
-        return None
+    def initialize_executor(
+        self,
+        total_worker_count: int,
+        op_exec_init_info: Any,
+        is_source: bool,
+        language: str,
+    ) -> EmptyReturn:
+        code = op_exec_init_info.value.decode("utf-8")
+        self.context.executor_manager.initialize_executor(code, is_source, language)
+        return EmptyReturn()

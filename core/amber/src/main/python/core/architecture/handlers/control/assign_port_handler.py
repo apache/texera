@@ -1,19 +1,22 @@
+from typing import Dict
+
 from core.architecture.handlers.control.control_handler_base import ControlHandler
-from core.architecture.managers.context import Context
 from core.models import Schema
-from proto.edu.uci.ics.amber.engine.architecture.worker import AssignPortV2
+from proto.edu.uci.ics.amber.engine.architecture.rpc import EmptyReturn
+from proto.edu.uci.ics.amber.engine.common import PortIdentity
 
 
 class AssignPortHandler(ControlHandler):
-    cmd = AssignPortV2
 
-    def __call__(self, context: Context, command: AssignPortV2, *args, **kwargs):
-        if command.input:
-            context.input_manager.add_input_port(
-                command.port_id, Schema(raw_schema=command.schema)
+    def assign_port(
+        self, port_id: PortIdentity, input: bool, schema: Dict[str, str]
+    ) -> EmptyReturn:
+        if input:
+            self.context.input_manager.add_input_port(
+                port_id, Schema(raw_schema=schema)
             )
         else:
-            context.output_manager.add_output_port(
-                command.port_id, Schema(raw_schema=command.schema)
+            self.context.output_manager.add_output_port(
+                port_id, Schema(raw_schema=schema)
             )
-        return None
+        return EmptyReturn()

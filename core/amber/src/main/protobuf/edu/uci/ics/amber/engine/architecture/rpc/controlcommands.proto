@@ -232,6 +232,7 @@ message InitializeExecutorRequest {
   int32 totalWorkerCount = 1;
   google.protobuf.Any opExecInitInfo = 2 [(scalapb.field).no_box = true];
   bool isSource = 3;
+  string language = 4;
 }
 
 message UpdateExecutorRequest {

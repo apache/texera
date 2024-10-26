@@ -28,8 +28,12 @@ from core.runnables.data_processor import DataProcessor
 from core.util import StoppableQueueBlockingRunnable, get_one_of, set_one_of
 from core.util.customized_queue.queue_base import QueueElement
 from core.util.console_message.timestamp import current_time_in_local_timezone
-from proto.edu.uci.ics.amber.engine.architecture.rpc import ConsoleMessage, ControlInvocation, ConsoleMessageType, \
-    ReturnInvocation
+from proto.edu.uci.ics.amber.engine.architecture.rpc import (
+    ConsoleMessage,
+    ControlInvocation,
+    ConsoleMessageType,
+    ReturnInvocation,
+)
 from proto.edu.uci.ics.amber.engine.architecture.worker import (
     WorkerState,
 )
@@ -372,14 +376,14 @@ class MainLoop(StoppableQueueBlockingRunnable):
         if self.context.debug_manager.has_debug_event():
             debug_event = self.context.debug_manager.get_debug_event()
             self._send_console_message(
-                    ConsoleMessage(
-                        worker_id=self.context.worker_id,
-                        timestamp=current_time_in_local_timezone(),
-                        msg_type=ConsoleMessageType.DEBUGGER,
-                        source="(Pdb)",
-                        title=debug_event,
-                        message="",
-                    )
+                ConsoleMessage(
+                    worker_id=self.context.worker_id,
+                    timestamp=current_time_in_local_timezone(),
+                    msg_type=ConsoleMessageType.DEBUGGER,
+                    source="(Pdb)",
+                    title=debug_event,
+                    message="",
+                )
             )
             self._check_and_report_console_messages(force_flush=True)
             self.context.pause_manager.pause(PauseType.DEBUG_PAUSE)

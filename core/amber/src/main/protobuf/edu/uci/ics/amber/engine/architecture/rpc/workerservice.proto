@@ -25,6 +25,7 @@ service WorkerService {
   rpc QueryStatistics(EmptyRequest) returns (WorkerMetricsResponse);
   rpc ResumeWorker(EmptyRequest) returns (WorkerStateResponse);
   rpc RetrieveState(EmptyRequest) returns (EmptyReturn);
+  rpc RetryCurrentTuple(EmptyRequest) returns (EmptyReturn);
   rpc StartWorker(EmptyRequest) returns (WorkerStateResponse);
   rpc ModifyLogic(ModifyLogicRequest) returns (EmptyReturn);
   rpc DebugCommand(DebugCommandRequest) returns (EmptyReturn);
