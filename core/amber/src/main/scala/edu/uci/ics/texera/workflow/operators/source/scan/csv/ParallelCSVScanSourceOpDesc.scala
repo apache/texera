@@ -102,7 +102,7 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
     reader.close()
 
     // reopen the file to read from the beginning
-    reader = CSVReader.open(filePath.get)(CustomFormat)
+    reader = CSVReader.open(filepath)(CustomFormat)
     if (hasHeader)
       reader.readNext()
 
