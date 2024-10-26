@@ -50,7 +50,7 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
   var offset: Option[Int] = None
 
   override def sourceSchema(): Schema = {
-    if (fileHandle.isLeft && fileHandle.left.toOption.isEmpty) return null
+    if (fileHandle == null) return null
     inferSchema()
   }
 
