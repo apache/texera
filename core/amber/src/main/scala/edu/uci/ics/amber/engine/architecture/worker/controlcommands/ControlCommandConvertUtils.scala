@@ -17,7 +17,6 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartition
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AssignPortHandler.AssignPort
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenExecutorHandler.OpenExecutor
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryCurrentInputTupleHandler.QueryCurrentInputTuple
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ResumeHandler.ResumeWorker
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
@@ -48,8 +47,6 @@ object ControlCommandConvertUtils {
         AddInputChannelV2(channelId, portId)
       case QueryStatistics() =>
         QueryStatisticsV2()
-      case QueryCurrentInputTuple() =>
-        QueryCurrentInputTupleV2()
       case InitializeExecutor(_, opExecInitInfo, isSource) =>
         val (code, language) = opExecInitInfo.asInstanceOf[OpExecInitInfoWithCode].codeGen(0, 0)
         InitializeExecutorV2(

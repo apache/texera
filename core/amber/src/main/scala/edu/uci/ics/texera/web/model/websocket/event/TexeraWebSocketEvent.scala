@@ -15,7 +15,6 @@ import edu.uci.ics.texera.web.model.websocket.response.{HeartBeatResponse, Modif
     new Type(value = classOf[OperatorStatisticsUpdateEvent]),
     new Type(value = classOf[WebResultUpdateEvent]),
     new Type(value = classOf[ConsoleUpdateEvent]),
-    new Type(value = classOf[OperatorCurrentTuplesUpdateEvent]),
     new Type(value = classOf[CacheStatusUpdateEvent]),
     new Type(value = classOf[PaginatedResultEvent]),
     new Type(value = classOf[PythonExpressionEvaluateResponse]),
