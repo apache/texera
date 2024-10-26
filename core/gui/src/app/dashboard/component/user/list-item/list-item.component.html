@@ -1,6 +1,7 @@
 <nz-card
   [nzBodyStyle]="{padding: '5px'}"
-  class="list-item-card">
+  class="list-item-card"
+  [class.has-button-group]="isPrivateSearch">
   <div
     [routerLink]="entryLink"
     nz-row
