@@ -9,9 +9,8 @@ import edu.uci.ics.amber.engine.common.storage.DatasetFileDocument
 import edu.uci.ics.amber.engine.common.workflow.OutputPort
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
-import edu.uci.ics.texera.workflow.common.storage.ScanSourceFileResolver
+import edu.uci.ics.texera.workflow.common.storage.FileResolver
 import org.apache.commons.lang3.builder.EqualsBuilder
-import org.eclipse.jgit.transport.resolver.FileResolver
 
 import java.nio.file.Paths
 
@@ -66,9 +65,14 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
       throw new RuntimeException("no input file name")
     }
 
-    val (resolvedPath, resolvedDatasetFile) = ScanSourceFileResolver.resolve(fileName.get)
-    filePath = resolvedPath
-    datasetFile = resolvedDatasetFile
+    FileResolver.resolve(fileName.get) match {
+      case Left(path) =>
+        filePath = Some(path)
+        datasetFile = None
+      case Right(document) =>
+        filePath = None
+        datasetFile = Some(document)
+    }
   }
 
   override def operatorInfo: OperatorInfo = {
