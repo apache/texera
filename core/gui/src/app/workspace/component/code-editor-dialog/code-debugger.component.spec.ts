@@ -64,6 +64,7 @@ describe("CodeDebuggerComponent", () => {
   afterEach(() => {
     // Clean up streams to prevent memory leaks
     statusUpdateStream.complete();
+    component.monacoEditor.dispose();
   });
 
   it("should create the component", () => {
