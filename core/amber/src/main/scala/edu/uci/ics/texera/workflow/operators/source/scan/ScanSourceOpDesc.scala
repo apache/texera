@@ -9,7 +9,9 @@ import edu.uci.ics.amber.engine.common.storage.DatasetFileDocument
 import edu.uci.ics.amber.engine.common.workflow.OutputPort
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
+import edu.uci.ics.texera.workflow.common.storage.ScanSourceFileResolver
 import org.apache.commons.lang3.builder.EqualsBuilder
+import org.eclipse.jgit.transport.resolver.FileResolver
 
 import java.nio.file.Paths
 
@@ -63,16 +65,10 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
     if (fileName.isEmpty) {
       throw new RuntimeException("no input file name")
     }
-    val datasetFilePathPrefix = "file://"
-    if (fileName.get.startsWith(datasetFilePathPrefix)) {
-      // filePath starts with file://, a datasetFileDesc will be initialized, which is the handle of reading file from the dataset
-      datasetFile = Some(
-        new DatasetFileDocument(Paths.get(fileName.get.substring(datasetFilePathPrefix.length)))
-      )
-    } else {
-      // otherwise, the fileName will be inputted by user, which is the filePath.
-      filePath = fileName
-    }
+
+    val (resolvedPath, resolvedDatasetFile) = ScanSourceFileResolver.resolve(fileName.get)
+    filePath = resolvedPath
+    datasetFile = resolvedDatasetFile
   }
 
   override def operatorInfo: OperatorInfo = {
