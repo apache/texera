@@ -12,6 +12,8 @@ import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescrip
 import edu.uci.ics.texera.workflow.common.storage.FileResolver
 import org.apache.commons.lang3.builder.EqualsBuilder
 
+import java.net.URI
+
 abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
 
   /** in the case we do not want to read the entire large file, but only
@@ -50,19 +52,12 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
   var offset: Option[Int] = None
 
   override def sourceSchema(): Schema = {
-    if (fileUri == null) return null
+    if (fileUri.isEmpty) return null
     inferSchema()
   }
 
   override def setContext(workflowContext: WorkflowContext): Unit = {
     super.setContext(workflowContext)
-
-    if (fileName.isEmpty) {
-      throw new RuntimeException("no input file name")
-    }
-
-    // Resolve the file and assign the result to file uri
-    fileUri = Some(FileResolver.resolve(fileName.get).toASCIIString)
   }
 
   override def operatorInfo: OperatorInfo = {
@@ -76,6 +71,10 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
   }
 
   def inferSchema(): Schema
+
+  def setFileUri(uri: URI): Unit = {
+    fileUri = Some(uri.toASCIIString)
+  }
 
   override def equals(that: Any): Boolean =
     EqualsBuilder.reflectionEquals(this, that, "context", "fileHandle")

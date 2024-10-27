@@ -12,7 +12,8 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetVersion.DATASET
 import org.apache.commons.vfs2.FileNotFoundException
 import org.jooq.DSLContext
 
-import java.net.URI
+import java.net.{URI, URLDecoder, URLEncoder}
+import java.nio.charset.StandardCharsets
 import scala.util.{Success, Try}
 
 object FileResolver {
@@ -45,19 +46,26 @@ object FileResolver {
   def open(fileUri: URI): ReadonlyVirtualDocument[_] = {
     fileUri.getScheme match {
       case DatasetFileUriScheme =>
-        // Parse the host to get dataset ID and version hash
-        val hostParts = fileUri.getHost.split("\\.")
-        if (hostParts.length != 2) {
+        // Extract path components and decode them
+        val pathParts = fileUri.getPath.stripPrefix("/").split("/").map(part =>
+          URLDecoder.decode(part, StandardCharsets.UTF_8)
+        )
+
+        if (pathParts.length < 3) {
           throw new RuntimeException(s"Invalid dataset URI format: ${fileUri.toString}")
         }
-        val datasetId = hostParts(0).toInt
-        val versionHash = hostParts(1)
 
-        // The path within the URI represents the relative path of the file in the dataset
-        val fileRelativePath = Paths.get(fileUri.getPath.stripPrefix("/"))
+        // Parse the dataset ID and version hash, and build the file path
+        val did = pathParts(0).toInt
+        val versionHash = pathParts(1)
+        val fileRelativePath = Paths.get(pathParts.drop(2).mkString("/"))
 
-        // Create and return a DatasetFileDocument with the parsed values
-        new DatasetFileDocument(datasetId, versionHash, fileRelativePath)
+        // Create and return a DatasetFileDocument
+        new DatasetFileDocument(
+          did = did,
+          datasetVersionHash = versionHash,
+          fileRelativePath = fileRelativePath
+        )
 
       case "file" =>
         // For local files, create a ReadonlyLocalFileDocument
@@ -87,23 +95,38 @@ object FileResolver {
     *
     * The fileName format should be: /ownerEmail/datasetName/versionName/fileRelativePath
     *   e.g. /bob@texera.com/twitterDataset/v1/california/irvine/tw1.csv
-    * The output dataset URI format is: {DatasetFileUriScheme}://{did}.{versionHash}/file-path
-    *   e.g. vfs://15.adeq233td/some/dir/file.txt
+    * The output dataset URI format is: {DatasetFileUriScheme}:///{did}/{versionHash}/file-path
+    *   e.g. vfs:///15/adeq233td/some/dir/file.txt
     *
     * @param fileName the name of the file to attempt resolving as a DatasetFileDocument
     * @return Either[String, DatasetFileDocument] - Right(document) if creation succeeds
     * @throws FileNotFoundException if the dataset file does not exist or cannot be created
     */
+
+  import java.net.{URI, URISyntaxException, URLEncoder}
+  import java.nio.charset.StandardCharsets
+  import java.nio.file.Path
+  import org.apache.commons.vfs2.FileNotFoundException
+
   private def datasetResolveFunc(fileName: String): URI = {
     withTransaction(SqlServer.createDSLContext()) { ctx =>
       val (_, dataset, datasetVersion, fileRelativePath) = parseFileNameForDataset(ctx, fileName)
+
       if (dataset == null || datasetVersion == null) {
-        throw new FileNotFoundException(s"Dataset file $fileName")
+        throw new FileNotFoundException(s"Dataset file $fileName not found.")
       }
 
-      // assemble dataset URI format
-      val host = s"${dataset.getDid.intValue()}.${datasetVersion.getVersionHash}"
-      new URI(DatasetFileUriScheme, host, fileRelativePath.toUri.getPath, null)
+      // Construct path as /{did}/{versionHash}/file-path
+      val did = dataset.getDid.intValue()
+      val versionHash = datasetVersion.getVersionHash
+      val encodedPath = s"/$did/$versionHash/${fileRelativePath.toString.split("/").map(URLEncoder.encode(_, StandardCharsets.UTF_8)).mkString("/")}"
+
+      try {
+        new URI(DatasetFileUriScheme, null, encodedPath, null)
+      } catch {
+        case e: URISyntaxException =>
+          throw e
+      }
     }
   }
 
