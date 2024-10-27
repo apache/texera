@@ -2,7 +2,6 @@ package edu.uci.ics.amber.engine.common.storage
 
 import java.io.{File, FileInputStream, InputStream}
 import java.net.URI
-import java.nio.file.Path
 
 /**
   * ReadonlyLocalFileDocument provides a read-only abstraction over a local file.

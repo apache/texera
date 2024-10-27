@@ -1,24 +1,18 @@
 package edu.uci.ics.texera.workflow.common.storage
 
 import edu.uci.ics.amber.engine.common.Utils.withTransaction
-
-import java.nio.file.{Files, Path, Paths}
-import edu.uci.ics.amber.engine.common.storage.{
-  DatasetFileDocument,
-  ReadonlyLocalFileDocument,
-  ReadonlyVirtualDocument,
-  VirtualDocument
-}
+import edu.uci.ics.amber.engine.common.storage.{DatasetFileDocument, ReadonlyLocalFileDocument, ReadonlyVirtualDocument}
 import edu.uci.ics.texera.web.SqlServer
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{Dataset, DatasetVersion}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset.DATASET
-import edu.uci.ics.texera.web.model.jooq.generated.tables.User.USER
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetVersion.DATASET_VERSION
+import edu.uci.ics.texera.web.model.jooq.generated.tables.User.USER
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{Dataset, DatasetVersion}
 import org.apache.commons.vfs2.FileNotFoundException
 import org.jooq.DSLContext
 
-import java.net.{URI, URLDecoder, URLEncoder}
+import java.net.{URI, URISyntaxException, URLDecoder, URLEncoder}
 import java.nio.charset.StandardCharsets
+import java.nio.file.{Files, Path, Paths}
 import scala.util.{Success, Try}
 
 object FileResolver {
@@ -34,10 +28,10 @@ object FileResolver {
     * @return Either[String, DatasetFileDocument] - the resolved path as a String or a DatasetFileDocument
     */
   def resolve(fileName: String): URI = {
-    val resolvers: List[String => URI] = List(localResolveFunc, datasetResolveFunc)
+    val resolvers: Seq[String => URI] = Seq(localResolveFunc, datasetResolveFunc)
 
     // Try each resolver function in sequence
-    resolvers.iterator
+    resolvers
       .map(resolver => Try(resolver(fileName)))
       .collectFirst {
         case Success(output) => output
@@ -85,11 +79,10 @@ object FileResolver {
     */
   private def localResolveFunc(fileName: String): URI = {
     val filePath = Paths.get(fileName)
-    if (Files.exists(filePath)) {
-      filePath.toUri // File exists locally, return the path as a string in the Left
-    } else {
+    if (!Files.exists(filePath)) {
       throw new FileNotFoundException(s"Local file $fileName does not exist")
     }
+    filePath.toUri
   }
 
   /**
@@ -104,12 +97,6 @@ object FileResolver {
     * @return Either[String, DatasetFileDocument] - Right(document) if creation succeeds
     * @throws FileNotFoundException if the dataset file does not exist or cannot be created
     */
-
-  import java.net.{URI, URISyntaxException, URLEncoder}
-  import java.nio.charset.StandardCharsets
-  import java.nio.file.Path
-  import org.apache.commons.vfs2.FileNotFoundException
-
   private def datasetResolveFunc(fileName: String): URI = {
     withTransaction(SqlServer.createDSLContext()) { ctx =>
       val (_, dataset, datasetVersion, fileRelativePath) = parseFileNameForDataset(ctx, fileName)

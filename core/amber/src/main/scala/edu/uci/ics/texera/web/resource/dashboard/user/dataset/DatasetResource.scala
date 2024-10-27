@@ -4,103 +4,41 @@ import edu.uci.ics.amber.engine.common.Utils.withTransaction
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.enums.DatasetUserAccessPrivilege
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  DatasetDao,
-  DatasetUserAccessDao,
-  DatasetVersionDao
-}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{
-  Dataset,
-  DatasetUserAccess,
-  DatasetVersion,
-  User
-}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset.DATASET
-import edu.uci.ics.texera.web.model.jooq.generated.tables.User.USER
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetVersion.DATASET_VERSION
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetAccessResource.{
-  getDatasetUserAccessPrivilege,
-  getOwner,
-  userHasReadAccess,
-  userHasWriteAccess,
-  userOwnDataset
-}
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{
-  DATASET_IS_PRIVATE,
-  DATASET_IS_PUBLIC,
-  DashboardDataset,
-  DashboardDatasetVersion,
-  DatasetDescriptionModification,
-  DatasetIDs,
-  DatasetNameModification,
-  DatasetVersionRootFileNodes,
-  DatasetVersionRootFileNodesResponse,
-  DatasetVersions,
-  ERR_DATASET_CREATION_FAILED_MESSAGE,
-  ERR_DATASET_NAME_ALREADY_EXISTS,
-  ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE,
-  ListDatasetsResponse,
-  calculateDatasetVersionSize,
-  calculateLatestDatasetVersionSize,
-  context,
-  createNewDatasetVersionFromFormData,
-  getDashboardDataset,
-  getDatasetByID,
-  getDatasetVersionByID,
-  getDatasetVersions,
-  getFileNodesOfCertainVersion,
-  getLatestDatasetVersionWithAccessCheck,
-  getUserDatasets,
-  retrievePublicDatasets
-}
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.{
-  DatasetFileNode,
-  PhysicalFileNode
-}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.User.USER
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{DatasetDao, DatasetUserAccessDao, DatasetVersionDao}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{Dataset, DatasetUserAccess, DatasetVersion, User}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetAccessResource._
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{context, _}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.{DatasetFileNode, PhysicalFileNode}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.service.GitVersionControlLocalFileStorage
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.PathUtils
 import edu.uci.ics.texera.workflow.common.storage.FileResolver
 import io.dropwizard.auth.Auth
 import org.apache.commons.lang3.StringUtils
 import org.glassfish.jersey.media.multipart.{FormDataMultiPart, FormDataParam}
-import org.jooq.{DSLContext, EnumType}
 import org.jooq.types.UInteger
+import org.jooq.{DSLContext, EnumType}
 import play.api.libs.json.Json
 
 import java.io.{IOException, InputStream, OutputStream}
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
-import java.nio.file.{Files, Paths}
-import java.util.zip.{ZipEntry, ZipOutputStream}
+import java.nio.file.Files
 import java.util
 import java.util.concurrent.locks.ReentrantLock
+import java.util.zip.{ZipEntry, ZipOutputStream}
 import javax.annotation.security.RolesAllowed
-import javax.ws.rs.{
-  BadRequestException,
-  Consumes,
-  ForbiddenException,
-  GET,
-  NotFoundException,
-  POST,
-  Path,
-  PathParam,
-  Produces,
-  QueryParam,
-  WebApplicationException
-}
 import javax.ws.rs.core.{MediaType, Response, StreamingOutput}
-import scala.collection.convert.ImplicitConversions.{
-  `collection AsScalaIterable`,
-  `iterable AsScalaIterable`
-}
+import javax.ws.rs._
+import scala. jdk. CollectionConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
-import scala.jdk.CollectionConverters._
 import scala.jdk.OptionConverters._
-import scala.util.Using
 import scala.util.control.NonFatal
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Success, Try, Using}
 
 object DatasetResource {
   val DATASET_IS_PUBLIC: Byte = 1;
@@ -282,7 +220,7 @@ object DatasetResource {
           .foreach(pathStr => {
             // TODO: refactor this part
             val (_, _, _, fileRelativePath) = FileResolver.parseFileNameForDataset(context, pathStr)
-            fileRelativePath
+            fileRelativePath.asScala
               .map { path =>
                 filesToRemove += datasetPath
                   .resolve(path) // When path exists, resolve it and add to filesToRemove
@@ -352,7 +290,7 @@ object DatasetResource {
       .orderBy(DATASET_VERSION.CREATION_TIME.desc()) // or .asc() for ascending
       .fetchInto(classOf[DatasetVersion])
 
-    result.toList
+    result.asScala.toList
   }
 
   // apply the dataset operation to create a new dataset version
@@ -420,7 +358,7 @@ object DatasetResource {
             .into(classOf[DatasetVersion]),
           DatasetFileNode.fromPhysicalFileNodes(
             Map(
-              (ownerEmail, datasetName, versionName) -> physicalFileNodes.toList
+              (ownerEmail, datasetName, versionName) -> physicalFileNodes.asScala.toList
             )
           )
         )
@@ -808,7 +746,7 @@ class DatasetResource {
                 ownerEmail = ownerEmail,
                 size = calculateLatestDatasetVersionSize(dataset.getDid)
               )
-            })
+            }).asScala
         )
 
         // then we fetch the public datasets and merge it as a part of the result if not exist
@@ -851,7 +789,7 @@ class DatasetResource {
                     PathUtils.getDatasetPath(did),
                     version.getVersionHash
                   )
-                  .toList)
+                  .asScala)
               }
               DashboardDatasetVersion(
                 version,
@@ -918,7 +856,7 @@ class DatasetResource {
                   datasetPath,
                   latestVersion.getVersionHash
                 )
-                .toList
+                .asScala.toList
           )
         )
         .head
@@ -951,7 +889,7 @@ class DatasetResource {
       val size = calculateDatasetVersionSize(did, dvid)
       val ownerFileNode = DatasetFileNode
         .fromPhysicalFileNodes(
-          Map((dataset.ownerEmail, datasetName, datasetVersion.getName) -> fileNodes.toList)
+          Map((dataset.ownerEmail, datasetName, datasetVersion.getName) -> fileNodes.asScala.toList)
         )
         .head
 
@@ -1003,7 +941,7 @@ class DatasetResource {
 
       val streamingOutput = new StreamingOutput() {
         override def write(output: OutputStream): Unit = {
-          fileRelativePath
+          fileRelativePath.asScala
             .foreach { path =>
               GitVersionControlLocalFileStorage.retrieveFileContentOfVersion(
                 targetDatasetPath,
