@@ -4,63 +4,18 @@ import edu.uci.ics.amber.engine.common.Utils.withTransaction
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.enums.DatasetUserAccessPrivilege
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  DatasetDao,
-  DatasetUserAccessDao,
-  DatasetVersionDao
-}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{
-  Dataset,
-  DatasetUserAccess,
-  DatasetVersion,
-  User
-}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{DatasetDao, DatasetUserAccessDao, DatasetVersionDao}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{Dataset, DatasetUserAccess, DatasetVersion, User}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset.DATASET
 import edu.uci.ics.texera.web.model.jooq.generated.tables.User.USER
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetVersion.DATASET_VERSION
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetAccessResource.{
-  getDatasetUserAccessPrivilege,
-  getOwner,
-  userHasReadAccess,
-  userHasWriteAccess,
-  userOwnDataset
-}
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{
-  DATASET_IS_PRIVATE,
-  DATASET_IS_PUBLIC,
-  DashboardDataset,
-  DashboardDatasetVersion,
-  DatasetDescriptionModification,
-  DatasetIDs,
-  DatasetNameModification,
-  DatasetVersionRootFileNodes,
-  DatasetVersionRootFileNodesResponse,
-  DatasetVersions,
-  ERR_DATASET_CREATION_FAILED_MESSAGE,
-  ERR_DATASET_NAME_ALREADY_EXISTS,
-  ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE,
-  ListDatasetsResponse,
-  calculateLatestDatasetVersionSize,
-  calculateDatasetVersionSize,
-  context,
-  createNewDatasetVersionFromFormData,
-  getDashboardDataset,
-  getDatasetByID,
-  getDatasetVersionByID,
-  getDatasetVersions,
-  getFileNodesOfCertainVersion,
-  getLatestDatasetVersionWithAccessCheck,
-  getUserDatasets,
-  resolvePath,
-  retrievePublicDatasets
-}
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.{
-  DatasetFileNode,
-  PhysicalFileNode
-}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetAccessResource.{getDatasetUserAccessPrivilege, getOwner, userHasReadAccess, userHasWriteAccess, userOwnDataset}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{DATASET_IS_PRIVATE, DATASET_IS_PUBLIC, DashboardDataset, DashboardDatasetVersion, DatasetDescriptionModification, DatasetIDs, DatasetNameModification, DatasetVersionRootFileNodes, DatasetVersionRootFileNodesResponse, DatasetVersions, ERR_DATASET_CREATION_FAILED_MESSAGE, ERR_DATASET_NAME_ALREADY_EXISTS, ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE, ListDatasetsResponse, calculateDatasetVersionSize, calculateLatestDatasetVersionSize, context, createNewDatasetVersionFromFormData, getDashboardDataset, getDatasetByID, getDatasetVersionByID, getDatasetVersions, getFileNodesOfCertainVersion, getLatestDatasetVersionWithAccessCheck, getUserDatasets, retrievePublicDatasets}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.{DatasetFileNode, PhysicalFileNode}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.service.GitVersionControlLocalFileStorage
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.PathUtils
+import edu.uci.ics.texera.workflow.common.storage.FileResolver
 import io.dropwizard.auth.Auth
 import org.apache.commons.lang3.StringUtils
 import org.glassfish.jersey.media.multipart.{FormDataMultiPart, FormDataParam}
@@ -76,21 +31,9 @@ import java.util.zip.{ZipEntry, ZipOutputStream}
 import java.util
 import java.util.concurrent.locks.ReentrantLock
 import javax.annotation.security.RolesAllowed
-import javax.ws.rs.{
-  BadRequestException,
-  Consumes,
-  ForbiddenException,
-  GET,
-  NotFoundException,
-  POST,
-  Path,
-  PathParam,
-  Produces,
-  QueryParam,
-  WebApplicationException
-}
+import javax.ws.rs.{BadRequestException, Consumes, ForbiddenException, GET, NotFoundException, POST, Path, PathParam, Produces, QueryParam, WebApplicationException}
 import javax.ws.rs.core.{MediaType, Response, StreamingOutput}
-import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
+import scala.collection.convert.ImplicitConversions.{`collection AsScalaIterable`, `iterable AsScalaIterable`}
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters._
@@ -277,16 +220,11 @@ object DatasetResource {
           .parse(filePathsValue)
           .as[List[String]]
           .foreach(pathStr => {
-            val (_, _, _, fileRelativePath) =
-              resolvePath(Paths.get(pathStr), shouldContainFile = true)
-
+            val fileRelativePath = Paths.get(FileResolver.resolve(pathStr).getPath)
             fileRelativePath
               .map { path =>
                 filesToRemove += datasetPath
                   .resolve(path) // When path exists, resolve it and add to filesToRemove
-              }
-              .getOrElse {
-                throw new IllegalArgumentException("File relative path is missing")
               }
           })
       }
@@ -763,7 +701,7 @@ class DatasetResource {
         // if the file path is given, then only fetch the dataset and version this file is belonging to
         val decodedPathStr = URLDecoder.decode(filePathStr, StandardCharsets.UTF_8.name())
         val (ownerEmail, dataset, version, _) =
-          resolvePath(Paths.get(decodedPathStr), shouldContainFile = true)
+          FileResolver.parseFileNameForDataset(ctx, decodedPathStr)
         val accessPrivilege = getDatasetUserAccessPrivilege(ctx, dataset.getDid, uid)
         if (
           accessPrivilege == DatasetUserAccessPrivilege.NONE && dataset.getIsPublic == DATASET_IS_PRIVATE
@@ -988,10 +926,10 @@ class DatasetResource {
     val uid = user.getUid
     val decodedPathStr = URLDecoder.decode(pathStr, StandardCharsets.UTF_8.name())
 
-    val (_, dataset, dsVersion, fileRelativePath) =
-      resolvePath(Paths.get(decodedPathStr), shouldContainFile = true)
-
     withTransaction(context)(ctx => {
+      val (_, dataset, dsVersion, fileRelativePath) =
+        FileResolver.parseFileNameForDataset(ctx, decodedPathStr)
+
       val did = dataset.getDid
       val dvid = dsVersion.getDvid
 
@@ -1005,16 +943,13 @@ class DatasetResource {
       val streamingOutput = new StreamingOutput() {
         override def write(output: OutputStream): Unit = {
           fileRelativePath
-            .map { path =>
+            .foreach { path =>
               GitVersionControlLocalFileStorage.retrieveFileContentOfVersion(
                 targetDatasetPath,
                 datasetVersion.getVersionHash,
                 targetDatasetPath.resolve(path),
                 output
               )
-            }
-            .getOrElse {
-              throw new IllegalArgumentException("File relative path is missing.")
             }
         }
       }
@@ -1125,7 +1060,7 @@ class DatasetResource {
   ): (Dataset, DatasetVersion) = {
     val decodedPathStr = URLDecoder.decode(pathStr, StandardCharsets.UTF_8.name())
     val (_, dataset, dsVersion, _) =
-      resolvePath(Paths.get(decodedPathStr), shouldContainFile = false)
+      FileResolver.parseFileNameForDataset(context, decodedPathStr)
 
     validateUserAccess(dataset.getDid, user.getUid)
     (dataset, dsVersion)

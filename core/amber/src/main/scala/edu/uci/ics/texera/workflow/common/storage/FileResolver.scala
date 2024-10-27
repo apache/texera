@@ -2,7 +2,7 @@ package edu.uci.ics.texera.workflow.common.storage
 
 import edu.uci.ics.amber.engine.common.Utils.withTransaction
 
-import java.nio.file.{Files, Paths}
+import java.nio.file.{Files, Path, Paths}
 import edu.uci.ics.amber.engine.common.storage.{DatasetFileDocument, ReadonlyLocalFileDocument, ReadonlyVirtualDocument, VirtualDocument}
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{Dataset, DatasetVersion}
@@ -67,6 +67,7 @@ object FileResolver {
         throw new UnsupportedOperationException(s"Unsupported URI scheme: ${fileUri.getScheme}")
     }
   }
+
   /**
     * Attempts to resolve a local file path.
     * @throws FileNotFoundException if the local file does not exist
@@ -94,22 +95,8 @@ object FileResolver {
     * @throws FileNotFoundException if the dataset file does not exist or cannot be created
     */
   private def datasetResolveFunc(fileName: String): URI = {
-    val filePath = Paths.get(fileName)
-    val pathSegments = (0 until filePath.getNameCount).map(filePath.getName(_).toString).toArray
-
-    if (pathSegments.length < 4) {
-      throw new RuntimeException(
-        s"Invalid path format. Expected format: /ownerEmail/datasetName/versionName/fileRelativePath"
-      )
-    }
-
-    val ownerEmail = pathSegments(0)
-    val datasetName = pathSegments(1)
-    val versionName = pathSegments(2)
-    val fileRelativePath = Paths.get(pathSegments.drop(3).mkString("/"))
-
     withTransaction(SqlServer.createDSLContext()) { ctx =>
-      val (dataset, datasetVersion) = getDatasetAndDatasetVersionByName(ctx, ownerEmail, datasetName, versionName)
+      val (_, dataset, datasetVersion, fileRelativePath) = parseFileNameForDataset(ctx, fileName)
       if (dataset == null || datasetVersion == null) {
         throw new FileNotFoundException(s"Dataset file $fileName")
       }
@@ -120,7 +107,15 @@ object FileResolver {
     }
   }
 
-  private def getDatasetAndDatasetVersionByName(ctx: DSLContext, ownerEmail: String, datasetName: String, datasetVersionName: String): (Dataset, DatasetVersion) = {
+  def parseFileNameForDataset(ctx: DSLContext, fileName: String): (String, Dataset, DatasetVersion, Path) = {
+    val filePath = Paths.get(fileName)
+    val pathSegments = (0 until filePath.getNameCount).map(filePath.getName(_).toString).toArray
+
+    val ownerEmail = pathSegments(0)
+    val datasetName = pathSegments(1)
+    val versionName = pathSegments(2)
+    val fileRelativePath = Paths.get(pathSegments.drop(3).mkString("/"))
+
     val dataset = ctx
       .select(DATASET.fields: _*)
       .from(DATASET)
@@ -133,8 +128,8 @@ object FileResolver {
     val datasetVersion = ctx
       .selectFrom(DATASET_VERSION)
       .where(DATASET_VERSION.DID.eq(dataset.getDid))
-      .and(DATASET_VERSION.NAME.eq(datasetVersionName))
+      .and(DATASET_VERSION.NAME.eq(versionName))
       .fetchOneInto(classOf[DatasetVersion])
-    (dataset, datasetVersion)
+    (ownerEmail, dataset, datasetVersion, fileRelativePath)
   }
 }
