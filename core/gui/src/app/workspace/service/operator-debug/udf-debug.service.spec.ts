@@ -199,19 +199,51 @@ describe("UdfDebugServiceSpec", () => {
         },
       ],
     };
-
+    spyOn(service, "doContinue");
     consoleUpdateEventStream.next(message);
 
     const debugState = service.getDebugState(mockPythonUDFPredicate.operatorID);
     expect(debugState.get("10")).toEqual({ breakpointId: 1, condition: "", hit: false });
+
+    // should call doContinue for all workers if no breakpoints are hit
+    expect(service.doContinue).toHaveBeenCalled();
+    expect(service.doContinue).toHaveBeenCalledWith(mockPythonUDFPredicate.operatorID, "worker1");
   });
 
-  it("should handle console update events (breakpoint deletion)", () => {
+  it("should not call doContinue if a breakpoint is hit", () => {
     const debugState = service.getDebugState(mockPythonUDFPredicate.operatorID);
+    debugState.set("10", { breakpointId: 1, condition: "", hit: true });
+
+    const message: ConsoleUpdateEvent = {
+      operatorId: mockPythonUDFPredicate.operatorID,
+      messages: [
+        {
+          workerId: stubWorker,
+          timestamp: { nanos: 0, seconds: 0 },
+          title: "Breakpoint 2 at /path/to/file.py:11",
+          source: "(Pdb)",
+          msgType: { name: "DEBUGGER" },
+          message: "",
+        },
+      ],
+    };
+
+    spyOn(service, "doContinue");
+    consoleUpdateEventStream.next(message);
+
+    expect(service.doContinue).not.toHaveBeenCalled();
+  });
+
+  it("should handle breakpoint deletion and remove it from the debug state", () => {
+    const operatorId = mockPythonUDFPredicate.operatorID;
+
+    // Pre-set a breakpoint in the debug state
+    const debugState = service.getDebugState(operatorId);
     debugState.set("10", { breakpointId: 1, condition: "", hit: false });
 
-    const message = {
-      operatorId: mockPythonUDFPredicate.operatorID,
+    // Simulate a deletion message
+    const message: ConsoleUpdateEvent = {
+      operatorId,
       messages: [
         {
           workerId: stubWorker,
@@ -224,9 +256,143 @@ describe("UdfDebugServiceSpec", () => {
       ],
     };
 
+    spyOn(service, "doContinue");
     consoleUpdateEventStream.next(message);
 
+    // Ensure the breakpoint was deleted from the debug state
     expect(debugState.has("10")).toBeFalse();
+
+    // Verify that doContinue was called for all workers
+    expect(service.doContinue).toHaveBeenCalled();
+    expect(service.doContinue).toHaveBeenCalledWith(operatorId, "worker1");
+  });
+
+  it("should handle console update events (breakpoint deletion)", () => {
+    const operatorId = mockPythonUDFPredicate.operatorID;
+
+    // Pre-set a breakpoint as hit in the debug state
+    const debugState = service.getDebugState(operatorId);
+    debugState.set("10", { breakpointId: 1, condition: "", hit: true });
+
+    // Simulate a deletion message
+    const message: ConsoleUpdateEvent = {
+      operatorId,
+      messages: [
+        {
+          workerId: stubWorker,
+          timestamp: { nanos: 0, seconds: 0 },
+          title: "Deleted breakpoint 1 at /path/to/file.py:10",
+          source: "(Pdb)",
+          msgType: { name: "DEBUGGER" },
+          message: "",
+        },
+      ],
+    };
+
+    spyOn(service, "doContinue");
+    consoleUpdateEventStream.next(message);
+
+    // Ensure the breakpoint is retained with an undefined breakpointId
+    expect(debugState.get("10")).toEqual({ breakpointId: undefined, condition: "", hit: true });
+
+    // Verify that doContinue was not called due to a hit breakpoint
+    expect(service.doContinue).not.toHaveBeenCalled();
+  });
+
+  it("should handle console update events (breakpoint deletion) without sending continue if a hit breakpoint exists", () => {
+    const operatorId = mockPythonUDFPredicate.operatorID;
+
+    // Pre-set a hit breakpoint and another non-hit breakpoint in the debug state
+    const debugState = service.getDebugState(operatorId);
+    debugState.set("10", { breakpointId: 1, condition: "", hit: true });
+    debugState.set("11", { breakpointId: 2, condition: "", hit: false });
+
+    // Simulate a deletion message
+    const message: ConsoleUpdateEvent = {
+      operatorId,
+      messages: [
+        {
+          workerId: stubWorker,
+          timestamp: { nanos: 0, seconds: 0 },
+          title: "Deleted breakpoint 2 at /path/to/file.py:11",
+          source: "(Pdb)",
+          msgType: { name: "DEBUGGER" },
+          message: "",
+        },
+      ],
+    };
+
+    spyOn(service, "doContinue");
+    consoleUpdateEventStream.next(message);
+
+    // Ensure the non-hit breakpoint was deleted
+    expect(debugState.has("11")).toBeFalse();
+
+    // Verify that doContinue was not called due to the remaining hit breakpoint
+    expect(service.doContinue).not.toHaveBeenCalled();
+  });
+
+  it("should call doContinue for all workers if no breakpoints are hit", () => {
+    const operatorId = mockPythonUDFPredicate.operatorID;
+
+    // Ensure no breakpoints are hit in the debug state
+    const debugState = service.getDebugState(operatorId);
+    debugState.set("10", { breakpointId: 1, condition: "", hit: false });
+
+    const message: ConsoleUpdateEvent = {
+      operatorId,
+      messages: [
+        {
+          workerId: stubWorker,
+          timestamp: { nanos: 0, seconds: 0 },
+          title: "*** Blank or comment",
+          source: "(Pdb)",
+          msgType: { name: "DEBUGGER" },
+          message: "",
+        },
+      ],
+    };
+
+    spyOn(service, "doContinue"); // Spy on the doContinue method
+
+    consoleUpdateEventStream.next(message); // Emit the message
+  });
+
+  it("should handle console update events (breakpoint blank message)", () => {
+    const operatorId = mockPythonUDFPredicate.operatorID;
+
+    // Set a hit breakpoint in the debug state
+    const debugState = service.getDebugState(operatorId);
+    debugState.set("10", { breakpointId: 1, condition: "", hit: true });
+
+    const message: ConsoleUpdateEvent = {
+      operatorId,
+      messages: [
+        {
+          workerId: stubWorker,
+          timestamp: { nanos: 0, seconds: 0 },
+          title: "*** Blank or comment",
+          source: "(Pdb)",
+          msgType: { name: "DEBUGGER" },
+          message: "",
+        },
+      ],
+    };
+
+    spyOn(service, "doContinue");
+
+    consoleUpdateEventStream.next(message); // Emit the message
+
+    // Ensure doContinue was not called due to a hit breakpoint
+    expect(service.doContinue).not.toHaveBeenCalled();
+
+    debugState.delete("10");
+
+    consoleUpdateEventStream.next(message); // Emit the message
+
+    // Ensure doContinue is called for each worker
+    expect(service.doContinue).toHaveBeenCalled();
+    expect(service.doContinue).toHaveBeenCalledWith(operatorId, "worker1");
   });
 
   it("should handle console update events (stepping message)", () => {

@@ -182,6 +182,8 @@ export class UdfDebugService {
             hit: false,
           });
         }
+
+        this.continueIfNotHittingBreakpoint(operatorId);
       });
 
     // Handle breakpoint deletion message.
@@ -207,7 +209,16 @@ export class UdfDebugService {
         if (breakpointInfo.hit) {
           debugState.set(String(lineNum), { ...breakpointInfo, breakpointId: undefined });
         }
+
+        this.continueIfNotHittingBreakpoint(operatorId);
       });
+
+    // Handle breakpoint blank message.
+    // Example:
+    //   *** Blank or comment
+    debugMessageStream.pipe(filter(msg => msg.title.startsWith("*** Blank or comment"))).subscribe(() => {
+      this.continueIfNotHittingBreakpoint(operatorId);
+    });
   }
 
   /**
@@ -253,5 +264,34 @@ export class UdfDebugService {
     if (lineMatch) return { lineNum: parseInt(lineMatch[1] || lineMatch[2], 10) };
 
     return {};
+  }
+
+  /**
+   * Checks if any breakpoint is currently hit (paused) in the debug state
+   * for the given operator.
+   *
+   * @param {string} operatorId - The unique ID of the operator.
+   * @returns {boolean} - Returns `true` if any breakpoint is hit, otherwise `false`.
+   */
+  private isHittingBreakpoint(operatorId: string): boolean {
+    const debugState = this.getDebugState(operatorId);
+    return Array.from(debugState.values()).some(breakpoint => breakpoint.hit);
+  }
+
+  /**
+   * Sends a "continue" command to all workers of the specified operator
+   * if no breakpoints are currently hit. If a breakpoint is hit, the
+   * function exits without sending the "continue" command.
+   *
+   * @param {string} operatorId - The unique ID of the operator.
+   */
+  private continueIfNotHittingBreakpoint(operatorId: string): void {
+    // If any breakpoint is hit, do not send the "continue" command.
+    if (this.isHittingBreakpoint(operatorId)) {
+      return;
+    }
+
+    // Retrieve all worker IDs and send the "continue" command to each worker.
+    this.executeWorkflowService.getWorkerIds(operatorId).forEach(workerId => this.doContinue(operatorId, workerId));
   }
 }
