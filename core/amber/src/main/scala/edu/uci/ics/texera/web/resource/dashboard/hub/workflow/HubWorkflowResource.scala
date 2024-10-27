@@ -20,7 +20,6 @@ import java.util
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import org.jooq.types.UInteger
-
 import java.util.Collections
 import java.util.regex.Pattern
 import javax.servlet.http.HttpServletRequest
