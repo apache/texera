@@ -22,6 +22,8 @@ import java.nio.charset.StandardCharsets
 import scala.util.{Success, Try}
 
 object FileResolver {
+  type FileHandle = ReadonlyVirtualDocument[_]
+
   private val DatasetFileUriScheme = "vfs"
 
   /**
@@ -48,7 +50,7 @@ object FileResolver {
     * @param fileUri the uri pointing to the file
     * @return
     */
-  def open(fileUri: URI): ReadonlyVirtualDocument[_] = {
+  def open(fileUri: URI): FileHandle = {
     fileUri.getScheme match {
       case DatasetFileUriScheme =>
         // Extract path components and decode them
