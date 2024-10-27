@@ -41,6 +41,10 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
   workflowDescription: string = "";
   clonedWorklowId: number | undefined;
   isLogin = this.userService.isLogin();
+  isLiked: boolean = false;
+  currentUid: number | undefined;
+  likeCount: number = 0;
+  cloneCount: number = 0;
 
   workflow = {
     steps: [
@@ -98,12 +102,30 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
         this.isLogin = this.userService.isLogin();
       });
     this.currentUser = this.userService.getCurrentUser();
+    this.currentUid = this.currentUser?.uid;
   }
 
   ngOnInit() {
     this.isHub =
       this.route.parent?.snapshot.url.some(segment => segment.path === "detail") ||
       this.route.snapshot.url.some(segment => segment.path === "detail");
+
+    if (this.wid) {
+      this.hubWorkflowService
+        .getLikeCount(this.wid)
+        .pipe(untilDestroyed(this))
+        .subscribe(count => {
+          this.likeCount = count;
+        });
+
+      this.hubWorkflowService
+        .getCloneCount(this.wid)
+        .pipe(untilDestroyed(this))
+        .subscribe(count => {
+          this.cloneCount = count;
+        });
+    }
+
     this.hubWorkflowService
       .getOwnerUser(this.wid)
       .pipe(untilDestroyed(this))
@@ -122,6 +144,14 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
       .subscribe(workflowDescription => {
         this.workflowDescription = workflowDescription || "No description available";
       });
+    if (this.wid !== undefined && this.currentUid != undefined) {
+      this.hubWorkflowService
+        .isWorkflowLiked(this.wid, this.currentUid)
+        .pipe(untilDestroyed(this))
+        .subscribe((isLiked: boolean) => {
+          this.isLiked = isLiked;
+        });
+    }
   }
 
   ngAfterViewInit(): void {
@@ -243,7 +273,59 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
       .pipe(untilDestroyed(this))
       .subscribe(newWid => {
         this.clonedWorklowId = newWid;
-        this.router.navigate([`/workflow/${this.clonedWorklowId}`]);
+        sessionStorage.setItem("cloneSuccess", "true");
+        this.router.navigate(["/dashboard/user/workflow"]);
       });
+  }
+
+  toggleLike(workflowId: number | undefined, userId: number | undefined): void {
+    if (workflowId === undefined || userId === undefined) {
+      return;
+    }
+
+    if (this.isLiked) {
+      this.hubWorkflowService
+        .postUnlikeWorkflow(workflowId, userId)
+        .pipe(untilDestroyed(this))
+        .subscribe((success: boolean) => {
+          if (success) {
+            this.isLiked = false;
+            this.hubWorkflowService
+              .getLikeCount(workflowId)
+              .pipe(untilDestroyed(this))
+              .subscribe((count: number) => {
+                this.likeCount = count;
+              });
+            console.log("Successfully unliked the workflow");
+          } else {
+            console.error("Error unliking the workflow");
+          }
+        });
+    } else {
+      this.hubWorkflowService
+        .postLikeWorkflow(workflowId, userId)
+        .pipe(untilDestroyed(this))
+        .subscribe((success: boolean) => {
+          if (success) {
+            this.isLiked = true;
+            this.hubWorkflowService
+              .getLikeCount(workflowId)
+              .pipe(untilDestroyed(this))
+              .subscribe((count: number) => {
+                this.likeCount = count;
+              });
+            console.log("Successfully liked the workflow");
+          } else {
+            console.error("Error liking the workflow");
+          }
+        });
+    }
+  }
+
+  formatLikeCount(count: number): string {
+    if (count >= 1000) {
+      return (count / 1000).toFixed(1) + "k";
+    }
+    return count.toString();
   }
 }

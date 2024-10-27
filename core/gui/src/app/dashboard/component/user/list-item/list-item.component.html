@@ -186,4 +186,25 @@
         nzType="delete"></i>
     </button>
   </div>
+  <div
+    *ngIf="!isPrivateSearch"
+    class="button-group">
+    <button
+      nz-button
+      nzType="text"
+      class="dropdown-item like-button"
+      title="Like"
+      [ngClass]="{ liked: isLiked, 'disabled-like': !currentUid }"
+      (click)="toggleLike(this.entry.id, this.currentUid)"
+      [attr.disabled]="!currentUid ? true : null">
+      <i
+        nz-icon
+        [nzTheme]="isLiked ? 'fill' : 'outline'"
+        [nzType]="'like'"
+        [ngClass]="isLiked ? 'liked' : 'not-liked'"
+        class="like-icon">
+      </i>
+      <span>{{ formatLikeCount(likeCount) }}</span>
+    </button>
+  </div>
 </nz-card>
