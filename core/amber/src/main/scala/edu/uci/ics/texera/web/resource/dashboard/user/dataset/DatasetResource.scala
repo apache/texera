@@ -135,33 +135,6 @@ object DatasetResource {
     dataset
   }
 
-  private def getDatasetByName(
-      ctx: DSLContext,
-      ownerEmail: String,
-      datasetName: String
-  ): Dataset = {
-    ctx
-      .select(DATASET.fields: _*)
-      .from(DATASET)
-      .leftJoin(USER)
-      .on(USER.UID.eq(DATASET.OWNER_UID))
-      .where(USER.EMAIL.eq(ownerEmail))
-      .and(DATASET.NAME.eq(datasetName))
-      .fetchOneInto(classOf[Dataset])
-  }
-
-  private def getDatasetVersionByName(
-      ctx: DSLContext,
-      did: UInteger,
-      versionName: String
-  ): DatasetVersion = {
-    ctx
-      .selectFrom(DATASET_VERSION)
-      .where(DATASET_VERSION.DID.eq(did))
-      .and(DATASET_VERSION.NAME.eq(versionName))
-      .fetchOneInto(classOf[DatasetVersion])
-  }
-
   // this function retrieve the version hash identified by dvid and did
   // read access will be checked
   private def getDatasetVersionByID(
@@ -174,56 +147,6 @@ object DatasetResource {
       throw new NotFoundException("Dataset Version not found")
     }
     version
-  }
-
-  // @param shouldContainFile a boolean flag indicating whether the path includes a fileRelativePath
-  // when shouldContainFile is true, user given path is /ownerEmail/datasetName/versionName/fileRelativePath
-  // e.g. /bob@texera.com/twitterDataset/v1/california/irvine/tw1.csv
-  //      ownerName is bob@texera.com; datasetName is twitterDataset, versionName is v1, fileRelativePath is california/irvine/tw1.csv
-  // when shouldContainFile is false, user given path is /ownerEmail/datasetName/versionName
-  // e.g. /bob@texera.com/twitterDataset/v1
-  //      ownerName is bob@texera.com; datasetName is twitterDataset, versionName is v1
-  def resolvePath(
-      path: java.nio.file.Path,
-      shouldContainFile: Boolean
-  ): (String, Dataset, DatasetVersion, Option[java.nio.file.Path]) = {
-
-    val pathSegments = (0 until path.getNameCount).map(path.getName(_).toString).toArray
-
-    // The expected length of the path segments:
-    // - If shouldContainFile is true, the path should include 4 segments: /ownerEmail/datasetName/versionName/fileRelativePath
-    // - If shouldContainFile is false, the path should include only 3 segments: /ownerEmail/datasetName/versionName
-    val expectedLength = if (shouldContainFile) 4 else 3
-
-    if (pathSegments.length < expectedLength) {
-      throw new BadRequestException(
-        s"Invalid path format. Expected format: /ownerEmail/datasetName/versionName" +
-          (if (shouldContainFile) "/fileRelativePath" else "")
-      )
-    }
-
-    val ownerEmail = pathSegments(0)
-    val datasetName = pathSegments(1)
-    val versionName = pathSegments(2)
-
-    val fileRelativePath =
-      if (shouldContainFile) Some(Paths.get(pathSegments.drop(3).mkString("/"))) else None
-
-    withTransaction(context) { ctx =>
-      // Get the dataset by owner email and dataset name
-      val dataset = getDatasetByName(ctx, ownerEmail, datasetName)
-      if (dataset == null) {
-        throw new NotFoundException("Dataset not found")
-      }
-
-      // Get the dataset version by dataset ID and version name
-      val datasetVersion = getDatasetVersionByName(ctx, dataset.getDid, versionName)
-      if (datasetVersion == null) {
-        throw new NotFoundException("Dataset version not found")
-      }
-
-      (ownerEmail, dataset, datasetVersion, fileRelativePath)
-    }
   }
 
   // this function retrieve the DashboardDataset(Dataset from DB+more information) identified by did
@@ -297,21 +220,6 @@ object DatasetResource {
       case Some(latestVersion) => latestVersion
       case None                => throw new NotFoundException(ERR_DATASET_VERSION_NOT_FOUND_MESSAGE)
     }
-  }
-
-  def getDatasetFile(
-      did: UInteger,
-      dvid: UInteger,
-      fileRelativePath: java.nio.file.Path
-  ): InputStream = {
-    val versionHash = getDatasetVersionByID(context, dvid).getVersionHash
-    val datasetPath = PathUtils.getDatasetPath(did)
-    GitVersionControlLocalFileStorage
-      .retrieveFileContentOfVersionAsInputStream(
-        PathUtils.getDatasetPath(did),
-        versionHash,
-        datasetPath.resolve(fileRelativePath)
-      )
   }
 
   private def getFileNodesOfCertainVersion(

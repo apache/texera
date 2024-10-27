@@ -2,18 +2,15 @@ package edu.uci.ics.texera.workflow.operators.source.scan.csvOld
 
 import com.github.tototoshi.csv.{CSVReader, DefaultCSVFormat}
 import edu.uci.ics.amber.engine.common.executor.SourceOperatorExecutor
-import edu.uci.ics.amber.engine.common.model.tuple.{
-  Attribute,
-  AttributeTypeUtils,
-  Schema,
-  TupleLike
-}
+import edu.uci.ics.amber.engine.common.model.tuple.{Attribute, AttributeTypeUtils, Schema, TupleLike}
+import edu.uci.ics.texera.workflow.common.storage.FileResolver
 import edu.uci.ics.texera.workflow.operators.source.scan.FileDecodingMethod
 
+import java.net.URI
 import scala.collection.compat.immutable.ArraySeq
 
 class CSVOldScanSourceOpExec private[csvOld] (
-    filePath: String,
+    fileUri: String,
     fileEncoding: FileDecodingMethod,
     limit: Option[Int],
     offset: Option[Int],
@@ -51,7 +48,8 @@ class CSVOldScanSourceOpExec private[csvOld] (
     implicit object CustomFormat extends DefaultCSVFormat {
       override val delimiter: Char = customDelimiter.get.charAt(0)
     }
-    reader = CSVReader.open(filePath, fileEncoding.getCharset.name())(CustomFormat)
+    val filePath = FileResolver.open(new URI(fileUri)).asFile().toPath
+    reader = CSVReader.open(filePath.toString, fileEncoding.getCharset.name())(CustomFormat)
     // skip line if this worker reads the start of a file, and the file has a header line
     val startOffset = offset.getOrElse(0) + (if (hasHeader) 1 else 0)
 

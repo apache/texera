@@ -30,9 +30,9 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
   @JsonPropertyDescription("decoding charset to use on input")
   var fileEncoding: FileDecodingMethod = FileDecodingMethod.UTF_8
 
-  // Unified file handle, can be either a local path (String) or DatasetFileDocument
+  // uri of the file
   @JsonIgnore
-  var fileHandle: FileResolver.FileResolverOutput = _
+  var fileUri: Option[String] = None
 
   @JsonIgnore
   var fileTypeName: Option[String] = None
@@ -50,7 +50,7 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
   var offset: Option[Int] = None
 
   override def sourceSchema(): Schema = {
-    if (fileHandle == null) return null
+    if (fileUri == null) return null
     inferSchema()
   }
 
@@ -61,8 +61,8 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
       throw new RuntimeException("no input file name")
     }
 
-    // Resolve the file and assign the result to fileHandle
-    fileHandle = FileResolver.resolve(fileName.get)
+    // Resolve the file and assign the result to file uri
+    fileUri = Some(FileResolver.resolve(fileName.get).toASCIIString)
   }
 
   override def operatorInfo: OperatorInfo = {
@@ -76,14 +76,6 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
   }
 
   def inferSchema(): Schema
-
-  // Get the source file descriptor from the fileHandle
-  def determineFilePathOrDatasetFile(): (String, DatasetFileDocument) = {
-    fileHandle match {
-      case Left(path)      => (path, null) // File path is a local path as String
-      case Right(document) => (null, document) // File is a DatasetFileDocument
-    }
-  }
 
   override def equals(that: Any): Boolean =
     EqualsBuilder.reflectionEquals(this, that, "context", "fileHandle")

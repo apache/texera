@@ -25,21 +25,4 @@ trait SourceOperatorExecutor extends OperatorExecutor {
     // We should move this to onFinishAllPorts later.
     produceTuple().map(t => (t, Option.empty))
   }
-
-  // this function create the input stream accordingly:
-  // - if filePath is set, create the stream from the file
-  // - if fileDesc is set, create the stream via JGit call
-  def createInputStream(filePath: String, datasetFileDocument: DatasetFileDocument): InputStream = {
-    if (filePath != null && datasetFileDocument != null) {
-      throw new RuntimeException(
-        "File Path and Dataset File Descriptor cannot present at the same time."
-      )
-    }
-    if (filePath != null) {
-      new FileInputStream(filePath)
-    } else {
-      // create stream from dataset file desc
-      datasetFileDocument.asInputStream()
-    }
-  }
 }

@@ -1,16 +1,15 @@
 package edu.uci.ics.amber.engine.common.storage
 
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.service.GitVersionControlLocalFileStorage
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.PathUtils
+import org.jooq.types.UInteger
 
-import java.io.{File, InputStream, FileOutputStream}
+import java.io.{File, FileOutputStream, InputStream}
 import java.net.URI
 import java.nio.file.{Files, Path}
 
-class DatasetFileDocument(fileFullPath: Path) extends VirtualDocument[Nothing] {
-
-  private val (_, dataset, datasetVersion, fileRelativePath) =
-    DatasetResource.resolvePath(fileFullPath, shouldContainFile = true)
-
+class DatasetFileDocument(did: Int, datasetVersionHash: String, fileRelativePath: Path) extends VirtualDocument[Nothing] {
   private var tempFile: Option[File] = None
 
   override def getURI: URI =
@@ -19,12 +18,13 @@ class DatasetFileDocument(fileFullPath: Path) extends VirtualDocument[Nothing] {
     )
 
   override def asInputStream(): InputStream = {
-    fileRelativePath match {
-      case Some(path) =>
-        DatasetResource.getDatasetFile(dataset.getDid, datasetVersion.getDvid, path)
-      case None =>
-        throw new IllegalArgumentException("File relative path is missing.")
-    }
+    val datasetAbsolutePath = PathUtils.getDatasetPath(UInteger.valueOf(did))
+    GitVersionControlLocalFileStorage
+          .retrieveFileContentOfVersionAsInputStream(
+            datasetAbsolutePath,
+            datasetVersionHash,
+            datasetAbsolutePath.resolve(fileRelativePath)
+          )
   }
 
   override def asFile(): File = {

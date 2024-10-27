@@ -9,10 +9,12 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, Workf
 import edu.uci.ics.amber.engine.common.Utils.objectMapper
 import edu.uci.ics.amber.engine.common.model.tuple.AttributeTypeUtils.inferSchemaFromRows
 import edu.uci.ics.amber.engine.common.model.tuple.{Attribute, Schema}
+import edu.uci.ics.texera.workflow.common.storage.FileResolver
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONUtil.JSONToMap
 
 import java.io.{BufferedReader, FileInputStream, IOException, InputStream, InputStreamReader}
+import java.net.URI
 import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
@@ -37,8 +39,7 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp = {
-    val (filepath, fileDesc) = determineFilePathOrDatasetFile()
-    val stream = createInputStream(filepath, fileDesc)
+    val stream = FileResolver.open(new URI(fileUri.get)).asInputStream()
     // count lines and partition the task to each worker
     val reader = new BufferedReader(
       new InputStreamReader(stream, fileEncoding.getCharset)
@@ -60,8 +61,7 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
             offsetValue + (if (idx != workerCount - 1) count / workerCount * (idx + 1)
                            else count)
           new JSONLScanSourceOpExec(
-            filepath,
-            fileDesc,
+            fileUri.get,
             fileEncoding,
             startOffset,
             endOffset,

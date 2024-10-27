@@ -18,7 +18,7 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
   before {
     fileScanSourceOpDesc = new FileScanSourceOpDesc()
-    fileScanSourceOpDesc.fileHandle = Left(TestTextFilePath)
+    fileScanSourceOpDesc.fileUri = Left(TestTextFilePath)
     fileScanSourceOpDesc.fileEncoding = FileDecodingMethod.UTF_8
   }
 
@@ -61,7 +61,7 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     fileScanSourceOpDesc.fileScanLimit = Option(5)
     val FileScanSourceOpExec =
       new FileScanSourceOpExec(
-        fileScanSourceOpDesc.fileHandle.left.getOrElse(""),
+        fileScanSourceOpDesc.fileUri.left.getOrElse(""),
         null,
         fileScanSourceOpDesc.attributeType,
         fileScanSourceOpDesc.fileEncoding,
@@ -87,12 +87,12 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "read first 5 lines of the input text file with CRLF separators into corresponding output tuples" in {
-    fileScanSourceOpDesc.fileHandle = Left(TestCRLFTextFilePath)
+    fileScanSourceOpDesc.fileUri = Left(TestCRLFTextFilePath)
     fileScanSourceOpDesc.attributeType = FileAttributeType.STRING
     fileScanSourceOpDesc.fileScanLimit = Option(5)
     val FileScanSourceOpExec =
       new FileScanSourceOpExec(
-        fileScanSourceOpDesc.fileHandle.left.getOrElse(""),
+        fileScanSourceOpDesc.fileUri.left.getOrElse(""),
         null,
         fileScanSourceOpDesc.attributeType,
         fileScanSourceOpDesc.fileEncoding,
@@ -121,7 +121,7 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     fileScanSourceOpDesc.attributeType = FileAttributeType.SINGLE_STRING
     val FileScanSourceOpExec =
       new FileScanSourceOpExec(
-        fileScanSourceOpDesc.fileHandle.left.getOrElse(""),
+        fileScanSourceOpDesc.fileUri.left.getOrElse(""),
         null,
         fileScanSourceOpDesc.attributeType,
         fileScanSourceOpDesc.fileEncoding,
@@ -148,11 +148,11 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "read first 5 lines of the input text into corresponding output INTEGER tuples" in {
-    fileScanSourceOpDesc.fileHandle = Left(TestNumbersFilePath)
+    fileScanSourceOpDesc.fileUri = Left(TestNumbersFilePath)
     fileScanSourceOpDesc.attributeType = FileAttributeType.INTEGER
     fileScanSourceOpDesc.fileScanLimit = Option(5)
     val FileScanSourceOpExec = new FileScanSourceOpExec(
-      fileScanSourceOpDesc.fileHandle.left.getOrElse(""),
+      fileScanSourceOpDesc.fileUri.left.getOrElse(""),
       null,
       fileScanSourceOpDesc.attributeType,
       fileScanSourceOpDesc.fileEncoding,
@@ -178,13 +178,13 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "read first 5 lines of the input text file with US_ASCII encoding" in {
-    fileScanSourceOpDesc.fileHandle = Left(TestCRLFTextFilePath)
+    fileScanSourceOpDesc.fileUri = Left(TestCRLFTextFilePath)
     fileScanSourceOpDesc.fileEncoding = FileDecodingMethod.ASCII
     fileScanSourceOpDesc.attributeType = FileAttributeType.STRING
     fileScanSourceOpDesc.fileScanLimit = Option(5)
     val FileScanSourceOpExec =
       new FileScanSourceOpExec(
-        fileScanSourceOpDesc.fileHandle.left.getOrElse(""),
+        fileScanSourceOpDesc.fileUri.left.getOrElse(""),
         null,
         fileScanSourceOpDesc.attributeType,
         fileScanSourceOpDesc.fileEncoding,

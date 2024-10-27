@@ -6,14 +6,15 @@ import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.amber.engine.common.{CheckpointState, CheckpointSupport}
 import edu.uci.ics.amber.engine.common.model.tuple.{AttributeTypeUtils, Schema, TupleLike}
 import edu.uci.ics.amber.engine.common.storage.DatasetFileDocument
+import edu.uci.ics.texera.workflow.common.storage.FileResolver
 import edu.uci.ics.texera.workflow.operators.source.scan.FileDecodingMethod
 
 import java.io.InputStreamReader
+import java.net.URI
 import scala.collection.immutable.ArraySeq
 
 class CSVScanSourceOpExec private[csv] (
-    filePath: String,
-    datasetFileDesc: DatasetFileDocument,
+    fileUri: String,
     fileEncoding: FileDecodingMethod,
     limit: Option[Int],
     offset: Option[Int],
@@ -69,7 +70,7 @@ class CSVScanSourceOpExec private[csv] (
 
   override def open(): Unit = {
     inputReader = new InputStreamReader(
-      createInputStream(filePath, datasetFileDesc),
+      FileResolver.open(new URI(fileUri)).asInputStream(),
       fileEncoding.getCharset
     )
 
