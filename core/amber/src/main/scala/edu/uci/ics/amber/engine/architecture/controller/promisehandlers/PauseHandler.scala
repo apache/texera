@@ -3,19 +3,13 @@ package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
   ExecutionStateUpdate,
-  ExecutionStatsUpdate,
-  ReportCurrentProcessingTuple
+  ExecutionStatsUpdate
 }
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryCurrentInputTupleHandler.QueryCurrentInputTuple
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
-import edu.uci.ics.amber.engine.common.model.tuple.Tuple
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-
-import scala.collection.mutable
 
 object PauseHandler {
 
@@ -38,9 +32,6 @@ trait PauseHandler {
             .flatMap(_.getAllOperatorExecutions)
             .map {
               case (physicalOpId, opExecution) =>
-                // create a buffer for the current input tuple
-                // since we need to show them on the frontend
-                val buffer = mutable.ArrayBuffer[(Tuple, ActorVirtualIdentity)]()
                 Future
                   .collect(
                     opExecution.getWorkerIds
@@ -52,22 +43,13 @@ trait PauseHandler {
                         send(PauseWorker(), worker).flatMap { state =>
                           workerExecution.setState(state)
                           send(QueryStatistics(), worker)
-                            .join(send(QueryCurrentInputTuple(), worker))
                             // get the stats and current input tuple from the worker
-                            .map {
-                              case (metrics, tuple) =>
-                                workerExecution.setStats(metrics.workerStatistics)
-                                buffer.append((tuple, worker))
+                            .map { metrics =>
+                              workerExecution.setStats(metrics.workerStatistics)
                             }
                         }
                       }.toSeq
                   )
-                  .map { _ =>
-                    // for each paused operator, send the input tuple
-                    sendToClient(
-                      ReportCurrentProcessingTuple(physicalOpId.logicalOpId.id, buffer.toArray)
-                    )
-                  }
             }
             .toSeq
         )
