@@ -43,7 +43,10 @@ class JSONLScanSourceOpExec private[json] (
   override def open(): Unit = {
     schema = schemaFunc()
     reader = new BufferedReader(
-      new InputStreamReader(FileResolver.open(new URI(fileUri)).asInputStream(), fileEncoding.getCharset)
+      new InputStreamReader(
+        FileResolver.open(new URI(fileUri)).asInputStream(),
+        fileEncoding.getCharset
+      )
     )
     rows = reader.lines().iterator().asScala.slice(startOffset, endOffset)
   }

@@ -147,10 +147,10 @@ case class LogicalPlan(
   }
 
   def resolveScanSourceOpFileName(
-                                   errorList: Option[ArrayBuffer[(OperatorIdentity, Throwable)]]
-                                 ): Unit = {
+      errorList: Option[ArrayBuffer[(OperatorIdentity, Throwable)]]
+  ): Unit = {
     operators.foreach {
-      case operator@(scanOp: ScanSourceOpDesc) =>
+      case operator @ (scanOp: ScanSourceOpDesc) =>
         Try {
           // Resolve file path for ScanSourceOpDesc
           val fileName = scanOp.fileName.getOrElse(throw new RuntimeException("no input file name"))

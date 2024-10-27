@@ -9,7 +9,8 @@ import java.io.{File, FileOutputStream, InputStream}
 import java.net.URI
 import java.nio.file.{Files, Path}
 
-class DatasetFileDocument(did: Int, datasetVersionHash: String, fileRelativePath: Path) extends VirtualDocument[Nothing] {
+class DatasetFileDocument(did: Int, datasetVersionHash: String, fileRelativePath: Path)
+    extends VirtualDocument[Nothing] {
   private var tempFile: Option[File] = None
 
   override def getURI: URI =
@@ -20,11 +21,11 @@ class DatasetFileDocument(did: Int, datasetVersionHash: String, fileRelativePath
   override def asInputStream(): InputStream = {
     val datasetAbsolutePath = PathUtils.getDatasetPath(UInteger.valueOf(did))
     GitVersionControlLocalFileStorage
-          .retrieveFileContentOfVersionAsInputStream(
-            datasetAbsolutePath,
-            datasetVersionHash,
-            datasetAbsolutePath.resolve(fileRelativePath)
-          )
+      .retrieveFileContentOfVersionAsInputStream(
+        datasetAbsolutePath,
+        datasetVersionHash,
+        datasetAbsolutePath.resolve(fileRelativePath)
+      )
   }
 
   override def asFile(): File = {

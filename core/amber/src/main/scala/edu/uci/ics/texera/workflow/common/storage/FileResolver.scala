@@ -3,7 +3,12 @@ package edu.uci.ics.texera.workflow.common.storage
 import edu.uci.ics.amber.engine.common.Utils.withTransaction
 
 import java.nio.file.{Files, Path, Paths}
-import edu.uci.ics.amber.engine.common.storage.{DatasetFileDocument, ReadonlyLocalFileDocument, ReadonlyVirtualDocument, VirtualDocument}
+import edu.uci.ics.amber.engine.common.storage.{
+  DatasetFileDocument,
+  ReadonlyLocalFileDocument,
+  ReadonlyVirtualDocument,
+  VirtualDocument
+}
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{Dataset, DatasetVersion}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset.DATASET
@@ -47,24 +52,19 @@ object FileResolver {
     fileUri.getScheme match {
       case DatasetFileUriScheme =>
         // Extract path components and decode them
-        val pathParts = fileUri.getPath.stripPrefix("/").split("/").map(part =>
-          URLDecoder.decode(part, StandardCharsets.UTF_8)
-        )
+        val pathParts = fileUri.getPath
+          .stripPrefix("/")
+          .split("/")
+          .map(part => URLDecoder.decode(part, StandardCharsets.UTF_8))
 
         if (pathParts.length < 3) {
           throw new RuntimeException(s"Invalid dataset URI format: ${fileUri.toString}")
         }
 
-        // Parse the dataset ID and version hash, and build the file path
-        val did = pathParts(0).toInt
-        val versionHash = pathParts(1)
-        val fileRelativePath = Paths.get(pathParts.drop(2).mkString("/"))
-
-        // Create and return a DatasetFileDocument
         new DatasetFileDocument(
-          did = did,
-          datasetVersionHash = versionHash,
-          fileRelativePath = fileRelativePath
+          did = pathParts(0).toInt,
+          datasetVersionHash = pathParts(1),
+          fileRelativePath = Paths.get(pathParts.drop(2).mkString("/"))
         )
 
       case "file" =>
@@ -119,7 +119,8 @@ object FileResolver {
       // Construct path as /{did}/{versionHash}/file-path
       val did = dataset.getDid.intValue()
       val versionHash = datasetVersion.getVersionHash
-      val encodedPath = s"/$did/$versionHash/${fileRelativePath.toString.split("/").map(URLEncoder.encode(_, StandardCharsets.UTF_8)).mkString("/")}"
+      val encodedPath =
+        s"/$did/$versionHash/${fileRelativePath.toString.split("/").map(URLEncoder.encode(_, StandardCharsets.UTF_8)).mkString("/")}"
 
       try {
         new URI(DatasetFileUriScheme, null, encodedPath, null)
@@ -130,7 +131,10 @@ object FileResolver {
     }
   }
 
-  def parseFileNameForDataset(ctx: DSLContext, fileName: String): (String, Dataset, DatasetVersion, Path) = {
+  def parseFileNameForDataset(
+      ctx: DSLContext,
+      fileName: String
+  ): (String, Dataset, DatasetVersion, Path) = {
     val filePath = Paths.get(fileName)
     val pathSegments = (0 until filePath.getNameCount).map(filePath.getName(_).toString).toArray
 
