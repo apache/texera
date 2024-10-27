@@ -6,6 +6,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.Tables._
 import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{User, Workflow}
+import edu.uci.ics.texera.web.resource.dashboard.hub.workflow.HubWorkflowResource.recordUserActivity
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.WorkflowWithPrivilege
 
@@ -13,6 +14,45 @@ import java.util
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import org.jooq.types.UInteger
+
+import java.util.regex.Pattern
+import javax.servlet.http.HttpServletRequest
+import javax.ws.rs.core.Context
+
+object HubWorkflowResource {
+  final private lazy val context = SqlServer.createDSLContext()
+
+  final private val ipv4Pattern: Pattern = Pattern.compile(
+    "^([0-9]{1,3}\\.){3}[0-9]{1,3}$"
+  )
+
+  def recordUserActivity(
+      request: HttpServletRequest,
+      userId: UInteger = UInteger.valueOf(0),
+      workflowId: UInteger,
+      action: String
+  ): Unit = {
+    val userIp = request.getRemoteAddr()
+//    println(s"User IP from getRemoteAddr: $userIp")
+
+    if (ipv4Pattern.matcher(userIp).matches()) {
+      context
+        .insertInto(WORKFLOW_USER_ACTIVITY)
+        .set(WORKFLOW_USER_ACTIVITY.UID, userId)
+        .set(WORKFLOW_USER_ACTIVITY.WID, workflowId)
+        .set(WORKFLOW_USER_ACTIVITY.IP, userIp)
+        .set(WORKFLOW_USER_ACTIVITY.ACTIVATE, action)
+        .execute()
+    } else {
+      context
+        .insertInto(WORKFLOW_USER_ACTIVITY)
+        .set(WORKFLOW_USER_ACTIVITY.UID, userId)
+        .set(WORKFLOW_USER_ACTIVITY.WID, workflowId)
+        .set(WORKFLOW_USER_ACTIVITY.ACTIVATE, action)
+        .execute()
+    }
+  }
+}
 
 @Produces(Array(MediaType.APPLICATION_JSON))
 @Path("/hub/workflow")
@@ -103,5 +143,124 @@ class HubWorkflowResource {
       .from(WORKFLOW)
       .where(WORKFLOW.WID.eq(wid))
       .fetchOneInto(classOf[String])
+  }
+
+  @GET
+  @Path("/isLiked")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def isLiked(
+      @QueryParam("workflowId") workflowId: UInteger,
+      @QueryParam("userId") userId: UInteger
+  ): Boolean = {
+    val existingLike = context
+      .selectFrom(WORKFLOW_USER_LIKES)
+      .where(
+        WORKFLOW_USER_LIKES.UID
+          .eq(userId)
+          .and(WORKFLOW_USER_LIKES.WID.eq(workflowId))
+      )
+      .fetchOne()
+
+    existingLike != null
+  }
+
+  @POST
+  @Path("/like")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  def likeWorkflow(@Context request: HttpServletRequest, likeRequest: Array[UInteger]): Boolean = {
+    if (likeRequest.length != 2) {
+      return false
+    }
+
+    val workflowId = likeRequest(0)
+    val userId = likeRequest(1)
+
+    val existingLike = context
+      .selectFrom(WORKFLOW_USER_LIKES)
+      .where(
+        WORKFLOW_USER_LIKES.UID
+          .eq(userId)
+          .and(WORKFLOW_USER_LIKES.WID.eq(workflowId))
+      )
+      .fetchOne()
+
+    if (existingLike == null) {
+      context
+        .insertInto(WORKFLOW_USER_LIKES)
+        .set(WORKFLOW_USER_LIKES.UID, userId)
+        .set(WORKFLOW_USER_LIKES.WID, workflowId)
+        .execute()
+
+      recordUserActivity(request, userId, workflowId, "like")
+      true
+    } else {
+      false
+    }
+  }
+
+  @POST
+  @Path("/unlike")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  def unlikeWorkflow(
+      @Context request: HttpServletRequest,
+      likeRequest: Array[UInteger]
+  ): Boolean = {
+    if (likeRequest.length != 2) {
+      return false
+    }
+
+    val workflowId = likeRequest(0)
+    val userId = likeRequest(1)
+
+    val existingLike = context
+      .selectFrom(WORKFLOW_USER_LIKES)
+      .where(
+        WORKFLOW_USER_LIKES.UID
+          .eq(userId)
+          .and(WORKFLOW_USER_LIKES.WID.eq(workflowId))
+      )
+      .fetchOne()
+
+    if (existingLike != null) {
+      context
+        .deleteFrom(WORKFLOW_USER_LIKES)
+        .where(
+          WORKFLOW_USER_LIKES.UID
+            .eq(userId)
+            .and(WORKFLOW_USER_LIKES.WID.eq(workflowId))
+        )
+        .execute()
+
+      recordUserActivity(request, userId, workflowId, "unlike")
+      true
+    } else {
+      false
+    }
+  }
+
+  @GET
+  @Path("/likeCount/{wid}")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def getLikeCount(@PathParam("wid") wid: UInteger): Int = {
+    val likeCount = context
+      .selectCount()
+      .from(WORKFLOW_USER_LIKES)
+      .where(WORKFLOW_USER_LIKES.WID.eq(wid))
+      .fetchOne(0, classOf[Int])
+
+    likeCount
+  }
+
+  @GET
+  @Path("/cloneCount/{wid}")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def getCloneCount(@PathParam("wid") wid: UInteger): Int = {
+    val cloneCount = context
+      .selectCount()
+      .from(WORKFLOW_USER_CLONES)
+      .where(WORKFLOW_USER_CLONES.WID.eq(wid))
+      .fetchOne(0, classOf[Int])
+
+    cloneCount
   }
 }
