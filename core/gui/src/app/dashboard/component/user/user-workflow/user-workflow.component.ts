@@ -1,7 +1,5 @@
-import { AfterViewInit, ChangeDetectorRef, Component, Input, ViewChild } from "@angular/core";
+import { AfterViewInit, Component, Input, OnInit, ViewChild, ChangeDetectorRef } from "@angular/core";
 import { Router } from "@angular/router";
-import { AfterViewInit, Component, Input, OnInit, ViewChild } from "@angular/core";
-import { ActivatedRoute, Router } from "@angular/router";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { firstValueFrom, from, lastValueFrom, Observable, of } from "rxjs";
 import {
