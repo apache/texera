@@ -21,6 +21,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowUserAccess;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowUserClones;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowUserLikes;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowVersion;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowViewCount;
 
 import org.jooq.Index;
 import org.jooq.OrderField;
@@ -75,6 +76,7 @@ public class Indexes {
     public static final Index WORKFLOW_USER_LIKES_WID = Indexes0.WORKFLOW_USER_LIKES_WID;
     public static final Index WORKFLOW_VERSION_PRIMARY = Indexes0.WORKFLOW_VERSION_PRIMARY;
     public static final Index WORKFLOW_VERSION_WID = Indexes0.WORKFLOW_VERSION_WID;
+    public static final Index WORKFLOW_VIEW_COUNT_PRIMARY = Indexes0.WORKFLOW_VIEW_COUNT_PRIMARY;
 
     // -------------------------------------------------------------------------
     // [#1459] distribute members to avoid static initialisers > 64kb
@@ -119,5 +121,6 @@ public class Indexes {
         public static Index WORKFLOW_USER_LIKES_WID = Internal.createIndex("wid", WorkflowUserLikes.WORKFLOW_USER_LIKES, new OrderField[] { WorkflowUserLikes.WORKFLOW_USER_LIKES.WID }, false);
         public static Index WORKFLOW_VERSION_PRIMARY = Internal.createIndex("PRIMARY", WorkflowVersion.WORKFLOW_VERSION, new OrderField[] { WorkflowVersion.WORKFLOW_VERSION.VID }, true);
         public static Index WORKFLOW_VERSION_WID = Internal.createIndex("wid", WorkflowVersion.WORKFLOW_VERSION, new OrderField[] { WorkflowVersion.WORKFLOW_VERSION.WID }, false);
+        public static Index WORKFLOW_VIEW_COUNT_PRIMARY = Internal.createIndex("PRIMARY", WorkflowViewCount.WORKFLOW_VIEW_COUNT, new OrderField[] { WorkflowViewCount.WORKFLOW_VIEW_COUNT.WID }, true);
     }
 }

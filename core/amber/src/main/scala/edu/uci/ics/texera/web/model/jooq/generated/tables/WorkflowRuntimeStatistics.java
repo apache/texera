@@ -35,7 +35,7 @@ import org.jooq.types.ULong;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowRuntimeStatistics extends TableImpl<WorkflowRuntimeStatisticsRecord> {
 
-    private static final long serialVersionUID = -1804438546;
+    private static final long serialVersionUID = -1646851437;
 
     /**
      * The reference instance of <code>texera_db.workflow_runtime_statistics</code>
@@ -63,7 +63,7 @@ public class WorkflowRuntimeStatistics extends TableImpl<WorkflowRuntimeStatisti
     /**
      * The column <code>texera_db.workflow_runtime_statistics.operator_id</code>.
      */
-    public final TableField<WorkflowRuntimeStatisticsRecord, String> OPERATOR_ID = createField(DSL.name("operator_id"), org.jooq.impl.SQLDataType.VARCHAR(100).nullable(false), this, "");
+    public final TableField<WorkflowRuntimeStatisticsRecord, String> OPERATOR_ID = createField(DSL.name("operator_id"), org.jooq.impl.SQLDataType.VARCHAR(512).nullable(false), this, "");
 
     /**
      * The column <code>texera_db.workflow_runtime_statistics.time</code>.
