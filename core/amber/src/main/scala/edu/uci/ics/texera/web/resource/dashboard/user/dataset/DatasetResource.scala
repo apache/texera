@@ -1,64 +1,19 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.dataset
 
 import edu.uci.ics.amber.engine.common.Utils.withTransaction
+import edu.uci.ics.amber.engine.common.storage.DatasetFileDocument
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.enums.DatasetUserAccessPrivilege
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  DatasetDao,
-  DatasetUserAccessDao,
-  DatasetVersionDao
-}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{
-  Dataset,
-  DatasetUserAccess,
-  DatasetVersion,
-  User
-}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{DatasetDao, DatasetUserAccessDao, DatasetVersionDao}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{Dataset, DatasetUserAccess, DatasetVersion, User}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset.DATASET
 import edu.uci.ics.texera.web.model.jooq.generated.tables.User.USER
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetVersion.DATASET_VERSION
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetAccessResource.{
-  getDatasetUserAccessPrivilege,
-  getOwner,
-  userHasReadAccess,
-  userHasWriteAccess,
-  userOwnDataset
-}
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{
-  DATASET_IS_PRIVATE,
-  DATASET_IS_PUBLIC,
-  DashboardDataset,
-  DashboardDatasetVersion,
-  DatasetDescriptionModification,
-  DatasetIDs,
-  DatasetNameModification,
-  DatasetVersionRootFileNodes,
-  DatasetVersionRootFileNodesResponse,
-  DatasetVersions,
-  ERR_DATASET_CREATION_FAILED_MESSAGE,
-  ERR_DATASET_NAME_ALREADY_EXISTS,
-  ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE,
-  ListDatasetsResponse,
-  calculateLatestDatasetVersionSize,
-  calculateDatasetVersionSize,
-  context,
-  createNewDatasetVersionFromFormData,
-  getDashboardDataset,
-  getDatasetByID,
-  getDatasetVersionByID,
-  getDatasetVersions,
-  getFileNodesOfCertainVersion,
-  getLatestDatasetVersionWithAccessCheck,
-  getUserDatasets,
-  resolvePath,
-  retrievePublicDatasets
-}
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.{
-  DatasetFileNode,
-  PhysicalFileNode
-}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetAccessResource.{getDatasetUserAccessPrivilege, getOwner, userHasReadAccess, userHasWriteAccess, userOwnDataset}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{DATASET_IS_PRIVATE, DATASET_IS_PUBLIC, DashboardDataset, DashboardDatasetVersion, DatasetDescriptionModification, DatasetIDs, DatasetNameModification, DatasetVersionRootFileNodes, DatasetVersionRootFileNodesResponse, DatasetVersions, ERR_DATASET_CREATION_FAILED_MESSAGE, ERR_DATASET_NAME_ALREADY_EXISTS, ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE, ListDatasetsResponse, calculateDatasetVersionSize, calculateLatestDatasetVersionSize, context, createNewDatasetVersionFromFormData, getDashboardDataset, getDatasetByID, getDatasetVersionByID, getDatasetVersions, getFileNodesOfCertainVersion, getLatestDatasetVersionWithAccessCheck, getUserDatasets, resolvePath, retrievePublicDatasets}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.{DatasetFileNode, PhysicalFileNode}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.service.GitVersionControlLocalFileStorage
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.PathUtils
 import io.dropwizard.auth.Auth
@@ -76,19 +31,7 @@ import java.util.zip.{ZipEntry, ZipOutputStream}
 import java.util
 import java.util.concurrent.locks.ReentrantLock
 import javax.annotation.security.RolesAllowed
-import javax.ws.rs.{
-  BadRequestException,
-  Consumes,
-  ForbiddenException,
-  GET,
-  NotFoundException,
-  POST,
-  Path,
-  PathParam,
-  Produces,
-  QueryParam,
-  WebApplicationException
-}
+import javax.ws.rs.{BadRequestException, Consumes, ForbiddenException, GET, NotFoundException, POST, Path, PathParam, Produces, QueryParam, WebApplicationException}
 import javax.ws.rs.core.{MediaType, Response, StreamingOutput}
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable
@@ -333,7 +276,7 @@ object DatasetResource {
   // DatasetOperation defines the operations that will be applied when creating a new dataset version
   private case class DatasetOperation(
       filesToAdd: Map[java.nio.file.Path, InputStream],
-      filesToRemove: List[java.nio.file.Path]
+      filesToRemove: List[DatasetFileDocument]
   )
 
   private def parseUserUploadedFormToDatasetOperations(
@@ -344,7 +287,7 @@ object DatasetResource {
 
     // Mutable collections for constructing DatasetOperation
     val filesToAdd = mutable.Map[java.nio.file.Path, InputStream]()
-    val filesToRemove = mutable.ListBuffer[java.nio.file.Path]()
+    val filesToRemove = mutable.ListBuffer[DatasetFileDocument]()
 
     val fields = multiPart.getFields.keySet.iterator() // Get all field names
 
@@ -369,17 +312,7 @@ object DatasetResource {
           .parse(filePathsValue)
           .as[List[String]]
           .foreach(pathStr => {
-            val (_, _, _, fileRelativePath) =
-              resolvePath(Paths.get(pathStr), shouldContainFile = true)
-
-            fileRelativePath
-              .map { path =>
-                filesToRemove += datasetPath
-                  .resolve(path) // When path exists, resolve it and add to filesToRemove
-              }
-              .getOrElse {
-                throw new IllegalArgumentException("File relative path is missing")
-              }
+            filesToRemove += new DatasetFileDocument(Paths.get(pathStr))
           })
       }
     }
@@ -482,13 +415,7 @@ object DatasetResource {
             case (filePath, fileStream) =>
               GitVersionControlLocalFileStorage.writeFileToRepo(datasetPath, filePath, fileStream)
           }
-
-          datasetOperation.filesToRemove.foreach { filePath =>
-            GitVersionControlLocalFileStorage.removeFileFromRepo(
-              datasetPath,
-              filePath
-            )
-          }
+          datasetOperation.filesToRemove.foreach(f => f.remove())
         }
       )
 
