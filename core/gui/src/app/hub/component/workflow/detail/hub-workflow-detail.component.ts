@@ -20,7 +20,7 @@ import { OperatorMetadataService } from "../../../../workspace/service/operator-
 import { NzMessageService } from "ng-zorro-antd/message";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { CodeEditorService } from "../../../../workspace/service/code-editor/code-editor.service";
-import {distinctUntilChanged, filter, switchMap, throttleTime} from "rxjs/operators";
+import { distinctUntilChanged, filter, switchMap, throttleTime } from "rxjs/operators";
 import { Workflow } from "../../../../common/type/workflow";
 import { of } from "rxjs";
 import { isDefined } from "../../../../common/util/predicate";
@@ -135,7 +135,6 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
         .pipe(untilDestroyed(this))
         .subscribe(count => {
           this.viewCount = count;
-          console.log(this.viewCount);
         });
     }
 
