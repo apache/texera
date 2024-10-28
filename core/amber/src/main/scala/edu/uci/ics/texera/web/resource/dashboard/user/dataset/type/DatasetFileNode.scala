@@ -101,7 +101,7 @@ object DatasetFileNode {
       val nodeName = relativePath.last
 
       val fileType =
-        if (Files.isDirectory(currentPhysicalNode.getAbsolutePath)) "directory" else "file"
+        if (currentPhysicalNode.isDirectory) "directory" else "file"
       val fileSize =
         if (fileType == "file") Some(currentPhysicalNode.getSize) else None
       val existingNode = currentParent.getChildren.find(child =>
