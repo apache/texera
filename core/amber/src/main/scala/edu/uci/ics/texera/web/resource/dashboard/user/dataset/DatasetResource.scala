@@ -772,81 +772,54 @@ class DatasetResource {
       @Auth user: SessionUser,
       @QueryParam("includeVersions") includeVersions: Boolean = false,
       @QueryParam("includeFileNodes") includeFileNodes: Boolean = false,
-      @QueryParam("path") filePathStr: String
   ): ListDatasetsResponse = {
     val uid = user.getUid
     withTransaction(context)(ctx => {
       var accessibleDatasets: ListBuffer[DashboardDataset] = ListBuffer()
-
-      if (filePathStr != null && filePathStr.nonEmpty) {
-        // if the file path is given, then only fetch the dataset and version this file is belonging to
-        val decodedPathStr = URLDecoder.decode(filePathStr, StandardCharsets.UTF_8.name())
-        val (ownerEmail, dataset, version, _) =
-          resolvePath(Paths.get(decodedPathStr), shouldContainFile = true)
-        val accessPrivilege = getDatasetUserAccessPrivilege(ctx, dataset.getDid, uid)
-        if (
-          accessPrivilege == DatasetUserAccessPrivilege.NONE && dataset.getIsPublic == DATASET_IS_PRIVATE
-        ) {
-          throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-        }
-        accessibleDatasets = accessibleDatasets :+ DashboardDataset(
-          dataset = dataset,
-          ownerEmail = ownerEmail,
-          accessPrivilege = accessPrivilege,
-          isOwner = dataset.getOwnerUid == uid,
-          versions = List(
-            DashboardDatasetVersion(
-              datasetVersion = version,
-              fileNodes = List()
-            )
-          ),
-          size = calculateLatestDatasetVersionSize(dataset.getDid)
-        )
-      } else {
-        // first fetch all datasets user have explicit access to
-        accessibleDatasets = ListBuffer.from(
-          ctx
-            .select()
-            .from(
-              DATASET
-                .leftJoin(DATASET_USER_ACCESS)
-                .on(DATASET_USER_ACCESS.DID.eq(DATASET.DID))
-                .leftJoin(USER)
-                .on(USER.UID.eq(DATASET.OWNER_UID))
-            )
-            .where(DATASET_USER_ACCESS.UID.eq(uid))
-            .fetch()
-            .map(record => {
-              val dataset = record.into(DATASET).into(classOf[Dataset])
-              val datasetAccess = record.into(DATASET_USER_ACCESS).into(classOf[DatasetUserAccess])
-              val ownerEmail = record.into(USER).getEmail
-              DashboardDataset(
-                isOwner = dataset.getOwnerUid == uid,
-                dataset = dataset,
-                accessPrivilege = datasetAccess.getPrivilege,
-                versions = List(),
-                ownerEmail = ownerEmail,
-                size = calculateLatestDatasetVersionSize(dataset.getDid)
-              )
-            })
-        )
-
-        // then we fetch the public datasets and merge it as a part of the result if not exist
-        val publicDatasets = retrievePublicDatasets(context)
-        publicDatasets.forEach { publicDataset =>
-          if (!accessibleDatasets.exists(_.dataset.getDid == publicDataset.dataset.getDid)) {
-            val dashboardDataset = DashboardDataset(
-              isOwner = false,
-              dataset = publicDataset.dataset,
-              ownerEmail = publicDataset.ownerEmail,
-              accessPrivilege = DatasetUserAccessPrivilege.READ,
+      // first fetch all datasets user have explicit access to
+      accessibleDatasets = ListBuffer.from(
+        ctx
+          .select()
+          .from(
+            DATASET
+              .leftJoin(DATASET_USER_ACCESS)
+              .on(DATASET_USER_ACCESS.DID.eq(DATASET.DID))
+              .leftJoin(USER)
+              .on(USER.UID.eq(DATASET.OWNER_UID))
+          )
+          .where(DATASET_USER_ACCESS.UID.eq(uid))
+          .fetch()
+          .map(record => {
+            val dataset = record.into(DATASET).into(classOf[Dataset])
+            val datasetAccess = record.into(DATASET_USER_ACCESS).into(classOf[DatasetUserAccess])
+            val ownerEmail = record.into(USER).getEmail
+            DashboardDataset(
+              isOwner = dataset.getOwnerUid == uid,
+              dataset = dataset,
+              accessPrivilege = datasetAccess.getPrivilege,
               versions = List(),
-              size = calculateLatestDatasetVersionSize(publicDataset.dataset.getDid)
+              ownerEmail = ownerEmail,
+              size = calculateLatestDatasetVersionSize(dataset.getDid)
             )
-            accessibleDatasets = accessibleDatasets :+ dashboardDataset
-          }
+          })
+      )
+
+      // then we fetch the public datasets and merge it as a part of the result if not exist
+      val publicDatasets = retrievePublicDatasets(context)
+      publicDatasets.forEach { publicDataset =>
+        if (!accessibleDatasets.exists(_.dataset.getDid == publicDataset.dataset.getDid)) {
+          val dashboardDataset = DashboardDataset(
+            isOwner = false,
+            dataset = publicDataset.dataset,
+            ownerEmail = publicDataset.ownerEmail,
+            accessPrivilege = DatasetUserAccessPrivilege.READ,
+            versions = List(),
+            size = calculateLatestDatasetVersionSize(publicDataset.dataset.getDid)
+          )
+          accessibleDatasets = accessibleDatasets :+ dashboardDataset
         }
       }
+
       val fileNodesMap = mutable.Map[(String, String, String), List[PhysicalFileNode]]()
 
       // iterate over datasets and retrieve the version

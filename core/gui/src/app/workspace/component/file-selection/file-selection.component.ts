@@ -31,26 +31,22 @@ export class FileSelectionComponent implements OnInit {
   ngOnInit() {
     // if users already select some file, then show that selected dataset & related version
     if (this.selectedFilePath && this.selectedFilePath !== "") {
-      this.datasetService
-        .retrieveAccessibleDatasets(false, false, this.selectedFilePath)
-        .pipe(untilDestroyed(this))
-        .subscribe(response => {
-          const prevDataset = response.datasets[0];
-          this.selectedDataset = this.datasets.find(d => d.dataset.did === prevDataset.dataset.did);
-          this.isDatasetSelected = !!this.selectedDataset;
+      const selectedDatasetFile = parseFilePathToDatasetFile(this.selectedFilePath);
+      this.selectedDataset = this.datasets.find(
+        d => d.ownerEmail === selectedDatasetFile.ownerEmail && d.dataset.name === selectedDatasetFile.datasetName
+      );
+      this.isDatasetSelected = !!this.selectedDataset;
 
-          if (this.selectedDataset && this.selectedDataset.dataset.did !== undefined) {
-            this.datasetService
-              .retrieveDatasetVersionList(this.selectedDataset.dataset.did)
-              .pipe(untilDestroyed(this))
-              .subscribe(versions => {
-                this.datasetVersions = versions;
-                const versionDvid = prevDataset.versions[0].datasetVersion.dvid;
-                this.selectedVersion = this.datasetVersions.find(v => v.dvid === versionDvid);
-                this.onVersionChange();
-              });
-          }
-        });
+      if (this.selectedDataset && this.selectedDataset.dataset.did !== undefined) {
+        this.datasetService
+          .retrieveDatasetVersionList(this.selectedDataset.dataset.did)
+          .pipe(untilDestroyed(this))
+          .subscribe(versions => {
+            this.datasetVersions = versions;
+            this.selectedVersion = this.datasetVersions.find(v => v.name === selectedDatasetFile.versionName);
+            this.onVersionChange();
+          });
+      }
     }
   }
 
