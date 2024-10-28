@@ -5,7 +5,7 @@ import edu.uci.ics.amber.engine.common.storage.DatasetFileDocument
 import edu.uci.ics.amber.engine.common.Utils.objectMapper
 import edu.uci.ics.amber.engine.common.model.tuple.AttributeTypeUtils.parseField
 import edu.uci.ics.amber.engine.common.model.tuple.{Schema, TupleLike}
-import edu.uci.ics.texera.workflow.common.storage.FileResolver
+import edu.uci.ics.texera.workflow.common.storage.{FileOpener, FileResolver}
 import edu.uci.ics.texera.workflow.operators.source.scan.FileDecodingMethod
 import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONUtil.JSONToMap
 
@@ -44,7 +44,7 @@ class JSONLScanSourceOpExec private[json] (
     schema = schemaFunc()
     reader = new BufferedReader(
       new InputStreamReader(
-        FileResolver.open(new URI(fileUri)).asInputStream(),
+        FileOpener.openFile(new URI(fileUri)).asInputStream(),
         fileEncoding.getCharset
       )
     )

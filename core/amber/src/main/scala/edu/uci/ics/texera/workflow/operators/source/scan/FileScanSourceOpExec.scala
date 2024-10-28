@@ -4,7 +4,7 @@ import edu.uci.ics.amber.engine.common.executor.SourceOperatorExecutor
 import edu.uci.ics.amber.engine.common.model.tuple.TupleLike
 import edu.uci.ics.amber.engine.common.storage.DatasetFileDocument
 import edu.uci.ics.amber.engine.common.model.tuple.AttributeTypeUtils.parseField
-import edu.uci.ics.texera.workflow.common.storage.FileResolver
+import edu.uci.ics.texera.workflow.common.storage.{FileOpener, FileResolver}
 import org.apache.commons.compress.archivers.{ArchiveInputStream, ArchiveStreamFactory}
 import org.apache.commons.io.IOUtils.toByteArray
 
@@ -27,7 +27,7 @@ class FileScanSourceOpExec private[scan] (
   override def produceTuple(): Iterator[TupleLike] = {
     var filenameIt: Iterator[String] = Iterator.empty
     val fileEntries: Iterator[InputStream] = {
-      val is = FileResolver.open(new URI(fileUri)).asInputStream()
+      val is = FileOpener.openFile(new URI(fileUri)).asInputStream()
       if (extract) {
         val inputStream: ArchiveInputStream = new ArchiveStreamFactory().createArchiveInputStream(
           new BufferedInputStream(is)

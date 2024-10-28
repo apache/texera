@@ -9,7 +9,7 @@ import edu.uci.ics.amber.engine.common.model.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.engine.common.model.tuple.AttributeTypeUtils.inferSchemaFromRows
 import edu.uci.ics.amber.engine.common.model.tuple.{Attribute, AttributeType, Schema}
-import edu.uci.ics.texera.workflow.common.storage.FileResolver
+import edu.uci.ics.texera.workflow.common.storage.{FileOpener, FileResolver}
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 
 import java.io.{File, IOException}
@@ -41,7 +41,7 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
 
     // here, the stream requires to be seekable, so datasetFileDesc creates a temp file here
     // TODO: consider a better way
-    val file = FileResolver.open(new URI(fileUri.get)).asFile()
+    val file = FileOpener.openFile(new URI(fileUri.get)).asFile()
     val totalBytes: Long = file.length()
 
     PhysicalOp
@@ -82,7 +82,7 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
     if (customDelimiter.isEmpty) {
       return null
     }
-    val file = FileResolver.open(new URI(fileUri.get)).asFile()
+    val file = FileOpener.openFile(new URI(fileUri.get)).asFile()
     implicit object CustomFormat extends DefaultCSVFormat {
       override val delimiter: Char = customDelimiter.get.charAt(0)
 
