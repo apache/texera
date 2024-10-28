@@ -259,24 +259,4 @@ describe("WorkflowActionService", () => {
     // expect(sentimentOpPos).toEqual(mockPoint);
     // expect(resultOpPos).toEqual(mockPoint);
   });
-
-  describe("when linkBreakpoint is enabled", () => {
-    beforeAll(() => {
-      environment.linkBreakpointEnabled = true;
-    });
-
-    afterAll(() => {
-      environment.linkBreakpointEnabled = false;
-    });
-  });
-
-  describe("when executionStatus is enabled", () => {
-    beforeAll(() => {
-      environment.executionStatusEnabled = true;
-    });
-
-    afterAll(() => {
-      environment.executionStatusEnabled = false;
-    });
-  });
 });

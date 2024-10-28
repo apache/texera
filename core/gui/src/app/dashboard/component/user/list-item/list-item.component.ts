@@ -21,6 +21,7 @@ import {
 import { firstValueFrom } from "rxjs";
 import { SearchService } from "../../../service/user/search.service";
 import { HubWorkflowDetailComponent } from "../../../../hub/component/workflow/detail/hub-workflow-detail.component";
+import { HubWorkflowService } from "../../../../hub/service/workflow/hub-workflow.service";
 import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
 import { formatSize } from "src/app/common/util/size-formatter.util";
 
@@ -32,11 +33,14 @@ import { formatSize } from "src/app/common/util/size-formatter.util";
 })
 export class ListItemComponent implements OnInit, OnChanges {
   private owners: number[] = [];
+  public originalName: string = "";
+  public originalDescription: string | undefined = undefined;
   @Input() currentUid: number | undefined;
   @ViewChild("nameInput") nameInput!: ElementRef;
   @ViewChild("descriptionInput") descriptionInput!: ElementRef;
   editingName = false;
   editingDescription = false;
+  likeCount: number = 0;
 
   ROUTER_WORKFLOW_BASE_URL = "/dashboard/user/workspace";
   ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user/project";
@@ -44,6 +48,7 @@ export class ListItemComponent implements OnInit, OnChanges {
   ROUTER_WORKFLOW_DETAIL_BASE_URL = "/dashboard/hub/workflow/search/result/detail";
   entryLink: string[] = [];
   public iconType: string = "";
+  isLiked: boolean = false;
   @Input() isPrivateSearch = false;
   @Input() editable = false;
   private _entry?: DashboardEntry;
@@ -69,6 +74,7 @@ export class ListItemComponent implements OnInit, OnChanges {
     private modalService: NzModalService,
     private workflowPersistService: WorkflowPersistService,
     private modal: NzModalService,
+    private hubWorkflowService: HubWorkflowService,
     private downloadService: DownloadService,
     private cdr: ChangeDetectorRef
   ) {}
@@ -86,6 +92,12 @@ export class ListItemComponent implements OnInit, OnChanges {
           }
           setTimeout(() => this.cdr.detectChanges(), 0);
         });
+        this.hubWorkflowService
+          .getLikeCount(this.entry.id)
+          .pipe(untilDestroyed(this))
+          .subscribe(count => {
+            this.likeCount = count;
+          });
       }
       // this.entryLink = this.ROUTER_WORKFLOW_BASE_URL + "/" + this.entry.id;
       this.iconType = "project";
@@ -105,11 +117,27 @@ export class ListItemComponent implements OnInit, OnChanges {
 
   ngOnInit(): void {
     this.initializeEntry();
+    if (this.entry.id !== undefined && this.currentUid !== undefined) {
+      this.hubWorkflowService
+        .isWorkflowLiked(this.entry.id, this.currentUid)
+        .pipe(untilDestroyed(this))
+        .subscribe((isLiked: boolean) => {
+          this.isLiked = isLiked;
+        });
+    }
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes["entry"]) {
       this.initializeEntry();
+    }
+    if (this.entry.id !== undefined && this.currentUid !== undefined) {
+      this.hubWorkflowService
+        .isWorkflowLiked(this.entry.id, this.currentUid)
+        .pipe(untilDestroyed(this))
+        .subscribe((isLiked: boolean) => {
+          this.isLiked = isLiked;
+        });
     }
   }
 
@@ -159,6 +187,7 @@ export class ListItemComponent implements OnInit, OnChanges {
   };
 
   onEditName(): void {
+    this.originalName = this.entry.name;
     this.editingName = true;
     setTimeout(() => {
       if (this.nameInput) {
@@ -171,6 +200,7 @@ export class ListItemComponent implements OnInit, OnChanges {
   }
 
   onEditDescription(): void {
+    this.originalDescription = this.entry.description;
     this.editingDescription = true;
     setTimeout(() => {
       if (this.descriptionInput) {
@@ -182,30 +212,56 @@ export class ListItemComponent implements OnInit, OnChanges {
     }, 0);
   }
 
-  public confirmUpdateWorkflowCustomName(name: string): void {
-    this.workflowPersistService
-      .updateWorkflowName(this.entry.id, name || DEFAULT_WORKFLOW_NAME)
+  private updateWorkflowProperty(
+    updateMethod: (id: number | undefined, value: string) => any,
+    propertyName: "name" | "description",
+    newValue: string,
+    originalValue: string | undefined
+  ): void {
+    updateMethod(this.entry.id, newValue)
       .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        this.entry.name = name || DEFAULT_WORKFLOW_NAME;
-      })
-      .add(() => {
-        this.editingName = false;
+      .subscribe({
+        next: () => {
+          this.entry[propertyName] = newValue;
+        },
+        error: (err: unknown) => {
+          console.error(`Failed to update workflow ${propertyName}:`, err);
+          // Use a fallback empty string if originalValue is undefined
+          this.entry[propertyName] = originalValue ?? "";
+          this.setEditingState(propertyName, false);
+        },
+        complete: () => {
+          this.setEditingState(propertyName, false);
+        },
       });
   }
 
-  public confirmUpdateWorkflowCustomDescription(description: string | undefined): void {
-    const updatedDescription = description !== undefined ? description : "";
+  private setEditingState(propertyName: "name" | "description", state: boolean): void {
+    if (propertyName === "name") {
+      this.editingName = state;
+    } else if (propertyName === "description") {
+      this.editingDescription = state;
+    }
+  }
 
-    this.workflowPersistService
-      .updateWorkflowDescription(this.entry.id, updatedDescription)
-      .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        this.entry.description = updatedDescription;
-      })
-      .add(() => {
-        this.editingDescription = false;
-      });
+  public confirmUpdateWorkflowCustomName(name: string): void {
+    const workflowName = name || DEFAULT_WORKFLOW_NAME;
+    this.updateWorkflowProperty(
+      this.workflowPersistService.updateWorkflowName.bind(this.workflowPersistService),
+      "name",
+      workflowName,
+      this.originalName
+    );
+  }
+
+  public confirmUpdateWorkflowCustomDescription(description: string | undefined): void {
+    const updatedDescription = description ?? "";
+    this.updateWorkflowProperty(
+      this.workflowPersistService.updateWorkflowDescription.bind(this.workflowPersistService),
+      "description",
+      updatedDescription,
+      this.originalDescription
+    );
   }
 
   formatTime(timestamp: number | undefined): string {
@@ -252,6 +308,57 @@ export class ListItemComponent implements OnInit, OnChanges {
         instance.wid = 0;
       }
     }
+  }
+
+  toggleLike(workflowId: number | undefined, userId: number | undefined): void {
+    if (workflowId === undefined || userId === undefined) {
+      return;
+    }
+
+    if (this.isLiked) {
+      this.hubWorkflowService
+        .postUnlikeWorkflow(workflowId, userId)
+        .pipe(untilDestroyed(this))
+        .subscribe((success: boolean) => {
+          if (success) {
+            this.isLiked = false;
+            this.hubWorkflowService
+              .getLikeCount(workflowId)
+              .pipe(untilDestroyed(this))
+              .subscribe((count: number) => {
+                this.likeCount = count;
+              });
+            console.log("Successfully unliked the workflow");
+          } else {
+            console.error("Error unliking the workflow");
+          }
+        });
+    } else {
+      this.hubWorkflowService
+        .postLikeWorkflow(workflowId, userId)
+        .pipe(untilDestroyed(this))
+        .subscribe((success: boolean) => {
+          if (success) {
+            this.isLiked = true;
+            this.hubWorkflowService
+              .getLikeCount(workflowId)
+              .pipe(untilDestroyed(this))
+              .subscribe((count: number) => {
+                this.likeCount = count;
+              });
+            console.log("Successfully liked the workflow");
+          } else {
+            console.error("Error liking the workflow");
+          }
+        });
+    }
+  }
+
+  formatLikeCount(count: number): string {
+    if (count >= 1000) {
+      return (count / 1000).toFixed(1) + "k";
+    }
+    return count.toString();
   }
 
   // alias for formatSize

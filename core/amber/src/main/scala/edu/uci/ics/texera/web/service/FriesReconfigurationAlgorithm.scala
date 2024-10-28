@@ -2,13 +2,8 @@ package edu.uci.ics.texera.web.service
 
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ChannelMarkerHandler.PropagateChannelMarker
 import edu.uci.ics.amber.engine.architecture.scheduling.{Region, WorkflowExecutionCoordinator}
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateExecutorHandler.{
-  UpdateExecutor,
-  UpdateMultipleExecutors
-}
-import edu.uci.ics.amber.engine.common.ambermessage.RequireAlignment
 import edu.uci.ics.amber.engine.common.model.{PhysicalOp, PhysicalPlan}
-import edu.uci.ics.amber.engine.common.virtualidentity.{ChannelMarkerIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.texera.workflow.common.operators.StateTransferFunc
 import org.jgrapht.alg.connectivity.ConnectivityInspector
 
@@ -93,22 +88,22 @@ object FriesReconfigurationAlgorithm {
       val componentPlan = mcsPlan.getSubPlan(componentSet)
 
       // generate the reconfiguration command for this component
-      val reconfigCommand = UpdateMultipleExecutors(
-        reconfigurations
-          .filter(o => component.contains(o._1.id))
-          .map(o => UpdateExecutor(o._1, o._2))
-      )
+//      val reconfigCommand = UpdateMultipleExecutors(
+//        reconfigurations
+//          .filter(o => component.contains(o._1.id))
+//          .map(o => UpdateExecutor(o._1, o._2))
+//      )
 
       // find the source operators of the component
-      val sources = componentSet.intersect(mcsPlan.getSourceOperatorIds)
-      epochMarkers += PropagateChannelMarker(
-        sources,
-        ChannelMarkerIdentity(epochMarkerId),
-        RequireAlignment,
-        componentPlan,
-        reconfigurations.map(_._1.id).toSet,
-        reconfigCommand
-      )
+//      val sources = componentSet.intersect(mcsPlan.getSourceOperatorIds)
+//      epochMarkers += PropagateChannelMarker(
+//        sources,
+//        ChannelMarkerIdentity(epochMarkerId),
+//        RequireAlignment,
+//        componentPlan,
+//        reconfigurations.map(_._1.id).toSet,
+//        reconfigCommand
+//      )
     })
 
     epochMarkers.toList
