@@ -41,6 +41,7 @@ export class ListItemComponent implements OnInit, OnChanges {
   editingName = false;
   editingDescription = false;
   likeCount: number = 0;
+  viewCount = 0;
 
   ROUTER_WORKFLOW_BASE_URL = "/dashboard/user/workspace";
   ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user/project";
@@ -97,6 +98,12 @@ export class ListItemComponent implements OnInit, OnChanges {
           .pipe(untilDestroyed(this))
           .subscribe(count => {
             this.likeCount = count;
+          });
+        this.hubWorkflowService
+          .getViewCount(this.entry.id)
+          .pipe(untilDestroyed(this))
+          .subscribe(count => {
+            this.viewCount = count;
           });
       }
       // this.entryLink = this.ROUTER_WORKFLOW_BASE_URL + "/" + this.entry.id;
@@ -303,6 +310,12 @@ export class ListItemComponent implements OnInit, OnChanges {
     if (instance) {
       if (wid !== undefined) {
         instance.wid = wid;
+        this.hubWorkflowService
+          .getViewCount(wid)
+          .pipe(untilDestroyed(this))
+          .subscribe(count => {
+            this.viewCount = count + 1; // hacky fix to display view correctly
+          });
       } else {
         console.warn("wid is undefined, default handling can be added here");
         instance.wid = 0;
@@ -355,6 +368,13 @@ export class ListItemComponent implements OnInit, OnChanges {
   }
 
   formatLikeCount(count: number): string {
+    if (count >= 1000) {
+      return (count / 1000).toFixed(1) + "k";
+    }
+    return count.toString();
+  }
+
+  formatViewCount(count: number): string {
     if (count >= 1000) {
       return (count / 1000).toFixed(1) + "k";
     }

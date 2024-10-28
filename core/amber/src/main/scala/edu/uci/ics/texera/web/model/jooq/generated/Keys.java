@@ -21,6 +21,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowUserAccess;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowUserClones;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowUserLikes;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowVersion;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowViewCount;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.DatasetRecord;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.DatasetUserAccessRecord;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.DatasetVersionRecord;
@@ -38,6 +39,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.records.WorkflowUserAc
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.WorkflowUserClonesRecord;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.WorkflowUserLikesRecord;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.WorkflowVersionRecord;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.records.WorkflowViewCountRecord;
 
 import org.jooq.ForeignKey;
 import org.jooq.Identity;
@@ -89,6 +91,7 @@ public class Keys {
     public static final UniqueKey<WorkflowUserClonesRecord> KEY_WORKFLOW_USER_CLONES_PRIMARY = UniqueKeys0.KEY_WORKFLOW_USER_CLONES_PRIMARY;
     public static final UniqueKey<WorkflowUserLikesRecord> KEY_WORKFLOW_USER_LIKES_PRIMARY = UniqueKeys0.KEY_WORKFLOW_USER_LIKES_PRIMARY;
     public static final UniqueKey<WorkflowVersionRecord> KEY_WORKFLOW_VERSION_PRIMARY = UniqueKeys0.KEY_WORKFLOW_VERSION_PRIMARY;
+    public static final UniqueKey<WorkflowViewCountRecord> KEY_WORKFLOW_VIEW_COUNT_PRIMARY = UniqueKeys0.KEY_WORKFLOW_VIEW_COUNT_PRIMARY;
 
     // -------------------------------------------------------------------------
     // FOREIGN KEY definitions
@@ -118,6 +121,7 @@ public class Keys {
     public static final ForeignKey<WorkflowUserLikesRecord, UserRecord> WORKFLOW_USER_LIKES_IBFK_1 = ForeignKeys0.WORKFLOW_USER_LIKES_IBFK_1;
     public static final ForeignKey<WorkflowUserLikesRecord, WorkflowRecord> WORKFLOW_USER_LIKES_IBFK_2 = ForeignKeys0.WORKFLOW_USER_LIKES_IBFK_2;
     public static final ForeignKey<WorkflowVersionRecord, WorkflowRecord> WORKFLOW_VERSION_IBFK_1 = ForeignKeys0.WORKFLOW_VERSION_IBFK_1;
+    public static final ForeignKey<WorkflowViewCountRecord, WorkflowRecord> WORKFLOW_VIEW_COUNT_IBFK_1 = ForeignKeys0.WORKFLOW_VIEW_COUNT_IBFK_1;
 
     // -------------------------------------------------------------------------
     // [#1459] distribute members to avoid static initialisers > 64kb
@@ -154,6 +158,7 @@ public class Keys {
         public static final UniqueKey<WorkflowUserClonesRecord> KEY_WORKFLOW_USER_CLONES_PRIMARY = Internal.createUniqueKey(WorkflowUserClones.WORKFLOW_USER_CLONES, "KEY_workflow_user_clones_PRIMARY", WorkflowUserClones.WORKFLOW_USER_CLONES.UID, WorkflowUserClones.WORKFLOW_USER_CLONES.WID);
         public static final UniqueKey<WorkflowUserLikesRecord> KEY_WORKFLOW_USER_LIKES_PRIMARY = Internal.createUniqueKey(WorkflowUserLikes.WORKFLOW_USER_LIKES, "KEY_workflow_user_likes_PRIMARY", WorkflowUserLikes.WORKFLOW_USER_LIKES.UID, WorkflowUserLikes.WORKFLOW_USER_LIKES.WID);
         public static final UniqueKey<WorkflowVersionRecord> KEY_WORKFLOW_VERSION_PRIMARY = Internal.createUniqueKey(WorkflowVersion.WORKFLOW_VERSION, "KEY_workflow_version_PRIMARY", WorkflowVersion.WORKFLOW_VERSION.VID);
+        public static final UniqueKey<WorkflowViewCountRecord> KEY_WORKFLOW_VIEW_COUNT_PRIMARY = Internal.createUniqueKey(WorkflowViewCount.WORKFLOW_VIEW_COUNT, "KEY_workflow_view_count_PRIMARY", WorkflowViewCount.WORKFLOW_VIEW_COUNT.WID);
     }
 
     private static class ForeignKeys0 {
@@ -181,5 +186,6 @@ public class Keys {
         public static final ForeignKey<WorkflowUserLikesRecord, UserRecord> WORKFLOW_USER_LIKES_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_USER_PRIMARY, WorkflowUserLikes.WORKFLOW_USER_LIKES, "workflow_user_likes_ibfk_1", WorkflowUserLikes.WORKFLOW_USER_LIKES.UID);
         public static final ForeignKey<WorkflowUserLikesRecord, WorkflowRecord> WORKFLOW_USER_LIKES_IBFK_2 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_WORKFLOW_PRIMARY, WorkflowUserLikes.WORKFLOW_USER_LIKES, "workflow_user_likes_ibfk_2", WorkflowUserLikes.WORKFLOW_USER_LIKES.WID);
         public static final ForeignKey<WorkflowVersionRecord, WorkflowRecord> WORKFLOW_VERSION_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_WORKFLOW_PRIMARY, WorkflowVersion.WORKFLOW_VERSION, "workflow_version_ibfk_1", WorkflowVersion.WORKFLOW_VERSION.WID);
+        public static final ForeignKey<WorkflowViewCountRecord, WorkflowRecord> WORKFLOW_VIEW_COUNT_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_WORKFLOW_PRIMARY, WorkflowViewCount.WORKFLOW_VIEW_COUNT, "workflow_view_count_ibfk_1", WorkflowViewCount.WORKFLOW_VIEW_COUNT.WID);
     }
 }

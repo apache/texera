@@ -12,30 +12,45 @@
       nzTheme="outline"></span>
   </button>
 
-  <div class="container prevent-select">
-    <div class="header-info">
-      <div class="detail-title">
-        <h1>Workflow Detail Page</h1>
-      </div>
-      <div class="workflow-panel">
-        <!-- Like button -->
-        <button
-          nz-button
-          nzType="text"
-          class="dropdown-item like-button"
-          title="Like"
-          [ngClass]="{ liked: isLiked, 'disabled-button': !isLogin }"
-          [disabled]="!isLogin"
-          (click)="toggleLike(this.wid, this.currentUid)">
-          <i
-            nz-icon
-            [nzTheme]="isLiked ? 'fill' : 'outline'"
-            [nzType]="'like'"
-            [ngClass]="isLiked ? 'liked' : 'not-liked'"
-            class="like-icon">
-          </i>
-          <span>{{ formatLikeCount(likeCount) }}</span>
-        </button>
+<div class="container prevent-select">
+  <div class="header-info">
+    <div class="detail-title">
+      <h1>Workflow Detail Page</h1>
+    </div>
+    <div class="workflow-panel">
+      <!-- View button -->
+      <button
+        nz-button
+        nzType="text"
+        class="dropdown-item like-button"
+        title="View"
+        (click)="changeViewDisplayStyle()">
+        <i
+          nz-icon
+          [nzType]="'eye'"
+          class="like-icon">
+        </i>
+        <span>{{ formatViewCount(viewCount) }}</span>
+      </button>
+
+      <!-- Like button -->
+      <button
+        nz-button
+        nzType="text"
+        class="dropdown-item like-button"
+        title="Like"
+        [ngClass]="{ liked: isLiked, 'disabled-button': !isLogin }"
+        [disabled]="!isLogin"
+        (click)="toggleLike(this.wid, this.currentUid)">
+        <i
+          nz-icon
+          [nzTheme]="isLiked ? 'fill' : 'outline'"
+          [nzType]="'like'"
+          [ngClass]="isLiked ? 'liked' : 'not-liked'"
+          class="like-icon">
+        </i>
+        <span>{{ formatLikeCount(likeCount) }}</span>
+      </button>
 
         <!-- Clone button -->
         <button

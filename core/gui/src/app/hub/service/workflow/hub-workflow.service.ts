@@ -81,5 +81,12 @@ export class HubWorkflowService {
 
   public getTopClonedWorkflows(): Observable<DashboardWorkflow[]> {
     return this.http.get<DashboardWorkflow[]>(`${this.BASE_URL}/topClonedWorkflows`);
+
+  public postViewWorkflow(workflowId: number, userId: number): Observable<number> {
+    return this.http.post<number>(`${this.BASE_URL}/view`, [workflowId, userId]);
+  }
+
+  public getViewCount(wid: number): Observable<number> {
+    return this.http.get<number>(`${this.BASE_URL}/viewCount/${wid}`);
   }
 }
