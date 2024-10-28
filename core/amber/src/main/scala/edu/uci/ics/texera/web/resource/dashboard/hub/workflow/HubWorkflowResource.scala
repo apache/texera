@@ -354,6 +354,7 @@ class HubWorkflowResource {
     println(fetchDashboardWorkflowsByWids(topClonedWorkflowsWids))
 
     fetchDashboardWorkflowsByWids(topClonedWorkflowsWids)
+  }
 
   @POST
   @Path("/view")
