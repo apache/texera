@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`
 
-import java.nio.file.Files
 import java.util
 import scala.collection.mutable
 
