@@ -263,4 +263,46 @@ class HubWorkflowResource {
 
     cloneCount
   }
+
+  @POST
+  @Path("/view")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  def viewWorkflow(@Context request: HttpServletRequest, viewRequest: Array[UInteger]): Int = {
+
+    val workflowId = viewRequest(0)
+    val userId = viewRequest(1)
+
+    context
+      .insertInto(WORKFLOW_VIEW_COUNT)
+      .set(WORKFLOW_VIEW_COUNT.WID, workflowId)
+      .set(WORKFLOW_VIEW_COUNT.VIEW_COUNT, UInteger.valueOf(1))
+      .onDuplicateKeyUpdate()
+      .set(WORKFLOW_VIEW_COUNT.VIEW_COUNT, WORKFLOW_VIEW_COUNT.VIEW_COUNT.add(1))
+      .execute()
+    recordUserActivity(request, userId, workflowId, "view")
+    context
+      .select(WORKFLOW_VIEW_COUNT.VIEW_COUNT)
+      .from(WORKFLOW_VIEW_COUNT)
+      .where(WORKFLOW_VIEW_COUNT.WID.eq(workflowId))
+      .fetchOneInto(classOf[Int])
+  }
+
+  @GET
+  @Path("/viewCount/{wid}")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def getViewCount(@PathParam("wid") wid: UInteger): Int = {
+
+    context
+      .insertInto(WORKFLOW_VIEW_COUNT)
+      .set(WORKFLOW_VIEW_COUNT.WID, wid)
+      .set(WORKFLOW_VIEW_COUNT.VIEW_COUNT, UInteger.valueOf(0))
+      .onDuplicateKeyIgnore()
+      .execute()
+
+    context
+      .select(WORKFLOW_VIEW_COUNT.VIEW_COUNT)
+      .from(WORKFLOW_VIEW_COUNT)
+      .where(WORKFLOW_VIEW_COUNT.WID.eq(wid))
+      .fetchOneInto(classOf[Int])
+  }
 }
