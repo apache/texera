@@ -724,7 +724,8 @@ class DatasetResource {
               ownerEmail = ownerEmail,
               size = calculateLatestDatasetVersionSize(dataset.getDid)
             )
-          }).asScala
+          })
+          .asScala
       )
 
       // then we fetch the public datasets and merge it as a part of the result if not exist

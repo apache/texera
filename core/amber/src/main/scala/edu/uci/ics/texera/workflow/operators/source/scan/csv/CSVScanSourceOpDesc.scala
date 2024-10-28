@@ -9,7 +9,7 @@ import edu.uci.ics.amber.engine.common.model.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.engine.common.model.tuple.AttributeTypeUtils.inferSchemaFromRows
 import edu.uci.ics.amber.engine.common.model.tuple.{Attribute, AttributeType, Schema}
-import edu.uci.ics.texera.workflow.common.storage.{FileOpener, FileResolver}
+import edu.uci.ics.amber.engine.common.storage.VirtualDocument.openFile
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 
 import java.io.{File, FileInputStream, IOException, InputStreamReader}
@@ -74,7 +74,7 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
       return null
     }
 
-    val stream = FileOpener.openFile(new URI(fileUri.get)).asInputStream()
+    val stream = openFile(new URI(fileUri.get)).asInputStream()
     val inputReader =
       new InputStreamReader(stream, fileEncoding.getCharset)
 

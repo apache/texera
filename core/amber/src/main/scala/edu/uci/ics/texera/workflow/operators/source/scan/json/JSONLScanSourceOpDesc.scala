@@ -9,7 +9,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, Workf
 import edu.uci.ics.amber.engine.common.Utils.objectMapper
 import edu.uci.ics.amber.engine.common.model.tuple.AttributeTypeUtils.inferSchemaFromRows
 import edu.uci.ics.amber.engine.common.model.tuple.{Attribute, Schema}
-import edu.uci.ics.texera.workflow.common.storage.{FileOpener, FileResolver}
+import edu.uci.ics.amber.engine.common.storage.VirtualDocument.openFile
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONUtil.JSONToMap
 
@@ -39,7 +39,7 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp = {
-    val stream = FileOpener.openFile(new URI(fileUri.get)).asInputStream()
+    val stream = openFile(new URI(fileUri.get)).asInputStream()
     // count lines and partition the task to each worker
     val reader = new BufferedReader(
       new InputStreamReader(stream, fileEncoding.getCharset)
@@ -85,7 +85,7 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
     */
   @Override
   def inferSchema(): Schema = {
-    val stream = FileOpener.openFile(new URI(fileUri.get)).asInputStream()
+    val stream = openFile(new URI(fileUri.get)).asInputStream()
     val reader = new BufferedReader(new InputStreamReader(stream, fileEncoding.getCharset))
     var fieldNames = Set[String]()
 
