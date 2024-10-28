@@ -51,13 +51,13 @@ trait ReadonlyVirtualDocument[T] {
   def getCount: Long
 
   /**
-    * Convert document to an input stream.
+    * Read document as an input stream.
     * @return the input stream
     */
   def asInputStream(): InputStream
 
   /**
-    * Convert document to an file
+    * Read or materialize document as an file
     */
 
   def asFile(): File

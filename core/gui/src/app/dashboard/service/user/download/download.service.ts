@@ -46,9 +46,14 @@ export class DownloadService {
     );
   }
 
-  downloadDatasetVersion(versionPath: string, datasetName: string, versionName: string): Observable<Blob> {
+  downloadDatasetVersion(
+    datasetId: number,
+    datasetVersionId: number,
+    datasetName: string,
+    versionName: string
+  ): Observable<Blob> {
     return this.downloadWithNotification(
-      () => this.datasetService.retrieveDatasetZip({ path: versionPath }),
+      () => this.datasetService.retrieveDatasetZip({ did: datasetId, dvid: datasetVersionId }),
       `${datasetName}-${versionName}.zip`,
       `Starting to download version ${versionName} as ZIP`,
       `Version ${versionName} has been downloaded as ZIP`,
