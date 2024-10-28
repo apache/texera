@@ -14,7 +14,8 @@ class ReadonlyLocalFileDocumentSpec extends AnyFlatSpec with Matchers with Befor
   var tempFile: File = _
   var fileDocument: ReadonlyLocalFileDocument = _
 
-  val initialContent = "Initial Content\nsome more content to make the text longer\nadf\t\ttestteset"
+  val initialContent =
+    "Initial Content\nsome more content to make the text longer\nadf\t\ttestteset"
 
   before {
     // Create a temporary file with initial content
