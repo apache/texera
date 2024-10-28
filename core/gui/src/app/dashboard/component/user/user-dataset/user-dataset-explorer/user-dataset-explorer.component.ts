@@ -193,18 +193,11 @@ export class UserDatasetExplorerComponent implements OnInit {
     this.downloadService.downloadSingleFile(this.currentDisplayedFileName).pipe(untilDestroyed(this)).subscribe();
   };
 
-  extractVersionPath(currentDisplayedFileName: string): string {
-    const pathParts = currentDisplayedFileName.split("/");
-
-    return `/${pathParts[1]}/${pathParts[2]}/${pathParts[3]}`;
-  }
-
   onClickDownloadVersionAsZip = (): void => {
     if (!this.did || !this.selectedVersion?.dvid) return;
 
-    const versionPath = this.extractVersionPath(this.currentDisplayedFileName);
     this.downloadService
-      .downloadDatasetVersion(versionPath, this.datasetName, this.selectedVersion.name)
+      .downloadDatasetVersion(this.did, this.selectedVersion.dvid, this.datasetName, this.selectedVersion.name)
       .pipe(untilDestroyed(this))
       .subscribe();
   };

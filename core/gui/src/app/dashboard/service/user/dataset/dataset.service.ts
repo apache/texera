@@ -68,15 +68,11 @@ export class DatasetService {
    *   - did: A number representing the dataset ID
    * @returns An Observable that emits a Blob containing the zip file
    */
-  public retrieveDatasetZip(options: { path?: string; did?: number }): Observable<Blob> {
+  public retrieveDatasetZip(options: { did: number; dvid?: number }): Observable<Blob> {
     let params = new HttpParams();
-
-    if (options.path) {
-      params = params.set("path", encodeURIComponent(options.path));
-    }
-    if (options.did) {
-      params = params.set("did", options.did.toString());
-      params = params.set("getLatest", "true");
+    params = params.set("did", options.did.toString());
+    if (options.dvid) {
+      params = params.set("dvid", options.dvid.toString());
     }
 
     return this.http.get(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/version-zip`, {
