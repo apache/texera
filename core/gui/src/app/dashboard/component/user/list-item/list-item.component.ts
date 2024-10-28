@@ -143,7 +143,6 @@ export class ListItemComponent implements OnInit, OnChanges {
 
   onCheckboxChange(entry: DashboardEntry): void {
     entry.checked = !entry.checked;
-    console.log(`Entry ${entry.id} selected: ${entry.checked}`);
     this.cdr.markForCheck();
   }
 
@@ -310,7 +309,6 @@ export class ListItemComponent implements OnInit, OnChanges {
       if (wid !== undefined) {
         instance.wid = wid;
       } else {
-        console.warn("wid is undefined, default handling can be added here");
         instance.wid = 0;
       }
     }
@@ -334,9 +332,6 @@ export class ListItemComponent implements OnInit, OnChanges {
               .subscribe((count: number) => {
                 this.likeCount = count;
               });
-            console.log("Successfully unliked the workflow");
-          } else {
-            console.error("Error unliking the workflow");
           }
         });
     } else {
@@ -352,9 +347,6 @@ export class ListItemComponent implements OnInit, OnChanges {
               .subscribe((count: number) => {
                 this.likeCount = count;
               });
-            console.log("Successfully liked the workflow");
-          } else {
-            console.error("Error liking the workflow");
           }
         });
     }
