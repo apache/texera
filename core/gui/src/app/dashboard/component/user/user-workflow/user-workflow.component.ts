@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, Input, OnInit, ViewChild, ChangeDetectorRef } from "@angular/core";
+import { AfterViewInit, Component, Input, OnInit, ViewChild } from "@angular/core";
 import { Router } from "@angular/router";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { firstValueFrom, from, lastValueFrom, Observable, of } from "rxjs";
@@ -99,8 +99,7 @@ export class UserWorkflowComponent implements AfterViewInit, OnInit {
     private modalService: NzModalService,
     private router: Router,
     private downloadService: DownloadService,
-    private searchService: SearchService,
-    private cdr: ChangeDetectorRef
+    private searchService: SearchService
   ) {
     this.userService
       .userChanged()
@@ -462,7 +461,6 @@ export class UserWorkflowComponent implements AfterViewInit, OnInit {
       .subscribe({
         next: () => {
           this.searchResultsComponent.clearAllSelections();
-          this.cdr.detectChanges();
         },
         error: (err: unknown) => console.error("Error downloading workflows:", err),
       });
@@ -494,7 +492,6 @@ export class UserWorkflowComponent implements AfterViewInit, OnInit {
               ];
 
               this.searchResultsComponent.clearAllSelections();
-              this.cdr.detectChanges();
             }, // TODO: fix this with notification component
             error: (err: unknown) => alert(err),
           });
@@ -511,7 +508,6 @@ export class UserWorkflowComponent implements AfterViewInit, OnInit {
               ];
 
               this.searchResultsComponent.clearAllSelections();
-              this.cdr.detectChanges();
             }, // TODO: fix this with notification component
             error: (err: unknown) => alert(err),
           });
@@ -569,10 +565,10 @@ export class UserWorkflowComponent implements AfterViewInit, OnInit {
     const allSelected = this.searchResultsComponent.entries.every(entry => entry.checked);
     if (allSelected) {
       this.searchResultsComponent.clearAllSelections();
-      this.updateTooltip()
+      this.updateTooltip();
     } else {
       this.searchResultsComponent.selectAll();
-      this.updateTooltip()
+      this.updateTooltip();
     }
   }
 }
