@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`
 
-import java.nio.file.Files
 import java.util
 import scala.collection.mutable
 
@@ -101,9 +100,9 @@ object DatasetFileNode {
       val nodeName = relativePath.last
 
       val fileType =
-        if (Files.isDirectory(currentPhysicalNode.getAbsolutePath)) "directory" else "file"
+        if (currentPhysicalNode.isDirectory) "directory" else "file"
       val fileSize =
-        if (fileType == "file") Some(Files.size(currentPhysicalNode.getAbsolutePath)) else None
+        if (fileType == "file") Some(currentPhysicalNode.getSize) else None
       val existingNode = currentParent.getChildren.find(child =>
         child.getName == nodeName && child.getNodeType == fileType
       )
