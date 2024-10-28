@@ -38,7 +38,7 @@
           (click)="toggleSelection()"
           nz-button
           nzType="default"
-          nz-tooltip="Toggle batch selection mode"
+          [nz-tooltip]="selectionTooltip"
           nzTooltipPlacement="bottom"
           title="Batch Select"
           type="button">
@@ -140,5 +140,6 @@
     [isPrivateSearch]="true"
     (deleted)="deleteWorkflow($event)"
     (duplicated)="onClickDuplicateWorkflow($event)"
-    [currentUid]="currentUid"></texera-search-results>
+    [currentUid]="currentUid"
+    (notifyWorkflow)="updateTooltip()"></texera-search-results>
 </div>

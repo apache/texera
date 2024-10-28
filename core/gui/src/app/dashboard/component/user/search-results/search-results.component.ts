@@ -24,7 +24,7 @@ export class SearchResultsComponent {
   @Output() deleted = new EventEmitter<DashboardEntry>();
   @Output() duplicated = new EventEmitter<DashboardEntry>();
   @Output() modified = new EventEmitter<DashboardEntry>();
-  public isBatchSelectEnabled = false;
+  @Output() notifyWorkflow = new EventEmitter<void>();
 
   constructor(private userService: UserService) {}
 
@@ -53,6 +53,13 @@ export class SearchResultsComponent {
       this.more = results.more;
     } finally {
       this.loading = false;
+    }
+  }
+
+  onEntryCheckboxChange(): void {
+    const allSelected = this.entries.every(entry => entry.checked);
+    if (allSelected) {
+      this.notifyWorkflow.emit();
     }
   }
 

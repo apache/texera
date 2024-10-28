@@ -119,12 +119,20 @@ export class UserWorkflowComponent implements AfterViewInit, OnInit {
     }
   }
 
+  public selectionTooltip: string = "Select all";
+
   ngOnInit(): void {
     const cloneSuccess = sessionStorage.getItem("cloneSuccess");
     if (cloneSuccess === "true") {
       this.notificationService.success("Clone Successful");
       sessionStorage.removeItem("cloneSuccess");
     }
+  }
+
+  public updateTooltip(): void {
+    const entries = this.searchResultsComponent.entries;
+    const allSelected = entries.every(entry => entry.checked);
+    this.selectionTooltip = allSelected ? "Unselect all" : "Select all";
   }
 
   ngAfterViewInit() {
@@ -561,8 +569,10 @@ export class UserWorkflowComponent implements AfterViewInit, OnInit {
     const allSelected = this.searchResultsComponent.entries.every(entry => entry.checked);
     if (allSelected) {
       this.searchResultsComponent.clearAllSelections();
+      this.updateTooltip()
     } else {
       this.searchResultsComponent.selectAll();
+      this.updateTooltip()
     }
   }
 }

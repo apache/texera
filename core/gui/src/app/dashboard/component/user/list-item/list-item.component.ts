@@ -64,6 +64,7 @@ export class ListItemComponent implements OnInit, OnChanges {
     this._entry = value;
   }
 
+  @Output() checkboxChanged = new EventEmitter<void>();
   @Output() deleted = new EventEmitter<void>();
   @Output() duplicated = new EventEmitter<void>();
   @Output()
@@ -144,6 +145,7 @@ export class ListItemComponent implements OnInit, OnChanges {
   onCheckboxChange(entry: DashboardEntry): void {
     entry.checked = !entry.checked;
     this.cdr.markForCheck();
+    this.checkboxChanged.emit();
   }
 
   public async onClickOpenShareAccess(): Promise<void> {
