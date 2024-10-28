@@ -15,7 +15,7 @@ import java.net.ServerSocket
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
 import com.twitter.util.Promise
-import edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.Content.{
+import edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.Value.{
   ControlInvocation => ControlInvocationV2,
   ReturnInvocation => ReturnInvocationV2
 }
@@ -40,7 +40,7 @@ private class AmberProducer(
     action.getType match {
       case "control" =>
         val pythonControlMessage = PythonControlMessage.parseFrom(action.getBody)
-        pythonControlMessage.payload.content match {
+        pythonControlMessage.payload.value match {
           case r: ReturnInvocationV2 =>
             outputPort.sendTo(
               to = pythonControlMessage.tag,
