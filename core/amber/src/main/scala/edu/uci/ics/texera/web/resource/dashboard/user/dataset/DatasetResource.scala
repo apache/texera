@@ -844,7 +844,7 @@ class DatasetResource {
   def listDatasets(
       @Auth user: SessionUser,
       @QueryParam("includeVersions") includeVersions: Boolean = false,
-      @QueryParam("includeFileNodes") includeFileNodes: Boolean = false,
+      @QueryParam("includeFileNodes") includeFileNodes: Boolean = false
   ): ListDatasetsResponse = {
     val uid = user.getUid
     withTransaction(context)(ctx => {
