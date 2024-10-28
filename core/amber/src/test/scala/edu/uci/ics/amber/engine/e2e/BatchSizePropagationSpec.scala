@@ -112,49 +112,51 @@ class BatchSizePropagationSpec
     val workflowScheduler = new WorkflowScheduler(context, resultStorage)
     workflowScheduler.updateSchedule(workflow.physicalPlan)
 
-    val nextRegions = workflowScheduler.getNextRegions
+    var nextRegions = workflowScheduler.getNextRegions
+    while (nextRegions.nonEmpty) {
+      nextRegions.foreach { region =>
+        region.resourceConfig.foreach { resourceConfig =>
+          resourceConfig.linkConfigs.foreach {
+            case (_, linkConfig) =>
+              val partitioning = linkConfig.partitioning
+              partitioning match {
+                case oneToOne: OneToOnePartitioning =>
+                  assert(
+                    oneToOne.batchSize == expectedBatchSize,
+                    s"Batch size mismatch: ${oneToOne.batchSize} != $expectedBatchSize"
+                  )
 
-    nextRegions.foreach { region =>
-      region.resourceConfig.foreach { resourceConfig =>
-        resourceConfig.linkConfigs.foreach {
-          case (_, linkConfig) =>
-            val partitioning = linkConfig.partitioning
-            partitioning match {
-              case oneToOne: OneToOnePartitioning =>
-                assert(
-                  oneToOne.batchSize == expectedBatchSize,
-                  s"Batch size mismatch: ${oneToOne.batchSize} != $expectedBatchSize"
-                )
+                case roundRobin: RoundRobinPartitioning =>
+                  assert(
+                    roundRobin.batchSize == expectedBatchSize,
+                    s"Batch size mismatch: ${roundRobin.batchSize} != $expectedBatchSize"
+                  )
 
-              case roundRobin: RoundRobinPartitioning =>
-                assert(
-                  roundRobin.batchSize == expectedBatchSize,
-                  s"Batch size mismatch: ${roundRobin.batchSize} != $expectedBatchSize"
-                )
+                case hashBased: HashBasedShufflePartitioning =>
+                  assert(
+                    hashBased.batchSize == expectedBatchSize,
+                    s"Batch size mismatch: ${hashBased.batchSize} != $expectedBatchSize"
+                  )
 
-              case hashBased: HashBasedShufflePartitioning =>
-                assert(
-                  hashBased.batchSize == expectedBatchSize,
-                  s"Batch size mismatch: ${hashBased.batchSize} != $expectedBatchSize"
-                )
+                case rangeBased: RangeBasedShufflePartitioning =>
+                  assert(
+                    rangeBased.batchSize == expectedBatchSize,
+                    s"Batch size mismatch: ${rangeBased.batchSize} != $expectedBatchSize"
+                  )
 
-              case rangeBased: RangeBasedShufflePartitioning =>
-                assert(
-                  rangeBased.batchSize == expectedBatchSize,
-                  s"Batch size mismatch: ${rangeBased.batchSize} != $expectedBatchSize"
-                )
+                case broadcast: BroadcastPartitioning =>
+                  assert(
+                    broadcast.batchSize == expectedBatchSize,
+                    s"Batch size mismatch: ${broadcast.batchSize} != $expectedBatchSize"
+                  )
 
-              case broadcast: BroadcastPartitioning =>
-                assert(
-                  broadcast.batchSize == expectedBatchSize,
-                  s"Batch size mismatch: ${broadcast.batchSize} != $expectedBatchSize"
-                )
-
-              case _ =>
-                println("Unknown partitioning type")
-            }
+                case _ =>
+                  println("Unknown partitioning type")
+              }
+          }
         }
       }
+      nextRegions = workflowScheduler.getNextRegions
     }
   }
 }
