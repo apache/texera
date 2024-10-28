@@ -18,6 +18,8 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowOfProject;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowOfUser;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowRuntimeStatistics;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowUserAccess;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowUserClones;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowUserLikes;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowVersion;
 
 import org.jooq.Index;
@@ -67,6 +69,10 @@ public class Indexes {
     public static final Index WORKFLOW_RUNTIME_STATISTICS_PRIMARY = Indexes0.WORKFLOW_RUNTIME_STATISTICS_PRIMARY;
     public static final Index WORKFLOW_USER_ACCESS_PRIMARY = Indexes0.WORKFLOW_USER_ACCESS_PRIMARY;
     public static final Index WORKFLOW_USER_ACCESS_WID = Indexes0.WORKFLOW_USER_ACCESS_WID;
+    public static final Index WORKFLOW_USER_CLONES_PRIMARY = Indexes0.WORKFLOW_USER_CLONES_PRIMARY;
+    public static final Index WORKFLOW_USER_CLONES_WID = Indexes0.WORKFLOW_USER_CLONES_WID;
+    public static final Index WORKFLOW_USER_LIKES_PRIMARY = Indexes0.WORKFLOW_USER_LIKES_PRIMARY;
+    public static final Index WORKFLOW_USER_LIKES_WID = Indexes0.WORKFLOW_USER_LIKES_WID;
     public static final Index WORKFLOW_VERSION_PRIMARY = Indexes0.WORKFLOW_VERSION_PRIMARY;
     public static final Index WORKFLOW_VERSION_WID = Indexes0.WORKFLOW_VERSION_WID;
 
@@ -107,6 +113,10 @@ public class Indexes {
         public static Index WORKFLOW_RUNTIME_STATISTICS_PRIMARY = Internal.createIndex("PRIMARY", WorkflowRuntimeStatistics.WORKFLOW_RUNTIME_STATISTICS, new OrderField[] { WorkflowRuntimeStatistics.WORKFLOW_RUNTIME_STATISTICS.WORKFLOW_ID, WorkflowRuntimeStatistics.WORKFLOW_RUNTIME_STATISTICS.EXECUTION_ID, WorkflowRuntimeStatistics.WORKFLOW_RUNTIME_STATISTICS.OPERATOR_ID, WorkflowRuntimeStatistics.WORKFLOW_RUNTIME_STATISTICS.TIME }, true);
         public static Index WORKFLOW_USER_ACCESS_PRIMARY = Internal.createIndex("PRIMARY", WorkflowUserAccess.WORKFLOW_USER_ACCESS, new OrderField[] { WorkflowUserAccess.WORKFLOW_USER_ACCESS.UID, WorkflowUserAccess.WORKFLOW_USER_ACCESS.WID }, true);
         public static Index WORKFLOW_USER_ACCESS_WID = Internal.createIndex("wid", WorkflowUserAccess.WORKFLOW_USER_ACCESS, new OrderField[] { WorkflowUserAccess.WORKFLOW_USER_ACCESS.WID }, false);
+        public static Index WORKFLOW_USER_CLONES_PRIMARY = Internal.createIndex("PRIMARY", WorkflowUserClones.WORKFLOW_USER_CLONES, new OrderField[] { WorkflowUserClones.WORKFLOW_USER_CLONES.UID, WorkflowUserClones.WORKFLOW_USER_CLONES.WID }, true);
+        public static Index WORKFLOW_USER_CLONES_WID = Internal.createIndex("wid", WorkflowUserClones.WORKFLOW_USER_CLONES, new OrderField[] { WorkflowUserClones.WORKFLOW_USER_CLONES.WID }, false);
+        public static Index WORKFLOW_USER_LIKES_PRIMARY = Internal.createIndex("PRIMARY", WorkflowUserLikes.WORKFLOW_USER_LIKES, new OrderField[] { WorkflowUserLikes.WORKFLOW_USER_LIKES.UID, WorkflowUserLikes.WORKFLOW_USER_LIKES.WID }, true);
+        public static Index WORKFLOW_USER_LIKES_WID = Internal.createIndex("wid", WorkflowUserLikes.WORKFLOW_USER_LIKES, new OrderField[] { WorkflowUserLikes.WORKFLOW_USER_LIKES.WID }, false);
         public static Index WORKFLOW_VERSION_PRIMARY = Internal.createIndex("PRIMARY", WorkflowVersion.WORKFLOW_VERSION, new OrderField[] { WorkflowVersion.WORKFLOW_VERSION.VID }, true);
         public static Index WORKFLOW_VERSION_WID = Internal.createIndex("wid", WorkflowVersion.WORKFLOW_VERSION, new OrderField[] { WorkflowVersion.WORKFLOW_VERSION.WID }, false);
     }
