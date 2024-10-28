@@ -17,6 +17,21 @@
       <h1>Workflow Detail Page</h1>
     </div>
     <div class="workflow-panel">
+      <!-- View button -->
+      <button
+        nz-button
+        nzType="text"
+        class="dropdown-item like-button"
+        title="View"
+        (click)="changeViewDisplayStyle()">
+        <i
+          nz-icon
+          [nzType]="'eye'"
+          class="like-icon">
+        </i>
+        <span>{{ formatViewCount(viewCount) }}</span>
+      </button>
+
       <!-- Like button -->
       <button
         nz-button

@@ -11,7 +11,7 @@ import { WorkflowCacheService } from "../service/workflow-cache/workflow-cache.s
 import { WorkflowActionService } from "../service/workflow-graph/model/workflow-action.service";
 import { WorkflowWebsocketService } from "../service/workflow-websocket/workflow-websocket.service";
 import { NzMessageService } from "ng-zorro-antd/message";
-import { debounceTime, distinctUntilChanged, filter, switchMap } from "rxjs/operators";
+import { debounceTime, distinctUntilChanged, filter, switchMap, throttleTime } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { of } from "rxjs";
 import { isDefined } from "../../common/util/predicate";
@@ -22,6 +22,8 @@ import { WorkflowConsoleService } from "../service/workflow-console/workflow-con
 import { OperatorReuseCacheStatusService } from "../service/workflow-status/operator-reuse-cache-status.service";
 import { CodeEditorService } from "../service/code-editor/code-editor.service";
 import { WorkflowMetadata } from "src/app/dashboard/type/workflow-metadata.interface";
+import { HubWorkflowService } from "../../hub/service/workflow/hub-workflow.service";
+import { THROTTLE_TIME_MS } from "../../hub/component/workflow/detail/hub-workflow-detail.component";
 
 export const SAVE_DEBOUNCE_TIME_IN_MS = 5000;
 
@@ -60,6 +62,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     private message: NzMessageService,
     private router: Router,
     private notificationService: NotificationService,
+    private hubWorkflowService: HubWorkflowService,
     private codeEditorService: CodeEditorService
   ) {}
 
@@ -105,13 +108,13 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
 
     if (this.userSystemEnabled) {
       this.registerReEstablishWebsocketUponWIdChange();
+      this.updateViewCount();
     } else {
       let wid = this.route.snapshot.params.id ?? 0;
       this.workflowWebsocketService.openWebsocket(wid);
     }
 
     this.registerLoadOperatorMetadata();
-
     this.codeEditorService.vc = this.codeEditorViewRef;
   }
 
@@ -277,5 +280,15 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
         this.writeAccess = !metadata.readonly;
         this.workflowWebsocketService.reopenWebsocket(metadata.wid as number);
       });
+  }
+
+  updateViewCount() {
+    let wid = this.route.snapshot.params.id;
+    let uid = this.userService.getCurrentUser()?.uid;
+    this.hubWorkflowService
+      .postViewWorkflow(wid, uid ? uid : 0)
+      .pipe(throttleTime(THROTTLE_TIME_MS))
+      .pipe(untilDestroyed(this))
+      .subscribe();
   }
 }
