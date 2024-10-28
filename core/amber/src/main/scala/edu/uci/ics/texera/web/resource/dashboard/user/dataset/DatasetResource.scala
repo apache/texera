@@ -4,61 +4,15 @@ import edu.uci.ics.amber.engine.common.Utils.withTransaction
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.enums.DatasetUserAccessPrivilege
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  DatasetDao,
-  DatasetUserAccessDao,
-  DatasetVersionDao
-}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{
-  Dataset,
-  DatasetUserAccess,
-  DatasetVersion,
-  User
-}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{DatasetDao, DatasetUserAccessDao, DatasetVersionDao}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{Dataset, DatasetUserAccess, DatasetVersion, User}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset.DATASET
 import edu.uci.ics.texera.web.model.jooq.generated.tables.User.USER
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetVersion.DATASET_VERSION
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetAccessResource.{
-  getDatasetUserAccessPrivilege,
-  getOwner,
-  userHasReadAccess,
-  userHasWriteAccess,
-  userOwnDataset
-}
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{
-  DATASET_IS_PRIVATE,
-  DATASET_IS_PUBLIC,
-  DashboardDataset,
-  DashboardDatasetVersion,
-  DatasetDescriptionModification,
-  DatasetIDs,
-  DatasetNameModification,
-  DatasetVersionRootFileNodes,
-  DatasetVersionRootFileNodesResponse,
-  DatasetVersions,
-  ERR_DATASET_CREATION_FAILED_MESSAGE,
-  ERR_DATASET_NAME_ALREADY_EXISTS,
-  ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE,
-  ListDatasetsResponse,
-  calculateLatestDatasetVersionSize,
-  calculateDatasetVersionSize,
-  context,
-  createNewDatasetVersionFromFormData,
-  getDashboardDataset,
-  getDatasetByID,
-  getDatasetVersionByID,
-  getDatasetVersions,
-  getFileNodesOfCertainVersion,
-  getLatestDatasetVersionWithAccessCheck,
-  getUserDatasets,
-  resolvePath,
-  retrievePublicDatasets
-}
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.{
-  DatasetFileNode,
-  PhysicalFileNode
-}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetAccessResource.{getDatasetUserAccessPrivilege, getOwner, userHasReadAccess, userHasWriteAccess, userOwnDataset}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{DATASET_IS_PRIVATE, DATASET_IS_PUBLIC, DashboardDataset, DashboardDatasetVersion, DatasetDescriptionModification, DatasetIDs, DatasetNameModification, DatasetVersionRootFileNodes, DatasetVersionRootFileNodesResponse, DatasetVersions, ERR_DATASET_CREATION_FAILED_MESSAGE, ERR_DATASET_NAME_ALREADY_EXISTS, ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE, ListDatasetsResponse, calculateDatasetVersionSize, calculateLatestDatasetVersionSize, context, createNewDatasetVersionFromFormData, getDashboardDataset, getDatasetByID, getDatasetVersionByID, getDatasetVersions, getFileNodesOfCertainVersion, getLatestDatasetVersionWithAccessCheck, getUserDatasets, resolvePath, retrievePublicDatasets}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.{DatasetFileNode, PhysicalFileNode}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.service.GitVersionControlLocalFileStorage
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.PathUtils
 import io.dropwizard.auth.Auth
@@ -74,21 +28,10 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
 import java.util.zip.{ZipEntry, ZipOutputStream}
 import java.util
+import java.util.Optional
 import java.util.concurrent.locks.ReentrantLock
 import javax.annotation.security.RolesAllowed
-import javax.ws.rs.{
-  BadRequestException,
-  Consumes,
-  ForbiddenException,
-  GET,
-  NotFoundException,
-  POST,
-  Path,
-  PathParam,
-  Produces,
-  QueryParam,
-  WebApplicationException
-}
+import javax.ws.rs.{BadRequestException, Consumes, ForbiddenException, GET, NotFoundException, POST, Path, PathParam, Produces, QueryParam, WebApplicationException}
 import javax.ws.rs.core.{MediaType, Response, StreamingOutput}
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable
@@ -1135,25 +1078,29 @@ class DatasetResource {
   /**
     * Retrieves a ZIP file for a specific dataset version or the latest version.
     *
-    * @param pathStr The dataset version path in the format: /ownerEmail/datasetName/versionName
-    *                Example: /user@example.com/dataset/v1
-    * @param getLatest When true, retrieves the latest version regardless of the provided path.
-    * @param did The dataset ID (used when getLatest is true).
+    * @param did  The dataset ID (used when getLatest is true).
+    * @param dvid The dataset version ID, if given, retrieve this version; if not given, retrieve the latest version
     * @param user The session user.
     * @return A Response containing the dataset version as a ZIP file.
     */
   @GET
   @Path("/version-zip")
   def retrieveDatasetVersionZip(
-      @QueryParam("path") pathStr: String,
-      @QueryParam("getLatest") getLatest: Boolean,
-      @QueryParam("did") did: UInteger,
-      @Auth user: SessionUser
-  ): Response = {
-    val (dataset, version) = if (getLatest) {
+                                 @QueryParam("did") did: UInteger,
+                                 @QueryParam("dvid") dvid: Optional[Integer],
+                                 @Auth user: SessionUser
+                               ): Response = {
+    if (!userHasReadAccess(context, did, user.getUid)) {
+      throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+    }
+    val (dataset, version) = if (dvid.isEmpty) {
+      // dvid is not given, retrieve latest
       getLatestVersionInfo(did, user)
     } else {
-      resolveAndValidatePath(pathStr, user)
+      // dvid is given, retrieve certain version
+      withTransaction(context)(ctx =>
+        (getDatasetByID(ctx, did), getDatasetVersionByID(ctx, UInteger.valueOf(dvid.get)))
+      )
     }
     val targetDatasetPath = PathUtils.getDatasetPath(dataset.getDid)
     val fileNodes = GitVersionControlLocalFileStorage.retrieveRootFileNodesOfVersion(
