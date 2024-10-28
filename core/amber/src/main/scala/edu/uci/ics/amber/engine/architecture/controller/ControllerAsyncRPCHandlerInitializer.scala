@@ -19,7 +19,6 @@ class ControllerAsyncRPCHandlerInitializer(
     with PortCompletedHandler
     with ConsoleMessageHandler
     with RetryWorkflowHandler
-    with ModifyLogicHandler
     with EvaluatePythonExpressionHandler
     with DebugCommandHandler
     with TakeGlobalCheckpointHandler

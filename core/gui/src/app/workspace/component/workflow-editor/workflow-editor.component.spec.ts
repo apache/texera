@@ -36,6 +36,7 @@ import { NzContextMenuService, NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { RouterTestingModule } from "@angular/router/testing";
 import { createYTypeFromObject } from "../../types/shared-editing.interface";
 import * as jQuery from "jquery";
+import { ContextMenuComponent } from "./context-menu/context-menu/context-menu.component";
 
 describe("WorkflowEditorComponent", () => {
   /**
@@ -50,7 +51,7 @@ describe("WorkflowEditorComponent", () => {
 
     beforeEach(waitForAsync(() => {
       TestBed.configureTestingModule({
-        declarations: [WorkflowEditorComponent],
+        declarations: [WorkflowEditorComponent, ContextMenuComponent],
         imports: [RouterTestingModule, HttpClientTestingModule, NzModalModule, NzDropDownModule],
         providers: [
           JointUIService,

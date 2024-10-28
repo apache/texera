@@ -53,7 +53,6 @@ class PauseManager:
         raise NotImplementedError()
 
     def resume(self, pause_type: PauseType, change_state=True) -> None:
-        logger.debug("resume by " + str(pause_type))
         if pause_type in self._global_pauses:
             self._global_pauses.remove(pause_type)
         # del self._specific_input_pauses[pause_type]
