@@ -6,7 +6,7 @@ from proto.edu.uci.ics.amber.engine.architecture.rpc import EmptyReturn
 
 class InitializeExecutorHandler(ControlHandler):
 
-    def initialize_executor(
+    async def initialize_executor(
         self,
         total_worker_count: int,
         op_exec_init_info: Any,

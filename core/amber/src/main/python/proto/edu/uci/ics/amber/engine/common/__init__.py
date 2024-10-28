@@ -84,10 +84,10 @@ class PhysicalLink(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class ControlPayloadV2(betterproto.Message):
     control_invocation: "_architecture_rpc__.ControlInvocation" = (
-        betterproto.message_field(1, group="content")
+        betterproto.message_field(1, group="value")
     )
     return_invocation: "_architecture_rpc__.ReturnInvocation" = (
-        betterproto.message_field(2, group="content")
+        betterproto.message_field(2, group="value")
     )
 
 

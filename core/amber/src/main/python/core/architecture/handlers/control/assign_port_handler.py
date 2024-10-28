@@ -8,7 +8,7 @@ from proto.edu.uci.ics.amber.engine.common import PortIdentity
 
 class AssignPortHandler(ControlHandler):
 
-    def assign_port(
+    async def assign_port(
         self, port_id: PortIdentity, input: bool, schema: Dict[str, str]
     ) -> EmptyReturn:
         if input:

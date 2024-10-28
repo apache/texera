@@ -11,7 +11,7 @@ from loguru import logger
 
 class StartWorkerHandler(ControlHandler):
 
-    def start_worker(self) -> WorkerStateResponse:
+    async def start_worker(self) -> WorkerStateResponse:
         logger.info("Starting the worker.")
         if self.context.executor_manager.executor.is_source:
             self.context.state_manager.transit_to(WorkerState.RUNNING)

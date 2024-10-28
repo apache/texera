@@ -10,7 +10,7 @@ from proto.edu.uci.ics.amber.engine.architecture.worker import (
 
 class RetryCurrentTupleHandler(ControlHandler):
 
-    def retry_current_tuple(self) -> EmptyReturn:
+    async def retry_current_tuple(self) -> EmptyReturn:
         if not self.context.state_manager.confirm_state(WorkerState.COMPLETED):
             # chain the current input tuple back on top of the current iterator to
             # be processed once more

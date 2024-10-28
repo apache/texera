@@ -2,7 +2,7 @@ import threading
 import time
 import typing
 from typing import Iterator, Optional
-
+import asyncio
 from loguru import logger
 from overrides import overrides
 from pampy import match
@@ -33,6 +33,7 @@ from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     ControlInvocation,
     ConsoleMessageType,
     ReturnInvocation,
+    PortCompletedRequest,
 )
 from proto.edu.uci.ics.amber.engine.architecture.worker import (
     WorkerState,
@@ -78,9 +79,8 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self.context.statistics_manager.update_total_execution_time(
             time.time_ns() - self.context.statistics_manager.worker_start_time
         )
-        control_command = set_one_of(ControlInvocation, WorkerExecutionCompleted())
-        self._async_rpc_client.send(
-            ActorVirtualIdentity(name="CONTROLLER"), control_command
+        asyncio.run(
+            self._async_rpc_client.get_controller_interface().worker_execution_completed()
         )
         self.context.close()
 
@@ -136,7 +136,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         """
         start_time = time.time_ns()
         match(
-            (tag, get_one_of(payload)),
+            (tag, get_one_of(payload, False)),
             typing.Tuple[ActorVirtualIdentity, ControlInvocation],
             self._async_rpc_server.receive,
             typing.Tuple[ActorVirtualIdentity, ReturnInvocation],
@@ -229,15 +229,11 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self.process_input_state()
         self.process_input_tuple()
         if self.context.tuple_processing_manager.current_input_port_id is not None:
-            control_command = set_one_of(
-                ControlInvocation,
-                PortCompletedV2(
-                    self.context.tuple_processing_manager.current_input_port_id,
+            asyncio.run(
+                self._async_rpc_client.get_controller_interface().port_completed(
+                    port_id=self.context.tuple_processing_manager.current_input_port_id,
                     input=True,
-                ),
-            )
-            self._async_rpc_client.send(
-                ActorVirtualIdentity(name="CONTROLLER"), control_command
+                )
             )
 
     def _process_sender_change_marker(self, sender_change_marker: SenderChange) -> None:
@@ -275,12 +271,10 @@ class MainLoop(StoppableQueueBlockingRunnable):
         for to, batch in self.context.output_manager.emit_marker(EndOfInputChannel()):
             self._output_queue.put(DataElement(tag=to, payload=batch))
             self._check_and_process_control()
-            control_command = set_one_of(
-                ControlInvocation,
-                PortCompleted(PortIdentity(0), input=False),
-            )
-            self._async_rpc_client.send(
-                ActorVirtualIdentity(name="CONTROLLER"), control_command
+            asyncio.run(
+                self._async_rpc_client.get_controller_interface().port_completed(
+                    port_id=PortIdentity(0), input=False
+                )
             )
         self.complete()
 
@@ -347,12 +341,10 @@ class MainLoop(StoppableQueueBlockingRunnable):
             )
 
     def _send_console_message(self, console_message: ConsoleMessage):
-        self._async_rpc_client.send(
-            ActorVirtualIdentity(name="CONTROLLER"),
-            set_one_of(
-                ControlInvocation,
-                console_message,
-            ),
+        asyncio.run(
+            self._async_rpc_client.get_controller_interface().console_message_triggered(
+                console_message=console_message
+            )
         )
 
     def _switch_context(self) -> None:

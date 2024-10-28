@@ -5,7 +5,7 @@ from proto.edu.uci.ics.amber.engine.architecture.rpc import EmptyReturn
 
 
 class WorkerDebugCommandHandler(ControlHandler):
-    def debug_command(self, worker_id: str, cmd: str) -> EmptyReturn:
+    async def debug_command(self, worker_id: str, cmd: str) -> EmptyReturn:
         # translate the command with the context.
         translated_command = self.translate_debug_command(cmd, self.context)
 

@@ -5,7 +5,7 @@ from proto.edu.uci.ics.amber.engine.architecture.rpc import EvaluatedValue
 
 class EvaluateExpressionHandler(ControlHandler):
 
-    def evaluate_python_expression(
+    async def evaluate_python_expression(
         self, expression: str, operator_id: str
     ) -> EvaluatedValue:
         runtime_context = {

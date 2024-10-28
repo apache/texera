@@ -1,6 +1,6 @@
 import grpclib.const
 from loguru import logger
-
+import asyncio
 from core.architecture.managers.context import Context
 from core.architecture.rpc.async_rpc_handler_initializer import (
     AsyncRPCHandlerInitializer,
@@ -26,13 +26,19 @@ class AsyncRPCServer:
         self._output_queue = output_queue
         rpc_mapping = AsyncRPCHandlerInitializer(context).__mapping__()
         self._handlers: dict[str, grpclib.const.Handler] = {
-            k.path.split("/")[-1].lower(): v for k, v in rpc_mapping.items()
+            k.split("/")[-1].lower(): v for k, v in rpc_mapping.items()
         }
 
     def wrap_as_stream(self, request: ControlRequest) -> grpclib.server.Stream:
         class ControlRequestStream(grpclib.server.Stream):
+            def __init__(self):
+                self.result = None
+
             async def recv_message(self):
                 return request
+
+            async def send_message(self, msg):
+                self.result = msg
 
         return ControlRequestStream()
 
@@ -45,8 +51,9 @@ class AsyncRPCServer:
         try:
             handler: grpclib.const.Handler = self.look_up(method_name.lower())
             control_payload_stream = self.wrap_as_stream(command)
+            asyncio.run(handler.func(control_payload_stream))
             control_return: ControlReturn = set_one_of(
-                ControlReturn, handler.func(control_payload_stream)
+                ControlReturn, control_payload_stream.result
             )
 
         except Exception as exception:

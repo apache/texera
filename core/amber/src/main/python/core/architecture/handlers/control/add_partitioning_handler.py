@@ -6,7 +6,7 @@ from proto.edu.uci.ics.amber.engine.common import PhysicalLink
 
 class AddPartitioningHandler(ControlHandler):
 
-    def add_partitioning(
+    async def add_partitioning(
         self,
         tag: PhysicalLink,
         partitioning: Partitioning,

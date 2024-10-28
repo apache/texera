@@ -7,7 +7,7 @@ from core.architecture.handlers.control.control_handler_base import ControlHandl
 
 class QueryStatisticsHandler(ControlHandler):
 
-    def query_statistics(self) -> WorkerMetricsResponse:
+    async def query_statistics(self) -> WorkerMetricsResponse:
         metrics = WorkerMetrics(
             worker_state=self.context.state_manager.get_current_state(),
             worker_statistics=self.context.statistics_manager.get_statistics(),

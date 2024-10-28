@@ -4,6 +4,6 @@ from proto.edu.uci.ics.amber.engine.architecture.rpc import EmptyReturn
 
 class OpenExecutorHandler(ControlHandler):
 
-    def open_executor(self) -> EmptyReturn:
+    async def open_executor(self) -> EmptyReturn:
         self.context.executor_manager.executor.open()
         return EmptyReturn()

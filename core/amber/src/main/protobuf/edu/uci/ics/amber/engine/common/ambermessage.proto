@@ -14,7 +14,7 @@ option (scalapb.options) = {
 };
 
 message ControlPayloadV2 {
-    oneof content {
+    oneof value {
         architecture.rpc.ControlInvocation control_invocation = 1;
         architecture.rpc.ReturnInvocation return_invocation = 2;
     }
