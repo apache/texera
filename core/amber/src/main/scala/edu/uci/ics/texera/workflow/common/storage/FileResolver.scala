@@ -96,15 +96,18 @@ object FileResolver {
         (dataset, datasetVersion)
       }
 
-      // Construct path as /{did}/{versionHash}/file-path
-      val encodedPath =
-        s"/${dataset.getDid.intValue()}/${datasetVersion.getVersionHash}/${fileRelativePath.toString.split("/").map(URLEncoder.encode(_, StandardCharsets.UTF_8)).mkString("/")}"
+    // Construct path as /{did}/{versionHash}/file-path
+    val encodedPath =
+      s"/${dataset.getDid.intValue()}/${datasetVersion.getVersionHash}/${fileRelativePath.toString
+        .split("/")
+        .map(URLEncoder.encode(_, StandardCharsets.UTF_8))
+        .mkString("/")}"
 
-      try {
-        new URI(DATASET_FILE_URI_SCHEME, null, encodedPath, null)
-      } catch {
-        case e: Exception =>
-          throw new FileNotFoundException(s"Dataset file $fileName not found.")
-      }
+    try {
+      new URI(DATASET_FILE_URI_SCHEME, null, encodedPath, null)
+    } catch {
+      case e: Exception =>
+        throw new FileNotFoundException(s"Dataset file $fileName not found.")
     }
+  }
 }

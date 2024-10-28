@@ -1,6 +1,10 @@
 package edu.uci.ics.texera.workflow.common.storage
 
-import edu.uci.ics.amber.engine.common.storage.{DatasetFileDocument, ReadonlyLocalFileDocument, ReadonlyVirtualDocument}
+import edu.uci.ics.amber.engine.common.storage.{
+  DatasetFileDocument,
+  ReadonlyLocalFileDocument,
+  ReadonlyVirtualDocument
+}
 import edu.uci.ics.texera.workflow.common.storage.FileResolver.DATASET_FILE_URI_SCHEME
 
 import java.net.URI

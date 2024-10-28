@@ -9,8 +9,7 @@ import java.net.{URI, URLDecoder}
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
 
-class DatasetFileDocument(uri: URI)
-    extends VirtualDocument[Nothing] {
+class DatasetFileDocument(uri: URI) extends VirtualDocument[Nothing] {
   // Extract path components and decode them
   private val pathParts = uri.getPath
     .stripPrefix("/")

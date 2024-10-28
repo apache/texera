@@ -9,11 +9,23 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset.DATASET
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetVersion.DATASET_VERSION
 import edu.uci.ics.texera.web.model.jooq.generated.tables.User.USER
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{DatasetDao, DatasetUserAccessDao, DatasetVersionDao}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{Dataset, DatasetUserAccess, DatasetVersion, User}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
+  DatasetDao,
+  DatasetUserAccessDao,
+  DatasetVersionDao
+}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{
+  Dataset,
+  DatasetUserAccess,
+  DatasetVersion,
+  User
+}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetAccessResource._
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{context, _}
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.{DatasetFileNode, PhysicalFileNode}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.{
+  DatasetFileNode,
+  PhysicalFileNode
+}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.service.GitVersionControlLocalFileStorage
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.PathUtils
 import edu.uci.ics.texera.workflow.common.storage.FileResolver
@@ -682,7 +694,7 @@ class DatasetResource {
       @Auth user: SessionUser,
       @QueryParam("includeVersions") includeVersions: Boolean = false,
       @QueryParam("includeFileNodes") includeFileNodes: Boolean = false,
-      @QueryParam("did") datasetId: UInteger,
+      @QueryParam("did") datasetId: UInteger
   ): ListDatasetsResponse = {
     val uid = user.getUid
     withTransaction(context)(ctx => {
@@ -731,7 +743,8 @@ class DatasetResource {
                 ownerEmail = ownerEmail,
                 size = calculateLatestDatasetVersionSize(dataset.getDid)
               )
-            }).asScala
+            })
+            .asScala
         )
 
         // then we fetch the public datasets and merge it as a part of the result if not exist
@@ -774,7 +787,8 @@ class DatasetResource {
                     PathUtils.getDatasetPath(did),
                     version.getVersionHash
                   )
-                  .asScala.toList)
+                  .asScala
+                  .toList)
               }
               DashboardDatasetVersion(
                 version,
@@ -841,7 +855,8 @@ class DatasetResource {
                   datasetPath,
                   latestVersion.getVersionHash
                 )
-                .asScala.toList
+                .asScala
+                .toList
           )
         )
         .head
@@ -969,7 +984,7 @@ class DatasetResource {
     val (dataset, version) = if (dvid == null) {
       getLatestVersionInfo(did, user)
     } else {
-      withTransaction(context) {ctx =>
+      withTransaction(context) { ctx =>
         if (!userHasReadAccess(ctx, did, dvid)) {
           throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
         }
