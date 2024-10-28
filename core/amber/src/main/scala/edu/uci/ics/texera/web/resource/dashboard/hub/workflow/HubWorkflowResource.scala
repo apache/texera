@@ -272,26 +272,13 @@ class HubWorkflowResource {
     val workflowId = viewRequest(0)
     val userId = viewRequest(1)
 
-    val widInTable = context
-      .fetchExists(
-        context
-          .selectFrom(WORKFLOW_VIEW_COUNT)
-          .where(WORKFLOW_VIEW_COUNT.WID.eq(workflowId))
-      )
-
-    if (!widInTable) {
-      context
-        .insertInto(WORKFLOW_VIEW_COUNT)
-        .set(WORKFLOW_VIEW_COUNT.WID, workflowId)
-        .set(WORKFLOW_VIEW_COUNT.VIEW_COUNT, UInteger.valueOf(1))
-        .execute();
-    } else {
-      context
-        .update(WORKFLOW_VIEW_COUNT)
-        .set(WORKFLOW_VIEW_COUNT.VIEW_COUNT, WORKFLOW_VIEW_COUNT.VIEW_COUNT.add(1))
-        .where(WORKFLOW_VIEW_COUNT.WID.eq(workflowId))
-        .execute()
-    }
+    context
+      .insertInto(WORKFLOW_VIEW_COUNT)
+      .set(WORKFLOW_VIEW_COUNT.WID, workflowId)
+      .set(WORKFLOW_VIEW_COUNT.VIEW_COUNT, UInteger.valueOf(1))
+      .onDuplicateKeyUpdate()
+      .set(WORKFLOW_VIEW_COUNT.VIEW_COUNT, WORKFLOW_VIEW_COUNT.VIEW_COUNT.add(1))
+      .execute()
     recordUserActivity(request, userId, workflowId, "view")
     context
       .select(WORKFLOW_VIEW_COUNT.VIEW_COUNT)
@@ -305,20 +292,12 @@ class HubWorkflowResource {
   @Produces(Array(MediaType.APPLICATION_JSON))
   def getViewCount(@PathParam("wid") wid: UInteger): Int = {
 
-    val widInTable = context
-      .fetchExists(
-        context
-          .selectFrom(WORKFLOW_VIEW_COUNT)
-          .where(WORKFLOW_VIEW_COUNT.WID.eq(wid))
-      )
-
-    if (!widInTable) {
-      context
-        .insertInto(WORKFLOW_VIEW_COUNT)
-        .set(WORKFLOW_VIEW_COUNT.WID, wid)
-        .set(WORKFLOW_VIEW_COUNT.VIEW_COUNT, UInteger.valueOf(0))
-        .execute();
-    }
+    context
+      .insertInto(WORKFLOW_VIEW_COUNT)
+      .set(WORKFLOW_VIEW_COUNT.WID, wid)
+      .set(WORKFLOW_VIEW_COUNT.VIEW_COUNT, UInteger.valueOf(0))
+      .onDuplicateKeyIgnore()
+      .execute()
 
     context
       .select(WORKFLOW_VIEW_COUNT.VIEW_COUNT)
