@@ -5,10 +5,19 @@ import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
 import com.twitter.util.{Await, Duration, Promise}
 import edu.uci.ics.amber.clustering.SingleNodeListener
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{ExecutionStateUpdate, FatalError}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
+  ExecutionStateUpdate,
+  FatalError
+}
 import edu.uci.ics.amber.engine.architecture.controller._
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
-import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.{BroadcastPartitioning, HashBasedShufflePartitioning, OneToOnePartitioning, RangeBasedShufflePartitioning, RoundRobinPartitioning}
+import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.{
+  BroadcastPartitioning,
+  HashBasedShufflePartitioning,
+  OneToOnePartitioning,
+  RangeBasedShufflePartitioning,
+  RoundRobinPartitioning
+}
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.model.WorkflowContext
 import edu.uci.ics.amber.engine.common.model.WorkflowSettings
@@ -24,7 +33,7 @@ import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import scala.concurrent.duration.DurationInt
 
 class BatchSizePropagationSpec
-  extends TestKit(ActorSystem("BatchSizePropagationSpec"))
+    extends TestKit(ActorSystem("BatchSizePropagationSpec"))
     with ImplicitSender
     with AnyFlatSpecLike
     with BeforeAndAfterAll
@@ -81,14 +90,19 @@ class BatchSizePropagationSpec
     )
 
     val workflow = workflowCompiler.compile(
-      LogicalPlanPojo(List(headerlessCsvOpDesc, sink), List(
-        LogicalLink(
-          headerlessCsvOpDesc.operatorIdentifier,
-          PortIdentity(),
-          sink.operatorIdentifier,
-          PortIdentity()
-        )
-      ), List(), List()),
+      LogicalPlanPojo(
+        List(headerlessCsvOpDesc, sink),
+        List(
+          LogicalLink(
+            headerlessCsvOpDesc.operatorIdentifier,
+            PortIdentity(),
+            sink.operatorIdentifier,
+            PortIdentity()
+          )
+        ),
+        List(),
+        List()
+      ),
       resultStorage,
       new ExecutionStateStore()
     )
@@ -100,30 +114,45 @@ class BatchSizePropagationSpec
 
     val nextRegions = workflowScheduler.getNextRegions
 
-
     nextRegions.foreach { region =>
       region.resourceConfig.foreach { resourceConfig =>
-        resourceConfig.linkConfigs.foreach { case (_, linkConfig) =>
-          val partitioning = linkConfig.partitioning
-          partitioning match {
-            case oneToOne: OneToOnePartitioning =>
-              assert(oneToOne.batchSize == expectedBatchSize, s"Batch size mismatch: ${oneToOne.batchSize} != $expectedBatchSize")
+        resourceConfig.linkConfigs.foreach {
+          case (_, linkConfig) =>
+            val partitioning = linkConfig.partitioning
+            partitioning match {
+              case oneToOne: OneToOnePartitioning =>
+                assert(
+                  oneToOne.batchSize == expectedBatchSize,
+                  s"Batch size mismatch: ${oneToOne.batchSize} != $expectedBatchSize"
+                )
 
-            case roundRobin: RoundRobinPartitioning =>
-              assert(roundRobin.batchSize == expectedBatchSize, s"Batch size mismatch: ${roundRobin.batchSize} != $expectedBatchSize")
+              case roundRobin: RoundRobinPartitioning =>
+                assert(
+                  roundRobin.batchSize == expectedBatchSize,
+                  s"Batch size mismatch: ${roundRobin.batchSize} != $expectedBatchSize"
+                )
 
-            case hashBased: HashBasedShufflePartitioning =>
-              assert(hashBased.batchSize == expectedBatchSize, s"Batch size mismatch: ${hashBased.batchSize} != $expectedBatchSize")
+              case hashBased: HashBasedShufflePartitioning =>
+                assert(
+                  hashBased.batchSize == expectedBatchSize,
+                  s"Batch size mismatch: ${hashBased.batchSize} != $expectedBatchSize"
+                )
 
-            case rangeBased: RangeBasedShufflePartitioning =>
-              assert(rangeBased.batchSize == expectedBatchSize, s"Batch size mismatch: ${rangeBased.batchSize} != $expectedBatchSize")
+              case rangeBased: RangeBasedShufflePartitioning =>
+                assert(
+                  rangeBased.batchSize == expectedBatchSize,
+                  s"Batch size mismatch: ${rangeBased.batchSize} != $expectedBatchSize"
+                )
 
-            case broadcast: BroadcastPartitioning =>
-              assert(broadcast.batchSize == expectedBatchSize, s"Batch size mismatch: ${broadcast.batchSize} != $expectedBatchSize")
+              case broadcast: BroadcastPartitioning =>
+                assert(
+                  broadcast.batchSize == expectedBatchSize,
+                  s"Batch size mismatch: ${broadcast.batchSize} != $expectedBatchSize"
+                )
 
-            case _ =>
-              println("Unknown partitioning type")
-          }
+              case _ =>
+                println("Unknown partitioning type")
+            }
         }
       }
     }
