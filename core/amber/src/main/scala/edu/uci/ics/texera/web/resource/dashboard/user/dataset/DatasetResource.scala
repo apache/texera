@@ -41,8 +41,8 @@ import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{
   ERR_DATASET_NAME_ALREADY_EXISTS,
   ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE,
   ListDatasetsResponse,
-  calculateLatestDatasetVersionSize,
   calculateDatasetVersionSize,
+  calculateLatestDatasetVersionSize,
   context,
   createNewDatasetVersionFromFormData,
   getDashboardDataset,
@@ -74,6 +74,7 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
 import java.util.zip.{ZipEntry, ZipOutputStream}
 import java.util
+import java.util.Optional
 import java.util.concurrent.locks.ReentrantLock
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs.{
@@ -1108,25 +1109,29 @@ class DatasetResource {
   /**
     * Retrieves a ZIP file for a specific dataset version or the latest version.
     *
-    * @param pathStr The dataset version path in the format: /ownerEmail/datasetName/versionName
-    *                Example: /user@example.com/dataset/v1
-    * @param getLatest When true, retrieves the latest version regardless of the provided path.
-    * @param did The dataset ID (used when getLatest is true).
+    * @param did  The dataset ID (used when getLatest is true).
+    * @param dvid The dataset version ID, if given, retrieve this version; if not given, retrieve the latest version
     * @param user The session user.
     * @return A Response containing the dataset version as a ZIP file.
     */
   @GET
   @Path("/version-zip")
   def retrieveDatasetVersionZip(
-      @QueryParam("path") pathStr: String,
-      @QueryParam("getLatest") getLatest: Boolean,
       @QueryParam("did") did: UInteger,
+      @QueryParam("dvid") dvid: Optional[Integer],
       @Auth user: SessionUser
   ): Response = {
-    val (dataset, version) = if (getLatest) {
+    if (!userHasReadAccess(context, did, user.getUid)) {
+      throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+    }
+    val (dataset, version) = if (dvid.isEmpty) {
+      // dvid is not given, retrieve latest
       getLatestVersionInfo(did, user)
     } else {
-      resolveAndValidatePath(pathStr, user)
+      // dvid is given, retrieve certain version
+      withTransaction(context)(ctx =>
+        (getDatasetByID(ctx, did), getDatasetVersionByID(ctx, UInteger.valueOf(dvid.get)))
+      )
     }
     val targetDatasetPath = PathUtils.getDatasetPath(dataset.getDid)
     val fileNodes = GitVersionControlLocalFileStorage.retrieveRootFileNodesOfVersion(
