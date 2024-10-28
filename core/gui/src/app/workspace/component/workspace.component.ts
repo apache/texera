@@ -11,7 +11,7 @@ import { WorkflowCacheService } from "../service/workflow-cache/workflow-cache.s
 import { WorkflowActionService } from "../service/workflow-graph/model/workflow-action.service";
 import { WorkflowWebsocketService } from "../service/workflow-websocket/workflow-websocket.service";
 import { NzMessageService } from "ng-zorro-antd/message";
-import { debounceTime, distinctUntilChanged, filter, switchMap } from "rxjs/operators";
+import {debounceTime, distinctUntilChanged, filter, switchMap, throttleTime} from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { of } from "rxjs";
 import { isDefined } from "../../common/util/predicate";
@@ -23,6 +23,7 @@ import { OperatorReuseCacheStatusService } from "../service/workflow-status/oper
 import { CodeEditorService } from "../service/code-editor/code-editor.service";
 import { WorkflowMetadata } from "src/app/dashboard/type/workflow-metadata.interface";
 import { HubWorkflowService } from "../../hub/service/workflow/hub-workflow.service";
+import {THROTTLE_TIME_MS} from "../../hub/component/workflow/detail/hub-workflow-detail.component";
 
 export const SAVE_DEBOUNCE_TIME_IN_MS = 5000;
 
@@ -286,6 +287,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     let uid = this.userService.getCurrentUser()?.uid;
     this.hubWorkflowService
       .postViewWorkflow(wid, uid ? uid : 0)
+      .pipe(throttleTime(THROTTLE_TIME_MS))
       .pipe(untilDestroyed(this))
       .subscribe();
   }
