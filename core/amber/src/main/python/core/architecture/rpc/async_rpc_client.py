@@ -1,5 +1,4 @@
 from collections import defaultdict
-from overrides import overrides
 from concurrent.futures import Future
 from typing import Dict
 

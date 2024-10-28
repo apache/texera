@@ -25,7 +25,7 @@ from core.models.internal_marker import (
 from core.models.internal_queue import DataElement, ControlElement
 from core.models.marker import State, EndOfInputChannel, StartOfInputChannel
 from core.runnables.data_processor import DataProcessor
-from core.util import StoppableQueueBlockingRunnable, get_one_of, set_one_of
+from core.util import StoppableQueueBlockingRunnable, get_one_of
 from core.util.customized_queue.queue_base import QueueElement
 from core.util.console_message.timestamp import current_time_in_local_timezone
 from proto.edu.uci.ics.amber.engine.architecture.rpc import (
@@ -33,7 +33,6 @@ from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     ControlInvocation,
     ConsoleMessageType,
     ReturnInvocation,
-    PortCompletedRequest,
 )
 from proto.edu.uci.ics.amber.engine.architecture.worker import (
     WorkerState,
@@ -79,9 +78,8 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self.context.statistics_manager.update_total_execution_time(
             time.time_ns() - self.context.statistics_manager.worker_start_time
         )
-        asyncio.run(
-            self._async_rpc_client.get_controller_interface().worker_execution_completed()
-        )
+        controller_interface = self._async_rpc_client.get_controller_interface()
+        asyncio.run(controller_interface.worker_execution_completed())
         self.context.close()
 
     def _check_and_process_control(self) -> None:
