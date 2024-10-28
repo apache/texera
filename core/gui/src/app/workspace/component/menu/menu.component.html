@@ -164,9 +164,7 @@
               nzType="comment"></i>
           </button>
           <nz-dropdown-menu #exportMenu="nzDropdownMenu">
-            <ul
-              nz-menu
-              *ngIf="showExportMenu()">
+            <ul nz-menu>
               <li
                 nz-menu-item
                 (click)="onClickExportExecutionResult('csv')"
@@ -191,10 +189,12 @@
             nz-button
             nz-dropdown
             [nzDropdownMenu]="exportMenu"
-            [nzTrigger]="(showExportMenu() | async) ? 'hover' : 'click'"
+            [nzTrigger]="
+    !workflowResultExportService.exportExecutionResultEnabled ||
+    !workflowResultExportService.hasResultToExportOnAllOperators ? 'click' : 'hover'"
             [disabled]="
     !workflowResultExportService.exportExecutionResultEnabled ||
-    (hasResultToExportOnAllOperators$ | async) === false
+    !workflowResultExportService.hasResultToExportOnAllOperators
   "
             title="">
             <i

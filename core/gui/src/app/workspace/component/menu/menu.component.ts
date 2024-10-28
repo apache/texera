@@ -1,5 +1,5 @@
 import { DatePipe, Location } from "@angular/common";
-import { Component, ElementRef, Input, OnInit, ViewChild } from "@angular/core";
+import { Component, ElementRef, Input, OnDestroy, OnInit, ViewChild } from "@angular/core";
 import { environment } from "../../../../environments/environment";
 import { UserService } from "../../../common/service/user/user.service";
 import {
@@ -53,7 +53,7 @@ import { UdfDebugService } from "../../service/operator-debug/udf-debug.service"
   templateUrl: "menu.component.html",
   styleUrls: ["menu.component.scss"],
 })
-export class MenuComponent implements OnInit {
+export class MenuComponent implements OnInit, OnDestroy {
   public executionState: ExecutionState; // set this to true when the workflow is started
   public ExecutionState = ExecutionState; // make Angular HTML access enum definition
   public emailNotificationEnabled: boolean = environment.workflowEmailNotificationEnabled;
@@ -62,7 +62,6 @@ export class MenuComponent implements OnInit {
   public isSaving: boolean = false;
   public isWorkflowModifiable: boolean = false;
   public workflowId?: number;
-  public hasResultToExportOnAllOperators$: Observable<boolean> = new BehaviorSubject<boolean>(false);
 
   @Input() public writeAccess: boolean = false;
   @Input() public pid?: number = undefined;
@@ -152,11 +151,12 @@ export class MenuComponent implements OnInit {
         this.applyRunButtonBehavior(this.getRunButtonBehavior());
       });
 
-    this.hasResultToExportOnAllOperators$ =
-      this.workflowResultExportService.hasResultToExportOnAllOperators.asObservable();
-
     this.registerWorkflowMetadataDisplayRefresh();
     this.handleWorkflowVersionDisplay();
+  }
+
+  ngOnDestroy(): void {
+    this.workflowResultExportService.resetFlags();
   }
 
   public async onClickOpenShareAccess(): Promise<void> {
@@ -543,12 +543,6 @@ export class MenuComponent implements OnInit {
       .workflowMetaDataChanged()
       .pipe(untilDestroyed(this))
       .subscribe(metadata => (this.workflowId = metadata.wid));
-  }
-
-  showExportMenu(): Observable<boolean> {
-    return combineLatest([this.hasResultToExportOnAllOperators$]).pipe(
-      map(([hasAllOperatorsResults]) => hasAllOperatorsResults)
-    );
   }
 
   protected readonly environment = environment;

@@ -21,7 +21,7 @@ import { Buffer } from "buffer";
 export class WorkflowResultExportService {
   hasResultToExportOnHighlightedOperators: boolean = false;
   exportExecutionResultEnabled: boolean = environment.exportExecutionResultEnabled;
-  hasResultToExportOnAllOperators: BehaviorSubject<boolean> = new BehaviorSubject<boolean>(false);
+  hasResultToExportOnAllOperators: boolean = false;
 
   constructor(
     private workflowWebsocketService: WorkflowWebsocketService,
@@ -69,7 +69,7 @@ export class WorkflowResultExportService {
 
       // check if there are any results to export on all operators (either paginated or snapshot)
       // we use BehaviorSubject to emit the value to the subscribers on real-time
-      const hasAllOperatorsResults =
+      this.hasResultToExportOnAllOperators =
         isNotInExecution(this.executeWorkflowService.getExecutionState().state) &&
         this.workflowActionService
           .getTexeraGraph()
@@ -80,7 +80,6 @@ export class WorkflowResultExportService {
               this.workflowResultService.hasAnyResult(operatorId) ||
               this.workflowResultService.getResultService(operatorId)?.getCurrentResultSnapshot() !== undefined
           ).length > 0;
-      this.hasResultToExportOnAllOperators.next(hasAllOperatorsResults);
     });
   }
 
@@ -328,5 +327,13 @@ export class WorkflowResultExportService {
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const filename = `result_${operatorId}.csv`;
     return { filename, blob };
+  }
+
+  /**
+   * Reset flags if the user leave workspace
+   */
+  public resetFlags(): void {
+    this.hasResultToExportOnHighlightedOperators = false;
+    this.hasResultToExportOnAllOperators = false;
   }
 }
