@@ -51,4 +51,26 @@ export class HubWorkflowService {
   public cloneWorkflow(wid: number): Observable<number> {
     return this.http.post<number>(`${WORKFLOW_BASE_URL}/clone/${wid}`, null);
   }
+
+  public isWorkflowLiked(workflowId: number, userId: number): Observable<boolean> {
+    return this.http.get<boolean>(`${this.BASE_URL}/isLiked`, {
+      params: { workflowId: workflowId.toString(), userId: userId.toString() },
+    });
+  }
+
+  public postLikeWorkflow(workflowId: number, userId: number): Observable<boolean> {
+    return this.http.post<boolean>(`${this.BASE_URL}/like`, [workflowId, userId]);
+  }
+
+  public postUnlikeWorkflow(workflowId: number, userId: number): Observable<boolean> {
+    return this.http.post<boolean>(`${this.BASE_URL}/unlike`, [workflowId, userId]);
+  }
+
+  public getLikeCount(wid: number): Observable<number> {
+    return this.http.get<number>(`${this.BASE_URL}/likeCount/${wid}`);
+  }
+
+  public getCloneCount(wid: number): Observable<number> {
+    return this.http.get<number>(`${this.BASE_URL}/cloneCount/${wid}`);
+  }
 }

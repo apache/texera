@@ -83,8 +83,7 @@ export class DatasetService {
 
   public retrieveAccessibleDatasets(
     includeVersions: boolean = false,
-    includeFileNodes: boolean = false,
-    filePath: string = ""
+    includeFileNodes: boolean = false
   ): Observable<{ datasets: DashboardDataset[]; fileNodes: DatasetFileNode[] }> {
     let params = new HttpParams();
     if (includeVersions) {
@@ -92,9 +91,6 @@ export class DatasetService {
     }
     if (includeFileNodes) {
       params = params.set("includeFileNodes", "true");
-    }
-    if (filePath && filePath != "") {
-      params = params.set("path", encodeURIComponent(filePath));
     }
     return this.http.get<{ datasets: DashboardDataset[]; fileNodes: DatasetFileNode[] }>(
       `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}`,
