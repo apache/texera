@@ -390,7 +390,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
     def _check_and_report_console_messages(self, force_flush=False) -> None:
         for msg in self.context.console_message_manager.get_messages(force_flush):
-            self._send_console_message(ConsoleMessage(msg))
+            self._send_console_message(msg)
 
     def _post_switch_context_checks(self) -> None:
         """
