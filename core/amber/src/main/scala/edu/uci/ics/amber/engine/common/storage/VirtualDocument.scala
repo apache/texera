@@ -1,7 +1,5 @@
 package edu.uci.ics.amber.engine.common.storage
 
-import edu.uci.ics.texera.workflow.common.storage.FileResolver.DATASET_FILE_URI_SCHEME
-
 import java.io.{File, InputStream}
 import java.net.URI
 
