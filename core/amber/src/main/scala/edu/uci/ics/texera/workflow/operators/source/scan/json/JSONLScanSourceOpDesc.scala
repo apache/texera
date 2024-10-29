@@ -4,12 +4,11 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.JsonNode
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.model.{PhysicalOp, SchemaPropagationFunc}
-import edu.uci.ics.amber.engine.common.storage.DatasetFileDocument
+import edu.uci.ics.amber.engine.common.storage.{DatasetFileDocument, DocumentFactory}
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.engine.common.Utils.objectMapper
 import edu.uci.ics.amber.engine.common.model.tuple.AttributeTypeUtils.inferSchemaFromRows
 import edu.uci.ics.amber.engine.common.model.tuple.{Attribute, Schema}
-import edu.uci.ics.amber.engine.common.storage.VirtualDocument.openFile
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONUtil.JSONToMap
 
@@ -39,7 +38,7 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp = {
-    val stream = openFile(new URI(fileUri.get)).asInputStream()
+    val stream = DocumentFactory.newReadonlyDocument(new URI(fileUri.get)).asInputStream()
     // count lines and partition the task to each worker
     val reader = new BufferedReader(
       new InputStreamReader(stream, fileEncoding.getCharset)
@@ -88,7 +87,7 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
     if (fileUri.isEmpty) {
       return null
     }
-    val stream = openFile(new URI(fileUri.get)).asInputStream()
+    val stream = DocumentFactory.newReadonlyDocument(new URI(fileUri.get)).asInputStream()
     val reader = new BufferedReader(new InputStreamReader(stream, fileEncoding.getCharset))
     var fieldNames = Set[String]()
 

@@ -8,7 +8,7 @@ import edu.uci.ics.amber.engine.common.model.tuple.{
   Schema,
   TupleLike
 }
-import edu.uci.ics.amber.engine.common.storage.VirtualDocument.openFile
+import edu.uci.ics.amber.engine.common.storage.DocumentFactory
 import edu.uci.ics.texera.workflow.operators.source.scan.FileDecodingMethod
 
 import java.net.URI
@@ -53,7 +53,7 @@ class CSVOldScanSourceOpExec private[csvOld] (
     implicit object CustomFormat extends DefaultCSVFormat {
       override val delimiter: Char = customDelimiter.get.charAt(0)
     }
-    val filePath = openFile(new URI(fileUri)).asFile().toPath
+    val filePath = DocumentFactory.newReadonlyDocument(new URI(fileUri)).asFile().toPath
     reader = CSVReader.open(filePath.toString, fileEncoding.getCharset.name())(CustomFormat)
     // skip line if this worker reads the start of a file, and the file has a header line
     val startOffset = offset.getOrElse(0) + (if (hasHeader) 1 else 0)

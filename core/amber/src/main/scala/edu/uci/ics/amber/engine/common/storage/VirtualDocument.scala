@@ -5,24 +5,6 @@ import edu.uci.ics.texera.workflow.common.storage.FileResolver.DATASET_FILE_URI_
 import java.io.{File, InputStream}
 import java.net.URI
 
-object VirtualDocument {
-  type FileHandle = ReadonlyVirtualDocument[_]
-
-  def openFile(fileUri: URI): FileHandle = {
-    fileUri.getScheme match {
-      case DATASET_FILE_URI_SCHEME =>
-        new DatasetFileDocument(fileUri)
-
-      case "file" =>
-        // For local files, create a ReadonlyLocalFileDocument
-        new ReadonlyLocalFileDocument(fileUri)
-
-      case _ =>
-        throw new UnsupportedOperationException(s"Unsupported URI scheme: ${fileUri.getScheme}")
-    }
-  }
-}
-
 /**
   * TODO: break this base definition into more self-contained pieces, including Writeonly, IteratorBased
   * VirtualDocument provides the abstraction of doing read/write/copy/delete operations over a single resource in Texera system.
