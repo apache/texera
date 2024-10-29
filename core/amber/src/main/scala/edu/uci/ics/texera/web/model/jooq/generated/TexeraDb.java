@@ -22,6 +22,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowUserActivity;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowUserClones;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowUserLikes;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowVersion;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowViewCount;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -38,7 +39,7 @@ import org.jooq.impl.SchemaImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class TexeraDb extends SchemaImpl {
 
-    private static final long serialVersionUID = -1347452215;
+    private static final long serialVersionUID = 2026314588;
 
     /**
      * The reference instance of <code>texera_db</code>
@@ -136,6 +137,11 @@ public class TexeraDb extends SchemaImpl {
     public final WorkflowVersion WORKFLOW_VERSION = edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowVersion.WORKFLOW_VERSION;
 
     /**
+     * The table <code>texera_db.workflow_view_count</code>.
+     */
+    public final WorkflowViewCount WORKFLOW_VIEW_COUNT = edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowViewCount.WORKFLOW_VIEW_COUNT;
+
+    /**
      * No further instances allowed
      */
     private TexeraDb() {
@@ -174,6 +180,7 @@ public class TexeraDb extends SchemaImpl {
             WorkflowUserActivity.WORKFLOW_USER_ACTIVITY,
             WorkflowUserClones.WORKFLOW_USER_CLONES,
             WorkflowUserLikes.WORKFLOW_USER_LIKES,
-            WorkflowVersion.WORKFLOW_VERSION);
+            WorkflowVersion.WORKFLOW_VERSION,
+            WorkflowViewCount.WORKFLOW_VIEW_COUNT);
     }
 }
