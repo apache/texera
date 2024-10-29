@@ -72,6 +72,7 @@
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 8px;
+    height: 21px;
   }
 
   .resource-info {
@@ -185,6 +186,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  margin-top: -4px;
   margin-right: 8px;
   margin-bottom: 8px;
   transition:
@@ -192,11 +194,6 @@
     color 0.3s ease,
     border-color 0.3s ease,
     box-shadow 0.3s ease;
-}
-
-.like-button:hover {
-  background-color: #f0f0f0;
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
 }
 
 .like-button.liked {
