@@ -10,6 +10,10 @@
     .edit-button-group {
       display: flex;
     }
+
+    &.has-button-group:hover .resource-info {
+      opacity: 0.3;
+    }
   }
 }
 
@@ -56,7 +60,6 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-right: 16px;
 
   .resource-owner {
     flex: 0 0 auto; // Prevent the avatar from growing or shrinking
@@ -64,10 +67,12 @@
   }
 
   .resource-info-grid {
+    margin-left: 25px;
     flex: 1; // Allow the grid to take up remaining space
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 8px;
+    height: 21px;
   }
 
   .resource-info {
@@ -84,21 +89,24 @@
   min-width: 150px;
   right: 0;
   bottom: 0;
-  background-color: #f0f0f0;
   justify-content: right;
   align-items: center;
 
   button {
     margin-right: 32px;
+    background-color: #e0e0e0;
+    border: 1px solid #d0d0d0;
+    border-radius: 8px;
   }
 
   button:hover {
-    background-color: #d9d9d9;
+    background-color: #c7c7c7;
   }
 }
 
 .list-item-card:hover .button-group {
   display: flex;
+  background-color: transparent;
 }
 
 .resource-name-edit-input {
@@ -178,6 +186,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  margin-top: -4px;
   margin-right: 8px;
   margin-bottom: 8px;
   transition:
@@ -185,11 +194,6 @@
     color 0.3s ease,
     border-color 0.3s ease,
     box-shadow 0.3s ease;
-}
-
-.like-button:hover {
-  background-color: #f0f0f0;
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
 }
 
 .like-button.liked {
