@@ -4,7 +4,7 @@ import { UserService } from "../../common/service/user/user.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { FlarumService } from "../service/user/flarum/flarum.service";
 import { HttpErrorResponse } from "@angular/common/http";
-import { ActivatedRoute, Router } from "@angular/router";
+import { ActivatedRoute, NavigationEnd, Router } from "@angular/router";
 import { HubComponent } from "../../hub/component/hub.component";
 import { GoogleAuthService } from "../../common/service/user/google-auth.service";
 import { NotificationService } from "../../common/service/notification/notification.service";
@@ -26,7 +26,8 @@ export class DashboardComponent implements OnInit {
   displayForum: boolean = true;
   displayNavbar: boolean = true;
   isCollpased: boolean = false;
-  routesWithoutNavbar: string[] = ["/workspace", "/home"];
+  routesWithoutNavbar: string[] = ["/workspace", "/home", "/about"];
+  showLinks: boolean = false;
 
   constructor(
     private userService: UserService,
@@ -39,16 +40,10 @@ export class DashboardComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.isCollpased = false;
+    this.isLogin = this.userService.isLogin();
+    this.isAdmin = this.userService.isAdmin();
 
-    this.userService
-      .userChanged()
-      .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        this.isLogin = this.userService.isLogin();
-        this.isAdmin = this.userService.isAdmin();
-        this.cdr.detectChanges();
-      });
+    this.isCollpased = false;
 
     if (!this.isLogin) {
       this.googleAuthService.googleAuthInit(document.getElementById("googleButton"));
@@ -88,6 +83,22 @@ export class DashboardComponent implements OnInit {
     this.router.events.pipe(untilDestroyed(this)).subscribe(() => {
       this.checkRoute();
     });
+
+    this.router.events.pipe(untilDestroyed(this)).subscribe(event => {
+      if (event instanceof NavigationEnd) {
+        this.checkRoute();
+        this.showLinks = event.url.includes("about");
+      }
+    });
+
+    this.userService
+      .userChanged()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        this.isLogin = this.userService.isLogin();
+        this.isAdmin = this.userService.isAdmin();
+        this.cdr.detectChanges();
+      });
   }
 
   checkRoute() {

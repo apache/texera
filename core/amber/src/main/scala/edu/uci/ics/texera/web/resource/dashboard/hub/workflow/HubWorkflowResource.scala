@@ -6,15 +6,21 @@ import edu.uci.ics.texera.web.model.jooq.generated.Tables._
 import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{User, Workflow}
+import edu.uci.ics.texera.web.resource.dashboard.hub.workflow.HubWorkflowResource.fetchDashboardWorkflowsByWids
 import edu.uci.ics.texera.web.resource.dashboard.hub.workflow.HubWorkflowResource.recordUserActivity
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.WorkflowWithPrivilege
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.{
+  DashboardWorkflow,
+  WorkflowWithPrivilege
+}
+import org.jooq.impl.DSL
 
+import scala.jdk.CollectionConverters._
 import java.util
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import org.jooq.types.UInteger
-
+import java.util.Collections
 import java.util.regex.Pattern
 import javax.servlet.http.HttpServletRequest
 import javax.ws.rs.core.Context
@@ -25,6 +31,53 @@ object HubWorkflowResource {
   final private val ipv4Pattern: Pattern = Pattern.compile(
     "^([0-9]{1,3}\\.){3}[0-9]{1,3}$"
   )
+
+  def fetchDashboardWorkflowsByWids(wids: Seq[UInteger]): util.List[DashboardWorkflow] = {
+    if (wids.nonEmpty) {
+      context
+        .select(
+          WORKFLOW.NAME,
+          WORKFLOW.DESCRIPTION,
+          WORKFLOW.WID,
+          WORKFLOW.CREATION_TIME,
+          WORKFLOW.LAST_MODIFIED_TIME,
+          USER.NAME.as("ownerName"),
+          WORKFLOW_OF_USER.UID.as("ownerId")
+        )
+        .from(WORKFLOW)
+        .join(WORKFLOW_OF_USER)
+        .on(WORKFLOW.WID.eq(WORKFLOW_OF_USER.WID))
+        .join(USER)
+        .on(WORKFLOW_OF_USER.UID.eq(USER.UID))
+        .where(WORKFLOW.WID.in(wids: _*))
+        .fetch()
+        .asScala
+        .map(record => {
+          val workflow = new Workflow(
+            record.get(WORKFLOW.NAME),
+            record.get(WORKFLOW.DESCRIPTION),
+            record.get(WORKFLOW.WID),
+            null,
+            record.get(WORKFLOW.CREATION_TIME),
+            record.get(WORKFLOW.LAST_MODIFIED_TIME),
+            null
+          )
+
+          DashboardWorkflow(
+            isOwner = false,
+            accessLevel = "",
+            ownerName = record.get("ownerName", classOf[String]),
+            workflow = workflow,
+            projectIDs = List(),
+            ownerId = record.get("ownerId", classOf[UInteger])
+          )
+        })
+        .toList
+        .asJava
+    } else {
+      Collections.emptyList[DashboardWorkflow]()
+    }
+  }
 
   def recordUserActivity(
       request: HttpServletRequest,
@@ -71,9 +124,10 @@ class HubWorkflowResource {
 
   @GET
   @Path("/count")
-  def getWorkflowCount: Integer = {
+  def getPublishedWorkflowCount: Integer = {
     context.selectCount
       .from(WORKFLOW)
+      .where(WORKFLOW.IS_PUBLISHED.eq(1.toByte))
       .fetchOne(0, classOf[Integer])
   }
 
@@ -262,6 +316,44 @@ class HubWorkflowResource {
       .fetchOne(0, classOf[Int])
 
     cloneCount
+  }
+
+  @GET
+  @Path("/topLovedWorkflows")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def getTopLovedWorkflows: util.List[DashboardWorkflow] = {
+    val topLovedWorkflowsWids = context
+      .select(WORKFLOW_USER_LIKES.WID)
+      .from(WORKFLOW_USER_LIKES)
+      .groupBy(WORKFLOW_USER_LIKES.WID)
+      .orderBy(DSL.count(WORKFLOW_USER_LIKES.WID).desc())
+      .limit(8)
+      .fetchInto(classOf[UInteger])
+      .asScala
+      .toSeq
+
+    println(fetchDashboardWorkflowsByWids(topLovedWorkflowsWids))
+
+    fetchDashboardWorkflowsByWids(topLovedWorkflowsWids)
+  }
+
+  @GET
+  @Path("/topClonedWorkflows")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def getTopClonedWorkflows: util.List[DashboardWorkflow] = {
+    val topClonedWorkflowsWids = context
+      .select(WORKFLOW_USER_CLONES.WID)
+      .from(WORKFLOW_USER_CLONES)
+      .groupBy(WORKFLOW_USER_CLONES.WID)
+      .orderBy(DSL.count(WORKFLOW_USER_CLONES.WID).desc())
+      .limit(8)
+      .fetchInto(classOf[UInteger])
+      .asScala
+      .toSeq
+
+    println(fetchDashboardWorkflowsByWids(topClonedWorkflowsWids))
+
+    fetchDashboardWorkflowsByWids(topClonedWorkflowsWids)
   }
 
   @POST

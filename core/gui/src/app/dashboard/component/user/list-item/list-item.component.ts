@@ -46,7 +46,7 @@ export class ListItemComponent implements OnInit, OnChanges {
   ROUTER_WORKFLOW_BASE_URL = "/dashboard/user/workspace";
   ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user/project";
   ROUTER_DATASET_BASE_URL = "/dashboard/user/dataset";
-  ROUTER_WORKFLOW_DETAIL_BASE_URL = "/dashboard/hub/workflow/search/result/detail";
+  ROUTER_WORKFLOW_DETAIL_BASE_URL = "/dashboard/hub/workflow/result/detail";
   entryLink: string[] = [];
   public iconType: string = "";
   isLiked: boolean = false;
@@ -367,14 +367,7 @@ export class ListItemComponent implements OnInit, OnChanges {
     }
   }
 
-  formatLikeCount(count: number): string {
-    if (count >= 1000) {
-      return (count / 1000).toFixed(1) + "k";
-    }
-    return count.toString();
-  }
-
-  formatViewCount(count: number): string {
+  formatCount(count: number): string {
     if (count >= 1000) {
       return (count / 1000).toFixed(1) + "k";
     }

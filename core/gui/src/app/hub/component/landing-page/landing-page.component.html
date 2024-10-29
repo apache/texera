@@ -1,0 +1,36 @@
+<div class="landing-page-container">
+  <div class="section-intro">
+    <div class="section-intro-text">
+      <h1>Texera Hub</h1>
+      <p>
+        Join our community to explore public workflows, collaborate with others, and enhance your data analytics
+        capabilities. Access
+        <a
+          href="javascript:void(0)"
+          (click)="navigateToSearch()">
+          {{workflowCount}} workflows
+        </a>
+        provided by Texera and our community.
+      </p>
+    </div>
+
+    <img
+      class="section-intro-img"
+      src="../../../../../assets/svg/hub_icon.svg"
+      alt="hub icon" />
+  </div>
+
+  <!-- Search Bar -->
+  <div class="search-bar-wrapper">
+    <texera-search-bar></texera-search-bar>
+  </div>
+
+  <texera-browse-section
+    [workflows]="topLovedWorkflows"
+    sectionTitle="Top Loved Workflows">
+  </texera-browse-section>
+  <texera-browse-section
+    [workflows]="topClonedWorkflows"
+    sectionTitle="Top Cloned Workflows">
+  </texera-browse-section>
+</div>
