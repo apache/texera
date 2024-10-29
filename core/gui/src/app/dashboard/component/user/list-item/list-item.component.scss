@@ -60,7 +60,6 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-right: 16px;
 
   .resource-owner {
     flex: 0 0 auto; // Prevent the avatar from growing or shrinking
@@ -68,6 +67,7 @@
   }
 
   .resource-info-grid {
+    margin-left: 25px;
     flex: 1; // Allow the grid to take up remaining space
     display: grid;
     grid-template-columns: repeat(4, 1fr);
