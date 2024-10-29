@@ -1,0 +1,39 @@
+<div
+  *ngIf="workflows && workflows.length > 0"
+  class="results-container">
+  <h2 class="results-title">{{ sectionTitle }}</h2>
+  <div class="workflow-cards">
+    <nz-card
+      nzHoverable
+      [routerLink]="['/dashboard/hub/workflow/result/detail', workflow.id]"
+      [nzCover]="coverTemplate"
+      class="workflow-card"
+      *ngFor="let workflow of workflows">
+      <h1 class="card-title">{{ workflow.name }}</h1>
+      <p class="card-description">{{ workflow.description || 'No description available' }}</p>
+      <div class="footer">
+        <span class="footer-text">Edited: {{ workflow.lastModifiedTime | date }}</span>
+        <texera-user-avatar
+          [googleAvatar]="'https://lh3.googleusercontent.com/a/' + workflow.ownerGoogleAvatar || ''"
+          userColor="grey"
+          [userName]="workflow.ownerName || ''"
+          nz-button>
+        </texera-user-avatar>
+      </div>
+      <ng-template #coverTemplate>
+        <div class="cover-container">
+          <img
+            alt="example"
+            class="card-cover-image"
+            [src]="defaultBackground" />
+          <nz-avatar
+            class="workflow-avatar"
+            [ngStyle]="{ 'background-color': 'grey', 'vertical-align': 'middle' }"
+            [nzGap]="4"
+            [nzText]="'' + workflow.id"
+            nzSize="default"></nz-avatar>
+        </div>
+      </ng-template>
+    </nz-card>
+  </div>
+</div>
