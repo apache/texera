@@ -12,7 +12,7 @@ import edu.uci.ics.amber.engine.common.model.tuple.{Attribute, AttributeType, Sc
 import edu.uci.ics.amber.engine.common.storage.VirtualDocument.openFile
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 
-import java.io.{File, IOException}
+import java.io.IOException
 import java.net.URI
 
 class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
