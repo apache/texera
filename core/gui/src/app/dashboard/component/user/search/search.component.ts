@@ -74,9 +74,9 @@ export class SearchComponent implements AfterViewInit {
   }
 
   async search(): Promise<void> {
-    if (this.filters.masterFilterList.length === 0) {
-      return;
-    }
+    // if (this.filters.masterFilterList.length === 0) {
+    //   return;
+    // }
     const sameList =
       this.filters.masterFilterList.length === this.masterFilterList.length &&
       this.filters.masterFilterList.every((v, i) => v === this.masterFilterList[i]);
