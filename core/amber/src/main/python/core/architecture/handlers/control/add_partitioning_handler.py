@@ -3,8 +3,6 @@ from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     EmptyReturn,
     AddPartitioningRequest,
 )
-from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import Partitioning
-from proto.edu.uci.ics.amber.engine.common import PhysicalLink
 
 
 class AddPartitioningHandler(ControlHandler):

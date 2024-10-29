@@ -1,12 +1,9 @@
-from typing import Dict
-
 from core.architecture.handlers.control.control_handler_base import ControlHandler
 from core.models import Schema
 from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     EmptyReturn,
     AssignPortRequest,
 )
-from proto.edu.uci.ics.amber.engine.common import PortIdentity
 
 
 class AssignPortHandler(ControlHandler):

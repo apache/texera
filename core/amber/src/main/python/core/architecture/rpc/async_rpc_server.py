@@ -42,7 +42,6 @@ class AsyncRPCServer:
 
         class ControlRequestStream(grpclib.server.Stream):
             def __init__(self):
-                # Initialize with an empty result, which will store the response message.
                 self.result = None
 
             async def recv_message(self):

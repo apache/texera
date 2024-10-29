@@ -3,7 +3,6 @@ from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     EmptyReturn,
     AddInputChannelRequest,
 )
-from proto.edu.uci.ics.amber.engine.common import ChannelIdentity, PortIdentity
 
 
 class AddInputChannelHandler(ControlHandler):

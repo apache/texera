@@ -229,11 +229,12 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self.context.marker_processing_manager.current_input_marker = end_of_input_port
         self.process_input_state()
         self.process_input_tuple()
-        if self.context.tuple_processing_manager.current_input_port_id is not None:
+        input_port_id = self.context.tuple_processing_manager.current_input_port_id
+        if input_port_id is not None:
             asyncio.run(
                 self._async_rpc_client.get_controller_interface().port_completed(
                     PortCompletedRequest(
-                        port_id=self.context.tuple_processing_manager.current_input_port_id,
+                        port_id=input_port_id,
                         input=True,
                     )
                 )

@@ -1,5 +1,3 @@
-from betterproto.lib.google.protobuf import Any
-
 from core.architecture.handlers.control.control_handler_base import ControlHandler
 from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     EmptyReturn,

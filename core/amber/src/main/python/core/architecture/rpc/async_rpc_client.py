@@ -50,7 +50,7 @@ class AsyncRPCClient:
         Creates a dynamic proxy for the given service class, allowing
         asynchronous RPC communication with the specified target actor.
 
-        :param service_class: The service class to be proxied (e.g., ControllerServiceStub).
+        :param service_class: The service class to be proxied.
         :param target: The target actor's identity.
         :return: An instance of the proxy class.
         """
