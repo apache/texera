@@ -146,6 +146,10 @@ case class LogicalPlan(
       .toMap
   }
 
+  /**
+    * Resolve all user-given filename for the scan source operators to URIs, and call op.setFileUri to set the URi
+    * @param errorList if given, put errors during resolving to it
+    */
   def resolveScanSourceOpFileName(
       errorList: Option[ArrayBuffer[(OperatorIdentity, Throwable)]]
   ): Unit = {

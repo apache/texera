@@ -8,9 +8,11 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.User.USER
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{Dataset, DatasetVersion}
 import org.apache.commons.vfs2.FileNotFoundException
 
+import java.io.File
 import java.net.{URI, URLEncoder}
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
+import scala.jdk.CollectionConverters.IteratorHasAsScala
 import scala.util.{Success, Try}
 
 object FileResolver {
@@ -68,7 +70,7 @@ object FileResolver {
     val ownerEmail = pathSegments(0)
     val datasetName = pathSegments(1)
     val versionName = pathSegments(2)
-    val fileRelativePath = Paths.get(pathSegments.drop(3).mkString("/"))
+    val fileRelativePath = Paths.get(pathSegments.drop(3).head, pathSegments.drop(3).tail: _*)
 
     // fetch the dataset and version from DB to get dataset ID and version hash
     val (dataset, datasetVersion) =
@@ -96,15 +98,26 @@ object FileResolver {
         (dataset, datasetVersion)
       }
 
-    // Construct path as /{did}/{versionHash}/file-path
-    val encodedPath =
-      s"/${dataset.getDid.intValue()}/${datasetVersion.getVersionHash}/${fileRelativePath.toString
-        .split("/")
-        .map(URLEncoder.encode(_, StandardCharsets.UTF_8))
-        .mkString("/")}"
+    // Convert each segment of fileRelativePath to an encoded String
+    val encodedFileRelativePath = fileRelativePath
+      .iterator()
+      .asScala
+      .map { segment =>
+        URLEncoder.encode(segment.toString, StandardCharsets.UTF_8)
+      }
+      .toArray
+
+    // Prepend did and versionHash to the encoded path segments
+    val allPathSegments = Array(
+      dataset.getDid.intValue().toString,
+      datasetVersion.getVersionHash
+    ) ++ encodedFileRelativePath
+
+    // Build the the format /{did}/{versionHash}/{fileRelativePath}
+    val encodedPath = Paths.get(File.separator, allPathSegments: _*)
 
     try {
-      new URI(DATASET_FILE_URI_SCHEME, null, encodedPath, null)
+      new URI(DATASET_FILE_URI_SCHEME, "", encodedPath.toString, null)
     } catch {
       case e: Exception =>
         throw new FileNotFoundException(s"Dataset file $fileName not found.")

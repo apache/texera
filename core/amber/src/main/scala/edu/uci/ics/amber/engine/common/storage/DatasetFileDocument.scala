@@ -7,25 +7,31 @@ import org.jooq.types.UInteger
 import java.io.{File, FileOutputStream, InputStream}
 import java.net.{URI, URLDecoder}
 import java.nio.charset.StandardCharsets
-import java.nio.file.{Files, Paths}
+import java.nio.file.{Files, Path, Paths}
+import scala.jdk.CollectionConverters.IteratorHasAsScala
 
 class DatasetFileDocument(uri: URI) extends VirtualDocument[Nothing] {
-  // Extract path components and decode them
-  private val pathParts = uri.getPath
-    .stripPrefix("/")
-    .split("/")
-    .map(part => URLDecoder.decode(part, StandardCharsets.UTF_8))
+  // Utility function to parse and decode URI segments into individual components
+  private def parseUri(uri: URI): (Int, String, Path) = {
+    val segments = Paths.get(uri.getPath).iterator().asScala.map(_.toString).toArray
+    if (segments.length < 3)
+      throw new IllegalArgumentException("URI format is incorrect")
 
-  private val did = pathParts(0).toInt
-  private val datasetVersionHash = pathParts(1)
-  private val fileRelativePath = Paths.get(pathParts.drop(2).head, pathParts.drop(2).tail: _*)
+    val did = segments(0).toInt
+    val datasetVersionHash = URLDecoder.decode(segments(1), StandardCharsets.UTF_8)
+    val decodedRelativeSegments =
+      segments.drop(2).map(part => URLDecoder.decode(part, StandardCharsets.UTF_8))
+    val fileRelativePath = Paths.get(decodedRelativeSegments.head, decodedRelativeSegments.tail: _*)
+
+    (did, datasetVersionHash, fileRelativePath)
+  }
+
+  // Extract components from URI using the utility function
+  private val (did, datasetVersionHash, fileRelativePath) = parseUri(uri)
 
   private var tempFile: Option[File] = None
 
-  override def getURI: URI =
-    throw new UnsupportedOperationException(
-      "The URI cannot be acquired because the file is not physically located"
-    )
+  override def getURI: URI = uri
 
   override def asInputStream(): InputStream = {
     val datasetAbsolutePath = PathUtils.getDatasetPath(UInteger.valueOf(did))
