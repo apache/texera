@@ -20,13 +20,15 @@ import { OperatorMetadataService } from "../../../../workspace/service/operator-
 import { NzMessageService } from "ng-zorro-antd/message";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { CodeEditorService } from "../../../../workspace/service/code-editor/code-editor.service";
-import { distinctUntilChanged, filter, switchMap } from "rxjs/operators";
+import { distinctUntilChanged, filter, switchMap, throttleTime } from "rxjs/operators";
 import { Workflow } from "../../../../common/type/workflow";
 import { of } from "rxjs";
 import { isDefined } from "../../../../common/util/predicate";
 import { HubWorkflowService } from "../../../service/workflow/hub-workflow.service";
 import { User } from "src/app/common/type/user";
 import { Location } from "@angular/common";
+
+export const THROTTLE_TIME_MS = 1000;
 
 @UntilDestroy()
 @Component({
@@ -45,6 +47,8 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
   currentUid: number | undefined;
   likeCount: number = 0;
   cloneCount: number = 0;
+  displayPreciseViewCount = false;
+  viewCount: number = 0;
 
   workflow = {
     steps: [
@@ -123,6 +127,14 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
         .pipe(untilDestroyed(this))
         .subscribe(count => {
           this.cloneCount = count;
+        });
+
+      this.hubWorkflowService
+        .postViewWorkflow(this.wid, this.currentUid ? this.currentUid : 0)
+        .pipe(throttleTime(THROTTLE_TIME_MS))
+        .pipe(untilDestroyed(this))
+        .subscribe(count => {
+          this.viewCount = count;
         });
     }
 
@@ -327,5 +339,16 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
       return (count / 1000).toFixed(1) + "k";
     }
     return count.toString();
+  }
+
+  formatViewCount(count: number): string {
+    if (!this.displayPreciseViewCount && count >= 1000) {
+      return (count / 1000).toFixed(1) + "k";
+    }
+    return count.toString();
+  }
+
+  changeViewDisplayStyle() {
+    this.displayPreciseViewCount = !this.displayPreciseViewCount;
   }
 }
