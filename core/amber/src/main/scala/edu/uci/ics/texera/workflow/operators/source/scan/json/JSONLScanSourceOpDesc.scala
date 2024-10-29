@@ -85,6 +85,9 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
     */
   @Override
   def inferSchema(): Schema = {
+    if (fileUri.isEmpty) {
+      return null
+    }
     val stream = openFile(new URI(fileUri.get)).asInputStream()
     val reader = new BufferedReader(new InputStreamReader(stream, fileEncoding.getCharset))
     var fieldNames = Set[String]()

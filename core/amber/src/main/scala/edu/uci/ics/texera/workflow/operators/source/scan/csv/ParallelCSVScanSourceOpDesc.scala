@@ -79,7 +79,7 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
     */
   @Override
   def inferSchema(): Schema = {
-    if (customDelimiter.isEmpty) {
+    if (customDelimiter.isEmpty || fileUri.isEmpty) {
       return null
     }
     val file = openFile(new URI(fileUri.get)).asFile()
