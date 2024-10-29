@@ -7,6 +7,7 @@ import { User } from "src/app/common/type/user";
 import { Workflow } from "../../../common/type/workflow";
 import { filter, map } from "rxjs/operators";
 import { WorkflowUtilService } from "../../../workspace/service/workflow-graph/util/workflow-util.service";
+import { DashboardWorkflow } from "../../../dashboard/type/dashboard-workflow.interface";
 
 export const WORKFLOW_BASE_URL = `${AppSettings.getApiEndpoint()}/workflow`;
 
@@ -72,6 +73,14 @@ export class HubWorkflowService {
 
   public getCloneCount(wid: number): Observable<number> {
     return this.http.get<number>(`${this.BASE_URL}/cloneCount/${wid}`);
+  }
+
+  public getTopLovedWorkflows(): Observable<DashboardWorkflow[]> {
+    return this.http.get<DashboardWorkflow[]>(`${this.BASE_URL}/topLovedWorkflows`);
+  }
+
+  public getTopClonedWorkflows(): Observable<DashboardWorkflow[]> {
+    return this.http.get<DashboardWorkflow[]>(`${this.BASE_URL}/topClonedWorkflows`);
   }
 
   public postViewWorkflow(workflowId: number, userId: number): Observable<number> {
