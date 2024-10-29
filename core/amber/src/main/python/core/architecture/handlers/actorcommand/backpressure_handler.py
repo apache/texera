@@ -34,7 +34,7 @@ class BackpressureHandler(ActorCommandHandler):
                     payload=set_one_of(
                         ControlPayloadV2,
                         ControlInvocation(
-                            "ResumeWorker",
+                            "ResumeWorker",  # use resume worker to simulate NoOp
                             set_one_of(ControlRequest, EmptyRequest()),
                             AsyncRpcContext(),
                             -1,
