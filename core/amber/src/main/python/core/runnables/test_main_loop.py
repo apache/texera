@@ -255,11 +255,11 @@ class TestMainLoop:
 
     @pytest.fixture
     def mock_raw_schema(self):
-        return {"test-1": "string", "test-2": "integer"}
+        return {"test-1": "STRING", "test-2": "INTEGER"}
 
     @pytest.fixture
     def mock_binary_raw_schema(self):
-        return {"test-1": "binary", "test-2": "integer"}
+        return {"test-1": "BINARY", "test-2": "INTEGER"}
 
     @pytest.fixture
     def mock_initialize_executor(
