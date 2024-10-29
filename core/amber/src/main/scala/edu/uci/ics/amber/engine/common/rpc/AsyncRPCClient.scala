@@ -75,6 +75,10 @@ object AsyncRPCClient {
     }
   }
 
+  /**
+    * Creates a dynamic proxy for the specified type `T`, which intercepts method calls
+    * and sends them as ControlInvocation messages via the provided output gateway.
+    */
   def createProxy[T](
       createPromise: () => (Promise[ControlReturn], Long),
       outputGateway: NetworkOutputGateway

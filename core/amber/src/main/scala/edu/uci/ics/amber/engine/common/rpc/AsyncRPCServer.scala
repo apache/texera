@@ -20,8 +20,11 @@ class AsyncRPCServer(
     val actorId: ActorVirtualIdentity
 ) extends AmberLogging {
 
+  // variable to hold all handler implementations
   var handler: AnyRef = _
 
+  // retrieve a mapping from method name to implementation
+  // used transient lazy val to avoid serialization.
   @transient
   private lazy val methodsByName: Map[String, Method] = {
     val mapping = mutable.HashMap[String, Method]()

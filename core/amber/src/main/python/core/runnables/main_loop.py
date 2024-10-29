@@ -33,6 +33,9 @@ from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     ControlInvocation,
     ConsoleMessageType,
     ReturnInvocation,
+    PortCompletedRequest,
+    EmptyRequest,
+    ConsoleMessageTriggeredRequest,
 )
 from proto.edu.uci.ics.amber.engine.architecture.worker import (
     WorkerState,
@@ -79,7 +82,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
             time.time_ns() - self.context.statistics_manager.worker_start_time
         )
         controller_interface = self._async_rpc_client.get_controller_interface()
-        asyncio.run(controller_interface.worker_execution_completed())
+        asyncio.run(controller_interface.worker_execution_completed(EmptyRequest()))
         self.context.close()
 
     def _check_and_process_control(self) -> None:
@@ -229,8 +232,10 @@ class MainLoop(StoppableQueueBlockingRunnable):
         if self.context.tuple_processing_manager.current_input_port_id is not None:
             asyncio.run(
                 self._async_rpc_client.get_controller_interface().port_completed(
-                    port_id=self.context.tuple_processing_manager.current_input_port_id,
-                    input=True,
+                    PortCompletedRequest(
+                        port_id=self.context.tuple_processing_manager.current_input_port_id,
+                        input=True,
+                    )
                 )
             )
 
@@ -271,7 +276,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
             self._check_and_process_control()
             asyncio.run(
                 self._async_rpc_client.get_controller_interface().port_completed(
-                    port_id=PortIdentity(0), input=False
+                    PortCompletedRequest(port_id=PortIdentity(0), input=False)
                 )
             )
         self.complete()
@@ -341,7 +346,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
     def _send_console_message(self, console_message: ConsoleMessage):
         asyncio.run(
             self._async_rpc_client.get_controller_interface().console_message_triggered(
-                console_message=console_message
+                ConsoleMessageTriggeredRequest(console_message=console_message)
             )
         )
 

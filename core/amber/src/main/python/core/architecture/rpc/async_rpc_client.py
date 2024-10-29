@@ -30,28 +30,59 @@ class AsyncRPCClient:
         self._unfulfilled_promises: Dict[(ActorVirtualIdentity, int), Future] = dict()
 
     def get_controller_interface(self) -> ControllerServiceStub:
+        """
+        Returns a proxy for interacting with the controller interface.
+        """
         return self.create_proxy(
             ControllerServiceStub, ActorVirtualIdentity(name="CONTROLLER")
         )
 
     def get_worker_interface(self, target_worker) -> WorkerServiceStub:
+        """
+        Returns a proxy for interacting with a worker interface.
+
+        :param target_worker: The identifier for the target worker.
+        """
         return self.create_proxy(WorkerServiceStub, ActorVirtualIdentity(target_worker))
 
     def create_proxy(self, service_class: any, target: ActorVirtualIdentity) -> any:
-        rpc_client = self
+        """
+        Creates a dynamic proxy for the given service class, allowing
+        asynchronous RPC communication with the specified target actor.
+
+        :param service_class: The service class to be proxied (e.g., ControllerServiceStub).
+        :param target: The target actor's identity.
+        :return: An instance of the proxy class.
+        """
+        rpc_client = self  # to distinguish outer and inner self
 
         class Proxy(service_class):
 
             def __init__(self, target_actor: ActorVirtualIdentity):
                 self.target_actor = target_actor
 
-            async def _unary_unary(self, route: str, request, response_type):
+            async def _unary_unary(
+                self, route: str, request, response_type, *, timeout, deadline, metadata
+            ):
+                """
+                Handles unary-unary RPC calls by creating a ControlInvocation command
+                and sending it to the target actor.
+
+                :param route: The RPC route name.
+                :param request: The request message to be sent.
+                :param response_type: The expected response type (unused here).
+                :param timeout: The RPC call timeout (unused here).
+                :param deadline: The RPC call deadline (unused here).
+                :param metadata: Metadata for the RPC call (unused here).
+                :return: A future representing the RPC response.
+                """
                 rpc_context: AsyncRpcContext = AsyncRpcContext(
                     ActorVirtualIdentity(rpc_client._context.worker_id),
                     self.target_actor,
                 )
                 to = rpc_context.receiver
                 control_command = ControlInvocation(
+                    # to align with java side, only use the method name
                     method_name=route.split("/")[-1],
                     command=set_one_of(ControlRequest, request),
                     context=rpc_context,

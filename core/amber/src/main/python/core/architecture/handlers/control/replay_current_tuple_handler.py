@@ -2,7 +2,7 @@ import itertools
 
 from core.architecture.handlers.control.control_handler_base import ControlHandler
 from core.architecture.managers.pause_manager import PauseType
-from proto.edu.uci.ics.amber.engine.architecture.rpc import EmptyReturn
+from proto.edu.uci.ics.amber.engine.architecture.rpc import EmptyReturn, EmptyRequest
 from proto.edu.uci.ics.amber.engine.architecture.worker import (
     WorkerState,
 )
@@ -10,7 +10,7 @@ from proto.edu.uci.ics.amber.engine.architecture.worker import (
 
 class RetryCurrentTupleHandler(ControlHandler):
 
-    async def retry_current_tuple(self) -> EmptyReturn:
+    async def retry_current_tuple(self, req: EmptyRequest) -> EmptyReturn:
         if not self.context.state_manager.confirm_state(WorkerState.COMPLETED):
             # chain the current input tuple back on top of the current iterator to
             # be processed once more
