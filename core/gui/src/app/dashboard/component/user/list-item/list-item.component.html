@@ -1,7 +1,8 @@
 <nz-card
   [nzBodyStyle]="{padding: '5px', height:'69px'}"
   class="list-item-card"
-  [class.selected]="entry.checked">
+  [class.selected]="entry.checked"
+  [class.has-button-group]="isPrivateSearch">
   <div
     class="checkbox-container"
     (click)="$event.stopPropagation()"
