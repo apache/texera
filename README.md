@@ -57,9 +57,10 @@ Texera is a system to support collaborative, ML-centric data analytics as a clou
 
 ## Sample Workflow
 
-The following is a workflow formulated using the Texera GUI in a Web browser, which consists of operators such as regex search, sentiment analysis, user-defined function (UDF) in Python, and visualization.
+The following workflow, created using the Texera GUI in a web browser, focuses on jail data analysis. It includes data preparation, ML model training, and validation.
+![texera-screenshot](https://github.com/user-attachments/assets/4384b8f5-3a9a-4bbc-a804-1dadd156ebb3)
 
-![Sample Texera Workflow](https://user-images.githubusercontent.com/12926365/171459157-1792971d-a31f-49e7-ab98-6f3b9ead9f5b.png)
+
 
 ## Publications (Computer Science):
 * (8/2024) Pasta: A Cost-Based Optimizer for Generating Pipelining Schedules for Dataflow DAGs, Xiaozhen Liu, Yicong Huang, Xinyuan Lin, Avinash Kumar, Sadeem Alsudais, and Chen Li, to appear in SIGMOD 2025.
