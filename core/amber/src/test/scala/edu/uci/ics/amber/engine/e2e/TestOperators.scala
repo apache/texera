@@ -1,5 +1,6 @@
 package edu.uci.ics.amber.engine.e2e
 
+import edu.uci.ics.texera.workflow.common.storage.FileResolver
 import edu.uci.ics.texera.workflow.operators.aggregate.{
   AggregateOpDesc,
   AggregationFunction,
@@ -48,6 +49,7 @@ object TestOperators {
     csvHeaderlessOp.fileName = Some(fileName)
     csvHeaderlessOp.customDelimiter = Some(",")
     csvHeaderlessOp.hasHeader = header
+    csvHeaderlessOp.setFileUri(FileResolver.resolve(fileName))
     csvHeaderlessOp
 
   }
@@ -56,6 +58,7 @@ object TestOperators {
     val jsonlOp = new JSONLScanSourceOpDesc
     jsonlOp.fileName = Some(fileName)
     jsonlOp.flatten = flatten
+    jsonlOp.setFileUri(FileResolver.resolve(fileName))
     jsonlOp
   }
 

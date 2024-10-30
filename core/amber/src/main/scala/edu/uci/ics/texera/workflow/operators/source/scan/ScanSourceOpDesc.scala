@@ -5,12 +5,12 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.common.model.WorkflowContext
 import edu.uci.ics.amber.engine.common.model.tuple.Schema
-import edu.uci.ics.amber.engine.common.storage.DatasetFileDocument
 import edu.uci.ics.amber.engine.common.workflow.OutputPort
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
-import edu.uci.ics.texera.workflow.common.storage.FileResolver
 import org.apache.commons.lang3.builder.EqualsBuilder
+
+import java.net.URI
 
 abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
 
@@ -30,9 +30,9 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
   @JsonPropertyDescription("decoding charset to use on input")
   var fileEncoding: FileDecodingMethod = FileDecodingMethod.UTF_8
 
-  // Unified file handle, can be either a local path (String) or DatasetFileDocument
+  // uri of the file
   @JsonIgnore
-  var fileHandle: FileResolver.FileResolverOutput = _
+  var fileUri: Option[String] = None
 
   @JsonIgnore
   var fileTypeName: Option[String] = None
@@ -50,19 +50,12 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
   var offset: Option[Int] = None
 
   override def sourceSchema(): Schema = {
-    if (fileHandle == null) return null
+    if (fileUri.isEmpty) return null
     inferSchema()
   }
 
   override def setContext(workflowContext: WorkflowContext): Unit = {
     super.setContext(workflowContext)
-
-    if (fileName.isEmpty) {
-      throw new RuntimeException("no input file name")
-    }
-
-    // Resolve the file and assign the result to fileHandle
-    fileHandle = FileResolver.resolve(fileName.get)
   }
 
   override def operatorInfo: OperatorInfo = {
@@ -77,12 +70,8 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
 
   def inferSchema(): Schema
 
-  // Get the source file descriptor from the fileHandle
-  def determineFilePathOrDatasetFile(): (String, DatasetFileDocument) = {
-    fileHandle match {
-      case Left(path)      => (path, null) // File path is a local path as String
-      case Right(document) => (null, document) // File is a DatasetFileDocument
-    }
+  def setFileUri(uri: URI): Unit = {
+    fileUri = Some(uri.toASCIIString)
   }
 
   override def equals(that: Any): Boolean =

@@ -1,30 +1,46 @@
 package edu.uci.ics.amber.engine.common.storage
 
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.service.GitVersionControlLocalFileStorage
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.PathUtils
+import org.jooq.types.UInteger
 
-import java.io.{File, InputStream, FileOutputStream}
-import java.net.URI
-import java.nio.file.{Files, Path}
+import java.io.{File, FileOutputStream, InputStream}
+import java.net.{URI, URLDecoder}
+import java.nio.charset.StandardCharsets
+import java.nio.file.{Files, Path, Paths}
+import scala.jdk.CollectionConverters.IteratorHasAsScala
 
-class DatasetFileDocument(fileFullPath: Path) extends VirtualDocument[Nothing] {
+class DatasetFileDocument(uri: URI) extends VirtualDocument[Nothing] {
+  // Utility function to parse and decode URI segments into individual components
+  private def parseUri(uri: URI): (Int, String, Path) = {
+    val segments = Paths.get(uri.getPath).iterator().asScala.map(_.toString).toArray
+    if (segments.length < 3)
+      throw new IllegalArgumentException("URI format is incorrect")
 
-  private val (_, dataset, datasetVersion, fileRelativePath) =
-    DatasetResource.resolvePath(fileFullPath, shouldContainFile = true)
+    val did = segments(0).toInt
+    val datasetVersionHash = URLDecoder.decode(segments(1), StandardCharsets.UTF_8)
+    val decodedRelativeSegments =
+      segments.drop(2).map(part => URLDecoder.decode(part, StandardCharsets.UTF_8))
+    val fileRelativePath = Paths.get(decodedRelativeSegments.head, decodedRelativeSegments.tail: _*)
+
+    (did, datasetVersionHash, fileRelativePath)
+  }
+
+  // Extract components from URI using the utility function
+  private val (did, datasetVersionHash, fileRelativePath) = parseUri(uri)
 
   private var tempFile: Option[File] = None
 
-  override def getURI: URI =
-    throw new UnsupportedOperationException(
-      "The URI cannot be acquired because the file is not physically located"
-    )
+  override def getURI: URI = uri
 
   override def asInputStream(): InputStream = {
-    fileRelativePath match {
-      case Some(path) =>
-        DatasetResource.getDatasetFile(dataset.getDid, datasetVersion.getDvid, path)
-      case None =>
-        throw new IllegalArgumentException("File relative path is missing.")
-    }
+    val datasetAbsolutePath = PathUtils.getDatasetPath(UInteger.valueOf(did))
+    GitVersionControlLocalFileStorage
+      .retrieveFileContentOfVersionAsInputStream(
+        datasetAbsolutePath,
+        datasetVersionHash,
+        datasetAbsolutePath.resolve(fileRelativePath)
+      )
   }
 
   override def asFile(): File = {
@@ -53,9 +69,15 @@ class DatasetFileDocument(fileFullPath: Path) extends VirtualDocument[Nothing] {
   }
 
   override def remove(): Unit = {
+    // first remove the temporary file
     tempFile match {
       case Some(file) => Files.delete(file.toPath)
       case None       => // Do nothing
     }
+    // then remove the dataset file
+    GitVersionControlLocalFileStorage.removeFileFromRepo(
+      PathUtils.getDatasetPath(UInteger.valueOf(did)),
+      PathUtils.getDatasetPath(UInteger.valueOf(did)).resolve(fileRelativePath)
+    )
   }
 }

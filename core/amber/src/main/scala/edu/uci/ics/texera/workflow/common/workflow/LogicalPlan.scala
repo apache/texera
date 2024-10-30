@@ -8,6 +8,8 @@ import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
+import edu.uci.ics.texera.workflow.common.storage.FileResolver
+import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 import org.jgrapht.graph.DirectedAcyclicGraph
 import org.jgrapht.util.SupplierUtil
 
@@ -142,6 +144,32 @@ case class LogicalPlan(
         )
       })
       .toMap
+  }
+
+  /**
+    * Resolve all user-given filename for the scan source operators to URIs, and call op.setFileUri to set the URi
+    * @param errorList if given, put errors during resolving to it
+    */
+  def resolveScanSourceOpFileName(
+      errorList: Option[ArrayBuffer[(OperatorIdentity, Throwable)]]
+  ): Unit = {
+    operators.foreach {
+      case operator @ (scanOp: ScanSourceOpDesc) =>
+        Try {
+          // Resolve file path for ScanSourceOpDesc
+          val fileName = scanOp.fileName.getOrElse(throw new RuntimeException("no input file name"))
+          val fileUri = FileResolver.resolve(fileName) // Convert to URI
+
+          // Set the URI in the ScanSourceOpDesc
+          scanOp.setFileUri(fileUri)
+        } match {
+          case Success(_) => // Successfully resolved and set the file URI
+          case Failure(err) =>
+            logger.error("Error resolving file path for ScanSourceOpDesc", err)
+            errorList.foreach(_.append((operator.operatorIdentifier, err)))
+        }
+      case _ => // Skip non-ScanSourceOpDesc operators
+    }
   }
 
   def propagateWorkflowSchema(

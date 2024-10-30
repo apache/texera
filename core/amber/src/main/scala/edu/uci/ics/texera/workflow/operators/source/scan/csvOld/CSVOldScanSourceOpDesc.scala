@@ -9,9 +9,11 @@ import edu.uci.ics.amber.engine.common.model.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.engine.common.model.tuple.AttributeTypeUtils.inferSchemaFromRows
 import edu.uci.ics.amber.engine.common.model.tuple.{Attribute, AttributeType, Schema}
+import edu.uci.ics.amber.engine.common.storage.DocumentFactory
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 
-import java.io.{File, IOException}
+import java.io.IOException
+import java.net.URI
 
 class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
 
@@ -36,17 +38,6 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
     // fill in default values
     if (customDelimiter.get.isEmpty)
       customDelimiter = Option(",")
-
-    val (filepath, datasetFileDocument) = determineFilePathOrDatasetFile()
-    // for CSVOldScanSourceOpDesc, it requires the full File presence when execute, so use temp file here
-    // TODO: figure out a better way
-    val path =
-      if (filepath == null) {
-        datasetFileDocument.asFile().toPath.toString
-      } else {
-        filepath
-      }
-
     PhysicalOp
       .sourcePhysicalOp(
         workflowId,
@@ -54,7 +45,7 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
         operatorIdentifier,
         OpExecInitInfo((_, _) =>
           new CSVOldScanSourceOpExec(
-            path,
+            fileUri.get,
             fileEncoding,
             limit,
             offset,
@@ -78,16 +69,10 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
     */
   @Override
   def inferSchema(): Schema = {
-    if (customDelimiter.isEmpty) {
+    if (customDelimiter.isEmpty || fileUri.isEmpty) {
       return null
     }
-    val (filepath, fileDesc) = determineFilePathOrDatasetFile()
-    val file =
-      if (filepath != null) {
-        new File(filepath)
-      } else {
-        fileDesc.asFile()
-      }
+    val file = DocumentFactory.newReadonlyDocument(new URI(fileUri.get)).asFile()
     implicit object CustomFormat extends DefaultCSVFormat {
       override val delimiter: Char = customDelimiter.get.charAt(0)
     }
