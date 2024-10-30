@@ -9,9 +9,11 @@ import edu.uci.ics.amber.engine.common.model.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.engine.common.model.tuple.AttributeTypeUtils.inferSchemaFromRows
 import edu.uci.ics.amber.engine.common.model.tuple.{Attribute, AttributeType, Schema}
+import edu.uci.ics.amber.engine.common.storage.DocumentFactory
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 
-import java.io.{File, FileInputStream, IOException, InputStreamReader}
+import java.io.{IOException, InputStreamReader}
+import java.net.URI
 
 class CSVScanSourceOpDesc extends ScanSourceOpDesc {
 
@@ -37,7 +39,6 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
     if (customDelimiter.isEmpty || customDelimiter.get.isEmpty)
       customDelimiter = Option(",")
 
-    val (filepath, fileDesc) = determineFilePathOrDatasetFile()
     PhysicalOp
       .sourcePhysicalOp(
         workflowId,
@@ -45,8 +46,7 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
         operatorIdentifier,
         OpExecInitInfo((_, _) =>
           new CSVScanSourceOpExec(
-            filepath,
-            fileDesc,
+            fileUri.get,
             fileEncoding,
             limit,
             offset,
@@ -70,17 +70,11 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
     */
   @Override
   def inferSchema(): Schema = {
-    if (customDelimiter.isEmpty) {
+    if (customDelimiter.isEmpty || fileUri.isEmpty) {
       return null
     }
 
-    val (filepath, fileDesc) = determineFilePathOrDatasetFile()
-    val stream =
-      if (filepath != null) {
-        new FileInputStream(new File(filepath))
-      } else {
-        fileDesc.asInputStream()
-      }
+    val stream = DocumentFactory.newReadonlyDocument(new URI(fileUri.get)).asInputStream()
     val inputReader =
       new InputStreamReader(stream, fileEncoding.getCharset)
 

@@ -1,8 +1,9 @@
+lazy val DAO = project in file("dao")
 lazy val WorkflowCore = project in file("workflow-core")
 
 // root project definition
 lazy val MicroServices = (project in file("."))
-  .aggregate(WorkflowCore)
+  .aggregate(DAO, WorkflowCore)
   .settings(
     name := "micro-services",
     version := "0.1.0",
