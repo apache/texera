@@ -149,7 +149,7 @@ class BatchSizePropagationSpec
                   )
 
                 case _ =>
-                  println("Unknown partitioning type")
+                  throw new IllegalArgumentException("Unknown partitioning type encountered")
               }
           }
         }
