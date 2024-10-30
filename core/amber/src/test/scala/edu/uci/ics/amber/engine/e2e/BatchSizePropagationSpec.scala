@@ -107,8 +107,6 @@ class BatchSizePropagationSpec
       new ExecutionStateStore()
     )
 
-    executeWorkflow(workflow)
-
     val workflowScheduler = new WorkflowScheduler(context, resultStorage)
     workflowScheduler.updateSchedule(workflow.physicalPlan)
 
