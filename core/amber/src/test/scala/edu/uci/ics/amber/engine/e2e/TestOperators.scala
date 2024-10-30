@@ -1,7 +1,11 @@
 package edu.uci.ics.amber.engine.e2e
 
 import edu.uci.ics.texera.workflow.common.storage.FileResolver
-import edu.uci.ics.texera.workflow.operators.aggregate.{AggregateOpDesc, AggregationFunction, AggregationOperation}
+import edu.uci.ics.texera.workflow.operators.aggregate.{
+  AggregateOpDesc,
+  AggregationFunction,
+  AggregationOperation
+}
 import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc
 import edu.uci.ics.texera.workflow.operators.keywordSearch.KeywordSearchOpDesc
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
