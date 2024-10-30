@@ -40,6 +40,7 @@ class SchemaPropagationResource extends LazyLogging {
     )
 
     val logicalPlan = LogicalPlan(logicalPlanPojo)
+    logicalPlan.resolveScanSourceOpFileName(None)
 
     // the PhysicalPlan with topology expanded.
     val physicalPlan = PhysicalPlan(context, logicalPlan)
