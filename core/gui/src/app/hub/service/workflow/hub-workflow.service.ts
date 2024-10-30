@@ -7,6 +7,7 @@ import { User } from "src/app/common/type/user";
 import { Workflow } from "../../../common/type/workflow";
 import { filter, map } from "rxjs/operators";
 import { WorkflowUtilService } from "../../../workspace/service/workflow-graph/util/workflow-util.service";
+import { DashboardWorkflow } from "../../../dashboard/type/dashboard-workflow.interface";
 
 export const WORKFLOW_BASE_URL = `${AppSettings.getApiEndpoint()}/workflow`;
 
@@ -50,5 +51,43 @@ export class HubWorkflowService {
 
   public cloneWorkflow(wid: number): Observable<number> {
     return this.http.post<number>(`${WORKFLOW_BASE_URL}/clone/${wid}`, null);
+  }
+
+  public isWorkflowLiked(workflowId: number, userId: number): Observable<boolean> {
+    return this.http.get<boolean>(`${this.BASE_URL}/isLiked`, {
+      params: { workflowId: workflowId.toString(), userId: userId.toString() },
+    });
+  }
+
+  public postLikeWorkflow(workflowId: number, userId: number): Observable<boolean> {
+    return this.http.post<boolean>(`${this.BASE_URL}/like`, [workflowId, userId]);
+  }
+
+  public postUnlikeWorkflow(workflowId: number, userId: number): Observable<boolean> {
+    return this.http.post<boolean>(`${this.BASE_URL}/unlike`, [workflowId, userId]);
+  }
+
+  public getLikeCount(wid: number): Observable<number> {
+    return this.http.get<number>(`${this.BASE_URL}/likeCount/${wid}`);
+  }
+
+  public getCloneCount(wid: number): Observable<number> {
+    return this.http.get<number>(`${this.BASE_URL}/cloneCount/${wid}`);
+  }
+
+  public getTopLovedWorkflows(): Observable<DashboardWorkflow[]> {
+    return this.http.get<DashboardWorkflow[]>(`${this.BASE_URL}/topLovedWorkflows`);
+  }
+
+  public getTopClonedWorkflows(): Observable<DashboardWorkflow[]> {
+    return this.http.get<DashboardWorkflow[]>(`${this.BASE_URL}/topClonedWorkflows`);
+  }
+
+  public postViewWorkflow(workflowId: number, userId: number): Observable<number> {
+    return this.http.post<number>(`${this.BASE_URL}/view`, [workflowId, userId]);
+  }
+
+  public getViewCount(wid: number): Observable<number> {
+    return this.http.get<number>(`${this.BASE_URL}/viewCount/${wid}`);
   }
 }

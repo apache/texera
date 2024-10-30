@@ -21,6 +21,7 @@ import {
 import { firstValueFrom } from "rxjs";
 import { SearchService } from "../../../service/user/search.service";
 import { HubWorkflowDetailComponent } from "../../../../hub/component/workflow/detail/hub-workflow-detail.component";
+import { HubWorkflowService } from "../../../../hub/service/workflow/hub-workflow.service";
 import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
 import { formatSize } from "src/app/common/util/size-formatter.util";
 
@@ -39,13 +40,16 @@ export class ListItemComponent implements OnInit, OnChanges {
   @ViewChild("descriptionInput") descriptionInput!: ElementRef;
   editingName = false;
   editingDescription = false;
+  likeCount: number = 0;
+  viewCount = 0;
 
   ROUTER_WORKFLOW_BASE_URL = "/dashboard/user/workspace";
   ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user/project";
   ROUTER_DATASET_BASE_URL = "/dashboard/user/dataset";
-  ROUTER_WORKFLOW_DETAIL_BASE_URL = "/dashboard/hub/workflow/search/result/detail";
+  ROUTER_WORKFLOW_DETAIL_BASE_URL = "/dashboard/hub/workflow/result/detail";
   entryLink: string[] = [];
   public iconType: string = "";
+  isLiked: boolean = false;
   @Input() isPrivateSearch = false;
   @Input() editable = false;
   private _entry?: DashboardEntry;
@@ -71,6 +75,7 @@ export class ListItemComponent implements OnInit, OnChanges {
     private modalService: NzModalService,
     private workflowPersistService: WorkflowPersistService,
     private modal: NzModalService,
+    private hubWorkflowService: HubWorkflowService,
     private downloadService: DownloadService,
     private cdr: ChangeDetectorRef
   ) {}
@@ -88,6 +93,18 @@ export class ListItemComponent implements OnInit, OnChanges {
           }
           setTimeout(() => this.cdr.detectChanges(), 0);
         });
+        this.hubWorkflowService
+          .getLikeCount(this.entry.id)
+          .pipe(untilDestroyed(this))
+          .subscribe(count => {
+            this.likeCount = count;
+          });
+        this.hubWorkflowService
+          .getViewCount(this.entry.id)
+          .pipe(untilDestroyed(this))
+          .subscribe(count => {
+            this.viewCount = count;
+          });
       }
       // this.entryLink = this.ROUTER_WORKFLOW_BASE_URL + "/" + this.entry.id;
       this.iconType = "project";
@@ -107,11 +124,27 @@ export class ListItemComponent implements OnInit, OnChanges {
 
   ngOnInit(): void {
     this.initializeEntry();
+    if (this.entry.id !== undefined && this.currentUid !== undefined) {
+      this.hubWorkflowService
+        .isWorkflowLiked(this.entry.id, this.currentUid)
+        .pipe(untilDestroyed(this))
+        .subscribe((isLiked: boolean) => {
+          this.isLiked = isLiked;
+        });
+    }
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes["entry"]) {
       this.initializeEntry();
+    }
+    if (this.entry.id !== undefined && this.currentUid !== undefined) {
+      this.hubWorkflowService
+        .isWorkflowLiked(this.entry.id, this.currentUid)
+        .pipe(untilDestroyed(this))
+        .subscribe((isLiked: boolean) => {
+          this.isLiked = isLiked;
+        });
     }
   }
 
@@ -277,11 +310,68 @@ export class ListItemComponent implements OnInit, OnChanges {
     if (instance) {
       if (wid !== undefined) {
         instance.wid = wid;
+        this.hubWorkflowService
+          .getViewCount(wid)
+          .pipe(untilDestroyed(this))
+          .subscribe(count => {
+            this.viewCount = count + 1; // hacky fix to display view correctly
+          });
       } else {
         console.warn("wid is undefined, default handling can be added here");
         instance.wid = 0;
       }
     }
+  }
+
+  toggleLike(workflowId: number | undefined, userId: number | undefined): void {
+    if (workflowId === undefined || userId === undefined) {
+      return;
+    }
+
+    if (this.isLiked) {
+      this.hubWorkflowService
+        .postUnlikeWorkflow(workflowId, userId)
+        .pipe(untilDestroyed(this))
+        .subscribe((success: boolean) => {
+          if (success) {
+            this.isLiked = false;
+            this.hubWorkflowService
+              .getLikeCount(workflowId)
+              .pipe(untilDestroyed(this))
+              .subscribe((count: number) => {
+                this.likeCount = count;
+              });
+            console.log("Successfully unliked the workflow");
+          } else {
+            console.error("Error unliking the workflow");
+          }
+        });
+    } else {
+      this.hubWorkflowService
+        .postLikeWorkflow(workflowId, userId)
+        .pipe(untilDestroyed(this))
+        .subscribe((success: boolean) => {
+          if (success) {
+            this.isLiked = true;
+            this.hubWorkflowService
+              .getLikeCount(workflowId)
+              .pipe(untilDestroyed(this))
+              .subscribe((count: number) => {
+                this.likeCount = count;
+              });
+            console.log("Successfully liked the workflow");
+          } else {
+            console.error("Error liking the workflow");
+          }
+        });
+    }
+  }
+
+  formatCount(count: number): string {
+    if (count >= 1000) {
+      return (count / 1000).toFixed(1) + "k";
+    }
+    return count.toString();
   }
 
   // alias for formatSize
