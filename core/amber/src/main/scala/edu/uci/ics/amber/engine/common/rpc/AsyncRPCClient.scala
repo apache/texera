@@ -22,7 +22,8 @@ import edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerSer
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{
   ControlError,
   ControlReturn,
-  ReturnInvocation
+  ReturnInvocation,
+  WorkerMetricsResponse
 }
 import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceFs2Grpc
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.createProxy
@@ -178,9 +179,23 @@ class AsyncRPCClient(
     if (ret.commandId == AsyncRPCClient.IgnoreReplyAndDoNotLog) {
       return
     }
-    logger.info(
-      s"receive reply: ${ret.returnValue} from $channelId (controlID: ${ret.commandId})"
-    )
+    if (ret.returnValue != null) {
+      if (ret.returnValue.isInstanceOf[WorkerMetricsResponse]) {
+        return
+      }
+      logger.debug(
+        s"receive reply: ${ret.returnValue.getClass.getSimpleName} from $channelId (controlID: ${ret.commandId})"
+      )
+      ret.returnValue match {
+        case err: ControlError =>
+          logger.error(s"received error from $channelId", err)
+        case _ =>
+      }
+    } else {
+      logger.info(
+        s"receive reply: null from $channelId (controlID: ${ret.commandId})"
+      )
+    }
   }
 
 }

@@ -17,6 +17,7 @@ option (scalapb.options) = {
 
 message ControlRequest {
   oneof sealed_value {
+    // request for controller
     PropagateChannelMarkerRequest propagateChannelMarkerRequest = 1;
     TakeGlobalCheckpointRequest takeGlobalCheckpointRequest = 2;
     DebugCommandRequest debugCommandRequest = 3;
@@ -25,27 +26,31 @@ message ControlRequest {
     RetryWorkflowRequest retryWorkflowRequest = 6;
     ConsoleMessageTriggeredRequest consoleMessageTriggeredRequest = 8;
     PortCompletedRequest portCompletedRequest = 9;
-    WorkerStateUpdatedRequest workerStateUpdatedRequest = 13;
-    LinkWorkersRequest linkWorkersRequest = 15;
-    Ping ping = 16;
-    Pong pong = 17;
-    Nested nested = 18;
-    Pass pass = 19;
-    ErrorCommand errorCommand = 20;
-    Recursion recursion = 21;
-    Collect collect = 22;
-    GenerateNumber generateNumber = 23;
-    MultiCall multiCall = 24;
-    Chain chain = 25;
-    AddInputChannelRequest addInputChannelRequest = 26;
-    AddPartitioningRequest addPartitioningRequest = 27;
-    AssignPortRequest assignPortRequest = 28;
-    FinalizeCheckpointRequest finalizeCheckpointRequest = 29;
-    InitializeExecutorRequest initializeExecutorRequest = 30;
-    UpdateExecutorRequest updateExecutorRequest = 31;
-    EmptyRequest emptyRequest = 33;
-    PrepareCheckpointRequest prepareCheckpointRequest = 34;
-    QueryStatisticsRequest queryStatisticsRequest = 35;
+    WorkerStateUpdatedRequest workerStateUpdatedRequest = 10;
+    LinkWorkersRequest linkWorkersRequest = 11;
+
+    // request for worker
+    AddInputChannelRequest addInputChannelRequest = 50;
+    AddPartitioningRequest addPartitioningRequest = 51;
+    AssignPortRequest assignPortRequest = 52;
+    FinalizeCheckpointRequest finalizeCheckpointRequest = 53;
+    InitializeExecutorRequest initializeExecutorRequest = 54;
+    UpdateExecutorRequest updateExecutorRequest = 55;
+    EmptyRequest emptyRequest = 56;
+    PrepareCheckpointRequest prepareCheckpointRequest = 57;
+    QueryStatisticsRequest queryStatisticsRequest = 58;
+
+    // request for testing
+    Ping ping = 100;
+    Pong pong = 101;
+    Nested nested = 102;
+    Pass pass = 103;
+    ErrorCommand errorCommand = 104;
+    Recursion recursion = 105;
+    Collect collect = 106;
+    GenerateNumber generateNumber = 107;
+    MultiCall multiCall = 108;
+    Chain chain = 109;
   }
 }
 

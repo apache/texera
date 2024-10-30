@@ -1,4 +1,3 @@
-
 name := "texera"
 organization := "edu.uci.ics"
 version := "0.1-SNAPSHOT"
@@ -6,6 +5,7 @@ version := "0.1-SNAPSHOT"
 scalaVersion := "2.13.12"
 
 enablePlugins(JavaAppPackaging)
+
 semanticdbEnabled := true
 semanticdbVersion := scalafixSemanticdb.revision
 

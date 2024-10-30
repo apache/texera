@@ -21,33 +21,33 @@ object ControlReturn {
   
   implicit val ControlReturnTypeMapper: _root_.scalapb.TypeMapper[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturn] = new _root_.scalapb.TypeMapper[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturn] {
     override def toCustom(__base: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturn = __base.sealedValue match {
-      case __v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.Error => __v.value
-      case __v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.EmptyReturn => __v.value
       case __v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.RetrieveWorkflowStateResponse => __v.value
       case __v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.PropagateChannelMarkerResponse => __v.value
       case __v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.TakeGlobalCheckpointResponse => __v.value
       case __v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.EvaluatePythonExpressionResponse => __v.value
       case __v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.StartWorkflowResponse => __v.value
-      case __v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.StringResponse => __v.value
-      case __v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.IntResponse => __v.value
       case __v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.WorkerStateResponse => __v.value
       case __v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.WorkerMetricsResponse => __v.value
       case __v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.FinalizeCheckpointResponse => __v.value
+      case __v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.Error => __v.value
+      case __v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.EmptyReturn => __v.value
+      case __v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.StringResponse => __v.value
+      case __v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.IntResponse => __v.value
       case edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.Empty => Empty
     }
     override def toBase(__custom: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturn): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage(__custom match {
-      case __v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError => edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.Error(__v)
-      case __v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn => edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.EmptyReturn(__v)
       case __v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.RetrieveWorkflowStateResponse => edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.RetrieveWorkflowStateResponse(__v)
       case __v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.PropagateChannelMarkerResponse => edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.PropagateChannelMarkerResponse(__v)
       case __v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.TakeGlobalCheckpointResponse => edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.TakeGlobalCheckpointResponse(__v)
       case __v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EvaluatePythonExpressionResponse => edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.EvaluatePythonExpressionResponse(__v)
       case __v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StartWorkflowResponse => edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.StartWorkflowResponse(__v)
-      case __v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse => edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.StringResponse(__v)
-      case __v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse => edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.IntResponse(__v)
       case __v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerStateResponse => edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.WorkerStateResponse(__v)
       case __v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerMetricsResponse => edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.WorkerMetricsResponse(__v)
       case __v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.FinalizeCheckpointResponse => edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.FinalizeCheckpointResponse(__v)
+      case __v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError => edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.Error(__v)
+      case __v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn => edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.EmptyReturn(__v)
+      case __v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse => edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.StringResponse(__v)
+      case __v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse => edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.IntResponse(__v)
       case Empty => edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.Empty
     })
   }
@@ -62,14 +62,6 @@ final case class ControlReturnMessage(
     private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
     private[this] def __computeSerializedSize(): _root_.scala.Int = {
       var __size = 0
-      if (sealedValue.error.isDefined) {
-        val __value = sealedValue.error.get
-        __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
-      };
-      if (sealedValue.emptyReturn.isDefined) {
-        val __value = sealedValue.emptyReturn.get
-        __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
-      };
       if (sealedValue.retrieveWorkflowStateResponse.isDefined) {
         val __value = sealedValue.retrieveWorkflowStateResponse.get
         __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
@@ -90,25 +82,33 @@ final case class ControlReturnMessage(
         val __value = sealedValue.startWorkflowResponse.get
         __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
       };
-      if (sealedValue.stringResponse.isDefined) {
-        val __value = sealedValue.stringResponse.get
-        __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
-      };
-      if (sealedValue.intResponse.isDefined) {
-        val __value = sealedValue.intResponse.get
-        __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
-      };
       if (sealedValue.workerStateResponse.isDefined) {
         val __value = sealedValue.workerStateResponse.get
-        __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
+        __size += 2 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
       };
       if (sealedValue.workerMetricsResponse.isDefined) {
         val __value = sealedValue.workerMetricsResponse.get
-        __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
+        __size += 2 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
       };
       if (sealedValue.finalizeCheckpointResponse.isDefined) {
         val __value = sealedValue.finalizeCheckpointResponse.get
-        __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
+        __size += 2 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
+      };
+      if (sealedValue.error.isDefined) {
+        val __value = sealedValue.error.get
+        __size += 2 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
+      };
+      if (sealedValue.emptyReturn.isDefined) {
+        val __value = sealedValue.emptyReturn.get
+        __size += 2 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
+      };
+      if (sealedValue.stringResponse.isDefined) {
+        val __value = sealedValue.stringResponse.get
+        __size += 2 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
+      };
+      if (sealedValue.intResponse.isDefined) {
+        val __value = sealedValue.intResponse.get
+        __size += 2 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
       };
       __size
     }
@@ -122,83 +122,79 @@ final case class ControlReturnMessage(
       
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
-      sealedValue.error.foreach { __v =>
+      sealedValue.retrieveWorkflowStateResponse.foreach { __v =>
         val __m = __v
         _output__.writeTag(1, 2)
         _output__.writeUInt32NoTag(__m.serializedSize)
         __m.writeTo(_output__)
       };
-      sealedValue.emptyReturn.foreach { __v =>
+      sealedValue.propagateChannelMarkerResponse.foreach { __v =>
         val __m = __v
         _output__.writeTag(2, 2)
         _output__.writeUInt32NoTag(__m.serializedSize)
         __m.writeTo(_output__)
       };
-      sealedValue.retrieveWorkflowStateResponse.foreach { __v =>
+      sealedValue.takeGlobalCheckpointResponse.foreach { __v =>
         val __m = __v
         _output__.writeTag(3, 2)
         _output__.writeUInt32NoTag(__m.serializedSize)
         __m.writeTo(_output__)
       };
-      sealedValue.propagateChannelMarkerResponse.foreach { __v =>
+      sealedValue.evaluatePythonExpressionResponse.foreach { __v =>
         val __m = __v
         _output__.writeTag(4, 2)
         _output__.writeUInt32NoTag(__m.serializedSize)
         __m.writeTo(_output__)
       };
-      sealedValue.takeGlobalCheckpointResponse.foreach { __v =>
+      sealedValue.startWorkflowResponse.foreach { __v =>
         val __m = __v
         _output__.writeTag(5, 2)
         _output__.writeUInt32NoTag(__m.serializedSize)
         __m.writeTo(_output__)
       };
-      sealedValue.evaluatePythonExpressionResponse.foreach { __v =>
-        val __m = __v
-        _output__.writeTag(6, 2)
-        _output__.writeUInt32NoTag(__m.serializedSize)
-        __m.writeTo(_output__)
-      };
-      sealedValue.startWorkflowResponse.foreach { __v =>
-        val __m = __v
-        _output__.writeTag(7, 2)
-        _output__.writeUInt32NoTag(__m.serializedSize)
-        __m.writeTo(_output__)
-      };
-      sealedValue.stringResponse.foreach { __v =>
-        val __m = __v
-        _output__.writeTag(8, 2)
-        _output__.writeUInt32NoTag(__m.serializedSize)
-        __m.writeTo(_output__)
-      };
-      sealedValue.intResponse.foreach { __v =>
-        val __m = __v
-        _output__.writeTag(9, 2)
-        _output__.writeUInt32NoTag(__m.serializedSize)
-        __m.writeTo(_output__)
-      };
       sealedValue.workerStateResponse.foreach { __v =>
         val __m = __v
-        _output__.writeTag(10, 2)
+        _output__.writeTag(50, 2)
         _output__.writeUInt32NoTag(__m.serializedSize)
         __m.writeTo(_output__)
       };
       sealedValue.workerMetricsResponse.foreach { __v =>
         val __m = __v
-        _output__.writeTag(11, 2)
+        _output__.writeTag(51, 2)
         _output__.writeUInt32NoTag(__m.serializedSize)
         __m.writeTo(_output__)
       };
       sealedValue.finalizeCheckpointResponse.foreach { __v =>
         val __m = __v
-        _output__.writeTag(12, 2)
+        _output__.writeTag(52, 2)
+        _output__.writeUInt32NoTag(__m.serializedSize)
+        __m.writeTo(_output__)
+      };
+      sealedValue.error.foreach { __v =>
+        val __m = __v
+        _output__.writeTag(101, 2)
+        _output__.writeUInt32NoTag(__m.serializedSize)
+        __m.writeTo(_output__)
+      };
+      sealedValue.emptyReturn.foreach { __v =>
+        val __m = __v
+        _output__.writeTag(102, 2)
+        _output__.writeUInt32NoTag(__m.serializedSize)
+        __m.writeTo(_output__)
+      };
+      sealedValue.stringResponse.foreach { __v =>
+        val __m = __v
+        _output__.writeTag(103, 2)
+        _output__.writeUInt32NoTag(__m.serializedSize)
+        __m.writeTo(_output__)
+      };
+      sealedValue.intResponse.foreach { __v =>
+        val __m = __v
+        _output__.writeTag(104, 2)
         _output__.writeUInt32NoTag(__m.serializedSize)
         __m.writeTo(_output__)
       };
     }
-    def getError: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError = sealedValue.error.getOrElse(edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError.defaultInstance)
-    def withError(__v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError): ControlReturnMessage = copy(sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.Error(__v))
-    def getEmptyReturn: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn = sealedValue.emptyReturn.getOrElse(edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn.defaultInstance)
-    def withEmptyReturn(__v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn): ControlReturnMessage = copy(sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.EmptyReturn(__v))
     def getRetrieveWorkflowStateResponse: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.RetrieveWorkflowStateResponse = sealedValue.retrieveWorkflowStateResponse.getOrElse(edu.uci.ics.amber.engine.architecture.rpc.controlreturns.RetrieveWorkflowStateResponse.defaultInstance)
     def withRetrieveWorkflowStateResponse(__v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.RetrieveWorkflowStateResponse): ControlReturnMessage = copy(sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.RetrieveWorkflowStateResponse(__v))
     def getPropagateChannelMarkerResponse: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.PropagateChannelMarkerResponse = sealedValue.propagateChannelMarkerResponse.getOrElse(edu.uci.ics.amber.engine.architecture.rpc.controlreturns.PropagateChannelMarkerResponse.defaultInstance)
@@ -209,49 +205,53 @@ final case class ControlReturnMessage(
     def withEvaluatePythonExpressionResponse(__v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EvaluatePythonExpressionResponse): ControlReturnMessage = copy(sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.EvaluatePythonExpressionResponse(__v))
     def getStartWorkflowResponse: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StartWorkflowResponse = sealedValue.startWorkflowResponse.getOrElse(edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StartWorkflowResponse.defaultInstance)
     def withStartWorkflowResponse(__v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StartWorkflowResponse): ControlReturnMessage = copy(sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.StartWorkflowResponse(__v))
-    def getStringResponse: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse = sealedValue.stringResponse.getOrElse(edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse.defaultInstance)
-    def withStringResponse(__v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse): ControlReturnMessage = copy(sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.StringResponse(__v))
-    def getIntResponse: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse = sealedValue.intResponse.getOrElse(edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse.defaultInstance)
-    def withIntResponse(__v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse): ControlReturnMessage = copy(sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.IntResponse(__v))
     def getWorkerStateResponse: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerStateResponse = sealedValue.workerStateResponse.getOrElse(edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerStateResponse.defaultInstance)
     def withWorkerStateResponse(__v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerStateResponse): ControlReturnMessage = copy(sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.WorkerStateResponse(__v))
     def getWorkerMetricsResponse: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerMetricsResponse = sealedValue.workerMetricsResponse.getOrElse(edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerMetricsResponse.defaultInstance)
     def withWorkerMetricsResponse(__v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerMetricsResponse): ControlReturnMessage = copy(sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.WorkerMetricsResponse(__v))
     def getFinalizeCheckpointResponse: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.FinalizeCheckpointResponse = sealedValue.finalizeCheckpointResponse.getOrElse(edu.uci.ics.amber.engine.architecture.rpc.controlreturns.FinalizeCheckpointResponse.defaultInstance)
     def withFinalizeCheckpointResponse(__v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.FinalizeCheckpointResponse): ControlReturnMessage = copy(sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.FinalizeCheckpointResponse(__v))
+    def getError: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError = sealedValue.error.getOrElse(edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError.defaultInstance)
+    def withError(__v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError): ControlReturnMessage = copy(sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.Error(__v))
+    def getEmptyReturn: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn = sealedValue.emptyReturn.getOrElse(edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn.defaultInstance)
+    def withEmptyReturn(__v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn): ControlReturnMessage = copy(sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.EmptyReturn(__v))
+    def getStringResponse: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse = sealedValue.stringResponse.getOrElse(edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse.defaultInstance)
+    def withStringResponse(__v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse): ControlReturnMessage = copy(sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.StringResponse(__v))
+    def getIntResponse: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse = sealedValue.intResponse.getOrElse(edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse.defaultInstance)
+    def withIntResponse(__v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse): ControlReturnMessage = copy(sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.IntResponse(__v))
     def clearSealedValue: ControlReturnMessage = copy(sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.Empty)
     def withSealedValue(__v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue): ControlReturnMessage = copy(sealedValue = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
-        case 1 => sealedValue.error.orNull
-        case 2 => sealedValue.emptyReturn.orNull
-        case 3 => sealedValue.retrieveWorkflowStateResponse.orNull
-        case 4 => sealedValue.propagateChannelMarkerResponse.orNull
-        case 5 => sealedValue.takeGlobalCheckpointResponse.orNull
-        case 6 => sealedValue.evaluatePythonExpressionResponse.orNull
-        case 7 => sealedValue.startWorkflowResponse.orNull
-        case 8 => sealedValue.stringResponse.orNull
-        case 9 => sealedValue.intResponse.orNull
-        case 10 => sealedValue.workerStateResponse.orNull
-        case 11 => sealedValue.workerMetricsResponse.orNull
-        case 12 => sealedValue.finalizeCheckpointResponse.orNull
+        case 1 => sealedValue.retrieveWorkflowStateResponse.orNull
+        case 2 => sealedValue.propagateChannelMarkerResponse.orNull
+        case 3 => sealedValue.takeGlobalCheckpointResponse.orNull
+        case 4 => sealedValue.evaluatePythonExpressionResponse.orNull
+        case 5 => sealedValue.startWorkflowResponse.orNull
+        case 50 => sealedValue.workerStateResponse.orNull
+        case 51 => sealedValue.workerMetricsResponse.orNull
+        case 52 => sealedValue.finalizeCheckpointResponse.orNull
+        case 101 => sealedValue.error.orNull
+        case 102 => sealedValue.emptyReturn.orNull
+        case 103 => sealedValue.stringResponse.orNull
+        case 104 => sealedValue.intResponse.orNull
       }
     }
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
       _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
       (__field.number: @_root_.scala.unchecked) match {
-        case 1 => sealedValue.error.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
-        case 2 => sealedValue.emptyReturn.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
-        case 3 => sealedValue.retrieveWorkflowStateResponse.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
-        case 4 => sealedValue.propagateChannelMarkerResponse.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
-        case 5 => sealedValue.takeGlobalCheckpointResponse.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
-        case 6 => sealedValue.evaluatePythonExpressionResponse.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
-        case 7 => sealedValue.startWorkflowResponse.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
-        case 8 => sealedValue.stringResponse.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
-        case 9 => sealedValue.intResponse.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
-        case 10 => sealedValue.workerStateResponse.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
-        case 11 => sealedValue.workerMetricsResponse.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
-        case 12 => sealedValue.finalizeCheckpointResponse.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
+        case 1 => sealedValue.retrieveWorkflowStateResponse.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
+        case 2 => sealedValue.propagateChannelMarkerResponse.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
+        case 3 => sealedValue.takeGlobalCheckpointResponse.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
+        case 4 => sealedValue.evaluatePythonExpressionResponse.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
+        case 5 => sealedValue.startWorkflowResponse.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
+        case 50 => sealedValue.workerStateResponse.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
+        case 51 => sealedValue.workerMetricsResponse.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
+        case 52 => sealedValue.finalizeCheckpointResponse.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
+        case 101 => sealedValue.error.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
+        case 102 => sealedValue.emptyReturn.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
+        case 103 => sealedValue.stringResponse.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
+        case 104 => sealedValue.intResponse.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
@@ -270,29 +270,29 @@ object ControlReturnMessage extends scalapb.GeneratedMessageCompanion[edu.uci.ic
       _tag__ match {
         case 0 => _done__ = true
         case 10 =>
-          __sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.Error(__sealedValue.error.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
-        case 18 =>
-          __sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.EmptyReturn(__sealedValue.emptyReturn.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
-        case 26 =>
           __sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.RetrieveWorkflowStateResponse(__sealedValue.retrieveWorkflowStateResponse.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.RetrieveWorkflowStateResponse](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
-        case 34 =>
+        case 18 =>
           __sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.PropagateChannelMarkerResponse(__sealedValue.propagateChannelMarkerResponse.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.PropagateChannelMarkerResponse](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
-        case 42 =>
+        case 26 =>
           __sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.TakeGlobalCheckpointResponse(__sealedValue.takeGlobalCheckpointResponse.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.TakeGlobalCheckpointResponse](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
-        case 50 =>
+        case 34 =>
           __sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.EvaluatePythonExpressionResponse(__sealedValue.evaluatePythonExpressionResponse.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EvaluatePythonExpressionResponse](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
-        case 58 =>
+        case 42 =>
           __sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.StartWorkflowResponse(__sealedValue.startWorkflowResponse.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StartWorkflowResponse](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
-        case 66 =>
-          __sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.StringResponse(__sealedValue.stringResponse.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
-        case 74 =>
-          __sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.IntResponse(__sealedValue.intResponse.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
-        case 82 =>
+        case 402 =>
           __sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.WorkerStateResponse(__sealedValue.workerStateResponse.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerStateResponse](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
-        case 90 =>
+        case 410 =>
           __sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.WorkerMetricsResponse(__sealedValue.workerMetricsResponse.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerMetricsResponse](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
-        case 98 =>
+        case 418 =>
           __sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.FinalizeCheckpointResponse(__sealedValue.finalizeCheckpointResponse.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.FinalizeCheckpointResponse](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+        case 810 =>
+          __sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.Error(__sealedValue.error.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+        case 818 =>
+          __sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.EmptyReturn(__sealedValue.emptyReturn.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+        case 826 =>
+          __sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.StringResponse(__sealedValue.stringResponse.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+        case 834 =>
+          __sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.IntResponse(__sealedValue.intResponse.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case tag => _input__.skipField(tag)
       }
     }
@@ -304,18 +304,18 @@ object ControlReturnMessage extends scalapb.GeneratedMessageCompanion[edu.uci.ic
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
       edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage(
-        sealedValue = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError]]).map(edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.Error(_))
-            .orElse[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]]).map(edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.EmptyReturn(_)))
-            .orElse[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.RetrieveWorkflowStateResponse]]).map(edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.RetrieveWorkflowStateResponse(_)))
-            .orElse[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(4).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.PropagateChannelMarkerResponse]]).map(edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.PropagateChannelMarkerResponse(_)))
-            .orElse[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(5).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.TakeGlobalCheckpointResponse]]).map(edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.TakeGlobalCheckpointResponse(_)))
-            .orElse[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(6).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EvaluatePythonExpressionResponse]]).map(edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.EvaluatePythonExpressionResponse(_)))
-            .orElse[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(7).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StartWorkflowResponse]]).map(edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.StartWorkflowResponse(_)))
-            .orElse[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(8).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse]]).map(edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.StringResponse(_)))
-            .orElse[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(9).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse]]).map(edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.IntResponse(_)))
-            .orElse[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(10).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerStateResponse]]).map(edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.WorkerStateResponse(_)))
-            .orElse[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(11).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerMetricsResponse]]).map(edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.WorkerMetricsResponse(_)))
-            .orElse[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(12).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.FinalizeCheckpointResponse]]).map(edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.FinalizeCheckpointResponse(_)))
+        sealedValue = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.RetrieveWorkflowStateResponse]]).map(edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.RetrieveWorkflowStateResponse(_))
+            .orElse[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.PropagateChannelMarkerResponse]]).map(edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.PropagateChannelMarkerResponse(_)))
+            .orElse[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.TakeGlobalCheckpointResponse]]).map(edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.TakeGlobalCheckpointResponse(_)))
+            .orElse[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(4).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EvaluatePythonExpressionResponse]]).map(edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.EvaluatePythonExpressionResponse(_)))
+            .orElse[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(5).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StartWorkflowResponse]]).map(edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.StartWorkflowResponse(_)))
+            .orElse[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(50).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerStateResponse]]).map(edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.WorkerStateResponse(_)))
+            .orElse[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(51).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerMetricsResponse]]).map(edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.WorkerMetricsResponse(_)))
+            .orElse[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(52).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.FinalizeCheckpointResponse]]).map(edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.FinalizeCheckpointResponse(_)))
+            .orElse[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(101).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError]]).map(edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.Error(_)))
+            .orElse[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(102).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]]).map(edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.EmptyReturn(_)))
+            .orElse[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(103).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse]]).map(edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.StringResponse(_)))
+            .orElse[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(104).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse]]).map(edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.IntResponse(_)))
             .getOrElse(edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.Empty)
       )
     case _ => throw new RuntimeException("Expected PMessage")
@@ -325,18 +325,18 @@ object ControlReturnMessage extends scalapb.GeneratedMessageCompanion[edu.uci.ic
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = {
     var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
     (__number: @_root_.scala.unchecked) match {
-      case 1 => __out = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError
-      case 2 => __out = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
-      case 3 => __out = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.RetrieveWorkflowStateResponse
-      case 4 => __out = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.PropagateChannelMarkerResponse
-      case 5 => __out = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.TakeGlobalCheckpointResponse
-      case 6 => __out = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EvaluatePythonExpressionResponse
-      case 7 => __out = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StartWorkflowResponse
-      case 8 => __out = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse
-      case 9 => __out = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse
-      case 10 => __out = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerStateResponse
-      case 11 => __out = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerMetricsResponse
-      case 12 => __out = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.FinalizeCheckpointResponse
+      case 1 => __out = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.RetrieveWorkflowStateResponse
+      case 2 => __out = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.PropagateChannelMarkerResponse
+      case 3 => __out = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.TakeGlobalCheckpointResponse
+      case 4 => __out = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EvaluatePythonExpressionResponse
+      case 5 => __out = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StartWorkflowResponse
+      case 50 => __out = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerStateResponse
+      case 51 => __out = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerMetricsResponse
+      case 52 => __out = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.FinalizeCheckpointResponse
+      case 101 => __out = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError
+      case 102 => __out = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
+      case 103 => __out = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse
+      case 104 => __out = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse
     }
     __out
   }
@@ -348,30 +348,30 @@ object ControlReturnMessage extends scalapb.GeneratedMessageCompanion[edu.uci.ic
   sealed trait SealedValue extends _root_.scalapb.GeneratedOneof {
     def isEmpty: _root_.scala.Boolean = false
     def isDefined: _root_.scala.Boolean = true
-    def isError: _root_.scala.Boolean = false
-    def isEmptyReturn: _root_.scala.Boolean = false
     def isRetrieveWorkflowStateResponse: _root_.scala.Boolean = false
     def isPropagateChannelMarkerResponse: _root_.scala.Boolean = false
     def isTakeGlobalCheckpointResponse: _root_.scala.Boolean = false
     def isEvaluatePythonExpressionResponse: _root_.scala.Boolean = false
     def isStartWorkflowResponse: _root_.scala.Boolean = false
-    def isStringResponse: _root_.scala.Boolean = false
-    def isIntResponse: _root_.scala.Boolean = false
     def isWorkerStateResponse: _root_.scala.Boolean = false
     def isWorkerMetricsResponse: _root_.scala.Boolean = false
     def isFinalizeCheckpointResponse: _root_.scala.Boolean = false
-    def error: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError] = _root_.scala.None
-    def emptyReturn: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] = _root_.scala.None
+    def isError: _root_.scala.Boolean = false
+    def isEmptyReturn: _root_.scala.Boolean = false
+    def isStringResponse: _root_.scala.Boolean = false
+    def isIntResponse: _root_.scala.Boolean = false
     def retrieveWorkflowStateResponse: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.RetrieveWorkflowStateResponse] = _root_.scala.None
     def propagateChannelMarkerResponse: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.PropagateChannelMarkerResponse] = _root_.scala.None
     def takeGlobalCheckpointResponse: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.TakeGlobalCheckpointResponse] = _root_.scala.None
     def evaluatePythonExpressionResponse: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EvaluatePythonExpressionResponse] = _root_.scala.None
     def startWorkflowResponse: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StartWorkflowResponse] = _root_.scala.None
-    def stringResponse: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse] = _root_.scala.None
-    def intResponse: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse] = _root_.scala.None
     def workerStateResponse: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerStateResponse] = _root_.scala.None
     def workerMetricsResponse: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerMetricsResponse] = _root_.scala.None
     def finalizeCheckpointResponse: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.FinalizeCheckpointResponse] = _root_.scala.None
+    def error: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError] = _root_.scala.None
+    def emptyReturn: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] = _root_.scala.None
+    def stringResponse: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse] = _root_.scala.None
+    def intResponse: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse] = _root_.scala.None
   }
   object SealedValue {
     @SerialVersionUID(0L)
@@ -384,366 +384,123 @@ object ControlReturnMessage extends scalapb.GeneratedMessageCompanion[edu.uci.ic
     }
   
     @SerialVersionUID(0L)
-    final case class Error(value: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError) extends edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue {
-      type ValueType = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError
-      override def isError: _root_.scala.Boolean = true
-      override def error: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError] = Some(value)
-      override def number: _root_.scala.Int = 1
-    }
-    @SerialVersionUID(0L)
-    final case class EmptyReturn(value: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn) extends edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue {
-      type ValueType = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
-      override def isEmptyReturn: _root_.scala.Boolean = true
-      override def emptyReturn: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] = Some(value)
-      override def number: _root_.scala.Int = 2
-    }
-    @SerialVersionUID(0L)
     final case class RetrieveWorkflowStateResponse(value: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.RetrieveWorkflowStateResponse) extends edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue {
       type ValueType = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.RetrieveWorkflowStateResponse
       override def isRetrieveWorkflowStateResponse: _root_.scala.Boolean = true
       override def retrieveWorkflowStateResponse: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.RetrieveWorkflowStateResponse] = Some(value)
-      override def number: _root_.scala.Int = 3
+      override def number: _root_.scala.Int = 1
     }
     @SerialVersionUID(0L)
     final case class PropagateChannelMarkerResponse(value: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.PropagateChannelMarkerResponse) extends edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue {
       type ValueType = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.PropagateChannelMarkerResponse
       override def isPropagateChannelMarkerResponse: _root_.scala.Boolean = true
       override def propagateChannelMarkerResponse: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.PropagateChannelMarkerResponse] = Some(value)
-      override def number: _root_.scala.Int = 4
+      override def number: _root_.scala.Int = 2
     }
     @SerialVersionUID(0L)
     final case class TakeGlobalCheckpointResponse(value: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.TakeGlobalCheckpointResponse) extends edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue {
       type ValueType = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.TakeGlobalCheckpointResponse
       override def isTakeGlobalCheckpointResponse: _root_.scala.Boolean = true
       override def takeGlobalCheckpointResponse: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.TakeGlobalCheckpointResponse] = Some(value)
-      override def number: _root_.scala.Int = 5
+      override def number: _root_.scala.Int = 3
     }
     @SerialVersionUID(0L)
     final case class EvaluatePythonExpressionResponse(value: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EvaluatePythonExpressionResponse) extends edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue {
       type ValueType = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EvaluatePythonExpressionResponse
       override def isEvaluatePythonExpressionResponse: _root_.scala.Boolean = true
       override def evaluatePythonExpressionResponse: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EvaluatePythonExpressionResponse] = Some(value)
-      override def number: _root_.scala.Int = 6
+      override def number: _root_.scala.Int = 4
     }
     @SerialVersionUID(0L)
     final case class StartWorkflowResponse(value: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StartWorkflowResponse) extends edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue {
       type ValueType = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StartWorkflowResponse
       override def isStartWorkflowResponse: _root_.scala.Boolean = true
       override def startWorkflowResponse: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StartWorkflowResponse] = Some(value)
-      override def number: _root_.scala.Int = 7
-    }
-    @SerialVersionUID(0L)
-    final case class StringResponse(value: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse) extends edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue {
-      type ValueType = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse
-      override def isStringResponse: _root_.scala.Boolean = true
-      override def stringResponse: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse] = Some(value)
-      override def number: _root_.scala.Int = 8
-    }
-    @SerialVersionUID(0L)
-    final case class IntResponse(value: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse) extends edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue {
-      type ValueType = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse
-      override def isIntResponse: _root_.scala.Boolean = true
-      override def intResponse: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse] = Some(value)
-      override def number: _root_.scala.Int = 9
+      override def number: _root_.scala.Int = 5
     }
     @SerialVersionUID(0L)
     final case class WorkerStateResponse(value: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerStateResponse) extends edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue {
       type ValueType = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerStateResponse
       override def isWorkerStateResponse: _root_.scala.Boolean = true
       override def workerStateResponse: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerStateResponse] = Some(value)
-      override def number: _root_.scala.Int = 10
+      override def number: _root_.scala.Int = 50
     }
     @SerialVersionUID(0L)
     final case class WorkerMetricsResponse(value: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerMetricsResponse) extends edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue {
       type ValueType = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerMetricsResponse
       override def isWorkerMetricsResponse: _root_.scala.Boolean = true
       override def workerMetricsResponse: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerMetricsResponse] = Some(value)
-      override def number: _root_.scala.Int = 11
+      override def number: _root_.scala.Int = 51
     }
     @SerialVersionUID(0L)
     final case class FinalizeCheckpointResponse(value: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.FinalizeCheckpointResponse) extends edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue {
       type ValueType = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.FinalizeCheckpointResponse
       override def isFinalizeCheckpointResponse: _root_.scala.Boolean = true
       override def finalizeCheckpointResponse: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.FinalizeCheckpointResponse] = Some(value)
-      override def number: _root_.scala.Int = 12
+      override def number: _root_.scala.Int = 52
+    }
+    @SerialVersionUID(0L)
+    final case class Error(value: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError) extends edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue {
+      type ValueType = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError
+      override def isError: _root_.scala.Boolean = true
+      override def error: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError] = Some(value)
+      override def number: _root_.scala.Int = 101
+    }
+    @SerialVersionUID(0L)
+    final case class EmptyReturn(value: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn) extends edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue {
+      type ValueType = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
+      override def isEmptyReturn: _root_.scala.Boolean = true
+      override def emptyReturn: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] = Some(value)
+      override def number: _root_.scala.Int = 102
+    }
+    @SerialVersionUID(0L)
+    final case class StringResponse(value: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse) extends edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue {
+      type ValueType = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse
+      override def isStringResponse: _root_.scala.Boolean = true
+      override def stringResponse: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse] = Some(value)
+      override def number: _root_.scala.Int = 103
+    }
+    @SerialVersionUID(0L)
+    final case class IntResponse(value: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse) extends edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue {
+      type ValueType = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse
+      override def isIntResponse: _root_.scala.Boolean = true
+      override def intResponse: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse] = Some(value)
+      override def number: _root_.scala.Int = 104
     }
   }
   implicit class ControlReturnMessageLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage](_l) {
-    def error: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError] = field(_.getError)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.Error(f_)))
-    def emptyReturn: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] = field(_.getEmptyReturn)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.EmptyReturn(f_)))
     def retrieveWorkflowStateResponse: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.RetrieveWorkflowStateResponse] = field(_.getRetrieveWorkflowStateResponse)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.RetrieveWorkflowStateResponse(f_)))
     def propagateChannelMarkerResponse: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.PropagateChannelMarkerResponse] = field(_.getPropagateChannelMarkerResponse)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.PropagateChannelMarkerResponse(f_)))
     def takeGlobalCheckpointResponse: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.TakeGlobalCheckpointResponse] = field(_.getTakeGlobalCheckpointResponse)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.TakeGlobalCheckpointResponse(f_)))
     def evaluatePythonExpressionResponse: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EvaluatePythonExpressionResponse] = field(_.getEvaluatePythonExpressionResponse)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.EvaluatePythonExpressionResponse(f_)))
     def startWorkflowResponse: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StartWorkflowResponse] = field(_.getStartWorkflowResponse)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.StartWorkflowResponse(f_)))
-    def stringResponse: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse] = field(_.getStringResponse)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.StringResponse(f_)))
-    def intResponse: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse] = field(_.getIntResponse)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.IntResponse(f_)))
     def workerStateResponse: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerStateResponse] = field(_.getWorkerStateResponse)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.WorkerStateResponse(f_)))
     def workerMetricsResponse: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerMetricsResponse] = field(_.getWorkerMetricsResponse)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.WorkerMetricsResponse(f_)))
     def finalizeCheckpointResponse: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.FinalizeCheckpointResponse] = field(_.getFinalizeCheckpointResponse)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.FinalizeCheckpointResponse(f_)))
+    def error: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError] = field(_.getError)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.Error(f_)))
+    def emptyReturn: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] = field(_.getEmptyReturn)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.EmptyReturn(f_)))
+    def stringResponse: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse] = field(_.getStringResponse)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.StringResponse(f_)))
+    def intResponse: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse] = field(_.getIntResponse)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue.IntResponse(f_)))
     def sealedValue: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue] = field(_.sealedValue)((c_, f_) => c_.copy(sealedValue = f_))
   }
-  final val ERROR_FIELD_NUMBER = 1
-  final val EMPTYRETURN_FIELD_NUMBER = 2
-  final val RETRIEVEWORKFLOWSTATERESPONSE_FIELD_NUMBER = 3
-  final val PROPAGATECHANNELMARKERRESPONSE_FIELD_NUMBER = 4
-  final val TAKEGLOBALCHECKPOINTRESPONSE_FIELD_NUMBER = 5
-  final val EVALUATEPYTHONEXPRESSIONRESPONSE_FIELD_NUMBER = 6
-  final val STARTWORKFLOWRESPONSE_FIELD_NUMBER = 7
-  final val STRINGRESPONSE_FIELD_NUMBER = 8
-  final val INTRESPONSE_FIELD_NUMBER = 9
-  final val WORKERSTATERESPONSE_FIELD_NUMBER = 10
-  final val WORKERMETRICSRESPONSE_FIELD_NUMBER = 11
-  final val FINALIZECHECKPOINTRESPONSE_FIELD_NUMBER = 12
+  final val RETRIEVEWORKFLOWSTATERESPONSE_FIELD_NUMBER = 1
+  final val PROPAGATECHANNELMARKERRESPONSE_FIELD_NUMBER = 2
+  final val TAKEGLOBALCHECKPOINTRESPONSE_FIELD_NUMBER = 3
+  final val EVALUATEPYTHONEXPRESSIONRESPONSE_FIELD_NUMBER = 4
+  final val STARTWORKFLOWRESPONSE_FIELD_NUMBER = 5
+  final val WORKERSTATERESPONSE_FIELD_NUMBER = 50
+  final val WORKERMETRICSRESPONSE_FIELD_NUMBER = 51
+  final val FINALIZECHECKPOINTRESPONSE_FIELD_NUMBER = 52
+  final val ERROR_FIELD_NUMBER = 101
+  final val EMPTYRETURN_FIELD_NUMBER = 102
+  final val STRINGRESPONSE_FIELD_NUMBER = 103
+  final val INTRESPONSE_FIELD_NUMBER = 104
   def of(
     sealedValue: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage.SealedValue
   ): _root_.edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage = _root_.edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturnMessage(
     sealedValue
   )
   // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.ControlReturn])
-}
-
-@SerialVersionUID(0L)
-final case class ControlError(
-    errorMessage: _root_.scala.Predef.String,
-    errorDetails: _root_.scala.Predef.String,
-    stackTrace: _root_.scala.Predef.String,
-    language: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ErrorLanguage
-    ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturn.NonEmpty with scalapb.lenses.Updatable[ControlError] {
-    @transient
-    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
-    private[this] def __computeSerializedSize(): _root_.scala.Int = {
-      var __size = 0
-      
-      {
-        val __value = errorMessage
-        if (!__value.isEmpty) {
-          __size += _root_.com.google.protobuf.CodedOutputStream.computeStringSize(1, __value)
-        }
-      };
-      
-      {
-        val __value = errorDetails
-        if (!__value.isEmpty) {
-          __size += _root_.com.google.protobuf.CodedOutputStream.computeStringSize(2, __value)
-        }
-      };
-      
-      {
-        val __value = stackTrace
-        if (!__value.isEmpty) {
-          __size += _root_.com.google.protobuf.CodedOutputStream.computeStringSize(3, __value)
-        }
-      };
-      
-      {
-        val __value = language.value
-        if (__value != 0) {
-          __size += _root_.com.google.protobuf.CodedOutputStream.computeEnumSize(4, __value)
-        }
-      };
-      __size
-    }
-    override def serializedSize: _root_.scala.Int = {
-      var __size = __serializedSizeMemoized
-      if (__size == 0) {
-        __size = __computeSerializedSize() + 1
-        __serializedSizeMemoized = __size
-      }
-      __size - 1
-      
-    }
-    def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
-      {
-        val __v = errorMessage
-        if (!__v.isEmpty) {
-          _output__.writeString(1, __v)
-        }
-      };
-      {
-        val __v = errorDetails
-        if (!__v.isEmpty) {
-          _output__.writeString(2, __v)
-        }
-      };
-      {
-        val __v = stackTrace
-        if (!__v.isEmpty) {
-          _output__.writeString(3, __v)
-        }
-      };
-      {
-        val __v = language.value
-        if (__v != 0) {
-          _output__.writeEnum(4, __v)
-        }
-      };
-    }
-    def withErrorMessage(__v: _root_.scala.Predef.String): ControlError = copy(errorMessage = __v)
-    def withErrorDetails(__v: _root_.scala.Predef.String): ControlError = copy(errorDetails = __v)
-    def withStackTrace(__v: _root_.scala.Predef.String): ControlError = copy(stackTrace = __v)
-    def withLanguage(__v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ErrorLanguage): ControlError = copy(language = __v)
-    def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
-      (__fieldNumber: @_root_.scala.unchecked) match {
-        case 1 => {
-          val __t = errorMessage
-          if (__t != "") __t else null
-        }
-        case 2 => {
-          val __t = errorDetails
-          if (__t != "") __t else null
-        }
-        case 3 => {
-          val __t = stackTrace
-          if (__t != "") __t else null
-        }
-        case 4 => {
-          val __t = language.javaValueDescriptor
-          if (__t.getNumber() != 0) __t else null
-        }
-      }
-    }
-    def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
-      _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
-      (__field.number: @_root_.scala.unchecked) match {
-        case 1 => _root_.scalapb.descriptors.PString(errorMessage)
-        case 2 => _root_.scalapb.descriptors.PString(errorDetails)
-        case 3 => _root_.scalapb.descriptors.PString(stackTrace)
-        case 4 => _root_.scalapb.descriptors.PEnum(language.scalaValueDescriptor)
-      }
-    }
-    def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError.type = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError
-    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.rpc.ControlError])
-}
-
-object ControlError extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError] {
-  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError] = this
-  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError = {
-    var __errorMessage: _root_.scala.Predef.String = ""
-    var __errorDetails: _root_.scala.Predef.String = ""
-    var __stackTrace: _root_.scala.Predef.String = ""
-    var __language: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ErrorLanguage = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ErrorLanguage.PYTHON
-    var _done__ = false
-    while (!_done__) {
-      val _tag__ = _input__.readTag()
-      _tag__ match {
-        case 0 => _done__ = true
-        case 10 =>
-          __errorMessage = _input__.readStringRequireUtf8()
-        case 18 =>
-          __errorDetails = _input__.readStringRequireUtf8()
-        case 26 =>
-          __stackTrace = _input__.readStringRequireUtf8()
-        case 32 =>
-          __language = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ErrorLanguage.fromValue(_input__.readEnum())
-        case tag => _input__.skipField(tag)
-      }
-    }
-    edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError(
-        errorMessage = __errorMessage,
-        errorDetails = __errorDetails,
-        stackTrace = __stackTrace,
-        language = __language
-    )
-  }
-  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError] = _root_.scalapb.descriptors.Reads{
-    case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
-      _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
-      edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError(
-        errorMessage = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Predef.String]).getOrElse(""),
-        errorDetails = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Predef.String]).getOrElse(""),
-        stackTrace = __fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).map(_.as[_root_.scala.Predef.String]).getOrElse(""),
-        language = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ErrorLanguage.fromValue(__fieldsMap.get(scalaDescriptor.findFieldByNumber(4).get).map(_.as[_root_.scalapb.descriptors.EnumValueDescriptor]).getOrElse(edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ErrorLanguage.PYTHON.scalaValueDescriptor).number)
-      )
-    case _ => throw new RuntimeException("Expected PMessage")
-  }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlreturnsProto.javaDescriptor.getMessageTypes().get(2)
-  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlreturnsProto.scalaDescriptor.messages(2)
-  def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
-  lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
-  def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = {
-    (__fieldNumber: @_root_.scala.unchecked) match {
-      case 4 => edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ErrorLanguage
-    }
-  }
-  lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError(
-    errorMessage = "",
-    errorDetails = "",
-    stackTrace = "",
-    language = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ErrorLanguage.PYTHON
-  )
-  implicit class ControlErrorLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError](_l) {
-    def errorMessage: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.errorMessage)((c_, f_) => c_.copy(errorMessage = f_))
-    def errorDetails: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.errorDetails)((c_, f_) => c_.copy(errorDetails = f_))
-    def stackTrace: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.stackTrace)((c_, f_) => c_.copy(stackTrace = f_))
-    def language: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ErrorLanguage] = field(_.language)((c_, f_) => c_.copy(language = f_))
-  }
-  final val ERRORMESSAGE_FIELD_NUMBER = 1
-  final val ERRORDETAILS_FIELD_NUMBER = 2
-  final val STACKTRACE_FIELD_NUMBER = 3
-  final val LANGUAGE_FIELD_NUMBER = 4
-  def of(
-    errorMessage: _root_.scala.Predef.String,
-    errorDetails: _root_.scala.Predef.String,
-    stackTrace: _root_.scala.Predef.String,
-    language: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ErrorLanguage
-  ): _root_.edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError = _root_.edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError(
-    errorMessage,
-    errorDetails,
-    stackTrace,
-    language
-  )
-  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.ControlError])
-}
-
-@SerialVersionUID(0L)
-final case class EmptyReturn(
-    ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturn.NonEmpty with scalapb.lenses.Updatable[EmptyReturn] {
-    final override def serializedSize: _root_.scala.Int = 0
-    def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
-    }
-    def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = throw new MatchError(__fieldNumber)
-    def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = throw new MatchError(__field)
-    def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn.type = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
-    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.rpc.EmptyReturn])
-}
-
-object EmptyReturn extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] {
-  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] = this
-  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn = {
-    var _done__ = false
-    while (!_done__) {
-      val _tag__ = _input__.readTag()
-      _tag__ match {
-        case 0 => _done__ = true
-        case tag => _input__.skipField(tag)
-      }
-    }
-    edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn(
-    )
-  }
-  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] = _root_.scalapb.descriptors.Reads{
-    case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
-      _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
-      edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn(
-      )
-    case _ => throw new RuntimeException("Expected PMessage")
-  }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlreturnsProto.javaDescriptor.getMessageTypes().get(1)
-  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlreturnsProto.scalaDescriptor.messages(1)
-  def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
-  lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
-  def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
-  lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn(
-  )
-  implicit class EmptyReturnLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn](_l) {
-  }
-  def of(
-  ): _root_.edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn = _root_.edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn(
-  )
-  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.EmptyReturn])
 }
 
 @SerialVersionUID(0L)
@@ -1546,206 +1303,6 @@ object StartWorkflowResponse extends scalapb.GeneratedMessageCompanion[edu.uci.i
 }
 
 @SerialVersionUID(0L)
-final case class StringResponse(
-    value: _root_.scala.Predef.String
-    ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturn.NonEmpty with scalapb.lenses.Updatable[StringResponse] {
-    @transient
-    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
-    private[this] def __computeSerializedSize(): _root_.scala.Int = {
-      var __size = 0
-      
-      {
-        val __value = value
-        if (!__value.isEmpty) {
-          __size += _root_.com.google.protobuf.CodedOutputStream.computeStringSize(1, __value)
-        }
-      };
-      __size
-    }
-    override def serializedSize: _root_.scala.Int = {
-      var __size = __serializedSizeMemoized
-      if (__size == 0) {
-        __size = __computeSerializedSize() + 1
-        __serializedSizeMemoized = __size
-      }
-      __size - 1
-      
-    }
-    def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
-      {
-        val __v = value
-        if (!__v.isEmpty) {
-          _output__.writeString(1, __v)
-        }
-      };
-    }
-    def withValue(__v: _root_.scala.Predef.String): StringResponse = copy(value = __v)
-    def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
-      (__fieldNumber: @_root_.scala.unchecked) match {
-        case 1 => {
-          val __t = value
-          if (__t != "") __t else null
-        }
-      }
-    }
-    def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
-      _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
-      (__field.number: @_root_.scala.unchecked) match {
-        case 1 => _root_.scalapb.descriptors.PString(value)
-      }
-    }
-    def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse.type = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse
-    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.rpc.StringResponse])
-}
-
-object StringResponse extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse] {
-  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse] = this
-  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse = {
-    var __value: _root_.scala.Predef.String = ""
-    var _done__ = false
-    while (!_done__) {
-      val _tag__ = _input__.readTag()
-      _tag__ match {
-        case 0 => _done__ = true
-        case 10 =>
-          __value = _input__.readStringRequireUtf8()
-        case tag => _input__.skipField(tag)
-      }
-    }
-    edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse(
-        value = __value
-    )
-  }
-  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse] = _root_.scalapb.descriptors.Reads{
-    case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
-      _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
-      edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse(
-        value = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Predef.String]).getOrElse("")
-      )
-    case _ => throw new RuntimeException("Expected PMessage")
-  }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlreturnsProto.javaDescriptor.getMessageTypes().get(4)
-  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlreturnsProto.scalaDescriptor.messages(4)
-  def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
-  lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
-  def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
-  lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse(
-    value = ""
-  )
-  implicit class StringResponseLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse](_l) {
-    def value: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.value)((c_, f_) => c_.copy(value = f_))
-  }
-  final val VALUE_FIELD_NUMBER = 1
-  def of(
-    value: _root_.scala.Predef.String
-  ): _root_.edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse = _root_.edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse(
-    value
-  )
-  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.StringResponse])
-}
-
-@SerialVersionUID(0L)
-final case class IntResponse(
-    value: _root_.scala.Int
-    ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturn.NonEmpty with scalapb.lenses.Updatable[IntResponse] {
-    @transient
-    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
-    private[this] def __computeSerializedSize(): _root_.scala.Int = {
-      var __size = 0
-      
-      {
-        val __value = value
-        if (__value != 0) {
-          __size += _root_.com.google.protobuf.CodedOutputStream.computeInt32Size(1, __value)
-        }
-      };
-      __size
-    }
-    override def serializedSize: _root_.scala.Int = {
-      var __size = __serializedSizeMemoized
-      if (__size == 0) {
-        __size = __computeSerializedSize() + 1
-        __serializedSizeMemoized = __size
-      }
-      __size - 1
-      
-    }
-    def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
-      {
-        val __v = value
-        if (__v != 0) {
-          _output__.writeInt32(1, __v)
-        }
-      };
-    }
-    def withValue(__v: _root_.scala.Int): IntResponse = copy(value = __v)
-    def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
-      (__fieldNumber: @_root_.scala.unchecked) match {
-        case 1 => {
-          val __t = value
-          if (__t != 0) __t else null
-        }
-      }
-    }
-    def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
-      _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
-      (__field.number: @_root_.scala.unchecked) match {
-        case 1 => _root_.scalapb.descriptors.PInt(value)
-      }
-    }
-    def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse.type = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse
-    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.rpc.IntResponse])
-}
-
-object IntResponse extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse] {
-  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse] = this
-  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse = {
-    var __value: _root_.scala.Int = 0
-    var _done__ = false
-    while (!_done__) {
-      val _tag__ = _input__.readTag()
-      _tag__ match {
-        case 0 => _done__ = true
-        case 8 =>
-          __value = _input__.readInt32()
-        case tag => _input__.skipField(tag)
-      }
-    }
-    edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse(
-        value = __value
-    )
-  }
-  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse] = _root_.scalapb.descriptors.Reads{
-    case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
-      _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
-      edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse(
-        value = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Int]).getOrElse(0)
-      )
-    case _ => throw new RuntimeException("Expected PMessage")
-  }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlreturnsProto.javaDescriptor.getMessageTypes().get(5)
-  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlreturnsProto.scalaDescriptor.messages(5)
-  def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
-  lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
-  def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
-  lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse(
-    value = 0
-  )
-  implicit class IntResponseLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse](_l) {
-    def value: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Int] = field(_.value)((c_, f_) => c_.copy(value = f_))
-  }
-  final val VALUE_FIELD_NUMBER = 1
-  def of(
-    value: _root_.scala.Int
-  ): _root_.edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse = _root_.edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse(
-    value
-  )
-  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.IntResponse])
-}
-
-@SerialVersionUID(0L)
 final case class WorkerStateResponse(
     state: edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturn.NonEmpty with scalapb.lenses.Updatable[WorkerStateResponse] {
@@ -2055,4 +1612,447 @@ object FinalizeCheckpointResponse extends scalapb.GeneratedMessageCompanion[edu.
     size
   )
   // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.FinalizeCheckpointResponse])
+}
+
+@SerialVersionUID(0L)
+final case class ControlError(
+    errorMessage: _root_.scala.Predef.String,
+    errorDetails: _root_.scala.Predef.String,
+    stackTrace: _root_.scala.Predef.String,
+    language: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ErrorLanguage
+    ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturn.NonEmpty with scalapb.lenses.Updatable[ControlError] {
+    @transient
+    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
+    private[this] def __computeSerializedSize(): _root_.scala.Int = {
+      var __size = 0
+      
+      {
+        val __value = errorMessage
+        if (!__value.isEmpty) {
+          __size += _root_.com.google.protobuf.CodedOutputStream.computeStringSize(1, __value)
+        }
+      };
+      
+      {
+        val __value = errorDetails
+        if (!__value.isEmpty) {
+          __size += _root_.com.google.protobuf.CodedOutputStream.computeStringSize(2, __value)
+        }
+      };
+      
+      {
+        val __value = stackTrace
+        if (!__value.isEmpty) {
+          __size += _root_.com.google.protobuf.CodedOutputStream.computeStringSize(3, __value)
+        }
+      };
+      
+      {
+        val __value = language.value
+        if (__value != 0) {
+          __size += _root_.com.google.protobuf.CodedOutputStream.computeEnumSize(4, __value)
+        }
+      };
+      __size
+    }
+    override def serializedSize: _root_.scala.Int = {
+      var __size = __serializedSizeMemoized
+      if (__size == 0) {
+        __size = __computeSerializedSize() + 1
+        __serializedSizeMemoized = __size
+      }
+      __size - 1
+      
+    }
+    def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
+      {
+        val __v = errorMessage
+        if (!__v.isEmpty) {
+          _output__.writeString(1, __v)
+        }
+      };
+      {
+        val __v = errorDetails
+        if (!__v.isEmpty) {
+          _output__.writeString(2, __v)
+        }
+      };
+      {
+        val __v = stackTrace
+        if (!__v.isEmpty) {
+          _output__.writeString(3, __v)
+        }
+      };
+      {
+        val __v = language.value
+        if (__v != 0) {
+          _output__.writeEnum(4, __v)
+        }
+      };
+    }
+    def withErrorMessage(__v: _root_.scala.Predef.String): ControlError = copy(errorMessage = __v)
+    def withErrorDetails(__v: _root_.scala.Predef.String): ControlError = copy(errorDetails = __v)
+    def withStackTrace(__v: _root_.scala.Predef.String): ControlError = copy(stackTrace = __v)
+    def withLanguage(__v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ErrorLanguage): ControlError = copy(language = __v)
+    def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
+      (__fieldNumber: @_root_.scala.unchecked) match {
+        case 1 => {
+          val __t = errorMessage
+          if (__t != "") __t else null
+        }
+        case 2 => {
+          val __t = errorDetails
+          if (__t != "") __t else null
+        }
+        case 3 => {
+          val __t = stackTrace
+          if (__t != "") __t else null
+        }
+        case 4 => {
+          val __t = language.javaValueDescriptor
+          if (__t.getNumber() != 0) __t else null
+        }
+      }
+    }
+    def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
+      _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
+      (__field.number: @_root_.scala.unchecked) match {
+        case 1 => _root_.scalapb.descriptors.PString(errorMessage)
+        case 2 => _root_.scalapb.descriptors.PString(errorDetails)
+        case 3 => _root_.scalapb.descriptors.PString(stackTrace)
+        case 4 => _root_.scalapb.descriptors.PEnum(language.scalaValueDescriptor)
+      }
+    }
+    def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
+    def companion: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError.type = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError
+    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.rpc.ControlError])
+}
+
+object ControlError extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError] {
+  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError] = this
+  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError = {
+    var __errorMessage: _root_.scala.Predef.String = ""
+    var __errorDetails: _root_.scala.Predef.String = ""
+    var __stackTrace: _root_.scala.Predef.String = ""
+    var __language: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ErrorLanguage = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ErrorLanguage.PYTHON
+    var _done__ = false
+    while (!_done__) {
+      val _tag__ = _input__.readTag()
+      _tag__ match {
+        case 0 => _done__ = true
+        case 10 =>
+          __errorMessage = _input__.readStringRequireUtf8()
+        case 18 =>
+          __errorDetails = _input__.readStringRequireUtf8()
+        case 26 =>
+          __stackTrace = _input__.readStringRequireUtf8()
+        case 32 =>
+          __language = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ErrorLanguage.fromValue(_input__.readEnum())
+        case tag => _input__.skipField(tag)
+      }
+    }
+    edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError(
+        errorMessage = __errorMessage,
+        errorDetails = __errorDetails,
+        stackTrace = __stackTrace,
+        language = __language
+    )
+  }
+  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError] = _root_.scalapb.descriptors.Reads{
+    case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
+      _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
+      edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError(
+        errorMessage = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Predef.String]).getOrElse(""),
+        errorDetails = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Predef.String]).getOrElse(""),
+        stackTrace = __fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).map(_.as[_root_.scala.Predef.String]).getOrElse(""),
+        language = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ErrorLanguage.fromValue(__fieldsMap.get(scalaDescriptor.findFieldByNumber(4).get).map(_.as[_root_.scalapb.descriptors.EnumValueDescriptor]).getOrElse(edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ErrorLanguage.PYTHON.scalaValueDescriptor).number)
+      )
+    case _ => throw new RuntimeException("Expected PMessage")
+  }
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlreturnsProto.javaDescriptor.getMessageTypes().get(2)
+  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlreturnsProto.scalaDescriptor.messages(2)
+  def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
+  lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
+  def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = {
+    (__fieldNumber: @_root_.scala.unchecked) match {
+      case 4 => edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ErrorLanguage
+    }
+  }
+  lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError(
+    errorMessage = "",
+    errorDetails = "",
+    stackTrace = "",
+    language = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ErrorLanguage.PYTHON
+  )
+  implicit class ControlErrorLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError](_l) {
+    def errorMessage: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.errorMessage)((c_, f_) => c_.copy(errorMessage = f_))
+    def errorDetails: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.errorDetails)((c_, f_) => c_.copy(errorDetails = f_))
+    def stackTrace: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.stackTrace)((c_, f_) => c_.copy(stackTrace = f_))
+    def language: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ErrorLanguage] = field(_.language)((c_, f_) => c_.copy(language = f_))
+  }
+  final val ERRORMESSAGE_FIELD_NUMBER = 1
+  final val ERRORDETAILS_FIELD_NUMBER = 2
+  final val STACKTRACE_FIELD_NUMBER = 3
+  final val LANGUAGE_FIELD_NUMBER = 4
+  def of(
+    errorMessage: _root_.scala.Predef.String,
+    errorDetails: _root_.scala.Predef.String,
+    stackTrace: _root_.scala.Predef.String,
+    language: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ErrorLanguage
+  ): _root_.edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError = _root_.edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlError(
+    errorMessage,
+    errorDetails,
+    stackTrace,
+    language
+  )
+  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.ControlError])
+}
+
+@SerialVersionUID(0L)
+final case class EmptyReturn(
+    ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturn.NonEmpty with scalapb.lenses.Updatable[EmptyReturn] {
+    final override def serializedSize: _root_.scala.Int = 0
+    def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
+    }
+    def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = throw new MatchError(__fieldNumber)
+    def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = throw new MatchError(__field)
+    def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
+    def companion: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn.type = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
+    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.rpc.EmptyReturn])
+}
+
+object EmptyReturn extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] {
+  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] = this
+  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn = {
+    var _done__ = false
+    while (!_done__) {
+      val _tag__ = _input__.readTag()
+      _tag__ match {
+        case 0 => _done__ = true
+        case tag => _input__.skipField(tag)
+      }
+    }
+    edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn(
+    )
+  }
+  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] = _root_.scalapb.descriptors.Reads{
+    case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
+      _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
+      edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn(
+      )
+    case _ => throw new RuntimeException("Expected PMessage")
+  }
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlreturnsProto.javaDescriptor.getMessageTypes().get(1)
+  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlreturnsProto.scalaDescriptor.messages(1)
+  def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
+  lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
+  def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
+  lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn(
+  )
+  implicit class EmptyReturnLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn](_l) {
+  }
+  def of(
+  ): _root_.edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn = _root_.edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn(
+  )
+  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.EmptyReturn])
+}
+
+@SerialVersionUID(0L)
+final case class StringResponse(
+    value: _root_.scala.Predef.String
+    ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturn.NonEmpty with scalapb.lenses.Updatable[StringResponse] {
+    @transient
+    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
+    private[this] def __computeSerializedSize(): _root_.scala.Int = {
+      var __size = 0
+      
+      {
+        val __value = value
+        if (!__value.isEmpty) {
+          __size += _root_.com.google.protobuf.CodedOutputStream.computeStringSize(1, __value)
+        }
+      };
+      __size
+    }
+    override def serializedSize: _root_.scala.Int = {
+      var __size = __serializedSizeMemoized
+      if (__size == 0) {
+        __size = __computeSerializedSize() + 1
+        __serializedSizeMemoized = __size
+      }
+      __size - 1
+      
+    }
+    def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
+      {
+        val __v = value
+        if (!__v.isEmpty) {
+          _output__.writeString(1, __v)
+        }
+      };
+    }
+    def withValue(__v: _root_.scala.Predef.String): StringResponse = copy(value = __v)
+    def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
+      (__fieldNumber: @_root_.scala.unchecked) match {
+        case 1 => {
+          val __t = value
+          if (__t != "") __t else null
+        }
+      }
+    }
+    def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
+      _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
+      (__field.number: @_root_.scala.unchecked) match {
+        case 1 => _root_.scalapb.descriptors.PString(value)
+      }
+    }
+    def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
+    def companion: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse.type = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse
+    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.rpc.StringResponse])
+}
+
+object StringResponse extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse] {
+  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse] = this
+  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse = {
+    var __value: _root_.scala.Predef.String = ""
+    var _done__ = false
+    while (!_done__) {
+      val _tag__ = _input__.readTag()
+      _tag__ match {
+        case 0 => _done__ = true
+        case 10 =>
+          __value = _input__.readStringRequireUtf8()
+        case tag => _input__.skipField(tag)
+      }
+    }
+    edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse(
+        value = __value
+    )
+  }
+  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse] = _root_.scalapb.descriptors.Reads{
+    case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
+      _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
+      edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse(
+        value = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Predef.String]).getOrElse("")
+      )
+    case _ => throw new RuntimeException("Expected PMessage")
+  }
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlreturnsProto.javaDescriptor.getMessageTypes().get(4)
+  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlreturnsProto.scalaDescriptor.messages(4)
+  def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
+  lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
+  def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
+  lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse(
+    value = ""
+  )
+  implicit class StringResponseLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse](_l) {
+    def value: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.value)((c_, f_) => c_.copy(value = f_))
+  }
+  final val VALUE_FIELD_NUMBER = 1
+  def of(
+    value: _root_.scala.Predef.String
+  ): _root_.edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse = _root_.edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StringResponse(
+    value
+  )
+  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.StringResponse])
+}
+
+@SerialVersionUID(0L)
+final case class IntResponse(
+    value: _root_.scala.Int
+    ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturn.NonEmpty with scalapb.lenses.Updatable[IntResponse] {
+    @transient
+    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
+    private[this] def __computeSerializedSize(): _root_.scala.Int = {
+      var __size = 0
+      
+      {
+        val __value = value
+        if (__value != 0) {
+          __size += _root_.com.google.protobuf.CodedOutputStream.computeInt32Size(1, __value)
+        }
+      };
+      __size
+    }
+    override def serializedSize: _root_.scala.Int = {
+      var __size = __serializedSizeMemoized
+      if (__size == 0) {
+        __size = __computeSerializedSize() + 1
+        __serializedSizeMemoized = __size
+      }
+      __size - 1
+      
+    }
+    def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
+      {
+        val __v = value
+        if (__v != 0) {
+          _output__.writeInt32(1, __v)
+        }
+      };
+    }
+    def withValue(__v: _root_.scala.Int): IntResponse = copy(value = __v)
+    def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
+      (__fieldNumber: @_root_.scala.unchecked) match {
+        case 1 => {
+          val __t = value
+          if (__t != 0) __t else null
+        }
+      }
+    }
+    def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
+      _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
+      (__field.number: @_root_.scala.unchecked) match {
+        case 1 => _root_.scalapb.descriptors.PInt(value)
+      }
+    }
+    def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
+    def companion: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse.type = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse
+    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.rpc.IntResponse])
+}
+
+object IntResponse extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse] {
+  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse] = this
+  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse = {
+    var __value: _root_.scala.Int = 0
+    var _done__ = false
+    while (!_done__) {
+      val _tag__ = _input__.readTag()
+      _tag__ match {
+        case 0 => _done__ = true
+        case 8 =>
+          __value = _input__.readInt32()
+        case tag => _input__.skipField(tag)
+      }
+    }
+    edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse(
+        value = __value
+    )
+  }
+  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse] = _root_.scalapb.descriptors.Reads{
+    case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
+      _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
+      edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse(
+        value = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Int]).getOrElse(0)
+      )
+    case _ => throw new RuntimeException("Expected PMessage")
+  }
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlreturnsProto.javaDescriptor.getMessageTypes().get(5)
+  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlreturnsProto.scalaDescriptor.messages(5)
+  def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
+  lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
+  def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
+  lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse(
+    value = 0
+  )
+  implicit class IntResponseLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse](_l) {
+    def value: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Int] = field(_.value)((c_, f_) => c_.copy(value = f_))
+  }
+  final val VALUE_FIELD_NUMBER = 1
+  def of(
+    value: _root_.scala.Int
+  ): _root_.edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse = _root_.edu.uci.ics.amber.engine.architecture.rpc.controlreturns.IntResponse(
+    value
+  )
+  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.rpc.IntResponse])
 }

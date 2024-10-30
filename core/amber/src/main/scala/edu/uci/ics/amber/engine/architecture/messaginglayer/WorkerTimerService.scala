@@ -31,7 +31,7 @@ class WorkerTimerService(actorService: AkkaActorService) {
         0.milliseconds,
         FiniteDuration.apply(adaptiveBatchInterval, MILLISECONDS),
         ControlInvocation(
-          METHOD_FLUSH_NETWORK_BUFFER,
+          METHOD_FLUSH_NETWORK_BUFFER, // uses method descriptor instead of method name string
           EmptyRequest(),
           AsyncRPCContext(SELF, SELF),
           AsyncRPCClient.IgnoreReplyAndDoNotLog

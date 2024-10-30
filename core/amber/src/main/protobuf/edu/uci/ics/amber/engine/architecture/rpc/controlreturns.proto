@@ -15,18 +15,23 @@ option (scalapb.options) = {
 message ControlReturn {
   // Oneof block for various return types
   oneof sealed_value {
-    ControlError error = 1;
-    EmptyReturn emptyReturn = 2;
-    RetrieveWorkflowStateResponse retrieveWorkflowStateResponse = 3;
-    PropagateChannelMarkerResponse propagateChannelMarkerResponse = 4;
-    TakeGlobalCheckpointResponse takeGlobalCheckpointResponse = 5;
-    EvaluatePythonExpressionResponse evaluatePythonExpressionResponse = 6;
-    StartWorkflowResponse startWorkflowResponse = 7;
-    StringResponse stringResponse = 8;
-    IntResponse intResponse = 9;
-    WorkerStateResponse workerStateResponse = 10;
-    WorkerMetricsResponse workerMetricsResponse = 11;
-    FinalizeCheckpointResponse finalizeCheckpointResponse = 12;
+    // controller responses
+    RetrieveWorkflowStateResponse retrieveWorkflowStateResponse = 1;
+    PropagateChannelMarkerResponse propagateChannelMarkerResponse = 2;
+    TakeGlobalCheckpointResponse takeGlobalCheckpointResponse = 3;
+    EvaluatePythonExpressionResponse evaluatePythonExpressionResponse = 4;
+    StartWorkflowResponse startWorkflowResponse = 5;
+
+    // worker responses
+    WorkerStateResponse workerStateResponse = 50;
+    WorkerMetricsResponse workerMetricsResponse = 51;
+    FinalizeCheckpointResponse finalizeCheckpointResponse = 52;
+
+    // common responses
+    ControlError error = 101;
+    EmptyReturn emptyReturn = 102;
+    StringResponse stringResponse = 103;
+    IntResponse intResponse = 104;
   }
 }
 

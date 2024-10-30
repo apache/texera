@@ -67,6 +67,8 @@ class ControlRequest(betterproto.Message):
     propagate_channel_marker_request: "PropagateChannelMarkerRequest" = (
         betterproto.message_field(1, group="sealed_value")
     )
+    """request for controller"""
+
     take_global_checkpoint_request: "TakeGlobalCheckpointRequest" = (
         betterproto.message_field(2, group="sealed_value")
     )
@@ -89,48 +91,52 @@ class ControlRequest(betterproto.Message):
         9, group="sealed_value"
     )
     worker_state_updated_request: "WorkerStateUpdatedRequest" = (
-        betterproto.message_field(13, group="sealed_value")
+        betterproto.message_field(10, group="sealed_value")
     )
     link_workers_request: "LinkWorkersRequest" = betterproto.message_field(
-        15, group="sealed_value"
+        11, group="sealed_value"
     )
-    ping: "Ping" = betterproto.message_field(16, group="sealed_value")
-    pong: "Pong" = betterproto.message_field(17, group="sealed_value")
-    nested: "Nested" = betterproto.message_field(18, group="sealed_value")
-    pass_: "Pass" = betterproto.message_field(19, group="sealed_value")
-    error_command: "ErrorCommand" = betterproto.message_field(20, group="sealed_value")
-    recursion: "Recursion" = betterproto.message_field(21, group="sealed_value")
-    collect: "Collect" = betterproto.message_field(22, group="sealed_value")
-    generate_number: "GenerateNumber" = betterproto.message_field(
-        23, group="sealed_value"
-    )
-    multi_call: "MultiCall" = betterproto.message_field(24, group="sealed_value")
-    chain: "Chain" = betterproto.message_field(25, group="sealed_value")
     add_input_channel_request: "AddInputChannelRequest" = betterproto.message_field(
-        26, group="sealed_value"
+        50, group="sealed_value"
     )
+    """request for worker"""
+
     add_partitioning_request: "AddPartitioningRequest" = betterproto.message_field(
-        27, group="sealed_value"
+        51, group="sealed_value"
     )
     assign_port_request: "AssignPortRequest" = betterproto.message_field(
-        28, group="sealed_value"
+        52, group="sealed_value"
     )
     finalize_checkpoint_request: "FinalizeCheckpointRequest" = (
-        betterproto.message_field(29, group="sealed_value")
+        betterproto.message_field(53, group="sealed_value")
     )
     initialize_executor_request: "InitializeExecutorRequest" = (
-        betterproto.message_field(30, group="sealed_value")
+        betterproto.message_field(54, group="sealed_value")
     )
     update_executor_request: "UpdateExecutorRequest" = betterproto.message_field(
-        31, group="sealed_value"
+        55, group="sealed_value"
     )
-    empty_request: "EmptyRequest" = betterproto.message_field(33, group="sealed_value")
+    empty_request: "EmptyRequest" = betterproto.message_field(56, group="sealed_value")
     prepare_checkpoint_request: "PrepareCheckpointRequest" = betterproto.message_field(
-        34, group="sealed_value"
+        57, group="sealed_value"
     )
     query_statistics_request: "QueryStatisticsRequest" = betterproto.message_field(
-        35, group="sealed_value"
+        58, group="sealed_value"
     )
+    ping: "Ping" = betterproto.message_field(100, group="sealed_value")
+    """request for testing"""
+
+    pong: "Pong" = betterproto.message_field(101, group="sealed_value")
+    nested: "Nested" = betterproto.message_field(102, group="sealed_value")
+    pass_: "Pass" = betterproto.message_field(103, group="sealed_value")
+    error_command: "ErrorCommand" = betterproto.message_field(104, group="sealed_value")
+    recursion: "Recursion" = betterproto.message_field(105, group="sealed_value")
+    collect: "Collect" = betterproto.message_field(106, group="sealed_value")
+    generate_number: "GenerateNumber" = betterproto.message_field(
+        107, group="sealed_value"
+    )
+    multi_call: "MultiCall" = betterproto.message_field(108, group="sealed_value")
+    chain: "Chain" = betterproto.message_field(109, group="sealed_value")
 
 
 @dataclass(eq=False, repr=False)
@@ -382,36 +388,42 @@ class QueryStatisticsRequest(betterproto.Message):
 class ControlReturn(betterproto.Message):
     """The generic return message"""
 
-    error: "ControlError" = betterproto.message_field(1, group="sealed_value")
-    empty_return: "EmptyReturn" = betterproto.message_field(2, group="sealed_value")
     retrieve_workflow_state_response: "RetrieveWorkflowStateResponse" = (
-        betterproto.message_field(3, group="sealed_value")
+        betterproto.message_field(1, group="sealed_value")
     )
+    """controller responses"""
+
     propagate_channel_marker_response: "PropagateChannelMarkerResponse" = (
-        betterproto.message_field(4, group="sealed_value")
+        betterproto.message_field(2, group="sealed_value")
     )
     take_global_checkpoint_response: "TakeGlobalCheckpointResponse" = (
-        betterproto.message_field(5, group="sealed_value")
+        betterproto.message_field(3, group="sealed_value")
     )
     evaluate_python_expression_response: "EvaluatePythonExpressionResponse" = (
-        betterproto.message_field(6, group="sealed_value")
+        betterproto.message_field(4, group="sealed_value")
     )
     start_workflow_response: "StartWorkflowResponse" = betterproto.message_field(
-        7, group="sealed_value"
+        5, group="sealed_value"
     )
-    string_response: "StringResponse" = betterproto.message_field(
-        8, group="sealed_value"
-    )
-    int_response: "IntResponse" = betterproto.message_field(9, group="sealed_value")
     worker_state_response: "WorkerStateResponse" = betterproto.message_field(
-        10, group="sealed_value"
+        50, group="sealed_value"
     )
+    """worker responses"""
+
     worker_metrics_response: "WorkerMetricsResponse" = betterproto.message_field(
-        11, group="sealed_value"
+        51, group="sealed_value"
     )
     finalize_checkpoint_response: "FinalizeCheckpointResponse" = (
-        betterproto.message_field(12, group="sealed_value")
+        betterproto.message_field(52, group="sealed_value")
     )
+    error: "ControlError" = betterproto.message_field(101, group="sealed_value")
+    """common responses"""
+
+    empty_return: "EmptyReturn" = betterproto.message_field(102, group="sealed_value")
+    string_response: "StringResponse" = betterproto.message_field(
+        103, group="sealed_value"
+    )
+    int_response: "IntResponse" = betterproto.message_field(104, group="sealed_value")
 
 
 @dataclass(eq=False, repr=False)
