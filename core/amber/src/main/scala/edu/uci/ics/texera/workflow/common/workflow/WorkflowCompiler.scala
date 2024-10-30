@@ -51,7 +51,7 @@ class WorkflowCompiler(
       logicalPlanPojo.opsToViewResult,
       logicalPlan
     )
-
+    logicalPlan.resolveScanSourceOpFileName(Some(errorList))
     logicalPlan.propagateWorkflowSchema(context, Some(errorList))
     // map compilation errors with op id
     if (errorList.nonEmpty) {
@@ -121,6 +121,7 @@ class WorkflowCompiler(
       logicalPlan
     )
 
+    logicalPlan.resolveScanSourceOpFileName(Some(errorList))
     logicalPlan.propagateWorkflowSchema(context, Some(errorList))
 
     // report compilation errors
