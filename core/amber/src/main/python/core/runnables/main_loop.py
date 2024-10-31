@@ -1,11 +1,10 @@
 import threading
 import time
 import typing
-from typing import Iterator, Optional
-import asyncio
 from loguru import logger
 from overrides import overrides
 from pampy import match
+from typing import Iterator, Optional
 
 from core.architecture.managers.context import Context
 from core.architecture.managers.pause_manager import PauseType
@@ -26,8 +25,8 @@ from core.models.internal_queue import DataElement, ControlElement
 from core.models.marker import State, EndOfInputChannel, StartOfInputChannel
 from core.runnables.data_processor import DataProcessor
 from core.util import StoppableQueueBlockingRunnable, get_one_of
-from core.util.customized_queue.queue_base import QueueElement
 from core.util.console_message.timestamp import current_time_in_local_timezone
+from core.util.customized_queue.queue_base import QueueElement
 from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     ConsoleMessage,
     ControlInvocation,
@@ -49,10 +48,10 @@ from proto.edu.uci.ics.amber.engine.common import (
 
 class MainLoop(StoppableQueueBlockingRunnable):
     def __init__(
-        self,
-        worker_id: str,
-        input_queue: InternalQueue,
-        output_queue: InternalQueue,
+            self,
+            worker_id: str,
+            input_queue: InternalQueue,
+            output_queue: InternalQueue,
     ):
         super().__init__(self.__class__.__name__, queue=input_queue)
         self._input_queue: InternalQueue = input_queue
@@ -96,8 +95,8 @@ class MainLoop(StoppableQueueBlockingRunnable):
         stage while processing a DataElement.
         """
         while (
-            not self._input_queue.is_control_empty()
-            or not self._input_queue.is_data_enabled()
+                not self._input_queue.is_control_empty()
+                or not self._input_queue.is_data_enabled()
         ):
             next_entry = self.interruptible_get()
             self._process_control_element(next_entry)
@@ -127,7 +126,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         )
 
     def process_control_payload(
-        self, tag: ActorVirtualIdentity, payload: ControlPayloadV2
+            self, tag: ActorVirtualIdentity, payload: ControlPayloadV2
     ) -> None:
         """
         Process the given ControlPayload with the tag.
@@ -171,7 +170,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
                     PortIdentity(0)
                 )
                 for to, batch in self.context.output_manager.tuple_to_batch(
-                    output_tuple
+                        output_tuple
                 ):
                     self._output_queue.put(DataElement(tag=to, payload=batch))
 
@@ -218,7 +217,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self._check_and_process_control()
 
     def _process_start_of_input_port(
-        self, start_of_input_port: StartOfInputPort
+            self, start_of_input_port: StartOfInputPort
     ) -> None:
         self.context.marker_processing_manager.current_input_marker = (
             start_of_input_port
@@ -231,13 +230,12 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self.process_input_tuple()
         input_port_id = self.context.tuple_processing_manager.current_input_port_id
         if input_port_id is not None:
-                self._async_rpc_client.get_controller_interface().port_completed(
-                    PortCompletedRequest(
-                        port_id=input_port_id,
-                        input=True,
-                    )
+            self._async_rpc_client.get_controller_interface().port_completed(
+                PortCompletedRequest(
+                    port_id=input_port_id,
+                    input=True,
                 )
-
+            )
 
     def _process_sender_change_marker(self, sender_change_marker: SenderChange) -> None:
         """
@@ -276,8 +274,8 @@ class MainLoop(StoppableQueueBlockingRunnable):
             self._check_and_process_control()
 
             self._async_rpc_client.get_controller_interface().port_completed(
-                    PortCompletedRequest(port_id=PortIdentity(0), input=False)
-                )
+                PortCompletedRequest(port_id=PortIdentity(0), input=False)
+            )
 
         self.complete()
 
@@ -305,9 +303,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
         # way to iterate through the iterator, instead of the for-each-loop
         # syntax sugar.
         while (
-            element := next(
-                self.context.tuple_processing_manager.current_input_tuple_iter, None
-            )
+                element := next(
+                    self.context.tuple_processing_manager.current_input_tuple_iter, None
+                )
         ) is not None:
             try:
                 match(
@@ -344,10 +342,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
             )
 
     def _send_console_message(self, console_message: ConsoleMessage):
-        asyncio.run(
-            self._async_rpc_client.get_controller_interface().console_message_triggered(
-                ConsoleMessageTriggeredRequest(console_message=console_message)
-            )
+
+        self._async_rpc_client.get_controller_interface().console_message_triggered(
+            ConsoleMessageTriggeredRequest(console_message=console_message)
         )
 
     def _switch_context(self) -> None:

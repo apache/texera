@@ -30,9 +30,8 @@ def async_run(func: Callable[..., Any]) -> Callable[..., Any]:
     def wrapper(*args, **kwargs) -> Any:
         try:
             # Try to get the current running loop
-            asyncio.get_running_loop()
-            # If the above line succeeds, a loop is running, so we can just call the async function directly
-            return func(*args, **kwargs)
+            if asyncio.get_running_loop():
+                return func(*args, **kwargs)
         except RuntimeError:
             # If there is no running loop, use asyncio.run to start one
             return asyncio.run(func(*args, **kwargs))
