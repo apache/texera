@@ -52,17 +52,20 @@ class AsyncRPCClient:
             ActorVirtualIdentity(self._context.worker_id),
             ActorVirtualIdentity(name="CONTROLLER"),
         )
-        self._controller_service_stub._unary_unary = (
-            AsyncRPCClient._assign_context(self, rpc_context))
+        self._controller_service_stub._unary_unary = AsyncRPCClient._assign_context(
+            self, rpc_context
+        )
         # Apply async_run to all async methods of the controller service stub
         self._wrap_all_async_methods_with_async_run(self._controller_service_stub)
 
-    def _assign_context(self, rpc_context: AsyncRpcContext) -> Callable[
-        ..., Coroutine[Any, Any,
-        Future]]:
+    def _assign_context(
+        self, rpc_context: AsyncRpcContext
+    ) -> Callable[..., Coroutine[Any, Any, Future]]:
         """Creates an async RPC wrapper function with a context"""
-        async def wrapper(route: str, request, response_type, timeout, deadline,
-                          metadata):
+
+        async def wrapper(
+            route: str, request, response_type, timeout, deadline, metadata
+        ):
             to = rpc_context.receiver
             control_command = ControlInvocation(
                 method_name=route.split("/")[-1],  # Extract the method name for RPC
@@ -73,6 +76,7 @@ class AsyncRPCClient:
             payload = set_one_of(ControlPayloadV2, control_command)
             self._output_queue.put(ControlElement(tag=to, payload=payload))
             return self._create_future(to)
+
         return wrapper
 
     def _wrap_all_async_methods_with_async_run(self, instance: Any) -> None:
@@ -94,11 +98,11 @@ class AsyncRPCClient:
 
         :param target_worker: The identifier for the target worker.
         """
-        return self._create_proxy(WorkerServiceStub,
-                                  ActorVirtualIdentity(target_worker))
+        return self._create_proxy(
+            WorkerServiceStub, ActorVirtualIdentity(target_worker)
+        )
 
-    def _create_proxy(self, service_class, target_worker:
-    ActorVirtualIdentity):
+    def _create_proxy(self, service_class, target_worker: ActorVirtualIdentity):
         """
         Creates a dynamic proxy for the given service class, allowing
         asynchronous RPC communication with the specified target actor.
@@ -115,8 +119,7 @@ class AsyncRPCClient:
                 self.target_actor = target_actor
 
             async def _unary_unary(
-                    self, route: str, request, response_type, *, timeout, deadline,
-                    metadata
+                self, route: str, request, response_type, *, timeout, deadline, metadata
             ):
                 """
                 Handles unary-unary RPC calls by creating a ControlInvocation command
@@ -183,7 +186,7 @@ class AsyncRPCClient:
         return future
 
     def receive(
-            self, from_: ActorVirtualIdentity, return_invocation: ReturnInvocation
+        self, from_: ActorVirtualIdentity, return_invocation: ReturnInvocation
     ) -> None:
         """
         Receive the ReturnInvocation from the given actor.
@@ -194,10 +197,10 @@ class AsyncRPCClient:
         self._fulfill_promise(from_, command_id, return_invocation.return_value)
 
     def _fulfill_promise(
-            self,
-            from_: ActorVirtualIdentity,
-            command_id: int,
-            control_return: ControlReturn,
+        self,
+        from_: ActorVirtualIdentity,
+        command_id: int,
+        control_return: ControlReturn,
     ) -> None:
         """
         Fulfill the promise with the CommandInvocation, referenced by the sequence id

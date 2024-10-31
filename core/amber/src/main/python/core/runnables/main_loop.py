@@ -48,10 +48,10 @@ from proto.edu.uci.ics.amber.engine.common import (
 
 class MainLoop(StoppableQueueBlockingRunnable):
     def __init__(
-            self,
-            worker_id: str,
-            input_queue: InternalQueue,
-            output_queue: InternalQueue,
+        self,
+        worker_id: str,
+        input_queue: InternalQueue,
+        output_queue: InternalQueue,
     ):
         super().__init__(self.__class__.__name__, queue=input_queue)
         self._input_queue: InternalQueue = input_queue
@@ -95,8 +95,8 @@ class MainLoop(StoppableQueueBlockingRunnable):
         stage while processing a DataElement.
         """
         while (
-                not self._input_queue.is_control_empty()
-                or not self._input_queue.is_data_enabled()
+            not self._input_queue.is_control_empty()
+            or not self._input_queue.is_data_enabled()
         ):
             next_entry = self.interruptible_get()
             self._process_control_element(next_entry)
@@ -126,7 +126,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         )
 
     def process_control_payload(
-            self, tag: ActorVirtualIdentity, payload: ControlPayloadV2
+        self, tag: ActorVirtualIdentity, payload: ControlPayloadV2
     ) -> None:
         """
         Process the given ControlPayload with the tag.
@@ -170,7 +170,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
                     PortIdentity(0)
                 )
                 for to, batch in self.context.output_manager.tuple_to_batch(
-                        output_tuple
+                    output_tuple
                 ):
                     self._output_queue.put(DataElement(tag=to, payload=batch))
 
@@ -217,7 +217,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self._check_and_process_control()
 
     def _process_start_of_input_port(
-            self, start_of_input_port: StartOfInputPort
+        self, start_of_input_port: StartOfInputPort
     ) -> None:
         self.context.marker_processing_manager.current_input_marker = (
             start_of_input_port
@@ -303,9 +303,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
         # way to iterate through the iterator, instead of the for-each-loop
         # syntax sugar.
         while (
-                element := next(
-                    self.context.tuple_processing_manager.current_input_tuple_iter, None
-                )
+            element := next(
+                self.context.tuple_processing_manager.current_input_tuple_iter, None
+            )
         ) is not None:
             try:
                 match(
