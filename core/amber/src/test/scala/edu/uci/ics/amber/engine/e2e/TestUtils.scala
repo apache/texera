@@ -13,9 +13,9 @@ object TestUtils {
   def buildWorkflow(
       operators: List[LogicalOp],
       links: List[LogicalLink],
-      resultStorage: OpResultStorage
+      resultStorage: OpResultStorage,
+      context: WorkflowContext
   ): Workflow = {
-    val context = new WorkflowContext()
     val workflowCompiler = new WorkflowCompiler(
       context
     )

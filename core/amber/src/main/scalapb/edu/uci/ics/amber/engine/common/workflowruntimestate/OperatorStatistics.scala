@@ -15,8 +15,8 @@ final case class OperatorStatistics(
     idleTime: _root_.scala.Long = 0L
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[OperatorStatistics] {
     @transient
-    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
-    private[this] def __computeSerializedValue(): _root_.scala.Int = {
+    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
+    private[this] def __computeSerializedSize(): _root_.scala.Int = {
       var __size = 0
       inputCount.foreach { __item =>
         val __value = __item
@@ -57,12 +57,13 @@ final case class OperatorStatistics(
       __size
     }
     override def serializedSize: _root_.scala.Int = {
-      var read = __serializedSizeCachedValue
-      if (read == 0) {
-        read = __computeSerializedValue()
-        __serializedSizeCachedValue = read
+      var __size = __serializedSizeMemoized
+      if (__size == 0) {
+        __size = __computeSerializedSize() + 1
+        __serializedSizeMemoized = __size
       }
-      read
+      __size - 1
+      
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       inputCount.foreach { __v =>
@@ -103,11 +104,11 @@ final case class OperatorStatistics(
       };
     }
     def clearInputCount = copy(inputCount = _root_.scala.Seq.empty)
-    def addInputCount(__vs: edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping*): OperatorStatistics = addAllInputCount(__vs)
+    def addInputCount(__vs: edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping *): OperatorStatistics = addAllInputCount(__vs)
     def addAllInputCount(__vs: Iterable[edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping]): OperatorStatistics = copy(inputCount = inputCount ++ __vs)
     def withInputCount(__v: _root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping]): OperatorStatistics = copy(inputCount = __v)
     def clearOutputCount = copy(outputCount = _root_.scala.Seq.empty)
-    def addOutputCount(__vs: edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping*): OperatorStatistics = addAllOutputCount(__vs)
+    def addOutputCount(__vs: edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping *): OperatorStatistics = addAllOutputCount(__vs)
     def addAllOutputCount(__vs: Iterable[edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping]): OperatorStatistics = copy(outputCount = outputCount ++ __vs)
     def withOutputCount(__v: _root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping]): OperatorStatistics = copy(outputCount = __v)
     def withNumWorkers(__v: _root_.scala.Int): OperatorStatistics = copy(numWorkers = __v)
@@ -148,7 +149,7 @@ final case class OperatorStatistics(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion = edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorStatistics
+    def companion: edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorStatistics.type = edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorStatistics
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.OperatorStatistics])
 }
 

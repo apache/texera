@@ -47,7 +47,7 @@ object OpExecInitInfo {
   *   - OpExecInitInfoWithCode:
   *       A function returning the code string that to be compiled in a virtual machine.
   */
-sealed trait OpExecInitInfo
+sealed trait OpExecInitInfo extends Serializable
 
 final case class OpExecInitInfoWithCode(
     codeGen: (Int, Int) => (String, String)

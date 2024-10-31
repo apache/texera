@@ -10,8 +10,8 @@ final case class OperatorBreakpoints(
     unresolvedBreakpoints: _root_.scala.Seq[edu.uci.ics.amber.engine.common.workflowruntimestate.BreakpointFault] = _root_.scala.Seq.empty
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[OperatorBreakpoints] {
     @transient
-    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
-    private[this] def __computeSerializedValue(): _root_.scala.Int = {
+    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
+    private[this] def __computeSerializedSize(): _root_.scala.Int = {
       var __size = 0
       unresolvedBreakpoints.foreach { __item =>
         val __value = __item
@@ -20,12 +20,13 @@ final case class OperatorBreakpoints(
       __size
     }
     override def serializedSize: _root_.scala.Int = {
-      var read = __serializedSizeCachedValue
-      if (read == 0) {
-        read = __computeSerializedValue()
-        __serializedSizeCachedValue = read
+      var __size = __serializedSizeMemoized
+      if (__size == 0) {
+        __size = __computeSerializedSize() + 1
+        __serializedSizeMemoized = __size
       }
-      read
+      __size - 1
+      
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       unresolvedBreakpoints.foreach { __v =>
@@ -36,7 +37,7 @@ final case class OperatorBreakpoints(
       };
     }
     def clearUnresolvedBreakpoints = copy(unresolvedBreakpoints = _root_.scala.Seq.empty)
-    def addUnresolvedBreakpoints(__vs: edu.uci.ics.amber.engine.common.workflowruntimestate.BreakpointFault*): OperatorBreakpoints = addAllUnresolvedBreakpoints(__vs)
+    def addUnresolvedBreakpoints(__vs: edu.uci.ics.amber.engine.common.workflowruntimestate.BreakpointFault *): OperatorBreakpoints = addAllUnresolvedBreakpoints(__vs)
     def addAllUnresolvedBreakpoints(__vs: Iterable[edu.uci.ics.amber.engine.common.workflowruntimestate.BreakpointFault]): OperatorBreakpoints = copy(unresolvedBreakpoints = unresolvedBreakpoints ++ __vs)
     def withUnresolvedBreakpoints(__v: _root_.scala.Seq[edu.uci.ics.amber.engine.common.workflowruntimestate.BreakpointFault]): OperatorBreakpoints = copy(unresolvedBreakpoints = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
@@ -51,7 +52,7 @@ final case class OperatorBreakpoints(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion = edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorBreakpoints
+    def companion: edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorBreakpoints.type = edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorBreakpoints
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.OperatorBreakpoints])
 }
 

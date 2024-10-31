@@ -5,22 +5,24 @@ import akka.pattern._
 import akka.util.Timeout
 import com.twitter.util.{Future, Promise}
 import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlRequest
+import edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerServiceFs2Grpc
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturn
 import edu.uci.ics.amber.engine.common.FutureBijection._
 import edu.uci.ics.amber.engine.common.ambermessage.{NotifyFailedNode, WorkflowRecoveryMessage}
 import edu.uci.ics.amber.engine.common.client.ClientActor.{
-  ClosureRequest,
   CommandRequest,
   InitializeRequest,
   ObservableRequest
 }
 import edu.uci.ics.amber.engine.common.model.{PhysicalPlan, WorkflowContext}
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CLIENT
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.subjects.PublishSubject
 
+import java.lang.reflect.{InvocationHandler, Method, Proxy}
 import scala.collection.mutable
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
@@ -57,45 +59,31 @@ class AmberClient(
     }
   }
 
-  def sendAsync[T](controlCommand: ControlCommand[T]): Future[T] = {
-    if (!isActive) {
-      Future.exception(new RuntimeException("amber runtime environment is not active"))
-    } else {
-      val promise = Promise[Any]()
-      clientActor ! CommandRequest(controlCommand, promise)
-      promise.map(ret => ret.asInstanceOf[T])
-    }
-  }
+  val controllerInterface: ControllerServiceFs2Grpc[Future, Unit] =
+    createProxy[ControllerServiceFs2Grpc[Future, Unit]]()
 
-  def sendAsMarker[T](scope: PhysicalPlan, controlCommand: ControlCommand[T]): Future[T] = {
-    if (!isActive) {
-      Future.exception(new RuntimeException("amber runtime environment is not active"))
-    } else {
-      val promise = Promise[Any]()
-      clientActor ! CommandRequest(controlCommand, promise)
-      promise.map(ret => ret.asInstanceOf[T])
-    }
-  }
+  private def createProxy[T]()(implicit ct: ClassTag[T]): T = {
+    val handler = new InvocationHandler {
 
-  def sendAsyncWithCallback[T](controlCommand: ControlCommand[T], callback: T => Unit): Unit = {
-    if (!isActive) {
-      Future.exception(new RuntimeException("amber runtime environment is not active"))
-    } else {
-      val promise = Promise[Any]()
-      promise.onSuccess { value =>
-        callback(value.asInstanceOf[T])
+      override def invoke(proxy: Any, method: Method, args: Array[AnyRef]): AnyRef = {
+        val req = args(0).asInstanceOf[ControlRequest]
+        val p = Promise[ControlReturn]()
+        clientActor ! CommandRequest(method.getName, req, p)
+        p
       }
-      promise.onFailure(t => errorHandler(t))
-      clientActor ! CommandRequest(controlCommand, promise)
     }
+
+    Proxy
+      .newProxyInstance(
+        getClassLoader(ct.runtimeClass),
+        Array(ct.runtimeClass),
+        handler
+      )
+      .asInstanceOf[T]
   }
 
-  def fireAndForget[T](controlCommand: ControlCommand[T]): Unit = {
-    if (!isActive) {
-      throw new RuntimeException("amber runtime environment is not active")
-    } else {
-      clientActor ! controlCommand
-    }
+  private def getClassLoader(cls: Class[_]): ClassLoader = {
+    Option(cls.getClassLoader).getOrElse(ClassLoader.getSystemClassLoader)
   }
 
   def notifyNodeFailure(address: Address): Future[Any] = {
@@ -137,14 +125,6 @@ class AmberClient(
           case t: Throwable => errorHandler(t)
         }
       }
-    }
-  }
-
-  def executeClosureSync[T](closure: => T): T = {
-    if (!isActive) {
-      closure
-    } else {
-      Await.result(clientActor ? ClosureRequest(() => closure), timeout.duration).asInstanceOf[T]
     }
   }
 

@@ -1,12 +1,12 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
 import edu.uci.ics.amber.engine.architecture.messaginglayer.InputGateway
-import edu.uci.ics.amber.engine.common.{AmberLogging, CheckpointState}
-import edu.uci.ics.amber.engine.common.ambermessage.{
-  ChannelMarkerPayload,
-  NoAlignment,
-  RequireAlignment
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerPayload
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType.{
+  NO_ALIGNMENT,
+  REQUIRE_ALIGNMENT
 }
+import edu.uci.ics.amber.engine.common.{AmberLogging, CheckpointState}
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   ChannelIdentity,
@@ -49,8 +49,8 @@ class ChannelMarkerManager(val actorId: ActorVirtualIdentity, inputGateway: Inpu
     val markerReceivedFromAllChannels =
       getChannelsWithinScope(marker).subsetOf(markerReceived(markerId))
     val epochMarkerCompleted = marker.markerType match {
-      case RequireAlignment => markerReceivedFromAllChannels
-      case NoAlignment      => markerReceived(markerId).size == 1 // only the first marker triggers
+      case REQUIRE_ALIGNMENT => markerReceivedFromAllChannels
+      case NO_ALIGNMENT      => markerReceived(markerId).size == 1 // only the first marker triggers
     }
     if (markerReceivedFromAllChannels) {
       markerReceived.remove(markerId) // clean up if all markers are received
