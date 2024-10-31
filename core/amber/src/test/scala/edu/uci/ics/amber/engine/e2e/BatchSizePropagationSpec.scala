@@ -219,7 +219,7 @@ class BatchSizePropagationSpec
     verifyBatchSizeInPartitioning(workflowScheduler, 100)
   }
 
-  "Engine" should "propagate the correct batch size for csv->keyword->averageAndGroupBy->sink workflow workflow" in {
+  "Engine" should "propagate the correct batch size for csv->keyword->averageAndGroupBy->sink workflow" in {
     val expectedBatchSize = 300
 
     val customWorkflowSettings = WorkflowSettings(dataTransferBatchSize = expectedBatchSize)
