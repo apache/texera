@@ -19,6 +19,7 @@ trait WorkerServiceFs2Grpc[F[_], A] {
   def startWorker(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest, ctx: A): F[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerStateResponse]
   def debugCommand(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.DebugCommandRequest, ctx: A): F[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]
   def evaluatePythonExpression(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EvaluatePythonExpressionRequest, ctx: A): F[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EvaluatedValue]
+  def noOperation(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest, ctx: A): F[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]
 }
 
 object WorkerServiceFs2Grpc extends _root_.fs2.grpc.GeneratedCompanion[WorkerServiceFs2Grpc] {
@@ -104,6 +105,11 @@ object WorkerServiceFs2Grpc extends _root_.fs2.grpc.GeneratedCompanion[WorkerSer
         _root_.fs2.grpc.client.Fs2ClientCall[F](channel, edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.METHOD_EVALUATE_PYTHON_EXPRESSION, dispatcher, clientOptions).flatMap(_.unaryToUnaryCall(request, m))
       }
     }
+    def noOperation(request: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest, ctx: A): F[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn] = {
+      mkMetadata(ctx).flatMap { m =>
+        _root_.fs2.grpc.client.Fs2ClientCall[F](channel, edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.METHOD_NO_OPERATION, dispatcher, clientOptions).flatMap(_.unaryToUnaryCall(request, m))
+      }
+    }
   }
   
   protected def serviceBinding[F[_]: _root_.cats.effect.Async, A](dispatcher: _root_.cats.effect.std.Dispatcher[F], serviceImpl: WorkerServiceFs2Grpc[F, A], mkCtx: _root_.io.grpc.Metadata => F[A], serverOptions: _root_.fs2.grpc.server.ServerOptions): _root_.io.grpc.ServerServiceDefinition = {
@@ -125,6 +131,7 @@ object WorkerServiceFs2Grpc extends _root_.fs2.grpc.GeneratedCompanion[WorkerSer
       .addMethod(edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.METHOD_START_WORKER, _root_.fs2.grpc.server.Fs2ServerCallHandler[F](dispatcher, serverOptions).unaryToUnaryCall[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerStateResponse]((r, m) => mkCtx(m).flatMap(serviceImpl.startWorker(r, _))))
       .addMethod(edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.METHOD_DEBUG_COMMAND, _root_.fs2.grpc.server.Fs2ServerCallHandler[F](dispatcher, serverOptions).unaryToUnaryCall[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.DebugCommandRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]((r, m) => mkCtx(m).flatMap(serviceImpl.debugCommand(r, _))))
       .addMethod(edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.METHOD_EVALUATE_PYTHON_EXPRESSION, _root_.fs2.grpc.server.Fs2ServerCallHandler[F](dispatcher, serverOptions).unaryToUnaryCall[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EvaluatePythonExpressionRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EvaluatedValue]((r, m) => mkCtx(m).flatMap(serviceImpl.evaluatePythonExpression(r, _))))
+      .addMethod(edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.METHOD_NO_OPERATION, _root_.fs2.grpc.server.Fs2ServerCallHandler[F](dispatcher, serverOptions).unaryToUnaryCall[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn]((r, m) => mkCtx(m).flatMap(serviceImpl.noOperation(r, _))))
       .build()
   }
 

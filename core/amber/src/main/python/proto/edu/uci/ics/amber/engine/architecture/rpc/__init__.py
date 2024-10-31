@@ -959,6 +959,23 @@ class WorkerServiceStub(betterproto.ServiceStub):
             metadata=metadata,
         )
 
+    async def no_operation(
+        self,
+        empty_request: "EmptyRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "EmptyReturn":
+        return await self._unary_unary(
+            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/NoOperation",
+            empty_request,
+            EmptyReturn,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
 
 class ControllerServiceStub(betterproto.ServiceStub):
     async def retrieve_workflow_state(
@@ -1464,6 +1481,9 @@ class WorkerServiceBase(ServiceBase):
     ) -> "EvaluatedValue":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
+    async def no_operation(self, empty_request: "EmptyRequest") -> "EmptyReturn":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
     async def __rpc_add_input_channel(
         self, stream: "grpclib.server.Stream[AddInputChannelRequest, EmptyReturn]"
     ) -> None:
@@ -1578,6 +1598,13 @@ class WorkerServiceBase(ServiceBase):
         response = await self.evaluate_python_expression(request)
         await stream.send_message(response)
 
+    async def __rpc_no_operation(
+        self, stream: "grpclib.server.Stream[EmptyRequest, EmptyReturn]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.no_operation(request)
+        await stream.send_message(response)
+
     def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
         return {
             "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/AddInputChannel": grpclib.const.Handler(
@@ -1675,6 +1702,12 @@ class WorkerServiceBase(ServiceBase):
                 grpclib.const.Cardinality.UNARY_UNARY,
                 EvaluatePythonExpressionRequest,
                 EvaluatedValue,
+            ),
+            "/edu.uci.ics.amber.engine.architecture.rpc.WorkerService/NoOperation": grpclib.const.Handler(
+                self.__rpc_no_operation,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                EmptyRequest,
+                EmptyReturn,
             ),
         }
 

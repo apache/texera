@@ -29,4 +29,5 @@ service WorkerService {
   rpc StartWorker(EmptyRequest) returns (WorkerStateResponse);
   rpc DebugCommand(DebugCommandRequest) returns (EmptyReturn);
   rpc EvaluatePythonExpression(EvaluatePythonExpressionRequest) returns (EvaluatedValue);
+  rpc NoOperation(EmptyRequest) returns (EmptyReturn);
 }

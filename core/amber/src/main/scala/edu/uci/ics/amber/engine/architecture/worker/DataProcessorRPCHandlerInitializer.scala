@@ -45,4 +45,6 @@ class DataProcessorRPCHandlerInitializer(val dp: DataProcessor)
 
   override def retryCurrentTuple(request: EmptyRequest, ctx: AsyncRPCContext): Future[EmptyReturn] =
     ???
+
+  override def noOperation(request: EmptyRequest, ctx: AsyncRPCContext): Future[EmptyReturn] = ???
 }
