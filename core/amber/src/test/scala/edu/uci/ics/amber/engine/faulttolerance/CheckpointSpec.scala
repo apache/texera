@@ -66,7 +66,8 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
         PortIdentity()
       )
     ),
-    resultStorage
+    resultStorage,
+    new WorkflowContext()
   )
 
   override def beforeAll(): Unit = {

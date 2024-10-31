@@ -12,6 +12,7 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHan
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.common.client.AmberClient
+import edu.uci.ics.amber.engine.common.model.WorkflowContext
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState.COMPLETED
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
@@ -45,7 +46,7 @@ class PauseSpec
       links: List[LogicalLink]
   ): Unit = {
     val resultStorage = new OpResultStorage()
-    val workflow = TestUtils.buildWorkflow(operators, links, resultStorage)
+    val workflow = TestUtils.buildWorkflow(operators, links, resultStorage, new WorkflowContext())
     val client =
       new AmberClient(
         system,
