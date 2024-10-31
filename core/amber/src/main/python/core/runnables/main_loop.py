@@ -82,7 +82,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
             time.time_ns() - self.context.statistics_manager.worker_start_time
         )
         controller_interface = self._async_rpc_client.get_controller_interface()
-        asyncio.run(controller_interface.worker_execution_completed(EmptyRequest()))
+        controller_interface.worker_execution_completed(EmptyRequest())
         self.context.close()
 
     def _check_and_process_control(self) -> None:
@@ -231,14 +231,13 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self.process_input_tuple()
         input_port_id = self.context.tuple_processing_manager.current_input_port_id
         if input_port_id is not None:
-            asyncio.run(
                 self._async_rpc_client.get_controller_interface().port_completed(
                     PortCompletedRequest(
                         port_id=input_port_id,
                         input=True,
                     )
                 )
-            )
+
 
     def _process_sender_change_marker(self, sender_change_marker: SenderChange) -> None:
         """
@@ -275,11 +274,11 @@ class MainLoop(StoppableQueueBlockingRunnable):
         for to, batch in self.context.output_manager.emit_marker(EndOfInputChannel()):
             self._output_queue.put(DataElement(tag=to, payload=batch))
             self._check_and_process_control()
-            asyncio.run(
-                self._async_rpc_client.get_controller_interface().port_completed(
+
+            self._async_rpc_client.get_controller_interface().port_completed(
                     PortCompletedRequest(port_id=PortIdentity(0), input=False)
                 )
-            )
+
         self.complete()
 
     def _process_data_element(self, data_element: DataElement) -> None:
