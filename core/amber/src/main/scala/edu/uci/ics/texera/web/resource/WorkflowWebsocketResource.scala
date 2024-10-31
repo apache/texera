@@ -3,6 +3,10 @@ package edu.uci.ics.texera.web.resource
 import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.clustering.ClusterListener
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
+  PAUSED,
+  RUNNING
+}
 import edu.uci.ics.amber.engine.common.model.WorkflowContext
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.amber.error.ErrorUtils.getStackTraceWithAllCauses
@@ -18,10 +22,6 @@ import edu.uci.ics.texera.web.model.websocket.response._
 import edu.uci.ics.texera.web.service.{WorkflowCacheChecker, WorkflowService}
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.amber.engine.common.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
-import edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState.{
-  PAUSED,
-  RUNNING
-}
 import edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowFatalError
 import edu.uci.ics.texera.web.{ServletAwareConfigurator, SessionState}
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler

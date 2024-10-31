@@ -16,15 +16,12 @@ import edu.uci.ics.amber.engine.common.model.tuple.{
   SchemaEnforceable,
   TupleLike
 }
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
 
 import scala.collection.mutable
 
 object OutputManager {
-
-  final case class FlushNetworkBuffer() extends ControlCommand[Unit]
 
   // create a corresponding partitioner for the given partitioning policy
   def toPartitioner(partitioning: Partitioning, actorId: ActorVirtualIdentity): Partitioner = {

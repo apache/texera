@@ -22,7 +22,7 @@ class ExecutionReconfigurationService(
   // monitors notification from the engine that a reconfiguration on a worker is completed
 //  client.registerCallback[UpdateExecutorCompleted]((evt: UpdateExecutorCompleted) => {
 //    stateStore.reconfigurationStore.updateState(old => {
-//      old.copy(completedReconfigurations = old.completedReconfigurations + evt.workerId)
+//      old.copy(completedReconfigurations = old.completedReconfigurations + evt.id)
 //    })
 //  })
 
@@ -90,17 +90,30 @@ class ExecutionReconfigurationService(
     throw new RuntimeException("reconfiguration is tentatively disabled.")
 //    // schedule all pending reconfigurations to the engine
 //    val reconfigurationId = UUID.randomUUID().toString
-//    if (!AmberConfig.enableTransactionalReconfiguration) {
-//      reconfigurations.foreach(reconfig => {
-//        client.sendAsync(ModifyLogic(reconfig._1, reconfig._2))
-//      })
-//    } else {
-//      client.sendAsync(Reconfigure(reconfigurations, reconfigurationId))
+//    val modifyLogicReq = AmberModifyLogicRequest(reconfigurations.map {
+//      case (op, stateTransferFunc) =>
+//        val bytes = AmberRuntime.serde.serialize(op.opExecInitInfo).get
+//        val protoAny = Any.of(
+//          "edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo",
+//          ByteString.copyFrom(bytes)
+//        )
+//        val stateTransferFuncOpt = stateTransferFunc.map { func =>
+//          val bytes = AmberRuntime.serde.serialize(func).get
+//          Any.of(
+//            "edu.uci.ics.texera.workflow.common.operators.StateTransferFunc",
+//            ByteString.copyFrom(bytes)
+//          )
+//        }
+//        UpdateExecutorRequest(op.id, protoAny, stateTransferFuncOpt)
+//    })
+//    client.controllerInterface.reconfigureWorkflow(
+//      WorkflowReconfigureRequest(modifyLogicReq, reconfigurationId),
+//      ()
+//    )
 //
-//      // clear all un-scheduled reconfigurations, start a new reconfiguration ID
-//      stateStore.reconfigurationStore.updateState(_ =>
-//        ExecutionReconfigurationStore(Some(reconfigurationId))
-//      )
-//    }
+//    // clear all un-scheduled reconfigurations, start a new reconfiguration ID
+//    stateStore.reconfigurationStore.updateState(_ =>
+//      ExecutionReconfigurationStore(Some(reconfigurationId))
+//    )
   }
 }

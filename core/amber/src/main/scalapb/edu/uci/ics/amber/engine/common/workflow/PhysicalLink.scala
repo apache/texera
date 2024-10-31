@@ -13,51 +13,52 @@ final case class PhysicalLink(
     toPortId: edu.uci.ics.amber.engine.common.workflow.PortIdentity = edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[PhysicalLink] {
     @transient
-    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
-    private[this] def __computeSerializedValue(): _root_.scala.Int = {
+    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
+    private[this] def __computeSerializedSize(): _root_.scala.Int = {
       var __size = 0
       
       {
         val __value = fromOpId
-        if (__value != edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity.defaultInstance) {
+        if (__value.serializedSize != 0) {
           __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
         }
       };
       
       {
         val __value = fromPortId
-        if (__value != edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance) {
+        if (__value.serializedSize != 0) {
           __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
         }
       };
       
       {
         val __value = toOpId
-        if (__value != edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity.defaultInstance) {
+        if (__value.serializedSize != 0) {
           __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
         }
       };
       
       {
         val __value = toPortId
-        if (__value != edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance) {
+        if (__value.serializedSize != 0) {
           __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
         }
       };
       __size
     }
     override def serializedSize: _root_.scala.Int = {
-      var read = __serializedSizeCachedValue
-      if (read == 0) {
-        read = __computeSerializedValue()
-        __serializedSizeCachedValue = read
+      var __size = __serializedSizeMemoized
+      if (__size == 0) {
+        __size = __computeSerializedSize() + 1
+        __serializedSizeMemoized = __size
       }
-      read
+      __size - 1
+      
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       {
         val __v = fromOpId
-        if (__v != edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity.defaultInstance) {
+        if (__v.serializedSize != 0) {
           _output__.writeTag(1, 2)
           _output__.writeUInt32NoTag(__v.serializedSize)
           __v.writeTo(_output__)
@@ -65,7 +66,7 @@ final case class PhysicalLink(
       };
       {
         val __v = fromPortId
-        if (__v != edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance) {
+        if (__v.serializedSize != 0) {
           _output__.writeTag(2, 2)
           _output__.writeUInt32NoTag(__v.serializedSize)
           __v.writeTo(_output__)
@@ -73,7 +74,7 @@ final case class PhysicalLink(
       };
       {
         val __v = toOpId
-        if (__v != edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity.defaultInstance) {
+        if (__v.serializedSize != 0) {
           _output__.writeTag(3, 2)
           _output__.writeUInt32NoTag(__v.serializedSize)
           __v.writeTo(_output__)
@@ -81,7 +82,7 @@ final case class PhysicalLink(
       };
       {
         val __v = toPortId
-        if (__v != edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance) {
+        if (__v.serializedSize != 0) {
           _output__.writeTag(4, 2)
           _output__.writeUInt32NoTag(__v.serializedSize)
           __v.writeTo(_output__)
@@ -122,7 +123,7 @@ final case class PhysicalLink(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion = edu.uci.ics.amber.engine.common.workflow.PhysicalLink
+    def companion: edu.uci.ics.amber.engine.common.workflow.PhysicalLink.type = edu.uci.ics.amber.engine.common.workflow.PhysicalLink
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.PhysicalLink])
 }
 

@@ -37,8 +37,8 @@ final case class ActorCommandMessage(
     sealedValue: edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage.SealedValue
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[ActorCommandMessage] {
     @transient
-    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
-    private[this] def __computeSerializedValue(): _root_.scala.Int = {
+    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
+    private[this] def __computeSerializedSize(): _root_.scala.Int = {
       var __size = 0
       if (sealedValue.backpressure.isDefined) {
         val __value = sealedValue.backpressure.get
@@ -51,12 +51,13 @@ final case class ActorCommandMessage(
       __size
     }
     override def serializedSize: _root_.scala.Int = {
-      var read = __serializedSizeCachedValue
-      if (read == 0) {
-        read = __computeSerializedValue()
-        __serializedSizeCachedValue = read
+      var __size = __serializedSizeMemoized
+      if (__size == 0) {
+        __size = __computeSerializedSize() + 1
+        __serializedSizeMemoized = __size
       }
-      read
+      __size - 1
+      
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       sealedValue.backpressure.foreach { __v =>
@@ -92,7 +93,7 @@ final case class ActorCommandMessage(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion = edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage
+    def companion: edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage.type = edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage
     def toActorCommand: edu.uci.ics.amber.engine.common.actormessage.ActorCommand = edu.uci.ics.amber.engine.common.actormessage.ActorCommand.ActorCommandTypeMapper.toCustom(this)
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.ActorCommand])
 }
@@ -181,7 +182,7 @@ object ActorCommandMessage extends scalapb.GeneratedMessageCompanion[edu.uci.ics
     def sealedValue: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage.SealedValue] = field(_.sealedValue)((c_, f_) => c_.copy(sealedValue = f_))
   }
   final val BACKPRESSURE_FIELD_NUMBER = 1
-  final val CREDIT_UPDATE_FIELD_NUMBER = 2
+  final val CREDITUPDATE_FIELD_NUMBER = 2
   def of(
     sealedValue: edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage.SealedValue
   ): _root_.edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage = _root_.edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage(
@@ -195,8 +196,8 @@ final case class Backpressure(
     enableBackpressure: _root_.scala.Boolean
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.common.actormessage.ActorCommand.NonEmpty with scalapb.lenses.Updatable[Backpressure] {
     @transient
-    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
-    private[this] def __computeSerializedValue(): _root_.scala.Int = {
+    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
+    private[this] def __computeSerializedSize(): _root_.scala.Int = {
       var __size = 0
       
       {
@@ -208,12 +209,13 @@ final case class Backpressure(
       __size
     }
     override def serializedSize: _root_.scala.Int = {
-      var read = __serializedSizeCachedValue
-      if (read == 0) {
-        read = __computeSerializedValue()
-        __serializedSizeCachedValue = read
+      var __size = __serializedSizeMemoized
+      if (__size == 0) {
+        __size = __computeSerializedSize() + 1
+        __serializedSizeMemoized = __size
       }
-      read
+      __size - 1
+      
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       {
@@ -239,7 +241,7 @@ final case class Backpressure(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion = edu.uci.ics.amber.engine.common.actormessage.Backpressure
+    def companion: edu.uci.ics.amber.engine.common.actormessage.Backpressure.type = edu.uci.ics.amber.engine.common.actormessage.Backpressure
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.Backpressure])
 }
 
@@ -280,7 +282,7 @@ object Backpressure extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.
   implicit class BackpressureLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.actormessage.Backpressure]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.common.actormessage.Backpressure](_l) {
     def enableBackpressure: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Boolean] = field(_.enableBackpressure)((c_, f_) => c_.copy(enableBackpressure = f_))
   }
-  final val ENABLE_BACKPRESSURE_FIELD_NUMBER = 1
+  final val ENABLEBACKPRESSURE_FIELD_NUMBER = 1
   def of(
     enableBackpressure: _root_.scala.Boolean
   ): _root_.edu.uci.ics.amber.engine.common.actormessage.Backpressure = _root_.edu.uci.ics.amber.engine.common.actormessage.Backpressure(
@@ -298,7 +300,7 @@ final case class CreditUpdate(
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = throw new MatchError(__fieldNumber)
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = throw new MatchError(__field)
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion = edu.uci.ics.amber.engine.common.actormessage.CreditUpdate
+    def companion: edu.uci.ics.amber.engine.common.actormessage.CreditUpdate.type = edu.uci.ics.amber.engine.common.actormessage.CreditUpdate
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.CreditUpdate])
 }
 

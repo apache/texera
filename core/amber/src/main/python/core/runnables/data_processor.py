@@ -14,7 +14,7 @@ from core.util import Stoppable
 from core.util.console_message.replace_print import replace_print
 from core.util.console_message.timestamp import current_time_in_local_timezone
 from core.util.runnable.runnable import Runnable
-from proto.edu.uci.ics.amber.engine.architecture.worker import (
+from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     ConsoleMessage,
     ConsoleMessageType,
 )

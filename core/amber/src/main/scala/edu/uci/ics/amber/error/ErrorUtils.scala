@@ -1,8 +1,9 @@
 package edu.uci.ics.amber.error
 
 import com.google.protobuf.timestamp.Timestamp
-import edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessage
-import edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessageType.ERROR
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessage
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessageType.ERROR
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{ControlError, ErrorLanguage}
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
@@ -34,6 +35,35 @@ object ErrorUtils {
     val title = err.toString
     val message = err.getStackTrace.mkString("\n")
     ConsoleMessage(actorId.name, Timestamp(Instant.now), ERROR, source, title, message)
+  }
+
+  def mkControlError(err: Throwable): ControlError = {
+    val stacktrace = err.getStackTrace.mkString("\n")
+    ControlError(err.toString, err.getCause.toString, stacktrace, ErrorLanguage.SCALA)
+  }
+
+  def reconstructThrowable(controlError: ControlError): Throwable = {
+    if (controlError.language == ErrorLanguage.PYTHON) {
+      return new Throwable(controlError.errorMessage)
+    } else {
+      val reconstructedThrowable = new Throwable(controlError.errorMessage)
+      if (controlError.errorDetails.nonEmpty) {
+        val causeThrowable = new Throwable(controlError.errorDetails)
+        reconstructedThrowable.initCause(causeThrowable)
+      }
+      val stackTraceElements = controlError.stackTrace.split("\n").map { line =>
+        // You need to split each line appropriately to extract the class, method, file, and line number
+        val stackTracePattern = """\s*at\s+(.+)\((.+):(\d+)\)""".r
+        line match {
+          case stackTracePattern(className, fileName, lineNumber) =>
+            new StackTraceElement(className, "", fileName, lineNumber.toInt)
+          case _ =>
+            new StackTraceElement("", "", null, -1) // Handle if stack trace format is invalid
+        }
+      }
+      reconstructedThrowable.setStackTrace(stackTraceElements)
+      reconstructedThrowable
+    }
   }
 
   def getStackTraceWithAllCauses(err: Throwable, topLevel: Boolean = true): String = {

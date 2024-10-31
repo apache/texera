@@ -1,24 +1,22 @@
 package edu.uci.ics.amber.engine.e2e
 
 import akka.actor.{ActorSystem, Props}
+import akka.serialization.SerializationExtension
 import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
 import ch.vorburger.mariadb4j.DB
 import com.twitter.util.{Await, Duration, Promise}
 import edu.uci.ics.amber.clustering.SingleNodeListener
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
-  ExecutionStateUpdate,
-  FatalError
-}
 import edu.uci.ics.amber.engine.architecture.controller._
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.COMPLETED
+import edu.uci.ics.amber.engine.common.AmberRuntime
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.model.WorkflowContext
 import edu.uci.ics.amber.engine.common.model.tuple.{AttributeType, Tuple}
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
-import edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState.COMPLETED
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.workflow._
 import edu.uci.ics.texera.workflow.operators.aggregate.AggregationFunction
@@ -29,7 +27,7 @@ import java.sql.PreparedStatement
 import scala.concurrent.duration.DurationInt
 
 class DataProcessingSpec
-    extends TestKit(ActorSystem("DataProcessingSpec"))
+    extends TestKit(ActorSystem("DataProcessingSpec", AmberRuntime.akkaConfig))
     with ImplicitSender
     with AnyFlatSpecLike
     with BeforeAndAfterAll
@@ -39,10 +37,11 @@ class DataProcessingSpec
 
   var inMemoryMySQLInstance: Option[DB] = None
 
-  val resultStorage = new OpResultStorage()
+  val resultStorage = new OpResultStorage() {}
 
   override def beforeAll(): Unit = {
     system.actorOf(Props[SingleNodeListener](), "cluster-info")
+    AmberRuntime.serde = SerializationExtension(system)
   }
   override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
@@ -83,7 +82,7 @@ class DataProcessingSpec
           completion.setDone()
         }
       })
-    Await.result(client.sendAsync(StartWorkflow()))
+    Await.result(client.controllerInterface.startWorkflow(EmptyRequest(), ()))
     Await.result(completion, Duration.fromMinutes(1))
     results
   }

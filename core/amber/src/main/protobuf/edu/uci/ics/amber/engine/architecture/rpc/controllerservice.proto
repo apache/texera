@@ -1,0 +1,31 @@
+syntax = "proto3";
+package edu.uci.ics.amber.engine.architecture.rpc;
+
+import "edu/uci/ics/amber/engine/architecture/rpc/controlcommands.proto";
+import "edu/uci/ics/amber/engine/architecture/rpc/controlreturns.proto";
+import "scalapb/scalapb.proto";
+
+option (scalapb.options) = {
+  scope: FILE,
+  preserve_unknown_fields: false
+  no_default_values_in_constructor: true
+};
+
+
+service ControllerService {
+  rpc RetrieveWorkflowState(EmptyRequest) returns (RetrieveWorkflowStateResponse);
+  rpc PropagateChannelMarker(PropagateChannelMarkerRequest) returns (PropagateChannelMarkerResponse);
+  rpc TakeGlobalCheckpoint(TakeGlobalCheckpointRequest) returns (TakeGlobalCheckpointResponse);
+  rpc DebugCommand(DebugCommandRequest) returns (EmptyReturn);
+  rpc EvaluatePythonExpression(EvaluatePythonExpressionRequest) returns (EvaluatePythonExpressionResponse);
+  rpc ConsoleMessageTriggered(ConsoleMessageTriggeredRequest) returns (EmptyReturn);
+  rpc PortCompleted(PortCompletedRequest) returns (EmptyReturn);
+  rpc StartWorkflow(EmptyRequest) returns (StartWorkflowResponse);
+  rpc ResumeWorkflow(EmptyRequest) returns (EmptyReturn);
+  rpc PauseWorkflow(EmptyRequest) returns (EmptyReturn);
+  rpc WorkerStateUpdated(WorkerStateUpdatedRequest) returns (EmptyReturn);
+  rpc WorkerExecutionCompleted(EmptyRequest) returns (EmptyReturn);
+  rpc LinkWorkers(LinkWorkersRequest) returns (EmptyReturn);
+  rpc ControllerInitiateQueryStatistics(QueryStatisticsRequest) returns (EmptyReturn);
+  rpc RetryWorkflow(RetryWorkflowRequest) returns (EmptyReturn);
+}

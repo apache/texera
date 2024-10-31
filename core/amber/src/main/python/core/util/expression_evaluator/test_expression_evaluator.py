@@ -1,8 +1,5 @@
 from core.util.expression_evaluator import ExpressionEvaluator
-from proto.edu.uci.ics.amber.engine.architecture.worker import (
-    EvaluatedValue,
-    TypedValue,
-)
+from proto.edu.uci.ics.amber.engine.architecture.rpc import EvaluatedValue, TypedValue
 
 
 class TestExpressionEvaluator:

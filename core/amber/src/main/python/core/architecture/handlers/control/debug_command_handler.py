@@ -1,28 +1,28 @@
-from proto.edu.uci.ics.amber.engine.architecture.worker import (
-    WorkerDebugCommandV2,
-)
 from core.architecture.handlers.control.control_handler_base import ControlHandler
 from core.architecture.managers.context import Context
 from core.architecture.managers.pause_manager import PauseType
+from proto.edu.uci.ics.amber.engine.architecture.rpc import (
+    EmptyReturn,
+    DebugCommandRequest,
+)
 
 
 class WorkerDebugCommandHandler(ControlHandler):
-    cmd = WorkerDebugCommandV2
-
-    def __call__(self, context: Context, command: cmd, *args, **kwargs):
+    async def debug_command(self, req: DebugCommandRequest) -> EmptyReturn:
         # translate the command with the context.
-        translated_command = self.translate_debug_command(command, context)
+        translated_command = self.translate_debug_command(req.cmd, self.context)
 
         # send the translated command to debugger to consume later.
-        context.debug_manager.put_debug_command(translated_command)
+        self.context.debug_manager.put_debug_command(translated_command)
 
         # allow MainLoop to switch into DataProcessor.
-        context.pause_manager.resume(PauseType.USER_PAUSE)
-        context.pause_manager.resume(PauseType.EXCEPTION_PAUSE)
-        context.pause_manager.resume(PauseType.DEBUG_PAUSE)
+        self.context.pause_manager.resume(PauseType.USER_PAUSE)
+        self.context.pause_manager.resume(PauseType.EXCEPTION_PAUSE)
+        self.context.pause_manager.resume(PauseType.DEBUG_PAUSE)
+        return EmptyReturn()
 
     @staticmethod
-    def translate_debug_command(command: cmd, context: Context) -> str:
+    def translate_debug_command(command: str, context: Context) -> str:
         """
         This method cleans up, reformats, and then translates a debug command into
         a command that can be understood by the debugger.
@@ -33,7 +33,7 @@ class WorkerDebugCommandHandler(ControlHandler):
         :param context:
         :return:
         """
-        debug_command, *debug_args = command.cmd.strip().split()
+        debug_command, *debug_args = command.strip().split()
         module_name = context.executor_manager.operator_module_name
         if debug_command in ["b", "break"] and len(debug_args) > 0:
             # b(reak) ([filename:]lineno | function) [, condition]¶

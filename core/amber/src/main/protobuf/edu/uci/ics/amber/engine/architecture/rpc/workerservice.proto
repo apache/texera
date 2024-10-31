@@ -1,0 +1,33 @@
+syntax = "proto3";
+package edu.uci.ics.amber.engine.architecture.rpc;
+
+import "edu/uci/ics/amber/engine/architecture/rpc/controlcommands.proto";
+import "edu/uci/ics/amber/engine/architecture/rpc/controlreturns.proto";
+import "scalapb/scalapb.proto";
+
+option (scalapb.options) = {
+  scope: FILE,
+  preserve_unknown_fields: false
+  no_default_values_in_constructor: true
+};
+
+// RPC Service
+service WorkerService {
+  rpc AddInputChannel(AddInputChannelRequest) returns (EmptyReturn);
+  rpc AddPartitioning(AddPartitioningRequest) returns (EmptyReturn);
+  rpc AssignPort(AssignPortRequest) returns (EmptyReturn);
+  rpc FinalizeCheckpoint(FinalizeCheckpointRequest) returns (FinalizeCheckpointResponse);
+  rpc FlushNetworkBuffer(EmptyRequest) returns (EmptyReturn);
+  rpc InitializeExecutor(InitializeExecutorRequest) returns (EmptyReturn);
+  rpc OpenExecutor(EmptyRequest) returns (EmptyReturn);
+  rpc PauseWorker(EmptyRequest) returns (WorkerStateResponse);
+  rpc PrepareCheckpoint(PrepareCheckpointRequest) returns (EmptyReturn);
+  rpc QueryStatistics(EmptyRequest) returns (WorkerMetricsResponse);
+  rpc ResumeWorker(EmptyRequest) returns (WorkerStateResponse);
+  rpc RetrieveState(EmptyRequest) returns (EmptyReturn);
+  rpc RetryCurrentTuple(EmptyRequest) returns (EmptyReturn);
+  rpc StartWorker(EmptyRequest) returns (WorkerStateResponse);
+  rpc DebugCommand(DebugCommandRequest) returns (EmptyReturn);
+  rpc EvaluatePythonExpression(EvaluatePythonExpressionRequest) returns (EvaluatedValue);
+  rpc NoOperation(EmptyRequest) returns (EmptyReturn);
+}

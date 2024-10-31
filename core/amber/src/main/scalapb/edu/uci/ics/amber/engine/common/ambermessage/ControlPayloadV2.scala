@@ -5,294 +5,98 @@
 
 package edu.uci.ics.amber.engine.common.ambermessage
 
-sealed trait ControlPayloadV2 extends scalapb.GeneratedSealedOneof {
-  type MessageType = edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message
-  final def isEmpty = this.isInstanceOf[edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.Empty.type]
-  final def isDefined = !isEmpty
-  final def asMessage: edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message = edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.ControlPayloadV2TypeMapper.toBase(this)
-  final def asNonEmpty: Option[edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.NonEmpty] = if (isEmpty) None else Some(this.asInstanceOf[edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.NonEmpty])
-}
-
-object ControlPayloadV2 {
-  case object Empty extends edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2
-  
-  sealed trait NonEmpty extends edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2
-  def defaultInstance: edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2 = Empty
-  
-  implicit val ControlPayloadV2TypeMapper: _root_.scalapb.TypeMapper[edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message, edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2] = new _root_.scalapb.TypeMapper[edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message, edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2] {
-    override def toCustom(__base: edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message): edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2 = __base.sealedValue match {
-      case __v: edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message.SealedValue.ControlInvocation => __v.value
-      case __v: edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message.SealedValue.ReturnInvocation => __v.value
-      case edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message.SealedValue.Empty => Empty
-    }
-    override def toBase(__custom: edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2): edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message = edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message(__custom match {
-      case __v: edu.uci.ics.amber.engine.common.ambermessage.ControlInvocationV2 => edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message.SealedValue.ControlInvocation(__v)
-      case __v: edu.uci.ics.amber.engine.common.ambermessage.ReturnInvocationV2 => edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message.SealedValue.ReturnInvocation(__v)
-      case Empty => edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message.SealedValue.Empty
-    })
-  }
-}
 @SerialVersionUID(0L)
-final case class ControlPayloadV2Message(
-    sealedValue: edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message.SealedValue
-    ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[ControlPayloadV2Message] {
+final case class ControlPayloadV2(
+    value: edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.Value
+    ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[ControlPayloadV2] {
     @transient
-    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
-    private[this] def __computeSerializedValue(): _root_.scala.Int = {
+    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
+    private[this] def __computeSerializedSize(): _root_.scala.Int = {
       var __size = 0
-      if (sealedValue.controlInvocation.isDefined) {
-        val __value = sealedValue.controlInvocation.get
+      if (value.controlInvocation.isDefined) {
+        val __value = value.controlInvocation.get
         __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
       };
-      if (sealedValue.returnInvocation.isDefined) {
-        val __value = sealedValue.returnInvocation.get
+      if (value.returnInvocation.isDefined) {
+        val __value = value.returnInvocation.get
         __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
       };
       __size
     }
     override def serializedSize: _root_.scala.Int = {
-      var read = __serializedSizeCachedValue
-      if (read == 0) {
-        read = __computeSerializedValue()
-        __serializedSizeCachedValue = read
+      var __size = __serializedSizeMemoized
+      if (__size == 0) {
+        __size = __computeSerializedSize() + 1
+        __serializedSizeMemoized = __size
       }
-      read
+      __size - 1
+      
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
-      sealedValue.controlInvocation.foreach { __v =>
+      value.controlInvocation.foreach { __v =>
         val __m = __v
         _output__.writeTag(1, 2)
         _output__.writeUInt32NoTag(__m.serializedSize)
         __m.writeTo(_output__)
       };
-      sealedValue.returnInvocation.foreach { __v =>
+      value.returnInvocation.foreach { __v =>
         val __m = __v
         _output__.writeTag(2, 2)
         _output__.writeUInt32NoTag(__m.serializedSize)
         __m.writeTo(_output__)
       };
     }
-    def getControlInvocation: edu.uci.ics.amber.engine.common.ambermessage.ControlInvocationV2 = sealedValue.controlInvocation.getOrElse(edu.uci.ics.amber.engine.common.ambermessage.ControlInvocationV2.defaultInstance)
-    def withControlInvocation(__v: edu.uci.ics.amber.engine.common.ambermessage.ControlInvocationV2): ControlPayloadV2Message = copy(sealedValue = edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message.SealedValue.ControlInvocation(__v))
-    def getReturnInvocation: edu.uci.ics.amber.engine.common.ambermessage.ReturnInvocationV2 = sealedValue.returnInvocation.getOrElse(edu.uci.ics.amber.engine.common.ambermessage.ReturnInvocationV2.defaultInstance)
-    def withReturnInvocation(__v: edu.uci.ics.amber.engine.common.ambermessage.ReturnInvocationV2): ControlPayloadV2Message = copy(sealedValue = edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message.SealedValue.ReturnInvocation(__v))
-    def clearSealedValue: ControlPayloadV2Message = copy(sealedValue = edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message.SealedValue.Empty)
-    def withSealedValue(__v: edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message.SealedValue): ControlPayloadV2Message = copy(sealedValue = __v)
+    def getControlInvocation: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlInvocation = value.controlInvocation.getOrElse(edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlInvocation.defaultInstance)
+    def withControlInvocation(__v: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlInvocation): ControlPayloadV2 = copy(value = edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.Value.ControlInvocation(__v))
+    def getReturnInvocation: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ReturnInvocation = value.returnInvocation.getOrElse(edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ReturnInvocation.defaultInstance)
+    def withReturnInvocation(__v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ReturnInvocation): ControlPayloadV2 = copy(value = edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.Value.ReturnInvocation(__v))
+    def clearValue: ControlPayloadV2 = copy(value = edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.Value.Empty)
+    def withValue(__v: edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.Value): ControlPayloadV2 = copy(value = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
-        case 1 => sealedValue.controlInvocation.orNull
-        case 2 => sealedValue.returnInvocation.orNull
+        case 1 => value.controlInvocation.orNull
+        case 2 => value.returnInvocation.orNull
       }
     }
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
       _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
       (__field.number: @_root_.scala.unchecked) match {
-        case 1 => sealedValue.controlInvocation.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
-        case 2 => sealedValue.returnInvocation.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
+        case 1 => value.controlInvocation.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
+        case 2 => value.returnInvocation.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion = edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message
-    def toControlPayloadV2: edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2 = edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.ControlPayloadV2TypeMapper.toCustom(this)
+    def companion: edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.type = edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.ControlPayloadV2])
 }
 
-object ControlPayloadV2Message extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message] {
-  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message] = this
-  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message = {
-    var __sealedValue: edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message.SealedValue = edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message.SealedValue.Empty
+object ControlPayloadV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2] {
+  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2] = this
+  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2 = {
+    var __value: edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.Value = edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.Value.Empty
     var _done__ = false
     while (!_done__) {
       val _tag__ = _input__.readTag()
       _tag__ match {
         case 0 => _done__ = true
         case 10 =>
-          __sealedValue = edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message.SealedValue.ControlInvocation(__sealedValue.controlInvocation.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.ambermessage.ControlInvocationV2](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+          __value = edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.Value.ControlInvocation(__value.controlInvocation.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlInvocation](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 18 =>
-          __sealedValue = edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message.SealedValue.ReturnInvocation(__sealedValue.returnInvocation.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.ambermessage.ReturnInvocationV2](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+          __value = edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.Value.ReturnInvocation(__value.returnInvocation.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ReturnInvocation](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case tag => _input__.skipField(tag)
       }
     }
-    edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message(
-        sealedValue = __sealedValue
+    edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2(
+        value = __value
     )
   }
-  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message] = _root_.scalapb.descriptors.Reads{
+  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2] = _root_.scalapb.descriptors.Reads{
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
-      edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message(
-        sealedValue = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.common.ambermessage.ControlInvocationV2]]).map(edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message.SealedValue.ControlInvocation(_))
-            .orElse[edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.common.ambermessage.ReturnInvocationV2]]).map(edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message.SealedValue.ReturnInvocation(_)))
-            .getOrElse(edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message.SealedValue.Empty)
-      )
-    case _ => throw new RuntimeException("Expected PMessage")
-  }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = AmbermessageProto.javaDescriptor.getMessageTypes().get(2)
-  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = AmbermessageProto.scalaDescriptor.messages(2)
-  def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = {
-    var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
-    (__number: @_root_.scala.unchecked) match {
-      case 1 => __out = edu.uci.ics.amber.engine.common.ambermessage.ControlInvocationV2
-      case 2 => __out = edu.uci.ics.amber.engine.common.ambermessage.ReturnInvocationV2
-    }
-    __out
-  }
-  lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
-  def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
-  lazy val defaultInstance = edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message(
-    sealedValue = edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message.SealedValue.Empty
-  )
-  sealed trait SealedValue extends _root_.scalapb.GeneratedOneof {
-    def isEmpty: _root_.scala.Boolean = false
-    def isDefined: _root_.scala.Boolean = true
-    def isControlInvocation: _root_.scala.Boolean = false
-    def isReturnInvocation: _root_.scala.Boolean = false
-    def controlInvocation: _root_.scala.Option[edu.uci.ics.amber.engine.common.ambermessage.ControlInvocationV2] = _root_.scala.None
-    def returnInvocation: _root_.scala.Option[edu.uci.ics.amber.engine.common.ambermessage.ReturnInvocationV2] = _root_.scala.None
-  }
-  object SealedValue {
-    @SerialVersionUID(0L)
-    case object Empty extends edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message.SealedValue {
-      type ValueType = _root_.scala.Nothing
-      override def isEmpty: _root_.scala.Boolean = true
-      override def isDefined: _root_.scala.Boolean = false
-      override def number: _root_.scala.Int = 0
-      override def value: _root_.scala.Nothing = throw new java.util.NoSuchElementException("Empty.value")
-    }
-  
-    @SerialVersionUID(0L)
-    final case class ControlInvocation(value: edu.uci.ics.amber.engine.common.ambermessage.ControlInvocationV2) extends edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message.SealedValue {
-      type ValueType = edu.uci.ics.amber.engine.common.ambermessage.ControlInvocationV2
-      override def isControlInvocation: _root_.scala.Boolean = true
-      override def controlInvocation: _root_.scala.Option[edu.uci.ics.amber.engine.common.ambermessage.ControlInvocationV2] = Some(value)
-      override def number: _root_.scala.Int = 1
-    }
-    @SerialVersionUID(0L)
-    final case class ReturnInvocation(value: edu.uci.ics.amber.engine.common.ambermessage.ReturnInvocationV2) extends edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message.SealedValue {
-      type ValueType = edu.uci.ics.amber.engine.common.ambermessage.ReturnInvocationV2
-      override def isReturnInvocation: _root_.scala.Boolean = true
-      override def returnInvocation: _root_.scala.Option[edu.uci.ics.amber.engine.common.ambermessage.ReturnInvocationV2] = Some(value)
-      override def number: _root_.scala.Int = 2
-    }
-  }
-  implicit class ControlPayloadV2MessageLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message](_l) {
-    def controlInvocation: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.ambermessage.ControlInvocationV2] = field(_.getControlInvocation)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message.SealedValue.ControlInvocation(f_)))
-    def returnInvocation: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.ambermessage.ReturnInvocationV2] = field(_.getReturnInvocation)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message.SealedValue.ReturnInvocation(f_)))
-    def sealedValue: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message.SealedValue] = field(_.sealedValue)((c_, f_) => c_.copy(sealedValue = f_))
-  }
-  final val CONTROL_INVOCATION_FIELD_NUMBER = 1
-  final val RETURN_INVOCATION_FIELD_NUMBER = 2
-  def of(
-    sealedValue: edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message.SealedValue
-  ): _root_.edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message = _root_.edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message(
-    sealedValue
-  )
-  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.ControlPayloadV2])
-}
-
-@SerialVersionUID(0L)
-final case class ControlInvocationV2(
-    commandId: _root_.scala.Long,
-    command: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2
-    ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.NonEmpty with scalapb.lenses.Updatable[ControlInvocationV2] {
-    @transient
-    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
-    private[this] def __computeSerializedValue(): _root_.scala.Int = {
-      var __size = 0
-      
-      {
-        val __value = commandId
-        if (__value != 0L) {
-          __size += _root_.com.google.protobuf.CodedOutputStream.computeInt64Size(1, __value)
-        }
-      };
-      
-      {
-        val __value = edu.uci.ics.amber.engine.common.ambermessage.ControlInvocationV2._typemapper_command.toBase(command)
-        if (__value != edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.defaultInstance) {
-          __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
-        }
-      };
-      __size
-    }
-    override def serializedSize: _root_.scala.Int = {
-      var read = __serializedSizeCachedValue
-      if (read == 0) {
-        read = __computeSerializedValue()
-        __serializedSizeCachedValue = read
-      }
-      read
-    }
-    def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
-      {
-        val __v = commandId
-        if (__v != 0L) {
-          _output__.writeInt64(1, __v)
-        }
-      };
-      {
-        val __v = edu.uci.ics.amber.engine.common.ambermessage.ControlInvocationV2._typemapper_command.toBase(command)
-        if (__v != edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.defaultInstance) {
-          _output__.writeTag(2, 2)
-          _output__.writeUInt32NoTag(__v.serializedSize)
-          __v.writeTo(_output__)
-        }
-      };
-    }
-    def withCommandId(__v: _root_.scala.Long): ControlInvocationV2 = copy(commandId = __v)
-    def withCommand(__v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2): ControlInvocationV2 = copy(command = __v)
-    def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
-      (__fieldNumber: @_root_.scala.unchecked) match {
-        case 1 => {
-          val __t = commandId
-          if (__t != 0L) __t else null
-        }
-        case 2 => {
-          val __t = edu.uci.ics.amber.engine.common.ambermessage.ControlInvocationV2._typemapper_command.toBase(command)
-          if (__t != edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.defaultInstance) __t else null
-        }
-      }
-    }
-    def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
-      _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
-      (__field.number: @_root_.scala.unchecked) match {
-        case 1 => _root_.scalapb.descriptors.PLong(commandId)
-        case 2 => edu.uci.ics.amber.engine.common.ambermessage.ControlInvocationV2._typemapper_command.toBase(command).toPMessage
-      }
-    }
-    def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion = edu.uci.ics.amber.engine.common.ambermessage.ControlInvocationV2
-    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.ControlInvocationV2])
-}
-
-object ControlInvocationV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.ambermessage.ControlInvocationV2] {
-  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.ambermessage.ControlInvocationV2] = this
-  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.common.ambermessage.ControlInvocationV2 = {
-    var __commandId: _root_.scala.Long = 0L
-    var __command: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message] = _root_.scala.None
-    var _done__ = false
-    while (!_done__) {
-      val _tag__ = _input__.readTag()
-      _tag__ match {
-        case 0 => _done__ = true
-        case 8 =>
-          __commandId = _input__.readInt64()
-        case 18 =>
-          __command = _root_.scala.Some(__command.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
-        case tag => _input__.skipField(tag)
-      }
-    }
-    edu.uci.ics.amber.engine.common.ambermessage.ControlInvocationV2(
-        commandId = __commandId,
-        command = edu.uci.ics.amber.engine.common.ambermessage.ControlInvocationV2._typemapper_command.toCustom(__command.getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.defaultInstance))
-    )
-  }
-  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.common.ambermessage.ControlInvocationV2] = _root_.scalapb.descriptors.Reads{
-    case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
-      _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
-      edu.uci.ics.amber.engine.common.ambermessage.ControlInvocationV2(
-        commandId = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Long]).getOrElse(0L),
-        command = edu.uci.ics.amber.engine.common.ambermessage.ControlInvocationV2._typemapper_command.toCustom(__fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message]).getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.defaultInstance))
+      edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2(
+        value = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlInvocation]]).map(edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.Value.ControlInvocation(_))
+            .orElse[edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.Value](__fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ReturnInvocation]]).map(edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.Value.ReturnInvocation(_)))
+            .getOrElse(edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.Value.Empty)
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
@@ -301,167 +105,60 @@ object ControlInvocationV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = {
     var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
     (__number: @_root_.scala.unchecked) match {
-      case 2 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message
+      case 1 => __out = edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlInvocation
+      case 2 => __out = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ReturnInvocation
     }
     __out
   }
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
-  lazy val defaultInstance = edu.uci.ics.amber.engine.common.ambermessage.ControlInvocationV2(
-    commandId = 0L,
-    command = edu.uci.ics.amber.engine.common.ambermessage.ControlInvocationV2._typemapper_command.toCustom(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.defaultInstance)
+  lazy val defaultInstance = edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2(
+    value = edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.Value.Empty
   )
-  implicit class ControlInvocationV2Lens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.ambermessage.ControlInvocationV2]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.common.ambermessage.ControlInvocationV2](_l) {
-    def commandId: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Long] = field(_.commandId)((c_, f_) => c_.copy(commandId = f_))
-    def command: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2] = field(_.command)((c_, f_) => c_.copy(command = f_))
+  sealed trait Value extends _root_.scalapb.GeneratedOneof {
+    def isEmpty: _root_.scala.Boolean = false
+    def isDefined: _root_.scala.Boolean = true
+    def isControlInvocation: _root_.scala.Boolean = false
+    def isReturnInvocation: _root_.scala.Boolean = false
+    def controlInvocation: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlInvocation] = _root_.scala.None
+    def returnInvocation: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ReturnInvocation] = _root_.scala.None
   }
-  final val COMMAND_ID_FIELD_NUMBER = 1
-  final val COMMAND_FIELD_NUMBER = 2
-  @transient
-  private[ambermessage] val _typemapper_command: _root_.scalapb.TypeMapper[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message, edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2] = implicitly[_root_.scalapb.TypeMapper[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message, edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2]]
+  object Value {
+    @SerialVersionUID(0L)
+    case object Empty extends edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.Value {
+      type ValueType = _root_.scala.Nothing
+      override def isEmpty: _root_.scala.Boolean = true
+      override def isDefined: _root_.scala.Boolean = false
+      override def number: _root_.scala.Int = 0
+      override def value: _root_.scala.Nothing = throw new java.util.NoSuchElementException("Empty.value")
+    }
+  
+    @SerialVersionUID(0L)
+    final case class ControlInvocation(value: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlInvocation) extends edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.Value {
+      type ValueType = edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlInvocation
+      override def isControlInvocation: _root_.scala.Boolean = true
+      override def controlInvocation: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlInvocation] = Some(value)
+      override def number: _root_.scala.Int = 1
+    }
+    @SerialVersionUID(0L)
+    final case class ReturnInvocation(value: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ReturnInvocation) extends edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.Value {
+      type ValueType = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ReturnInvocation
+      override def isReturnInvocation: _root_.scala.Boolean = true
+      override def returnInvocation: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ReturnInvocation] = Some(value)
+      override def number: _root_.scala.Int = 2
+    }
+  }
+  implicit class ControlPayloadV2Lens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2](_l) {
+    def controlInvocation: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlInvocation] = field(_.getControlInvocation)((c_, f_) => c_.copy(value = edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.Value.ControlInvocation(f_)))
+    def returnInvocation: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ReturnInvocation] = field(_.getReturnInvocation)((c_, f_) => c_.copy(value = edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.Value.ReturnInvocation(f_)))
+    def value: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.Value] = field(_.value)((c_, f_) => c_.copy(value = f_))
+  }
+  final val CONTROL_INVOCATION_FIELD_NUMBER = 1
+  final val RETURN_INVOCATION_FIELD_NUMBER = 2
   def of(
-    commandId: _root_.scala.Long,
-    command: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2
-  ): _root_.edu.uci.ics.amber.engine.common.ambermessage.ControlInvocationV2 = _root_.edu.uci.ics.amber.engine.common.ambermessage.ControlInvocationV2(
-    commandId,
-    command
+    value: edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.Value
+  ): _root_.edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2 = _root_.edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2(
+    value
   )
-  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.ControlInvocationV2])
-}
-
-@SerialVersionUID(0L)
-final case class ReturnInvocationV2(
-    originalCommandId: _root_.scala.Long,
-    controlReturn: edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2
-    ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.NonEmpty with scalapb.lenses.Updatable[ReturnInvocationV2] {
-    @transient
-    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
-    private[this] def __computeSerializedValue(): _root_.scala.Int = {
-      var __size = 0
-      
-      {
-        val __value = originalCommandId
-        if (__value != 0L) {
-          __size += _root_.com.google.protobuf.CodedOutputStream.computeInt64Size(1, __value)
-        }
-      };
-      
-      {
-        val __value = controlReturn
-        if (__value != edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.defaultInstance) {
-          __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
-        }
-      };
-      __size
-    }
-    override def serializedSize: _root_.scala.Int = {
-      var read = __serializedSizeCachedValue
-      if (read == 0) {
-        read = __computeSerializedValue()
-        __serializedSizeCachedValue = read
-      }
-      read
-    }
-    def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
-      {
-        val __v = originalCommandId
-        if (__v != 0L) {
-          _output__.writeInt64(1, __v)
-        }
-      };
-      {
-        val __v = controlReturn
-        if (__v != edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.defaultInstance) {
-          _output__.writeTag(2, 2)
-          _output__.writeUInt32NoTag(__v.serializedSize)
-          __v.writeTo(_output__)
-        }
-      };
-    }
-    def withOriginalCommandId(__v: _root_.scala.Long): ReturnInvocationV2 = copy(originalCommandId = __v)
-    def withControlReturn(__v: edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2): ReturnInvocationV2 = copy(controlReturn = __v)
-    def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
-      (__fieldNumber: @_root_.scala.unchecked) match {
-        case 1 => {
-          val __t = originalCommandId
-          if (__t != 0L) __t else null
-        }
-        case 2 => {
-          val __t = controlReturn
-          if (__t != edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.defaultInstance) __t else null
-        }
-      }
-    }
-    def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
-      _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
-      (__field.number: @_root_.scala.unchecked) match {
-        case 1 => _root_.scalapb.descriptors.PLong(originalCommandId)
-        case 2 => controlReturn.toPMessage
-      }
-    }
-    def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion = edu.uci.ics.amber.engine.common.ambermessage.ReturnInvocationV2
-    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.ReturnInvocationV2])
-}
-
-object ReturnInvocationV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.ambermessage.ReturnInvocationV2] {
-  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.ambermessage.ReturnInvocationV2] = this
-  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.common.ambermessage.ReturnInvocationV2 = {
-    var __originalCommandId: _root_.scala.Long = 0L
-    var __controlReturn: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2] = _root_.scala.None
-    var _done__ = false
-    while (!_done__) {
-      val _tag__ = _input__.readTag()
-      _tag__ match {
-        case 0 => _done__ = true
-        case 8 =>
-          __originalCommandId = _input__.readInt64()
-        case 18 =>
-          __controlReturn = _root_.scala.Some(__controlReturn.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
-        case tag => _input__.skipField(tag)
-      }
-    }
-    edu.uci.ics.amber.engine.common.ambermessage.ReturnInvocationV2(
-        originalCommandId = __originalCommandId,
-        controlReturn = __controlReturn.getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.defaultInstance)
-    )
-  }
-  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.common.ambermessage.ReturnInvocationV2] = _root_.scalapb.descriptors.Reads{
-    case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
-      _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
-      edu.uci.ics.amber.engine.common.ambermessage.ReturnInvocationV2(
-        originalCommandId = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Long]).getOrElse(0L),
-        controlReturn = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2]).getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.defaultInstance)
-      )
-    case _ => throw new RuntimeException("Expected PMessage")
-  }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = AmbermessageProto.javaDescriptor.getMessageTypes().get(1)
-  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = AmbermessageProto.scalaDescriptor.messages(1)
-  def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = {
-    var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
-    (__number: @_root_.scala.unchecked) match {
-      case 2 => __out = edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2
-    }
-    __out
-  }
-  lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
-  def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
-  lazy val defaultInstance = edu.uci.ics.amber.engine.common.ambermessage.ReturnInvocationV2(
-    originalCommandId = 0L,
-    controlReturn = edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.defaultInstance
-  )
-  implicit class ReturnInvocationV2Lens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.ambermessage.ReturnInvocationV2]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.common.ambermessage.ReturnInvocationV2](_l) {
-    def originalCommandId: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Long] = field(_.originalCommandId)((c_, f_) => c_.copy(originalCommandId = f_))
-    def controlReturn: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2] = field(_.controlReturn)((c_, f_) => c_.copy(controlReturn = f_))
-  }
-  final val ORIGINAL_COMMAND_ID_FIELD_NUMBER = 1
-  final val CONTROL_RETURN_FIELD_NUMBER = 2
-  def of(
-    originalCommandId: _root_.scala.Long,
-    controlReturn: edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2
-  ): _root_.edu.uci.ics.amber.engine.common.ambermessage.ReturnInvocationV2 = _root_.edu.uci.ics.amber.engine.common.ambermessage.ReturnInvocationV2(
-    originalCommandId,
-    controlReturn
-  )
-  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.ReturnInvocationV2])
+  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.ControlPayloadV2])
 }

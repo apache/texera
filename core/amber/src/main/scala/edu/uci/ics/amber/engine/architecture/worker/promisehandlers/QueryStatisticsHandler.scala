@@ -1,19 +1,19 @@
 package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
+import com.twitter.util.Future
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{EmptyRequest, AsyncRPCContext}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerMetricsResponse
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerMetrics
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-
-object QueryStatisticsHandler {
-  final case class QueryStatistics() extends ControlCommand[WorkerMetrics]
-}
 
 trait QueryStatisticsHandler {
   this: DataProcessorRPCHandlerInitializer =>
 
-  registerHandler { (msg: QueryStatistics, sender) =>
-    WorkerMetrics(dp.stateManager.getCurrentState, dp.collectStatistics())
+  override def queryStatistics(
+      request: EmptyRequest,
+      ctx: AsyncRPCContext
+  ): Future[WorkerMetricsResponse] = {
+    WorkerMetricsResponse(WorkerMetrics(dp.stateManager.getCurrentState, dp.collectStatistics()))
   }
 
 }

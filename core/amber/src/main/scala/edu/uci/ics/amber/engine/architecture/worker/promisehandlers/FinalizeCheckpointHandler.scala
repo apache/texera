@@ -1,30 +1,31 @@
 package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
+import com.twitter.util.Future
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
+  AsyncRPCContext,
+  FinalizeCheckpointRequest
+}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.FinalizeCheckpointResponse
 import edu.uci.ics.amber.engine.architecture.worker.{
   DataProcessorRPCHandlerInitializer,
   WorkflowWorker
 }
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.FinalizeCheckpointHandler.FinalizeCheckpoint
 import edu.uci.ics.amber.engine.common.{CheckpointState, CheckpointSupport, SerializedState}
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
-import edu.uci.ics.amber.engine.common.virtualidentity.ChannelMarkerIdentity
 
 import java.net.URI
 import java.util.concurrent.CompletableFuture
 import scala.collection.mutable.ArrayBuffer
 
-object FinalizeCheckpointHandler {
-  final case class FinalizeCheckpoint(checkpointId: ChannelMarkerIdentity, writeTo: URI)
-      extends ControlCommand[Long]
-}
-
 trait FinalizeCheckpointHandler {
   this: DataProcessorRPCHandlerInitializer =>
 
-  registerHandler { (msg: FinalizeCheckpoint, sender) =>
-    if (dp.channelMarkerManager.checkpoints.contains(msg.checkpointId)) {
+  override def finalizeCheckpoint(
+      msg: FinalizeCheckpointRequest,
+      ctx: AsyncRPCContext
+  ): Future[FinalizeCheckpointResponse] = {
+    val checkpointSize = if (dp.channelMarkerManager.checkpoints.contains(msg.checkpointId)) {
       val waitFuture = new CompletableFuture[Unit]()
       val chkpt = dp.channelMarkerManager.checkpoints(msg.checkpointId)
       val closure = (worker: WorkflowWorker) => {
@@ -44,7 +45,7 @@ trait FinalizeCheckpointHandler {
       ) //this will create duplicate log records!
       waitFuture.get()
       logger.info(s"Start to write checkpoint to storage. Destination: ${msg.writeTo}")
-      val storage = SequentialRecordStorage.getStorage[CheckpointState](Some(msg.writeTo))
+      val storage = SequentialRecordStorage.getStorage[CheckpointState](Some(new URI(msg.writeTo)))
       val writer = storage.getWriter(actorId.name.replace("Worker:", ""))
       writer.writeRecord(chkpt)
       writer.flush()
@@ -59,5 +60,6 @@ trait FinalizeCheckpointHandler {
         case _ => 0L
       } // for estimation
     }
+    FinalizeCheckpointResponse(checkpointSize)
   }
 }

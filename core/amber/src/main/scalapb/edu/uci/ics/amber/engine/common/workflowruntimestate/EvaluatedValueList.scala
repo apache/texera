@@ -7,11 +7,11 @@ package edu.uci.ics.amber.engine.common.workflowruntimestate
 
 @SerialVersionUID(0L)
 final case class EvaluatedValueList(
-    values: _root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.controlreturns.EvaluatedValue] = _root_.scala.Seq.empty
+    values: _root_.scala.Seq[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EvaluatedValue] = _root_.scala.Seq.empty
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[EvaluatedValueList] {
     @transient
-    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
-    private[this] def __computeSerializedValue(): _root_.scala.Int = {
+    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
+    private[this] def __computeSerializedSize(): _root_.scala.Int = {
       var __size = 0
       values.foreach { __item =>
         val __value = __item
@@ -20,12 +20,13 @@ final case class EvaluatedValueList(
       __size
     }
     override def serializedSize: _root_.scala.Int = {
-      var read = __serializedSizeCachedValue
-      if (read == 0) {
-        read = __computeSerializedValue()
-        __serializedSizeCachedValue = read
+      var __size = __serializedSizeMemoized
+      if (__size == 0) {
+        __size = __computeSerializedSize() + 1
+        __serializedSizeMemoized = __size
       }
-      read
+      __size - 1
+      
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       values.foreach { __v =>
@@ -36,9 +37,9 @@ final case class EvaluatedValueList(
       };
     }
     def clearValues = copy(values = _root_.scala.Seq.empty)
-    def addValues(__vs: edu.uci.ics.amber.engine.architecture.worker.controlreturns.EvaluatedValue*): EvaluatedValueList = addAllValues(__vs)
-    def addAllValues(__vs: Iterable[edu.uci.ics.amber.engine.architecture.worker.controlreturns.EvaluatedValue]): EvaluatedValueList = copy(values = values ++ __vs)
-    def withValues(__v: _root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.controlreturns.EvaluatedValue]): EvaluatedValueList = copy(values = __v)
+    def addValues(__vs: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EvaluatedValue *): EvaluatedValueList = addAllValues(__vs)
+    def addAllValues(__vs: Iterable[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EvaluatedValue]): EvaluatedValueList = copy(values = values ++ __vs)
+    def withValues(__v: _root_.scala.Seq[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EvaluatedValue]): EvaluatedValueList = copy(values = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
         case 1 => values
@@ -51,21 +52,21 @@ final case class EvaluatedValueList(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion = edu.uci.ics.amber.engine.common.workflowruntimestate.EvaluatedValueList
+    def companion: edu.uci.ics.amber.engine.common.workflowruntimestate.EvaluatedValueList.type = edu.uci.ics.amber.engine.common.workflowruntimestate.EvaluatedValueList
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.EvaluatedValueList])
 }
 
 object EvaluatedValueList extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.workflowruntimestate.EvaluatedValueList] {
   implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.workflowruntimestate.EvaluatedValueList] = this
   def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.common.workflowruntimestate.EvaluatedValueList = {
-    val __values: _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.architecture.worker.controlreturns.EvaluatedValue] = new _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.architecture.worker.controlreturns.EvaluatedValue]
+    val __values: _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EvaluatedValue] = new _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EvaluatedValue]
     var _done__ = false
     while (!_done__) {
       val _tag__ = _input__.readTag()
       _tag__ match {
         case 0 => _done__ = true
         case 10 =>
-          __values += _root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlreturns.EvaluatedValue](_input__)
+          __values += _root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EvaluatedValue](_input__)
         case tag => _input__.skipField(tag)
       }
     }
@@ -77,7 +78,7 @@ object EvaluatedValueList extends scalapb.GeneratedMessageCompanion[edu.uci.ics.
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
       edu.uci.ics.amber.engine.common.workflowruntimestate.EvaluatedValueList(
-        values = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.controlreturns.EvaluatedValue]]).getOrElse(_root_.scala.Seq.empty)
+        values = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Seq[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EvaluatedValue]]).getOrElse(_root_.scala.Seq.empty)
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
@@ -86,7 +87,7 @@ object EvaluatedValueList extends scalapb.GeneratedMessageCompanion[edu.uci.ics.
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = {
     var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
     (__number: @_root_.scala.unchecked) match {
-      case 1 => __out = edu.uci.ics.amber.engine.architecture.worker.controlreturns.EvaluatedValue
+      case 1 => __out = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EvaluatedValue
     }
     __out
   }
@@ -96,11 +97,11 @@ object EvaluatedValueList extends scalapb.GeneratedMessageCompanion[edu.uci.ics.
     values = _root_.scala.Seq.empty
   )
   implicit class EvaluatedValueListLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.workflowruntimestate.EvaluatedValueList]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.common.workflowruntimestate.EvaluatedValueList](_l) {
-    def values: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.controlreturns.EvaluatedValue]] = field(_.values)((c_, f_) => c_.copy(values = f_))
+    def values: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EvaluatedValue]] = field(_.values)((c_, f_) => c_.copy(values = f_))
   }
   final val VALUES_FIELD_NUMBER = 1
   def of(
-    values: _root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.controlreturns.EvaluatedValue]
+    values: _root_.scala.Seq[edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EvaluatedValue]
   ): _root_.edu.uci.ics.amber.engine.common.workflowruntimestate.EvaluatedValueList = _root_.edu.uci.ics.amber.engine.common.workflowruntimestate.EvaluatedValueList(
     values
   )

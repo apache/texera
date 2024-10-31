@@ -1,20 +1,16 @@
 package edu.uci.ics.amber.engine.architecture.control.utils
 
 import com.twitter.util.Future
-import edu.uci.ics.amber.engine.architecture.control.utils.RecursionHandler.Recursion
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-
-object RecursionHandler {
-  case class Recursion(i: Int) extends ControlCommand[String]
-}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands._
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns._
 
 trait RecursionHandler {
   this: TesterAsyncRPCHandlerInitializer =>
 
-  registerHandler { (r: Recursion, sender) =>
+  override def sendRecursion(r: Recursion, ctx: AsyncRPCContext): Future[StringResponse] = {
     if (r.i < 5) {
       println(r.i)
-      send(Recursion(r.i + 1), myID).map { res =>
+      getProxy.sendRecursion(Recursion(r.i + 1), myID).map { res =>
         println(res)
         r.i.toString
       }

@@ -4,13 +4,17 @@ from core.architecture.handlers.actorcommand.actor_handler_base import (
 
 from core.models.internal_queue import ControlElement, InternalQueue
 from core.util import set_one_of
-from proto.edu.uci.ics.amber.engine.architecture.worker import ControlCommandV2, NoOpV2
+from proto.edu.uci.ics.amber.engine.architecture.rpc import (
+    ControlInvocation,
+    ControlRequest,
+    EmptyRequest,
+    AsyncRpcContext,
+)
 
 from proto.edu.uci.ics.amber.engine.common import (
     Backpressure,
     ActorVirtualIdentity,
     ControlPayloadV2,
-    ControlInvocationV2,
 )
 
 
@@ -29,7 +33,12 @@ class BackpressureHandler(ActorCommandHandler):
                     tag=ActorVirtualIdentity(""),
                     payload=set_one_of(
                         ControlPayloadV2,
-                        ControlInvocationV2(-1, set_one_of(ControlCommandV2, NoOpV2())),
+                        ControlInvocation(
+                            "NoOperation",
+                            set_one_of(ControlRequest, EmptyRequest()),
+                            AsyncRpcContext(),
+                            -1,
+                        ),
                     ),
                 )
             )

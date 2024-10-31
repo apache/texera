@@ -1,32 +1,33 @@
 package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo.generateJavaOpExec
+import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.InitializeExecutorHandler.InitializeExecutor
-import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-
-object InitializeExecutorHandler {
-  final case class InitializeExecutor(
-      totalWorkerCount: Int,
-      opExecInitInfo: OpExecInitInfo,
-      isSource: Boolean
-  ) extends ControlCommand[Unit]
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo.generateJavaOpExec
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
+  AsyncRPCContext,
+  InitializeExecutorRequest
 }
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
+import edu.uci.ics.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
+import edu.uci.ics.amber.engine.common.{AmberRuntime, VirtualIdentityUtils}
 
 trait InitializeExecutorHandler {
   this: DataProcessorRPCHandlerInitializer =>
 
-  registerHandler { (msg: InitializeExecutor, sender) =>
-    {
-      dp.serializationManager.setOpInitialization(msg)
-      dp.executor = generateJavaOpExec(
-        msg.opExecInitInfo,
-        VirtualIdentityUtils.getWorkerIndex(actorId),
-        msg.totalWorkerCount
-      )
-    }
-
+  override def initializeExecutor(
+      req: InitializeExecutorRequest,
+      ctx: AsyncRPCContext
+  ): Future[EmptyReturn] = {
+    dp.serializationManager.setOpInitialization(req)
+    val bytes = req.opExecInitInfo.value.toByteArray
+    val opExecInitInfo: OpExecInitInfo =
+      AmberRuntime.serde.deserialize(bytes, classOf[OpExecInitInfo]).get
+    dp.executor = generateJavaOpExec(
+      opExecInitInfo,
+      VirtualIdentityUtils.getWorkerIndex(actorId),
+      req.totalWorkerCount
+    )
+    EmptyReturn()
   }
+
 }

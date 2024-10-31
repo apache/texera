@@ -4,26 +4,19 @@ import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{AllForOneStrategy, Props, SupervisorStrategy}
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkAck
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.execution.OperatorExecution
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   FaultToleranceConfig,
   StateRestoreConfig
 }
-import edu.uci.ics.amber.engine.architecture.controller.Controller.{
-  ReplayStatusUpdate,
-  WorkflowRecoveryStatus
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
+  ChannelMarkerPayload,
+  ControlInvocation
 }
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
-import edu.uci.ics.amber.engine.common.ambermessage.{
-  ChannelMarkerPayload,
-  ControlPayload,
-  WorkflowFIFOMessage
-}
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.ExecutionStatsUpdate
 import edu.uci.ics.amber.engine.common.model.{PhysicalPlan, WorkflowContext}
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowFIFOMessage}
+import edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity
 import edu.uci.ics.amber.engine.common.{AmberConfig, CheckpointState, SerializedState}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CLIENT, CONTROLLER, SELF}
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
@@ -61,9 +54,6 @@ object Controller {
         controllerConfig
       )
     )
-
-  final case class ReplayStatusUpdate(id: ActorVirtualIdentity, status: Boolean)
-  final case class WorkflowRecoveryStatus(isRecovering: Boolean)
 }
 
 class Controller(

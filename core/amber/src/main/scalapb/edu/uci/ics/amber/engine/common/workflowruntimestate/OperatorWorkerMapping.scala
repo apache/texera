@@ -11,8 +11,8 @@ final case class OperatorWorkerMapping(
     workerIds: _root_.scala.Seq[_root_.scala.Predef.String] = _root_.scala.Seq.empty
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[OperatorWorkerMapping] {
     @transient
-    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
-    private[this] def __computeSerializedValue(): _root_.scala.Int = {
+    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
+    private[this] def __computeSerializedSize(): _root_.scala.Int = {
       var __size = 0
       
       {
@@ -28,12 +28,13 @@ final case class OperatorWorkerMapping(
       __size
     }
     override def serializedSize: _root_.scala.Int = {
-      var read = __serializedSizeCachedValue
-      if (read == 0) {
-        read = __computeSerializedValue()
-        __serializedSizeCachedValue = read
+      var __size = __serializedSizeMemoized
+      if (__size == 0) {
+        __size = __computeSerializedSize() + 1
+        __serializedSizeMemoized = __size
       }
-      read
+      __size - 1
+      
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       {
@@ -49,7 +50,7 @@ final case class OperatorWorkerMapping(
     }
     def withOperatorId(__v: _root_.scala.Predef.String): OperatorWorkerMapping = copy(operatorId = __v)
     def clearWorkerIds = copy(workerIds = _root_.scala.Seq.empty)
-    def addWorkerIds(__vs: _root_.scala.Predef.String*): OperatorWorkerMapping = addAllWorkerIds(__vs)
+    def addWorkerIds(__vs: _root_.scala.Predef.String *): OperatorWorkerMapping = addAllWorkerIds(__vs)
     def addAllWorkerIds(__vs: Iterable[_root_.scala.Predef.String]): OperatorWorkerMapping = copy(workerIds = workerIds ++ __vs)
     def withWorkerIds(__v: _root_.scala.Seq[_root_.scala.Predef.String]): OperatorWorkerMapping = copy(workerIds = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
@@ -69,7 +70,7 @@ final case class OperatorWorkerMapping(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion = edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorWorkerMapping
+    def companion: edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorWorkerMapping.type = edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorWorkerMapping
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.OperatorWorkerMapping])
 }
 

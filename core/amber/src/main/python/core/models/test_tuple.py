@@ -111,10 +111,10 @@ class TestTuple:
         )
         schema = Schema(
             raw_schema={
-                "name": "string",
-                "age": "integer",
-                "scores": "binary",
-                "height": "double",
+                "name": "STRING",
+                "age": "INTEGER",
+                "scores": "BINARY",
+                "height": "DOUBLE",
             }
         )
         tuple_.finalize(schema)
@@ -124,13 +124,13 @@ class TestTuple:
     def test_hash(self):
         schema = Schema(
             raw_schema={
-                "col-int": "integer",
-                "col-string": "string",
-                "col-bool": "boolean",
-                "col-long": "long",
-                "col-double": "double",
-                "col-timestamp": "timestamp",
-                "col-binary": "binary",
+                "col-int": "INTEGER",
+                "col-string": "STRING",
+                "col-bool": "BOOLEAN",
+                "col-long": "LONG",
+                "col-double": "DOUBLE",
+                "col-timestamp": "TIMESTAMP",
+                "col-binary": "BINARY",
             }
         )
 

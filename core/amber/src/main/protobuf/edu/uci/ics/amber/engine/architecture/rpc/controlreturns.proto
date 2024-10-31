@@ -1,0 +1,123 @@
+syntax = "proto3";
+package edu.uci.ics.amber.engine.architecture.rpc;
+
+import "edu/uci/ics/amber/engine/architecture/worker/statistics.proto";
+import "scalapb/scalapb.proto";
+
+option (scalapb.options) = {
+  scope: FILE,
+  preserve_unknown_fields: false
+  no_default_values_in_constructor: true
+};
+
+
+// The generic return message
+message ControlReturn {
+  // Oneof block for various return types
+  oneof sealed_value {
+    // controller responses
+    RetrieveWorkflowStateResponse retrieveWorkflowStateResponse = 1;
+    PropagateChannelMarkerResponse propagateChannelMarkerResponse = 2;
+    TakeGlobalCheckpointResponse takeGlobalCheckpointResponse = 3;
+    EvaluatePythonExpressionResponse evaluatePythonExpressionResponse = 4;
+    StartWorkflowResponse startWorkflowResponse = 5;
+
+    // worker responses
+    WorkerStateResponse workerStateResponse = 50;
+    WorkerMetricsResponse workerMetricsResponse = 51;
+    FinalizeCheckpointResponse finalizeCheckpointResponse = 52;
+
+    // common responses
+    ControlError error = 101;
+    EmptyReturn emptyReturn = 102;
+    StringResponse stringResponse = 103;
+    IntResponse intResponse = 104;
+  }
+}
+
+message EmptyReturn {}
+
+enum ErrorLanguage {
+  PYTHON = 0;
+  SCALA = 1;
+}
+
+message ControlError {
+  string errorMessage = 1;
+  string errorDetails = 2;
+  string stackTrace = 3;
+  ErrorLanguage language = 4;
+}
+
+message ReturnInvocation {
+  option (scalapb.message).extends = "edu.uci.ics.amber.engine.common.ambermessage.ControlPayload";
+  int64 commandId = 1;
+  ControlReturn returnValue = 2 [(scalapb.field).no_box = true];
+}
+
+
+message StringResponse {
+  string value = 1;
+}
+
+message IntResponse {
+  int32 value = 1;
+}
+
+message RetrieveWorkflowStateResponse {
+  map<string, string> state = 1;
+}
+
+message FinalizeCheckpointResponse {
+  int64 size = 1;
+}
+
+message PropagateChannelMarkerResponse {
+  map<string, ControlReturn> returns = 1;
+}
+
+message TakeGlobalCheckpointResponse {
+  int64 totalSize = 1;
+}
+
+message TypedValue {
+  string expression = 1;
+  string value_ref = 2;
+  string value_str = 3;
+  string value_type = 4;
+  bool expandable = 5;
+}
+
+message EvaluatedValue {
+  TypedValue value = 1;
+  repeated TypedValue attributes = 2;
+}
+
+message EvaluatePythonExpressionResponse {
+  repeated EvaluatedValue values = 1;
+}
+
+enum WorkflowAggregatedState {
+  UNINITIALIZED = 0;
+  READY = 1;
+  RUNNING = 2;
+  PAUSING = 3;
+  PAUSED = 4;
+  RESUMING = 5;
+  COMPLETED = 6;
+  FAILED = 7;
+  UNKNOWN = 8;
+  KILLED = 9;
+}
+
+message StartWorkflowResponse {
+  WorkflowAggregatedState workflowState = 1 [(scalapb.field).no_box = true];
+}
+
+message WorkerStateResponse {
+   worker.WorkerState state = 1 [(scalapb.field).no_box = true];
+}
+
+message WorkerMetricsResponse {
+  worker.WorkerMetrics metrics = 1  [(scalapb.field).no_box = true];
+}

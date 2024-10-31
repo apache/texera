@@ -3,13 +3,11 @@ package edu.uci.ics.texera.web
 import java.time.{LocalDateTime, Duration => JDuration}
 import akka.actor.Cancellable
 import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.RUNNING
 import edu.uci.ics.amber.engine.common.AmberRuntime
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
-import edu.uci.ics.amber.engine.common.workflowruntimestate.{
-  ExecutionMetadataStore,
-  WorkflowAggregatedState
-}
-import edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState.RUNNING
+import edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionMetadataStore
 
 import scala.concurrent.duration.DurationInt
 

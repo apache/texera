@@ -7,12 +7,12 @@ package edu.uci.ics.amber.engine.common.workflowruntimestate
 
 @SerialVersionUID(0L)
 final case class OperatorConsole(
-    consoleMessages: _root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessage] = _root_.scala.Seq.empty,
+    consoleMessages: _root_.scala.Seq[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessage] = _root_.scala.Seq.empty,
     evaluateExprResults: _root_.scala.collection.immutable.Map[_root_.scala.Predef.String, edu.uci.ics.amber.engine.common.workflowruntimestate.EvaluatedValueList] = _root_.scala.collection.immutable.Map.empty
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[OperatorConsole] {
     @transient
-    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
-    private[this] def __computeSerializedValue(): _root_.scala.Int = {
+    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
+    private[this] def __computeSerializedSize(): _root_.scala.Int = {
       var __size = 0
       consoleMessages.foreach { __item =>
         val __value = __item
@@ -25,12 +25,13 @@ final case class OperatorConsole(
       __size
     }
     override def serializedSize: _root_.scala.Int = {
-      var read = __serializedSizeCachedValue
-      if (read == 0) {
-        read = __computeSerializedValue()
-        __serializedSizeCachedValue = read
+      var __size = __serializedSizeMemoized
+      if (__size == 0) {
+        __size = __computeSerializedSize() + 1
+        __serializedSizeMemoized = __size
       }
-      read
+      __size - 1
+      
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       consoleMessages.foreach { __v =>
@@ -47,11 +48,11 @@ final case class OperatorConsole(
       };
     }
     def clearConsoleMessages = copy(consoleMessages = _root_.scala.Seq.empty)
-    def addConsoleMessages(__vs: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessage*): OperatorConsole = addAllConsoleMessages(__vs)
-    def addAllConsoleMessages(__vs: Iterable[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessage]): OperatorConsole = copy(consoleMessages = consoleMessages ++ __vs)
-    def withConsoleMessages(__v: _root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessage]): OperatorConsole = copy(consoleMessages = __v)
+    def addConsoleMessages(__vs: edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessage *): OperatorConsole = addAllConsoleMessages(__vs)
+    def addAllConsoleMessages(__vs: Iterable[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessage]): OperatorConsole = copy(consoleMessages = consoleMessages ++ __vs)
+    def withConsoleMessages(__v: _root_.scala.Seq[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessage]): OperatorConsole = copy(consoleMessages = __v)
     def clearEvaluateExprResults = copy(evaluateExprResults = _root_.scala.collection.immutable.Map.empty)
-    def addEvaluateExprResults(__vs: (_root_.scala.Predef.String, edu.uci.ics.amber.engine.common.workflowruntimestate.EvaluatedValueList)*): OperatorConsole = addAllEvaluateExprResults(__vs)
+    def addEvaluateExprResults(__vs: (_root_.scala.Predef.String, edu.uci.ics.amber.engine.common.workflowruntimestate.EvaluatedValueList) *): OperatorConsole = addAllEvaluateExprResults(__vs)
     def addAllEvaluateExprResults(__vs: Iterable[(_root_.scala.Predef.String, edu.uci.ics.amber.engine.common.workflowruntimestate.EvaluatedValueList)]): OperatorConsole = copy(evaluateExprResults = evaluateExprResults ++ __vs)
     def withEvaluateExprResults(__v: _root_.scala.collection.immutable.Map[_root_.scala.Predef.String, edu.uci.ics.amber.engine.common.workflowruntimestate.EvaluatedValueList]): OperatorConsole = copy(evaluateExprResults = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
@@ -68,14 +69,14 @@ final case class OperatorConsole(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion = edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorConsole
+    def companion: edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorConsole.type = edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorConsole
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.OperatorConsole])
 }
 
 object OperatorConsole extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorConsole] {
   implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorConsole] = this
   def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorConsole = {
-    val __consoleMessages: _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessage] = new _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessage]
+    val __consoleMessages: _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessage] = new _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessage]
     val __evaluateExprResults: _root_.scala.collection.mutable.Builder[(_root_.scala.Predef.String, edu.uci.ics.amber.engine.common.workflowruntimestate.EvaluatedValueList), _root_.scala.collection.immutable.Map[_root_.scala.Predef.String, edu.uci.ics.amber.engine.common.workflowruntimestate.EvaluatedValueList]] = _root_.scala.collection.immutable.Map.newBuilder[_root_.scala.Predef.String, edu.uci.ics.amber.engine.common.workflowruntimestate.EvaluatedValueList]
     var _done__ = false
     while (!_done__) {
@@ -83,7 +84,7 @@ object OperatorConsole extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amb
       _tag__ match {
         case 0 => _done__ = true
         case 10 =>
-          __consoleMessages += _root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessage](_input__)
+          __consoleMessages += _root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessage](_input__)
         case 18 =>
           __evaluateExprResults += edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorConsole._typemapper_evaluateExprResults.toCustom(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorConsole.EvaluateExprResultsEntry](_input__))
         case tag => _input__.skipField(tag)
@@ -98,7 +99,7 @@ object OperatorConsole extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amb
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
       edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorConsole(
-        consoleMessages = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessage]]).getOrElse(_root_.scala.Seq.empty),
+        consoleMessages = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Seq[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessage]]).getOrElse(_root_.scala.Seq.empty),
         evaluateExprResults = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Seq[edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorConsole.EvaluateExprResultsEntry]]).getOrElse(_root_.scala.Seq.empty).iterator.map(edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorConsole._typemapper_evaluateExprResults.toCustom(_)).toMap
       )
     case _ => throw new RuntimeException("Expected PMessage")
@@ -108,7 +109,7 @@ object OperatorConsole extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amb
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = {
     var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
     (__number: @_root_.scala.unchecked) match {
-      case 1 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessage
+      case 1 => __out = edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessage
       case 2 => __out = edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorConsole.EvaluateExprResultsEntry
     }
     __out
@@ -128,8 +129,8 @@ object OperatorConsole extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amb
       value: _root_.scala.Option[edu.uci.ics.amber.engine.common.workflowruntimestate.EvaluatedValueList] = _root_.scala.None
       ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[EvaluateExprResultsEntry] {
       @transient
-      private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
-      private[this] def __computeSerializedValue(): _root_.scala.Int = {
+      private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
+      private[this] def __computeSerializedSize(): _root_.scala.Int = {
         var __size = 0
         
         {
@@ -145,12 +146,13 @@ object OperatorConsole extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amb
         __size
       }
       override def serializedSize: _root_.scala.Int = {
-        var read = __serializedSizeCachedValue
-        if (read == 0) {
-          read = __computeSerializedValue()
-          __serializedSizeCachedValue = read
+        var __size = __serializedSizeMemoized
+        if (__size == 0) {
+          __size = __computeSerializedSize() + 1
+          __serializedSizeMemoized = __size
         }
-        read
+        __size - 1
+        
       }
       def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
         {
@@ -187,7 +189,7 @@ object OperatorConsole extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amb
         }
       }
       def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-      def companion = edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorConsole.EvaluateExprResultsEntry
+      def companion: edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorConsole.EvaluateExprResultsEntry.type = edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorConsole.EvaluateExprResultsEntry
       // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.OperatorConsole.EvaluateExprResultsEntry])
   }
   
@@ -258,7 +260,7 @@ object OperatorConsole extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amb
   }
   
   implicit class OperatorConsoleLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorConsole]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorConsole](_l) {
-    def consoleMessages: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessage]] = field(_.consoleMessages)((c_, f_) => c_.copy(consoleMessages = f_))
+    def consoleMessages: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessage]] = field(_.consoleMessages)((c_, f_) => c_.copy(consoleMessages = f_))
     def evaluateExprResults: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.collection.immutable.Map[_root_.scala.Predef.String, edu.uci.ics.amber.engine.common.workflowruntimestate.EvaluatedValueList]] = field(_.evaluateExprResults)((c_, f_) => c_.copy(evaluateExprResults = f_))
   }
   final val CONSOLE_MESSAGES_FIELD_NUMBER = 1
@@ -266,7 +268,7 @@ object OperatorConsole extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amb
   @transient
   private[workflowruntimestate] val _typemapper_evaluateExprResults: _root_.scalapb.TypeMapper[edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorConsole.EvaluateExprResultsEntry, (_root_.scala.Predef.String, edu.uci.ics.amber.engine.common.workflowruntimestate.EvaluatedValueList)] = implicitly[_root_.scalapb.TypeMapper[edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorConsole.EvaluateExprResultsEntry, (_root_.scala.Predef.String, edu.uci.ics.amber.engine.common.workflowruntimestate.EvaluatedValueList)]]
   def of(
-    consoleMessages: _root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessage],
+    consoleMessages: _root_.scala.Seq[edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessage],
     evaluateExprResults: _root_.scala.collection.immutable.Map[_root_.scala.Predef.String, edu.uci.ics.amber.engine.common.workflowruntimestate.EvaluatedValueList]
   ): _root_.edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorConsole = _root_.edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorConsole(
     consoleMessages,

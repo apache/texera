@@ -1,11 +1,10 @@
 import threading
 import time
 import typing
-from typing import Iterator, Optional
-
 from loguru import logger
 from overrides import overrides
 from pampy import match
+from typing import Iterator, Optional
 
 from core.architecture.managers.context import Context
 from core.architecture.managers.pause_manager import PauseType
@@ -25,23 +24,24 @@ from core.models.internal_marker import (
 from core.models.internal_queue import DataElement, ControlElement
 from core.models.marker import State, EndOfInputChannel, StartOfInputChannel
 from core.runnables.data_processor import DataProcessor
-from core.util import StoppableQueueBlockingRunnable, get_one_of, set_one_of
-from core.util.customized_queue.queue_base import QueueElement
+from core.util import StoppableQueueBlockingRunnable, get_one_of
 from core.util.console_message.timestamp import current_time_in_local_timezone
-from proto.edu.uci.ics.amber.engine.architecture.worker import (
-    ControlCommandV2,
-    ConsoleMessageType,
-    WorkerExecutionCompletedV2,
-    WorkerState,
-    PythonConsoleMessageV2,
+from core.util.customized_queue.queue_base import QueueElement
+from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     ConsoleMessage,
-    PortCompletedV2,
+    ControlInvocation,
+    ConsoleMessageType,
+    ReturnInvocation,
+    PortCompletedRequest,
+    EmptyRequest,
+    ConsoleMessageTriggeredRequest,
+)
+from proto.edu.uci.ics.amber.engine.architecture.worker import (
+    WorkerState,
 )
 from proto.edu.uci.ics.amber.engine.common import (
     ActorVirtualIdentity,
-    ControlInvocationV2,
     ControlPayloadV2,
-    ReturnInvocationV2,
     PortIdentity,
 )
 
@@ -80,10 +80,8 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self.context.statistics_manager.update_total_execution_time(
             time.time_ns() - self.context.statistics_manager.worker_start_time
         )
-        control_command = set_one_of(ControlCommandV2, WorkerExecutionCompletedV2())
-        self._async_rpc_client.send(
-            ActorVirtualIdentity(name="CONTROLLER"), control_command
-        )
+        controller_interface = self._async_rpc_client.controller_stub()
+        controller_interface.worker_execution_completed(EmptyRequest())
         self.context.close()
 
     def _check_and_process_control(self) -> None:
@@ -138,10 +136,10 @@ class MainLoop(StoppableQueueBlockingRunnable):
         """
         start_time = time.time_ns()
         match(
-            (tag, get_one_of(payload)),
-            typing.Tuple[ActorVirtualIdentity, ControlInvocationV2],
+            (tag, get_one_of(payload, sealed=False)),
+            typing.Tuple[ActorVirtualIdentity, ControlInvocation],
             self._async_rpc_server.receive,
-            typing.Tuple[ActorVirtualIdentity, ReturnInvocationV2],
+            typing.Tuple[ActorVirtualIdentity, ReturnInvocation],
             self._async_rpc_client.receive,
         )
         end_time = time.time_ns()
@@ -230,16 +228,13 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self.context.marker_processing_manager.current_input_marker = end_of_input_port
         self.process_input_state()
         self.process_input_tuple()
-        if self.context.tuple_processing_manager.current_input_port_id is not None:
-            control_command = set_one_of(
-                ControlCommandV2,
-                PortCompletedV2(
-                    self.context.tuple_processing_manager.current_input_port_id,
+        input_port_id = self.context.tuple_processing_manager.current_input_port_id
+        if input_port_id is not None:
+            self._async_rpc_client.controller_stub().port_completed(
+                PortCompletedRequest(
+                    port_id=input_port_id,
                     input=True,
-                ),
-            )
-            self._async_rpc_client.send(
-                ActorVirtualIdentity(name="CONTROLLER"), control_command
+                )
             )
 
     def _process_sender_change_marker(self, sender_change_marker: SenderChange) -> None:
@@ -277,13 +272,11 @@ class MainLoop(StoppableQueueBlockingRunnable):
         for to, batch in self.context.output_manager.emit_marker(EndOfInputChannel()):
             self._output_queue.put(DataElement(tag=to, payload=batch))
             self._check_and_process_control()
-            control_command = set_one_of(
-                ControlCommandV2,
-                PortCompletedV2(PortIdentity(0), input=False),
+
+            self._async_rpc_client.controller_stub().port_completed(
+                PortCompletedRequest(port_id=PortIdentity(0), input=False)
             )
-            self._async_rpc_client.send(
-                ActorVirtualIdentity(name="CONTROLLER"), control_command
-            )
+
         self.complete()
 
     def _process_data_element(self, data_element: DataElement) -> None:
@@ -348,13 +341,10 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 PauseType.SCHEDULER_TIME_SLOT_EXPIRED_PAUSE
             )
 
-    def _send_console_message(self, console_message: PythonConsoleMessageV2):
-        self._async_rpc_client.send(
-            ActorVirtualIdentity(name="CONTROLLER"),
-            set_one_of(
-                ControlCommandV2,
-                console_message,
-            ),
+    def _send_console_message(self, console_message: ConsoleMessage):
+
+        self._async_rpc_client.controller_stub().console_message_triggered(
+            ConsoleMessageTriggeredRequest(console_message=console_message)
         )
 
     def _switch_context(self) -> None:
@@ -378,15 +368,13 @@ class MainLoop(StoppableQueueBlockingRunnable):
         if self.context.debug_manager.has_debug_event():
             debug_event = self.context.debug_manager.get_debug_event()
             self._send_console_message(
-                PythonConsoleMessageV2(
-                    ConsoleMessage(
-                        worker_id=self.context.worker_id,
-                        timestamp=current_time_in_local_timezone(),
-                        msg_type=ConsoleMessageType.DEBUGGER,
-                        source="(Pdb)",
-                        title=debug_event,
-                        message="",
-                    )
+                ConsoleMessage(
+                    worker_id=self.context.worker_id,
+                    timestamp=current_time_in_local_timezone(),
+                    msg_type=ConsoleMessageType.DEBUGGER,
+                    source="(Pdb)",
+                    title=debug_event,
+                    message="",
                 )
             )
             self._check_and_report_console_messages(force_flush=True)
@@ -399,7 +387,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
     def _check_and_report_console_messages(self, force_flush=False) -> None:
         for msg in self.context.console_message_manager.get_messages(force_flush):
-            self._send_console_message(PythonConsoleMessageV2(msg))
+            self._send_console_message(msg)
 
     def _post_switch_context_checks(self) -> None:
         """

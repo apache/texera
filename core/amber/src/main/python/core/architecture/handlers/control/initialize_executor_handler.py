@@ -1,13 +1,15 @@
-from proto.edu.uci.ics.amber.engine.architecture.worker import InitializeExecutorV2
 from core.architecture.handlers.control.control_handler_base import ControlHandler
-from core.architecture.managers.context import Context
+from proto.edu.uci.ics.amber.engine.architecture.rpc import (
+    EmptyReturn,
+    InitializeExecutorRequest,
+)
 
 
 class InitializeExecutorHandler(ControlHandler):
-    cmd = InitializeExecutorV2
 
-    def __call__(self, context: Context, command: cmd, *args, **kwargs):
-        context.executor_manager.initialize_executor(
-            command.code, command.is_source, command.language
+    async def initialize_executor(self, req: InitializeExecutorRequest) -> EmptyReturn:
+        code = req.op_exec_init_info.value.decode("utf-8")
+        self.context.executor_manager.initialize_executor(
+            code, req.is_source, req.language
         )
-        return None
+        return EmptyReturn()

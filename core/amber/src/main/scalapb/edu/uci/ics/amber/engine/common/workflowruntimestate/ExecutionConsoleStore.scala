@@ -10,8 +10,8 @@ final case class ExecutionConsoleStore(
     operatorConsole: _root_.scala.collection.immutable.Map[_root_.scala.Predef.String, edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorConsole] = _root_.scala.collection.immutable.Map.empty
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[ExecutionConsoleStore] {
     @transient
-    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
-    private[this] def __computeSerializedValue(): _root_.scala.Int = {
+    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
+    private[this] def __computeSerializedSize(): _root_.scala.Int = {
       var __size = 0
       operatorConsole.foreach { __item =>
         val __value = edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionConsoleStore._typemapper_operatorConsole.toBase(__item)
@@ -20,12 +20,13 @@ final case class ExecutionConsoleStore(
       __size
     }
     override def serializedSize: _root_.scala.Int = {
-      var read = __serializedSizeCachedValue
-      if (read == 0) {
-        read = __computeSerializedValue()
-        __serializedSizeCachedValue = read
+      var __size = __serializedSizeMemoized
+      if (__size == 0) {
+        __size = __computeSerializedSize() + 1
+        __serializedSizeMemoized = __size
       }
-      read
+      __size - 1
+      
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       operatorConsole.foreach { __v =>
@@ -36,7 +37,7 @@ final case class ExecutionConsoleStore(
       };
     }
     def clearOperatorConsole = copy(operatorConsole = _root_.scala.collection.immutable.Map.empty)
-    def addOperatorConsole(__vs: (_root_.scala.Predef.String, edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorConsole)*): ExecutionConsoleStore = addAllOperatorConsole(__vs)
+    def addOperatorConsole(__vs: (_root_.scala.Predef.String, edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorConsole) *): ExecutionConsoleStore = addAllOperatorConsole(__vs)
     def addAllOperatorConsole(__vs: Iterable[(_root_.scala.Predef.String, edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorConsole)]): ExecutionConsoleStore = copy(operatorConsole = operatorConsole ++ __vs)
     def withOperatorConsole(__v: _root_.scala.collection.immutable.Map[_root_.scala.Predef.String, edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorConsole]): ExecutionConsoleStore = copy(operatorConsole = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
@@ -51,7 +52,7 @@ final case class ExecutionConsoleStore(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion = edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionConsoleStore
+    def companion: edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionConsoleStore.type = edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionConsoleStore
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.ExecutionConsoleStore])
 }
 
@@ -104,8 +105,8 @@ object ExecutionConsoleStore extends scalapb.GeneratedMessageCompanion[edu.uci.i
       value: _root_.scala.Option[edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorConsole] = _root_.scala.None
       ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[OperatorConsoleEntry] {
       @transient
-      private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
-      private[this] def __computeSerializedValue(): _root_.scala.Int = {
+      private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
+      private[this] def __computeSerializedSize(): _root_.scala.Int = {
         var __size = 0
         
         {
@@ -121,12 +122,13 @@ object ExecutionConsoleStore extends scalapb.GeneratedMessageCompanion[edu.uci.i
         __size
       }
       override def serializedSize: _root_.scala.Int = {
-        var read = __serializedSizeCachedValue
-        if (read == 0) {
-          read = __computeSerializedValue()
-          __serializedSizeCachedValue = read
+        var __size = __serializedSizeMemoized
+        if (__size == 0) {
+          __size = __computeSerializedSize() + 1
+          __serializedSizeMemoized = __size
         }
-        read
+        __size - 1
+        
       }
       def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
         {
@@ -163,7 +165,7 @@ object ExecutionConsoleStore extends scalapb.GeneratedMessageCompanion[edu.uci.i
         }
       }
       def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-      def companion = edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionConsoleStore.OperatorConsoleEntry
+      def companion: edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionConsoleStore.OperatorConsoleEntry.type = edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionConsoleStore.OperatorConsoleEntry
       // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.ExecutionConsoleStore.OperatorConsoleEntry])
   }
   
