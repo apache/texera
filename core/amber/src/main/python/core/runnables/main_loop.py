@@ -80,7 +80,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self.context.statistics_manager.update_total_execution_time(
             time.time_ns() - self.context.statistics_manager.worker_start_time
         )
-        controller_interface = self._async_rpc_client.get_controller_interface()
+        controller_interface = self._async_rpc_client.controller_stub()
         controller_interface.worker_execution_completed(EmptyRequest())
         self.context.close()
 
@@ -230,7 +230,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self.process_input_tuple()
         input_port_id = self.context.tuple_processing_manager.current_input_port_id
         if input_port_id is not None:
-            self._async_rpc_client.get_controller_interface().port_completed(
+            self._async_rpc_client.controller_stub().port_completed(
                 PortCompletedRequest(
                     port_id=input_port_id,
                     input=True,
@@ -273,7 +273,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
             self._output_queue.put(DataElement(tag=to, payload=batch))
             self._check_and_process_control()
 
-            self._async_rpc_client.get_controller_interface().port_completed(
+            self._async_rpc_client.controller_stub().port_completed(
                 PortCompletedRequest(port_id=PortIdentity(0), input=False)
             )
 
@@ -343,7 +343,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
     def _send_console_message(self, console_message: ConsoleMessage):
 
-        self._async_rpc_client.get_controller_interface().console_message_triggered(
+        self._async_rpc_client.controller_stub().console_message_triggered(
             ConsoleMessageTriggeredRequest(console_message=console_message)
         )
 

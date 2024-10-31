@@ -1,10 +1,11 @@
 import asyncio
+import inspect
 from collections import defaultdict
 from concurrent.futures import Future
 from functools import wraps
 from loguru import logger
-from typing import Dict, TypeVar, Callable, Any
-import inspect
+from typing import Dict, TypeVar, Callable, Any, Coroutine
+
 from core.architecture.managers.context import Context
 from core.models.internal_queue import InternalQueue, ControlElement
 from core.util import set_one_of
@@ -40,52 +41,48 @@ def async_run(func: Callable[..., Any]) -> Callable[..., Any]:
 
 
 class AsyncRPCClient:
-    def assign_worker(self, target_worker):
-        async def wrapper(route: str, request, response_type, timeout, deadline,
-                          metadata):
-            rpc_context: AsyncRpcContext = AsyncRpcContext(
-                ActorVirtualIdentity(self._context.worker_id),
-                target_worker,
-            )
-            to = rpc_context.receiver
-            control_command = ControlInvocation(
-                # to align with java side, only use the method name
-                method_name=route.split("/")[-1],
-                command=set_one_of(ControlRequest, request),
-                context=rpc_context,
-                command_id=self._send_sequences[to],
-            )
-            payload = set_one_of(
-                ControlPayloadV2,
-                control_command,
-            )
-            self._output_queue.put(ControlElement(tag=to, payload=payload))
-            return self._create_future(to)
-
-        return wrapper
-
     def __init__(self, output_queue: InternalQueue, context: Context):
         self._context = context
         self._output_queue = output_queue
         self._send_sequences: Dict[ActorVirtualIdentity, int] = defaultdict(int)
         self._unfulfilled_promises: Dict[(ActorVirtualIdentity, int), Future] = dict()
+        # TODO: is this correct?
         self._controller_service_stub = ControllerServiceStub("")
-        self._controller_service_stub._unary_unary = (
-            AsyncRPCClient.assign_worker(self, ActorVirtualIdentity(name="CONTROLLER"))
+        rpc_context = AsyncRpcContext(
+            ActorVirtualIdentity(self._context.worker_id),
+            ActorVirtualIdentity(name="CONTROLLER"),
         )
-        def wrap_all_async_methods_with_async_run(instance: Any) -> None:
-            for attr_name in dir(instance):
-                # Get the attribute (method) of the instance
-                attr = getattr(instance, attr_name)
+        self._controller_service_stub._unary_unary = (
+            AsyncRPCClient._assign_context(self, rpc_context))
+        # Apply async_run to all async methods of the controller service stub
+        self._wrap_all_async_methods_with_async_run(self._controller_service_stub)
 
-                # Check if the attribute is a coroutine function (async def)
-                if inspect.iscoroutinefunction(attr):
-                    # Apply the async_run decorator
-                    decorated_method = async_run(attr)
-                    setattr(instance, attr_name, decorated_method)
-        wrap_all_async_methods_with_async_run(self._controller_service_stub)
+    def _assign_context(self, rpc_context: AsyncRpcContext) -> Callable[
+        ..., Coroutine[Any, Any,
+        Future]]:
+        """Creates an async RPC wrapper function with a context"""
+        async def wrapper(route: str, request, response_type, timeout, deadline,
+                          metadata):
+            to = rpc_context.receiver
+            control_command = ControlInvocation(
+                method_name=route.split("/")[-1],  # Extract the method name for RPC
+                command=set_one_of(ControlRequest, request),
+                context=rpc_context,
+                command_id=self._send_sequences[to],
+            )
+            payload = set_one_of(ControlPayloadV2, control_command)
+            self._output_queue.put(ControlElement(tag=to, payload=payload))
+            return self._create_future(to)
+        return wrapper
 
-    def get_controller_interface(self) -> ControllerServiceStub:
+    def _wrap_all_async_methods_with_async_run(self, instance: Any) -> None:
+        """Decorates all async methods of an instance with async_run."""
+        for attr_name in dir(instance):
+            attr = getattr(instance, attr_name)
+            if inspect.iscoroutinefunction(attr):
+                setattr(instance, attr_name, async_run(attr))
+
+    def controller_stub(self) -> ControllerServiceStub:
         """
         Returns a proxy for interacting with the controller interface.
         """
