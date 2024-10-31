@@ -57,30 +57,41 @@ class BatchSizePropagationSpec
               val partitioning = linkConfig.partitioning
               partitioning match {
                 case oneToOne: OneToOnePartitioning =>
+                  println(s"Testing OneToOnePartitioning with batch size: ${oneToOne.batchSize}")
                   assert(
                     oneToOne.batchSize == expectedBatchSize,
                     s"Batch size mismatch: ${oneToOne.batchSize} != $expectedBatchSize"
                   )
 
                 case roundRobin: RoundRobinPartitioning =>
+                  println(
+                    s"Testing RoundRobinPartitioning with batch size: ${roundRobin.batchSize}"
+                  )
                   assert(
                     roundRobin.batchSize == expectedBatchSize,
                     s"Batch size mismatch: ${roundRobin.batchSize} != $expectedBatchSize"
                   )
 
                 case hashBased: HashBasedShufflePartitioning =>
+                  println(
+                    s"Testing HashBasedShufflePartitioning with batch size: ${hashBased.batchSize}"
+                  )
                   assert(
                     hashBased.batchSize == expectedBatchSize,
                     s"Batch size mismatch: ${hashBased.batchSize} != $expectedBatchSize"
                   )
 
                 case rangeBased: RangeBasedShufflePartitioning =>
+                  println(
+                    s"Testing RangeBasedShufflePartitioning with batch size: ${rangeBased.batchSize}"
+                  )
                   assert(
                     rangeBased.batchSize == expectedBatchSize,
                     s"Batch size mismatch: ${rangeBased.batchSize} != $expectedBatchSize"
                   )
 
                 case broadcast: BroadcastPartitioning =>
+                  println(s"Testing BroadcastPartitioning with batch size: ${broadcast.batchSize}")
                   assert(
                     broadcast.batchSize == expectedBatchSize,
                     s"Batch size mismatch: ${broadcast.batchSize} != $expectedBatchSize"
