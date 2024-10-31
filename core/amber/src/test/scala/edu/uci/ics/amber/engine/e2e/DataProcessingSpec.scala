@@ -13,6 +13,7 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
 import edu.uci.ics.amber.engine.architecture.controller._
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.common.client.AmberClient
+import edu.uci.ics.amber.engine.common.model.WorkflowContext
 import edu.uci.ics.amber.engine.common.model.tuple.{AttributeType, Tuple}
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
@@ -133,7 +134,8 @@ class DataProcessingSpec
           PortIdentity()
         )
       ),
-      resultStorage
+      resultStorage,
+      new WorkflowContext()
     )
     val results = executeWorkflow(workflow)(sink.operatorIdentifier)
 
@@ -153,7 +155,8 @@ class DataProcessingSpec
           PortIdentity()
         )
       ),
-      resultStorage
+      resultStorage,
+      new WorkflowContext()
     )
     val results = executeWorkflow(workflow)(sink.operatorIdentifier)
 
@@ -173,7 +176,8 @@ class DataProcessingSpec
           PortIdentity()
         )
       ),
-      resultStorage
+      resultStorage,
+      new WorkflowContext()
     )
     val results = executeWorkflow(workflow)(sink.operatorIdentifier)
 
@@ -204,7 +208,8 @@ class DataProcessingSpec
           PortIdentity()
         )
       ),
-      resultStorage
+      resultStorage,
+      new WorkflowContext()
     )
     val results = executeWorkflow(workflow)(sink.operatorIdentifier)
 
@@ -242,7 +247,8 @@ class DataProcessingSpec
           PortIdentity()
         )
       ),
-      resultStorage
+      resultStorage,
+      new WorkflowContext()
     )
     executeWorkflow(workflow)
   }
@@ -260,7 +266,8 @@ class DataProcessingSpec
           PortIdentity()
         )
       ),
-      resultStorage
+      resultStorage,
+      new WorkflowContext()
     )
     executeWorkflow(workflow)
   }
@@ -285,7 +292,8 @@ class DataProcessingSpec
           PortIdentity()
         )
       ),
-      resultStorage
+      resultStorage,
+      new WorkflowContext()
     )
     executeWorkflow(workflow)
   }
@@ -318,7 +326,8 @@ class DataProcessingSpec
           PortIdentity()
         )
       ),
-      resultStorage
+      resultStorage,
+      new WorkflowContext()
     )
     executeWorkflow(workflow)
   }
@@ -355,7 +364,8 @@ class DataProcessingSpec
           PortIdentity()
         )
       ),
-      resultStorage
+      resultStorage,
+      new WorkflowContext()
     )
     executeWorkflow(workflow)
   }
@@ -392,7 +402,8 @@ class DataProcessingSpec
           PortIdentity()
         )
       ),
-      resultStorage
+      resultStorage,
+      new WorkflowContext()
     )
     executeWorkflow(workflow)
   }
@@ -433,7 +444,8 @@ class DataProcessingSpec
           PortIdentity()
         )
       ),
-      resultStorage
+      resultStorage,
+      new WorkflowContext()
     )
     executeWorkflow(workflow)
 

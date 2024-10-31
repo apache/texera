@@ -4,6 +4,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.amber.engine.e2e.TestOperators
 import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
+import edu.uci.ics.amber.engine.common.model.WorkflowContext
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.workflow.LogicalLink
 import edu.uci.ics.texera.workflow.operators.split.SplitOpDesc
@@ -37,7 +38,8 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
           PortIdentity(0)
         )
       ),
-      resultStorage
+      resultStorage,
+      new WorkflowContext()
     )
 
     val (regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
@@ -96,7 +98,8 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
           PortIdentity()
         )
       ),
-      resultStorage
+      resultStorage,
+      new WorkflowContext()
     )
 
     val (regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
@@ -185,7 +188,8 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
           PortIdentity()
         )
       ),
-      resultStorage
+      resultStorage,
+      new WorkflowContext()
     )
 
     val (regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
@@ -258,7 +262,8 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
           PortIdentity()
         )
       ),
-      resultStorage
+      resultStorage,
+      new WorkflowContext()
     )
 
     val (regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
@@ -331,7 +336,8 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
           PortIdentity()
         )
       ),
-      resultStorage
+      resultStorage,
+      new WorkflowContext()
     )
 
     val (regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
