@@ -136,7 +136,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         """
         start_time = time.time_ns()
         match(
-            (tag, get_one_of(payload, False)),
+            (tag, get_one_of(payload, sealed=False)),
             typing.Tuple[ActorVirtualIdentity, ControlInvocation],
             self._async_rpc_server.receive,
             typing.Tuple[ActorVirtualIdentity, ReturnInvocation],

@@ -29,7 +29,7 @@ class AsyncRPCServer:
             k.split("/")[-1].lower(): v for k, v in rpc_mapping.items()
         }
 
-    def wrap_as_stream(self, request: ControlRequest) -> grpclib.server.Stream:
+    def _wrap_as_stream(self, request: ControlRequest) -> grpclib.server.Stream:
         """
         Wraps a ControlRequest as a grpclib server Stream.
 
@@ -75,7 +75,7 @@ class AsyncRPCServer:
             # Look up the handler based on the lowercase method name.
             handler: grpclib.const.Handler = self.look_up(method_name.lower())
             # Wrap the command as a streaming request.
-            control_payload_stream = self.wrap_as_stream(command)
+            control_payload_stream = self._wrap_as_stream(command)
             # Run the handler asynchronously.
             asyncio.run(handler.func(control_payload_stream))
             # Set up a ControlReturn from the handler's result.
