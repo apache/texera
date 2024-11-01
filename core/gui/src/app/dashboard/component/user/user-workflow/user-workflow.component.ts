@@ -460,7 +460,7 @@ export class UserWorkflowComponent implements AfterViewInit, OnInit {
       .pipe(untilDestroyed(this))
       .subscribe({
         next: () => {
-          this.searchResultsComponent.clearAllSelections();
+          // this.searchResultsComponent.clearAllSelections();
         },
         error: (err: unknown) => console.error("Error downloading workflows:", err),
       });
@@ -491,7 +491,7 @@ export class UserWorkflowComponent implements AfterViewInit, OnInit {
                 ...this.searchResultsComponent.entries,
               ];
 
-              this.searchResultsComponent.clearAllSelections();
+              // this.searchResultsComponent.clearAllSelections();
             }, // TODO: fix this with notification component
             error: (err: unknown) => alert(err),
           });
@@ -507,7 +507,7 @@ export class UserWorkflowComponent implements AfterViewInit, OnInit {
                 ...this.searchResultsComponent.entries,
               ];
 
-              this.searchResultsComponent.clearAllSelections();
+              // this.searchResultsComponent.clearAllSelections();
             }, // TODO: fix this with notification component
             error: (err: unknown) => alert(err),
           });
