@@ -6,7 +6,7 @@ from io import StringIO
 from typing import ContextManager
 from core.util.console_message.timestamp import current_time_in_local_timezone
 from core.util.buffer.buffer_base import IBuffer
-from proto.edu.uci.ics.amber.engine.architecture.worker import (
+from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     ConsoleMessage,
     ConsoleMessageType,
 )

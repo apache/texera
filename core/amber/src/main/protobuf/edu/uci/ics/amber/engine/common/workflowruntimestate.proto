@@ -2,8 +2,8 @@ syntax = "proto3";
 
 package edu.uci.ics.amber.engine.common;
 
-import "edu/uci/ics/amber/engine/architecture/worker/controlcommands.proto";
-import "edu/uci/ics/amber/engine/architecture/worker/controlreturns.proto";
+import "edu/uci/ics/amber/engine/architecture/rpc/controlcommands.proto";
+import "edu/uci/ics/amber/engine/architecture/rpc/controlreturns.proto";
 import "edu/uci/ics/amber/engine/architecture/worker/statistics.proto";
 import "edu/uci/ics/amber/engine/common/virtualidentity.proto";
 import "google/protobuf/timestamp.proto";
@@ -18,19 +18,6 @@ option (scalapb.options) = {
 enum FatalErrorType{
   COMPILATION_ERROR = 0;
   EXECUTION_FAILURE = 1;
-}
-
-enum WorkflowAggregatedState {
-  UNINITIALIZED = 0;
-  READY = 1;
-  RUNNING = 2;
-  PAUSING = 3;
-  PAUSED = 4;
-  RESUMING = 5;
-  COMPLETED = 6;
-  FAILED = 7;
-  UNKNOWN = 8;
-  KILLED = 9;
 }
 
 
@@ -54,11 +41,11 @@ message ExecutionBreakpointStore{
 }
 
 message EvaluatedValueList{
-  repeated amber.engine.architecture.worker.EvaluatedValue values = 1;
+  repeated amber.engine.architecture.rpc.EvaluatedValue values = 1;
 }
 
 message OperatorConsole{
-  repeated amber.engine.architecture.worker.ConsoleMessage console_messages = 1;
+  repeated edu.uci.ics.amber.engine.architecture.rpc.ConsoleMessage console_messages = 1;
   map<string, EvaluatedValueList> evaluate_expr_results = 2;
 }
 
@@ -81,7 +68,7 @@ message OperatorStatistics{
 }
 
 message OperatorMetrics{
-  WorkflowAggregatedState operator_state = 1 [(scalapb.field).no_box = true];
+  edu.uci.ics.amber.engine.architecture.rpc.WorkflowAggregatedState operator_state = 1 [(scalapb.field).no_box = true];
   OperatorStatistics operator_statistics = 2 [(scalapb.field).no_box = true];
 }
 
@@ -103,7 +90,7 @@ message WorkflowFatalError {
 }
 
 message ExecutionMetadataStore{
-  WorkflowAggregatedState state = 1;
+  edu.uci.ics.amber.engine.architecture.rpc.WorkflowAggregatedState state = 1;
   repeated WorkflowFatalError fatal_errors = 2;
   edu.uci.ics.amber.engine.common.ExecutionIdentity executionId = 3 [(scalapb.field).no_box = true];
   bool is_recovering = 4;

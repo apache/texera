@@ -10,8 +10,8 @@ final case class ExecutionBreakpointStore(
     operatorInfo: _root_.scala.collection.immutable.Map[_root_.scala.Predef.String, edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorBreakpoints] = _root_.scala.collection.immutable.Map.empty
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[ExecutionBreakpointStore] {
     @transient
-    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
-    private[this] def __computeSerializedValue(): _root_.scala.Int = {
+    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
+    private[this] def __computeSerializedSize(): _root_.scala.Int = {
       var __size = 0
       operatorInfo.foreach { __item =>
         val __value = edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionBreakpointStore._typemapper_operatorInfo.toBase(__item)
@@ -20,12 +20,13 @@ final case class ExecutionBreakpointStore(
       __size
     }
     override def serializedSize: _root_.scala.Int = {
-      var read = __serializedSizeCachedValue
-      if (read == 0) {
-        read = __computeSerializedValue()
-        __serializedSizeCachedValue = read
+      var __size = __serializedSizeMemoized
+      if (__size == 0) {
+        __size = __computeSerializedSize() + 1
+        __serializedSizeMemoized = __size
       }
-      read
+      __size - 1
+      
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       operatorInfo.foreach { __v =>
@@ -36,7 +37,7 @@ final case class ExecutionBreakpointStore(
       };
     }
     def clearOperatorInfo = copy(operatorInfo = _root_.scala.collection.immutable.Map.empty)
-    def addOperatorInfo(__vs: (_root_.scala.Predef.String, edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorBreakpoints)*): ExecutionBreakpointStore = addAllOperatorInfo(__vs)
+    def addOperatorInfo(__vs: (_root_.scala.Predef.String, edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorBreakpoints) *): ExecutionBreakpointStore = addAllOperatorInfo(__vs)
     def addAllOperatorInfo(__vs: Iterable[(_root_.scala.Predef.String, edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorBreakpoints)]): ExecutionBreakpointStore = copy(operatorInfo = operatorInfo ++ __vs)
     def withOperatorInfo(__v: _root_.scala.collection.immutable.Map[_root_.scala.Predef.String, edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorBreakpoints]): ExecutionBreakpointStore = copy(operatorInfo = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
@@ -51,7 +52,7 @@ final case class ExecutionBreakpointStore(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion = edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionBreakpointStore
+    def companion: edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionBreakpointStore.type = edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionBreakpointStore
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.ExecutionBreakpointStore])
 }
 
@@ -104,8 +105,8 @@ object ExecutionBreakpointStore extends scalapb.GeneratedMessageCompanion[edu.uc
       value: _root_.scala.Option[edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorBreakpoints] = _root_.scala.None
       ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[OperatorInfoEntry] {
       @transient
-      private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
-      private[this] def __computeSerializedValue(): _root_.scala.Int = {
+      private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
+      private[this] def __computeSerializedSize(): _root_.scala.Int = {
         var __size = 0
         
         {
@@ -121,12 +122,13 @@ object ExecutionBreakpointStore extends scalapb.GeneratedMessageCompanion[edu.uc
         __size
       }
       override def serializedSize: _root_.scala.Int = {
-        var read = __serializedSizeCachedValue
-        if (read == 0) {
-          read = __computeSerializedValue()
-          __serializedSizeCachedValue = read
+        var __size = __serializedSizeMemoized
+        if (__size == 0) {
+          __size = __computeSerializedSize() + 1
+          __serializedSizeMemoized = __size
         }
-        read
+        __size - 1
+        
       }
       def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
         {
@@ -163,7 +165,7 @@ object ExecutionBreakpointStore extends scalapb.GeneratedMessageCompanion[edu.uc
         }
       }
       def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-      def companion = edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionBreakpointStore.OperatorInfoEntry
+      def companion: edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionBreakpointStore.OperatorInfoEntry.type = edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionBreakpointStore.OperatorInfoEntry
       // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.ExecutionBreakpointStore.OperatorInfoEntry])
   }
   

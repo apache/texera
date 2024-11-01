@@ -1,0 +1,26 @@
+syntax = "proto3";
+package edu.uci.ics.amber.engine.architecture.rpc;
+
+import "edu/uci/ics/amber/engine/architecture/rpc/controlcommands.proto";
+import "edu/uci/ics/amber/engine/architecture/rpc/controlreturns.proto";
+import "scalapb/scalapb.proto";
+
+option (scalapb.options) = {
+  scope: FILE,
+  preserve_unknown_fields: false
+  no_default_values_in_constructor: true
+};
+
+
+service RPCTester {
+  rpc SendPing(Ping) returns (IntResponse){}
+  rpc SendPong(Pong) returns (IntResponse){}
+  rpc SendNested(Nested) returns (StringResponse){}
+  rpc SendPass(Pass) returns (StringResponse){}
+  rpc SendErrorCommand(ErrorCommand) returns (StringResponse) {}
+  rpc SendRecursion(Recursion) returns (StringResponse) {}
+  rpc SendCollect(Collect) returns (StringResponse) {}
+  rpc SendGenerateNumber(GenerateNumber) returns (IntResponse) {}
+  rpc SendMultiCall(MultiCall) returns (StringResponse) {}
+  rpc SendChain(Chain) returns (StringResponse) {}
+}
