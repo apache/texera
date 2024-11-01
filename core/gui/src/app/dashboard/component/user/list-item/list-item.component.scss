@@ -96,7 +96,8 @@
   transform: translate(10%, -50%);
 }
 
-.list-item-card:hover .checkbox-container {
+.list-item-card:hover .checkbox-container,
+.checkbox-container.always-show-checkbox {
   display: flex;
   z-index: 10;
 }

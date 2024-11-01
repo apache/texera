@@ -5,6 +5,7 @@
   [class.has-button-group]="isPrivateSearch">
   <div
     class="checkbox-container"
+    [class.always-show-checkbox]="entry.checked"
     (click)="$event.stopPropagation()"
     *ngIf="isPrivateSearch && entry.type==='workflow'">
     <label class="clickable-area">
