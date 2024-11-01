@@ -8,9 +8,9 @@ import edu.uci.ics.amber.engine.architecture.controller.{ExecutionStateUpdate, F
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
   COMPLETED,
   FAILED,
+  RUNNING,
   KILLED
 }
-import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.RUNNING
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberRuntime, IncrementalOutputMode}
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.model.tuple.Tuple
