@@ -86,6 +86,7 @@ The workflow in the use case shown below includes data cleaning, ML model traini
 
 
 ## Publications (Interdisciplinary):
+* (2/2025) DS4ALL: Teaching High-School Students Data Science and AI/ML Using the Texera Workflow Platform as a Service, Jiadong Bai, Xiaozhen Liu, Anthony Cuturrufo, Alexander Kundu Taylor, Jeehyun Hwang, Mingyu Derek Ma, Xinyuan Lin, Yanqiao Zhu, Yicong Huang, Yunyan Ding, Wei Wang and Chen Li, to appear in [Data Science Education K-12: Research to Practice Annual Conference 2025](https://web.cvent.com/event/d641bd9f-6c99-4cbc-951b-33b1ca05d4ed/summary), San Antonio, Texas.
 * (7/2024) Brain image data processing using collaborative data workflows on Texera, Yunyan Ding, Yicong Huang, Pan Gao, Andy Thai, Atchuth Naveen Chilaparasetti, M. Gopi, Xiangmin Xu, and Chen Li, in Frontiers Neural Circuits [PDF](https://doi.org/10.3389/fncir.2024.1398884).
 * (1/2024) Wording Matters: the Effect of Linguistic Characteristics and Political Ideology on Resharing of COVID-19 Vaccine Tweets, Judith Borghouts, Yicong Huang, Suellen Hopfer, Chen Li, and Gloria Mark, in TOCHI 2024 [PDF](https://dl.acm.org/doi/pdf/10.1145/3637876).
 * (1/2024) How the experience of California wildfires shape Twitter climate change framings, Jessie W. Y. Ko, Shengquan Ni, Alexander Taylor, Xiusi Chen, Yicong Huang, Avinash Kumar, Sadeem Alsudais, Zuozhi Wang, Xiaozhen Liu, Wei Wang, Chen Li, and Suellen Hopfer, in Climatic Change 2024 [PDF](https://link.springer.com/content/pdf/10.1007/s10584-023-03668-0.pdf).
