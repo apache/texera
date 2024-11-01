@@ -2,9 +2,10 @@ FROM node:18-alpine AS nodegui
 
 WORKDIR /gui
 COPY core/gui/package.json core/gui/yarn.lock ./
+RUN corepack enable && corepack prepare yarn@4.5.1 --activate && yarn set version --yarn-path  4.5.1
 # Fake git-version.js during yarn install to prevent git from causing cache
 # invalidation of dependencies
-RUN touch git-version.js && yarn install
+RUN touch git-version.js && YARN_NODE_LINKER=node-modules yarn install
 
 COPY core/gui .
 # Position of .git doesn't matter since it's only there for the revision hash
