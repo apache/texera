@@ -1,7 +1,7 @@
 from typing import Iterator
 
 from core.util.buffer.timed_buffer import TimedBuffer
-from proto.edu.uci.ics.amber.engine.architecture.worker import ConsoleMessage
+from proto.edu.uci.ics.amber.engine.architecture.rpc import ConsoleMessage
 
 
 class ConsoleMessageManager:

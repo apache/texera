@@ -43,8 +43,8 @@ final case class PartitioningMessage(
     sealedValue: edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.SealedValue
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[PartitioningMessage] {
     @transient
-    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
-    private[this] def __computeSerializedValue(): _root_.scala.Int = {
+    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
+    private[this] def __computeSerializedSize(): _root_.scala.Int = {
       var __size = 0
       if (sealedValue.oneToOnePartitioning.isDefined) {
         val __value = sealedValue.oneToOnePartitioning.get
@@ -69,12 +69,13 @@ final case class PartitioningMessage(
       __size
     }
     override def serializedSize: _root_.scala.Int = {
-      var read = __serializedSizeCachedValue
-      if (read == 0) {
-        read = __computeSerializedValue()
-        __serializedSizeCachedValue = read
+      var __size = __serializedSizeMemoized
+      if (__size == 0) {
+        __size = __computeSerializedSize() + 1
+        __serializedSizeMemoized = __size
       }
-      read
+      __size - 1
+      
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       sealedValue.oneToOnePartitioning.foreach { __v =>
@@ -140,7 +141,7 @@ final case class PartitioningMessage(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion = edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage
+    def companion: edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.type = edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage
     def toPartitioning: edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning = edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning.PartitioningTypeMapper.toCustom(this)
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.sendsemantics.Partitioning])
 }
@@ -289,8 +290,8 @@ final case class OneToOnePartitioning(
     channels: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity]
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning.NonEmpty with scalapb.lenses.Updatable[OneToOnePartitioning] {
     @transient
-    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
-    private[this] def __computeSerializedValue(): _root_.scala.Int = {
+    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
+    private[this] def __computeSerializedSize(): _root_.scala.Int = {
       var __size = 0
       
       {
@@ -306,12 +307,13 @@ final case class OneToOnePartitioning(
       __size
     }
     override def serializedSize: _root_.scala.Int = {
-      var read = __serializedSizeCachedValue
-      if (read == 0) {
-        read = __computeSerializedValue()
-        __serializedSizeCachedValue = read
+      var __size = __serializedSizeMemoized
+      if (__size == 0) {
+        __size = __computeSerializedSize() + 1
+        __serializedSizeMemoized = __size
       }
-      read
+      __size - 1
+      
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       {
@@ -329,7 +331,7 @@ final case class OneToOnePartitioning(
     }
     def withBatchSize(__v: _root_.scala.Int): OneToOnePartitioning = copy(batchSize = __v)
     def clearChannels = copy(channels = _root_.scala.Seq.empty)
-    def addChannels(__vs: edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity*): OneToOnePartitioning = addAllChannels(__vs)
+    def addChannels(__vs: edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity *): OneToOnePartitioning = addAllChannels(__vs)
     def addAllChannels(__vs: Iterable[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity]): OneToOnePartitioning = copy(channels = channels ++ __vs)
     def withChannels(__v: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity]): OneToOnePartitioning = copy(channels = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
@@ -349,7 +351,7 @@ final case class OneToOnePartitioning(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion = edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
+    def companion: edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning.type = edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.sendsemantics.OneToOnePartitioning])
 }
 
@@ -421,8 +423,8 @@ final case class RoundRobinPartitioning(
     channels: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity]
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning.NonEmpty with scalapb.lenses.Updatable[RoundRobinPartitioning] {
     @transient
-    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
-    private[this] def __computeSerializedValue(): _root_.scala.Int = {
+    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
+    private[this] def __computeSerializedSize(): _root_.scala.Int = {
       var __size = 0
       
       {
@@ -438,12 +440,13 @@ final case class RoundRobinPartitioning(
       __size
     }
     override def serializedSize: _root_.scala.Int = {
-      var read = __serializedSizeCachedValue
-      if (read == 0) {
-        read = __computeSerializedValue()
-        __serializedSizeCachedValue = read
+      var __size = __serializedSizeMemoized
+      if (__size == 0) {
+        __size = __computeSerializedSize() + 1
+        __serializedSizeMemoized = __size
       }
-      read
+      __size - 1
+      
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       {
@@ -461,7 +464,7 @@ final case class RoundRobinPartitioning(
     }
     def withBatchSize(__v: _root_.scala.Int): RoundRobinPartitioning = copy(batchSize = __v)
     def clearChannels = copy(channels = _root_.scala.Seq.empty)
-    def addChannels(__vs: edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity*): RoundRobinPartitioning = addAllChannels(__vs)
+    def addChannels(__vs: edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity *): RoundRobinPartitioning = addAllChannels(__vs)
     def addAllChannels(__vs: Iterable[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity]): RoundRobinPartitioning = copy(channels = channels ++ __vs)
     def withChannels(__v: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity]): RoundRobinPartitioning = copy(channels = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
@@ -481,7 +484,7 @@ final case class RoundRobinPartitioning(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion = edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RoundRobinPartitioning
+    def companion: edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RoundRobinPartitioning.type = edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RoundRobinPartitioning
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.sendsemantics.RoundRobinPartitioning])
 }
 
@@ -554,8 +557,8 @@ final case class HashBasedShufflePartitioning(
     hashAttributeNames: _root_.scala.Seq[_root_.scala.Predef.String]
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning.NonEmpty with scalapb.lenses.Updatable[HashBasedShufflePartitioning] {
     @transient
-    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
-    private[this] def __computeSerializedValue(): _root_.scala.Int = {
+    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
+    private[this] def __computeSerializedSize(): _root_.scala.Int = {
       var __size = 0
       
       {
@@ -575,12 +578,13 @@ final case class HashBasedShufflePartitioning(
       __size
     }
     override def serializedSize: _root_.scala.Int = {
-      var read = __serializedSizeCachedValue
-      if (read == 0) {
-        read = __computeSerializedValue()
-        __serializedSizeCachedValue = read
+      var __size = __serializedSizeMemoized
+      if (__size == 0) {
+        __size = __computeSerializedSize() + 1
+        __serializedSizeMemoized = __size
       }
-      read
+      __size - 1
+      
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       {
@@ -602,11 +606,11 @@ final case class HashBasedShufflePartitioning(
     }
     def withBatchSize(__v: _root_.scala.Int): HashBasedShufflePartitioning = copy(batchSize = __v)
     def clearChannels = copy(channels = _root_.scala.Seq.empty)
-    def addChannels(__vs: edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity*): HashBasedShufflePartitioning = addAllChannels(__vs)
+    def addChannels(__vs: edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity *): HashBasedShufflePartitioning = addAllChannels(__vs)
     def addAllChannels(__vs: Iterable[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity]): HashBasedShufflePartitioning = copy(channels = channels ++ __vs)
     def withChannels(__v: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity]): HashBasedShufflePartitioning = copy(channels = __v)
     def clearHashAttributeNames = copy(hashAttributeNames = _root_.scala.Seq.empty)
-    def addHashAttributeNames(__vs: _root_.scala.Predef.String*): HashBasedShufflePartitioning = addAllHashAttributeNames(__vs)
+    def addHashAttributeNames(__vs: _root_.scala.Predef.String *): HashBasedShufflePartitioning = addAllHashAttributeNames(__vs)
     def addAllHashAttributeNames(__vs: Iterable[_root_.scala.Predef.String]): HashBasedShufflePartitioning = copy(hashAttributeNames = hashAttributeNames ++ __vs)
     def withHashAttributeNames(__v: _root_.scala.Seq[_root_.scala.Predef.String]): HashBasedShufflePartitioning = copy(hashAttributeNames = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
@@ -628,7 +632,7 @@ final case class HashBasedShufflePartitioning(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion = edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.HashBasedShufflePartitioning
+    def companion: edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.HashBasedShufflePartitioning.type = edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.HashBasedShufflePartitioning
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.sendsemantics.HashBasedShufflePartitioning])
 }
 
@@ -713,8 +717,8 @@ final case class RangeBasedShufflePartitioning(
     rangeMax: _root_.scala.Long
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning.NonEmpty with scalapb.lenses.Updatable[RangeBasedShufflePartitioning] {
     @transient
-    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
-    private[this] def __computeSerializedValue(): _root_.scala.Int = {
+    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
+    private[this] def __computeSerializedSize(): _root_.scala.Int = {
       var __size = 0
       
       {
@@ -748,12 +752,13 @@ final case class RangeBasedShufflePartitioning(
       __size
     }
     override def serializedSize: _root_.scala.Int = {
-      var read = __serializedSizeCachedValue
-      if (read == 0) {
-        read = __computeSerializedValue()
-        __serializedSizeCachedValue = read
+      var __size = __serializedSizeMemoized
+      if (__size == 0) {
+        __size = __computeSerializedSize() + 1
+        __serializedSizeMemoized = __size
       }
-      read
+      __size - 1
+      
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       {
@@ -787,11 +792,11 @@ final case class RangeBasedShufflePartitioning(
     }
     def withBatchSize(__v: _root_.scala.Int): RangeBasedShufflePartitioning = copy(batchSize = __v)
     def clearChannels = copy(channels = _root_.scala.Seq.empty)
-    def addChannels(__vs: edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity*): RangeBasedShufflePartitioning = addAllChannels(__vs)
+    def addChannels(__vs: edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity *): RangeBasedShufflePartitioning = addAllChannels(__vs)
     def addAllChannels(__vs: Iterable[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity]): RangeBasedShufflePartitioning = copy(channels = channels ++ __vs)
     def withChannels(__v: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity]): RangeBasedShufflePartitioning = copy(channels = __v)
     def clearRangeAttributeNames = copy(rangeAttributeNames = _root_.scala.Seq.empty)
-    def addRangeAttributeNames(__vs: _root_.scala.Predef.String*): RangeBasedShufflePartitioning = addAllRangeAttributeNames(__vs)
+    def addRangeAttributeNames(__vs: _root_.scala.Predef.String *): RangeBasedShufflePartitioning = addAllRangeAttributeNames(__vs)
     def addAllRangeAttributeNames(__vs: Iterable[_root_.scala.Predef.String]): RangeBasedShufflePartitioning = copy(rangeAttributeNames = rangeAttributeNames ++ __vs)
     def withRangeAttributeNames(__v: _root_.scala.Seq[_root_.scala.Predef.String]): RangeBasedShufflePartitioning = copy(rangeAttributeNames = __v)
     def withRangeMin(__v: _root_.scala.Long): RangeBasedShufflePartitioning = copy(rangeMin = __v)
@@ -825,7 +830,7 @@ final case class RangeBasedShufflePartitioning(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion = edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning
+    def companion: edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning.type = edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.sendsemantics.RangeBasedShufflePartitioning])
 }
 
@@ -927,8 +932,8 @@ final case class BroadcastPartitioning(
     channels: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity]
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning.NonEmpty with scalapb.lenses.Updatable[BroadcastPartitioning] {
     @transient
-    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
-    private[this] def __computeSerializedValue(): _root_.scala.Int = {
+    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
+    private[this] def __computeSerializedSize(): _root_.scala.Int = {
       var __size = 0
       
       {
@@ -944,12 +949,13 @@ final case class BroadcastPartitioning(
       __size
     }
     override def serializedSize: _root_.scala.Int = {
-      var read = __serializedSizeCachedValue
-      if (read == 0) {
-        read = __computeSerializedValue()
-        __serializedSizeCachedValue = read
+      var __size = __serializedSizeMemoized
+      if (__size == 0) {
+        __size = __computeSerializedSize() + 1
+        __serializedSizeMemoized = __size
       }
-      read
+      __size - 1
+      
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       {
@@ -967,7 +973,7 @@ final case class BroadcastPartitioning(
     }
     def withBatchSize(__v: _root_.scala.Int): BroadcastPartitioning = copy(batchSize = __v)
     def clearChannels = copy(channels = _root_.scala.Seq.empty)
-    def addChannels(__vs: edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity*): BroadcastPartitioning = addAllChannels(__vs)
+    def addChannels(__vs: edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity *): BroadcastPartitioning = addAllChannels(__vs)
     def addAllChannels(__vs: Iterable[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity]): BroadcastPartitioning = copy(channels = channels ++ __vs)
     def withChannels(__v: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity]): BroadcastPartitioning = copy(channels = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
@@ -987,7 +993,7 @@ final case class BroadcastPartitioning(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion = edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.BroadcastPartitioning
+    def companion: edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.BroadcastPartitioning.type = edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.BroadcastPartitioning
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.sendsemantics.BroadcastPartitioning])
 }
 
