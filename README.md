@@ -62,7 +62,6 @@ The following is a workflow formulated using the Texera GUI in a Web browser, wh
 ![Sample Texera Workflow](https://user-images.githubusercontent.com/12926365/171459157-1792971d-a31f-49e7-ab98-6f3b9ead9f5b.png)
 
 ## Publications (Computer Science):
-* (2/2025) DS4ALL: Teaching High-School Students Data Science and AI/ML Using the Texera Workflow Platform as a Service, Jiadong Bai, Xiaozhen Liu, Anthony Cuturrufo, Alexander Kundu Taylor, Jeehyun Hwang, Mingyu Derek Ma, Xinyuan Lin, Yanqiao Zhu, Yicong Huang, Yunyan Ding, Wei Wang and Chen Li, to appear in Data Science Education K-12: Research to Practice Annual Conference 2025.
 * (8/2024) Pasta: A Cost-Based Optimizer for Generating Pipelining Schedules for Dataflow DAGs, Xiaozhen Liu, Yicong Huang, Xinyuan Lin, Avinash Kumar, Sadeem Alsudais, and Chen Li, to appear in SIGMOD 2025.
 * (7/2024) Texera: A System for Collaborative and Interactive Data Analytics Using Workflows, Zuozhi Wang, Yicong Huang, Shengquan Ni, Avinash Kumar, Sadeem Alsudais, Xiaozhen Liu, Xinyuan Lin, Yunyan Ding and Chen Li, to appear in VLDB 2024, Scalable Data Science track [PDF](https://www.vldb.org/pvldb/vol17/p3580-wang.pdf), [Slides](https://chenli.ics.uci.edu/files/vldb2024-texera-presentation.pdf).
 * (3/2024) Demonstration of Udon: Line-by-line Debugging of User-Defined Functions in Data Workflows, Yicong Huang, Zuozhi Wang, and Chen Li, in SIGMOD 2024, **Best Demo Runner Up Award🏆**, [PDF](https://dl.acm.org/doi/10.1145/3626246.3654756). 
@@ -86,6 +85,7 @@ The following is a workflow formulated using the Texera GUI in a Web browser, wh
 
 
 ## Publications (Interdisciplinary):
+* (2/2025) DS4ALL: Teaching High-School Students Data Science and AI/ML Using the Texera Workflow Platform as a Service, Jiadong Bai, Xiaozhen Liu, Anthony Cuturrufo, Alexander Kundu Taylor, Jeehyun Hwang, Mingyu Derek Ma, Xinyuan Lin, Yanqiao Zhu, Yicong Huang, Yunyan Ding, Wei Wang and Chen Li, to appear in Data Science Education K-12: Research to Practice Annual Conference 2025, San Antonio, Texas [Conference website](https://web.cvent.com/event/d641bd9f-6c99-4cbc-951b-33b1ca05d4ed/summary).
 * (7/2024) Brain image data processing using collaborative data workflows on Texera, Yunyan Ding, Yicong Huang, Pan Gao, Andy Thai, Atchuth Naveen Chilaparasetti, M. Gopi, Xiangmin Xu, and Chen Li, in Frontiers Neural Circuits [PDF](https://doi.org/10.3389/fncir.2024.1398884).
 * (1/2024) Wording Matters: the Effect of Linguistic Characteristics and Political Ideology on Resharing of COVID-19 Vaccine Tweets, Judith Borghouts, Yicong Huang, Suellen Hopfer, Chen Li, and Gloria Mark, in TOCHI 2024 [PDF](https://dl.acm.org/doi/pdf/10.1145/3637876).
 * (1/2024) How the experience of California wildfires shape Twitter climate change framings, Jessie W. Y. Ko, Shengquan Ni, Alexander Taylor, Xiusi Chen, Yicong Huang, Avinash Kumar, Sadeem Alsudais, Zuozhi Wang, Xiaozhen Liu, Wei Wang, Chen Li, and Suellen Hopfer, in Climatic Change 2024 [PDF](https://link.springer.com/content/pdf/10.1007/s10584-023-03668-0.pdf).
