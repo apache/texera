@@ -65,6 +65,7 @@ export class ListItemComponent implements OnInit, OnChanges {
     this._entry = value;
   }
 
+  @Output() checkboxChanged = new EventEmitter<void>();
   @Output() deleted = new EventEmitter<void>();
   @Output() duplicated = new EventEmitter<void>();
   @Output()
@@ -146,6 +147,12 @@ export class ListItemComponent implements OnInit, OnChanges {
           this.isLiked = isLiked;
         });
     }
+  }
+
+  onCheckboxChange(entry: DashboardEntry): void {
+    entry.checked = !entry.checked;
+    this.cdr.markForCheck();
+    this.checkboxChanged.emit();
   }
 
   public async onClickOpenShareAccess(): Promise<void> {
@@ -317,7 +324,6 @@ export class ListItemComponent implements OnInit, OnChanges {
             this.viewCount = count + 1; // hacky fix to display view correctly
           });
       } else {
-        console.warn("wid is undefined, default handling can be added here");
         instance.wid = 0;
       }
     }
@@ -341,9 +347,6 @@ export class ListItemComponent implements OnInit, OnChanges {
               .subscribe((count: number) => {
                 this.likeCount = count;
               });
-            console.log("Successfully unliked the workflow");
-          } else {
-            console.error("Error unliking the workflow");
           }
         });
     } else {
@@ -359,9 +362,6 @@ export class ListItemComponent implements OnInit, OnChanges {
               .subscribe((count: number) => {
                 this.likeCount = count;
               });
-            console.log("Successfully liked the workflow");
-          } else {
-            console.error("Error liking the workflow");
           }
         });
     }

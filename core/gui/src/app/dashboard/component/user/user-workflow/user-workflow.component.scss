@@ -5,3 +5,8 @@
   justify-content: space-between;
   align-items: center;
 }
+
+::ng-deep .ant-badge-dot {
+  right: 8px;
+  top: 5px;
+}

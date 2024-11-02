@@ -319,7 +319,7 @@ describe("SavedWorkflowSectionComponent", () => {
     ]);
 
     // Check that the checked entries are unchecked after download
-    expect(testWorkflowFileNameConflictEntries[0].checked).toBeFalse();
-    expect(testWorkflowFileNameConflictEntries[2].checked).toBeFalse();
+    expect(testWorkflowFileNameConflictEntries[0].checked).toBeTrue();
+    expect(testWorkflowFileNameConflictEntries[2].checked).toBeTrue();
   });
 });

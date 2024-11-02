@@ -16,7 +16,8 @@
           [isPrivateSearch]="isPrivateSearch"
           [editable]="editable"
           [entry]="entry"
-          [currentUid]="this.currentUid">
+          [currentUid]="this.currentUid"
+          (checkboxChanged)="onEntryCheckboxChange()">
         </texera-list-item>
       </ng-container>
     </nz-list>
