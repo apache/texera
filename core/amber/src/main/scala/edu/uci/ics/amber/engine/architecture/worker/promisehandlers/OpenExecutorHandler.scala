@@ -1,17 +1,16 @@
 package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
+import com.twitter.util.Future
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, EmptyRequest}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenExecutorHandler.OpenExecutor
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-
-object OpenExecutorHandler {
-
-  final case class OpenExecutor() extends ControlCommand[Unit]
-}
 
 trait OpenExecutorHandler {
   this: DataProcessorRPCHandlerInitializer =>
-  registerHandler { (_: OpenExecutor, sender) =>
+
+  override def openExecutor(request: EmptyRequest, ctx: AsyncRPCContext): Future[EmptyReturn] = {
     dp.executor.open()
+    EmptyReturn()
   }
+
 }

@@ -134,10 +134,12 @@ import { ListItemComponent } from "./dashboard/component/user/list-item/list-ite
 import { HubComponent } from "./hub/component/hub.component";
 import { HubWorkflowSearchComponent } from "./hub/component/workflow/search/hub-workflow-search.component";
 import { GoogleLoginComponent } from "./dashboard/component/user/google-login/google-login.component";
-import { HubWorkflowResultComponent } from "./hub/component/workflow/result/hub-workflow-result.component";
 import { HubWorkflowComponent } from "./hub/component/workflow/hub-workflow.component";
-import { HubWorkflowSearchBarComponent } from "./hub/component/workflow/search-bar/hub-workflow-search-bar.component";
 import { HubWorkflowDetailComponent } from "./hub/component/workflow/detail/hub-workflow-detail.component";
+import { LandingPageComponent } from "./hub/component/landing-page/landing-page.component";
+import { BrowseSectionComponent } from "./hub/component/browse-section/browse-section.component";
+import { BreakpointConditionInputComponent } from "./workspace/component/code-editor-dialog/breakpoint-condition-input/breakpoint-condition-input.component";
+import { CodeDebuggerComponent } from "./workspace/component/code-editor-dialog/code-debugger.component";
 
 registerLocaleData(en);
 
@@ -222,10 +224,12 @@ registerLocaleData(en);
     HubComponent,
     HubWorkflowComponent,
     HubWorkflowSearchComponent,
-    HubWorkflowSearchBarComponent,
     HubWorkflowDetailComponent,
-    HubWorkflowResultComponent,
     GoogleLoginComponent,
+    LandingPageComponent,
+    BrowseSectionComponent,
+    BreakpointConditionInputComponent,
+    CodeDebuggerComponent,
   ],
   imports: [
     BrowserModule,

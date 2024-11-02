@@ -2,14 +2,11 @@ package edu.uci.ics.amber.engine.architecture.controller.execution
 
 import edu.uci.ics.amber.engine.architecture.controller.execution.ExecutionUtils.aggregateStates
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerExecution
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
 import edu.uci.ics.amber.engine.architecture.worker.statistics.{PortTupleCountMapping, WorkerState}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
-import edu.uci.ics.amber.engine.common.workflowruntimestate.{
-  OperatorMetrics,
-  OperatorStatistics,
-  WorkflowAggregatedState
-}
+import edu.uci.ics.amber.engine.common.workflowruntimestate.{OperatorMetrics, OperatorStatistics}
 
 import java.util
 import scala.jdk.CollectionConverters._

@@ -3,6 +3,7 @@ package edu.uci.ics.texera.workflow.common.workflow
 import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.FAILED
 import edu.uci.ics.amber.engine.common.model.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.common.model.tuple.Schema
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
@@ -13,7 +14,6 @@ import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
 import edu.uci.ics.amber.engine.common.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
-import edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState.FAILED
 import edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowFatalError
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
@@ -51,7 +51,7 @@ class WorkflowCompiler(
       logicalPlanPojo.opsToViewResult,
       logicalPlan
     )
-
+    logicalPlan.resolveScanSourceOpFileName(Some(errorList))
     logicalPlan.propagateWorkflowSchema(context, Some(errorList))
     // map compilation errors with op id
     if (errorList.nonEmpty) {
@@ -121,6 +121,7 @@ class WorkflowCompiler(
       logicalPlan
     )
 
+    logicalPlan.resolveScanSourceOpFileName(Some(errorList))
     logicalPlan.propagateWorkflowSchema(context, Some(errorList))
 
     // report compilation errors

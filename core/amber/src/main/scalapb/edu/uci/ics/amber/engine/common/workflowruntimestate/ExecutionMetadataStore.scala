@@ -7,14 +7,14 @@ package edu.uci.ics.amber.engine.common.workflowruntimestate
 
 @SerialVersionUID(0L)
 final case class ExecutionMetadataStore(
-    state: edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState = edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState.UNINITIALIZED,
+    state: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.UNINITIALIZED,
     fatalErrors: _root_.scala.Seq[edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowFatalError] = _root_.scala.Seq.empty,
     executionId: edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity = edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity.defaultInstance,
     isRecovering: _root_.scala.Boolean = false
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[ExecutionMetadataStore] {
     @transient
-    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
-    private[this] def __computeSerializedValue(): _root_.scala.Int = {
+    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
+    private[this] def __computeSerializedSize(): _root_.scala.Int = {
       var __size = 0
       
       {
@@ -30,7 +30,7 @@ final case class ExecutionMetadataStore(
       
       {
         val __value = executionId
-        if (__value != edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity.defaultInstance) {
+        if (__value.serializedSize != 0) {
           __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
         }
       };
@@ -44,12 +44,13 @@ final case class ExecutionMetadataStore(
       __size
     }
     override def serializedSize: _root_.scala.Int = {
-      var read = __serializedSizeCachedValue
-      if (read == 0) {
-        read = __computeSerializedValue()
-        __serializedSizeCachedValue = read
+      var __size = __serializedSizeMemoized
+      if (__size == 0) {
+        __size = __computeSerializedSize() + 1
+        __serializedSizeMemoized = __size
       }
-      read
+      __size - 1
+      
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       {
@@ -66,7 +67,7 @@ final case class ExecutionMetadataStore(
       };
       {
         val __v = executionId
-        if (__v != edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity.defaultInstance) {
+        if (__v.serializedSize != 0) {
           _output__.writeTag(3, 2)
           _output__.writeUInt32NoTag(__v.serializedSize)
           __v.writeTo(_output__)
@@ -79,9 +80,9 @@ final case class ExecutionMetadataStore(
         }
       };
     }
-    def withState(__v: edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState): ExecutionMetadataStore = copy(state = __v)
+    def withState(__v: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState): ExecutionMetadataStore = copy(state = __v)
     def clearFatalErrors = copy(fatalErrors = _root_.scala.Seq.empty)
-    def addFatalErrors(__vs: edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowFatalError*): ExecutionMetadataStore = addAllFatalErrors(__vs)
+    def addFatalErrors(__vs: edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowFatalError *): ExecutionMetadataStore = addAllFatalErrors(__vs)
     def addAllFatalErrors(__vs: Iterable[edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowFatalError]): ExecutionMetadataStore = copy(fatalErrors = fatalErrors ++ __vs)
     def withFatalErrors(__v: _root_.scala.Seq[edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowFatalError]): ExecutionMetadataStore = copy(fatalErrors = __v)
     def withExecutionId(__v: edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity): ExecutionMetadataStore = copy(executionId = __v)
@@ -113,14 +114,14 @@ final case class ExecutionMetadataStore(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion = edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionMetadataStore
+    def companion: edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionMetadataStore.type = edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionMetadataStore
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.ExecutionMetadataStore])
 }
 
 object ExecutionMetadataStore extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionMetadataStore] {
   implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionMetadataStore] = this
   def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionMetadataStore = {
-    var __state: edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState = edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState.UNINITIALIZED
+    var __state: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.UNINITIALIZED
     val __fatalErrors: _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowFatalError] = new _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowFatalError]
     var __executionId: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity] = _root_.scala.None
     var __isRecovering: _root_.scala.Boolean = false
@@ -130,7 +131,7 @@ object ExecutionMetadataStore extends scalapb.GeneratedMessageCompanion[edu.uci.
       _tag__ match {
         case 0 => _done__ = true
         case 8 =>
-          __state = edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState.fromValue(_input__.readEnum())
+          __state = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.fromValue(_input__.readEnum())
         case 18 =>
           __fatalErrors += _root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowFatalError](_input__)
         case 26 =>
@@ -151,7 +152,7 @@ object ExecutionMetadataStore extends scalapb.GeneratedMessageCompanion[edu.uci.
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
       edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionMetadataStore(
-        state = edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState.fromValue(__fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scalapb.descriptors.EnumValueDescriptor]).getOrElse(edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState.UNINITIALIZED.scalaValueDescriptor).number),
+        state = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.fromValue(__fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scalapb.descriptors.EnumValueDescriptor]).getOrElse(edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.UNINITIALIZED.scalaValueDescriptor).number),
         fatalErrors = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Seq[edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowFatalError]]).getOrElse(_root_.scala.Seq.empty),
         executionId = __fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).map(_.as[edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity]).getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity.defaultInstance),
         isRecovering = __fieldsMap.get(scalaDescriptor.findFieldByNumber(4).get).map(_.as[_root_.scala.Boolean]).getOrElse(false)
@@ -171,17 +172,17 @@ object ExecutionMetadataStore extends scalapb.GeneratedMessageCompanion[edu.uci.
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = {
     (__fieldNumber: @_root_.scala.unchecked) match {
-      case 1 => edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState
+      case 1 => edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
     }
   }
   lazy val defaultInstance = edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionMetadataStore(
-    state = edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState.UNINITIALIZED,
+    state = edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.UNINITIALIZED,
     fatalErrors = _root_.scala.Seq.empty,
     executionId = edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity.defaultInstance,
     isRecovering = false
   )
   implicit class ExecutionMetadataStoreLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionMetadataStore]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionMetadataStore](_l) {
-    def state: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState] = field(_.state)((c_, f_) => c_.copy(state = f_))
+    def state: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState] = field(_.state)((c_, f_) => c_.copy(state = f_))
     def fatalErrors: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowFatalError]] = field(_.fatalErrors)((c_, f_) => c_.copy(fatalErrors = f_))
     def executionId: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity] = field(_.executionId)((c_, f_) => c_.copy(executionId = f_))
     def isRecovering: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Boolean] = field(_.isRecovering)((c_, f_) => c_.copy(isRecovering = f_))
@@ -191,7 +192,7 @@ object ExecutionMetadataStore extends scalapb.GeneratedMessageCompanion[edu.uci.
   final val EXECUTIONID_FIELD_NUMBER = 3
   final val IS_RECOVERING_FIELD_NUMBER = 4
   def of(
-    state: edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState,
+    state: edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState,
     fatalErrors: _root_.scala.Seq[edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowFatalError],
     executionId: edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity,
     isRecovering: _root_.scala.Boolean

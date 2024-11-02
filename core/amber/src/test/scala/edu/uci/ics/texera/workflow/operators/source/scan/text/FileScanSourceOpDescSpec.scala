@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.text
 
 import edu.uci.ics.amber.engine.common.model.tuple.{AttributeType, Schema, SchemaEnforceable, Tuple}
+import edu.uci.ics.texera.workflow.common.storage.FileResolver
 import edu.uci.ics.texera.workflow.operators.source.scan.{
   FileAttributeType,
   FileDecodingMethod,
@@ -18,7 +19,7 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
   before {
     fileScanSourceOpDesc = new FileScanSourceOpDesc()
-    fileScanSourceOpDesc.filePath = Some(TestTextFilePath)
+    fileScanSourceOpDesc.fileUri = Some(FileResolver.resolve(TestTextFilePath).toASCIIString)
     fileScanSourceOpDesc.fileEncoding = FileDecodingMethod.UTF_8
   }
 
@@ -56,12 +57,12 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "read first 5 lines of the input text file into corresponding output tuples" in {
+
     fileScanSourceOpDesc.attributeType = FileAttributeType.STRING
     fileScanSourceOpDesc.fileScanLimit = Option(5)
     val FileScanSourceOpExec =
       new FileScanSourceOpExec(
-        fileScanSourceOpDesc.filePath.get,
-        null,
+        fileScanSourceOpDesc.fileUri.getOrElse(""),
         fileScanSourceOpDesc.attributeType,
         fileScanSourceOpDesc.fileEncoding,
         fileScanSourceOpDesc.extract,
@@ -86,13 +87,12 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "read first 5 lines of the input text file with CRLF separators into corresponding output tuples" in {
-    fileScanSourceOpDesc.filePath = Some(TestCRLFTextFilePath)
+    fileScanSourceOpDesc.fileUri = Some(FileResolver.resolve(TestCRLFTextFilePath).toASCIIString)
     fileScanSourceOpDesc.attributeType = FileAttributeType.STRING
     fileScanSourceOpDesc.fileScanLimit = Option(5)
     val FileScanSourceOpExec =
       new FileScanSourceOpExec(
-        fileScanSourceOpDesc.filePath.get,
-        null,
+        fileScanSourceOpDesc.fileUri.getOrElse(""),
         fileScanSourceOpDesc.attributeType,
         fileScanSourceOpDesc.fileEncoding,
         fileScanSourceOpDesc.extract,
@@ -120,8 +120,7 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     fileScanSourceOpDesc.attributeType = FileAttributeType.SINGLE_STRING
     val FileScanSourceOpExec =
       new FileScanSourceOpExec(
-        fileScanSourceOpDesc.filePath.get,
-        null,
+        fileScanSourceOpDesc.fileUri.getOrElse(""),
         fileScanSourceOpDesc.attributeType,
         fileScanSourceOpDesc.fileEncoding,
         fileScanSourceOpDesc.extract,
@@ -147,12 +146,11 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "read first 5 lines of the input text into corresponding output INTEGER tuples" in {
-    fileScanSourceOpDesc.filePath = Some(TestNumbersFilePath)
+    fileScanSourceOpDesc.fileUri = Some(FileResolver.resolve(TestNumbersFilePath).toASCIIString)
     fileScanSourceOpDesc.attributeType = FileAttributeType.INTEGER
     fileScanSourceOpDesc.fileScanLimit = Option(5)
     val FileScanSourceOpExec = new FileScanSourceOpExec(
-      fileScanSourceOpDesc.filePath.get,
-      null,
+      fileScanSourceOpDesc.fileUri.getOrElse(""),
       fileScanSourceOpDesc.attributeType,
       fileScanSourceOpDesc.fileEncoding,
       fileScanSourceOpDesc.extract,
@@ -177,14 +175,13 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "read first 5 lines of the input text file with US_ASCII encoding" in {
-    fileScanSourceOpDesc.filePath = Some(TestCRLFTextFilePath)
+    fileScanSourceOpDesc.fileUri = Some(FileResolver.resolve(TestCRLFTextFilePath).toASCIIString)
     fileScanSourceOpDesc.fileEncoding = FileDecodingMethod.ASCII
     fileScanSourceOpDesc.attributeType = FileAttributeType.STRING
     fileScanSourceOpDesc.fileScanLimit = Option(5)
     val FileScanSourceOpExec =
       new FileScanSourceOpExec(
-        fileScanSourceOpDesc.filePath.get,
-        null,
+        fileScanSourceOpDesc.fileUri.getOrElse(""),
         fileScanSourceOpDesc.attributeType,
         fileScanSourceOpDesc.fileEncoding,
         fileScanSourceOpDesc.extract,

@@ -1,14 +1,33 @@
 .list-item-card {
-  padding: 0;
+  padding: 2px;
   width: 100%;
   background-color: white;
   position: relative;
-  cursor: pointer;
 
   &:hover {
     background-color: #f0f0f0;
+
     .edit-button-group {
       display: flex;
+    }
+
+    &.has-button-group:hover .resource-info {
+      opacity: 0.3;
+    }
+  }
+
+  &.selected {
+    border-color: #1e90ff;
+    background-color: #e6f7ff;
+
+    .button-group,
+    .button-group button {
+      background-color: #e6f7ff;
+    }
+
+    .button-group button:hover,
+    .edit-button-group button:hover {
+      background-color: #cceeff;
     }
   }
 }
@@ -19,16 +38,6 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.resource-id {
-  font-size: 17px;
-  font-weight: 600;
-  margin-top: -5px;
-  margin-right: 25px;
-  margin-left: 5px;
-  text-align: right;
-  display: block;
 }
 
 .resource-name {
@@ -47,27 +56,23 @@
   min-height: 18px;
 }
 
-.type-icon-div {
-  text-align: center;
-  font-size: 38px;
-}
-
 .edit-info {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-right: 16px;
 
   .resource-owner {
-    flex: 0 0 auto; // Prevent the avatar from growing or shrinking
-    margin-right: 24px; // Add space to the right of the avatar
+    flex: 0 0 auto;
+    margin-right: 24px;
   }
 
   .resource-info-grid {
+    margin-left: 25px;
     flex: 1; // Allow the grid to take up remaining space
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 8px;
+    height: 21px;
   }
 
   .resource-info {
@@ -77,6 +82,26 @@
   }
 }
 
+.checkbox-container {
+  display: none;
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  left: 0;
+  bottom: 0;
+  justify-content: left;
+  align-items: center;
+  transition: none;
+  top: 50%;
+  transform: translate(10%, -50%);
+}
+
+.list-item-card:hover .checkbox-container,
+.checkbox-container.always-show-checkbox {
+  display: flex;
+  z-index: 10;
+}
+
 .button-group {
   display: none;
   position: absolute;
@@ -84,21 +109,26 @@
   min-width: 150px;
   right: 0;
   bottom: 0;
-  background-color: #f0f0f0;
   justify-content: right;
   align-items: center;
+  transition: none;
 
   button {
     margin-right: 32px;
+    transition: none;
+    background-color: #e0e0e0;
+    border: 1px solid #d0d0d0;
+    border-radius: 8px;
   }
 
   button:hover {
-    background-color: #d9d9d9;
+    background-color: #c7c7c7;
   }
 }
 
 .list-item-card:hover .button-group {
   display: flex;
+  background-color: transparent;
 }
 
 .resource-name-edit-input {
@@ -106,8 +136,7 @@
   font-weight: 600;
   width: 85%;
   padding: 0;
-  margin-bottom: 4px;
-  margin-left: 30px;
+  margin: 4px 0 4px 30px;
   outline: none;
   height: 23px;
   border: 1px solid #d9d9d9;
@@ -156,9 +185,120 @@
     padding: 3px 4px;
     height: 25px;
     width: 25px;
+    cursor: pointer;
 
     &:hover {
       background-color: #d9d9d9;
     }
   }
+}
+
+.type-icon-div {
+  text-align: center;
+  font-size: 38px;
+  margin-left: 30px;
+}
+
+.custom-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 100%;
+}
+
+.large-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.resource-id {
+  font-size: 17px;
+  font-weight: 600;
+  margin-left: 5px;
+}
+
+.clickable-area {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.7;
+
+  &:hover {
+    background-color: #d9d9d9;
+    opacity: 0.7;
+  }
+
+  .list-item-card.selected & {
+    &:hover {
+      background-color: #cceeff;
+      opacity: 0.7;
+    }
+  }
+}
+
+.like-button {
+  background-color: white;
+  color: black;
+  width: auto;
+  min-width: 70px;
+  max-width: 90px;
+  height: 30px;
+  border-radius: 6px;
+  padding: 0 8px;
+  cursor: pointer;
+  border: 1px solid #e0e0e0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: -4px;
+  margin-right: 8px;
+  margin-bottom: 8px;
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease,
+    border-color 0.3s ease,
+    box-shadow 0.3s ease;
+}
+
+.like-button.liked {
+  border-color: red;
+}
+
+.like-icon {
+  font-size: 16px;
+  margin-right: 6px;
+}
+
+.like-icon.liked {
+  color: red;
+}
+
+.like-button span {
+  font-size: 12px;
+  color: #888;
+  margin-left: 6px;
+}
+
+.like-button.liked span {
+  color: red;
+}
+
+.disabled-like {
+  background-color: #e0e0e0;
+  color: #a0a0a0;
+  border-color: #d0d0d0;
+  //cursor: not-allowed;
+}
+
+.disabled-like:hover {
+  background-color: #f0f0f0;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
+  color: #a0a0a0;
 }

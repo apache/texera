@@ -35,6 +35,20 @@
         </nz-upload>
         <button
           *ngIf="multiWorkflowsOperationButtonEnabled()"
+          (click)="toggleSelection()"
+          nz-button
+          nzType="default"
+          [nz-tooltip]="selectionTooltip"
+          nzTooltipPlacement="bottom"
+          title="Batch Select"
+          type="button">
+          <i
+            nz-icon
+            nzType="select"
+            nzTheme="outline"></i>
+        </button>
+        <button
+          *ngIf="multiWorkflowsOperationButtonEnabled()"
           (click)="onClickOpenDownloadZip()"
           nz-button
           title="Download added workflow as a ZIP file"
@@ -126,5 +140,6 @@
     [isPrivateSearch]="true"
     (deleted)="deleteWorkflow($event)"
     (duplicated)="onClickDuplicateWorkflow($event)"
-    [currentUid]="currentUid"></texera-search-results>
+    [currentUid]="currentUid"
+    (notifyWorkflow)="updateTooltip()"></texera-search-results>
 </div>

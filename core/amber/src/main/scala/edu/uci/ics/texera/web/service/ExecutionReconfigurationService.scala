@@ -1,10 +1,6 @@
 package edu.uci.ics.texera.web.service
 
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ReconfigureHandler.Reconfigure
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ModifyLogicHandler.ModifyLogic
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateExecutorHandler.UpdateExecutorCompleted
-import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.texera.web.SubscriptionManager
 import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
@@ -13,9 +9,8 @@ import edu.uci.ics.texera.web.model.websocket.response.{
   ModifyLogicCompletedEvent,
   ModifyLogicResponse
 }
-import edu.uci.ics.texera.web.storage.{ExecutionReconfigurationStore, ExecutionStateStore}
+import edu.uci.ics.texera.web.storage.ExecutionStateStore
 
-import java.util.UUID
 import scala.util.{Failure, Success}
 
 class ExecutionReconfigurationService(
@@ -25,11 +20,11 @@ class ExecutionReconfigurationService(
 ) extends SubscriptionManager {
 
   // monitors notification from the engine that a reconfiguration on a worker is completed
-  client.registerCallback[UpdateExecutorCompleted]((evt: UpdateExecutorCompleted) => {
-    stateStore.reconfigurationStore.updateState(old => {
-      old.copy(completedReconfigurations = old.completedReconfigurations + evt.workerId)
-    })
-  })
+//  client.registerCallback[UpdateExecutorCompleted]((evt: UpdateExecutorCompleted) => {
+//    stateStore.reconfigurationStore.updateState(old => {
+//      old.copy(completedReconfigurations = old.completedReconfigurations + evt.id)
+//    })
+//  })
 
   // monitors the reconfiguration state (completed workers) change,
   // notifies the frontend when all workers of an operator complete reconfiguration
@@ -92,20 +87,33 @@ class ExecutionReconfigurationService(
     if (reconfigurations.isEmpty) {
       return
     }
-
-    // schedule all pending reconfigurations to the engine
-    val reconfigurationId = UUID.randomUUID().toString
-    if (!AmberConfig.enableTransactionalReconfiguration) {
-      reconfigurations.foreach(reconfig => {
-        client.sendAsync(ModifyLogic(reconfig._1, reconfig._2))
-      })
-    } else {
-      client.sendAsync(Reconfigure(reconfigurations, reconfigurationId))
-
-      // clear all un-scheduled reconfigurations, start a new reconfiguration ID
-      stateStore.reconfigurationStore.updateState(_ =>
-        ExecutionReconfigurationStore(Some(reconfigurationId))
-      )
-    }
+    throw new RuntimeException("reconfiguration is tentatively disabled.")
+//    // schedule all pending reconfigurations to the engine
+//    val reconfigurationId = UUID.randomUUID().toString
+//    val modifyLogicReq = AmberModifyLogicRequest(reconfigurations.map {
+//      case (op, stateTransferFunc) =>
+//        val bytes = AmberRuntime.serde.serialize(op.opExecInitInfo).get
+//        val protoAny = Any.of(
+//          "edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo",
+//          ByteString.copyFrom(bytes)
+//        )
+//        val stateTransferFuncOpt = stateTransferFunc.map { func =>
+//          val bytes = AmberRuntime.serde.serialize(func).get
+//          Any.of(
+//            "edu.uci.ics.texera.workflow.common.operators.StateTransferFunc",
+//            ByteString.copyFrom(bytes)
+//          )
+//        }
+//        UpdateExecutorRequest(op.id, protoAny, stateTransferFuncOpt)
+//    })
+//    client.controllerInterface.reconfigureWorkflow(
+//      WorkflowReconfigureRequest(modifyLogicReq, reconfigurationId),
+//      ()
+//    )
+//
+//    // clear all un-scheduled reconfigurations, start a new reconfiguration ID
+//    stateStore.reconfigurationStore.updateState(_ =>
+//      ExecutionReconfigurationStore(Some(reconfigurationId))
+//    )
   }
 }

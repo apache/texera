@@ -1,15 +1,12 @@
 package edu.uci.ics.texera.web.service
 
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ChannelMarkerHandler.PropagateChannelMarker
-import edu.uci.ics.amber.engine.architecture.scheduling.{Region, WorkflowExecutionCoordinator}
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateExecutorHandler.{
-  UpdateExecutor,
-  UpdateMultipleExecutors
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
+  ModifyLogicRequest,
+  PropagateChannelMarkerRequest
 }
-import edu.uci.ics.amber.engine.common.ambermessage.RequireAlignment
-import edu.uci.ics.amber.engine.common.model.{PhysicalOp, PhysicalPlan}
-import edu.uci.ics.amber.engine.common.virtualidentity.{ChannelMarkerIdentity, PhysicalOpIdentity}
-import edu.uci.ics.texera.workflow.common.operators.StateTransferFunc
+import edu.uci.ics.amber.engine.architecture.scheduling.{Region, WorkflowExecutionCoordinator}
+import edu.uci.ics.amber.engine.common.model.PhysicalPlan
+import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
 import org.jgrapht.alg.connectivity.ConnectivityInspector
 
 import scala.collection.mutable
@@ -24,22 +21,22 @@ object FriesReconfigurationAlgorithm {
 
   def scheduleReconfigurations(
       workflowExecutionCoordinator: WorkflowExecutionCoordinator,
-      reconfigurations: List[(PhysicalOp, Option[StateTransferFunc])],
+      reconfiguration: ModifyLogicRequest,
       epochMarkerId: String
-  ): Set[PropagateChannelMarker] = {
+  ): Set[PropagateChannelMarkerRequest] = {
     // independently schedule reconfigurations for each region:
     workflowExecutionCoordinator.getExecutingRegions
-      .flatMap(region => computeMCS(region, reconfigurations, epochMarkerId))
+      .flatMap(region => computeMCS(region, reconfiguration, epochMarkerId))
   }
 
   private def computeMCS(
       region: Region,
-      reconfigurations: List[(PhysicalOp, Option[StateTransferFunc])],
+      reconfiguration: ModifyLogicRequest,
       epochMarkerId: String
-  ): List[PropagateChannelMarker] = {
+  ): List[PropagateChannelMarkerRequest] = {
 
     // add all reconfiguration operators to M
-    val reconfigOps = reconfigurations.map(reconfigOp => reconfigOp._1.id).toSet
+    val reconfigOps = reconfiguration.updateRequest.map(req => req.targetOpId).toSet
     val M = mutable.Set.empty ++ reconfigOps
 
     // for each one-to-many operator, add it to M if its downstream has a reconfiguration operator
@@ -85,7 +82,7 @@ object FriesReconfigurationAlgorithm {
 
     // find the MCS components,
     // for each component, send an epoch marker to each of its source operators
-    val epochMarkers = new ArrayBuffer[PropagateChannelMarker]()
+    val epochMarkers = new ArrayBuffer[PropagateChannelMarkerRequest]()
 
     val connectedSets = new ConnectivityInspector(mcsPlan.dag).connectedSets()
     connectedSets.forEach(component => {
@@ -93,24 +90,23 @@ object FriesReconfigurationAlgorithm {
       val componentPlan = mcsPlan.getSubPlan(componentSet)
 
       // generate the reconfiguration command for this component
-      val reconfigCommand = UpdateMultipleExecutors(
-        reconfigurations
-          .filter(o => component.contains(o._1.id))
-          .map(o => UpdateExecutor(o._1, o._2))
-      )
-
-      // find the source operators of the component
-      val sources = componentSet.intersect(mcsPlan.getSourceOperatorIds)
-      epochMarkers += PropagateChannelMarker(
-        sources,
-        ChannelMarkerIdentity(epochMarkerId),
-        RequireAlignment,
-        componentPlan,
-        reconfigurations.map(_._1.id).toSet,
-        reconfigCommand
-      )
+      //      val reconfigCommands =
+      //        reconfiguration.updateRequest
+      //          .filter(req => component.contains(req.targetOpId))
+      //      val reconfigTargets = reconfigCommands.map(_.targetOpId)
+      //
+      //      // find the source operators of the component
+      //      val sources = componentSet.intersect(mcsPlan.getSourceOperatorIds)
+      //      epochMarkers += PropagateChannelMarkerRequest(
+      //        sources.toSeq,
+      //        ChannelMarkerIdentity(epochMarkerId),
+      //        REQUIRE_ALIGNMENT,
+      //        componentPlan.operators.map(_.id).toSeq,
+      //        reconfigTargets,
+      //        ModifyLogicRequest(reconfigCommands),
+      //        METHOD_MODIFY_LOGIC.getBareMethodName
+      //      )
     })
-
     epochMarkers.toList
   }
 

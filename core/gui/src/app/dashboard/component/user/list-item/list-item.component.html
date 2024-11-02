@@ -1,11 +1,27 @@
 <nz-card
-  [nzBodyStyle]="{padding: '5px'}"
-  class="list-item-card">
+  [nzBodyStyle]="{padding: '5px', height:'69px'}"
+  class="list-item-card"
+  [class.selected]="entry.checked"
+  [class.has-button-group]="isPrivateSearch">
+  <div
+    class="checkbox-container"
+    [class.always-show-checkbox]="entry.checked"
+    (click)="$event.stopPropagation()"
+    *ngIf="isPrivateSearch && entry.type==='workflow'">
+    <label class="clickable-area">
+      <input
+        type="checkbox"
+        class="large-checkbox"
+        [checked]="entry.checked"
+        (change)="onCheckboxChange(entry)" />
+    </label>
+  </div>
+
   <div
     [routerLink]="entryLink"
     nz-row
-    nzAlign="middle">
-    <!-- Icon Column -->
+    nzAlign="middle"
+    class="custom-row">
     <div
       nz-col
       nzSpan="1">
@@ -114,9 +130,34 @@
           </texera-user-avatar>
         </div>
         <div class="resource-info-grid">
-          <div class="resource-info">{{ entry.type === 'dataset' ? 'Size: ' + formatSize(entry.size) : '' }}</div>
+          <div class="resource-info">
+            <ng-container *ngIf="entry.type === 'workflow'; else sizeInfo">
+              {{ formatCount(viewCount) }} {{ viewCount === 1 ? 'view' : 'views' }}
+            </ng-container>
+            <ng-template #sizeInfo> Size: {{ formatSize(entry.size) }} </ng-template>
+          </div>
           <div class="resource-info">Created: {{ formatTime(entry.creationTime) }}</div>
           <div class="resource-info">Edited: {{ formatTime(entry.lastModifiedTime) }}</div>
+
+          <button
+            *ngIf="!isPrivateSearch && entry.type==='workflow'"
+            nz-button
+            nzType="text"
+            class="resource-info like-button"
+            title="Like"
+            [ngClass]="{ liked: isLiked, 'disabled-like': !currentUid }"
+            (click)="toggleLike(this.entry.id, this.currentUid)"
+            (click)="$event.stopPropagation()"
+            [attr.disabled]="!currentUid ? true : null">
+            <i
+              nz-icon
+              [nzTheme]="isLiked ? 'fill' : 'outline'"
+              [nzType]="'like'"
+              [ngClass]="isLiked ? 'liked' : 'not-liked'"
+              class="like-icon">
+            </i>
+            <span>{{ formatCount(likeCount) }}</span>
+          </button>
         </div>
       </div>
     </div>
