@@ -4,7 +4,7 @@ import { Injectable } from "@angular/core";
 import { environment } from "../../../../environments/environment";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
-import { BehaviorSubject, EMPTY, expand, finalize, forkJoin, merge, Observable, of } from "rxjs";
+import { EMPTY, expand, finalize, merge, Observable, of } from "rxjs";
 import { PaginatedResultEvent, ResultExportResponse } from "../../types/workflow-websocket.interface";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
@@ -68,7 +68,6 @@ export class WorkflowResultExportService {
           ).length > 0;
 
       // check if there are any results to export on all operators (either paginated or snapshot)
-      // we use BehaviorSubject to emit the value to the subscribers on real-time
       this.hasResultToExportOnAllOperators =
         isNotInExecution(this.executeWorkflowService.getExecutionState().state) &&
         this.workflowActionService
