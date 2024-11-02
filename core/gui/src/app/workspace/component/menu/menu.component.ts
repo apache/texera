@@ -351,7 +351,7 @@ export class MenuComponent implements OnInit, OnDestroy {
    */
   public onClickExportExecutionResult(exportType: string): void {
     this.modalService.create({
-      nzTitle: "Export Result and Save to a Dataset",
+      nzTitle: "Export All Operators Result",
       nzContent: ResultExportationComponent,
       nzData: {
         exportType: exportType,
