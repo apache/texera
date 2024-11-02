@@ -1,5 +1,5 @@
 import { AfterViewInit, Component, Input, OnInit, ViewChild } from "@angular/core";
-import { ActivatedRoute, Router } from "@angular/router";
+import { Router } from "@angular/router";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { firstValueFrom, from, lastValueFrom, Observable, of } from "rxjs";
 import {
@@ -118,12 +118,20 @@ export class UserWorkflowComponent implements AfterViewInit, OnInit {
     }
   }
 
+  public selectionTooltip: string = "Select all";
+
   ngOnInit(): void {
     const cloneSuccess = sessionStorage.getItem("cloneSuccess");
     if (cloneSuccess === "true") {
       this.notificationService.success("Clone Successful");
       sessionStorage.removeItem("cloneSuccess");
     }
+  }
+
+  public updateTooltip(): void {
+    const entries = this.searchResultsComponent.entries;
+    const allSelected = entries.every(entry => entry.checked);
+    this.selectionTooltip = allSelected ? "Unselect all" : "Select all";
   }
 
   ngAfterViewInit() {
@@ -452,7 +460,7 @@ export class UserWorkflowComponent implements AfterViewInit, OnInit {
       .pipe(untilDestroyed(this))
       .subscribe({
         next: () => {
-          checkedEntries.forEach(entry => (entry.checked = false));
+          // this.searchResultsComponent.clearAllSelections();
         },
         error: (err: unknown) => console.error("Error downloading workflows:", err),
       });
@@ -482,6 +490,8 @@ export class UserWorkflowComponent implements AfterViewInit, OnInit {
                 ...duplicatedWorkflowsInfo.map(duplicatedWorkflowInfo => new DashboardEntry(duplicatedWorkflowInfo)),
                 ...this.searchResultsComponent.entries,
               ];
+
+              // this.searchResultsComponent.clearAllSelections();
             }, // TODO: fix this with notification component
             error: (err: unknown) => alert(err),
           });
@@ -496,6 +506,8 @@ export class UserWorkflowComponent implements AfterViewInit, OnInit {
                 ...duplicatedWorkflowsInfo.map(duplicatedWorkflowInfo => new DashboardEntry(duplicatedWorkflowInfo)),
                 ...this.searchResultsComponent.entries,
               ];
+
+              // this.searchResultsComponent.clearAllSelections();
             }, // TODO: fix this with notification component
             error: (err: unknown) => alert(err),
           });
@@ -546,6 +558,17 @@ export class UserWorkflowComponent implements AfterViewInit, OnInit {
       } else {
         copyName = name + "-" + ++count;
       }
+    }
+  }
+
+  public toggleSelection(): void {
+    const allSelected = this.searchResultsComponent.entries.every(entry => entry.checked);
+    if (allSelected) {
+      this.searchResultsComponent.clearAllSelections();
+      this.updateTooltip();
+    } else {
+      this.searchResultsComponent.selectAll();
+      this.updateTooltip();
     }
   }
 }

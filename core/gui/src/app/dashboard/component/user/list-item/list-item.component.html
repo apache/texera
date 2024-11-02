@@ -1,12 +1,27 @@
 <nz-card
-  [nzBodyStyle]="{padding: '5px'}"
+  [nzBodyStyle]="{padding: '5px', height:'69px'}"
   class="list-item-card"
+  [class.selected]="entry.checked"
   [class.has-button-group]="isPrivateSearch">
+  <div
+    class="checkbox-container"
+    [class.always-show-checkbox]="entry.checked"
+    (click)="$event.stopPropagation()"
+    *ngIf="isPrivateSearch && entry.type==='workflow'">
+    <label class="clickable-area">
+      <input
+        type="checkbox"
+        class="large-checkbox"
+        [checked]="entry.checked"
+        (change)="onCheckboxChange(entry)" />
+    </label>
+  </div>
+
   <div
     [routerLink]="entryLink"
     nz-row
-    nzAlign="middle">
-    <!-- Icon Column -->
+    nzAlign="middle"
+    class="custom-row">
     <div
       nz-col
       nzSpan="1">
