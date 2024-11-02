@@ -84,7 +84,9 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder {
           )
       )
   }
-  override protected def getGroupByFields: Seq[GroupField] = Seq.empty
+  override protected def getGroupByFields: Seq[GroupField] = {
+    Seq(DATASET.DID)
+  }
   override protected def toEntryImpl(
       uid: UInteger,
       record: Record

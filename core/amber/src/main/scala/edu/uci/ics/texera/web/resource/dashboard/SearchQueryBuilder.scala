@@ -46,7 +46,7 @@ trait SearchQueryBuilder {
       includePublic: Boolean
   ): SelectHavingStep[Record] = {
     val query: SelectGroupByStep[Record] = context
-      .selectDistinct(mappedResourceSchema.allFields: _*)
+      .select(mappedResourceSchema.allFields: _*)
       .from(constructFromClause(uid, params, includePublic))
       .where(constructWhereClause(uid, params))
     val groupByFields = getGroupByFields
