@@ -1,12 +1,23 @@
 package edu.uci.ics.amber.storage.result
 
 import edu.uci.ics.amber.core.tuple.{Schema, Tuple}
+import edu.uci.ics.amber.storage.result.MemoryStorage.storageMapping
 
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-class MemoryStorage extends SinkStorageReader with SinkStorageWriter {
+object MemoryStorage {
+  val storageMapping: mutable.Map[String, ArrayBuffer[Tuple]] =
+    mutable.HashMap[String, ArrayBuffer[Tuple]]()
+}
+class MemoryStorage(key: String) extends SinkStorageReader with SinkStorageWriter {
 
-  private val results = new ArrayBuffer[Tuple]()
+  private def results: ArrayBuffer[Tuple] = {
+    if (!storageMapping.contains(key)) {
+      storageMapping(key) = new ArrayBuffer[Tuple]()
+    }
+    storageMapping(key)
+  }
 
   override def getAll: Iterable[Tuple] =
     synchronized {

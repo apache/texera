@@ -1,5 +1,7 @@
 package edu.uci.ics.amber.util
 
+import org.jooq.types.UInteger
+
 import java.nio.file.{Files, Path, Paths}
 
 object PathUtils {
@@ -32,6 +34,12 @@ object PathUtils {
         )
       }
     }
+  }
+
+  lazy val datasetsRootPath = amberHomePath.resolve("user-resources").resolve("datasets")
+
+  def getDatasetPath(did: UInteger): Path = {
+    datasetsRootPath.resolve(did.toString)
   }
 
   // path of the dropwizard config file

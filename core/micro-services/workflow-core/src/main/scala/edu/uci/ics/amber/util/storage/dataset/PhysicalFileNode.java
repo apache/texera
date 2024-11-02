@@ -1,4 +1,4 @@
-package edu.uci.ics.amber.util.storage;
+package edu.uci.ics.amber.util.storage.dataset;
 
 import java.nio.file.Files;
 import java.nio.file.Path;

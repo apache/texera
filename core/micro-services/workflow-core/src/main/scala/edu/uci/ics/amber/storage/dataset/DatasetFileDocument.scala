@@ -1,27 +1,46 @@
 package edu.uci.ics.amber.storage.dataset
 
-import edu.uci.ics.amber.storage.core.VirtualDocument
+import edu.uci.ics.amber.storage.VirtualDocument
+import edu.uci.ics.amber.util.PathUtils
+import edu.uci.ics.amber.util.storage.dataset.GitVersionControlLocalFileStorage
+import org.jooq.types.UInteger
 
 import java.io.{File, FileOutputStream, InputStream}
-import java.net.URI
-import java.nio.file.{Files, Path}
+import java.net.{URI, URLDecoder}
+import java.nio.charset.StandardCharsets
+import java.nio.file.{Files, Path, Paths}
+import scala.jdk.CollectionConverters.IteratorHasAsScala
 
-class DatasetFileDocument(did: Int, versionHash: String, fileRelativePath: Path) extends VirtualDocument[Nothing] {
+class DatasetFileDocument(uri: URI) extends VirtualDocument[Nothing] {
+  // Utility function to parse and decode URI segments into individual components
+  private def parseUri(uri: URI): (Int, String, Path) = {
+    val segments = Paths.get(uri.getPath).iterator().asScala.map(_.toString).toArray
+    if (segments.length < 3)
+      throw new IllegalArgumentException("URI format is incorrect")
+
+    val did = segments(0).toInt
+    val datasetVersionHash = URLDecoder.decode(segments(1), StandardCharsets.UTF_8)
+    val decodedRelativeSegments =
+      segments.drop(2).map(part => URLDecoder.decode(part, StandardCharsets.UTF_8))
+    val fileRelativePath = Paths.get(decodedRelativeSegments.head, decodedRelativeSegments.tail: _*)
+
+    (did, datasetVersionHash, fileRelativePath)
+  }
+
+  // Extract components from URI using the utility function
+  private val (did, datasetVersionHash, fileRelativePath) = parseUri(uri)
 
   private var tempFile: Option[File] = None
 
-  override def getURI: URI =
-    throw new UnsupportedOperationException(
-      "The URI cannot be acquired because the file is not physically located"
-    )
+  override def getURI: URI = uri
 
   override def asInputStream(): InputStream = {
-    val datasetPath = DatasetResource.getDatasetPath(did)
+    val datasetAbsolutePath = PathUtils.getDatasetPath(UInteger.valueOf(did))
     GitVersionControlLocalFileStorage
       .retrieveFileContentOfVersionAsInputStream(
-        datasetPath,
-        versionHash,
-        datasetPath.resolve(fileRelativePath)
+        datasetAbsolutePath,
+        datasetVersionHash,
+        datasetAbsolutePath.resolve(fileRelativePath)
       )
   }
 
@@ -51,9 +70,15 @@ class DatasetFileDocument(did: Int, versionHash: String, fileRelativePath: Path)
   }
 
   override def remove(): Unit = {
+    // first remove the temporary file
     tempFile match {
       case Some(file) => Files.delete(file.toPath)
       case None       => // Do nothing
     }
+    // then remove the dataset file
+    GitVersionControlLocalFileStorage.removeFileFromRepo(
+      PathUtils.getDatasetPath(UInteger.valueOf(did)),
+      PathUtils.getDatasetPath(UInteger.valueOf(did)).resolve(fileRelativePath)
+    )
   }
 }

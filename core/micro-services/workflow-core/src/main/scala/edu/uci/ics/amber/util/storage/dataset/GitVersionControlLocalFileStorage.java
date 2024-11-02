@@ -1,7 +1,5 @@
-package edu.uci.ics.amber.storage.dataset;
+package edu.uci.ics.amber.util.storage.dataset;
 
-import edu.uci.ics.amber.util.storage.JGitVersionControl;
-import edu.uci.ics.amber.util.storage.PhysicalFileNode;
 import org.eclipse.jgit.api.errors.GitAPIException;
 
 import java.io.File;

@@ -5,7 +5,7 @@ import com.mongodb.client.model.Sorts
 import edu.uci.ics.amber.WorkflowCoreConfig
 import edu.uci.ics.amber.core.tuple.TupleUtils.document2Tuple
 import edu.uci.ics.amber.core.tuple.{Schema, Tuple}
-import edu.uci.ics.amber.storage.result.mongo.{MongoCollectionManager, MongoDatabaseManager}
+import edu.uci.ics.amber.util.storage.mongo.{MongoCollectionManager, MongoDatabaseManager}
 import org.bson.Document
 
 import scala.collection.mutable

@@ -1,4 +1,4 @@
-package edu.uci.ics.amber.storage.result.mongo
+package edu.uci.ics.amber.util.storage.mongo
 
 import com.mongodb.client.model.Aggregates._
 import com.mongodb.client.model.{IndexOptions, Indexes}

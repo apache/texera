@@ -99,6 +99,15 @@ libraryDependencies ++= Seq(
   "org.apache.commons" % "commons-jcs3-core" % "3.2"             // Apache Commons JCS
 )
 
+/////////////////////////////////////////////////////////////////////////////
+// Jooq-related Dependencies
+/////////////////////////////////////////////////////////////////////////////
+
+libraryDependencies ++= Seq(
+  "org.jooq" % "jooq" % "3.14.16",
+  "org.jooq" % "jooq-codegen" % "3.12.4"
+)
+
 
 /////////////////////////////////////////////////////////////////////////////
 // Additional Dependencies
@@ -112,5 +121,6 @@ libraryDependencies ++= Seq(
   "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5",         // Scala Logging
   "jakarta.ws.rs" % "jakarta.ws.rs-api" % "3.1.0",                   // jakarta for web errors
   "org.eclipse.jgit" % "org.eclipse.jgit" % "5.13.0.202109080827-r", // jgit
-  "org.yaml" % "snakeyaml" % "2.0"                                   // yaml reader
+  "org.yaml" % "snakeyaml" % "2.0",                                   // yaml reader
+  "org.apache.commons" % "commons-vfs2" % "2.9.0"
 )

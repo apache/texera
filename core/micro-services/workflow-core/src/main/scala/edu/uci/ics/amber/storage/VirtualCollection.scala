@@ -1,4 +1,4 @@
-package edu.uci.ics.amber.storage.core
+package edu.uci.ics.amber.storage
 
 import java.net.URI
 

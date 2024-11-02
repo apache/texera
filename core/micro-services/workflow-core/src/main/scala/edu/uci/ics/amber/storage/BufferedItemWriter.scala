@@ -1,4 +1,4 @@
-package edu.uci.ics.amber.storage.core
+package edu.uci.ics.amber.storage
 
 /**
   * BufferedItemWriter provides an interface for writing items to a buffer and performing I/O operations.

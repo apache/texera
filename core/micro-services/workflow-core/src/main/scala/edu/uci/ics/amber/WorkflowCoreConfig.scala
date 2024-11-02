@@ -12,16 +12,16 @@ object WorkflowCoreConfig {
 
     val storageMap = javaConf("storage").asInstanceOf[JMap[String, Any]].asScala.toMap
     val mongodbMap = storageMap("mongodb").asInstanceOf[JMap[String, Any]].asScala.toMap
-
+    val jdbcMap = storageMap("jdbc").asInstanceOf[JMap[String, Any]].asScala.toMap
     val userSysMap = javaConf("user-sys").asInstanceOf[JMap[String, Any]].asScala.toMap
 
     javaConf
-      .updated("storage", storageMap.updated("mongodb", mongodbMap))
+      .updated("storage", storageMap.updated("mongodb", mongodbMap).updated("jdbc", jdbcMap))
       .updated("user-sys", userSysMap)
   }
 
-  val storageMode: String =
-    conf("storage").asInstanceOf[Map[String, Any]]("mode").asInstanceOf[String]
+  val resultStorageMode: String =
+    conf("storage").asInstanceOf[Map[String, Any]]("result-storage-mode").asInstanceOf[String]
 
   // For MongoDB specifics
   val mongodbUrl: String = conf("storage")
@@ -36,4 +36,19 @@ object WorkflowCoreConfig {
     .asInstanceOf[Map[String, Any]]("mongodb")
     .asInstanceOf[Map[String, Any]]("commit-batch-size")
     .asInstanceOf[Int]
+
+  val jdbcUrl: String = conf("storage")
+    .asInstanceOf[Map[String, Any]]("jdbc")
+    .asInstanceOf[Map[String, Any]]("url")
+    .asInstanceOf[String]
+
+  val jdbcUsername: String = conf("storage")
+    .asInstanceOf[Map[String, Any]]("jdbc")
+    .asInstanceOf[Map[String, Any]]("username")
+    .asInstanceOf[String]
+
+  val jdbcPassword: String = conf("storage")
+    .asInstanceOf[Map[String, Any]]("jdbc")
+    .asInstanceOf[Map[String, Any]]("password")
+    .asInstanceOf[String]
 }
