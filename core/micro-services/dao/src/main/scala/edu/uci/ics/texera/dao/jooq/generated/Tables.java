@@ -16,8 +16,13 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.Workflow;
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowExecutions;
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowOfProject;
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowOfUser;
+import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowRuntimeStatistics;
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowUserAccess;
+import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowUserActivity;
+import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowUserClones;
+import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowUserLikes;
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowVersion;
+import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowViewCount;
 
 
 /**
@@ -87,12 +92,37 @@ public class Tables {
     public static final WorkflowOfUser WORKFLOW_OF_USER = WorkflowOfUser.WORKFLOW_OF_USER;
 
     /**
+     * The table <code>texera_db.workflow_runtime_statistics</code>.
+     */
+    public static final WorkflowRuntimeStatistics WORKFLOW_RUNTIME_STATISTICS = WorkflowRuntimeStatistics.WORKFLOW_RUNTIME_STATISTICS;
+
+    /**
      * The table <code>texera_db.workflow_user_access</code>.
      */
     public static final WorkflowUserAccess WORKFLOW_USER_ACCESS = WorkflowUserAccess.WORKFLOW_USER_ACCESS;
 
     /**
+     * The table <code>texera_db.workflow_user_activity</code>.
+     */
+    public static final WorkflowUserActivity WORKFLOW_USER_ACTIVITY = WorkflowUserActivity.WORKFLOW_USER_ACTIVITY;
+
+    /**
+     * The table <code>texera_db.workflow_user_clones</code>.
+     */
+    public static final WorkflowUserClones WORKFLOW_USER_CLONES = WorkflowUserClones.WORKFLOW_USER_CLONES;
+
+    /**
+     * The table <code>texera_db.workflow_user_likes</code>.
+     */
+    public static final WorkflowUserLikes WORKFLOW_USER_LIKES = WorkflowUserLikes.WORKFLOW_USER_LIKES;
+
+    /**
      * The table <code>texera_db.workflow_version</code>.
      */
     public static final WorkflowVersion WORKFLOW_VERSION = WorkflowVersion.WORKFLOW_VERSION;
+
+    /**
+     * The table <code>texera_db.workflow_view_count</code>.
+     */
+    public static final WorkflowViewCount WORKFLOW_VIEW_COUNT = WorkflowViewCount.WORKFLOW_VIEW_COUNT;
 }
