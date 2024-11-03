@@ -56,9 +56,7 @@ export class VersionsListComponent implements OnInit {
           importance: version.importance,
           expand: false,
         }));
-        console.log(this.versionsList)
       });
-
   }
 
   getVersion(vid: number, offset: number) {

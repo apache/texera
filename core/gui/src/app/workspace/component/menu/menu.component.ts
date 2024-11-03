@@ -15,7 +15,7 @@ import { WorkflowActionService } from "../../service/workflow-graph/model/workfl
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
 import { WorkflowResultExportService } from "../../service/workflow-result-export/workflow-result-export.service";
-import {catchError, debounceTime, filter, mergeMap, tap} from "rxjs/operators";
+import { catchError, debounceTime, filter, mergeMap, tap } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
@@ -25,7 +25,7 @@ import { saveAs } from "file-saver";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { OperatorMenuService } from "../../service/operator-menu/operator-menu.service";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
-import {firstValueFrom, of, Subscription, timer} from "rxjs";
+import { firstValueFrom, of, Subscription, timer } from "rxjs";
 import { isDefined } from "../../../common/util/predicate";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { ResultExportationComponent } from "../result-exportation/result-exportation.component";
@@ -527,53 +527,31 @@ export class MenuComponent implements OnInit {
     this.persistWorkflow();
   }
 
-  cloneVersion(){
+  cloneVersion() {
     const vid = this.workflowVersionService.selectedVersionId.getValue();
     const offset = this.workflowVersionService.selectedOffset.getValue();
     if (vid !== null) {
-      console.log("Cloning version:", vid);
-      console.log("Cloning version offset:", offset);
-      if(vid != null && offset != null){
+      if (vid != null && offset != null) {
         this.workflowVersionService
           .cloneWorkflowVersion(vid, offset)
-          .pipe(untilDestroyed(this))
-          .subscribe(
-            (new_wid) => {
-              console.log("New workflow ID:", new_wid);
+          .pipe(
+            catchError((error: unknown) => {
+              this.notificationService.error("Failed to clone workflow. Please try again.");
+              return of(null);
+            }),
+            untilDestroyed(this)
+          )
+          .subscribe(new_wid => {
+            if (new_wid) {
+              this.notificationService.success("Workflow cloned successfully! New workflow ID: " + new_wid);
+              this.closeParticularVersionDisplay();
             }
-          );
+          });
       }
     } else {
-      console.error("No version ID selected");
+      this.notificationService.error("No version selected Please select a version to clone.");
     }
   }
-  // cloneVersion() {
-  //   const vid = this.workflowVersionService.selectedVersionId.getValue();
-  //   const offset = this.workflowVersionService.selectedOffset.getValue();
-  //
-  //   if (vid !== null && offset !== null) {
-  //     this.workflowVersionService
-  //       .cloneWorkflowVersion(vid, offset)
-  //       .pipe(
-  //         catchError((error: unknown) => {
-  //           console.error("Failed to clone workflow version:", error);
-  //           this.notificationService.error("Failed to clone workflow version. Please try again.");
-  //           return of(null);
-  //         }),
-  //         untilDestroyed(this)
-  //       )
-  //       .subscribe((new_wid) => {
-  //         if (new_wid) {
-  //           this.notificationService.success(`Workflow cloned successfully! New workflow ID: ${new_wid}`);
-  //         } else {
-  //           console.warn("Workflow clone was unsuccessful.");
-  //         }
-  //       });
-  //   } else {
-  //     console.error("No version ID or offset selected");
-  //     this.notificationService.error("No version ID or offset selected. Please select a version to clone.");
-  //   }
-  // }
 
   private registerWorkflowModifiableChangedHandler(): void {
     this.workflowActionService

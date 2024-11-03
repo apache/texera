@@ -5,7 +5,7 @@ import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.Utils.objectMapper
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{WORKFLOW, WORKFLOW_VERSION}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.WORKFLOW_VERSION
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{WorkflowDao, WorkflowVersionDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{Workflow, WorkflowVersion}
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflow
@@ -16,9 +16,8 @@ import org.jooq.types.UInteger
 import java.sql.Timestamp
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
-import javax.ws.rs.core.{MediaType, Response}
+import javax.ws.rs.core.MediaType
 import scala.jdk.CollectionConverters.IterableHasAsScala
-
 
 /**
   * This file handles various request related to workflows versions.
@@ -352,120 +351,54 @@ class WorkflowVersionResource {
   @Path("/clone/{vid}")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def cloneVersion(
-    @PathParam("vid") vid: UInteger,
-    @Auth sessionUser: SessionUser,
-    requestBody: java.util.Map[String, Int]
+      @PathParam("vid") vid: UInteger,
+      @Auth sessionUser: SessionUser,
+      requestBody: java.util.Map[String, Int]
   ): UInteger = {
     val offset = requestBody.get("offset")
 
-    val versionRecord = context
-      .select(WORKFLOW_VERSION.CONTENT, WORKFLOW_VERSION.WID)
-      .from(WORKFLOW_VERSION)
-      .where(WORKFLOW_VERSION.VID.eq(vid))
-      .fetchOne()
+    // Fetch the workflow ID (`wid`) associated with the specified version (`vid`)
+    val versionRecord = Option(
+      context
+        .select(WORKFLOW_VERSION.WID)
+        .from(WORKFLOW_VERSION)
+        .where(WORKFLOW_VERSION.VID.eq(vid))
+        .fetchOne()
+    ).getOrElse {
+      throw new NotFoundException(s"Version ID $vid not found.")
+    }
 
     val wid = versionRecord.get(WORKFLOW_VERSION.WID)
-    val workflowRecord = context
-      .select(WORKFLOW.NAME, WORKFLOW.DESCRIPTION)
-      .from(WORKFLOW)
-      .where(WORKFLOW.WID.eq(wid))
-      .fetchOne()
 
-    val newWorkflowName = s"${workflowRecord.get(WORKFLOW.NAME)}_v${offset}_clone"
+    // Use retrieveWorkflowVersion to get the specified version of the workflow
+    val workflowVersion = retrieveWorkflowVersion(wid, vid, sessionUser)
 
-    val versionEntries = context
-      .select(WORKFLOW_VERSION.VID, WORKFLOW_VERSION.CREATION_TIME, WORKFLOW_VERSION.CONTENT)
-      .from(WORKFLOW_VERSION)
-      .where(WORKFLOW_VERSION.WID.eq(wid).and(WORKFLOW_VERSION.VID.ge(vid)))
-      .fetchInto(classOf[WorkflowVersion])
-      .asScala
-      .toList
+    // Generate a new name for the cloned workflow
+    val newWorkflowName = s"${workflowVersion.getName}_v${offset}_clone"
 
-    val currentWorkflow = workflowDao.fetchOneByWid(wid)
-    // return particular version of the workflow
-    val res: Workflow = applyPatch(versionEntries.reverse, currentWorkflow)
-    val content = res.getContent
-    println(content)
-
+    // Create a new workflow based on the retrieved version
     val workflowResource = new WorkflowResource()
-    val newWorkflow: DashboardWorkflow = workflowResource.createWorkflow(
-      new Workflow(
-        newWorkflowName,
-        workflowRecord.get(WORKFLOW.DESCRIPTION),
-        null,
-        content,
-        null,
-        null,
-        0.toByte
-      ),
-      sessionUser
-    )
-    println(newWorkflow.workflow.getWid)
+    val newWorkflow: DashboardWorkflow =
+      try {
+        workflowResource.createWorkflow(
+          new Workflow(
+            newWorkflowName,
+            workflowVersion.getDescription,
+            null,
+            workflowVersion.getContent,
+            null,
+            null,
+            0.toByte
+          ),
+          sessionUser
+        )
+      } catch {
+        case e: Exception =>
+          throw new InternalServerErrorException(
+            "An error occurred while creating the cloned workflow."
+          )
+      }
+
     newWorkflow.workflow.getWid
   }
-
-//  @POST
-//  @Consumes(Array(MediaType.APPLICATION_JSON))
-//  @Produces(Array(MediaType.APPLICATION_JSON))
-//  @Path("/clone/{vid}")
-//  @RolesAllowed(Array("REGULAR", "ADMIN"))
-//  def cloneVersion(
-//                    @PathParam("vid") vid: UInteger,
-//                    @Auth sessionUser: SessionUser,
-//                    requestBody: java.util.Map[String, Int]
-//                  ): Response = {
-//    try {
-//      val offset = requestBody.get("offset")
-//
-//      val versionRecord = context
-//        .select(WORKFLOW_VERSION.CONTENT, WORKFLOW_VERSION.WID)
-//        .from(WORKFLOW_VERSION)
-//        .where(WORKFLOW_VERSION.VID.eq(vid))
-//        .fetchOne()
-//
-//      if (versionRecord == null) {
-//        return Response.status(Response.Status.NOT_FOUND)
-//          .entity(s"Version with id $vid not found.")
-//          .build()
-//      }
-//
-//      val workflowRecord = context
-//        .select(WORKFLOW.NAME, WORKFLOW.DESCRIPTION)
-//        .from(WORKFLOW)
-//        .where(WORKFLOW.WID.eq(versionRecord.get(WORKFLOW_VERSION.WID)))
-//        .fetchOne()
-//
-//      if (workflowRecord == null) {
-//        return Response.status(Response.Status.NOT_FOUND)
-//          .entity(s"Workflow with wid ${versionRecord.get(WORKFLOW_VERSION.WID)} not found.")
-//          .build()
-//      }
-//
-//      val newWorkflowName = s"${workflowRecord.get(WORKFLOW.NAME)}_v${offset}_clone"
-//
-//      val workflowResource = new WorkflowResource()
-//      val newWorkflow: DashboardWorkflow = workflowResource.createWorkflow(
-//        new Workflow(
-//          newWorkflowName,
-//          workflowRecord.get(WORKFLOW.DESCRIPTION),
-//          null,
-//          versionRecord.get(WORKFLOW_VERSION.CONTENT),
-//          null,
-//          null,
-//          0.toByte
-//        ),
-//        sessionUser
-//      )
-//
-//      Response.ok(newWorkflow.workflow.getWid).build()
-//
-//    } catch {
-//      case e: Exception =>
-//        println(s"Failed to clone workflow version: ${e.getMessage}")
-//        e.printStackTrace()
-//        Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-//          .entity(s"Failed to clone workflow version: ${e.getMessage}")
-//          .build()
-//    }
-//  }
 }
