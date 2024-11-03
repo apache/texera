@@ -1,15 +1,15 @@
 package edu.uci.ics.amber.util.storage.mongo
 
 import com.mongodb.client.{MongoClient, MongoClients, MongoCollection, MongoDatabase}
-import edu.uci.ics.amber.WorkflowCoreConfig
+import edu.uci.ics.amber.StorageConfig
 import org.bson.Document
 
 import java.util
 
 object MongoDatabaseManager {
 
-  val url: String = WorkflowCoreConfig.mongodbUrl
-  val databaseName: String = WorkflowCoreConfig.mongodbDatabaseName
+  val url: String = StorageConfig.mongodbUrl
+  val databaseName: String = StorageConfig.mongodbDatabaseName
   val client: MongoClient = MongoClients.create(url)
   val database: MongoDatabase = client.getDatabase(databaseName)
 

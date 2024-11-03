@@ -4,7 +4,7 @@ import org.yaml.snakeyaml.Yaml
 import java.util.{Map => JMap}
 import scala.jdk.CollectionConverters._
 
-object WorkflowCoreConfig {
+object StorageConfig {
   private val conf: Map[String, Any] = {
     val yaml = new Yaml()
     val inputStream = getClass.getClassLoader.getResourceAsStream("workflow-core-config.yaml")

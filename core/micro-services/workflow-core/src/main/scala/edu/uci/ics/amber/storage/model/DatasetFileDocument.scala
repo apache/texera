@@ -1,6 +1,5 @@
-package edu.uci.ics.amber.storage.dataset
+package edu.uci.ics.amber.storage.model
 
-import edu.uci.ics.amber.storage.VirtualDocument
 import edu.uci.ics.amber.util.PathUtils
 import edu.uci.ics.amber.util.storage.dataset.GitVersionControlLocalFileStorage
 import org.jooq.types.UInteger

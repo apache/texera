@@ -2,7 +2,7 @@ package edu.uci.ics.amber.storage.result
 
 import com.mongodb.client.MongoCursor
 import com.mongodb.client.model.Sorts
-import edu.uci.ics.amber.WorkflowCoreConfig
+import edu.uci.ics.amber.StorageConfig
 import edu.uci.ics.amber.core.tuple.TupleUtils.document2Tuple
 import edu.uci.ics.amber.core.tuple.{Schema, Tuple}
 import edu.uci.ics.amber.util.storage.mongo.{MongoCollectionManager, MongoDatabaseManager}
@@ -12,7 +12,7 @@ import scala.collection.mutable
 
 class MongoDBSinkStorage(id: String) extends SinkStorageReader {
 
-  val commitBatchSize: Int = WorkflowCoreConfig.mongodbBatchSize
+  val commitBatchSize: Int = StorageConfig.mongodbBatchSize
   MongoDatabaseManager.dropCollection(id)
   @transient lazy val collectionMgr: MongoCollectionManager = MongoDatabaseManager.getCollection(id)
 

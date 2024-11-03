@@ -1,14 +1,14 @@
 package edu.uci.ics.texera.workflow.common.storage
 
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.WorkflowCoreConfig
+import edu.uci.ics.amber.StorageConfig
 import edu.uci.ics.amber.storage.result.{MemoryStorage, MongoDBSinkStorage, SinkStorageReader}
 import edu.uci.ics.amber.virtualidentity.OperatorIdentity
 
 import java.util.concurrent.ConcurrentHashMap
 
 object OpResultStorage {
-  val defaultStorageMode: String = WorkflowCoreConfig.resultStorageMode.toLowerCase
+  val defaultStorageMode: String = StorageConfig.resultStorageMode.toLowerCase
   val MEMORY = "memory"
   val MONGODB = "mongodb"
 }

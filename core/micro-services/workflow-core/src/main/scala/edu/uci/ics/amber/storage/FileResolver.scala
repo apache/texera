@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.storage
 
-import edu.uci.ics.amber.WorkflowCoreConfig
+import edu.uci.ics.amber.StorageConfig
 import edu.uci.ics.amber.util.ResourceUtils.withTransaction
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.jooq.generated.tables.Dataset.DATASET
@@ -78,9 +78,9 @@ object FileResolver {
       withTransaction(
         SqlServer
           .getInstance(
-            WorkflowCoreConfig.jdbcUrl,
-            WorkflowCoreConfig.jdbcUsername,
-            WorkflowCoreConfig.jdbcPassword
+            StorageConfig.jdbcUrl,
+            StorageConfig.jdbcUsername,
+            StorageConfig.jdbcPassword
           )
           .createDSLContext()
       ) { ctx =>

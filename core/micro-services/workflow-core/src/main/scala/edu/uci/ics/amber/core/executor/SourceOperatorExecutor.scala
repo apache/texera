@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.core.executor
 
 import edu.uci.ics.amber.core.tuple.{Tuple, TupleLike}
-import edu.uci.ics.amber.storage.dataset.DatasetFileDocument
+import edu.uci.ics.amber.storage.model.DatasetFileDocument
 import edu.uci.ics.amber.workflow.PortIdentity
 
 import java.io.{FileInputStream, InputStream}
