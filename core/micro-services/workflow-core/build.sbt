@@ -100,12 +100,12 @@ libraryDependencies ++= Seq(
 )
 
 /////////////////////////////////////////////////////////////////////////////
-// Akka serialization-related Dependencies
+// Jooq-related Dependencies
 /////////////////////////////////////////////////////////////////////////////
 
 libraryDependencies ++= Seq(
-  "com.typesafe.akka" %% "akka-actor" % "2.8.3",
-  "com.typesafe.akka" %% "akka-serialization-jackson" % "2.8.3" // for JSON-based serialization
+  "org.jooq" % "jooq" % "3.14.16",
+  "org.jooq" % "jooq-codegen" % "3.12.4"
 )
 
 
