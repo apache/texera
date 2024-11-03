@@ -56,10 +56,15 @@ export class VersionsListComponent implements OnInit {
           importance: version.importance,
           expand: false,
         }));
+        console.log(this.versionsList)
       });
+
   }
 
-  getVersion(vid: number) {
+  getVersion(vid: number, offset: number) {
+    this.workflowVersionService.setSelectedVersionId(vid);
+    this.workflowVersionService.setSelectedOffset(offset);
+
     this.workflowVersionService
       .retrieveWorkflowByVersion(<number>this.workflowActionService.getWorkflowMetadata()?.wid, vid)
       .pipe(untilDestroyed(this))

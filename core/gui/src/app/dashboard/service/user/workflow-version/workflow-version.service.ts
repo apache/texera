@@ -12,6 +12,7 @@ import { filter, map } from "rxjs/operators";
 import { WorkflowUtilService } from "../../../../workspace/service/workflow-graph/util/workflow-util.service";
 
 import { HttpClient } from "@angular/common/http";
+import {WORKFLOW_BASE_URL} from "../../../../hub/service/workflow/hub-workflow.service";
 
 export const WORKFLOW_VERSIONS_API_BASE_URL = "version";
 
@@ -37,11 +38,15 @@ export class WorkflowVersionService {
   public operatorPropertyDiff: { [key: string]: Map<String, String> } = {};
   private displayParticularWorkflowVersion = new BehaviorSubject<boolean>(false);
   private differentOpIDsList: DifferentOpIDsList = { modified: [], added: [], deleted: [] };
+  public selectedVersionId = new BehaviorSubject<number | null>(null);
+  public selectedOffset = new BehaviorSubject<number | null>(null);
+
+
   constructor(
     private workflowActionService: WorkflowActionService,
     private workflowPersistService: WorkflowPersistService,
     private undoRedoService: UndoRedoService,
-    private http: HttpClient
+    private http: HttpClient,
   ) {}
 
   public displayWorkflowVersions(): void {
@@ -275,4 +280,27 @@ export class WorkflowVersionService {
       this.modificationEnabledBeforeTempWorkflow = undefined;
     }
   }
+
+  public setSelectedVersionId(id: number): void {
+    this.selectedVersionId.next(id);
+  }
+
+  public setSelectedOffset(offset: number): void{
+    this.selectedOffset.next(offset);
+  }
+
+  public cloneWorkflowVersion(vid: number, offset: number): Observable<number> {
+    const url = `${AppSettings.getApiEndpoint()}/${WORKFLOW_VERSIONS_API_BASE_URL}/clone/${vid}`;
+    const body = { offset };
+    return this.http.post<number>(url, body);
+  }
+
+  // public cloneWorkflowVersion(vid: number, offset: number): Observable<number> {
+  //   const url = `${AppSettings.getApiEndpoint()}/${WORKFLOW_VERSIONS_API_BASE_URL}/clone/${vid}`;
+  //   const body = { offset };
+  //
+  //   return this.http.post<{ wid: number }>(url, body).pipe(
+  //     map(response => response.wid)
+  //   );
+  // }
 }
