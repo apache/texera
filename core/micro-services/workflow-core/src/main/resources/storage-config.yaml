@@ -5,6 +5,6 @@ storage:
     database: "texera_storage"
     commit-batch-size: 1000
   jdbc:
-    url: "jdbc:mysql://0.0.0.0:3306/texera_db?serverTimezone=UTC"
+    url: "jdbc:mysql://localhost:3306/texera_db?serverTimezone=UTC"
     username: ""
     password: ""

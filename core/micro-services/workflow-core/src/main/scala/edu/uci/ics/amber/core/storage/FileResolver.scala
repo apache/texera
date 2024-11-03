@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.core.storage
 
-import edu.uci.ics.amber.util.ResourceUtils.withTransaction
 import edu.uci.ics.texera.dao.SqlServer
+import edu.uci.ics.texera.dao.SqlServer.withTransaction
 import edu.uci.ics.texera.dao.jooq.generated.tables.Dataset.DATASET
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetVersion.DATASET_VERSION
 import edu.uci.ics.texera.dao.jooq.generated.tables.User.USER
