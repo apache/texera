@@ -76,8 +76,14 @@ object FileResolver {
     // fetch the dataset and version from DB to get dataset ID and version hash
     val (dataset, datasetVersion) =
       withTransaction(
-        SqlServer.getInstance(WorkflowCoreConfig.jdbcUrl, WorkflowCoreConfig.jdbcUsername, WorkflowCoreConfig.jdbcPassword)
-          .createDSLContext()) { ctx =>
+        SqlServer
+          .getInstance(
+            WorkflowCoreConfig.jdbcUrl,
+            WorkflowCoreConfig.jdbcUsername,
+            WorkflowCoreConfig.jdbcPassword
+          )
+          .createDSLContext()
+      ) { ctx =>
         // fetch the dataset from DB
         val dataset = ctx
           .select(DATASET.fields: _*)
