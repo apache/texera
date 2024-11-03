@@ -8,9 +8,9 @@ trait SourceOperatorExecutor extends OperatorExecutor {
 
   override def close(): Unit = {}
   override def processTupleMultiPort(
-                                      tuple: Tuple,
-                                      port: Int
-                                    ): Iterator[(TupleLike, Option[PortIdentity])] = Iterator()
+      tuple: Tuple,
+      port: Int
+  ): Iterator[(TupleLike, Option[PortIdentity])] = Iterator()
 
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = Iterator.empty
 
