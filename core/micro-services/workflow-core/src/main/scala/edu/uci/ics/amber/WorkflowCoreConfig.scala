@@ -13,11 +13,8 @@ object WorkflowCoreConfig {
     val storageMap = javaConf("storage").asInstanceOf[JMap[String, Any]].asScala.toMap
     val mongodbMap = storageMap("mongodb").asInstanceOf[JMap[String, Any]].asScala.toMap
     val jdbcMap = storageMap("jdbc").asInstanceOf[JMap[String, Any]].asScala.toMap
-    val userSysMap = javaConf("user-sys").asInstanceOf[JMap[String, Any]].asScala.toMap
-
     javaConf
       .updated("storage", storageMap.updated("mongodb", mongodbMap).updated("jdbc", jdbcMap))
-      .updated("user-sys", userSysMap)
   }
 
   val resultStorageMode: String =
