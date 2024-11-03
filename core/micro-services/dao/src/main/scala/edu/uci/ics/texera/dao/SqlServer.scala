@@ -48,4 +48,22 @@ object SqlServer {
         }
     }
   }
+
+  /**
+    * A utility function for create a transaction block using given sql context
+    * @param dsl the sql context
+    * @param block the code block to execute within the transaction
+    * @tparam T the value will be returned by the code block
+    * @return
+    */
+  def withTransaction[T](dsl: DSLContext)(block: DSLContext => T): T = {
+    var result: Option[T] = None
+
+    dsl.transaction(configuration => {
+      val ctx = DSL.using(configuration)
+      result = Some(block(ctx))
+    })
+
+    result.getOrElse(throw new RuntimeException("Transaction failed without result!"))
+  }
 }
