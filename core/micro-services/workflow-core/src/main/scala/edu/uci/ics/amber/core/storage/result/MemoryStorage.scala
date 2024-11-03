@@ -1,11 +1,11 @@
-package edu.uci.ics.amber.storage.result
+package edu.uci.ics.amber.core.storage.result
 
+import edu.uci.ics.amber.core.storage.result.{SinkStorageReader, SinkStorageWriter}
 import edu.uci.ics.amber.core.tuple.{Schema, Tuple}
-import edu.uci.ics.amber.storage.result.MemoryStorage.storageMapping
+import edu.uci.ics.amber.core.storage.result.MemoryStorage.storageMapping
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
-
 object MemoryStorage {
   val storageMapping: mutable.Map[String, ArrayBuffer[Tuple]] =
     mutable.HashMap[String, ArrayBuffer[Tuple]]()

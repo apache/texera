@@ -1,11 +1,11 @@
-package edu.uci.ics.amber.storage.result
+package edu.uci.ics.amber.core.storage.result
 
 import com.mongodb.client.MongoCursor
 import com.mongodb.client.model.Sorts
-import edu.uci.ics.amber.StorageConfig
+import edu.uci.ics.amber.core.storage.StorageConfig
+import edu.uci.ics.amber.core.storage.util.mongo.{MongoCollectionManager, MongoDatabaseManager}
 import edu.uci.ics.amber.core.tuple.TupleUtils.document2Tuple
 import edu.uci.ics.amber.core.tuple.{Schema, Tuple}
-import edu.uci.ics.amber.util.storage.mongo.{MongoCollectionManager, MongoDatabaseManager}
 import org.bson.Document
 
 import scala.collection.mutable

@@ -1,4 +1,4 @@
-package edu.uci.ics.amber.storage.result
+package edu.uci.ics.amber.core.storage.result
 
 import edu.uci.ics.amber.core.tuple.Tuple
 

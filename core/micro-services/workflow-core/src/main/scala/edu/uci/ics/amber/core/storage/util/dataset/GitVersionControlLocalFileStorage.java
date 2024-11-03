@@ -1,4 +1,4 @@
-package edu.uci.ics.amber.util.storage.dataset;
+package edu.uci.ics.amber.core.storage.util.dataset;
 
 import org.eclipse.jgit.api.errors.GitAPIException;
 

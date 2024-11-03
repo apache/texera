@@ -1,8 +1,8 @@
-package edu.uci.ics.texera.workflow.common.storage
+package edu.uci.ics.amber.core.storage.result
 
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.StorageConfig
-import edu.uci.ics.amber.storage.result.{MemoryStorage, MongoDBSinkStorage, SinkStorageReader}
+import edu.uci.ics.amber.core.storage.StorageConfig
+import edu.uci.ics.amber.core.storage.result.{MemoryStorage, MongoDBSinkStorage}
 import edu.uci.ics.amber.virtualidentity.OperatorIdentity
 
 import java.util.concurrent.ConcurrentHashMap

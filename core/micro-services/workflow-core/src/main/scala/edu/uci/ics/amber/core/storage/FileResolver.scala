@@ -1,6 +1,5 @@
-package edu.uci.ics.amber.storage
+package edu.uci.ics.amber.core.storage
 
-import edu.uci.ics.amber.StorageConfig
 import edu.uci.ics.amber.util.ResourceUtils.withTransaction
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.jooq.generated.tables.Dataset.DATASET

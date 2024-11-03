@@ -1,6 +1,7 @@
-package edu.uci.ics.amber
+package edu.uci.ics.amber.core.storage
 
 import org.yaml.snakeyaml.Yaml
+
 import java.util.{Map => JMap}
 import scala.jdk.CollectionConverters._
 

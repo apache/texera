@@ -1,7 +1,7 @@
-package edu.uci.ics.amber.util.storage.mongo
+package edu.uci.ics.amber.core.storage.util.mongo
 
 import com.mongodb.client.{MongoClient, MongoClients, MongoCollection, MongoDatabase}
-import edu.uci.ics.amber.StorageConfig
+import edu.uci.ics.amber.core.storage.StorageConfig
 import org.bson.Document
 
 import java.util

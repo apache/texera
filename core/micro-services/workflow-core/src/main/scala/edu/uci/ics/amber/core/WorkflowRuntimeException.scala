@@ -1,4 +1,4 @@
-package edu.uci.ics.amber.exception
+package edu.uci.ics.amber.core
 
 import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
 

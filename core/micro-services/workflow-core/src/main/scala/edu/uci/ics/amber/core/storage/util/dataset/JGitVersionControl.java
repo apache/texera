@@ -1,5 +1,4 @@
-// register a new custom module and add the custom serializer into it
-package edu.uci.ics.amber.util.storage.dataset;
+package edu.uci.ics.amber.core.storage.util.dataset;
 
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.ResetCommand;

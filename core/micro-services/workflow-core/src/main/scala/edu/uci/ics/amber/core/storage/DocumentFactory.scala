@@ -1,7 +1,7 @@
-package edu.uci.ics.amber.engine.common.storage
+package edu.uci.ics.amber.core.storage
 
-import edu.uci.ics.amber.storage.FileResolver.DATASET_FILE_URI_SCHEME
-import edu.uci.ics.amber.storage.model.{DatasetFileDocument, ReadonlyLocalFileDocument, ReadonlyVirtualDocument}
+import edu.uci.ics.amber.core.storage.model.{DatasetFileDocument, ReadonlyLocalFileDocument, ReadonlyVirtualDocument}
+import FileResolver.DATASET_FILE_URI_SCHEME
 
 import java.net.URI
 
