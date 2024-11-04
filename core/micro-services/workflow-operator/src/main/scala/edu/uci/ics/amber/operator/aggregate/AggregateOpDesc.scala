@@ -11,7 +11,7 @@ import edu.uci.ics.amber.core.workflow.{
   SchemaPropagationFunc
 }
 import edu.uci.ics.amber.operator.LogicalOp
-import edu.uci.ics.amber.operator.common.annotations.AutofillAttributeNameList
+import edu.uci.ics.amber.operator.common.metadata.annotations.AutofillAttributeNameList
 import edu.uci.ics.amber.operator.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, PhysicalOpIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}

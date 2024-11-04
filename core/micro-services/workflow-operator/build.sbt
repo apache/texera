@@ -56,7 +56,7 @@ libraryDependencies ++= Seq(
   "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion,           // Scala Module
 )
 
-// Lucene related
+// Lucene related, used by the keyword-search operators
 val luceneVersion = "8.7.0"
 libraryDependencies ++= Seq(
   "org.apache.lucene" % "lucene-core" % luceneVersion,
@@ -88,8 +88,6 @@ libraryDependencies ++= Seq(
 /////////////////////////////////////////////////////////////////////////////
 
 libraryDependencies ++= Seq(
-  "org.jgrapht" % "jgrapht-core" % "1.4.0",                      // JGraphT Core
-  "org.eclipse.jgit" % "org.eclipse.jgit" % "5.13.0.202109080827-r", // JGit
   "com.thesamet.scalapb" %% "scalapb-json4s" % "0.12.0",
   "com.github.tototoshi" %% "scala-csv" % "1.3.10",       // csv parser
   "com.konghq" % "unirest-java" % "3.14.2",

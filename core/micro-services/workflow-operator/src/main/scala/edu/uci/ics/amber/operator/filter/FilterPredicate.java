@@ -7,8 +7,8 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaString;
 import edu.uci.ics.amber.core.tuple.AttributeType;
 import edu.uci.ics.amber.core.tuple.AttributeTypeUtils;
 import edu.uci.ics.amber.core.tuple.Tuple;
-import edu.uci.ics.amber.operator.common.annotations.AutofillAttributeName;
-import edu.uci.ics.amber.operator.common.annotations.HideAnnotation;
+import edu.uci.ics.amber.operator.common.metadata.annotations.AutofillAttributeName;
+import edu.uci.ics.amber.operator.common.metadata.annotations.HideAnnotation;
 
 
 import java.sql.Timestamp;

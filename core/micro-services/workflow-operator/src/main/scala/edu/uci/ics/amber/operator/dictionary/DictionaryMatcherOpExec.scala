@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.operator.dictionary
 
 import edu.uci.ics.amber.core.tuple.{Tuple, TupleLike}
-import edu.uci.ics.amber.operator.common.Utils
+import edu.uci.ics.amber.operator.dictionary.DictionaryMatcherOpExec.URL_STOP_WORDS_SET
 import edu.uci.ics.amber.operator.map.MapOpExec
 import org.apache.lucene.analysis.Analyzer
 import org.apache.lucene.analysis.en.EnglishAnalyzer
@@ -10,6 +10,22 @@ import org.apache.lucene.analysis.tokenattributes.CharTermAttribute
 import java.io.StringReader
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
+
+object DictionaryMatcherOpExec {
+  /** An unmodifiable set containing some common URL words that are not usually useful
+    * for searching.
+    */
+  final val URL_STOP_WORDS_SET = List[String](
+    "http",
+    "https",
+    "org",
+    "net",
+    "com",
+    "store",
+    "www",
+    "html"
+  )
+}
 
 class DictionaryMatcherOpExec(
     attributeName: String,
@@ -98,7 +114,7 @@ class DictionaryMatcherOpExec(
       while (tokenStream.incrementToken()) {
         val term = charTermAttribute.toString.toLowerCase
         if (
-          !EnglishAnalyzer.ENGLISH_STOP_WORDS_SET.contains(term) && !Utils.URL_STOP_WORDS_SET
+          !EnglishAnalyzer.ENGLISH_STOP_WORDS_SET.contains(term) && !URL_STOP_WORDS_SET
             .contains(term)
         ) {
           tokens += term

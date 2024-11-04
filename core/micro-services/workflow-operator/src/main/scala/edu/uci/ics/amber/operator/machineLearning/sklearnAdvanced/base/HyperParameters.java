@@ -7,8 +7,8 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaString;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInt;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
-import edu.uci.ics.amber.operator.common.annotations.HideAnnotation;
-import edu.uci.ics.amber.operator.common.annotations.CommonOpDescAnnotation;
+import edu.uci.ics.amber.operator.common.metadata.annotations.HideAnnotation;
+import edu.uci.ics.amber.operator.common.metadata.annotations.CommonOpDescAnnotation;
 
 
 public class HyperParameters<T>{

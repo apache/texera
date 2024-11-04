@@ -1,4 +1,4 @@
-package edu.uci.ics.amber.operator.common.annotations;
+package edu.uci.ics.amber.operator.common.metadata.annotations;
 
 /* For every hide annotation, you specify on a formly field three things:
     the target (field name of dependent comparison),

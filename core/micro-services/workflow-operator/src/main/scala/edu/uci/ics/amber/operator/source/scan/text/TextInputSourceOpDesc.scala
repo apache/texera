@@ -5,7 +5,7 @@ import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchema
 import edu.uci.ics.amber.core.executor.OpExecInitInfo
 import edu.uci.ics.amber.core.tuple.{Attribute, Schema}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
-import edu.uci.ics.amber.operator.common.annotations.UIWidget
+import edu.uci.ics.amber.operator.common.metadata.annotations.UIWidget
 import edu.uci.ics.amber.operator.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.source.SourceOperatorDescriptor
 import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}

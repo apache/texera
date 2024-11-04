@@ -8,7 +8,7 @@ import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.workflow.OutputPort
 import PostgreSQLConnUtil.connect
 import edu.uci.ics.amber.core.executor.OpExecInitInfo
-import edu.uci.ics.amber.operator.common.annotations.UIWidget
+import edu.uci.ics.amber.operator.common.metadata.annotations.UIWidget
 import edu.uci.ics.amber.operator.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.source.sql.SQLSourceOpDesc
 

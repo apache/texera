@@ -3,7 +3,7 @@ package edu.uci.ics.amber.operator.projection;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
-import edu.uci.ics.amber.operator.common.annotations.AutofillAttributeName;
+import edu.uci.ics.amber.operator.common.metadata.annotations.AutofillAttributeName;
 import org.jooq.tools.StringUtils;
 import java.util.Objects;
 

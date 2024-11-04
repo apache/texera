@@ -1,4 +1,4 @@
-package edu.uci.ics.amber.operator.common.scanner;
+package edu.uci.ics.amber.operator.source.scan.csv;
 
 import com.google.common.primitives.Ints;
 

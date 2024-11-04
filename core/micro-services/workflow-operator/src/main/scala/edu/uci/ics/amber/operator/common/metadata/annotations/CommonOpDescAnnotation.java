@@ -1,4 +1,4 @@
-package edu.uci.ics.amber.operator.common.annotations;
+package edu.uci.ics.amber.operator.common.metadata.annotations;
 
 public class CommonOpDescAnnotation {
     // JSON schema key

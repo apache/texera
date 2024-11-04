@@ -1,4 +1,4 @@
-package edu.uci.ics.amber.operator.common.annotations;
+package edu.uci.ics.amber.operator.common.metadata.annotations;
 
 import com.fasterxml.jackson.annotation.JacksonAnnotationsInside;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject;
@@ -14,8 +14,7 @@ import java.lang.annotation.Target;
 @Target({ElementType.FIELD})
 @JacksonAnnotationsInside
 @JsonSchemaInject(
-        strings = @JsonSchemaString(path = CommonOpDescAnnotation.autofill, value = CommonOpDescAnnotation.attributeName),
+        strings = @JsonSchemaString(path = CommonOpDescAnnotation.autofill, value = CommonOpDescAnnotation.attributeNameList),
         ints = @JsonSchemaInt(path = CommonOpDescAnnotation.autofillAttributeOnPort, value = 0))
-public @interface AutofillAttributeName {
-
+public @interface AutofillAttributeNameList {
 }
