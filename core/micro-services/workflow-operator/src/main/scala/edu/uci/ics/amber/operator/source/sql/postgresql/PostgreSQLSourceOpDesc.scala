@@ -10,7 +10,7 @@ import PostgreSQLConnUtil.connect
 import edu.uci.ics.amber.core.executor.OpExecInitInfo
 import edu.uci.ics.amber.operator.metadata.OperatorInfo
 import edu.uci.ics.amber.operator.metadata.OperatorGroupConstants
-import edu.uci.ics.amber.operator.metadata.annotations.UIWidget
+import edu.uci.ics.amber.operator.metadata.annotation.UIWidget
 import edu.uci.ics.amber.operator.source.sql.SQLSourceOpDesc
 
 import java.sql.{Connection, SQLException}

@@ -9,7 +9,7 @@ import edu.uci.ics.amber.core.workflow.{HashPartition, PhysicalOp, SchemaPropaga
 import edu.uci.ics.amber.operator.LogicalOp
 import edu.uci.ics.amber.operator.metadata.OperatorInfo
 import edu.uci.ics.amber.operator.metadata.OperatorGroupConstants
-import edu.uci.ics.amber.operator.metadata.annotations.{AutofillAttributeName, AutofillAttributeNameOnPort1}
+import edu.uci.ics.amber.operator.metadata.annotation.{AutofillAttributeName, AutofillAttributeNameOnPort1}
 import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort, PortIdentity}
 

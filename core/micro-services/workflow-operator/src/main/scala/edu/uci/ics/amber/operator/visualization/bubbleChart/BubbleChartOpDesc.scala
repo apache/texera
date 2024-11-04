@@ -7,7 +7,7 @@ import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
 import edu.uci.ics.amber.operator.metadata.OperatorInfo
 import edu.uci.ics.amber.operator.metadata.OperatorGroupConstants
-import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
+import edu.uci.ics.amber.operator.metadata.annotation.AutofillAttributeName
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
 import edu.uci.ics.amber.operator.visualization.{VisualizationConstants, VisualizationOperator}
 

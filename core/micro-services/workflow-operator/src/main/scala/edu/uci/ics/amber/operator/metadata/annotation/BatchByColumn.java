@@ -1,8 +1,8 @@
-package edu.uci.ics.amber.operator.metadata.annotations;
+package edu.uci.ics.amber.operator.metadata.annotation;
 
 import com.fasterxml.jackson.annotation.JacksonAnnotationsInside;
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaBool;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject;
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaString;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -12,9 +12,7 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.FIELD})
 @JacksonAnnotationsInside
-@JsonSchemaInject(
-        bools = @JsonSchemaBool(path = "enable-presets", value = true))
-public @interface EnablePresets {
-    String path = "enable-presets";
-    boolean value = true;
+@JsonSchemaInject(strings = @JsonSchemaString(path = "dependOn", value = "batchByColumn"))
+public @interface BatchByColumn {
+
 }

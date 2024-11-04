@@ -6,8 +6,8 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaString;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 import edu.uci.ics.amber.core.tuple.AttributeType;
-import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeNameLambda;
-import edu.uci.ics.amber.operator.metadata.annotations.HideAnnotation;
+import edu.uci.ics.amber.operator.metadata.annotation.AutofillAttributeNameLambda;
+import edu.uci.ics.amber.operator.metadata.annotation.HideAnnotation;
 
 import java.util.Objects;
 
