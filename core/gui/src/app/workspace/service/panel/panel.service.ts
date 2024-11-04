@@ -2,6 +2,7 @@ import { Injectable } from "@angular/core";
 import { BehaviorSubject } from "rxjs";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service"; // Import WorkflowActionService
 import mapping from "../../../../assets/migration_tool/mapping";
+import { LogicalPort, OperatorLink } from "../../types/workflow-common.interface";
 
 @Injectable({
   providedIn: "root",
@@ -71,16 +72,32 @@ export class PanelService {
 
       // Find corresponding Texera components using mapping
       // @ts-ignore
-      const components = mapping.cell_to_operator[cellUUID] || [];
+      const components = mapping.cell_to_operator[cellUUID] || []; // list of component uuid
+
+      // highlight edges, use DFS algo
+      const allLinks: OperatorLink[] = this.workflowActionService.getTexeraGraph().getAllLinks();
+      // only highlight edges that lead from one operator to another operator from components
+      const linksToBeHighlighted: string[] = allLinks
+        .filter(link => {
+          // Check if the source and target components are in the list of components
+          const sourceComponentUUID = link.source.operatorID;
+          const targetComponentUUID = link.target.operatorID;
+
+          // Check if the link goes from one component in the list to another
+          return components.includes(sourceComponentUUID) && components.includes(targetComponentUUID);
+        })
+        .map(link => link.linkID);
 
       // Unhighlight all current operators
       this.workflowActionService.unhighlightOperators(
         ...this.workflowActionService.getTexeraGraph().getAllOperators().map(op => op.operatorID)
       );
+      this.workflowActionService.unhighlightLinks(...this.workflowActionService.getTexeraGraph().getAllLinks().map(op => op.linkID));
 
       // Highlight corresponding components
       if (components.length > 0) {
-        this.workflowActionService.highlightOperators(false, ...components);
+        this.workflowActionService.highlightOperators(true, ...components);
+        this.workflowActionService.highlightLinks(true, ...linksToBeHighlighted);
       }
     }
   };
