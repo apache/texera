@@ -1,0 +1,10 @@
+storage:
+  result-storage-mode: mongodb
+  mongodb:
+    url: "mongodb://localhost:27017"
+    database: "texera_storage"
+    commit-batch-size: 1000
+  jdbc:
+    url: "jdbc:mysql://localhost:3306/texera_db?serverTimezone=UTC"
+    username: ""
+    password: ""
