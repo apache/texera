@@ -1,0 +1,3 @@
+workflow:
+  operator:
+    num-worker-per-operator: 2
