@@ -7,7 +7,7 @@ import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.operator.aggregate.AggregateOpDesc
 import edu.uci.ics.amber.operator.cartesianProduct.CartesianProductOpDesc
-import edu.uci.ics.amber.operator.common.metadata.{OPVersion, OperatorInfo, PropertyNameConstants}
+import edu.uci.ics.amber.operator.metadata.OperatorInfo
 import edu.uci.ics.amber.operator.dictionary.DictionaryMatcherOpDesc
 import edu.uci.ics.amber.operator.difference.DifferenceOpDesc
 import edu.uci.ics.amber.operator.distinct.DistinctOpDesc
@@ -32,6 +32,7 @@ import edu.uci.ics.amber.operator.machineLearning.sklearnAdvanced.KNNTrainer.{
 }
 import edu.uci.ics.amber.operator.machineLearning.sklearnAdvanced.SVCTrainer.SklearnAdvancedSVCTrainerOpDesc
 import edu.uci.ics.amber.operator.machineLearning.sklearnAdvanced.SVRTrainer.SklearnAdvancedSVRTrainerOpDesc
+import edu.uci.ics.amber.operator.metadata.{OPVersion, PropertyNameConstants}
 import edu.uci.ics.amber.operator.projection.ProjectionOpDesc
 import edu.uci.ics.amber.operator.randomksampling.RandomKSamplingOpDesc
 import edu.uci.ics.amber.operator.regex.RegexOpDesc

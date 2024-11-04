@@ -4,7 +4,8 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonPropertyDescription
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
-import edu.uci.ics.amber.operator.common.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.amber.operator.metadata.OperatorInfo
+import edu.uci.ics.amber.operator.metadata.OperatorGroupConstants
 import edu.uci.ics.amber.operator.source.PythonSourceOperatorDescriptor
 import edu.uci.ics.amber.workflow.OutputPort
 

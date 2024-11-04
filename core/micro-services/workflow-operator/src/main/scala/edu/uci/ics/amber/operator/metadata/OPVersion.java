@@ -1,4 +1,4 @@
-package edu.uci.ics.amber.operator.common.metadata;
+package edu.uci.ics.amber.operator.metadata;
 
 import edu.uci.ics.amber.util.PathUtils;
 import org.eclipse.jgit.api.Git;

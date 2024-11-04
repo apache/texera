@@ -9,14 +9,14 @@ import edu.uci.ics.amber.core.tuple.AttributeTypeUtils;
 import edu.uci.ics.amber.core.tuple.Schema;
 import edu.uci.ics.amber.core.workflow.PhysicalOp;
 import edu.uci.ics.amber.core.workflow.SchemaPropagationFunc;
-import edu.uci.ics.amber.operator.common.metadata.OperatorGroupConstants;
+import edu.uci.ics.amber.operator.metadata.OperatorGroupConstants;
 import edu.uci.ics.amber.operator.util.OperatorDescriptorUtils;
 import edu.uci.ics.amber.virtualidentity.ExecutionIdentity;
 import edu.uci.ics.amber.virtualidentity.WorkflowIdentity;
 import edu.uci.ics.amber.workflow.InputPort;
 import edu.uci.ics.amber.workflow.OutputPort;
 import edu.uci.ics.amber.workflow.PortIdentity;
-import edu.uci.ics.amber.operator.common.metadata.OperatorInfo;
+import edu.uci.ics.amber.operator.metadata.OperatorInfo;
 
 import edu.uci.ics.amber.operator.map.MapOpDesc;
 import scala.Tuple2;

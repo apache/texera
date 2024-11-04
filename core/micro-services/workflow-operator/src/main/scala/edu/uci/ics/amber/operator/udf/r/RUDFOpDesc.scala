@@ -12,7 +12,8 @@ import edu.uci.ics.amber.core.workflow.{
   UnknownPartition
 }
 import edu.uci.ics.amber.operator.{LogicalOp, PortDescription, StateTransferFunc}
-import edu.uci.ics.amber.operator.common.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.amber.operator.metadata.OperatorInfo
+import edu.uci.ics.amber.operator.metadata.OperatorGroupConstants
 import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort, PortIdentity}
 

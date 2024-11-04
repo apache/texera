@@ -1,4 +1,4 @@
-package edu.uci.ics.amber.operator.common.metadata
+package edu.uci.ics.amber.operator.metadata
 
 object OperatorGroupConstants {
   final val INPUT_GROUP = "Data Input"

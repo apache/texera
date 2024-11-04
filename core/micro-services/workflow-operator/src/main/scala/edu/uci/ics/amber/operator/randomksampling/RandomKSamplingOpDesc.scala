@@ -4,8 +4,9 @@ import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyD
 import edu.uci.ics.amber.core.executor.OpExecInitInfo
 import edu.uci.ics.amber.core.workflow.PhysicalOp
 import edu.uci.ics.amber.operator.WorkflowOperatorConfig
-import edu.uci.ics.amber.operator.common.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.amber.operator.metadata.OperatorInfo
 import edu.uci.ics.amber.operator.filter.FilterOpDesc
+import edu.uci.ics.amber.operator.metadata.OperatorGroupConstants
 import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
 

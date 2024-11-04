@@ -1,4 +1,4 @@
-package edu.uci.ics.amber.operator.common.metadata.annotations;
+package edu.uci.ics.amber.operator.metadata.annotations;
 
 public class UIWidget {
 

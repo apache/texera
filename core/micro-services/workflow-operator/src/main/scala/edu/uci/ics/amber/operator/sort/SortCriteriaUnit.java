@@ -2,7 +2,7 @@ package edu.uci.ics.amber.operator.sort;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
-import edu.uci.ics.amber.operator.common.metadata.annotations.AutofillAttributeName;
+import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName;
 
 public class SortCriteriaUnit {
 

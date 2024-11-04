@@ -4,8 +4,9 @@ import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyD
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
-import edu.uci.ics.amber.operator.common.metadata.annotations.{AutofillAttributeName, AutofillAttributeNameList}
-import edu.uci.ics.amber.operator.common.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.amber.operator.metadata.OperatorInfo
+import edu.uci.ics.amber.operator.metadata.OperatorGroupConstants
+import edu.uci.ics.amber.operator.metadata.annotations.{AutofillAttributeName, AutofillAttributeNameList}
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort, PortIdentity}
 
 trait ParamClass {

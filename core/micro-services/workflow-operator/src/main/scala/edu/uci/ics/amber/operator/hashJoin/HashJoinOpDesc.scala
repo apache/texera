@@ -15,8 +15,9 @@ import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, PhysicalOpIdentity,
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
 import HashJoinOpDesc.HASH_JOIN_INTERNAL_KEY_NAME
 import edu.uci.ics.amber.operator.LogicalOp
-import edu.uci.ics.amber.operator.common.metadata.annotations.{AutofillAttributeName, AutofillAttributeNameOnPort1}
-import edu.uci.ics.amber.operator.common.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.amber.operator.metadata.OperatorInfo
+import edu.uci.ics.amber.operator.metadata.OperatorGroupConstants
+import edu.uci.ics.amber.operator.metadata.annotations.{AutofillAttributeName, AutofillAttributeNameOnPort1}
 
 object HashJoinOpDesc {
   val HASH_JOIN_INTERNAL_KEY_NAME = "__internal__hashtable__key__"

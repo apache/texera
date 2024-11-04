@@ -1,4 +1,4 @@
-package edu.uci.ics.amber.operator.common.metadata
+package edu.uci.ics.amber.operator.metadata
 
 /**
   * PropertyNameConstants defines the key names

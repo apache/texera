@@ -1,4 +1,4 @@
-package edu.uci.ics.amber.operator.common.metadata
+package edu.uci.ics.amber.operator.metadata
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.introspect.AnnotatedClassResolver
@@ -6,8 +6,9 @@ import com.fasterxml.jackson.databind.jsontype.NamedType
 import com.fasterxml.jackson.databind.node.{ArrayNode, ObjectNode}
 import com.kjetland.jackson.jsonSchema.JsonSchemaConfig.html5EnabledSchema
 import com.kjetland.jackson.jsonSchema.{JsonSchemaConfig, JsonSchemaDraft, JsonSchemaGenerator}
-import edu.uci.ics.amber.operator.common.metadata
+import edu.uci.ics.amber.operator.metadata
 import edu.uci.ics.amber.operator.LogicalOp
+import edu.uci.ics.amber.operator.metadata.OperatorGroupConstants
 import edu.uci.ics.amber.operator.source.scan.csv.CSVScanSourceOpDesc
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort}

@@ -1,4 +1,4 @@
-package edu.uci.ics.amber.operator.common.metadata.annotations;
+package edu.uci.ics.amber.operator.metadata.annotations;
 
 import com.fasterxml.jackson.annotation.JacksonAnnotationsInside;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaBool;
