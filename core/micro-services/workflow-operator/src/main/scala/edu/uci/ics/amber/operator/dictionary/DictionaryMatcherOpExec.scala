@@ -12,6 +12,7 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
 object DictionaryMatcherOpExec {
+
   /** An unmodifiable set containing some common URL words that are not usually useful
     * for searching.
     */

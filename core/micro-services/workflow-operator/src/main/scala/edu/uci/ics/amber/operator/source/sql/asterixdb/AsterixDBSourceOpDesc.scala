@@ -16,7 +16,11 @@ import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.workflow.OutputPort
 import AsterixDBConnUtil.{fetchDataTypeFields, queryAsterixDB}
 import edu.uci.ics.amber.operator.metadata.OperatorGroupConstants
-import edu.uci.ics.amber.operator.metadata.annotation.{AutofillAttributeName, AutofillAttributeNameList, UIWidget}
+import edu.uci.ics.amber.operator.metadata.annotation.{
+  AutofillAttributeName,
+  AutofillAttributeNameList,
+  UIWidget
+}
 import edu.uci.ics.amber.operator.source.sql.SQLSourceOpDesc
 import kong.unirest.json.JSONObject
 

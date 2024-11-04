@@ -17,7 +17,10 @@ import HashJoinOpDesc.HASH_JOIN_INTERNAL_KEY_NAME
 import edu.uci.ics.amber.operator.LogicalOp
 import edu.uci.ics.amber.operator.metadata.OperatorInfo
 import edu.uci.ics.amber.operator.metadata.OperatorGroupConstants
-import edu.uci.ics.amber.operator.metadata.annotation.{AutofillAttributeName, AutofillAttributeNameOnPort1}
+import edu.uci.ics.amber.operator.metadata.annotation.{
+  AutofillAttributeName,
+  AutofillAttributeNameOnPort1
+}
 
 object HashJoinOpDesc {
   val HASH_JOIN_INTERNAL_KEY_NAME = "__internal__hashtable__key__"

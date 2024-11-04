@@ -11,7 +11,11 @@ import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
 import edu.uci.ics.amber.operator.metadata.OperatorInfo
 import edu.uci.ics.amber.operator.metadata.OperatorGroupConstants
-import edu.uci.ics.amber.operator.metadata.annotation.{AutofillAttributeName, CommonOpDescAnnotation, HideAnnotation}
+import edu.uci.ics.amber.operator.metadata.annotation.{
+  AutofillAttributeName,
+  CommonOpDescAnnotation,
+  HideAnnotation
+}
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort, PortIdentity}
 
 abstract class SklearnMLOpDesc extends PythonOperatorDescriptor {
