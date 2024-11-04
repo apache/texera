@@ -1,7 +1,11 @@
 package edu.uci.ics.amber.operator.source.apis.twitter.v2
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty}
-import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaDescription, JsonSchemaInject, JsonSchemaTitle}
+import com.kjetland.jackson.jsonSchema.annotations.{
+  JsonSchemaDescription,
+  JsonSchemaInject,
+  JsonSchemaTitle
+}
 import edu.uci.ics.amber.core.executor.OpExecInitInfo
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}

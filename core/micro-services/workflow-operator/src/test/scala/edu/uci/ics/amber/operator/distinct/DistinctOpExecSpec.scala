@@ -1,12 +1,6 @@
 package edu.uci.ics.amber.operator.distinct
 
-import edu.uci.ics.amber.core.tuple.{
-  Attribute,
-  AttributeType,
-  Schema,
-  Tuple,
-  TupleLike
-}
+import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple, TupleLike}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 class DistinctOpExecSpec extends AnyFlatSpec with BeforeAndAfter {

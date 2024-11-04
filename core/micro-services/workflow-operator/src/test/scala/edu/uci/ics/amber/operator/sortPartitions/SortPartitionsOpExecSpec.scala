@@ -1,12 +1,6 @@
 package edu.uci.ics.amber.operator.sortPartitions
 
-import edu.uci.ics.amber.core.tuple.{
-  Attribute,
-  AttributeType,
-  Schema,
-  SchemaEnforceable,
-  Tuple
-}
+import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema, SchemaEnforceable, Tuple}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 

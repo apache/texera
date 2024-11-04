@@ -1,7 +1,12 @@
 package edu.uci.ics.amber.operator.source.scan.text
 
 import edu.uci.ics.amber.core.tuple.{AttributeType, Schema, SchemaEnforceable, Tuple}
-import edu.uci.ics.amber.operator.source.scan.{FileAttributeType, FileDecodingMethod, FileScanSourceOpDesc, FileScanSourceOpExec}
+import edu.uci.ics.amber.operator.source.scan.{
+  FileAttributeType,
+  FileDecodingMethod,
+  FileScanSourceOpDesc,
+  FileScanSourceOpExec
+}
 import edu.uci.ics.amber.core.storage.FileResolver
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec

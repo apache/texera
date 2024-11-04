@@ -5,7 +5,16 @@ import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.core.executor.OpExecInitInfo
 import edu.uci.ics.amber.core.tuple.{Attribute, Schema}
-import edu.uci.ics.amber.core.workflow.{BroadcastPartition, HashPartition, PartitionInfo, PhysicalOp, RangePartition, SchemaPropagationFunc, SinglePartition, UnknownPartition}
+import edu.uci.ics.amber.core.workflow.{
+  BroadcastPartition,
+  HashPartition,
+  PartitionInfo,
+  PhysicalOp,
+  RangePartition,
+  SchemaPropagationFunc,
+  SinglePartition,
+  UnknownPartition
+}
 import edu.uci.ics.amber.core.workflow.PhysicalOp.oneToOnePhysicalOp
 import edu.uci.ics.amber.operator.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.map.MapOpDesc

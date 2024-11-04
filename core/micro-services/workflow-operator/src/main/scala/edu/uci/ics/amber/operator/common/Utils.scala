@@ -11,6 +11,7 @@ import java.text.SimpleDateFormat
 import scala.annotation.tailrec
 
 object Utils extends LazyLogging {
+
   /** An unmodifiable set containing some common URL words that are not usually useful
     * for searching.
     */

@@ -4,7 +4,12 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.core.executor.OpExecInitInfo
 import edu.uci.ics.amber.core.tuple.Schema
-import edu.uci.ics.amber.core.workflow.{HashPartition, PhysicalOp, PhysicalPlan, SchemaPropagationFunc}
+import edu.uci.ics.amber.core.workflow.{
+  HashPartition,
+  PhysicalOp,
+  PhysicalPlan,
+  SchemaPropagationFunc
+}
 import edu.uci.ics.amber.operator.LogicalOp
 import edu.uci.ics.amber.operator.common.annotations.AutofillAttributeNameList
 import edu.uci.ics.amber.operator.common.metadata.{OperatorGroupConstants, OperatorInfo}

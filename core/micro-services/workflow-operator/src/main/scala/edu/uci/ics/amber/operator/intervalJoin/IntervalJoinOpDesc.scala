@@ -7,7 +7,10 @@ import edu.uci.ics.amber.core.executor.OpExecInitInfo
 import edu.uci.ics.amber.core.tuple.{Attribute, Schema}
 import edu.uci.ics.amber.core.workflow.{HashPartition, PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.operator.LogicalOp
-import edu.uci.ics.amber.operator.common.annotations.{AutofillAttributeName, AutofillAttributeNameOnPort1}
+import edu.uci.ics.amber.operator.common.annotations.{
+  AutofillAttributeName,
+  AutofillAttributeNameOnPort1
+}
 import edu.uci.ics.amber.operator.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort, PortIdentity}

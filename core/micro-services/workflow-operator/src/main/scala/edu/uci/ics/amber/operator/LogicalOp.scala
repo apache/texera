@@ -15,13 +15,21 @@ import edu.uci.ics.amber.operator.download.BulkDownloaderOpDesc
 import edu.uci.ics.amber.operator.dummy.DummyOpDesc
 import edu.uci.ics.amber.operator.filter.SpecializedFilterOpDesc
 import edu.uci.ics.amber.operator.hashJoin.HashJoinOpDesc
-import edu.uci.ics.amber.operator.huggingFace.{HuggingFaceIrisLogisticRegressionOpDesc, HuggingFaceSentimentAnalysisOpDesc, HuggingFaceSpamSMSDetectionOpDesc, HuggingFaceTextSummarizationOpDesc}
+import edu.uci.ics.amber.operator.huggingFace.{
+  HuggingFaceIrisLogisticRegressionOpDesc,
+  HuggingFaceSentimentAnalysisOpDesc,
+  HuggingFaceSpamSMSDetectionOpDesc,
+  HuggingFaceTextSummarizationOpDesc
+}
 import edu.uci.ics.amber.operator.intersect.IntersectOpDesc
 import edu.uci.ics.amber.operator.intervalJoin.IntervalJoinOpDesc
 import edu.uci.ics.amber.operator.keywordSearch.KeywordSearchOpDesc
 import edu.uci.ics.amber.operator.limit.LimitOpDesc
 import edu.uci.ics.amber.operator.machineLearning.Scorer.MachineLearningScorerOpDesc
-import edu.uci.ics.amber.operator.machineLearning.sklearnAdvanced.KNNTrainer.{SklearnAdvancedKNNClassifierTrainerOpDesc, SklearnAdvancedKNNRegressorTrainerOpDesc}
+import edu.uci.ics.amber.operator.machineLearning.sklearnAdvanced.KNNTrainer.{
+  SklearnAdvancedKNNClassifierTrainerOpDesc,
+  SklearnAdvancedKNNRegressorTrainerOpDesc
+}
 import edu.uci.ics.amber.operator.machineLearning.sklearnAdvanced.SVCTrainer.SklearnAdvancedSVCTrainerOpDesc
 import edu.uci.ics.amber.operator.machineLearning.sklearnAdvanced.SVRTrainer.SklearnAdvancedSVRTrainerOpDesc
 import edu.uci.ics.amber.operator.projection.ProjectionOpDesc
@@ -30,7 +38,35 @@ import edu.uci.ics.amber.operator.regex.RegexOpDesc
 import edu.uci.ics.amber.operator.reservoirsampling.ReservoirSamplingOpDesc
 import edu.uci.ics.amber.operator.sentiment.SentimentAnalysisOpDesc
 import edu.uci.ics.amber.operator.sink.managed.ProgressiveSinkOpDesc
-import edu.uci.ics.amber.operator.sklearn.{SklearnAdaptiveBoostingOpDesc, SklearnBaggingOpDesc, SklearnBernoulliNaiveBayesOpDesc, SklearnComplementNaiveBayesOpDesc, SklearnDecisionTreeOpDesc, SklearnDummyClassifierOpDesc, SklearnExtraTreeOpDesc, SklearnExtraTreesOpDesc, SklearnGaussianNaiveBayesOpDesc, SklearnGradientBoostingOpDesc, SklearnKNNOpDesc, SklearnLinearRegressionOpDesc, SklearnLinearSVMOpDesc, SklearnLogisticRegressionCVOpDesc, SklearnLogisticRegressionOpDesc, SklearnMultiLayerPerceptronOpDesc, SklearnMultinomialNaiveBayesOpDesc, SklearnNearestCentroidOpDesc, SklearnPassiveAggressiveOpDesc, SklearnPerceptronOpDesc, SklearnPredictionOpDesc, SklearnProbabilityCalibrationOpDesc, SklearnRandomForestOpDesc, SklearnRidgeCVOpDesc, SklearnRidgeOpDesc, SklearnSDGOpDesc, SklearnSVMOpDesc}
+import edu.uci.ics.amber.operator.sklearn.{
+  SklearnAdaptiveBoostingOpDesc,
+  SklearnBaggingOpDesc,
+  SklearnBernoulliNaiveBayesOpDesc,
+  SklearnComplementNaiveBayesOpDesc,
+  SklearnDecisionTreeOpDesc,
+  SklearnDummyClassifierOpDesc,
+  SklearnExtraTreeOpDesc,
+  SklearnExtraTreesOpDesc,
+  SklearnGaussianNaiveBayesOpDesc,
+  SklearnGradientBoostingOpDesc,
+  SklearnKNNOpDesc,
+  SklearnLinearRegressionOpDesc,
+  SklearnLinearSVMOpDesc,
+  SklearnLogisticRegressionCVOpDesc,
+  SklearnLogisticRegressionOpDesc,
+  SklearnMultiLayerPerceptronOpDesc,
+  SklearnMultinomialNaiveBayesOpDesc,
+  SklearnNearestCentroidOpDesc,
+  SklearnPassiveAggressiveOpDesc,
+  SklearnPerceptronOpDesc,
+  SklearnPredictionOpDesc,
+  SklearnProbabilityCalibrationOpDesc,
+  SklearnRandomForestOpDesc,
+  SklearnRidgeCVOpDesc,
+  SklearnRidgeOpDesc,
+  SklearnSDGOpDesc,
+  SklearnSVMOpDesc
+}
 import edu.uci.ics.amber.operator.sort.SortOpDesc
 import edu.uci.ics.amber.operator.sortPartitions.SortPartitionsOpDesc
 import edu.uci.ics.amber.operator.source.apis.reddit.RedditSearchSourceOpDesc
@@ -47,7 +83,12 @@ import edu.uci.ics.amber.operator.split.SplitOpDesc
 import edu.uci.ics.amber.operator.symmetricDifference.SymmetricDifferenceOpDesc
 import edu.uci.ics.amber.operator.typecasting.TypeCastingOpDesc
 import edu.uci.ics.amber.operator.udf.java.JavaUDFOpDesc
-import edu.uci.ics.amber.operator.udf.python.{DualInputPortsPythonUDFOpDescV2, PythonLambdaFunctionOpDesc, PythonTableReducerOpDesc, PythonUDFOpDescV2}
+import edu.uci.ics.amber.operator.udf.python.{
+  DualInputPortsPythonUDFOpDescV2,
+  PythonLambdaFunctionOpDesc,
+  PythonTableReducerOpDesc,
+  PythonUDFOpDescV2
+}
 import edu.uci.ics.amber.operator.udf.python.source.PythonUDFSourceOpDescV2
 import edu.uci.ics.amber.operator.udf.r.{RUDFOpDesc, RUDFSourceOpDesc}
 import edu.uci.ics.amber.operator.union.UnionOpDesc

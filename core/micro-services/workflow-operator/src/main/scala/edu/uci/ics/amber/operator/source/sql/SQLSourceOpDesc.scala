@@ -4,7 +4,12 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
-import edu.uci.ics.amber.operator.common.annotations.{AutofillAttributeName, BatchByColumn, EnablePresets, UIWidget}
+import edu.uci.ics.amber.operator.common.annotations.{
+  AutofillAttributeName,
+  BatchByColumn,
+  EnablePresets,
+  UIWidget
+}
 import edu.uci.ics.amber.operator.source.SourceOperatorDescriptor
 
 import java.sql._

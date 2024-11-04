@@ -12,9 +12,12 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
   val parentDir = "workflow-operator"
   val CountrySalesSmallCsvPath = s"$parentDir/src/test/resources/country_sales_small.csv"
-  val CountrySalesHeaderlessSmallCsvPath = s"$parentDir/src/test/resources/country_sales_headerless_small.csv"
-  val CountrySalesSmallMultiLineCsvPath = s"$parentDir/src/test/resources/country_sales_small_multi_line.csv"
-  val CountrySalesSmallMultiLineCustomDelimiterCsvPath = s"$parentDir/src/test/resources/country_sales_headerless_small_multi_line_custom_delimiter.csv"
+  val CountrySalesHeaderlessSmallCsvPath =
+    s"$parentDir/src/test/resources/country_sales_headerless_small.csv"
+  val CountrySalesSmallMultiLineCsvPath =
+    s"$parentDir/src/test/resources/country_sales_small_multi_line.csv"
+  val CountrySalesSmallMultiLineCustomDelimiterCsvPath =
+    s"$parentDir/src/test/resources/country_sales_headerless_small_multi_line_custom_delimiter.csv"
 
   val workflowContext = new WorkflowContext()
   var csvScanSourceOpDesc: CSVScanSourceOpDesc = _
@@ -34,7 +37,9 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     parallelCsvScanSourceOpDesc.customDelimiter = Some(",")
     parallelCsvScanSourceOpDesc.hasHeader = true
     parallelCsvScanSourceOpDesc.setContext(workflowContext)
-    parallelCsvScanSourceOpDesc.setFileUri(FileResolver.resolve(parallelCsvScanSourceOpDesc.fileName.get))
+    parallelCsvScanSourceOpDesc.setFileUri(
+      FileResolver.resolve(parallelCsvScanSourceOpDesc.fileName.get)
+    )
     val inferredSchema: Schema = parallelCsvScanSourceOpDesc.inferSchema()
 
     assert(inferredSchema.getAttributes.length == 14)
@@ -45,12 +50,13 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
   it should "infer schema from headerless single-line-data csv" in {
 
-    parallelCsvScanSourceOpDesc.fileName =
-      Some(CountrySalesHeaderlessSmallCsvPath)
+    parallelCsvScanSourceOpDesc.fileName = Some(CountrySalesHeaderlessSmallCsvPath)
     parallelCsvScanSourceOpDesc.customDelimiter = Some(",")
     parallelCsvScanSourceOpDesc.hasHeader = false
     parallelCsvScanSourceOpDesc.setContext(workflowContext)
-    parallelCsvScanSourceOpDesc.setFileUri(FileResolver.resolve(parallelCsvScanSourceOpDesc.fileName.get))
+    parallelCsvScanSourceOpDesc.setFileUri(
+      FileResolver.resolve(parallelCsvScanSourceOpDesc.fileName.get)
+    )
 
     val inferredSchema: Schema = parallelCsvScanSourceOpDesc.inferSchema()
 
@@ -91,8 +97,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
   it should "infer schema from headerless multi-line-data csv with custom delimiter" in {
 
-    csvScanSourceOpDesc.fileName =
-      Some(CountrySalesSmallMultiLineCustomDelimiterCsvPath)
+    csvScanSourceOpDesc.fileName = Some(CountrySalesSmallMultiLineCustomDelimiterCsvPath)
     csvScanSourceOpDesc.customDelimiter = Some(";")
     csvScanSourceOpDesc.hasHeader = false
     csvScanSourceOpDesc.setContext(workflowContext)
@@ -107,8 +112,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
   it should "create one worker with multi-line-data csv" in {
 
-    csvScanSourceOpDesc.fileName =
-      Some(CountrySalesSmallMultiLineCustomDelimiterCsvPath)
+    csvScanSourceOpDesc.fileName = Some(CountrySalesSmallMultiLineCustomDelimiterCsvPath)
     csvScanSourceOpDesc.customDelimiter = Some(";")
     csvScanSourceOpDesc.hasHeader = false
     csvScanSourceOpDesc.setContext(workflowContext)

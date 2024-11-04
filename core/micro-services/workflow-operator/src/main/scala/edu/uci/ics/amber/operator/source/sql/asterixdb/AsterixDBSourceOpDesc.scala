@@ -1,12 +1,20 @@
 package edu.uci.ics.amber.operator.source.sql.asterixdb
 
-import com.fasterxml.jackson.annotation.{JsonIgnoreProperties, JsonProperty, JsonPropertyDescription}
+import com.fasterxml.jackson.annotation.{
+  JsonIgnoreProperties,
+  JsonProperty,
+  JsonPropertyDescription
+}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.amber.core.executor.OpExecInitInfo
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
-import edu.uci.ics.amber.operator.common.annotations.{AutofillAttributeName, AutofillAttributeNameList, UIWidget}
+import edu.uci.ics.amber.operator.common.annotations.{
+  AutofillAttributeName,
+  AutofillAttributeNameList,
+  UIWidget
+}
 import edu.uci.ics.amber.operator.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.filter.FilterPredicate
 import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
