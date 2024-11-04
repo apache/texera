@@ -1,5 +1,5 @@
 lazy val DAO = project in file("dao")
-lazy val WorkflowCore = project in file("workflow-core")
+lazy val WorkflowCore = (project in file("workflow-core")).dependsOn(DAO)
 
 // root project definition
 lazy val MicroServices = (project in file("."))
