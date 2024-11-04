@@ -3,7 +3,7 @@ package edu.uci.ics.amber.operator.source.scan.csv
 import com.univocity.parsers.csv.{CsvFormat, CsvParser, CsvParserSettings}
 import edu.uci.ics.amber.core.executor.SourceOperatorExecutor
 import edu.uci.ics.amber.core.tuple.{AttributeTypeUtils, Schema, TupleLike}
-import edu.uci.ics.amber.engine.common.storage.DocumentFactory
+import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.operator.source.scan.FileDecodingMethod
 
 import java.io.InputStreamReader
