@@ -182,7 +182,6 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
       .pipe(untilDestroyed(this))
       .subscribe(
         (workflow: Workflow) => {
-          // this.workflowActionService.setNewSharedModel(wid, this.userService.getCurrentUser());
           // remember URL fragment
           const fragment = this.route.snapshot.fragment;
           // load the fetched workflow
