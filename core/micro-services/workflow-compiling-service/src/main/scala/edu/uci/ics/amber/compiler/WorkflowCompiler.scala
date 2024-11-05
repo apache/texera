@@ -1,184 +1,90 @@
 package edu.uci.ics.amber.compiler
 
 import com.google.protobuf.timestamp.Timestamp
-import com.typesafe.scalalogging.{LazyLogging, Logger}
-import edu.uci.ics.amber.compiler.WorkflowCompiler.{
-  collectInputSchemaFromPhysicalPlan,
-  convertErrorListToWorkflowFatalErrorMap
-}
+import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.compiler.model.{LogicalPlan, LogicalPlanPojo}
 import edu.uci.ics.amber.compiler.util.SinkInjectionTransformer
 import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.virtualidentity.OperatorIdentity
-import edu.uci.ics.amber.workflow.PhysicalLink
-import edu.uci.ics.amber.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
-import edu.uci.ics.amber.workflowruntimestate.WorkflowFatalError
 
 import java.time.Instant
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
-import scala.jdk.CollectionConverters.IteratorHasAsScala
-import scala.util.{Failure, Success, Try}
-
-object WorkflowCompiler {
-  // util function for extracting the error causes
-  private def getStackTraceWithAllCauses(err: Throwable, topLevel: Boolean = true): String = {
-    val header = if (topLevel) {
-      "Stack trace for developers: \n\n"
-    } else {
-      "\n\nCaused by:\n"
-    }
-    val message = header + err.toString + "\n" + err.getStackTrace.mkString("\n")
-    if (err.getCause != null) {
-      message + getStackTraceWithAllCauses(err.getCause, topLevel = false)
-    } else {
-      message
-    }
-  }
-
-  // util function for convert the error list to error map, and report the error in log
-  private def convertErrorListToWorkflowFatalErrorMap(
-      logger: Logger,
-      errorList: List[(OperatorIdentity, Throwable)]
-  ): Map[OperatorIdentity, WorkflowFatalError] = {
-    val opIdToError = mutable.Map[OperatorIdentity, WorkflowFatalError]()
-    errorList.map {
-      case (opId, err) =>
-        // map each error to WorkflowFatalError, and report them in the log
-        logger.error(s"Error occurred in logical plan compilation for opId: $opId", err)
-        opIdToError += (opId -> WorkflowFatalError(
-          COMPILATION_ERROR,
-          Timestamp(Instant.now),
-          err.toString,
-          getStackTraceWithAllCauses(err),
-          opId.id
-        ))
-    }
-    opIdToError.toMap
-  }
-
-  // util function for collecting the input schemas for each op
-  private def collectInputSchemaFromPhysicalPlan(
-      physicalPlan: PhysicalPlan
-  ): Map[OperatorIdentity, List[Option[Schema]]] = {
-    val physicalInputSchemas =
-      physicalPlan.operators.filter(op => !op.isSinkOperator).map { physicalOp =>
-        physicalOp.id -> physicalOp.inputPorts.values
-          .filterNot(_._1.id.internal)
-          .map {
-            case (port, _, schema) => port.id -> schema.toOption
-          }
-      }
-    // Group the physical input schemas by their logical operator ID and consolidate the schemas
-    physicalInputSchemas
-      .groupBy(_._1.logicalOpId)
-      .view
-      .mapValues(_.flatMap(_._2).toList.sortBy(_._1.id).map(_._2))
-      .toMap
-  }
-}
 
 case class WorkflowCompilationResult(
-    physicalPlan: Option[PhysicalPlan], // if physical plan is none, the compilation is failed
-    operatorIdToInputSchemas: Map[OperatorIdentity, List[Option[Schema]]],
-    operatorIdToError: Map[OperatorIdentity, WorkflowFatalError]
-)
+                                      physicalPlan: Option[PhysicalPlan], // if physical plan is none, the compilation is failed
+                                      operatorIdToInputSchemas: Map[OperatorIdentity, List[Option[Schema]]],
+                                      operatorIdToError: Map[OperatorIdentity, WorkflowFatalError]
+                                    )
 
 class WorkflowCompiler(
-    context: WorkflowContext
-) extends LazyLogging {
-
-  // function to expand logical plan to physical plan
-  private def expandLogicalPlan(
-      logicalPlan: LogicalPlan,
-      errorList: Option[ArrayBuffer[(OperatorIdentity, Throwable)]]
-  ): PhysicalPlan = {
-    var physicalPlan = PhysicalPlan(operators = Set.empty, links = Set.empty)
-
-    logicalPlan.getTopologicalOpIds.asScala.foreach(logicalOpId =>
-      Try {
-        val logicalOp = logicalPlan.getOperator(logicalOpId)
-        logicalOp.setContext(context)
-
-        val subPlan = logicalOp.getPhysicalPlan(context.workflowId, context.executionId)
-        subPlan
-          .topologicalIterator()
-          .map(subPlan.getOperator)
-          .foreach({ physicalOp =>
-            {
-              val externalLinks = logicalPlan
-                .getUpstreamLinks(logicalOp.operatorIdentifier)
-                .filter(link => physicalOp.inputPorts.contains(link.toPortId))
-                .flatMap { link =>
-                  physicalPlan
-                    .getPhysicalOpsOfLogicalOp(link.fromOpId)
-                    .find(_.outputPorts.contains(link.fromPortId))
-                    .map(fromOp =>
-                      PhysicalLink(fromOp.id, link.fromPortId, physicalOp.id, link.toPortId)
-                    )
-                }
-
-              val internalLinks = subPlan.getUpstreamPhysicalLinks(physicalOp.id)
-
-              // Add the operator to the physical plan
-              physicalPlan = physicalPlan.addOperator(physicalOp.propagateSchema())
-
-              // Add all the links to the physical plan
-              physicalPlan = (externalLinks ++ internalLinks)
-                .foldLeft(physicalPlan) { (plan, link) => plan.addLink(link) }
-            }
-          })
-      } match {
-        case Success(_) =>
-        case Failure(err) =>
-          errorList match {
-            case Some(list) => list.append((logicalOpId, err))
-            case None       => throw err
-          }
-      }
-    )
-    physicalPlan
-  }
+                        context: WorkflowContext
+                      ) extends LazyLogging {
 
   /**
-    * Compile a workflow to physical plan, along with the schema propagation result and error(if any)
-    *
-    * @param logicalPlanPojo the pojo parsed from workflow str provided by user
-    * @return WorkflowCompilationResult, containing the physical plan, input schemas per op and error per op
-    */
+   * Compile a workflow to physical plan, along with the schema propagation result and error(if any)
+   *
+   * @param logicalPlanPojo the pojo parsed from workflow str provided by user
+   * @return WorkflowCompilationResult, containing the physical plan, input schemas per op and error per op
+   */
   def compile(
-      logicalPlanPojo: LogicalPlanPojo
-  ): WorkflowCompilationResult = {
+               logicalPlanPojo: LogicalPlanPojo
+             ): WorkflowCompilationResult = {
+    // first compile the pojo to logical plan
     val errorList = new ArrayBuffer[(OperatorIdentity, Throwable)]()
-    var opIdToInputSchema: Map[OperatorIdentity, List[Option[Schema]]] = Map()
-    // 1. convert the pojo to logical plan
-    var logicalPlan: LogicalPlan = LogicalPlan(logicalPlanPojo)
+    val opIdToError = mutable.Map[OperatorIdentity, WorkflowFatalError]()
 
-    // 2. Manipulate logical plan by:
-    // - inject sink
+    var logicalPlan: LogicalPlan = LogicalPlan(logicalPlanPojo)
     logicalPlan = SinkInjectionTransformer.transform(
       logicalPlanPojo.opsToViewResult,
       logicalPlan
     )
-    // - resolve the file name in each scan source operator
     logicalPlan.resolveScanSourceOpFileName(Some(errorList))
-
-    // 3. expand the logical plan to the physical plan,
-    val physicalPlan = expandLogicalPlan(logicalPlan, Some(errorList))
-    if (errorList.isEmpty) {
-      // no error during the expansion, then do:
-      // - collect the input schema for each op
-      opIdToInputSchema = collectInputSchemaFromPhysicalPlan(physicalPlan)
-      // - check for static errors
-      logicalPlan.propagateWorkflowSchema(context, Some(errorList))
+    logicalPlan.propagateWorkflowSchema(context, Some(errorList))
+    // map compilation errors with op id
+    if (errorList.nonEmpty) {
+      errorList.foreach {
+        case (opId, err) =>
+          logger.error("error occurred in logical plan compilation", err)
+          opIdToError += (opId -> WorkflowFatalError(
+            COMPILATION_ERROR,
+            Timestamp(Instant.now),
+            err.toString,
+            getStackTraceWithAllCauses(err),
+            opId.id
+          ))
+      }
     }
 
-    WorkflowCompilationResult(
-      physicalPlan = if (errorList.nonEmpty) None else Some(physicalPlan),
-      operatorIdToInputSchemas = opIdToInputSchema,
-      // map each error from OpId to WorkflowFatalError, and report them via logger
-      operatorIdToError = convertErrorListToWorkflowFatalErrorMap(logger, errorList.toList)
-    )
+    if (opIdToError.nonEmpty) {
+      // encounter errors during compile pojo to logical plan,
+      //   so directly return None as physical plan, schema map and non-empty error map
+      return WorkflowCompilationResult(
+        physicalPlan = None,
+        operatorIdToInputSchemas = Map.empty,
+        operatorIdToError = opIdToError.toMap
+      )
+    }
+    // from logical plan to physical plan
+    val physicalPlan = PhysicalPlan(context, logicalPlan)
+
+    // Extract physical input schemas, excluding internal ports
+    val physicalInputSchemas = physicalPlan.operators.map { physicalOp =>
+      physicalOp.id -> physicalOp.inputPorts.values
+        .filterNot(_._1.id.internal)
+        .map {
+          case (port, _, schema) => port.id -> schema.toOption
+        }
+    }
+
+    // Group the physical input schemas by their logical operator ID and consolidate the schemas
+    val opIdToInputSchemas = physicalInputSchemas
+      .groupBy(_._1.logicalOpId)
+      .view
+      .mapValues(_.flatMap(_._2).toList.sortBy(_._1.id).map(_._2))
+      .toMap
+
+    WorkflowCompilationResult(Some(physicalPlan), opIdToInputSchemas, Map.empty)
   }
 }

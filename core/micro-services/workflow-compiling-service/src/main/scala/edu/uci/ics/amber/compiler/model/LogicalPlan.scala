@@ -21,9 +21,9 @@ import scala.util.{Failure, Success, Try}
 object LogicalPlan {
 
   private def toJgraphtDAG(
-      operatorList: List[LogicalOp],
-      links: List[LogicalLink]
-  ): DirectedAcyclicGraph[OperatorIdentity, LogicalLink] = {
+                            operatorList: List[LogicalOp],
+                            links: List[LogicalLink]
+                          ): DirectedAcyclicGraph[OperatorIdentity, LogicalLink] = {
     val workflowDag =
       new DirectedAcyclicGraph[OperatorIdentity, LogicalLink](
         null, // vertexSupplier
@@ -43,17 +43,17 @@ object LogicalPlan {
   }
 
   def apply(
-      pojo: LogicalPlanPojo
-  ): LogicalPlan = {
+             pojo: LogicalPlanPojo
+           ): LogicalPlan = {
     LogicalPlan(pojo.operators, pojo.links)
   }
 
 }
 
 case class LogicalPlan(
-    operators: List[LogicalOp],
-    links: List[LogicalLink]
-) extends LazyLogging {
+                        operators: List[LogicalOp],
+                        links: List[LogicalLink]
+                      ) extends LazyLogging {
 
   private lazy val operatorMap: Map[OperatorIdentity, LogicalOp] =
     operators.map(op => (op.operatorIdentifier, op)).toMap
@@ -100,11 +100,11 @@ case class LogicalPlan(
   }
 
   def addLink(
-      fromOpId: OperatorIdentity,
-      fromPortId: PortIdentity,
-      toOpId: OperatorIdentity,
-      toPortId: PortIdentity
-  ): LogicalPlan = {
+               fromOpId: OperatorIdentity,
+               fromPortId: PortIdentity,
+               toOpId: OperatorIdentity,
+               toPortId: PortIdentity
+             ): LogicalPlan = {
     val newLink = LogicalLink(
       fromOpId,
       fromPortId,
@@ -146,12 +146,12 @@ case class LogicalPlan(
   }
 
   /**
-    * Resolve all user-given filename for the scan source operators to URIs, and call op.setFileUri to set the URi
-    * @param errorList if given, put errors during resolving to it
-    */
+   * Resolve all user-given filename for the scan source operators to URIs, and call op.setFileUri to set the URi
+   * @param errorList if given, put errors during resolving to it
+   */
   def resolveScanSourceOpFileName(
-      errorList: Option[ArrayBuffer[(OperatorIdentity, Throwable)]]
-  ): Unit = {
+                                   errorList: Option[ArrayBuffer[(OperatorIdentity, Throwable)]]
+                                 ): Unit = {
     operators.foreach {
       case operator @ (scanOp: ScanSourceOpDesc) =>
         Try {
@@ -172,9 +172,9 @@ case class LogicalPlan(
   }
 
   def propagateWorkflowSchema(
-      context: WorkflowContext,
-      errorList: Option[ArrayBuffer[(OperatorIdentity, Throwable)]]
-  ): Unit = {
+                               context: WorkflowContext,
+                               errorList: Option[ArrayBuffer[(OperatorIdentity, Throwable)]]
+                             ): Unit = {
 
     operators.foreach(operator => {
       if (operator.getContext == null) {
@@ -224,3 +224,4 @@ case class LogicalPlan(
     })
   }
 }
+
