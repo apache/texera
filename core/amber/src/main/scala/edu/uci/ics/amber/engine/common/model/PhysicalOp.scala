@@ -222,7 +222,7 @@ case class PhysicalOp(
     * Helper function used to determine whether the input link is a materialized link.
     */
   def isSinkOperator: Boolean = {
-    this.id.logicalOpId.id.contains("sink_") || this.id.logicalOpId.id.contains("materialized_")
+    outputPorts.forall(port => port._2._2.isEmpty)
   }
 
   def isPythonBased: Boolean = {
