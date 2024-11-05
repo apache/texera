@@ -28,7 +28,7 @@ class CostBasedRegionPlanGenerator(
       state: Set[PhysicalLink],
       regionDAG: DirectedAcyclicGraph[Region, RegionLink],
       cost: Double,
-      searchTime: Long = 0,
+      searchTimeNanoSeconds: Long = 0,
       numStatesExplored: Int = 0
   )
 
@@ -248,7 +248,7 @@ class CostBasedRegionPlanGenerator(
 
     val searchTime = System.nanoTime() - startTime
     bestResult.copy(
-      searchTime = searchTime,
+      searchTimeNanoSeconds = searchTime,
       numStatesExplored = visited.size
     )
   }
