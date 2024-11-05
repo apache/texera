@@ -24,9 +24,10 @@ import { distinctUntilChanged, filter, switchMap, throttleTime } from "rxjs/oper
 import { Workflow } from "../../../../common/type/workflow";
 import { of } from "rxjs";
 import { isDefined } from "../../../../common/util/predicate";
-import { HubWorkflowService } from "../../../service/workflow/hub-workflow.service";
+import {HubWorkflowService, OperatorInfo} from "../../../service/workflow/hub-workflow.service";
 import { User } from "src/app/common/type/user";
 import { Location } from "@angular/common";
+import {WorkflowUtilService} from "../../../../workspace/service/workflow-graph/util/workflow-util.service";
 
 export const THROTTLE_TIME_MS = 1000;
 
@@ -94,7 +95,8 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
     private notificationService: NotificationService,
     private codeEditorService: CodeEditorService,
     private hubWorkflowService: HubWorkflowService,
-    private location: Location
+    private location: Location,
+    private workflowUtilService: WorkflowUtilService,
   ) {
     if (!this.wid) {
       this.wid = this.route.snapshot.params.id;
@@ -279,16 +281,65 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
     this.location.back();
   }
 
+
   cloneWorkflow(): void {
     this.hubWorkflowService
-      .cloneWorkflow(Number(this.wid))
+      .getWorkflowContent(Number(this.wid))
       .pipe(untilDestroyed(this))
-      .subscribe(newWid => {
-        this.clonedWorklowId = newWid;
-        sessionStorage.setItem("cloneSuccess", "true");
-        this.router.navigate(["/dashboard/user/workflow"]);
+      .subscribe((workflowContent: OperatorInfo[]) => {
+        console.log("Fetched Operator Info:", workflowContent);
+        const operatorIdMap: Record<string, string> = {};
+        workflowContent.forEach(operator => {
+          const oldOperatorId = operator.operatorID;
+          operatorIdMap[oldOperatorId] = operator.operatorType + "-" + this.workflowUtilService.getOperatorRandomUUID();
+        });
+
+        this.hubWorkflowService
+          .cloneWorkflow(Number(this.wid), operatorIdMap)
+          .pipe(untilDestroyed(this))
+          .subscribe(newWid => {
+            this.clonedWorklowId = newWid;
+            sessionStorage.setItem("cloneSuccess", "true");
+            this.router.navigate(["/dashboard/user/workflow"]);
+          });
       });
+
+      // const operatorIdMap: Record<string, string> = {};
+      //
+      // // 使用获取到的 workflowContent 生成 operatorIdMap
+      // workflowContent.operators.forEach(operator => {
+      //   const oldOperatorId = operator.operatorID;
+      //   operatorIdMap[oldOperatorId] = operator.operatorType + "-" + this.workflowUtilService.getOperatorRandomUUID();
+      // });
+      //
+      // // 调用克隆工作流的方法，将生成的 operatorIdMap 传递给后端
+      // this.hubWorkflowService
+      //   .cloneWorkflow(this.wid, operatorIdMap)
+      //   .pipe(untilDestroyed(this))
+      //   .subscribe(newWid => {
+      //     this.clonedWorklowId = newWid;
+      //     sessionStorage.setItem("cloneSuccess", "true");
+      //     this.router.navigate(["/dashboard/user/workflow"]);
+      //   });
   }
+  // cloneWorkflow(): void {
+  //   const operatorIdMap: Record<string, string> = {};
+  //
+  //   const workflowContent = this.workflowActionService.getWorkflowContent();
+  //   workflowContent.operators.forEach(operator => {
+  //     const oldOperatorId = operator.operatorID;
+  //     operatorIdMap[oldOperatorId] = operator.operatorType + "-" + this.workflowUtilService.getOperatorRandomUUID();
+  //   });
+  //
+  //   this.hubWorkflowService
+  //     .cloneWorkflow(Number(this.wid), operatorIdMap)
+  //     .pipe(untilDestroyed(this))
+  //     .subscribe(newWid => {
+  //       this.clonedWorklowId = newWid;
+  //       sessionStorage.setItem("cloneSuccess", "true");
+  //       this.router.navigate(["/dashboard/user/workflow"]);
+  //     });
+  // }
 
   toggleLike(workflowId: number | undefined, userId: number | undefined): void {
     if (workflowId === undefined || userId === undefined) {

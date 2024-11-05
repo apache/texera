@@ -30,6 +30,10 @@ import scala.jdk.CollectionConverters.IterableHasAsScala
 import scala.util.control.NonFatal
 import javax.servlet.http.HttpServletRequest
 import javax.ws.rs.core.Context
+import com.fasterxml.jackson.databind.ObjectMapper
+import scala.jdk.CollectionConverters._
+
+
 
 /**
   * This file handles various request related to saved-workflows.
@@ -126,6 +130,16 @@ object WorkflowResource {
     } else {
       throw new ForbiddenException("No sufficient access privilege.")
     }
+  }
+
+  private def replaceOperatorIdsInContent(content: String, idMap: java.util.Map[String, String]): String = {
+    var updatedContent = content
+
+    idMap.forEach((oldId, newId) => {
+      updatedContent = updatedContent.replace(oldId, newId)
+    })
+
+    updatedContent
   }
 
 }
@@ -414,22 +428,67 @@ class WorkflowResource extends LazyLogging {
     resultWorkflows.toList
   }
 
+  @GET
+  @Path("/content/{wid}")
+  def getWorkflowContentByWid(@PathParam("wid") wid: UInteger): String = {
+    val workflow = context
+      .selectFrom(WORKFLOW)
+      .where(WORKFLOW.WID.eq(wid))
+      .fetchOneInto(classOf[Workflow])
+
+    if (workflow == null) {
+      throw new WebApplicationException(s"Workflow with wid $wid not found.", 404)
+    }
+
+    val objectMapper = new ObjectMapper()
+    val contentMap = objectMapper.readValue(workflow.getContent, classOf[java.util.Map[String, Any]])
+
+    val operators = contentMap.get("operators").asInstanceOf[java.util.List[java.util.Map[String, Any]]]
+    val operatorInfoList = operators.asScala.map { operator =>
+      Map(
+        "operatorID" -> operator.get("operatorID"),
+        "operatorType" -> operator.get("operatorType")
+      ).asJava
+    }.asJava
+
+    objectMapper.writeValueAsString(operatorInfoList)
+  }
+
+//  @GET
+//  @Path("/content/{wid}")
+//  def getWorkflowContentByWid(@PathParam("wid") wid: UInteger): String = {
+//    val workflow = context
+//      .selectFrom(WORKFLOW)
+//      .where(WORKFLOW.WID.eq(wid))
+//      .fetchOneInto(classOf[Workflow])
+//
+//    if (workflow == null) {
+//      throw new WebApplicationException(s"Workflow with wid $wid not found.", 404)
+//    }
+//
+//    workflow.getContent
+//  }
+
+
   @POST
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/clone/{wid}")
   def cloneWorkflow(
-      @PathParam("wid") wid: UInteger,
-      @Auth sessionUser: SessionUser,
-      @Context request: HttpServletRequest
-  ): UInteger = {
+     @PathParam("wid") wid: UInteger,
+     @Auth sessionUser: SessionUser,
+     @Context request: HttpServletRequest,
+     operatorIdMap: java.util.Map[String, String]
+   ): UInteger = {
     val workflow: Workflow = workflowDao.fetchOneByWid(wid)
+    val updatedContent = replaceOperatorIdsInContent(workflow.getContent, operatorIdMap)
+
     val newWorkflow: DashboardWorkflow = createWorkflow(
       new Workflow(
         workflow.getName + "_clone",
         workflow.getDescription,
         null,
-        workflow.getContent,
+        updatedContent,
         null,
         null,
         0.toByte
@@ -453,9 +512,51 @@ class WorkflowResource extends LazyLogging {
         .execute()
     }
 
-    //TODO: copy the environment as well
     newWorkflow.workflow.getWid
   }
+
+//  @POST
+//  @Consumes(Array(MediaType.APPLICATION_JSON))
+//  @Produces(Array(MediaType.APPLICATION_JSON))
+//  @Path("/clone/{wid}")
+//  def cloneWorkflow(
+//      @PathParam("wid") wid: UInteger,
+//      @Auth sessionUser: SessionUser,
+//      @Context request: HttpServletRequest
+//  ): UInteger = {
+//    val workflow: Workflow = workflowDao.fetchOneByWid(wid)
+//    val newWorkflow: DashboardWorkflow = createWorkflow(
+//      new Workflow(
+//        workflow.getName + "_clone",
+//        workflow.getDescription,
+//        null,
+//        workflow.getContent,
+//        null,
+//        null,
+//        0.toByte
+//      ),
+//      sessionUser
+//    )
+//
+//    recordUserActivity(request, sessionUser.getUid, wid, "clone")
+//
+//    val existingCloneRecord = context
+//      .selectFrom(WORKFLOW_USER_CLONES)
+//      .where(WORKFLOW_USER_CLONES.UID.eq(sessionUser.getUid))
+//      .and(WORKFLOW_USER_CLONES.WID.eq(wid))
+//      .fetchOne()
+//
+//    if (existingCloneRecord == null) {
+//      context
+//        .insertInto(WORKFLOW_USER_CLONES)
+//        .set(WORKFLOW_USER_CLONES.UID, sessionUser.getUid)
+//        .set(WORKFLOW_USER_CLONES.WID, wid)
+//        .execute()
+//    }
+//
+//    //TODO: copy the environment as well
+//    newWorkflow.workflow.getWid
+//  }
 
   /**
     * This method creates and insert a new workflow to database
