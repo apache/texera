@@ -12,7 +12,10 @@ class WorkflowCompilingService extends Application[WorkflowCompilingServiceConfi
     bootstrap.getObjectMapper.registerModule(DefaultScalaModule)
   }
 
-  override def run(configuration: WorkflowCompilingServiceConfiguration, environment: Environment): Unit = {
+  override def run(
+      configuration: WorkflowCompilingServiceConfiguration,
+      environment: Environment
+  ): Unit = {
     // serve backend at /api/texera
     environment.jersey.setUrlPattern("/api/texera/*")
 
