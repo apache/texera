@@ -29,7 +29,13 @@ class ReservoirSamplingOpDesc extends LogicalOp {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((idx, workerCount) => new ReservoirSamplingOpExec(idx, equallyPartitionGoal(k, workerCount),  Array.fill(workerCount)(Random.nextInt())))
+        OpExecInitInfo((idx, workerCount) =>
+          new ReservoirSamplingOpExec(
+            idx,
+            equallyPartitionGoal(k, workerCount),
+            Array.fill(workerCount)(Random.nextInt())
+          )
+        )
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
