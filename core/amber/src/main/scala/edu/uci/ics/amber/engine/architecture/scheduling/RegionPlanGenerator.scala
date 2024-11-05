@@ -34,7 +34,8 @@ object RegionPlanGenerator {
       .foreach(oldEdge => {
         val dest = graph.getEdgeTarget(oldEdge)
         graph.removeEdge(oldEdge)
-        graph.addEdge(newVertex, dest, RegionLink(newVertex.id, dest.id))
+        graph
+          .addEdge(newVertex, dest, RegionLink(newVertex.id, dest.id, oldEdge.originalPhysicalLink))
       })
     graph
       .incomingEdgesOf(oldVertex)
@@ -43,7 +44,11 @@ object RegionPlanGenerator {
       .foreach(oldEdge => {
         val source = graph.getEdgeSource(oldEdge)
         graph.removeEdge(oldEdge)
-        graph.addEdge(source, newVertex, RegionLink(source.id, newVertex.id))
+        graph.addEdge(
+          source,
+          newVertex,
+          RegionLink(source.id, newVertex.id, oldEdge.originalPhysicalLink)
+        )
       })
     graph.removeVertex(oldVertex)
   }

@@ -2,6 +2,7 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import org.jgrapht.graph.DirectedAcyclicGraph
 import org.jgrapht.traverse.TopologicalOrderIterator
+import org.jgrapht.util.SupplierUtil
 
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
@@ -11,7 +12,12 @@ case class RegionPlan(
 ) {
 
   @transient lazy val dag: DirectedAcyclicGraph[RegionIdentity, RegionLink] = {
-    val jgraphtDag = new DirectedAcyclicGraph[RegionIdentity, RegionLink](classOf[RegionLink])
+    val jgraphtDag = new DirectedAcyclicGraph[RegionIdentity, RegionLink](
+      null, // vertexSupplier
+      SupplierUtil.createSupplier(classOf[RegionLink]), // edgeSupplier
+      false, // weighted
+      true // allowMultipleEdges
+    )
     regionMapping.keys.foreach(regionId => jgraphtDag.addVertex(regionId))
     regionLinks.foreach(l => jgraphtDag.addEdge(l.fromRegionId, l.toRegionId, l))
     jgraphtDag
