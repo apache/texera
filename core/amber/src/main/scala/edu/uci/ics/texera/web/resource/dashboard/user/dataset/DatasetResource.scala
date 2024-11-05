@@ -408,7 +408,7 @@ object DatasetResource {
   )
 
   case class ListDatasetsResponse(
-      datasets: List[DashboardDataset],
+      datasets: List[DashboardDataset]
   )
 
   case class DatasetVersionRootFileNodes(fileNodes: List[DatasetFileNode])
@@ -742,7 +742,7 @@ class DatasetResource {
       }
 
       ListDatasetsResponse(
-        accessibleDatasets.toList,
+        accessibleDatasets.toList
       )
     })
   }
