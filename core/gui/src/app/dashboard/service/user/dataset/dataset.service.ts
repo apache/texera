@@ -81,20 +81,9 @@ export class DatasetService {
     });
   }
 
-  public retrieveAccessibleDatasets(
-    includeVersions: boolean = false,
-    includeFileNodes: boolean = false
-  ): Observable<{ datasets: DashboardDataset[]; fileNodes: DatasetFileNode[] }> {
-    let params = new HttpParams();
-    if (includeVersions) {
-      params = params.set("includeVersions", "true");
-    }
-    if (includeFileNodes) {
-      params = params.set("includeFileNodes", "true");
-    }
+  public retrieveAccessibleDatasets(): Observable<{ datasets: DashboardDataset[]; fileNodes: DatasetFileNode[] }> {
     return this.http.get<{ datasets: DashboardDataset[]; fileNodes: DatasetFileNode[] }>(
-      `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}`,
-      { params: params }
+      `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}`
     );
   }
   public createDatasetVersion(
