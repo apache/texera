@@ -1,8 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.randomksampling
 
-import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
+import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.model.PhysicalOp
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
@@ -13,11 +12,9 @@ import scala.util.Random
 
 class RandomKSamplingOpDesc extends FilterOpDesc {
 
-
   @JsonProperty(value = "random k sample percentage", required = true)
   @JsonPropertyDescription("random k sampling with given percentage")
   var percentage: Int = _
-
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
@@ -28,7 +25,9 @@ class RandomKSamplingOpDesc extends FilterOpDesc {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((idx, workerCount) => new RandomKSamplingOpExec(percentage, idx,     Array.fill(workerCount)(Random.nextInt())))
+        OpExecInitInfo((idx, workerCount) =>
+          new RandomKSamplingOpExec(percentage, idx, Array.fill(workerCount)(Random.nextInt()))
+        )
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
