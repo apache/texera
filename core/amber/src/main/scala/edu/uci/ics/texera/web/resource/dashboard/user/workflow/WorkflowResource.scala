@@ -456,7 +456,6 @@ class WorkflowResource extends LazyLogging {
     objectMapper.writeValueAsString(operatorInfoList)
   }
 
-
   @POST
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
