@@ -470,14 +470,13 @@ class WorkflowResource extends LazyLogging {
     }
     val operatorIdMap = generateOperatorIdMap(operatorInfoList)
     val updatedContent = replaceOperatorIdsInContent(workflow.getContent, operatorIdMap.toMap)
-    println(updatedContent)
 
     val newWorkflow: DashboardWorkflow = createWorkflow(
       new Workflow(
         workflow.getName + "_clone",
         workflow.getDescription,
         null,
-        workflow.getContent,
+        updatedContent,
         null,
         null,
         0.toByte
