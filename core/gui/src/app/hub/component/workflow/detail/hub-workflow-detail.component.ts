@@ -167,7 +167,6 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
     }
 
     this.registerLoadOperatorMetadata();
-
   }
 
   @HostListener("window:beforeunload")
@@ -180,39 +179,40 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
     this.workflowActionService.disableWorkflowModification();
     this.hubWorkflowService
       .retrievePublicWorkflow(wid)
-      .pipe(untilDestroyed(this)).subscribe(
-      (workflow: Workflow) => {
-        // this.workflowActionService.setNewSharedModel(wid, this.userService.getCurrentUser());
-        // remember URL fragment
-        const fragment = this.route.snapshot.fragment;
-        // load the fetched workflow
-        this.workflowActionService.reloadWorkflow(workflow);
-        this.workflowActionService.disableWorkflowModification();
-        // set the URL fragment to previous value
-        // because reloadWorkflow will highlight/unhighlight all elements
-        // which will change the URL fragment
-        this.router.navigate([], {
-          relativeTo: this.route,
-          fragment: fragment !== null ? fragment : undefined,
-          preserveFragment: false,
-        });
-        // highlight the operator, comment box, or link in the URL fragment
-        if (fragment) {
-          if (this.workflowActionService.getTexeraGraph().hasElementWithID(fragment)) {
-            this.workflowActionService.highlightElements(false, fragment);
-          } else {
-            this.notificationService.error(`Element ${fragment} doesn't exist`);
-            // remove the fragment from the URL
-            this.router.navigate([], { relativeTo: this.route });
+      .pipe(untilDestroyed(this))
+      .subscribe(
+        (workflow: Workflow) => {
+          // this.workflowActionService.setNewSharedModel(wid, this.userService.getCurrentUser());
+          // remember URL fragment
+          const fragment = this.route.snapshot.fragment;
+          // load the fetched workflow
+          this.workflowActionService.reloadWorkflow(workflow);
+          this.workflowActionService.disableWorkflowModification();
+          // set the URL fragment to previous value
+          // because reloadWorkflow will highlight/unhighlight all elements
+          // which will change the URL fragment
+          this.router.navigate([], {
+            relativeTo: this.route,
+            fragment: fragment !== null ? fragment : undefined,
+            preserveFragment: false,
+          });
+          // highlight the operator, comment box, or link in the URL fragment
+          if (fragment) {
+            if (this.workflowActionService.getTexeraGraph().hasElementWithID(fragment)) {
+              this.workflowActionService.highlightElements(false, fragment);
+            } else {
+              this.notificationService.error(`Element ${fragment} doesn't exist`);
+              // remove the fragment from the URL
+              this.router.navigate([], { relativeTo: this.route });
+            }
           }
+        },
+        () => {
+          this.workflowActionService.resetAsNewWorkflow();
+          this.workflowActionService.enableWorkflowModification();
+          this.message.error("You don't have access to this workflow, please log in with an appropriate account");
         }
-      },
-      () => {
-        this.workflowActionService.resetAsNewWorkflow();
-        this.workflowActionService.enableWorkflowModification();
-        this.message.error("You don't have access to this workflow, please log in with an appropriate account");
-      }
-    );
+      );
   }
 
   registerLoadOperatorMetadata() {
@@ -236,13 +236,11 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
   }
 
   registerReEstablishWebsocketUponWIdChange() {
-    this.workflowActionService
-      .workflowMetaDataChanged()
-      .pipe(
-        switchMap(() => of(this.workflowActionService.getWorkflowMetadata().wid)),
-        filter(isDefined),
-        distinctUntilChanged()
-      )
+    this.workflowActionService.workflowMetaDataChanged().pipe(
+      switchMap(() => of(this.workflowActionService.getWorkflowMetadata().wid)),
+      filter(isDefined),
+      distinctUntilChanged()
+    );
   }
 
   goBack(): void {
