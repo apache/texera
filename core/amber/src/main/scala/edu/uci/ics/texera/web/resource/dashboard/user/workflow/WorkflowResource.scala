@@ -26,14 +26,11 @@ import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import scala.collection.mutable.ListBuffer
-import scala.jdk.CollectionConverters.IterableHasAsScala
 import scala.util.control.NonFatal
 import javax.servlet.http.HttpServletRequest
 import javax.ws.rs.core.Context
 import com.fasterxml.jackson.databind.ObjectMapper
 import scala.jdk.CollectionConverters._
-
-
 
 /**
   * This file handles various request related to saved-workflows.
@@ -132,7 +129,10 @@ object WorkflowResource {
     }
   }
 
-  private def replaceOperatorIdsInContent(content: String, idMap: java.util.Map[String, String]): String = {
+  private def replaceOperatorIdsInContent(
+      content: String,
+      idMap: java.util.Map[String, String]
+  ): String = {
     var updatedContent = content
 
     idMap.forEach((oldId, newId) => {
@@ -441,9 +441,11 @@ class WorkflowResource extends LazyLogging {
     }
 
     val objectMapper = new ObjectMapper()
-    val contentMap = objectMapper.readValue(workflow.getContent, classOf[java.util.Map[String, Any]])
+    val contentMap =
+      objectMapper.readValue(workflow.getContent, classOf[java.util.Map[String, Any]])
 
-    val operators = contentMap.get("operators").asInstanceOf[java.util.List[java.util.Map[String, Any]]]
+    val operators =
+      contentMap.get("operators").asInstanceOf[java.util.List[java.util.Map[String, Any]]]
     val operatorInfoList = operators.asScala.map { operator =>
       Map(
         "operatorID" -> operator.get("operatorID"),
@@ -469,17 +471,16 @@ class WorkflowResource extends LazyLogging {
 //    workflow.getContent
 //  }
 
-
   @POST
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/clone/{wid}")
   def cloneWorkflow(
-     @PathParam("wid") wid: UInteger,
-     @Auth sessionUser: SessionUser,
-     @Context request: HttpServletRequest,
-     operatorIdMap: java.util.Map[String, String]
-   ): UInteger = {
+      @PathParam("wid") wid: UInteger,
+      @Auth sessionUser: SessionUser,
+      @Context request: HttpServletRequest,
+      operatorIdMap: java.util.Map[String, String]
+  ): UInteger = {
     val workflow: Workflow = workflowDao.fetchOneByWid(wid)
     val updatedContent = replaceOperatorIdsInContent(workflow.getContent, operatorIdMap)
 

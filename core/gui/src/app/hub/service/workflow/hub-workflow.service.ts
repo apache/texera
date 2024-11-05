@@ -4,7 +4,7 @@ import { Observable } from "rxjs";
 import { AppSettings } from "../../../common/app-setting";
 import { HubWorkflow } from "../../component/type/hub-workflow.interface";
 import { User } from "src/app/common/type/user";
-import {Workflow, WorkflowContent} from "../../../common/type/workflow";
+import { Workflow, WorkflowContent } from "../../../common/type/workflow";
 import { filter, map } from "rxjs/operators";
 import { WorkflowUtilService } from "../../../workspace/service/workflow-graph/util/workflow-util.service";
 import { DashboardWorkflow } from "../../../dashboard/type/dashboard-workflow.interface";
@@ -58,17 +58,13 @@ export class HubWorkflowService {
   public getWorkflowContent(wid: number): Observable<OperatorInfo[]> {
     return this.http
       .get<OperatorInfo[]>(`${WORKFLOW_BASE_URL}/content/${wid}`, { responseType: "json" })
-      .pipe(
-        map(response => response as OperatorInfo[])
-      );
+      .pipe(map(response => response as OperatorInfo[]));
   }
 
   public cloneWorkflow(wid: number, operatorIdMap: Record<string, string>): Observable<number> {
-    return this.http.post<number>(
-      `${WORKFLOW_BASE_URL}/clone/${wid}`,
-      operatorIdMap,
-      { headers: new HttpHeaders({ "Content-Type": "application/json" }) }
-    );
+    return this.http.post<number>(`${WORKFLOW_BASE_URL}/clone/${wid}`, operatorIdMap, {
+      headers: new HttpHeaders({ "Content-Type": "application/json" }),
+    });
   }
 
   public isWorkflowLiked(workflowId: number, userId: number): Observable<boolean> {
