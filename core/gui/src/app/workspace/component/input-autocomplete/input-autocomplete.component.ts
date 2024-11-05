@@ -24,26 +24,19 @@ export class InputAutoCompleteComponent extends FieldType<FieldTypeConfig> {
   }
 
   onClickOpenFileSelectionModal(): void {
-    this.datasetService
-      .retrieveAccessibleDatasets()
-      .pipe(untilDestroyed(this))
-      .subscribe(response => {
-        const datasets = response.datasets;
-        const modal = this.modalService.create({
-          nzTitle: "Please select one file from datasets",
-          nzContent: FileSelectionComponent,
-          nzFooter: null,
-          nzData: {
-            datasets: datasets,
-            selectedFilePath: this.formControl.getRawValue(),
-          },
-        });
-        // Handle the selection from the modal
-        modal.afterClose.pipe(untilDestroyed(this)).subscribe(fileNode => {
-          const node: DatasetFileNode = fileNode as DatasetFileNode;
-          this.formControl.setValue(getFullPathFromDatasetFileNode(node));
-        });
-      });
+    const modal = this.modalService.create({
+      nzTitle: "Please select one file from datasets",
+      nzContent: FileSelectionComponent,
+      nzFooter: null,
+      nzData: {
+        selectedFilePath: this.formControl.getRawValue(),
+      },
+    });
+    // Handle the selection from the modal
+    modal.afterClose.pipe(untilDestroyed(this)).subscribe(fileNode => {
+      const node: DatasetFileNode = fileNode as DatasetFileNode;
+      this.formControl.setValue(getFullPathFromDatasetFileNode(node));
+    });
   }
 
   get isFileSelectionEnabled(): boolean {
