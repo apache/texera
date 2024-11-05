@@ -325,6 +325,9 @@ class HubWorkflowResource {
     val topLovedWorkflowsWids = context
       .select(WORKFLOW_USER_LIKES.WID)
       .from(WORKFLOW_USER_LIKES)
+      .join(WORKFLOW)
+      .on(WORKFLOW_USER_LIKES.WID.eq(WORKFLOW.WID))
+      .where(WORKFLOW.IS_PUBLISHED.eq(1.toByte))
       .groupBy(WORKFLOW_USER_LIKES.WID)
       .orderBy(DSL.count(WORKFLOW_USER_LIKES.WID).desc())
       .limit(8)
@@ -344,6 +347,9 @@ class HubWorkflowResource {
     val topClonedWorkflowsWids = context
       .select(WORKFLOW_USER_CLONES.WID)
       .from(WORKFLOW_USER_CLONES)
+      .join(WORKFLOW)
+      .on(WORKFLOW_USER_CLONES.WID.eq(WORKFLOW.WID))
+      .where(WORKFLOW.IS_PUBLISHED.eq(1.toByte))
       .groupBy(WORKFLOW_USER_CLONES.WID)
       .orderBy(DSL.count(WORKFLOW_USER_CLONES.WID).desc())
       .limit(8)
