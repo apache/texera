@@ -81,8 +81,8 @@ export class DatasetService {
     });
   }
 
-  public retrieveAccessibleDatasets(): Observable<{ datasets: DashboardDataset[]; fileNodes: DatasetFileNode[] }> {
-    return this.http.get<{ datasets: DashboardDataset[]; fileNodes: DatasetFileNode[] }>(
+  public retrieveAccessibleDatasets(): Observable<{ datasets: DashboardDataset[] }> {
+    return this.http.get<{ datasets: DashboardDataset[] }>(
       `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}`
     );
   }
