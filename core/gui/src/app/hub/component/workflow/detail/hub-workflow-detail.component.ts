@@ -1,19 +1,9 @@
-import {
-  AfterViewInit,
-  Component,
-  OnInit,
-  HostListener,
-  OnDestroy,
-  ViewChild,
-  ViewContainerRef,
-  Input,
-} from "@angular/core";
+import { AfterViewInit, Component, OnInit, HostListener, OnDestroy, Input } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { ActivatedRoute, Router } from "@angular/router";
 import { environment } from "../../../../../environments/environment";
 import { UserService } from "../../../../common/service/user/user.service";
 import { WorkflowActionService } from "../../../../workspace/service/workflow-graph/model/workflow-action.service";
-import { OperatorMetadataService } from "../../../../workspace/service/operator-metadata/operator-metadata.service";
 import { NzMessageService } from "ng-zorro-antd/message";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { distinctUntilChanged, filter, switchMap, throttleTime } from "rxjs/operators";
@@ -80,7 +70,6 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
     // list additional services in constructor so they are initialized even if no one use them directly
     private workflowActionService: WorkflowActionService,
     private route: ActivatedRoute,
-    private operatorMetadataService: OperatorMetadataService,
     private message: NzMessageService,
     private router: Router,
     private notificationService: NotificationService,
@@ -165,7 +154,15 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
       this.registerReEstablishWebsocketUponWIdChange();
     }
 
-    this.registerLoadOperatorMetadata();
+    if (this.wid) {
+      // if wid is present in the url, load it from the backend
+      this.userService
+        .userChanged()
+        .pipe(untilDestroyed(this))
+        .subscribe(() => {
+          this.loadWorkflowWithId(this.wid);
+        });
+    }
   }
 
   @HostListener("window:beforeunload")
@@ -211,24 +208,6 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
           this.message.error("You don't have access to this workflow, please log in with an appropriate account");
         }
       );
-  }
-
-  registerLoadOperatorMetadata() {
-    this.operatorMetadataService
-      .getOperatorMetadata()
-      .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        // load workflow with wid if presented in the URL
-        if (this.wid) {
-          // if wid is present in the url, load it from the backend
-          this.userService
-            .userChanged()
-            .pipe(untilDestroyed(this))
-            .subscribe(() => {
-              this.loadWorkflowWithId(this.wid);
-            });
-        }
-      });
   }
 
   registerReEstablishWebsocketUponWIdChange() {
