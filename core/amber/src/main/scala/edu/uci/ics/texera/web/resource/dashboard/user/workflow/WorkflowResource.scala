@@ -31,6 +31,8 @@ import javax.servlet.http.HttpServletRequest
 import javax.ws.rs.core.Context
 import com.fasterxml.jackson.databind.ObjectMapper
 import scala.jdk.CollectionConverters._
+import java.util.UUID
+import scala.collection.mutable
 
 /**
   * This file handles various request related to saved-workflows.
@@ -129,16 +131,29 @@ object WorkflowResource {
     }
   }
 
+  private def generateOperatorIdMap(
+      operatorInfoList: mutable.Buffer[Map[String, Any]]
+  ): mutable.Map[String, String] = {
+    val operatorIdMap = mutable.Map[String, String]()
+
+    operatorInfoList.foreach { operator =>
+      val oldOperatorId = operator("operatorID").toString
+      val operatorType = operator("operatorType").toString
+      // operator id in frontend: operatorSchema.operatorType + "-operator-" + uuid(); // v4 = UUID.randomUUID().toString
+      operatorIdMap(oldOperatorId) = operatorType + "-operator-" + UUID.randomUUID().toString
+    }
+    operatorIdMap
+  }
+
   private def replaceOperatorIdsInContent(
       content: String,
-      idMap: java.util.Map[String, String]
+      idMap: Map[String, String]
   ): String = {
     var updatedContent = content
-
-    idMap.forEach((oldId, newId) => {
-      updatedContent = updatedContent.replace(oldId, newId)
-    })
-
+    idMap.foreach {
+      case (oldId, newId) =>
+        updatedContent = updatedContent.replace(oldId, newId)
+    }
     updatedContent
   }
 
@@ -428,34 +443,6 @@ class WorkflowResource extends LazyLogging {
     resultWorkflows.toList
   }
 
-  @GET
-  @Path("/content/{wid}")
-  def getWorkflowContentByWid(@PathParam("wid") wid: UInteger): String = {
-    val workflow = context
-      .selectFrom(WORKFLOW)
-      .where(WORKFLOW.WID.eq(wid))
-      .fetchOneInto(classOf[Workflow])
-
-    if (workflow == null) {
-      throw new WebApplicationException(s"Workflow with wid $wid not found.", 404)
-    }
-
-    val objectMapper = new ObjectMapper()
-    val contentMap =
-      objectMapper.readValue(workflow.getContent, classOf[java.util.Map[String, Any]])
-
-    val operators =
-      contentMap.get("operators").asInstanceOf[java.util.List[java.util.Map[String, Any]]]
-    val operatorInfoList = operators.asScala.map { operator =>
-      Map(
-        "operatorID" -> operator.get("operatorID"),
-        "operatorType" -> operator.get("operatorType")
-      ).asJava
-    }.asJava
-
-    objectMapper.writeValueAsString(operatorInfoList)
-  }
-
   @POST
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
@@ -463,18 +450,34 @@ class WorkflowResource extends LazyLogging {
   def cloneWorkflow(
       @PathParam("wid") wid: UInteger,
       @Auth sessionUser: SessionUser,
-      @Context request: HttpServletRequest,
-      operatorIdMap: java.util.Map[String, String]
+      @Context request: HttpServletRequest
   ): UInteger = {
-    val workflow: Workflow = workflowDao.fetchOneByWid(wid)
-    val updatedContent = replaceOperatorIdsInContent(workflow.getContent, operatorIdMap)
+    val workflow = context
+      .selectFrom(WORKFLOW)
+      .where(WORKFLOW.WID.eq(wid))
+      .fetchOneInto(classOf[Workflow])
+
+    val objectMapper = new ObjectMapper()
+    val contentMap =
+      objectMapper.readValue(workflow.getContent, classOf[java.util.Map[String, Any]]).asScala
+    val operators =
+      contentMap("operators").asInstanceOf[java.util.List[java.util.Map[String, Any]]].asScala
+    val operatorInfoList = operators.map { operator =>
+      Map(
+        "operatorID" -> operator.get("operatorID"),
+        "operatorType" -> operator.get("operatorType")
+      )
+    }
+    val operatorIdMap = generateOperatorIdMap(operatorInfoList)
+    val updatedContent = replaceOperatorIdsInContent(workflow.getContent, operatorIdMap.toMap)
+    println(updatedContent)
 
     val newWorkflow: DashboardWorkflow = createWorkflow(
       new Workflow(
         workflow.getName + "_clone",
         workflow.getDescription,
         null,
-        updatedContent,
+        workflow.getContent,
         null,
         null,
         0.toByte

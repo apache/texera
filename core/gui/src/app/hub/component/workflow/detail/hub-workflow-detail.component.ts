@@ -283,24 +283,12 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
 
   cloneWorkflow(): void {
     this.hubWorkflowService
-      .getWorkflowContent(Number(this.wid))
+      .cloneWorkflow(Number(this.wid))
       .pipe(untilDestroyed(this))
-      .subscribe((workflowContent: OperatorInfo[]) => {
-        console.log("Fetched Operator Info:", workflowContent);
-        const operatorIdMap: Record<string, string> = {};
-        workflowContent.forEach(operator => {
-          const oldOperatorId = operator.operatorID;
-          operatorIdMap[oldOperatorId] = operator.operatorType + "-" + this.workflowUtilService.getOperatorRandomUUID();
-        });
-
-        this.hubWorkflowService
-          .cloneWorkflow(Number(this.wid), operatorIdMap)
-          .pipe(untilDestroyed(this))
-          .subscribe(newWid => {
-            this.clonedWorklowId = newWid;
-            sessionStorage.setItem("cloneSuccess", "true");
-            this.router.navigate(["/dashboard/user/workflow"]);
-          });
+      .subscribe(newWid => {
+        this.clonedWorklowId = newWid;
+        sessionStorage.setItem("cloneSuccess", "true");
+        this.router.navigate(["/dashboard/user/workflow"]);
       });
   }
 
