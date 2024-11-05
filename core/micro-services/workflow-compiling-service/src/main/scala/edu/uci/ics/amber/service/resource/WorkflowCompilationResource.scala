@@ -13,14 +13,14 @@ import org.jooq.types.UInteger
 
 trait WorkflowCompilationResponse
 case class WorkflowCompilationSuccess(
-                                       physicalPlan: PhysicalPlan,
-                                       operatorInputSchemas: Map[String, List[Option[List[Attribute]]]]
-                                     ) extends WorkflowCompilationResponse
+    physicalPlan: PhysicalPlan,
+    operatorInputSchemas: Map[String, List[Option[List[Attribute]]]]
+) extends WorkflowCompilationResponse
 
 case class WorkflowCompilationFailure(
-                                       operatorErrors: Map[String, String],
-                                       operatorInputSchemas: Map[String, List[Option[List[Attribute]]]]
-                                     ) extends WorkflowCompilationResponse
+    operatorErrors: Map[String, String],
+    operatorInputSchemas: Map[String, List[Option[List[Attribute]]]]
+) extends WorkflowCompilationResponse
 
 @Consumes(Array(MediaType.APPLICATION_JSON))
 @Produces(Array(MediaType.APPLICATION_JSON))
@@ -31,9 +31,9 @@ class WorkflowCompilationResource extends LazyLogging {
   @POST
   @Path("/{wid}")
   def compileWorkflow(
-                       logicalPlanPojo: LogicalPlanPojo,
-                       @PathParam("wid") wid: UInteger
-                     ): WorkflowCompilationResponse = {
+      logicalPlanPojo: LogicalPlanPojo,
+      @PathParam("wid") wid: UInteger
+  ): WorkflowCompilationResponse = {
     // Create workflow context from wid
     val context = new WorkflowContext(
       workflowId = WorkflowIdentity(wid.toString.toLong)
