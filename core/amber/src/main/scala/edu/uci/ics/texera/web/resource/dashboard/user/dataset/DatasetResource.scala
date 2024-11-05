@@ -408,8 +408,7 @@ object DatasetResource {
   )
 
   case class ListDatasetsResponse(
-      datasets: List[DashboardDataset],
-      fileNodes: List[DatasetFileNode]
+      datasets: List[DashboardDataset]
   )
 
   case class DatasetVersionRootFileNodes(fileNodes: List[DatasetFileNode])
@@ -692,9 +691,7 @@ class DatasetResource {
   @GET
   @Path("")
   def listDatasets(
-      @Auth user: SessionUser,
-      @QueryParam("includeVersions") includeVersions: Boolean = false,
-      @QueryParam("includeFileNodes") includeFileNodes: Boolean = false
+      @Auth user: SessionUser
   ): ListDatasetsResponse = {
     val uid = user.getUid
     withTransaction(context)(ctx => {
@@ -744,48 +741,8 @@ class DatasetResource {
         }
       }
 
-      val fileNodesMap = mutable.Map[(String, String, String), List[PhysicalFileNode]]()
-
-      // iterate over datasets and retrieve the version
-      accessibleDatasets = accessibleDatasets.map { dataset =>
-        val did = dataset.dataset.getDid
-        val size = DatasetResource.calculateLatestDatasetVersionSize(did)
-
-        DashboardDataset(
-          isOwner = dataset.isOwner,
-          dataset = dataset.dataset,
-          ownerEmail = dataset.ownerEmail,
-          accessPrivilege = dataset.accessPrivilege,
-          versions = if (includeVersions || includeFileNodes) {
-            getDatasetVersions(ctx, did, uid).map { version =>
-              if (includeFileNodes) {
-                fileNodesMap += ((
-                  dataset.ownerEmail,
-                  dataset.dataset.getName,
-                  version.getName
-                ) -> GitVersionControlLocalFileStorage
-                  .retrieveRootFileNodesOfVersion(
-                    PathUtils.getDatasetPath(did),
-                    version.getVersionHash
-                  )
-                  .asScala
-                  .toList)
-              }
-              DashboardDatasetVersion(
-                version,
-                List()
-              )
-            }
-          } else {
-            dataset.versions
-          },
-          size = size
-        )
-      }
-
       ListDatasetsResponse(
-        accessibleDatasets.toList,
-        DatasetFileNode.fromPhysicalFileNodes(fileNodesMap.toMap)
+        accessibleDatasets.toList
       )
     })
   }
