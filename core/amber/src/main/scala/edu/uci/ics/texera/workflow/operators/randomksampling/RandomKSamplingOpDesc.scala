@@ -12,20 +12,12 @@ import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc
 import scala.util.Random
 
 class RandomKSamplingOpDesc extends FilterOpDesc {
-  // Store random seeds for each executor to satisfy the fault tolerance requirement.
-  // If a worker failed, the engine will start a new worker and rerun the computation.
-  // Fault tolerance requires that the restarted worker should produce the exactly same output.
-  // Therefore the seeds have to be stored.
-  @JsonIgnore
-  private val seeds: Array[Int] =
-    Array.fill(AmberConfig.numWorkerPerOperatorByDefault)(Random.nextInt())
+
 
   @JsonProperty(value = "random k sample percentage", required = true)
   @JsonPropertyDescription("random k sampling with given percentage")
   var percentage: Int = _
 
-  @JsonIgnore
-  def getSeed(index: Int): Int = seeds(index)
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
@@ -36,7 +28,7 @@ class RandomKSamplingOpDesc extends FilterOpDesc {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((idx, _) => new RandomKSamplingOpExec(percentage, idx, getSeed))
+        OpExecInitInfo((idx, workerCount) => new RandomKSamplingOpExec(percentage, idx,     Array.fill(workerCount)(Random.nextInt())))
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
