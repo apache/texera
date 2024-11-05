@@ -90,7 +90,7 @@ class CostBasedRegionPlanGenerator(
     val regionDAG = new DirectedAcyclicGraph[Region, RegionLink](
       null, // vertexSupplier
       SupplierUtil.createSupplier(classOf[RegionLink]), // edgeSupplier
-      true, // weighted
+      false, // weighted
       true // allowMultipleEdges
     )
     val regionGraph = new DirectedPseudograph[Region, RegionLink](classOf[RegionLink])
@@ -101,17 +101,12 @@ class CostBasedRegionPlanGenerator(
       regionDAG.addVertex(region)
     })
     var isAcyclic = true
-    matEdges.foreach(physicalLink => {
-      val fromRegion = opToRegionMap(physicalLink.fromOpId)
-      val toRegion = opToRegionMap(physicalLink.toOpId)
-      regionGraph.addEdge(
-        fromRegion,
-        toRegion,
-        RegionLink(fromRegion.id, toRegion.id, Some(physicalLink))
-      )
+    matEdges.foreach(blockingEdge => {
+      val fromRegion = opToRegionMap(blockingEdge.fromOpId)
+      val toRegion = opToRegionMap(blockingEdge.toOpId)
+      regionGraph.addEdge(fromRegion, toRegion, RegionLink(fromRegion.id, toRegion.id))
       try {
-        regionDAG
-          .addEdge(fromRegion, toRegion, RegionLink(fromRegion.id, toRegion.id, Some(physicalLink)))
+        regionDAG.addEdge(fromRegion, toRegion, RegionLink(fromRegion.id, toRegion.id))
       } catch {
         case _: IllegalArgumentException =>
           isAcyclic = false
