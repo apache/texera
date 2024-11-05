@@ -75,7 +75,6 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
   public pid?: number = undefined;
   userSystemEnabled = environment.userSystemEnabled;
   private currentUser?: User;
-  // @ViewChild("codeEditor", { read: ViewContainerRef }) codeEditorViewRef!: ViewContainerRef;
   constructor(
     private userService: UserService,
     // list additional services in constructor so they are initialized even if no one use them directly
@@ -228,8 +227,6 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
             .subscribe(() => {
               this.loadWorkflowWithId(this.wid);
             });
-        } else {
-          // no workflow to load, pending to create a new workflow
         }
       });
   }
