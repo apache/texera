@@ -82,9 +82,7 @@ export class DatasetService {
   }
 
   public retrieveAccessibleDatasets(): Observable<{ datasets: DashboardDataset[] }> {
-    return this.http.get<{ datasets: DashboardDataset[] }>(
-      `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}`
-    );
+    return this.http.get<{ datasets: DashboardDataset[] }>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}`);
   }
   public createDatasetVersion(
     did: number,

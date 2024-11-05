@@ -57,7 +57,7 @@ export class FileSelectionComponent implements OnInit {
               });
           }
         }
-      })
+      });
   }
 
   onDatasetChange() {
