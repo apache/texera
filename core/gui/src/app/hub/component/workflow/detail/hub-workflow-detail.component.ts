@@ -303,24 +303,6 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
           });
       });
   }
-  // cloneWorkflow(): void {
-  //   const operatorIdMap: Record<string, string> = {};
-  //
-  //   const workflowContent = this.workflowActionService.getWorkflowContent();
-  //   workflowContent.operators.forEach(operator => {
-  //     const oldOperatorId = operator.operatorID;
-  //     operatorIdMap[oldOperatorId] = operator.operatorType + "-" + this.workflowUtilService.getOperatorRandomUUID();
-  //   });
-  //
-  //   this.hubWorkflowService
-  //     .cloneWorkflow(Number(this.wid), operatorIdMap)
-  //     .pipe(untilDestroyed(this))
-  //     .subscribe(newWid => {
-  //       this.clonedWorklowId = newWid;
-  //       sessionStorage.setItem("cloneSuccess", "true");
-  //       this.router.navigate(["/dashboard/user/workflow"]);
-  //     });
-  // }
 
   toggleLike(workflowId: number | undefined, userId: number | undefined): void {
     if (workflowId === undefined || userId === undefined) {

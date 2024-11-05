@@ -456,20 +456,6 @@ class WorkflowResource extends LazyLogging {
     objectMapper.writeValueAsString(operatorInfoList)
   }
 
-//  @GET
-//  @Path("/content/{wid}")
-//  def getWorkflowContentByWid(@PathParam("wid") wid: UInteger): String = {
-//    val workflow = context
-//      .selectFrom(WORKFLOW)
-//      .where(WORKFLOW.WID.eq(wid))
-//      .fetchOneInto(classOf[Workflow])
-//
-//    if (workflow == null) {
-//      throw new WebApplicationException(s"Workflow with wid $wid not found.", 404)
-//    }
-//
-//    workflow.getContent
-//  }
 
   @POST
   @Consumes(Array(MediaType.APPLICATION_JSON))
@@ -515,49 +501,6 @@ class WorkflowResource extends LazyLogging {
 
     newWorkflow.workflow.getWid
   }
-
-//  @POST
-//  @Consumes(Array(MediaType.APPLICATION_JSON))
-//  @Produces(Array(MediaType.APPLICATION_JSON))
-//  @Path("/clone/{wid}")
-//  def cloneWorkflow(
-//      @PathParam("wid") wid: UInteger,
-//      @Auth sessionUser: SessionUser,
-//      @Context request: HttpServletRequest
-//  ): UInteger = {
-//    val workflow: Workflow = workflowDao.fetchOneByWid(wid)
-//    val newWorkflow: DashboardWorkflow = createWorkflow(
-//      new Workflow(
-//        workflow.getName + "_clone",
-//        workflow.getDescription,
-//        null,
-//        workflow.getContent,
-//        null,
-//        null,
-//        0.toByte
-//      ),
-//      sessionUser
-//    )
-//
-//    recordUserActivity(request, sessionUser.getUid, wid, "clone")
-//
-//    val existingCloneRecord = context
-//      .selectFrom(WORKFLOW_USER_CLONES)
-//      .where(WORKFLOW_USER_CLONES.UID.eq(sessionUser.getUid))
-//      .and(WORKFLOW_USER_CLONES.WID.eq(wid))
-//      .fetchOne()
-//
-//    if (existingCloneRecord == null) {
-//      context
-//        .insertInto(WORKFLOW_USER_CLONES)
-//        .set(WORKFLOW_USER_CLONES.UID, sessionUser.getUid)
-//        .set(WORKFLOW_USER_CLONES.WID, wid)
-//        .execute()
-//    }
-//
-//    //TODO: copy the environment as well
-//    newWorkflow.workflow.getWid
-//  }
 
   /**
     * This method creates and insert a new workflow to database
