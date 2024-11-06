@@ -78,9 +78,8 @@ export class ListItemComponent implements OnInit, OnChanges {
     private modal: NzModalService,
     private hubWorkflowService: HubWorkflowService,
     private downloadService: DownloadService,
-    private cdr: ChangeDetectorRef,
-  ) {
-  }
+    private cdr: ChangeDetectorRef
+  ) {}
 
   initializeEntry() {
     if (this.entry.type === "workflow") {
@@ -231,7 +230,7 @@ export class ListItemComponent implements OnInit, OnChanges {
     updateMethod: (id: number | undefined, value: string) => any,
     propertyName: "name" | "description",
     newValue: string,
-    originalValue: string | undefined,
+    originalValue: string | undefined
   ): void {
     updateMethod(this.entry.id, newValue)
       .pipe(untilDestroyed(this))
@@ -265,7 +264,7 @@ export class ListItemComponent implements OnInit, OnChanges {
       this.workflowPersistService.updateWorkflowName.bind(this.workflowPersistService),
       "name",
       workflowName,
-      this.originalName,
+      this.originalName
     );
   }
 
@@ -275,7 +274,7 @@ export class ListItemComponent implements OnInit, OnChanges {
       this.workflowPersistService.updateWorkflowDescription.bind(this.workflowPersistService),
       "description",
       updatedDescription,
-      this.originalDescription,
+      this.originalDescription
     );
   }
 

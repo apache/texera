@@ -31,7 +31,7 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
   cloneCount: number = 0;
   displayPreciseViewCount = false;
   viewCount: number = 0;
-  wid:number|undefined;
+  wid: number | undefined;
   protected readonly currentUser?: User;
 
   constructor(
@@ -43,11 +43,10 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
     private hubWorkflowService: HubWorkflowService,
     private workflowPersistService: WorkflowPersistService,
     private location: Location,
-    @Optional() @Inject(NZ_MODAL_DATA) public input: { wid: number } | undefined,
+    @Optional() @Inject(NZ_MODAL_DATA) public input: { wid: number } | undefined
   ) {
-
     this.wid = input?.wid;
-    if (isDefined( this.wid)) {
+    if (isDefined(this.wid)) {
       // meaning accessing from the pop up. getting wid from the @Input
     } else {
       console.log("no input wid");
@@ -66,33 +65,39 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
     }
 
     // getting the workflow information
-    this.hubWorkflowService.getLikeCount(this.wid)
+    this.hubWorkflowService
+      .getLikeCount(this.wid)
       .pipe(untilDestroyed(this))
       .subscribe(count => {
         this.likeCount = count;
       });
-    this.hubWorkflowService.getCloneCount(this.wid)
+    this.hubWorkflowService
+      .getCloneCount(this.wid)
       .pipe(untilDestroyed(this))
       .subscribe(count => {
         this.cloneCount = count;
       });
-    this.hubWorkflowService.postViewWorkflow(this.wid, this.currentUser?.uid ?? 0)
+    this.hubWorkflowService
+      .postViewWorkflow(this.wid, this.currentUser?.uid ?? 0)
       .pipe(throttleTime(THROTTLE_TIME_MS))
       .pipe(untilDestroyed(this))
       .subscribe(count => {
         this.viewCount = count;
       });
-    this.hubWorkflowService.getOwnerUser(this.wid)
+    this.hubWorkflowService
+      .getOwnerUser(this.wid)
       .pipe(untilDestroyed(this))
       .subscribe(owner => {
         this.ownerName = owner.name;
       });
-    this.hubWorkflowService.getWorkflowName(this.wid)
+    this.hubWorkflowService
+      .getWorkflowName(this.wid)
       .pipe(untilDestroyed(this))
       .subscribe(workflowName => {
         this.workflowName = workflowName;
       });
-    this.hubWorkflowService.getWorkflowDescription(this.wid)
+    this.hubWorkflowService
+      .getWorkflowDescription(this.wid)
       .pipe(untilDestroyed(this))
       .subscribe(workflowDescription => {
         this.workflowDescription = workflowDescription || "No description available";
@@ -110,7 +115,6 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
       });
 
     // TODO: check for if the workflow is cloned by the user
-
   }
 
   ngAfterViewInit(): void {
@@ -134,34 +138,32 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
    */
   loadWorkflowWithId(wid: number): void {
     if (!this.isHub) {
-      this.workflowPersistService.retrieveWorkflow(wid)
+      this.workflowPersistService
+        .retrieveWorkflow(wid)
         .pipe(untilDestroyed(this))
         .subscribe({
-            next: (workflow: Workflow) => {
-              // load the fetched workflow
-              this.workflowActionService.reloadWorkflow(workflow);
-            },
-            error: () => {
-              throw new Error(`Failed to load workflow with id ${wid}`);
-            },
+          next: (workflow: Workflow) => {
+            // load the fetched workflow
+            this.workflowActionService.reloadWorkflow(workflow);
           },
-        );
+          error: () => {
+            throw new Error(`Failed to load workflow with id ${wid}`);
+          },
+        });
     } else {
       this.hubWorkflowService
         .retrievePublicWorkflow(wid)
         .pipe(untilDestroyed(this))
         .subscribe({
-            next: (workflow: Workflow) => {
-              // load the fetched workflow
-              this.workflowActionService.reloadWorkflow(workflow);
-            },
-            error: () => {
-              throw new Error(`Failed to load workflow with id ${wid}`);
-            },
+          next: (workflow: Workflow) => {
+            // load the fetched workflow
+            this.workflowActionService.reloadWorkflow(workflow);
           },
-        );
+          error: () => {
+            throw new Error(`Failed to load workflow with id ${wid}`);
+          },
+        });
     }
-
   }
 
   goBack(): void {

@@ -4,8 +4,14 @@ import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.Tables._
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{User, Workflow}
-import edu.uci.ics.texera.web.resource.dashboard.hub.workflow.HubWorkflowResource.{fetchDashboardWorkflowsByWids, recordUserActivity}
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.{DashboardWorkflow, WorkflowWithPrivilege}
+import edu.uci.ics.texera.web.resource.dashboard.hub.workflow.HubWorkflowResource.{
+  fetchDashboardWorkflowsByWids,
+  recordUserActivity
+}
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.{
+  DashboardWorkflow,
+  WorkflowWithPrivilege
+}
 import org.jooq.impl.DSL
 import org.jooq.types.UInteger
 

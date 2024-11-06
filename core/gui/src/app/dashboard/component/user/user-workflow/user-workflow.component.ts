@@ -120,8 +120,6 @@ export class UserWorkflowComponent implements AfterViewInit {
 
   public selectionTooltip: string = "Select all";
 
-
-
   public updateTooltip(): void {
     const entries = this.searchResultsComponent.entries;
     const allSelected = entries.every(entry => entry.checked);
