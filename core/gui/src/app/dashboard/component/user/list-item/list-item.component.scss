@@ -59,21 +59,14 @@
   color: grey;
 }
 
-.checkbox-container {
+.large-checkbox {
   display: none;
-  position: absolute;
-  width: 40px;
-  height: 40px;
-  left: 0;
-  bottom: 0;
-  justify-content: left;
-  align-items: center;
-  transition: none;
-  top: 50%;
+  width: 16px;
+  height: 16px;
 }
 
-.list-item-card:hover .checkbox-container,
-.always-show-checkbox {
+.list-item-card:hover .large-checkbox,
+.showc {
   display: block;
   z-index: 10;
 }
@@ -148,16 +141,10 @@
 
 .type-icon {
   font-size: 30px;
-  margin-left: 30px;
 }
 
-.workflow-id{
+.workflow-id {
   padding: 6px;
-}
-
-.large-checkbox {
-  width: 16px;
-  height: 16px;
 }
 
 .like-button {

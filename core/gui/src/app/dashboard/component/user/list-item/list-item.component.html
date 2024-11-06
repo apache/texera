@@ -4,21 +4,22 @@
   [class.selected]="entry.checked"
   [class.has-button-group]="isPrivateSearch">
   <div
-    class="checkbox-container"
-    [class.always-show-checkbox]="entry.checked"
-    (click)="$event.stopPropagation()"
-    *ngIf="isPrivateSearch && entry.type==='workflow'">
-    <input
-      type="checkbox"
-      class="large-checkbox"
-      [checked]="entry.checked"
-      (change)="onCheckboxChange(entry)" />
-  </div>
-
-  <div
     [routerLink]="entryLink"
     nz-row
     nzAlign="middle">
+    <div
+      nz-col
+      nzFlex="20px">
+      <input
+        type="checkbox"
+        class="large-checkbox"
+        [ngClass]="{showc: entry.checked}"
+        [checked]="entry.checked"
+        (change)="onCheckboxChange(entry)"
+        (click)="$event.stopPropagation()"
+        *ngIf="isPrivateSearch && entry.type==='workflow'" />
+    </div>
+
     <div
       nz-col
       nzFlex="0"
@@ -31,8 +32,7 @@
     <div
       nz-col
       nzFlex="0"
-      class="workflow-id"
-    >
+      class="workflow-id">
       <i>#{{ entry.id }}</i>
     </div>
 
