@@ -37,14 +37,26 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder {
       params: DashboardResource.SearchQueryParams,
       includePublic: Boolean = false
   ): TableLike[_] = {
-    DATASET
+    val baseJoin = DATASET
       .leftJoin(DATASET_USER_ACCESS)
       .on(DATASET_USER_ACCESS.DID.eq(DATASET.DID))
       .leftJoin(USER)
       .on(USER.UID.eq(DATASET.OWNER_UID))
-      .where(
-        DATASET_USER_ACCESS.UID.eq(uid)
-      )
+
+    var condition: Condition = DSL.trueCondition()
+
+    if (uid == null) {
+      condition = DATASET.IS_PUBLIC.eq(1.toByte)
+    } else {
+      val userAccessCondition = DATASET_USER_ACCESS.UID.eq(uid)
+
+      if (includePublic) {
+        condition = userAccessCondition.or(DATASET.IS_PUBLIC.eq(1.toByte))
+      } else {
+        condition = userAccessCondition
+      }
+    }
+    baseJoin.where(condition)
   }
 
   override protected def constructWhereClause(
@@ -72,7 +84,9 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder {
           )
       )
   }
-  override protected def getGroupByFields: Seq[GroupField] = Seq.empty
+  override protected def getGroupByFields: Seq[GroupField] = {
+    Seq(DATASET.DID)
+  }
   override protected def toEntryImpl(
       uid: UInteger,
       record: Record

@@ -20,7 +20,6 @@ export class UserDatasetComponent implements AfterViewInit {
   public sortMethod = SortMethod.EditTimeDesc;
   lastSortMethod: SortMethod | null = null;
   public isLogin = this.userService.isLogin();
-  private includePublic = false;
   public currentUid = this.userService.getCurrentUser()?.uid;
   private _searchResultsComponent?: SearchResultsComponent;
   @ViewChild(SearchResultsComponent) get searchResultsComponent(): SearchResultsComponent {
@@ -71,7 +70,7 @@ export class UserDatasetComponent implements AfterViewInit {
       .subscribe(() => this.search());
   }
 
-  async search(forced: Boolean = false): Promise<void> {
+  async search(forced: Boolean = false, filterScope: "all" | "public" | "private" = "all"): Promise<void> {
     const sameList =
       this.masterFilterList !== null &&
       this.filters.masterFilterList.length === this.masterFilterList.length &&
@@ -86,6 +85,10 @@ export class UserDatasetComponent implements AfterViewInit {
       throw new Error("searchResultsComponent is undefined.");
     }
     let filterParams = this.filters.getSearchFilterParameters();
+
+    const isLogin = filterScope === "public" ? false : this.isLogin;
+    const includePublic = filterScope === "all" || filterScope === "public";
+
     this.searchResultsComponent.reset(async (start, count) => {
       const results = await firstValueFrom(
         this.searchService.search(
@@ -95,8 +98,8 @@ export class UserDatasetComponent implements AfterViewInit {
           count,
           "dataset",
           this.sortMethod,
-          this.isLogin,
-          this.includePublic
+          isLogin,
+          includePublic
         )
       );
 
