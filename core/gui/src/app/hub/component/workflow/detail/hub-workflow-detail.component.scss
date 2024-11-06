@@ -5,12 +5,6 @@ body {
   background-color: #f4f4f4;
 }
 
-//.hub-workflow-detail-container {
-//  height: 100vh;
-//  width: 100%;
-//  overflow-y: auto;
-//}
-
 .container {
   width: 80%;
   margin: 30px auto 0;
@@ -94,62 +88,11 @@ texera-mini-map {
 
 .clone-button,
 .like-button {
-  background-color: white;
-  color: black;
-  width: auto;
-  min-width: 90px;
-  height: 38px;
+  width: 70px;
   border-radius: 8px;
-  padding: 0 12px;
-  cursor: pointer;
-  border: 1px solid #e0e0e0;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-right: 10px;
-  margin-bottom: 10px;
-  transition:
-    background-color 0.3s ease,
-    color 0.3s ease,
-    border-color 0.3s ease,
-    box-shadow 0.3s ease;
 }
 
-.clone-button:hover,
-.like-button:hover {
-  background-color: #f0f0f0;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-}
-
-.like-button.liked {
-  border-color: red;
-}
-
-.clone-button i,
-.like-icon {
-  font-size: 20px;
-  margin-right: 10px;
-}
-
-.like-icon.liked {
+.liked {
   color: red;
-}
-
-.clone-button span,
-.like-button span {
-  font-size: 14px;
-  color: #888;
-  margin-left: 8px;
-}
-
-.like-button.liked span {
-  color: red;
-}
-
-.disabled-button {
-  background-color: #f0f0f0;
-  color: #a0a0a0;
-  border-color: #d0d0d0;
-  //cursor: not-allowed;
 }

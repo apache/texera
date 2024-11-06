@@ -35,6 +35,7 @@ const disableInteractiveOption = {
   vertexAdd: false,
   vertexRemove: false,
   elementMove: false, // TODO: This is only a temporary change, will introduce another level of disable option.
+  addLinkFromMagnet: false,
 };
 
 export const MAIN_CANVAS = {
