@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, HostListener, Inject, Input, OnDestroy, OnInit, Optional } from "@angular/core";
+import { AfterViewInit, Component, HostListener, Inject, OnDestroy, OnInit, Optional } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { ActivatedRoute, Router } from "@angular/router";
 import { UserService } from "../../../../common/service/user/user.service";
@@ -45,16 +45,11 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
     private location: Location,
     @Optional() @Inject(NZ_MODAL_DATA) public input: { wid: number } | undefined
   ) {
-    this.wid = input?.wid;
-    if (isDefined(this.wid)) {
-      // meaning accessing from the pop up. getting wid from the @Input
-    } else {
-      console.log("no input wid");
-      // otherwise getting wid from the route
+    this.wid = input?.wid; //Accessing from the pop up. getting wid from the @Input
+    if (!isDefined(this.wid)) { // otherwise getting wid from the route
       this.wid = this.route.snapshot.params.id;
       this.isHub = true;
     }
-
     this.currentUser = this.userService.getCurrentUser();
     this.workflowActionService.disableWorkflowModification();
   }
@@ -119,7 +114,6 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
 
   ngAfterViewInit(): void {
     if (!this.wid) {
-      console.log("not wid");
       return;
     }
     this.loadWorkflowWithId(this.wid);
@@ -178,8 +172,7 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
       .cloneWorkflow(this.wid)
       .pipe(untilDestroyed(this))
       .subscribe(newWid => {
-        // TODO: confirm if we need `newWid` in the url.
-        this.router.navigate(["/dashboard/user/workflow/"]).then(() => {
+        this.router.navigate([`/dashboard/user/workflow/${newWid}`]).then(() => {
           this.notificationService.success("Clone Successful");
         });
       });
@@ -207,9 +200,6 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
               .subscribe((count: number) => {
                 this.likeCount = count;
               });
-            console.log("Successfully unliked the workflow");
-          } else {
-            console.error("Error unliking the workflow");
           }
         });
     } else {
@@ -228,9 +218,6 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
               .subscribe((count: number) => {
                 this.likeCount = count;
               });
-            console.log("Successfully liked the workflow");
-          } else {
-            console.error("Error liking the workflow");
           }
         });
     }
