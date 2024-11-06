@@ -5,7 +5,7 @@ import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { StubUserService } from "../../../../common/service/user/stub-user.service";
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { RouterTestingModule } from "@angular/router/testing";
-import { HomeComponent } from "../../../../hub/component/home/home.component";
+import { AboutComponent } from "../../../../hub/component/about/about.component";
 
 describe("UserIconComponent", () => {
   let component: UserIconComponent;
@@ -16,7 +16,7 @@ describe("UserIconComponent", () => {
       declarations: [UserIconComponent],
       providers: [{ provide: UserService, useClass: StubUserService }],
       imports: [
-        RouterTestingModule.withRoutes([{ path: "home", component: HomeComponent }]),
+        RouterTestingModule.withRoutes([{ path: "home", component: AboutComponent }]),
         HttpClientTestingModule,
         NzDropDownModule,
       ],

@@ -7,7 +7,7 @@ import { UserQuotaComponent } from "./dashboard/component/user/user-quota/user-q
 import { UserProjectSectionComponent } from "./dashboard/component/user/user-project/user-project-section/user-project-section.component";
 import { UserProjectComponent } from "./dashboard/component/user/user-project/user-project.component";
 import { WorkspaceComponent } from "./workspace/component/workspace.component";
-import { HomeComponent } from "./hub/component/home/home.component";
+import { AboutComponent } from "./hub/component/about/about.component";
 import { AuthGuardService } from "./common/service/user/auth-guard.service";
 import { AdminUserComponent } from "./dashboard/component/admin/user/admin-user.component";
 import { AdminExecutionComponent } from "./dashboard/component/admin/execution/admin-execution.component";
@@ -35,7 +35,7 @@ if (environment.userSystemEnabled) {
       },
       {
         path: "about",
-        component: HomeComponent,
+        component: AboutComponent,
       },
       {
         path: "hub",
