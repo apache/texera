@@ -1,0 +1,31 @@
+<div
+  nz-row
+  nzJustify="space-around"
+  nzAlign="middle"
+  style="margin-top: 100px">
+  <div
+    nz-col
+    nzFlex="auto"
+    class="content">
+    <h2>Collaborative Data Analytics Using Workflows</h2>
+    <p>
+      <br />
+      <i>Texera supports scalable computation and enables advanced AI/ML techniques.</i>
+      <br />
+      <i>"Collaboration" is a key focus, and we enable an experience similar to Google Docs, but for data analytics.</i>
+      <br />
+    </p>
+    <iframe
+      width="560"
+      height="315"
+      src="https://www.youtube-nocookie.com/embed/2gfPUZNsoBs"
+      title="YouTube video player"
+      frameborder="0"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+      allowfullscreen></iframe>
+  </div>
+  <texera-local-login
+    *ngIf="localLogin"
+    nz-col
+    nzFlex="300px"></texera-local-login>
+</div>
