@@ -47,7 +47,8 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
     @Optional() @Inject(NZ_MODAL_DATA) public input: { wid: number } | undefined
   ) {
     this.wid = input?.wid; //Accessing from the pop up. getting wid from the @Input
-    if (!isDefined(this.wid)) { // otherwise getting wid from the route
+    if (!isDefined(this.wid)) {
+      // otherwise getting wid from the route
       this.wid = this.route.snapshot.params.id;
       this.isHub = true;
     }
