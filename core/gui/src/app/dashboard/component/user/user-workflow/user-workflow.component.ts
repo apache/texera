@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, Input, OnInit, ViewChild } from "@angular/core";
+import { AfterViewInit, Component, Input, ViewChild } from "@angular/core";
 import { Router } from "@angular/router";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { firstValueFrom, from, lastValueFrom, Observable, of } from "rxjs";
@@ -57,7 +57,7 @@ import { DownloadService } from "../../../service/user/download/download.service
   templateUrl: "user-workflow.component.html",
   styleUrls: ["user-workflow.component.scss"],
 })
-export class UserWorkflowComponent implements AfterViewInit, OnInit {
+export class UserWorkflowComponent implements AfterViewInit {
   public ROUTER_WORKFLOW_BASE_URL = "/dashboard/user/workspace";
   private _searchResultsComponent?: SearchResultsComponent;
   public isLogin = this.userService.isLogin();
@@ -119,14 +119,6 @@ export class UserWorkflowComponent implements AfterViewInit, OnInit {
   }
 
   public selectionTooltip: string = "Select all";
-
-  ngOnInit(): void {
-    const cloneSuccess = sessionStorage.getItem("cloneSuccess");
-    if (cloneSuccess === "true") {
-      this.notificationService.success("Clone Successful");
-      sessionStorage.removeItem("cloneSuccess");
-    }
-  }
 
   public updateTooltip(): void {
     const entries = this.searchResultsComponent.entries;
