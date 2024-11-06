@@ -27,7 +27,6 @@ import { isDefined } from "../../../../common/util/predicate";
 import { HubWorkflowService } from "../../../service/workflow/hub-workflow.service";
 import { User } from "src/app/common/type/user";
 import { Location } from "@angular/common";
-import { WorkflowUtilService } from "../../../../workspace/service/workflow-graph/util/workflow-util.service";
 
 export const THROTTLE_TIME_MS = 1000;
 
@@ -95,8 +94,7 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
     private notificationService: NotificationService,
     private codeEditorService: CodeEditorService,
     private hubWorkflowService: HubWorkflowService,
-    private location: Location,
-    private workflowUtilService: WorkflowUtilService
+    private location: Location
   ) {
     if (!this.wid) {
       this.wid = this.route.snapshot.params.id;
