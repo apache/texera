@@ -20,31 +20,27 @@
   <div
     [routerLink]="entryLink"
     nz-row
-    nzAlign="middle"
-  >
+    nzAlign="middle">
     <div
       nz-col
       nzFlex="0"
       class="type-icon">
-        <i
-          nz-icon
-          [nzType]="iconType"></i>
+      <i
+        nz-icon
+        [nzType]="iconType"></i>
     </div>
 
     <div
       nz-col
       nzFlex="20px">
-        <i>#{{ entry.id }}</i>
+      <i>#{{ entry.id }}</i>
     </div>
 
     <div
       nz-col
       nzFlex="30px"
-      *ngIf="isPrivateSearch"
-    >
-      <div
-        class="edit-button"
-        >
+      *ngIf="isPrivateSearch">
+      <div class="edit-button">
         <button
           nz-button
           nzType="text"
@@ -56,8 +52,7 @@
         </button>
       </div>
 
-      <div
-        class="edit-button">
+      <div class="edit-button">
         <button
           nz-button
           nzType="text"
@@ -73,44 +68,42 @@
     <div
       nz-col
       nzFlex="1"
-      class="resource-name-group"
-    >
-        <div
-          class="resource-name truncate-single-line"
-          *ngIf="!editingName">
-          {{ entry.name }}
-        </div>
-        <input
-          *ngIf="editingName"
-          #nameInput
-          class="resource-name-edit-input"
-          [(ngModel)]="entry.name"
-          (blur)="confirmUpdateWorkflowCustomName(entry.name)"
-          (keydown.enter)="confirmUpdateWorkflowCustomName(entry.name)"
-          (click)="$event.stopPropagation()"
-          autofocus />
+      class="resource-name-group">
+      <div
+        class="resource-name truncate-single-line"
+        *ngIf="!editingName">
+        {{ entry.name }}
+      </div>
+      <input
+        *ngIf="editingName"
+        #nameInput
+        class="resource-name-edit-input"
+        [(ngModel)]="entry.name"
+        (blur)="confirmUpdateWorkflowCustomName(entry.name)"
+        (keydown.enter)="confirmUpdateWorkflowCustomName(entry.name)"
+        (click)="$event.stopPropagation()"
+        autofocus />
 
-        <div
-          class="resource-description truncate-single-line"
-          *ngIf="!editingDescription">
-          {{ entry.description ? entry.description : '' }}
-        </div>
-        <textarea
-          *ngIf="editingDescription"
-          #descriptionInput
-          class="resource-description-edit-textarea"
-          [(ngModel)]="entry.description"
-          (blur)="confirmUpdateWorkflowCustomDescription(entry.description)"
-          (keydown.enter)="confirmUpdateWorkflowCustomDescription(entry.description)"
-          (click)="$event.stopPropagation()"
-          autofocus></textarea>
+      <div
+        class="resource-description truncate-single-line"
+        *ngIf="!editingDescription">
+        {{ entry.description ? entry.description : '' }}
+      </div>
+      <textarea
+        *ngIf="editingDescription"
+        #descriptionInput
+        class="resource-description-edit-textarea"
+        [(ngModel)]="entry.description"
+        (blur)="confirmUpdateWorkflowCustomDescription(entry.description)"
+        (keydown.enter)="confirmUpdateWorkflowCustomDescription(entry.description)"
+        (click)="$event.stopPropagation()"
+        autofocus></textarea>
     </div>
 
     <div
       nz-col
       nzFlex="50px"
-      class="resource-info"
-    >
+      class="resource-info">
       <texera-user-avatar
         [googleAvatar]="'https://lh3.googleusercontent.com/a/' + (entry.ownerGoogleAvatar || '')"
         userColor="#1E90FF"
@@ -121,10 +114,10 @@
 
     <div
       nz-col
-      nzFlex="50px"
+      nzFlex="40px"
       class="resource-info">
       <ng-container *ngIf="entry.type === 'workflow'; else sizeInfo">
-        {{ formatCount(viewCount) }}<br>
+        {{ formatCount(viewCount) }}<br />
         views
       </ng-container>
       <ng-template #sizeInfo> Size: {{ formatSize(entry.size) }} </ng-template>
@@ -132,9 +125,9 @@
 
     <div
       nz-col
-      nzFlex="90px"
+      nzFlex="95px"
       class="resource-info">
-      Created:<br>
+      Created:<br />
       {{ formatTime(entry.creationTime) }}
     </div>
 
@@ -142,7 +135,7 @@
       nz-col
       nzFlex="90px"
       class="resource-info">
-      Edited:<br>
+      Edited:<br />
       {{ formatTime(entry.lastModifiedTime) }}
     </div>
 
@@ -156,7 +149,7 @@
         nzType="default"
         class="like-button"
         title="Like"
-        [disabled] = "!currentUid"
+        [disabled]="!currentUid"
         (click)="toggleLike(this.entry.id, this.currentUid); $event.stopPropagation()"
         [attr.disabled]="!currentUid ? true : null">
         <i
@@ -209,8 +202,7 @@
       (click)="onClickDownload()">
       <i
         nz-icon
-        nzType="cloud-download"
-      ></i>
+        nzType="cloud-download"></i>
     </button>
     <button
       nz-button
