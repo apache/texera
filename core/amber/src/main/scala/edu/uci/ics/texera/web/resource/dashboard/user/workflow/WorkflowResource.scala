@@ -1,16 +1,13 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables._
 import edu.uci.ics.texera.web.model.jooq.generated.enums.WorkflowUserAccessPrivilege
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  WorkflowDao,
-  WorkflowOfProjectDao,
-  WorkflowOfUserDao,
-  WorkflowUserAccessDao
-}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{WorkflowDao, WorkflowOfProjectDao, WorkflowOfUserDao, WorkflowUserAccessDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
 import edu.uci.ics.texera.web.resource.dashboard.hub.workflow.HubWorkflowResource.recordUserActivity
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasReadAccess
@@ -22,17 +19,14 @@ import org.jooq.types.UInteger
 
 import java.sql.Timestamp
 import java.util
-import javax.annotation.security.RolesAllowed
-import javax.ws.rs._
-import javax.ws.rs.core.MediaType
-import scala.collection.mutable.ListBuffer
-import scala.util.control.NonFatal
-import javax.servlet.http.HttpServletRequest
-import javax.ws.rs.core.Context
-import com.fasterxml.jackson.databind.ObjectMapper
-import scala.jdk.CollectionConverters._
 import java.util.UUID
-import scala.collection.mutable
+import javax.annotation.security.RolesAllowed
+import javax.servlet.http.HttpServletRequest
+import javax.ws.rs._
+import javax.ws.rs.core.{Context, MediaType}
+import scala.collection.mutable.ListBuffer
+import scala.jdk.CollectionConverters._
+import scala.util.control.NonFatal
 
 /**
   * This file handles various request related to saved-workflows.
@@ -131,50 +125,35 @@ object WorkflowResource {
     }
   }
 
-  private def generateOperatorIdMap(
-      operatorInfoList: mutable.Buffer[Map[String, Any]]
-  ): mutable.Map[String, String] = {
-    val operatorIdMap = mutable.Map[String, String]()
+  /**
+    * Updates operator IDs in the given workflow content by assigning new unique IDs.
+    * Each operator ID in the "operators" section is replaced with a new ID of the form:
+    * "<operatorType>-operator-<UUID>"
+    *
+    * @param workflowContent JSON string representing the workflow, containing operator details.
+    * @return The updated workflow content with new operator IDs.
+    */
+  private def assignNewOperatorIds(workflowContent: String): String = {
+    val objectMapper = new ObjectMapper().registerModule(DefaultScalaModule)
+    val operatorIdMap = objectMapper
+      .readValue(workflowContent, classOf[Map[String, List[Map[String, String]]]])("operators")
+      .map(operator => {
+        val oldOperatorId = operator("operatorID")
+        val operatorType = operator("operatorType")
+        // operator id in frontend: operatorSchema.operatorType + "-operator-" + uuid(); // v4 = UUID.randomUUID().toString
+        val newOperatorId = s"$operatorType-operator-${UUID.randomUUID()}"
+        oldOperatorId -> newOperatorId
+      })
+      .toMap
 
-    operatorInfoList.foreach { operator =>
-      val oldOperatorId = operator("operatorID").toString
-      val operatorType = operator("operatorType").toString
-      // operator id in frontend: operatorSchema.operatorType + "-operator-" + uuid(); // v4 = UUID.randomUUID().toString
-      operatorIdMap(oldOperatorId) = operatorType + "-operator-" + UUID.randomUUID().toString
+    // replace all old operator ids with new operator ids
+    operatorIdMap.foldLeft(workflowContent) {
+      case (updatedContent, (oldId, newId)) =>
+        updatedContent.replace(oldId, newId)
     }
-    operatorIdMap
   }
-
-  private def replaceOperatorIdsInContent(
-      content: String,
-      idMap: Map[String, String]
-  ): String = {
-    var updatedContent = content
-    idMap.foreach {
-      case (oldId, newId) =>
-        updatedContent = updatedContent.replace(oldId, newId)
-    }
-    updatedContent
-  }
-
-  private def getUpdatedContentWithNewOperatorIds(workflow: Workflow): String = {
-    val objectMapper = new ObjectMapper()
-    val contentMap =
-      objectMapper.readValue(workflow.getContent, classOf[java.util.Map[String, Any]]).asScala
-    val operators =
-      contentMap("operators").asInstanceOf[java.util.List[java.util.Map[String, Any]]].asScala
-    val operatorInfoList = operators.map { operator =>
-      Map(
-        "operatorID" -> operator.get("operatorID"),
-        "operatorType" -> operator.get("operatorType")
-      )
-    }
-
-    val operatorIdMap = generateOperatorIdMap(operatorInfoList)
-    replaceOperatorIdsInContent(workflow.getContent, operatorIdMap.toMap)
-  }
-
 }
+
 @Produces(Array(MediaType.APPLICATION_JSON))
 @RolesAllowed(Array("REGULAR", "ADMIN"))
 @Path("/workflow")
@@ -422,7 +401,7 @@ class WorkflowResource extends LazyLogging {
       context.transaction { txConfig =>
         for (wid <- workflowIDs.wids) {
           val workflow: Workflow = workflowDao.fetchOneByWid(wid)
-          val updatedContent = getUpdatedContentWithNewOperatorIds(workflow)
+          val updatedContent = assignNewOperatorIds(workflow.getContent)
           workflow.getName
           val newWorkflow = createWorkflow(
             new Workflow(
@@ -470,7 +449,7 @@ class WorkflowResource extends LazyLogging {
       @Context request: HttpServletRequest
   ): UInteger = {
     val workflow: Workflow = workflowDao.fetchOneByWid(wid)
-    val updatedContent = getUpdatedContentWithNewOperatorIds(workflow)
+    val updatedContent = assignNewOperatorIds(workflow.getContent)
     val newWorkflow: DashboardWorkflow = createWorkflow(
       new Workflow(
         workflow.getName + "_clone",
