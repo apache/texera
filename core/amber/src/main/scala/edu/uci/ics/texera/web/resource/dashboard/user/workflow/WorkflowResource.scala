@@ -1,5 +1,7 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
@@ -22,14 +24,14 @@ import org.jooq.types.UInteger
 
 import java.sql.Timestamp
 import java.util
+import java.util.UUID
 import javax.annotation.security.RolesAllowed
-import javax.ws.rs._
-import javax.ws.rs.core.MediaType
-import scala.collection.mutable.ListBuffer
-import scala.jdk.CollectionConverters.IterableHasAsScala
-import scala.util.control.NonFatal
 import javax.servlet.http.HttpServletRequest
-import javax.ws.rs.core.Context
+import javax.ws.rs._
+import javax.ws.rs.core.{Context, MediaType}
+import scala.collection.mutable.ListBuffer
+import scala.jdk.CollectionConverters._
+import scala.util.control.NonFatal
 
 /**
   * This file handles various request related to saved-workflows.
@@ -128,7 +130,35 @@ object WorkflowResource {
     }
   }
 
+  /**
+    * Updates operator IDs in the given workflow content by assigning new unique IDs.
+    * Each operator ID in the "operators" section is replaced with a new ID of the form:
+    * "<operatorType>-operator-<UUID>"
+    *
+    * @param workflowContent JSON string representing the workflow, containing operator details.
+    * @return The updated workflow content with new operator IDs.
+    */
+  private def assignNewOperatorIds(workflowContent: String): String = {
+    val objectMapper = new ObjectMapper().registerModule(DefaultScalaModule)
+    val operatorIdMap = objectMapper
+      .readValue(workflowContent, classOf[Map[String, List[Map[String, String]]]])("operators")
+      .map(operator => {
+        val oldOperatorId = operator("operatorID")
+        val operatorType = operator("operatorType")
+        // operator id in frontend: operatorSchema.operatorType + "-operator-" + uuid(); // v4 = UUID.randomUUID().toString
+        val newOperatorId = s"$operatorType-operator-${UUID.randomUUID()}"
+        oldOperatorId -> newOperatorId
+      })
+      .toMap
+
+    // replace all old operator ids with new operator ids
+    operatorIdMap.foldLeft(workflowContent) {
+      case (updatedContent, (oldId, newId)) =>
+        updatedContent.replace(oldId, newId)
+    }
+  }
 }
+
 @Produces(Array(MediaType.APPLICATION_JSON))
 @RolesAllowed(Array("REGULAR", "ADMIN"))
 @Path("/workflow")
@@ -375,15 +405,13 @@ class WorkflowResource extends LazyLogging {
     try {
       context.transaction { txConfig =>
         for (wid <- workflowIDs.wids) {
-          val workflow: Workflow = workflowDao.fetchOneByWid(wid)
-          workflow.getContent
-          workflow.getName
+          val oldWorkflow: Workflow = workflowDao.fetchOneByWid(wid)
           val newWorkflow = createWorkflow(
             new Workflow(
-              workflow.getName + "_copy",
-              workflow.getDescription,
+              oldWorkflow.getName + "_copy",
+              oldWorkflow.getDescription,
               null,
-              workflow.getContent,
+              assignNewOperatorIds(oldWorkflow.getContent),
               null,
               null,
               0.toByte
@@ -423,13 +451,13 @@ class WorkflowResource extends LazyLogging {
       @Auth sessionUser: SessionUser,
       @Context request: HttpServletRequest
   ): UInteger = {
-    val workflow: Workflow = workflowDao.fetchOneByWid(wid)
+    val oldWorkflow: Workflow = workflowDao.fetchOneByWid(wid)
     val newWorkflow: DashboardWorkflow = createWorkflow(
       new Workflow(
-        workflow.getName + "_clone",
-        workflow.getDescription,
+        oldWorkflow.getName + "_clone",
+        oldWorkflow.getDescription,
         null,
-        workflow.getContent,
+        assignNewOperatorIds(oldWorkflow.getContent),
         null,
         null,
         0.toByte
@@ -453,7 +481,6 @@ class WorkflowResource extends LazyLogging {
         .execute()
     }
 
-    //TODO: copy the environment as well
     newWorkflow.workflow.getWid
   }
 
