@@ -405,15 +405,13 @@ class WorkflowResource extends LazyLogging {
     try {
       context.transaction { txConfig =>
         for (wid <- workflowIDs.wids) {
-          val workflow: Workflow = workflowDao.fetchOneByWid(wid)
-          val updatedContent = assignNewOperatorIds(workflow.getContent)
-          workflow.getName
+          val oldWorkflow: Workflow = workflowDao.fetchOneByWid(wid)
           val newWorkflow = createWorkflow(
             new Workflow(
-              workflow.getName + "_copy",
-              workflow.getDescription,
+              oldWorkflow.getName + "_copy",
+              oldWorkflow.getDescription,
               null,
-              updatedContent,
+              assignNewOperatorIds(oldWorkflow.getContent),
               null,
               null,
               0.toByte
@@ -453,14 +451,13 @@ class WorkflowResource extends LazyLogging {
       @Auth sessionUser: SessionUser,
       @Context request: HttpServletRequest
   ): UInteger = {
-    val workflow: Workflow = workflowDao.fetchOneByWid(wid)
-    val updatedContent = assignNewOperatorIds(workflow.getContent)
+    val oldWorkflow: Workflow = workflowDao.fetchOneByWid(wid)
     val newWorkflow: DashboardWorkflow = createWorkflow(
       new Workflow(
-        workflow.getName + "_clone",
-        workflow.getDescription,
+        oldWorkflow.getName + "_clone",
+        oldWorkflow.getDescription,
         null,
-        updatedContent,
+        assignNewOperatorIds(oldWorkflow.getContent),
         null,
         null,
         0.toByte
