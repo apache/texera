@@ -110,8 +110,6 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
       .subscribe((isLiked: boolean) => {
         this.isLiked = isLiked;
       });
-
-    // TODO: check for if the workflow is cloned by the user
   }
 
   ngAfterViewInit(): void {
