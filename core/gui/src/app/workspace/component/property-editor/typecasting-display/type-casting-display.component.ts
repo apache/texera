@@ -1,10 +1,10 @@
 import { Component, Input, OnChanges, OnInit } from "@angular/core";
-import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/model/workflow-action.service";
+import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import {
   AttributeType,
   SchemaAttribute,
   SchemaPropagationService,
-} from "src/app/workspace/service/dynamic-schema/schema-propagation/schema-propagation.service";
+} from "../../../service/dynamic-schema/schema-propagation/schema-propagation.service";
 import { filter, map } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 

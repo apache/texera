@@ -22,7 +22,7 @@ import { WorkflowVersionService } from "../../../dashboard/service/user/workflow
 import { UserProjectService } from "../../../dashboard/service/user/project/user-project.service";
 import { NzUploadFile } from "ng-zorro-antd/upload";
 import { saveAs } from "file-saver";
-import { NotificationService } from "src/app/common/service/notification/notification.service";
+import { NotificationService } from "../../common/service/notification/notification.service";
 import { OperatorMenuService } from "../../service/operator-menu/operator-menu.service";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
 import { firstValueFrom, Subscription, timer } from "rxjs";
@@ -30,7 +30,7 @@ import { isDefined } from "../../../common/util/predicate";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { ResultExportationComponent } from "../result-exportation/result-exportation.component";
 import { ReportGenerationService } from "../../service/report-generation/report-generation.service";
-import { ShareAccessComponent } from "src/app/dashboard/component/user/share-access/share-access.component";
+import { ShareAccessComponent } from "../../dashboard/component/user/share-access/share-access.component";
 import { UdfDebugService } from "../../service/operator-debug/udf-debug.service";
 /**
  * MenuComponent is the top level menu bar that shows

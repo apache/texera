@@ -25,8 +25,9 @@ import { Workflow } from "../../../../common/type/workflow";
 import { of } from "rxjs";
 import { isDefined } from "../../../../common/util/predicate";
 import { HubWorkflowService } from "../../../service/workflow/hub-workflow.service";
-import { User } from "src/app/common/type/user";
+
 import { Location } from "@angular/common";
+import { User } from "../../../../common/type/user";
 
 export const THROTTLE_TIME_MS = 1000;
 

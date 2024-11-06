@@ -1,10 +1,11 @@
 import { Component, inject, OnChanges } from "@angular/core";
 import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
-import { trimDisplayJsonData } from "src/app/common/util/json";
+
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
 import { PRETTY_JSON_TEXT_LIMIT } from "./result-table-frame/result-table-frame.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { PanelResizeService } from "../../service/workflow-result/panel-resize/panel-resize.service";
+import { trimDisplayJsonData } from "../../../common/util/json";
 
 /**
  *

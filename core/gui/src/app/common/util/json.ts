@@ -13,7 +13,7 @@ import deepMap from "deep-map";
 import {
   AttributeType,
   SchemaAttribute,
-} from "src/app/workspace/service/dynamic-schema/schema-propagation/schema-propagation.service";
+} from "../../workspace/service/dynamic-schema/schema-propagation/schema-propagation.service";
 
 export function formatBinaryData(value: string): string {
   const length = value.length;

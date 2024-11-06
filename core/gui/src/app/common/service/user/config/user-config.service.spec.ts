@@ -1,6 +1,6 @@
 // import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 // import { fakeAsync, flush, inject, TestBed, tick } from "@angular/core/testing";
-// import { AppSettings } from "src/app/common/app-setting";
+// import { AppSettings } from "../../common/app-setting";
 // import { UserConfigService, UserConfig } from "./user-config.service";
 // import { UserService } from "../user.service";
 // import { StubUserService } from "../stub-user.service";

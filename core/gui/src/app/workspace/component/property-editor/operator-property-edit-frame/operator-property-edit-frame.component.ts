@@ -26,7 +26,7 @@ import {
   hideTypes,
 } from "../../../types/custom-json-schema.interface";
 import { isDefined } from "../../../../common/util/predicate";
-import { ExecutionState, OperatorState, OperatorStatistics } from "src/app/workspace/types/execute-workflow.interface";
+
 import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-schema.service";
 import {
   AttributeType,
@@ -38,19 +38,20 @@ import {
   createShouldHideFieldFunc,
   setChildTypeDependency,
   setHideExpression,
-} from "src/app/common/formly/formly-utils";
+} from "../../../../common/formly/formly-utils";
 import { TYPE_CASTING_OPERATOR_TYPE } from "../typecasting-display/type-casting-display.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { filter } from "rxjs/operators";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
-import { PresetWrapperComponent } from "src/app/common/formly/preset-wrapper/preset-wrapper.component";
-import { environment } from "src/environments/environment";
+import { PresetWrapperComponent } from "../../../../common/formly/preset-wrapper/preset-wrapper.component";
+import { environment } from "../../../../../environments/environment";
 import { WorkflowVersionService } from "../../../../dashboard/service/user/workflow-version/workflow-version.service";
 import { QuillBinding } from "y-quill";
 import Quill from "quill";
 import QuillCursors from "quill-cursors";
 import * as Y from "yjs";
-import { OperatorSchema } from "src/app/workspace/types/operator-schema.interface";
+import { OperatorSchema } from "../../../types/operator-schema.interface";
+import { ExecutionState, OperatorState, OperatorStatistics } from "../../../types/execute-workflow.interface";
 
 Quill.register("modules/cursors", QuillCursors);
 

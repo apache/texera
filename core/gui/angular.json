@@ -59,13 +59,7 @@
               "namedChunks": false,
               "extractLicenses": true,
               "vendorChunk": false,
-              "buildOptimizer": true,
-              "fileReplacements": [
-                {
-                  "replace": "src/environments/environment.ts",
-                  "with": "src/environments/environment.prod.ts"
-                }
-              ]
+              "buildOptimizer": true
             }
           },
           "defaultConfiguration": ""
@@ -83,28 +77,10 @@
           }
         },
         "test": {
-          "builder": "@angular-builders/custom-webpack:karma",
+          "builder": "@angular-builders/jest:run",
           "options": {
-            "assets": ["src/assets"],
-            "fileReplacements": [
-              {
-                "replace": "src/environments/environment.ts",
-                "with": "src/environments/environment.test.ts"
-              }
-            ],
-            "karmaConfig": "./karma.conf.js",
-            "main": "src/test.ts",
-            "polyfills": ["zone.js", "zone.js/testing"],
-            "styles": [
-              "node_modules/jointjs/css/layout.css",
-              "node_modules/jointjs/css/themes/material.css",
-              "node_modules/jointjs/css/themes/default.css",
-              "src/styles.scss"
-            ],
-            "customWebpackConfig": {
-              "path": "./custom-webpack.config.js"
-            },
-            "tsConfig": "src/tsconfig.spec.json"
+            "tsConfig": "tsconfig.spec.json",
+            "configPath": "jest.config.ts"
           }
         },
         "lint": {

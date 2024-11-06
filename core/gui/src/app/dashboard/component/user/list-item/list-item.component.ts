@@ -12,18 +12,15 @@ import {
 } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzModalService } from "ng-zorro-antd/modal";
-import { DashboardEntry } from "src/app/dashboard/type/dashboard-entry";
 import { ShareAccessComponent } from "../share-access/share-access.component";
-import {
-  WorkflowPersistService,
-  DEFAULT_WORKFLOW_NAME,
-} from "src/app/common/service/workflow-persist/workflow-persist.service";
 import { firstValueFrom } from "rxjs";
 import { SearchService } from "../../../service/user/search.service";
 import { HubWorkflowDetailComponent } from "../../../../hub/component/workflow/detail/hub-workflow-detail.component";
 import { HubWorkflowService } from "../../../../hub/service/workflow/hub-workflow.service";
-import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
-import { formatSize } from "src/app/common/util/size-formatter.util";
+import { DashboardEntry } from "../../../type/dashboard-entry";
+import { WorkflowPersistService, DEFAULT_WORKFLOW_NAME } from "../../../../common/service/workflow-persist/workflow-persist.service";
+import { DownloadService } from "../../../service/user/download/download.service";
+import { formatSize } from "../../../../common/util/size-formatter.util";
 
 @UntilDestroy()
 @Component({

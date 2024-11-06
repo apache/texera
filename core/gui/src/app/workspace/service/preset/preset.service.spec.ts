@@ -2,8 +2,8 @@
 // import { TestBed, inject, fakeAsync, tick, flush, discardPeriodicTasks } from "@angular/core/testing";
 // import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 // import { NzMessageModule, NzMessageService } from "ng-zorro-antd/message";
-// import { AppSettings } from "src/app/common/app-setting";
-// import { DictionaryService } from "src/app/common/service/user/user-dictionary/dictionary.service";
+// import { AppSettings } from "../../common/app-setting";
+// import { DictionaryService } from "../../common/service/user/user-dictionary/dictionary.service";
 // import { JointUIService } from "../joint-ui/joint-ui.service";
 // import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 // import { StubOperatorMetadataService } from "../operator-metadata/stub-operator-metadata.service";

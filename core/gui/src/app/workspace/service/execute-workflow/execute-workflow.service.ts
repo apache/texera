@@ -1,5 +1,5 @@
 import { Injectable, Inject } from "@angular/core";
-import { from, Observable, Subject } from "rxjs";
+import { Observable, Subject } from "rxjs";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowGraphReadonly } from "../workflow-graph/model/workflow-graph";
 import {
@@ -19,23 +19,17 @@ import {
 import { isEqual } from "lodash-es";
 import { PAGINATION_INFO_STORAGE_KEY, ResultPaginationInfo } from "../../types/result-table.interface";
 import { sessionGetObject, sessionSetObject } from "../../../common/util/storage";
-import { Version as version } from "src/environments/version";
-import { NotificationService } from "src/app/common/service/notification/notification.service";
+import { Version as version } from "../../../../environments/version";
+import { NotificationService } from "../../../common/service/notification/notification.service";
 import { exhaustiveGuard } from "../../../common/util/switch";
 import { WorkflowStatusService } from "../workflow-status/workflow-status.service";
 import { intersection } from "../../../common/util/set";
 import { WorkflowSettings } from "../../../common/type/workflow";
 import { DOCUMENT } from "@angular/common";
-import { UserService } from "src/app/common/service/user/user.service";
-import { User } from "src/app/common/type/user";
+
 
 // TODO: change this declaration
 export const FORM_DEBOUNCE_TIME_MS = 150;
-
-export const EXECUTE_WORKFLOW_ENDPOINT = "queryplan/execute";
-
-export const PAUSE_WORKFLOW_ENDPOINT = "pause";
-export const RESUME_WORKFLOW_ENDPOINT = "resume";
 
 /**
  * ExecuteWorkflowService sends the current workflow data to the backend
@@ -50,10 +44,8 @@ export const RESUME_WORKFLOW_ENDPOINT = "resume";
  *  in order to capture the event of workflow graph starts executing.
  *
  * Components and Services subscribe to getExecuteEndedStream()
- *  for the event of the execution result (or errro) returned by the backend.
+ *  for the event of the execution result (or error) returned by the backend.
  *
- * @author Zuozhi Wang
- * @author Henry Chen
  */
 @Injectable({
   providedIn: "root",

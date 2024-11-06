@@ -1,10 +1,10 @@
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { Observable, of, Subject } from "rxjs";
-import { AppSettings } from "src/app/common/app-setting";
 import { UserService } from "../user.service";
 import { shareReplay, tap } from "rxjs/operators";
-import { isType } from "src/app/common/util/assert";
+import { AppSettings } from "../../../app-setting";
+
 
 export type UserConfig = {
   [key: string]: string;

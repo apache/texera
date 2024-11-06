@@ -1,10 +1,10 @@
 import { Component, HostListener, inject, Inject, LOCALE_ID } from "@angular/core";
 import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
-import { CommentBox } from "src/app/workspace/types/workflow-common.interface";
-import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/model/workflow-action.service";
-import { UserService } from "src/app/common/service/user/user.service";
+import { CommentBox } from "../../workspace/types/workflow-common.interface";
+import { WorkflowActionService } from "../../workspace/service/workflow-graph/model/workflow-action.service";
+import { UserService } from "../../common/service/user/user.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
-import { User } from "src/app/common/type/user";
+import { User } from "../../common/type/user";
 import { untilDestroyed } from "@ngneat/until-destroy";
 import { UntilDestroy } from "@ngneat/until-destroy";
 import { formatDate } from "@angular/common";

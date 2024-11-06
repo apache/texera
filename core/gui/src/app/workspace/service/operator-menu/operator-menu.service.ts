@@ -1,13 +1,14 @@
 import { Injectable } from "@angular/core";
-import { environment } from "src/environments/environment";
+
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { isSink } from "../workflow-graph/model/workflow-graph";
 import { BehaviorSubject, merge } from "rxjs";
 import { OperatorLink, OperatorPredicate, Point, CommentBox } from "../../types/workflow-common.interface";
 import { Group } from "../workflow-graph/model/operator-group";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
-import { NotificationService } from "src/app/common/service/notification/notification.service";
+
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
+import { NotificationService } from "../../../common/service/notification/notification.service";
 
 type OperatorPositions = {
   [key: string]: Point;

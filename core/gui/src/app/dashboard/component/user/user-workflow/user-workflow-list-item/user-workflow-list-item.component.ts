@@ -13,7 +13,8 @@ import { DashboardProject } from "../../../../type/dashboard-project.interface";
 import { UserProjectService } from "../../../../service/user/project/user-project.service";
 import { DashboardEntry } from "../../../../type/dashboard-entry";
 import { firstValueFrom } from "rxjs";
-import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
+import { DownloadService } from "../../../../service/user/download/download.service";
+
 
 @UntilDestroy()
 @Component({

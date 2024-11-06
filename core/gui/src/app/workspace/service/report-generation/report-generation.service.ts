@@ -5,9 +5,10 @@ import { forkJoin, Observable, Observer } from "rxjs";
 import { map } from "rxjs/operators";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowResultService } from "../workflow-result/workflow-result.service";
-import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { AiAnalystService } from "../ai-analyst/ai-analyst.service";
-import { AppSettings } from "src/app/common/app-setting";
+import { AppSettings } from "../../../common/app-setting";
+import { NotificationService } from "../../../common/service/notification/notification.service";
+
 
 const AI_ASSISTANT_API_BASE_URL = `${AppSettings.getApiEndpoint()}`;
 

@@ -10,15 +10,17 @@ import { IndexableObject, TableColumn } from "../../../types/result-table.interf
 import { RowModalComponent } from "../result-panel-modal.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
-import { style } from "@angular/animations";
-import { trimAndFormatData } from "src/app/common/util/json";
+
 import { ResultExportationComponent } from "../../result-exportation/result-exportation.component";
-import { WorkflowResultExportService } from "src/app/workspace/service/workflow-result-export/workflow-result-export.service";
+
 import { ChangeDetectorRef } from "@angular/core";
 import {
   AttributeType,
   SchemaAttribute,
-} from "src/app/workspace/service/dynamic-schema/schema-propagation/schema-propagation.service";
+} from "../../../service/dynamic-schema/schema-propagation/schema-propagation.service";
+import { WorkflowResultExportService } from "../../../service/workflow-result-export/workflow-result-export.service";
+import { trimAndFormatData } from "../../../../common/util/json";
+
 
 export const TABLE_COLUMN_TEXT_LIMIT = 100;
 export const PRETTY_JSON_TEXT_LIMIT = 50000;

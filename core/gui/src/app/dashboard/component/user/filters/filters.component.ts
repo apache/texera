@@ -1,12 +1,12 @@
 import { ChangeDetectorRef, Component, EventEmitter, Input, OnInit, Output } from "@angular/core";
-import { OperatorMetadataService } from "src/app/workspace/service/operator-metadata/operator-metadata.service";
+import { OperatorMetadataService } from "../../../../workspace/service/operator-metadata/operator-metadata.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { Observable, of } from "rxjs";
 import { DashboardProject } from "../../../type/dashboard-project.interface";
 import { remove } from "lodash-es";
-import { NotificationService } from "src/app/common/service/notification/notification.service";
+import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { UserProjectService } from "../../../service/user/project/user-project.service";
-import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
+import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { SearchFilterParameters } from "../../../type/search-filter-parameters";
 import { UserService } from "../../../../common/service/user/user.service";
 import { switchMap } from "rxjs/operators";

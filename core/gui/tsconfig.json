@@ -1,6 +1,7 @@
 {
   "compileOnSave": false,
   "compilerOptions": {
+    "types": ["jest", "node"],
     "paths": {
       "path": ["./node_modules/path-browserify"]
     },
@@ -16,8 +17,8 @@
     "typeRoots": ["node_modules/@types"],
     "lib": ["ES2022", "dom"],
     "module": "esnext",
-    "baseUrl": "./",
     "useDefineForClassFields": false,
+    "esModuleInterop": true
   },
   "angularCompilerOptions": {
     "strictTemplates": true

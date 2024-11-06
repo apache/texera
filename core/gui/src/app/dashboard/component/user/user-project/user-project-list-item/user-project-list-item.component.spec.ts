@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { UserProjectListItemComponent } from "./user-project-list-item.component";
-import { NotificationService } from "src/app/common/service/notification/notification.service";
+
 import { UserProjectService } from "../../../../service/user/project/user-project.service";
 import { DashboardProject } from "../../../../type/dashboard-project.interface";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
@@ -8,6 +8,7 @@ import { NzModalService } from "ng-zorro-antd/modal";
 import { StubUserService } from "../../../../../common/service/user/stub-user.service";
 import { UserService } from "../../../../../common/service/user/user.service";
 import { HighlightSearchTermsPipe } from "../../user-workflow/user-workflow-list-item/highlight-search-terms.pipe";
+import { NotificationService } from "../../../../../common/service/notification/notification.service";
 
 describe("UserProjectListItemComponent", () => {
   let component: UserProjectListItemComponent;

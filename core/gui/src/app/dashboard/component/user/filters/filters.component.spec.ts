@@ -1,15 +1,18 @@
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 
 import { FiltersComponent } from "./filters.component";
-import { StubOperatorMetadataService } from "src/app/workspace/service/operator-metadata/stub-operator-metadata.service";
-import { OperatorMetadataService } from "src/app/workspace/service/operator-metadata/operator-metadata.service";
-import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
-import { StubWorkflowPersistService } from "src/app/common/service/workflow-persist/stub-workflow-persist.service";
+
 import { testWorkflowEntries } from "../../user-dashboard-test-fixtures";
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { JWT_OPTIONS, JwtHelperService } from "@auth0/angular-jwt";
 import { FormsModule } from "@angular/forms";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
+import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
+import { OperatorMetadataService } from "../../../../workspace/service/operator-metadata/operator-metadata.service";
+import {
+  StubOperatorMetadataService
+} from "../../../../workspace/service/operator-metadata/stub-operator-metadata.service";
+import { StubWorkflowPersistService } from "../../../../common/service/workflow-persist/stub-workflow-persist.service";
 
 describe("FiltersComponent", () => {
   let component: FiltersComponent;

@@ -10,8 +10,8 @@ import { NotificationService } from "../../../../common/service/notification/not
 import { HttpErrorResponse } from "@angular/common/http";
 import { NzMessageService } from "ng-zorro-antd/message";
 import { DatasetService } from "../../../service/user/dataset/dataset.service";
-import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
-import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/model/workflow-action.service";
+import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
+import { WorkflowActionService } from "../../../../workspace/service/workflow-graph/model/workflow-action.service";
 
 @UntilDestroy()
 @Component({

@@ -3,7 +3,8 @@ import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
 import { AppSettings } from "../../../../common/app-setting";
 import { Workflow, MongoExecution } from "../../../../common/type/user";
-import { DatasetQuota } from "src/app/dashboard/type/quota-statistic.interface";
+import { DatasetQuota } from "../../../type/quota-statistic.interface";
+
 
 export const USER_BASE_URL = `${AppSettings.getApiEndpoint()}/quota`;
 export const USER_CREATED_DATASETS = `${USER_BASE_URL}/created_datasets`;

@@ -1,14 +1,11 @@
 import {
-  AfterViewChecked,
   Component,
-  ElementRef,
   EventEmitter,
   HostListener,
   Input,
   OnChanges,
   Output,
   SimpleChanges,
-  ViewChild,
 } from "@angular/core";
 import { UdfDebugService } from "../../../service/operator-debug/udf-debug.service";
 import { isDefined } from "../../../../common/util/predicate";

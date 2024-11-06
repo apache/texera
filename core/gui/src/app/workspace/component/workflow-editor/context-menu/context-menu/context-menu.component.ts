@@ -1,9 +1,11 @@
 import { Component } from "@angular/core";
-import { OperatorMenuService } from "src/app/workspace/service/operator-menu/operator-menu.service";
-import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/model/workflow-action.service";
+
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { WorkflowResultService } from "src/app/workspace/service/workflow-result/workflow-result.service";
-import { WorkflowResultExportService } from "src/app/workspace/service/workflow-result-export/workflow-result-export.service";
+import { WorkflowActionService } from "../../../../service/workflow-graph/model/workflow-action.service";
+import { OperatorMenuService } from "../../../../service/operator-menu/operator-menu.service";
+import { WorkflowResultExportService } from "../../../../service/workflow-result-export/workflow-result-export.service";
+import { WorkflowResultService } from "../../../../service/workflow-result/workflow-result.service";
+
 
 @UntilDestroy()
 @Component({

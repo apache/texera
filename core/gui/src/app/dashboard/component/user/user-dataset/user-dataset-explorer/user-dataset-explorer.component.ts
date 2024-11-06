@@ -8,7 +8,8 @@ import { DatasetVersion } from "../../../../../common/type/dataset";
 import { switchMap } from "rxjs/operators";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { DownloadService } from "../../../../service/user/download/download.service";
-import { formatSize } from "src/app/common/util/size-formatter.util";
+import { formatSize } from "../../../../../common/util/size-formatter.util";
+
 
 @UntilDestroy()
 @Component({

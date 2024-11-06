@@ -1,13 +1,13 @@
 import { Component, OnInit, inject } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { File, Workflow, MongoExecution, MongoWorkflow } from "../../../../common/type/user";
-import { DatasetQuota } from "src/app/dashboard/type/quota-statistic.interface";
+import { DatasetQuota } from "../../../type/quota-statistic.interface";
 import { NzTableSortFn } from "ng-zorro-antd/table";
-import { UserQuotaService } from "src/app/dashboard/service/user/quota/user-quota.service";
-import { AdminUserService } from "src/app/dashboard/service/admin/user/admin-user.service";
+import { UserQuotaService } from "../../../service/user/quota/user-quota.service";
+import { AdminUserService } from "../../../service/admin/user/admin-user.service";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
 import * as Plotly from "plotly.js-basic-dist-min";
-import { formatSize } from "src/app/common/util/size-formatter.util";
+import { formatSize } from "../../../../common/util/size-formatter.util";
 
 type UserServiceType = AdminUserService | UserQuotaService;
 

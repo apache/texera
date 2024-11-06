@@ -5,8 +5,8 @@ import { Point, OperatorPredicate, OperatorLink } from "../../../types/workflow-
 import { WorkflowGraph } from "./workflow-graph";
 import { JointGraphWrapper } from "./joint-graph-wrapper";
 import { JointUIService } from "../../joint-ui/joint-ui.service";
-import { environment } from "./../../../../../environments/environment";
-import { OperatorStatistics } from "src/app/workspace/types/execute-workflow.interface";
+import { OperatorStatistics } from "../../../types/execute-workflow.interface";
+
 
 export interface Group
   extends Readonly<{

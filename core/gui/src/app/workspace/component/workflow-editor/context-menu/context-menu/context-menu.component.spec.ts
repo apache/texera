@@ -1,17 +1,19 @@
 import { ComponentFixture, TestBed } from "@angular/core/testing";
-import { OperatorMetadataService } from "src/app/workspace/service/operator-metadata/operator-metadata.service";
-import { StubOperatorMetadataService } from "src/app/workspace/service/operator-metadata/stub-operator-metadata.service";
+
 
 import { ContextMenuComponent } from "./context-menu.component";
 import { HttpClientModule } from "@angular/common/http";
-import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/model/workflow-action.service";
-import { WorkflowResultService } from "src/app/workspace/service/workflow-result/workflow-result.service";
-import { WorkflowResultExportService } from "src/app/workspace/service/workflow-result-export/workflow-result-export.service";
-import { OperatorMenuService } from "src/app/workspace/service/operator-menu/operator-menu.service";
+
 import { of, BehaviorSubject } from "rxjs";
 import { ReactiveFormsModule } from "@angular/forms";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
+import { WorkflowActionService } from "../../../../service/workflow-graph/model/workflow-action.service";
+import { WorkflowResultService } from "../../../../service/workflow-result/workflow-result.service";
+import { WorkflowResultExportService } from "../../../../service/workflow-result-export/workflow-result-export.service";
+import { StubOperatorMetadataService } from "../../../../service/operator-metadata/stub-operator-metadata.service";
+import { OperatorMetadataService } from "../../../../service/operator-metadata/operator-metadata.service";
+import { OperatorMenuService } from "../../../../service/operator-menu/operator-menu.service";
 
 describe("ContextMenuComponent", () => {
   let component: ContextMenuComponent;

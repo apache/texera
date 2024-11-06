@@ -4,7 +4,7 @@ import { LogicalPort, Point } from "../../../types/workflow-common.interface";
 import * as joint from "jointjs";
 import * as dagre from "dagre";
 import * as graphlib from "graphlib";
-import { ObservableContextManager } from "src/app/common/util/context";
+import { ObservableContextManager } from "../../../../common/util/context";
 import { Coeditor, User } from "../../../../common/type/user";
 import { operatorCoeditorChangedPropertyClass, operatorCoeditorEditingClass } from "../../joint-ui/joint-ui.service";
 import { dia } from "jointjs/types/joint";
@@ -1115,6 +1115,7 @@ export class JointGraphWrapper {
   }
 
   public removeCurrentEditing(coeditor: User, previousEditing: string, intervalId: NodeJS.Timer) {
+    // @ts-ignore
     clearInterval(intervalId);
     this.getMainJointPaper()
       ?.getModelById(previousEditing)

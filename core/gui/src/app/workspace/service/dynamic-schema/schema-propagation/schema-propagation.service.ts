@@ -2,7 +2,7 @@ import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { isEqual } from "lodash-es";
 import { EMPTY, merge, Observable, Subject } from "rxjs";
-import { CustomJSONSchema7 } from "src/app/workspace/types/custom-json-schema.interface";
+import { CustomJSONSchema7 } from "../../../types/custom-json-schema.interface";
 import { environment } from "../../../../../environments/environment";
 import { AppSettings } from "../../../../common/app-setting";
 import { OperatorSchema } from "../../../types/operator-schema.interface";

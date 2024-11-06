@@ -15,13 +15,13 @@ import { debounceTime, distinctUntilChanged, filter, switchMap, throttleTime } f
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { of } from "rxjs";
 import { isDefined } from "../../common/util/predicate";
-import { NotificationService } from "src/app/common/service/notification/notification.service";
+import { NotificationService } from "../../common/service/notification/notification.service";
 import { Version } from "../../../environments/version";
 import { SchemaPropagationService } from "../service/dynamic-schema/schema-propagation/schema-propagation.service";
 import { WorkflowConsoleService } from "../service/workflow-console/workflow-console.service";
 import { OperatorReuseCacheStatusService } from "../service/workflow-status/operator-reuse-cache-status.service";
 import { CodeEditorService } from "../service/code-editor/code-editor.service";
-import { WorkflowMetadata } from "src/app/dashboard/type/workflow-metadata.interface";
+import { WorkflowMetadata } from "../../dashboard/type/workflow-metadata.interface";
 import { HubWorkflowService } from "../../hub/service/workflow/hub-workflow.service";
 import { THROTTLE_TIME_MS } from "../../hub/component/workflow/detail/hub-workflow-detail.component";
 

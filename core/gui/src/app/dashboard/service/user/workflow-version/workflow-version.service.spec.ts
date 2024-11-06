@@ -1,8 +1,9 @@
 import { TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { WorkflowVersionService } from "./workflow-version.service";
-import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/model/workflow-action.service";
-import { OperatorMetadataService } from "src/app/workspace/service/operator-metadata/operator-metadata.service";
+import { WorkflowActionService } from "../../../../workspace/service/workflow-graph/model/workflow-action.service";
+import { OperatorMetadataService } from "../../../../workspace/service/operator-metadata/operator-metadata.service";
+
 
 describe("WorkflowVersionService", () => {
   let service: WorkflowVersionService;

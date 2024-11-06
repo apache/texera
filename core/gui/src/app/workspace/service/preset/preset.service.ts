@@ -3,12 +3,13 @@ import Ajv from "ajv";
 import { cloneDeep, has, indexOf, isEqual, merge, pickBy } from "lodash";
 import { NzMessageService } from "ng-zorro-antd/message";
 import { Observable, of, Subject } from "rxjs";
-import { UserConfigService } from "src/app/common/service/user/config/user-config.service";
-import { asType, isType } from "src/app/common/util/assert";
+
 import { CustomJSONSchema7 } from "../../types/custom-json-schema.interface";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { first, map } from "rxjs/operators";
+import { UserConfigService } from "../../../common/service/user/config/user-config.service";
+import { asType, isType } from "../../../common/util/assert";
 
 /**
  * Preset service enables saving and applying of Presets, which are objects

@@ -9,14 +9,13 @@ import { OperatorMetadataService } from "../operator-metadata/operator-metadata.
 import { StubOperatorMetadataService } from "../operator-metadata/stub-operator-metadata.service";
 import { JointUIService } from "../joint-ui/joint-ui.service";
 import { Observable, of } from "rxjs";
-import { Role, User } from "../../../common/type/user";
 
 import { mockLogicalPlan_scan_result, mockWorkflowPlan_scan_result } from "./mock-workflow-plan";
 import { HttpClient } from "@angular/common/http";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { WorkflowSnapshotService } from "../../../dashboard/service/user/workflow-snapshot/workflow-snapshot.service";
 import { DOCUMENT } from "@angular/common";
-import { WorkflowSettings } from "src/app/common/type/workflow";
+import { WorkflowSettings } from "../../../common/type/workflow";
 
 class StubHttpClient {
   public post(): Observable<string> {

@@ -3,8 +3,6 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
 import { YText } from "yjs/dist/src/types/YText";
-import { getWebsocketUrl } from "src/app/common/util/url";
-import { MonacoBinding } from "y-monaco";
 import { catchError, from, of, Subject, take, timeout } from "rxjs";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
 import { DomSanitizer, SafeStyle } from "@angular/platform-browser";
@@ -23,6 +21,8 @@ import { filter, switchMap } from "rxjs/operators";
 import { BreakpointConditionInputComponent } from "./breakpoint-condition-input/breakpoint-condition-input.component";
 import { CodeDebuggerComponent } from "./code-debugger.component";
 import { MonacoEditor } from "monaco-breakpoints/dist/types";
+import { getWebsocketUrl } from "../../../common/util/url";
+import { MonacoBinding } from "y-monaco";
 
 export const LANGUAGE_SERVER_CONNECTION_TIMEOUT_MS = 1000;
 

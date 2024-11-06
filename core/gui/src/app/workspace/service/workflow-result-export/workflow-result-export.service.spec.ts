@@ -7,15 +7,12 @@ import { NotificationService } from "../../../common/service/notification/notifi
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
 import {
   WorkflowResultService,
-  OperatorPaginationResultService,
-  OperatorResultService,
 } from "../workflow-result/workflow-result.service";
-import { FileSaverService } from "../../../dashboard/service/user/file/file-saver.service";
+
 import { of, EMPTY } from "rxjs";
 import { PaginatedResultEvent } from "../../types/workflow-websocket.interface";
 import { ExecutionState } from "../../types/execute-workflow.interface";
-import * as JSZip from "jszip";
-import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
+import { DownloadService } from "../../../dashboard/service/user/download/download.service";
 
 describe("WorkflowResultExportService", () => {
   let service: WorkflowResultExportService;

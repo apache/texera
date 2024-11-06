@@ -4,9 +4,10 @@ import { map, tap, catchError, switchMap } from "rxjs/operators";
 import { FileSaverService } from "../file/file-saver.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { DatasetService } from "../dataset/dataset.service";
-import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
+
 import * as JSZip from "jszip";
 import { Workflow } from "../../../../common/type/workflow";
+import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
 
 interface DownloadableItem {
   blob: Blob;
