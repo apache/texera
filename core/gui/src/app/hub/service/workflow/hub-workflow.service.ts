@@ -9,11 +9,6 @@ import { filter, map } from "rxjs/operators";
 import { WorkflowUtilService } from "../../../workspace/service/workflow-graph/util/workflow-util.service";
 import { DashboardWorkflow } from "../../../dashboard/type/dashboard-workflow.interface";
 
-export interface OperatorInfo {
-  operatorID: string;
-  operatorType: string;
-}
-
 export const WORKFLOW_BASE_URL = `${AppSettings.getApiEndpoint()}/workflow`;
 
 @Injectable({

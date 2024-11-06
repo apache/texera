@@ -24,7 +24,7 @@ import { distinctUntilChanged, filter, switchMap, throttleTime } from "rxjs/oper
 import { Workflow } from "../../../../common/type/workflow";
 import { of } from "rxjs";
 import { isDefined } from "../../../../common/util/predicate";
-import { HubWorkflowService, OperatorInfo } from "../../../service/workflow/hub-workflow.service";
+import { HubWorkflowService } from "../../../service/workflow/hub-workflow.service";
 import { User } from "src/app/common/type/user";
 import { Location } from "@angular/common";
 import { WorkflowUtilService } from "../../../../workspace/service/workflow-graph/util/workflow-util.service";
