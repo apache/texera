@@ -173,7 +173,7 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
       .cloneWorkflow(this.wid)
       .pipe(untilDestroyed(this))
       .subscribe(newWid => {
-        this.router.navigate([`/dashboard/user/workflow/${newWid}`]).then(() => {
+        this.router.navigate([`/dashboard/user/workspace/${newWid}`]).then(() => {
           this.notificationService.success("Clone Successful");
         });
       });
