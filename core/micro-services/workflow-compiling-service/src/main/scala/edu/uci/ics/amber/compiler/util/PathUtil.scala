@@ -36,7 +36,7 @@ object PathUtil {
 
   // path of the dropwizard config file
   lazy val webConfigFilePath: Path =
-    homePath.resolve("src").resolve("main").resolve("resources").resolve("web-config.yaml")
+    homePath.resolve("src").resolve("main").resolve("resources").resolve("workflow-compiling-service-config.yaml")
 
   private def isHomePath(path: Path): Boolean = {
     path.toRealPath().endsWith(homeDirectoryName)
