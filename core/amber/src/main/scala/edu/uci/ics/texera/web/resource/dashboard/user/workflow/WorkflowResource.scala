@@ -157,6 +157,23 @@ object WorkflowResource {
     updatedContent
   }
 
+  private def getUpdatedContentWithNewOperatorIds(workflow: Workflow): String = {
+    val objectMapper = new ObjectMapper()
+    val contentMap =
+      objectMapper.readValue(workflow.getContent, classOf[java.util.Map[String, Any]]).asScala
+    val operators =
+      contentMap("operators").asInstanceOf[java.util.List[java.util.Map[String, Any]]].asScala
+    val operatorInfoList = operators.map { operator =>
+      Map(
+        "operatorID" -> operator.get("operatorID"),
+        "operatorType" -> operator.get("operatorType")
+      )
+    }
+
+    val operatorIdMap = generateOperatorIdMap(operatorInfoList)
+    replaceOperatorIdsInContent(workflow.getContent, operatorIdMap.toMap)
+  }
+
 }
 @Produces(Array(MediaType.APPLICATION_JSON))
 @RolesAllowed(Array("REGULAR", "ADMIN"))
@@ -405,14 +422,14 @@ class WorkflowResource extends LazyLogging {
       context.transaction { txConfig =>
         for (wid <- workflowIDs.wids) {
           val workflow: Workflow = workflowDao.fetchOneByWid(wid)
-          workflow.getContent
+          val updatedContent = getUpdatedContentWithNewOperatorIds(workflow)
           workflow.getName
           val newWorkflow = createWorkflow(
             new Workflow(
               workflow.getName + "_copy",
               workflow.getDescription,
               null,
-              workflow.getContent,
+              updatedContent,
               null,
               null,
               0.toByte
@@ -452,25 +469,8 @@ class WorkflowResource extends LazyLogging {
       @Auth sessionUser: SessionUser,
       @Context request: HttpServletRequest
   ): UInteger = {
-    val workflow = context
-      .selectFrom(WORKFLOW)
-      .where(WORKFLOW.WID.eq(wid))
-      .fetchOneInto(classOf[Workflow])
-
-    val objectMapper = new ObjectMapper()
-    val contentMap =
-      objectMapper.readValue(workflow.getContent, classOf[java.util.Map[String, Any]]).asScala
-    val operators =
-      contentMap("operators").asInstanceOf[java.util.List[java.util.Map[String, Any]]].asScala
-    val operatorInfoList = operators.map { operator =>
-      Map(
-        "operatorID" -> operator.get("operatorID"),
-        "operatorType" -> operator.get("operatorType")
-      )
-    }
-    val operatorIdMap = generateOperatorIdMap(operatorInfoList)
-    val updatedContent = replaceOperatorIdsInContent(workflow.getContent, operatorIdMap.toMap)
-
+    val workflow: Workflow = workflowDao.fetchOneByWid(wid)
+    val updatedContent = getUpdatedContentWithNewOperatorIds(workflow)
     val newWorkflow: DashboardWorkflow = createWorkflow(
       new Workflow(
         workflow.getName + "_clone",
