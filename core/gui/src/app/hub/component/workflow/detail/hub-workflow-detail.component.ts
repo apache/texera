@@ -49,31 +49,6 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
   cloneCount: number = 0;
   displayPreciseViewCount = false;
   viewCount: number = 0;
-
-  workflow = {
-    steps: [
-      {
-        name: "Step 1: Data Collection",
-        description: "Collect necessary data from various sources.",
-        status: "Completed",
-      },
-      {
-        name: "Step 2: Data Analysis",
-        description: "Analyze the collected data for insights.",
-        status: "In Progress",
-      },
-      {
-        name: "Step 3: Report Generation",
-        description: "Generate reports based on the analysis.",
-        status: "Not Started",
-      },
-      {
-        name: "Step 4: Presentation",
-        description: "Present the findings to stakeholders.",
-        status: "Not Started",
-      },
-    ],
-  };
   @Input() wid!: number;
 
   public pid?: number = undefined;
