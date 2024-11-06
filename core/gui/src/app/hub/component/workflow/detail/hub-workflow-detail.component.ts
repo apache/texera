@@ -26,6 +26,7 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
   workflowName: string = "";
   ownerName: string = "";
   workflowDescription: string = "";
+  isLogin = this.userService.isLogin();
   isLiked: boolean = false;
   likeCount: number = 0;
   cloneCount: number = 0;

@@ -36,16 +36,14 @@
         <!-- Like button -->
         <button
           nz-button
-          nzType="text"
-          class="dropdown-item like-button"
+          class="like-button"
           title="Like"
-          [ngClass]="{ liked: isLiked }"
-          (click)="toggleLike">
+          [disabled]="!isLogin"
+          (click)="toggleLike()">
           <i
             nz-icon
-            [nzTheme]="isLiked ? 'fill' : 'outline'"
-            [nzType]="'like'"
-            [ngClass]="isLiked ? 'liked' : 'not-liked'"
+            nzType="like"
+            [ngClass]="{liked: isLiked}"
             class="like-icon">
           </i>
           <span>{{ formatLikeCount(likeCount) }}</span>
