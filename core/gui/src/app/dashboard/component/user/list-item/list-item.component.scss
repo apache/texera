@@ -70,12 +70,11 @@
   align-items: center;
   transition: none;
   top: 50%;
-  transform: translate(10%, -50%);
 }
 
 .list-item-card:hover .checkbox-container,
-.checkbox-container.always-show-checkbox {
-  display: flex;
+.always-show-checkbox {
+  display: block;
   z-index: 10;
 }
 
@@ -152,34 +151,13 @@
   margin-left: 30px;
 }
 
+.workflow-id{
+  padding: 6px;
+}
+
 .large-checkbox {
   width: 16px;
   height: 16px;
-  cursor: pointer;
-}
-
-.clickable-area {
-  width: 40px;
-  height: 40px;
-  padding: 0;
-  border-radius: 50%;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0.7;
-
-  &:hover {
-    background-color: #d9d9d9;
-    opacity: 0.7;
-  }
-
-  .list-item-card.selected & {
-    &:hover {
-      background-color: #cceeff;
-      opacity: 0.7;
-    }
-  }
 }
 
 .like-button {

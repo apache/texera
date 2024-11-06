@@ -8,13 +8,11 @@
     [class.always-show-checkbox]="entry.checked"
     (click)="$event.stopPropagation()"
     *ngIf="isPrivateSearch && entry.type==='workflow'">
-    <label class="clickable-area">
-      <input
-        type="checkbox"
-        class="large-checkbox"
-        [checked]="entry.checked"
-        (change)="onCheckboxChange(entry)" />
-    </label>
+    <input
+      type="checkbox"
+      class="large-checkbox"
+      [checked]="entry.checked"
+      (change)="onCheckboxChange(entry)" />
   </div>
 
   <div
@@ -32,7 +30,9 @@
 
     <div
       nz-col
-      nzFlex="20px">
+      nzFlex="0"
+      class="workflow-id"
+    >
       <i>#{{ entry.id }}</i>
     </div>
 
