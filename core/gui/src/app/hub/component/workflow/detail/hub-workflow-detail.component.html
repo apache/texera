@@ -39,9 +39,8 @@
           nzType="text"
           class="dropdown-item like-button"
           title="Like"
-          [ngClass]="{ liked: isLiked, 'disabled-button': !isLogin }"
-          [disabled]="!isLogin"
-          (click)="toggleLike(this.wid, this.currentUid)">
+          [ngClass]="{ liked: isLiked }"
+          (click)="toggleLike">
           <i
             nz-icon
             [nzTheme]="isLiked ? 'fill' : 'outline'"
@@ -58,8 +57,8 @@
           nzType="text"
           class="clone-button"
           title="Copy"
-          [ngClass]="{ 'disabled-button': !isLogin || !isHub }"
-          [disabled]="!isLogin || !isHub"
+          [ngClass]="{ 'disabled-button': !isHub }"
+          [disabled]=" !isHub"
           (click)="cloneWorkflow()">
           <i
             nz-icon
@@ -95,16 +94,5 @@
       <texera-mini-map class="box"></texera-mini-map>
     </div>
     <ng-template #codeEditor></ng-template>
-    <div class="workflow-steps">
-      <h2>Steps</h2>
-
-      <div
-        *ngFor="let step of workflow.steps"
-        class="workflow-step">
-        <h3>{{ step.name }}</h3>
-        <p>{{ step.description }}</p>
-        <p><strong>Status:</strong> {{ step.status }}</p>
-      </div>
-    </div>
   </div>
 </div>
