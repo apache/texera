@@ -16,7 +16,7 @@ import { WorkflowFatalError } from "../../types/workflow-websocket.interface";
 import { AuthService } from "../../../common/service/user/auth.service";
 
 // endpoint for schema propagation
-export const WORKFLOW_COMPILATION_ENDPOINT = "compilation";
+export const WORKFLOW_COMPILATION_ENDPOINT = "compile";
 
 export const WORKFLOW_COMPILATION_DEBOUNCE_TIME_MS = 500;
 
@@ -88,12 +88,12 @@ export class WorkflowCompilingService {
     return this.currentCompilationStateInfo.state;
   }
 
-  public getWorkflowCompilationErrors(): Readonly<Array<WorkflowFatalError>> {
+  public getWorkflowCompilationErrors(): Readonly<Record<string, WorkflowFatalError>> {
     if (
       this.currentCompilationStateInfo.state === CompilationState.Succeeded ||
       this.currentCompilationStateInfo.state === CompilationState.Uninitialized
     ) {
-      return [];
+      return {};
     }
     return this.currentCompilationStateInfo.operatorErrors;
   }
@@ -394,15 +394,7 @@ export interface WorkflowCompilationResponse
     operatorInputSchemas: {
       [key: string]: OperatorInputSchema;
     };
-    operatorErrors: Array<WorkflowFatalError>;
-  }> {}
-
-/**
- * The backend interface of the return object of a failed execution of
- * autocomplete API
- */
-export interface SchemaPropagationError
-  extends Readonly<{
-    code: -1;
-    message: string;
+    operatorErrors: {
+      [opId: string]: WorkflowFatalError;
+    };
   }> {}

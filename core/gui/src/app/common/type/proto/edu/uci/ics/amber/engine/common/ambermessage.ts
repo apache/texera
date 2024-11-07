@@ -97,12 +97,14 @@ export const ControlPayloadV2: MessageFns<ControlPayloadV2> = {
   },
   fromPartial<I extends Exact<DeepPartial<ControlPayloadV2>, I>>(object: I): ControlPayloadV2 {
     const message = createBaseControlPayloadV2();
-    message.controlInvocation = (object.controlInvocation !== undefined && object.controlInvocation !== null)
-      ? ControlInvocation.fromPartial(object.controlInvocation)
-      : undefined;
-    message.returnInvocation = (object.returnInvocation !== undefined && object.returnInvocation !== null)
-      ? ReturnInvocation.fromPartial(object.returnInvocation)
-      : undefined;
+    message.controlInvocation =
+      object.controlInvocation !== undefined && object.controlInvocation !== null
+        ? ControlInvocation.fromPartial(object.controlInvocation)
+        : undefined;
+    message.returnInvocation =
+      object.returnInvocation !== undefined && object.returnInvocation !== null
+        ? ReturnInvocation.fromPartial(object.returnInvocation)
+        : undefined;
     return message;
   },
 };
@@ -175,9 +177,8 @@ export const PythonDataHeader: MessageFns<PythonDataHeader> = {
   },
   fromPartial<I extends Exact<DeepPartial<PythonDataHeader>, I>>(object: I): PythonDataHeader {
     const message = createBasePythonDataHeader();
-    message.tag = (object.tag !== undefined && object.tag !== null)
-      ? ActorVirtualIdentity.fromPartial(object.tag)
-      : undefined;
+    message.tag =
+      object.tag !== undefined && object.tag !== null ? ActorVirtualIdentity.fromPartial(object.tag) : undefined;
     message.payloadType = object.payloadType ?? "";
     return message;
   },
@@ -251,26 +252,31 @@ export const PythonControlMessage: MessageFns<PythonControlMessage> = {
   },
   fromPartial<I extends Exact<DeepPartial<PythonControlMessage>, I>>(object: I): PythonControlMessage {
     const message = createBasePythonControlMessage();
-    message.tag = (object.tag !== undefined && object.tag !== null)
-      ? ActorVirtualIdentity.fromPartial(object.tag)
-      : undefined;
-    message.payload = (object.payload !== undefined && object.payload !== null)
-      ? ControlPayloadV2.fromPartial(object.payload)
-      : undefined;
+    message.tag =
+      object.tag !== undefined && object.tag !== null ? ActorVirtualIdentity.fromPartial(object.tag) : undefined;
+    message.payload =
+      object.payload !== undefined && object.payload !== null
+        ? ControlPayloadV2.fromPartial(object.payload)
+        : undefined;
     return message;
   },
 };
 
 type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
 
-export type DeepPartial<T> = T extends Builtin ? T
-  : T extends globalThis.Array<infer U> ? globalThis.Array<DeepPartial<U>>
-  : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
-  : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
-  : Partial<T>;
+export type DeepPartial<T> = T extends Builtin
+  ? T
+  : T extends globalThis.Array<infer U>
+    ? globalThis.Array<DeepPartial<U>>
+    : T extends ReadonlyArray<infer U>
+      ? ReadonlyArray<DeepPartial<U>>
+      : T extends {}
+        ? { [K in keyof T]?: DeepPartial<T[K]> }
+        : Partial<T>;
 
 type KeysOfUnion<T> = T extends T ? keyof T : never;
-export type Exact<P, I extends P> = P extends Builtin ? P
+export type Exact<P, I extends P> = P extends Builtin
+  ? P
   : P & { [K in keyof P]: Exact<P[K], I[K]> } & { [K in Exclude<keyof I, KeysOfUnion<P>>]: never };
 
 function isSet(value: any): boolean {

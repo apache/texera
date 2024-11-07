@@ -76,103 +76,103 @@ export class WorkerServiceClientImpl implements WorkerService {
   AddInputChannel(request: AddInputChannelRequest): Promise<EmptyReturn> {
     const data = AddInputChannelRequest.encode(request).finish();
     const promise = this.rpc.request(this.service, "AddInputChannel", data);
-    return promise.then((data) => EmptyReturn.decode(new BinaryReader(data)));
+    return promise.then(data => EmptyReturn.decode(new BinaryReader(data)));
   }
 
   AddPartitioning(request: AddPartitioningRequest): Promise<EmptyReturn> {
     const data = AddPartitioningRequest.encode(request).finish();
     const promise = this.rpc.request(this.service, "AddPartitioning", data);
-    return promise.then((data) => EmptyReturn.decode(new BinaryReader(data)));
+    return promise.then(data => EmptyReturn.decode(new BinaryReader(data)));
   }
 
   AssignPort(request: AssignPortRequest): Promise<EmptyReturn> {
     const data = AssignPortRequest.encode(request).finish();
     const promise = this.rpc.request(this.service, "AssignPort", data);
-    return promise.then((data) => EmptyReturn.decode(new BinaryReader(data)));
+    return promise.then(data => EmptyReturn.decode(new BinaryReader(data)));
   }
 
   FinalizeCheckpoint(request: FinalizeCheckpointRequest): Promise<FinalizeCheckpointResponse> {
     const data = FinalizeCheckpointRequest.encode(request).finish();
     const promise = this.rpc.request(this.service, "FinalizeCheckpoint", data);
-    return promise.then((data) => FinalizeCheckpointResponse.decode(new BinaryReader(data)));
+    return promise.then(data => FinalizeCheckpointResponse.decode(new BinaryReader(data)));
   }
 
   FlushNetworkBuffer(request: EmptyRequest): Promise<EmptyReturn> {
     const data = EmptyRequest.encode(request).finish();
     const promise = this.rpc.request(this.service, "FlushNetworkBuffer", data);
-    return promise.then((data) => EmptyReturn.decode(new BinaryReader(data)));
+    return promise.then(data => EmptyReturn.decode(new BinaryReader(data)));
   }
 
   InitializeExecutor(request: InitializeExecutorRequest): Promise<EmptyReturn> {
     const data = InitializeExecutorRequest.encode(request).finish();
     const promise = this.rpc.request(this.service, "InitializeExecutor", data);
-    return promise.then((data) => EmptyReturn.decode(new BinaryReader(data)));
+    return promise.then(data => EmptyReturn.decode(new BinaryReader(data)));
   }
 
   OpenExecutor(request: EmptyRequest): Promise<EmptyReturn> {
     const data = EmptyRequest.encode(request).finish();
     const promise = this.rpc.request(this.service, "OpenExecutor", data);
-    return promise.then((data) => EmptyReturn.decode(new BinaryReader(data)));
+    return promise.then(data => EmptyReturn.decode(new BinaryReader(data)));
   }
 
   PauseWorker(request: EmptyRequest): Promise<WorkerStateResponse> {
     const data = EmptyRequest.encode(request).finish();
     const promise = this.rpc.request(this.service, "PauseWorker", data);
-    return promise.then((data) => WorkerStateResponse.decode(new BinaryReader(data)));
+    return promise.then(data => WorkerStateResponse.decode(new BinaryReader(data)));
   }
 
   PrepareCheckpoint(request: PrepareCheckpointRequest): Promise<EmptyReturn> {
     const data = PrepareCheckpointRequest.encode(request).finish();
     const promise = this.rpc.request(this.service, "PrepareCheckpoint", data);
-    return promise.then((data) => EmptyReturn.decode(new BinaryReader(data)));
+    return promise.then(data => EmptyReturn.decode(new BinaryReader(data)));
   }
 
   QueryStatistics(request: EmptyRequest): Promise<WorkerMetricsResponse> {
     const data = EmptyRequest.encode(request).finish();
     const promise = this.rpc.request(this.service, "QueryStatistics", data);
-    return promise.then((data) => WorkerMetricsResponse.decode(new BinaryReader(data)));
+    return promise.then(data => WorkerMetricsResponse.decode(new BinaryReader(data)));
   }
 
   ResumeWorker(request: EmptyRequest): Promise<WorkerStateResponse> {
     const data = EmptyRequest.encode(request).finish();
     const promise = this.rpc.request(this.service, "ResumeWorker", data);
-    return promise.then((data) => WorkerStateResponse.decode(new BinaryReader(data)));
+    return promise.then(data => WorkerStateResponse.decode(new BinaryReader(data)));
   }
 
   RetrieveState(request: EmptyRequest): Promise<EmptyReturn> {
     const data = EmptyRequest.encode(request).finish();
     const promise = this.rpc.request(this.service, "RetrieveState", data);
-    return promise.then((data) => EmptyReturn.decode(new BinaryReader(data)));
+    return promise.then(data => EmptyReturn.decode(new BinaryReader(data)));
   }
 
   RetryCurrentTuple(request: EmptyRequest): Promise<EmptyReturn> {
     const data = EmptyRequest.encode(request).finish();
     const promise = this.rpc.request(this.service, "RetryCurrentTuple", data);
-    return promise.then((data) => EmptyReturn.decode(new BinaryReader(data)));
+    return promise.then(data => EmptyReturn.decode(new BinaryReader(data)));
   }
 
   StartWorker(request: EmptyRequest): Promise<WorkerStateResponse> {
     const data = EmptyRequest.encode(request).finish();
     const promise = this.rpc.request(this.service, "StartWorker", data);
-    return promise.then((data) => WorkerStateResponse.decode(new BinaryReader(data)));
+    return promise.then(data => WorkerStateResponse.decode(new BinaryReader(data)));
   }
 
   DebugCommand(request: DebugCommandRequest): Promise<EmptyReturn> {
     const data = DebugCommandRequest.encode(request).finish();
     const promise = this.rpc.request(this.service, "DebugCommand", data);
-    return promise.then((data) => EmptyReturn.decode(new BinaryReader(data)));
+    return promise.then(data => EmptyReturn.decode(new BinaryReader(data)));
   }
 
   EvaluatePythonExpression(request: EvaluatePythonExpressionRequest): Promise<EvaluatedValue> {
     const data = EvaluatePythonExpressionRequest.encode(request).finish();
     const promise = this.rpc.request(this.service, "EvaluatePythonExpression", data);
-    return promise.then((data) => EvaluatedValue.decode(new BinaryReader(data)));
+    return promise.then(data => EvaluatedValue.decode(new BinaryReader(data)));
   }
 
   NoOperation(request: EmptyRequest): Promise<EmptyReturn> {
     const data = EmptyRequest.encode(request).finish();
     const promise = this.rpc.request(this.service, "NoOperation", data);
-    return promise.then((data) => EmptyReturn.decode(new BinaryReader(data)));
+    return promise.then(data => EmptyReturn.decode(new BinaryReader(data)));
   }
 }
 

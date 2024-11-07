@@ -13,8 +13,7 @@ export interface Backpressure {
   enableBackpressure: boolean;
 }
 
-export interface CreditUpdate {
-}
+export interface CreditUpdate {}
 
 export interface ActorCommand {
   backpressure?: Backpressure | undefined;
@@ -195,12 +194,14 @@ export const ActorCommand: MessageFns<ActorCommand> = {
   },
   fromPartial<I extends Exact<DeepPartial<ActorCommand>, I>>(object: I): ActorCommand {
     const message = createBaseActorCommand();
-    message.backpressure = (object.backpressure !== undefined && object.backpressure !== null)
-      ? Backpressure.fromPartial(object.backpressure)
-      : undefined;
-    message.creditUpdate = (object.creditUpdate !== undefined && object.creditUpdate !== null)
-      ? CreditUpdate.fromPartial(object.creditUpdate)
-      : undefined;
+    message.backpressure =
+      object.backpressure !== undefined && object.backpressure !== null
+        ? Backpressure.fromPartial(object.backpressure)
+        : undefined;
+    message.creditUpdate =
+      object.creditUpdate !== undefined && object.creditUpdate !== null
+        ? CreditUpdate.fromPartial(object.creditUpdate)
+        : undefined;
     return message;
   },
 };
@@ -257,23 +258,27 @@ export const PythonActorMessage: MessageFns<PythonActorMessage> = {
   },
   fromPartial<I extends Exact<DeepPartial<PythonActorMessage>, I>>(object: I): PythonActorMessage {
     const message = createBasePythonActorMessage();
-    message.payload = (object.payload !== undefined && object.payload !== null)
-      ? ActorCommand.fromPartial(object.payload)
-      : undefined;
+    message.payload =
+      object.payload !== undefined && object.payload !== null ? ActorCommand.fromPartial(object.payload) : undefined;
     return message;
   },
 };
 
 type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
 
-export type DeepPartial<T> = T extends Builtin ? T
-  : T extends globalThis.Array<infer U> ? globalThis.Array<DeepPartial<U>>
-  : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
-  : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
-  : Partial<T>;
+export type DeepPartial<T> = T extends Builtin
+  ? T
+  : T extends globalThis.Array<infer U>
+    ? globalThis.Array<DeepPartial<U>>
+    : T extends ReadonlyArray<infer U>
+      ? ReadonlyArray<DeepPartial<U>>
+      : T extends {}
+        ? { [K in keyof T]?: DeepPartial<T[K]> }
+        : Partial<T>;
 
 type KeysOfUnion<T> = T extends T ? keyof T : never;
-export type Exact<P, I extends P> = P extends Builtin ? P
+export type Exact<P, I extends P> = P extends Builtin
+  ? P
   : P & { [K in keyof P]: Exact<P[K], I[K]> } & { [K in Exclude<keyof I, KeysOfUnion<P>>]: never };
 
 function isSet(value: any): boolean {

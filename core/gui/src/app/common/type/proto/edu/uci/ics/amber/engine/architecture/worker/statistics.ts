@@ -147,9 +147,8 @@ export const PortTupleCountMapping: MessageFns<PortTupleCountMapping> = {
   },
   fromPartial<I extends Exact<DeepPartial<PortTupleCountMapping>, I>>(object: I): PortTupleCountMapping {
     const message = createBasePortTupleCountMapping();
-    message.portId = (object.portId !== undefined && object.portId !== null)
-      ? PortIdentity.fromPartial(object.portId)
-      : undefined;
+    message.portId =
+      object.portId !== undefined && object.portId !== null ? PortIdentity.fromPartial(object.portId) : undefined;
     message.tupleCount = object.tupleCount ?? 0;
     return message;
   },
@@ -247,10 +246,10 @@ export const WorkerStatistics: MessageFns<WorkerStatistics> = {
   toJSON(message: WorkerStatistics): unknown {
     const obj: any = {};
     if (message.inputTupleCount?.length) {
-      obj.inputTupleCount = message.inputTupleCount.map((e) => PortTupleCountMapping.toJSON(e));
+      obj.inputTupleCount = message.inputTupleCount.map(e => PortTupleCountMapping.toJSON(e));
     }
     if (message.outputTupleCount?.length) {
-      obj.outputTupleCount = message.outputTupleCount.map((e) => PortTupleCountMapping.toJSON(e));
+      obj.outputTupleCount = message.outputTupleCount.map(e => PortTupleCountMapping.toJSON(e));
     }
     if (message.dataProcessingTime !== 0) {
       obj.dataProcessingTime = Math.round(message.dataProcessingTime);
@@ -269,8 +268,8 @@ export const WorkerStatistics: MessageFns<WorkerStatistics> = {
   },
   fromPartial<I extends Exact<DeepPartial<WorkerStatistics>, I>>(object: I): WorkerStatistics {
     const message = createBaseWorkerStatistics();
-    message.inputTupleCount = object.inputTupleCount?.map((e) => PortTupleCountMapping.fromPartial(e)) || [];
-    message.outputTupleCount = object.outputTupleCount?.map((e) => PortTupleCountMapping.fromPartial(e)) || [];
+    message.inputTupleCount = object.inputTupleCount?.map(e => PortTupleCountMapping.fromPartial(e)) || [];
+    message.outputTupleCount = object.outputTupleCount?.map(e => PortTupleCountMapping.fromPartial(e)) || [];
     message.dataProcessingTime = object.dataProcessingTime ?? 0;
     message.controlProcessingTime = object.controlProcessingTime ?? 0;
     message.idleTime = object.idleTime ?? 0;
@@ -347,23 +346,29 @@ export const WorkerMetrics: MessageFns<WorkerMetrics> = {
   fromPartial<I extends Exact<DeepPartial<WorkerMetrics>, I>>(object: I): WorkerMetrics {
     const message = createBaseWorkerMetrics();
     message.workerState = object.workerState ?? 0;
-    message.workerStatistics = (object.workerStatistics !== undefined && object.workerStatistics !== null)
-      ? WorkerStatistics.fromPartial(object.workerStatistics)
-      : undefined;
+    message.workerStatistics =
+      object.workerStatistics !== undefined && object.workerStatistics !== null
+        ? WorkerStatistics.fromPartial(object.workerStatistics)
+        : undefined;
     return message;
   },
 };
 
 type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
 
-export type DeepPartial<T> = T extends Builtin ? T
-  : T extends globalThis.Array<infer U> ? globalThis.Array<DeepPartial<U>>
-  : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
-  : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
-  : Partial<T>;
+export type DeepPartial<T> = T extends Builtin
+  ? T
+  : T extends globalThis.Array<infer U>
+    ? globalThis.Array<DeepPartial<U>>
+    : T extends ReadonlyArray<infer U>
+      ? ReadonlyArray<DeepPartial<U>>
+      : T extends {}
+        ? { [K in keyof T]?: DeepPartial<T[K]> }
+        : Partial<T>;
 
 type KeysOfUnion<T> = T extends T ? keyof T : never;
-export type Exact<P, I extends P> = P extends Builtin ? P
+export type Exact<P, I extends P> = P extends Builtin
+  ? P
   : P & { [K in keyof P]: Exact<P[K], I[K]> } & { [K in Exclude<keyof I, KeysOfUnion<P>>]: never };
 
 function longToNumber(int64: { toString(): string }): number {

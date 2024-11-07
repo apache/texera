@@ -36,8 +36,10 @@ export class ErrorFrameComponent implements OnInit {
   renderError(): void {
     // first fetch the error messages from the execution state store
     let errorMessages = this.executeWorkflowService.getErrorMessages();
+    const compilationErrorMap = this.workflowCompilingService.getWorkflowCompilationErrors();
+    console.log("compilation error map: ", compilationErrorMap);
     // then fetch error from the compilation state store
-    errorMessages = errorMessages.concat(this.workflowCompilingService.getWorkflowCompilationErrors());
+    errorMessages = errorMessages.concat(Object.values(this.workflowCompilingService.getWorkflowCompilationErrors()));
     if (this.operatorId) {
       errorMessages = errorMessages.filter(err => err.operatorId === this.operatorId);
     }

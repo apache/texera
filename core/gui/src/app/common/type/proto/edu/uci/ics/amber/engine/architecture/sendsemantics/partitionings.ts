@@ -173,23 +173,24 @@ export const Partitioning: MessageFns<Partitioning> = {
   },
   fromPartial<I extends Exact<DeepPartial<Partitioning>, I>>(object: I): Partitioning {
     const message = createBasePartitioning();
-    message.oneToOnePartitioning = (object.oneToOnePartitioning !== undefined && object.oneToOnePartitioning !== null)
-      ? OneToOnePartitioning.fromPartial(object.oneToOnePartitioning)
-      : undefined;
+    message.oneToOnePartitioning =
+      object.oneToOnePartitioning !== undefined && object.oneToOnePartitioning !== null
+        ? OneToOnePartitioning.fromPartial(object.oneToOnePartitioning)
+        : undefined;
     message.roundRobinPartitioning =
-      (object.roundRobinPartitioning !== undefined && object.roundRobinPartitioning !== null)
+      object.roundRobinPartitioning !== undefined && object.roundRobinPartitioning !== null
         ? RoundRobinPartitioning.fromPartial(object.roundRobinPartitioning)
         : undefined;
     message.hashBasedShufflePartitioning =
-      (object.hashBasedShufflePartitioning !== undefined && object.hashBasedShufflePartitioning !== null)
+      object.hashBasedShufflePartitioning !== undefined && object.hashBasedShufflePartitioning !== null
         ? HashBasedShufflePartitioning.fromPartial(object.hashBasedShufflePartitioning)
         : undefined;
     message.rangeBasedShufflePartitioning =
-      (object.rangeBasedShufflePartitioning !== undefined && object.rangeBasedShufflePartitioning !== null)
+      object.rangeBasedShufflePartitioning !== undefined && object.rangeBasedShufflePartitioning !== null
         ? RangeBasedShufflePartitioning.fromPartial(object.rangeBasedShufflePartitioning)
         : undefined;
     message.broadcastPartitioning =
-      (object.broadcastPartitioning !== undefined && object.broadcastPartitioning !== null)
+      object.broadcastPartitioning !== undefined && object.broadcastPartitioning !== null
         ? BroadcastPartitioning.fromPartial(object.broadcastPartitioning)
         : undefined;
     return message;
@@ -256,7 +257,7 @@ export const OneToOnePartitioning: MessageFns<OneToOnePartitioning> = {
       obj.batchSize = Math.round(message.batchSize);
     }
     if (message.channels?.length) {
-      obj.channels = message.channels.map((e) => ChannelIdentity.toJSON(e));
+      obj.channels = message.channels.map(e => ChannelIdentity.toJSON(e));
     }
     return obj;
   },
@@ -267,7 +268,7 @@ export const OneToOnePartitioning: MessageFns<OneToOnePartitioning> = {
   fromPartial<I extends Exact<DeepPartial<OneToOnePartitioning>, I>>(object: I): OneToOnePartitioning {
     const message = createBaseOneToOnePartitioning();
     message.batchSize = object.batchSize ?? 0;
-    message.channels = object.channels?.map((e) => ChannelIdentity.fromPartial(e)) || [];
+    message.channels = object.channels?.map(e => ChannelIdentity.fromPartial(e)) || [];
     return message;
   },
 };
@@ -332,7 +333,7 @@ export const RoundRobinPartitioning: MessageFns<RoundRobinPartitioning> = {
       obj.batchSize = Math.round(message.batchSize);
     }
     if (message.channels?.length) {
-      obj.channels = message.channels.map((e) => ChannelIdentity.toJSON(e));
+      obj.channels = message.channels.map(e => ChannelIdentity.toJSON(e));
     }
     return obj;
   },
@@ -343,7 +344,7 @@ export const RoundRobinPartitioning: MessageFns<RoundRobinPartitioning> = {
   fromPartial<I extends Exact<DeepPartial<RoundRobinPartitioning>, I>>(object: I): RoundRobinPartitioning {
     const message = createBaseRoundRobinPartitioning();
     message.batchSize = object.batchSize ?? 0;
-    message.channels = object.channels?.map((e) => ChannelIdentity.fromPartial(e)) || [];
+    message.channels = object.channels?.map(e => ChannelIdentity.fromPartial(e)) || [];
     return message;
   },
 };
@@ -421,7 +422,7 @@ export const HashBasedShufflePartitioning: MessageFns<HashBasedShufflePartitioni
       obj.batchSize = Math.round(message.batchSize);
     }
     if (message.channels?.length) {
-      obj.channels = message.channels.map((e) => ChannelIdentity.toJSON(e));
+      obj.channels = message.channels.map(e => ChannelIdentity.toJSON(e));
     }
     if (message.hashAttributeNames?.length) {
       obj.hashAttributeNames = message.hashAttributeNames;
@@ -435,8 +436,8 @@ export const HashBasedShufflePartitioning: MessageFns<HashBasedShufflePartitioni
   fromPartial<I extends Exact<DeepPartial<HashBasedShufflePartitioning>, I>>(object: I): HashBasedShufflePartitioning {
     const message = createBaseHashBasedShufflePartitioning();
     message.batchSize = object.batchSize ?? 0;
-    message.channels = object.channels?.map((e) => ChannelIdentity.fromPartial(e)) || [];
-    message.hashAttributeNames = object.hashAttributeNames?.map((e) => e) || [];
+    message.channels = object.channels?.map(e => ChannelIdentity.fromPartial(e)) || [];
+    message.hashAttributeNames = object.hashAttributeNames?.map(e => e) || [];
     return message;
   },
 };
@@ -536,7 +537,7 @@ export const RangeBasedShufflePartitioning: MessageFns<RangeBasedShufflePartitio
       obj.batchSize = Math.round(message.batchSize);
     }
     if (message.channels?.length) {
-      obj.channels = message.channels.map((e) => ChannelIdentity.toJSON(e));
+      obj.channels = message.channels.map(e => ChannelIdentity.toJSON(e));
     }
     if (message.rangeAttributeNames?.length) {
       obj.rangeAttributeNames = message.rangeAttributeNames;
@@ -554,12 +555,12 @@ export const RangeBasedShufflePartitioning: MessageFns<RangeBasedShufflePartitio
     return RangeBasedShufflePartitioning.fromPartial(base ?? ({} as any));
   },
   fromPartial<I extends Exact<DeepPartial<RangeBasedShufflePartitioning>, I>>(
-    object: I,
+    object: I
   ): RangeBasedShufflePartitioning {
     const message = createBaseRangeBasedShufflePartitioning();
     message.batchSize = object.batchSize ?? 0;
-    message.channels = object.channels?.map((e) => ChannelIdentity.fromPartial(e)) || [];
-    message.rangeAttributeNames = object.rangeAttributeNames?.map((e) => e) || [];
+    message.channels = object.channels?.map(e => ChannelIdentity.fromPartial(e)) || [];
+    message.rangeAttributeNames = object.rangeAttributeNames?.map(e => e) || [];
     message.rangeMin = object.rangeMin ?? 0;
     message.rangeMax = object.rangeMax ?? 0;
     return message;
@@ -626,7 +627,7 @@ export const BroadcastPartitioning: MessageFns<BroadcastPartitioning> = {
       obj.batchSize = Math.round(message.batchSize);
     }
     if (message.channels?.length) {
-      obj.channels = message.channels.map((e) => ChannelIdentity.toJSON(e));
+      obj.channels = message.channels.map(e => ChannelIdentity.toJSON(e));
     }
     return obj;
   },
@@ -637,21 +638,26 @@ export const BroadcastPartitioning: MessageFns<BroadcastPartitioning> = {
   fromPartial<I extends Exact<DeepPartial<BroadcastPartitioning>, I>>(object: I): BroadcastPartitioning {
     const message = createBaseBroadcastPartitioning();
     message.batchSize = object.batchSize ?? 0;
-    message.channels = object.channels?.map((e) => ChannelIdentity.fromPartial(e)) || [];
+    message.channels = object.channels?.map(e => ChannelIdentity.fromPartial(e)) || [];
     return message;
   },
 };
 
 type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
 
-export type DeepPartial<T> = T extends Builtin ? T
-  : T extends globalThis.Array<infer U> ? globalThis.Array<DeepPartial<U>>
-  : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
-  : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
-  : Partial<T>;
+export type DeepPartial<T> = T extends Builtin
+  ? T
+  : T extends globalThis.Array<infer U>
+    ? globalThis.Array<DeepPartial<U>>
+    : T extends ReadonlyArray<infer U>
+      ? ReadonlyArray<DeepPartial<U>>
+      : T extends {}
+        ? { [K in keyof T]?: DeepPartial<T[K]> }
+        : Partial<T>;
 
 type KeysOfUnion<T> = T extends T ? keyof T : never;
-export type Exact<P, I extends P> = P extends Builtin ? P
+export type Exact<P, I extends P> = P extends Builtin
+  ? P
   : P & { [K in keyof P]: Exact<P[K], I[K]> } & { [K in Exclude<keyof I, KeysOfUnion<P>>]: never };
 
 function longToNumber(int64: { toString(): string }): number {

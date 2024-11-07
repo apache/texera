@@ -110,9 +110,7 @@ export interface ControlRequest {
   consoleMessageTriggeredRequest?: ConsoleMessageTriggeredRequest | undefined;
   portCompletedRequest?: PortCompletedRequest | undefined;
   workerStateUpdatedRequest?: WorkerStateUpdatedRequest | undefined;
-  linkWorkersRequest?:
-    | LinkWorkersRequest
-    | undefined;
+  linkWorkersRequest?: LinkWorkersRequest | undefined;
   /** request for worker */
   addInputChannelRequest?: AddInputChannelRequest | undefined;
   addPartitioningRequest?: AddPartitioningRequest | undefined;
@@ -122,9 +120,7 @@ export interface ControlRequest {
   updateExecutorRequest?: UpdateExecutorRequest | undefined;
   emptyRequest?: EmptyRequest | undefined;
   prepareCheckpointRequest?: PrepareCheckpointRequest | undefined;
-  queryStatisticsRequest?:
-    | QueryStatisticsRequest
-    | undefined;
+  queryStatisticsRequest?: QueryStatisticsRequest | undefined;
   /** request for testing */
   ping?: Ping | undefined;
   pong?: Pong | undefined;
@@ -138,8 +134,7 @@ export interface ControlRequest {
   chain?: Chain | undefined;
 }
 
-export interface EmptyRequest {
-}
+export interface EmptyRequest {}
 
 export interface AsyncRPCContext {
   sender: ActorVirtualIdentity | undefined;
@@ -261,8 +256,7 @@ export interface MultiCall {
 }
 
 /** ErrorCommand message */
-export interface ErrorCommand {
-}
+export interface ErrorCommand {}
 
 /** Collect message */
 export interface Collect {
@@ -270,8 +264,7 @@ export interface Collect {
 }
 
 /** GenerateNumber message */
-export interface GenerateNumber {
-}
+export interface GenerateNumber {}
 
 /** Chain message */
 export interface Chain {
@@ -760,7 +753,7 @@ export const ControlRequest: MessageFns<ControlRequest> = {
     }
     if (message.evaluatePythonExpressionRequest !== undefined) {
       obj.evaluatePythonExpressionRequest = EvaluatePythonExpressionRequest.toJSON(
-        message.evaluatePythonExpressionRequest,
+        message.evaluatePythonExpressionRequest
       );
     }
     if (message.modifyLogicRequest !== undefined) {
@@ -771,7 +764,7 @@ export const ControlRequest: MessageFns<ControlRequest> = {
     }
     if (message.consoleMessageTriggeredRequest !== undefined) {
       obj.consoleMessageTriggeredRequest = ConsoleMessageTriggeredRequest.toJSON(
-        message.consoleMessageTriggeredRequest,
+        message.consoleMessageTriggeredRequest
       );
     }
     if (message.portCompletedRequest !== undefined) {
@@ -849,96 +842,101 @@ export const ControlRequest: MessageFns<ControlRequest> = {
   fromPartial<I extends Exact<DeepPartial<ControlRequest>, I>>(object: I): ControlRequest {
     const message = createBaseControlRequest();
     message.propagateChannelMarkerRequest =
-      (object.propagateChannelMarkerRequest !== undefined && object.propagateChannelMarkerRequest !== null)
+      object.propagateChannelMarkerRequest !== undefined && object.propagateChannelMarkerRequest !== null
         ? PropagateChannelMarkerRequest.fromPartial(object.propagateChannelMarkerRequest)
         : undefined;
     message.takeGlobalCheckpointRequest =
-      (object.takeGlobalCheckpointRequest !== undefined && object.takeGlobalCheckpointRequest !== null)
+      object.takeGlobalCheckpointRequest !== undefined && object.takeGlobalCheckpointRequest !== null
         ? TakeGlobalCheckpointRequest.fromPartial(object.takeGlobalCheckpointRequest)
         : undefined;
-    message.debugCommandRequest = (object.debugCommandRequest !== undefined && object.debugCommandRequest !== null)
-      ? DebugCommandRequest.fromPartial(object.debugCommandRequest)
-      : undefined;
+    message.debugCommandRequest =
+      object.debugCommandRequest !== undefined && object.debugCommandRequest !== null
+        ? DebugCommandRequest.fromPartial(object.debugCommandRequest)
+        : undefined;
     message.evaluatePythonExpressionRequest =
-      (object.evaluatePythonExpressionRequest !== undefined && object.evaluatePythonExpressionRequest !== null)
+      object.evaluatePythonExpressionRequest !== undefined && object.evaluatePythonExpressionRequest !== null
         ? EvaluatePythonExpressionRequest.fromPartial(object.evaluatePythonExpressionRequest)
         : undefined;
-    message.modifyLogicRequest = (object.modifyLogicRequest !== undefined && object.modifyLogicRequest !== null)
-      ? ModifyLogicRequest.fromPartial(object.modifyLogicRequest)
-      : undefined;
-    message.retryWorkflowRequest = (object.retryWorkflowRequest !== undefined && object.retryWorkflowRequest !== null)
-      ? RetryWorkflowRequest.fromPartial(object.retryWorkflowRequest)
-      : undefined;
+    message.modifyLogicRequest =
+      object.modifyLogicRequest !== undefined && object.modifyLogicRequest !== null
+        ? ModifyLogicRequest.fromPartial(object.modifyLogicRequest)
+        : undefined;
+    message.retryWorkflowRequest =
+      object.retryWorkflowRequest !== undefined && object.retryWorkflowRequest !== null
+        ? RetryWorkflowRequest.fromPartial(object.retryWorkflowRequest)
+        : undefined;
     message.consoleMessageTriggeredRequest =
-      (object.consoleMessageTriggeredRequest !== undefined && object.consoleMessageTriggeredRequest !== null)
+      object.consoleMessageTriggeredRequest !== undefined && object.consoleMessageTriggeredRequest !== null
         ? ConsoleMessageTriggeredRequest.fromPartial(object.consoleMessageTriggeredRequest)
         : undefined;
-    message.portCompletedRequest = (object.portCompletedRequest !== undefined && object.portCompletedRequest !== null)
-      ? PortCompletedRequest.fromPartial(object.portCompletedRequest)
-      : undefined;
+    message.portCompletedRequest =
+      object.portCompletedRequest !== undefined && object.portCompletedRequest !== null
+        ? PortCompletedRequest.fromPartial(object.portCompletedRequest)
+        : undefined;
     message.workerStateUpdatedRequest =
-      (object.workerStateUpdatedRequest !== undefined && object.workerStateUpdatedRequest !== null)
+      object.workerStateUpdatedRequest !== undefined && object.workerStateUpdatedRequest !== null
         ? WorkerStateUpdatedRequest.fromPartial(object.workerStateUpdatedRequest)
         : undefined;
-    message.linkWorkersRequest = (object.linkWorkersRequest !== undefined && object.linkWorkersRequest !== null)
-      ? LinkWorkersRequest.fromPartial(object.linkWorkersRequest)
-      : undefined;
+    message.linkWorkersRequest =
+      object.linkWorkersRequest !== undefined && object.linkWorkersRequest !== null
+        ? LinkWorkersRequest.fromPartial(object.linkWorkersRequest)
+        : undefined;
     message.addInputChannelRequest =
-      (object.addInputChannelRequest !== undefined && object.addInputChannelRequest !== null)
+      object.addInputChannelRequest !== undefined && object.addInputChannelRequest !== null
         ? AddInputChannelRequest.fromPartial(object.addInputChannelRequest)
         : undefined;
     message.addPartitioningRequest =
-      (object.addPartitioningRequest !== undefined && object.addPartitioningRequest !== null)
+      object.addPartitioningRequest !== undefined && object.addPartitioningRequest !== null
         ? AddPartitioningRequest.fromPartial(object.addPartitioningRequest)
         : undefined;
-    message.assignPortRequest = (object.assignPortRequest !== undefined && object.assignPortRequest !== null)
-      ? AssignPortRequest.fromPartial(object.assignPortRequest)
-      : undefined;
+    message.assignPortRequest =
+      object.assignPortRequest !== undefined && object.assignPortRequest !== null
+        ? AssignPortRequest.fromPartial(object.assignPortRequest)
+        : undefined;
     message.finalizeCheckpointRequest =
-      (object.finalizeCheckpointRequest !== undefined && object.finalizeCheckpointRequest !== null)
+      object.finalizeCheckpointRequest !== undefined && object.finalizeCheckpointRequest !== null
         ? FinalizeCheckpointRequest.fromPartial(object.finalizeCheckpointRequest)
         : undefined;
     message.initializeExecutorRequest =
-      (object.initializeExecutorRequest !== undefined && object.initializeExecutorRequest !== null)
+      object.initializeExecutorRequest !== undefined && object.initializeExecutorRequest !== null
         ? InitializeExecutorRequest.fromPartial(object.initializeExecutorRequest)
         : undefined;
     message.updateExecutorRequest =
-      (object.updateExecutorRequest !== undefined && object.updateExecutorRequest !== null)
+      object.updateExecutorRequest !== undefined && object.updateExecutorRequest !== null
         ? UpdateExecutorRequest.fromPartial(object.updateExecutorRequest)
         : undefined;
-    message.emptyRequest = (object.emptyRequest !== undefined && object.emptyRequest !== null)
-      ? EmptyRequest.fromPartial(object.emptyRequest)
-      : undefined;
+    message.emptyRequest =
+      object.emptyRequest !== undefined && object.emptyRequest !== null
+        ? EmptyRequest.fromPartial(object.emptyRequest)
+        : undefined;
     message.prepareCheckpointRequest =
-      (object.prepareCheckpointRequest !== undefined && object.prepareCheckpointRequest !== null)
+      object.prepareCheckpointRequest !== undefined && object.prepareCheckpointRequest !== null
         ? PrepareCheckpointRequest.fromPartial(object.prepareCheckpointRequest)
         : undefined;
     message.queryStatisticsRequest =
-      (object.queryStatisticsRequest !== undefined && object.queryStatisticsRequest !== null)
+      object.queryStatisticsRequest !== undefined && object.queryStatisticsRequest !== null
         ? QueryStatisticsRequest.fromPartial(object.queryStatisticsRequest)
         : undefined;
-    message.ping = (object.ping !== undefined && object.ping !== null) ? Ping.fromPartial(object.ping) : undefined;
-    message.pong = (object.pong !== undefined && object.pong !== null) ? Pong.fromPartial(object.pong) : undefined;
-    message.nested = (object.nested !== undefined && object.nested !== null)
-      ? Nested.fromPartial(object.nested)
-      : undefined;
-    message.pass = (object.pass !== undefined && object.pass !== null) ? Pass.fromPartial(object.pass) : undefined;
-    message.errorCommand = (object.errorCommand !== undefined && object.errorCommand !== null)
-      ? ErrorCommand.fromPartial(object.errorCommand)
-      : undefined;
-    message.recursion = (object.recursion !== undefined && object.recursion !== null)
-      ? Recursion.fromPartial(object.recursion)
-      : undefined;
-    message.collect = (object.collect !== undefined && object.collect !== null)
-      ? Collect.fromPartial(object.collect)
-      : undefined;
-    message.generateNumber = (object.generateNumber !== undefined && object.generateNumber !== null)
-      ? GenerateNumber.fromPartial(object.generateNumber)
-      : undefined;
-    message.multiCall = (object.multiCall !== undefined && object.multiCall !== null)
-      ? MultiCall.fromPartial(object.multiCall)
-      : undefined;
-    message.chain = (object.chain !== undefined && object.chain !== null) ? Chain.fromPartial(object.chain) : undefined;
+    message.ping = object.ping !== undefined && object.ping !== null ? Ping.fromPartial(object.ping) : undefined;
+    message.pong = object.pong !== undefined && object.pong !== null ? Pong.fromPartial(object.pong) : undefined;
+    message.nested =
+      object.nested !== undefined && object.nested !== null ? Nested.fromPartial(object.nested) : undefined;
+    message.pass = object.pass !== undefined && object.pass !== null ? Pass.fromPartial(object.pass) : undefined;
+    message.errorCommand =
+      object.errorCommand !== undefined && object.errorCommand !== null
+        ? ErrorCommand.fromPartial(object.errorCommand)
+        : undefined;
+    message.recursion =
+      object.recursion !== undefined && object.recursion !== null ? Recursion.fromPartial(object.recursion) : undefined;
+    message.collect =
+      object.collect !== undefined && object.collect !== null ? Collect.fromPartial(object.collect) : undefined;
+    message.generateNumber =
+      object.generateNumber !== undefined && object.generateNumber !== null
+        ? GenerateNumber.fromPartial(object.generateNumber)
+        : undefined;
+    message.multiCall =
+      object.multiCall !== undefined && object.multiCall !== null ? MultiCall.fromPartial(object.multiCall) : undefined;
+    message.chain = object.chain !== undefined && object.chain !== null ? Chain.fromPartial(object.chain) : undefined;
     return message;
   },
 };
@@ -1054,12 +1052,14 @@ export const AsyncRPCContext: MessageFns<AsyncRPCContext> = {
   },
   fromPartial<I extends Exact<DeepPartial<AsyncRPCContext>, I>>(object: I): AsyncRPCContext {
     const message = createBaseAsyncRPCContext();
-    message.sender = (object.sender !== undefined && object.sender !== null)
-      ? ActorVirtualIdentity.fromPartial(object.sender)
-      : undefined;
-    message.receiver = (object.receiver !== undefined && object.receiver !== null)
-      ? ActorVirtualIdentity.fromPartial(object.receiver)
-      : undefined;
+    message.sender =
+      object.sender !== undefined && object.sender !== null
+        ? ActorVirtualIdentity.fromPartial(object.sender)
+        : undefined;
+    message.receiver =
+      object.receiver !== undefined && object.receiver !== null
+        ? ActorVirtualIdentity.fromPartial(object.receiver)
+        : undefined;
     return message;
   },
 };
@@ -1161,12 +1161,10 @@ export const ControlInvocation: MessageFns<ControlInvocation> = {
   fromPartial<I extends Exact<DeepPartial<ControlInvocation>, I>>(object: I): ControlInvocation {
     const message = createBaseControlInvocation();
     message.methodName = object.methodName ?? "";
-    message.command = (object.command !== undefined && object.command !== null)
-      ? ControlRequest.fromPartial(object.command)
-      : undefined;
-    message.context = (object.context !== undefined && object.context !== null)
-      ? AsyncRPCContext.fromPartial(object.context)
-      : undefined;
+    message.command =
+      object.command !== undefined && object.command !== null ? ControlRequest.fromPartial(object.command) : undefined;
+    message.context =
+      object.context !== undefined && object.context !== null ? AsyncRPCContext.fromPartial(object.context) : undefined;
     message.commandId = object.commandId ?? 0;
     return message;
   },
@@ -1247,9 +1245,9 @@ export const ChannelMarkerPayload: MessageFns<ChannelMarkerPayload> = {
       scope: globalThis.Array.isArray(object?.scope) ? object.scope.map((e: any) => ChannelIdentity.fromJSON(e)) : [],
       commandMapping: isObject(object.commandMapping)
         ? Object.entries(object.commandMapping).reduce<{ [key: string]: ControlInvocation }>((acc, [key, value]) => {
-          acc[key] = ControlInvocation.fromJSON(value);
-          return acc;
-        }, {})
+            acc[key] = ControlInvocation.fromJSON(value);
+            return acc;
+          }, {})
         : {},
     };
   },
@@ -1263,7 +1261,7 @@ export const ChannelMarkerPayload: MessageFns<ChannelMarkerPayload> = {
       obj.markerType = channelMarkerTypeToJSON(message.markerType);
     }
     if (message.scope?.length) {
-      obj.scope = message.scope.map((e) => ChannelIdentity.toJSON(e));
+      obj.scope = message.scope.map(e => ChannelIdentity.toJSON(e));
     }
     if (message.commandMapping) {
       const entries = Object.entries(message.commandMapping);
@@ -1282,11 +1280,10 @@ export const ChannelMarkerPayload: MessageFns<ChannelMarkerPayload> = {
   },
   fromPartial<I extends Exact<DeepPartial<ChannelMarkerPayload>, I>>(object: I): ChannelMarkerPayload {
     const message = createBaseChannelMarkerPayload();
-    message.id = (object.id !== undefined && object.id !== null)
-      ? ChannelMarkerIdentity.fromPartial(object.id)
-      : undefined;
+    message.id =
+      object.id !== undefined && object.id !== null ? ChannelMarkerIdentity.fromPartial(object.id) : undefined;
     message.markerType = object.markerType ?? 0;
-    message.scope = object.scope?.map((e) => ChannelIdentity.fromPartial(e)) || [];
+    message.scope = object.scope?.map(e => ChannelIdentity.fromPartial(e)) || [];
     message.commandMapping = Object.entries(object.commandMapping ?? {}).reduce<{ [key: string]: ControlInvocation }>(
       (acc, [key, value]) => {
         if (value !== undefined) {
@@ -1294,7 +1291,7 @@ export const ChannelMarkerPayload: MessageFns<ChannelMarkerPayload> = {
         }
         return acc;
       },
-      {},
+      {}
     );
     return message;
   },
@@ -1364,18 +1361,17 @@ export const ChannelMarkerPayload_CommandMappingEntry: MessageFns<ChannelMarkerP
   },
 
   create<I extends Exact<DeepPartial<ChannelMarkerPayload_CommandMappingEntry>, I>>(
-    base?: I,
+    base?: I
   ): ChannelMarkerPayload_CommandMappingEntry {
     return ChannelMarkerPayload_CommandMappingEntry.fromPartial(base ?? ({} as any));
   },
   fromPartial<I extends Exact<DeepPartial<ChannelMarkerPayload_CommandMappingEntry>, I>>(
-    object: I,
+    object: I
   ): ChannelMarkerPayload_CommandMappingEntry {
     const message = createBaseChannelMarkerPayload_CommandMappingEntry();
     message.key = object.key ?? "";
-    message.value = (object.value !== undefined && object.value !== null)
-      ? ControlInvocation.fromPartial(object.value)
-      : undefined;
+    message.value =
+      object.value !== undefined && object.value !== null ? ControlInvocation.fromPartial(object.value) : undefined;
     return message;
   },
 };
@@ -1504,7 +1500,7 @@ export const PropagateChannelMarkerRequest: MessageFns<PropagateChannelMarkerReq
   toJSON(message: PropagateChannelMarkerRequest): unknown {
     const obj: any = {};
     if (message.sourceOpToStartProp?.length) {
-      obj.sourceOpToStartProp = message.sourceOpToStartProp.map((e) => PhysicalOpIdentity.toJSON(e));
+      obj.sourceOpToStartProp = message.sourceOpToStartProp.map(e => PhysicalOpIdentity.toJSON(e));
     }
     if (message.id !== undefined) {
       obj.id = ChannelMarkerIdentity.toJSON(message.id);
@@ -1513,10 +1509,10 @@ export const PropagateChannelMarkerRequest: MessageFns<PropagateChannelMarkerReq
       obj.markerType = channelMarkerTypeToJSON(message.markerType);
     }
     if (message.scope?.length) {
-      obj.scope = message.scope.map((e) => PhysicalOpIdentity.toJSON(e));
+      obj.scope = message.scope.map(e => PhysicalOpIdentity.toJSON(e));
     }
     if (message.targetOps?.length) {
-      obj.targetOps = message.targetOps.map((e) => PhysicalOpIdentity.toJSON(e));
+      obj.targetOps = message.targetOps.map(e => PhysicalOpIdentity.toJSON(e));
     }
     if (message.markerCommand !== undefined) {
       obj.markerCommand = ControlRequest.toJSON(message.markerCommand);
@@ -1531,19 +1527,19 @@ export const PropagateChannelMarkerRequest: MessageFns<PropagateChannelMarkerReq
     return PropagateChannelMarkerRequest.fromPartial(base ?? ({} as any));
   },
   fromPartial<I extends Exact<DeepPartial<PropagateChannelMarkerRequest>, I>>(
-    object: I,
+    object: I
   ): PropagateChannelMarkerRequest {
     const message = createBasePropagateChannelMarkerRequest();
-    message.sourceOpToStartProp = object.sourceOpToStartProp?.map((e) => PhysicalOpIdentity.fromPartial(e)) || [];
-    message.id = (object.id !== undefined && object.id !== null)
-      ? ChannelMarkerIdentity.fromPartial(object.id)
-      : undefined;
+    message.sourceOpToStartProp = object.sourceOpToStartProp?.map(e => PhysicalOpIdentity.fromPartial(e)) || [];
+    message.id =
+      object.id !== undefined && object.id !== null ? ChannelMarkerIdentity.fromPartial(object.id) : undefined;
     message.markerType = object.markerType ?? 0;
-    message.scope = object.scope?.map((e) => PhysicalOpIdentity.fromPartial(e)) || [];
-    message.targetOps = object.targetOps?.map((e) => PhysicalOpIdentity.fromPartial(e)) || [];
-    message.markerCommand = (object.markerCommand !== undefined && object.markerCommand !== null)
-      ? ControlRequest.fromPartial(object.markerCommand)
-      : undefined;
+    message.scope = object.scope?.map(e => PhysicalOpIdentity.fromPartial(e)) || [];
+    message.targetOps = object.targetOps?.map(e => PhysicalOpIdentity.fromPartial(e)) || [];
+    message.markerCommand =
+      object.markerCommand !== undefined && object.markerCommand !== null
+        ? ControlRequest.fromPartial(object.markerCommand)
+        : undefined;
     message.markerMethodName = object.markerMethodName ?? "";
     return message;
   },
@@ -1632,9 +1628,10 @@ export const TakeGlobalCheckpointRequest: MessageFns<TakeGlobalCheckpointRequest
   fromPartial<I extends Exact<DeepPartial<TakeGlobalCheckpointRequest>, I>>(object: I): TakeGlobalCheckpointRequest {
     const message = createBaseTakeGlobalCheckpointRequest();
     message.estimationOnly = object.estimationOnly ?? false;
-    message.checkpointId = (object.checkpointId !== undefined && object.checkpointId !== null)
-      ? ChannelMarkerIdentity.fromPartial(object.checkpointId)
-      : undefined;
+    message.checkpointId =
+      object.checkpointId !== undefined && object.checkpointId !== null
+        ? ChannelMarkerIdentity.fromPartial(object.checkpointId)
+        : undefined;
     message.destination = object.destination ?? "";
     return message;
   },
@@ -1708,9 +1705,10 @@ export const WorkflowReconfigureRequest: MessageFns<WorkflowReconfigureRequest> 
   },
   fromPartial<I extends Exact<DeepPartial<WorkflowReconfigureRequest>, I>>(object: I): WorkflowReconfigureRequest {
     const message = createBaseWorkflowReconfigureRequest();
-    message.reconfiguration = (object.reconfiguration !== undefined && object.reconfiguration !== null)
-      ? ModifyLogicRequest.fromPartial(object.reconfiguration)
-      : undefined;
+    message.reconfiguration =
+      object.reconfiguration !== undefined && object.reconfiguration !== null
+        ? ModifyLogicRequest.fromPartial(object.reconfiguration)
+        : undefined;
     message.reconfigurationId = object.reconfigurationId ?? "";
     return message;
   },
@@ -1857,7 +1855,7 @@ export const EvaluatePythonExpressionRequest: MessageFns<EvaluatePythonExpressio
     return EvaluatePythonExpressionRequest.fromPartial(base ?? ({} as any));
   },
   fromPartial<I extends Exact<DeepPartial<EvaluatePythonExpressionRequest>, I>>(
-    object: I,
+    object: I
   ): EvaluatePythonExpressionRequest {
     const message = createBaseEvaluatePythonExpressionRequest();
     message.expression = object.expression ?? "";
@@ -1912,7 +1910,7 @@ export const ModifyLogicRequest: MessageFns<ModifyLogicRequest> = {
   toJSON(message: ModifyLogicRequest): unknown {
     const obj: any = {};
     if (message.updateRequest?.length) {
-      obj.updateRequest = message.updateRequest.map((e) => UpdateExecutorRequest.toJSON(e));
+      obj.updateRequest = message.updateRequest.map(e => UpdateExecutorRequest.toJSON(e));
     }
     return obj;
   },
@@ -1922,7 +1920,7 @@ export const ModifyLogicRequest: MessageFns<ModifyLogicRequest> = {
   },
   fromPartial<I extends Exact<DeepPartial<ModifyLogicRequest>, I>>(object: I): ModifyLogicRequest {
     const message = createBaseModifyLogicRequest();
-    message.updateRequest = object.updateRequest?.map((e) => UpdateExecutorRequest.fromPartial(e)) || [];
+    message.updateRequest = object.updateRequest?.map(e => UpdateExecutorRequest.fromPartial(e)) || [];
     return message;
   },
 };
@@ -1973,7 +1971,7 @@ export const RetryWorkflowRequest: MessageFns<RetryWorkflowRequest> = {
   toJSON(message: RetryWorkflowRequest): unknown {
     const obj: any = {};
     if (message.workers?.length) {
-      obj.workers = message.workers.map((e) => ActorVirtualIdentity.toJSON(e));
+      obj.workers = message.workers.map(e => ActorVirtualIdentity.toJSON(e));
     }
     return obj;
   },
@@ -1983,7 +1981,7 @@ export const RetryWorkflowRequest: MessageFns<RetryWorkflowRequest> = {
   },
   fromPartial<I extends Exact<DeepPartial<RetryWorkflowRequest>, I>>(object: I): RetryWorkflowRequest {
     const message = createBaseRetryWorkflowRequest();
-    message.workers = object.workers?.map((e) => ActorVirtualIdentity.fromPartial(e)) || [];
+    message.workers = object.workers?.map(e => ActorVirtualIdentity.fromPartial(e)) || [];
     return message;
   },
 };
@@ -2175,12 +2173,13 @@ export const ConsoleMessageTriggeredRequest: MessageFns<ConsoleMessageTriggeredR
     return ConsoleMessageTriggeredRequest.fromPartial(base ?? ({} as any));
   },
   fromPartial<I extends Exact<DeepPartial<ConsoleMessageTriggeredRequest>, I>>(
-    object: I,
+    object: I
   ): ConsoleMessageTriggeredRequest {
     const message = createBaseConsoleMessageTriggeredRequest();
-    message.consoleMessage = (object.consoleMessage !== undefined && object.consoleMessage !== null)
-      ? ConsoleMessage.fromPartial(object.consoleMessage)
-      : undefined;
+    message.consoleMessage =
+      object.consoleMessage !== undefined && object.consoleMessage !== null
+        ? ConsoleMessage.fromPartial(object.consoleMessage)
+        : undefined;
     return message;
   },
 };
@@ -2253,9 +2252,8 @@ export const PortCompletedRequest: MessageFns<PortCompletedRequest> = {
   },
   fromPartial<I extends Exact<DeepPartial<PortCompletedRequest>, I>>(object: I): PortCompletedRequest {
     const message = createBasePortCompletedRequest();
-    message.portId = (object.portId !== undefined && object.portId !== null)
-      ? PortIdentity.fromPartial(object.portId)
-      : undefined;
+    message.portId =
+      object.portId !== undefined && object.portId !== null ? PortIdentity.fromPartial(object.portId) : undefined;
     message.input = object.input ?? false;
     return message;
   },
@@ -2370,9 +2368,8 @@ export const LinkWorkersRequest: MessageFns<LinkWorkersRequest> = {
   },
   fromPartial<I extends Exact<DeepPartial<LinkWorkersRequest>, I>>(object: I): LinkWorkersRequest {
     const message = createBaseLinkWorkersRequest();
-    message.link = (object.link !== undefined && object.link !== null)
-      ? PhysicalLink.fromPartial(object.link)
-      : undefined;
+    message.link =
+      object.link !== undefined && object.link !== null ? PhysicalLink.fromPartial(object.link) : undefined;
     return message;
   },
 };
@@ -2461,9 +2458,8 @@ export const Ping: MessageFns<Ping> = {
     const message = createBasePing();
     message.i = object.i ?? 0;
     message.end = object.end ?? 0;
-    message.to = (object.to !== undefined && object.to !== null)
-      ? ActorVirtualIdentity.fromPartial(object.to)
-      : undefined;
+    message.to =
+      object.to !== undefined && object.to !== null ? ActorVirtualIdentity.fromPartial(object.to) : undefined;
     return message;
   },
 };
@@ -2552,9 +2548,8 @@ export const Pong: MessageFns<Pong> = {
     const message = createBasePong();
     message.i = object.i ?? 0;
     message.end = object.end ?? 0;
-    message.to = (object.to !== undefined && object.to !== null)
-      ? ActorVirtualIdentity.fromPartial(object.to)
-      : undefined;
+    message.to =
+      object.to !== undefined && object.to !== null ? ActorVirtualIdentity.fromPartial(object.to) : undefined;
     return message;
   },
 };
@@ -2717,7 +2712,7 @@ export const MultiCall: MessageFns<MultiCall> = {
   toJSON(message: MultiCall): unknown {
     const obj: any = {};
     if (message.seq?.length) {
-      obj.seq = message.seq.map((e) => ActorVirtualIdentity.toJSON(e));
+      obj.seq = message.seq.map(e => ActorVirtualIdentity.toJSON(e));
     }
     return obj;
   },
@@ -2727,7 +2722,7 @@ export const MultiCall: MessageFns<MultiCall> = {
   },
   fromPartial<I extends Exact<DeepPartial<MultiCall>, I>>(object: I): MultiCall {
     const message = createBaseMultiCall();
-    message.seq = object.seq?.map((e) => ActorVirtualIdentity.fromPartial(e)) || [];
+    message.seq = object.seq?.map(e => ActorVirtualIdentity.fromPartial(e)) || [];
     return message;
   },
 };
@@ -2821,7 +2816,7 @@ export const Collect: MessageFns<Collect> = {
   toJSON(message: Collect): unknown {
     const obj: any = {};
     if (message.workers?.length) {
-      obj.workers = message.workers.map((e) => ActorVirtualIdentity.toJSON(e));
+      obj.workers = message.workers.map(e => ActorVirtualIdentity.toJSON(e));
     }
     return obj;
   },
@@ -2831,7 +2826,7 @@ export const Collect: MessageFns<Collect> = {
   },
   fromPartial<I extends Exact<DeepPartial<Collect>, I>>(object: I): Collect {
     const message = createBaseCollect();
-    message.workers = object.workers?.map((e) => ActorVirtualIdentity.fromPartial(e)) || [];
+    message.workers = object.workers?.map(e => ActorVirtualIdentity.fromPartial(e)) || [];
     return message;
   },
 };
@@ -2925,7 +2920,7 @@ export const Chain: MessageFns<Chain> = {
   toJSON(message: Chain): unknown {
     const obj: any = {};
     if (message.nexts?.length) {
-      obj.nexts = message.nexts.map((e) => ActorVirtualIdentity.toJSON(e));
+      obj.nexts = message.nexts.map(e => ActorVirtualIdentity.toJSON(e));
     }
     return obj;
   },
@@ -2935,7 +2930,7 @@ export const Chain: MessageFns<Chain> = {
   },
   fromPartial<I extends Exact<DeepPartial<Chain>, I>>(object: I): Chain {
     const message = createBaseChain();
-    message.nexts = object.nexts?.map((e) => ActorVirtualIdentity.fromPartial(e)) || [];
+    message.nexts = object.nexts?.map(e => ActorVirtualIdentity.fromPartial(e)) || [];
     return message;
   },
 };
@@ -3065,12 +3060,12 @@ export const AddInputChannelRequest: MessageFns<AddInputChannelRequest> = {
   },
   fromPartial<I extends Exact<DeepPartial<AddInputChannelRequest>, I>>(object: I): AddInputChannelRequest {
     const message = createBaseAddInputChannelRequest();
-    message.channelId = (object.channelId !== undefined && object.channelId !== null)
-      ? ChannelIdentity.fromPartial(object.channelId)
-      : undefined;
-    message.portId = (object.portId !== undefined && object.portId !== null)
-      ? PortIdentity.fromPartial(object.portId)
-      : undefined;
+    message.channelId =
+      object.channelId !== undefined && object.channelId !== null
+        ? ChannelIdentity.fromPartial(object.channelId)
+        : undefined;
+    message.portId =
+      object.portId !== undefined && object.portId !== null ? PortIdentity.fromPartial(object.portId) : undefined;
     return message;
   },
 };
@@ -3143,10 +3138,11 @@ export const AddPartitioningRequest: MessageFns<AddPartitioningRequest> = {
   },
   fromPartial<I extends Exact<DeepPartial<AddPartitioningRequest>, I>>(object: I): AddPartitioningRequest {
     const message = createBaseAddPartitioningRequest();
-    message.tag = (object.tag !== undefined && object.tag !== null) ? PhysicalLink.fromPartial(object.tag) : undefined;
-    message.partitioning = (object.partitioning !== undefined && object.partitioning !== null)
-      ? Partitioning.fromPartial(object.partitioning)
-      : undefined;
+    message.tag = object.tag !== undefined && object.tag !== null ? PhysicalLink.fromPartial(object.tag) : undefined;
+    message.partitioning =
+      object.partitioning !== undefined && object.partitioning !== null
+        ? Partitioning.fromPartial(object.partitioning)
+        : undefined;
     return message;
   },
 };
@@ -3215,9 +3211,9 @@ export const AssignPortRequest: MessageFns<AssignPortRequest> = {
       input: isSet(object.input) ? globalThis.Boolean(object.input) : false,
       schema: isObject(object.schema)
         ? Object.entries(object.schema).reduce<{ [key: string]: string }>((acc, [key, value]) => {
-          acc[key] = String(value);
-          return acc;
-        }, {})
+            acc[key] = String(value);
+            return acc;
+          }, {})
         : {},
     };
   },
@@ -3247,9 +3243,8 @@ export const AssignPortRequest: MessageFns<AssignPortRequest> = {
   },
   fromPartial<I extends Exact<DeepPartial<AssignPortRequest>, I>>(object: I): AssignPortRequest {
     const message = createBaseAssignPortRequest();
-    message.portId = (object.portId !== undefined && object.portId !== null)
-      ? PortIdentity.fromPartial(object.portId)
-      : undefined;
+    message.portId =
+      object.portId !== undefined && object.portId !== null ? PortIdentity.fromPartial(object.portId) : undefined;
     message.input = object.input ?? false;
     message.schema = Object.entries(object.schema ?? {}).reduce<{ [key: string]: string }>((acc, [key, value]) => {
       if (value !== undefined) {
@@ -3328,7 +3323,7 @@ export const AssignPortRequest_SchemaEntry: MessageFns<AssignPortRequest_SchemaE
     return AssignPortRequest_SchemaEntry.fromPartial(base ?? ({} as any));
   },
   fromPartial<I extends Exact<DeepPartial<AssignPortRequest_SchemaEntry>, I>>(
-    object: I,
+    object: I
   ): AssignPortRequest_SchemaEntry {
     const message = createBaseAssignPortRequest_SchemaEntry();
     message.key = object.key ?? "";
@@ -3405,9 +3400,10 @@ export const FinalizeCheckpointRequest: MessageFns<FinalizeCheckpointRequest> = 
   },
   fromPartial<I extends Exact<DeepPartial<FinalizeCheckpointRequest>, I>>(object: I): FinalizeCheckpointRequest {
     const message = createBaseFinalizeCheckpointRequest();
-    message.checkpointId = (object.checkpointId !== undefined && object.checkpointId !== null)
-      ? ChannelMarkerIdentity.fromPartial(object.checkpointId)
-      : undefined;
+    message.checkpointId =
+      object.checkpointId !== undefined && object.checkpointId !== null
+        ? ChannelMarkerIdentity.fromPartial(object.checkpointId)
+        : undefined;
     message.writeTo = object.writeTo ?? "";
     return message;
   },
@@ -3510,9 +3506,10 @@ export const InitializeExecutorRequest: MessageFns<InitializeExecutorRequest> = 
   fromPartial<I extends Exact<DeepPartial<InitializeExecutorRequest>, I>>(object: I): InitializeExecutorRequest {
     const message = createBaseInitializeExecutorRequest();
     message.totalWorkerCount = object.totalWorkerCount ?? 0;
-    message.opExecInitInfo = (object.opExecInitInfo !== undefined && object.opExecInitInfo !== null)
-      ? Any.fromPartial(object.opExecInitInfo)
-      : undefined;
+    message.opExecInitInfo =
+      object.opExecInitInfo !== undefined && object.opExecInitInfo !== null
+        ? Any.fromPartial(object.opExecInitInfo)
+        : undefined;
     message.isSource = object.isSource ?? false;
     message.language = object.language ?? "";
     return message;
@@ -3601,15 +3598,16 @@ export const UpdateExecutorRequest: MessageFns<UpdateExecutorRequest> = {
   },
   fromPartial<I extends Exact<DeepPartial<UpdateExecutorRequest>, I>>(object: I): UpdateExecutorRequest {
     const message = createBaseUpdateExecutorRequest();
-    message.targetOpId = (object.targetOpId !== undefined && object.targetOpId !== null)
-      ? PhysicalOpIdentity.fromPartial(object.targetOpId)
-      : undefined;
-    message.newExecutor = (object.newExecutor !== undefined && object.newExecutor !== null)
-      ? Any.fromPartial(object.newExecutor)
-      : undefined;
-    message.stateTransferFunc = (object.stateTransferFunc !== undefined && object.stateTransferFunc !== null)
-      ? Any.fromPartial(object.stateTransferFunc)
-      : undefined;
+    message.targetOpId =
+      object.targetOpId !== undefined && object.targetOpId !== null
+        ? PhysicalOpIdentity.fromPartial(object.targetOpId)
+        : undefined;
+    message.newExecutor =
+      object.newExecutor !== undefined && object.newExecutor !== null ? Any.fromPartial(object.newExecutor) : undefined;
+    message.stateTransferFunc =
+      object.stateTransferFunc !== undefined && object.stateTransferFunc !== null
+        ? Any.fromPartial(object.stateTransferFunc)
+        : undefined;
     return message;
   },
 };
@@ -3682,9 +3680,10 @@ export const PrepareCheckpointRequest: MessageFns<PrepareCheckpointRequest> = {
   },
   fromPartial<I extends Exact<DeepPartial<PrepareCheckpointRequest>, I>>(object: I): PrepareCheckpointRequest {
     const message = createBasePrepareCheckpointRequest();
-    message.checkpointId = (object.checkpointId !== undefined && object.checkpointId !== null)
-      ? ChannelMarkerIdentity.fromPartial(object.checkpointId)
-      : undefined;
+    message.checkpointId =
+      object.checkpointId !== undefined && object.checkpointId !== null
+        ? ChannelMarkerIdentity.fromPartial(object.checkpointId)
+        : undefined;
     message.estimationOnly = object.estimationOnly ?? false;
     return message;
   },
@@ -3736,7 +3735,7 @@ export const QueryStatisticsRequest: MessageFns<QueryStatisticsRequest> = {
   toJSON(message: QueryStatisticsRequest): unknown {
     const obj: any = {};
     if (message.filterByWorkers?.length) {
-      obj.filterByWorkers = message.filterByWorkers.map((e) => ActorVirtualIdentity.toJSON(e));
+      obj.filterByWorkers = message.filterByWorkers.map(e => ActorVirtualIdentity.toJSON(e));
     }
     return obj;
   },
@@ -3746,21 +3745,26 @@ export const QueryStatisticsRequest: MessageFns<QueryStatisticsRequest> = {
   },
   fromPartial<I extends Exact<DeepPartial<QueryStatisticsRequest>, I>>(object: I): QueryStatisticsRequest {
     const message = createBaseQueryStatisticsRequest();
-    message.filterByWorkers = object.filterByWorkers?.map((e) => ActorVirtualIdentity.fromPartial(e)) || [];
+    message.filterByWorkers = object.filterByWorkers?.map(e => ActorVirtualIdentity.fromPartial(e)) || [];
     return message;
   },
 };
 
 type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
 
-export type DeepPartial<T> = T extends Builtin ? T
-  : T extends globalThis.Array<infer U> ? globalThis.Array<DeepPartial<U>>
-  : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
-  : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
-  : Partial<T>;
+export type DeepPartial<T> = T extends Builtin
+  ? T
+  : T extends globalThis.Array<infer U>
+    ? globalThis.Array<DeepPartial<U>>
+    : T extends ReadonlyArray<infer U>
+      ? ReadonlyArray<DeepPartial<U>>
+      : T extends {}
+        ? { [K in keyof T]?: DeepPartial<T[K]> }
+        : Partial<T>;
 
 type KeysOfUnion<T> = T extends T ? keyof T : never;
-export type Exact<P, I extends P> = P extends Builtin ? P
+export type Exact<P, I extends P> = P extends Builtin
+  ? P
   : P & { [K in keyof P]: Exact<P[K], I[K]> } & { [K in Exclude<keyof I, KeysOfUnion<P>>]: never };
 
 function toTimestamp(date: Date): Timestamp {

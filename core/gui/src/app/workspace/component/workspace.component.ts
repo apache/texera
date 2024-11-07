@@ -23,7 +23,7 @@ import { CodeEditorService } from "../service/code-editor/code-editor.service";
 import { WorkflowMetadata } from "src/app/dashboard/type/workflow-metadata.interface";
 import { HubWorkflowService } from "../../hub/service/workflow/hub-workflow.service";
 import { THROTTLE_TIME_MS } from "../../hub/component/workflow/detail/hub-workflow-detail.component";
-import {WorkflowCompilingService} from "../service/compile-workflow/compile-workflow.service";
+import { WorkflowCompilingService } from "../service/compile-workflow/compile-workflow.service";
 
 export const SAVE_DEBOUNCE_TIME_IN_MS = 5000;
 
@@ -49,7 +49,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     private userService: UserService,
     // list additional services in constructor so they are initialized even if no one use them directly
     private workflowCompilingService: WorkflowCompilingService,
-    private operatorReuseCacheStatus: OperatorReuseCacheStatusService,
     private workflowConsoleService: WorkflowConsoleService,
     private undoRedoService: UndoRedoService,
     private workflowCacheService: WorkflowCacheService,

@@ -10,19 +10,19 @@ export enum CompilationState {
 
 export type CompilationStateInfo = Readonly<
   | {
-  // indicates the compilation is successful
-  state: CompilationState.Succeeded;
-  // physicalPlan compiled from current logical plan
-  physicalPlan: PhysicalPlan;
-  // a map from opId to InputSchema, used for autocompletion of schema
-  operatorInputSchemaMap: Readonly<Record<string, OperatorInputSchema>>;
-}
+      // indicates the compilation is successful
+      state: CompilationState.Succeeded;
+      // physicalPlan compiled from current logical plan
+      physicalPlan: PhysicalPlan;
+      // a map from opId to InputSchema, used for autocompletion of schema
+      operatorInputSchemaMap: Readonly<Record<string, OperatorInputSchema>>;
+    }
   | {
-  state: CompilationState.Uninitialized;
-}
+      state: CompilationState.Uninitialized;
+    }
   | {
-  state: CompilationState.Failed;
-  operatorInputSchemaMap: Readonly<Record<string, OperatorInputSchema>>;
-  operatorErrors: Readonly<Array<WorkflowFatalError>>;
-}
+      state: CompilationState.Failed;
+      operatorInputSchemaMap: Readonly<Record<string, OperatorInputSchema>>;
+      operatorErrors: Readonly<Record<string, WorkflowFatalError>>;
+    }
 >;

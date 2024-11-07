@@ -251,7 +251,7 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     // first fetch the error messages from the execution state store
     let errorMessages = this.executeWorkflowService.getErrorMessages();
     // then fetch error from the compilation state store
-    errorMessages = errorMessages.concat(this.workflowCompilingService.getWorkflowCompilationErrors());
+    errorMessages = errorMessages.concat(Object.values(this.workflowCompilingService.getWorkflowCompilationErrors()));
     // finally, if any operatorId is given, filter out those with matched Id
     if (operatorId) {
       errorMessages = errorMessages.filter(err => err.operatorId === operatorId);

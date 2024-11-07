@@ -217,9 +217,10 @@ export const BreakpointFault: MessageFns<BreakpointFault> = {
   fromPartial<I extends Exact<DeepPartial<BreakpointFault>, I>>(object: I): BreakpointFault {
     const message = createBaseBreakpointFault();
     message.workerName = object.workerName ?? "";
-    message.faultedTuple = (object.faultedTuple !== undefined && object.faultedTuple !== null)
-      ? BreakpointFault_BreakpointTuple.fromPartial(object.faultedTuple)
-      : undefined;
+    message.faultedTuple =
+      object.faultedTuple !== undefined && object.faultedTuple !== null
+        ? BreakpointFault_BreakpointTuple.fromPartial(object.faultedTuple)
+        : undefined;
     return message;
   },
 };
@@ -305,12 +306,12 @@ export const BreakpointFault_BreakpointTuple: MessageFns<BreakpointFault_Breakpo
     return BreakpointFault_BreakpointTuple.fromPartial(base ?? ({} as any));
   },
   fromPartial<I extends Exact<DeepPartial<BreakpointFault_BreakpointTuple>, I>>(
-    object: I,
+    object: I
   ): BreakpointFault_BreakpointTuple {
     const message = createBaseBreakpointFault_BreakpointTuple();
     message.id = object.id ?? 0;
     message.isInput = object.isInput ?? false;
-    message.tuple = object.tuple?.map((e) => e) || [];
+    message.tuple = object.tuple?.map(e => e) || [];
     return message;
   },
 };
@@ -361,7 +362,7 @@ export const OperatorBreakpoints: MessageFns<OperatorBreakpoints> = {
   toJSON(message: OperatorBreakpoints): unknown {
     const obj: any = {};
     if (message.unresolvedBreakpoints?.length) {
-      obj.unresolvedBreakpoints = message.unresolvedBreakpoints.map((e) => BreakpointFault.toJSON(e));
+      obj.unresolvedBreakpoints = message.unresolvedBreakpoints.map(e => BreakpointFault.toJSON(e));
     }
     return obj;
   },
@@ -371,7 +372,7 @@ export const OperatorBreakpoints: MessageFns<OperatorBreakpoints> = {
   },
   fromPartial<I extends Exact<DeepPartial<OperatorBreakpoints>, I>>(object: I): OperatorBreakpoints {
     const message = createBaseOperatorBreakpoints();
-    message.unresolvedBreakpoints = object.unresolvedBreakpoints?.map((e) => BreakpointFault.fromPartial(e)) || [];
+    message.unresolvedBreakpoints = object.unresolvedBreakpoints?.map(e => BreakpointFault.fromPartial(e)) || [];
     return message;
   },
 };
@@ -418,9 +419,9 @@ export const ExecutionBreakpointStore: MessageFns<ExecutionBreakpointStore> = {
     return {
       operatorInfo: isObject(object.operatorInfo)
         ? Object.entries(object.operatorInfo).reduce<{ [key: string]: OperatorBreakpoints }>((acc, [key, value]) => {
-          acc[key] = OperatorBreakpoints.fromJSON(value);
-          return acc;
-        }, {})
+            acc[key] = OperatorBreakpoints.fromJSON(value);
+            return acc;
+          }, {})
         : {},
     };
   },
@@ -451,7 +452,7 @@ export const ExecutionBreakpointStore: MessageFns<ExecutionBreakpointStore> = {
         }
         return acc;
       },
-      {},
+      {}
     );
     return message;
   },
@@ -521,18 +522,17 @@ export const ExecutionBreakpointStore_OperatorInfoEntry: MessageFns<ExecutionBre
   },
 
   create<I extends Exact<DeepPartial<ExecutionBreakpointStore_OperatorInfoEntry>, I>>(
-    base?: I,
+    base?: I
   ): ExecutionBreakpointStore_OperatorInfoEntry {
     return ExecutionBreakpointStore_OperatorInfoEntry.fromPartial(base ?? ({} as any));
   },
   fromPartial<I extends Exact<DeepPartial<ExecutionBreakpointStore_OperatorInfoEntry>, I>>(
-    object: I,
+    object: I
   ): ExecutionBreakpointStore_OperatorInfoEntry {
     const message = createBaseExecutionBreakpointStore_OperatorInfoEntry();
     message.key = object.key ?? "";
-    message.value = (object.value !== undefined && object.value !== null)
-      ? OperatorBreakpoints.fromPartial(object.value)
-      : undefined;
+    message.value =
+      object.value !== undefined && object.value !== null ? OperatorBreakpoints.fromPartial(object.value) : undefined;
     return message;
   },
 };
@@ -581,7 +581,7 @@ export const EvaluatedValueList: MessageFns<EvaluatedValueList> = {
   toJSON(message: EvaluatedValueList): unknown {
     const obj: any = {};
     if (message.values?.length) {
-      obj.values = message.values.map((e) => EvaluatedValue.toJSON(e));
+      obj.values = message.values.map(e => EvaluatedValue.toJSON(e));
     }
     return obj;
   },
@@ -591,7 +591,7 @@ export const EvaluatedValueList: MessageFns<EvaluatedValueList> = {
   },
   fromPartial<I extends Exact<DeepPartial<EvaluatedValueList>, I>>(object: I): EvaluatedValueList {
     const message = createBaseEvaluatedValueList();
-    message.values = object.values?.map((e) => EvaluatedValue.fromPartial(e)) || [];
+    message.values = object.values?.map(e => EvaluatedValue.fromPartial(e)) || [];
     return message;
   },
 };
@@ -651,12 +651,12 @@ export const OperatorConsole: MessageFns<OperatorConsole> = {
         : [],
       evaluateExprResults: isObject(object.evaluateExprResults)
         ? Object.entries(object.evaluateExprResults).reduce<{ [key: string]: EvaluatedValueList }>(
-          (acc, [key, value]) => {
-            acc[key] = EvaluatedValueList.fromJSON(value);
-            return acc;
-          },
-          {},
-        )
+            (acc, [key, value]) => {
+              acc[key] = EvaluatedValueList.fromJSON(value);
+              return acc;
+            },
+            {}
+          )
         : {},
     };
   },
@@ -664,7 +664,7 @@ export const OperatorConsole: MessageFns<OperatorConsole> = {
   toJSON(message: OperatorConsole): unknown {
     const obj: any = {};
     if (message.consoleMessages?.length) {
-      obj.consoleMessages = message.consoleMessages.map((e) => ConsoleMessage.toJSON(e));
+      obj.consoleMessages = message.consoleMessages.map(e => ConsoleMessage.toJSON(e));
     }
     if (message.evaluateExprResults) {
       const entries = Object.entries(message.evaluateExprResults);
@@ -683,10 +683,10 @@ export const OperatorConsole: MessageFns<OperatorConsole> = {
   },
   fromPartial<I extends Exact<DeepPartial<OperatorConsole>, I>>(object: I): OperatorConsole {
     const message = createBaseOperatorConsole();
-    message.consoleMessages = object.consoleMessages?.map((e) => ConsoleMessage.fromPartial(e)) || [];
-    message.evaluateExprResults = Object.entries(object.evaluateExprResults ?? {}).reduce<
-      { [key: string]: EvaluatedValueList }
-    >((acc, [key, value]) => {
+    message.consoleMessages = object.consoleMessages?.map(e => ConsoleMessage.fromPartial(e)) || [];
+    message.evaluateExprResults = Object.entries(object.evaluateExprResults ?? {}).reduce<{
+      [key: string]: EvaluatedValueList;
+    }>((acc, [key, value]) => {
       if (value !== undefined) {
         acc[key] = EvaluatedValueList.fromPartial(value);
       }
@@ -760,18 +760,17 @@ export const OperatorConsole_EvaluateExprResultsEntry: MessageFns<OperatorConsol
   },
 
   create<I extends Exact<DeepPartial<OperatorConsole_EvaluateExprResultsEntry>, I>>(
-    base?: I,
+    base?: I
   ): OperatorConsole_EvaluateExprResultsEntry {
     return OperatorConsole_EvaluateExprResultsEntry.fromPartial(base ?? ({} as any));
   },
   fromPartial<I extends Exact<DeepPartial<OperatorConsole_EvaluateExprResultsEntry>, I>>(
-    object: I,
+    object: I
   ): OperatorConsole_EvaluateExprResultsEntry {
     const message = createBaseOperatorConsole_EvaluateExprResultsEntry();
     message.key = object.key ?? "";
-    message.value = (object.value !== undefined && object.value !== null)
-      ? EvaluatedValueList.fromPartial(object.value)
-      : undefined;
+    message.value =
+      object.value !== undefined && object.value !== null ? EvaluatedValueList.fromPartial(object.value) : undefined;
     return message;
   },
 };
@@ -818,9 +817,9 @@ export const ExecutionConsoleStore: MessageFns<ExecutionConsoleStore> = {
     return {
       operatorConsole: isObject(object.operatorConsole)
         ? Object.entries(object.operatorConsole).reduce<{ [key: string]: OperatorConsole }>((acc, [key, value]) => {
-          acc[key] = OperatorConsole.fromJSON(value);
-          return acc;
-        }, {})
+            acc[key] = OperatorConsole.fromJSON(value);
+            return acc;
+          }, {})
         : {},
     };
   },
@@ -851,7 +850,7 @@ export const ExecutionConsoleStore: MessageFns<ExecutionConsoleStore> = {
         }
         return acc;
       },
-      {},
+      {}
     );
     return message;
   },
@@ -921,18 +920,17 @@ export const ExecutionConsoleStore_OperatorConsoleEntry: MessageFns<ExecutionCon
   },
 
   create<I extends Exact<DeepPartial<ExecutionConsoleStore_OperatorConsoleEntry>, I>>(
-    base?: I,
+    base?: I
   ): ExecutionConsoleStore_OperatorConsoleEntry {
     return ExecutionConsoleStore_OperatorConsoleEntry.fromPartial(base ?? ({} as any));
   },
   fromPartial<I extends Exact<DeepPartial<ExecutionConsoleStore_OperatorConsoleEntry>, I>>(
-    object: I,
+    object: I
   ): ExecutionConsoleStore_OperatorConsoleEntry {
     const message = createBaseExecutionConsoleStore_OperatorConsoleEntry();
     message.key = object.key ?? "";
-    message.value = (object.value !== undefined && object.value !== null)
-      ? OperatorConsole.fromPartial(object.value)
-      : undefined;
+    message.value =
+      object.value !== undefined && object.value !== null ? OperatorConsole.fromPartial(object.value) : undefined;
     return message;
   },
 };
@@ -1008,7 +1006,7 @@ export const OperatorWorkerMapping: MessageFns<OperatorWorkerMapping> = {
   fromPartial<I extends Exact<DeepPartial<OperatorWorkerMapping>, I>>(object: I): OperatorWorkerMapping {
     const message = createBaseOperatorWorkerMapping();
     message.operatorId = object.operatorId ?? "";
-    message.workerIds = object.workerIds?.map((e) => e) || [];
+    message.workerIds = object.workerIds?.map(e => e) || [];
     return message;
   },
 };
@@ -1123,10 +1121,10 @@ export const OperatorStatistics: MessageFns<OperatorStatistics> = {
   toJSON(message: OperatorStatistics): unknown {
     const obj: any = {};
     if (message.inputCount?.length) {
-      obj.inputCount = message.inputCount.map((e) => PortTupleCountMapping.toJSON(e));
+      obj.inputCount = message.inputCount.map(e => PortTupleCountMapping.toJSON(e));
     }
     if (message.outputCount?.length) {
-      obj.outputCount = message.outputCount.map((e) => PortTupleCountMapping.toJSON(e));
+      obj.outputCount = message.outputCount.map(e => PortTupleCountMapping.toJSON(e));
     }
     if (message.numWorkers !== 0) {
       obj.numWorkers = Math.round(message.numWorkers);
@@ -1148,8 +1146,8 @@ export const OperatorStatistics: MessageFns<OperatorStatistics> = {
   },
   fromPartial<I extends Exact<DeepPartial<OperatorStatistics>, I>>(object: I): OperatorStatistics {
     const message = createBaseOperatorStatistics();
-    message.inputCount = object.inputCount?.map((e) => PortTupleCountMapping.fromPartial(e)) || [];
-    message.outputCount = object.outputCount?.map((e) => PortTupleCountMapping.fromPartial(e)) || [];
+    message.inputCount = object.inputCount?.map(e => PortTupleCountMapping.fromPartial(e)) || [];
+    message.outputCount = object.outputCount?.map(e => PortTupleCountMapping.fromPartial(e)) || [];
     message.numWorkers = object.numWorkers ?? 0;
     message.dataProcessingTime = object.dataProcessingTime ?? 0;
     message.controlProcessingTime = object.controlProcessingTime ?? 0;
@@ -1229,9 +1227,10 @@ export const OperatorMetrics: MessageFns<OperatorMetrics> = {
   fromPartial<I extends Exact<DeepPartial<OperatorMetrics>, I>>(object: I): OperatorMetrics {
     const message = createBaseOperatorMetrics();
     message.operatorState = object.operatorState ?? 0;
-    message.operatorStatistics = (object.operatorStatistics !== undefined && object.operatorStatistics !== null)
-      ? OperatorStatistics.fromPartial(object.operatorStatistics)
-      : undefined;
+    message.operatorStatistics =
+      object.operatorStatistics !== undefined && object.operatorStatistics !== null
+        ? OperatorStatistics.fromPartial(object.operatorStatistics)
+        : undefined;
     return message;
   },
 };
@@ -1310,9 +1309,9 @@ export const ExecutionStatsStore: MessageFns<ExecutionStatsStore> = {
       endTimeStamp: isSet(object.endTimeStamp) ? globalThis.Number(object.endTimeStamp) : 0,
       operatorInfo: isObject(object.operatorInfo)
         ? Object.entries(object.operatorInfo).reduce<{ [key: string]: OperatorMetrics }>((acc, [key, value]) => {
-          acc[key] = OperatorMetrics.fromJSON(value);
-          return acc;
-        }, {})
+            acc[key] = OperatorMetrics.fromJSON(value);
+            return acc;
+          }, {})
         : {},
       operatorWorkerMapping: globalThis.Array.isArray(object?.operatorWorkerMapping)
         ? object.operatorWorkerMapping.map((e: any) => OperatorWorkerMapping.fromJSON(e))
@@ -1338,7 +1337,7 @@ export const ExecutionStatsStore: MessageFns<ExecutionStatsStore> = {
       }
     }
     if (message.operatorWorkerMapping?.length) {
-      obj.operatorWorkerMapping = message.operatorWorkerMapping.map((e) => OperatorWorkerMapping.toJSON(e));
+      obj.operatorWorkerMapping = message.operatorWorkerMapping.map(e => OperatorWorkerMapping.toJSON(e));
     }
     return obj;
   },
@@ -1357,10 +1356,9 @@ export const ExecutionStatsStore: MessageFns<ExecutionStatsStore> = {
         }
         return acc;
       },
-      {},
+      {}
     );
-    message.operatorWorkerMapping = object.operatorWorkerMapping?.map((e) => OperatorWorkerMapping.fromPartial(e)) ||
-      [];
+    message.operatorWorkerMapping = object.operatorWorkerMapping?.map(e => OperatorWorkerMapping.fromPartial(e)) || [];
     return message;
   },
 };
@@ -1429,18 +1427,17 @@ export const ExecutionStatsStore_OperatorInfoEntry: MessageFns<ExecutionStatsSto
   },
 
   create<I extends Exact<DeepPartial<ExecutionStatsStore_OperatorInfoEntry>, I>>(
-    base?: I,
+    base?: I
   ): ExecutionStatsStore_OperatorInfoEntry {
     return ExecutionStatsStore_OperatorInfoEntry.fromPartial(base ?? ({} as any));
   },
   fromPartial<I extends Exact<DeepPartial<ExecutionStatsStore_OperatorInfoEntry>, I>>(
-    object: I,
+    object: I
   ): ExecutionStatsStore_OperatorInfoEntry {
     const message = createBaseExecutionStatsStore_OperatorInfoEntry();
     message.key = object.key ?? "";
-    message.value = (object.value !== undefined && object.value !== null)
-      ? OperatorMetrics.fromPartial(object.value)
-      : undefined;
+    message.value =
+      object.value !== undefined && object.value !== null ? OperatorMetrics.fromPartial(object.value) : undefined;
     return message;
   },
 };
@@ -1661,7 +1658,7 @@ export const ExecutionMetadataStore: MessageFns<ExecutionMetadataStore> = {
       obj.state = workflowAggregatedStateToJSON(message.state);
     }
     if (message.fatalErrors?.length) {
-      obj.fatalErrors = message.fatalErrors.map((e) => WorkflowFatalError.toJSON(e));
+      obj.fatalErrors = message.fatalErrors.map(e => WorkflowFatalError.toJSON(e));
     }
     if (message.executionId !== undefined) {
       obj.executionId = ExecutionIdentity.toJSON(message.executionId);
@@ -1678,10 +1675,11 @@ export const ExecutionMetadataStore: MessageFns<ExecutionMetadataStore> = {
   fromPartial<I extends Exact<DeepPartial<ExecutionMetadataStore>, I>>(object: I): ExecutionMetadataStore {
     const message = createBaseExecutionMetadataStore();
     message.state = object.state ?? 0;
-    message.fatalErrors = object.fatalErrors?.map((e) => WorkflowFatalError.fromPartial(e)) || [];
-    message.executionId = (object.executionId !== undefined && object.executionId !== null)
-      ? ExecutionIdentity.fromPartial(object.executionId)
-      : undefined;
+    message.fatalErrors = object.fatalErrors?.map(e => WorkflowFatalError.fromPartial(e)) || [];
+    message.executionId =
+      object.executionId !== undefined && object.executionId !== null
+        ? ExecutionIdentity.fromPartial(object.executionId)
+        : undefined;
     message.isRecovering = object.isRecovering ?? false;
     return message;
   },
@@ -1689,14 +1687,19 @@ export const ExecutionMetadataStore: MessageFns<ExecutionMetadataStore> = {
 
 type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
 
-export type DeepPartial<T> = T extends Builtin ? T
-  : T extends globalThis.Array<infer U> ? globalThis.Array<DeepPartial<U>>
-  : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
-  : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
-  : Partial<T>;
+export type DeepPartial<T> = T extends Builtin
+  ? T
+  : T extends globalThis.Array<infer U>
+    ? globalThis.Array<DeepPartial<U>>
+    : T extends ReadonlyArray<infer U>
+      ? ReadonlyArray<DeepPartial<U>>
+      : T extends {}
+        ? { [K in keyof T]?: DeepPartial<T[K]> }
+        : Partial<T>;
 
 type KeysOfUnion<T> = T extends T ? keyof T : never;
-export type Exact<P, I extends P> = P extends Builtin ? P
+export type Exact<P, I extends P> = P extends Builtin
+  ? P
   : P & { [K in keyof P]: Exact<P[K], I[K]> } & { [K in Exclude<keyof I, KeysOfUnion<P>>]: never };
 
 function toTimestamp(date: Date): Timestamp {
