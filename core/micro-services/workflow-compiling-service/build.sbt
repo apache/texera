@@ -1,4 +1,3 @@
-import scala.collection.Seq
 /////////////////////////////////////////////////////////////////////////////
 // Project Settings
 /////////////////////////////////////////////////////////////////////////////
@@ -44,12 +43,7 @@ libraryDependencies ++= Seq(
   "com.novocode" % "junit-interface" % "0.11" % Test                // SBT interface for JUnit
 )
 
-
-/////////////////////////////////////////////////////////////////////////////
-// Jackson-related Dependencies
-/////////////////////////////////////////////////////////////////////////////
-
-val jacksonVersion = "2.15.1"
+val jacksonVersion = "2.16.1"
 libraryDependencies ++= Seq(
   "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,                  // Jackson Databind
   "com.fasterxml.jackson.core" % "jackson-annotations" % jacksonVersion,               // Jackson Annotation
