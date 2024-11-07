@@ -1,10 +1,10 @@
 package edu.uci.ics.amber.service
 
+import io.dropwizard.core.Application
+import io.dropwizard.core.setup.{Bootstrap, Environment}
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import edu.uci.ics.amber.compiler.util.PathUtil.webConfigFilePath
 import edu.uci.ics.amber.service.resource.WorkflowCompilationResource
-import io.dropwizard.core.Application
-import io.dropwizard.core.setup.{Bootstrap, Environment}
 
 class WorkflowCompilingService extends Application[WorkflowCompilingServiceConfiguration] {
   override def initialize(bootstrap: Bootstrap[WorkflowCompilingServiceConfiguration]): Unit = {
@@ -18,7 +18,8 @@ class WorkflowCompilingService extends Application[WorkflowCompilingServiceConfi
   ): Unit = {
     // serve backend at /api/texera
     environment.jersey.setUrlPattern("/api/texera/*")
-
+    // register CORS filter
+    environment.jersey.register(classOf[CORSFilter])
     // register the compilation endpoint
     environment.jersey.register(classOf[WorkflowCompilationResource])
   }
@@ -26,10 +27,10 @@ class WorkflowCompilingService extends Application[WorkflowCompilingServiceConfi
 
 object WorkflowCompilingService {
   def main(args: Array[String]): Unit = {
-    // Check if a configuration file path is passed; use a default if none is provided
+    // set the configuration file's path
     val configFilePath = webConfigFilePath.toAbsolutePath.toString
 
-    // Start the Dropwizard application with the specified configuration file path
+    // Start the Dropwizard application
     new WorkflowCompilingService().run("server", configFilePath)
   }
 }

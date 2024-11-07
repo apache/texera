@@ -61,13 +61,14 @@ object WorkflowCompiler {
   private def collectInputSchemaFromPhysicalPlan(
       physicalPlan: PhysicalPlan
   ): Map[OperatorIdentity, List[Option[Schema]]] = {
-    val physicalInputSchemas = physicalPlan.operators.filter(op => !op.isSinkOperator).map { physicalOp =>
-      physicalOp.id -> physicalOp.inputPorts.values
-        .filterNot(_._1.id.internal)
-        .map {
-          case (port, _, schema) => port.id -> schema.toOption
-        }
-    }
+    val physicalInputSchemas =
+      physicalPlan.operators.filter(op => !op.isSinkOperator).map { physicalOp =>
+        physicalOp.id -> physicalOp.inputPorts.values
+          .filterNot(_._1.id.internal)
+          .map {
+            case (port, _, schema) => port.id -> schema.toOption
+          }
+      }
     // Group the physical input schemas by their logical operator ID and consolidate the schemas
     physicalInputSchemas
       .groupBy(_._1.logicalOpId)
