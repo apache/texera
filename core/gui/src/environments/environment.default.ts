@@ -13,6 +13,11 @@ export const defaultEnvironment = {
   apiUrl: "api",
 
   /**
+   * texera service endpoint
+   */
+  texeraApiUrl: "http://localhost:9090/api/texera",
+
+  /**
    * whether fetching available source tables is enabled
    * see SourceTablesService for details
    */
