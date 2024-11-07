@@ -43,6 +43,12 @@ libraryDependencies ++= Seq(
   "com.novocode" % "junit-interface" % "0.11" % Test                // SBT interface for JUnit
 )
 
+/////////////////////////////////////////////////////////////////////////////
+// Jackson-related Dependencies.
+// The version is 2.16.1 because dropwizard 4 depends only on version later than or equal to 2.16.1
+//    see the https://mvnrepository.com/artifact/io.dropwizard/dropwizard-core/4.0.7
+/////////////////////////////////////////////////////////////////////////////
+
 val jacksonVersion = "2.16.1"
 libraryDependencies ++= Seq(
   "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,                  // Jackson Databind

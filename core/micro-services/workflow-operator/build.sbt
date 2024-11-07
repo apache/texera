@@ -49,6 +49,13 @@ libraryDependencies ++= Seq(
 // Jackson-related Dependencies
 /////////////////////////////////////////////////////////////////////////////
 
+val jacksonVersion = "2.15.1"
+libraryDependencies ++= Seq(
+  "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,                  // Jackson Databind
+  "com.fasterxml.jackson.core" % "jackson-annotations" % jacksonVersion,               // Jackson Annotation
+  "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion,           // Scala Module
+)
+
 // Lucene related, used by the keyword-search operators
 val luceneVersion = "8.7.0"
 libraryDependencies ++= Seq(
@@ -59,7 +66,6 @@ libraryDependencies ++= Seq(
 )
 
 // kjetland
-val jacksonVersion = "2.15.1"
 libraryDependencies ++= Seq(
   "javax.validation" % "validation-api" % "2.0.1.Final",
   "org.slf4j" % "slf4j-api" % "1.7.26",
