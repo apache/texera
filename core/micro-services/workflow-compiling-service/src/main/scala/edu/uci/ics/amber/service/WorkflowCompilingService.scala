@@ -3,8 +3,8 @@ package edu.uci.ics.amber.service
 import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import edu.uci.ics.amber.compiler.util.PathUtil.webConfigFilePath
 import edu.uci.ics.amber.service.resource.WorkflowCompilationResource
+import edu.uci.ics.amber.util.PathUtils.workflowCompilingServicePath
 
 class WorkflowCompilingService extends Application[WorkflowCompilingServiceConfiguration] {
   override def initialize(bootstrap: Bootstrap[WorkflowCompilingServiceConfiguration]): Unit = {
@@ -28,7 +28,11 @@ class WorkflowCompilingService extends Application[WorkflowCompilingServiceConfi
 object WorkflowCompilingService {
   def main(args: Array[String]): Unit = {
     // set the configuration file's path
-    val configFilePath = webConfigFilePath.toAbsolutePath.toString
+    val configFilePath = workflowCompilingServicePath
+      .resolve("src")
+      .resolve("main")
+      .resolve("resources")
+      .resolve("workflow-compiling-service-config.yaml").toAbsolutePath.toString
 
     // Start the Dropwizard application
     new WorkflowCompilingService().run("server", configFilePath)
