@@ -61,7 +61,7 @@ object WorkflowCompiler {
   private def collectInputSchemaFromPhysicalPlan(
       physicalPlan: PhysicalPlan
   ): Map[OperatorIdentity, List[Option[Schema]]] = {
-    val physicalInputSchemas = physicalPlan.operators.map { physicalOp =>
+    val physicalInputSchemas = physicalPlan.operators.filter(op => !op.isSinkOperator).map { physicalOp =>
       physicalOp.id -> physicalOp.inputPorts.values
         .filterNot(_._1.id.internal)
         .map {
@@ -149,34 +149,33 @@ class WorkflowCompiler(
       logicalPlanPojo: LogicalPlanPojo
   ): WorkflowCompilationResult = {
     val errorList = new ArrayBuffer[(OperatorIdentity, Throwable)]()
+    var opIdToInputSchema: Map[OperatorIdentity, List[Option[Schema]]] = Map()
     // 1. convert the pojo to logical plan
     var logicalPlan: LogicalPlan = LogicalPlan(logicalPlanPojo)
-    // 2. resolve the file name in each scan source operator
-    logicalPlan.resolveScanSourceOpFileName(Some(errorList))
-    // 3. expand the logical plan to the physical plan
-    val physicalPlan = expandLogicalPlan(logicalPlan, Some(errorList))
-    if (errorList.nonEmpty) {
-      // if encounter error when expanding logical plan to physical plan, then return error directly
-      return WorkflowCompilationResult(
-        None,
-        Map.empty,
-        convertErrorListToWorkflowFatalErrorMap(logger, errorList.toList)
-      )
-    }
-    // 4. get the input schema of each logical operator from the physical plan
-    val opIdToInputSchema = collectInputSchemaFromPhysicalPlan(physicalPlan)
 
-    // 5. inject sink and check for static errors
+    // 2. Manipulate logical plan by:
+    // - inject sink
     logicalPlan = SinkInjectionTransformer.transform(
       logicalPlanPojo.opsToViewResult,
       logicalPlan
     )
-    logicalPlan.propagateWorkflowSchema(context, Some(errorList))
+    // - resolve the file name in each scan source operator
+    logicalPlan.resolveScanSourceOpFileName(Some(errorList))
+
+    // 3. expand the logical plan to the physical plan,
+    val physicalPlan = expandLogicalPlan(logicalPlan, Some(errorList))
+    if (errorList.isEmpty) {
+      // no error during the expansion, then do:
+      // - collect the input schema for each op
+      opIdToInputSchema = collectInputSchemaFromPhysicalPlan(physicalPlan)
+      // - check for static errors
+      logicalPlan.propagateWorkflowSchema(context, Some(errorList))
+    }
 
     WorkflowCompilationResult(
       physicalPlan = if (errorList.nonEmpty) None else Some(physicalPlan),
       operatorIdToInputSchemas = opIdToInputSchema,
-      // map each error to WorkflowFatalError, and report them in the log
+      // map each error from OpId to WorkflowFatalError, and report them via logger
       operatorIdToError = convertErrorListToWorkflowFatalErrorMap(logger, errorList.toList)
     )
   }
