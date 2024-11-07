@@ -6,6 +6,7 @@ import edu.uci.ics.amber.compiler.model.LogicalPlanPojo
 import edu.uci.ics.amber.core.tuple.Attribute
 import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.virtualidentity.WorkflowIdentity
+import edu.uci.ics.amber.workflowruntimestate.WorkflowFatalError
 import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs.{Consumes, POST, Path, PathParam, Produces}
 import jakarta.ws.rs.core.MediaType
@@ -18,7 +19,7 @@ case class WorkflowCompilationSuccess(
 ) extends WorkflowCompilationResponse
 
 case class WorkflowCompilationFailure(
-    operatorErrors: Map[String, String],
+    operatorErrors: Map[String, WorkflowFatalError],
     operatorInputSchemas: Map[String, List[Option[List[Attribute]]]]
 ) extends WorkflowCompilationResponse
 
@@ -65,7 +66,7 @@ class WorkflowCompilationResource extends LazyLogging {
     else {
       WorkflowCompilationFailure(
         operatorErrors = compilationResult.operatorIdToError.map {
-          case (operatorIdentity, error) => (operatorIdentity.id, error.toString)
+          case (operatorIdentity, error) => (operatorIdentity.id, error)
         },
         operatorInputSchemas
       )
