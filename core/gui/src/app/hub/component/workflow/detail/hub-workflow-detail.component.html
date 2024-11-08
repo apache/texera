@@ -8,8 +8,7 @@
     (click)="goBack()">
     <span
       nz-icon
-      nzType="arrow-left"
-      nzTheme="outline"></span>
+      nzType="arrow-left"></span>
   </button>
 
   <div class="container prevent-select">
@@ -33,38 +32,31 @@
           <span>{{ formatViewCount(viewCount) }}</span>
         </button>
 
-        <!-- Like button -->
         <button
           nz-button
-          nzType="text"
-          class="dropdown-item like-button"
+          class="like-button"
           title="Like"
-          [ngClass]="{ liked: isLiked, 'disabled-button': !isLogin }"
           [disabled]="!isLogin"
-          (click)="toggleLike(this.wid, this.currentUid)">
+          (click)="toggleLike()">
           <i
             nz-icon
-            [nzTheme]="isLiked ? 'fill' : 'outline'"
-            [nzType]="'like'"
-            [ngClass]="isLiked ? 'liked' : 'not-liked'"
+            nzType="like"
+            [ngClass]="{liked: isLiked}"
             class="like-icon">
           </i>
           <span>{{ formatLikeCount(likeCount) }}</span>
         </button>
 
-        <!-- Clone button -->
         <button
           nz-button
-          nzType="text"
+          nzType="primary"
           class="clone-button"
           title="Copy"
-          [ngClass]="{ 'disabled-button': !isLogin || !isHub }"
           [disabled]="!isLogin || !isHub"
           (click)="cloneWorkflow()">
           <i
             nz-icon
-            nzType="copy"
-            nzTheme="outline"></i>
+            nzType="copy"></i>
           <span>{{ formatLikeCount(cloneCount) }}</span>
         </button>
       </div>
@@ -95,16 +87,5 @@
       <texera-mini-map class="box"></texera-mini-map>
     </div>
     <ng-template #codeEditor></ng-template>
-    <div class="workflow-steps">
-      <h2>Steps</h2>
-
-      <div
-        *ngFor="let step of workflow.steps"
-        class="workflow-step">
-        <h3>{{ step.name }}</h3>
-        <p>{{ step.description }}</p>
-        <p><strong>Status:</strong> {{ step.status }}</p>
-      </div>
-    </div>
   </div>
 </div>
