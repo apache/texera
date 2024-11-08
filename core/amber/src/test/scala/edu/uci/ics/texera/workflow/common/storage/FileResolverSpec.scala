@@ -8,6 +8,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   UserDao
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{Dataset, DatasetVersion, User}
+import org.apache.commons.vfs2.FileNotFoundException
 import org.jooq.types.UInteger
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.flatspec.AnyFlatSpec
@@ -94,11 +95,17 @@ class FileResolverSpec
     val dataset1TxtUri = FileResolver.resolve(dataset1TxtFilePath)
 
     assert(
-      datasetACsvUri.toString == f"{${FileResolver.DATASET_FILE_URI_SCHEME}}:///${testDataset.getDid}/${testDatasetVersion2.getVersionHash}/directory/a.csv"
+      datasetACsvUri.toString == f"${FileResolver.DATASET_FILE_URI_SCHEME}:///${testDataset.getDid}/${testDatasetVersion2.getVersionHash}/directory/a.csv"
     )
     assert(
-      dataset1TxtUri.toString == f"{${FileResolver.DATASET_FILE_URI_SCHEME}}:///${testDataset.getDid}/${testDatasetVersion1.getVersionHash}/1.txt"
+      dataset1TxtUri.toString == f"${FileResolver.DATASET_FILE_URI_SCHEME}:///${testDataset.getDid}/${testDatasetVersion1.getVersionHash}/1.txt"
     )
+  }
+
+  "FileResolver" should "throw not found exception" in {
+    assertThrows[FileNotFoundException] {
+      FileResolver.resolve("some/random/path")
+    }
   }
 
   override protected def afterAll(): Unit = {
