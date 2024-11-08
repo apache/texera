@@ -9,15 +9,7 @@ import org.jgrapht.traverse.TopologicalOrderIterator
 
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
-/**
-  * The physical plan link corresponding to the region link is kept as part of RegionLink
-  *  to distinguish between parallel region edges, and for debugging purposes.
-  */
-case class RegionLink(
-    fromRegionId: RegionIdentity,
-    toRegionId: RegionIdentity,
-    originalPhysicalLink: Option[PhysicalLink] = None
-)
+case class RegionLink(fromRegionId: RegionIdentity, toRegionId: RegionIdentity)
 
 case class RegionIdentity(id: Long)
 

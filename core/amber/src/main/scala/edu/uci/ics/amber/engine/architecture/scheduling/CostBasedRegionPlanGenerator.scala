@@ -101,17 +101,12 @@ class CostBasedRegionPlanGenerator(
       regionDAG.addVertex(region)
     })
     var isAcyclic = true
-    matEdges.foreach(link => {
-      val fromRegion = opToRegionMap(link.fromOpId)
-      val toRegion = opToRegionMap(link.toOpId)
-      regionGraph.addEdge(
-        fromRegion,
-        toRegion,
-        RegionLink(fromRegion.id, toRegion.id, Some(link))
-      )
+    matEdges.foreach(blockingEdge => {
+      val fromRegion = opToRegionMap(blockingEdge.fromOpId)
+      val toRegion = opToRegionMap(blockingEdge.toOpId)
+      regionGraph.addEdge(fromRegion, toRegion, RegionLink(fromRegion.id, toRegion.id))
       try {
-        regionDAG
-          .addEdge(fromRegion, toRegion, RegionLink(fromRegion.id, toRegion.id, Some(link)))
+        regionDAG.addEdge(fromRegion, toRegion, RegionLink(fromRegion.id, toRegion.id))
       } catch {
         case _: IllegalArgumentException =>
           isAcyclic = false
@@ -169,11 +164,7 @@ class CostBasedRegionPlanGenerator(
       val toOpRegions = getRegions(link.toOpId, regionDAG)
       fromOpRegions.foreach(fromRegion => {
         toOpRegions.foreach(toRegion => {
-          regionDAG.addEdge(
-            fromRegion,
-            toRegion,
-            RegionLink(fromRegion.id, toRegion.id, Some(link))
-          )
+          regionDAG.addEdge(fromRegion, toRegion, RegionLink(fromRegion.id, toRegion.id))
         })
       })
     })
@@ -198,12 +189,7 @@ class CostBasedRegionPlanGenerator(
     // Initialize the bestResult with an impossible high cost for comparison
     var bestResult: SearchResult = SearchResult(
       state = Set.empty,
-      regionDAG = new DirectedAcyclicGraph[Region, RegionLink](
-        null, // vertexSupplier
-        SupplierUtil.createSupplier(classOf[RegionLink]), // edgeSupplier
-        false, // weighted
-        true // allowMultipleEdges
-      ),
+      regionDAG = new DirectedAcyclicGraph[Region, RegionLink](classOf[RegionLink]),
       cost = Double.PositiveInfinity
     )
 
