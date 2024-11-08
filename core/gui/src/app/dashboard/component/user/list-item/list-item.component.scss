@@ -1,13 +1,14 @@
 .list-item-card {
-  padding: 2px;
+  padding: 3px;
   width: 100%;
   background-color: white;
   position: relative;
+  height: 65px;
 
   &:hover {
     background-color: #f0f0f0;
 
-    .edit-button-group {
+    .edit-button {
       display: flex;
     }
 
@@ -26,79 +27,47 @@
     }
 
     .button-group button:hover,
-    .edit-button-group button:hover {
+    .edit-button button:hover {
       background-color: #cceeff;
     }
   }
 }
 
+.resource-name-group {
+  min-width: 0;
+}
+
 .truncate-single-line {
-  display: -webkit-box;
-  -webkit-line-clamp: 1;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 .resource-name {
-  margin-left: 30px;
   font-size: 17px;
   font-weight: 600;
-  width: 85%;
 }
 
 .resource-description {
-  margin-left: 30px;
   font-size: 12px;
   font-weight: 300;
   color: grey;
-  width: 85%;
-  min-height: 18px;
 }
 
-.edit-info {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-
-  .resource-owner {
-    flex: 0 0 auto;
-    margin-right: 24px;
-  }
-
-  .resource-info-grid {
-    margin-left: 25px;
-    flex: 1; // Allow the grid to take up remaining space
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 8px;
-    height: 21px;
-  }
-
-  .resource-info {
-    font-size: 13px;
-    font-weight: 400;
-    color: grey;
-  }
+.resource-info {
+  font-size: 13px;
+  color: grey;
 }
 
-.checkbox-container {
+.large-checkbox {
   display: none;
-  position: absolute;
-  width: 40px;
-  height: 40px;
-  left: 0;
-  bottom: 0;
-  justify-content: left;
-  align-items: center;
-  transition: none;
-  top: 50%;
-  transform: translate(10%, -50%);
+  width: 16px;
+  height: 16px;
 }
 
-.list-item-card:hover .checkbox-container,
-.checkbox-container.always-show-checkbox {
-  display: flex;
+.list-item-card:hover .large-checkbox,
+.showc {
+  display: block;
   z-index: 10;
 }
 
@@ -134,9 +103,8 @@
 .resource-name-edit-input {
   font-size: 17px;
   font-weight: 600;
-  width: 85%;
   padding: 0;
-  margin: 4px 0 4px 30px;
+  margin: 4px 0;
   outline: none;
   height: 23px;
   border: 1px solid #d9d9d9;
@@ -145,9 +113,7 @@
 .resource-description-edit-textarea {
   font-size: 12px;
   font-weight: 300;
-  width: 85%;
   padding: 0;
-  margin-left: 30px;
   border: 1px solid #d9d9d9;
   outline: none;
   resize: none;
@@ -160,145 +126,34 @@
     box-shadow 0.3s;
 }
 
-.name-container .description-container {
-  display: flex;
-  align-items: center;
-  position: relative;
+.edit-button {
+  display: none;
 
   &:hover {
-    .edit-button-group {
-      display: flex;
-    }
+    display: block;
+    background-color: #d9d9d9;
   }
-}
-
-.edit-button-group {
-  display: none;
-  position: absolute;
-  left: 0;
-  align-items: center;
 
   button {
-    margin-left: 0;
-    background-color: transparent;
-    font-size: 13px;
-    padding: 3px 4px;
     height: 25px;
-    width: 25px;
-    cursor: pointer;
-
-    &:hover {
-      background-color: #d9d9d9;
-    }
   }
 }
 
-.type-icon-div {
-  text-align: center;
-  font-size: 38px;
-  margin-left: 30px;
+.type-icon {
+  font-size: 30px;
 }
 
-.custom-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 100%;
-}
-
-.large-checkbox {
-  width: 16px;
-  height: 16px;
-  cursor: pointer;
-}
-
-.resource-id {
-  font-size: 17px;
-  font-weight: 600;
-  margin-left: 5px;
-}
-
-.clickable-area {
-  width: 40px;
-  height: 40px;
-  padding: 0;
-  border-radius: 50%;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0.7;
-
-  &:hover {
-    background-color: #d9d9d9;
-    opacity: 0.7;
-  }
-
-  .list-item-card.selected & {
-    &:hover {
-      background-color: #cceeff;
-      opacity: 0.7;
-    }
-  }
+.workflow-id {
+  padding: 6px;
 }
 
 .like-button {
-  background-color: white;
-  color: black;
-  width: auto;
-  min-width: 70px;
-  max-width: 90px;
-  height: 30px;
-  border-radius: 6px;
-  padding: 0 8px;
-  cursor: pointer;
-  border: 1px solid #e0e0e0;
+  width: 50px;
+  border-radius: 5px;
+  padding: 3px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: -4px;
-  margin-right: 8px;
-  margin-bottom: 8px;
-  transition:
-    background-color 0.3s ease,
-    color 0.3s ease,
-    border-color 0.3s ease,
-    box-shadow 0.3s ease;
 }
 
-.like-button.liked {
-  border-color: red;
-}
-
-.like-icon {
-  font-size: 16px;
-  margin-right: 6px;
-}
-
-.like-icon.liked {
+.liked {
   color: red;
-}
-
-.like-button span {
-  font-size: 12px;
-  color: #888;
-  margin-left: 6px;
-}
-
-.like-button.liked span {
-  color: red;
-}
-
-.disabled-like {
-  background-color: #e0e0e0;
-  color: #a0a0a0;
-  border-color: #d0d0d0;
-  //cursor: not-allowed;
-}
-
-.disabled-like:hover {
-  background-color: #f0f0f0;
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
-  color: #a0a0a0;
 }
