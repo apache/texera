@@ -8,7 +8,6 @@ import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import org.jgrapht.alg.connectivity.BiconnectivityInspector
 import org.jgrapht.graph.{DirectedAcyclicGraph, DirectedPseudograph}
-import org.jgrapht.util.SupplierUtil
 
 import scala.collection.mutable
 import scala.jdk.CollectionConverters._
@@ -70,10 +69,16 @@ class CostBasedRegionPlanGenerator(
           })
           .filter(link => operatorIds.contains(link.fromOpId))
         val operators = operatorIds.map(operatorId => physicalPlan.getOperator(operatorId))
+        val materializedPorts: Set[GlobalPortIdentity] = matEdges.flatMap(link =>
+          List(
+            GlobalPortIdentity(link.fromOpId, link.fromPortId, input = false)
+          )
+        )
         Region(
           id = RegionIdentity(idx),
           physicalOps = operators,
-          physicalLinks = links
+          physicalLinks = links,
+          materializedPorts = materializedPorts
         )
     }
   }
@@ -87,12 +92,7 @@ class CostBasedRegionPlanGenerator(
   private def tryConnectRegionDAG(
       matEdges: Set[PhysicalLink]
   ): Either[DirectedAcyclicGraph[Region, RegionLink], DirectedPseudograph[Region, RegionLink]] = {
-    val regionDAG = new DirectedAcyclicGraph[Region, RegionLink](
-      null, // vertexSupplier
-      SupplierUtil.createSupplier(classOf[RegionLink]), // edgeSupplier
-      false, // weighted
-      true // allowMultipleEdges
-    )
+    val regionDAG = new DirectedAcyclicGraph[Region, RegionLink](classOf[RegionLink])
     val regionGraph = new DirectedPseudograph[Region, RegionLink](classOf[RegionLink])
     val opToRegionMap = new mutable.HashMap[PhysicalOpIdentity, Region]
     createRegions(physicalPlan, matEdges).foreach(region => {
@@ -101,9 +101,9 @@ class CostBasedRegionPlanGenerator(
       regionDAG.addVertex(region)
     })
     var isAcyclic = true
-    matEdges.foreach(blockingEdge => {
-      val fromRegion = opToRegionMap(blockingEdge.fromOpId)
-      val toRegion = opToRegionMap(blockingEdge.toOpId)
+    matEdges.foreach(matEdge => {
+      val fromRegion = opToRegionMap(matEdge.fromOpId)
+      val toRegion = opToRegionMap(matEdge.toOpId)
       regionGraph.addEdge(fromRegion, toRegion, RegionLink(fromRegion.id, toRegion.id))
       try {
         regionDAG.addEdge(fromRegion, toRegion, RegionLink(fromRegion.id, toRegion.id))
@@ -260,10 +260,10 @@ class CostBasedRegionPlanGenerator(
     * @return A cost determined by the resource allocator.
     */
   private def evaluate(regions: Set[Region], regionLinks: Set[RegionLink]): Double = {
-    // Using number of materialization (region) edges as the cost.
+    // Using number of materialized ports as the cost.
     // This is independent of the schedule / resource allocator.
     // In the future we may need to use the ResourceAllocator to get the cost.
-    regionLinks.size
+    regions.flatMap(_.materializedPorts).size
   }
 
 }
