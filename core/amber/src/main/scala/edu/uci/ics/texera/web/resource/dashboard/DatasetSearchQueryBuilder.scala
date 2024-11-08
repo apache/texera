@@ -30,8 +30,15 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder {
     datasetUserAccess = DATASET_USER_ACCESS.PRIVILEGE
   )
 
-  // Notice that this only select those datasets that users have access record.
-  // For those public datasets, need external union to merge them
+  /*
+   * constructs the FROM clause for querying datasets with specific access controls.
+   *
+   * Parameter:
+   * - uid: UInteger - Represents the unique identifier of the current user.
+   *  - uid is 'null' if the user is not logged in or performing a public search.
+   *  - Otherwise, `uid` holds the identifier for the logged-in user.
+   * - includePublic - Boolean - Specifies whether to include public datasets in the result.
+   */
   override protected def constructFromClause(
       uid: UInteger,
       params: DashboardResource.SearchQueryParams,
@@ -43,14 +50,19 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder {
       .leftJoin(USER)
       .on(USER.UID.eq(DATASET.OWNER_UID))
 
+    // Default condition starts as true, ensuring all datasets are selected initially.
     var condition: Condition = DSL.trueCondition()
 
     if (uid == null) {
+      // If `uid` is null, the user is not logged in or performing a public search
+      // We only select datasets marked as public
       condition = DATASET.IS_PUBLIC.eq(1.toByte)
     } else {
+      // When `uid` is present, we add a condition to only include datasets with direct user access.
       val userAccessCondition = DATASET_USER_ACCESS.UID.eq(uid)
 
       if (includePublic) {
+        // If `includePublic` is true, we extend visibility to public datasets as well.
         condition = userAccessCondition.or(DATASET.IS_PUBLIC.eq(1.toByte))
       } else {
         condition = userAccessCondition
