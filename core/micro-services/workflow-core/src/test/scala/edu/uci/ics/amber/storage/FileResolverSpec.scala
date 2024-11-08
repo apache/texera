@@ -58,7 +58,7 @@ class FileResolverSpec
     datasetVersion
   }
 
-  private val localCsvFilePath = "src/test/resources/country_sales_small.csv"
+  private val localCsvFilePath = "workflow-core/src/test/resources/country_sales_small.csv"
 
   private val datasetACsvFilePath = "/test_user@test.com/test_dataset/v2/directory/a.csv"
 
