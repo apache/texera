@@ -2,7 +2,11 @@ package edu.uci.ics.texera.workflow.common.storage
 
 import edu.uci.ics.texera.web.MockTexeraDB
 import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{DatasetDao, DatasetVersionDao, UserDao}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
+  DatasetDao,
+  DatasetVersionDao,
+  UserDao
+}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{Dataset, DatasetVersion, User}
 import org.jooq.types.UInteger
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
@@ -11,7 +15,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import java.nio.file.Paths
 
 class FileResolverSpec
-  extends AnyFlatSpec
+    extends AnyFlatSpec
     with BeforeAndAfterAll
     with BeforeAndAfterEach
     with MockTexeraDB {
@@ -89,8 +93,12 @@ class FileResolverSpec
     val datasetACsvUri = FileResolver.resolve(datasetACsvFilePath)
     val dataset1TxtUri = FileResolver.resolve(dataset1TxtFilePath)
 
-    assert(datasetACsvUri.toString == f"{${FileResolver.DATASET_FILE_URI_SCHEME}}:///${testDataset.getDid}/${testDatasetVersion2.getVersionHash}/directory/a.csv")
-    assert(dataset1TxtUri.toString == f"{${FileResolver.DATASET_FILE_URI_SCHEME}}:///${testDataset.getDid}/${testDatasetVersion1.getVersionHash}/1.txt")
+    assert(
+      datasetACsvUri.toString == f"{${FileResolver.DATASET_FILE_URI_SCHEME}}:///${testDataset.getDid}/${testDatasetVersion2.getVersionHash}/directory/a.csv"
+    )
+    assert(
+      dataset1TxtUri.toString == f"{${FileResolver.DATASET_FILE_URI_SCHEME}}:///${testDataset.getDid}/${testDatasetVersion1.getVersionHash}/1.txt"
+    )
   }
 
   override protected def afterAll(): Unit = {
