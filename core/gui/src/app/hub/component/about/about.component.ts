@@ -1,14 +1,14 @@
 import { UntilDestroy } from "@ngneat/until-destroy";
-import { Component, OnInit } from "@angular/core";
+import { Component } from "@angular/core";
 import { environment } from "../../../../environments/environment";
 
 @UntilDestroy()
 @Component({
-  selector: "texera-login",
-  templateUrl: "./home.component.html",
-  styleUrls: ["./home.component.scss"],
+  selector: "texera-about",
+  templateUrl: "./about.component.html",
+  styleUrls: ["./about.component.scss"],
 })
-export class HomeComponent {
+export class AboutComponent {
   localLogin = environment.localLogin;
 
   constructor() {}
