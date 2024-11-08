@@ -13,7 +13,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import java.nio.file.Paths
 
 class FileResolverSpec
-  extends AnyFlatSpec
+    extends AnyFlatSpec
     with BeforeAndAfterAll
     with BeforeAndAfterEach
     with MockTexeraDB {
