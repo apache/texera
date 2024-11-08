@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.storage
 
-import edu.uci.ics.amber.MockTexeraDB
 import edu.uci.ics.amber.core.storage.FileResolver
+import edu.uci.ics.texera.dao.MockTexeraDB
 import edu.uci.ics.texera.dao.jooq.generated.enums.UserRole
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{DatasetDao, DatasetVersionDao, UserDao}
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{Dataset, DatasetVersion, User}

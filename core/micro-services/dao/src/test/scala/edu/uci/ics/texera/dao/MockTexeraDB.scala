@@ -1,14 +1,12 @@
-package edu.uci.ics.amber
+package edu.uci.ics.texera.dao
 
+import ch.vorburger.mariadb4j.{DB, DBConfigurationBuilder}
 import com.mysql.cj.jdbc.MysqlDataSource
 import org.jooq.DSLContext
 import org.jooq.impl.DSL
-import ch.vorburger.mariadb4j.{DB, DBConfigurationBuilder}
-import edu.uci.ics.amber.util.PathUtils
-import edu.uci.ics.texera.dao.SqlServer
 
 import java.io.{File, FileInputStream, InputStream}
-import java.nio.file.Path
+import java.nio.file.{Path, Paths}
 import java.sql.{Connection, DriverManager, SQLException, Statement}
 import java.util.Scanner
 
@@ -108,7 +106,7 @@ trait MockTexeraDB {
     dslContext = Some(DSL.using(dataSource, sqlServerInstance.SQL_DIALECT))
 
     val ddlPath = {
-      PathUtils.amberHomePath.resolve("../scripts/sql/texera_ddl.sql").toRealPath()
+      Paths.get("../scripts/sql/texera_ddl.sql").toRealPath()
     }
     executeScriptInJDBC(ddlPath)
 
