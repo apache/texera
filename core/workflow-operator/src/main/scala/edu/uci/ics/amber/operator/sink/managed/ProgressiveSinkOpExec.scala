@@ -6,7 +6,7 @@ import edu.uci.ics.amber.core.tuple.{Tuple, TupleLike}
 import edu.uci.ics.amber.operator.sink.{IncrementalOutputMode, ProgressiveUtils}
 import edu.uci.ics.amber.workflow.PortIdentity
 
-class ProgressiveSinkOpExec(outputMode: IncrementalOutputMode, storage: SinkStorageWriter)
+class ProgressiveSinkOpExec(outputMode: IncrementalOutputMode, storage: BufferedItemWriter[Tuple])
     extends SinkOperatorExecutor {
 
   override def open(): Unit = {

@@ -70,14 +70,14 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
     }
 
     // By now the workflow should finish running
-    val operatorWithResult: SinkStorageReader =
+    val operatorWithResult: VirtualDocument[Tuple] =
       opResultStorage.get(OperatorIdentity(request.operatorId))
     if (operatorWithResult == null) {
       return ResultExportResponse("error", "The workflow contains no results")
     }
 
     // convert the ITuple into tuple
-    val results: Iterable[Tuple] = operatorWithResult.getAll
+    val results: Iterable[Tuple] = operatorWithResult.get().to(Iterable)
     val attributeNames = results.head.getSchema.getAttributeNames
 
     // handle the request according to export type

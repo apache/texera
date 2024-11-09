@@ -45,7 +45,10 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
     private Option<String> chartType = Option.empty();
 
     @JsonIgnore
-    private SinkStorageReader storage = null;
+    private VirtualDocument<Tuple> storage = null;
+
+    @JsonIgnore
+    private OpResultStorage opResultStorage = null;
 
     // corresponding upstream operator ID and output port, will be set by workflow compiler
     @JsonIgnore
@@ -58,7 +61,7 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
     public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId) {
         // Since during workflow compilation phase, the storage can be null, the writer should also be null
         // the writer will be set properly when workflow execution service receives the physical plan
-        final SinkStorageWriter writer = (storage != null) ? storage.getStorageWriter() : null;
+        final BufferedItemWriter<Tuple> writer = this.storage.write();
         return PhysicalOp.localPhysicalOp(
                         workflowId,
                         executionId,
@@ -95,8 +98,17 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
 
                             javaMap.put(operatorInfo().outputPorts().head().id(), outputSchema);
 
-                            // set schema for the storage
-                            getStorage().setSchema(outputSchema);
+                            // the storage metadata is reset if it is a MongoDocument, because the output schema is calculated here
+                            if (this.storage instanceof MongoDocument) {
+                                getStorage().reset(
+                                    new MongoDocumentMetadata<>(
+                                        Tuple.toDocument(),
+                                        Tuple.fromDocument().apply(outputSchema)
+                                    )
+                                );
+                                // TODO: consider remove this ugly part
+                                this.opResultStorage.setSchema(operatorIdentifier(), outputSchema);
+                            }
                             // Convert the Java Map to a Scala immutable Map
                             return OperatorDescriptorUtils.toImmutableMap(javaMap);
                         })
@@ -159,12 +171,17 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
     }
 
     @JsonIgnore
-    public void setStorage(SinkStorageReader storage) {
+    public void setStorage(VirtualDocument<Tuple> storage) {
         this.storage = storage;
     }
 
     @JsonIgnore
-    public SinkStorageReader getStorage() {
+    public void setOpResultStorage(OpResultStorage resultStorage) {
+        this.opResultStorage = resultStorage;
+    }
+
+    @JsonIgnore
+    public VirtualDocument<Tuple> getStorage() {
         return this.storage;
     }
 

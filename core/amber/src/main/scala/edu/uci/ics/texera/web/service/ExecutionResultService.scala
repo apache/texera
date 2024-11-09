@@ -101,9 +101,9 @@ object ExecutionResultService {
           (1 to maxPageIndex).toList
         )
       case (SetSnapshotMode(), SET_SNAPSHOT) =>
-        tuplesToWebData(webOutputMode, storage.getAll.toList, sink.getChartType)
+        tuplesToWebData(webOutputMode, storage.get().toList, sink.getChartType)
       case (SetDeltaMode(), SET_DELTA) =>
-        val deltaList = storage.getAllAfter(oldTupleCount).toList
+        val deltaList = storage.getAfter(oldTupleCount).toList
         tuplesToWebData(webOutputMode, deltaList, sink.getChartType)
 
       // currently not supported mode combinations
