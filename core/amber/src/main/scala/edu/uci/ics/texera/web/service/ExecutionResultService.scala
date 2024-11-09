@@ -246,7 +246,8 @@ class ExecutionResultService(
                 StorageConfig.resultStorageMode.toLowerCase == "mongodb" && !opId.id
                   .startsWith("sink")
               ) {
-                val storageDocument: MongoDocument[Tuple] = sinkOperators(opId).getStorage.asInstanceOf[MongoDocument[Tuple]]
+                val storageDocument: MongoDocument[Tuple] =
+                  sinkOperators(opId).getStorage.asInstanceOf[MongoDocument[Tuple]]
                 val tableCatStats = storageDocument.getCategoricalStats
                 val tableDateStats = storageDocument.getDateColStats
                 val tableNumericStats = storageDocument.getNumericColStats
