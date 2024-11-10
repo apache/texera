@@ -1,4 +1,4 @@
-package edu.uci.ics.amber.service
+package edu.uci.ics.texera.service
 
 import io.dropwizard.core.Configuration
 

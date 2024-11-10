@@ -1,4 +1,4 @@
-package edu.uci.ics.amber.service.resource
+package edu.uci.ics.texera.service.resource
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.compiler.WorkflowCompiler

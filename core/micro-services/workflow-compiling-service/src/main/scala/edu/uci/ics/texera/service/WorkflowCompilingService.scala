@@ -1,10 +1,10 @@
-package edu.uci.ics.amber.service
+package edu.uci.ics.texera.service
 
 import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import edu.uci.ics.amber.service.resource.WorkflowCompilationResource
 import edu.uci.ics.amber.util.PathUtils.workflowCompilingServicePath
+import edu.uci.ics.texera.service.resource.WorkflowCompilationResource
 
 class WorkflowCompilingService extends Application[WorkflowCompilingServiceConfiguration] {
   override def initialize(bootstrap: Bootstrap[WorkflowCompilingServiceConfiguration]): Unit = {
