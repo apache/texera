@@ -8,7 +8,6 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.User.USER
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{Dataset, DatasetVersion}
 import org.apache.commons.vfs2.FileNotFoundException
 
-import java.io.File
 import java.net.{URI, URLEncoder}
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
@@ -113,11 +112,12 @@ object FileResolver {
       datasetVersion.getVersionHash
     ) ++ encodedFileRelativePath
 
-    // Build the the format /{did}/{versionHash}/{fileRelativePath}
-    val encodedPath = Paths.get(File.separator, allPathSegments: _*)
+    // Build the the format /{did}/{versionHash}/{fileRelativePath}, both Linux and Windows use forward slash as the splitter
+    val uriSplitter = "/"
+    val encodedPath = uriSplitter + allPathSegments.mkString(uriSplitter)
 
     try {
-      new URI(DATASET_FILE_URI_SCHEME, "", encodedPath.toString, null)
+      new URI(DATASET_FILE_URI_SCHEME, "", encodedPath, null)
     } catch {
       case e: Exception =>
         throw new FileNotFoundException(s"Dataset file $fileName not found.")
