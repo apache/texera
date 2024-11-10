@@ -30,13 +30,14 @@ case class WorkflowCompilationFailure(
 class WorkflowCompilationResource extends LazyLogging {
 
   @POST
-  @Path("")
+  @Path("/{wid}")
   def compileWorkflow(
       logicalPlanPojo: LogicalPlanPojo,
+      @PathParam("wid") wid: UInteger
   ): WorkflowCompilationResponse = {
     // Create workflow context from wid
     val context = new WorkflowContext(
-      workflowId = WorkflowIdentity(0)
+      workflowId = WorkflowIdentity(wid.toString.toLong)
     )
 
     // Compile the pojo using WorkflowCompiler
