@@ -288,8 +288,8 @@ export class WorkflowVersionService {
   }
 
   public cloneWorkflowVersion(vid: number, offset: number): Observable<number> {
-    const url = `${AppSettings.getApiEndpoint()}/${WORKFLOW_VERSIONS_API_BASE_URL}/clone/${vid}`;
-    const body = { offset };
-    return this.http.post<number>(url, body);
+    return this.http.post<number>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_VERSIONS_API_BASE_URL}/clone/${vid}`, {
+      offset,
+    });
   }
 }

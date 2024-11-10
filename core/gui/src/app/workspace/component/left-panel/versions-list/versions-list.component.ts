@@ -14,6 +14,7 @@ import { ActivatedRoute } from "@angular/router";
 export class VersionsListComponent implements OnInit {
   public versionsList: WorkflowVersionCollapsableEntry[] | undefined;
   public versionTableHeaders: string[] = ["Version#", "Timestamp"];
+  public selectedRowIndex: number | null = null;
 
   constructor(
     private workflowActionService: WorkflowActionService,
@@ -59,9 +60,10 @@ export class VersionsListComponent implements OnInit {
       });
   }
 
-  getVersion(vid: number, offset: number) {
+  getVersion(vid: number, offset: number, index: number) {
     this.workflowVersionService.setSelectedVersionId(vid);
     this.workflowVersionService.setSelectedOffset(offset);
+    this.selectedRowIndex = index;
 
     this.workflowVersionService
       .retrieveWorkflowByVersion(<number>this.workflowActionService.getWorkflowMetadata()?.wid, vid)

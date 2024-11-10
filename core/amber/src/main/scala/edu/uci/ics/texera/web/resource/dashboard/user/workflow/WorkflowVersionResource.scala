@@ -8,7 +8,7 @@ import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.WORKFLOW_VERSION
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{WorkflowDao, WorkflowVersionDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{Workflow, WorkflowVersion}
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflow
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.{DashboardWorkflow, assignNewOperatorIds}
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowVersionResource._
 import io.dropwizard.auth.Auth
 import org.jooq.types.UInteger
@@ -346,7 +346,6 @@ class WorkflowVersionResource {
   }
 
   @POST
-  @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/clone/{vid}")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
@@ -367,15 +366,11 @@ class WorkflowVersionResource {
     ).getOrElse {
       throw new NotFoundException(s"Version ID $vid not found.")
     }
-
     val wid = versionRecord.get(WORKFLOW_VERSION.WID)
-
     // Use retrieveWorkflowVersion to get the specified version of the workflow
     val workflowVersion = retrieveWorkflowVersion(wid, vid, sessionUser)
-
     // Generate a new name for the cloned workflow
     val newWorkflowName = s"${workflowVersion.getName}_v${offset}_clone"
-
     // Create a new workflow based on the retrieved version
     val workflowResource = new WorkflowResource()
     val newWorkflow: DashboardWorkflow =
@@ -385,7 +380,7 @@ class WorkflowVersionResource {
             newWorkflowName,
             workflowVersion.getDescription,
             null,
-            workflowVersion.getContent,
+            assignNewOperatorIds(workflowVersion.getContent),
             null,
             null,
             0.toByte
@@ -398,7 +393,6 @@ class WorkflowVersionResource {
             "An error occurred while creating the cloned workflow."
           )
       }
-
     newWorkflow.workflow.getWid
   }
 }

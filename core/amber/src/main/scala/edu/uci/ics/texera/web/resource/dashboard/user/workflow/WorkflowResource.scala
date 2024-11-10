@@ -138,7 +138,7 @@ object WorkflowResource {
     * @param workflowContent JSON string representing the workflow, containing operator details.
     * @return The updated workflow content with new operator IDs.
     */
-  private def assignNewOperatorIds(workflowContent: String): String = {
+  def assignNewOperatorIds(workflowContent: String): String = {
     val objectMapper = new ObjectMapper().registerModule(DefaultScalaModule)
     val operatorIdMap = objectMapper
       .readValue(workflowContent, classOf[Map[String, List[Map[String, String]]]])("operators")
