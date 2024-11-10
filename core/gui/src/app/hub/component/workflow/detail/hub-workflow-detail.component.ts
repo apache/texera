@@ -161,7 +161,7 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
   }
 
   goBack(): void {
-    this.router.navigateByUrl("/dashboard/hub/workflow/result").catch((error) => {
+    this.router.navigateByUrl("/dashboard/hub/workflow/result").catch(error => {
       console.error("Navigation error:", error);
     });
   }
