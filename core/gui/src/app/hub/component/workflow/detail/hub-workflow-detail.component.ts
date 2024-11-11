@@ -12,6 +12,8 @@ import { Location } from "@angular/common";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
+import { DASHBOARD_HUB_WORKFLOW_RESULT } from "../../../../app-routing.constant";
+import { NzNotificationService } from "ng-zorro-antd/notification";
 
 export const THROTTLE_TIME_MS = 1000;
 
@@ -44,6 +46,7 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
     private hubWorkflowService: HubWorkflowService,
     private workflowPersistService: WorkflowPersistService,
     private location: Location,
+    private notification: NzNotificationService,
     @Optional() @Inject(NZ_MODAL_DATA) public input: { wid: number } | undefined
   ) {
     this.wid = input?.wid; //Accessing from the pop up. getting wid from the @Input
@@ -161,8 +164,8 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
   }
 
   goBack(): void {
-    this.router.navigateByUrl("/dashboard/hub/workflow/result").catch(error => {
-      console.error("Navigation error:", error);
+    this.router.navigateByUrl(DASHBOARD_HUB_WORKFLOW_RESULT).catch(() => {
+      this.notification.error("Navigation Failed", "Could not go back to the previous page. Please try again.");
     });
   }
 
@@ -225,8 +228,15 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
     }
   }
 
-  formatCount(count: number): string {
+  formatLikeCount(count: number): string {
     if (count >= 1000) {
+      return (count / 1000).toFixed(1) + "k";
+    }
+    return count.toString();
+  }
+
+  formatViewCount(count: number): string {
+    if (!this.displayPreciseViewCount && count >= 1000) {
       return (count / 1000).toFixed(1) + "k";
     }
     return count.toString();
