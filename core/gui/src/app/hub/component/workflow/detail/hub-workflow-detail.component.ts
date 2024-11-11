@@ -12,6 +12,7 @@ import { Location } from "@angular/common";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
+import { DASHBOARD_HUB_WORKFLOW_RESULT } from "../../../../app-routing.constant";
 
 export const THROTTLE_TIME_MS = 1000;
 
@@ -161,7 +162,9 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
   }
 
   goBack(): void {
-    this.location.back();
+    this.router.navigateByUrl(DASHBOARD_HUB_WORKFLOW_RESULT).catch(() => {
+      this.notificationService.error("Go back failed. Please try again.");
+    });
   }
 
   cloneWorkflow(): void {
