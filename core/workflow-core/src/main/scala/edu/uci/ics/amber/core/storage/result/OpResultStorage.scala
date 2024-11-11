@@ -18,6 +18,8 @@ object OpResultStorage {
   */
 class OpResultStorage extends Serializable with LazyLogging {
 
+  // since some op need to get the schema from the OpResultStorage, the schema is stored as part of the OpResultStorage.cache
+  // TODO: once we make the storage self-contained, i.e. storing Schema in the storage as metadata, we can remove it
   val cache: ConcurrentHashMap[OperatorIdentity, (VirtualDocument[Tuple], Option[Schema])] =
     new ConcurrentHashMap[OperatorIdentity, (VirtualDocument[Tuple], Option[Schema])]()
 

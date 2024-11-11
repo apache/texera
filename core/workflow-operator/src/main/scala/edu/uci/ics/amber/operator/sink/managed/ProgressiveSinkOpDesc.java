@@ -99,14 +99,16 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
                             javaMap.put(operatorInfo().outputPorts().head().id(), outputSchema);
 
                             // the storage metadata is reset if it is a MongoDocument, because the output schema is calculated here
+                            // TODO: after we change the execution as:
+                            //   1. propagate all the schemas
+                            //   2. assign op result storage
+                            //   we can clean up this logic
                             if (this.storage instanceof MongoDocument) {
-                                getStorage().reset(
-                                    new MongoDocumentMetadata<>(
+                                MongoDocument<Tuple> storage = (MongoDocument<Tuple>)getStorage();
+                                storage.setSerde(
                                         Tuple.toDocument(),
                                         Tuple.fromDocument().apply(outputSchema)
-                                    )
                                 );
-                                // TODO: consider remove this ugly part
                                 this.opResultStorage.setSchema(operatorIdentifier(), outputSchema);
                             }
                             // Convert the Java Map to a Scala immutable Map
