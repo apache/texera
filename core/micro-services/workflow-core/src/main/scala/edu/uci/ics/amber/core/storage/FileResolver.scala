@@ -121,11 +121,12 @@ object FileResolver {
       datasetVersion.getVersionHash
     ) ++ encodedFileRelativePath
 
-    // Build the the format /{did}/{versionHash}/{fileRelativePath}
-    val encodedPath = Paths.get(File.separator, allPathSegments: _*)
+    // Build the the format /{did}/{versionHash}/{fileRelativePath}, both Linux and Windows use forward slash as the splitter
+    val uriSplitter = "/"
+    val encodedPath = uriSplitter + allPathSegments.mkString(uriSplitter)
 
     try {
-      new URI(DATASET_FILE_URI_SCHEME, "", encodedPath.toString, null)
+      new URI(DATASET_FILE_URI_SCHEME, "", encodedPath, null)
     } catch {
       case e: Exception =>
         throw new FileNotFoundException(s"Dataset file $fileName not found.")

@@ -69,7 +69,8 @@ libraryDependencies ++= Seq(
   "org.scalamock" %% "scalamock" % "5.2.0" % Test,                  // ScalaMock
   "org.scalatest" %% "scalatest" % "3.2.15" % Test,                 // ScalaTest
   "junit" % "junit" % "4.13.2" % Test,                              // JUnit
-  "com.novocode" % "junit-interface" % "0.11" % Test                // SBT interface for JUnit
+  "com.novocode" % "junit-interface" % "0.11" % Test,               // SBT interface for JUnit
+  "ch.vorburger.mariaDB4j" % "mariaDB4j" % "2.4.0" % Test           // for mocking DB
 )
 
 /////////////////////////////////////////////////////////////////////////////
