@@ -1,5 +1,8 @@
 lazy val DAO = project in file("dao")
-lazy val WorkflowCore = (project in file("workflow-core")).dependsOn(DAO)
+lazy val WorkflowCore = (project in file("workflow-core"))
+  .dependsOn(DAO)
+  .configs(Test)
+  .dependsOn(DAO % "test->test") // test scope dependency
 lazy val WorkflowOperator = (project in file("workflow-operator")).dependsOn(WorkflowCore)
 
 // root project definition
