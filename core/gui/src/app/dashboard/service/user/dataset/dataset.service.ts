@@ -68,15 +68,11 @@ export class DatasetService {
    *   - did: A number representing the dataset ID
    * @returns An Observable that emits a Blob containing the zip file
    */
-  public retrieveDatasetZip(options: { path?: string; did?: number }): Observable<Blob> {
+  public retrieveDatasetZip(options: { did: number; dvid?: number }): Observable<Blob> {
     let params = new HttpParams();
-
-    if (options.path) {
-      params = params.set("path", encodeURIComponent(options.path));
-    }
-    if (options.did) {
-      params = params.set("did", options.did.toString());
-      params = params.set("getLatest", "true");
+    params = params.set("did", options.did.toString());
+    if (options.dvid) {
+      params = params.set("dvid", options.dvid.toString());
     }
 
     return this.http.get(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/version-zip`, {
@@ -85,25 +81,8 @@ export class DatasetService {
     });
   }
 
-  public retrieveAccessibleDatasets(
-    includeVersions: boolean = false,
-    includeFileNodes: boolean = false,
-    filePath: string = ""
-  ): Observable<{ datasets: DashboardDataset[]; fileNodes: DatasetFileNode[] }> {
-    let params = new HttpParams();
-    if (includeVersions) {
-      params = params.set("includeVersions", "true");
-    }
-    if (includeFileNodes) {
-      params = params.set("includeFileNodes", "true");
-    }
-    if (filePath && filePath != "") {
-      params = params.set("path", encodeURIComponent(filePath));
-    }
-    return this.http.get<{ datasets: DashboardDataset[]; fileNodes: DatasetFileNode[] }>(
-      `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}`,
-      { params: params }
-    );
+  public retrieveAccessibleDatasets(): Observable<{ datasets: DashboardDataset[] }> {
+    return this.http.get<{ datasets: DashboardDataset[] }>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}`);
   }
   public createDatasetVersion(
     did: number,

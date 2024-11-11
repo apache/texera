@@ -1,29 +1,25 @@
 package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
-import edu.uci.ics.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AssignPortHandler.AssignPort
-import edu.uci.ics.amber.engine.common.model.tuple.Schema
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.workflow.PortIdentity
-
-object AssignPortHandler {
-
-  final case class AssignPort(
-      portId: PortIdentity,
-      input: Boolean,
-      schema: Schema
-  ) extends ControlCommand[Unit]
+import com.twitter.util.Future
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
+  AssignPortRequest,
+  AsyncRPCContext
 }
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
+import edu.uci.ics.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
+import edu.uci.ics.amber.engine.common.model.tuple.Schema
 
 trait AssignPortHandler {
   this: DataProcessorRPCHandlerInitializer =>
 
-  registerHandler { (msg: AssignPort, sender) =>
+  override def assignPort(msg: AssignPortRequest, ctx: AsyncRPCContext): Future[EmptyReturn] = {
+    val schema = Schema.fromRawSchema(msg.schema)
     if (msg.input) {
-      dp.inputManager.addPort(msg.portId, msg.schema)
+      dp.inputManager.addPort(msg.portId, schema)
     } else {
-      dp.outputManager.addPort(msg.portId, msg.schema)
+      dp.outputManager.addPort(msg.portId, schema)
     }
+    EmptyReturn()
   }
 
 }

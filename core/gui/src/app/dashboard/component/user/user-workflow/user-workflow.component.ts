@@ -118,6 +118,14 @@ export class UserWorkflowComponent implements AfterViewInit {
     }
   }
 
+  public selectionTooltip: string = "Select all";
+
+  public updateTooltip(): void {
+    const entries = this.searchResultsComponent.entries;
+    const allSelected = entries.every(entry => entry.checked);
+    this.selectionTooltip = allSelected ? "Unselect all" : "Select all";
+  }
+
   ngAfterViewInit() {
     this.userService
       .userChanged()
@@ -444,7 +452,7 @@ export class UserWorkflowComponent implements AfterViewInit {
       .pipe(untilDestroyed(this))
       .subscribe({
         next: () => {
-          checkedEntries.forEach(entry => (entry.checked = false));
+          // this.searchResultsComponent.clearAllSelections();
         },
         error: (err: unknown) => console.error("Error downloading workflows:", err),
       });
@@ -474,6 +482,8 @@ export class UserWorkflowComponent implements AfterViewInit {
                 ...duplicatedWorkflowsInfo.map(duplicatedWorkflowInfo => new DashboardEntry(duplicatedWorkflowInfo)),
                 ...this.searchResultsComponent.entries,
               ];
+
+              // this.searchResultsComponent.clearAllSelections();
             }, // TODO: fix this with notification component
             error: (err: unknown) => alert(err),
           });
@@ -488,6 +498,8 @@ export class UserWorkflowComponent implements AfterViewInit {
                 ...duplicatedWorkflowsInfo.map(duplicatedWorkflowInfo => new DashboardEntry(duplicatedWorkflowInfo)),
                 ...this.searchResultsComponent.entries,
               ];
+
+              // this.searchResultsComponent.clearAllSelections();
             }, // TODO: fix this with notification component
             error: (err: unknown) => alert(err),
           });
@@ -538,6 +550,17 @@ export class UserWorkflowComponent implements AfterViewInit {
       } else {
         copyName = name + "-" + ++count;
       }
+    }
+  }
+
+  public toggleSelection(): void {
+    const allSelected = this.searchResultsComponent.entries.every(entry => entry.checked);
+    if (allSelected) {
+      this.searchResultsComponent.clearAllSelections();
+      this.updateTooltip();
+    } else {
+      this.searchResultsComponent.selectAll();
+      this.updateTooltip();
     }
   }
 }

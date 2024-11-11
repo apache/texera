@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.JsonNode
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.model.{PhysicalOp, SchemaPropagationFunc}
-import edu.uci.ics.amber.engine.common.storage.DatasetFileDocument
+import edu.uci.ics.amber.engine.common.storage.{DatasetFileDocument, DocumentFactory}
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.engine.common.Utils.objectMapper
 import edu.uci.ics.amber.engine.common.model.tuple.AttributeTypeUtils.inferSchemaFromRows
@@ -14,6 +14,7 @@ import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONUtil.JSONToMap
 import edu.uci.ics.texera.workflow.operators.util.OperatorFilePathUtils
 
 import java.io.{BufferedReader, FileInputStream, IOException, InputStream, InputStreamReader}
+import java.net.URI
 import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
@@ -38,8 +39,7 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp = {
-    val (filepath, fileDesc) = OperatorFilePathUtils.determineFilePathOrDatasetFile(this.fileName)
-    val stream = createInputStream(filepath, fileDesc)
+    val stream = DocumentFactory.newReadonlyDocument(new URI(fileUri.get)).asInputStream()
     // count lines and partition the task to each worker
     val reader = new BufferedReader(
       new InputStreamReader(stream, fileEncoding.getCharset)
@@ -61,8 +61,7 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
             offsetValue + (if (idx != workerCount - 1) count / workerCount * (idx + 1)
                            else count)
           new JSONLScanSourceOpExec(
-            filepath,
-            fileDesc,
+            fileUri.get,
             fileEncoding,
             startOffset,
             endOffset,
@@ -86,8 +85,10 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
     */
   @Override
   def inferSchema(): Schema = {
-    val (filepath, fileDesc) = OperatorFilePathUtils.determineFilePathOrDatasetFile(this.fileName)
-    val stream = createInputStream(filepath, fileDesc)
+    if (fileUri.isEmpty) {
+      return null
+    }
+    val stream = DocumentFactory.newReadonlyDocument(new URI(fileUri.get)).asInputStream()
     val reader = new BufferedReader(new InputStreamReader(stream, fileEncoding.getCharset))
     var fieldNames = Set[String]()
 

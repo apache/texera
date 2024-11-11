@@ -4,6 +4,7 @@ body {
   padding: 0;
   background-color: #f4f4f4;
 }
+
 .container {
   width: 80%;
   margin: 30px auto 0;
@@ -54,7 +55,6 @@ texera-mini-map {
   position: absolute;
   bottom: 0;
   right: 0;
-  //z-index: 3;
 }
 
 .prevent-select {
@@ -80,28 +80,19 @@ texera-mini-map {
   padding: 10px 0;
 }
 
-.clone-button {
-  background-color: white;
-  color: black;
-  width: 38px;
-  height: 38px;
-  border-radius: 0;
-  padding: 0;
-  cursor: pointer;
-  border: none;
-  box-shadow: none;
+.workflow-panel {
   display: flex;
   align-items: center;
-  justify-content: center;
-  margin-right: 10px;
-  margin-bottom: 10px;
-  transition: background-color 0.3s ease;
+  gap: 10px;
 }
 
-.clone-button:hover {
-  background-color: #e0e0e0;
+.clone-button,
+.like-button {
+  width: 70px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.clone-button i {
-  font-size: 20px;
+.liked {
+  color: red;
 }

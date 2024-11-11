@@ -7,7 +7,7 @@ import { UserQuotaComponent } from "./dashboard/component/user/user-quota/user-q
 import { UserProjectSectionComponent } from "./dashboard/component/user/user-project/user-project-section/user-project-section.component";
 import { UserProjectComponent } from "./dashboard/component/user/user-project/user-project.component";
 import { WorkspaceComponent } from "./workspace/component/workspace.component";
-import { HomeComponent } from "./hub/component/home/home.component";
+import { AboutComponent } from "./hub/component/about/about.component";
 import { AuthGuardService } from "./common/service/user/auth-guard.service";
 import { AdminUserComponent } from "./dashboard/component/admin/user/admin-user.component";
 import { AdminExecutionComponent } from "./dashboard/component/admin/execution/admin-execution.component";
@@ -19,9 +19,9 @@ import { AdminGmailComponent } from "./dashboard/component/admin/gmail/admin-gma
 import { UserDatasetExplorerComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-explorer.component";
 import { UserDatasetComponent } from "./dashboard/component/user/user-dataset/user-dataset.component";
 import { HubWorkflowSearchComponent } from "./hub/component/workflow/search/hub-workflow-search.component";
-import { HubWorkflowResultComponent } from "./hub/component/workflow/result/hub-workflow-result.component";
 import { HubWorkflowComponent } from "./hub/component/workflow/hub-workflow.component";
 import { HubWorkflowDetailComponent } from "./hub/component/workflow/detail/hub-workflow-detail.component";
+import { LandingPageComponent } from "./hub/component/landing-page/landing-page.component";
 
 const routes: Routes = [];
 
@@ -32,7 +32,11 @@ if (environment.userSystemEnabled) {
     children: [
       {
         path: "home",
-        component: HomeComponent,
+        component: LandingPageComponent,
+      },
+      {
+        path: "about",
+        component: AboutComponent,
       },
       {
         path: "hub",
@@ -42,15 +46,11 @@ if (environment.userSystemEnabled) {
             component: HubWorkflowComponent,
             children: [
               {
-                path: "search",
+                path: "result",
                 component: HubWorkflowSearchComponent,
               },
               {
-                path: "search/result",
-                component: HubWorkflowResultComponent,
-              },
-              {
-                path: "search/result/detail/:id",
+                path: "result/detail/:id",
                 component: HubWorkflowDetailComponent,
               },
             ],

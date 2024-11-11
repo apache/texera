@@ -10,30 +10,31 @@ final case class PythonActorMessage(
     payload: edu.uci.ics.amber.engine.common.actormessage.ActorCommand
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[PythonActorMessage] {
     @transient
-    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
-    private[this] def __computeSerializedValue(): _root_.scala.Int = {
+    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
+    private[this] def __computeSerializedSize(): _root_.scala.Int = {
       var __size = 0
       
       {
         val __value = edu.uci.ics.amber.engine.common.actormessage.PythonActorMessage._typemapper_payload.toBase(payload)
-        if (__value != edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage.defaultInstance) {
+        if (__value.serializedSize != 0) {
           __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
         }
       };
       __size
     }
     override def serializedSize: _root_.scala.Int = {
-      var read = __serializedSizeCachedValue
-      if (read == 0) {
-        read = __computeSerializedValue()
-        __serializedSizeCachedValue = read
+      var __size = __serializedSizeMemoized
+      if (__size == 0) {
+        __size = __computeSerializedSize() + 1
+        __serializedSizeMemoized = __size
       }
-      read
+      __size - 1
+      
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       {
         val __v = edu.uci.ics.amber.engine.common.actormessage.PythonActorMessage._typemapper_payload.toBase(payload)
-        if (__v != edu.uci.ics.amber.engine.common.actormessage.ActorCommandMessage.defaultInstance) {
+        if (__v.serializedSize != 0) {
           _output__.writeTag(1, 2)
           _output__.writeUInt32NoTag(__v.serializedSize)
           __v.writeTo(_output__)
@@ -56,7 +57,7 @@ final case class PythonActorMessage(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion = edu.uci.ics.amber.engine.common.actormessage.PythonActorMessage
+    def companion: edu.uci.ics.amber.engine.common.actormessage.PythonActorMessage.type = edu.uci.ics.amber.engine.common.actormessage.PythonActorMessage
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.PythonActorMessage])
 }
 

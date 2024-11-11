@@ -1,20 +1,20 @@
 package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
+import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.DebugCommandHandler.DebugCommand
-import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.WorkerDebugCommandHandler.WorkerDebugCommand
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-
-object DebugCommandHandler {
-  final case class DebugCommand(workerId: String, cmd: String) extends ControlCommand[Unit]
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
+  AsyncRPCContext,
+  DebugCommandRequest
 }
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 trait DebugCommandHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
-  registerHandler[DebugCommand, Unit] { (msg, sender) =>
-    {
-      send(WorkerDebugCommand(msg.cmd), ActorVirtualIdentity(msg.workerId))
-    }
+
+  override def debugCommand(msg: DebugCommandRequest, ctx: AsyncRPCContext): Future[EmptyReturn] = {
+    workerInterface.debugCommand(msg, mkContext(ActorVirtualIdentity(msg.workerId)))
+    EmptyReturn()
   }
+
 }

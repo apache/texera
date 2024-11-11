@@ -7,6 +7,7 @@ import edu.uci.ics.amber.engine.common.model.tuple.AttributeTypeUtils.parseTimes
 import edu.uci.ics.amber.engine.common.model.tuple.{Attribute, AttributeType, Tuple}
 
 import java.sql.Timestamp
+import javax.validation.constraints.NotNull
 
 case class AveragePartialObj(sum: Double, count: Double) extends Serializable {}
 @JsonSchemaInject(json = """
@@ -52,6 +53,7 @@ class AggregationOperation {
 
   @JsonProperty(value = "result attribute", required = true)
   @JsonPropertyDescription("column name of average result")
+  @NotNull(message = "result attribute is required")
   var resultAttribute: String = _
 
   @JsonIgnore

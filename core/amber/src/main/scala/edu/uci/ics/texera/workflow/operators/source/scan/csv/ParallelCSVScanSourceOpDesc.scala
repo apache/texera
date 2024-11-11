@@ -9,10 +9,12 @@ import edu.uci.ics.amber.engine.common.model.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.engine.common.model.tuple.AttributeTypeUtils.inferSchemaFromRows
 import edu.uci.ics.amber.engine.common.model.tuple.{Attribute, AttributeType, Schema}
+import edu.uci.ics.amber.engine.common.storage.DocumentFactory
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.util.OperatorFilePathUtils
 
-import java.io.{File, IOException}
+import java.io.IOException
+import java.net.URI
 
 class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
 
@@ -40,13 +42,7 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
 
     // here, the stream requires to be seekable, so datasetFileDesc creates a temp file here
     // TODO: consider a better way
-    val (filepath, fileDesc) = OperatorFilePathUtils.determineFilePathOrDatasetFile(this.fileName)
-    val file =
-      if (filepath == null) {
-        fileDesc.asFile()
-      } else {
-        new File(filepath)
-      }
+    val file = DocumentFactory.newReadonlyDocument(new URI(fileUri.get)).asFile()
     val totalBytes: Long = file.length()
 
     PhysicalOp
@@ -84,16 +80,10 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
     */
   @Override
   def inferSchema(): Schema = {
-    if (customDelimiter.isEmpty) {
+    if (customDelimiter.isEmpty || fileUri.isEmpty) {
       return null
     }
-    val (filepath, fileDesc) = OperatorFilePathUtils.determineFilePathOrDatasetFile(this.fileName)
-    val file =
-      if (filepath == null) {
-        fileDesc.asFile()
-      } else {
-        new File(filepath)
-      }
+    val file = DocumentFactory.newReadonlyDocument(new URI(fileUri.get)).asFile()
     implicit object CustomFormat extends DefaultCSVFormat {
       override val delimiter: Char = customDelimiter.get.charAt(0)
 
@@ -103,7 +93,7 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
     reader.close()
 
     // reopen the file to read from the beginning
-    reader = CSVReader.open(filePath.get)(CustomFormat)
+    reader = CSVReader.open(file.toPath.toString)(CustomFormat)
     if (hasHeader)
       reader.readNext()
 

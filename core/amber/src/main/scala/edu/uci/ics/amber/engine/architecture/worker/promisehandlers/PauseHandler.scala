@@ -1,24 +1,23 @@
 package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
+import com.twitter.util.Future
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, EmptyRequest}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerStateResponse
 import edu.uci.ics.amber.engine.architecture.worker.{DataProcessorRPCHandlerInitializer, UserPause}
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
-import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{PAUSED, READY, RUNNING}
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-
-object PauseHandler {
-
-  final case class PauseWorker() extends ControlCommand[WorkerState]
-}
 
 trait PauseHandler {
   this: DataProcessorRPCHandlerInitializer =>
 
-  registerHandler { (pause: PauseWorker, sender) =>
+  override def pauseWorker(
+      request: EmptyRequest,
+      ctx: AsyncRPCContext
+  ): Future[WorkerStateResponse] = {
     if (dp.stateManager.confirmState(RUNNING, READY)) {
       dp.pauseManager.pause(UserPause)
       dp.stateManager.transitTo(PAUSED)
     }
-    dp.stateManager.getCurrentState
+    WorkerStateResponse(dp.stateManager.getCurrentState)
   }
+
 }
