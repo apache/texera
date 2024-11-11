@@ -13,7 +13,6 @@ import { NotificationService } from "../../../../common/service/notification/not
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
 import { DASHBOARD_HUB_WORKFLOW_RESULT } from "../../../../app-routing.constant";
-import { NzNotificationService } from "ng-zorro-antd/notification";
 
 export const THROTTLE_TIME_MS = 1000;
 
@@ -46,7 +45,6 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
     private hubWorkflowService: HubWorkflowService,
     private workflowPersistService: WorkflowPersistService,
     private location: Location,
-    private notification: NzNotificationService,
     @Optional() @Inject(NZ_MODAL_DATA) public input: { wid: number } | undefined
   ) {
     this.wid = input?.wid; //Accessing from the pop up. getting wid from the @Input
@@ -165,7 +163,7 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
 
   goBack(): void {
     this.router.navigateByUrl(DASHBOARD_HUB_WORKFLOW_RESULT).catch(() => {
-      this.notification.error("Navigation Failed", "Could not go back to the previous page. Please try again.");
+      this.notificationService.error("Go back failed. Please try again.");
     });
   }
 
