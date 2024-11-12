@@ -528,27 +528,21 @@ export class MenuComponent implements OnInit {
   }
 
   cloneVersion() {
-    const vid = this.workflowVersionService.selectedVersionId.getValue();
-    const selectedDisplayedVersionId = this.workflowVersionService.selectedDisplayedVersionId.getValue();
-    if (vid != null && selectedDisplayedVersionId != null) {
-      this.workflowVersionService
-        .cloneWorkflowVersion(vid, selectedDisplayedVersionId)
-        .pipe(
-          catchError(() => {
-            this.notificationService.error("Failed to clone workflow. Please try again.");
-            return of(null);
-          }),
-          untilDestroyed(this)
-        )
-        .subscribe(new_wid => {
-          if (new_wid) {
-            this.notificationService.success("Workflow cloned successfully! New workflow ID: " + new_wid);
-            this.closeParticularVersionDisplay();
-          }
-        });
-    } else {
-      this.notificationService.error("No version selected Please select a version to clone.");
-    }
+    this.workflowVersionService
+      .cloneWorkflowVersion()
+      .pipe(
+        catchError(() => {
+          this.notificationService.error("Failed to clone workflow. Please try again.");
+          return of(null);
+        }),
+        untilDestroyed(this)
+      )
+      .subscribe(new_wid => {
+        if (new_wid) {
+          this.notificationService.success("Workflow cloned successfully! New workflow ID: " + new_wid);
+          this.closeParticularVersionDisplay();
+        }
+      });
   }
 
   private registerWorkflowModifiableChangedHandler(): void {

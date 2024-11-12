@@ -52,7 +52,19 @@ export class WorkflowVersionService {
     const elements = this.workflowActionService.getJointGraphWrapper().getCurrentHighlights();
     this.workflowActionService.getJointGraphWrapper().unhighlightElements(elements);
   }
-  public setDisplayParticularVersion(flag: boolean): void {
+  public setDisplayParticularVersion(flag: boolean, versionId?: number, displayedVersionId?: number): void {
+    if (flag) {
+      if (versionId != undefined) {
+        this.selectedVersionId.next(versionId);
+      }
+      if (displayedVersionId !== undefined) {
+        this.selectedDisplayedVersionId.next(displayedVersionId);
+      }
+    } else {
+      this.selectedVersionId.next(null);
+      this.selectedDisplayedVersionId.next(null);
+    }
+
     this.displayParticularWorkflowVersion.next(flag);
   }
 
@@ -78,14 +90,14 @@ export class WorkflowVersionService {
     this.workflowActionService.disableWorkflowModification();
   }
 
-  public displayParticularVersion(workflow: Workflow) {
+  public displayParticularVersion(workflow: Workflow, vid: number, displayedVId: number) {
     // get the list of IDs of different elements when comparing displaying to the editing version
     this.differentOpIDsList = this.getWorkflowsDifference(
       this.workflowActionService.getWorkflowContent(),
       workflow.content
     );
     this.displayReadonlyWorkflow(workflow);
-    this.setDisplayParticularVersion(true);
+    this.setDisplayParticularVersion(true, vid, displayedVId);
     // highlight the different elements by changing the color of boundary of the operator
     // needs a list of ids of elements to be highlighted
     this.highlightOpVersionDiff(this.differentOpIDsList);
@@ -279,15 +291,10 @@ export class WorkflowVersionService {
     }
   }
 
-  public setSelectedVersionId(id: number): void {
-    this.selectedVersionId.next(id);
-  }
+  public cloneWorkflowVersion(): Observable<number> {
+    const vid = this.selectedVersionId.getValue();
+    const displayedVersionId = this.selectedDisplayedVersionId.getValue();
 
-  public setSelectedDisplayedVersionId(displayedVersionId: number): void {
-    this.selectedDisplayedVersionId.next(displayedVersionId);
-  }
-
-  public cloneWorkflowVersion(vid: number, displayedVersionId: number): Observable<number> {
     return this.http.post<number>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_VERSIONS_API_BASE_URL}/clone/${vid}`, {
       displayedVersionId,
     });

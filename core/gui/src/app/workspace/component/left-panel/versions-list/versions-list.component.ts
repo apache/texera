@@ -65,15 +65,13 @@ export class VersionsListComponent implements OnInit {
   }
 
   getVersion(vid: number, displayedVersionId: number, index: number) {
-    this.workflowVersionService.setSelectedVersionId(vid);
-    this.workflowVersionService.setSelectedDisplayedVersionId(displayedVersionId);
     this.selectedRowIndex = index;
 
     this.workflowVersionService
       .retrieveWorkflowByVersion(<number>this.workflowActionService.getWorkflowMetadata()?.wid, vid)
       .pipe(untilDestroyed(this))
       .subscribe(workflow => {
-        this.workflowVersionService.displayParticularVersion(workflow);
+        this.workflowVersionService.displayParticularVersion(workflow, vid, displayedVersionId);
       });
   }
 }
