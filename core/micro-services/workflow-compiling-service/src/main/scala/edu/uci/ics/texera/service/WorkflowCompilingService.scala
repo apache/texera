@@ -17,7 +17,7 @@ class WorkflowCompilingService extends Application[WorkflowCompilingServiceConfi
       environment: Environment
   ): Unit = {
     // serve backend at /api/texera
-    environment.jersey.setUrlPattern("/api/workflow/*")
+    environment.jersey.setUrlPattern("/api/*")
     // register CORS filter
     environment.jersey.register(classOf[CORSFilter])
     // register the compilation endpoint
