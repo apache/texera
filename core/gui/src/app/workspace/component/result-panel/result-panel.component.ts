@@ -16,6 +16,7 @@ import { WorkflowConsoleService } from "../../service/workflow-console/workflow-
 import {NzResizeDirection, NzResizeEvent} from "ng-zorro-antd/resizable";
 import { VisualizationFrameContentComponent } from "../visualization-panel-content/visualization-frame-content.component";
 import { calculateTotalTranslate3d } from "../../../common/util/panel-dock";
+import {isDefined} from "../../../common/util/predicate";
 
 /**
  * ResultPanelComponent is the bottom level area that displays the
@@ -70,6 +71,7 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     const translates = document.getElementById("result-container")!.style.transform;
     const [xOffset, yOffset, _] = calculateTotalTranslate3d(translates);
     this.returnPosition = { x: -xOffset, y: -yOffset };
+    this.updateReturnPosition(this.prevHeight, this.height);
     this.checkPanelIsDocked();
     this.registerAutoRerenderResultPanel();
     this.registerAutoOpenResultPanel();
@@ -302,10 +304,16 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
 
   onResize({ width, height }: NzResizeEvent) {
     cancelAnimationFrame(this.id);
+    this.updateReturnPosition(this.height, height);
     this.id = requestAnimationFrame(() => {
       this.width = width!;
       this.height = height!;
       this.resizeService.changePanelSize(this.width, this.height);
     });
+  }
+
+  updateReturnPosition(prevHeight: number, newHeight: number | undefined) {
+    if (!isDefined(newHeight)) return;
+    this.returnPosition = {x: this.returnPosition.x, y: this.returnPosition.y + prevHeight - newHeight};
   }
 }
