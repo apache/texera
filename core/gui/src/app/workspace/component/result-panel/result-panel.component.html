@@ -38,7 +38,8 @@
   [style.width.px]="width"
   [style.height.px]="height"
   (nzResize)="onResize($event)"
-  [cdkDragFreeDragPosition]="dragPosition">
+  [cdkDragFreeDragPosition]="dragPosition"
+  (cdkDragStarted)="handleStartDrag()">
   <ul
     nz-menu
     id="panel-button"
@@ -88,5 +89,5 @@
   </div>
   <nz-resize-handles
     *ngIf="width"
-    [nzDirections]="['right', 'bottom', 'bottomRight']"></nz-resize-handles>
+    [nzDirections]="getResizeDirections()"></nz-resize-handles>
 </div>
