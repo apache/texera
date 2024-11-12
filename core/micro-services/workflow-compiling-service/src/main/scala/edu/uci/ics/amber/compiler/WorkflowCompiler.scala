@@ -58,6 +58,7 @@ object WorkflowCompiler {
     opIdToError.toMap
   }
 
+  // util function for collecting the input schemas for each op
   private def collectInputSchemaFromPhysicalPlan(
       physicalPlan: PhysicalPlan
   ): Map[OperatorIdentity, List[Option[Schema]]] = {
