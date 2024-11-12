@@ -69,7 +69,7 @@ class CostBasedRegionPlanGenerator(
           })
           .filter(link => operatorIds.contains(link.fromOpId))
         val operators = operatorIds.map(operatorId => physicalPlan.getOperator(operatorId))
-        val materializedPorts: Set[GlobalPortIdentity] = matEdges.flatMap(link =>
+        val materializedPortIds: Set[GlobalPortIdentity] = matEdges.flatMap(link =>
           List(
             GlobalPortIdentity(link.fromOpId, link.fromPortId, input = false)
           )
@@ -78,7 +78,7 @@ class CostBasedRegionPlanGenerator(
           id = RegionIdentity(idx),
           physicalOps = operators,
           physicalLinks = links,
-          materializedPorts = materializedPorts
+          materializedPortIds = materializedPortIds
         )
     }
   }
@@ -263,7 +263,7 @@ class CostBasedRegionPlanGenerator(
     // Using number of materialized ports as the cost.
     // This is independent of the schedule / resource allocator.
     // In the future we may need to use the ResourceAllocator to get the cost.
-    regions.flatMap(_.materializedPorts).size
+    regions.flatMap(_.materializedPortIds).size
   }
 
 }
