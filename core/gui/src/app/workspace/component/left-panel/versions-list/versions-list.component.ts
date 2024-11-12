@@ -22,6 +22,10 @@ export class VersionsListComponent implements OnInit {
     public route: ActivatedRoute
   ) {}
 
+  public getDisplayedVersionId(index: number, count: number) {
+    return count - index;
+  }
+
   collapse(index: number, $event: boolean): void {
     if (this.versionsList == undefined) {
       return;
@@ -60,9 +64,9 @@ export class VersionsListComponent implements OnInit {
       });
   }
 
-  getVersion(vid: number, offset: number, index: number) {
+  getVersion(vid: number, displayedVersionId: number, index: number) {
     this.workflowVersionService.setSelectedVersionId(vid);
-    this.workflowVersionService.setSelectedOffset(offset);
+    this.workflowVersionService.setSelectedDisplayedVersionId(displayedVersionId);
     this.selectedRowIndex = index;
 
     this.workflowVersionService

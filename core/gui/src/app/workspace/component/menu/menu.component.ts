@@ -529,12 +529,12 @@ export class MenuComponent implements OnInit {
 
   cloneVersion() {
     const vid = this.workflowVersionService.selectedVersionId.getValue();
-    const offset = this.workflowVersionService.selectedOffset.getValue();
-    if (vid != null && offset != null) {
+    const selectedDisplayedVersionId = this.workflowVersionService.selectedDisplayedVersionId.getValue();
+    if (vid != null && selectedDisplayedVersionId != null) {
       this.workflowVersionService
-        .cloneWorkflowVersion(vid, offset)
+        .cloneWorkflowVersion(vid, selectedDisplayedVersionId)
         .pipe(
-          catchError((error: unknown) => {
+          catchError(() => {
             this.notificationService.error("Failed to clone workflow. Please try again.");
             return of(null);
           }),

@@ -357,7 +357,7 @@ class WorkflowVersionResource {
       @Auth sessionUser: SessionUser,
       requestBody: java.util.Map[String, Int]
   ): UInteger = {
-    val offset = requestBody.get("offset")
+    val displayedVersionId = requestBody.get("displayedVersionId")
 
     // Fetch the workflow ID (`wid`) associated with the specified version (`vid`)
     val versionRecord = Option(
@@ -373,7 +373,7 @@ class WorkflowVersionResource {
     // Use retrieveWorkflowVersion to get the specified version of the workflow
     val workflowVersion = retrieveWorkflowVersion(wid, vid, sessionUser)
     // Generate a new name for the cloned workflow
-    val newWorkflowName = s"${workflowVersion.getName}_v${offset}_clone"
+    val newWorkflowName = s"${workflowVersion.getName}_v${displayedVersionId}_copy"
     // Create a new workflow based on the retrieved version
     val workflowResource = new WorkflowResource()
     val newWorkflow: DashboardWorkflow =

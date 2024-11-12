@@ -55,13 +55,13 @@
           Clone this version
         </button>
         <span
-          *ngIf="displayParticularWorkflowVersion && workflowVersionService.selectedOffset.getValue() !== null"
+          *ngIf="displayParticularWorkflowVersion && workflowVersionService.selectedDisplayedVersionId.getValue() !== null"
           title="Current Version"
           style="margin-left: 10px">
           <i
             nz-icon
             nzType="info-circle"></i>
-          Current Version: {{ workflowVersionService.selectedOffset.getValue() }}
+          Current Version: {{ workflowVersionService.selectedDisplayedVersionId.getValue() }}
         </span>
         <span *ngIf="!displayParticularWorkflowVersion"> {{autoSaveState}} </span>
       </div>

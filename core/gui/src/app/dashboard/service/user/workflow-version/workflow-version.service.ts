@@ -38,7 +38,7 @@ export class WorkflowVersionService {
   private displayParticularWorkflowVersion = new BehaviorSubject<boolean>(false);
   private differentOpIDsList: DifferentOpIDsList = { modified: [], added: [], deleted: [] };
   public selectedVersionId = new BehaviorSubject<number | null>(null);
-  public selectedOffset = new BehaviorSubject<number | null>(null);
+  public selectedDisplayedVersionId = new BehaviorSubject<number | null>(null);
 
   constructor(
     private workflowActionService: WorkflowActionService,
@@ -283,13 +283,13 @@ export class WorkflowVersionService {
     this.selectedVersionId.next(id);
   }
 
-  public setSelectedOffset(offset: number): void {
-    this.selectedOffset.next(offset);
+  public setSelectedDisplayedVersionId(displayedVersionId: number): void {
+    this.selectedDisplayedVersionId.next(displayedVersionId);
   }
 
-  public cloneWorkflowVersion(vid: number, offset: number): Observable<number> {
+  public cloneWorkflowVersion(vid: number, displayedVersionId: number): Observable<number> {
     return this.http.post<number>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_VERSIONS_API_BASE_URL}/clone/${vid}`, {
-      offset,
+      displayedVersionId,
     });
   }
 }
