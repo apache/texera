@@ -182,9 +182,7 @@ export class WorkflowCompilingService {
     // make a http post request to the API endpoint with the logical plan object
     return this.httpClient
       .post<WorkflowCompilationResponse>(
-        `${AppSettings.getTexeraApiEndpoint()}/${WORKFLOW_COMPILATION_ENDPOINT}/${
-          this.workflowActionService.getWorkflow().wid ?? DEFAULT_WORKFLOW.wid
-        }`,
+        `${AppSettings.getApiEndpoint()}/${WORKFLOW_COMPILATION_ENDPOINT}`,
         JSON.stringify(body2),
         {
           headers: new HttpHeaders({
