@@ -29,7 +29,7 @@
             [nzType]="'eye'"
             class="like-icon">
           </i>
-          <span>{{ formatViewCount(viewCount) }}</span>
+          <span>{{ formatCount(viewCount) }}</span>
         </button>
 
         <button
@@ -44,7 +44,7 @@
             [ngClass]="{liked: isLiked}"
             class="like-icon">
           </i>
-          <span>{{ formatLikeCount(likeCount) }}</span>
+          <span>{{ formatCount(likeCount) }}</span>
         </button>
 
         <button
@@ -57,7 +57,7 @@
           <i
             nz-icon
             nzType="copy"></i>
-          <span>{{ formatLikeCount(cloneCount) }}</span>
+          <span>{{ formatCount(cloneCount) }}</span>
         </button>
       </div>
     </div>

@@ -70,6 +70,15 @@ export class UserDatasetComponent implements AfterViewInit {
       .subscribe(() => this.search());
   }
 
+  /*
+   * Executes a dataset search with filtering, sorting.
+   *
+   * Parameters:
+   * - filterScope = "all" | "public" | "private" - Determines visibility scope for search:
+   *  - "all": includes all datasets, public and private
+   *  - "public": limits the search to public datasets
+   *  - "private": limits the search to dataset where the user has direct access rights.
+   */
   async search(forced: Boolean = false, filterScope: "all" | "public" | "private" = "all"): Promise<void> {
     const sameList =
       this.masterFilterList !== null &&
@@ -86,6 +95,8 @@ export class UserDatasetComponent implements AfterViewInit {
     }
     let filterParams = this.filters.getSearchFilterParameters();
 
+    // if the filter requires only public datasets, the public search should be invoked, and the search method should
+    // set the isLogin parameter to false in this case
     const isLogin = filterScope === "public" ? false : this.isLogin;
     const includePublic = filterScope === "all" || filterScope === "public";
 
