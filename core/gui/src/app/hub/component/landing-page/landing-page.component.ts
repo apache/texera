@@ -45,7 +45,6 @@ export class LandingPageComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe((count: number) => {
         this.workflowCount = count;
-        console.log("Workflow count:", this.workflowCount);
       });
   }
 
@@ -90,7 +89,6 @@ export class LandingPageComponent implements OnInit {
       )
       .subscribe((dashboardEntries: DashboardEntry[]) => {
         updateWorkflowsFn(dashboardEntries);
-        console.log(`${workflowType} with Owner Info:`, dashboardEntries);
       });
   }
 
