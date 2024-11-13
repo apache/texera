@@ -53,8 +53,8 @@ describe("ContextMenuComponent", () => {
 
     // Create a mock for OperatorMenuService with necessary properties and methods
     operatorMenuService = {
-      effectivelyHighlightedOperators: new BehaviorSubject<any[]>([]),
-      effectivelyHighlightedCommentBoxes: new BehaviorSubject<any[]>([]),
+      highlightedOperators: new BehaviorSubject<any[]>([]),
+      highlightedCommentBoxes: new BehaviorSubject<any[]>([]),
       isDisableOperator: false,
       isDisableOperatorClickable: false,
       isToViewResult: false,
