@@ -48,7 +48,7 @@ export class WorkflowVersionService {
   ) {}
 
   public displayWorkflowVersions(): void {
-    // unhighlight all the current highlighted operators/groups/links
+    // unhighlight all the current highlighted operators and links
     const elements = this.workflowActionService.getJointGraphWrapper().getCurrentHighlights();
     this.workflowActionService.getJointGraphWrapper().unhighlightElements(elements);
   }

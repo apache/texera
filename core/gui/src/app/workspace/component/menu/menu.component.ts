@@ -10,7 +10,6 @@ import { Workflow, WorkflowContent } from "../../../common/type/workflow";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
 import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
-import { JointGraphWrapper } from "../../service/workflow-graph/model/joint-graph-wrapper";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
@@ -31,7 +30,6 @@ import { NzModalService } from "ng-zorro-antd/modal";
 import { ResultExportationComponent } from "../result-exportation/result-exportation.component";
 import { ReportGenerationService } from "../../service/report-generation/report-generation.service";
 import { ShareAccessComponent } from "src/app/dashboard/component/user/share-access/share-access.component";
-import { UdfDebugService } from "../../service/operator-debug/udf-debug.service";
 /**
  * MenuComponent is the top level menu bar that shows
  *  the Texera title and workflow execution button
@@ -372,7 +370,7 @@ export class MenuComponent implements OnInit {
       .getTexeraGraph()
       .getAllOperators()
       .map(op => op.operatorID);
-    this.workflowActionService.deleteOperatorsAndLinks(allOperatorIDs, []);
+    this.workflowActionService.deleteOperatorsAndLinks(allOperatorIDs);
   }
 
   public onClickImportWorkflow = (file: NzUploadFile): boolean => {

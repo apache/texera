@@ -305,6 +305,7 @@ export class JointUIService {
       ".remove-output-port-button": { visibility: "visible" },
     });
   }
+
   public changeOperatorState(jointPaper: joint.dia.Paper, operatorID: string, operatorState: OperatorState): void {
     let fillColor: string;
     switch (operatorState) {
@@ -333,42 +334,6 @@ export class JointUIService {
       [`.${operatorProcessedCountClass}`]: { fill: fillColor },
       [`.${operatorOutputCountClass}`]: { fill: fillColor },
     });
-  }
-
-  /**
-   * Hides the expand button and shows the collapse button of
-   * the given group on joint paper.
-   *
-   * @param jointPaper
-   * @param groupID
-   */
-  public hideGroupExpandButton(jointPaper: joint.dia.Paper, groupID: string): void {
-    jointPaper.getModelById(groupID).attr(".expand-button/display", "none");
-    jointPaper.getModelById(groupID).removeAttr(".collapse-button/display");
-  }
-
-  /**
-   * Hides the collapse button and shows the expand button of
-   * the given group on joint paper.
-   *
-   * @param jointPaper
-   * @param groupID
-   */
-  public hideGroupCollapseButton(jointPaper: joint.dia.Paper, groupID: string): void {
-    jointPaper.getModelById(groupID).attr(".collapse-button/display", "none");
-    jointPaper.getModelById(groupID).removeAttr(".expand-button/display");
-  }
-
-  /**
-   * Repositions the collapse button of the given group according
-   * to the group's (new) width.
-   *
-   * @param jointPaper
-   * @param groupID
-   * @param width
-   */
-  public repositionGroupCollapseButton(jointPaper: joint.dia.Paper, groupID: string, width: number): void {
-    jointPaper.getModelById(groupID).attr(".collapse-button/x", `${width - 23}`);
   }
 
   /**
