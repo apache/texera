@@ -2,23 +2,12 @@ import { Injectable } from "@angular/core";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { OperatorSchema } from "../../types/operator-schema.interface";
 import { abbreviateNumber } from "js-abbreviation-number";
-import { Point, OperatorPredicate, OperatorLink, CommentBox } from "../../types/workflow-common.interface";
+import { CommentBox, OperatorLink, OperatorPredicate, Point } from "../../types/workflow-common.interface";
 import { OperatorState, OperatorStatistics } from "../../types/execute-workflow.interface";
 import * as joint from "jointjs";
 import { fromEventPattern, Observable } from "rxjs";
-import { Coeditor, User } from "../../../common/type/user";
+import { Coeditor } from "../../../common/type/user";
 import { OperatorResultCacheStatus } from "../../types/workflow-websocket.interface";
-
-/**
- * Defines the SVG element for the breakpoint button
- */
-export const breakpointButtonSVG = `
-  <svg class="breakpoint-button" height = "24" width = "24">
-    <path d="M0 0h24v24H0z" fill="none" /> +
-    <polygon points="8,2 16,2 22,8 22,16 16,22 8,22 2,16 2,8" fill="red" />
-    <title>add breakpoint</title>
-  </svg>
-  `;
 /**
  * Defines the SVG path for the delete button
  */
@@ -81,38 +70,6 @@ export const removeOutputPortButtonSVG = `
     <title>remove port</title>
   </svg>
 `;
-
-/**
- * Defines the SVG path for the collapse button
- */
-export const collapseButtonPath =
-  "M4 7 H12 v2 H4 z" +
-  " M0 3 Q0 0 3 0 h10 Q16 0 16 3 v10 H14 V3 Q14 2 13 2 H3 Q2 2 2 3 z" +
-  " M0 3 v10 Q0 16 3 16 h10 Q16 16 16 13 H14 Q14 14 13 14 H3 Q2 14 2 13 V3 z";
-
-/**
- * Defines the HTML SVG element for the collapse button and customizes the look
- */
-export const collapseButtonSVG = `<svg class="collapse-button" height="16" width="16">
-    <path d="M0 0 h16 v16 H0 z" fill="none" pointer-events="visible" />
-    <path d="${collapseButtonPath}" />
-  </svg>`;
-
-/**
- * Defines the SVG path for the expand button
- */
-export const expandButtonPath =
-  "M4 7 h3 V4 h2 V7 h3 v2 h-3 V12 h-2 V9 h-3 z" +
-  " M0 3 Q0 0 3 0 h10 Q16 0 16 3 v10 H14 V3 Q14 2 13 2 H3 Q2 2 2 3 z" +
-  " M0 3 v10 Q0 16 3 16 h10 Q16 16 16 13 H14 Q14 14 13 14 H3 Q2 14 2 13 V3 z";
-
-/**
- * Defines the HTML SVG element for the expand button and customizes the look
- */
-export const expandButtonSVG = `<svg class="expand-button" height="16" width="16">
-    <path d="M0 0 h16 v16 H0 z" fill="none" pointer-events="visible" />
-    <path d="${expandButtonPath}" />
-  </svg>`;
 
 /**
  * Defines the handle (the square at the end) of the source operator for a link
@@ -178,18 +135,6 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
   }
 }
 
-/**
- * Extends a basic Joint shape element and adds our own HTML markup.
- */
-class TexeraCustomGroupElement extends joint.shapes.devs.Model {
-  markup = `<g class="element-node">
-      <rect class="body"></rect>
-      <text>New Group</text>
-      ${collapseButtonSVG}
-      ${expandButtonSVG}
-    </g>`;
-}
-
 class TexeraCustomCommentElement extends joint.shapes.devs.Model {
   markup = `<g class = "element-node">
   <rect class = "body"></rect>
@@ -218,16 +163,12 @@ class TexeraCustomCommentElement extends joint.shapes.devs.Model {
 export class JointUIService {
   public static readonly DEFAULT_OPERATOR_WIDTH = 60;
   public static readonly DEFAULT_OPERATOR_HEIGHT = 60;
-
-  public static readonly DEFAULT_TOOLTIP_WIDTH = 140;
-  public static readonly DEFAULT_TOOLTIP_HEIGHT = 60;
-
   public static readonly DEFAULT_GROUP_MARGIN = 50;
   public static readonly DEFAULT_GROUP_MARGIN_BOTTOM = 40;
-
-  private operatorSchemas: ReadonlyArray<OperatorSchema> = [];
   public static readonly DEFAULT_COMMENT_WIDTH = 32;
   public static readonly DEFAULT_COMMENT_HEIGHT = 32;
+
+  private operatorSchemas: ReadonlyArray<OperatorSchema> = [];
 
   constructor(private operatorMetadataService: OperatorMetadataService) {
     // initialize the operator information
@@ -337,26 +278,6 @@ export class JointUIService {
       [`.${operatorAbbreviatedCountClass}`]: { text: abbreviatedText },
     });
   }
-
-  public changeOperatorEditingStatus(jointPaper: joint.dia.Paper, operatorID: string, users?: User[]): void {
-    if (users) {
-      const statusText = users[0].name + " is editing properties...";
-      const color = users[0].color;
-      jointPaper.getModelById(operatorID).attr({
-        [`.${operatorCoeditorEditingClass}`]: {
-          text: statusText,
-          fillColor: color,
-        },
-      });
-    } else {
-      jointPaper.getModelById(operatorID).attr({
-        [`.${operatorCoeditorEditingClass}`]: {
-          text: "",
-        },
-      });
-    }
-  }
-
   public foldOperatorDetails(jointPaper: joint.dia.Paper, operatorID: string): void {
     jointPaper.getModelById(operatorID).attr({
       [`.${operatorAbbreviatedCountClass}`]: { visibility: "visible" },
@@ -450,10 +371,9 @@ export class JointUIService {
     operator: OperatorPredicate,
     cacheStatus?: OperatorResultCacheStatus
   ): void {
-    const cacheText = JointUIService.getOperatorCacheDisplayText(operator, cacheStatus);
+    JointUIService.getOperatorCacheDisplayText(operator, cacheStatus);
     const cacheIcon = JointUIService.getOperatorCacheIcon(operator, cacheStatus);
 
-    // jointPaper.getModelById(operator.operatorID).attr(`.${operatorCacheTextClass}/text`, cacheStatus);
     jointPaper.getModelById(operator.operatorID).attr(`.${operatorReuseCacheIconClass}/xlink:href`, cacheIcon);
     const icon = JointUIService.getOperatorViewResultIcon(operator);
     jointPaper.getModelById(operator.operatorID).attr(`.${operatorViewResultIconClass}/xlink:href`, icon);
@@ -525,8 +445,7 @@ export class JointUIService {
    * This function converts a Texera source and target OperatorPort to
    *   a JointJS link cell <joint.dia.Link> that could be added to the JointJS.
    *
-   * @param source the OperatorPort of the source of a link
-   * @param target the OperatorPort of the target of a link
+   * @param link
    * @returns JointJS Link Cell
    */
   public static getJointLinkCell(link: OperatorLink): joint.dia.Link {
@@ -562,7 +481,7 @@ export class JointUIService {
    * @returns JointJS Link
    */
   public static getDefaultLinkCell(): joint.dia.Link {
-    const link = new joint.dia.Link({
+    return new joint.dia.Link({
       router: {
         name: "manhattan",
       },
@@ -614,7 +533,6 @@ export class JointUIService {
         ".tool-remove circle": {},
       },
     });
-    return link;
   }
 
   /**
@@ -624,7 +542,7 @@ export class JointUIService {
    * @returns the custom attributes of the ports
    */
   public static getCustomPortStyleAttrs(): joint.attributes.SVGAttributes {
-    const portStyleAttrs = {
+    return {
       ".port-body": {
         fill: "#A0A0A0",
         r: 5,
@@ -636,7 +554,6 @@ export class JointUIService {
         pointerdblclick: "input-label:pointerdblclick",
       },
     };
-    return portStyleAttrs;
   }
 
   /**
@@ -644,7 +561,7 @@ export class JointUIService {
    * @returns the custom attributes of the tooltip.
    */
   public static getCustomOperatorStatusTooltipStyleAttrs(): joint.shapes.devs.ModelSelectors {
-    const tooltipStyleAttrs = {
+    return {
       "element-node": {
         style: { "pointer-events": "none" },
       },
@@ -671,7 +588,6 @@ export class JointUIService {
         style: { "pointer-events": "none" },
       },
     };
-    return tooltipStyleAttrs;
   }
 
   /**
@@ -679,7 +595,10 @@ export class JointUIService {
    * This function also makes the delete button defined above to emit the delete event that will
    *   be captured by JointJS paper using event name *element:delete*
    *
+   * @param operator
    * @param operatorDisplayName the name of the operator that will display on the UI
+   * @param operatorType
+   * @param operatorFriendlyName
    * @returns the custom attributes of the operator
    */
   public static getCustomOperatorStyleAttrs(
@@ -688,7 +607,7 @@ export class JointUIService {
     operatorType: string,
     operatorFriendlyName: string
   ): joint.shapes.devs.ModelSelectors {
-    const operatorStyleAttrs = {
+    return {
       ".texera-operator-coeditor-editing": {
         text: "",
         "font-size": "14px",
@@ -890,7 +809,6 @@ export class JointUIService {
         "y-alignment": "middle",
       },
     };
-    return operatorStyleAttrs;
   }
 
   public static getOperatorFillColor(operator: OperatorPredicate): string {
@@ -927,53 +845,8 @@ export class JointUIService {
     }
   }
 
-  /**
-   * This function creates a custom svg style for the group.
-   * This function also makes collapse button and expand button defined above to emit
-   *   the collapse event and expand event that will be captured by JointJS paper
-   *   using event names *element:collapse* and *element:expand*
-   *
-   * @param width width of the group (used to position the collapse button)
-   * @returns the custom attributes of the group
-   */
-  public static getCustomGroupStyleAttrs(width: number): joint.shapes.devs.ModelSelectors {
-    const groupStyleAttrs = {
-      rect: {
-        fill: "#F2F4F5",
-        "follow-scale": true,
-        stroke: "#CED4D9",
-        "stroke-width": "2",
-        rx: "5px",
-        ry: "5px",
-      },
-      text: {
-        fill: "#595959",
-        "font-size": "16px",
-        "ref-x": 15,
-        "ref-y": 20,
-        ref: "rect",
-      },
-      ".collapse-button": {
-        x: width - 23,
-        y: 6,
-        cursor: "pointer",
-        fill: "#728393",
-        event: "element:collapse",
-      },
-      ".expand-button": {
-        x: 147,
-        y: 6,
-        cursor: "pointer",
-        fill: "#728393",
-        event: "element:expand",
-        display: "none",
-      },
-    };
-    return groupStyleAttrs;
-  }
-
   public static getCustomCommentStyleAttrs(): joint.shapes.devs.ModelSelectors {
-    const commentStyleAttrs = {
+    return {
       rect: {
         fill: "#F2F4F5",
         "follow-scale": true,
@@ -1000,7 +873,6 @@ export class JointUIService {
         event: "element:delete",
       },
     };
-    return commentStyleAttrs;
   }
 
   public static getJointUserPointerCell(coeditor: Coeditor, position: Point, color: string): joint.dia.Element {
