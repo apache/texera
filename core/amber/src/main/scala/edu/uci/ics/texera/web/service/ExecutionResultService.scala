@@ -243,14 +243,15 @@ class ExecutionResultService(
                 info.tupleCount
               )
               if (
-                StorageConfig.resultStorageMode.toLowerCase == "mongodb" && !opId.id
-                  .startsWith("sink")
+                StorageConfig.resultStorageMode.toLowerCase == "mongodb"
+                && !opId.id.startsWith("sink")
+                && sinkOperators(opId).getStorage.isInstanceOf[MongoDocument[Tuple]]
               ) {
-                val storageDocument: MongoDocument[Tuple] =
+                val mongoDocument: MongoDocument[Tuple] =
                   sinkOperators(opId).getStorage.asInstanceOf[MongoDocument[Tuple]]
-                val tableCatStats = storageDocument.getCategoricalStats
-                val tableDateStats = storageDocument.getDateColStats
-                val tableNumericStats = storageDocument.getNumericColStats
+                val tableCatStats = mongoDocument.getCategoricalStats
+                val tableDateStats = mongoDocument.getDateColStats
+                val tableNumericStats = mongoDocument.getNumericColStats
 
                 if (
                   tableNumericStats.nonEmpty || tableCatStats.nonEmpty || tableDateStats.nonEmpty
