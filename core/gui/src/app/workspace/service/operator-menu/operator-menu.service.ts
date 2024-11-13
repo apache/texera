@@ -360,7 +360,7 @@ export class OperatorMenuService {
 
         const links = Object.values(linksCopy);
 
-        // actually add all operators, links, groups to the workflow
+        // actually add all operators and links to the workflow
         try {
           this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, links);
         } catch (e) {
