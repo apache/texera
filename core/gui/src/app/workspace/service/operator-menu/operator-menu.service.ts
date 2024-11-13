@@ -35,8 +35,8 @@ type SerializedString = {
   providedIn: "root",
 })
 export class OperatorMenuService {
-  public effectivelyHighlightedOperators = new BehaviorSubject([] as readonly string[]);
-  public effectivelyHighlightedCommentBoxes = new BehaviorSubject([] as readonly string[]);
+  public highlightedOperators = new BehaviorSubject([] as readonly string[]);
+  public highlightedCommentBoxes = new BehaviorSubject([] as readonly string[]);
 
   // whether the disable-operator-button should be enabled
   public isDisableOperatorClickable: boolean = false;
@@ -66,7 +66,7 @@ export class OperatorMenuService {
       this.workflowActionService.getJointGraphWrapper().getJointGroupHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointGroupUnhighlightStream()
     ).subscribe(() => {
-      this.effectivelyHighlightedOperators.next(
+      this.highlightedOperators.next(
         this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()
       );
     });
@@ -75,12 +75,10 @@ export class OperatorMenuService {
       this.workflowActionService.getJointGraphWrapper().getJointCommentBoxHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointCommentBoxUnhighlightStream()
     ).subscribe(() => {
-      this.effectivelyHighlightedCommentBoxes.next(this.getEffectivelyHighlightedCommentBoxes());
+      this.highlightedCommentBoxes.next(
+        this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedCommentBoxIDs()
+      );
     });
-  }
-
-  public getEffectivelyHighlightedCommentBoxes(): readonly string[] {
-    return this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedCommentBoxIDs();
   }
 
   /**
@@ -89,14 +87,14 @@ export class OperatorMenuService {
    */
   public disableHighlightedOperators(): void {
     if (this.isDisableOperator) {
-      this.workflowActionService.disableOperators(this.effectivelyHighlightedOperators.value);
+      this.workflowActionService.disableOperators(this.highlightedOperators.value);
     } else {
-      this.workflowActionService.enableOperators(this.effectivelyHighlightedOperators.value);
+      this.workflowActionService.enableOperators(this.highlightedOperators.value);
     }
   }
 
   public viewResultHighlightedOperators(): void {
-    const effectiveHighlightedOperatorsExcludeSink = this.effectivelyHighlightedOperators.value.filter(
+    const effectiveHighlightedOperatorsExcludeSink = this.highlightedOperators.value.filter(
       op => !isSink(this.workflowActionService.getTexeraGraph().getOperator(op))
     );
 
@@ -108,7 +106,7 @@ export class OperatorMenuService {
   }
 
   public reuseResultHighlightedOperator(): void {
-    const effectiveHighlightedOperatorsExcludeSink = this.effectivelyHighlightedOperators.value.filter(
+    const effectiveHighlightedOperatorsExcludeSink = this.highlightedOperators.value.filter(
       op => !isSink(this.workflowActionService.getTexeraGraph().getOperator(op))
     );
 
@@ -126,28 +124,27 @@ export class OperatorMenuService {
    */
   handleDisableOperatorStatusChange() {
     merge(
-      this.effectivelyHighlightedOperators,
+      this.highlightedOperators,
       this.workflowActionService.getTexeraGraph().getDisabledOperatorsChangedStream(),
       this.workflowActionService.getWorkflowModificationEnabledStream()
     ).subscribe(event => {
-      const allDisabled = this.effectivelyHighlightedOperators.value.every(op =>
+      const allDisabled = this.highlightedOperators.value.every(op =>
         this.workflowActionService.getTexeraGraph().isOperatorDisabled(op)
       );
 
       this.isDisableOperator = !allDisabled;
       this.isDisableOperatorClickable =
-        this.effectivelyHighlightedOperators.value.length !== 0 &&
-        this.workflowActionService.checkWorkflowModificationEnabled();
+        this.highlightedOperators.value.length !== 0 && this.workflowActionService.checkWorkflowModificationEnabled();
     });
   }
 
   handleViewResultOperatorStatusChange() {
     merge(
-      this.effectivelyHighlightedOperators,
+      this.highlightedOperators,
       this.workflowActionService.getTexeraGraph().getViewResultOperatorsChangedStream(),
       this.workflowActionService.getWorkflowModificationEnabledStream()
     ).subscribe(event => {
-      const effectiveHighlightedOperatorsExcludeSink = this.effectivelyHighlightedOperators.value.filter(
+      const effectiveHighlightedOperatorsExcludeSink = this.highlightedOperators.value.filter(
         op => !isSink(this.workflowActionService.getTexeraGraph().getOperator(op))
       );
 
@@ -164,11 +161,11 @@ export class OperatorMenuService {
 
   handleReuseOperatorResultStatusChange() {
     merge(
-      this.effectivelyHighlightedOperators,
+      this.highlightedOperators,
       this.workflowActionService.getTexeraGraph().getReuseCacheOperatorsChangedStream(),
       this.workflowActionService.getWorkflowModificationEnabledStream()
     ).subscribe(event => {
-      const effectiveHighlightedOperatorsExcludeSink = this.effectivelyHighlightedOperators.value.filter(
+      const effectiveHighlightedOperatorsExcludeSink = this.highlightedOperators.value.filter(
         op => !isSink(this.workflowActionService.getTexeraGraph().getOperator(op))
       );
 

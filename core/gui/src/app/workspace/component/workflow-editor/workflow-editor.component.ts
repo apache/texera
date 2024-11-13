@@ -957,8 +957,8 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       )
       .subscribe(() => {
         if (
-          this.operatorMenu.effectivelyHighlightedOperators.value.length > 0 ||
-          this.operatorMenu.effectivelyHighlightedCommentBoxes.value.length > 0
+          this.operatorMenu.highlightedOperators.value.length > 0 ||
+          this.operatorMenu.highlightedCommentBoxes.value.length > 0
         ) {
           this.operatorMenu.saveHighlightedElements();
         }
@@ -979,8 +979,8 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       )
       .subscribe(() => {
         if (
-          this.operatorMenu.effectivelyHighlightedOperators.value.length > 0 ||
-          this.operatorMenu.effectivelyHighlightedCommentBoxes.value.length > 0
+          this.operatorMenu.highlightedOperators.value.length > 0 ||
+          this.operatorMenu.highlightedCommentBoxes.value.length > 0
         ) {
           this.operatorMenu.saveHighlightedElements();
           this.deleteElements();
