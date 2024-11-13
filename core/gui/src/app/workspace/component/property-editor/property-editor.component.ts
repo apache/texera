@@ -89,11 +89,7 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
         this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedCommentBoxIDs();
         const highlightedPorts = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedPortIDs();
 
-        if (
-          highlightedOperators.length === 1 &&
-          highlightLinks.length === 0 &&
-          highlightedPorts.length === 0
-        ) {
+        if (highlightedOperators.length === 1 && highlightLinks.length === 0 && highlightedPorts.length === 0) {
           this.currentComponent = OperatorPropertyEditFrameComponent;
           this.componentInputs = { currentOperatorId: highlightedOperators[0] };
         } else if (highlightedPorts.length === 1 && highlightLinks.length === 0) {

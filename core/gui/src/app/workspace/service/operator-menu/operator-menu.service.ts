@@ -66,7 +66,9 @@ export class OperatorMenuService {
       this.workflowActionService.getJointGraphWrapper().getJointGroupHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointGroupUnhighlightStream()
     ).subscribe(() => {
-      this.effectivelyHighlightedOperators.next(this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs());
+      this.effectivelyHighlightedOperators.next(
+        this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()
+      );
     });
 
     merge(
@@ -78,9 +80,7 @@ export class OperatorMenuService {
   }
 
   public getEffectivelyHighlightedCommentBoxes(): readonly string[] {
-    return this.workflowActionService
-      .getJointGraphWrapper()
-      .getCurrentHighlightedCommentBoxIDs();
+    return this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedCommentBoxIDs();
   }
 
   /**
