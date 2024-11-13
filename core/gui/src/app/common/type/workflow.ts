@@ -10,7 +10,6 @@ export interface WorkflowSettings {
  *  1. all existing operators and their properties
  *  2. operator's position on the JointJS paper
  *  3. operator link predicates
- *  4. operator groups
  *
  * When the user refreshes the browser, the CachedWorkflow interface will be
  *  automatically cached and loaded once the refresh completes. This information
