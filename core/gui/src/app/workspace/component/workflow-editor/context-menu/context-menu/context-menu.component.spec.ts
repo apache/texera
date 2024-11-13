@@ -26,12 +26,10 @@ describe("ContextMenuComponent", () => {
     // Create spies for the services
     jointGraphWrapperSpy = jasmine.createSpyObj("JointGraphWrapper", [
       "getCurrentHighlightedOperatorIDs",
-      "getCurrentHighlightedGroupIDs",
       "getCurrentHighlightedCommentBoxIDs",
     ]);
 
     jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.and.returnValue([]);
-    jointGraphWrapperSpy.getCurrentHighlightedGroupIDs.and.returnValue([]);
     jointGraphWrapperSpy.getCurrentHighlightedCommentBoxIDs.and.returnValue([]);
 
     const workflowActionServiceSpy = jasmine.createSpyObj("WorkflowActionService", [

@@ -34,8 +34,6 @@ type JointLinkChangeEvent = [joint.dia.Link, { x: number; y: number }, { ui: boo
 
 type JointPositionChangeEvent = [joint.dia.Element, { x: number; y: number }];
 
-type JointLayerChangeEvent = [joint.dia.Element | joint.dia.Link, number];
-
 type PositionInfo = {
   currPos: Point;
   lastPos: Point | undefined;
@@ -205,13 +203,6 @@ export class JointGraphWrapper {
     this.multiSelect = multiSelect;
   }
 
-  /**
-   * This method is used to get the current status of the multiselect mode.
-   */
-  public getMultiSelectMode(): boolean {
-    return this.multiSelect;
-  }
-
   public setReloadingWorkflow(reloadingWorkflow: boolean): void {
     this.reloadingWorkflow = reloadingWorkflow;
   }
@@ -229,17 +220,6 @@ export class JointGraphWrapper {
    */
   public getCurrentHighlightedOperatorIDs(): readonly string[] {
     return this.currentHighlightedOperators;
-  }
-
-  /**
-   * Gets the group ID of the current highlighted groups.
-   * Returns an empty list if there is no highlighted group.
-   *
-   * The returned array is not the original one so that other
-   * services/components can't modify it directly.
-   */
-  public getCurrentHighlightedGroupIDs(): readonly string[] {
-    return this.currentHighlightedGroups;
   }
 
   /**
@@ -315,35 +295,6 @@ export class JointGraphWrapper {
         };
       })
     );
-  }
-
-  /**
-   * Returns an Observable stream capturing the cell layer change event in JointJS graph.
-   * A cell can be an operator, a link, or a group element.
-   *
-   * - cellID: the moved cell's ID
-   * - newPosition: the cell's new layer
-   */
-  public getCellLayerChangeEvent(): Observable<{
-    cellID: string;
-    newLayer: number;
-  }> {
-    return fromEvent<JointLayerChangeEvent>(this.jointGraph, "change:z").pipe(
-      map(e => {
-        return {
-          cellID: e[0].id.toString(),
-          newLayer: e[1],
-        };
-      })
-    );
-  }
-
-  public highlightElements(elements: JointHighlights): void {
-    this.highlightOperators(...elements.operators);
-    this.highlightGroups(...elements.groups);
-    this.highlightLinks(...elements.links);
-    this.highlightCommentBoxes(...elements.commentBoxes);
-    this.highlightPorts(...elements.ports);
   }
 
   public unhighlightElements(elements: JointHighlights): void {
@@ -788,48 +739,6 @@ export class JointGraphWrapper {
   }
 
   /**
-   * Show the breakpoint button of a given link
-   * emits an event to the link breakpoint show stream.
-   * @param linkID
-   */
-  public showLinkBreakpoint(linkID: string): void {
-    if (!this.linksWithBreakpoints.includes(linkID)) {
-      this.linksWithBreakpoints.push(linkID);
-    }
-    this.jointLinkBreakpointShowStream.next({ linkID });
-  }
-
-  /**
-   * Hide the breakpoint button of a given link
-   * emits an event to the link breakpoint hide stream.
-   * @param linkID
-   */
-  public hideLinkBreakpoint(linkID: string): void {
-    if (!this.linksWithBreakpoints.includes(linkID)) {
-      return;
-    }
-    const LinkIndex = this.linksWithBreakpoints.indexOf(linkID);
-    this.linksWithBreakpoints.splice(LinkIndex, 1);
-    this.jointLinkBreakpointHideStream.next({ linkID });
-  }
-
-  /**
-   * This method resizes the element according to given width and height.
-   * An element can be an operator or a group.
-   */
-  public setElementSize(elementID: string, width: number, height: number): void {
-    const cell: joint.dia.Cell | undefined = this.jointGraph.getCell(elementID);
-    if (!cell) {
-      throw new Error(`element with ID ${elementID} doesn't exist`);
-    }
-    if (!cell.isElement()) {
-      throw new Error(`${elementID} is not an element`);
-    }
-    const element = <joint.dia.Element>cell;
-    element.resize(width, height);
-  }
-
-  /**
    * This method gets the cell's layer (z attribute) on the JointJS paper.
    * A cell can be an operator, a link, or a group element.
    */
@@ -839,18 +748,6 @@ export class JointGraphWrapper {
       throw new Error(`cell with ID ${cellID} doesn't exist`);
     }
     return cell.attributes.z || 0;
-  }
-
-  /**
-   * This method sets the cell's layer (z attribute) to the given layer.
-   * A cell can be an operator, a link, or a group element.
-   */
-  public setCellLayer(cellID: string, layer: number): void {
-    const cell: joint.dia.Cell | undefined = this.jointGraph.getCell(cellID);
-    if (!cell) {
-      throw new Error(`cell with ID ${cellID} doesn't exist`);
-    }
-    cell.set("z", layer);
   }
 
   /**
@@ -894,7 +791,6 @@ export class JointGraphWrapper {
     // if the multiselect mode is off, unhighlight other highlighted elements first
     if (!this.multiSelect) {
       this.unhighlightOperators(...this.getCurrentHighlightedOperatorIDs());
-      this.unhighlightGroups(...this.getCurrentHighlightedGroupIDs());
       this.unhighlightLinks(...this.getCurrentHighlightedLinkIDs());
       this.unhighlightCommentBoxes(...this.getCurrentHighlightedCommentBoxIDs());
       this.unhighlightPorts(...this.getCurrentHighlightedPortIDs());

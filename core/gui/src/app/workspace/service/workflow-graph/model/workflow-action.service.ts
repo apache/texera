@@ -325,43 +325,17 @@ export class WorkflowActionService {
   /**
    * Deletes given operators and links from the workflow graph.
    * @param operatorIDs
-   * @param linkIDs
-   * @param groupIDs
    */
-  public deleteOperatorsAndLinks(
-    operatorIDs: readonly string[],
-    linkIDs: readonly string[],
-    groupIDs?: readonly string[]
-  ): void {
-    // combines operators in selected groups and operators explicitly
-    const operatorIDsCopy = Array.from(
-      new Set(
-        operatorIDs.concat(
-          (groupIDs ?? []).flatMap(groupID =>
-            Array.from(this.operatorGroup.getGroup(groupID).operators.values()).map(
-              operatorInfo => operatorInfo.operator.operatorID
-            )
-          )
-        )
-      )
-    );
-
-    // save links to be deleted, including links explicitly deleted and implicitly deleted with their operators
-    const linksToDelete = new Map<OperatorLink, number>();
-
+  public deleteOperatorsAndLinks(operatorIDs: readonly string[]): void {
+    const operatorIDsCopy = Array.from(new Set(operatorIDs));
     this.texeraGraph.bundleActions(() => {
-      // delete links required by this command
-      linkIDs
-        .map(linkID => this.getTexeraGraph().getLinkWithID(linkID))
-        .forEach(link => linksToDelete.set(link, this.getOperatorGroup().getLinkLayerByGroup(link.linkID)));
       // delete links related to the deleted operator
       this.getTexeraGraph()
         .getAllLinks()
         .filter(
           link => operatorIDsCopy.includes(link.source.operatorID) || operatorIDsCopy.includes(link.target.operatorID)
         )
-        .forEach(link => linksToDelete.set(link, this.getOperatorGroup().getLinkLayerByGroup(link.linkID)));
-      linksToDelete.forEach((layer, link) => this.deleteLinkWithID(link.linkID));
+        .forEach(link => this.deleteLinkWithID(link.linkID));
       operatorIDsCopy.forEach(operatorID => {
         this.deleteOperator(operatorID);
       });
@@ -604,8 +578,7 @@ export class WorkflowActionService {
       this.deleteOperatorsAndLinks(
         this.getTexeraGraph()
           .getAllOperators()
-          .map(op => op.operatorID),
-        []
+          .map(op => op.operatorID)
       );
 
       this.getTexeraGraph()

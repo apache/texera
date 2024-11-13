@@ -33,11 +33,6 @@ export type LinkInfo = {
   layer: number;
 };
 
-export type GroupBoundingBox = {
-  topLeft: Point;
-  bottomRight: Point;
-};
-
 type restrictedMethods =
   | "addGroup"
   | "deleteGroup"
@@ -66,20 +61,6 @@ export class OperatorGroup {
    */
   public hasGroup(groupID: string): boolean {
     return this.groupIDMap.has(groupID);
-  }
-
-  /**
-   * Gets the group with the groupID.
-   * Throws an error if the group doesn't exist.
-   *
-   * @param groupID
-   */
-  public getGroup(groupID: string): Group {
-    const group = this.groupIDMap.get(groupID);
-    if (!group) {
-      throw new Error(`group with ID ${groupID} doesn't exist`);
-    }
-    return group;
   }
 
   /**

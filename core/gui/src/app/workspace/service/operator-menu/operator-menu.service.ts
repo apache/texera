@@ -1,9 +1,8 @@
 import { Injectable } from "@angular/core";
-import { environment } from "src/environments/environment";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { isSink } from "../workflow-graph/model/workflow-graph";
 import { BehaviorSubject, merge } from "rxjs";
-import { OperatorLink, OperatorPredicate, Point, CommentBox } from "../../types/workflow-common.interface";
+import { CommentBox, OperatorLink, OperatorPredicate, Point } from "../../types/workflow-common.interface";
 import { Group } from "../workflow-graph/model/operator-group";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
@@ -69,7 +68,7 @@ export class OperatorMenuService {
       this.workflowActionService.getJointGraphWrapper().getJointGroupHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointGroupUnhighlightStream()
     ).subscribe(() => {
-      this.effectivelyHighlightedOperators.next(this.getEffectivelyHighlightedOperators());
+      this.effectivelyHighlightedOperators.next(this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs());
     });
 
     merge(
@@ -80,28 +79,10 @@ export class OperatorMenuService {
     });
   }
 
-  /**
-   * Gets all highlighted operators, and all operators in the highlighted groups
-   */
-  public getEffectivelyHighlightedOperators(): readonly string[] {
-    const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-    const highlightedGroups = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
-
-    const operatorInHighlightedGroups: string[] = highlightedGroups.flatMap(g =>
-      Array.from(this.workflowActionService.getOperatorGroup().getGroup(g).operators.keys())
-    );
-
-    const effectiveHighlightedOperators = new Set<string>();
-    highlightedOperators.forEach(op => effectiveHighlightedOperators.add(op));
-    operatorInHighlightedGroups.forEach(op => effectiveHighlightedOperators.add(op));
-    return Array.from(effectiveHighlightedOperators);
-  }
-
   public getEffectivelyHighlightedCommentBoxes(): readonly string[] {
-    const highlightedCommentBoxes = this.workflowActionService
+    return this.workflowActionService
       .getJointGraphWrapper()
       .getCurrentHighlightedCommentBoxIDs();
-    return highlightedCommentBoxes;
   }
 
   /**

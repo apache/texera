@@ -920,11 +920,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
   }
 
   private deleteElements(): void {
-    this.workflowActionService.deleteOperatorsAndLinks(
-      this.wrapper.getCurrentHighlightedOperatorIDs(),
-      [],
-      this.wrapper.getCurrentHighlightedGroupIDs()
-    );
+    this.workflowActionService.deleteOperatorsAndLinks(this.wrapper.getCurrentHighlightedOperatorIDs(),);
     this.wrapper
       .getCurrentHighlightedCommentBoxIDs()
       .forEach(highlightedCommentBoxesID => this.workflowActionService.deleteCommentBox(highlightedCommentBoxesID));
