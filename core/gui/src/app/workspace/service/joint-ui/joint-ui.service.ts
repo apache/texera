@@ -3,7 +3,6 @@ import { OperatorMetadataService } from "../operator-metadata/operator-metadata.
 import { OperatorSchema } from "../../types/operator-schema.interface";
 import { abbreviateNumber } from "js-abbreviation-number";
 import { Point, OperatorPredicate, OperatorLink, CommentBox } from "../../types/workflow-common.interface";
-import { Group, GroupBoundingBox } from "../workflow-graph/model/operator-group";
 import { OperatorState, OperatorStatistics } from "../../types/execute-workflow.interface";
 import * as joint from "jointjs";
 import { fromEventPattern, Observable } from "rxjs";
@@ -386,43 +385,6 @@ export class JointUIService {
     });
   }
 
-  /**
-   * Gets the JointJS UI Element object based on the group.
-   * A JointJS Element could be added to the JointJS graph to let JointJS display the group accordingly.
-   *
-   * The function returns an element that has our custom style,
-   *  which is specified in getCustomGroupStyleAttrs().
-   *
-   * @param group
-   * @param topLeft the position of the operator (if there was one) that's in the top left corner of the group
-   * @param bottomRight the position of the operator (if there was one) that's in the bottom right corner of the group
-   */
-  public getJointGroupElement(group: Group, boundingBox: GroupBoundingBox): joint.dia.Element {
-    const { topLeft, bottomRight } = boundingBox;
-
-    const groupElementPosition = {
-      x: topLeft.x - JointUIService.DEFAULT_GROUP_MARGIN,
-      y: topLeft.y - JointUIService.DEFAULT_GROUP_MARGIN,
-    };
-    const widthMargin = JointUIService.DEFAULT_OPERATOR_WIDTH + 2 * JointUIService.DEFAULT_GROUP_MARGIN;
-    const heightMargin =
-      JointUIService.DEFAULT_OPERATOR_HEIGHT +
-      JointUIService.DEFAULT_GROUP_MARGIN +
-      JointUIService.DEFAULT_GROUP_MARGIN_BOTTOM;
-
-    const groupElement = new TexeraCustomGroupElement({
-      position: groupElementPosition,
-      size: {
-        width: bottomRight.x - topLeft.x + widthMargin,
-        height: bottomRight.y - topLeft.y + heightMargin,
-      },
-      attrs: JointUIService.getCustomGroupStyleAttrs(bottomRight.x - topLeft.x + widthMargin),
-    });
-
-    groupElement.set("id", group.groupID);
-    return groupElement;
-  }
-
   public changeOperatorState(jointPaper: joint.dia.Paper, operatorID: string, operatorState: OperatorState): void {
     let fillColor: string;
     switch (operatorState) {
@@ -454,49 +416,13 @@ export class JointUIService {
   }
 
   /**
-   * Hides the expand button and shows the collapse button of
-   * the given group on joint paper.
-   *
-   * @param jointPaper
-   * @param groupID
-   */
-  public hideGroupExpandButton(jointPaper: joint.dia.Paper, groupID: string): void {
-    jointPaper.getModelById(groupID).attr(".expand-button/display", "none");
-    jointPaper.getModelById(groupID).removeAttr(".collapse-button/display");
-  }
-
-  /**
-   * Hides the collapse button and shows the expand button of
-   * the given group on joint paper.
-   *
-   * @param jointPaper
-   * @param groupID
-   */
-  public hideGroupCollapseButton(jointPaper: joint.dia.Paper, groupID: string): void {
-    jointPaper.getModelById(groupID).attr(".collapse-button/display", "none");
-    jointPaper.getModelById(groupID).removeAttr(".expand-button/display");
-  }
-
-  /**
-   * Repositions the collapse button of the given group according
-   * to the group's (new) width.
-   *
-   * @param jointPaper
-   * @param groupID
-   * @param width
-   */
-  public repositionGroupCollapseButton(jointPaper: joint.dia.Paper, groupID: string, width: number): void {
-    jointPaper.getModelById(groupID).attr(".collapse-button/x", `${width - 23}`);
-  }
-
-  /**
    * This method will change the operator's color based on the validation status
    *  valid  : default color
    *  invalid: red
    *
    * @param jointPaper
    * @param operatorID
-   * @param status
+   * @param isOperatorValid
    */
   public changeOperatorColor(jointPaper: joint.dia.Paper, operatorID: string, isOperatorValid: boolean): void {
     if (isOperatorValid) {

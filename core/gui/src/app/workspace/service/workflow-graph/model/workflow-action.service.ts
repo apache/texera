@@ -20,7 +20,6 @@ import { UndoRedoService } from "../../undo-redo/undo-redo.service";
 import { WorkflowUtilService } from "../util/workflow-util.service";
 import { JointGraphWrapper } from "./joint-graph-wrapper";
 import { Group, OperatorGroup, OperatorGroupReadonly } from "./operator-group";
-import { SyncOperatorGroup } from "./sync-operator-group";
 import { SyncTexeraModel } from "./sync-texera-model";
 import { WorkflowGraph, WorkflowGraphReadonly } from "./workflow-graph";
 import { filter } from "rxjs/operators";
@@ -69,7 +68,6 @@ export class WorkflowActionService {
   private readonly jointGraph: joint.dia.Graph;
   private readonly jointGraphWrapper: JointGraphWrapper;
   private readonly syncTexeraModel: SyncTexeraModel;
-  private readonly syncOperatorGroup: SyncOperatorGroup;
   private readonly operatorGroup: OperatorGroup;
   private readonly sharedModelChangeHandler: SharedModelChangeHandler;
   // variable to temporarily hold the current workflow to switch view to a particular version
@@ -91,13 +89,9 @@ export class WorkflowActionService {
     this.texeraGraph = new WorkflowGraph();
     this.jointGraph = new joint.dia.Graph();
     this.jointGraphWrapper = new JointGraphWrapper(this.jointGraph);
-    this.operatorGroup = new OperatorGroup(
-      this.texeraGraph,
-      this.jointGraph,
-      this.jointGraphWrapper,
-      this.workflowUtilService,
-      this.jointUIService
-    );
+
+    this.operatorGroup = new OperatorGroup(this.jointGraphWrapper);
+
     this.syncTexeraModel = new SyncTexeraModel(this.texeraGraph, this.jointGraphWrapper, this.operatorGroup);
     this.sharedModelChangeHandler = new SharedModelChangeHandler(
       this.texeraGraph,
@@ -105,7 +99,6 @@ export class WorkflowActionService {
       this.jointGraphWrapper,
       this.jointUIService
     );
-    this.syncOperatorGroup = new SyncOperatorGroup(this.texeraGraph, this.jointGraphWrapper, this.operatorGroup);
     this.workflowMetadata = DEFAULT_WORKFLOW;
     this.workflowSettings = DEFAULT_SETTINGS;
     this.undoRedoService.setUndoManager(this.texeraGraph.sharedModel.undoManager);
@@ -292,7 +285,6 @@ export class WorkflowActionService {
    * @param operatorsAndPositions
    * @param links
    * @param groups
-   * @param breakpoints
    * @param commentBoxes
    */
   public addOperatorsAndLinks(
@@ -675,10 +667,6 @@ export class WorkflowActionService {
       this.getTexeraGraph().getLinkAddStream(),
       this.getTexeraGraph().getLinkDeleteStream(),
       this.getTexeraGraph().getPortAddedOrDeletedStream(),
-      this.getOperatorGroup().getGroupAddStream(),
-      this.getOperatorGroup().getGroupDeleteStream(),
-      this.getOperatorGroup().getGroupCollapseStream(),
-      this.getOperatorGroup().getGroupExpandStream(),
       this.getTexeraGraph().getOperatorPropertyChangeStream(),
       this.getTexeraGraph().getBreakpointChangeStream(),
       this.getJointGraphWrapper().getElementPositionChangeEvent(),

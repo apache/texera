@@ -127,7 +127,6 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     this.handleViewRemovePort();
     this.handlePortClick();
     this.handlePaperPan();
-    this.handleGroupResize();
     this.handleViewMouseoverOperator();
     this.handleViewMouseoutOperator();
     this.handlePortHighlightEvent();
@@ -284,25 +283,6 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
             const operatorInfo = parentGroup.operators.get(operatorID);
             assertType<OperatorInfo>(operatorInfo);
             operatorInfo.statistics = status[operatorID];
-          }
-        });
-      });
-
-    // listen for group expanding, and redraw operator statistics if they exist
-    this.workflowActionService
-      .getOperatorGroup()
-      .getGroupExpandStream()
-      .pipe(untilDestroyed(this))
-      .subscribe(group => {
-        group.operators.forEach((operatorInfo, operatorID) => {
-          if (operatorInfo.statistics) {
-            this.jointUIService.changeOperatorStatistics(
-              this.paper,
-              operatorID,
-              operatorInfo.statistics,
-              this.isSource(operatorID),
-              this.isSink(operatorID)
-            );
           }
         });
       });
@@ -835,44 +815,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     this.validationWorkflowService
       .getOperatorValidationStream()
       .pipe(untilDestroyed(this))
-      .subscribe(value => {
-        if (!this.workflowActionService.getOperatorGroup().getGroupByOperator(value.operatorID)?.collapsed) {
-          this.jointUIService.changeOperatorColor(this.paper, value.operatorID, value.validation.isValid);
-        }
-      });
-  }
-
-  /**
-   * Handles events that cause a group's size to change (collapse, expand, or
-   * resize), and hides or repositions the group's collapse/expand button.
-   *
-   * Since the collapse button's position is relative to a group's width,
-   * resizing the group will cause the button to be out of place.
-   */
-  private handleGroupResize(): void {
-    this.workflowActionService
-      .getOperatorGroup()
-      .getGroupCollapseStream()
-      .pipe(untilDestroyed(this))
-      .subscribe(group => {
-        this.jointUIService.hideGroupCollapseButton(this.paper, group.groupID);
-      });
-
-    this.workflowActionService
-      .getOperatorGroup()
-      .getGroupExpandStream()
-      .pipe(untilDestroyed(this))
-      .subscribe(group => {
-        this.jointUIService.hideGroupExpandButton(this.paper, group.groupID);
-      });
-
-    this.workflowActionService
-      .getOperatorGroup()
-      .getGroupResizeStream()
-      .pipe(untilDestroyed(this))
-      .subscribe(value => {
-        this.jointUIService.repositionGroupCollapseButton(this.paper, value.groupID, value.width);
-      });
+      .subscribe(value => this.jointUIService.changeOperatorColor(this.paper, value.operatorID, value.validation.isValid));
   }
 
   /**
