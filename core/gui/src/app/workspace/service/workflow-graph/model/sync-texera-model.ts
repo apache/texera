@@ -55,7 +55,6 @@ export class SyncTexeraModel {
         filter(
           link =>
             this.isValidJointLink(link) &&
-            this.operatorGroup.getSyncTexeraGraph() &&
             this.texeraGraph.getSyncTexeraGraph()
         ),
         map(link => SyncTexeraModel.getOperatorLink(link))
@@ -73,7 +72,6 @@ export class SyncTexeraModel {
         filter(
           link =>
             this.isValidJointLink(link) &&
-            this.operatorGroup.getSyncTexeraGraph() &&
             this.texeraGraph.getSyncTexeraGraph()
         ),
         map(link => SyncTexeraModel.getOperatorLink(link))
@@ -88,7 +86,7 @@ export class SyncTexeraModel {
     this.jointGraphWrapper
       .getJointLinkCellChangeStream()
       .pipe(
-        filter(() => this.operatorGroup.getSyncTexeraGraph() && this.texeraGraph.getSyncTexeraGraph()),
+        filter(() => this.texeraGraph.getSyncTexeraGraph()),
         // we intentionally want the side effect (delete the link) to happen **before** other operations in the chain
         tap(link => {
           const linkID = link.id.toString();

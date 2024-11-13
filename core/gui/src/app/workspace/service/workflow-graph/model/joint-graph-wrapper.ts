@@ -41,7 +41,6 @@ type PositionInfo = {
 
 export type JointHighlights = Readonly<{
   operators: readonly string[];
-  groups: readonly string[];
   links: readonly string[];
   commentBoxes: readonly string[];
   ports: readonly LogicalPort[];
@@ -95,8 +94,6 @@ export class JointGraphWrapper {
 
   // the currently highlighted operators' IDs
   private currentHighlightedOperators: string[] = [];
-  // the currently highlighted groups' IDs
-  private currentHighlightedGroups: string[] = [];
   // event stream of highlighting an operator
   private jointOperatorHighlightStream = new Subject<readonly string[]>();
   // event stream of un-highlighting an operator
@@ -240,7 +237,6 @@ export class JointGraphWrapper {
   public getCurrentHighlights(): JointHighlights {
     return {
       operators: this.currentHighlightedOperators,
-      groups: this.currentHighlightedGroups,
       links: this.currentHighlightedLinks,
       commentBoxes: this.currentHighlightedCommentBoxes,
       ports: this.currentHighlightedPorts,
@@ -250,7 +246,6 @@ export class JointGraphWrapper {
   public getCurrentHighlightedIDs(): readonly string[] {
     return [
       ...this.currentHighlightedOperators,
-      ...this.currentHighlightedGroups,
       ...this.currentHighlightedLinks,
       ...this.currentHighlightedCommentBoxes,
     ];
@@ -299,7 +294,6 @@ export class JointGraphWrapper {
 
   public unhighlightElements(elements: JointHighlights): void {
     this.unhighlightOperators(...elements.operators);
-    this.unhighlightGroups(...elements.groups);
     this.unhighlightLinks(...elements.links);
     this.unhighlightCommentBoxes(...elements.commentBoxes);
     this.unhighlightPorts(...elements.ports);
@@ -340,38 +334,6 @@ export class JointGraphWrapper {
 
     if (unhighlightedOperatorIDs.length > 0) {
       this.jointOperatorUnhighlightStream.next(unhighlightedOperatorIDs);
-    }
-  }
-
-  /**
-   * Highlights groups in the given list.
-   *
-   * Emits an event to the group highlight stream with a list of groupIDs
-   * that are highlighted.
-   *
-   * @param groupIDs
-   */
-  public highlightGroups(...groupIDs: string[]): void {
-    const highlightedGroupIDs: string[] = [];
-    groupIDs.forEach(groupID => this.highlightElement(groupID, this.currentHighlightedGroups, highlightedGroupIDs));
-    if (highlightedGroupIDs.length > 0) {
-      this.jointGroupHighlightStream.next(highlightedGroupIDs);
-    }
-  }
-
-  /**
-   * Unhighlights groups in the given list.
-   *
-   * Emits an event to the group unhighlight stream with a list of groupIDs
-   * that are unhighlighted.
-   *
-   * @param groupIDs
-   */
-  public unhighlightGroups(...groupIDs: string[]): void {
-    const unhighlightedGroupIDs: string[] = [];
-    groupIDs.forEach(groupID => this.unhighlightElement(groupID, this.currentHighlightedGroups, unhighlightedGroupIDs));
-    if (unhighlightedGroupIDs.length > 0) {
-      this.jointGroupUnhighlightStream.next(unhighlightedGroupIDs);
     }
   }
 
@@ -826,8 +788,6 @@ export class JointGraphWrapper {
       const deletedCellID = deletedCell.id.toString();
       if (this.currentHighlightedOperators.includes(deletedCellID)) {
         this.unhighlightOperators(deletedCellID);
-      } else if (this.currentHighlightedGroups.includes(deletedCellID)) {
-        this.unhighlightGroups(deletedCellID);
       } else if (this.currentHighlightedLinks.includes(deletedCellID)) {
         this.unhighlightLinks(deletedCellID);
       }

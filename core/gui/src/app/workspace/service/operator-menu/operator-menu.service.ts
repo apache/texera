@@ -3,7 +3,6 @@ import { WorkflowActionService } from "../workflow-graph/model/workflow-action.s
 import { isSink } from "../workflow-graph/model/workflow-graph";
 import { BehaviorSubject, merge } from "rxjs";
 import { CommentBox, OperatorLink, OperatorPredicate, Point } from "../../types/workflow-common.interface";
-import { Group } from "../workflow-graph/model/operator-group";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
@@ -22,7 +21,6 @@ type SerializedString = {
   operators: OperatorPredicate[];
   operatorPositions: OperatorPositions;
   links: OperatorLink[];
-  groups: [];
   commentBoxes: CommentBox[];
 };
 
@@ -197,7 +195,6 @@ export class OperatorMenuService {
       operators: [],
       operatorPositions: {},
       links: [],
-      groups: [],
       commentBoxes: [],
     };
 
@@ -302,7 +299,6 @@ export class OperatorMenuService {
 
         // define the arguments required for actually adding operators and links
         const operatorsAndPositions: { op: OperatorPredicate; pos: Point }[] = [];
-        const groups: Group[] = [];
         const positions: Point[] = [];
         // calling get() will give either the value or undefined
         // at this point, after checking the existence of fields in the operators in the clipboard,
@@ -369,7 +365,7 @@ export class OperatorMenuService {
 
         // actually add all operators, links, groups to the workflow
         try {
-          this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, links, groups);
+          this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, links);
         } catch (e) {
           this.notificationService.info(
             "Some of the links that you selected don't have operators attached to both ends of them. These links won't be pasted, since links can't exist without operators."
@@ -437,14 +433,6 @@ export class OperatorMenuService {
   private getNonOverlappingPosition(position: Point, positions: Point[]): Point {
     let overlapped = false;
     const operatorPositions = positions.concat(
-      this.workflowActionService
-        .getTexeraGraph()
-        .getAllOperators()
-        .map(operator => this.workflowActionService.getOperatorGroup().getOperatorPositionByGroup(operator.operatorID)),
-      this.workflowActionService
-        .getOperatorGroup()
-        .getAllGroups()
-        .map(group => this.workflowActionService.getJointGraphWrapper().getElementPosition(group.groupID)),
       this.workflowActionService
         .getTexeraGraph()
         .getAllCommentBoxes()

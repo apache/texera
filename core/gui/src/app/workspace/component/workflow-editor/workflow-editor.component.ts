@@ -2,14 +2,12 @@ import { AfterViewInit, ChangeDetectorRef, Component, OnDestroy } from "@angular
 import { fromEvent, merge, Subject } from "rxjs";
 import { NzModalCommentBoxComponent } from "./comment-box-modal/nz-modal-comment-box.component";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
-import { assertType } from "src/app/common/util/assert";
 import { environment } from "../../../../environments/environment";
 import { DragDropService } from "../../service/drag-drop/drag-drop.service";
 import { DynamicSchemaService } from "../../service/dynamic-schema/dynamic-schema.service";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { fromJointPaperEvent, JointUIService, linkPathStrokeColor } from "../../service/joint-ui/joint-ui.service";
 import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
-import { OperatorInfo } from "../../service/workflow-graph/model/operator-group";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
 import { ExecutionState, OperatorState } from "../../types/execute-workflow.interface";
@@ -263,27 +261,14 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
               operatorState: OperatorState.Recovering,
             };
           }
-          // if operator is part of a group, find it
-          const parentGroup = this.workflowActionService.getOperatorGroup().getGroupByOperator(operatorID);
 
-          // if operator is not in a group or in a group that isn't collapsed, it is okay to draw statistics on it
-          if (!parentGroup || !parentGroup.collapsed) {
-            this.jointUIService.changeOperatorStatistics(
-              this.paper,
-              operatorID,
-              status[operatorID],
-              this.isSource(operatorID),
-              this.isSink(operatorID)
-            );
-          }
-
-          // if operator is in a group, write statistics to the group's operatorInfo
-          // so that it can be restored if the group is collapsed and expanded.
-          if (parentGroup) {
-            const operatorInfo = parentGroup.operators.get(operatorID);
-            assertType<OperatorInfo>(operatorInfo);
-            operatorInfo.statistics = status[operatorID];
-          }
+          this.jointUIService.changeOperatorStatistics(
+            this.paper,
+            operatorID,
+            status[operatorID],
+            this.isSource(operatorID),
+            this.isSink(operatorID)
+          );
         });
       });
 
@@ -522,8 +507,6 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           // else only highlight a single operator or group
           if (this.workflowActionService.getTexeraGraph().hasOperator(elementID)) {
             this.workflowActionService.highlightOperators(<boolean>event[1].shiftKey, elementID);
-          } else if (this.workflowActionService.getOperatorGroup().hasGroup(elementID)) {
-            this.wrapper.highlightGroups(elementID);
           } else if (this.workflowActionService.getTexeraGraph().hasCommentBox(elementID)) {
             this.wrapper.highlightCommentBoxes(elementID);
           }
@@ -942,25 +925,17 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
           .getTexeraGraph()
           .getAllOperators()
           .map(operator => operator.operatorID)
-          .filter(
-            operatorID => !this.workflowActionService.getOperatorGroup().getGroupByOperator(operatorID)?.collapsed
-          );
         const allLinks = this.workflowActionService
           .getTexeraGraph()
           .getAllLinks()
           .map(link => link.linkID);
-        const allGroups = this.workflowActionService
-          .getOperatorGroup()
-          .getAllGroups()
-          .map(group => group.groupID);
         const allCommentBoxes = this.workflowActionService
           .getTexeraGraph()
           .getAllCommentBoxes()
           .map(CommentBox => CommentBox.commentBoxID);
-        this.wrapper.setMultiSelectMode(allOperators.length + allGroups.length + allCommentBoxes.length > 1);
+        this.wrapper.setMultiSelectMode(allOperators.length + allCommentBoxes.length > 1);
         this.workflowActionService.highlightLinks(allLinks.length > 1, ...allLinks);
-        this.workflowActionService.highlightOperators(allOperators.length + allGroups.length > 1, ...allOperators);
-        this.wrapper.highlightGroups(...allGroups);
+        this.workflowActionService.highlightOperators(allOperators.length > 1, ...allOperators);
         this.workflowActionService.highlightCommentBoxes(
           allOperators.length + allCommentBoxes.length > 1,
           ...allCommentBoxes

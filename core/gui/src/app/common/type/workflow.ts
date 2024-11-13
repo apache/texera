@@ -1,5 +1,4 @@
 import { WorkflowMetadata } from "../../dashboard/type/workflow-metadata.interface";
-import { PlainGroup } from "../../workspace/service/workflow-graph/model/operator-group";
 import { OperatorLink, OperatorPredicate, Point, CommentBox } from "../../workspace/types/workflow-common.interface";
 
 export interface WorkflowSettings {
@@ -24,7 +23,6 @@ export interface WorkflowContent
     operators: OperatorPredicate[];
     operatorPositions: { [key: string]: Point };
     links: OperatorLink[];
-    groups: PlainGroup[];
     commentBoxes: CommentBox[];
     settings: WorkflowSettings;
   }> {}
