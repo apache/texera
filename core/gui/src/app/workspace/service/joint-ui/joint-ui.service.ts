@@ -880,50 +880,6 @@ export class JointUIService {
     }
   }
 
-  /**
-   * This function creates a custom svg style for the group.
-   * This function also makes collapse button and expand button defined above to emit
-   *   the collapse event and expand event that will be captured by JointJS paper
-   *   using event names *element:collapse* and *element:expand*
-   *
-   * @param width width of the group (used to position the collapse button)
-   * @returns the custom attributes of the group
-   */
-  public static getCustomGroupStyleAttrs(width: number): joint.shapes.devs.ModelSelectors {
-    return {
-      rect: {
-        fill: "#F2F4F5",
-        "follow-scale": true,
-        stroke: "#CED4D9",
-        "stroke-width": "2",
-        rx: "5px",
-        ry: "5px",
-      },
-      text: {
-        fill: "#595959",
-        "font-size": "16px",
-        "ref-x": 15,
-        "ref-y": 20,
-        ref: "rect",
-      },
-      ".collapse-button": {
-        x: width - 23,
-        y: 6,
-        cursor: "pointer",
-        fill: "#728393",
-        event: "element:collapse",
-      },
-      ".expand-button": {
-        x: 147,
-        y: 6,
-        cursor: "pointer",
-        fill: "#728393",
-        event: "element:expand",
-        display: "none",
-      },
-    };
-  }
-
   public static getCustomCommentStyleAttrs(): joint.shapes.devs.ModelSelectors {
     return {
       rect: {
