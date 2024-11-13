@@ -381,7 +381,6 @@ describe("SyncTexeraModel", () => {
       );
 
       // construct the texera sync model with spied dependencies
-      // construct the texera sync model with spied dependencies
       const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper);
 
       jointGraphWrapper.getJointLinkCellDeleteStream().subscribe({
