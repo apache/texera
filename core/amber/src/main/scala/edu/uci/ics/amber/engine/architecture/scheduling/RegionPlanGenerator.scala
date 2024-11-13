@@ -204,6 +204,8 @@ abstract class RegionPlanGenerator(
       )
     )
 
+    matWriter.setOpResultStorage(opResultStorage)
+
     matWriter.getPhysicalOp(
       workflowContext.workflowId,
       workflowContext.executionId

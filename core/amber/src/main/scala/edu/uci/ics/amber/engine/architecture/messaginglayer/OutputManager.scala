@@ -192,9 +192,6 @@ class OutputManager(
   }
 
   def getSingleOutputPortIdentity: PortIdentity = {
-    if (ports.size != 1) {
-      println("pause here")
-    }
     assert(ports.size == 1)
     ports.head._1
   }
