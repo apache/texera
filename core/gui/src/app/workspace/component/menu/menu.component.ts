@@ -14,7 +14,7 @@ import { WorkflowActionService } from "../../service/workflow-graph/model/workfl
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
 import { WorkflowResultExportService } from "../../service/workflow-result-export/workflow-result-export.service";
-import { debounceTime, filter, mergeMap, tap } from "rxjs/operators";
+import { catchError, debounceTime, filter, mergeMap, tap } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
@@ -24,7 +24,7 @@ import { saveAs } from "file-saver";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { OperatorMenuService } from "../../service/operator-menu/operator-menu.service";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
-import { firstValueFrom, Subscription, timer } from "rxjs";
+import { firstValueFrom, of, Subscription, timer } from "rxjs";
 import { isDefined } from "../../../common/util/predicate";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { ResultExportationComponent } from "../result-exportation/result-exportation.component";
@@ -523,6 +523,24 @@ export class MenuComponent implements OnInit {
     this.workflowVersionService.revertToVersion();
     // after swapping the workflows to point to the particular version, persist it in DB
     this.persistWorkflow();
+  }
+
+  cloneVersion() {
+    this.workflowVersionService
+      .cloneWorkflowVersion()
+      .pipe(
+        catchError(() => {
+          this.notificationService.error("Failed to clone workflow. Please try again.");
+          return of(null);
+        }),
+        untilDestroyed(this)
+      )
+      .subscribe(new_wid => {
+        if (new_wid) {
+          this.notificationService.success("Workflow cloned successfully! New workflow ID: " + new_wid);
+          this.closeParticularVersionDisplay();
+        }
+      });
   }
 
   private registerWorkflowModifiableChangedHandler(): void {
