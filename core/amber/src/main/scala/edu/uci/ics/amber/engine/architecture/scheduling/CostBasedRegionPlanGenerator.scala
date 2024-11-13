@@ -194,8 +194,6 @@ class CostBasedRegionPlanGenerator(
     val queue: mutable.Queue[Set[PhysicalLink]] = mutable.Queue(Set.empty[PhysicalLink])
     // Keep track of visited states to avoid revisiting
     val visited: mutable.Set[Set[PhysicalLink]] = mutable.Set.empty[Set[PhysicalLink]]
-    // For O3: early stop
-    val schedulableStates: mutable.Set[Set[PhysicalLink]] = mutable.Set.empty[Set[PhysicalLink]]
     // Initialize the bestResult with an impossible high cost for comparison
     var bestResult: SearchResult = SearchResult(
       state = Set.empty,
@@ -213,8 +211,7 @@ class CostBasedRegionPlanGenerator(
       ) match {
         case Left(regionDAG) =>
           checkSchedulableState(regionDAG)
-          if (!oEarlyStop) expandFrontier()
-        // No need to explore further
+          expandFrontier()
         case Right(_) =>
           expandFrontier()
       }
@@ -224,7 +221,6 @@ class CostBasedRegionPlanGenerator(
         * and has a lower cost.
         */
       def checkSchedulableState(regionDAG: DirectedAcyclicGraph[Region, RegionLink]): Unit = {
-        if (oEarlyStop) schedulableStates.add(currentState)
         // Calculate the current state's cost and update the bestResult if it's lower
         val cost =
           evaluate(regionDAG.vertexSet().asScala.toSet, regionDAG.edgeSet().asScala.toSet)
@@ -251,15 +247,10 @@ class CostBasedRegionPlanGenerator(
           ) // Edges in chain with blocking edges should not be materialized
         }
 
-        var unvisitedNeighborStates = candidateEdges
+        val unvisitedNeighborStates = candidateEdges
           .map(edge => currentState + edge)
           .filter(neighborState =>
             !visited.contains(neighborState) && !queue.contains(neighborState)
-          )
-
-        if (oEarlyStop)
-          unvisitedNeighborStates = unvisitedNeighborStates.filter(neighborState =>
-            !schedulableStates.exists(ancestorState => ancestorState.subsetOf(neighborState))
           )
 
         if (globalSearch) {
