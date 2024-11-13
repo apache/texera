@@ -456,8 +456,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         filter(
           event =>
             this.workflowActionService.getTexeraGraph().hasOperator(event[0].model.id.toString()) ||
-            this.workflowActionService.getTexeraGraph().hasCommentBox(event[0].model.id.toString()) ||
-            this.workflowActionService.getOperatorGroup().hasGroup(event[0].model.id.toString())
+            this.workflowActionService.getTexeraGraph().hasCommentBox(event[0].model.id.toString())
         )
       )
       .pipe(untilDestroyed(this))
@@ -798,7 +797,9 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     this.validationWorkflowService
       .getOperatorValidationStream()
       .pipe(untilDestroyed(this))
-      .subscribe(value => this.jointUIService.changeOperatorColor(this.paper, value.operatorID, value.validation.isValid));
+      .subscribe(value =>
+        this.jointUIService.changeOperatorColor(this.paper, value.operatorID, value.validation.isValid)
+      );
   }
 
   /**
@@ -903,7 +904,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
   }
 
   private deleteElements(): void {
-    this.workflowActionService.deleteOperatorsAndLinks(this.wrapper.getCurrentHighlightedOperatorIDs(),);
+    this.workflowActionService.deleteOperatorsAndLinks(this.wrapper.getCurrentHighlightedOperatorIDs());
     this.wrapper
       .getCurrentHighlightedCommentBoxIDs()
       .forEach(highlightedCommentBoxesID => this.workflowActionService.deleteCommentBox(highlightedCommentBoxesID));
@@ -924,7 +925,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         const allOperators = this.workflowActionService
           .getTexeraGraph()
           .getAllOperators()
-          .map(operator => operator.operatorID)
+          .map(operator => operator.operatorID);
         const allLinks = this.workflowActionService
           .getTexeraGraph()
           .getAllLinks()

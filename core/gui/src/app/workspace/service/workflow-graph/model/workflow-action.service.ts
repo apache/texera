@@ -18,7 +18,6 @@ import { OperatorMetadataService } from "../../operator-metadata/operator-metada
 import { UndoRedoService } from "../../undo-redo/undo-redo.service";
 import { WorkflowUtilService } from "../util/workflow-util.service";
 import { JointGraphWrapper } from "./joint-graph-wrapper";
-import { OperatorGroup, OperatorGroupReadonly } from "./operator-group";
 import { SyncTexeraModel } from "./sync-texera-model";
 import { WorkflowGraph, WorkflowGraphReadonly } from "./workflow-graph";
 import { filter } from "rxjs/operators";
@@ -67,7 +66,6 @@ export class WorkflowActionService {
   private readonly jointGraph: joint.dia.Graph;
   private readonly jointGraphWrapper: JointGraphWrapper;
   private readonly syncTexeraModel: SyncTexeraModel;
-  private readonly operatorGroup: OperatorGroup;
   private readonly sharedModelChangeHandler: SharedModelChangeHandler;
   // variable to temporarily hold the current workflow to switch view to a particular version
   private tempWorkflow?: Workflow;
@@ -89,9 +87,7 @@ export class WorkflowActionService {
     this.jointGraph = new joint.dia.Graph();
     this.jointGraphWrapper = new JointGraphWrapper(this.jointGraph);
 
-    this.operatorGroup = new OperatorGroup();
-
-    this.syncTexeraModel = new SyncTexeraModel(this.texeraGraph, this.jointGraphWrapper, this.operatorGroup);
+    this.syncTexeraModel = new SyncTexeraModel(this.texeraGraph, this.jointGraphWrapper);
     this.sharedModelChangeHandler = new SharedModelChangeHandler(
       this.texeraGraph,
       this.jointGraph,
@@ -160,15 +156,6 @@ export class WorkflowActionService {
    */
   public getJointGraphWrapper(): JointGraphWrapper {
     return this.jointGraphWrapper;
-  }
-
-  /**
-   * Gets the read-only version of the OperatorGroup
-   *  which provides access to properties, event streams,
-   *  and some helper functions.
-   */
-  public getOperatorGroup(): OperatorGroupReadonly {
-    return this.operatorGroup;
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
