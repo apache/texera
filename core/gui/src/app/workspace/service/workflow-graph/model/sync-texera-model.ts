@@ -49,7 +49,8 @@ export class SyncTexeraModel {
     this.jointGraphWrapper
       .getJointLinkCellAddStream()
       .pipe(
-        filter(link => this.isValidJointLink(link) && this.texeraGraph.getSyncTexeraGraph()),
+        filter(link => this.isValidJointLink(link)),
+        filter(() => this.texeraGraph.getSyncTexeraGraph()),
         map(link => SyncTexeraModel.getOperatorLink(link))
       )
       .subscribe(link => this.texeraGraph.addLink(link));
@@ -62,7 +63,8 @@ export class SyncTexeraModel {
     this.jointGraphWrapper
       .getJointLinkCellDeleteStream()
       .pipe(
-        filter(link => this.isValidJointLink(link) && this.texeraGraph.getSyncTexeraGraph()),
+        filter(link => this.isValidJointLink(link)),
+        filter(() => this.texeraGraph.getSyncTexeraGraph()),
         map(link => SyncTexeraModel.getOperatorLink(link))
       )
       .subscribe(link => this.texeraGraph.deleteLinkWithID(link.linkID));
