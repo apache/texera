@@ -480,8 +480,8 @@ export class JointUIService {
    * This function converts a Texera source and target OperatorPort to
    *   a JointJS link cell <joint.dia.Link> that could be added to the JointJS.
    *
-   * @returns JointJS Link Cell
    * @param link
+   * @returns JointJS Link Cell
    */
   public static getJointLinkCell(link: OperatorLink): joint.dia.Link {
     const jointLinkCell = JointUIService.getDefaultLinkCell();
