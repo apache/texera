@@ -19,7 +19,6 @@ export const testWorkflowContent = (operatorTypes: string[]): WorkflowContent =>
     showAdvanced: false,
   })),
   commentBoxes: [],
-  groups: [],
   links: [],
   operatorPositions: {},
   settings: { dataTransferBatchSize: environment.defaultDataTransferBatchSize },

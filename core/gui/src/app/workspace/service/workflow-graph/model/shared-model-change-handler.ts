@@ -77,7 +77,6 @@ export class SharedModelChangeHandler {
             this.jointGraphWrapper.unhighlightElements({
               operators: this.jointGraphWrapper.getCurrentHighlightedOperatorIDs(),
               links: this.jointGraphWrapper.getCurrentHighlightedLinkIDs(),
-              groups: [],
               commentBoxes: [],
               ports: this.jointGraphWrapper.getCurrentHighlightedPortIDs(),
             });

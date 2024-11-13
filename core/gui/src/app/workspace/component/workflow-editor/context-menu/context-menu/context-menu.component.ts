@@ -38,11 +38,10 @@ export class ContextMenuComponent {
 
   public onDelete(): void {
     const highlightedOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-    const highlightedGroupIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
     const highlightedCommentBoxIDs = this.workflowActionService
       .getJointGraphWrapper()
       .getCurrentHighlightedCommentBoxIDs();
-    this.workflowActionService.deleteOperatorsAndLinks(highlightedOperatorIDs, [], highlightedGroupIDs);
+    this.workflowActionService.deleteOperatorsAndLinks(highlightedOperatorIDs);
     highlightedCommentBoxIDs.forEach(highlightedCommentBoxID =>
       this.workflowActionService.deleteCommentBox(highlightedCommentBoxID)
     );

@@ -3,7 +3,6 @@ import { Injectable } from "@angular/core";
 import * as joint from "jointjs";
 import { BehaviorSubject, merge, Observable, Subject } from "rxjs";
 import { Workflow, WorkflowContent, WorkflowSettings } from "../../../../common/type/workflow";
-import { mapToRecord, recordToMap } from "../../../../common/util/map";
 import { WorkflowMetadata } from "../../../../dashboard/type/workflow-metadata.interface";
 import {
   Comment,
@@ -19,8 +18,6 @@ import { OperatorMetadataService } from "../../operator-metadata/operator-metada
 import { UndoRedoService } from "../../undo-redo/undo-redo.service";
 import { WorkflowUtilService } from "../util/workflow-util.service";
 import { JointGraphWrapper } from "./joint-graph-wrapper";
-import { Group, OperatorGroup, OperatorGroupReadonly } from "./operator-group";
-import { SyncOperatorGroup } from "./sync-operator-group";
 import { SyncTexeraModel } from "./sync-texera-model";
 import { WorkflowGraph, WorkflowGraphReadonly } from "./workflow-graph";
 import { filter } from "rxjs/operators";
@@ -69,8 +66,6 @@ export class WorkflowActionService {
   private readonly jointGraph: joint.dia.Graph;
   private readonly jointGraphWrapper: JointGraphWrapper;
   private readonly syncTexeraModel: SyncTexeraModel;
-  private readonly syncOperatorGroup: SyncOperatorGroup;
-  private readonly operatorGroup: OperatorGroup;
   private readonly sharedModelChangeHandler: SharedModelChangeHandler;
   // variable to temporarily hold the current workflow to switch view to a particular version
   private tempWorkflow?: Workflow;
@@ -91,21 +86,14 @@ export class WorkflowActionService {
     this.texeraGraph = new WorkflowGraph();
     this.jointGraph = new joint.dia.Graph();
     this.jointGraphWrapper = new JointGraphWrapper(this.jointGraph);
-    this.operatorGroup = new OperatorGroup(
-      this.texeraGraph,
-      this.jointGraph,
-      this.jointGraphWrapper,
-      this.workflowUtilService,
-      this.jointUIService
-    );
-    this.syncTexeraModel = new SyncTexeraModel(this.texeraGraph, this.jointGraphWrapper, this.operatorGroup);
+
+    this.syncTexeraModel = new SyncTexeraModel(this.texeraGraph, this.jointGraphWrapper);
     this.sharedModelChangeHandler = new SharedModelChangeHandler(
       this.texeraGraph,
       this.jointGraph,
       this.jointGraphWrapper,
       this.jointUIService
     );
-    this.syncOperatorGroup = new SyncOperatorGroup(this.texeraGraph, this.jointGraphWrapper, this.operatorGroup);
     this.workflowMetadata = DEFAULT_WORKFLOW;
     this.workflowSettings = DEFAULT_SETTINGS;
     this.undoRedoService.setUndoManager(this.texeraGraph.sharedModel.undoManager);
@@ -170,15 +158,6 @@ export class WorkflowActionService {
     return this.jointGraphWrapper;
   }
 
-  /**
-   * Gets the read-only version of the OperatorGroup
-   *  which provides access to properties, event streams,
-   *  and some helper functions.
-   */
-  public getOperatorGroup(): OperatorGroupReadonly {
-    return this.operatorGroup;
-  }
-
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   //                                      Below are all the actions available.                                        //
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -215,12 +194,10 @@ export class WorkflowActionService {
   public deleteOperator(operatorID: string): void {
     this.unhighlightOperators(operatorID);
     this.texeraGraph.bundleActions(() => {
-      const linksToDelete = new Map<OperatorLink, number>();
       this.getTexeraGraph()
         .getAllLinks()
         .filter(link => link.source.operatorID === operatorID || link.target.operatorID === operatorID)
-        .forEach(link => linksToDelete.set(link, this.getOperatorGroup().getLinkLayerByGroup(link.linkID)));
-      linksToDelete.forEach((linkLayer, link) => this.deleteLinkWithID(link.linkID));
+        .forEach(link => this.deleteLinkWithID(link.linkID));
       this.texeraGraph.assertOperatorExists(operatorID);
       this.texeraGraph.deleteOperator(operatorID);
       if (this.texeraGraph.sharedModel.elementPositionMap.has(operatorID))
@@ -291,14 +268,11 @@ export class WorkflowActionService {
    * Adds given operators and links to the workflow graph.
    * @param operatorsAndPositions
    * @param links
-   * @param groups
-   * @param breakpoints
    * @param commentBoxes
    */
   public addOperatorsAndLinks(
     operatorsAndPositions: readonly { op: OperatorPredicate; pos: Point }[],
     links?: readonly OperatorLink[],
-    groups?: readonly Group[],
     commentBoxes?: ReadonlyArray<CommentBox>
   ): void {
     // remember currently highlighted operators and groups
@@ -333,43 +307,17 @@ export class WorkflowActionService {
   /**
    * Deletes given operators and links from the workflow graph.
    * @param operatorIDs
-   * @param linkIDs
-   * @param groupIDs
    */
-  public deleteOperatorsAndLinks(
-    operatorIDs: readonly string[],
-    linkIDs: readonly string[],
-    groupIDs?: readonly string[]
-  ): void {
-    // combines operators in selected groups and operators explicitly
-    const operatorIDsCopy = Array.from(
-      new Set(
-        operatorIDs.concat(
-          (groupIDs ?? []).flatMap(groupID =>
-            Array.from(this.operatorGroup.getGroup(groupID).operators.values()).map(
-              operatorInfo => operatorInfo.operator.operatorID
-            )
-          )
-        )
-      )
-    );
-
-    // save links to be deleted, including links explicitly deleted and implicitly deleted with their operators
-    const linksToDelete = new Map<OperatorLink, number>();
-
+  public deleteOperatorsAndLinks(operatorIDs: readonly string[]): void {
+    const operatorIDsCopy = Array.from(new Set(operatorIDs));
     this.texeraGraph.bundleActions(() => {
-      // delete links required by this command
-      linkIDs
-        .map(linkID => this.getTexeraGraph().getLinkWithID(linkID))
-        .forEach(link => linksToDelete.set(link, this.getOperatorGroup().getLinkLayerByGroup(link.linkID)));
       // delete links related to the deleted operator
       this.getTexeraGraph()
         .getAllLinks()
         .filter(
           link => operatorIDsCopy.includes(link.source.operatorID) || operatorIDsCopy.includes(link.target.operatorID)
         )
-        .forEach(link => linksToDelete.set(link, this.getOperatorGroup().getLinkLayerByGroup(link.linkID)));
-      linksToDelete.forEach((layer, link) => this.deleteLinkWithID(link.linkID));
+        .forEach(link => this.deleteLinkWithID(link.linkID));
       operatorIDsCopy.forEach(operatorID => {
         this.deleteOperator(operatorID);
       });
@@ -612,8 +560,7 @@ export class WorkflowActionService {
       this.deleteOperatorsAndLinks(
         this.getTexeraGraph()
           .getAllOperators()
-          .map(op => op.operatorID),
-        []
+          .map(op => op.operatorID)
       );
 
       this.getTexeraGraph()
@@ -639,22 +586,11 @@ export class WorkflowActionService {
 
       const links: OperatorLink[] = workflowContent.links;
 
-      const groups: readonly Group[] = workflowContent.groups.map(group => {
-        return {
-          groupID: group.groupID,
-          operators: recordToMap(group.operators),
-          links: recordToMap(group.links),
-          inLinks: group.inLinks,
-          outLinks: group.outLinks,
-          collapsed: group.collapsed,
-        };
-      });
-
       const commentBoxes = workflowContent.commentBoxes;
 
       operatorsAndPositions = this.updateOperatorVersions(operatorsAndPositions);
 
-      this.addOperatorsAndLinks(operatorsAndPositions, links, groups, commentBoxes);
+      this.addOperatorsAndLinks(operatorsAndPositions, links, commentBoxes);
 
       // restore the view point
       this.getJointGraphWrapper().restoreDefaultZoomAndOffset();
@@ -675,10 +611,6 @@ export class WorkflowActionService {
       this.getTexeraGraph().getLinkAddStream(),
       this.getTexeraGraph().getLinkDeleteStream(),
       this.getTexeraGraph().getPortAddedOrDeletedStream(),
-      this.getOperatorGroup().getGroupAddStream(),
-      this.getOperatorGroup().getGroupDeleteStream(),
-      this.getOperatorGroup().getGroupCollapseStream(),
-      this.getOperatorGroup().getGroupExpandStream(),
       this.getTexeraGraph().getOperatorPropertyChangeStream(),
       this.getTexeraGraph().getBreakpointChangeStream(),
       this.getJointGraphWrapper().getElementPositionChangeEvent(),
@@ -741,18 +673,6 @@ export class WorkflowActionService {
     const commentBoxes = texeraGraph.getAllCommentBoxes();
     const settings = this.workflowSettings;
 
-    const groups = this.getOperatorGroup()
-      .getAllGroups()
-      .map(group => {
-        return {
-          groupID: group.groupID,
-          operators: mapToRecord(group.operators),
-          links: mapToRecord(group.links),
-          inLinks: group.inLinks,
-          outLinks: group.outLinks,
-          collapsed: group.collapsed,
-        };
-      });
     texeraGraph
       .getAllOperators()
       .forEach(
@@ -765,7 +685,6 @@ export class WorkflowActionService {
       operators,
       operatorPositions,
       links,
-      groups,
       commentBoxes,
       settings,
     };

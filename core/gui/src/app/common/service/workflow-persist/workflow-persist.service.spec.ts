@@ -26,8 +26,7 @@ describe("WorkflowPersistService", () => {
     "\"target\":{\"operatorID\":\"SimpleSink-operator-e4a77a32-e3c9-4c40-a26d-a1aa103cc914\",\"portID\":\"input-0\"}}," +
     "{\"linkID\":\"link-c94e24a6-2c77-40cf-ba22-1a7ffba64b7d\",\"source\":{\"operatorID\":" +
     "\"MySQLSource-operator-1ee619b1-8884-4564-a136-29ef77dfcc50\",\"portID\":\"output-0\"},\"target\":" +
-    "{\"operatorID\":\"Limit-operator-a11370eb-940a-4f10-8b36-8b413b2396c9\",\"portID\":\"input-0\"}}]," +
-    "\"groups\":[],\"breakpoints\":{}}";
+    "{\"operatorID\":\"Limit-operator-a11370eb-940a-4f10-8b36-8b413b2396c9\",\"portID\":\"input-0\"}}],\"breakpoints\":{}}";
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],

@@ -1,5 +1,4 @@
 import { WorkflowMetadata } from "../../dashboard/type/workflow-metadata.interface";
-import { PlainGroup } from "../../workspace/service/workflow-graph/model/operator-group";
 import { OperatorLink, OperatorPredicate, Point, CommentBox } from "../../workspace/types/workflow-common.interface";
 
 export interface WorkflowSettings {
@@ -11,7 +10,6 @@ export interface WorkflowSettings {
  *  1. all existing operators and their properties
  *  2. operator's position on the JointJS paper
  *  3. operator link predicates
- *  4. operator groups
  *
  * When the user refreshes the browser, the CachedWorkflow interface will be
  *  automatically cached and loaded once the refresh completes. This information
@@ -24,7 +22,6 @@ export interface WorkflowContent
     operators: OperatorPredicate[];
     operatorPositions: { [key: string]: Point };
     links: OperatorLink[];
-    groups: PlainGroup[];
     commentBoxes: CommentBox[];
     settings: WorkflowSettings;
   }> {}
