@@ -61,7 +61,7 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
     public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId) {
         // Since during workflow compilation phase, the storage can be null, the writer should also be null
         // the writer will be set properly when workflow execution service receives the physical plan
-        final BufferedItemWriter<Tuple> writer = this.storage.write();
+        final BufferedItemWriter<Tuple> writer = this.storage.writer();
         return PhysicalOp.localPhysicalOp(
                         workflowId,
                         executionId,
@@ -105,10 +105,7 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
                             //   we can clean up this logic
                             if (this.storage instanceof MongoDocument) {
                                 MongoDocument<Tuple> storage = (MongoDocument<Tuple>)getStorage();
-                                storage.setSerde(
-                                        Tuple.toDocument(),
-                                        Tuple.fromDocument().apply(outputSchema)
-                                );
+                                storage.setDeserde(Tuple.fromDocument().apply(outputSchema));
                                 this.opResultStorage.setSchema(operatorIdentifier(), outputSchema);
                             }
                             // Convert the Java Map to a Scala immutable Map

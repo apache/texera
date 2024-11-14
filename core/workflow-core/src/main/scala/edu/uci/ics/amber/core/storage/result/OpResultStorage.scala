@@ -27,14 +27,19 @@ class OpResultStorage extends Serializable with LazyLogging {
     * Retrieve the result of an operator from OpResultStorage
     * @param key The key used for storage and retrieval.
     *            Currently it is the uuid inside the cache source or cache sink operator.
-    * @return The storage of this operator.
+    * @return The storage object of this operator.
     */
   def get(key: OperatorIdentity): VirtualDocument[Tuple] = {
     cache.get(key)._1
   }
 
-  def getSchema(key: OperatorIdentity): Schema = {
-    cache.get(key)._2.get
+  /**
+    * Retrieve the schema of the result associate with target operator
+    * @param key the uuid inside the cache source or cache sink operator.
+    * @return The result schema of this operator.
+    */
+  def getSchema(key: OperatorIdentity): Option[Schema] = {
+    cache.get(key)._2
   }
 
   def setSchema(key: OperatorIdentity, schema: Schema): Unit = {
@@ -53,13 +58,8 @@ class OpResultStorage extends Serializable with LazyLogging {
         new MemoryDocument[Tuple](key.id)
       } else {
         try {
-          val fromDocument: Option[Document => Tuple] = {
-            if (schema.isDefined)
-              Some(Tuple.fromDocument(schema.get))
-            else
-              None
-          }
-          new MongoDocument[Tuple](executionId + key, Some(Tuple.toDocument), fromDocument)
+          val fromDocument = schema.map(Tuple.fromDocument)
+          new MongoDocument[Tuple](executionId + key, Tuple.toDocument, fromDocument)
         } catch {
           case t: Throwable =>
             logger.warn("Failed to create mongo storage", t)
