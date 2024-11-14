@@ -126,7 +126,7 @@ class CostBasedRegionPlanGenerator(
     // Only a non-dependee blocking link that has not already been materialized should be replaced
     // with a materialization write op + materialization read op.
     val linksToMaterialize =
-      (searchResult.state ++ physicalPlan.nonMaterializedBlockingAndDependeeLinks).diff(
+      (searchResult.state ++ physicalPlan.getNonMaterializedBlockingAndDependeeLinks).diff(
         physicalPlan.getDependeeLinks
       )
     if (linksToMaterialize.nonEmpty) {
@@ -188,8 +188,11 @@ class CostBasedRegionPlanGenerator(
   ): SearchResult = {
     val startTime = System.nanoTime()
     val originalNonBlockingEdges =
-      if (oCleanEdges) physicalPlan.nonBridgeNonBlockingLinks
-      else physicalPlan.nonBlockingLinks // Optimization 2: Bridges
+      if (oCleanEdges) physicalPlan.getNonBridgeNonBlockingLinks
+      else
+        physicalPlan.links.diff(
+          physicalPlan.getNonMaterializedBlockingAndDependeeLinks
+        ) // Optimization 2: Bridges
     // Queue to hold states to be explored, starting with the empty set
     val queue: mutable.Queue[Set[PhysicalLink]] = mutable.Queue(Set.empty[PhysicalLink])
     // Keep track of visited states to avoid revisiting
@@ -207,7 +210,7 @@ class CostBasedRegionPlanGenerator(
       visited.add(currentState)
 
       tryConnectRegionDAG(
-        physicalPlan.nonMaterializedBlockingAndDependeeLinks ++ currentState
+        physicalPlan.getNonMaterializedBlockingAndDependeeLinks ++ currentState
       ) match {
         case Left(regionDAG) =>
           checkSchedulableState(regionDAG)
@@ -234,7 +237,7 @@ class CostBasedRegionPlanGenerator(
         */
       def expandFrontier(): Unit = {
         val allCurrentMaterializedEdges =
-          currentState ++ physicalPlan.nonMaterializedBlockingAndDependeeLinks
+          currentState ++ physicalPlan.getNonMaterializedBlockingAndDependeeLinks
         // Generate and enqueue all neighbour states that haven't been visited
         var candidateEdges = originalNonBlockingEdges
           .diff(currentState)
@@ -259,7 +262,7 @@ class CostBasedRegionPlanGenerator(
           if (unvisitedNeighborStates.nonEmpty) {
             val minCostNeighborState = unvisitedNeighborStates.minBy(neighborState =>
               tryConnectRegionDAG(
-                physicalPlan.nonMaterializedBlockingAndDependeeLinks ++ neighborState
+                physicalPlan.getNonMaterializedBlockingAndDependeeLinks ++ neighborState
               ) match {
                 case Left(regionDAG) =>
                   evaluate(regionDAG.vertexSet().asScala.toSet, regionDAG.edgeSet().asScala.toSet)

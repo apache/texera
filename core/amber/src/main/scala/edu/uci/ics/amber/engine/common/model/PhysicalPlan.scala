@@ -3,7 +3,6 @@ package edu.uci.ics.amber.engine.common.model
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
-import edu.uci.ics.amber.engine.common.model.RPGSearchPruningUtils.{getBridges, getMaxChains}
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   OperatorIdentity,
@@ -11,11 +10,13 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
 }
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, PartitionInfo, UnknownPartition}
+import org.jgrapht.alg.connectivity.BiconnectivityInspector
+import org.jgrapht.alg.shortestpath.AllDirectedPaths
 import org.jgrapht.graph.DirectedAcyclicGraph
 import org.jgrapht.traverse.TopologicalOrderIterator
 import org.jgrapht.util.SupplierUtil
 
-import scala.jdk.CollectionConverters.{IteratorHasAsScala, SetHasAsScala}
+import scala.jdk.CollectionConverters.{IteratorHasAsScala, ListHasAsScala, SetHasAsScala}
 
 object PhysicalPlan {
   def apply(context: WorkflowContext, logicalPlan: LogicalPlan): PhysicalPlan = {
@@ -81,16 +82,7 @@ case class PhysicalPlan(
     jgraphtDag
   }
 
-  // These lazy vals are used by CostBasedRegionPlanGenerator for search pruning.
-  @transient lazy val maxChains: Set[Set[PhysicalLink]] = getMaxChains(this.dag)
-
-  @transient lazy val nonMaterializedBlockingAndDependeeLinks: Set[PhysicalLink] =
-    this.getNonMaterializedBlockingAndDependeeLinks
-
-  @transient lazy val nonBlockingLinks: Set[PhysicalLink] = this.getNonBlockingLinks
-
-  @transient lazy val nonBridgeNonBlockingLinks: Set[PhysicalLink] =
-    this.getNonBridgeNonBlockingLinks
+  @transient lazy val maxChains: Set[Set[PhysicalLink]] = this.getMaxChains
 
   def getSourceOperatorIds: Set[PhysicalOpIdentity] =
     operatorMap.keys.filter(op => dag.inDegreeOf(op) == 0).toSet
@@ -217,11 +209,7 @@ case class PhysicalPlan(
     getOperator(link.toOpId).isSinkOperator
   }
 
-  /**
-    * The effective blocking edges also include dependee links and do not include links created as a result of adding
-    * materialization operators.
-    */
-  private def getNonMaterializedBlockingAndDependeeLinks: Set[PhysicalLink] = {
+  def getNonMaterializedBlockingAndDependeeLinks: Set[PhysicalLink] = {
     operators
       .flatMap { physicalOp =>
         {
@@ -265,20 +253,73 @@ case class PhysicalPlan(
     this.copy(operators, links.diff(getDependeeLinks))
   }
 
-  private def getNonBlockingLinks: Set[PhysicalLink] = {
-    this.links.diff(getNonMaterializedBlockingAndDependeeLinks)
-  }
-
   /**
-    * A non-blocking link is a clean edge if it is not in the same undirected cycle as in a blocking link, where an
-    * undirected cycle of a directed graph means a subgraph that forms a simple cycle after ignoring the directionality
-    * of its edges. A bridge is a special case of a clean edge. Due to the implementation complexity of finding
-    * undirected cycles, we use only bridges here.
+    * A link is a bridge if removal of that link would increase the number of (weakly) connected components in the DAG.
+    * Assuming pipelining a link is more desirable than materializing it, and optimal physical plan always pipelines
+    * a bridge. We can thus use bridges to optimize the process of searching for an optimal physical plan.
     *
     * @return All non-blocking links that are not bridges.
     */
-  private def getNonBridgeNonBlockingLinks: Set[PhysicalLink] = {
-    this.getNonBlockingLinks.diff(getBridges(this.dag, this.getNonBlockingLinks))
+  def getNonBridgeNonBlockingLinks: Set[PhysicalLink] = {
+    val bridges =
+      new BiconnectivityInspector[PhysicalOpIdentity, PhysicalLink](this.dag).getBridges.asScala
+        .map { edge =>
+          {
+            val fromOpId = this.dag.getEdgeSource(edge)
+            val toOpId = this.dag.getEdgeTarget(edge)
+            links.find(l => l.fromOpId == fromOpId && l.toOpId == toOpId)
+          }
+        }
+        .flatMap(_.toList)
+    this.links.diff(getNonMaterializedBlockingAndDependeeLinks).diff(bridges)
+  }
+
+  /**
+    * A chain in a physical plan is a path such that each of its operators (except the first and the last operators)
+    * is connected only to operators on the path. Assuming pipelining a link is more desirable than materializations,
+    * and optimal physical plan has at most one link on each chain. We can thus use chains to optimize the process of
+    * searching for an optimal physical plan. A maximal chain is a chain that is not a sub-path of any other chain.
+    * A maximal chain can cover the optimizations of all its sub-chains, so finding only maximal chains is adequate for
+    * optimization purposes. Note the definition of a chain has nothing to do with that of a connected component.
+    *
+    * @return All the maximal chains of this physical plan, where each chain is represented as a set of links.
+    */
+  private def getMaxChains: Set[Set[PhysicalLink]] = {
+    val dijkstra = new AllDirectedPaths[PhysicalOpIdentity, PhysicalLink](this.dag)
+    val chains = this.dag
+      .vertexSet()
+      .asScala
+      .flatMap { ancestor =>
+        {
+          this.dag.getDescendants(ancestor).asScala.flatMap { descendant =>
+            {
+              dijkstra
+                .getAllPaths(ancestor, descendant, true, Integer.MAX_VALUE)
+                .asScala
+                .filter(path =>
+                  path.getLength > 1 &&
+                    path.getVertexList.asScala
+                      .filter(v => v != path.getStartVertex && v != path.getEndVertex)
+                      .forall(v => this.dag.inDegreeOf(v) == 1 && this.dag.outDegreeOf(v) == 1)
+                )
+                .map(path =>
+                  path.getEdgeList.asScala
+                    .map { edge =>
+                      {
+                        val fromOpId = this.dag.getEdgeSource(edge)
+                        val toOpId = this.dag.getEdgeTarget(edge)
+                        links.find(l => l.fromOpId == fromOpId && l.toOpId == toOpId)
+                      }
+                    }
+                    .flatMap(_.toList)
+                    .toSet
+                )
+                .toSet
+            }
+          }
+        }
+      }
+    chains.filter(s1 => chains.forall(s2 => s1 == s2 || !s1.subsetOf(s2))).toSet
   }
 
 }
