@@ -26,12 +26,10 @@ describe("ContextMenuComponent", () => {
     // Create spies for the services
     jointGraphWrapperSpy = jasmine.createSpyObj("JointGraphWrapper", [
       "getCurrentHighlightedOperatorIDs",
-      "getCurrentHighlightedGroupIDs",
       "getCurrentHighlightedCommentBoxIDs",
     ]);
 
     jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.and.returnValue([]);
-    jointGraphWrapperSpy.getCurrentHighlightedGroupIDs.and.returnValue([]);
     jointGraphWrapperSpy.getCurrentHighlightedCommentBoxIDs.and.returnValue([]);
 
     const workflowActionServiceSpy = jasmine.createSpyObj("WorkflowActionService", [
@@ -55,8 +53,8 @@ describe("ContextMenuComponent", () => {
 
     // Create a mock for OperatorMenuService with necessary properties and methods
     operatorMenuService = {
-      effectivelyHighlightedOperators: new BehaviorSubject<any[]>([]),
-      effectivelyHighlightedCommentBoxes: new BehaviorSubject<any[]>([]),
+      highlightedOperators: new BehaviorSubject<any[]>([]),
+      highlightedCommentBoxes: new BehaviorSubject<any[]>([]),
       isDisableOperator: false,
       isDisableOperatorClickable: false,
       isToViewResult: false,

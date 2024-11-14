@@ -236,7 +236,6 @@ export class UserWorkflowComponent implements AfterViewInit {
     const emptyWorkflowContent: WorkflowContent = {
       operators: [],
       commentBoxes: [],
-      groups: [],
       links: [],
       operatorPositions: {},
       settings: { dataTransferBatchSize: environment.defaultDataTransferBatchSize },
