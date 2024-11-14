@@ -19,7 +19,6 @@ ThisBuild / conflictManager := ConflictManager.latestRevision
 // Restrict parallel execution of tests to avoid conflicts
 Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
 
-
 /////////////////////////////////////////////////////////////////////////////
 // Compiler Options
 /////////////////////////////////////////////////////////////////////////////
@@ -33,21 +32,34 @@ Compile / scalacOptions ++= Seq(
 )
 
 /////////////////////////////////////////////////////////////////////////////
+// Version Variables
+/////////////////////////////////////////////////////////////////////////////
+
+val dropwizardVersion = "4.0.7"
+val mockitoVersion = "5.4.0"
+val assertjVersion = "3.24.2"
+
+/////////////////////////////////////////////////////////////////////////////
+// Dependencies
+/////////////////////////////////////////////////////////////////////////////
+
+// Core Dependencies
+libraryDependencies ++= Seq(
+  "io.dropwizard" % "dropwizard-core" % dropwizardVersion,
+  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.15.2"
+)
+
+/////////////////////////////////////////////////////////////////////////////
 // Test-related Dependencies
 /////////////////////////////////////////////////////////////////////////////
 
 libraryDependencies ++= Seq(
-  "org.scalamock" %% "scalamock" % "5.2.0" % Test,                  // ScalaMock
-  "org.scalatest" %% "scalatest" % "3.2.15" % Test,                 // ScalaTest
-  "junit" % "junit" % "4.13.2" % Test,                              // JUnit
-  "com.novocode" % "junit-interface" % "0.11" % Test                // SBT interface for JUnit
+  "org.scalamock" %% "scalamock" % "5.2.0" % Test,                   // ScalaMock
+  "org.scalatest" %% "scalatest" % "3.2.17" % Test,                  // ScalaTest
+  "io.dropwizard" % "dropwizard-testing" % dropwizardVersion % Test, // Dropwizard Testing
+  "org.mockito" % "mockito-core" % mockitoVersion % Test,            // Mockito for mocking
+  "org.assertj" % "assertj-core" % assertjVersion % Test             // AssertJ for assertions
 )
 
-/////////////////////////////////////////////////////////////////////////////
-// Dropwizard-related Dependencies
-/////////////////////////////////////////////////////////////////////////////
-
-val dropwizardVersion = "4.0.7"
-libraryDependencies ++= Seq(
-  "io.dropwizard" % "dropwizard-core" % dropwizardVersion,
-)
+// Enable JUnit integration for ScalaTest
+Test / testFrameworks += new TestFramework("org.scalatest.tools.Framework")

@@ -16,10 +16,8 @@ class WorkflowCompilingService extends Application[WorkflowCompilingServiceConfi
       configuration: WorkflowCompilingServiceConfiguration,
       environment: Environment
   ): Unit = {
-    // serve backend at /api/texera
-    environment.jersey.setUrlPattern("/api/texera/*")
-    // register CORS filter
-    environment.jersey.register(classOf[CORSFilter])
+    // serve backend at /api
+    environment.jersey.setUrlPattern("/api/*")
     // register the compilation endpoint
     environment.jersey.register(classOf[WorkflowCompilationResource])
   }
@@ -32,7 +30,9 @@ object WorkflowCompilingService {
       .resolve("src")
       .resolve("main")
       .resolve("resources")
-      .resolve("workflow-compiling-service-config.yaml").toAbsolutePath.toString
+      .resolve("workflow-compiling-service-config.yaml")
+      .toAbsolutePath
+      .toString
 
     // Start the Dropwizard application
     new WorkflowCompilingService().run("server", configFilePath)
