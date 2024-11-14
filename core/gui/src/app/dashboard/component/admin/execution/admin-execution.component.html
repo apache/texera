@@ -10,7 +10,10 @@
 
 <nz-table
   #basicTable
-  [nzData]="listOfExecutions">
+  [nzData]="listOfExecutions"
+  [nzLoading]="isLoading"
+  [nzLoadingIndicator]="loadingTemplate"
+  [nzTemplateMode]="true">
   <thead>
     <tr>
       <th
@@ -141,3 +144,9 @@
     </tr>
   </tbody>
 </nz-table>
+
+<ng-template #loadingTemplate>
+  <div class="loading-container">
+    <nz-spin nzTip="Loading..." [nzSpinning]="true" nzSize="large"></nz-spin>
+  </div>
+</ng-template>

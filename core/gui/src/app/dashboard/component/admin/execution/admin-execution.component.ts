@@ -12,6 +12,7 @@ import { environment } from "../../../../../environments/environment";
 @UntilDestroy()
 @Component({
   templateUrl: "./admin-execution.component.html",
+  styleUrls: ["./admin-execution.component.scss"],
 })
 export class AdminExecutionComponent implements OnInit, OnDestroy {
   Executions: ReadonlyArray<Execution> = [];
@@ -19,6 +20,7 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
   listOfExecutions = [...this.Executions];
   workflows: Array<Workflow> = [];
   executionMap: Map<number, Execution> = new Map();
+  isLoading: boolean = true;
 
   // Set up an interval to periodically fetch and update execution data.
   // This interval function fetches the latest execution list and checks for updates.
@@ -75,6 +77,7 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
         this.listOfExecutions = [];
         this.reset();
         this.workflowsCount = this.listOfExecutions.length;
+        this.isLoading = false;
       });
   }
 
