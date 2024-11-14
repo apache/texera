@@ -112,4 +112,7 @@ object AmberConfig {
   if (getConfSource.hasPath("ai-assistant-server")) {
     aiAssistantConfig = Some(getConfSource.getConfig("ai-assistant-server"))
   }
+
+  val executionServerMode: String = getConfSource.getString("execution-server.mode")
+  val executionServerIsolation: String = getConfSource.getString("execution-server.isolation")
 }

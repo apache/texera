@@ -13,6 +13,8 @@ import { delayWhen, filter, map, retryWhen, tap } from "rxjs/operators";
 import { environment } from "../../../../environments/environment";
 import { AuthService } from "../../../common/service/user/auth.service";
 import { getWebsocketUrl } from "src/app/common/util/url";
+import { AppSettings } from "../../../common/app-setting";
+import { HttpClient } from "@angular/common/http";
 
 export const WS_HEARTBEAT_INTERVAL_MS = 10000;
 export const WS_RECONNECT_INTERVAL_MS = 3000;
@@ -30,7 +32,12 @@ export class WorkflowWebsocketService {
   private wsWithReconnectSubscription?: Subscription;
   private readonly webSocketResponseSubject: Subject<TexeraWebsocketEvent> = new Subject();
 
-  constructor() {
+  public getRuntime(wid: number): Observable<string> {
+    let BASE_URL = `${AppSettings.getApiEndpoint()}/runtime`;
+    return this.http.get(`${BASE_URL}/get/${wid}`, { responseType: "text" });
+  }
+
+  constructor(private http: HttpClient) {
     // setup heartbeat
     interval(WS_HEARTBEAT_INTERVAL_MS).subscribe(_ => this.send("HeartBeatRequest", {}));
   }
@@ -65,40 +72,43 @@ export class WorkflowWebsocketService {
   }
 
   public openWebsocket(wId: number) {
-    const websocketUrl =
-      getWebsocketUrl(WorkflowWebsocketService.TEXERA_WEBSOCKET_ENDPOINT, "") +
-      "?wid=" +
-      wId +
-      (environment.userSystemEnabled && AuthService.getAccessToken() !== null
-        ? "&access-token=" + AuthService.getAccessToken()
-        : "");
-    this.websocket = webSocket<TexeraWebsocketEvent | TexeraWebsocketRequest>(websocketUrl);
-    // setup reconnection logic
-    const wsWithReconnect = this.websocket.pipe(
-      retryWhen(errors =>
-        errors.pipe(
-          tap(_ => (this.isConnected = false)), // update connection status
-          tap(_ =>
-            console.log(`websocket connection lost, reconnecting in ${WS_RECONNECT_INTERVAL_MS / 1000} seconds`)
-          ),
-          delayWhen(_ => timer(WS_RECONNECT_INTERVAL_MS)), // reconnect after delay
-          tap(_ => {
-            this.send("HeartBeatRequest", {}); // try to send heartbeat immediately after reconnect
-          })
+    this.getRuntime(wId).subscribe(url => {
+      let port = new URL(url).port;
+      const websocketUrl =
+        getWebsocketUrl(url, WorkflowWebsocketService.TEXERA_WEBSOCKET_ENDPOINT, port) +
+        "?wid=" +
+        wId +
+        (environment.userSystemEnabled && AuthService.getAccessToken() !== null
+          ? "&access-token=" + AuthService.getAccessToken()
+          : "");
+      this.websocket = webSocket<TexeraWebsocketEvent | TexeraWebsocketRequest>(websocketUrl);
+      // setup reconnection logic
+      const wsWithReconnect = this.websocket.pipe(
+        retryWhen(errors =>
+          errors.pipe(
+            tap(_ => (this.isConnected = false)), // update connection status
+            tap(_ =>
+              console.log(`websocket connection lost, reconnecting in ${WS_RECONNECT_INTERVAL_MS / 1000} seconds`)
+            ),
+            delayWhen(_ => timer(WS_RECONNECT_INTERVAL_MS)), // reconnect after delay
+            tap(_ => {
+              this.send("HeartBeatRequest", {}); // try to send heartbeat immediately after reconnect
+            })
+          )
         )
-      )
-    );
-    // set up event listener on re-connectable websocket observable
-    this.wsWithReconnectSubscription = wsWithReconnect.subscribe(event =>
-      this.webSocketResponseSubject.next(event as TexeraWebsocketEvent)
-    );
+      );
+      // set up event listener on re-connectable websocket observable
+      this.wsWithReconnectSubscription = wsWithReconnect.subscribe(event =>
+        this.webSocketResponseSubject.next(event as TexeraWebsocketEvent)
+      );
 
-    // refresh connection status
-    this.websocketEvent().subscribe(evt => {
-      if (evt.type === "ClusterStatusUpdateEvent") {
-        this.numWorkers = evt.numWorkers;
-      }
-      this.isConnected = true;
+      // refresh connection status
+      this.websocketEvent().subscribe(evt => {
+        if (evt.type === "ClusterStatusUpdateEvent") {
+          this.numWorkers = evt.numWorkers;
+        }
+        this.isConnected = true;
+      });
     });
   }
 

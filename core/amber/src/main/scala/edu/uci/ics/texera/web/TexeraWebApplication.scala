@@ -17,6 +17,7 @@ import edu.uci.ics.amber.engine.common.model.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity
 import Utils.{maptoStatusCode, objectMapper}
+import com.twitter.util.FuturePool
 import edu.uci.ics.texera.web.auth.JwtAuth.jwtConsumer
 import edu.uci.ics.texera.web.auth.{
   GuestAuthFilter,
@@ -71,6 +72,7 @@ import java.time.Duration
 import scala.concurrent.duration.DurationInt
 import org.apache.commons.jcs3.access.exception.InvalidArgumentException
 
+import java.io.{BufferedReader, InputStreamReader}
 import java.net.URI
 import scala.annotation.tailrec
 
@@ -118,6 +120,57 @@ object TexeraWebApplication {
     nextOption(Map(), args.toList)
   }
 
+  def redirectStream(inputStream: java.io.InputStream, outputStream: java.io.PrintStream): Unit = {
+    // Use a Future to handle each stream redirection asynchronously
+    FuturePool.unboundedPool {
+      val reader = new BufferedReader(new InputStreamReader(inputStream))
+      var line: String = null
+      while ({
+        line = reader.readLine(); line != null
+      }) {
+        outputStream.println(line)
+      }
+    }
+  }
+
+  private def startLocalProcess(newMainClass: String): Process = {
+    val javaHome = sys.props("java.home")
+    val javaBin = s"$javaHome/bin/java"
+    val classpath = sys.props("java.class.path")
+
+    // Essential JVM options you want to keep (modify as needed)
+    val jvmOptions = Seq(
+      "-Dfile.encoding=UTF-8",
+      "-classpath",
+      classpath
+    )
+
+    // Main class and arguments
+    val mainClass = newMainClass
+
+    // Construct the command
+    val command = Seq(javaBin) ++ jvmOptions ++ Seq(mainClass)
+
+    // Start the new process
+    val process = new ProcessBuilder(command: _*).start()
+
+    // Redirect child process stdout and stderr to main process
+    // Note that InputStream IS the stdout.
+    redirectStream(process.getInputStream, System.out)
+    redirectStream(process.getErrorStream, System.err)
+
+    // Register a shutdown hook to terminate the new process when the original process exits
+    sys.addShutdownHook {
+      println(s"Shutting down $newMainClass process...")
+      process.destroy() // Gracefully stop the new process
+      if (process.isAlive) {
+        process.destroyForcibly() // Forcefully stop if it’s still running
+      }
+      println(s"$newMainClass process terminated.")
+    }
+    process
+  }
+
   def main(args: Array[String]): Unit = {
     val argMap = parseArgs(args)
 
@@ -130,6 +183,11 @@ object TexeraWebApplication {
     // start actor system master node
 //    AmberRuntime.startActorMaster(clusterMode)
 
+    if (
+      AmberConfig.executionServerMode == "local" && AmberConfig.executionServerIsolation == "shared"
+    ) {
+      startLocalProcess("edu.uci.ics.texera.web.ExecutionRuntimeApplication")
+    }
     // start web server
     new TexeraWebApplication().run(
       "server",
@@ -152,7 +210,6 @@ class TexeraWebApplication
     // serve static frontend GUI files
     bootstrap.addBundle(new FileAssetsBundle("../gui/dist", "/", "index.html"))
     // add websocket bundle
-    bootstrap.addBundle(new WebsocketBundle(classOf[ProxyWebsocketResource]))
     bootstrap.addBundle(new WebsocketBundle(classOf[CollaborationResource]))
     // register scala module to dropwizard default object mapper
     bootstrap.getObjectMapper.registerModule(DefaultScalaModule)
@@ -264,6 +321,7 @@ class TexeraWebApplication
     environment.jersey.register(classOf[UserQuotaResource])
     environment.jersey.register(classOf[UserDiscussionResource])
     environment.jersey.register(classOf[AIAssistantResource])
+    environment.jersey.register(classOf[ExecutionRuntimeResource])
   }
 
   /**

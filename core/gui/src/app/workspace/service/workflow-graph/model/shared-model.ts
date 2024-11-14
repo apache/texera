@@ -82,7 +82,9 @@ export class SharedModel {
    * @private
    */
   private static getYWebSocketBaseUrl() {
-    return environment.productionSharedEditingServer ? getWebsocketUrl("rtc", "") : "ws://localhost:1234";
+    return environment.productionSharedEditingServer
+      ? getWebsocketUrl(document.baseURI, "rtc", "")
+      : "ws://localhost:1234";
   }
 
   /**

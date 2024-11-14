@@ -63,7 +63,8 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
 
   constructor(
     private adminExecutionService: AdminExecutionService,
-    private modalService: NzModalService
+    private modalService: NzModalService,
+    private websocketService: WorkflowWebsocketService
   ) {}
 
   ngOnInit() {
@@ -274,9 +275,8 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
    Therefore, commenting the code to ensure the connections is established and request has been sent.
    */
   killExecution(wid: number) {
-    let socket = new WorkflowWebsocketService();
-    socket.openWebsocket(wid);
-    socket.send("WorkflowKillRequest", {});
+    this.websocketService.openWebsocket(wid);
+    this.websocketService.send("WorkflowKillRequest", {});
     // socket.closeWebsocket();
   }
 
@@ -285,9 +285,8 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
    Therefore, commenting the code to ensure the connections is established and request has been sent.
    */
   pauseExecution(wid: number) {
-    let socket = new WorkflowWebsocketService();
-    socket.openWebsocket(wid);
-    socket.send("WorkflowPauseRequest", {});
+    this.websocketService.openWebsocket(wid);
+    this.websocketService.send("WorkflowPauseRequest", {});
     // socket.closeWebsocket();
   }
 
@@ -296,9 +295,8 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
    Therefore, commenting the code to ensure the connections is established and request has been sent.
    */
   resumeExecution(wid: number) {
-    let socket = new WorkflowWebsocketService();
-    socket.openWebsocket(wid);
-    socket.send("WorkflowResumeRequest", {});
+    this.websocketService.openWebsocket(wid);
+    this.websocketService.send("WorkflowResumeRequest", {});
     // socket.closeWebsocket();
   }
 

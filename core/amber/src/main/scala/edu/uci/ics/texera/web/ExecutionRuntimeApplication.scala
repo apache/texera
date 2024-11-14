@@ -32,10 +32,9 @@ object ExecutionRuntimeApplication {
   }
 }
 
-
-
-class ExecutionRuntimeApplication extends io.dropwizard.Application[Configuration]
-  with LazyLogging {
+class ExecutionRuntimeApplication
+    extends io.dropwizard.Application[Configuration]
+    with LazyLogging {
 
   override def initialize(bootstrap: Bootstrap[Configuration]): Unit = {
     // add websocket bundle

@@ -5,8 +5,7 @@
 /**
  * Generate a websocket URL based on a server endpoint.
  */
-export function getWebsocketUrl(endpoint: string, port: string): string {
-  const baseURI = document.baseURI;
+export function getWebsocketUrl(baseURI: string, endpoint: string, port: string): string {
   const hostname = new URL(baseURI).hostname;
   let webSocketUrl;
   if (port !== "") {
