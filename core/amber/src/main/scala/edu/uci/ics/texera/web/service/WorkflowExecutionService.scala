@@ -16,7 +16,7 @@ import edu.uci.ics.texera.web.model.websocket.request.WorkflowExecuteRequest
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
 import edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionMetadataStore
-import edu.uci.ics.texera.web.{SubscriptionManager, TexeraWebApplication, WebsocketInput}
+import edu.uci.ics.texera.web.{ExecutionRuntimeApplication, SubscriptionManager, WebsocketInput}
 import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, WorkflowCompiler}
 
 import java.net.URI
@@ -93,7 +93,7 @@ class WorkflowExecutionService(
       executionStateStore
     )
 
-    client = TexeraWebApplication.createAmberRuntime(
+    client = ExecutionRuntimeApplication.createAmberRuntime(
       workflowContext,
       workflow.physicalPlan,
       resultService.opResultStorage,

@@ -2,7 +2,7 @@ server:
   applicationContextPath: /
   applicationConnectors:
     - type: http
-      port: 8085  # The port for your WebSocket connections
+      port: 0  # pick a random available port
 
   # Disable the admin connectors if you don't need an admin interface
   adminConnectors: []

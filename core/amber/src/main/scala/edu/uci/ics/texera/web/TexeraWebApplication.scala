@@ -5,19 +5,17 @@ import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.github.dirkraft.dropwizard.fileassets.FileAssetsBundle
 import com.github.toastshaman.dropwizard.auth.jwt.JwtAuthFilter
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
   COMPLETED,
   FAILED
 }
 import edu.uci.ics.amber.engine.common.AmberRuntime.scheduleRecurringCallThroughActorSystem
-import edu.uci.ics.amber.engine.common.{AmberConfig, AmberRuntime, Utils}
-import edu.uci.ics.amber.engine.common.client.AmberClient
-import edu.uci.ics.amber.engine.common.model.{PhysicalPlan, WorkflowContext}
+import edu.uci.ics.amber.engine.common.{AmberConfig, Utils}
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity
 import Utils.{maptoStatusCode, objectMapper}
 import com.twitter.util.FuturePool
+import edu.uci.ics.texera.web.TexeraWebApplication.spawnExecutionService
 import edu.uci.ics.texera.web.auth.JwtAuth.jwtConsumer
 import edu.uci.ics.texera.web.auth.{
   GuestAuthFilter,
@@ -60,6 +58,7 @@ import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
 import edu.uci.ics.texera.web.storage.MongoDatabaseManager
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import io.dropwizard.auth.{AuthDynamicFeature, AuthValueFactoryProvider}
+import io.dropwizard.lifecycle.ServerLifecycleListener
 import io.dropwizard.setup.{Bootstrap, Environment}
 import io.dropwizard.websockets.WebsocketBundle
 import org.eclipse.jetty.server.session.SessionHandler
@@ -70,11 +69,10 @@ import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 
 import java.time.Duration
 import scala.concurrent.duration.DurationInt
-import org.apache.commons.jcs3.access.exception.InvalidArgumentException
+import org.eclipse.jetty.server.Server
 
 import java.io.{BufferedReader, InputStreamReader}
 import java.net.URI
-import scala.annotation.tailrec
 
 object TexeraWebApplication {
 
@@ -85,39 +83,6 @@ object TexeraWebApplication {
     datasetPaths.foreach(path => {
       GitVersionControlLocalFileStorage.discardUncommittedChanges(path)
     })
-  }
-
-  def createAmberRuntime(
-      workflowContext: WorkflowContext,
-      physicalPlan: PhysicalPlan,
-      opResultStorage: OpResultStorage,
-      conf: ControllerConfig,
-      errorHandler: Throwable => Unit
-  ): AmberClient = {
-    new AmberClient(
-      AmberRuntime.actorSystem,
-      workflowContext,
-      physicalPlan,
-      opResultStorage,
-      conf,
-      errorHandler
-    )
-  }
-
-  type OptionMap = Map[Symbol, Any]
-  def parseArgs(args: Array[String]): OptionMap = {
-    @tailrec
-    def nextOption(map: OptionMap, list: List[String]): OptionMap = {
-      list match {
-        case Nil => map
-        case "--cluster" :: value :: tail =>
-          nextOption(map ++ Map(Symbol("cluster") -> value.toBoolean), tail)
-        case option :: tail =>
-          throw new InvalidArgumentException("unknown command-line arg")
-      }
-    }
-
-    nextOption(Map(), args.toList)
   }
 
   def redirectStream(inputStream: java.io.InputStream, outputStream: java.io.PrintStream): Unit = {
@@ -133,7 +98,7 @@ object TexeraWebApplication {
     }
   }
 
-  private def startLocalProcess(newMainClass: String): Process = {
+  private def startLocalProcess(newMainClass: String, args: Seq[String]): Process = {
     val javaHome = sys.props("java.home")
     val javaBin = s"$javaHome/bin/java"
     val classpath = sys.props("java.class.path")
@@ -149,7 +114,7 @@ object TexeraWebApplication {
     val mainClass = newMainClass
 
     // Construct the command
-    val command = Seq(javaBin) ++ jvmOptions ++ Seq(mainClass)
+    val command = Seq(javaBin) ++ jvmOptions ++ Seq(mainClass) ++ args
 
     // Start the new process
     val process = new ProcessBuilder(command: _*).start()
@@ -171,23 +136,24 @@ object TexeraWebApplication {
     process
   }
 
-  def main(args: Array[String]): Unit = {
-    val argMap = parseArgs(args)
+  def spawnExecutionService(mainServerAddr: String): Unit = {
+    if (AmberConfig.executionServerMode == "jvm") {
+      startLocalProcess(
+        "edu.uci.ics.texera.web.ExecutionRuntimeApplication",
+        Seq("--main-server", mainServerAddr)
+      )
+    } else {
+      //k8s setting
+      ???
+    }
+  }
 
-    val clusterMode = argMap.get(Symbol("cluster")).asInstanceOf[Option[Boolean]].getOrElse(false)
+  def main(args: Array[String]): Unit = {
 
     // TODO: figure out a safety way of calling discardUncommittedChangesOfAllDatasets
     // Currently in kubernetes, multiple pods calling this function can result into thread competition
     // discardUncommittedChangesOfAllDatasets()
 
-    // start actor system master node
-//    AmberRuntime.startActorMaster(clusterMode)
-
-    if (
-      AmberConfig.executionServerMode == "local" && AmberConfig.executionServerIsolation == "shared"
-    ) {
-      startLocalProcess("edu.uci.ics.texera.web.ExecutionRuntimeApplication")
-    }
     // start web server
     new TexeraWebApplication().run(
       "server",
@@ -322,6 +288,14 @@ class TexeraWebApplication
     environment.jersey.register(classOf[UserDiscussionResource])
     environment.jersey.register(classOf[AIAssistantResource])
     environment.jersey.register(classOf[ExecutionRuntimeResource])
+
+    if (AmberConfig.executionServerIsolation == "shared") {
+      environment.lifecycle.addServerLifecycleListener(new ServerLifecycleListener() {
+        def serverStarted(server: Server): Unit = {
+          spawnExecutionService(AmberConfig.mainServerIP + ":" + getLocalPort(server))
+        }
+      })
+    }
   }
 
   /**

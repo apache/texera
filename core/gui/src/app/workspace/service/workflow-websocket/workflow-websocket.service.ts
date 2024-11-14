@@ -14,7 +14,7 @@ import { environment } from "../../../../environments/environment";
 import { AuthService } from "../../../common/service/user/auth.service";
 import { getWebsocketUrl } from "src/app/common/util/url";
 import { AppSettings } from "../../../common/app-setting";
-import { HttpClient } from "@angular/common/http";
+import { HttpClient, HttpParams } from "@angular/common/http";
 
 export const WS_HEARTBEAT_INTERVAL_MS = 10000;
 export const WS_RECONNECT_INTERVAL_MS = 3000;
@@ -32,9 +32,10 @@ export class WorkflowWebsocketService {
   private wsWithReconnectSubscription?: Subscription;
   private readonly webSocketResponseSubject: Subject<TexeraWebsocketEvent> = new Subject();
 
-  public getRuntime(wid: number): Observable<string> {
+  public getRuntime(wid: number, uid: number | undefined): Observable<string> {
     let BASE_URL = `${AppSettings.getApiEndpoint()}/runtime`;
-    return this.http.get(`${BASE_URL}/get/${wid}`, { responseType: "text" });
+    const params = new HttpParams().set("wid", wid).set("uid", uid ?? 0);
+    return this.http.get(`${BASE_URL}/get`, { params, responseType: "text" });
   }
 
   constructor(private http: HttpClient) {
@@ -71,8 +72,8 @@ export class WorkflowWebsocketService {
     this.websocket?.complete();
   }
 
-  public openWebsocket(wId: number) {
-    this.getRuntime(wId).subscribe(url => {
+  public openWebsocket(wId: number, uId: number | undefined) {
+    this.getRuntime(wId, uId).subscribe(url => {
       let port = new URL(url).port;
       const websocketUrl =
         getWebsocketUrl(url, WorkflowWebsocketService.TEXERA_WEBSOCKET_ENDPOINT, port) +
@@ -112,8 +113,8 @@ export class WorkflowWebsocketService {
     });
   }
 
-  public reopenWebsocket(wId: number) {
+  public reopenWebsocket(wId: number, uId: number | undefined) {
     this.closeWebsocket();
-    this.openWebsocket(wId);
+    this.openWebsocket(wId, uId);
   }
 }
