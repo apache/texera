@@ -134,18 +134,19 @@ describe("DownloadService", () => {
   });
 
   it("should download a dataset version successfully", done => {
-    const versionPath = "path/to/version";
+    const datasetId = 1;
+    const datasetVersionId = 1;
     const datasetName = "TestDataset";
     const versionName = "v1.0";
     const mockBlob = new Blob(["version content"], { type: "application/zip" });
 
     datasetServiceSpy.retrieveDatasetZip.and.returnValue(of(mockBlob));
 
-    downloadService.downloadDatasetVersion(versionPath, datasetName, versionName).subscribe({
+    downloadService.downloadDatasetVersion(datasetId, datasetVersionId, datasetName, versionName).subscribe({
       next: blob => {
         expect(blob).toBe(mockBlob);
         expect(notificationServiceSpy.info).toHaveBeenCalledWith("Starting to download version v1.0 as ZIP");
-        expect(datasetServiceSpy.retrieveDatasetZip).toHaveBeenCalledWith({ path: versionPath });
+        expect(datasetServiceSpy.retrieveDatasetZip).toHaveBeenCalledWith({ did: datasetId, dvid: datasetVersionId });
         expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledWith(mockBlob, "TestDataset-v1.0.zip");
         expect(notificationServiceSpy.success).toHaveBeenCalledWith("Version v1.0 has been downloaded as ZIP");
         done();
@@ -157,21 +158,22 @@ describe("DownloadService", () => {
   });
 
   it("should handle dataset version download failure correctly", done => {
-    const versionPath = "path/to/version";
+    const datasetId = 1;
+    const datasetVersionId = 1;
     const datasetName = "TestDataset";
     const versionName = "v1.0";
     const errorMessage = "Dataset version download failed";
 
     datasetServiceSpy.retrieveDatasetZip.and.returnValue(throwError(() => new Error(errorMessage)));
 
-    downloadService.downloadDatasetVersion(versionPath, datasetName, versionName).subscribe({
+    downloadService.downloadDatasetVersion(datasetId, datasetVersionId, datasetName, versionName).subscribe({
       next: () => {
         fail("Should have thrown an error");
       },
       error: (error: unknown) => {
         expect(error).toBeTruthy();
         expect(notificationServiceSpy.info).toHaveBeenCalledWith("Starting to download version v1.0 as ZIP");
-        expect(datasetServiceSpy.retrieveDatasetZip).toHaveBeenCalledWith({ path: versionPath });
+        expect(datasetServiceSpy.retrieveDatasetZip).toHaveBeenCalledWith({ did: datasetId, dvid: datasetVersionId });
         expect(fileSaverServiceSpy.saveAs).not.toHaveBeenCalled();
         expect(notificationServiceSpy.error).toHaveBeenCalledWith("Error downloading version 'v1.0' as ZIP");
         done();

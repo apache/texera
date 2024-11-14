@@ -10,9 +10,9 @@ from core.proxy import ProxyClient
 from core.runnables.network_receiver import NetworkReceiver
 from core.runnables.network_sender import NetworkSender
 from core.util.proto import set_one_of
+from proto.edu.uci.ics.amber.engine.architecture.rpc import ControlInvocation
 from proto.edu.uci.ics.amber.engine.common import (
     ActorVirtualIdentity,
-    ControlInvocationV2,
     ControlPayloadV2,
 )
 
@@ -138,7 +138,7 @@ class TestNetworkReceiver:
         network_sender_thread,
     ):
         worker_id = ActorVirtualIdentity(name="test")
-        control_payload = set_one_of(ControlPayloadV2, ControlInvocationV2())
+        control_payload = set_one_of(ControlPayloadV2, ControlInvocation())
         input_queue.put(ControlElement(tag=worker_id, payload=control_payload))
         network_sender_thread.start()
         element: ControlElement = output_queue.get()

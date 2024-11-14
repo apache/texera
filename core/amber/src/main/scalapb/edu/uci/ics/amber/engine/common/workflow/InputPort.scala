@@ -13,13 +13,13 @@ final case class InputPort(
     dependencies: _root_.scala.Seq[edu.uci.ics.amber.engine.common.workflow.PortIdentity] = _root_.scala.Seq.empty
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[InputPort] {
     @transient
-    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
-    private[this] def __computeSerializedValue(): _root_.scala.Int = {
+    private[this] var __serializedSizeMemoized: _root_.scala.Int = 0
+    private[this] def __computeSerializedSize(): _root_.scala.Int = {
       var __size = 0
       
       {
         val __value = id
-        if (__value != edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance) {
+        if (__value.serializedSize != 0) {
           __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
         }
       };
@@ -44,17 +44,18 @@ final case class InputPort(
       __size
     }
     override def serializedSize: _root_.scala.Int = {
-      var read = __serializedSizeCachedValue
-      if (read == 0) {
-        read = __computeSerializedValue()
-        __serializedSizeCachedValue = read
+      var __size = __serializedSizeMemoized
+      if (__size == 0) {
+        __size = __computeSerializedSize() + 1
+        __serializedSizeMemoized = __size
       }
-      read
+      __size - 1
+      
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       {
         val __v = id
-        if (__v != edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance) {
+        if (__v.serializedSize != 0) {
           _output__.writeTag(1, 2)
           _output__.writeUInt32NoTag(__v.serializedSize)
           __v.writeTo(_output__)
@@ -83,7 +84,7 @@ final case class InputPort(
     def withDisplayName(__v: _root_.scala.Predef.String): InputPort = copy(displayName = __v)
     def withAllowMultiLinks(__v: _root_.scala.Boolean): InputPort = copy(allowMultiLinks = __v)
     def clearDependencies = copy(dependencies = _root_.scala.Seq.empty)
-    def addDependencies(__vs: edu.uci.ics.amber.engine.common.workflow.PortIdentity*): InputPort = addAllDependencies(__vs)
+    def addDependencies(__vs: edu.uci.ics.amber.engine.common.workflow.PortIdentity *): InputPort = addAllDependencies(__vs)
     def addAllDependencies(__vs: Iterable[edu.uci.ics.amber.engine.common.workflow.PortIdentity]): InputPort = copy(dependencies = dependencies ++ __vs)
     def withDependencies(__v: _root_.scala.Seq[edu.uci.ics.amber.engine.common.workflow.PortIdentity]): InputPort = copy(dependencies = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
@@ -113,7 +114,7 @@ final case class InputPort(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion = edu.uci.ics.amber.engine.common.workflow.InputPort
+    def companion: edu.uci.ics.amber.engine.common.workflow.InputPort.type = edu.uci.ics.amber.engine.common.workflow.InputPort
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.InputPort])
 }
 

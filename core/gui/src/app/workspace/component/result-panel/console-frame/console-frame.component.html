@@ -81,7 +81,7 @@
             <ng-template #customHeader>
               <div class="collapse-message-header">{{ entry.title }}</div>
             </ng-template>
-            <div class="console-message">{{entry.message}}</div>
+            <div class="console-message">{{ entry.message }}</div>
           </nz-collapse-panel>
         </nz-collapse>
         <div
@@ -104,7 +104,7 @@
             <nz-tag
               *ngIf="showSource"
               class="source-tag">
-              {{entry.source}}
+              {{ entry.source }}
             </nz-tag>
           </div>
           <div
@@ -113,14 +113,14 @@
             <nz-tag
               *ngIf="showTimestamp"
               class="timestamp-tag">
-              {{(entry.timestamp.seconds * 1000 + entry.timestamp.nanos * 0.000001) | date : "M-d-yy, HH:mm:ss.SSS"}}
+              {{ (entry.timestamp.seconds * 1000 + entry.timestamp.nanos * 0.000001) | date : "M-d-yy, HH:mm:ss.SSS" }}
             </nz-tag>
             <nz-tag
               *ngIf="entry.workerId"
               class="worker-tag"
               [nzColor]="getWorkerColor(getWorkerIndex(entry.workerId))">
-              {{workerIdToAbbr(entry.workerId)}}</nz-tag
-            >
+              {{ workerIdToAbbr(entry.workerId) }}
+            </nz-tag>
           </div>
         </div>
       </div>
@@ -136,7 +136,7 @@
   <div>
     <button
       (click)="onClickSkipTuples()"
-      [disabled]="true"
+      [disabled]="false"
       nzSize="small"
       nz-tooltip
       nzTooltipTitle="Skip the faulty Tuple"
@@ -144,9 +144,10 @@
       <span
         nz-icon
         nzType="delete-row"
-        nzTheme="outline"></span>
+        nzTheme="outline">
+      </span>
+      Skip Tuple
     </button>
-
     <button
       (click)="onClickRetryTuples()"
       [disabled]="false"
@@ -159,6 +160,33 @@
         nzType="redo"
         nzTheme="outline">
       </span>
+      Retry Tuple
+    </button>
+    <button
+      (click)="onClickStep()"
+      nz-button
+      nzSize="small"
+      nz-tooltip
+      nzTooltipTitle="Step"
+      title="Step">
+      <i
+        nz-icon
+        nzTheme="outline"
+        nzType="vertical-left"></i>
+      Step
+    </button>
+    <button
+      (click)="onClickContinue()"
+      nz-button
+      nz-tooltip
+      nzTooltipTitle="Continue"
+      nzSize="small"
+      title="Continue">
+      <i
+        nz-icon
+        nzTheme="outline"
+        nzType="right"></i>
+      Continue
     </button>
   </div>
 

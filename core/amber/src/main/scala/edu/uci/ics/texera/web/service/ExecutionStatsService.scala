@@ -2,12 +2,14 @@ package edu.uci.ics.texera.web.service
 
 import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.architecture.controller.Controller.WorkflowRecoveryStatus
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
+import edu.uci.ics.amber.engine.architecture.controller.{
   ExecutionStatsUpdate,
   FatalError,
-  WorkerAssignmentUpdate
+  WorkerAssignmentUpdate,
+  WorkflowRecoveryStatus
 }
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.FAILED
 import edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping
 import edu.uci.ics.amber.engine.common.{AmberConfig, Utils}
 import edu.uci.ics.amber.engine.common.client.AmberClient
@@ -30,10 +32,8 @@ import edu.uci.ics.amber.engine.common.workflowruntimestate.{
   OperatorMetrics,
   OperatorStatistics,
   OperatorWorkerMapping,
-  WorkflowAggregatedState,
   WorkflowFatalError
 }
-import edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowAggregatedState.FAILED
 
 import java.time.Instant
 import org.jooq.types.{UInteger, ULong}

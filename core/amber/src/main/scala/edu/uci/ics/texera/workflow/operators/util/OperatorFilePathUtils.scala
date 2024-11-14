@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.util
 
 import edu.uci.ics.amber.engine.common.AmberConfig
-import edu.uci.ics.amber.engine.common.storage.DatasetFileDocument
+import edu.uci.ics.amber.engine.common.storage.DatasetDirectoryDocument
 
 import java.nio.file.Paths
 
@@ -11,10 +11,10 @@ object OperatorFilePathUtils {
   def determineFilePathOrDatasetFile(
       fileName: Option[String],
       isFile: Boolean = true
-  ): (String, DatasetFileDocument) = {
+  ): (String, DatasetDirectoryDocument) = {
     if (AmberConfig.isUserSystemEnabled) {
       // if user system is defined, a datasetFileDesc will be initialized, which is the handle of reading file from the dataset
-      val datasetFile = Some(new DatasetFileDocument(Paths.get(fileName.get), isFile))
+      val datasetFile = Some(new DatasetDirectoryDocument(Paths.get(fileName.get), isFile))
       val file = datasetFile.getOrElse(
         throw new RuntimeException("Dataset file descriptor is not provided.")
       )

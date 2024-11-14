@@ -25,13 +25,13 @@ class AttributeType(Enum):
 
 RAW_TYPE_MAPPING = bidict(
     {
-        "string": AttributeType.STRING,
-        "integer": AttributeType.INT,
-        "long": AttributeType.LONG,
-        "double": AttributeType.DOUBLE,
-        "boolean": AttributeType.BOOL,
-        "timestamp": AttributeType.TIMESTAMP,
-        "binary": AttributeType.BINARY,
+        "STRING": AttributeType.STRING,
+        "INTEGER": AttributeType.INT,
+        "LONG": AttributeType.LONG,
+        "DOUBLE": AttributeType.DOUBLE,
+        "BOOLEAN": AttributeType.BOOL,
+        "TIMESTAMP": AttributeType.TIMESTAMP,
+        "BINARY": AttributeType.BINARY,
     }
 )
 

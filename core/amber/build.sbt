@@ -163,10 +163,17 @@ libraryDependencies ++= hadoopDependencies
 
 PB.protocVersion := "3.19.4"
 
+enablePlugins(Fs2Grpc)
+
+fs2GrpcOutputPath := (Compile / sourceDirectory).value / "scalapb"
+Compile / unmanagedSourceDirectories += (Compile / sourceDirectory).value / "scalapb"
+
 Compile / PB.targets := Seq(
   scalapb.gen(
     singleLineToProtoString = true
-  ) -> (Compile / sourceDirectory).value / "scalapb"
+  ) -> (Compile / sourceDirectory).value / "scalapb",
+  // let fs2 compile grpc-related proto, skip other protos in fs2 compilation pipeline.
+  scalapbCodeGenerators.value(1)
 )
 
 libraryDependencies ++= Seq(

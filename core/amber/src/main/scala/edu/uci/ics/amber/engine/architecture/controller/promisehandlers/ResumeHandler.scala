@@ -1,16 +1,11 @@
 package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.ExecutionStatsUpdate
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ResumeHandler.ResumeWorker
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, EmptyRequest}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-
-object ResumeHandler {
-  final case class ResumeWorkflow() extends ControlCommand[Unit]
-}
+import edu.uci.ics.amber.engine.architecture.controller.ExecutionStatsUpdate
 
 /** resume the entire workflow
   *
@@ -19,36 +14,35 @@ object ResumeHandler {
 trait ResumeHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
-  registerHandler[ResumeWorkflow, Unit] { (msg, sender) =>
-    {
-
-      // send all workers resume
-      // resume message has no effect on non-paused workers
-      Future
-        .collect(
-          cp.workflowExecution.getRunningRegionExecutions
-            .flatMap(_.getAllOperatorExecutions.map(_._2))
-            .flatMap(_.getWorkerIds)
-            .map { workerId =>
-              send(ResumeWorker(), workerId).map { state =>
-                cp.workflowExecution
-                  .getLatestOperatorExecution(VirtualIdentityUtils.getPhysicalOpId(workerId))
-                  .getWorkerExecution(workerId)
-                  .setState(state)
-              }
+  override def resumeWorkflow(msg: EmptyRequest, ctx: AsyncRPCContext): Future[EmptyReturn] = {
+    // send all workers resume
+    // resume message has no effect on non-paused workers
+    Future
+      .collect(
+        cp.workflowExecution.getRunningRegionExecutions
+          .flatMap(_.getAllOperatorExecutions.map(_._2))
+          .flatMap(_.getWorkerIds)
+          .map { workerId =>
+            workerInterface.resumeWorker(EmptyRequest(), mkContext(workerId)).map { resp =>
+              cp.workflowExecution
+                .getLatestOperatorExecution(VirtualIdentityUtils.getPhysicalOpId(workerId))
+                .getWorkerExecution(workerId)
+                .setState(resp.state)
             }
-            .toSeq
-        )
-        .map { _ =>
-          // update frontend status
-          sendToClient(
-            ExecutionStatsUpdate(
-              cp.workflowExecution.getAllRegionExecutionsStats
-            )
+          }
+          .toSeq
+      )
+      .map { _ =>
+        // update frontend status
+        sendToClient(
+          ExecutionStatsUpdate(
+            cp.workflowExecution.getAllRegionExecutionsStats
           )
-          cp.controllerTimerService
-            .enableStatusUpdate() //re-enabled it since it is disabled in pause
-        }
-    }
+        )
+        cp.controllerTimerService
+          .enableStatusUpdate() //re-enabled it since it is disabled in pause
+        EmptyReturn()
+      }
   }
+
 }

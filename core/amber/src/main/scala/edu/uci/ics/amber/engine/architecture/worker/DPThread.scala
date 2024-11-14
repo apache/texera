@@ -5,11 +5,11 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   MainThreadDelegateMessage
 }
 import edu.uci.ics.amber.engine.architecture.logreplay.ReplayLogManager
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerPayload
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{READY, UNINITIALIZED}
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.actormessage.{ActorCommand, Backpressure}
 import edu.uci.ics.amber.engine.common.ambermessage.{
-  ChannelMarkerPayload,
   ControlPayload,
   DataPayload,
   WorkflowFIFOMessage

@@ -24,6 +24,7 @@ export class SearchResultsComponent {
   @Output() deleted = new EventEmitter<DashboardEntry>();
   @Output() duplicated = new EventEmitter<DashboardEntry>();
   @Output() modified = new EventEmitter<DashboardEntry>();
+  @Output() notifyWorkflow = new EventEmitter<void>();
 
   constructor(private userService: UserService) {}
 
@@ -53,5 +54,20 @@ export class SearchResultsComponent {
     } finally {
       this.loading = false;
     }
+  }
+
+  onEntryCheckboxChange(): void {
+    const allSelected = this.entries.every(entry => entry.checked);
+    if (allSelected) {
+      this.notifyWorkflow.emit();
+    }
+  }
+
+  selectAll(): void {
+    this.entries.forEach(entry => (entry.checked = true));
+  }
+
+  clearAllSelections() {
+    this.entries.forEach(entry => (entry.checked = false));
   }
 }

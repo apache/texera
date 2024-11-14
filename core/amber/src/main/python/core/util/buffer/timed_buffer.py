@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import List, Iterator
 
 from core.util.buffer.buffer_base import IBuffer
-from proto.edu.uci.ics.amber.engine.architecture.worker import ConsoleMessage
+from proto.edu.uci.ics.amber.engine.architecture.rpc import ConsoleMessage
 
 
 class TimedBuffer(IBuffer):

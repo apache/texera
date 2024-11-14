@@ -1,80 +1,74 @@
 .list-item-card {
-  padding: 0;
+  padding: 3px;
   width: 100%;
   background-color: white;
   position: relative;
-  cursor: pointer;
+  height: 65px;
 
   &:hover {
     background-color: #f0f0f0;
-    .edit-button-group {
+
+    .edit-button {
       display: flex;
+    }
+
+    &.has-button-group:hover .resource-info {
+      opacity: 0.3;
+    }
+  }
+
+  &.selected {
+    border-color: #1e90ff;
+    background-color: #e6f7ff;
+
+    .button-group,
+    .button-group button {
+      background-color: #e6f7ff;
+    }
+
+    .button-group button:hover,
+    .edit-button button:hover {
+      background-color: #cceeff;
     }
   }
 }
 
-.truncate-single-line {
-  display: -webkit-box;
-  -webkit-line-clamp: 1;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.resource-name-group {
+  min-width: 0;
 }
 
-.resource-id {
-  font-size: 17px;
-  font-weight: 600;
-  margin-top: -5px;
-  margin-right: 25px;
-  margin-left: 5px;
-  text-align: right;
-  display: block;
+.truncate-single-line {
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 .resource-name {
-  margin-left: 30px;
   font-size: 17px;
   font-weight: 600;
-  width: 85%;
 }
 
 .resource-description {
-  margin-left: 30px;
   font-size: 12px;
   font-weight: 300;
   color: grey;
-  width: 85%;
-  min-height: 18px;
 }
 
-.type-icon-div {
-  text-align: center;
-  font-size: 38px;
+.resource-info {
+  font-size: 13px;
+  color: grey;
 }
 
-.edit-info {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-right: 16px;
+.large-checkbox {
+  display: none;
+  width: 16px;
+  height: 16px;
+}
 
-  .resource-owner {
-    flex: 0 0 auto; // Prevent the avatar from growing or shrinking
-    margin-right: 24px; // Add space to the right of the avatar
-  }
-
-  .resource-info-grid {
-    flex: 1; // Allow the grid to take up remaining space
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-  }
-
-  .resource-info {
-    font-size: 13px;
-    font-weight: 400;
-    color: grey;
-  }
+.list-item-card:hover .large-checkbox,
+.showc {
+  display: block;
+  z-index: 10;
 }
 
 .button-group {
@@ -84,30 +78,33 @@
   min-width: 150px;
   right: 0;
   bottom: 0;
-  background-color: #f0f0f0;
   justify-content: right;
   align-items: center;
+  transition: none;
 
   button {
     margin-right: 32px;
+    transition: none;
+    background-color: #e0e0e0;
+    border: 1px solid #d0d0d0;
+    border-radius: 8px;
   }
 
   button:hover {
-    background-color: #d9d9d9;
+    background-color: #c7c7c7;
   }
 }
 
 .list-item-card:hover .button-group {
   display: flex;
+  background-color: transparent;
 }
 
 .resource-name-edit-input {
   font-size: 17px;
   font-weight: 600;
-  width: 85%;
   padding: 0;
-  margin-bottom: 4px;
-  margin-left: 30px;
+  margin: 4px 0;
   outline: none;
   height: 23px;
   border: 1px solid #d9d9d9;
@@ -116,9 +113,7 @@
 .resource-description-edit-textarea {
   font-size: 12px;
   font-weight: 300;
-  width: 85%;
   padding: 0;
-  margin-left: 30px;
   border: 1px solid #d9d9d9;
   outline: none;
   resize: none;
@@ -131,34 +126,34 @@
     box-shadow 0.3s;
 }
 
-.name-container .description-container {
-  display: flex;
-  align-items: center;
-  position: relative;
+.edit-button {
+  display: none;
 
   &:hover {
-    .edit-button-group {
-      display: flex;
-    }
+    display: block;
+    background-color: #d9d9d9;
+  }
+
+  button {
+    height: 25px;
   }
 }
 
-.edit-button-group {
-  display: none;
-  position: absolute;
-  left: 0;
-  align-items: center;
+.type-icon {
+  font-size: 30px;
+}
 
-  button {
-    margin-left: 0;
-    background-color: transparent;
-    font-size: 13px;
-    padding: 3px 4px;
-    height: 25px;
-    width: 25px;
+.workflow-id {
+  padding: 6px;
+}
 
-    &:hover {
-      background-color: #d9d9d9;
-    }
-  }
+.like-button {
+  width: 50px;
+  border-radius: 5px;
+  padding: 3px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.liked {
+  color: red;
 }
