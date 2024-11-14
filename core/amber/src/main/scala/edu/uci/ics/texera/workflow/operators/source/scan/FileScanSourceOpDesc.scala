@@ -12,7 +12,6 @@ import edu.uci.ics.amber.engine.common.model.tuple.{Attribute, AttributeType, Sc
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.HideAnnotation
 import edu.uci.ics.texera.workflow.operators.source.scan.text.TextSourceOpDesc
-import edu.uci.ics.texera.workflow.operators.util.OperatorFilePathUtils
 
 @JsonIgnoreProperties(value = Array("limit", "offset", "fileEncoding"))
 class FileScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {

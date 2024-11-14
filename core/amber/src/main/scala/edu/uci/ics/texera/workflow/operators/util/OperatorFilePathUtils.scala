@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.util
 
 import edu.uci.ics.amber.engine.common.AmberConfig
-import edu.uci.ics.amber.engine.common.storage.{DatasetDirectoryDocument, DatasetFileDocument}
+import edu.uci.ics.amber.engine.common.storage.DatasetDirectoryDocument
 
 import java.nio.file.Paths
 

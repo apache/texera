@@ -31,7 +31,7 @@ export class DirectorySelectionComponent {
     // Load initial dataset and directory
     if (this.selectedDirectoryPath && this.selectedDirectoryPath !== "") {
       this.datasetService
-        .retrieveAccessibleDatasets(false, false, this.selectedDirectoryPath)
+        .retrieveAccessibleDatasets()
         .pipe(untilDestroyed(this))
         .subscribe(response => {
           const prevDataset = response.datasets[0];

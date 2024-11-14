@@ -24,6 +24,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowUserActivity;
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowUserClones;
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowUserLikes;
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowVersion;
+import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowViewCount;
 
 
 /**
@@ -131,4 +132,9 @@ public class Tables {
      * The table <code>texera_db.workflow_version</code>.
      */
     public static final WorkflowVersion WORKFLOW_VERSION = WorkflowVersion.WORKFLOW_VERSION;
+
+    /**
+     * The table <code>texera_db.workflow_view_count</code>.
+     */
+    public static final WorkflowViewCount WORKFLOW_VIEW_COUNT = WorkflowViewCount.WORKFLOW_VIEW_COUNT;
 }

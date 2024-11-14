@@ -11,7 +11,6 @@ import edu.uci.ics.amber.engine.common.model.tuple.AttributeTypeUtils.inferSchem
 import edu.uci.ics.amber.engine.common.model.tuple.{Attribute, Schema}
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONUtil.JSONToMap
-import edu.uci.ics.texera.workflow.operators.util.OperatorFilePathUtils
 
 import java.io.{BufferedReader, FileInputStream, IOException, InputStream, InputStreamReader}
 import java.net.URI
