@@ -17,6 +17,7 @@ import { NzResizeDirection, NzResizeEvent } from "ng-zorro-antd/resizable";
 import { VisualizationFrameContentComponent } from "../visualization-panel-content/visualization-frame-content.component";
 import { calculateTotalTranslate3d } from "../../../common/util/panel-dock";
 import { isDefined } from "../../../common/util/predicate";
+import { CdkDragEnd } from "@angular/cdk/drag-drop";
 
 /**
  * ResultPanelComponent is the bottom level area that displays the
@@ -41,9 +42,6 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
   operatorTitle = "";
   dragPosition = { x: 0, y: 0 };
   returnPosition = { x: 0, y: 0 };
-  isDocked = true;
-  undockedResizeDirections = ["right", "bottom", "bottomRight"];
-  dockedResizeDirections = ["right"];
 
   // the highlighted operator ID for display result table / visualization / breakpoint
   currentOperatorId?: string | undefined;
@@ -72,7 +70,6 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     const [xOffset, yOffset, _] = calculateTotalTranslate3d(translates);
     this.returnPosition = { x: -xOffset, y: -yOffset };
     this.updateReturnPosition(this.prevHeight, this.height);
-    this.checkPanelIsDocked();
     this.registerAutoRerenderResultPanel();
     this.registerAutoOpenResultPanel();
     this.handleResultPanelForVersionPreview();
@@ -287,19 +284,15 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
 
   resetPanelPosition() {
     this.dragPosition = { x: this.returnPosition.x, y: this.returnPosition.y };
-    this.isDocked = true;
   }
 
-  checkPanelIsDocked() {
-    this.isDocked = this.returnPosition.x === this.dragPosition.x && this.returnPosition.y === this.dragPosition.y;
+  isPanelDocked() {
+    return this.returnPosition.x === this.dragPosition.x && this.returnPosition.y === this.dragPosition.y;
   }
 
-  getResizeDirections() {
-    return (this.isDocked ? this.dockedResizeDirections : this.undockedResizeDirections) as NzResizeDirection[];
-  }
-
-  handleStartDrag() {
-    this.isDocked = false;
+  handleEndDrag({ source }: CdkDragEnd) {
+    const { x, y } = source.getFreeDragPosition();
+    this.dragPosition = { x: x, y: y };
   }
 
   onResize({ width, height }: NzResizeEvent) {
@@ -313,6 +306,12 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
   }
 
   updateReturnPosition(prevHeight: number, newHeight: number | undefined) {
+    /**
+     * update return position accordingly as the panel gets resized in height
+     * without updating the return position, the result panel can't be docked in the bottom-left corner after resize
+     * 1. if the result panel gets taller, the panel would go outside the screen when docked
+     * 2. if the result panel gets shorter, the panel wouldn't reach the bottom-left corner when docked and stay afloat
+     */
     if (!isDefined(newHeight)) return;
     this.returnPosition = { x: this.returnPosition.x, y: this.returnPosition.y + prevHeight - newHeight };
   }
