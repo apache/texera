@@ -197,6 +197,7 @@ abstract class RegionPlanGenerator(
     matWriter.setOperatorId(s"materialized_${getMatIdFromPhysicalLink(physicalLink)}")
 
     // expect exactly one input port and one output port
+
     matWriter.setStorage(
       opResultStorage.create(
         key = matWriter.operatorIdentifier,
