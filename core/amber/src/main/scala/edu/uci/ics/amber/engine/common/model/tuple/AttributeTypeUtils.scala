@@ -191,7 +191,7 @@ object AttributeTypeUtils extends Serializable {
         // Integer, Double, Boolean, Binary are considered to be illegal here.
         case _ =>
           throw new AttributeTypeException(
-            s"not able to parse type ${fieldValue.getClass} to Timestamp: ${fieldValue.toString}"
+            s"Unsupported type for parsing to Timestamp: ${fieldValue.getClass.getName}"
           )
       }
     }
@@ -218,7 +218,7 @@ object AttributeTypeUtils extends Serializable {
         // Timestamp and Binary are considered to be illegal here.
         case _ =>
           throw new AttributeTypeException(
-            s"not able to parse type ${fieldValue.getClass} to Double: ${fieldValue.toString}"
+            s"Unsupported type for parsing to Double: ${fieldValue.getClass.getName}"
           )
       }
     }
@@ -235,21 +235,29 @@ object AttributeTypeUtils extends Serializable {
 
   @throws[AttributeTypeException]
   private def parseBoolean(fieldValue: Any): java.lang.Boolean = {
-    val parseError = new AttributeTypeException(
-      s"not able to parse type ${fieldValue.getClass} to Boolean: ${fieldValue.toString}"
-    )
-    fieldValue match {
-      case str: String =>
-        (Try(str.trim.toBoolean) orElse Try(str.trim.toInt == 1))
-          .getOrElse(throw parseError)
-      case int: Integer               => int != 0
-      case long: java.lang.Long       => long != 0
-      case double: java.lang.Double   => double != 0
-      case boolean: java.lang.Boolean => boolean
-      // Timestamp and Binary are considered to be illegal here.
-      case _ =>
-        throw parseError
+    val attempt: Try[Boolean] = Try {
+      fieldValue match {
+        case str: String =>
+          (Try(str.trim.toBoolean) orElse Try(str.trim.toInt == 1)).get
+        case int: Integer               => int != 0
+        case long: java.lang.Long       => long != 0
+        case double: java.lang.Double   => double != 0
+        case boolean: java.lang.Boolean => boolean
+        // Timestamp and Binary are considered to be illegal here.
+        case _ =>
+          throw new AttributeTypeException(
+            s"Unsupported type for parsing to Boolean: ${fieldValue.getClass.getName}"
+          )
+      }
     }
+
+    attempt.recover {
+      case e: Exception =>
+        throw new AttributeTypeException(
+          s"Failed to parse type ${fieldValue.getClass.getName} to Boolean: ${fieldValue.toString}",
+          e
+        )
+    }.get
   }
 
   /**

@@ -123,7 +123,11 @@ class AttributeTypeUtilsSpec extends AnyFunSuite {
 
   test("parseField correctly parses to BOOLEAN") {
     assert(parseField("true", AttributeType.BOOLEAN) == true)
+    assert(parseField("True", AttributeType.BOOLEAN) == true)
+    assert(parseField("TRUE", AttributeType.BOOLEAN) == true)
     assert(parseField("false", AttributeType.BOOLEAN) == false)
+    assert(parseField("False", AttributeType.BOOLEAN) == false)
+    assert(parseField("FALSE", AttributeType.BOOLEAN) == false)
     assert(parseField("1", AttributeType.BOOLEAN) == true)
     assert(parseField("0", AttributeType.BOOLEAN) == false)
     assert(parseField(1, AttributeType.BOOLEAN) == true)
