@@ -57,7 +57,6 @@ describe("LeftPanelComponent", () => {
 
     // all the elements shall be un-highlighted
     expect(workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs().length).toBe(0);
-    expect(workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs().length).toBe(0);
     expect(workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs().length).toBe(0);
 
     // the component should switch to versions display

@@ -1,8 +1,8 @@
 <ul nz-menu>
   <li
     nz-menu-item
-    *ngIf="(operatorMenuService.effectivelyHighlightedOperators.value.length > 0 ||
-  operatorMenuService.effectivelyHighlightedCommentBoxes.value.length > 0)"
+    *ngIf="(operatorMenuService.highlightedOperators.value.length > 0 ||
+  operatorMenuService.highlightedCommentBoxes.value.length > 0)"
     (click)="onCopy()">
     <span
       nz-icon
@@ -12,8 +12,8 @@
   </li>
   <li
     nz-menu-item
-    *ngIf="(operatorMenuService.effectivelyHighlightedOperators.value.length > 0 ||
-  operatorMenuService.effectivelyHighlightedCommentBoxes.value.length > 0) &&
+    *ngIf="(operatorMenuService.highlightedOperators.value.length > 0 ||
+  operatorMenuService.highlightedCommentBoxes.value.length > 0) &&
   isWorkflowModifiable"
     (click)="onCut()">
     <span
@@ -24,8 +24,8 @@
   </li>
   <li
     nz-menu-item
-    *ngIf="(operatorMenuService.effectivelyHighlightedOperators.value.length === 0 &&
-  operatorMenuService.effectivelyHighlightedCommentBoxes.value.length === 0) &&
+    *ngIf="(operatorMenuService.highlightedOperators.value.length === 0 &&
+  operatorMenuService.highlightedCommentBoxes.value.length === 0) &&
   isWorkflowModifiable"
     (click)="onPaste()">
     <span
@@ -96,8 +96,8 @@
   </li>
   <li
     nz-menu-item
-    *ngIf="(operatorMenuService.effectivelyHighlightedOperators.value.length > 0 ||
-  operatorMenuService.effectivelyHighlightedCommentBoxes.value.length > 0) &&
+    *ngIf="(operatorMenuService.highlightedOperators.value.length > 0 ||
+  operatorMenuService.highlightedCommentBoxes.value.length > 0) &&
   isWorkflowModifiable"
     (click)="onDelete()">
     <span
@@ -109,7 +109,7 @@
 
   <li
     nz-menu-item
-    *ngIf="operatorMenuService.effectivelyHighlightedOperators.value.length === 1 && isWorkflowModifiable"
+    *ngIf="operatorMenuService.highlightedOperators.value.length === 1 && isWorkflowModifiable"
     (click)="operatorMenuService.executeUpToOperator()">
     <span
       nz-icon

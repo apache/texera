@@ -114,7 +114,6 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
           operators: [],
           operatorPositions: {},
           links: [],
-          groups: [],
           commentBoxes: [],
           settings: { dataTransferBatchSize: environment.defaultDataTransferBatchSize },
         },
