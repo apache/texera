@@ -291,6 +291,9 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
   }
 
   handleEndDrag({ source }: CdkDragEnd) {
+    /**
+     * records the most recent panel location, updating dragPosition when dragging is over
+     */
     const { x, y } = source.getFreeDragPosition();
     this.dragPosition = { x: x, y: y };
   }
@@ -307,10 +310,7 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
 
   updateReturnPosition(prevHeight: number, newHeight: number | undefined) {
     /**
-     * update return position accordingly as the panel gets resized in height
-     * without updating the return position, the result panel can't be docked in the bottom-left corner after resize
-     * 1. if the result panel gets taller, the panel would go outside the screen when docked
-     * 2. if the result panel gets shorter, the panel wouldn't reach the bottom-left corner when docked and stay afloat
+     * Updating returnPosition ensures that even if the panel gets resized,it can be docked correctly to the left-bottom corner of the canvas.
      */
     if (!isDefined(newHeight)) return;
     this.returnPosition = { x: this.returnPosition.x, y: this.returnPosition.y + prevHeight - newHeight };
