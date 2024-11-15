@@ -40,16 +40,6 @@ val mockitoVersion = "5.4.0"
 val assertjVersion = "3.24.2"
 
 /////////////////////////////////////////////////////////////////////////////
-// Dependencies
-/////////////////////////////////////////////////////////////////////////////
-
-// Core Dependencies
-libraryDependencies ++= Seq(
-  "io.dropwizard" % "dropwizard-core" % dropwizardVersion,
-  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.15.2"
-)
-
-/////////////////////////////////////////////////////////////////////////////
 // Test-related Dependencies
 /////////////////////////////////////////////////////////////////////////////
 
@@ -62,5 +52,12 @@ libraryDependencies ++= Seq(
   "com.novocode" % "junit-interface" % "0.11" % Test                // SBT interface for JUnit
 )
 
-// Enable JUnit integration for ScalaTest
-Test / testFrameworks += new TestFramework("org.scalatest.tools.Framework")
+/////////////////////////////////////////////////////////////////////////////
+// Dependencies
+/////////////////////////////////////////////////////////////////////////////
+
+// Core Dependencies
+libraryDependencies ++= Seq(
+  "io.dropwizard" % "dropwizard-core" % dropwizardVersion,
+  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.15.2"
+)
