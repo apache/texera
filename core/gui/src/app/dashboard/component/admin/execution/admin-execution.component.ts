@@ -18,7 +18,6 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
   Executions: ReadonlyArray<Execution> = [];
   workflowsCount: number = 0;
   listOfExecutions = [...this.Executions];
-  workflows: Array<Workflow> = [];
   executionMap: Map<number, Execution> = new Map();
   isLoading: boolean = true;
 
@@ -108,30 +107,6 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
     return false;
   }
 
-  initWorkflows() {
-    for (let i = 0; i < this.listOfExecutions.length; i++) {
-      const execution = this.listOfExecutions[i];
-      let tempWorkflow: Workflow = {
-        content: {
-          operators: [],
-          operatorPositions: {},
-          links: [],
-          commentBoxes: [],
-          settings: { dataTransferBatchSize: environment.defaultDataTransferBatchSize },
-        },
-        name: execution.workflowName,
-        wid: execution.workflowId,
-        description: "",
-        creationTime: 0,
-        lastModifiedTime: 0,
-        isPublished: 0,
-        readonly: false,
-      };
-
-      this.workflows.push(tempWorkflow);
-    }
-  }
-
   filterExecutions() {
     for (let i = 0; i < this.Executions.length; i++) {
       const execution = this.Executions[i];
@@ -142,7 +117,6 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
 
   reset() {
     this.filterExecutions();
-    this.initWorkflows();
 
     this.specifyCompletedStatus();
     this.updateTimeDifferences();
@@ -249,18 +223,7 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
     });
   };
 
-  clickToViewHistory(workflowId: number) {
-    let wid!: number;
-    let name!: string;
-    for (let i = 0; i < this.workflows.length; i++) {
-      const workflow = this.workflows[i];
-      if (workflow.wid == workflowId) {
-        wid = workflow.wid;
-        name = workflow.name;
-        break;
-      }
-    }
-
+  clickToViewHistory(wid: number, name: string) {
     this.modalService.create({
       nzContent: WorkflowExecutionHistoryComponent,
       nzData: { wid: wid },

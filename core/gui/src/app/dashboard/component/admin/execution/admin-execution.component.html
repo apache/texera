@@ -129,7 +129,7 @@
             nzType="redo"></i>
         </button>
         <button
-          (click)="clickToViewHistory(execution.workflowId)"
+          (click)="clickToViewHistory(execution.workflowId, execution.workflowName)"
           nz-button
           nz-tooltip="previous execution of the workflow: {{
                       execution.workflowName
