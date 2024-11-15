@@ -37,7 +37,7 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
   prevHeight = 300;
   maxWidth = window.innerWidth;
   maxHeight = window.innerHeight;
-  operatorTitle = "";
+  operatorTitle = "All Operators";
   dragPosition = { x: 0, y: 0 };
   returnPosition = { x: 0, y: 0 };
 
@@ -152,7 +152,7 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
       .subscribe(_ => {
         this.rerenderResultPanel();
         this.changeDetectorRef.detectChanges();
-        this.registerOperatorDisplayNameChangeHandler();
+        // this.registerOperatorDisplayNameChangeHandler();
       });
   }
 
@@ -165,10 +165,27 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     // update highlighted operator
     const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
     const currentHighlightedOperator = highlightedOperators.length === 1 ? highlightedOperators[0] : undefined;
+    // if (this.currentOperatorId !== currentHighlightedOperator) {
+    //   // clear everything, prepare for state change
+    //   this.clearResultPanel();
+    //   this.currentOperatorId = currentHighlightedOperator;
+      
+    //   if (!this.currentOperatorId) {
+    //     this.operatorTitle = "all operators"
+    //   }
+
+    // }
+
     if (this.currentOperatorId !== currentHighlightedOperator) {
-      // clear everything, prepare for state change
       this.clearResultPanel();
       this.currentOperatorId = currentHighlightedOperator;
+  
+      if (this.currentOperatorId) {
+        const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
+        this.operatorTitle = operator.customDisplayName ?? "";
+      } else {
+        this.operatorTitle = "All Operators"; 
+      }
     }
 
     if (this.executeWorkflowService.getExecutionState().state === ExecutionState.Failed) {
