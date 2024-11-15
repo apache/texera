@@ -5,6 +5,7 @@ import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { of, throwError } from "rxjs";
 import { NO_ERRORS_SCHEMA } from "@angular/core";
+import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 
 describe("ListItemComponent", () => {
   let component: ListItemComponent;
@@ -18,7 +19,7 @@ describe("ListItemComponent", () => {
     ]);
 
     await TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule],
+      imports: [HttpClientTestingModule, BrowserAnimationsModule],
       declarations: [ListItemComponent],
       providers: [{ provide: WorkflowPersistService, useValue: workflowPersistServiceSpy }, NzModalService],
       schemas: [NO_ERRORS_SCHEMA],
