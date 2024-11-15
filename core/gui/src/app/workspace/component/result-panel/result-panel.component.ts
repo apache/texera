@@ -166,6 +166,7 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     const currentHighlightedOperator = highlightedOperators.length === 1 ? highlightedOperators[0] : undefined;
 
     if (this.currentOperatorId !== currentHighlightedOperator) {
+      // clear everything, prepare for state change
       this.clearResultPanel();
       this.currentOperatorId = currentHighlightedOperator;
 
