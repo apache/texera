@@ -5,6 +5,8 @@ import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables._
 import edu.uci.ics.texera.web.resource.dashboard.admin.execution.AdminExecutionResource._
 import io.dropwizard.auth.Auth
+import org.jooq.Field
+import org.jooq.impl.DSL
 import org.jooq.types.UInteger
 
 import javax.annotation.security.RolesAllowed
@@ -59,6 +61,16 @@ class AdminExecutionResource {
   @Path("/executionList")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def listWorkflows(@Auth current_user: SessionUser): List[dashboardExecution] = {
+    val latestExecutionId = context.select(
+        WORKFLOW_VERSION.WID,
+        DSL.max(WORKFLOW_EXECUTIONS.EID).as("max_eid")
+      )
+      .from(WORKFLOW_EXECUTIONS)
+      .join(WORKFLOW_VERSION)
+      .on(WORKFLOW_VERSION.VID.eq(WORKFLOW_EXECUTIONS.VID))
+      .groupBy(WORKFLOW_VERSION.WID)
+      .asTable("latest_execution_id")
+
     val workflowEntries = context
       .select(
         WORKFLOW_EXECUTIONS.UID,
@@ -66,19 +78,25 @@ class AdminExecutionResource {
         WORKFLOW_VERSION.WID,
         WORKFLOW.NAME,
         WORKFLOW_EXECUTIONS.EID,
-        WORKFLOW_EXECUTIONS.VID,
         WORKFLOW_EXECUTIONS.STARTING_TIME,
         WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME,
         WORKFLOW_EXECUTIONS.STATUS,
         WORKFLOW_EXECUTIONS.NAME
       )
       .from(WORKFLOW_EXECUTIONS)
-      .leftJoin(WORKFLOW_VERSION)
+      .join(WORKFLOW_VERSION)
       .on(WORKFLOW_EXECUTIONS.VID.eq(WORKFLOW_VERSION.VID))
-      .leftJoin(USER)
+      .join(USER)
       .on(WORKFLOW_EXECUTIONS.UID.eq(USER.UID))
-      .leftJoin(WORKFLOW)
+      .join(WORKFLOW)
       .on(WORKFLOW.WID.eq(WORKFLOW_VERSION.WID))
+      .join(latestExecutionId)
+      .on(
+        DSL.and(
+          WORKFLOW_EXECUTIONS.EID.eq(latestExecutionId.field("max_eid").asInstanceOf[Field[UInteger]]),
+          WORKFLOW_VERSION.WID.eq(latestExecutionId.field(WORKFLOW_VERSION.WID))
+        )
+      )
       .fetch()
 
     val availableWorkflowIds = context
