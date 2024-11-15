@@ -23,7 +23,7 @@ class CostBasedRegionPlanGenerator(
     )
     with LazyLogging {
 
-  private case class SearchResult(
+  case class SearchResult(
       state: Set[PhysicalLink],
       regionDAG: DirectedAcyclicGraph[Region, RegionLink],
       cost: Double,
@@ -180,11 +180,10 @@ class CostBasedRegionPlanGenerator(
     * @return A SearchResult containing the plan, the region DAG (without materializations added yet), the cost, the
     *         time to finish search, and the number of states explored.
     */
-  private def bottomUpSearch(
+  def bottomUpSearch(
       globalSearch: Boolean = false,
       oChains: Boolean = true,
-      oCleanEdges: Boolean = true,
-      oEarlyStop: Boolean = true
+      oCleanEdges: Boolean = true
   ): SearchResult = {
     val startTime = System.nanoTime()
     val originalNonBlockingEdges =
@@ -242,11 +241,11 @@ class CostBasedRegionPlanGenerator(
         var candidateEdges = originalNonBlockingEdges
           .diff(currentState)
         if (oChains) {
-          val edgesInChainWithBlockingEdge = physicalPlan.maxChains
+          val edgesInChainWithMaterializedEdges = physicalPlan.maxChains
             .filter(chain => chain.intersect(allCurrentMaterializedEdges).nonEmpty)
             .flatten
           candidateEdges = candidateEdges.diff(
-            edgesInChainWithBlockingEdge
+            edgesInChainWithMaterializedEdges
           ) // Edges in chain with blocking edges should not be materialized
         }
 
