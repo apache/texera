@@ -31,7 +31,7 @@ describe("ListItemComponent", () => {
 
   it("should update workflow name successfully", () => {
     const newName = "New Workflow Name";
-    component.entry = { id: 1, name: "Old Name", type: "workflow"  } as any;
+    component.entry = { id: 1, name: "Old Name", type: "workflow" } as any;
     workflowPersistService.updateWorkflowName.and.returnValue(of({} as Response));
 
     component.confirmUpdateCustomName(newName);
@@ -68,7 +68,7 @@ describe("ListItemComponent", () => {
 
   it("should handle error when updating workflow description", () => {
     const newDescription = "New Description";
-    component.entry = { id: 1, description: "Old Description", type: "workflow"  } as any;
+    component.entry = { id: 1, description: "Old Description", type: "workflow" } as any;
     component.originalDescription = "Old Description";
     workflowPersistService.updateWorkflowDescription.and.returnValue(throwError(() => new Error("Error")));
 
