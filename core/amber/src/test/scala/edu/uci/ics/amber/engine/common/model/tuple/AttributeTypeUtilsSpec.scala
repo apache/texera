@@ -1,7 +1,12 @@
 package edu.uci.ics.amber.engine.common.model.tuple
 
 import edu.uci.ics.amber.engine.common.model.tuple.AttributeType._
-import edu.uci.ics.amber.engine.common.model.tuple.AttributeTypeUtils.{AttributeTypeException, inferField, inferSchemaFromRows, parseField}
+import edu.uci.ics.amber.engine.common.model.tuple.AttributeTypeUtils.{
+  AttributeTypeException,
+  inferField,
+  inferSchemaFromRows,
+  parseField
+}
 import org.scalatest.funsuite.AnyFunSuite
 
 class AttributeTypeUtilsSpec extends AnyFunSuite {

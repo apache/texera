@@ -118,7 +118,7 @@ object AttributeTypeUtils extends Serializable {
 
   @throws[AttributeTypeException]
   private def parseInteger(fieldValue: Any, force: Boolean = false): Integer = {
-    val attempt:Try[Integer] = Try {
+    val attempt: Try[Integer] = Try {
       fieldValue match {
         case str: String =>
           if (force) {
@@ -127,9 +127,9 @@ object AttributeTypeUtils extends Serializable {
           } else {
             str.trim.toInt
           }
-        case int: Integer => int
-        case long: java.lang.Long => long.toInt
-        case double: java.lang.Double => double.toInt
+        case int: Integer               => int
+        case long: java.lang.Long       => long.toInt
+        case double: java.lang.Double   => double.toInt
         case boolean: java.lang.Boolean => if (boolean) 1 else 0
         // Timestamp and Binary are considered to be illegal here.
         case _ =>
@@ -165,9 +165,10 @@ object AttributeTypeUtils extends Serializable {
         case boolean: java.lang.Boolean => if (boolean) 1L else 0L
         case timestamp: Timestamp       => timestamp.toInstant.toEpochMilli
         // Binary is considered to be illegal here.
-        case _ => throw new IllegalArgumentException(
-          s"Unsupported type for parsing to Long: ${fieldValue.getClass.getName}"
-        )
+        case _ =>
+          throw new IllegalArgumentException(
+            s"Unsupported type for parsing to Long: ${fieldValue.getClass.getName}"
+          )
       }
     }
     attempt.recover {
@@ -181,7 +182,7 @@ object AttributeTypeUtils extends Serializable {
 
   @throws[AttributeTypeException]
   def parseTimestamp(fieldValue: Any): Timestamp = {
-    val attempt:Try[Timestamp] = Try{
+    val attempt: Try[Timestamp] = Try {
       fieldValue match {
         case str: String          => new Timestamp(DateParserUtils.parseDate(str.trim).getTime)
         case long: java.lang.Long => new Timestamp(long)
@@ -195,7 +196,6 @@ object AttributeTypeUtils extends Serializable {
       }
     }
 
-
     attempt.recover {
       case e: Exception =>
         throw new AttributeTypeException(
@@ -208,7 +208,7 @@ object AttributeTypeUtils extends Serializable {
 
   @throws[AttributeTypeException]
   def parseDouble(fieldValue: Any): java.lang.Double = {
-    val attempt:Try[Double] = Try{
+    val attempt: Try[Double] = Try {
       fieldValue match {
         case str: String                => str.trim.toDouble
         case int: Integer               => int.toDouble
