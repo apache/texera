@@ -230,7 +230,7 @@ class WorkflowService(
     }
 
     // clean up results from previous run
-    opResultStorage.close()  // TODO: change this behavior after enabling cache.
+    opResultStorage.close() // TODO: change this behavior after enabling cache.
     try {
       val execution = new WorkflowExecutionService(
         controllerConf,
