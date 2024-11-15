@@ -98,6 +98,9 @@ class AttributeTypeUtilsSpec extends AnyFunSuite {
     assertThrows[AttributeTypeException] {
       parseField("invalid", AttributeType.INTEGER)
     }
+    assertThrows[AttributeTypeException] {
+      parseField("1,234", AttributeType.INTEGER)
+    }
   }
 
   test("parseField correctly parses to LONG") {
@@ -108,6 +111,9 @@ class AttributeTypeUtilsSpec extends AnyFunSuite {
     assert(parseField(true, AttributeType.LONG) == 1L)
     assertThrows[AttributeTypeException] {
       parseField("invalid", AttributeType.LONG)
+    }
+    assertThrows[AttributeTypeException] {
+      parseField("1,234,567", AttributeType.LONG)
     }
   }
 
