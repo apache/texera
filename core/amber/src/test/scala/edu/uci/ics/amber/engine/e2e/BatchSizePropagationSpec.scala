@@ -41,7 +41,7 @@ class BatchSizePropagationSpec
 
   override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
-    resultStorage.close()
+    resultStorage.clear()
   }
 
   def verifyBatchSizeInPartitioning(
