@@ -49,13 +49,16 @@ class ClusterListener extends Actor with AmberLogging {
       logger.info(s"received member event = $evt")
       updateClusterStatus(evt)
     case ClusterListener.GetAvailableNodeAddresses() =>
-      sender() ! getAllAddress.toArray
+      sender() ! getAllAddressExcludingMaster.toArray
     case other =>
       println(other)
   }
 
-  private def getAllAddress: Iterable[Address] = {
+  private def getAllAddressExcludingMaster: Iterable[Address] = {
     cluster.state.members
+      .filter { member =>
+        member.address != AmberConfig.masterNodeAddr
+      }
       .map(_.address)
   }
 
@@ -116,7 +119,7 @@ class ClusterListener extends Actor with AmberLogging {
       case other => //skip
     }
 
-    val addr = getAllAddress
+    val addr = getAllAddressExcludingMaster
     numWorkerNodesInCluster = addr.size
     SessionState.getAllSessionStates.foreach { state =>
       state.send(ClusterStatusUpdateEvent(numWorkerNodesInCluster))

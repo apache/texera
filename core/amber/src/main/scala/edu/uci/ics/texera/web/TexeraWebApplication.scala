@@ -15,7 +15,7 @@ import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity
 import Utils.{maptoStatusCode, objectMapper}
 import com.twitter.util.FuturePool
-import edu.uci.ics.texera.web.TexeraWebApplication.spawnExecutionService
+import edu.uci.ics.texera.web.TexeraWebApplication.startLocalProcess
 import edu.uci.ics.texera.web.auth.JwtAuth.jwtConsumer
 import edu.uci.ics.texera.web.auth.{
   GuestAuthFilter,
@@ -85,7 +85,10 @@ object TexeraWebApplication {
     })
   }
 
-  def redirectStream(inputStream: java.io.InputStream, outputStream: java.io.PrintStream): Unit = {
+  private def redirectStream(
+      inputStream: java.io.InputStream,
+      outputStream: java.io.PrintStream
+  ): Unit = {
     // Use a Future to handle each stream redirection asynchronously
     FuturePool.unboundedPool {
       val reader = new BufferedReader(new InputStreamReader(inputStream))
@@ -134,18 +137,6 @@ object TexeraWebApplication {
       println(s"$newMainClass process terminated.")
     }
     process
-  }
-
-  def spawnExecutionService(mainServerAddr: String): Unit = {
-    if (AmberConfig.executionServerMode == "jvm") {
-      startLocalProcess(
-        "edu.uci.ics.texera.web.ExecutionRuntimeApplication",
-        Seq("--main-server", mainServerAddr)
-      )
-    } else {
-      //k8s setting
-      ???
-    }
   }
 
   def main(args: Array[String]): Unit = {
@@ -289,10 +280,13 @@ class TexeraWebApplication
     environment.jersey.register(classOf[AIAssistantResource])
     environment.jersey.register(classOf[ExecutionRuntimeResource])
 
-    if (AmberConfig.executionServerIsolation == "shared") {
+    if (AmberConfig.executionServerMode == "local") {
       environment.lifecycle.addServerLifecycleListener(new ServerLifecycleListener() {
         def serverStarted(server: Server): Unit = {
-          spawnExecutionService(AmberConfig.mainServerIP + ":" + getLocalPort(server))
+          startLocalProcess(
+            "edu.uci.ics.texera.web.ExecutionRuntimeApplication",
+            Seq.empty
+          )
         }
       })
     }

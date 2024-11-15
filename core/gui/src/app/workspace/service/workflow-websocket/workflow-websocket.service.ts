@@ -2,6 +2,7 @@ import { Injectable } from "@angular/core";
 import { interval, Observable, Subject, Subscription, timer } from "rxjs";
 import { webSocket, WebSocketSubject } from "rxjs/webSocket";
 import {
+  RuntimeClusterInfo,
   TexeraWebsocketEvent,
   TexeraWebsocketEventTypeMap,
   TexeraWebsocketEventTypes,
@@ -32,10 +33,10 @@ export class WorkflowWebsocketService {
   private wsWithReconnectSubscription?: Subscription;
   private readonly webSocketResponseSubject: Subject<TexeraWebsocketEvent> = new Subject();
 
-  public getRuntime(wid: number, uid: number | undefined): Observable<string> {
+  public getRuntime(wid: number, uid: number | undefined): Observable<RuntimeClusterInfo> {
     let BASE_URL = `${AppSettings.getApiEndpoint()}/runtime`;
     const params = new HttpParams().set("wid", wid).set("uid", uid ?? 0);
-    return this.http.get(`${BASE_URL}/get`, { params, responseType: "text" });
+    return this.http.get<RuntimeClusterInfo>(`${BASE_URL}/get`, { params });
   }
 
   constructor(private http: HttpClient) {
@@ -73,10 +74,9 @@ export class WorkflowWebsocketService {
   }
 
   public openWebsocket(wId: number, uId: number | undefined) {
-    this.getRuntime(wId, uId).subscribe(url => {
-      let port = new URL(url).port;
+    this.getRuntime(wId, uId).subscribe(info => {
       const websocketUrl =
-        getWebsocketUrl(url, WorkflowWebsocketService.TEXERA_WEBSOCKET_ENDPOINT, port) +
+        getWebsocketUrl(WorkflowWebsocketService.TEXERA_WEBSOCKET_ENDPOINT, info.port.toString()) +
         "?wid=" +
         wId +
         (environment.userSystemEnabled && AuthService.getAccessToken() !== null

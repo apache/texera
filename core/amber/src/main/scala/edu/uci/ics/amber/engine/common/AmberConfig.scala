@@ -113,7 +113,5 @@ object AmberConfig {
     aiAssistantConfig = Some(getConfSource.getConfig("ai-assistant-server"))
   }
 
-  val mainServerIP: String = getConfSource.getString("execution-server.main-server-ip")
   val executionServerMode: String = getConfSource.getString("execution-server.mode")
-  val executionServerIsolation: String = getConfSource.getString("execution-server.isolation")
 }

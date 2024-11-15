@@ -51,6 +51,10 @@ export interface WorkflowFatalError
     };
   }> {}
 
+export type RuntimeClusterInfo = Readonly<{
+  port: number;
+}>;
+
 export interface WorkflowErrorEvent
   extends Readonly<{
     fatalErrors: ReadonlyArray<WorkflowFatalError>;
