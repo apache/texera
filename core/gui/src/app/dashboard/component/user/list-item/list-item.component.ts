@@ -249,7 +249,7 @@ export class ListItemComponent implements OnInit, OnChanges {
         },
         error: (err: unknown) => {
           console.error(`Failed to update ${this.entry.type} ${propertyName}:`, err);
-          this.notificationService.error("Update failed.");
+          this.notificationService.error("Update failed");
           (this.entry as any)[propertyName] = originalValue ?? ""; // Fallback to original value
           this.setEditingState(propertyName, false);
         },
