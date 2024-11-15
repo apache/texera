@@ -169,7 +169,7 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     //   // clear everything, prepare for state change
     //   this.clearResultPanel();
     //   this.currentOperatorId = currentHighlightedOperator;
-      
+
     //   if (!this.currentOperatorId) {
     //     this.operatorTitle = "all operators"
     //   }
@@ -179,12 +179,12 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     if (this.currentOperatorId !== currentHighlightedOperator) {
       this.clearResultPanel();
       this.currentOperatorId = currentHighlightedOperator;
-  
+
       if (this.currentOperatorId) {
         const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
         this.operatorTitle = operator.customDisplayName ?? "";
       } else {
-        this.operatorTitle = "All Operators"; 
+        this.operatorTitle = "All Operators";
       }
     }
 
