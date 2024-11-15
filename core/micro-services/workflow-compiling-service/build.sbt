@@ -58,7 +58,8 @@ libraryDependencies ++= Seq(
   "org.scalatest" %% "scalatest" % "3.2.17" % Test,                  // ScalaTest
   "io.dropwizard" % "dropwizard-testing" % dropwizardVersion % Test, // Dropwizard Testing
   "org.mockito" % "mockito-core" % mockitoVersion % Test,            // Mockito for mocking
-  "org.assertj" % "assertj-core" % assertjVersion % Test             // AssertJ for assertions
+  "org.assertj" % "assertj-core" % assertjVersion % Test,            // AssertJ for assertions
+  "com.novocode" % "junit-interface" % "0.11" % Test                // SBT interface for JUnit
 )
 
 // Enable JUnit integration for ScalaTest
