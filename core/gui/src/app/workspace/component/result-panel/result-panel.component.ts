@@ -37,7 +37,7 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
   prevHeight = 300;
   maxWidth = window.innerWidth;
   maxHeight = window.innerHeight;
-  operatorTitle = "All Operators";
+  operatorTitle = "";
   dragPosition = { x: 0, y: 0 };
   returnPosition = { x: 0, y: 0 };
 
@@ -172,9 +172,9 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
 
       if (this.currentOperatorId) {
         const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
-        this.operatorTitle = operator.customDisplayName ?? "";
+        this.operatorTitle = `: ${operator.customDisplayName ?? ""}`;
       } else {
-        this.operatorTitle = "All Operators";
+        this.operatorTitle = "";
       }
     }
 
