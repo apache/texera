@@ -46,6 +46,23 @@
           style="width: 160px">
           Restore this version
         </button>
+        <button
+          *ngIf="displayParticularWorkflowVersion"
+          nz-button
+          nzType="default"
+          (click)="cloneVersion()"
+          style="width: 160px; margin-left: 10px">
+          Clone this version
+        </button>
+        <span
+          *ngIf="displayParticularWorkflowVersion && workflowVersionService.selectedDisplayedVersionId.getValue() !== null"
+          title="Current Version"
+          style="margin-left: 10px">
+          <i
+            nz-icon
+            nzType="info-circle"></i>
+          Current Version: {{ workflowVersionService.selectedDisplayedVersionId.getValue() }}
+        </span>
         <span *ngIf="!displayParticularWorkflowVersion"> {{autoSaveState}} </span>
       </div>
 

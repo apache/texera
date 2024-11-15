@@ -45,7 +45,7 @@ class DataProcessingSpec
   }
   override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
-    resultStorage.close()
+    resultStorage.clear()
   }
 
   def executeWorkflow(workflow: Workflow): Map[OperatorIdentity, List[Tuple]] = {

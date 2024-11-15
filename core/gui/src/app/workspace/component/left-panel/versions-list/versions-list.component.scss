@@ -5,6 +5,12 @@
   .ant-table-cell {
     padding-right: 0;
   }
+  .ant-table-tbody > tr:hover > td {
+    background-color: #e6f7ff;
+  }
+  .selected-row > td {
+    background-color: #bae7ff;
+  }
 }
 
 .version-link {

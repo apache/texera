@@ -10,12 +10,11 @@ import { Workflow, WorkflowContent } from "../../../common/type/workflow";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
 import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
-import { JointGraphWrapper } from "../../service/workflow-graph/model/joint-graph-wrapper";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
 import { WorkflowResultExportService } from "../../service/workflow-result-export/workflow-result-export.service";
-import { debounceTime, filter, map, mergeMap, tap } from "rxjs/operators";
+import { catchError, debounceTime, filter, mergeMap, tap } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
@@ -25,13 +24,12 @@ import { saveAs } from "file-saver";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { OperatorMenuService } from "../../service/operator-menu/operator-menu.service";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
-import { firstValueFrom, Subscription, timer } from "rxjs";
+import { firstValueFrom, of, Subscription, timer } from "rxjs";
 import { isDefined } from "../../../common/util/predicate";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { ResultExportationComponent } from "../result-exportation/result-exportation.component";
 import { ReportGenerationService } from "../../service/report-generation/report-generation.service";
 import { ShareAccessComponent } from "src/app/dashboard/component/user/share-access/share-access.component";
-import { UdfDebugService } from "../../service/operator-debug/udf-debug.service";
 /**
  * MenuComponent is the top level menu bar that shows
  *  the Texera title and workflow execution button
@@ -376,7 +374,7 @@ export class MenuComponent implements OnInit, OnDestroy {
       .getTexeraGraph()
       .getAllOperators()
       .map(op => op.operatorID);
-    this.workflowActionService.deleteOperatorsAndLinks(allOperatorIDs, []);
+    this.workflowActionService.deleteOperatorsAndLinks(allOperatorIDs);
   }
 
   public onClickImportWorkflow = (file: NzUploadFile): boolean => {
@@ -529,6 +527,24 @@ export class MenuComponent implements OnInit, OnDestroy {
     this.workflowVersionService.revertToVersion();
     // after swapping the workflows to point to the particular version, persist it in DB
     this.persistWorkflow();
+  }
+
+  cloneVersion() {
+    this.workflowVersionService
+      .cloneWorkflowVersion()
+      .pipe(
+        catchError(() => {
+          this.notificationService.error("Failed to clone workflow. Please try again.");
+          return of(null);
+        }),
+        untilDestroyed(this)
+      )
+      .subscribe(new_wid => {
+        if (new_wid) {
+          this.notificationService.success("Workflow cloned successfully! New workflow ID: " + new_wid);
+          this.closeParticularVersionDisplay();
+        }
+      });
   }
 
   private registerWorkflowModifiableChangedHandler(): void {
