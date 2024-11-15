@@ -41,7 +41,7 @@ export function trimAndFormatData(value: any, attributeType: AttributeType, maxL
       return value.substring(0, maxLen) + "...";
     }
   }
-  return value?.toString() ?? "";
+  return value;
 }
 
 export function trimDisplayJsonData(
