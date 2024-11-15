@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.service.resource
 
+import com.fasterxml.jackson.annotation.{JsonIgnore, JsonSubTypes, JsonTypeInfo}
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.compiler.WorkflowCompiler
 import edu.uci.ics.amber.compiler.model.LogicalPlanPojo
@@ -12,6 +13,17 @@ import jakarta.ws.rs.{Consumes, POST, Path, PathParam, Produces}
 import jakarta.ws.rs.core.MediaType
 import org.jooq.types.UInteger
 
+@JsonTypeInfo(
+  use = JsonTypeInfo.Id.NAME,
+  include = JsonTypeInfo.As.PROPERTY,
+  property = "type"
+)
+@JsonSubTypes(
+  Array(
+    new JsonSubTypes.Type(value = classOf[WorkflowCompilationSuccess], name = "success"),
+    new JsonSubTypes.Type(value = classOf[WorkflowCompilationFailure], name = "failure")
+  )
+)
 trait WorkflowCompilationResponse
 case class WorkflowCompilationSuccess(
     physicalPlan: PhysicalPlan,
