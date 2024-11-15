@@ -63,7 +63,7 @@
     <tr *ngFor="let execution of basicTable.data">
       <td>
         <div *ngIf="execution.access; else normalWorkflowName">
-          <a href="/workflow/{{execution.workflowId}}">
+          <a href="/dashboard/user/workspace/{{execution.workflowId}}">
             {{ maxStringLength(execution.workflowName, 16) }} ({{ execution.workflowId }})
           </a>
         </div>
