@@ -226,15 +226,8 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
     }
   }
 
-  formatLikeCount(count: number): string {
+  formatCount(count: number): string {
     if (count >= 1000) {
-      return (count / 1000).toFixed(1) + "k";
-    }
-    return count.toString();
-  }
-
-  formatViewCount(count: number): string {
-    if (!this.displayPreciseViewCount && count >= 1000) {
       return (count / 1000).toFixed(1) + "k";
     }
     return count.toString();

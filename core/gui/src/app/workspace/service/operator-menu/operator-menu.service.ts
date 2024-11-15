@@ -1,10 +1,8 @@
 import { Injectable } from "@angular/core";
-import { environment } from "src/environments/environment";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { isSink } from "../workflow-graph/model/workflow-graph";
 import { BehaviorSubject, merge } from "rxjs";
-import { OperatorLink, OperatorPredicate, Point, CommentBox } from "../../types/workflow-common.interface";
-import { Group } from "../workflow-graph/model/operator-group";
+import { CommentBox, OperatorLink, OperatorPredicate, Point } from "../../types/workflow-common.interface";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
@@ -23,7 +21,6 @@ type SerializedString = {
   operators: OperatorPredicate[];
   operatorPositions: OperatorPositions;
   links: OperatorLink[];
-  groups: [];
   commentBoxes: CommentBox[];
 };
 
@@ -38,8 +35,8 @@ type SerializedString = {
   providedIn: "root",
 })
 export class OperatorMenuService {
-  public effectivelyHighlightedOperators = new BehaviorSubject([] as readonly string[]);
-  public effectivelyHighlightedCommentBoxes = new BehaviorSubject([] as readonly string[]);
+  public highlightedOperators = new BehaviorSubject([] as readonly string[]);
+  public highlightedCommentBoxes = new BehaviorSubject([] as readonly string[]);
 
   // whether the disable-operator-button should be enabled
   public isDisableOperatorClickable: boolean = false;
@@ -69,39 +66,19 @@ export class OperatorMenuService {
       this.workflowActionService.getJointGraphWrapper().getJointGroupHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointGroupUnhighlightStream()
     ).subscribe(() => {
-      this.effectivelyHighlightedOperators.next(this.getEffectivelyHighlightedOperators());
+      this.highlightedOperators.next(
+        this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()
+      );
     });
 
     merge(
       this.workflowActionService.getJointGraphWrapper().getJointCommentBoxHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointCommentBoxUnhighlightStream()
     ).subscribe(() => {
-      this.effectivelyHighlightedCommentBoxes.next(this.getEffectivelyHighlightedCommentBoxes());
+      this.highlightedCommentBoxes.next(
+        this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedCommentBoxIDs()
+      );
     });
-  }
-
-  /**
-   * Gets all highlighted operators, and all operators in the highlighted groups
-   */
-  public getEffectivelyHighlightedOperators(): readonly string[] {
-    const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-    const highlightedGroups = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
-
-    const operatorInHighlightedGroups: string[] = highlightedGroups.flatMap(g =>
-      Array.from(this.workflowActionService.getOperatorGroup().getGroup(g).operators.keys())
-    );
-
-    const effectiveHighlightedOperators = new Set<string>();
-    highlightedOperators.forEach(op => effectiveHighlightedOperators.add(op));
-    operatorInHighlightedGroups.forEach(op => effectiveHighlightedOperators.add(op));
-    return Array.from(effectiveHighlightedOperators);
-  }
-
-  public getEffectivelyHighlightedCommentBoxes(): readonly string[] {
-    const highlightedCommentBoxes = this.workflowActionService
-      .getJointGraphWrapper()
-      .getCurrentHighlightedCommentBoxIDs();
-    return highlightedCommentBoxes;
   }
 
   /**
@@ -110,14 +87,14 @@ export class OperatorMenuService {
    */
   public disableHighlightedOperators(): void {
     if (this.isDisableOperator) {
-      this.workflowActionService.disableOperators(this.effectivelyHighlightedOperators.value);
+      this.workflowActionService.disableOperators(this.highlightedOperators.value);
     } else {
-      this.workflowActionService.enableOperators(this.effectivelyHighlightedOperators.value);
+      this.workflowActionService.enableOperators(this.highlightedOperators.value);
     }
   }
 
   public viewResultHighlightedOperators(): void {
-    const effectiveHighlightedOperatorsExcludeSink = this.effectivelyHighlightedOperators.value.filter(
+    const effectiveHighlightedOperatorsExcludeSink = this.highlightedOperators.value.filter(
       op => !isSink(this.workflowActionService.getTexeraGraph().getOperator(op))
     );
 
@@ -129,7 +106,7 @@ export class OperatorMenuService {
   }
 
   public reuseResultHighlightedOperator(): void {
-    const effectiveHighlightedOperatorsExcludeSink = this.effectivelyHighlightedOperators.value.filter(
+    const effectiveHighlightedOperatorsExcludeSink = this.highlightedOperators.value.filter(
       op => !isSink(this.workflowActionService.getTexeraGraph().getOperator(op))
     );
 
@@ -147,28 +124,27 @@ export class OperatorMenuService {
    */
   handleDisableOperatorStatusChange() {
     merge(
-      this.effectivelyHighlightedOperators,
+      this.highlightedOperators,
       this.workflowActionService.getTexeraGraph().getDisabledOperatorsChangedStream(),
       this.workflowActionService.getWorkflowModificationEnabledStream()
     ).subscribe(event => {
-      const allDisabled = this.effectivelyHighlightedOperators.value.every(op =>
+      const allDisabled = this.highlightedOperators.value.every(op =>
         this.workflowActionService.getTexeraGraph().isOperatorDisabled(op)
       );
 
       this.isDisableOperator = !allDisabled;
       this.isDisableOperatorClickable =
-        this.effectivelyHighlightedOperators.value.length !== 0 &&
-        this.workflowActionService.checkWorkflowModificationEnabled();
+        this.highlightedOperators.value.length !== 0 && this.workflowActionService.checkWorkflowModificationEnabled();
     });
   }
 
   handleViewResultOperatorStatusChange() {
     merge(
-      this.effectivelyHighlightedOperators,
+      this.highlightedOperators,
       this.workflowActionService.getTexeraGraph().getViewResultOperatorsChangedStream(),
       this.workflowActionService.getWorkflowModificationEnabledStream()
     ).subscribe(event => {
-      const effectiveHighlightedOperatorsExcludeSink = this.effectivelyHighlightedOperators.value.filter(
+      const effectiveHighlightedOperatorsExcludeSink = this.highlightedOperators.value.filter(
         op => !isSink(this.workflowActionService.getTexeraGraph().getOperator(op))
       );
 
@@ -185,11 +161,11 @@ export class OperatorMenuService {
 
   handleReuseOperatorResultStatusChange() {
     merge(
-      this.effectivelyHighlightedOperators,
+      this.highlightedOperators,
       this.workflowActionService.getTexeraGraph().getReuseCacheOperatorsChangedStream(),
       this.workflowActionService.getWorkflowModificationEnabledStream()
     ).subscribe(event => {
-      const effectiveHighlightedOperatorsExcludeSink = this.effectivelyHighlightedOperators.value.filter(
+      const effectiveHighlightedOperatorsExcludeSink = this.highlightedOperators.value.filter(
         op => !isSink(this.workflowActionService.getTexeraGraph().getOperator(op))
       );
 
@@ -216,7 +192,6 @@ export class OperatorMenuService {
       operators: [],
       operatorPositions: {},
       links: [],
-      groups: [],
       commentBoxes: [],
     };
 
@@ -321,7 +296,6 @@ export class OperatorMenuService {
 
         // define the arguments required for actually adding operators and links
         const operatorsAndPositions: { op: OperatorPredicate; pos: Point }[] = [];
-        const groups: Group[] = [];
         const positions: Point[] = [];
         // calling get() will give either the value or undefined
         // at this point, after checking the existence of fields in the operators in the clipboard,
@@ -386,9 +360,9 @@ export class OperatorMenuService {
 
         const links = Object.values(linksCopy);
 
-        // actually add all operators, links, groups to the workflow
+        // actually add all operators and links to the workflow
         try {
-          this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, links, groups);
+          this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, links);
         } catch (e) {
           this.notificationService.info(
             "Some of the links that you selected don't have operators attached to both ends of them. These links won't be pasted, since links can't exist without operators."
@@ -456,14 +430,6 @@ export class OperatorMenuService {
   private getNonOverlappingPosition(position: Point, positions: Point[]): Point {
     let overlapped = false;
     const operatorPositions = positions.concat(
-      this.workflowActionService
-        .getTexeraGraph()
-        .getAllOperators()
-        .map(operator => this.workflowActionService.getOperatorGroup().getOperatorPositionByGroup(operator.operatorID)),
-      this.workflowActionService
-        .getOperatorGroup()
-        .getAllGroups()
-        .map(group => this.workflowActionService.getJointGraphWrapper().getElementPosition(group.groupID)),
       this.workflowActionService
         .getTexeraGraph()
         .getAllCommentBoxes()
