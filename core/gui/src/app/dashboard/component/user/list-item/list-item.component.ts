@@ -82,7 +82,7 @@ export class ListItemComponent implements OnInit, OnChanges {
     private hubWorkflowService: HubWorkflowService,
     private downloadService: DownloadService,
     private cdr: ChangeDetectorRef,
-    private notificationService: NotificationService,
+    private notificationService: NotificationService
   ) {}
 
   initializeEntry() {
