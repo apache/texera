@@ -121,7 +121,7 @@
   <li
     nz-menu-item
     *ngIf="workflowResultExportService.hasResultToExportOnHighlightedOperators"
-    (click)="workflowResultExportService.exportOperatorsResultAsFile()">
+    (click)="workflowResultExportService.downloadOperatorsResultAsFile()">
     <span
       nz-icon
       nzType="download"
@@ -129,6 +129,7 @@
     {{writeDownloadLabel()}}
   </li>
   <li
+    (click)="onClickExportHighlightedExecutionResult('csv')"
     nz-menu-item>
     <span
       nz-icon

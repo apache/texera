@@ -354,6 +354,7 @@ export class MenuComponent implements OnInit, OnDestroy {
       nzData: {
         exportType: exportType,
         workflowName: this.currentWorkflowName,
+        sourceTriggered: "menu",
       },
       nzFooter: null,
     });

@@ -153,7 +153,7 @@ describe("WorkflowResultExportService", () => {
     });
 
     // Act
-    service.exportOperatorsResultAsFile();
+    service.downloadOperatorsResultAsFile();
 
     // Simulate asynchronous operations
     tick();
@@ -193,7 +193,7 @@ describe("WorkflowResultExportService", () => {
 
     downloadServiceSpy.downloadOperatorsResult.and.returnValue(of(new Blob()));
 
-    service.exportOperatorsResultAsFile();
+    service.downloadOperatorsResultAsFile();
 
     expect(downloadServiceSpy.downloadOperatorsResult).toHaveBeenCalled();
     const args = downloadServiceSpy.downloadOperatorsResult.calls.mostRecent().args;
@@ -215,7 +215,7 @@ describe("WorkflowResultExportService", () => {
     });
 
     // Act
-    service.exportOperatorsResultAsFile();
+    service.downloadOperatorsResultAsFile();
   });
 
   it("should export multiple visualization results as a zip file when there are multiple results", done => {
@@ -245,7 +245,7 @@ describe("WorkflowResultExportService", () => {
     downloadServiceSpy.downloadOperatorsResult.and.returnValue(of(new Blob()));
 
     // Call the method that triggers the download
-    service.exportOperatorsResultAsFile();
+    service.downloadOperatorsResultAsFile();
 
     // Check if downloadOperatorsResult was called with the correct arguments
     expect(downloadServiceSpy.downloadOperatorsResult).toHaveBeenCalled();
@@ -269,6 +269,6 @@ describe("WorkflowResultExportService", () => {
     });
 
     // Act
-    service.exportOperatorsResultAsFile();
+    service.downloadOperatorsResultAsFile();
   });
 });

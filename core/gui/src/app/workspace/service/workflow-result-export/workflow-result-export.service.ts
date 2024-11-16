@@ -86,9 +86,9 @@ export class WorkflowResultExportService {
    * Export the operator results as files.
    * If multiple operatorIds are provided, results are zipped into a single file.
    */
-  exportOperatorsResultAsFile(download_all: boolean = false): void {
+  downloadOperatorsResultAsFile(downloadAll: boolean = false): void {
     let operatorIds: string[];
-    if (!download_all)
+    if (!downloadAll)
       operatorIds = [...this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()];
     else
       operatorIds = this.workflowActionService
@@ -226,9 +226,10 @@ export class WorkflowResultExportService {
     datasetIds: ReadonlyArray<number> = [],
     rowIndex: number,
     columnIndex: number,
-    filename: string
+    filename: string,
+    exportAll: boolean = false
   ): void {
-    if (!environment.exportExecutionResultEnabled || !this.hasResultToExportOnHighlightedOperators) {
+    if (!environment.exportExecutionResultEnabled) {
       return;
     }
 
@@ -237,28 +238,34 @@ export class WorkflowResultExportService {
       return;
     }
 
+    let operatorIds: string[];
+    if (!exportAll)
+      operatorIds = [...this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()];
+    else
+      operatorIds = this.workflowActionService
+        .getTexeraGraph()
+        .getAllOperators()
+        .map(operator => operator.operatorID);
+
     this.notificationService.loading("exporting...");
-    this.workflowActionService
-      .getJointGraphWrapper()
-      .getCurrentHighlightedOperatorIDs()
-      .forEach(operatorId => {
-        if (!this.workflowResultService.hasAnyResult(operatorId)) {
-          return;
-        }
-        const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorId);
-        const operatorName = operator.customDisplayName ?? operator.operatorType;
-        this.workflowWebsocketService.send("ResultExportRequest", {
-          exportType,
-          workflowId,
-          workflowName,
-          operatorId,
-          operatorName,
-          datasetIds,
-          rowIndex,
-          columnIndex,
-          filename,
-        });
+    operatorIds.forEach(operatorId => {
+      if (!this.workflowResultService.hasAnyResult(operatorId)) {
+        return;
+      }
+      const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorId);
+      const operatorName = operator.customDisplayName ?? operator.operatorType;
+      this.workflowWebsocketService.send("ResultExportRequest", {
+        exportType,
+        workflowId,
+        workflowName,
+        operatorId,
+        operatorName,
+        datasetIds,
+        rowIndex,
+        columnIndex,
+        filename,
       });
+    });
   }
 
   /**

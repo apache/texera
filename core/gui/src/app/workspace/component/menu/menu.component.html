@@ -180,32 +180,10 @@
               nz-icon
               nzType="comment"></i>
           </button>
-          <nz-dropdown-menu #exportMenu="nzDropdownMenu">
-            <ul nz-menu>
-              <li
-                nz-menu-item
-                (click)="onClickExportExecutionResult('csv')"
-                [class.disabled-menu-item]="
-        !workflowResultExportService.exportExecutionResultEnabled ||
-        !workflowResultExportService.hasResultToExportOnHighlightedOperators
-      ">
-                Export Execution Result
-              </li>
-              <li
-                nz-menu-item
-                (click)="workflowResultExportService.exportOperatorsResultAsFile(true)"
-                [class.disabled-menu-item]="
-        !workflowResultExportService.exportExecutionResultEnabled ||
-        !workflowResultExportService.hasResultToExportOnAllOperators
-      ">
-                Download All Operators Result
-              </li>
-            </ul>
-          </nz-dropdown-menu>
           <button
             nz-button
             nz-dropdown
-            [nzDropdownMenu]="exportMenu"
+            (click)="onClickExportExecutionResult('csv')"
             [nzTrigger]="
     !workflowResultExportService.exportExecutionResultEnabled ||
     !workflowResultExportService.hasResultToExportOnAllOperators ? 'click' : 'hover'"

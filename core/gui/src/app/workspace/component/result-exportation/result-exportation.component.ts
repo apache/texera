@@ -13,6 +13,11 @@ import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
   styleUrls: ["./result-exportation.component.scss"],
 })
 export class ResultExportationComponent implements OnInit {
+  /* Two sources can trigger this dialog, one from context-menu
+   which only export highlighted operators
+   and second is menu which wants to export all operators
+   */
+  sourceTriggered: string = inject(NZ_MODAL_DATA).sourceTriggered;
   exportType: string = inject(NZ_MODAL_DATA).exportType;
   workflowName: string = inject(NZ_MODAL_DATA).workflowName;
   inputFileName: string = inject(NZ_MODAL_DATA).defaultFileName ?? "default_filename";
@@ -27,8 +32,8 @@ export class ResultExportationComponent implements OnInit {
   filteredUserAccessibleDatasets: DashboardDataset[] = [];
 
   constructor(
+    public workflowResultExportService: WorkflowResultExportService,
     private modalRef: NzModalRef,
-    private workflowResultExportService: WorkflowResultExportService,
     private datasetService: DatasetService
   ) {}
 
@@ -53,7 +58,7 @@ export class ResultExportationComponent implements OnInit {
     }
   }
 
-  onClickSaveResultFileToDatasets(dataset: DashboardDataset) {
+  onClickSaveResultFileToDatasets(dataset: DashboardDataset, exportAll: boolean = false) {
     if (dataset.dataset.did) {
       this.workflowResultExportService.exportWorkflowExecutionResult(
         this.exportType,
@@ -61,9 +66,15 @@ export class ResultExportationComponent implements OnInit {
         [dataset.dataset.did],
         this.rowIndex,
         this.columnIndex,
-        this.inputFileName
+        this.inputFileName,
+        exportAll
       );
       this.modalRef.close();
     }
+  }
+
+  onClickDownloadAllResult() {
+    this.workflowResultExportService.downloadOperatorsResultAsFile(true);
+    this.modalRef.close();
   }
 }

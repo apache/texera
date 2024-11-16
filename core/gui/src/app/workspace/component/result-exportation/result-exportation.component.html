@@ -12,28 +12,26 @@
         placeholder="Enter filename for binary data" />
     </nz-form-item>
   </div>
-  <div class="input-wrapper">
-    <nz-form-item>
-      <nz-form-label nzFor="filenameWithExtensionInput">File name</nz-form-label>
-      <input
-        id="filename"
-        [(ngModel)]="filename"
-        type="text"
-        nz-input
-      />
-    </nz-form-item>
-  </div>
-  <div class="input-wrapper">
+  <div
+    *ngIf="sourceTriggered === 'menu'"
+    class="input-wrapper">
     <nz-form-item>
       <nz-form-label nzFor="destinationInput">Destination</nz-form-label>
-      <nz-select id="destinationInput" [(ngModel)]="destination" nzPlaceHolder="Select destination">
-        <nz-option nzValue="local" nzLabel="Local"></nz-option>
-        <nz-option nzValue="dataset" nzLabel="Dataset"></nz-option>
+      <nz-select
+        id="destinationInput"
+        [(ngModel)]="destination"
+        nzPlaceHolder="Select destination">
+        <nz-option
+          nzValue="local"
+          nzLabel="Local"></nz-option>
+        <nz-option
+          nzValue="dataset"
+          nzLabel="Dataset"></nz-option>
       </nz-select>
     </nz-form-item>
   </div>
   <input
-    *ngIf="destination === 'dataset'"
+    *ngIf="destination === 'dataset' || sourceTriggered === 'context-menu'"
     [(ngModel)]="inputDatasetName"
     (input)="onUserInputDatasetName($event)"
     type="text"
@@ -54,11 +52,17 @@
           nz-button
           nzType="primary"
           class="dataset-option-link-btn"
-          (click)="onClickSaveResultFileToDatasets(dataset)">
+          (click)="onClickSaveResultFileToDatasets(dataset, true)">
           Save
         </button>
       </div>
     </nz-auto-option>
   </nz-autocomplete>
-  <button nz-button nzType="default" *ngIf="destination === 'local'">Download</button>
+  <button
+    nz-button
+    nzType="default"
+    *ngIf="destination === 'local' && sourceTriggered === 'menu'"
+    (click)="onClickDownloadAllResult()">
+    Download
+  </button>
 </div>
