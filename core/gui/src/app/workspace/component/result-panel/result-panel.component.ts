@@ -16,6 +16,7 @@ import { WorkflowConsoleService } from "../../service/workflow-console/workflow-
 import { NzResizeEvent } from "ng-zorro-antd/resizable";
 import { VisualizationFrameContentComponent } from "../visualization-panel-content/visualization-frame-content.component";
 import { calculateTotalTranslate3d } from "../../../common/util/panel-dock";
+import { PanelService } from "../../service/panel/panel.service";
 
 /**
  * ResultPanelComponent is the bottom level area that displays the
@@ -53,7 +54,8 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     private workflowVersionService: WorkflowVersionService,
     private changeDetectorRef: ChangeDetectorRef,
     private workflowConsoleService: WorkflowConsoleService,
-    private resizeService: PanelResizeService
+    private resizeService: PanelResizeService,
+    private panelService: PanelService
   ) {
     const width = localStorage.getItem("result-panel-width");
     if (width) this.width = Number(width);
@@ -70,6 +72,11 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     this.registerAutoRerenderResultPanel();
     this.registerAutoOpenResultPanel();
     this.handleResultPanelForVersionPreview();
+    this.panelService.closePanelStream.pipe(untilDestroyed(this)).subscribe(() => this.closePanel());
+    this.panelService.resetPanelStream.pipe(untilDestroyed(this)).subscribe(() => {
+      this.resetPanelPosition();
+      this.openPanel();
+    });
   }
 
   @HostListener("window:beforeunload")
