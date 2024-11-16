@@ -12,7 +12,7 @@ import { Location } from "@angular/common";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
-import { DASHBOARD_HUB_WORKFLOW_RESULT } from "../../../../app-routing.constant";
+import { DASHBOARD_HUB_WORKFLOW_RESULT, DASHBOARD_USER_WORKSPACE } from "../../../../app-routing.constant";
 
 export const THROTTLE_TIME_MS = 1000;
 
@@ -175,7 +175,7 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
       .cloneWorkflow(this.wid)
       .pipe(untilDestroyed(this))
       .subscribe(newWid => {
-        this.router.navigate([`/dashboard/user/workspace/${newWid}`]).then(() => {
+        this.router.navigate([`${DASHBOARD_USER_WORKSPACE}/${newWid}`]).then(() => {
           this.notificationService.success("Clone Successful");
         });
       });

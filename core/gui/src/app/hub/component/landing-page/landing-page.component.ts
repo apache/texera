@@ -7,6 +7,7 @@ import { DashboardWorkflow } from "../../../dashboard/type/dashboard-workflow.in
 import { SearchService } from "../../../dashboard/service/user/search.service";
 import { DashboardEntry, UserInfo } from "../../../dashboard/type/dashboard-entry";
 import { map, switchMap } from "rxjs/operators";
+import { DASHBOARD_HUB_WORKFLOW_RESULT } from "../../../app-routing.constant";
 
 @UntilDestroy()
 @Component({
@@ -93,6 +94,6 @@ export class LandingPageComponent implements OnInit {
   }
 
   navigateToSearch(): void {
-    this.router.navigate(["/dashboard/hub/workflow/result"]);
+    this.router.navigate([DASHBOARD_HUB_WORKFLOW_RESULT]);
   }
 }

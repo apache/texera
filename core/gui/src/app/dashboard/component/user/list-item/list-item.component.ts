@@ -24,6 +24,12 @@ import { HubWorkflowDetailComponent } from "../../../../hub/component/workflow/d
 import { HubWorkflowService } from "../../../../hub/service/workflow/hub-workflow.service";
 import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
 import { formatSize } from "src/app/common/util/size-formatter.util";
+import {
+  DASHBOARD_HUB_WORKFLOW_RESULT_DETAIL,
+  DASHBOARD_USER_PROJECT,
+  DASHBOARD_USER_WORKSPACE,
+  DASHBOARD_USER_DATASET,
+} from "../../../../app-routing.constant";
 
 @UntilDestroy()
 @Component({
@@ -43,10 +49,10 @@ export class ListItemComponent implements OnInit, OnChanges {
   likeCount: number = 0;
   viewCount = 0;
 
-  ROUTER_WORKFLOW_BASE_URL = "/dashboard/user/workspace";
-  ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user/project";
-  ROUTER_DATASET_BASE_URL = "/dashboard/user/dataset";
-  ROUTER_WORKFLOW_DETAIL_BASE_URL = "/dashboard/hub/workflow/result/detail";
+  ROUTER_WORKFLOW_BASE_URL = DASHBOARD_USER_WORKSPACE;
+  ROUTER_USER_PROJECT_BASE_URL = DASHBOARD_USER_PROJECT;
+  ROUTER_DATASET_BASE_URL = DASHBOARD_USER_DATASET;
+  ROUTER_WORKFLOW_DETAIL_BASE_URL = DASHBOARD_HUB_WORKFLOW_RESULT_DETAIL;
   entryLink: string[] = [];
   public iconType: string = "";
   isLiked: boolean = false;

@@ -31,6 +31,7 @@ import { ResultExportationComponent } from "../result-exportation/result-exporta
 import { ReportGenerationService } from "../../service/report-generation/report-generation.service";
 import { ShareAccessComponent } from "src/app/dashboard/component/user/share-access/share-access.component";
 import { PanelService } from "../../service/panel/panel.service";
+import { DASHBOARD_USER_WORKFLOW } from "../../../app-routing.constant";
 /**
  * MenuComponent is the top level menu bar that shows
  *  the Texera title and workflow execution button
@@ -61,6 +62,7 @@ export class MenuComponent implements OnInit {
   public isSaving: boolean = false;
   public isWorkflowModifiable: boolean = false;
   public workflowId?: number;
+  protected readonly DASHBOARD_USER_WORKFLOW = DASHBOARD_USER_WORKFLOW;
 
   @Input() public writeAccess: boolean = false;
   @Input() public pid?: number = undefined;

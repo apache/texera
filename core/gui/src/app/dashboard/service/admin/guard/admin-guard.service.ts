@@ -1,6 +1,7 @@
 ﻿import { Injectable } from "@angular/core";
 import { CanActivate, Router } from "@angular/router";
 import { UserService } from "../../../../common/service/user/user.service";
+import { DASHBOARD_USER_WORKFLOW } from "../../../../app-routing.constant";
 
 /**
  * AuthGuardService is a service can tell the router whether
@@ -17,7 +18,7 @@ export class AdminGuardService implements CanActivate {
     if (this.userService.isAdmin()) {
       return true;
     } else {
-      this.router.navigate(["/dashboard/user/workflow"]);
+      this.router.navigate([DASHBOARD_USER_WORKFLOW]);
       return false;
     }
   }
