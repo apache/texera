@@ -34,10 +34,6 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
   id = -1;
   width = 800;
   height = 300;
-  prevWidth = 800;
-  prevHeight = 300;
-  maxWidth = window.innerWidth;
-  maxHeight = window.innerHeight;
   operatorTitle = "";
   dragPosition = { x: 0, y: 0 };
   returnPosition = { x: 0, y: 0 };
@@ -275,13 +271,11 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
   }
 
   openPanel() {
-    this.height = this.prevHeight;
-    this.width = this.prevWidth;
+    this.height = 800;
+    this.width = 300;
   }
 
   closePanel() {
-    this.prevHeight = this.height;
-    this.prevWidth = this.width;
     this.height = 32.5;
     this.width = 0;
   }
