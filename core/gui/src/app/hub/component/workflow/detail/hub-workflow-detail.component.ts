@@ -54,7 +54,7 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
       this.isHub = true;
     }
     this.currentUser = this.userService.getCurrentUser();
-    this.workflowActionService.disableWorkflowModification();
+    this.workflowActionService.previewDisableWorkflowModification();
   }
 
   ngOnInit() {

@@ -121,6 +121,12 @@ export class WorkflowActionService {
     this.undoRedoService.disableWorkFlowModification();
   }
 
+  public previewDisableWorkflowModification() {
+    this.workflowModificationEnabled = false;
+    this.enableModificationStream.next(false);
+    this.undoRedoService.disableWorkFlowModification();
+  }
+
   public checkWorkflowModificationEnabled(): boolean {
     return this.workflowModificationEnabled;
   }
