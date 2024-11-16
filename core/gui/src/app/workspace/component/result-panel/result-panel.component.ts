@@ -16,7 +16,10 @@ import { WorkflowConsoleService } from "../../service/workflow-console/workflow-
 import { NzResizeEvent } from "ng-zorro-antd/resizable";
 import { VisualizationFrameContentComponent } from "../visualization-panel-content/visualization-frame-content.component";
 import { calculateTotalTranslate3d } from "../../../common/util/panel-dock";
+import { PanelService } from "../../service/panel/panel.service";
 
+export const DEFAULT_WIDTH = 800;
+export const DEFAULT_HEIGHT = 300;
 /**
  * ResultPanelComponent is the bottom level area that displays the
  *  execution result of a workflow after the execution finishes.
@@ -31,12 +34,8 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
   frameComponentConfigs: Map<string, { component: Type<any>; componentInputs: {} }> = new Map();
   protected readonly window = window;
   id = -1;
-  width = 800;
-  height = 300;
-  prevWidth = 800;
-  prevHeight = 300;
-  maxWidth = window.innerWidth;
-  maxHeight = window.innerHeight;
+  width = DEFAULT_WIDTH;
+  height = DEFAULT_HEIGHT;
   operatorTitle = "";
   dragPosition = { x: 0, y: 0 };
   returnPosition = { x: 0, y: 0 };
@@ -53,7 +52,8 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     private workflowVersionService: WorkflowVersionService,
     private changeDetectorRef: ChangeDetectorRef,
     private workflowConsoleService: WorkflowConsoleService,
-    private resizeService: PanelResizeService
+    private resizeService: PanelResizeService,
+    private panelService: PanelService
   ) {
     const width = localStorage.getItem("result-panel-width");
     if (width) this.width = Number(width);
@@ -70,6 +70,11 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     this.registerAutoRerenderResultPanel();
     this.registerAutoOpenResultPanel();
     this.handleResultPanelForVersionPreview();
+    this.panelService.closePanelStream.pipe(untilDestroyed(this)).subscribe(() => this.closePanel());
+    this.panelService.resetPanelStream.pipe(untilDestroyed(this)).subscribe(() => {
+      this.resetPanelPosition();
+      this.openPanel();
+    });
   }
 
   @HostListener("window:beforeunload")
@@ -268,13 +273,11 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
   }
 
   openPanel() {
-    this.height = this.prevHeight;
-    this.width = this.prevWidth;
+    this.height = DEFAULT_HEIGHT;
+    this.width = DEFAULT_WIDTH;
   }
 
   closePanel() {
-    this.prevHeight = this.height;
-    this.prevWidth = this.width;
     this.height = 32.5;
     this.width = 0;
   }
