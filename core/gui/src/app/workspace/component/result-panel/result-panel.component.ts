@@ -18,6 +18,8 @@ import { VisualizationFrameContentComponent } from "../visualization-panel-conte
 import { calculateTotalTranslate3d } from "../../../common/util/panel-dock";
 import { PanelService } from "../../service/panel/panel.service";
 
+export const DEFAULT_WIDTH = 800
+export const DEFAULT_HEIGHT = 300
 /**
  * ResultPanelComponent is the bottom level area that displays the
  *  execution result of a workflow after the execution finishes.
@@ -28,12 +30,13 @@ import { PanelService } from "../../service/panel/panel.service";
   templateUrl: "./result-panel.component.html",
   styleUrls: ["./result-panel.component.scss"],
 })
+
 export class ResultPanelComponent implements OnInit, OnDestroy {
   frameComponentConfigs: Map<string, { component: Type<any>; componentInputs: {} }> = new Map();
   protected readonly window = window;
   id = -1;
-  width = 800;
-  height = 300;
+  width = DEFAULT_WIDTH;
+  height = DEFAULT_HEIGHT;
   operatorTitle = "";
   dragPosition = { x: 0, y: 0 };
   returnPosition = { x: 0, y: 0 };
@@ -271,8 +274,8 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
   }
 
   openPanel() {
-    this.height = 800;
-    this.width = 300;
+    this.height = DEFAULT_HEIGHT;
+    this.width = DEFAULT_WIDTH;
   }
 
   closePanel() {
