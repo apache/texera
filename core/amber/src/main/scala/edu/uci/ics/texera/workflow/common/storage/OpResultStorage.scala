@@ -76,9 +76,9 @@ class OpResultStorage extends Serializable with LazyLogging {
   }
 
   /**
-    * Close this storage. Used for workflow cleanup.
+    * Clear this storage. Used for workflow cleanup.
     */
-  def close(): Unit = {
+  def clear(): Unit = {
     cache.forEach((_, sinkStorageReader) => sinkStorageReader.clear())
     cache.clear()
   }
