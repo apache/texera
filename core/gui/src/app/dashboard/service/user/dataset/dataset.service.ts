@@ -173,14 +173,14 @@ export class DatasetService {
     });
   }
 
-  public updateDatasetName(did: number | undefined, name: string): Observable<Response> {
+  public updateDatasetName(did: number, name: string): Observable<Response> {
     return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${DATASET_UPDATE_NAME_URL}`, {
       did: did,
       name: name,
     });
   }
 
-  public updateDatasetDescription(did: number | undefined, description: string): Observable<Response> {
+  public updateDatasetDescription(did: number, description: string): Observable<Response> {
     return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${DATASET_UPDATE_DESCRIPTION_URL}`, {
       did: did,
       description: description,

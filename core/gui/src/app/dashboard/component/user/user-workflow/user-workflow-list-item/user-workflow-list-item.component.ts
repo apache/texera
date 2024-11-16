@@ -92,6 +92,10 @@ export class UserWorkflowListItemComponent {
   }
 
   public confirmUpdateWorkflowCustomName(name: string): void {
+    if (this.workflow.wid === undefined) {
+      return;
+    }
+
     this.workflowPersistService
       .updateWorkflowName(this.workflow.wid, name || DEFAULT_WORKFLOW_NAME)
       .pipe(untilDestroyed(this))
@@ -104,6 +108,10 @@ export class UserWorkflowListItemComponent {
   }
 
   public confirmUpdateWorkflowCustomDescription(description: string): void {
+    if (this.workflow.wid === undefined) {
+      return;
+    }
+
     this.workflowPersistService
       .updateWorkflowDescription(this.workflow.wid, description)
       .pipe(untilDestroyed(this))

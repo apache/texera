@@ -138,7 +138,7 @@ export class WorkflowPersistService {
   /**
    * updates the name of a given workflow, the user in the session must own the workflow.
    */
-  public updateWorkflowName(wid: number | undefined, name: string): Observable<Response> {
+  public updateWorkflowName(wid: number, name: string): Observable<Response> {
     return this.http
       .post<Response>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_UPDATENAME_URL}`, {
         wid: wid,
@@ -156,7 +156,7 @@ export class WorkflowPersistService {
   /**
    * updates the description of a given workflow
    */
-  public updateWorkflowDescription(wid: number | undefined, description: string): Observable<Response> {
+  public updateWorkflowDescription(wid: number, description: string): Observable<Response> {
     return this.http
       .post<Response>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_UPDATEDESCRIPTION_URL}`, {
         wid: wid,

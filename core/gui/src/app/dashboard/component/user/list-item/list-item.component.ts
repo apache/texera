@@ -231,13 +231,13 @@ export class ListItemComponent implements OnInit, OnChanges {
   }
 
   private updateProperty(
-    updateMethod: (id: number | undefined, value: string) => any,
+    updateMethod: (id: number, value: string) => any,
     propertyName: "name" | "description",
     newValue: string,
     originalValue: string | undefined
   ): void {
     if (!this.entry.id) {
-      console.error(`${this.entry.type} ID is missing. Cannot update ${propertyName}.`);
+      this.notificationService.error("Id is missing");
       return;
     }
 
@@ -245,10 +245,9 @@ export class ListItemComponent implements OnInit, OnChanges {
       .pipe(untilDestroyed(this))
       .subscribe({
         next: () => {
-          (this.entry as any)[propertyName] = newValue; // Dynamic property assignment
+          this.entry[propertyName] = newValue; // Dynamic property assignment
         },
-        error: (err: unknown) => {
-          console.error(`Failed to update ${this.entry.type} ${propertyName}:`, err);
+        error: () => {
           this.notificationService.error("Update failed");
           (this.entry as any)[propertyName] = originalValue ?? ""; // Fallback to original value
           this.setEditingState(propertyName, false);
