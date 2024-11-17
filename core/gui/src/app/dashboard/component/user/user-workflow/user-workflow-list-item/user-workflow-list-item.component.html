@@ -20,7 +20,7 @@
       <div class="workflow-item-meta-title">
         <div
           *ngIf="!editingName; else customWorkflowTitle "
-          [routerLink]="ROUTER_WORKFLOW_BASE_URL + '/' + workflow.wid"
+          [routerLink]="ROUTER_WORKSPACE_BASE_URL + '/' + workflow.wid"
           [innerHTML]="workflow.name | highlightSearchTerms : keywords"
           class="workflow-name"></div>
         <ng-template #customWorkflowTitle>
