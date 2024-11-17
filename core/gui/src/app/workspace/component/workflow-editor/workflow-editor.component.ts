@@ -353,6 +353,10 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
   }
 
   private handleCellHighlight(): void {
+    if (!this.workflowActionService.getEnableHighlight()) {
+      return;
+    }
+
     this.handleHighlightMouseDBClickInput();
     this.handleHighlightMouseInput();
     this.handleElementHightlightEvent();
@@ -1056,6 +1060,10 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
    * handles events/observables related to the breakpoint
    */
   private handleLinkBreakpoint(): void {
+    if (!this.workflowActionService.getEnableHighlight()) {
+      return;
+    }
+
     this.handleLinkBreakpointToolAttachment();
     this.handleLinkBreakpointButtonClick();
     this.handleLinkBreakpointHighlightEvents();
