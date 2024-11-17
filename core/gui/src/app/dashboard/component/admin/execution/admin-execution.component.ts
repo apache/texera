@@ -20,6 +20,7 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
   listOfExecutions = [...this.Executions];
   executionMap: Map<number, Execution> = new Map();
   isLoading: boolean = true;
+  totalWorkflows: number = 0;
 
   // Set up an interval to periodically fetch and update execution data.
   // This interval function fetches the latest execution list and checks for updates.
@@ -33,6 +34,7 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
         this.listOfExecutions.forEach((oldExecution, index) => {
           const updatedExecution = executionList.find(execution => execution.executionId === oldExecution.executionId);
           if (updatedExecution && this.dataCheck(this.listOfExecutions[index], updatedExecution)) {
+            // refresh when any of the information changed.
             this.ngOnInit();
           } else if (!updatedExecution) {
             this.ngOnInit();
@@ -50,16 +52,25 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
           if (this.executionMap.has(execution.workflowId)) {
             let tempExecution = this.executionMap.get(execution.workflowId);
             if (tempExecution) {
+              // new execution of the workflow
               if (tempExecution.executionId < execution.executionId) {
                 this.ngOnInit();
               }
             }
           } else if (!this.executionMap.has(execution.workflowId)) {
+            // new workflow
             this.ngOnInit();
           }
         });
         this.updateTimeDifferences();
       });
+    
+    this.adminExecutionService
+      .getTotalWorkflows()
+      .pipe(untilDestroyed(this))
+      .subscribe(
+        total => this.totalWorkflows = total
+      );
   }, 1000); // 1 second interval
 
   constructor(
@@ -78,6 +89,13 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
         this.workflowsCount = this.listOfExecutions.length;
         this.isLoading = false;
       });
+    
+    this.adminExecutionService
+      .getTotalWorkflows()
+      .pipe(untilDestroyed(this))
+      .subscribe(
+        total => this.totalWorkflows = total
+      );
   }
 
   ngOnDestroy(): void {

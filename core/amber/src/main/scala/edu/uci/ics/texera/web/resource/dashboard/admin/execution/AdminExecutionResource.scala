@@ -54,6 +54,23 @@ object AdminExecutionResource {
 @RolesAllowed(Array("ADMIN"))
 class AdminExecutionResource {
 
+  @GET
+  @Path("/totalWorkflow")
+  @Produces()
+  def getTotalWorkflows: Int = {
+    context.select(
+        DSL.countDistinct(WORKFLOW.WID)
+      )
+      .from(WORKFLOW_EXECUTIONS)
+      .join(WORKFLOW_VERSION)
+      .on(WORKFLOW_EXECUTIONS.VID.eq(WORKFLOW_VERSION.VID))
+      .join(USER)
+      .on(WORKFLOW_EXECUTIONS.UID.eq(USER.UID))
+      .join(WORKFLOW)
+      .on(WORKFLOW.WID.eq(WORKFLOW_VERSION.WID))
+      .fetchOne(0, classOf[Int])
+  }
+
   /**
     * This method retrieves all existing executions
     */
