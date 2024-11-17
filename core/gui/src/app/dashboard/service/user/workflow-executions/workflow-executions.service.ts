@@ -3,7 +3,7 @@ import { Observable } from "rxjs";
 import { AppSettings } from "../../../../common/app-setting";
 import { HttpClient } from "@angular/common/http";
 import { WorkflowExecutionsEntry } from "../../../type/workflow-executions-entry";
-import { WorkflowRuntimeStatistics } from "../../../type/workflow-runtime-statistics";
+import { OperatorRuntimeStatistics } from "../../../type/operator-runtime-statistics";
 
 export const WORKFLOW_EXECUTIONS_API_BASE_URL = `${AppSettings.getApiEndpoint()}/executions`;
 
@@ -43,7 +43,7 @@ export class WorkflowExecutionsService {
     });
   }
 
-  retrieveWorkflowRuntimeStatistics(wid: number, eId: number): Observable<WorkflowRuntimeStatistics[]> {
-    return this.http.get<WorkflowRuntimeStatistics[]>(`${WORKFLOW_EXECUTIONS_API_BASE_URL}/${wid}/${eId}`);
+  retrieveWorkflowRuntimeStatistics(wid: number, eId: number): Observable<OperatorRuntimeStatistics[]> {
+    return this.http.get<OperatorRuntimeStatistics[]>(`${WORKFLOW_EXECUTIONS_API_BASE_URL}/${wid}/${eId}`);
   }
 }
