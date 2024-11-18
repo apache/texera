@@ -15,63 +15,15 @@ import { environment } from "../../../../../environments/environment";
   styleUrls: ["./admin-execution.component.scss"],
 })
 export class AdminExecutionComponent implements OnInit, OnDestroy {
-  Executions: ReadonlyArray<Execution> = [];
-  workflowsCount: number = 0;
-  listOfExecutions = [...this.Executions];
-  executionMap: Map<number, Execution> = new Map();
+  listOfExecutions: ReadonlyArray<Execution> = [];
   isLoading: boolean = true;
   totalWorkflows: number = 0;
+  pageSize: number = 6;
+  currentPageIndex: number = 0;
 
-  // Set up an interval to periodically fetch and update execution data.
-  // This interval function fetches the latest execution list and checks for updates.
-  // If some execution's data has changed, it triggers a component refresh.
+  // This interval function fetches the latest execution list.
   // The interval runs every 1 second (1000 milliseconds).
-  timer = setInterval(() => {
-    this.adminExecutionService
-      .getExecutionList()
-      .pipe(untilDestroyed(this))
-      .subscribe(executionList => {
-        this.listOfExecutions.forEach((oldExecution, index) => {
-          const updatedExecution = executionList.find(execution => execution.executionId === oldExecution.executionId);
-          if (updatedExecution && this.dataCheck(this.listOfExecutions[index], updatedExecution)) {
-            // refresh when any of the information changed.
-            this.ngOnInit();
-          } else if (!updatedExecution) {
-            this.ngOnInit();
-
-            // this if statement checks whether the workflow has no executions or the workflow has been deleted.
-            let check_execution = this.executionMap.get(oldExecution.workflowId);
-            if (check_execution && check_execution.executionId === oldExecution.executionId) {
-              this.executionMap.delete(oldExecution.workflowId);
-              this.listOfExecutions = [...this.executionMap.values()];
-            }
-          }
-        });
-
-        executionList.forEach(execution => {
-          if (this.executionMap.has(execution.workflowId)) {
-            let tempExecution = this.executionMap.get(execution.workflowId);
-            if (tempExecution) {
-              // new execution of the workflow
-              if (tempExecution.executionId < execution.executionId) {
-                this.ngOnInit();
-              }
-            }
-          } else if (!this.executionMap.has(execution.workflowId)) {
-            // new workflow
-            this.ngOnInit();
-          }
-        });
-        this.updateTimeDifferences();
-      });
-    
-    this.adminExecutionService
-      .getTotalWorkflows()
-      .pipe(untilDestroyed(this))
-      .subscribe(
-        total => this.totalWorkflows = total
-      );
-  }, 1000); // 1 second interval
+  timer = setInterval(() => this.ngOnInit(), 1000); // 1 second interval
 
   constructor(
     private adminExecutionService: AdminExecutionService,
@@ -80,13 +32,11 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.adminExecutionService
-      .getExecutionList()
+      .getExecutionList(this.pageSize, this.currentPageIndex)
       .pipe(untilDestroyed(this))
       .subscribe(executionList => {
-        this.Executions = executionList;
-        this.listOfExecutions = [];
-        this.reset();
-        this.workflowsCount = this.listOfExecutions.length;
+        this.listOfExecutions = [...executionList];
+        this.updateTimeStatus();
         this.isLoading = false;
       });
     
@@ -125,17 +75,7 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
     return false;
   }
 
-  filterExecutions() {
-    for (let i = 0; i < this.Executions.length; i++) {
-      const execution = this.Executions[i];
-      this.executionMap.set(execution.workflowId, execution);
-    }
-    this.listOfExecutions = [...this.executionMap.values()];
-  }
-
-  reset() {
-    this.filterExecutions();
-
+  updateTimeStatus() {
     this.specifyCompletedStatus();
     this.updateTimeDifferences();
   }
@@ -283,6 +223,11 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
     socket.openWebsocket(wid);
     socket.send("WorkflowResumeRequest", {});
     // socket.closeWebsocket();
+  }
+
+  onPageIndexChange(pageIndex: number): void {
+    this.currentPageIndex = pageIndex - 1;
+    this.ngOnInit();
   }
 
   public sortByWorkflowName: NzTableSortFn<Execution> = (a: Execution, b: Execution) =>

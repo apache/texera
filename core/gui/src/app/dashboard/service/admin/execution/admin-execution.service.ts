@@ -12,8 +12,8 @@ export const WORKFLOW_BASE_URL = `${AppSettings.getApiEndpoint()}/admin/executio
 export class AdminExecutionService {
   constructor(private http: HttpClient) {}
 
-  public getExecutionList(): Observable<ReadonlyArray<Execution>> {
-    return this.http.get<ReadonlyArray<Execution>>(`${WORKFLOW_BASE_URL}/executionList`);
+  public getExecutionList(pageSize: number, pageIndex: number): Observable<ReadonlyArray<Execution>> {
+    return this.http.get<ReadonlyArray<Execution>>(`${WORKFLOW_BASE_URL}/executionList/${pageSize}/${pageIndex}`);
   }
 
   public getTotalWorkflows(): Observable<number> {

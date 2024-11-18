@@ -13,7 +13,13 @@
   [nzData]="listOfExecutions"
   [nzLoading]="isLoading"
   [nzLoadingIndicator]="loadingTemplate"
-  [nzTemplateMode]="true">
+  [nzTemplateMode]="true"
+  [nzFrontPagination]="false"
+  [nzTotal]="totalWorkflows"
+  [nzPageSize]="pageSize"
+  [nzPageIndex]="currentPageIndex + 1"
+  (nzPageIndexChange)="onPageIndexChange($event)"
+  class="execution-table">
   <thead>
     <tr>
       <th

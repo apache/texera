@@ -75,9 +75,9 @@ class AdminExecutionResource {
     * This method retrieves all existing executions
     */
   @GET
-  @Path("/executionList")
+  @Path("/executionList/{pageSize}/{pageIndex}")
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def listWorkflows(@Auth current_user: SessionUser): List[dashboardExecution] = {
+  def listWorkflows(@Auth current_user: SessionUser, @PathParam("pageSize") page_size: Int = 20, @PathParam("pageIndex") page_index: Int = 0): List[dashboardExecution] = {
     val latestExecutionId = context.select(
         WORKFLOW_VERSION.WID,
         DSL.max(WORKFLOW_EXECUTIONS.EID).as("max_eid")
@@ -114,6 +114,8 @@ class AdminExecutionResource {
           WORKFLOW_VERSION.WID.eq(latestExecutionId.field(WORKFLOW_VERSION.WID))
         )
       )
+      .limit(page_size)
+      .offset(page_index * page_size)
       .fetch()
 
     val availableWorkflowIds = context

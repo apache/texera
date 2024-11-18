@@ -4,3 +4,9 @@
     flex-direction: column;
     height: 300px;
 }
+
+.execution-table {
+    display: block;
+    grid-row-start: 3;
+    grid-row-end: 4;
+}
