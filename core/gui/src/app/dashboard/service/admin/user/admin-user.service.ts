@@ -1,4 +1,4 @@
-import { HttpClient, HttpHeaders, HttpParams } from "@angular/common/http";
+import { HttpClient, HttpErrorResponse, HttpHeaders, HttpParams } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
 import { AppSettings } from "../../../../common/app-setting";
@@ -41,7 +41,7 @@ export class AdminUserService {
       })
       .pipe(
         catchError((error: unknown) => {
-          if (error.status === 409) {
+          if ((error as HttpErrorResponse).status === 409) {
             return throwError(() => new Error("Email already exists"));
           }
           return throwError(() => error);
