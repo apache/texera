@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.service.resource
 
-import com.fasterxml.jackson.databind.module.SimpleModule
 import io.dropwizard.testing.junit5.ResourceExtension
 import jakarta.ws.rs.client.Entity
 import jakarta.ws.rs.core.{MediaType, Response}

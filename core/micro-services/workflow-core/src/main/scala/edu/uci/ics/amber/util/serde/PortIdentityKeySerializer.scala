@@ -11,6 +11,6 @@ class PortIdentityKeySerializer extends JsonSerializer[PortIdentity] {
       serializers: SerializerProvider
   ): Unit = {
     // Serialize PortIdentity as a string "id:internal"
-    gen.writeFieldName(s"${key.id}:${key.internal}")
+    gen.writeFieldName(s"${key.id}_${key.internal}")
   }
 }
