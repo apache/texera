@@ -74,7 +74,7 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
   )
 
   override def beforeAll(): Unit = {
-    system = ActorSystem("Amber", AmberRuntime.akkaConfig)
+    system = ActorSystem("CheckpointSpec", AmberRuntime.akkaConfig)
     system.actorOf(Props[SingleNodeListener](), "cluster-info")
     AmberRuntime.serde = SerializationExtension(system)
   }
@@ -161,12 +161,13 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
         completableFuture.complete(())
       }
     }
-    Thread.sleep(100)
+    Thread.sleep(1000)
     assert(
       Await
         .result(client2.controllerInterface.startWorkflow(EmptyRequest(), ()))
         .workflowState == PAUSED
     )
+    Thread.sleep(5000)
     Await.result(client2.controllerInterface.resumeWorkflow(EmptyRequest(), ()))
     completableFuture.get(30000, TimeUnit.MILLISECONDS)
   }
