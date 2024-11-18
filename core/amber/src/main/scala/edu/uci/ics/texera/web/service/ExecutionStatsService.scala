@@ -17,8 +17,7 @@ import edu.uci.ics.amber.engine.common.model.WorkflowContext
 import edu.uci.ics.amber.error.ErrorUtils.{getOperatorFromActorIdOpt, getStackTraceWithAllCauses}
 import Utils.maptoStatusCode
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowRuntimeStatistics
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowRuntimeStatisticsDao
-import edu.uci.ics.texera.web.{SqlServer, SubscriptionManager}
+import edu.uci.ics.texera.web.SubscriptionManager
 import edu.uci.ics.texera.web.model.websocket.event.{
   ExecutionDurationUpdateEvent,
   OperatorAggregatedMetrics,
@@ -34,6 +33,7 @@ import edu.uci.ics.amber.engine.common.workflowruntimestate.{
   OperatorWorkerMapping,
   WorkflowFatalError
 }
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 
 import java.time.Instant
 import org.jooq.types.{UInteger, ULong}
@@ -47,8 +47,6 @@ class ExecutionStatsService(
     workflowContext: WorkflowContext
 ) extends SubscriptionManager
     with LazyLogging {
-  final private lazy val context = SqlServer.createDSLContext()
-  private val workflowRuntimeStatisticsDao = new WorkflowRuntimeStatisticsDao(context.configuration)
   private val metricsPersistThread = Executors.newSingleThreadExecutor()
   private var lastPersistedMetrics: Map[String, OperatorMetrics] = Map()
   registerCallbacks()
@@ -228,7 +226,7 @@ class ExecutionStatsService(
         execution.setNumWorkers(UInteger.valueOf(stat.operatorStatistics.numWorkers))
         list.add(execution)
       }
-      workflowRuntimeStatisticsDao.insert(list)
+      WorkflowExecutionsResource.insertWorkflowRuntimeStatistics(list)
     } catch {
       case err: Throwable => logger.error("error occurred when storing runtime statistics", err)
     }

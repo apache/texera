@@ -14,7 +14,7 @@
       <div class="footer">
         <span class="footer-text">Edited: {{ workflow.lastModifiedTime | date }}</span>
         <texera-user-avatar
-          [googleAvatar]="'https://lh3.googleusercontent.com/a/' + workflow.ownerGoogleAvatar || ''"
+          [googleAvatar]="workflow.ownerGoogleAvatar"
           userColor="grey"
           [userName]="workflow.ownerName || ''"
           nz-button>
