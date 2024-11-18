@@ -3,7 +3,7 @@
   style="position: relative">
   <nz-avatar
     [nzAlt]=""
-    [nzSrc]="googleAvatar"
+    [nzSrc]="googleAvatar ? 'https://lh3.googleusercontent.com/a/' + googleAvatar : ''"
     [nzText]="abbreviate(userName || '')"
     [style.background-color]="userColor"
     class="texera-user-avatar">
