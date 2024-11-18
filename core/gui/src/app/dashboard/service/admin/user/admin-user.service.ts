@@ -4,6 +4,8 @@ import { Observable } from "rxjs";
 import { AppSettings } from "../../../../common/app-setting";
 import { Role, User, File, Workflow, MongoExecution } from "../../../../common/type/user";
 import { DatasetQuota } from "src/app/dashboard/type/quota-statistic.interface";
+import { catchError } from "rxjs/operators";
+import { throwError } from "rxjs";
 
 export const USER_BASE_URL = `${AppSettings.getApiEndpoint()}/admin/user`;
 export const USER_LIST_URL = `${USER_BASE_URL}/list`;
@@ -30,12 +32,21 @@ export class AdminUserService {
   }
 
   public updateUser(uid: number, name: string, email: string, role: Role): Observable<void> {
-    return this.http.put<void>(`${USER_UPDATE_URL}`, {
-      uid: uid,
-      name: name,
-      email: email,
-      role: role,
-    });
+    return this.http
+      .put<void>(`${USER_UPDATE_URL}`, {
+        uid: uid,
+        name: name,
+        email: email,
+        role: role,
+      })
+      .pipe(
+        catchError((error: unknown) => {
+          if (error.status === 409) {
+            return throwError(() => new Error("Email already exists"));
+          }
+          return throwError(() => error);
+        })
+      );
   }
 
   public addUser(): Observable<Response> {
