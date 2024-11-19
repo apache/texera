@@ -19,6 +19,7 @@ import {
   WorkflowCompilationResponse,
 } from "../../types/compile-workflow.interface";
 import { WorkflowFatalError } from "../../types/workflow-websocket.interface";
+import { LogicalPlan } from "../../types/execute-workflow.interface";
 
 // endpoint for schema propagation
 export const WORKFLOW_COMPILATION_ENDPOINT = "compile";
@@ -68,7 +69,11 @@ export class CompileWorkflowService {
       this.workflowActionService.getTexeraGraph().getDisabledOperatorsChangedStream()
     )
       .pipe(debounceTime(WORKFLOW_COMPILATION_DEBOUNCE_TIME_MS))
-      .pipe(mergeMap(() => this.compile()))
+      .pipe(
+        mergeMap(() =>
+          this.compile(ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph()))
+        )
+      )
       .subscribe(response => {
         if (response.physicalPlan) {
           this.currentCompilationStateInfo = {
@@ -173,13 +178,12 @@ export class CompileWorkflowService {
    * that users can easily set the properties of the next operator. For eg: If there are two operators Source:Scan and KeywordSearch and
    * a link is created between them, the attributed of the table selected in Source can be propagated to the KeywordSearch operator.
    */
-  private compile(): Observable<WorkflowCompilationResponse> {
+  private compile(logicalPlan: LogicalPlan): Observable<WorkflowCompilationResponse> {
     // create a Logical Plan based on the workflow graph
-    const body = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
     // remove unnecessary information for schema propagation.
-    const body2 = {
-      operators: body.operators,
-      links: body.links,
+    const body = {
+      operators: logicalPlan.operators,
+      links: logicalPlan.links,
       opsToReuseResult: [],
       opsToViewResult: [],
     };
@@ -187,7 +191,7 @@ export class CompileWorkflowService {
     return this.httpClient
       .post<WorkflowCompilationResponse>(
         `${AppSettings.getApiEndpoint()}/${WORKFLOW_COMPILATION_ENDPOINT}`,
-        JSON.stringify(body2)
+        JSON.stringify(body)
       )
       .pipe(
         catchError((err: unknown) => {
