@@ -115,7 +115,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     this.handlePaperZoom();
     this.handleWindowResize();
     this.handleViewDeleteOperator();
-    if (this.workflowActionService.getEnableHighlight()) {
+    if (this.workflowActionService.getHighlightingEnabled()) {
       this.handleCellHighlight();
     }
     this.handleDisableOperator();
@@ -142,7 +142,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     this.handleElementPaste();
     this.handleLinkCursorHover();
     this.handleGridsToggle();
-    if (environment.linkBreakpointEnabled && this.workflowActionService.getEnableHighlight()) {
+    if (environment.linkBreakpointEnabled && this.workflowActionService.getHighlightingEnabled()) {
       this.handleLinkBreakpoint();
     }
     this.handlePointerEvents();

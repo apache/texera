@@ -841,7 +841,7 @@ export class WorkflowActionService {
     this.highlightingEnabled = enabled;
   }
 
-  public getEnableHighlight() {
+  public getHighlightingEnabled() {
     return this.highlightingEnabled;
   }
 }
