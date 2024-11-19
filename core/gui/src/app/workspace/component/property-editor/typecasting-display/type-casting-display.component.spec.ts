@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
-import { WorkflowCompilingService } from "../../../service/compile-workflow/compile-workflow.service";
+import { CompileWorkflowService } from "../../../service/compile-workflow/compile-workflow.service";
 
 import { TypeCastingDisplayComponent } from "./type-casting-display.component";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
@@ -26,7 +26,7 @@ describe("TypecastingDisplayComponent", () => {
         UndoRedoService,
         WorkflowUtilService,
         WorkflowActionService,
-        WorkflowCompilingService,
+        CompileWorkflowService,
       ],
       declarations: [TypeCastingDisplayComponent],
     }).compileComponents();

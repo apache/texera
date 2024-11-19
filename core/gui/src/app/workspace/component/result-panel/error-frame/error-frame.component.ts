@@ -6,7 +6,7 @@ import { WorkflowWebsocketService } from "../../../service/workflow-websocket/wo
 import { WorkflowFatalError } from "../../../types/workflow-websocket.interface";
 import { render } from "sass";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
-import { WorkflowCompilingService } from "../../../service/compile-workflow/compile-workflow.service";
+import { CompileWorkflowService } from "../../../service/compile-workflow/compile-workflow.service";
 
 @UntilDestroy()
 @Component({
@@ -22,7 +22,7 @@ export class ErrorFrameComponent implements OnInit {
   constructor(
     private executeWorkflowService: ExecuteWorkflowService,
     private workflowActionService: WorkflowActionService,
-    private workflowCompilingService: WorkflowCompilingService
+    private workflowCompilingService: CompileWorkflowService
   ) {}
 
   ngOnInit(): void {

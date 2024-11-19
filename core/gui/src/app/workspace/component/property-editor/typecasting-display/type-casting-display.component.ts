@@ -3,7 +3,7 @@ import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/
 import {
   AttributeType,
   SchemaAttribute,
-  WorkflowCompilingService,
+  CompileWorkflowService,
 } from "src/app/workspace/service/compile-workflow/compile-workflow.service";
 import { filter, map } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
@@ -24,7 +24,7 @@ export class TypeCastingDisplayComponent implements OnInit, OnChanges {
 
   constructor(
     private workflowActionService: WorkflowActionService,
-    private workflowCompilingService: WorkflowCompilingService
+    private workflowCompilingService: CompileWorkflowService
   ) {}
 
   ngOnInit(): void {

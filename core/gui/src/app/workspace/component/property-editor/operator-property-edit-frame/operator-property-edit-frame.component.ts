@@ -31,7 +31,7 @@ import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-sc
 import {
   AttributeType,
   PortInputSchema,
-  WorkflowCompilingService,
+  CompileWorkflowService,
 } from "../../../service/compile-workflow/compile-workflow.service";
 import {
   createOutputFormChangeEventStream,
@@ -133,7 +133,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     private workflowActionService: WorkflowActionService,
     public executeWorkflowService: ExecuteWorkflowService,
     private dynamicSchemaService: DynamicSchemaService,
-    private workflowCompilingService: WorkflowCompilingService,
+    private workflowCompilingService: CompileWorkflowService,
     private notificationService: NotificationService,
     private changeDetectorRef: ChangeDetectorRef,
     private workflowVersionService: WorkflowVersionService,

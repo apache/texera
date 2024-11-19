@@ -35,11 +35,11 @@ export const WORKFLOW_COMPILATION_DEBOUNCE_TIME_MS = 500;
 @Injectable({
   providedIn: "root",
 })
-export class WorkflowCompilingService {
+export class CompileWorkflowService {
   private currentCompilationStateInfo: CompilationStateInfo = {
     state: CompilationState.Uninitialized,
   };
-  private compilationStateInfoChangedStream = new Subject<void>();
+  private compilationStateInfoChangedStream = new Subject<CompilationState>();
 
   constructor(
     private httpClient: HttpClient,
@@ -78,8 +78,7 @@ export class WorkflowCompilingService {
             operatorErrors: response.operatorErrors,
           };
         }
-        console.log(this.currentCompilationStateInfo);
-        this.compilationStateInfoChangedStream.next();
+        this.compilationStateInfoChangedStream.next(this.currentCompilationStateInfo.state);
         this._applySchemaPropagationResult(this.currentCompilationStateInfo.operatorInputSchemaMap);
       });
   }
@@ -142,7 +141,7 @@ export class WorkflowCompilingService {
       // if operator input attributes are in the result, set them in dynamic schema
       let newDynamicSchema: OperatorSchema;
       if (schemaPropagationResult[operatorID]) {
-        newDynamicSchema = WorkflowCompilingService.setOperatorInputAttrs(
+        newDynamicSchema = CompileWorkflowService.setOperatorInputAttrs(
           currentDynamicSchema,
           schemaPropagationResult[operatorID]
         );
@@ -150,7 +149,7 @@ export class WorkflowCompilingService {
         // otherwise, the input attributes of the operator is unknown
         // if the operator is not a source operator, restore its original schema of input attributes
         if (currentDynamicSchema.additionalMetadata.inputPorts.length > 0) {
-          newDynamicSchema = WorkflowCompilingService.restoreOperatorInputAttrs(currentDynamicSchema);
+          newDynamicSchema = CompileWorkflowService.restoreOperatorInputAttrs(currentDynamicSchema);
         } else {
           newDynamicSchema = currentDynamicSchema;
         }
@@ -352,7 +351,7 @@ export class WorkflowCompilingService {
     };
   }
 
-  public getCompilationStateInfoChangedStream(): Observable<void> {
+  public getCompilationStateInfoChangedStream(): Observable<CompilationState> {
     return this.compilationStateInfoChangedStream.asObservable();
   }
 }
