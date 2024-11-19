@@ -10,3 +10,5 @@ node_modules
 /.nx/cache
 
 /.nx/workspace-data
+
+src/app/common/type/proto
