@@ -197,7 +197,7 @@ export const InputPort: MessageFns<InputPort> = {
       obj.allowMultiLinks = message.allowMultiLinks;
     }
     if (message.dependencies?.length) {
-      obj.dependencies = message.dependencies.map((e) => PortIdentity.toJSON(e));
+      obj.dependencies = message.dependencies.map(e => PortIdentity.toJSON(e));
     }
     return obj;
   },
@@ -207,10 +207,10 @@ export const InputPort: MessageFns<InputPort> = {
   },
   fromPartial<I extends Exact<DeepPartial<InputPort>, I>>(object: I): InputPort {
     const message = createBaseInputPort();
-    message.id = (object.id !== undefined && object.id !== null) ? PortIdentity.fromPartial(object.id) : undefined;
+    message.id = object.id !== undefined && object.id !== null ? PortIdentity.fromPartial(object.id) : undefined;
     message.displayName = object.displayName ?? "";
     message.allowMultiLinks = object.allowMultiLinks ?? false;
-    message.dependencies = object.dependencies?.map((e) => PortIdentity.fromPartial(e)) || [];
+    message.dependencies = object.dependencies?.map(e => PortIdentity.fromPartial(e)) || [];
     return message;
   },
 };
@@ -297,7 +297,7 @@ export const OutputPort: MessageFns<OutputPort> = {
   },
   fromPartial<I extends Exact<DeepPartial<OutputPort>, I>>(object: I): OutputPort {
     const message = createBaseOutputPort();
-    message.id = (object.id !== undefined && object.id !== null) ? PortIdentity.fromPartial(object.id) : undefined;
+    message.id = object.id !== undefined && object.id !== null ? PortIdentity.fromPartial(object.id) : undefined;
     message.displayName = object.displayName ?? "";
     message.blocking = object.blocking ?? false;
     return message;
@@ -400,32 +400,37 @@ export const PhysicalLink: MessageFns<PhysicalLink> = {
   },
   fromPartial<I extends Exact<DeepPartial<PhysicalLink>, I>>(object: I): PhysicalLink {
     const message = createBasePhysicalLink();
-    message.fromOpId = (object.fromOpId !== undefined && object.fromOpId !== null)
-      ? PhysicalOpIdentity.fromPartial(object.fromOpId)
-      : undefined;
-    message.fromPortId = (object.fromPortId !== undefined && object.fromPortId !== null)
-      ? PortIdentity.fromPartial(object.fromPortId)
-      : undefined;
-    message.toOpId = (object.toOpId !== undefined && object.toOpId !== null)
-      ? PhysicalOpIdentity.fromPartial(object.toOpId)
-      : undefined;
-    message.toPortId = (object.toPortId !== undefined && object.toPortId !== null)
-      ? PortIdentity.fromPartial(object.toPortId)
-      : undefined;
+    message.fromOpId =
+      object.fromOpId !== undefined && object.fromOpId !== null
+        ? PhysicalOpIdentity.fromPartial(object.fromOpId)
+        : undefined;
+    message.fromPortId =
+      object.fromPortId !== undefined && object.fromPortId !== null
+        ? PortIdentity.fromPartial(object.fromPortId)
+        : undefined;
+    message.toOpId =
+      object.toOpId !== undefined && object.toOpId !== null ? PhysicalOpIdentity.fromPartial(object.toOpId) : undefined;
+    message.toPortId =
+      object.toPortId !== undefined && object.toPortId !== null ? PortIdentity.fromPartial(object.toPortId) : undefined;
     return message;
   },
 };
 
 type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
 
-export type DeepPartial<T> = T extends Builtin ? T
-  : T extends globalThis.Array<infer U> ? globalThis.Array<DeepPartial<U>>
-  : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
-  : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
-  : Partial<T>;
+export type DeepPartial<T> = T extends Builtin
+  ? T
+  : T extends globalThis.Array<infer U>
+    ? globalThis.Array<DeepPartial<U>>
+    : T extends ReadonlyArray<infer U>
+      ? ReadonlyArray<DeepPartial<U>>
+      : T extends {}
+        ? { [K in keyof T]?: DeepPartial<T[K]> }
+        : Partial<T>;
 
 type KeysOfUnion<T> = T extends T ? keyof T : never;
-export type Exact<P, I extends P> = P extends Builtin ? P
+export type Exact<P, I extends P> = P extends Builtin
+  ? P
   : P & { [K in keyof P]: Exact<P[K], I[K]> } & { [K in Exclude<keyof I, KeysOfUnion<P>>]: never };
 
 function isSet(value: any): boolean {

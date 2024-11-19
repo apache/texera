@@ -293,12 +293,14 @@ export const ChannelIdentity: MessageFns<ChannelIdentity> = {
   },
   fromPartial<I extends Exact<DeepPartial<ChannelIdentity>, I>>(object: I): ChannelIdentity {
     const message = createBaseChannelIdentity();
-    message.fromWorkerId = (object.fromWorkerId !== undefined && object.fromWorkerId !== null)
-      ? ActorVirtualIdentity.fromPartial(object.fromWorkerId)
-      : undefined;
-    message.toWorkerId = (object.toWorkerId !== undefined && object.toWorkerId !== null)
-      ? ActorVirtualIdentity.fromPartial(object.toWorkerId)
-      : undefined;
+    message.fromWorkerId =
+      object.fromWorkerId !== undefined && object.fromWorkerId !== null
+        ? ActorVirtualIdentity.fromPartial(object.fromWorkerId)
+        : undefined;
+    message.toWorkerId =
+      object.toWorkerId !== undefined && object.toWorkerId !== null
+        ? ActorVirtualIdentity.fromPartial(object.toWorkerId)
+        : undefined;
     message.isControl = object.isControl ?? false;
     return message;
   },
@@ -429,9 +431,10 @@ export const PhysicalOpIdentity: MessageFns<PhysicalOpIdentity> = {
   },
   fromPartial<I extends Exact<DeepPartial<PhysicalOpIdentity>, I>>(object: I): PhysicalOpIdentity {
     const message = createBasePhysicalOpIdentity();
-    message.logicalOpId = (object.logicalOpId !== undefined && object.logicalOpId !== null)
-      ? OperatorIdentity.fromPartial(object.logicalOpId)
-      : undefined;
+    message.logicalOpId =
+      object.logicalOpId !== undefined && object.logicalOpId !== null
+        ? OperatorIdentity.fromPartial(object.logicalOpId)
+        : undefined;
     message.layerName = object.layerName ?? "";
     return message;
   },
@@ -496,14 +499,19 @@ export const ChannelMarkerIdentity: MessageFns<ChannelMarkerIdentity> = {
 
 type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
 
-export type DeepPartial<T> = T extends Builtin ? T
-  : T extends globalThis.Array<infer U> ? globalThis.Array<DeepPartial<U>>
-  : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
-  : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
-  : Partial<T>;
+export type DeepPartial<T> = T extends Builtin
+  ? T
+  : T extends globalThis.Array<infer U>
+    ? globalThis.Array<DeepPartial<U>>
+    : T extends ReadonlyArray<infer U>
+      ? ReadonlyArray<DeepPartial<U>>
+      : T extends {}
+        ? { [K in keyof T]?: DeepPartial<T[K]> }
+        : Partial<T>;
 
 type KeysOfUnion<T> = T extends T ? keyof T : never;
-export type Exact<P, I extends P> = P extends Builtin ? P
+export type Exact<P, I extends P> = P extends Builtin
+  ? P
   : P & { [K in keyof P]: Exact<P[K], I[K]> } & { [K in Exclude<keyof I, KeysOfUnion<P>>]: never };
 
 function longToNumber(int64: { toString(): string }): number {

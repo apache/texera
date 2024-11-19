@@ -51,18 +51,14 @@ export function matchTypeToJSON(object: MatchType): string {
 
 export interface ScalaPbOptions {
   /** If set then it overrides the java_package and package. */
-  packageName?:
-    | string
-    | undefined;
+  packageName?: string | undefined;
   /**
    * If true, the compiler does not append the proto base file name
    * into the generated package name. If false (the default), the
    * generated scala package name is the package_name.basename where
    * basename is the proto file name without the .proto extension.
    */
-  flatPackage?:
-    | boolean
-    | undefined;
+  flatPackage?: boolean | undefined;
   /**
    * Adds the following imports at the top of the file (this is meant
    * to provide implicit TypeMappers)
@@ -77,93 +73,65 @@ export interface ScalaPbOptions {
    * If true, all messages and enums (but not services) will be written
    * to a single Scala file.
    */
-  singleFile?:
-    | boolean
-    | undefined;
+  singleFile?: boolean | undefined;
   /**
    * By default, wrappers defined at
    * https://github.com/google/protobuf/blob/master/src/google/protobuf/wrappers.proto,
    * are mapped to an Option[T] where T is a primitive type. When this field
    * is set to true, we do not perform this transformation.
    */
-  noPrimitiveWrappers?:
-    | boolean
-    | undefined;
+  noPrimitiveWrappers?: boolean | undefined;
   /**
    * DEPRECATED. In ScalaPB <= 0.5.47, it was necessary to explicitly enable
    * primitive_wrappers. This field remains here for backwards compatibility,
    * but it has no effect on generated code. It is an error to set both
    * `primitive_wrappers` and `no_primitive_wrappers`.
    */
-  primitiveWrappers?:
-    | boolean
-    | undefined;
+  primitiveWrappers?: boolean | undefined;
   /**
    * Scala type to be used for repeated fields. If unspecified,
    * `scala.collection.Seq` will be used.
    */
-  collectionType?:
-    | string
-    | undefined;
+  collectionType?: string | undefined;
   /**
    * If set to true, all generated messages in this file will preserve unknown
    * fields.
    */
-  preserveUnknownFields?:
-    | boolean
-    | undefined;
+  preserveUnknownFields?: boolean | undefined;
   /**
    * If defined, sets the name of the file-level object that would be generated. This
    * object extends `GeneratedFileObject` and contains descriptors, and list of message
    * and enum companions.
    */
-  objectName?:
-    | string
-    | undefined;
+  objectName?: string | undefined;
   /** Experimental: scope to apply the given options. */
-  scope?:
-    | ScalaPbOptions_OptionsScope
-    | undefined;
+  scope?: ScalaPbOptions_OptionsScope | undefined;
   /** If true, lenses will be generated. */
-  lenses?:
-    | boolean
-    | undefined;
+  lenses?: boolean | undefined;
   /**
    * If true, then source-code info information will be included in the
    * generated code - normally the source code info is cleared out to reduce
    * code size.  The source code info is useful for extracting source code
    * location from the descriptors as well as comments.
    */
-  retainSourceCodeInfo?:
-    | boolean
-    | undefined;
+  retainSourceCodeInfo?: boolean | undefined;
   /**
    * Scala type to be used for maps. If unspecified,
    * `scala.collection.immutable.Map` will be used.
    */
-  mapType?:
-    | string
-    | undefined;
+  mapType?: string | undefined;
   /** If true, no default values will be generated in message constructors. */
   noDefaultValuesInConstructor?: boolean | undefined;
-  enumValueNaming?:
-    | ScalaPbOptions_EnumValueNaming
-    | undefined;
+  enumValueNaming?: ScalaPbOptions_EnumValueNaming | undefined;
   /**
    * Indicate if prefix (enum name + optional underscore) should be removed in scala code
    * Strip is applied before enum value naming changes.
    */
-  enumStripPrefix?:
-    | boolean
-    | undefined;
+  enumStripPrefix?: boolean | undefined;
   /** Scala type to use for bytes fields. */
-  bytesType?:
-    | string
-    | undefined;
+  bytesType?: string | undefined;
   /** Enable java conversions for this file. */
-  javaConversions?:
-    | boolean
-    | undefined;
+  javaConversions?: boolean | undefined;
   /** List of message options to apply to some messages. */
   auxMessageOptions: ScalaPbOptions_AuxMessageOptions[];
   /** List of message options to apply to some fields. */
@@ -179,13 +147,9 @@ export interface ScalaPbOptions {
    * Ignores all transformations for this file. This is meant to allow specific files to
    * opt out from transformations inherited through package-scoped options.
    */
-  ignoreAllTransformations?:
-    | boolean
-    | undefined;
+  ignoreAllTransformations?: boolean | undefined;
   /** If true, getters will be generated. */
-  getters?:
-    | boolean
-    | undefined;
+  getters?: boolean | undefined;
   /**
    * For use in tests only. Inhibit Java conversions even when when generator parameters
    * request for it.
@@ -272,9 +236,7 @@ export function scalaPbOptions_EnumValueNamingToJSON(object: ScalaPbOptions_Enum
  */
 export interface ScalaPbOptions_AuxMessageOptions {
   /** The fully-qualified name of the message in the proto name space. */
-  target?:
-    | string
-    | undefined;
+  target?: string | undefined;
   /**
    * Options to apply to the message. If there are any options defined on the target message
    * they take precedence over the options.
@@ -289,9 +251,7 @@ export interface ScalaPbOptions_AuxMessageOptions {
  */
 export interface ScalaPbOptions_AuxFieldOptions {
   /** The fully-qualified name of the field in the proto name space. */
-  target?:
-    | string
-    | undefined;
+  target?: string | undefined;
   /**
    * Options to apply to the field. If there are any options defined on the target message
    * they take precedence over the options.
@@ -306,9 +266,7 @@ export interface ScalaPbOptions_AuxFieldOptions {
  */
 export interface ScalaPbOptions_AuxEnumOptions {
   /** The fully-qualified name of the enum in the proto name space. */
-  target?:
-    | string
-    | undefined;
+  target?: string | undefined;
   /**
    * Options to apply to the enum. If there are any options defined on the target enum
    * they take precedence over the options.
@@ -323,9 +281,7 @@ export interface ScalaPbOptions_AuxEnumOptions {
  */
 export interface ScalaPbOptions_AuxEnumValueOptions {
   /** The fully-qualified name of the enum value in the proto name space. */
-  target?:
-    | string
-    | undefined;
+  target?: string | undefined;
   /**
    * Options to apply to the enum value. If there are any options defined on
    * the target enum value they take precedence over the options.
@@ -344,9 +300,7 @@ export interface MessageOptions {
    * All instances of this message will be converted to this type. An implicit TypeMapper
    * must be present.
    */
-  type?:
-    | string
-    | undefined;
+  type?: string | undefined;
   /** Custom annotations to add to the companion object of the generated class. */
   companionAnnotations: string[];
   /** Additional classes and traits to mix in to generated sealed_oneof base trait. */
@@ -355,9 +309,7 @@ export interface MessageOptions {
    * If true, when this message is used as an optional field, do not wrap it in an `Option`.
    * This is equivalent of setting `(field).no_box` to true on each field with the message type.
    */
-  noBox?:
-    | boolean
-    | undefined;
+  noBox?: boolean | undefined;
   /** Custom annotations to add to the generated `unknownFields` case class field. */
   unknownFieldsAnnotations: string[];
 }
@@ -368,17 +320,13 @@ export interface MessageOptions {
  */
 export interface Collection {
   /** Type of the collection */
-  type?:
-    | string
-    | undefined;
+  type?: string | undefined;
   /**
    * Set to true if this collection type is not allowed to be empty, for example
    * cats.data.NonEmptyList.  When true, ScalaPB will not generate `clearX` for the repeated
    * field and not provide a default argument in the constructor.
    */
-  nonEmpty?:
-    | boolean
-    | undefined;
+  nonEmpty?: boolean | undefined;
   /**
    * An Adapter is a Scala object available at runtime that provides certain static methods
    * that can operate on this collection type.
@@ -388,26 +336,20 @@ export interface Collection {
 
 export interface FieldOptions {
   type?: string | undefined;
-  scalaName?:
-    | string
-    | undefined;
+  scalaName?: string | undefined;
   /**
    * Can be specified only if this field is repeated. If unspecified,
    * it falls back to the file option named `collection_type`, which defaults
    * to `scala.collection.Seq`.
    */
   collectionType?: string | undefined;
-  collection?:
-    | Collection
-    | undefined;
+  collection?: Collection | undefined;
   /**
    * If the field is a map, you can specify custom Scala types for the key
    * or value.
    */
   keyType?: string | undefined;
-  valueType?:
-    | string
-    | undefined;
+  valueType?: string | undefined;
   /** Custom annotations to add to the field. */
   annotations: string[];
   /**
@@ -415,13 +357,9 @@ export interface FieldOptions {
    * it falls back to the file option named `map_type` which defaults to
    * `scala.collection.immutable.Map`
    */
-  mapType?:
-    | string
-    | undefined;
+  mapType?: string | undefined;
   /** Do not box this value in Option[T]. If set, this overrides MessageOptions.no_box */
-  noBox?:
-    | boolean
-    | undefined;
+  noBox?: boolean | undefined;
   /**
    * Like no_box it does not box a value in Option[T], but also fails parsing when a value
    * is not provided. This enables to emulate required fields in proto3.
@@ -438,9 +376,7 @@ export interface EnumOptions {
    * All instances of this enum will be converted to this type. An implicit TypeMapper
    * must be present.
    */
-  type?:
-    | string
-    | undefined;
+  type?: string | undefined;
   /** Custom annotations to add to the generated enum's base class. */
   baseAnnotations: string[];
   /** Custom annotations to add to the generated trait. */
@@ -453,9 +389,7 @@ export interface EnumValueOptions {
   /** Additional classes and traits to mix in to an individual enum value. */
   extends: string[];
   /** Name in Scala to use for this enum value. */
-  scalaName?:
-    | string
-    | undefined;
+  scalaName?: string | undefined;
   /** Custom annotations to add to the generated case object for this enum value. */
   annotations: string[];
 }
@@ -933,22 +867,22 @@ export const ScalaPbOptions: MessageFns<ScalaPbOptions> = {
       obj.javaConversions = message.javaConversions;
     }
     if (message.auxMessageOptions?.length) {
-      obj.auxMessageOptions = message.auxMessageOptions.map((e) => ScalaPbOptions_AuxMessageOptions.toJSON(e));
+      obj.auxMessageOptions = message.auxMessageOptions.map(e => ScalaPbOptions_AuxMessageOptions.toJSON(e));
     }
     if (message.auxFieldOptions?.length) {
-      obj.auxFieldOptions = message.auxFieldOptions.map((e) => ScalaPbOptions_AuxFieldOptions.toJSON(e));
+      obj.auxFieldOptions = message.auxFieldOptions.map(e => ScalaPbOptions_AuxFieldOptions.toJSON(e));
     }
     if (message.auxEnumOptions?.length) {
-      obj.auxEnumOptions = message.auxEnumOptions.map((e) => ScalaPbOptions_AuxEnumOptions.toJSON(e));
+      obj.auxEnumOptions = message.auxEnumOptions.map(e => ScalaPbOptions_AuxEnumOptions.toJSON(e));
     }
     if (message.auxEnumValueOptions?.length) {
-      obj.auxEnumValueOptions = message.auxEnumValueOptions.map((e) => ScalaPbOptions_AuxEnumValueOptions.toJSON(e));
+      obj.auxEnumValueOptions = message.auxEnumValueOptions.map(e => ScalaPbOptions_AuxEnumValueOptions.toJSON(e));
     }
     if (message.preprocessors?.length) {
       obj.preprocessors = message.preprocessors;
     }
     if (message.fieldTransformations?.length) {
-      obj.fieldTransformations = message.fieldTransformations.map((e) => FieldTransformation.toJSON(e));
+      obj.fieldTransformations = message.fieldTransformations.map(e => FieldTransformation.toJSON(e));
     }
     if (message.ignoreAllTransformations !== undefined && message.ignoreAllTransformations !== false) {
       obj.ignoreAllTransformations = message.ignoreAllTransformations;
@@ -969,8 +903,8 @@ export const ScalaPbOptions: MessageFns<ScalaPbOptions> = {
     const message = createBaseScalaPbOptions();
     message.packageName = object.packageName ?? "";
     message.flatPackage = object.flatPackage ?? false;
-    message.import = object.import?.map((e) => e) || [];
-    message.preamble = object.preamble?.map((e) => e) || [];
+    message.import = object.import?.map(e => e) || [];
+    message.preamble = object.preamble?.map(e => e) || [];
     message.singleFile = object.singleFile ?? false;
     message.noPrimitiveWrappers = object.noPrimitiveWrappers ?? false;
     message.primitiveWrappers = object.primitiveWrappers ?? false;
@@ -986,14 +920,14 @@ export const ScalaPbOptions: MessageFns<ScalaPbOptions> = {
     message.enumStripPrefix = object.enumStripPrefix ?? false;
     message.bytesType = object.bytesType ?? "";
     message.javaConversions = object.javaConversions ?? false;
-    message.auxMessageOptions = object.auxMessageOptions?.map((e) => ScalaPbOptions_AuxMessageOptions.fromPartial(e)) ||
-      [];
-    message.auxFieldOptions = object.auxFieldOptions?.map((e) => ScalaPbOptions_AuxFieldOptions.fromPartial(e)) || [];
-    message.auxEnumOptions = object.auxEnumOptions?.map((e) => ScalaPbOptions_AuxEnumOptions.fromPartial(e)) || [];
+    message.auxMessageOptions =
+      object.auxMessageOptions?.map(e => ScalaPbOptions_AuxMessageOptions.fromPartial(e)) || [];
+    message.auxFieldOptions = object.auxFieldOptions?.map(e => ScalaPbOptions_AuxFieldOptions.fromPartial(e)) || [];
+    message.auxEnumOptions = object.auxEnumOptions?.map(e => ScalaPbOptions_AuxEnumOptions.fromPartial(e)) || [];
     message.auxEnumValueOptions =
-      object.auxEnumValueOptions?.map((e) => ScalaPbOptions_AuxEnumValueOptions.fromPartial(e)) || [];
-    message.preprocessors = object.preprocessors?.map((e) => e) || [];
-    message.fieldTransformations = object.fieldTransformations?.map((e) => FieldTransformation.fromPartial(e)) || [];
+      object.auxEnumValueOptions?.map(e => ScalaPbOptions_AuxEnumValueOptions.fromPartial(e)) || [];
+    message.preprocessors = object.preprocessors?.map(e => e) || [];
+    message.fieldTransformations = object.fieldTransformations?.map(e => FieldTransformation.fromPartial(e)) || [];
     message.ignoreAllTransformations = object.ignoreAllTransformations ?? false;
     message.getters = object.getters ?? true;
     message.testOnlyNoJavaConversions = object.testOnlyNoJavaConversions ?? false;
@@ -1065,18 +999,17 @@ export const ScalaPbOptions_AuxMessageOptions: MessageFns<ScalaPbOptions_AuxMess
   },
 
   create<I extends Exact<DeepPartial<ScalaPbOptions_AuxMessageOptions>, I>>(
-    base?: I,
+    base?: I
   ): ScalaPbOptions_AuxMessageOptions {
     return ScalaPbOptions_AuxMessageOptions.fromPartial(base ?? ({} as any));
   },
   fromPartial<I extends Exact<DeepPartial<ScalaPbOptions_AuxMessageOptions>, I>>(
-    object: I,
+    object: I
   ): ScalaPbOptions_AuxMessageOptions {
     const message = createBaseScalaPbOptions_AuxMessageOptions();
     message.target = object.target ?? "";
-    message.options = (object.options !== undefined && object.options !== null)
-      ? MessageOptions.fromPartial(object.options)
-      : undefined;
+    message.options =
+      object.options !== undefined && object.options !== null ? MessageOptions.fromPartial(object.options) : undefined;
     return message;
   },
 };
@@ -1148,13 +1081,12 @@ export const ScalaPbOptions_AuxFieldOptions: MessageFns<ScalaPbOptions_AuxFieldO
     return ScalaPbOptions_AuxFieldOptions.fromPartial(base ?? ({} as any));
   },
   fromPartial<I extends Exact<DeepPartial<ScalaPbOptions_AuxFieldOptions>, I>>(
-    object: I,
+    object: I
   ): ScalaPbOptions_AuxFieldOptions {
     const message = createBaseScalaPbOptions_AuxFieldOptions();
     message.target = object.target ?? "";
-    message.options = (object.options !== undefined && object.options !== null)
-      ? FieldOptions.fromPartial(object.options)
-      : undefined;
+    message.options =
+      object.options !== undefined && object.options !== null ? FieldOptions.fromPartial(object.options) : undefined;
     return message;
   },
 };
@@ -1226,13 +1158,12 @@ export const ScalaPbOptions_AuxEnumOptions: MessageFns<ScalaPbOptions_AuxEnumOpt
     return ScalaPbOptions_AuxEnumOptions.fromPartial(base ?? ({} as any));
   },
   fromPartial<I extends Exact<DeepPartial<ScalaPbOptions_AuxEnumOptions>, I>>(
-    object: I,
+    object: I
   ): ScalaPbOptions_AuxEnumOptions {
     const message = createBaseScalaPbOptions_AuxEnumOptions();
     message.target = object.target ?? "";
-    message.options = (object.options !== undefined && object.options !== null)
-      ? EnumOptions.fromPartial(object.options)
-      : undefined;
+    message.options =
+      object.options !== undefined && object.options !== null ? EnumOptions.fromPartial(object.options) : undefined;
     return message;
   },
 };
@@ -1301,18 +1232,19 @@ export const ScalaPbOptions_AuxEnumValueOptions: MessageFns<ScalaPbOptions_AuxEn
   },
 
   create<I extends Exact<DeepPartial<ScalaPbOptions_AuxEnumValueOptions>, I>>(
-    base?: I,
+    base?: I
   ): ScalaPbOptions_AuxEnumValueOptions {
     return ScalaPbOptions_AuxEnumValueOptions.fromPartial(base ?? ({} as any));
   },
   fromPartial<I extends Exact<DeepPartial<ScalaPbOptions_AuxEnumValueOptions>, I>>(
-    object: I,
+    object: I
   ): ScalaPbOptions_AuxEnumValueOptions {
     const message = createBaseScalaPbOptions_AuxEnumValueOptions();
     message.target = object.target ?? "";
-    message.options = (object.options !== undefined && object.options !== null)
-      ? EnumValueOptions.fromPartial(object.options)
-      : undefined;
+    message.options =
+      object.options !== undefined && object.options !== null
+        ? EnumValueOptions.fromPartial(object.options)
+        : undefined;
     return message;
   },
 };
@@ -1488,14 +1420,14 @@ export const MessageOptions: MessageFns<MessageOptions> = {
   },
   fromPartial<I extends Exact<DeepPartial<MessageOptions>, I>>(object: I): MessageOptions {
     const message = createBaseMessageOptions();
-    message.extends = object.extends?.map((e) => e) || [];
-    message.companionExtends = object.companionExtends?.map((e) => e) || [];
-    message.annotations = object.annotations?.map((e) => e) || [];
+    message.extends = object.extends?.map(e => e) || [];
+    message.companionExtends = object.companionExtends?.map(e => e) || [];
+    message.annotations = object.annotations?.map(e => e) || [];
     message.type = object.type ?? "";
-    message.companionAnnotations = object.companionAnnotations?.map((e) => e) || [];
-    message.sealedOneofExtends = object.sealedOneofExtends?.map((e) => e) || [];
+    message.companionAnnotations = object.companionAnnotations?.map(e => e) || [];
+    message.sealedOneofExtends = object.sealedOneofExtends?.map(e => e) || [];
     message.noBox = object.noBox ?? false;
-    message.unknownFieldsAnnotations = object.unknownFieldsAnnotations?.map((e) => e) || [];
+    message.unknownFieldsAnnotations = object.unknownFieldsAnnotations?.map(e => e) || [];
     return message;
   },
 };
@@ -1785,12 +1717,13 @@ export const FieldOptions: MessageFns<FieldOptions> = {
     message.type = object.type ?? "";
     message.scalaName = object.scalaName ?? "";
     message.collectionType = object.collectionType ?? "";
-    message.collection = (object.collection !== undefined && object.collection !== null)
-      ? Collection.fromPartial(object.collection)
-      : undefined;
+    message.collection =
+      object.collection !== undefined && object.collection !== null
+        ? Collection.fromPartial(object.collection)
+        : undefined;
     message.keyType = object.keyType ?? "";
     message.valueType = object.valueType ?? "";
-    message.annotations = object.annotations?.map((e) => e) || [];
+    message.annotations = object.annotations?.map(e => e) || [];
     message.mapType = object.mapType ?? "";
     message.noBox = object.noBox ?? false;
     message.required = object.required ?? false;
@@ -1937,12 +1870,12 @@ export const EnumOptions: MessageFns<EnumOptions> = {
   },
   fromPartial<I extends Exact<DeepPartial<EnumOptions>, I>>(object: I): EnumOptions {
     const message = createBaseEnumOptions();
-    message.extends = object.extends?.map((e) => e) || [];
-    message.companionExtends = object.companionExtends?.map((e) => e) || [];
+    message.extends = object.extends?.map(e => e) || [];
+    message.companionExtends = object.companionExtends?.map(e => e) || [];
     message.type = object.type ?? "";
-    message.baseAnnotations = object.baseAnnotations?.map((e) => e) || [];
-    message.recognizedAnnotations = object.recognizedAnnotations?.map((e) => e) || [];
-    message.unrecognizedAnnotations = object.unrecognizedAnnotations?.map((e) => e) || [];
+    message.baseAnnotations = object.baseAnnotations?.map(e => e) || [];
+    message.recognizedAnnotations = object.recognizedAnnotations?.map(e => e) || [];
+    message.unrecognizedAnnotations = object.unrecognizedAnnotations?.map(e => e) || [];
     return message;
   },
 };
@@ -2031,9 +1964,9 @@ export const EnumValueOptions: MessageFns<EnumValueOptions> = {
   },
   fromPartial<I extends Exact<DeepPartial<EnumValueOptions>, I>>(object: I): EnumValueOptions {
     const message = createBaseEnumValueOptions();
-    message.extends = object.extends?.map((e) => e) || [];
+    message.extends = object.extends?.map(e => e) || [];
     message.scalaName = object.scalaName ?? "";
-    message.annotations = object.annotations?.map((e) => e) || [];
+    message.annotations = object.annotations?.map(e => e) || [];
     return message;
   },
 };
@@ -2106,7 +2039,7 @@ export const OneofOptions: MessageFns<OneofOptions> = {
   },
   fromPartial<I extends Exact<DeepPartial<OneofOptions>, I>>(object: I): OneofOptions {
     const message = createBaseOneofOptions();
-    message.extends = object.extends?.map((e) => e) || [];
+    message.extends = object.extends?.map(e => e) || [];
     message.scalaName = object.scalaName ?? "";
     return message;
   },
@@ -2194,11 +2127,10 @@ export const FieldTransformation: MessageFns<FieldTransformation> = {
   },
   fromPartial<I extends Exact<DeepPartial<FieldTransformation>, I>>(object: I): FieldTransformation {
     const message = createBaseFieldTransformation();
-    message.when = (object.when !== undefined && object.when !== null)
-      ? FieldDescriptorProto.fromPartial(object.when)
-      : undefined;
+    message.when =
+      object.when !== undefined && object.when !== null ? FieldDescriptorProto.fromPartial(object.when) : undefined;
     message.matchType = object.matchType ?? 0;
-    message.set = (object.set !== undefined && object.set !== null) ? FieldOptions1.fromPartial(object.set) : undefined;
+    message.set = object.set !== undefined && object.set !== null ? FieldOptions1.fromPartial(object.set) : undefined;
     return message;
   },
 };
@@ -2245,9 +2177,9 @@ export const PreprocessorOutput: MessageFns<PreprocessorOutput> = {
     return {
       optionsByFile: isObject(object.optionsByFile)
         ? Object.entries(object.optionsByFile).reduce<{ [key: string]: ScalaPbOptions }>((acc, [key, value]) => {
-          acc[key] = ScalaPbOptions.fromJSON(value);
-          return acc;
-        }, {})
+            acc[key] = ScalaPbOptions.fromJSON(value);
+            return acc;
+          }, {})
         : {},
     };
   },
@@ -2278,7 +2210,7 @@ export const PreprocessorOutput: MessageFns<PreprocessorOutput> = {
         }
         return acc;
       },
-      {},
+      {}
     );
     return message;
   },
@@ -2348,32 +2280,36 @@ export const PreprocessorOutput_OptionsByFileEntry: MessageFns<PreprocessorOutpu
   },
 
   create<I extends Exact<DeepPartial<PreprocessorOutput_OptionsByFileEntry>, I>>(
-    base?: I,
+    base?: I
   ): PreprocessorOutput_OptionsByFileEntry {
     return PreprocessorOutput_OptionsByFileEntry.fromPartial(base ?? ({} as any));
   },
   fromPartial<I extends Exact<DeepPartial<PreprocessorOutput_OptionsByFileEntry>, I>>(
-    object: I,
+    object: I
   ): PreprocessorOutput_OptionsByFileEntry {
     const message = createBasePreprocessorOutput_OptionsByFileEntry();
     message.key = object.key ?? "";
-    message.value = (object.value !== undefined && object.value !== null)
-      ? ScalaPbOptions.fromPartial(object.value)
-      : undefined;
+    message.value =
+      object.value !== undefined && object.value !== null ? ScalaPbOptions.fromPartial(object.value) : undefined;
     return message;
   },
 };
 
 type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
 
-export type DeepPartial<T> = T extends Builtin ? T
-  : T extends globalThis.Array<infer U> ? globalThis.Array<DeepPartial<U>>
-  : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
-  : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
-  : Partial<T>;
+export type DeepPartial<T> = T extends Builtin
+  ? T
+  : T extends globalThis.Array<infer U>
+    ? globalThis.Array<DeepPartial<U>>
+    : T extends ReadonlyArray<infer U>
+      ? ReadonlyArray<DeepPartial<U>>
+      : T extends {}
+        ? { [K in keyof T]?: DeepPartial<T[K]> }
+        : Partial<T>;
 
 type KeysOfUnion<T> = T extends T ? keyof T : never;
-export type Exact<P, I extends P> = P extends Builtin ? P
+export type Exact<P, I extends P> = P extends Builtin
+  ? P
   : P & { [K in keyof P]: Exact<P[K], I[K]> } & { [K in Exclude<keyof I, KeysOfUnion<P>>]: never };
 
 function isObject(value: any): boolean {
