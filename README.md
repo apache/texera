@@ -53,31 +53,69 @@ The Texera interface supports real-time collaboration on data science projects, 
 The workflow in the use case shown below includes data cleaning, ML model training, and validation.
 ![texera-screenshot](https://github.com/user-attachments/assets/4384b8f5-3a9a-4bbc-a804-1dadd156ebb3)
 
+## Publications (Computer Science)
+*  (11/2024) **IcedTea: Efficient and Responsive Time-Travel Debugging in Dataflow Systems**  
+   Shengquan Ni, Yicong Huang, Zuozhi Wang, and Chen Li, _to appear in VLDB 2025_.
+*  (8/2024) **Pasta: A Cost-Based Optimizer for Generating Pipelining Schedules for Dataflow DAGs**  
+   Xiaozhen Liu, Yicong Huang, Xinyuan Lin, Avinash Kumar, Sadeem Alsudais, and Chen Li, _to appear in SIGMOD 2025_.
+*  (7/2024) **Texera: A System for Collaborative and Interactive Data Analytics Using Workflows** 
+   Zuozhi Wang, Yicong Huang, Shengquan Ni, Avinash Kumar, Sadeem Alsudais, Xiaozhen Liu, Xinyuan Lin, Yunyan Ding, and Chen Li, _to appear in VLDB 2024, Scalable Data Science track_.  
+   [PDF](https://www.vldb.org/pvldb/vol17/p3580-wang.pdf) | [Slides](https://chenli.ics.uci.edu/files/vldb2024-texera-presentation.pdf)
+*  (3/2024) **Demonstration of Udon: Line-by-line Debugging of User-Defined Functions in Data Workflows** 
+   Yicong Huang, Zuozhi Wang, and Chen Li, _in SIGMOD 2024, **Best Demo Runner-Up Award🏆**_.  
+   [PDF](https://dl.acm.org/doi/10.1145/3626246.3654756)
+*  (2/2024) **Data Science Tasks Implemented with Scripts versus GUI-Based Workflows:** The Good, the Bad, and the Ugly  
+   Alexander K Taylor, Yicong Huang, Junheng Hao, Xinyuan Lin, Xiusi Chen, Wei Wang, and Chen Li, _in DataPlat Workshop at ICDE 2024_.  
+   [PDF](https://ieeexplore.ieee.org/abstract/document/10555112) | [Slides](https://chenli.ics.uci.edu/files/icde2024-dataplat-workshop.pdf)
+<details>
+<summary>Expand All</summary>
+  
+* (8/2023) **Building a Collaborative Data Analytics System: Opportunities and Challenges**
+   Zuozhi Wang, Chen Li, _in Tutorial at VLDB 2023_  
+   [PDF](https://www.vldb.org/pvldb/vol16/p3898-wang.pdf) | [Slides](https://chenli.ics.uci.edu/files/vldb2023-texera-tutorial.pdf)
+* (8/2023) **Udon: Efficient Debugging of User-Defined Functions in Big Data Systems with Line-by-Line Control**
+   Yicong Huang, Zuozhi Wang, and Chen Li, _in SIGMOD 2024_  
+   [PDF](https://dl.acm.org/doi/10.1145/3626712) | [Slides](https://chenli.ics.uci.edu/files/sigmod2024-udon-presentation.pdf)
+* (8/2023) **Improving Iterative Analytics in GUI-Based Data-Processing Systems with Visualization, Version Control, and Result Reuse**
+   Sadeem Alsudais, Ph.D. Thesis  
+   [PDF](https://sadeemsaleh.github.io/Sadeem_phd_thesis.pdf)
+* (7/2023) **Using Texera to Characterize Climate Change Discussions on Twitter During Wildfires**
+   Shengquan Ni, Yicong Huang, Jessie W. Y. Ko, Alexander Taylor, Xiusi Chen, Avinash Kumar, Sadeem Alsudais, Zuozhi Wang, Xiaozhen Liu, Wei Wang, Suellen Hopfer, and Chen Li, _in Data Science Day at KDD 2023_
+* (7/2023) **Raven: Accelerating Execution of Iterative Data Analytics by Reusing Results of Previous Equivalent Versions**
+   Sadeem Alsudais, Avinash Kumar, and Chen Li, _in HILDA Workshop at SIGMOD 2023_  
+   [PDF](https://dl.acm.org/doi/10.1145/3597465.3605219)
+* (6/2023) **Texera: A System for Collaborative and Interactive Data Analytics Using Workflows**
+   Zuozhi Wang, Ph.D. Thesis  
+   [PDF](https://zuozhiw.github.io/Zuozhi_Wang_UCI_PhD_Thesis.pdf)
+* (12/2022) **Towards Interactive, Adaptive and Result-aware Big Data Analytics**
+   Avinash Kumar, Ph.D. Thesis  
+   [PDF](https://arxiv.org/abs/2212.07096)
+* (9/2022) **Fries: Fast and Consistent Runtime Reconfiguration in Dataflow Systems with Transactional Guarantees**
+   Zuozhi Wang, Shengquan Ni, Avinash Kumar, and Chen Li, _in VLDB 2023_  
+   [PDF](https://www.vldb.org/pvldb/vol16/p256-wang.pdf) | [Slides](https://chenli.ics.uci.edu/files/vldb2023-fries.pdf)
+* (7/2022) **Drove: Tracking Execution Results of Workflows on Large Datasets**
+   Sadeem Alsudais, _in the Ph.D. Workshop at VLDB 2022_  
+   [PDF](http://ceur-ws.org/Vol-3186/paper_10.pdf)
+* (6/2022) **Demonstration of Accelerating Machine Learning Inference Queries with Correlative Proxy Models**
+   Zhihui Yang, Yicong Huang, Zuozhi Wang, Feng Gao, Yao Lu, Chen Li, and X. Sean Wang, _in VLDB 2022_  
+   [PDF](https://www.vldb.org/pvldb/vol15/p3734-yang.pdf)
+* (6/2022) **Demonstration of Collaborative and Interactive Workflow-Based Data Analytics in Texera**
+   Xiaozhen Liu, Zuozhi Wang, Shengquan Ni, Sadeem Alsudais, Yicong Huang, Avinash Kumar, and Chen Li, _in VLDB 2022_  
+   [PDF](https://www.vldb.org/pvldb/vol15/p3738-liu.pdf) | [Demo Video](https://youtu.be/2gfPUZNsoBs)
+* (4/2022) **Optimizing Machine Learning Inference Queries with Correlative Proxy Models**
+   Zhihui Yang, Zuozhi Wang, Yicong Huang, Yao Lu, Chen Li, and X. Sean Wang, _in VLDB 2022_  
+   [PDF](https://www.vldb.org/pvldb/vol15/p2032-yang.pdf)
+* (7/2020) **Demonstration of Interactive Runtime Debugging of Distributed Dataflows in Texera**
+   Zuozhi Wang, Avinash Kumar, Shengquan Ni, and Chen Li, _in VLDB 2020_  
+   [PDF](http://www.vldb.org/pvldb/vol13/p2953-wang.pdf) | [Video](https://www.youtube.com/watch?v=SP-XiDADbw0) | [Slides](https://docs.google.com/presentation/d/14U6RPZfeb8Ho0aO2HsCSc8lRs6ul6AxEIm5gpjeVUYA/edit?usp=sharing)
+* (1/2020) **Amber: A Debuggable Dataflow system based on the Actor Model**
+   Avinash Kumar, Zuozhi Wang, Shengquan Ni, and Chen Li, _in VLDB 2020_  
+   [PDF](http://www.vldb.org/pvldb/vol13/p740-kumar.pdf) | [Video](https://www.youtube.com/watch?v=T5ShFRfHmgI) | [Slides](https://docs.google.com/presentation/d/1v8G9lDmfv4Ff2YWyrGfo_9iMQVF4N8a-4gO4H-K6rCk/edit?usp=sharing)
+* (4/2017) **A Demonstration of TextDB: Declarative and Scalable Text Analytics on Large Data Sets**
+   Zuozhi Wang, Flavio Bayer, Seungjin Lee, Kishore Narendran, Xuxi Pan, Qing Tang, Jimmy Wang, and Chen Li, _in ICDE 2017_ **Best Demo award**  
+   [PDF](https://chenli.ics.uci.edu/files/icde2017-textdb-demo.pdf) | [Video](https://github.com/Texera/texera/wiki/Video)
 
-
-## Publications (Computer Science):
-* (11/2024) IcedTea: Efficient and Responsive Time-Travel Debugging in Dataflow Systems, Shengquan Ni, Yicong Huang, Zuozhi Wang, and Chen Li, to appear in VLDB 2025.
-* (8/2024) Pasta: A Cost-Based Optimizer for Generating Pipelining Schedules for Dataflow DAGs, Xiaozhen Liu, Yicong Huang, Xinyuan Lin, Avinash Kumar, Sadeem Alsudais, and Chen Li, to appear in SIGMOD 2025.
-* (7/2024) Texera: A System for Collaborative and Interactive Data Analytics Using Workflows, Zuozhi Wang, Yicong Huang, Shengquan Ni, Avinash Kumar, Sadeem Alsudais, Xiaozhen Liu, Xinyuan Lin, Yunyan Ding and Chen Li, to appear in VLDB 2024, Scalable Data Science track [PDF](https://www.vldb.org/pvldb/vol17/p3580-wang.pdf), [Slides](https://chenli.ics.uci.edu/files/vldb2024-texera-presentation.pdf).
-* (3/2024) Demonstration of Udon: Line-by-line Debugging of User-Defined Functions in Data Workflows, Yicong Huang, Zuozhi Wang, and Chen Li, in SIGMOD 2024, **Best Demo Runner Up Award🏆**, [PDF](https://dl.acm.org/doi/10.1145/3626246.3654756). 
-* (2/2024) Data Science Tasks Implemented with Scripts versus GUI-Based Workflows: The Good, the Bad, and the Ugly, Alexander K Taylor, Yicong Huang, Junheng Hao, Xinyuan Lin, Xiusi Chen, Wei Wang, and Chen Li, in DataPlat Workshop at ICDE 2024 [PDF](https://ieeexplore.ieee.org/abstract/document/10555112), [Slides](https://chenli.ics.uci.edu/files/icde2024-dataplat-workshop.pdf). 
-* (8/2023) Building a Collaborative Data Analytics System: Opportunities and Challenges, Zuozhi Wang, Chen Li, in Tutorial at VLDB 2023 [PDF](https://www.vldb.org/pvldb/vol16/p3898-wang.pdf), [Slides](https://chenli.ics.uci.edu/files/vldb2023-texera-tutorial.pdf).
-* (8/2023) Udon: Efficient Debugging of User-Defined Functions in Big Data Systems with Line-by-Line Control, Yicong Huang, Zuozhi Wang, and Chen Li, in SIGMOD 2024 [PDF](https://dl.acm.org/doi/10.1145/3626712), [Slides](https://chenli.ics.uci.edu/files/sigmod2024-udon-presentation.pdf).
-* (8/2023) Improving Iterative Analytics in GUI-Based Data-Processing Systems with Visualization,
-  Version Control, and Result Reuse, Sadeem Alsudais, Ph.D. Thesis [PDF](https://sadeemsaleh.github.io/Sadeem_phd_thesis.pdf).
-* (7/2023) Using Texera to Characterize Climate Change Discussions on Twitter During Wildfires, Shengquan Ni, Yicong Huang, Jessie W. Y. Ko, Alexander Taylor, Xiusi Chen, Avinash Kumar, Sadeem Alsudais, Zuozhi Wang, Xiaozhen Liu, Wei Wang, Suellen Hopfer, and Chen Li, in Data Science Day at KDD 2023.
-* (7/2023) Raven: Accelerating Execution of Iterative Data Analytics by Reusing Results of Previous Equivalent Versions, Sadeem Alsudais, Avinash Kumar, and Chen Li, in HILDA Workshop at SIGMOD 2023 [PDF](https://dl.acm.org/doi/10.1145/3597465.3605219).
-* (6/2023) Texera: A System for Collaborative and Interactive Data Analytics Using Workflows, Zuozhi Wang, Ph.D. Thesis [PDF](https://zuozhiw.github.io/Zuozhi_Wang_UCI_PhD_Thesis.pdf).
-* (12/2022) Towards Interactive, Adaptive and Result-aware Big Data Analytics, Avinash Kumar, Ph.D. Thesis [PDF](https://arxiv.org/abs/2212.07096).
-* (9/2022) Fries: Fast and Consistent Runtime Reconfiguration in Dataflow Systems with Transactional Guarantees, Zuozhi Wang, Shengquan Ni, Avinash Kumar, and Chen Li, in VLDB 2023 [PDF](https://www.vldb.org/pvldb/vol16/p256-wang.pdf), [Slides](https://chenli.ics.uci.edu/files/vldb2023-fries.pdf).
-* (7/2022) Drove: Tracking Execution Results of Workflows on Large Datasets, Sadeem Alsudais, in the Ph.D. Workshop at VLDB 2022 [PDF](http://ceur-ws.org/Vol-3186/paper_10.pdf).
-* (6/2022) Demonstration of Accelerating Machine Learning Inference Queries with Correlative Proxy Models, Zhihui Yang, Yicong Huang, Zuozhi Wang, Feng Gao, Yao Lu, Chen Li, and X. Sean Wang, in VLDB 2022 [PDF](https://www.vldb.org/pvldb/vol15/p3734-yang.pdf).
-* (6/2022) Demonstration of Collaborative and Interactive Workflow-Based Data Analytics in Texera, Xiaozhen Liu, Zuozhi Wang, Shengquan Ni, Sadeem Alsudais, Yicong Huang, Avinash Kumar, and Chen Li, in VLDB 2022 [PDF](https://www.vldb.org/pvldb/vol15/p3738-liu.pdf), [Demo Video](https://youtu.be/2gfPUZNsoBs).
-* (4/2022) Optimizing Machine Learning Inference Queries with Correlative Proxy Models, Zhihui Yang, Zuozhi Wang, Yicong Huang, Yao Lu, Chen Li, and X. Sean Wang, in VLDB 2022 [PDF](https://www.vldb.org/pvldb/vol15/p2032-yang.pdf).
-* (7/2020) Demonstration of Interactive Runtime Debugging of Distributed Dataflows in Texera, Zuozhi Wang, Avinash Kumar, Shengquan Ni, and Chen Li, in VLDB 2020 [PDF](http://www.vldb.org/pvldb/vol13/p2953-wang.pdf), [Video](https://www.youtube.com/watch?v=SP-XiDADbw0), [Slides](https://docs.google.com/presentation/d/14U6RPZfeb8Ho0aO2HsCSc8lRs6ul6AxEIm5gpjeVUYA/edit?usp=sharing).
-* (1/2020) Amber: A Debuggable Dataflow system based on the Actor Model, Avinash Kumar, Zuozhi Wang, Shengquan Ni, and Chen Li, VLDB 2020 [PDF](http://www.vldb.org/pvldb/vol13/p740-kumar.pdf), [Video](https://www.youtube.com/watch?v=T5ShFRfHmgI), [Slides](https://docs.google.com/presentation/d/1v8G9lDmfv4Ff2YWyrGfo_9iMQVF4N8a-4gO4H-K6rCk/edit?usp=sharing).
-* (4/2017) A Demonstration of TextDB: Declarative and Scalable Text Analytics on Large Data Sets, Zuozhi Wang, Flavio Bayer, Seungjin Lee, Kishore Narendran, Xuxi Pan, Qing Tang, Jimmy Wang, and Chen Li, [ICDE 2017](http://icde2017.sdsc.edu/), **Best Demo award**, [PDF](https://chenli.ics.uci.edu/files/icde2017-textdb-demo.pdf), [Video](https://github.com/Texera/texera/wiki/Video).
-
+</details>
 
 ## Publications (Interdisciplinary):
 * (2/2025) DS4ALL: Teaching High-School Students Data Science and AI/ML Using the Texera Workflow Platform as a Service, Jiadong Bai, Xiaozhen Liu, Anthony Cuturrufo, Alexander Kundu Taylor, Jeehyun Hwang, Mingyu Derek Ma, Xinyuan Lin, Yanqiao Zhu, Yicong Huang, Yunyan Ding, Wei Wang and Chen Li, to appear in [Data Science Education K-12: Research to Practice Annual Conference 2025](https://web.cvent.com/event/d641bd9f-6c99-4cbc-951b-33b1ca05d4ed/summary), San Antonio, Texas.
