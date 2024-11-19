@@ -15,7 +15,7 @@ import { DASHBOARD_USER_DATASET } from "../../../../../app-routing.constant";
   styleUrls: ["./user-dataset-list-item.component.scss"],
 })
 export class UserDatasetListItemComponent {
-  ROUTER_DATASET_BASE_URL = DASHBOARD_USER_DATASET;
+  protected readonly DASHBOARD_USER_DATASET = DASHBOARD_USER_DATASET;
 
   private _entry?: DashboardDataset;
 

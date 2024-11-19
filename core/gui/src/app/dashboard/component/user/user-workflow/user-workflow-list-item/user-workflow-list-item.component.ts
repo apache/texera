@@ -23,8 +23,8 @@ import { DASHBOARD_USER_PROJECT, DASHBOARD_USER_WORKSPACE } from "../../../../..
   styleUrls: ["./user-workflow-list-item.component.scss"],
 })
 export class UserWorkflowListItemComponent {
-  ROUTER_WORKSPACE_BASE_URL = DASHBOARD_USER_WORKSPACE;
-  ROUTER_USER_PROJECT_BASE_URL = DASHBOARD_USER_PROJECT;
+  protected readonly DASHBOARD_USER_WORKSPACE = DASHBOARD_USER_WORKSPACE;
+  protected readonly DASHBOARD_USER_PROJECT = DASHBOARD_USER_PROJECT;
   private _entry?: DashboardEntry;
   @Input() public keywords: string[] = [];
 

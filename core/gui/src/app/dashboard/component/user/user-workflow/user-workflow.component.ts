@@ -60,7 +60,6 @@ import { DASHBOARD_USER_WORKSPACE } from "../../../../app-routing.constant";
   styleUrls: ["user-workflow.component.scss"],
 })
 export class UserWorkflowComponent implements AfterViewInit {
-  public ROUTER_WORKSPACE_BASE_URL = DASHBOARD_USER_WORKSPACE;
   private _searchResultsComponent?: SearchResultsComponent;
   public isLogin = this.userService.isLogin();
   private includePublic = false;
@@ -268,7 +267,7 @@ export class UserWorkflowComponent implements AfterViewInit {
       .subscribe({
         next: (wid: number | undefined) => {
           // Use the wid here for navigation
-          this.router.navigate([this.ROUTER_WORKSPACE_BASE_URL, wid]).then(null);
+          this.router.navigate([DASHBOARD_USER_WORKSPACE, wid]).then(null);
         },
         error: (err: unknown) => this.notificationService.error("Workflow creation failed"),
       });
