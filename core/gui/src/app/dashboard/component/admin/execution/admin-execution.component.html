@@ -23,20 +23,26 @@
   <thead>
     <tr>
       <th
-        [nzSortFn]="sortByWorkflowName"
-        [nzSortDirections]="['ascend', 'descend']"
+        [nzShowSort]="true"
+        [nzSortFn]="true"
+        [nzSortDirections]="['ascend', 'descend', null]"
+        (nzSortOrderChange)="onSortChange('workflow_name', $event)"
         nzWidth="16%">
         Workflow (ID)
       </th>
       <th
-        [nzSortFn]="sortByExecutionName"
-        [nzSortDirections]="['ascend', 'descend']"
+        [nzShowSort]="true"
+        [nzSortFn]="true"
+        [nzSortDirections]="['ascend', 'descend', null]"
+        (nzSortOrderChange)="onSortChange('execution_name', $event)"
         nzWidth="16%">
         Execution Name (ID)
       </th>
       <th
-        [nzSortFn]="sortByInitiator"
-        [nzSortDirections]="['ascend', 'descend']"
+        [nzShowSort]="true"
+        [nzSortFn]="true"
+        [nzSortDirections]="['ascend', 'descend', null]"
+        (nzSortOrderChange)="onSortChange('initiator', $event)"
         nzWidth="12%">
         Initiator
       </th>
@@ -57,8 +63,10 @@
       </th>
       <th nzWidth="10%">Time Used (hh:mm:ss)</th>
       <th
-        [nzSortFn]="sortByCompletedTime"
-        [nzSortDirections]="['ascend', 'descend']"
+        [nzShowSort]="true"
+        [nzSortFn]="true"
+        [nzSortDirections]="['ascend', 'descend', null]"
+        (nzSortOrderChange)="onSortChange('end_time', $event)"
         nzWidth="15%">
         End Time
       </th>

@@ -47,6 +47,13 @@ object AdminExecutionResource {
     }
   }
 
+  val sortFieldMapping = Map(
+    "workflow_name" -> WORKFLOW.NAME,
+    "execution_name" -> WORKFLOW_EXECUTIONS.NAME,
+    "initiator" -> USER.NAME,
+    "end_time" -> WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME
+  )
+
 }
 
 @Produces(Array(MediaType.APPLICATION_JSON))
@@ -75,9 +82,15 @@ class AdminExecutionResource {
     * This method retrieves all existing executions
     */
   @GET
-  @Path("/executionList/{pageSize}/{pageIndex}")
+  @Path("/executionList/{pageSize}/{pageIndex}/{sortField}/{sortDirection}")
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def listWorkflows(@Auth current_user: SessionUser, @PathParam("pageSize") page_size: Int = 20, @PathParam("pageIndex") page_index: Int = 0): List[dashboardExecution] = {
+  def listWorkflows(
+                     @Auth current_user: SessionUser,
+                     @PathParam("pageSize") page_size: Int = 20,
+                     @PathParam("pageIndex") page_index: Int = 0,
+                     @PathParam("sortField") sortField: String = "end_time",
+                     @PathParam("sortDirection") sortDirection: String = "desc"
+                   ): List[dashboardExecution] = {
     val latestExecutionId = context.select(
         WORKFLOW_VERSION.WID,
         DSL.max(WORKFLOW_EXECUTIONS.EID).as("max_eid")
@@ -88,7 +101,7 @@ class AdminExecutionResource {
       .groupBy(WORKFLOW_VERSION.WID)
       .asTable("latest_execution_id")
 
-    val workflowEntries = context
+    val executions = context
       .select(
         WORKFLOW_EXECUTIONS.UID,
         USER.NAME,
@@ -114,9 +127,15 @@ class AdminExecutionResource {
           WORKFLOW_VERSION.WID.eq(latestExecutionId.field(WORKFLOW_VERSION.WID))
         )
       )
-      .limit(page_size)
-      .offset(page_index * page_size)
-      .fetch()
+
+    var executions_order = executions.limit(page_size).offset(page_index * page_size)
+    if (sortField != "NO_SORTING") {
+      val orderByField = sortFieldMapping.getOrElse(sortField, WORKFLOW.NAME)
+      val order = if (sortDirection == "desc") orderByField.desc() else orderByField.asc()
+      executions_order = executions.orderBy(order).limit(page_size).offset(page_index * page_size)
+    }
+
+    val workflowEntries = executions_order.fetch()
 
     val availableWorkflowIds = context
       .select(WORKFLOW_USER_ACCESS.WID)

@@ -2,7 +2,7 @@ import { Component, OnDestroy, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { AdminExecutionService } from "../../../service/admin/execution/admin-execution.service";
 import { Execution } from "../../../../common/type/execution";
-import { NzTableFilterFn, NzTableSortFn } from "ng-zorro-antd/table";
+import { NzTableFilterFn, NzTableQueryParams, NzTableSortFn } from "ng-zorro-antd/table";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { WorkflowExecutionHistoryComponent } from "../../user/user-workflow/ngbd-modal-workflow-executions/workflow-execution-history.component";
 import { Workflow } from "../../../../common/type/workflow";
@@ -20,6 +20,8 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
   totalWorkflows: number = 0;
   pageSize: number = 6;
   currentPageIndex: number = 0;
+  sortField: string = "NO_SORTING";
+  sortDirection: string = "NO_SORTING";
 
   // This interval function fetches the latest execution list.
   // The interval runs every 1 second (1000 milliseconds).
@@ -32,7 +34,7 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.adminExecutionService
-      .getExecutionList(this.pageSize, this.currentPageIndex)
+      .getExecutionList(this.pageSize, this.currentPageIndex, this.sortField, this.sortDirection)
       .pipe(untilDestroyed(this))
       .subscribe(executionList => {
         this.listOfExecutions = [...executionList];
@@ -230,11 +232,15 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
     this.ngOnInit();
   }
 
-  public sortByWorkflowName: NzTableSortFn<Execution> = (a: Execution, b: Execution) =>
-    (b.workflowName || "").localeCompare(a.workflowName);
-  public sortByExecutionName: NzTableSortFn<Execution> = (a: Execution, b: Execution) =>
-    (b.executionName || "").localeCompare(a.executionName);
-  public sortByCompletedTime: NzTableSortFn<Execution> = (a: Execution, b: Execution) => b.endTime - a.endTime;
-  public sortByInitiator: NzTableSortFn<Execution> = (a: Execution, b: Execution) =>
-    (b.userName || "").localeCompare(a.userName);
+  onSortChange(sortField: string, sortOrder: string | null): void {
+    if (sortField == this.sortField && sortOrder == null) {
+      this.sortField = "NO_SORTING";
+      this.sortDirection = "NO_SORTING";
+      this.ngOnInit();
+    } else if (sortOrder != null) {
+      this.sortField = sortField;
+      this.sortDirection = sortOrder === 'descend' ? 'desc' : 'asc';
+      this.ngOnInit();
+    }
+  }
 }
