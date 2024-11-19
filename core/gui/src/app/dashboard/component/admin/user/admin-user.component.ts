@@ -2,6 +2,7 @@ import { Component, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzTableFilterFn, NzTableSortFn } from "ng-zorro-antd/table";
 import { NzModalService } from "ng-zorro-antd/modal";
+import { NzMessageService } from "ng-zorro-antd/message";
 import { AdminUserService } from "../../../service/admin/user/admin-user.service";
 import { Role, User } from "../../../../common/type/user";
 import { UserService } from "../../../../common/service/user/user.service";
@@ -28,7 +29,8 @@ export class AdminUserComponent implements OnInit {
   constructor(
     private adminUserService: AdminUserService,
     private userService: UserService,
-    private modalService: NzModalService
+    private modalService: NzModalService,
+    private messageService: NzMessageService
   ) {
     this.currentUid = this.userService.getCurrentUser()?.uid;
   }
@@ -69,7 +71,13 @@ export class AdminUserComponent implements OnInit {
     this.adminUserService
       .updateUser(currentUid, this.editName, this.editEmail, this.editRole)
       .pipe(untilDestroyed(this))
-      .subscribe(() => this.ngOnInit());
+      .subscribe({
+        next: () => this.ngOnInit(),
+        error: (err: unknown) => {
+          const errorMessage = (err as any).error?.message || (err as Error).message;
+          this.messageService.error(errorMessage);
+        },
+      });
   }
 
   stopEdit(): void {
