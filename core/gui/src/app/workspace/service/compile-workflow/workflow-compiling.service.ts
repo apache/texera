@@ -1,7 +1,7 @@
 import { HttpClient, HttpHeaders } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { isEqual } from "lodash-es";
-import { EMPTY, merge, Observable, Subject } from "rxjs";
+import { EMPTY, merge, Observable, ReplaySubject } from "rxjs";
 import { CustomJSONSchema7 } from "src/app/workspace/types/custom-json-schema.interface";
 import { environment } from "../../../../environments/environment";
 import { AppSettings } from "../../../common/app-setting";
@@ -45,7 +45,7 @@ export class WorkflowCompilingService {
   private currentCompilationStateInfo: CompilationStateInfo = {
     state: CompilationState.Uninitialized,
   };
-  private compilationStateInfoChangedStream = new Subject<CompilationState>();
+  private compilationStateInfoChangedStream = new ReplaySubject<CompilationState>(1);
 
   constructor(
     private httpClient: HttpClient,
