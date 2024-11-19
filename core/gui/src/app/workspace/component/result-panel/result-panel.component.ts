@@ -181,7 +181,7 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
 
       if (!this.currentOperatorId) {
         this.operatorTitle = "";
-      } 
+      }
     }
 
     if (this.executeWorkflowService.getExecutionState().state === ExecutionState.Failed) {
