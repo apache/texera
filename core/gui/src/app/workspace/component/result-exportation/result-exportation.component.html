@@ -12,9 +12,7 @@
         placeholder="Enter filename for binary data" />
     </nz-form-item>
   </div>
-  <div
-    *ngIf="sourceTriggered === 'menu'"
-    class="input-wrapper">
+  <div class="input-wrapper">
     <nz-form-item>
       <nz-form-label nzFor="destinationInput">Destination</nz-form-label>
       <nz-select
@@ -31,7 +29,7 @@
     </nz-form-item>
   </div>
   <input
-    *ngIf="destination === 'dataset' || sourceTriggered === 'context-menu'"
+    *ngIf="destination === 'dataset'"
     [(ngModel)]="inputDatasetName"
     (input)="onUserInputDatasetName($event)"
     type="text"
@@ -52,7 +50,7 @@
           nz-button
           nzType="primary"
           class="dataset-option-link-btn"
-          (click)="onClickSaveResultFileToDatasets(dataset, true)">
+          (click)="onClickSaveResultFileToDatasets(dataset)">
           Save
         </button>
       </div>
@@ -61,7 +59,7 @@
   <button
     nz-button
     nzType="default"
-    *ngIf="destination === 'local' && sourceTriggered === 'menu'"
+    *ngIf="destination === 'local'"
     (click)="onClickDownloadAllResult()">
     Download
   </button>

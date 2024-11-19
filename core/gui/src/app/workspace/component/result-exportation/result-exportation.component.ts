@@ -58,7 +58,7 @@ export class ResultExportationComponent implements OnInit {
     }
   }
 
-  onClickSaveResultFileToDatasets(dataset: DashboardDataset, exportAll: boolean = false) {
+  onClickSaveResultFileToDatasets(dataset: DashboardDataset) {
     if (dataset.dataset.did) {
       this.workflowResultExportService.exportWorkflowExecutionResult(
         this.exportType,
@@ -67,14 +67,14 @@ export class ResultExportationComponent implements OnInit {
         this.rowIndex,
         this.columnIndex,
         this.inputFileName,
-        exportAll
+        this.sourceTriggered === "menu"
       );
       this.modalRef.close();
     }
   }
 
   onClickDownloadAllResult() {
-    this.workflowResultExportService.downloadOperatorsResultAsFile(true);
+    this.workflowResultExportService.downloadOperatorsResultAsFile(this.sourceTriggered === "menu");
     this.modalRef.close();
   }
 }
