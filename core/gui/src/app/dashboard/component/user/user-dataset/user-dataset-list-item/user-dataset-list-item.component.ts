@@ -6,6 +6,7 @@ import { ShareAccessComponent } from "../../share-access/share-access.component"
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { DashboardDataset } from "../../../../type/dashboard-dataset.interface";
+import { DASHBOARD_USER_DATASET } from "../../../../../app-routing.constant";
 
 @UntilDestroy()
 @Component({
@@ -14,7 +15,7 @@ import { DashboardDataset } from "../../../../type/dashboard-dataset.interface";
   styleUrls: ["./user-dataset-list-item.component.scss"],
 })
 export class UserDatasetListItemComponent {
-  ROUTER_DATASET_BASE_URL = "/dashboard/user/dataset";
+  protected readonly DASHBOARD_USER_DATASET = DASHBOARD_USER_DATASET;
 
   private _entry?: DashboardDataset;
 

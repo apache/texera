@@ -5,7 +5,7 @@
   <div class="workflow-cards">
     <nz-card
       nzHoverable
-      [routerLink]="['/dashboard/hub/workflow/result/detail', workflow.id]"
+      [routerLink]="[DASHBOARD_HUB_WORKFLOW_RESULT_DETAIL, workflow.id]"
       [nzCover]="coverTemplate"
       class="workflow-card"
       *ngFor="let workflow of workflows">
