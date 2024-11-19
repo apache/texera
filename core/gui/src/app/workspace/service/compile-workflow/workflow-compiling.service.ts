@@ -1,4 +1,4 @@
-import { HttpClient } from "@angular/common/http";
+import { HttpClient, HttpHeaders } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { isEqual } from "lodash-es";
 import { EMPTY, merge, Observable, Subject } from "rxjs";
@@ -17,7 +17,7 @@ import {
   OperatorInputSchema,
   PortInputSchema,
   WorkflowCompilationResponse,
-} from "../../types/compile-workflow.interface";
+} from "../../types/workflow-compiling.interface";
 import { WorkflowFatalError } from "../../types/workflow-websocket.interface";
 import { LogicalPlan } from "../../types/execute-workflow.interface";
 
@@ -41,7 +41,7 @@ export const WORKFLOW_COMPILATION_DEBOUNCE_TIME_MS = 500;
 @Injectable({
   providedIn: "root",
 })
-export class CompileWorkflowService {
+export class WorkflowCompilingService {
   private currentCompilationStateInfo: CompilationStateInfo = {
     state: CompilationState.Uninitialized,
   };
@@ -151,7 +151,7 @@ export class CompileWorkflowService {
       // if operator input attributes are in the result, set them in dynamic schema
       let newDynamicSchema: OperatorSchema;
       if (schemaPropagationResult[operatorID]) {
-        newDynamicSchema = CompileWorkflowService.setOperatorInputAttrs(
+        newDynamicSchema = WorkflowCompilingService.setOperatorInputAttrs(
           currentDynamicSchema,
           schemaPropagationResult[operatorID]
         );
@@ -159,7 +159,7 @@ export class CompileWorkflowService {
         // otherwise, the input attributes of the operator is unknown
         // if the operator is not a source operator, restore its original schema of input attributes
         if (currentDynamicSchema.additionalMetadata.inputPorts.length > 0) {
-          newDynamicSchema = CompileWorkflowService.restoreOperatorInputAttrs(currentDynamicSchema);
+          newDynamicSchema = WorkflowCompilingService.restoreOperatorInputAttrs(currentDynamicSchema);
         } else {
           newDynamicSchema = currentDynamicSchema;
         }
@@ -191,7 +191,12 @@ export class CompileWorkflowService {
     return this.httpClient
       .post<WorkflowCompilationResponse>(
         `${AppSettings.getApiEndpoint()}/${WORKFLOW_COMPILATION_ENDPOINT}`,
-        JSON.stringify(body)
+        JSON.stringify(body),
+        {
+          headers: new HttpHeaders({
+            "Content-Type": "application/json",
+          }),
+        }
       )
       .pipe(
         catchError((err: unknown) => {

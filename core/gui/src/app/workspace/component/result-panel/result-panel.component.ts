@@ -19,8 +19,8 @@ import { calculateTotalTranslate3d } from "../../../common/util/panel-dock";
 import { isDefined } from "../../../common/util/predicate";
 import { CdkDragEnd } from "@angular/cdk/drag-drop";
 import { PanelService } from "../../service/panel/panel.service";
-import { CompileWorkflowService } from "../../service/compile-workflow/compile-workflow.service";
-import { CompilationState } from "../../types/compile-workflow.interface";
+import { WorkflowCompilingService } from "../../service/compile-workflow/workflow-compiling.service";
+import { CompilationState } from "../../types/workflow-compiling.interface";
 import { WorkflowFatalError } from "../../types/workflow-websocket.interface";
 
 export const DEFAULT_WIDTH = 800;
@@ -53,7 +53,7 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
   constructor(
     private executeWorkflowService: ExecuteWorkflowService,
     private workflowActionService: WorkflowActionService,
-    private workflowCompilingService: CompileWorkflowService,
+    private workflowCompilingService: WorkflowCompilingService,
     private workflowResultService: WorkflowResultService,
     private workflowVersionService: WorkflowVersionService,
     private changeDetectorRef: ChangeDetectorRef,

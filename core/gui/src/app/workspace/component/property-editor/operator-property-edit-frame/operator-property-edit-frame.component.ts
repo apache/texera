@@ -28,7 +28,7 @@ import {
 import { isDefined } from "../../../../common/util/predicate";
 import { ExecutionState, OperatorState, OperatorStatistics } from "src/app/workspace/types/execute-workflow.interface";
 import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-schema.service";
-import { CompileWorkflowService } from "../../../service/compile-workflow/compile-workflow.service";
+import { WorkflowCompilingService } from "../../../service/compile-workflow/workflow-compiling.service";
 import {
   createOutputFormChangeEventStream,
   createShouldHideFieldFunc,
@@ -47,7 +47,7 @@ import Quill from "quill";
 import QuillCursors from "quill-cursors";
 import * as Y from "yjs";
 import { OperatorSchema } from "src/app/workspace/types/operator-schema.interface";
-import { AttributeType, PortInputSchema } from "../../../types/compile-workflow.interface";
+import { AttributeType, PortInputSchema } from "../../../types/workflow-compiling.interface";
 
 Quill.register("modules/cursors", QuillCursors);
 
@@ -130,7 +130,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     private workflowActionService: WorkflowActionService,
     public executeWorkflowService: ExecuteWorkflowService,
     private dynamicSchemaService: DynamicSchemaService,
-    private workflowCompilingService: CompileWorkflowService,
+    private workflowCompilingService: WorkflowCompilingService,
     private notificationService: NotificationService,
     private changeDetectorRef: ChangeDetectorRef,
     private workflowVersionService: WorkflowVersionService,

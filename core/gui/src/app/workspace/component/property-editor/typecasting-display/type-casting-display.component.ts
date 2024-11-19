@@ -1,9 +1,9 @@
 import { Component, Input, OnChanges, OnInit } from "@angular/core";
 import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/model/workflow-action.service";
-import { CompileWorkflowService } from "src/app/workspace/service/compile-workflow/compile-workflow.service";
+import { WorkflowCompilingService } from "../../../service/compile-workflow/workflow-compiling.service";
 import { filter, map } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { AttributeType, SchemaAttribute } from "../../../types/compile-workflow.interface";
+import { AttributeType, SchemaAttribute } from "../../../types/workflow-compiling.interface";
 
 // correspond to operator type specified in backend OperatorDescriptor
 export const TYPE_CASTING_OPERATOR_TYPE = "TypeCasting";
@@ -21,7 +21,7 @@ export class TypeCastingDisplayComponent implements OnInit, OnChanges {
 
   constructor(
     private workflowActionService: WorkflowActionService,
-    private workflowCompilingService: CompileWorkflowService
+    private workflowCompilingService: WorkflowCompilingService
   ) {}
 
   ngOnInit(): void {
