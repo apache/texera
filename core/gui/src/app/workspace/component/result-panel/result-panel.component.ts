@@ -16,6 +16,8 @@ import { WorkflowConsoleService } from "../../service/workflow-console/workflow-
 import { NzResizeEvent } from "ng-zorro-antd/resizable";
 import { VisualizationFrameContentComponent } from "../visualization-panel-content/visualization-frame-content.component";
 import { calculateTotalTranslate3d } from "../../../common/util/panel-dock";
+import { isDefined } from "../../../common/util/predicate";
+import { CdkDragEnd } from "@angular/cdk/drag-drop";
 import { PanelService } from "../../service/panel/panel.service";
 
 export const DEFAULT_WIDTH = 800;
@@ -67,6 +69,7 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     const translates = document.getElementById("result-container")!.style.transform;
     const [xOffset, yOffset, _] = calculateTotalTranslate3d(translates);
     this.returnPosition = { x: -xOffset, y: -yOffset };
+    this.updateReturnPosition(DEFAULT_HEIGHT, this.height);
     this.registerAutoRerenderResultPanel();
     this.registerAutoOpenResultPanel();
     this.handleResultPanelForVersionPreview();
@@ -286,12 +289,33 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     this.dragPosition = { x: this.returnPosition.x, y: this.returnPosition.y };
   }
 
+  isPanelDocked() {
+    return this.returnPosition.x === this.dragPosition.x && this.returnPosition.y === this.dragPosition.y;
+  }
+
+  handleEndDrag({ source }: CdkDragEnd) {
+    /**
+     * records the most recent panel location, updating dragPosition when dragging is over
+     */
+    const { x, y } = source.getFreeDragPosition();
+    this.dragPosition = { x: x, y: y };
+  }
+
   onResize({ width, height }: NzResizeEvent) {
     cancelAnimationFrame(this.id);
+    this.updateReturnPosition(this.height, height);
     this.id = requestAnimationFrame(() => {
       this.width = width!;
       this.height = height!;
       this.resizeService.changePanelSize(this.width, this.height);
     });
+  }
+
+  updateReturnPosition(prevHeight: number, newHeight: number | undefined) {
+    /**
+     * Updating returnPosition ensures that even if the panel gets resized,it can be docked correctly to the left-bottom corner of the canvas.
+     */
+    if (!isDefined(newHeight)) return;
+    this.returnPosition = { x: this.returnPosition.x, y: this.returnPosition.y + prevHeight - newHeight };
   }
 }
