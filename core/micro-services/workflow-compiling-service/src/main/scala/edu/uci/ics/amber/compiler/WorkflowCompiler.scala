@@ -59,16 +59,28 @@ object WorkflowCompiler {
   }
 
   private def collectInputSchemaFromPhysicalPlan(
-      physicalPlan: PhysicalPlan
+      physicalPlan: PhysicalPlan,
+      errorList: ArrayBuffer[(OperatorIdentity, Throwable)] // Mandatory error list
   ): Map[OperatorIdentity, List[Option[Schema]]] = {
     val physicalInputSchemas =
       physicalPlan.operators.filter(op => !op.isSinkOperator).map { physicalOp =>
+        // Process inputPorts and capture Throwable values in the errorList
         physicalOp.id -> physicalOp.inputPorts.values
           .filterNot(_._1.id.internal)
           .map {
-            case (port, _, schema) => port.id -> schema.toOption
+            case (port, _, schema) =>
+              schema match {
+                case Left(err) =>
+                  // Save the Throwable into the errorList
+                  errorList.append((physicalOp.id.logicalOpId, err))
+                  port.id -> None // Use None for this port
+                case Right(validSchema) =>
+                  port.id -> Some(validSchema) // Use the valid schema
+              }
           }
+          .toList // Convert to a list for further processing
       }
+
     // Group the physical input schemas by their logical operator ID and consolidate the schemas
     physicalInputSchemas
       .groupBy(_._1.logicalOpId)
@@ -168,9 +180,7 @@ class WorkflowCompiler(
     if (errorList.isEmpty) {
       // no error during the expansion, then do:
       // - collect the input schema for each op
-      opIdToInputSchema = collectInputSchemaFromPhysicalPlan(physicalPlan)
-      // - check for static errors
-      logicalPlan.propagateWorkflowSchema(context, Some(errorList))
+      opIdToInputSchema = collectInputSchemaFromPhysicalPlan(physicalPlan, errorList)
     }
 
     WorkflowCompilationResult(
