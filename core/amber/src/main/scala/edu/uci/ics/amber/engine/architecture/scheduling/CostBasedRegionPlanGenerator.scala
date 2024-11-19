@@ -215,9 +215,9 @@ class CostBasedRegionPlanGenerator(
       ) match {
         case Left(regionDAG) =>
           updateOptimumIfApplicable(regionDAG)
-          expandFrontier()
+          addNeighborStatesToFrontier()
         case Right(_) =>
-          expandFrontier()
+          addNeighborStatesToFrontier()
       }
 
       /**
@@ -239,7 +239,7 @@ class CostBasedRegionPlanGenerator(
         * If using global search, all unvisited neighbors will be included. Otherwise in a greedy search, only the
         * neighbor with the lowest cost will be included.
         */
-      def expandFrontier(): Unit = {
+      def addNeighborStatesToFrontier(): Unit = {
         val allCurrentMaterializedEdges =
           currentState ++ physicalPlan.getNonMaterializedBlockingAndDependeeLinks
         // Generate and enqueue all neighbour states that haven't been visited
