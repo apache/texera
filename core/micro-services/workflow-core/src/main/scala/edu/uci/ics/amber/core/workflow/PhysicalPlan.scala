@@ -40,6 +40,7 @@ case class PhysicalPlan(
 
   @transient lazy val maxChains: Set[Set[PhysicalLink]] = this.getMaxChains
 
+  @JsonIgnore
   def getSourceOperatorIds: Set[PhysicalOpIdentity] =
     operatorMap.keys.filter(op => dag.inDegreeOf(op) == 0).toSet
 
@@ -112,9 +113,11 @@ case class PhysicalPlan(
     this.copy(operators = (operatorMap + (physicalOp.id -> physicalOp)).values.toSet)
   }
 
+  @JsonIgnore
   def getPhysicalOpByWorkerId(workerId: ActorVirtualIdentity): PhysicalOp =
     getOperator(VirtualIdentityUtils.getPhysicalOpId(workerId))
 
+  @JsonIgnore
   def getLinksBetween(
       from: PhysicalOpIdentity,
       to: PhysicalOpIdentity
@@ -123,6 +126,7 @@ case class PhysicalPlan(
 
   }
 
+  @JsonIgnore
   def getOutputPartitionInfo(
       link: PhysicalLink,
       upstreamPartitionInfo: PartitionInfo,
@@ -165,6 +169,7 @@ case class PhysicalPlan(
     getOperator(link.toOpId).isSinkOperator
   }
 
+  @JsonIgnore
   def getNonMaterializedBlockingAndDependeeLinks: Set[PhysicalLink] = {
     operators
       .flatMap { physicalOp =>
@@ -185,6 +190,7 @@ case class PhysicalPlan(
       }
   }
 
+  @JsonIgnore
   def getDependeeLinks: Set[PhysicalLink] = {
     operators
       .flatMap { physicalOp =>
@@ -216,6 +222,7 @@ case class PhysicalPlan(
     *
     * @return All non-blocking links that are not bridges.
     */
+  @JsonIgnore
   def getNonBridgeNonBlockingLinks: Set[PhysicalLink] = {
     val bridges =
       new BiconnectivityInspector[PhysicalOpIdentity, PhysicalLink](this.dag).getBridges.asScala

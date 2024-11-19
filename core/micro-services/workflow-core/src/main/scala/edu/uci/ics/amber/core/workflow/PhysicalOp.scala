@@ -148,7 +148,9 @@ object PhysicalOp {
     "derivePartition", // function type, ignore it
     "inputPorts", // may contain very long stacktrace, ignore it
     "outputPorts", // same reason with above
-    "propagateSchema" // function type, so ignore it
+    "propagateSchema", // function type, so ignore it
+    "locationPreference", // ignore it for the deserialization
+    "partitionRequirement" // ignore it for deserialization
   )
 )
 case class PhysicalOp(
@@ -196,6 +198,7 @@ case class PhysicalOp(
   /**
     * Helper functions related to compile-time operations
     */
+  @JsonIgnore
   def isSourceOperator: Boolean = {
     inputPorts.isEmpty
   }
@@ -203,10 +206,12 @@ case class PhysicalOp(
   /**
     * Helper function used to determine whether the input link is a materialized link.
     */
+  @JsonIgnore
   def isSinkOperator: Boolean = {
     outputPorts.forall(port => port._2._2.isEmpty)
   }
 
+  @JsonIgnore // this is needed to prevent the serialization issue
   def isPythonBased: Boolean = {
     opExecInitInfo match {
       case opExecInfo: OpExecInitInfoWithCode =>
@@ -478,6 +483,7 @@ case class PhysicalOp(
     * Some operators process their inputs in a particular order. Eg: 2 phase hash join first
     * processes the build input, then the probe input.
     */
+  @JsonIgnore
   def getInputLinksInProcessingOrder: List[PhysicalLink] = {
     val dependencyDag = {
       new DirectedAcyclicGraph[PhysicalLink, DefaultEdge](classOf[DefaultEdge])

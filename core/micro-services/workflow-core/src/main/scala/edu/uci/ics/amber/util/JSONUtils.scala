@@ -1,9 +1,12 @@
 package edu.uci.ics.amber.util
 
 import com.fasterxml.jackson.annotation.JsonInclude.Include
+import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
 import com.fasterxml.jackson.module.noctordeser.NoCtorDeserModule
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
+import edu.uci.ics.amber.util.serde.{PortIdentityKeyDeserializer, PortIdentityKeySerializer}
+import edu.uci.ics.amber.workflow.PortIdentity
 
 import java.text.SimpleDateFormat
 import scala.jdk.CollectionConverters.IteratorHasAsScala
@@ -18,6 +21,8 @@ object JSONUtils {
     * - Registers the `DefaultScalaModule` to ensure proper handling of Scala-specific types (e.g., `Option`, `Seq`).
     * - Registers the `NoCtorDeserModule` to handle deserialization of Scala classes that lack a default constructor,
     *   which is common in case classes.
+    * - Registers the `SimpleModule` with pairs of serializer & deserializer to ensure proper handling of serializing
+    *    and deserializing the PhysicalPlan
     * - Sets the serialization inclusion rules to exclude `null` and `absent` values:
     *   - `Include.NON_NULL`: Excludes fields with `null` values from the serialized JSON.
     *   - `Include.NON_ABSENT`: Excludes fields with `Option.empty` (or equivalent absent values) from serialization.
@@ -31,6 +36,11 @@ object JSONUtils {
   final val objectMapper = new ObjectMapper()
     .registerModule(DefaultScalaModule)
     .registerModule(new NoCtorDeserModule())
+    .registerModule(
+      new SimpleModule()
+        .addKeySerializer(classOf[PortIdentity], new PortIdentityKeySerializer())
+        .addKeyDeserializer(classOf[PortIdentity], new PortIdentityKeyDeserializer())
+    )
     .setSerializationInclusion(Include.NON_NULL)
     .setSerializationInclusion(Include.NON_ABSENT)
     .setDateFormat(new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"))

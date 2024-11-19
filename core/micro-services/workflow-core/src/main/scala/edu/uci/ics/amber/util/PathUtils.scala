@@ -36,6 +36,9 @@ object PathUtils {
     }
   }
 
+  lazy val microServicesPath = amberHomePath.getParent.resolve("micro-services")
+  lazy val workflowCompilingServicePath = microServicesPath.resolve("workflow-compiling-service")
+
   lazy val datasetsRootPath = amberHomePath.resolve("user-resources").resolve("datasets")
 
   def getDatasetPath(did: UInteger): Path = {
