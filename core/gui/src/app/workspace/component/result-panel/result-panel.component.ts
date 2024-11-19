@@ -160,6 +160,7 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
       .subscribe(_ => {
         this.rerenderResultPanel();
         this.changeDetectorRef.detectChanges();
+        this.registerOperatorDisplayNameChangeHandler();
       });
   }
 
@@ -178,12 +179,9 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
       this.clearResultPanel();
       this.currentOperatorId = currentHighlightedOperator;
 
-      if (this.currentOperatorId) {
-        const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
-        this.operatorTitle = `: ${operator.customDisplayName ?? ""}`;
-      } else {
+      if (!this.currentOperatorId) {
         this.operatorTitle = "";
-      }
+      } 
     }
 
     if (this.executeWorkflowService.getExecutionState().state === ExecutionState.Failed) {
@@ -243,6 +241,22 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
         component: VisualizationFrameContentComponent,
         componentInputs: { operatorId },
       });
+    }
+  }
+
+  private registerOperatorDisplayNameChangeHandler(): void {
+    if (this.currentOperatorId) {
+      const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
+      this.operatorTitle = operator.customDisplayName ?? "";
+      this.workflowActionService
+        .getTexeraGraph()
+        .getOperatorDisplayNameChangedStream()
+        .pipe(untilDestroyed(this))
+        .subscribe(({ operatorID, newDisplayName }) => {
+          if (operatorID === this.currentOperatorId) {
+            this.operatorTitle = newDisplayName;
+          }
+        });
     }
   }
 
