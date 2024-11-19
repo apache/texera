@@ -1,4 +1,4 @@
-import { HttpClient, HttpHeaders } from "@angular/common/http";
+import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { isEqual } from "lodash-es";
 import { EMPTY, merge, Observable, Subject } from "rxjs";
@@ -7,13 +7,18 @@ import { environment } from "../../../../environments/environment";
 import { AppSettings } from "../../../common/app-setting";
 import { OperatorSchema } from "../../types/operator-schema.interface";
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
-import { DEFAULT_WORKFLOW, WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
+import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { catchError, debounceTime, mergeMap } from "rxjs/operators";
 import { DynamicSchemaService } from "../dynamic-schema/dynamic-schema.service";
-import { PhysicalPlan } from "../../../common/type/physical-plan";
-import { CompilationState, CompilationStateInfo } from "../../types/compile-workflow.interface";
+import {
+  AttributeType,
+  CompilationState,
+  CompilationStateInfo,
+  OperatorInputSchema,
+  PortInputSchema,
+  WorkflowCompilationResponse,
+} from "../../types/compile-workflow.interface";
 import { WorkflowFatalError } from "../../types/workflow-websocket.interface";
-import { AuthService } from "../../../common/service/user/auth.service";
 
 // endpoint for schema propagation
 export const WORKFLOW_COMPILATION_ENDPOINT = "compile";
@@ -63,7 +68,7 @@ export class CompileWorkflowService {
       this.workflowActionService.getTexeraGraph().getDisabledOperatorsChangedStream()
     )
       .pipe(debounceTime(WORKFLOW_COMPILATION_DEBOUNCE_TIME_MS))
-      .pipe(mergeMap(() => this.invokeWorkflowCompilationAPI()))
+      .pipe(mergeMap(() => this.compile()))
       .subscribe(response => {
         if (response.physicalPlan) {
           this.currentCompilationStateInfo = {
@@ -168,7 +173,7 @@ export class CompileWorkflowService {
    * that users can easily set the properties of the next operator. For eg: If there are two operators Source:Scan and KeywordSearch and
    * a link is created between them, the attributed of the table selected in Source can be propagated to the KeywordSearch operator.
    */
-  private invokeWorkflowCompilationAPI(): Observable<WorkflowCompilationResponse> {
+  private compile(): Observable<WorkflowCompilationResponse> {
     // create a Logical Plan based on the workflow graph
     const body = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
     // remove unnecessary information for schema propagation.
@@ -182,62 +187,14 @@ export class CompileWorkflowService {
     return this.httpClient
       .post<WorkflowCompilationResponse>(
         `${AppSettings.getApiEndpoint()}/${WORKFLOW_COMPILATION_ENDPOINT}`,
-        JSON.stringify(body2),
-        {
-          headers: new HttpHeaders({
-            Authorization: `Bearer ${AuthService.getAccessToken()}`,
-            "Content-Type": "application/json",
-          }),
-        }
+        JSON.stringify(body2)
       )
       .pipe(
         catchError((err: unknown) => {
-          console.log("schema propagation API returns error", err);
+          console.warn("compile workflow API returns error", err);
           return EMPTY;
         })
       );
-  }
-
-  /**
-   * This method reset the attribute / attributes fields of a operator properties
-   *  when the json schema has been changed, since the attribute fields might
-   *  be different for each json schema.
-   *
-   * For instance,
-   *  twitter_sample table contains the 'country' attribute
-   *  promed table does not contain the 'country' attribute
-   *
-   * @param workflowActionService
-   * @param operatorID operator that has the changed schema
-   */
-  public static resetAttributeOfOperator(workflowActionService: WorkflowActionService, operatorID: string): void {
-    const operator = workflowActionService.getTexeraGraph().getOperator(operatorID);
-    if (!operator) {
-      throw new Error(`${operatorID} not found`);
-    }
-
-    // recursive function that removes the attribute properties and returns the new object
-    const walkPropertiesRecurse = (propertyObject: { [key: string]: any }) => {
-      if (propertyObject === null || propertyObject === undefined) {
-        return propertyObject;
-      }
-      Object.keys(propertyObject).forEach(key => {
-        if (key === "attribute" || key === "attributes") {
-          const {
-            [key]: [],
-            ...removedAttributeProperties
-          } = propertyObject;
-          propertyObject = removedAttributeProperties;
-        } else if (typeof propertyObject[key] === "object") {
-          propertyObject[key] = walkPropertiesRecurse(propertyObject[key]);
-        }
-      });
-
-      return propertyObject;
-    };
-
-    const propertyClone = walkPropertiesRecurse(operator.operatorProperties);
-    workflowActionService.setOperatorProperty(operatorID, propertyClone);
   }
 
   public static setOperatorInputAttrs(
@@ -355,43 +312,3 @@ export class CompileWorkflowService {
     return this.compilationStateInfoChangedStream.asObservable();
   }
 }
-
-// possible types of an attribute
-export type AttributeType = "string" | "integer" | "double" | "boolean" | "long" | "timestamp" | "binary";
-
-// schema: an array of attribute names and types
-export interface SchemaAttribute
-  extends Readonly<{
-    attributeName: string;
-    attributeType: AttributeType;
-  }> {}
-
-// input schema of an operator: an array of schemas at each input port
-export type OperatorInputSchema = ReadonlyArray<PortInputSchema | undefined>;
-export type PortInputSchema = ReadonlyArray<SchemaAttribute>;
-
-/**
- * The backend interface of the return object of a successful/failed workflow compilation
- *
- * An example data format for AutocompleteSuccessResult will look like:
- * {
- *  physicalPlan: Physical Plan | Null(if compilation failed),
- *  operatorInputSchemas: {
- *    'operatorID1' : [ ['attribute1','attribute2','attribute3'] ],
- *    'operatorID2' : [ [ {attributeName: 'name', attributeType: 'string'},
- *                      {attributeName: 'text', attributeType: 'string'},
- *                      {attributeName: 'follower_count', attributeType: 'string'} ] ]
- *
- *  }
- * }
- */
-export interface WorkflowCompilationResponse
-  extends Readonly<{
-    physicalPlan?: PhysicalPlan;
-    operatorInputSchemas: {
-      [key: string]: OperatorInputSchema;
-    };
-    operatorErrors: {
-      [opId: string]: WorkflowFatalError;
-    };
-  }> {}

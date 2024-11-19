@@ -28,11 +28,7 @@ import {
 import { isDefined } from "../../../../common/util/predicate";
 import { ExecutionState, OperatorState, OperatorStatistics } from "src/app/workspace/types/execute-workflow.interface";
 import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-schema.service";
-import {
-  AttributeType,
-  PortInputSchema,
-  CompileWorkflowService,
-} from "../../../service/compile-workflow/compile-workflow.service";
+import { CompileWorkflowService } from "../../../service/compile-workflow/compile-workflow.service";
 import {
   createOutputFormChangeEventStream,
   createShouldHideFieldFunc,
@@ -51,6 +47,7 @@ import Quill from "quill";
 import QuillCursors from "quill-cursors";
 import * as Y from "yjs";
 import { OperatorSchema } from "src/app/workspace/types/operator-schema.interface";
+import { AttributeType, PortInputSchema } from "../../../types/compile-workflow.interface";
 
 Quill.register("modules/cursors", QuillCursors);
 
