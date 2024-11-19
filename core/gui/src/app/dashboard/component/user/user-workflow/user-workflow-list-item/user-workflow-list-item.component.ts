@@ -14,6 +14,7 @@ import { UserProjectService } from "../../../../service/user/project/user-projec
 import { DashboardEntry } from "../../../../type/dashboard-entry";
 import { firstValueFrom } from "rxjs";
 import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
+import { DASHBOARD_USER_PROJECT, DASHBOARD_USER_WORKSPACE } from "../../../../../app-routing.constant";
 
 @UntilDestroy()
 @Component({
@@ -22,8 +23,8 @@ import { DownloadService } from "src/app/dashboard/service/user/download/downloa
   styleUrls: ["./user-workflow-list-item.component.scss"],
 })
 export class UserWorkflowListItemComponent {
-  ROUTER_WORKFLOW_BASE_URL = "/dashboard/workspace";
-  ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
+  protected readonly DASHBOARD_USER_WORKSPACE = DASHBOARD_USER_WORKSPACE;
+  protected readonly DASHBOARD_USER_PROJECT = DASHBOARD_USER_PROJECT;
   private _entry?: DashboardEntry;
   @Input() public keywords: string[] = [];
 

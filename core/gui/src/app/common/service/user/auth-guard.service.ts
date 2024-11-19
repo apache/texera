@@ -2,6 +2,7 @@
 import { Router, CanActivate, RouterStateSnapshot, ActivatedRouteSnapshot } from "@angular/router";
 import { UserService } from "./user.service";
 import { environment } from "../../../../environments/environment";
+import { DASHBOARD_HOME } from "../../../app-routing.constant";
 
 /**
  * AuthGuardService is a service can tell the router whether
@@ -17,7 +18,7 @@ export class AuthGuardService implements CanActivate {
     if (this.userService.isLogin() || !environment.userSystemEnabled) {
       return true;
     } else {
-      this.router.navigate(["dashboard/home"], { queryParams: { returnUrl: state.url === "/" ? null : state.url } });
+      this.router.navigate([DASHBOARD_HOME], { queryParams: { returnUrl: state.url === "/" ? null : state.url } });
       return false;
     }
   }

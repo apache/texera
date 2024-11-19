@@ -6,6 +6,7 @@ import { ActivatedRoute, Router } from "@angular/router";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { catchError } from "rxjs/operators";
 import { throwError } from "rxjs";
+import { DASHBOARD_USER_WORKFLOW } from "../../../../app-routing.constant";
 @UntilDestroy()
 @Component({
   selector: "texera-local-login",
@@ -72,7 +73,7 @@ export class LocalLoginComponent {
         untilDestroyed(this)
       )
       .subscribe(() =>
-        this.router.navigateByUrl(this.route.snapshot.queryParams["returnUrl"] || "/dashboard/user/workflow")
+        this.router.navigateByUrl(this.route.snapshot.queryParams["returnUrl"] || DASHBOARD_USER_WORKFLOW)
       );
   }
 
@@ -110,7 +111,7 @@ export class LocalLoginComponent {
         untilDestroyed(this)
       )
       .subscribe(() =>
-        this.router.navigateByUrl(this.route.snapshot.queryParams["returnUrl"] || "/dashboard/user/workflow")
+        this.router.navigateByUrl(this.route.snapshot.queryParams["returnUrl"] || DASHBOARD_USER_WORKFLOW)
       );
   }
 }

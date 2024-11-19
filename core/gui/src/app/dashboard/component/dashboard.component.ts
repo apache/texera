@@ -9,6 +9,16 @@ import { GoogleAuthService } from "../../common/service/user/google-auth.service
 import { NotificationService } from "../../common/service/notification/notification.service";
 import { catchError, mergeMap } from "rxjs/operators";
 import { throwError } from "rxjs";
+import {
+  DASHBOARD_ADMIN_EXECUTION,
+  DASHBOARD_ADMIN_GMAIL,
+  DASHBOARD_ADMIN_USER,
+  DASHBOARD_USER_DATASET,
+  DASHBOARD_USER_DISCUSSION,
+  DASHBOARD_USER_PROJECT,
+  DASHBOARD_USER_QUOTA,
+  DASHBOARD_USER_WORKFLOW,
+} from "../../app-routing.constant";
 
 @Component({
   selector: "texera-dashboard",
@@ -26,6 +36,14 @@ export class DashboardComponent implements OnInit {
   isCollpased: boolean = false;
   routesWithoutNavbar: string[] = ["/workspace", "/home", "/about"];
   showLinks: boolean = false;
+  protected readonly DASHBOARD_USER_PROJECT = DASHBOARD_USER_PROJECT;
+  protected readonly DASHBOARD_USER_WORKFLOW = DASHBOARD_USER_WORKFLOW;
+  protected readonly DASHBOARD_USER_DATASET = DASHBOARD_USER_DATASET;
+  protected readonly DASHBOARD_USER_QUOTA = DASHBOARD_USER_QUOTA;
+  protected readonly DASHBOARD_USER_DISCUSSION = DASHBOARD_USER_DISCUSSION;
+  protected readonly DASHBOARD_ADMIN_USER = DASHBOARD_ADMIN_USER;
+  protected readonly DASHBOARD_ADMIN_GMAIL = DASHBOARD_ADMIN_GMAIL;
+  protected readonly DASHBOARD_ADMIN_EXECUTION = DASHBOARD_ADMIN_EXECUTION;
 
   constructor(
     private userService: UserService,
@@ -57,7 +75,7 @@ export class DashboardComponent implements OnInit {
         .pipe(untilDestroyed(this))
         .subscribe(() => {
           this.ngZone.run(() => {
-            this.router.navigateByUrl(this.route.snapshot.queryParams["returnUrl"] || "/dashboard/user/workflow");
+            this.router.navigateByUrl(this.route.snapshot.queryParams["returnUrl"] || DASHBOARD_USER_WORKFLOW);
           });
         });
     }

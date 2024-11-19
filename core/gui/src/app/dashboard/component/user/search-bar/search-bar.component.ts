@@ -9,6 +9,7 @@ import { DashboardEntry } from "../../../type/dashboard-entry";
 import { Subject, Observable, of } from "rxjs";
 import { debounceTime, switchMap } from "rxjs/operators";
 import { UserService } from "../../../../common/service/user/user.service";
+import { DASHBOARD_SEARCH } from "../../../../app-routing.constant";
 
 @UntilDestroy()
 @Component({
@@ -103,7 +104,7 @@ export class SearchBarComponent {
   }
 
   performSearch(keyword: string) {
-    this.router.navigate(["/dashboard/search"], { queryParams: { q: keyword } });
+    this.router.navigate([DASHBOARD_SEARCH], { queryParams: { q: keyword } });
   }
 
   convertToName(resultItem: SearchResultItem): string {
