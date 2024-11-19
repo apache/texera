@@ -71,7 +71,7 @@ export class WorkflowActionService {
   private tempWorkflow?: Workflow;
   private workflowModificationEnabled = true;
   private enableModificationStream = new BehaviorSubject<boolean>(true);
-  private enableHighlight = true;
+  private highlightingEnabled = false;
 
   private workflowMetadata: WorkflowMetadata;
   private workflowMetadataChangeSubject: Subject<WorkflowMetadata> = new Subject<WorkflowMetadata>();
@@ -738,7 +738,7 @@ export class WorkflowActionService {
     this.setWorkflowMetadata(undefined);
     this.setWorkflowSettings(undefined);
     this.reloadWorkflow(undefined);
-    this.setEnableHighlight(true);
+    this.setHighlightingEnabled(false);
   }
 
   public setWorkflowIsPublished(newPublishState: number): void {
@@ -837,11 +837,11 @@ export class WorkflowActionService {
     return updatedOperators;
   }
 
-  public setEnableHighlight(enabled: boolean): void {
-    this.enableHighlight = enabled;
+  public setHighlightingEnabled(enabled: boolean): void {
+    this.highlightingEnabled = enabled;
   }
 
   public getEnableHighlight() {
-    return this.enableHighlight;
+    return this.highlightingEnabled;
   }
 }

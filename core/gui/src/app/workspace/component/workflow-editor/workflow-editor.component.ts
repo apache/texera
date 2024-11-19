@@ -115,7 +115,9 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     this.handlePaperZoom();
     this.handleWindowResize();
     this.handleViewDeleteOperator();
-    this.handleCellHighlight();
+    if (this.workflowActionService.getEnableHighlight()) {
+      this.handleCellHighlight();
+    }
     this.handleDisableOperator();
     this.handleViewOperatorResult();
     this.handleReuseCacheOperator();
@@ -140,7 +142,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     this.handleElementPaste();
     this.handleLinkCursorHover();
     this.handleGridsToggle();
-    if (environment.linkBreakpointEnabled) {
+    if (environment.linkBreakpointEnabled && this.workflowActionService.getEnableHighlight()) {
       this.handleLinkBreakpoint();
     }
     this.handlePointerEvents();
@@ -353,10 +355,6 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
   }
 
   private handleCellHighlight(): void {
-    if (!this.workflowActionService.getEnableHighlight()) {
-      return;
-    }
-
     this.handleHighlightMouseDBClickInput();
     this.handleHighlightMouseInput();
     this.handleElementHightlightEvent();
@@ -1060,10 +1058,6 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
    * handles events/observables related to the breakpoint
    */
   private handleLinkBreakpoint(): void {
-    if (!this.workflowActionService.getEnableHighlight()) {
-      return;
-    }
-
     this.handleLinkBreakpointToolAttachment();
     this.handleLinkBreakpointButtonClick();
     this.handleLinkBreakpointHighlightEvents();
