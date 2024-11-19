@@ -11,8 +11,14 @@ import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
   WORKFLOW_RUNTIME_STATISTICS,
   WORKFLOW_VERSION
 }
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowExecutionsDao
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
+  WorkflowExecutionsDao,
+  WorkflowRuntimeStatisticsDao
+}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{
+  WorkflowExecutions,
+  WorkflowRuntimeStatistics
+}
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource._
 import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
 import io.dropwizard.auth.Auth
@@ -21,6 +27,7 @@ import org.jooq.types.{UInteger, ULong}
 
 import java.net.URI
 import java.sql.Timestamp
+import java.util
 import java.util.concurrent.TimeUnit
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
@@ -31,6 +38,9 @@ import scala.jdk.CollectionConverters.ListHasAsScala
 object WorkflowExecutionsResource {
   final private lazy val context = SqlServer.createDSLContext()
   final private lazy val executionsDao = new WorkflowExecutionsDao(context.configuration)
+  final private lazy val workflowRuntimeStatisticsDao = new WorkflowRuntimeStatisticsDao(
+    context.configuration
+  )
 
   def getExecutionById(eId: UInteger): WorkflowExecutions = {
     executionsDao.fetchOneByEid(eId)
@@ -74,6 +84,10 @@ object WorkflowExecutionsResource {
     }
   }
 
+  def insertWorkflowRuntimeStatistics(list: util.ArrayList[WorkflowRuntimeStatistics]): Unit = {
+    workflowRuntimeStatisticsDao.insert(list);
+  }
+
   case class WorkflowExecutionEntry(
       eId: UInteger,
       vId: UInteger,
@@ -92,7 +106,7 @@ object WorkflowExecutionsResource {
       result: String
   )
 
-  case class WorkflowRuntimeStatistics(
+  case class OperatorRuntimeStatistics(
       operatorId: String,
       inputTupleCount: UInteger,
       outputTupleCount: UInteger,
@@ -204,7 +218,7 @@ class WorkflowExecutionsResource {
   def retrieveWorkflowRuntimeStatistics(
       @PathParam("wid") wid: UInteger,
       @PathParam("eid") eid: UInteger
-  ): List[WorkflowRuntimeStatistics] = {
+  ): List[OperatorRuntimeStatistics] = {
     context
       .select(
         WORKFLOW_RUNTIME_STATISTICS.OPERATOR_ID,
@@ -223,7 +237,7 @@ class WorkflowExecutionsResource {
           .and(WORKFLOW_RUNTIME_STATISTICS.EXECUTION_ID.eq(eid))
       )
       .orderBy(WORKFLOW_RUNTIME_STATISTICS.TIME, WORKFLOW_RUNTIME_STATISTICS.OPERATOR_ID)
-      .fetchInto(classOf[WorkflowRuntimeStatistics])
+      .fetchInto(classOf[OperatorRuntimeStatistics])
       .asScala
       .toList
   }

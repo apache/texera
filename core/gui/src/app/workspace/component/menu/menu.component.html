@@ -139,6 +139,22 @@
       <ng-template #utilities>
         <nz-button-group>
           <button
+            (click)="onClickClosePanels()"
+            nz-button
+            title="close panels">
+            <i
+              nz-icon
+              nzType="minus"></i>
+          </button>
+          <button
+            (click)="onClickResetPanels()"
+            nz-button
+            title="reset panels">
+            <i
+              nz-icon
+              nzType="clear"></i>
+          </button>
+          <button
             (click)="onClickGenerateReport()"
             nz-button
             title="generate report">
