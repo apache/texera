@@ -103,10 +103,28 @@ The workflow in the use case shown below includes data cleaning, ML model traini
 * [ICS 80](https://canvas.eee.uci.edu/courses/63639/pages/syllabus) (a Spring 2024 course at UCI, teaching 42 undergraduates, most of whom are not computer science majors, to learn data science and AI/ML)
 
 ## Videos
-* [dkNET Webinar "Texera: A Scalable Cloud Computing Platform for Sharing Data & Workflow-based Analysis" 04/26/2024](https://www.youtube.com/watch?v=B81iMFS5fPc)
-* [Texera demo in VLDB 2020](https://www.youtube.com/watch?v=SP-XiDADbw0)
-* [Amber engine presentation in VLDB 2020](https://www.youtube.com/watch?v=T5ShFRfHmgI)
-* See [Texera in action](https://www.youtube.com/watch?v=NXfynBUwdVg). 
+<table>
+  <tr style="height: 500px;">
+    <td align="center">
+      <a href="https://www.youtube.com/watch?v=B81iMFS5fPc">
+        <img src="https://img.youtube.com/vi/B81iMFS5fPc/0.jpg"  alt="Watch the video">
+      </a>
+      <p><b>dkNET Webinar 04/26/2024</b></p>
+    </td>
+    <td align="center">
+      <a href="https://www.youtube.com/watch?v=SP-XiDADbw0">
+        <img src="https://img.youtube.com/vi/SP-XiDADbw0/0.jpg" alt="Watch the video">
+      </a>
+      <p><b>Texera Demo @ VLDB'20</b></p>
+    </td>
+    <td align="center">
+      <a href="https://www.youtube.com/watch?v=T5ShFRfHmgI">
+        <img src="https://img.youtube.com/vi/T5ShFRfHmgI/0.jpg"  alt="Watch the video">
+      </a>
+      <p><b>Amber Presentation @ VLDB'20</b></p>
+    </td>
+  </tr>
+</table>
 
 ## Getting Started
 
