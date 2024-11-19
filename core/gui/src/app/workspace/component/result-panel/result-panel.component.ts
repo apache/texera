@@ -16,7 +16,12 @@ import { WorkflowConsoleService } from "../../service/workflow-console/workflow-
 import { NzResizeEvent } from "ng-zorro-antd/resizable";
 import { VisualizationFrameContentComponent } from "../visualization-panel-content/visualization-frame-content.component";
 import { calculateTotalTranslate3d } from "../../../common/util/panel-dock";
+import { isDefined } from "../../../common/util/predicate";
+import { CdkDragEnd } from "@angular/cdk/drag-drop";
+import { PanelService } from "../../service/panel/panel.service";
 
+export const DEFAULT_WIDTH = 800;
+export const DEFAULT_HEIGHT = 300;
 /**
  * ResultPanelComponent is the bottom level area that displays the
  *  execution result of a workflow after the execution finishes.
@@ -31,12 +36,8 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
   frameComponentConfigs: Map<string, { component: Type<any>; componentInputs: {} }> = new Map();
   protected readonly window = window;
   id = -1;
-  width = 800;
-  height = 300;
-  prevWidth = 800;
-  prevHeight = 300;
-  maxWidth = window.innerWidth;
-  maxHeight = window.innerHeight;
+  width = DEFAULT_WIDTH;
+  height = DEFAULT_HEIGHT;
   operatorTitle = "";
   dragPosition = { x: 0, y: 0 };
   returnPosition = { x: 0, y: 0 };
@@ -53,7 +54,8 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     private workflowVersionService: WorkflowVersionService,
     private changeDetectorRef: ChangeDetectorRef,
     private workflowConsoleService: WorkflowConsoleService,
-    private resizeService: PanelResizeService
+    private resizeService: PanelResizeService,
+    private panelService: PanelService
   ) {
     const width = localStorage.getItem("result-panel-width");
     if (width) this.width = Number(width);
@@ -67,9 +69,15 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     const translates = document.getElementById("result-container")!.style.transform;
     const [xOffset, yOffset, _] = calculateTotalTranslate3d(translates);
     this.returnPosition = { x: -xOffset, y: -yOffset };
+    this.updateReturnPosition(DEFAULT_HEIGHT, this.height);
     this.registerAutoRerenderResultPanel();
     this.registerAutoOpenResultPanel();
     this.handleResultPanelForVersionPreview();
+    this.panelService.closePanelStream.pipe(untilDestroyed(this)).subscribe(() => this.closePanel());
+    this.panelService.resetPanelStream.pipe(untilDestroyed(this)).subscribe(() => {
+      this.resetPanelPosition();
+      this.openPanel();
+    });
   }
 
   @HostListener("window:beforeunload")
@@ -257,13 +265,11 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
   }
 
   openPanel() {
-    this.height = this.prevHeight;
-    this.width = this.prevWidth;
+    this.height = DEFAULT_HEIGHT;
+    this.width = DEFAULT_WIDTH;
   }
 
   closePanel() {
-    this.prevHeight = this.height;
-    this.prevWidth = this.width;
     this.height = 32.5;
     this.width = 0;
   }
@@ -272,12 +278,33 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     this.dragPosition = { x: this.returnPosition.x, y: this.returnPosition.y };
   }
 
+  isPanelDocked() {
+    return this.returnPosition.x === this.dragPosition.x && this.returnPosition.y === this.dragPosition.y;
+  }
+
+  handleEndDrag({ source }: CdkDragEnd) {
+    /**
+     * records the most recent panel location, updating dragPosition when dragging is over
+     */
+    const { x, y } = source.getFreeDragPosition();
+    this.dragPosition = { x: x, y: y };
+  }
+
   onResize({ width, height }: NzResizeEvent) {
     cancelAnimationFrame(this.id);
+    this.updateReturnPosition(this.height, height);
     this.id = requestAnimationFrame(() => {
       this.width = width!;
       this.height = height!;
       this.resizeService.changePanelSize(this.width, this.height);
     });
+  }
+
+  updateReturnPosition(prevHeight: number, newHeight: number | undefined) {
+    /**
+     * Updating returnPosition ensures that even if the panel gets resized,it can be docked correctly to the left-bottom corner of the canvas.
+     */
+    if (!isDefined(newHeight)) return;
+    this.returnPosition = { x: this.returnPosition.x, y: this.returnPosition.y + prevHeight - newHeight };
   }
 }

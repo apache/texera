@@ -1,5 +1,5 @@
 import { Component, HostListener, OnDestroy, OnInit, Type } from "@angular/core";
-import { UntilDestroy } from "@ngneat/until-destroy";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzResizeEvent } from "ng-zorro-antd/resizable";
 import { CdkDragDrop, moveItemInArray } from "@angular/cdk/drag-drop";
 import { environment } from "../../../../environments/environment";
@@ -9,6 +9,7 @@ import { WorkflowExecutionHistoryComponent } from "../../../dashboard/component/
 import { TimeTravelComponent } from "./time-travel/time-travel.component";
 import { SettingsComponent } from "./settings/settings.component";
 import { calculateTotalTranslate3d } from "../../../common/util/panel-dock";
+import { PanelService } from "../../service/panel/panel.service";
 @UntilDestroy()
 @Component({
   selector: "texera-left-panel",
@@ -52,7 +53,7 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
   returnPosition = { x: 0, y: 0 };
   isDocked = true;
 
-  constructor() {
+  constructor(private panelService: PanelService) {
     const savedOrder = localStorage.getItem("left-panel-order")?.split(",").map(Number);
     this.order = savedOrder && new Set(savedOrder).size === new Set(this.order).size ? savedOrder : this.order;
 
@@ -70,6 +71,11 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
     const [xOffset, yOffset, _] = calculateTotalTranslate3d(translates);
     this.returnPosition = { x: -xOffset, y: -yOffset };
     this.isDocked = this.dragPosition.x === this.returnPosition.x && this.dragPosition.y === this.returnPosition.y;
+    this.panelService.closePanelStream.pipe(untilDestroyed(this)).subscribe(() => this.openFrame(0));
+    this.panelService.resetPanelStream.pipe(untilDestroyed(this)).subscribe(() => {
+      this.resetPanelPosition();
+      this.openFrame(1);
+    });
   }
 
   @HostListener("window:beforeunload")
