@@ -73,7 +73,10 @@ export class AdminUserComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe({
         next: () => this.ngOnInit(),
-        error: (err: unknown) => this.messageService.error((err as Error).message),
+        error: (err: unknown) => {
+          const errorMessage = err.error?.message || (err as Error).message;
+          this.messageService.error(errorMessage);
+        },
       });
   }
 
