@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, OnInit, ViewChild } from "@angular/core";
+import { ChangeDetectorRef, Component, NgZone, OnInit, ViewChild } from "@angular/core";
 import { UserService } from "../../common/service/user/user.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { FlarumService } from "../service/user/flarum/flarum.service";
@@ -34,7 +34,8 @@ export class DashboardComponent implements OnInit {
     private cdr: ChangeDetectorRef,
     private route: ActivatedRoute,
     private googleAuthService: GoogleAuthService,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    private ngZone: NgZone
   ) {}
 
   ngOnInit(): void {
@@ -54,9 +55,11 @@ export class DashboardComponent implements OnInit {
           })
         )
         .pipe(untilDestroyed(this))
-        .subscribe(() =>
-          this.router.navigateByUrl(this.route.snapshot.queryParams["returnUrl"] || "/dashboard/user/workflow")
-        );
+        .subscribe(() => {
+          this.ngZone.run(() => {
+            this.router.navigateByUrl(this.route.snapshot.queryParams["returnUrl"] || "/dashboard/user/workflow");
+          });
+        });
     }
     if (!document.cookie.includes("flarum_remember") && this.isLogin) {
       this.flarumService
@@ -93,9 +96,11 @@ export class DashboardComponent implements OnInit {
       .userChanged()
       .pipe(untilDestroyed(this))
       .subscribe(() => {
-        this.isLogin = this.userService.isLogin();
-        this.isAdmin = this.userService.isAdmin();
-        this.cdr.detectChanges();
+        this.ngZone.run(() => {
+          this.isLogin = this.userService.isLogin();
+          this.isAdmin = this.userService.isAdmin();
+          this.cdr.detectChanges();
+        });
       });
   }
 
