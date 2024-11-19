@@ -52,8 +52,8 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
 
   constructor(
     private executeWorkflowService: ExecuteWorkflowService,
-    private workflowCompilingService: CompileWorkflowService,
     private workflowActionService: WorkflowActionService,
+    private workflowCompilingService: CompileWorkflowService,
     private workflowResultService: WorkflowResultService,
     private workflowVersionService: WorkflowVersionService,
     private changeDetectorRef: ChangeDetectorRef,
