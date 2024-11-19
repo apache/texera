@@ -20,6 +20,7 @@ public class AttributeUnit{
     @JsonPropertyDescription("Renamed attribute name")
     private String alias;
 
+    // TODO: explore the reason why this JsonCreator annotation is required
     @JsonCreator
     public AttributeUnit(
             @JsonProperty("originalAttribute") String attributeName,
