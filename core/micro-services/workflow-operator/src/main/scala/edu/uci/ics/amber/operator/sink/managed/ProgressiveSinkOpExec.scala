@@ -4,6 +4,7 @@ import edu.uci.ics.amber.core.tuple.{Tuple, TupleLike}
 import edu.uci.ics.amber.core.storage.result.SinkStorageWriter
 import edu.uci.ics.amber.operator.sink.IncrementalOutputMode.{SET_DELTA, SET_SNAPSHOT}
 import edu.uci.ics.amber.core.executor.SinkOperatorExecutor
+import edu.uci.ics.amber.workflow.PortIdentity
 import edu.uci.ics.amber.operator.sink.IncrementalOutputMode
 
 class ProgressiveSinkOpExec(outputMode: IncrementalOutputMode, storage: SinkStorageWriter)
@@ -33,8 +34,9 @@ class ProgressiveSinkOpExec(outputMode: IncrementalOutputMode, storage: SinkStor
     }
   }
 
-  override def close(): Unit = {
+  override def onFinishMultiPort(port: Int): Iterator[(TupleLike, Option[PortIdentity])] = {
     storage.close()
+    Iterator.empty
   }
 
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = Iterator.empty

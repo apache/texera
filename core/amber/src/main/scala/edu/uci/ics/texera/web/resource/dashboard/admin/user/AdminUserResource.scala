@@ -18,6 +18,8 @@ import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource.{
   deleteMongoCollection,
   MongoStorage
 }
+import javax.ws.rs.core.Response
+import javax.ws.rs.WebApplicationException
 
 object AdminUserResource {
   final private lazy val context = SqlServer.createDSLContext()
@@ -43,6 +45,10 @@ class AdminUserResource {
   @PUT
   @Path("/update")
   def updateUser(user: User): Unit = {
+    val existingUser = userDao.fetchOneByEmail(user.getEmail)
+    if (existingUser != null && existingUser.getUid != user.getUid) {
+      throw new WebApplicationException("Email already exists", Response.Status.CONFLICT)
+    }
     val updatedUser = userDao.fetchOneByUid(user.getUid)
     updatedUser.setName(user.getName)
     updatedUser.setEmail(user.getEmail)

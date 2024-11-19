@@ -1,5 +1,6 @@
 package edu.uci.ics.amber.operator.projection;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
@@ -19,7 +20,11 @@ public class AttributeUnit{
     @JsonPropertyDescription("Renamed attribute name")
     private String alias;
 
-    AttributeUnit(String attributeName, String alias) {
+    // TODO: explore the reason why this JsonCreator annotation is required
+    @JsonCreator
+    public AttributeUnit(
+            @JsonProperty("originalAttribute") String attributeName,
+            @JsonProperty("alias") String alias) {
         this.originalAttribute = attributeName;
         this.alias = alias;
     }
