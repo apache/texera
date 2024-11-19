@@ -175,7 +175,7 @@ class CostBasedRegionPlanGenerator(
     * Otherwise, depending on the configuration, either a global search or a greedy search will be performed to find
     * an optimal plan. The search starts from a plan where all non-blocking edges are pipelined, and leads to a low-cost
     * schedulable plan by changing pipelined non-blocking edges to materialized. By default all pruning techniques
-    * are enabled (chains, clean edges, and early stopping on schedulable states).
+    * are enabled (chains, clean edges).
     *
     * @return A SearchResult containing the plan, the region DAG (without materializations added yet), the cost, the
     *         time to finish search, and the number of states explored.
@@ -187,11 +187,13 @@ class CostBasedRegionPlanGenerator(
   ): SearchResult = {
     val startTime = System.nanoTime()
     val originalNonBlockingEdges =
-      if (oCleanEdges) physicalPlan.getNonBridgeNonBlockingLinks
-      else
+      if (oCleanEdges) {
+        physicalPlan.getNonBridgeNonBlockingLinks
+      } else {
         physicalPlan.links.diff(
           physicalPlan.getNonMaterializedBlockingAndDependeeLinks
-        ) // Optimization 2: Bridges
+        )
+      }
     // Queue to hold states to be explored, starting with the empty set
     val queue: mutable.Queue[Set[PhysicalLink]] = mutable.Queue(Set.empty[PhysicalLink])
     // Keep track of visited states to avoid revisiting
@@ -212,7 +214,7 @@ class CostBasedRegionPlanGenerator(
         physicalPlan.getNonMaterializedBlockingAndDependeeLinks ++ currentState
       ) match {
         case Left(regionDAG) =>
-          checkSchedulableState(regionDAG)
+          updateOptimumIfApplicable(regionDAG)
           expandFrontier()
         case Right(_) =>
           expandFrontier()
@@ -222,7 +224,7 @@ class CostBasedRegionPlanGenerator(
         * An internal method of bottom-up search that updates the current optimum if the examined state is schedulable
         * and has a lower cost.
         */
-      def checkSchedulableState(regionDAG: DirectedAcyclicGraph[Region, RegionLink]): Unit = {
+      def updateOptimumIfApplicable(regionDAG: DirectedAcyclicGraph[Region, RegionLink]): Unit = {
         // Calculate the current state's cost and update the bestResult if it's lower
         val cost =
           evaluate(regionDAG.vertexSet().asScala.toSet, regionDAG.edgeSet().asScala.toSet)
@@ -232,7 +234,10 @@ class CostBasedRegionPlanGenerator(
       }
 
       /**
-        * An internal method of bottom-up search to explore a state in the frontier.
+        * An internal method of bottom-up search that performs state transitions (changing an pipelined edge to
+        * materialized) to include the unvisited neighbor(s) of the current state in the frontier (i.e., the queue).
+        * If using global search, all unvisited neighbors will be included. Otherwise in a greedy search, only the
+        * neighbor with the lowest cost will be included.
         */
       def expandFrontier(): Unit = {
         val allCurrentMaterializedEdges =
@@ -256,8 +261,10 @@ class CostBasedRegionPlanGenerator(
           )
 
         if (globalSearch) {
+          // include all unvisited neighbors
           unvisitedNeighborStates.foreach(neighborState => queue.enqueue(neighborState))
         } else {
+          // greedy search, only include an unvisited neighbor with the lowest cost
           if (unvisitedNeighborStates.nonEmpty) {
             val minCostNeighborState = unvisitedNeighborStates.minBy(neighborState =>
               tryConnectRegionDAG(
