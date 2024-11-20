@@ -33,7 +33,13 @@ class CostBasedRegionPlanGenerator(
 
   def generate(): (RegionPlan, PhysicalPlan) = {
 
+    val startTime = System.nanoTime()
     val regionDAG = createRegionDAG()
+    val schedulerTime = System.nanoTime() - startTime
+    logger.info(
+      s"WID: ${workflowContext.workflowId.id}, EID: ${workflowContext.executionId.id}, total RPG time: " +
+        s"${schedulerTime / 1e6} ms."
+    )
     (
       RegionPlan(
         regions = regionDAG.iterator().asScala.toSet,
@@ -125,6 +131,10 @@ class CostBasedRegionPlanGenerator(
     val searchResult = bottomUpSearch(globalSearch = AmberConfig.useGlobalSearch)
     // Only a non-dependee blocking link that has not already been materialized should be replaced
     // with a materialization write op + materialization read op.
+    logger.info(
+      s"WID: ${workflowContext.workflowId.id}, EID: ${workflowContext.executionId.id}, search time: " +
+        s"${searchResult.searchTimeNanoSeconds / 1e6} ms."
+    )
     val linksToMaterialize =
       (searchResult.state ++ physicalPlan.getNonMaterializedBlockingAndDependeeLinks).diff(
         physicalPlan.getDependeeLinks
