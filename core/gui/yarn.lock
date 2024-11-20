@@ -11144,7 +11144,7 @@ __metadata:
     quill-cursors: "npm:3.1.2"
     read-excel-file: "npm:5.7.1"
     ring-buffer-ts: "npm:1.0.3"
-    rxjs: "npm:7.5.5"
+    rxjs: "npm:7.8.1"
     rxjs-marbles: "npm:7.0.1"
     sanitize-filename: "npm:1.6.3"
     sass: "npm:1.71.1"
@@ -16398,15 +16398,6 @@ __metadata:
   bin:
     rxjs-report-usage: bin/rxjs-report-usage
   checksum: 10c0/f87af567fcce83644cd028de6aaba5ee7555c85fc5b7f075068c4e48088b220721548c1b0cef9e8452def26257a098e732e062e82e494f236cf9ed5748bd8e5b
-  languageName: node
-  linkType: hard
-
-"rxjs@npm:7.5.5":
-  version: 7.5.5
-  resolution: "rxjs@npm:7.5.5"
-  dependencies:
-    tslib: "npm:^2.1.0"
-  checksum: 10c0/bc84ba51aa1fffb03a2622a406d8a5d5074a543054a60a813302e39b6d3cb485d6738c4aad567e8f2f0c58839a3c3c272a336487951b44013b99eb731a0453bf
   languageName: node
   linkType: hard
 
