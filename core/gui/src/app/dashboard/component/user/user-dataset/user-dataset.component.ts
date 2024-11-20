@@ -9,6 +9,7 @@ import { DashboardEntry, UserInfo } from "../../../type/dashboard-entry";
 import { SearchResultsComponent } from "../search-results/search-results.component";
 import { FiltersComponent } from "../filters/filters.component";
 import { firstValueFrom } from "rxjs";
+import { DASHBOARD_USER_DATASET_CREATE } from "../../../../app-routing.constant";
 
 @UntilDestroy()
 @Component({
@@ -151,7 +152,7 @@ export class UserDatasetComponent implements AfterViewInit {
   }
 
   public onClickOpenDatasetAddComponent(): void {
-    this.router.navigate(["/dashboard/user/dataset/create"]);
+    this.router.navigate([DASHBOARD_USER_DATASET_CREATE]);
   }
 
   public deleteDataset(entry: DashboardEntry): void {

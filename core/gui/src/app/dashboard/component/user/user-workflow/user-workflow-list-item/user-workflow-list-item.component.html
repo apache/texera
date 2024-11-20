@@ -20,7 +20,7 @@
       <div class="workflow-item-meta-title">
         <div
           *ngIf="!editingName; else customWorkflowTitle "
-          [routerLink]="ROUTER_WORKFLOW_BASE_URL + '/' + workflow.wid"
+          [routerLink]="DASHBOARD_USER_WORKSPACE + '/' + workflow.wid"
           [innerHTML]="workflow.name | highlightSearchTerms : keywords"
           class="workflow-name"></div>
         <ng-template #customWorkflowTitle>
@@ -120,7 +120,7 @@
         class="project-label-name"
         [ngClass]="{'color-tag' : true, 'light-color' : isLightColor(userProjectsMap.get(projectID)!.color!), 'dark-color' : !isLightColor(userProjectsMap.get(projectID)!.color!)}"
         [ngStyle]="{'color' : isLightColor(userProjectsMap.get(projectID)!.color!) ? 'black' : 'white', 'background-color' : '#' + userProjectsMap.get(projectID)!.color}"
-        [routerLink]="ROUTER_USER_PROJECT_BASE_URL + '/' + userProjectsMap.get(projectID)!.pid">
+        [routerLink]="DASHBOARD_USER_PROJECT + '/' + userProjectsMap.get(projectID)!.pid">
         {{userProjectsMap.get(projectID)!.name}}
       </a>
       <div
