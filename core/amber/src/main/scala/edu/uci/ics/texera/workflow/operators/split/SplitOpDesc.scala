@@ -14,7 +14,7 @@ import scala.util.Random
 
 class SplitOpDesc extends LogicalOp {
 
-  @JsonProperty(value = "Split percentage", required = false, defaultValue = "80")
+  @JsonProperty(value = "split percentage", required = false, defaultValue = "80")
   @JsonPropertyDescription("percentage of data going to the upper port (default 80%)")
   var k: Int = 80
 
