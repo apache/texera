@@ -25,6 +25,7 @@ export class WorkflowWebsocketService {
 
   public isConnected: boolean = false;
   public numWorkers: number = -1;
+  private connectedWid: number = 0;
 
   private websocket?: WebSocketSubject<TexeraWebsocketEvent | TexeraWebsocketRequest>;
   private wsWithReconnectSubscription?: Subscription;
@@ -99,10 +100,15 @@ export class WorkflowWebsocketService {
         this.numWorkers = evt.numWorkers;
       }
       this.isConnected = true;
+      this.connectedWid = wId;
     });
   }
 
   public reopenWebsocket(wId: number) {
+    if (this.isConnected && this.connectedWid === wId) {
+      // prevent reconnections
+      return;
+    }
     this.closeWebsocket();
     this.openWebsocket(wId);
   }
