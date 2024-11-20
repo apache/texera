@@ -12,6 +12,7 @@ import { of, BehaviorSubject } from "rxjs";
 import { ReactiveFormsModule } from "@angular/forms";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
+import { NzModalModule, NzModalService } from "ng-zorro-antd/modal"; // Import NzModalModule and NzModalService
 
 describe("ContextMenuComponent", () => {
   let component: ContextMenuComponent;
@@ -37,11 +38,13 @@ describe("ContextMenuComponent", () => {
       "getWorkflowModificationEnabledStream",
       "deleteOperatorsAndLinks",
       "deleteCommentBox",
+      "getWorkflowMetadata", // Add this if used in the component
     ]);
     workflowActionServiceSpy.getJointGraphWrapper.and.returnValue(jointGraphWrapperSpy);
     workflowActionServiceSpy.getWorkflowModificationEnabledStream.and.returnValue(of(true));
     workflowActionServiceSpy.deleteOperatorsAndLinks.and.returnValue();
     workflowActionServiceSpy.deleteCommentBox.and.returnValue();
+    workflowActionServiceSpy.getWorkflowMetadata.and.returnValue({ name: "Test Workflow" }); // Mock return value
 
     const workflowResultServiceSpy = jasmine.createSpyObj("WorkflowResultService", [
       "getResultService",
@@ -77,8 +80,15 @@ describe("ContextMenuComponent", () => {
         { provide: WorkflowResultService, useValue: workflowResultServiceSpy },
         { provide: WorkflowResultExportService, useValue: workflowResultExportServiceSpy },
         { provide: OperatorMenuService, useValue: operatorMenuService },
+        NzModalService, // Provide NzModalService
       ],
-      imports: [HttpClientModule, ReactiveFormsModule, BrowserAnimationsModule, NzDropDownModule],
+      imports: [
+        HttpClientModule,
+        ReactiveFormsModule,
+        BrowserAnimationsModule,
+        NzDropDownModule,
+        NzModalModule, // Import NzModalModule
+      ],
     }).compileComponents();
 
     workflowActionService = TestBed.inject(WorkflowActionService) as jasmine.SpyObj<WorkflowActionService>;
