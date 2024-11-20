@@ -35,10 +35,10 @@ class CostBasedRegionPlanGenerator(
 
     val startTime = System.nanoTime()
     val regionDAG = createRegionDAG()
-    val schedulerTime = System.nanoTime() - startTime
+    val totalRPGTime = System.nanoTime() - startTime
     logger.info(
       s"WID: ${workflowContext.workflowId.id}, EID: ${workflowContext.executionId.id}, total RPG time: " +
-        s"${schedulerTime / 1e6} ms."
+        s"${totalRPGTime / 1e6} ms."
     )
     (
       RegionPlan(
