@@ -21,7 +21,7 @@ import {
 import { WorkflowFatalError } from "../../types/workflow-websocket.interface";
 import { LogicalPlan } from "../../types/execute-workflow.interface";
 
-// endpoint for schema propagation
+// endpoint for workflow compile
 export const WORKFLOW_COMPILATION_ENDPOINT = "compile";
 
 export const WORKFLOW_COMPILATION_DEBOUNCE_TIME_MS = 500;
