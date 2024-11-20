@@ -78,7 +78,7 @@ export function areOperatorSchemasEqual(schema1: OperatorSchema, schema2: Operat
     return false;
   }
 
-  // Compare inputPorts and outputPorts (assuming shallow equality is enough)
+  // Compare inputPorts and outputPorts
   if (meta1.inputPorts.length !== meta2.inputPorts.length || meta1.outputPorts.length !== meta2.outputPorts.length) {
     return false;
   }
