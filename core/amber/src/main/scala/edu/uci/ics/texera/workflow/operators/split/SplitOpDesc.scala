@@ -15,7 +15,7 @@ import scala.util.Random
 class SplitOpDesc extends LogicalOp {
 
   @JsonProperty(value = "Split percentage", required = false, defaultValue = "80")
-  @JsonPropertyDescription("percentage of data going to the upper-branch (default 80%)")
+  @JsonPropertyDescription("percentage of data going to the upper port (default 80%)")
   var k: Int = 80
 
   @JsonProperty(value = "random seed", required = false)
@@ -50,7 +50,7 @@ class SplitOpDesc extends LogicalOp {
     OperatorInfo(
       userFriendlyName = "Split",
       operatorDescription = "Split data to two different ports",
-      operatorGroupName = OperatorGroupConstants.MACHINE_LEARNING_GROUP,
+      operatorGroupName = OperatorGroupConstants.UTILITY_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(
         OutputPort(PortIdentity()),
