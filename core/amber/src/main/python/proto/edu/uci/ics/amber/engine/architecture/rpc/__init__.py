@@ -172,9 +172,9 @@ class ChannelMarkerPayload(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class PropagateChannelMarkerRequest(betterproto.Message):
-    source_op_to_start_prop: List["__common__.PhysicalOpIdentity"] = (
-        betterproto.message_field(1)
-    )
+    source_op_to_start_prop: List[
+        "__common__.PhysicalOpIdentity"
+    ] = betterproto.message_field(1)
     id: "__common__.ChannelMarkerIdentity" = betterproto.message_field(2)
     marker_type: "ChannelMarkerType" = betterproto.enum_field(3)
     scope: List["__common__.PhysicalOpIdentity"] = betterproto.message_field(4)
@@ -379,9 +379,9 @@ class PrepareCheckpointRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class QueryStatisticsRequest(betterproto.Message):
-    filter_by_workers: List["__common__.ActorVirtualIdentity"] = (
-        betterproto.message_field(1)
-    )
+    filter_by_workers: List[
+        "__common__.ActorVirtualIdentity"
+    ] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -416,7 +416,7 @@ class ControlReturn(betterproto.Message):
     finalize_checkpoint_response: "FinalizeCheckpointResponse" = (
         betterproto.message_field(52, group="sealed_value")
     )
-    error: "ControlError" = betterproto.message_field(101, group="sealed_value")
+    control_error: "ControlError" = betterproto.message_field(101, group="sealed_value")
     """common responses"""
 
     empty_return: "EmptyReturn" = betterproto.message_field(102, group="sealed_value")
@@ -1235,7 +1235,6 @@ class ControllerServiceStub(betterproto.ServiceStub):
 
 
 class RpcTesterBase(ServiceBase):
-
     async def send_ping(self, ping: "Ping") -> "IntResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
@@ -1406,7 +1405,6 @@ class RpcTesterBase(ServiceBase):
 
 
 class WorkerServiceBase(ServiceBase):
-
     async def add_input_channel(
         self, add_input_channel_request: "AddInputChannelRequest"
     ) -> "EmptyReturn":
@@ -1713,7 +1711,6 @@ class WorkerServiceBase(ServiceBase):
 
 
 class ControllerServiceBase(ServiceBase):
-
     async def retrieve_workflow_state(
         self, empty_request: "EmptyRequest"
     ) -> "RetrieveWorkflowStateResponse":
