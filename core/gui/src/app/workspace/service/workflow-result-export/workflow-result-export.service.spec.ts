@@ -153,7 +153,7 @@ describe("WorkflowResultExportService", () => {
     });
 
     // Act
-    service.downloadOperatorsResultAsFile();
+    service.downloadOperatorsResultAsFile(false);
 
     // Simulate asynchronous operations
     tick();
@@ -170,6 +170,7 @@ describe("WorkflowResultExportService", () => {
       expect(files[0].blob).toEqual(jasmine.any(Blob));
     });
   }));
+
 
   it("should export a single visualization result as an HTML file when there is only one result", done => {
     // Arrange
