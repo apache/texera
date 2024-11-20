@@ -9,6 +9,7 @@ import { switchMap } from "rxjs/operators";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { DownloadService } from "../../../../service/user/download/download.service";
 import { formatSize } from "src/app/common/util/size-formatter.util";
+import { DASHBOARD_USER_DATASET } from "../../../../../app-routing.constant";
 
 @UntilDestroy()
 @Component({
@@ -109,7 +110,7 @@ export class UserDatasetExplorerComponent implements OnInit {
         this.retrieveDatasetVersionList();
         this.renderDatasetViewSider();
       } else {
-        this.router.navigate([`/dashboard/user/dataset/${creationID}`]);
+        this.router.navigate([`${DASHBOARD_USER_DATASET}/${creationID}`]);
       }
     } else {
       // creation failed
@@ -118,7 +119,7 @@ export class UserDatasetExplorerComponent implements OnInit {
         this.isCreatingDataset = false;
         this.retrieveDatasetVersionList();
       } else {
-        this.router.navigate(["/dashboard/user/dataset"]);
+        this.router.navigate([DASHBOARD_USER_DATASET]);
       }
     }
   }
