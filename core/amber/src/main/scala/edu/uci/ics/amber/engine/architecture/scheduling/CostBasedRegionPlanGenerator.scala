@@ -1,10 +1,9 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
-import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.model.{PhysicalPlan, WorkflowContext}
-import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, PhysicalOpIdentity}
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
+import edu.uci.ics.amber.engine.common.{AmberConfig, AmberLogging}
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import org.jgrapht.alg.connectivity.BiconnectivityInspector
 import org.jgrapht.graph.{DirectedAcyclicGraph, DirectedPseudograph}
@@ -15,13 +14,14 @@ import scala.jdk.CollectionConverters._
 class CostBasedRegionPlanGenerator(
     workflowContext: WorkflowContext,
     initialPhysicalPlan: PhysicalPlan,
-    opResultStorage: OpResultStorage
+    opResultStorage: OpResultStorage,
+    val actorId: ActorVirtualIdentity
 ) extends RegionPlanGenerator(
       workflowContext,
       initialPhysicalPlan,
       opResultStorage
     )
-    with LazyLogging {
+    with AmberLogging {
 
   case class SearchResult(
       state: Set[PhysicalLink],

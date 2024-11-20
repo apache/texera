@@ -14,6 +14,7 @@ import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.{
 }
 import edu.uci.ics.amber.engine.common.model.WorkflowContext
 import edu.uci.ics.amber.engine.common.model.WorkflowSettings
+import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -131,7 +132,7 @@ class BatchSizePropagationSpec
       context
     )
 
-    val workflowScheduler = new WorkflowScheduler(context, resultStorage)
+    val workflowScheduler = new WorkflowScheduler(context, resultStorage, CONTROLLER)
     workflowScheduler.updateSchedule(workflow.physicalPlan)
 
     verifyBatchSizeInPartitioning(workflowScheduler, 1)
@@ -168,7 +169,7 @@ class BatchSizePropagationSpec
       context
     )
 
-    val workflowScheduler = new WorkflowScheduler(context, resultStorage)
+    val workflowScheduler = new WorkflowScheduler(context, resultStorage, CONTROLLER)
     workflowScheduler.updateSchedule(workflow.physicalPlan)
 
     verifyBatchSizeInPartitioning(workflowScheduler, 500)
@@ -213,7 +214,7 @@ class BatchSizePropagationSpec
       context
     )
 
-    val workflowScheduler = new WorkflowScheduler(context, resultStorage)
+    val workflowScheduler = new WorkflowScheduler(context, resultStorage, CONTROLLER)
     workflowScheduler.updateSchedule(workflow.physicalPlan)
 
     verifyBatchSizeInPartitioning(workflowScheduler, 100)
@@ -262,7 +263,7 @@ class BatchSizePropagationSpec
       context
     )
 
-    val workflowScheduler = new WorkflowScheduler(context, resultStorage)
+    val workflowScheduler = new WorkflowScheduler(context, resultStorage, CONTROLLER)
     workflowScheduler.updateSchedule(workflow.physicalPlan)
 
     verifyBatchSizeInPartitioning(workflowScheduler, 300)
@@ -311,7 +312,7 @@ class BatchSizePropagationSpec
       context
     )
 
-    val workflowScheduler = new WorkflowScheduler(context, resultStorage)
+    val workflowScheduler = new WorkflowScheduler(context, resultStorage, CONTROLLER)
     workflowScheduler.updateSchedule(workflow.physicalPlan)
 
     verifyBatchSizeInPartitioning(workflowScheduler, 1)
