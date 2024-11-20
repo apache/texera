@@ -105,7 +105,7 @@ export class WorkflowWebsocketService {
   }
 
   public reopenWebsocket(wId: number) {
-    if (this.isConnected && this.connectedWid == wId) {
+    if (this.isConnected && this.connectedWid === wId) {
       // prevent reconnections
       return;
     }
