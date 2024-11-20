@@ -171,7 +171,6 @@ describe("WorkflowResultExportService", () => {
     });
   }));
 
-
   it("should export a single visualization result as an HTML file when there is only one result", done => {
     // Arrange
     jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.and.returnValue(["operator2"]);
