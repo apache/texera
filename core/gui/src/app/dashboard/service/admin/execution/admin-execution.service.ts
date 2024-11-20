@@ -1,4 +1,4 @@
-import { HttpClient } from "@angular/common/http";
+import { HttpClient, HttpParams } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
 import { AppSettings } from "../../../../common/app-setting";
@@ -12,8 +12,18 @@ export const WORKFLOW_BASE_URL = `${AppSettings.getApiEndpoint()}/admin/executio
 export class AdminExecutionService {
   constructor(private http: HttpClient) {}
 
-  public getExecutionList(pageSize: number, pageIndex: number, sortField: string, sortDirection: string): Observable<ReadonlyArray<Execution>> {
-    return this.http.get<ReadonlyArray<Execution>>(`${WORKFLOW_BASE_URL}/executionList/${pageSize}/${pageIndex}/${sortField}/${sortDirection}`);
+  public getExecutionList(
+    pageSize: number, 
+    pageIndex: number, 
+    sortField: string, 
+    sortDirection: string,
+    filter: string[]
+  ): Observable<ReadonlyArray<Execution>> {
+    const params = new HttpParams().set('filter', filter.join(','));
+    return this.http.get<ReadonlyArray<Execution>>(
+      `${WORKFLOW_BASE_URL}/executionList/${pageSize}/${pageIndex}/${sortField}/${sortDirection}`,
+      { params }
+    );
   }
 
   public getTotalWorkflows(): Observable<number> {

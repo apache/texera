@@ -2,12 +2,10 @@ import { Component, OnDestroy, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { AdminExecutionService } from "../../../service/admin/execution/admin-execution.service";
 import { Execution } from "../../../../common/type/execution";
-import { NzTableFilterFn, NzTableQueryParams, NzTableSortFn } from "ng-zorro-antd/table";
+import { NzTableFilterFn } from "ng-zorro-antd/table";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { WorkflowExecutionHistoryComponent } from "../../user/user-workflow/ngbd-modal-workflow-executions/workflow-execution-history.component";
-import { Workflow } from "../../../../common/type/workflow";
 import { WorkflowWebsocketService } from "../../../../workspace/service/workflow-websocket/workflow-websocket.service";
-import { environment } from "../../../../../environments/environment";
 
 @UntilDestroy()
 @Component({
@@ -22,6 +20,7 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
   currentPageIndex: number = 0;
   sortField: string = "NO_SORTING";
   sortDirection: string = "NO_SORTING";
+  filter: string[] = [];
 
   // This interval function fetches the latest execution list.
   // The interval runs every 1 second (1000 milliseconds).
@@ -34,7 +33,7 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.adminExecutionService
-      .getExecutionList(this.pageSize, this.currentPageIndex, this.sortField, this.sortDirection)
+      .getExecutionList(this.pageSize, this.currentPageIndex, this.sortField, this.sortDirection, this.filter)
       .pipe(untilDestroyed(this))
       .subscribe(executionList => {
         this.listOfExecutions = [...executionList];
@@ -242,5 +241,10 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
       this.sortDirection = sortOrder === 'descend' ? 'desc' : 'asc';
       this.ngOnInit();
     }
+  }
+
+  onFilterChange(filter: any[]): void {
+    this.filter = filter.map(item => String(item));
+    this.ngOnInit();
   }
 }

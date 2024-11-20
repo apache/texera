@@ -13,6 +13,7 @@ import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import scala.jdk.CollectionConverters.IterableHasAsScala
+import scala.jdk.CollectionConverters._
 
 /**
   * This file handles various request related to saved-executions.
@@ -44,6 +45,18 @@ object AdminExecutionResource {
       case 4 => "FAILED"
       case 5 => "KILLED"
       case _ => "UNKNOWN" // or throw an exception, depends on your needs
+    }
+  }
+
+  def mapToStatus(status: String): Int = {
+    status match {
+      case "READY" => 0
+      case "RUNNING" => 1
+      case "PAUSED" => 2
+      case "COMPLETED" => 3
+      case "FAILED" => 4
+      case "KILLED" => 5
+      case _ => -1 // or throw an exception, depends on your needs
     }
   }
 
@@ -89,8 +102,11 @@ class AdminExecutionResource {
                      @PathParam("pageSize") page_size: Int = 20,
                      @PathParam("pageIndex") page_index: Int = 0,
                      @PathParam("sortField") sortField: String = "end_time",
-                     @PathParam("sortDirection") sortDirection: String = "desc"
+                     @PathParam("sortDirection") sortDirection: String = "desc",
+                     @QueryParam("filter") filter: java.util.List[String]
                    ): List[dashboardExecution] = {
+    val filter_status = filter.asScala.map(mapToStatus).toSeq.filter(_ != -1).asJava
+
     val latestExecutionId = context.select(
         WORKFLOW_VERSION.WID,
         DSL.max(WORKFLOW_EXECUTIONS.EID).as("max_eid")
@@ -101,7 +117,7 @@ class AdminExecutionResource {
       .groupBy(WORKFLOW_VERSION.WID)
       .asTable("latest_execution_id")
 
-    val executions = context
+    val executions_base = context
       .select(
         WORKFLOW_EXECUTIONS.UID,
         USER.NAME,
@@ -128,11 +144,17 @@ class AdminExecutionResource {
         )
       )
 
-    var executions_order = executions.limit(page_size).offset(page_index * page_size)
+    val executions_filter = if (!filter_status.isEmpty) {
+      executions_base.where(WORKFLOW_EXECUTIONS.STATUS.in(filter_status))
+    } else {
+      executions_base
+    }
+
+    var executions_order = executions_filter.limit(page_size).offset(page_index * page_size)
     if (sortField != "NO_SORTING") {
       val orderByField = sortFieldMapping.getOrElse(sortField, WORKFLOW.NAME)
       val order = if (sortDirection == "desc") orderByField.desc() else orderByField.asc()
-      executions_order = executions.orderBy(order).limit(page_size).offset(page_index * page_size)
+      executions_order = executions_filter.orderBy(order).limit(page_size).offset(page_index * page_size)
     }
 
     val workflowEntries = executions_order.fetch()

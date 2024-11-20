@@ -57,7 +57,8 @@
           { text: 'KILLED', value: 'KILLED'},
           { text: 'JUST COMPLETED', value: 'JUST COMPLETED'},
           { text: 'UNKNOWN', value: 'UNKNOWN'}]"
-        [nzFilterFn]="filterByStatus"
+        [nzFilterFn]="true"
+        (nzFilterChange)="onFilterChange($event)"
         nzWidth="16%">
         Status
       </th>
