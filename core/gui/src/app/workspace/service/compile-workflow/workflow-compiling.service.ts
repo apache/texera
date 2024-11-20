@@ -1,11 +1,10 @@
 import { HttpClient, HttpHeaders } from "@angular/common/http";
 import { Injectable } from "@angular/core";
-import { isEqual } from "lodash-es";
 import { EMPTY, merge, Observable, ReplaySubject } from "rxjs";
 import { CustomJSONSchema7 } from "src/app/workspace/types/custom-json-schema.interface";
 import { environment } from "../../../../environments/environment";
 import { AppSettings } from "../../../common/app-setting";
-import { OperatorSchema } from "../../types/operator-schema.interface";
+import { areOperatorSchemasEqual, OperatorSchema } from "../../types/operator-schema.interface";
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { catchError, debounceTime, mergeMap } from "rxjs/operators";
@@ -165,7 +164,7 @@ export class WorkflowCompilingService {
         }
       }
 
-      if (!isEqual(currentDynamicSchema, newDynamicSchema)) {
+      if (!areOperatorSchemasEqual(currentDynamicSchema, newDynamicSchema)) {
         this.dynamicSchemaService.setDynamicSchema(operatorID, newDynamicSchema);
       }
     });
