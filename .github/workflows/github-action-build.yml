@@ -83,7 +83,7 @@ jobs:
       - name: Run backend tests
         run: cd core/amber && sbt -v -J-Xmx2G test
 
-  micro-services:
+  core:
     strategy:
       matrix:
         os: [ ubuntu-latest ]
