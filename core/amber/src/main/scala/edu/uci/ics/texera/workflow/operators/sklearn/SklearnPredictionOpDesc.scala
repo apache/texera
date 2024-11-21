@@ -17,7 +17,11 @@ class SklearnPredictionOpDesc extends PythonOperatorDescriptor {
   @JsonPropertyDescription("attribute name of the prediction result")
   var resultAttribute: String = _
 
-  @JsonProperty(value = "Ground Truth Attribute Name to Ignore", required = false, defaultValue = "")
+  @JsonProperty(
+    value = "Ground Truth Attribute Name to Ignore",
+    required = false,
+    defaultValue = ""
+  )
   @JsonPropertyDescription("attribute name of the ground truth")
   @AutofillAttributeName
   var groundTruthAttribute: String = ""
