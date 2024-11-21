@@ -17,10 +17,10 @@ class SklearnPredictionOpDesc extends PythonOperatorDescriptor {
   @JsonPropertyDescription("attribute name of the prediction result")
   var resultAttribute: String = _
 
-  @JsonProperty(value = "Target Attribute Name", required = false, defaultValue = "")
-  @JsonPropertyDescription("attribute name of the target result (ground truth)")
+  @JsonProperty(value = "Ground Truth Attribute Name to Ignore", required = false, defaultValue = "")
+  @JsonPropertyDescription("attribute name of the ground truth")
   @AutofillAttributeName
-  var targetAttribute: String = ""
+  var groundTruthAttribute: String = ""
 
   override def generatePythonCode(): String =
     s"""from pytexera import *
@@ -32,8 +32,8 @@ class SklearnPredictionOpDesc extends PythonOperatorDescriptor {
        |            self.model = tuple_["$model"]
        |        else:
        |            input_features = tuple_
-       |            if "$targetAttribute" != "" and "$targetAttribute" is not None:
-       |                input_features = Tuple({col: tuple_[col] for col in tuple_.as_dict() if col != "$targetAttribute"})
+       |            if "$groundTruthAttribute" != "":
+       |                input_features = input_features.get_partial_tuple([col for col in tuple_.get_field_names() if col != "$groundTruthAttribute"])
        |            tuple_["$resultAttribute"] = str(self.model.predict(Table.from_tuple_likes([input_features]))[0])
        |            yield tuple_""".stripMargin
 
@@ -53,6 +53,6 @@ class SklearnPredictionOpDesc extends PythonOperatorDescriptor {
     Schema
       .builder()
       .add(schemas(1))
-      .add(resultAttribute, AttributeType.STRING)
+        .add(resultAttribute, AttributeType.STRING)
       .build()
 }
