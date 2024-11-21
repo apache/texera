@@ -26,7 +26,9 @@ class SklearnPredictionOpDesc extends PythonOperatorDescriptor {
        |        if port == 0:
        |            self.model = tuple_["$model"]
        |        else:
-       |            tuple_["$resultAttribute"] = str(self.model.predict(Table.from_tuple_likes([tuple_]))[0])
+       |            required_columns = self.model.feature_names_in_
+       |            input_features = {col: tuple_[col] for col in required_columns if col in tuple_}
+       |            tuple_["$resultAttribute"] = str(self.model.predict(Table.from_tuple_likes([input_features]))[0])
        |            yield tuple_""".stripMargin
 
   override def operatorInfo: OperatorInfo =
