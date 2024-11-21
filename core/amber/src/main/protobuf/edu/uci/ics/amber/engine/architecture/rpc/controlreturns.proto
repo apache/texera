@@ -28,7 +28,7 @@ message ControlReturn {
     FinalizeCheckpointResponse finalizeCheckpointResponse = 52;
 
     // common responses
-    ControlError error = 101;
+    ControlError controlError = 101;
     EmptyReturn emptyReturn = 102;
     StringResponse stringResponse = 103;
     IntResponse intResponse = 104;
