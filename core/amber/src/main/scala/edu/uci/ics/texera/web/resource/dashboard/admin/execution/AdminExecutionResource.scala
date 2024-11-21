@@ -92,7 +92,7 @@ class AdminExecutionResource {
   }
 
   /**
-    * This method retrieves latest execution of each workflow.
+    * This method retrieves latest execution of each workflow for specified page.
     * The returned executions are sorted and filtered according to the parameters.
     */
   @GET
@@ -120,6 +120,7 @@ class AdminExecutionResource {
       .asTable("latest_execution_id")
 
     // Base query that retrieves latest execution info for each workflow without sorting and filtering.
+    // Only retrieving executions in current page according to pageSize and pageIndex parameters.
     val executions_base_query = context
       .select(
         WORKFLOW_EXECUTIONS.UID,
