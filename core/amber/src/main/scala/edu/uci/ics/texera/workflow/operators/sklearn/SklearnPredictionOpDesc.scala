@@ -56,15 +56,15 @@ class SklearnPredictionOpDesc extends PythonOperatorDescriptor {
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    var resultSchema = AttributeType.STRING
+    var resultType = AttributeType.STRING
     if (groundTruthAttribute != "") {
-      resultSchema =
+      resultType =
         schemas(1).attributes.find(attr => attr.getName == groundTruthAttribute).get.getType
     }
     Schema
       .builder()
       .add(schemas(1))
-      .add(resultAttribute, resultSchema)
+      .add(resultAttribute, resultType)
       .build()
   }
 }
