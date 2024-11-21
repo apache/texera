@@ -68,24 +68,6 @@ export class ContextMenuComponent {
       .subscribe(modifiable => (this.isWorkflowModifiable = modifiable));
   }
 
-  public writeDownloadLabel(): string {
-    const highlightedOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-    if (highlightedOperatorIDs.length > 1) {
-      return "download multiple results";
-    }
-
-    const operatorId = highlightedOperatorIDs[0];
-
-    const resultService = this.workflowResultService.getResultService(operatorId);
-    if (resultService?.getCurrentResultSnapshot() !== undefined) {
-      return "download result as HTML file";
-    }
-    if (this.workflowResultService.hasAnyResult(operatorId)) {
-      return "download result as CSV file";
-    }
-    return "download result";
-  }
-
   /**
    * This is the handler for the execution result export button for only highlighted operators.
    *

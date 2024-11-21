@@ -113,51 +113,6 @@ describe("ContextMenuComponent", () => {
     expect(component).toBeTruthy();
   });
 
-  it("should return \"download multiple results\" when multiple operators are highlighted", () => {
-    jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.and.returnValue(["operator1", "operator2"]);
-
-    const label = component.writeDownloadLabel();
-    expect(label).toBe("download multiple results");
-  });
-
-  it("should return \"download result as HTML file\" when one operator is highlighted and result snapshot is available", () => {
-    jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.and.returnValue(["operator1"]);
-
-    const resultServiceSpy = jasmine.createSpyObj("ResultService", ["getCurrentResultSnapshot"]);
-    workflowResultService.getResultService.and.returnValue(resultServiceSpy);
-    resultServiceSpy.getCurrentResultSnapshot.and.returnValue({ some: "snapshot" });
-
-    const label = component.writeDownloadLabel();
-    expect(label).toBe("download result as HTML file");
-  });
-
-  it("should return \"download result as CSV file\" when one operator is highlighted and result exists but no snapshot", () => {
-    jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.and.returnValue(["operator1"]);
-
-    workflowResultService.getResultService.and.returnValue(undefined);
-    workflowResultService.hasAnyResult.and.returnValue(true);
-
-    const label = component.writeDownloadLabel();
-    expect(label).toBe("download result as CSV file");
-  });
-
-  it("should return \"download result\" when one operator is highlighted and no result is available", () => {
-    jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.and.returnValue(["operator1"]);
-
-    workflowResultService.getResultService.and.returnValue(undefined);
-    workflowResultService.hasAnyResult.and.returnValue(false);
-
-    const label = component.writeDownloadLabel();
-    expect(label).toBe("download result");
-  });
-
-  it("should return \"download result\" when no operators are highlighted", () => {
-    jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.and.returnValue([]);
-
-    const label = component.writeDownloadLabel();
-    expect(label).toBe("download result");
-  });
-
   describe("isSelectedOperatorValid", () => {
     it("should return false when multiple operators are highlighted", () => {
       jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.and.returnValue(["op1", "op2"]);

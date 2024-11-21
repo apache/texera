@@ -159,8 +159,7 @@ export class MenuComponent implements OnInit, OnDestroy {
       .getExportOnAllOperatorsStatusStream()
       .pipe(untilDestroyed(this))
       .subscribe(hasResultToExport => {
-        this.isExportDeactivate =
-          !this.workflowResultExportService.exportExecutionResultEnabled || !hasResultToExport;
+        this.isExportDeactivate = !this.workflowResultExportService.exportExecutionResultEnabled || !hasResultToExport;
       });
 
     this.registerWorkflowMetadataDisplayRefresh();
