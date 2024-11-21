@@ -62,6 +62,7 @@ export class MenuComponent implements OnInit, OnDestroy {
   public isSaving: boolean = false;
   public isWorkflowModifiable: boolean = false;
   public workflowId?: number;
+  public isExportDeactivate: boolean = false;
   protected readonly DASHBOARD_USER_WORKFLOW = DASHBOARD_USER_WORKFLOW;
 
   @Input() public writeAccess: boolean = false;
@@ -151,6 +152,15 @@ export class MenuComponent implements OnInit, OnDestroy {
         this.isWorkflowEmpty = value.workflowEmpty;
         this.isWorkflowValid = Object.keys(value.errors).length === 0;
         this.applyRunButtonBehavior(this.getRunButtonBehavior());
+      });
+
+    // Subscribe to WorkflowResultExportService observable
+    this.workflowResultExportService
+      .getExportOnAllOperatorsStatusStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(hasResultToExport => {
+        this.isExportDeactivate =
+          !this.workflowResultExportService.exportExecutionResultEnabled || !hasResultToExport;
       });
 
     this.registerWorkflowMetadataDisplayRefresh();

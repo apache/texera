@@ -4,7 +4,7 @@ import { Injectable } from "@angular/core";
 import { environment } from "../../../../environments/environment";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
-import { EMPTY, expand, finalize, merge, Observable, of } from "rxjs";
+import { BehaviorSubject, EMPTY, expand, finalize, merge, Observable, of } from "rxjs";
 import { PaginatedResultEvent, ResultExportResponse } from "../../types/workflow-websocket.interface";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
@@ -21,7 +21,7 @@ import { Buffer } from "buffer";
 export class WorkflowResultExportService {
   hasResultToExportOnHighlightedOperators: boolean = false;
   exportExecutionResultEnabled: boolean = environment.exportExecutionResultEnabled;
-  hasResultToExportOnAllOperators: boolean = false;
+  hasResultToExportOnAllOperators = new BehaviorSubject<boolean>(false);
 
   constructor(
     private workflowWebsocketService: WorkflowWebsocketService,
@@ -68,7 +68,7 @@ export class WorkflowResultExportService {
           ).length > 0;
 
       // check if there are any results to export on all operators (either paginated or snapshot)
-      this.hasResultToExportOnAllOperators =
+      let staticHasResultToExportOnAllOperators =
         isNotInExecution(this.executeWorkflowService.getExecutionState().state) &&
         this.workflowActionService
           .getTexeraGraph()
@@ -79,6 +79,9 @@ export class WorkflowResultExportService {
               this.workflowResultService.hasAnyResult(operatorId) ||
               this.workflowResultService.getResultService(operatorId)?.getCurrentResultSnapshot() !== undefined
           ).length > 0;
+
+      // Notify subscribers of changes
+      this.hasResultToExportOnAllOperators.next(staticHasResultToExportOnAllOperators);
     });
   }
 
@@ -340,6 +343,10 @@ export class WorkflowResultExportService {
    */
   public resetFlags(): void {
     this.hasResultToExportOnHighlightedOperators = false;
-    this.hasResultToExportOnAllOperators = false;
+    this.hasResultToExportOnAllOperators = new BehaviorSubject<boolean>(false);
+  }
+
+  getExportOnAllOperatorsStatusStream(): Observable<boolean> {
+    return this.hasResultToExportOnAllOperators.asObservable();
   }
 }
