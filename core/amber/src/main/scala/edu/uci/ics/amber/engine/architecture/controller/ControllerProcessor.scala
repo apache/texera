@@ -24,7 +24,8 @@ class ControllerProcessor(
 ) extends AmberProcessor(actorId, outputHandler) {
 
   val workflowExecution: WorkflowExecution = WorkflowExecution()
-  val workflowScheduler: WorkflowScheduler = new WorkflowScheduler(workflowContext, opResultStorage)
+  val workflowScheduler: WorkflowScheduler =
+    new WorkflowScheduler(workflowContext, opResultStorage, actorId)
   val workflowExecutionCoordinator: WorkflowExecutionCoordinator = new WorkflowExecutionCoordinator(
     () => this.workflowScheduler.getNextRegions,
     workflowExecution,

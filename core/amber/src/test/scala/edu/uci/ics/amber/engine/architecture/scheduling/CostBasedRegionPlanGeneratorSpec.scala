@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
 import edu.uci.ics.amber.engine.common.model.WorkflowContext
+import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.amber.engine.e2e.TestOperators
 import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
@@ -57,7 +58,8 @@ class CostBasedRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
     val globalSearchNoPruningResult = new CostBasedRegionPlanGenerator(
       workflow.context,
       workflow.physicalPlan,
-      resultStorage
+      resultStorage,
+      CONTROLLER
     ).bottomUpSearch(globalSearch = true, oChains = false, oCleanEdges = false)
 
     // Should have explored all possible states (2^4 states)
@@ -66,7 +68,8 @@ class CostBasedRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
     val globalSearchOChainsResult = new CostBasedRegionPlanGenerator(
       workflow.context,
       workflow.physicalPlan,
-      resultStorage
+      resultStorage,
+      CONTROLLER
     ).bottomUpSearch(globalSearch = true, oCleanEdges = false)
 
     // By applying pruning based on Chains alone, it should skip 10 (8 + 2) states. 8 states where CSV->Build is
@@ -78,7 +81,8 @@ class CostBasedRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
     val globalSearchOCleanEdgesResult = new CostBasedRegionPlanGenerator(
       workflow.context,
       workflow.physicalPlan,
-      resultStorage
+      resultStorage,
+      CONTROLLER
     ).bottomUpSearch(globalSearch = true, oChains = false)
 
     // By applying pruning based on Clean edges (bridges) alone, it should skip 8 states. There is one clean edge
@@ -88,7 +92,8 @@ class CostBasedRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
     val globalSearchAllPruningEnabledResult = new CostBasedRegionPlanGenerator(
       workflow.context,
       workflow.physicalPlan,
-      resultStorage
+      resultStorage,
+      CONTROLLER
     ).bottomUpSearch(globalSearch = true)
 
     // By combining both pruning techniques, only 3 states should be visited (1 state where both CSV->KeywordFilter and
