@@ -6,6 +6,8 @@ import { WorkflowActionService } from "../workflow-graph/model/workflow-action.s
 import Ajv from "ajv";
 import { map } from "rxjs/operators";
 import { DynamicSchemaService } from "../dynamic-schema/dynamic-schema.service";
+import { untilDestroyed } from "@ngneat/until-destroy";
+import { UntilDestroy } from "@ngneat/until-destroy";
 
 export type ValidationError = {
   isValid: false;
@@ -32,6 +34,7 @@ export type ValidationOutput = {
  *
  * @author Angela Wang
  */
+@UntilDestroy()
 @Injectable({
   providedIn: "root",
 })
@@ -119,12 +122,18 @@ export class ValidationWorkflowService {
       delete this.workflowErrors[operatorID];
       this.workflowValidationErrorStream.next({ errors: this.workflowErrors, workflowEmpty: this.workflowEmpty });
     }
-    this.checkIfWorkflowEmpty();
-    this.workflowValidationErrorStream.next({ errors: this.workflowErrors, workflowEmpty: this.workflowEmpty });
   }
 
   private checkIfWorkflowEmpty() {
-    this.workflowEmpty = this.workflowActionService.getTexeraGraph().getAllOperators().length === 0;
+    const operators = this.workflowActionService.getTexeraGraph().getAllOperators();
+    this.workflowEmpty = operators.length === 0;
+
+    // If there are operators, check if they're all disabled
+    if (!this.workflowEmpty) {
+      this.workflowEmpty = operators.every(operator =>
+        this.workflowActionService.getTexeraGraph().isOperatorDisabled(operator.operatorID)
+      );
+    }
   }
 
   private updateValidationStateOnDelete(operatorID: string) {
@@ -219,6 +228,18 @@ export class ValidationWorkflowService {
         });
 
         operatorsToRevalidate.forEach(op => this.updateValidationState(op, this.validateOperator(op)));
+      });
+
+    // Add subscription to workflow changes
+    this.workflowActionService
+      .workflowChanged()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        this.checkIfWorkflowEmpty();
+        this.workflowValidationErrorStream.next({
+          errors: this.workflowErrors,
+          workflowEmpty: this.workflowEmpty,
+        });
       });
   }
 
