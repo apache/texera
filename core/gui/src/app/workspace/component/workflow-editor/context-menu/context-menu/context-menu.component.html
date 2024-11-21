@@ -119,22 +119,12 @@
   </li>
 
   <li
-    nz-menu-item
-    *ngIf="workflowResultExportService.hasResultToExportOnHighlightedOperators"
-    (click)="onClickExportHighlightedExecutionResult('csv')">
-    <span
-      nz-icon
-      nzType="download"
-      nzTheme="outline"></span>
-    {{writeDownloadLabel()}}
-  </li>
-  <li
     (click)="onClickExportHighlightedExecutionResult('csv')"
     nz-menu-item>
     <span
       nz-icon
       nzType="cloud"
       nzTheme="outline"></span>
-    Export to dataset
+    Export result
   </li>
 </ul>
