@@ -163,9 +163,7 @@ class MachineLearningScorerOpDesc extends PythonOperatorDescriptor {
          |      else:
          |        # calculate the number of unique labels
          |        labels = list(set(y_true))
-         |        # align the type of y_true and y_pred(str)
-         |        y_true_str = y_true.astype(str)
-         |        result = classification_metrics(y_true_str, y_pred, metric_list, labels)
+         |        result = classification_metrics(y_true, y_pred, metric_list, labels)
          |
          |      yield result
          |""".stripMargin
