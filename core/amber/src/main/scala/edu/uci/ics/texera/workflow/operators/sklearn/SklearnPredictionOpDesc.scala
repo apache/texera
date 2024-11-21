@@ -53,6 +53,6 @@ class SklearnPredictionOpDesc extends PythonOperatorDescriptor {
     Schema
       .builder()
       .add(schemas(1))
-        .add(resultAttribute, AttributeType.STRING)
+      .add(resultAttribute, AttributeType.STRING)
       .build()
 }
