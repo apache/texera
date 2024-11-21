@@ -6,6 +6,7 @@ import { WorkflowResultService } from "src/app/workspace/service/workflow-result
 import { WorkflowResultExportService } from "src/app/workspace/service/workflow-result-export/workflow-result-export.service";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { ResultExportationComponent } from "../../../result-exportation/result-exportation.component";
+import { ValidationWorkflowService } from "src/app/workspace/service/validation/validation-workflow.service";
 
 @UntilDestroy()
 @Component({
@@ -21,9 +22,19 @@ export class ContextMenuComponent {
     public operatorMenuService: OperatorMenuService,
     public workflowResultExportService: WorkflowResultExportService,
     private workflowResultService: WorkflowResultService,
-    private modalService: NzModalService
+    private modalService: NzModalService,
+    private validationWorkflowService: ValidationWorkflowService
   ) {
     this.registerWorkflowModifiableChangedHandler();
+  }
+
+  public isSelectedOperatorValid(): boolean {
+    const highlightedOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+    if (highlightedOperatorIDs.length !== 1 || !this.isWorkflowModifiable) {
+      return false;
+    }
+    const operatorID = highlightedOperatorIDs[0];
+    return this.validationWorkflowService.validateOperator(operatorID).isValid;
   }
 
   public onCopy(): void {
