@@ -111,7 +111,7 @@ abstract class SklearnMLOpDesc extends PythonOperatorDescriptor {
       OperatorGroupConstants.SKLEARN_GROUP,
       inputPorts = List(
         InputPort(PortIdentity(), "training"),
-        InputPort(PortIdentity(1), "testing", dependencies = List(PortIdentity()))
+        InputPort(PortIdentity(1), "validation", dependencies = List(PortIdentity()))
       ),
       outputPorts = List(OutputPort())
     )
