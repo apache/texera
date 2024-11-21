@@ -49,11 +49,14 @@ export class AdminExecutionComponent implements OnInit, OnDestroy, AfterViewInit
       );
   }
 
+  /**
+   * Update the page size according to table's height after all components being rendered.
+   */
   ngAfterViewInit() {
     const tableContainer = document.querySelector('.execution-table');
     if (tableContainer) {
       const containerHeight = tableContainer.clientHeight;
-      this.pageSize = Math.floor(containerHeight / 12);
+      this.pageSize = Math.floor((containerHeight - 11) / 11);
     };
   }
 
@@ -234,11 +237,21 @@ export class AdminExecutionComponent implements OnInit, OnDestroy, AfterViewInit
     // socket.closeWebsocket();
   }
 
+  /**
+   * Update the current page index when user selects page.
+   * @param pageIndex 
+   */
   onPageIndexChange(pageIndex: number): void {
     this.currentPageIndex = pageIndex - 1;
     this.ngOnInit();
   }
 
+  /**
+   * Reorder the executions based on the selected field and order.
+   * The sorting function is implemented in the backend.
+   * @param sortField 
+   * @param sortOrder 
+   */
   onSortChange(sortField: string, sortOrder: string | null): void {
     if (sortField == this.sortField && sortOrder == null) {
       this.sortField = "NO_SORTING";
@@ -251,6 +264,11 @@ export class AdminExecutionComponent implements OnInit, OnDestroy, AfterViewInit
     }
   }
 
+  /**
+   * Filter the executions based on the status user checked.
+   * The filtering function in implemented in the backend.
+   * @param filter 
+   */
   onFilterChange(filter: any[]): void {
     this.filter = filter.map(item => String(item));
     this.ngOnInit();

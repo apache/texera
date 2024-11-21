@@ -92,7 +92,8 @@ class AdminExecutionResource {
   }
 
   /**
-    * This method retrieves all existing executions
+    * This method retrieves latest execution of each workflow.
+    * The returned executions are sorted and filtered according to the parameters.
     */
   @GET
   @Path("/executionList/{pageSize}/{pageIndex}/{sortField}/{sortDirection}")
@@ -107,6 +108,7 @@ class AdminExecutionResource {
                    ): List[dashboardExecution] = {
     val filter_status = filter.asScala.map(mapToStatus).toSeq.filter(_ != -1).asJava
 
+    // Retrieve the latest execution id for each workflow
     val latestExecutionId = context.select(
         WORKFLOW_VERSION.WID,
         DSL.max(WORKFLOW_EXECUTIONS.EID).as("max_eid")
@@ -117,7 +119,8 @@ class AdminExecutionResource {
       .groupBy(WORKFLOW_VERSION.WID)
       .asTable("latest_execution_id")
 
-    val executions_base = context
+    // Base query that retrieves latest execution info for each workflow without sorting and filtering.
+    val executions_base_query = context
       .select(
         WORKFLOW_EXECUTIONS.UID,
         USER.NAME,
@@ -144,28 +147,32 @@ class AdminExecutionResource {
         )
       )
 
-    val executions_filter = if (!filter_status.isEmpty) {
-      executions_base.where(WORKFLOW_EXECUTIONS.STATUS.in(filter_status))
+    // Apply filter if the status are not empty.
+    val executions_apply_filter = if (!filter_status.isEmpty) {
+      executions_base_query.where(WORKFLOW_EXECUTIONS.STATUS.in(filter_status))
     } else {
-      executions_base
+      executions_base_query
     }
 
-    var executions_order = executions_filter.limit(page_size).offset(page_index * page_size)
+    // Apply sorting if user specified.
+    var executions_apply_order = executions_apply_filter.limit(page_size).offset(page_index * page_size)
     if (sortField != "NO_SORTING") {
       val orderByField = sortFieldMapping.getOrElse(sortField, WORKFLOW.NAME)
       val order = if (sortDirection == "desc") orderByField.desc() else orderByField.asc()
-      executions_order = executions_filter.orderBy(order).limit(page_size).offset(page_index * page_size)
+      executions_apply_order = executions_apply_filter.orderBy(order).limit(page_size).offset(page_index * page_size)
     }
 
-    val workflowEntries = executions_order.fetch()
+    val executions = executions_apply_order.fetch()
 
+    // Retrieve the id of each workflow that the user has access to.
     val availableWorkflowIds = context
       .select(WORKFLOW_USER_ACCESS.WID)
       .from(WORKFLOW_USER_ACCESS)
       .where(WORKFLOW_USER_ACCESS.UID.eq(current_user.getUid))
       .fetchInto(classOf[UInteger])
 
-    workflowEntries
+    // Calculate the statistics needed for each execution.
+    executions
       .map(workflowRecord => {
         val startingTime =
           workflowRecord.get(WORKFLOW_EXECUTIONS.STARTING_TIME).getTime
