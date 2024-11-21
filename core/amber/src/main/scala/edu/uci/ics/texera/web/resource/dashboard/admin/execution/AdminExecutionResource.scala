@@ -12,7 +12,6 @@ import org.jooq.types.UInteger
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
-import scala.jdk.CollectionConverters.IterableHasAsScala
 import scala.jdk.CollectionConverters._
 
 /**
@@ -50,13 +49,13 @@ object AdminExecutionResource {
 
   def mapToStatus(status: String): Int = {
     status match {
-      case "READY" => 0
-      case "RUNNING" => 1
-      case "PAUSED" => 2
+      case "READY"     => 0
+      case "RUNNING"   => 1
+      case "PAUSED"    => 2
       case "COMPLETED" => 3
-      case "FAILED" => 4
-      case "KILLED" => 5
-      case _ => -1 // or throw an exception, depends on your needs
+      case "FAILED"    => 4
+      case "KILLED"    => 5
+      case _           => -1 // or throw an exception, depends on your needs
     }
   }
 
@@ -78,7 +77,8 @@ class AdminExecutionResource {
   @Path("/totalWorkflow")
   @Produces()
   def getTotalWorkflows: Int = {
-    context.select(
+    context
+      .select(
         DSL.countDistinct(WORKFLOW.WID)
       )
       .from(WORKFLOW_EXECUTIONS)
@@ -99,17 +99,18 @@ class AdminExecutionResource {
   @Path("/executionList/{pageSize}/{pageIndex}/{sortField}/{sortDirection}")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def listWorkflows(
-                     @Auth current_user: SessionUser,
-                     @PathParam("pageSize") page_size: Int = 20,
-                     @PathParam("pageIndex") page_index: Int = 0,
-                     @PathParam("sortField") sortField: String = "end_time",
-                     @PathParam("sortDirection") sortDirection: String = "desc",
-                     @QueryParam("filter") filter: java.util.List[String]
-                   ): List[dashboardExecution] = {
+      @Auth current_user: SessionUser,
+      @PathParam("pageSize") page_size: Int = 20,
+      @PathParam("pageIndex") page_index: Int = 0,
+      @PathParam("sortField") sortField: String = "end_time",
+      @PathParam("sortDirection") sortDirection: String = "desc",
+      @QueryParam("filter") filter: java.util.List[String]
+  ): List[dashboardExecution] = {
     val filter_status = filter.asScala.map(mapToStatus).toSeq.filter(_ != -1).asJava
 
     // Retrieve the latest execution id for each workflow
-    val latestExecutionId = context.select(
+    val latestExecutionId = context
+      .select(
         WORKFLOW_VERSION.WID,
         DSL.max(WORKFLOW_EXECUTIONS.EID).as("max_eid")
       )
@@ -143,7 +144,8 @@ class AdminExecutionResource {
       .join(latestExecutionId)
       .on(
         DSL.and(
-          WORKFLOW_EXECUTIONS.EID.eq(latestExecutionId.field("max_eid").asInstanceOf[Field[UInteger]]),
+          WORKFLOW_EXECUTIONS.EID
+            .eq(latestExecutionId.field("max_eid").asInstanceOf[Field[UInteger]]),
           WORKFLOW_VERSION.WID.eq(latestExecutionId.field(WORKFLOW_VERSION.WID))
         )
       )
@@ -156,11 +158,13 @@ class AdminExecutionResource {
     }
 
     // Apply sorting if user specified.
-    var executions_apply_order = executions_apply_filter.limit(page_size).offset(page_index * page_size)
+    var executions_apply_order =
+      executions_apply_filter.limit(page_size).offset(page_index * page_size)
     if (sortField != "NO_SORTING") {
       val orderByField = sortFieldMapping.getOrElse(sortField, WORKFLOW.NAME)
       val order = if (sortDirection == "desc") orderByField.desc() else orderByField.asc()
-      executions_apply_order = executions_apply_filter.orderBy(order).limit(page_size).offset(page_index * page_size)
+      executions_apply_order =
+        executions_apply_filter.orderBy(order).limit(page_size).offset(page_index * page_size)
     }
 
     val executions = executions_apply_order.fetch()
