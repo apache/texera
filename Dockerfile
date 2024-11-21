@@ -30,7 +30,6 @@ WORKDIR /core
 # Add .git for runtime calls to jgit from OPversion
 COPY .git ../.git
 COPY --from=nodegui /gui/dist ./gui/dist
-# Copy the micro-services to make sure the micro-services can be built and run
 
 RUN scripts/build-docker.sh
 
