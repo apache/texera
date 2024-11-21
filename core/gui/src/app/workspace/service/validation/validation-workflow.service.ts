@@ -119,17 +119,30 @@ export class ValidationWorkflowService {
       delete this.workflowErrors[operatorID];
       this.workflowValidationErrorStream.next({ errors: this.workflowErrors, workflowEmpty: this.workflowEmpty });
     }
-    this.checkIfWorkflowEmpty();
-    this.workflowValidationErrorStream.next({ errors: this.workflowErrors, workflowEmpty: this.workflowEmpty });
   }
 
   private checkIfWorkflowEmpty() {
-    this.workflowEmpty = this.workflowActionService.getTexeraGraph().getAllOperators().length === 0;
+    const operators = this.workflowActionService.getTexeraGraph().getAllOperators();
+    console.log("operators length: ", operators.length);
+    this.workflowEmpty = operators.length === 0;
+    
+    // If there are operators, check if they're all disabled
+    if (!this.workflowEmpty) {
+      this.workflowEmpty = operators.every(operator => 
+        this.workflowActionService.getTexeraGraph().isOperatorDisabled(operator.operatorID)
+      );
+    }
   }
 
   private updateValidationStateOnDelete(operatorID: string) {
     this.checkIfWorkflowEmpty();
     delete this.workflowErrors[operatorID];
+    this.workflowValidationErrorStream.next({ errors: this.workflowErrors, workflowEmpty: this.workflowEmpty });
+  }
+
+  // Add a new method to handle workflow empty state updates
+  private updateWorkflowEmptyState(): void {
+    this.checkIfWorkflowEmpty();
     this.workflowValidationErrorStream.next({ errors: this.workflowErrors, workflowEmpty: this.workflowEmpty });
   }
 
@@ -218,7 +231,12 @@ export class ValidationWorkflowService {
           outputs.forEach(link => operatorsToRevalidate.add(link.target.operatorID));
         });
 
-        operatorsToRevalidate.forEach(op => this.updateValidationState(op, this.validateOperator(op)));
+        operatorsToRevalidate.forEach(op => 
+          this.updateValidationState(op, this.validateOperator(op))
+        );
+        
+        // Update empty state after processing disable/enable changes
+        this.updateWorkflowEmptyState();
       });
   }
 
