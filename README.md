@@ -29,7 +29,7 @@
   <img alt="Static Badge" src="https://img.shields.io/badge/Largest_Deployment-100_nodes,_400_cores-green">
 </p>
 
-## Motivation
+# Motivation
 
 * Many data analysts need to spend a significant amount of effort on low-level computation to do data wrangling and preparation, and want to use latest AI/ML techniques. These tasks are especially tough for non-IT users. 
 
@@ -39,7 +39,7 @@
 
 * Existing big data systems support little interaction during the execution of a long running job, making them hard to manage once they are started.
 
-## Goals
+# Goals
 
 * Provide data analytics as cloud services;
 * Provide a browser-based GUI to form a workflow without writing code;
@@ -48,12 +48,12 @@
 * Allow users to interact with the execution of a job;
 * Support huge volumes of data efficiently.
 
-## Workflow GUI
+# Workflow GUI
 The Texera interface supports real-time collaboration on data science projects, allowing seamless sharing of data and workflows with easy access to AI/ML techniques and efficient management of public and private resources. 
 The workflow in the use case shown below includes data cleaning, ML model training, and validation.
 ![texera-screenshot](https://github.com/user-attachments/assets/4384b8f5-3a9a-4bbc-a804-1dadd156ebb3)
 
-## Publications (Computer Science)
+# Publications (Computer Science)
 *  (11/2024) **IcedTea: Efficient and Responsive Time-Travel Debugging in Dataflow Systems**  
    Shengquan Ni, Yicong Huang, Zuozhi Wang, and Chen Li
    _To appear in VLDB 2025_
@@ -117,7 +117,7 @@ The workflow in the use case shown below includes data cleaning, ML model traini
 
 </details>
 
-## Publications (Interdisciplinary):
+# Publications (Interdisciplinary):
 * (2/2025) **DS4ALL: Teaching High-School Students Data Science and AI/ML Using the Texera Workflow Platform as a Service**  
   Jiadong Bai, Xiaozhen Liu, Anthony Cuturrufo, Alexander Kundu Taylor, Jeehyun Hwang, Mingyu Derek Ma, Xinyuan Lin, Yanqiao Zhu, Yicong Huang, Yunyan Ding, Wei Wang, and Chen Li  
   _To appear in [Data Science Education K-12: Research to Practice Annual Conference 2025](https://web.cvent.com/event/d641bd9f-6c99-4cbc-951b-33b1ca05d4ed/summary)_
@@ -152,7 +152,7 @@ The workflow in the use case shown below includes data cleaning, ML model traini
 </details>
 
 
-## Education
+# Education
 <table>
   <tr style="height: 500px;">
     <td align="center">
@@ -173,7 +173,7 @@ The workflow in the use case shown below includes data cleaning, ML model traini
 </table>
 
 
-## Videos
+# Videos
 <table>
   <tr style="height: 500px;">
     <td align="center">
@@ -197,14 +197,14 @@ The workflow in the use case shown below includes data cleaning, ML model traini
   </tr>
 </table>
 
-## Getting Started
+# Getting Started
 
 * For users, visit [Guide to Use Texera](https://github.com/Texera/texera/wiki/Getting-Started).
 * For developers, visit [Guide to Develop Texera](https://github.com/Texera/texera/wiki/Guide-for-Developers).
 
 Texera was formally known as "TextDB" before August 28, 2017.
 
-## Acknowledgements
+# Acknowledgements
 
 This project is supported by the <a href="http://www.nsf.gov">National Science Foundation</a> under the awards [IIS-1745673](https://www.nsf.gov/awardsearch/showAward?AWD_ID=1745673), [IIS-2107150](https://www.nsf.gov/awardsearch/showAward?AWD_ID=2107150), AWS Research Credits, and Google Cloud Platform Education Programs.
 
@@ -213,7 +213,7 @@ This project is supported by the <a href="http://www.nsf.gov">National Science F
 
 * <a href="http://www.yourkit.com"><img src="https://www.yourkit.com/images/yklogo.png" alt="Yourkit" height="30"/></a>  [Yourkit](https://www.yourkit.com/) has given an open source license to use their profiler in this project.
 
-## Citation
+# Citation
 Please cite Texera as 
 ```
 
