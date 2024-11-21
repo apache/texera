@@ -9,7 +9,7 @@
     itemSize="70"
     class="virtual-scroll-container">
     <nz-list>
-      <ng-container *cdkVirtualFor="let entry of entries">
+      <ng-container *ngFor="let entry of entries">
         <texera-list-item
           (deleted)="deleted.emit(entry)"
           (duplicated)="duplicated.emit(entry)"
