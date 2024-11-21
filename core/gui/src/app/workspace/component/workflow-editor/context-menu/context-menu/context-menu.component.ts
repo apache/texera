@@ -4,6 +4,7 @@ import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowResultService } from "src/app/workspace/service/workflow-result/workflow-result.service";
 import { WorkflowResultExportService } from "src/app/workspace/service/workflow-result-export/workflow-result-export.service";
+import { ValidationWorkflowService } from "src/app/workspace/service/validation/validation-workflow.service";
 
 @UntilDestroy()
 @Component({
@@ -18,9 +19,19 @@ export class ContextMenuComponent {
     public workflowActionService: WorkflowActionService,
     public operatorMenuService: OperatorMenuService,
     public workflowResultExportService: WorkflowResultExportService,
-    private workflowResultService: WorkflowResultService
+    private workflowResultService: WorkflowResultService,
+    private validationWorkflowService: ValidationWorkflowService
   ) {
     this.registerWorkflowModifiableChangedHandler();
+  }
+
+  public isSelectedOperatorValid(): boolean {
+    const highlightedOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+    if (highlightedOperatorIDs.length !== 1 || !this.isWorkflowModifiable) {
+      return false;
+    }
+    const operatorID = highlightedOperatorIDs[0];
+    return this.validationWorkflowService.validateOperator(operatorID).isValid;
   }
 
   public onCopy(): void {
