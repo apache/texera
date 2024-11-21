@@ -13,7 +13,7 @@ lazy val WorkflowCompilingService = (project in file("workflow-compiling-service
     )
   )
 // root project definition
-lazy val MicroServices = (project in file("."))
+lazy val CoreProject = (project in file("."))
   .aggregate(DAO, WorkflowCore, WorkflowOperator, WorkflowCompilingService)
   .settings(
     name := "core",
