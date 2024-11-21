@@ -40,24 +40,22 @@ export class AdminExecutionComponent implements OnInit, OnDestroy, AfterViewInit
         this.updateTimeStatus();
         this.isLoading = false;
       });
-    
+
     this.adminExecutionService
       .getTotalWorkflows()
       .pipe(untilDestroyed(this))
-      .subscribe(
-        total => this.totalWorkflows = total
-      );
+      .subscribe(total => (this.totalWorkflows = total));
   }
 
   /**
    * Update the page size according to table's height after all components being rendered.
    */
   ngAfterViewInit() {
-    const tableContainer = document.querySelector('.execution-table');
+    const tableContainer = document.querySelector(".execution-table");
     if (tableContainer) {
       const containerHeight = tableContainer.clientHeight;
       this.pageSize = Math.floor((containerHeight - 11) / 11);
-    };
+    }
   }
 
   ngOnDestroy(): void {
@@ -239,7 +237,7 @@ export class AdminExecutionComponent implements OnInit, OnDestroy, AfterViewInit
 
   /**
    * Update the current page index when user selects page.
-   * @param pageIndex 
+   * @param pageIndex
    */
   onPageIndexChange(pageIndex: number): void {
     this.currentPageIndex = pageIndex - 1;
@@ -249,8 +247,8 @@ export class AdminExecutionComponent implements OnInit, OnDestroy, AfterViewInit
   /**
    * Reorder the executions based on the selected field and order.
    * The sorting function is implemented in the backend.
-   * @param sortField 
-   * @param sortOrder 
+   * @param sortField
+   * @param sortOrder
    */
   onSortChange(sortField: string, sortOrder: string | null): void {
     if (sortField == this.sortField && sortOrder == null) {
@@ -259,7 +257,7 @@ export class AdminExecutionComponent implements OnInit, OnDestroy, AfterViewInit
       this.ngOnInit();
     } else if (sortOrder != null) {
       this.sortField = sortField;
-      this.sortDirection = sortOrder === 'descend' ? 'desc' : 'asc';
+      this.sortDirection = sortOrder === "descend" ? "desc" : "asc";
       this.ngOnInit();
     }
   }
@@ -267,7 +265,7 @@ export class AdminExecutionComponent implements OnInit, OnDestroy, AfterViewInit
   /**
    * Filter the executions based on the status user checked.
    * The filtering function in implemented in the backend.
-   * @param filter 
+   * @param filter
    */
   onFilterChange(filter: any[]): void {
     this.filter = filter.map(item => String(item));

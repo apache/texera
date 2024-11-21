@@ -13,13 +13,13 @@ export class AdminExecutionService {
   constructor(private http: HttpClient) {}
 
   public getExecutionList(
-    pageSize: number, 
-    pageIndex: number, 
-    sortField: string, 
+    pageSize: number,
+    pageIndex: number,
+    sortField: string,
     sortDirection: string,
     filter: string[]
   ): Observable<ReadonlyArray<Execution>> {
-    const params = new HttpParams().set('filter', filter.join(','));
+    const params = new HttpParams().set("filter", filter.join(","));
     return this.http.get<ReadonlyArray<Execution>>(
       `${WORKFLOW_BASE_URL}/executionList/${pageSize}/${pageIndex}/${sortField}/${sortDirection}`,
       { params }
