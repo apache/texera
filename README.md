@@ -151,10 +151,27 @@ The workflow in the use case shown below includes data cleaning, ML model traini
   _In JAMIA 2021_ | [PDF](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7989302/pdf/ocab047.pdf)
 </details>
 
-## Education
 
-* [Data Science for All](https://ds4all.ics.uci.edu/) (an NSF-funded summer program to teach high-school students data science and AI/ML)
-* [ICS 80](https://canvas.eee.uci.edu/courses/63639/pages/syllabus) (a Spring 2024 course at UCI, teaching 42 undergraduates, most of whom are not computer science majors, to learn data science and AI/ML)
+## Education
+<table>
+  <tr style="height: 500px;">
+    <td align="center">
+      <a href="https://ds4all.ics.uci.edu/">
+        <img src="https://ds4all.ics.uci.edu/wp-content/uploads/2023/07/banner-1024x576.png">
+      </a>
+      <p><b>Data Science for All</b></p>
+      An NSF-funded summer program to teach high-school students data science and AI/ML
+    </td>
+    <td align="center">
+      <a href="https://canvas.eee.uci.edu/courses/63639/pages/syllabus">
+        <img src="https://github.com/user-attachments/assets/a7569fd3-6857-48b4-80dc-d9f006ae2c8f">
+      </a>
+      <p><b>ICS 80: Data Science and AI/ML Using Workflows</b></p>
+      A Spring 2024 course at UCI, teaching 42 undergraduates, most of whom are not computer science majors, to learn data science and AI/ML
+    </td>
+  </tr>
+</table>
+
 
 ## Videos
 <table>
