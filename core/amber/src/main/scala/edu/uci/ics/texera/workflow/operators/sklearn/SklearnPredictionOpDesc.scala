@@ -17,6 +17,11 @@ class SklearnPredictionOpDesc extends PythonOperatorDescriptor {
   @JsonPropertyDescription("attribute name of the prediction result")
   var resultAttribute: String = _
 
+  @JsonProperty(value = "Target Attribute Name", required = false, defaultValue = "")
+  @JsonPropertyDescription("attribute name of the target result (ground truth)")
+  @AutofillAttributeName
+  var targetAttribute: String = _
+
   override def generatePythonCode(): String =
     s"""from pytexera import *
        |from sklearn.pipeline import Pipeline
@@ -26,8 +31,9 @@ class SklearnPredictionOpDesc extends PythonOperatorDescriptor {
        |        if port == 0:
        |            self.model = tuple_["$model"]
        |        else:
-       |            required_columns = self.model.feature_names_in_
-       |            input_features = {col: tuple_[col] for col in required_columns if col in tuple_}
+       |            input_features = tuple_
+       |            if "$targetAttribute" != "":
+       |                input_features = Tuple({col: tuple_[col] for col in tuple_.as_dict() if col != "$targetAttribute"})
        |            tuple_["$resultAttribute"] = str(self.model.predict(Table.from_tuple_likes([input_features]))[0])
        |            yield tuple_""".stripMargin
 
