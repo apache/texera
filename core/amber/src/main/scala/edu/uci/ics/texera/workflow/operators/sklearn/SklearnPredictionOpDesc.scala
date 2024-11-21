@@ -20,7 +20,7 @@ class SklearnPredictionOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "Target Attribute Name", required = false, defaultValue = "")
   @JsonPropertyDescription("attribute name of the target result (ground truth)")
   @AutofillAttributeName
-  var targetAttribute: String = _
+  var targetAttribute: String = ""
 
   override def generatePythonCode(): String =
     s"""from pytexera import *
@@ -32,7 +32,7 @@ class SklearnPredictionOpDesc extends PythonOperatorDescriptor {
        |            self.model = tuple_["$model"]
        |        else:
        |            input_features = tuple_
-       |            if "$targetAttribute" != "":
+       |            if "$targetAttribute" != "" and "$targetAttribute" is not None:
        |                input_features = Tuple({col: tuple_[col] for col in tuple_.as_dict() if col != "$targetAttribute"})
        |            tuple_["$resultAttribute"] = str(self.model.predict(Table.from_tuple_likes([input_features]))[0])
        |            yield tuple_""".stripMargin
