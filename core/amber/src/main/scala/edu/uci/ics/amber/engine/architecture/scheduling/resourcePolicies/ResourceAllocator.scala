@@ -10,8 +10,8 @@ import edu.uci.ics.amber.engine.architecture.scheduling.config.{
   ResourceConfig
 }
 import edu.uci.ics.amber.engine.common.model.PhysicalPlan
-import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
-import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
+import edu.uci.ics.amber.virtualidentity.PhysicalOpIdentity
+import edu.uci.ics.amber.workflow.{PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.workflow.{PartitionInfo, UnknownPartition}
 
 import scala.collection.mutable

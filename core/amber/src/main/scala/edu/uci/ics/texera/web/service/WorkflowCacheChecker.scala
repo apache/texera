@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.web.service
 
-import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
+import edu.uci.ics.amber.virtualidentity.OperatorIdentity
 import edu.uci.ics.texera.web.model.websocket.request.EditingTimeCompilationRequest
 import edu.uci.ics.texera.workflow.common.workflow.LogicalPlan
 

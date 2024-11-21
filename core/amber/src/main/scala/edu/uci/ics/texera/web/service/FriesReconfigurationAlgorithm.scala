@@ -6,7 +6,7 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
 }
 import edu.uci.ics.amber.engine.architecture.scheduling.{Region, WorkflowExecutionCoordinator}
 import edu.uci.ics.amber.engine.common.model.PhysicalPlan
-import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
+import edu.uci.ics.amber.virtualidentity.PhysicalOpIdentity
 import org.jgrapht.alg.connectivity.ConnectivityInspector
 
 import scala.collection.mutable

@@ -8,7 +8,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.{
   DataFrame,
   DataPayload
 }
-import edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity
+import edu.uci.ics.amber.virtualidentity.ChannelIdentity
 import lbmq.LinkedBlockingMultiQueue
 
 import scala.collection.mutable

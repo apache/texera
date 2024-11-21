@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.common
 
 import akka.actor.{ActorContext, ActorRef, Address, Cancellable, Props}
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import akka.util.Timeout

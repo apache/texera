@@ -15,7 +15,7 @@ import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.{
 import edu.uci.ics.amber.engine.common.model.WorkflowContext
 import edu.uci.ics.amber.engine.common.model.WorkflowSettings
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
-import edu.uci.ics.amber.engine.common.workflow.PortIdentity
+import edu.uci.ics.amber.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}

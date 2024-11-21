@@ -9,9 +9,9 @@ import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.MarkerFrame
 import edu.uci.ics.amber.engine.common.executor.SourceOperatorExecutor
 import edu.uci.ics.amber.engine.common.model.{EndOfInputChannel, StartOfInputChannel}
-import edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity
+import edu.uci.ics.amber.virtualidentity.ChannelIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.util.SOURCE_STARTER_ACTOR
-import edu.uci.ics.amber.engine.common.workflow.PortIdentity
+import edu.uci.ics.amber.workflow.PortIdentity
 
 trait StartHandler {
   this: DataProcessorRPCHandlerInitializer =>

@@ -2,8 +2,8 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 
 import edu.uci.ics.amber.engine.architecture.scheduling.config.ResourceConfig
 import edu.uci.ics.amber.engine.common.model.PhysicalOp
-import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
-import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
+import edu.uci.ics.amber.virtualidentity.PhysicalOpIdentity
+import edu.uci.ics.amber.workflow.{PhysicalLink, PortIdentity}
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
 

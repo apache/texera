@@ -12,9 +12,12 @@ lazy val WorkflowCompilingService = (project in file("workflow-compiling-service
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.16.1"
     )
   )
+
+lazy val WorkflowExecutionService = (project in file("amber"))
+  .dependsOn(WorkflowOperator)
 // root project definition
 lazy val CoreProject = (project in file("."))
-  .aggregate(DAO, WorkflowCore, WorkflowOperator, WorkflowCompilingService)
+  .aggregate(DAO, WorkflowCore, WorkflowOperator, WorkflowCompilingService, WorkflowExecutionService)
   .settings(
     name := "core",
     version := "0.1.0",

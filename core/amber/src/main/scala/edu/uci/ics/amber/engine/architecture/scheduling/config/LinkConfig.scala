@@ -7,7 +7,7 @@ import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.{
   RangeBasedShufflePartitioning,
   RoundRobinPartitioning
 }
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import edu.uci.ics.amber.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.texera.workflow.common.workflow.{
   BroadcastPartition,
   HashPartition,

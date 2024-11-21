@@ -4,7 +4,7 @@ import edu.uci.ics.amber.engine.common.{IncrementalOutputMode, ProgressiveUtils}
 import edu.uci.ics.amber.engine.common.executor.SinkOperatorExecutor
 import edu.uci.ics.amber.engine.common.model.tuple.{Tuple, TupleLike}
 import edu.uci.ics.amber.engine.common.IncrementalOutputMode._
-import edu.uci.ics.amber.engine.common.workflow.PortIdentity
+import edu.uci.ics.amber.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.operators.sink.storage.SinkStorageWriter
 
 class ProgressiveSinkOpExec(outputMode: IncrementalOutputMode, storage: SinkStorageWriter)

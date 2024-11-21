@@ -16,8 +16,8 @@ import edu.uci.ics.amber.engine.common.model.tuple.{
   SchemaEnforceable,
   TupleLike
 }
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
-import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
+import edu.uci.ics.amber.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import edu.uci.ics.amber.workflow.{PhysicalLink, PortIdentity}
 
 import scala.collection.mutable
 

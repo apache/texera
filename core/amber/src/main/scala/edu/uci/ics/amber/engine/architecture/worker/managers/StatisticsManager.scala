@@ -5,7 +5,7 @@ import edu.uci.ics.amber.engine.architecture.worker.statistics.{
   WorkerStatistics
 }
 import edu.uci.ics.amber.engine.common.executor.{OperatorExecutor, SinkOperatorExecutor}
-import edu.uci.ics.amber.engine.common.workflow.PortIdentity
+import edu.uci.ics.amber.workflow.PortIdentity
 
 import scala.collection.mutable
 

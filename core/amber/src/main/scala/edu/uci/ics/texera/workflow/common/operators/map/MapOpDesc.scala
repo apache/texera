@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.workflow.common.operators.map
 
 import edu.uci.ics.amber.engine.common.model.PhysicalOp
-import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.operators.{LogicalOp, StateTransferFunc}
 
 import scala.util.{Failure, Success, Try}

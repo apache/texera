@@ -5,8 +5,8 @@ package edu.uci.ics.amber.engine.common;
 import "edu/uci/ics/amber/engine/architecture/rpc/controlcommands.proto";
 import "edu/uci/ics/amber/engine/architecture/rpc/controlreturns.proto";
 import "edu/uci/ics/amber/engine/architecture/worker/statistics.proto";
-import "edu/uci/ics/amber/engine/common/virtualidentity.proto";
-import "google/protobuf/timestamp.proto";
+import "edu/uci/ics/amber/virtualidentity.proto";
+import "edu/uci/ics/amber/workflowruntimestate.proto";
 import "scalapb/scalapb.proto";
 
 option (scalapb.options) = {
@@ -14,11 +14,6 @@ option (scalapb.options) = {
   preserve_unknown_fields: false
   no_default_values_in_constructor: false
 };
-
-enum FatalErrorType{
-  COMPILATION_ERROR = 0;
-  EXECUTION_FAILURE = 1;
-}
 
 
 message BreakpointFault{
@@ -80,18 +75,9 @@ message ExecutionStatsStore {
 }
 
 
-message WorkflowFatalError {
-  FatalErrorType type = 1;
-  google.protobuf.Timestamp timestamp = 2 [(scalapb.field).no_box = true];
-  string message = 3;
-  string details = 4;
-  string operatorId = 5;
-  string workerId = 6;
-}
-
 message ExecutionMetadataStore{
   edu.uci.ics.amber.engine.architecture.rpc.WorkflowAggregatedState state = 1;
   repeated WorkflowFatalError fatal_errors = 2;
-  edu.uci.ics.amber.engine.common.ExecutionIdentity executionId = 3 [(scalapb.field).no_box = true];
+  ExecutionIdentity executionId = 3 [(scalapb.field).no_box = true];
   bool is_recovering = 4;
 }

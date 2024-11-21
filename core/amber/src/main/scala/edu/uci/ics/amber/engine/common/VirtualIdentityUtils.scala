@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.common
 
-import edu.uci.ics.amber.engine.common.virtualidentity.{
+import edu.uci.ics.amber.virtualidentity.{
   ActorVirtualIdentity,
   OperatorIdentity,
   PhysicalOpIdentity,

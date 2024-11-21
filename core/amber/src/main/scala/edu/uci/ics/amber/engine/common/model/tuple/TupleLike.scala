@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.common.model.tuple
 
-import edu.uci.ics.amber.engine.common.workflow.PortIdentity
+import edu.uci.ics.amber.workflow.PortIdentity
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 

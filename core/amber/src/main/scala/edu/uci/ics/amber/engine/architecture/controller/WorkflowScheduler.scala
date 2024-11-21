@@ -8,7 +8,7 @@ import edu.uci.ics.amber.engine.architecture.scheduling.{
 }
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.model.{PhysicalPlan, WorkflowContext}
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 
 class WorkflowScheduler(

@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
-import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
+import edu.uci.ics.amber.virtualidentity.OperatorIdentity
 
 case object LogicalPort {
   def apply(operatorIdentity: OperatorIdentity, portOrdinal: Integer): LogicalPort = {

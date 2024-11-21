@@ -4,9 +4,9 @@ import com.rits.cloning.Cloner
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
 import edu.uci.ics.amber.engine.architecture.scheduling.Region
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
-import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
-import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
-import edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorMetrics
+import edu.uci.ics.amber.virtualidentity.PhysicalOpIdentity
+import edu.uci.ics.amber.workflow.PhysicalLink
+import edu.uci.ics.amber.engine.common.executionruntimestate.OperatorMetrics
 
 import scala.collection.mutable
 

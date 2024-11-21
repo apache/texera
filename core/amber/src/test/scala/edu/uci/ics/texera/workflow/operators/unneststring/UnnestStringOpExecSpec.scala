@@ -7,7 +7,7 @@ import edu.uci.ics.amber.engine.common.model.tuple.{
   SchemaEnforceable,
   Tuple
 }
-import edu.uci.ics.amber.engine.common.workflow.PortIdentity
+import edu.uci.ics.amber.workflow.PortIdentity
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
