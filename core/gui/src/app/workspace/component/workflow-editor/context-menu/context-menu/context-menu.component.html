@@ -109,7 +109,7 @@
 
   <li
     nz-menu-item
-    *ngIf="operatorMenuService.highlightedOperators.value.length === 1 && isWorkflowModifiable"
+    [nzDisabled]="!isSelectedOperatorValid()"
     (click)="operatorMenuService.executeUpToOperator()">
     <span
       nz-icon

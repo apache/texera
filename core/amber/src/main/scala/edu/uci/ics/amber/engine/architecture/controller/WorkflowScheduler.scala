@@ -8,10 +8,14 @@ import edu.uci.ics.amber.engine.architecture.scheduling.{
 }
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.model.{PhysicalPlan, WorkflowContext}
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 
-class WorkflowScheduler(workflowContext: WorkflowContext, opResultStorage: OpResultStorage)
-    extends java.io.Serializable {
+class WorkflowScheduler(
+    workflowContext: WorkflowContext,
+    opResultStorage: OpResultStorage,
+    actorId: ActorVirtualIdentity
+) extends java.io.Serializable {
   var physicalPlan: PhysicalPlan = _
   private var schedule: Schedule = _
 
@@ -25,7 +29,8 @@ class WorkflowScheduler(workflowContext: WorkflowContext, opResultStorage: OpRes
       new CostBasedRegionPlanGenerator(
         workflowContext,
         physicalPlan,
-        opResultStorage
+        opResultStorage,
+        actorId
       ).generate()
     } else {
       // ExpansionGreedyRegionPlanGenerator is the stable default plan generator.
