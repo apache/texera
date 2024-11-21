@@ -31,6 +31,8 @@ COPY core/scripts ./scripts
 # Add .git for runtime calls to jgit from OPversion
 COPY .git ../.git
 COPY --from=nodegui /gui/dist ./gui/dist
+# Copy the micro-services to make sure the micro-services can be built and run
+COPY core/micro-services ./micro-services
 
 RUN scripts/build-docker.sh
 

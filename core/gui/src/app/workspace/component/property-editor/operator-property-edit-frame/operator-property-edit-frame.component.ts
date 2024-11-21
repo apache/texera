@@ -28,11 +28,7 @@ import {
 import { isDefined } from "../../../../common/util/predicate";
 import { ExecutionState, OperatorState, OperatorStatistics } from "src/app/workspace/types/execute-workflow.interface";
 import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-schema.service";
-import {
-  AttributeType,
-  PortInputSchema,
-  SchemaPropagationService,
-} from "../../../service/dynamic-schema/schema-propagation/schema-propagation.service";
+import { WorkflowCompilingService } from "../../../service/compile-workflow/workflow-compiling.service";
 import {
   createOutputFormChangeEventStream,
   createShouldHideFieldFunc,
@@ -51,6 +47,7 @@ import Quill from "quill";
 import QuillCursors from "quill-cursors";
 import * as Y from "yjs";
 import { OperatorSchema } from "src/app/workspace/types/operator-schema.interface";
+import { AttributeType, PortInputSchema } from "../../../types/workflow-compiling.interface";
 
 Quill.register("modules/cursors", QuillCursors);
 
@@ -133,7 +130,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     private workflowActionService: WorkflowActionService,
     public executeWorkflowService: ExecuteWorkflowService,
     private dynamicSchemaService: DynamicSchemaService,
-    private schemaPropagationService: SchemaPropagationService,
+    private workflowCompilingService: WorkflowCompilingService,
     private notificationService: NotificationService,
     private changeDetectorRef: ChangeDetectorRef,
     private workflowVersionService: WorkflowVersionService,
@@ -322,7 +319,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     if (!this.currentOperatorId?.includes("PythonLambdaFunction")) {
       return;
     }
-    const opInputSchema = this.schemaPropagationService.getOperatorInputSchema(this.currentOperatorId);
+    const opInputSchema = this.workflowCompilingService.getOperatorInputSchema(this.currentOperatorId);
     if (!opInputSchema) {
       return;
     }
@@ -514,7 +511,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
                 return undefined;
               }
               const attributeName: string = control.value[propertyName];
-              return this.schemaPropagationService.getOperatorInputAttributeType(
+              return this.workflowCompilingService.getOperatorInputAttributeType(
                 this.currentOperatorId,
                 portIndex,
                 attributeName
@@ -610,7 +607,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
                 // should consider reusing the part in findAttributeType()
                 const attributeName = control.value[prop];
                 const port = (mapSource.properties[prop] as CustomJSONSchema7).autofillAttributeOnPort as number;
-                const inputAttributeType = this.schemaPropagationService.getOperatorInputAttributeType(
+                const inputAttributeType = this.workflowCompilingService.getOperatorInputAttributeType(
                   this.currentOperatorId,
                   port,
                   attributeName
@@ -663,7 +660,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         if (propertyValue.dependOn) {
           if (isDefined(this.currentOperatorId)) {
             const attributes: ReadonlyArray<PortInputSchema | undefined> | undefined =
-              this.schemaPropagationService.getOperatorInputSchema(this.currentOperatorId);
+              this.workflowCompilingService.getOperatorInputSchema(this.currentOperatorId);
             setChildTypeDependency(attributes, propertyValue.dependOn, fields, propertyName);
           }
         }
