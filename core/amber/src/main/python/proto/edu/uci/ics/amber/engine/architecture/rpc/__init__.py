@@ -172,9 +172,9 @@ class ChannelMarkerPayload(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class PropagateChannelMarkerRequest(betterproto.Message):
-    source_op_to_start_prop: List[
-        "__common__.PhysicalOpIdentity"
-    ] = betterproto.message_field(1)
+    source_op_to_start_prop: List["__common__.PhysicalOpIdentity"] = (
+        betterproto.message_field(1)
+    )
     id: "__common__.ChannelMarkerIdentity" = betterproto.message_field(2)
     marker_type: "ChannelMarkerType" = betterproto.enum_field(3)
     scope: List["__common__.PhysicalOpIdentity"] = betterproto.message_field(4)
@@ -379,9 +379,9 @@ class PrepareCheckpointRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class QueryStatisticsRequest(betterproto.Message):
-    filter_by_workers: List[
-        "__common__.ActorVirtualIdentity"
-    ] = betterproto.message_field(1)
+    filter_by_workers: List["__common__.ActorVirtualIdentity"] = (
+        betterproto.message_field(1)
+    )
 
 
 @dataclass(eq=False, repr=False)
