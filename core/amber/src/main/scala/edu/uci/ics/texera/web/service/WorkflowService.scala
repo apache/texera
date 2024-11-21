@@ -86,7 +86,7 @@ class WorkflowService(
     s"workflowId=$workflowId",
     cleanUpTimeout,
     () => {
-      opResultStorage.close()
+      opResultStorage.clear()
       WorkflowService.workflowServiceMapping.remove(mkWorkflowStateId(workflowId))
       if (executionService.getValue != null) {
         // shutdown client
@@ -229,6 +229,8 @@ class WorkflowService(
       }
     }
 
+    // clean up results from previous run
+    opResultStorage.clear() // TODO: change this behavior after enabling cache.
     try {
       val execution = new WorkflowExecutionService(
         controllerConf,

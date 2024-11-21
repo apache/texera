@@ -4,6 +4,7 @@ import { WorkflowActionService } from "../../../service/workflow-graph/model/wor
 import { MAIN_CANVAS } from "../workflow-editor.component";
 import * as joint from "jointjs";
 import { JointGraphWrapper } from "../../../service/workflow-graph/model/joint-graph-wrapper";
+import { PanelService } from "../../../service/panel/panel.service";
 
 @UntilDestroy()
 @Component({
@@ -17,7 +18,10 @@ export class MiniMapComponent implements AfterViewInit, OnDestroy {
   dragging = false;
   hidden = false;
 
-  constructor(private workflowActionService: WorkflowActionService) {}
+  constructor(
+    private workflowActionService: WorkflowActionService,
+    private panelService: PanelService
+  ) {}
 
   ngAfterViewInit() {
     const map = document.getElementById("mini-map")!;
@@ -44,6 +48,9 @@ export class MiniMapComponent implements AfterViewInit, OnDestroy {
         mainPaper.on("resize", () => this.updateNavigator());
       });
     this.hidden = JSON.parse(localStorage.getItem("mini-map") as string) || false;
+
+    this.panelService.closePanelStream.pipe(untilDestroyed(this)).subscribe(() => (this.hidden = true));
+    this.panelService.resetPanelStream.pipe(untilDestroyed(this)).subscribe(() => (this.hidden = false));
   }
 
   @HostListener("window:beforeunload")

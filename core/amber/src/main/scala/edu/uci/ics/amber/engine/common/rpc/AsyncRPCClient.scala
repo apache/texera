@@ -167,7 +167,7 @@ class AsyncRPCClient(
       val p = unfulfilledPromises(ret.commandId)
       ret.returnValue match {
         case err: ControlError =>
-          p.raise(reconstructThrowable(err))
+          p.setException(reconstructThrowable(err))
         case other =>
           p.setValue(other)
       }

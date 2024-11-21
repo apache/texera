@@ -24,6 +24,12 @@ import { HubWorkflowDetailComponent } from "../../../../hub/component/workflow/d
 import { HubWorkflowService } from "../../../../hub/service/workflow/hub-workflow.service";
 import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
 import { formatSize } from "src/app/common/util/size-formatter.util";
+import {
+  DASHBOARD_HUB_WORKFLOW_RESULT_DETAIL,
+  DASHBOARD_USER_PROJECT,
+  DASHBOARD_USER_WORKSPACE,
+  DASHBOARD_USER_DATASET,
+} from "../../../../app-routing.constant";
 
 @UntilDestroy()
 @Component({
@@ -42,11 +48,6 @@ export class ListItemComponent implements OnInit, OnChanges {
   editingDescription = false;
   likeCount: number = 0;
   viewCount = 0;
-
-  ROUTER_WORKFLOW_BASE_URL = "/dashboard/user/workspace";
-  ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user/project";
-  ROUTER_DATASET_BASE_URL = "/dashboard/user/dataset";
-  ROUTER_WORKFLOW_DETAIL_BASE_URL = "/dashboard/hub/workflow/result/detail";
   entryLink: string[] = [];
   public iconType: string = "";
   isLiked: boolean = false;
@@ -88,9 +89,9 @@ export class ListItemComponent implements OnInit, OnChanges {
         this.searchService.getWorkflowOwners(this.entry.id).subscribe((data: number[]) => {
           this.owners = data;
           if (this.currentUid !== undefined && this.owners.includes(this.currentUid)) {
-            this.entryLink = [this.ROUTER_WORKFLOW_BASE_URL, String(this.entry.id)];
+            this.entryLink = [DASHBOARD_USER_WORKSPACE, String(this.entry.id)];
           } else {
-            this.entryLink = [this.ROUTER_WORKFLOW_DETAIL_BASE_URL, String(this.entry.id)];
+            this.entryLink = [DASHBOARD_HUB_WORKFLOW_RESULT_DETAIL, String(this.entry.id)];
           }
           setTimeout(() => this.cdr.detectChanges(), 0);
         });
@@ -110,10 +111,10 @@ export class ListItemComponent implements OnInit, OnChanges {
       // this.entryLink = this.ROUTER_WORKFLOW_BASE_URL + "/" + this.entry.id;
       this.iconType = "project";
     } else if (this.entry.type === "project") {
-      this.entryLink = [this.ROUTER_USER_PROJECT_BASE_URL, String(this.entry.id)];
+      this.entryLink = [DASHBOARD_USER_PROJECT, String(this.entry.id)];
       this.iconType = "container";
     } else if (this.entry.type === "dataset") {
-      this.entryLink = [this.ROUTER_DATASET_BASE_URL, String(this.entry.id)];
+      this.entryLink = [DASHBOARD_USER_DATASET, String(this.entry.id)];
       this.iconType = "database";
     } else if (this.entry.type === "file") {
       // not sure where to redirect

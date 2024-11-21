@@ -113,9 +113,6 @@ export class WorkflowActionService {
   }
 
   public disableWorkflowModification() {
-    if (!this.workflowModificationEnabled) {
-      return;
-    }
     this.workflowModificationEnabled = false;
     this.enableModificationStream.next(false);
     this.undoRedoService.disableWorkFlowModification();
