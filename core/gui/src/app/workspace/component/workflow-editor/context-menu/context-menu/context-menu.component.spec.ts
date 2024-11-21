@@ -12,6 +12,7 @@ import { of, BehaviorSubject } from "rxjs";
 import { ReactiveFormsModule } from "@angular/forms";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
+import { ValidationWorkflowService } from "src/app/workspace/service/validation/validation-workflow.service";
 
 describe("ContextMenuComponent", () => {
   let component: ContextMenuComponent;
@@ -21,6 +22,7 @@ describe("ContextMenuComponent", () => {
   let workflowResultExportService: jasmine.SpyObj<WorkflowResultExportService>;
   let operatorMenuService: any; // We'll define this more precisely below
   let jointGraphWrapperSpy: jasmine.SpyObj<any>;
+  let validationWorkflowService: jasmine.SpyObj<ValidationWorkflowService>;
 
   beforeEach(async () => {
     // Create spies for the services
@@ -69,6 +71,8 @@ describe("ContextMenuComponent", () => {
       executeUpToOperator: jasmine.createSpy("executeUpToOperator"),
     };
 
+    const validationWorkflowServiceSpy = jasmine.createSpyObj("ValidationWorkflowService", ["validateOperator"]);
+
     await TestBed.configureTestingModule({
       declarations: [ContextMenuComponent],
       providers: [
@@ -77,6 +81,7 @@ describe("ContextMenuComponent", () => {
         { provide: WorkflowResultService, useValue: workflowResultServiceSpy },
         { provide: WorkflowResultExportService, useValue: workflowResultExportServiceSpy },
         { provide: OperatorMenuService, useValue: operatorMenuService },
+        { provide: ValidationWorkflowService, useValue: validationWorkflowServiceSpy },
       ],
       imports: [HttpClientModule, ReactiveFormsModule, BrowserAnimationsModule, NzDropDownModule],
     }).compileComponents();
@@ -87,6 +92,7 @@ describe("ContextMenuComponent", () => {
       WorkflowResultExportService
     ) as jasmine.SpyObj<WorkflowResultExportService>;
     // operatorMenuService is already assigned
+    validationWorkflowService = TestBed.inject(ValidationWorkflowService) as jasmine.SpyObj<ValidationWorkflowService>;
 
     fixture = TestBed.createComponent(ContextMenuComponent);
     component = fixture.componentInstance;
@@ -140,5 +146,49 @@ describe("ContextMenuComponent", () => {
 
     const label = component.writeDownloadLabel();
     expect(label).toBe("download result");
+  });
+
+  describe("isSelectedOperatorValid", () => {
+    it("should return false when multiple operators are highlighted", () => {
+      jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.and.returnValue(["op1", "op2"]);
+      component.isWorkflowModifiable = true;
+
+      expect(component.isSelectedOperatorValid()).toBeFalse();
+      expect(validationWorkflowService.validateOperator).not.toHaveBeenCalled();
+    });
+
+    it("should return false when no operators are highlighted", () => {
+      jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.and.returnValue([]);
+      component.isWorkflowModifiable = true;
+
+      expect(component.isSelectedOperatorValid()).toBeFalse();
+      expect(validationWorkflowService.validateOperator).not.toHaveBeenCalled();
+    });
+
+    it("should return false when workflow is not modifiable", () => {
+      jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.and.returnValue(["op1"]);
+      component.isWorkflowModifiable = false;
+
+      expect(component.isSelectedOperatorValid()).toBeFalse();
+      expect(validationWorkflowService.validateOperator).not.toHaveBeenCalled();
+    });
+
+    it("should return true when single operator is highlighted, workflow is modifiable, and operator is valid", () => {
+      jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.and.returnValue(["op1"]);
+      component.isWorkflowModifiable = true;
+      validationWorkflowService.validateOperator.and.returnValue({ isValid: true });
+
+      expect(component.isSelectedOperatorValid()).toBeTrue();
+      expect(validationWorkflowService.validateOperator).toHaveBeenCalledWith("op1");
+    });
+
+    it("should return false when single operator is highlighted but operator is invalid", () => {
+      jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.and.returnValue(["op1"]);
+      component.isWorkflowModifiable = true;
+      validationWorkflowService.validateOperator.and.returnValue({ isValid: false, messages: {} });
+
+      expect(component.isSelectedOperatorValid()).toBeFalse();
+      expect(validationWorkflowService.validateOperator).toHaveBeenCalledWith("op1");
+    });
   });
 });
