@@ -119,6 +119,7 @@
   </li>
 
   <li
+    *ngIf="workflowResultExportService.hasResultToExportOnHighlightedOperators"
     (click)="onClickExportHighlightedExecutionResult('csv')"
     nz-menu-item>
     <span

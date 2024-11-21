@@ -24,7 +24,6 @@ export class ResultExportationComponent implements OnInit {
   rowIndex: number = inject(NZ_MODAL_DATA).rowIndex ?? -1;
   columnIndex: number = inject(NZ_MODAL_DATA).columnIndex ?? -1;
   destination: string = "";
-  filename: string = "workflow_result";
 
   inputDatasetName = "";
 
