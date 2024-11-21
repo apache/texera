@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit } from "@angular/core";
+import { Component, OnDestroy, OnInit, AfterViewInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { AdminExecutionService } from "../../../service/admin/execution/admin-execution.service";
 import { Execution } from "../../../../common/type/execution";
@@ -12,7 +12,7 @@ import { WorkflowWebsocketService } from "../../../../workspace/service/workflow
   templateUrl: "./admin-execution.component.html",
   styleUrls: ["./admin-execution.component.scss"],
 })
-export class AdminExecutionComponent implements OnInit, OnDestroy {
+export class AdminExecutionComponent implements OnInit, OnDestroy, AfterViewInit {
   listOfExecutions: ReadonlyArray<Execution> = [];
   isLoading: boolean = true;
   totalWorkflows: number = 0;
@@ -47,6 +47,14 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
       .subscribe(
         total => this.totalWorkflows = total
       );
+  }
+
+  ngAfterViewInit() {
+    const tableContainer = document.querySelector('.execution-table');
+    if (tableContainer) {
+      const containerHeight = tableContainer.clientHeight;
+      this.pageSize = Math.floor(containerHeight / 12);
+    };
   }
 
   ngOnDestroy(): void {
