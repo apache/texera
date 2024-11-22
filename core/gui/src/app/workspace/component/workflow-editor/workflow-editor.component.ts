@@ -129,9 +129,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     this.handleViewMouseoutOperator();
     this.handlePortHighlightEvent();
     this.registerPortDisplayNameChangeHandler();
-    if (environment.executionStatusEnabled) {
-      this.handleOperatorStatisticsUpdate();
-    }
+    this.handleOperatorStatisticsUpdate();
     this.handleOperatorSuggestionHighlightEvent();
     this.handleElementDelete();
     this.handleElementSelectAll();
