@@ -3,7 +3,10 @@ package edu.uci.ics.texera.workflow.operators.sklearn
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import edu.uci.ics.amber.engine.common.model.tuple.{AttributeType, Schema}
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIdentity}
-import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
+import edu.uci.ics.texera.workflow.common.metadata.annotations.{
+  AutofillAttributeName,
+  AutofillAttributeNameOnPort1
+}
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
 
@@ -23,7 +26,7 @@ class SklearnPredictionOpDesc extends PythonOperatorDescriptor {
     defaultValue = ""
   )
   @JsonPropertyDescription("attribute name of the ground truth")
-  @AutofillAttributeName
+  @AutofillAttributeNameOnPort1
   var groundTruthAttribute: String = ""
 
   override def generatePythonCode(): String =
