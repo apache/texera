@@ -25,13 +25,28 @@ export class ContextMenuComponent {
     this.registerWorkflowModifiableChangedHandler();
   }
 
-  public isSelectedOperatorValid(): boolean {
-    const highlightedOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-    if (highlightedOperatorIDs.length !== 1 || !this.isWorkflowModifiable) {
+  public canExecuteOperator(): boolean {
+    if (!this.hasExactlyOneOperatorSelected() || !this.isWorkflowModifiable) {
       return false;
     }
-    const operatorID = highlightedOperatorIDs[0];
-    return this.validationWorkflowService.validateOperator(operatorID).isValid;
+
+    const operatorID = this.getSelectedOperatorID();
+    return this.isOperatorExecutable(operatorID);
+  }
+
+  private hasExactlyOneOperatorSelected(): boolean {
+    return this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs().length === 1;
+  }
+
+  private getSelectedOperatorID(): string {
+    return this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0];
+  }
+
+  private isOperatorExecutable(operatorID: string): boolean {
+    return (
+      this.validationWorkflowService.validateOperator(operatorID).isValid &&
+      !this.workflowActionService.getTexeraGraph().isOperatorDisabled(operatorID)
+    );
   }
 
   public onCopy(): void {
