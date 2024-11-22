@@ -103,7 +103,7 @@ abstract class SklearnClassifierOpDesc extends PythonOperatorDescriptor {
         InputPort(PortIdentity(), "training"),
         InputPort(PortIdentity(1), "testing", dependencies = List(PortIdentity()))
       ),
-      outputPorts = List(OutputPort(blocking=true))
+      outputPorts = List(OutputPort(blocking = true))
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
