@@ -30,7 +30,14 @@ export class GoogleAuthService {
             }
             window.google.accounts.id.prompt();
           } else {
-            setTimeout(initializeGoogleLogin, 500); // Retry
+            const observer = new MutationObserver(() => {
+              if (window.google?.accounts?.id) {
+                observer.disconnect();
+                initializeGoogleLogin();
+              }
+            });
+
+            observer.observe(document, { childList: true, subtree: true });
           }
         };
         initializeGoogleLogin();
