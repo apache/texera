@@ -10,6 +10,7 @@ import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
+
 /**
   * Dictionary matcher operator matches a tuple if the specified column is in the given dictionary.
   * It outputs an extra column to label the tuple if it is matched or not

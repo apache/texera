@@ -1,10 +1,10 @@
 package edu.uci.ics.texera.workflow
 
+import edu.uci.ics.amber.operator.sink.SinkOpDesc
+import edu.uci.ics.amber.operator.sink.managed.ProgressiveSinkOpDesc
+import edu.uci.ics.amber.operator.visualization.VisualizationOperator
 import edu.uci.ics.amber.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.workflow.PortIdentity
-import edu.uci.ics.texera.workflow.operators.sink.SinkOpDesc
-import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
-import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator
 
 object SinkInjectionTransformer {
 

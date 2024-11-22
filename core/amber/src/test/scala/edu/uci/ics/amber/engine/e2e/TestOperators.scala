@@ -1,19 +1,19 @@
 package edu.uci.ics.amber.engine.e2e
 
 import edu.uci.ics.amber.core.storage.FileResolver
-import edu.uci.ics.texera.workflow.operators.aggregate.{
+import edu.uci.ics.amber.operator.aggregate.{
   AggregateOpDesc,
   AggregationFunction,
   AggregationOperation
 }
-import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc
-import edu.uci.ics.texera.workflow.operators.keywordSearch.KeywordSearchOpDesc
-import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
-import edu.uci.ics.texera.workflow.operators.source.scan.csv.CSVScanSourceOpDesc
-import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONLScanSourceOpDesc
-import edu.uci.ics.texera.workflow.operators.source.sql.asterixdb.AsterixDBSourceOpDesc
-import edu.uci.ics.texera.workflow.operators.source.sql.mysql.MySQLSourceOpDesc
-import edu.uci.ics.texera.workflow.operators.udf.python.PythonUDFOpDescV2
+import edu.uci.ics.amber.operator.hashJoin.HashJoinOpDesc
+import edu.uci.ics.amber.operator.keywordSearch.KeywordSearchOpDesc
+import edu.uci.ics.amber.operator.sink.managed.ProgressiveSinkOpDesc
+import edu.uci.ics.amber.operator.source.scan.csv.CSVScanSourceOpDesc
+import edu.uci.ics.amber.operator.source.scan.json.JSONLScanSourceOpDesc
+import edu.uci.ics.amber.operator.source.sql.asterixdb.AsterixDBSourceOpDesc
+import edu.uci.ics.amber.operator.source.sql.mysql.MySQLSourceOpDesc
+import edu.uci.ics.amber.operator.udf.python.PythonUDFOpDescV2
 
 object TestOperators {
 

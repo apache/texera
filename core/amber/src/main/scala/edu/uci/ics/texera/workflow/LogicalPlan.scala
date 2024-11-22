@@ -6,10 +6,10 @@ import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.core.workflow.WorkflowContext
 import edu.uci.ics.amber.operator.LogicalOp
 import edu.uci.ics.amber.operator.source.SourceOperatorDescriptor
+import edu.uci.ics.amber.operator.source.scan.ScanSourceOpDesc
 import edu.uci.ics.amber.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.workflow.PortIdentity
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
-import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 import org.jgrapht.graph.DirectedAcyclicGraph
 import org.jgrapht.util.SupplierUtil
 

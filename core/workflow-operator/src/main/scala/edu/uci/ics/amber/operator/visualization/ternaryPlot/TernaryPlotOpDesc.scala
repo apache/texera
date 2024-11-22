@@ -8,6 +8,7 @@ import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.visualization.{VisualizationConstants, VisualizationOperator}
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
+
 /**
   * Visualization Operator for Ternary Plots.
   *

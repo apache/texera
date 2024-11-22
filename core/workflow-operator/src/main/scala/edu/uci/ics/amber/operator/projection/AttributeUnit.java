@@ -20,7 +20,7 @@ public class AttributeUnit {
     @JsonPropertyDescription("Renamed attribute name")
     private String alias;
 
-    AttributeUnit(String attributeName, String alias) {
+    public AttributeUnit(String attributeName, String alias) {
         this.originalAttribute = attributeName;
         this.alias = alias;
     }

@@ -7,10 +7,10 @@ import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
   DefaultResourceAllocator,
   ExecutionClusterInfo
 }
+import edu.uci.ics.amber.operator.sink.managed.ProgressiveSinkOpDesc
+import edu.uci.ics.amber.operator.source.cache.CacheSourceOpDesc
 import edu.uci.ics.amber.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
 import edu.uci.ics.amber.workflow.PhysicalLink
-import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
-import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
 import org.jgrapht.graph.DirectedAcyclicGraph
 import org.jgrapht.traverse.TopologicalOrderIterator
 

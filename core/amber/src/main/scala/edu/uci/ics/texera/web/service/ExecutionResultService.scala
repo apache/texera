@@ -22,6 +22,7 @@ import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.executionruntimestate.ExecutionMetadataStore
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberRuntime}
 import edu.uci.ics.amber.operator.sink.IncrementalOutputMode
+import edu.uci.ics.amber.operator.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.amber.virtualidentity.OperatorIdentity
 import edu.uci.ics.texera.web.SubscriptionManager
 import edu.uci.ics.texera.web.model.websocket.event.{
@@ -33,7 +34,6 @@ import edu.uci.ics.texera.web.model.websocket.request.ResultPaginationRequest
 import edu.uci.ics.texera.web.service.ExecutionResultService.WebResultUpdate
 import edu.uci.ics.texera.web.storage.{ExecutionStateStore, WorkflowStateStore}
 import edu.uci.ics.texera.workflow.LogicalPlan
-import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 
 import java.util.UUID
 import scala.collection.mutable

@@ -5,7 +5,10 @@ import edu.uci.ics.amber.core.tuple.AttributeTypeUtils.parseField
 import edu.uci.ics.amber.core.tuple.{AttributeType, Schema, Tuple, TupleLike}
 import edu.uci.ics.amber.operator.filter.FilterPredicate
 import edu.uci.ics.amber.operator.source.sql.SQLSourceOpExec
-import edu.uci.ics.amber.operator.source.sql.asterixdb.AsterixDBConnUtil.{queryAsterixDB, updateAsterixDBVersionMapping}
+import edu.uci.ics.amber.operator.source.sql.asterixdb.AsterixDBConnUtil.{
+  queryAsterixDB,
+  updateAsterixDBVersionMapping
+}
 
 import java.sql._
 import java.time.format.DateTimeFormatter

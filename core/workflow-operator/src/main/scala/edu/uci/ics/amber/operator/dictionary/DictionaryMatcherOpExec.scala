@@ -22,8 +22,8 @@ class DictionaryMatcherOpExec(
   var luceneAnalyzer: Analyzer = _
 
   /** An unmodifiable set containing some common URL words that are not usually useful
-   * for searching.
-   */
+    * for searching.
+    */
   final val URL_STOP_WORDS_SET = List[String](
     "http",
     "https",

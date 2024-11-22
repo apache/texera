@@ -1,12 +1,21 @@
 package edu.uci.ics.amber.operator.sklearn
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaInt, JsonSchemaString, JsonSchemaTitle}
+import com.kjetland.jackson.jsonSchema.annotations.{
+  JsonSchemaInject,
+  JsonSchemaInt,
+  JsonSchemaString,
+  JsonSchemaTitle
+}
 import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort, PortIdentity}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import edu.uci.ics.amber.operator.metadata.annotations.{AutofillAttributeName, CommonOpDescAnnotation, HideAnnotation}
+import edu.uci.ics.amber.operator.metadata.annotations.{
+  AutofillAttributeName,
+  CommonOpDescAnnotation,
+  HideAnnotation
+}
 abstract class SklearnMLOpDesc extends PythonOperatorDescriptor {
 
   @JsonIgnore
