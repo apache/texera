@@ -13,18 +13,6 @@ export const defaultEnvironment = {
   apiUrl: "api",
 
   /**
-   * whether fetching available source tables is enabled
-   * see SourceTablesService for details
-   */
-  sourceTableEnabled: false,
-
-  /**
-   * whether operator schema propagation and autocomplete feature is enabled,
-   * see SchemaPropagationService for details
-   */
-  schemaPropagationEnabled: true,
-
-  /**
    * whether the backend supports checking execution status
    */
   executionStatusEnabled: true,
