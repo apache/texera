@@ -1,11 +1,11 @@
-<h1 align="center">Texera - Collaborative Data Analytics Using Workflows.</h1>
+<h1 align="center">Texera - Collaborative Data Science and AI/ML Using Workflows</h1>
 
 <p align="center">
   <img src="core/gui/src/assets/logos/full_logo_small.png" alt="texera-logo" width="192px" height="109px"/>
   <br>
-  <i>Texera supports scalable computation and enables advanced AI/ML techniques.</i>
+  <i>Texera supports scalable data computation and enables advanced AI/ML techniques.</i>
   <br>
-  <i>"Collaboration" is a key focus, and we enable an experience similar to Google Docs, but for data analytics. </i>
+  <i>"Collaboration" is a key focus, and we enable an experience similar to Google Docs, but for data science. </i>
   <br>
   
   <h4 align="center">
@@ -31,20 +31,17 @@
 
 # Motivation
 
-* Many data analysts need to spend a significant amount of effort on low-level computation to do data wrangling and preparation, and want to use latest AI/ML techniques. These tasks are especially tough for non-IT users. 
-
-* Many workflow-based analysis systems are not parallel, making them not capable of dealing with big data sets. 
-
-* Cloud-based services and technologies have emerged and advanced significantly in the past decade. Emerging browser-based techniques make it possible to develop powerful browser-based interfaces, which also benefit from high-speed networks.
-
-* Existing big data systems support little interaction during the execution of a long running job, making them hard to manage once they are started.
+* Data science is labor-intensive and particularly challenging for non-IT users applying AI/ML.
+* Many workflow-based data science platforms lack parallelism, limiting their ability to handle big datasets.
+* Cloud services and technologies have advanced significantly over the past decade, enabling powerful browser-based interfaces supported by high-speed networks.
+* Existing data science platforms offer limited interaction during long-running jobs, making them difficult to manage after execution begins.
 
 # Goals
 
-* Provide data analytics as cloud services;
+* Provide data science as cloud services;
 * Provide a browser-based GUI to form a workflow without writing code;
-* Allow non-IT people to do data analytics;
-* Support collaborative data analytics;
+* Allow non-IT people to access data science;
+* Support collaborative data science;
 * Allow users to interact with the execution of a job;
 * Support huge volumes of data efficiently.
 
