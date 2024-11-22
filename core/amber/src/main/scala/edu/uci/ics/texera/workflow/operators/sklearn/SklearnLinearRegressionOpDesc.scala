@@ -42,9 +42,9 @@ class SklearnLinearRegressionOpDesc extends PythonOperatorDescriptor {
        |            self.model = pipeline.fit(X, Y)
        |        else:
        |            predictions = self.model.predict(X)
-       |            mae = round(mean_absolute_error(Y, predictions), 2)
-       |            r2 = round(r2_score(Y, predictions), 2)
-       |            print("MAE:", mae, ", R2:", r2)
+       |            mae = mean_absolute_error(Y, predictions)
+       |            r2 = r2_score(Y, predictions)
+       |            print("MAE:", round(mae, 4), ", R2:", round(r2, 4))
        |            yield {"model_name" : "LinearRegression", "model" : self.model}""".stripMargin
 
   override def operatorInfo: OperatorInfo =
