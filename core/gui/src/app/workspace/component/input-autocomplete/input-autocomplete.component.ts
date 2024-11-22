@@ -40,7 +40,6 @@ export class InputAutoCompleteComponent extends FieldType<FieldTypeConfig> {
         maxHeight: "80vh",
       },
       nzWidth: "fit-content",
-      
     });
     // Handle the selection from the modal
     modal.afterClose.pipe(untilDestroyed(this)).subscribe(fileNode => {
