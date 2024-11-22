@@ -16,9 +16,9 @@ class SchemaPropagationSpec extends AnyFlatSpec with BeforeAndAfter {
 
   private abstract class TempTestSourceOpDesc extends SourceOperatorDescriptor {
     override def getPhysicalOp(
-                                workflowId: WorkflowIdentity,
-                                executionId: ExecutionIdentity
-                              ): PhysicalOp = ???
+        workflowId: WorkflowIdentity,
+        executionId: ExecutionIdentity
+    ): PhysicalOp = ???
 
     override def operatorInfo: OperatorInfo =
       OperatorInfo("", "", "", List(InputPort()), List(OutputPort()))
@@ -26,9 +26,9 @@ class SchemaPropagationSpec extends AnyFlatSpec with BeforeAndAfter {
 
   private class TempTestSinkOpDesc extends SinkOpDesc {
     override def getPhysicalOp(
-                                workflowId: WorkflowIdentity,
-                                executionId: ExecutionIdentity
-                              ): PhysicalOp = ???
+        workflowId: WorkflowIdentity,
+        executionId: ExecutionIdentity
+    ): PhysicalOp = ???
 
     override def operatorInfo: OperatorInfo =
       OperatorInfo("", "", "", List(InputPort()), List(OutputPort()))
@@ -71,9 +71,9 @@ class SchemaPropagationSpec extends AnyFlatSpec with BeforeAndAfter {
       override def operatorIdentifier: OperatorIdentity = OperatorIdentity("mlTrainingOp")
 
       override def getPhysicalOp(
-                                  workflowId: WorkflowIdentity,
-                                  executionId: ExecutionIdentity
-                                ): PhysicalOp = ???
+          workflowId: WorkflowIdentity,
+          executionId: ExecutionIdentity
+      ): PhysicalOp = ???
 
       override def operatorInfo: OperatorInfo =
         OperatorInfo(
@@ -103,9 +103,9 @@ class SchemaPropagationSpec extends AnyFlatSpec with BeforeAndAfter {
       override def operatorIdentifier: OperatorIdentity = OperatorIdentity("mlInferOp")
 
       override def getPhysicalOp(
-                                  workflowId: WorkflowIdentity,
-                                  executionId: ExecutionIdentity
-                                ): PhysicalOp = ???
+          workflowId: WorkflowIdentity,
+          executionId: ExecutionIdentity
+      ): PhysicalOp = ???
 
       override def operatorInfo: OperatorInfo =
         OperatorInfo(

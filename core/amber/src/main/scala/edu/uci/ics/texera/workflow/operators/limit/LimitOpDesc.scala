@@ -20,9 +20,9 @@ class LimitOpDesc extends LogicalOp {
   var limit: Int = _
 
   override def getPhysicalOp(
-                              workflowId: WorkflowIdentity,
-                              executionId: ExecutionIdentity
-                            ): PhysicalOp = {
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity
+  ): PhysicalOp = {
     PhysicalOp
       .oneToOnePhysicalOp(
         workflowId,
@@ -50,11 +50,11 @@ class LimitOpDesc extends LogicalOp {
   override def getOutputSchema(schemas: Array[Schema]): Schema = schemas(0)
 
   override def runtimeReconfiguration(
-                                       workflowId: WorkflowIdentity,
-                                       executionId: ExecutionIdentity,
-                                       oldLogicalOp: LogicalOp,
-                                       newLogicalOp: LogicalOp
-                                     ): Try[(PhysicalOp, Option[StateTransferFunc])] = {
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity,
+      oldLogicalOp: LogicalOp,
+      newLogicalOp: LogicalOp
+  ): Try[(PhysicalOp, Option[StateTransferFunc])] = {
     val newPhysicalOp = newLogicalOp.getPhysicalOp(workflowId, executionId)
     val stateTransferFunc: StateTransferFunc = (oldOp, newOp) => {
       val oldLimitOp = oldOp.asInstanceOf[LimitOpExec]

@@ -5,7 +5,16 @@ import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.core.executor.OpExecInitInfo
 import edu.uci.ics.amber.core.tuple.{Attribute, Schema}
-import edu.uci.ics.amber.core.workflow.{BroadcastPartition, HashPartition, PartitionInfo, PhysicalOp, RangePartition, SchemaPropagationFunc, SinglePartition, UnknownPartition}
+import edu.uci.ics.amber.core.workflow.{
+  BroadcastPartition,
+  HashPartition,
+  PartitionInfo,
+  PhysicalOp,
+  RangePartition,
+  SchemaPropagationFunc,
+  SinglePartition,
+  UnknownPartition
+}
 import edu.uci.ics.amber.core.workflow.PhysicalOp.oneToOnePhysicalOp
 import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
@@ -22,9 +31,9 @@ class ProjectionOpDesc extends MapOpDesc {
   var attributes: List[AttributeUnit] = List()
 
   override def getPhysicalOp(
-                              workflowId: WorkflowIdentity,
-                              executionId: ExecutionIdentity
-                            ): PhysicalOp = {
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity
+  ): PhysicalOp = {
     oneToOnePhysicalOp(
       workflowId,
       executionId,
@@ -52,9 +61,9 @@ class ProjectionOpDesc extends MapOpDesc {
       case RangePartition(rangeAttributeNames, min, max) =>
         if (rangeAttributeNames.nonEmpty) RangePartition(rangeAttributeNames, min, max)
         else UnknownPartition()
-      case SinglePartition() => inputPartitionInfo
+      case SinglePartition()    => inputPartitionInfo
       case BroadcastPartition() => inputPartitionInfo
-      case UnknownPartition() => inputPartitionInfo
+      case UnknownPartition()   => inputPartitionInfo
     }
 
     outputPartitionInfo

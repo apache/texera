@@ -13,9 +13,9 @@ import java.sql.{Connection, SQLException}
 class MySQLSourceOpDesc extends SQLSourceOpDesc {
 
   override def getPhysicalOp(
-                              workflowId: WorkflowIdentity,
-                              executionId: ExecutionIdentity
-                            ): PhysicalOp =
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity
+  ): PhysicalOp =
     PhysicalOp
       .sourcePhysicalOp(
         workflowId,

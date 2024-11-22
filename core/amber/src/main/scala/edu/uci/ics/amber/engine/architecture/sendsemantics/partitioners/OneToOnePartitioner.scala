@@ -5,7 +5,7 @@ import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOn
 import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
 
 case class OneToOnePartitioner(partitioning: OneToOnePartitioning, actorId: ActorVirtualIdentity)
-  extends Partitioner {
+    extends Partitioner {
 
   override def getBucketIndex(tuple: Tuple): Iterator[Int] = Iterator(0)
 

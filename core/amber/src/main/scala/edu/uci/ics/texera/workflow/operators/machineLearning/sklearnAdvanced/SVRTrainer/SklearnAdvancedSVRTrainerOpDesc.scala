@@ -4,7 +4,7 @@ import edu.uci.ics.texera.workflow.operators.machineLearning.sklearnAdvanced.SVR
 import edu.uci.ics.texera.workflow.operators.machineLearning.sklearnAdvanced.base.SklearnMLOperatorDescriptor
 
 class SklearnAdvancedSVRTrainerOpDesc
-  extends SklearnMLOperatorDescriptor[SklearnAdvancedSVRParameters] {
+    extends SklearnMLOperatorDescriptor[SklearnAdvancedSVRParameters] {
   override def getImportStatements: String = {
     "from sklearn.svm import SVR"
   }

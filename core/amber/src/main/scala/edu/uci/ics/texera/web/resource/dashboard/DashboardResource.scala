@@ -18,11 +18,11 @@ import scala.jdk.CollectionConverters._
 
 object DashboardResource {
   case class DashboardClickableFileEntry(
-                                          resourceType: String,
-                                          workflow: Option[DashboardWorkflow] = None,
-                                          project: Option[Project] = None,
-                                          dataset: Option[DashboardDataset] = None
-                                        )
+      resourceType: String,
+      workflow: Option[DashboardWorkflow] = None,
+      project: Option[Project] = None,
+      dataset: Option[DashboardDataset] = None
+  )
 
   case class UserInfo(userId: UInteger, userName: String, googleAvatar: Option[String])
 
@@ -46,29 +46,29 @@ object DashboardResource {
    * @param orderBy           The order in which to sort the results. Acceptable values are 'NameAsc', 'NameDesc', 'CreateTimeDesc', and 'EditTimeDesc'.
    */
   case class SearchQueryParams(
-                                @QueryParam("query") keywords: java.util.List[String] = new util.ArrayList[String](),
-                                @QueryParam("resourceType") @DefaultValue("") resourceType: String = ALL_RESOURCE_TYPE,
-                                @QueryParam("createDateStart") @DefaultValue("") creationStartDate: String = "",
-                                @QueryParam("createDateEnd") @DefaultValue("") creationEndDate: String = "",
-                                @QueryParam("modifiedDateStart") @DefaultValue("") modifiedStartDate: String = "",
-                                @QueryParam("modifiedDateEnd") @DefaultValue("") modifiedEndDate: String = "",
-                                @QueryParam("owner") owners: java.util.List[String] = new util.ArrayList(),
-                                @QueryParam("id") workflowIDs: java.util.List[UInteger] = new util.ArrayList(),
-                                @QueryParam("operator") operators: java.util.List[String] = new util.ArrayList(),
-                                @QueryParam("projectId") projectIds: java.util.List[UInteger] = new util.ArrayList(),
-                                @QueryParam("datasetId") datasetIds: java.util.List[UInteger] = new util.ArrayList(),
-                                @QueryParam("start") @DefaultValue("0") offset: Int = 0,
-                                @QueryParam("count") @DefaultValue("20") count: Int = 20,
-                                @QueryParam("orderBy") @DefaultValue("EditTimeDesc") orderBy: String = "EditTimeDesc"
-                              )
+      @QueryParam("query") keywords: java.util.List[String] = new util.ArrayList[String](),
+      @QueryParam("resourceType") @DefaultValue("") resourceType: String = ALL_RESOURCE_TYPE,
+      @QueryParam("createDateStart") @DefaultValue("") creationStartDate: String = "",
+      @QueryParam("createDateEnd") @DefaultValue("") creationEndDate: String = "",
+      @QueryParam("modifiedDateStart") @DefaultValue("") modifiedStartDate: String = "",
+      @QueryParam("modifiedDateEnd") @DefaultValue("") modifiedEndDate: String = "",
+      @QueryParam("owner") owners: java.util.List[String] = new util.ArrayList(),
+      @QueryParam("id") workflowIDs: java.util.List[UInteger] = new util.ArrayList(),
+      @QueryParam("operator") operators: java.util.List[String] = new util.ArrayList(),
+      @QueryParam("projectId") projectIds: java.util.List[UInteger] = new util.ArrayList(),
+      @QueryParam("datasetId") datasetIds: java.util.List[UInteger] = new util.ArrayList(),
+      @QueryParam("start") @DefaultValue("0") offset: Int = 0,
+      @QueryParam("count") @DefaultValue("20") count: Int = 20,
+      @QueryParam("orderBy") @DefaultValue("EditTimeDesc") orderBy: String = "EditTimeDesc"
+  )
 
   // Construct query for workflows
 
   def searchAllResources(
-                          @Auth user: SessionUser,
-                          @BeanParam params: SearchQueryParams,
-                          includePublic: Boolean = false
-                        ): DashboardSearchResult = {
+      @Auth user: SessionUser,
+      @BeanParam params: SearchQueryParams,
+      includePublic: Boolean = false
+  ): DashboardSearchResult = {
     val uid = user.getUid
     val query = params.resourceType match {
       case SearchQueryBuilder.WORKFLOW_RESOURCE_TYPE =>
@@ -107,8 +107,8 @@ object DashboardResource {
   }
 
   def getOrderFields(
-                      searchQueryParams: SearchQueryParams
-                    ): List[OrderField[_]] = {
+      searchQueryParams: SearchQueryParams
+  ): List[OrderField[_]] = {
     // Regex pattern to extract column name and order direction
     val pattern = "(Name|CreateTime|EditTime)(Asc|Desc)".r
 
@@ -118,7 +118,7 @@ object DashboardResource {
         field match {
           case Some(value) =>
             List(order match {
-              case "Asc" => value.asc()
+              case "Asc"  => value.asc()
               case "Desc" => value.desc()
             })
           case None => List()
@@ -130,10 +130,10 @@ object DashboardResource {
   // Helper method to map column names to actual database fields based on resource type
   private def getColumnField(columnName: String): Option[Field[_]] = {
     Option(columnName match {
-      case "Name" => UnifiedResourceSchema.resourceNameField
+      case "Name"       => UnifiedResourceSchema.resourceNameField
       case "CreateTime" => UnifiedResourceSchema.resourceCreationTimeField
-      case "EditTime" => UnifiedResourceSchema.resourceLastModifiedTimeField
-      case _ => null // Default case for unmatched resource types or column names
+      case "EditTime"   => UnifiedResourceSchema.resourceLastModifiedTimeField
+      case _            => null // Default case for unmatched resource types or column names
     })
   }
 
@@ -144,32 +144,32 @@ object DashboardResource {
 class DashboardResource {
 
   /**
-   * This method performs a full-text search across all resources - workflows, projects, and files -
-   * that match the specified keywords.
-   * It supports advanced filters such as resource type, creation and modification dates, owner,
-   * workflow IDs, operators, project IDs and allows to specify the number of results and their ordering.
-   *
-   * This method utilizes MySQL Boolean Full-Text Searches
-   * reference: https://dev.mysql.com/doc/refman/8.0/en/fulltext-boolean.html
-   *
-   * @return A DashboardSearchResult object containing a list of DashboardClickableFileEntry objects that match the search criteria, and a boolean indicating whether more results are available.
-   */
+    * This method performs a full-text search across all resources - workflows, projects, and files -
+    * that match the specified keywords.
+    * It supports advanced filters such as resource type, creation and modification dates, owner,
+    * workflow IDs, operators, project IDs and allows to specify the number of results and their ordering.
+    *
+    * This method utilizes MySQL Boolean Full-Text Searches
+    * reference: https://dev.mysql.com/doc/refman/8.0/en/fulltext-boolean.html
+    *
+    * @return A DashboardSearchResult object containing a list of DashboardClickableFileEntry objects that match the search criteria, and a boolean indicating whether more results are available.
+    */
   @GET
   @Path("/search")
   def searchAllResourcesCall(
-                              @Auth user: SessionUser,
-                              @BeanParam params: SearchQueryParams,
-                              @QueryParam("includePublic") includePublic: Boolean = false
-                            ): DashboardSearchResult = {
+      @Auth user: SessionUser,
+      @BeanParam params: SearchQueryParams,
+      @QueryParam("includePublic") includePublic: Boolean = false
+  ): DashboardSearchResult = {
     DashboardResource.searchAllResources(user, params, includePublic = includePublic)
   }
 
   @GET
   @Path("/publicSearch")
   def searchAllPublicResourceCall(
-                                   @BeanParam params: SearchQueryParams,
-                                   @QueryParam("includePublic ") includePublic: Boolean = true
-                                 ): DashboardSearchResult = {
+      @BeanParam params: SearchQueryParams,
+      @QueryParam("includePublic ") includePublic: Boolean = true
+  ): DashboardSearchResult = {
     DashboardResource.searchAllResources(
       new SessionUser(new User()),
       params,
@@ -180,8 +180,8 @@ class DashboardResource {
   @GET
   @Path("/resultsOwnersInfo")
   def resultsOwnersInfo(
-                         @QueryParam("userIds") userIds: util.List[UInteger]
-                       ): util.Map[UInteger, UserInfo] = {
+      @QueryParam("userIds") userIds: util.List[UInteger]
+  ): util.Map[UInteger, UserInfo] = {
     val scalaUserIds: Set[UInteger] = userIds.asScala.toSet
 
     val records = context
@@ -206,8 +206,8 @@ class DashboardResource {
   @GET
   @Path("/workflowUserAccess")
   def workflowUserAccess(
-                          @QueryParam("wid") wid: UInteger
-                        ): util.List[UInteger] = {
+      @QueryParam("wid") wid: UInteger
+  ): util.List[UInteger] = {
     val records = context
       .select(WORKFLOW_USER_ACCESS.UID)
       .from(WORKFLOW_USER_ACCESS)

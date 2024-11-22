@@ -4,7 +4,12 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.core.executor.OpExecInitInfo
 import edu.uci.ics.amber.core.tuple.Schema
-import edu.uci.ics.amber.core.workflow.{HashPartition, PhysicalOp, PhysicalPlan, SchemaPropagationFunc}
+import edu.uci.ics.amber.core.workflow.{
+  HashPartition,
+  PhysicalOp,
+  PhysicalPlan,
+  SchemaPropagationFunc
+}
 import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, PhysicalOpIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeNameList
@@ -27,9 +32,9 @@ class AggregateOpDesc extends LogicalOp {
   var groupByKeys: List[String] = List()
 
   override def getPhysicalPlan(
-                                workflowId: WorkflowIdentity,
-                                executionId: ExecutionIdentity
-                              ): PhysicalPlan = {
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity
+  ): PhysicalPlan = {
 
     // TODO: this is supposed to be blocking but due to limitations of materialization naming on the logical operator
     // we are keeping it not annotated as blocking.

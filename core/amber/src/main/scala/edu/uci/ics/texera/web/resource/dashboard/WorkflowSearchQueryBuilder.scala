@@ -31,10 +31,10 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
   }
 
   override protected def constructFromClause(
-                                              uid: UInteger,
-                                              params: DashboardResource.SearchQueryParams,
-                                              includePublic: Boolean = false
-                                            ): TableLike[_] = {
+      uid: UInteger,
+      params: DashboardResource.SearchQueryParams,
+      includePublic: Boolean = false
+  ): TableLike[_] = {
     val baseQuery = WORKFLOW
       .leftJoin(WORKFLOW_USER_ACCESS)
       .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
@@ -64,9 +64,9 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
   }
 
   override protected def constructWhereClause(
-                                               uid: UInteger,
-                                               params: DashboardResource.SearchQueryParams
-                                             ): Condition = {
+      uid: UInteger,
+      params: DashboardResource.SearchQueryParams
+  ): Condition = {
     val splitKeywords = params.keywords.asScala
       .flatMap(_.split("[+\\-()<>~*@\"]"))
       .filter(_.nonEmpty)
@@ -111,9 +111,9 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
   }
 
   override def toEntryImpl(
-                            uid: UInteger,
-                            record: Record
-                          ): DashboardResource.DashboardClickableFileEntry = {
+      uid: UInteger,
+      record: Record
+  ): DashboardResource.DashboardClickableFileEntry = {
     val pidField = groupConcatDistinct(WORKFLOW_OF_PROJECT.PID)
     val dw = DashboardWorkflow(
       record.into(WORKFLOW_OF_USER).getUid.eq(uid),

@@ -2,7 +2,12 @@ package edu.uci.ics.texera.web.storage
 
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
 import edu.uci.ics.amber.engine.common.Utils.maptoStatusCode
-import edu.uci.ics.amber.engine.common.executionruntimestate.{ExecutionBreakpointStore, ExecutionConsoleStore, ExecutionMetadataStore, ExecutionStatsStore}
+import edu.uci.ics.amber.engine.common.executionruntimestate.{
+  ExecutionBreakpointStore,
+  ExecutionConsoleStore,
+  ExecutionMetadataStore,
+  ExecutionStatsStore
+}
 import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
 
 import java.sql.Timestamp
@@ -12,9 +17,9 @@ object ExecutionStateStore {
   // Update the state of the specified execution if user system is enabled.
   // Update the execution only from backend
   def updateWorkflowState(
-                           state: WorkflowAggregatedState,
-                           metadataStore: ExecutionMetadataStore
-                         ): ExecutionMetadataStore = {
+      state: WorkflowAggregatedState,
+      metadataStore: ExecutionMetadataStore
+  ): ExecutionMetadataStore = {
     ExecutionsMetadataPersistService.tryUpdateExistingExecution(metadataStore.executionId) {
       execution =>
         execution.setStatus(maptoStatusCode(state))

@@ -20,12 +20,12 @@ case class AIAssistantRequest(code: String, lineNumber: Int, allcode: String)
 case class LocateUnannotatedRequest(selectedCode: String, startLine: Int)
 
 case class UnannotatedArgument(
-                                name: String,
-                                startLine: Int,
-                                startColumn: Int,
-                                endLine: Int,
-                                endColumn: Int
-                              )
+    name: String,
+    startLine: Int,
+    startColumn: Int,
+    endLine: Int,
+    endColumn: Int
+)
 
 object UnannotatedArgument {
   implicit val format: Format[UnannotatedArgument] = Json.format[UnannotatedArgument]
@@ -43,12 +43,12 @@ class AIAssistantResource {
   def isAIAssistantEnable: String = isEnabled
 
   /**
-   * A way to send prompts to open ai
-   *
-   * @param prompt The input prompt for the OpenAI model.
-   * @param user   The authenticated session user.
-   * @return A response containing the generated comment from OpenAI or an error message.
-   */
+    * A way to send prompts to open ai
+    *
+    * @param prompt The input prompt for the OpenAI model.
+    * @param user   The authenticated session user.
+    * @return A response containing the generated comment from OpenAI or an error message.
+    */
   @POST
   @Path("/openai")
   @Consumes(Array(MediaType.APPLICATION_JSON))
@@ -90,16 +90,16 @@ class AIAssistantResource {
   }
 
   /**
-   * To get the type annotation suggestion from OpenAI
-   */
+    * To get the type annotation suggestion from OpenAI
+    */
   @POST
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/annotationresult")
   @Consumes(Array(MediaType.APPLICATION_JSON))
   def getAnnotation(
-                     request: AIAssistantRequest,
-                     @Auth user: SessionUser
-                   ): Response = {
+      request: AIAssistantRequest,
+      @Auth user: SessionUser
+  ): Response = {
     val finalPrompt = generatePrompt(request.code, request.lineNumber, request.allcode)
     val requestBodyJson = Json.obj(
       "model" -> "gpt-4",

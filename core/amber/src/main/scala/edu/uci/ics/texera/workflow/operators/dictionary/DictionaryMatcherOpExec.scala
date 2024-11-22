@@ -12,10 +12,10 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
 class DictionaryMatcherOpExec(
-                               attributeName: String,
-                               dictionary: String,
-                               matchingType: MatchingType
-                             ) extends MapOpExec {
+    attributeName: String,
+    dictionary: String,
+    matchingType: MatchingType
+) extends MapOpExec {
 
   // this is needed for the matching types Phrase and Conjunction
   var tokenizedDictionaryEntries: ListBuffer[mutable.Set[String]] = _
@@ -24,8 +24,8 @@ class DictionaryMatcherOpExec(
   var luceneAnalyzer: Analyzer = _
 
   /**
-   * first prepare the dictionary by splitting the values using a comma delimiter then tokenize the split values
-   */
+    * first prepare the dictionary by splitting the values using a comma delimiter then tokenize the split values
+    */
   override def open(): Unit = {
     // create the dictionary by splitting the values first
     dictionaryEntries = dictionary.split(",").toList.map(_.toLowerCase)
@@ -44,8 +44,8 @@ class DictionaryMatcherOpExec(
   }
 
   /**
-   * use LuceneAnalyzer to tokenize the dictionary
-   */
+    * use LuceneAnalyzer to tokenize the dictionary
+    */
   private def tokenizeDictionary(): Unit = {
     for (text <- dictionaryEntries) {
       tokenizedDictionaryEntries += tokenize(text)
@@ -53,12 +53,12 @@ class DictionaryMatcherOpExec(
   }
 
   /**
-   * Determines whether a given tuple matches any dictionary entry based on defined matching criteria.
-   * The tuple's specified field is converted to a lowercase string for comparison.
-   *
-   * @param tuple The tuple whose field is to be checked against dictionary entries.
-   * @return true if the tuple matches a dictionary entry according to the matching criteria; false otherwise.
-   */
+    * Determines whether a given tuple matches any dictionary entry based on defined matching criteria.
+    * The tuple's specified field is converted to a lowercase string for comparison.
+    *
+    * @param tuple The tuple whose field is to be checked against dictionary entries.
+    * @return true if the tuple matches a dictionary entry according to the matching criteria; false otherwise.
+    */
   private def isTupleInDictionary(tuple: Tuple): Boolean = {
     val text = tuple.getField(attributeName).asInstanceOf[String].toLowerCase
 
@@ -84,11 +84,11 @@ class DictionaryMatcherOpExec(
   }
 
   /**
-   * Tokenizes a given text into a set of unique tokens, excluding stopwords.
-   *
-   * @param text The input text to tokenize.
-   * @return A mutable set of tokens derived from the input text, excluding stopwords.
-   */
+    * Tokenizes a given text into a set of unique tokens, excluding stopwords.
+    *
+    * @param text The input text to tokenize.
+    * @return A mutable set of tokens derived from the input text, excluding stopwords.
+    */
   private def tokenize(text: String): mutable.Set[String] = {
     val tokens = mutable.Set[String]()
     val tokenStream = luceneAnalyzer.tokenStream("", new StringReader(text))
@@ -111,11 +111,11 @@ class DictionaryMatcherOpExec(
   }
 
   /**
-   * Labels an input tuple as matched if it is present in the dictionary.
-   *
-   * @param tuple The input tuple to be checked against the dictionary.
-   * @return A TupleLike object containing the original fields of the tuple and a boolean indicating the match status.
-   */
+    * Labels an input tuple as matched if it is present in the dictionary.
+    *
+    * @param tuple The input tuple to be checked against the dictionary.
+    * @return A TupleLike object containing the original fields of the tuple and a boolean indicating the match status.
+    */
   private def labelTupleIfMatched(tuple: Tuple): TupleLike = {
     val isMatched =
       Option(tuple.getField[Any](attributeName)).exists(_ => isTupleInDictionary(tuple))

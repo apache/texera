@@ -5,13 +5,13 @@ import edu.uci.ics.amber.workflow.PortIdentity
 
 trait CheckpointSupport {
   def serializeState(
-                      currentIteratorState: Iterator[(TupleLike, Option[PortIdentity])],
-                      checkpoint: CheckpointState
-                    ): Iterator[(TupleLike, Option[PortIdentity])]
+      currentIteratorState: Iterator[(TupleLike, Option[PortIdentity])],
+      checkpoint: CheckpointState
+  ): Iterator[(TupleLike, Option[PortIdentity])]
 
   def deserializeState(
-                        checkpoint: CheckpointState
-                      ): Iterator[(TupleLike, Option[PortIdentity])]
+      checkpoint: CheckpointState
+  ): Iterator[(TupleLike, Option[PortIdentity])]
 
   def getEstimatedCheckpointCost: Long
 

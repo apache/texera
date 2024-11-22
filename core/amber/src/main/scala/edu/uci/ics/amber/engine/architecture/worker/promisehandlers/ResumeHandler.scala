@@ -10,9 +10,9 @@ trait ResumeHandler {
   this: DataProcessorRPCHandlerInitializer =>
 
   override def resumeWorker(
-                             request: EmptyRequest,
-                             ctx: AsyncRPCContext
-                           ): Future[WorkerStateResponse] = {
+      request: EmptyRequest,
+      ctx: AsyncRPCContext
+  ): Future[WorkerStateResponse] = {
     if (dp.stateManager.getCurrentState == PAUSED) {
       dp.pauseManager.resume(UserPause)
       dp.stateManager.transitTo(RUNNING)

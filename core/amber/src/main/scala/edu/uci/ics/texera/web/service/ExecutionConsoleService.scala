@@ -3,16 +3,27 @@ package edu.uci.ics.texera.web.service
 import com.google.protobuf.timestamp.Timestamp
 import com.twitter.util.{Await, Duration}
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessageType.COMMAND
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{ConsoleMessage, EvaluatePythonExpressionRequest, DebugCommandRequest => AmberDebugCommandRequest}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
+  ConsoleMessage,
+  EvaluatePythonExpressionRequest,
+  DebugCommandRequest => AmberDebugCommandRequest
+}
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.client.AmberClient
-import edu.uci.ics.amber.engine.common.executionruntimestate.{EvaluatedValueList, ExecutionConsoleStore, OperatorConsole}
+import edu.uci.ics.amber.engine.common.executionruntimestate.{
+  EvaluatedValueList,
+  ExecutionConsoleStore,
+  OperatorConsole
+}
 import edu.uci.ics.amber.util.VirtualIdentityUtils
 import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
 import edu.uci.ics.texera.web.model.websocket.event.python.ConsoleUpdateEvent
 import edu.uci.ics.texera.web.model.websocket.request.RetryRequest
-import edu.uci.ics.texera.web.model.websocket.request.python.{DebugCommandRequest, PythonExpressionEvaluateRequest}
+import edu.uci.ics.texera.web.model.websocket.request.python.{
+  DebugCommandRequest,
+  PythonExpressionEvaluateRequest
+}
 import edu.uci.ics.texera.web.model.websocket.response.python.PythonExpressionEvaluateResponse
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.texera.web.{SubscriptionManager, WebsocketInput}
@@ -21,10 +32,10 @@ import java.time.Instant
 import scala.collection.mutable
 
 class ExecutionConsoleService(
-                               client: AmberClient,
-                               stateStore: ExecutionStateStore,
-                               wsInput: WebsocketInput
-                             ) extends SubscriptionManager {
+    client: AmberClient,
+    stateStore: ExecutionStateStore,
+    wsInput: WebsocketInput
+) extends SubscriptionManager {
   registerCallbackOnPythonConsoleMessage()
 
   val bufferSize: Int = AmberConfig.operatorConsoleBufferSize
@@ -69,10 +80,10 @@ class ExecutionConsoleService(
   }
 
   private[this] def addConsoleMessage(
-                                       consoleStore: ExecutionConsoleStore,
-                                       opId: String,
-                                       consoleMessage: ConsoleMessage
-                                     ): ExecutionConsoleStore = {
+      consoleStore: ExecutionConsoleStore,
+      opId: String,
+      consoleMessage: ConsoleMessage
+  ): ExecutionConsoleStore = {
     val opInfo = consoleStore.operatorConsole.getOrElse(opId, OperatorConsole())
 
     if (opInfo.consoleMessages.size < bufferSize) {

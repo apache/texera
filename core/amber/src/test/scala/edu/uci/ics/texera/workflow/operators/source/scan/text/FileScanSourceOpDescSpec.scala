@@ -2,7 +2,12 @@ package edu.uci.ics.texera.workflow.operators.source.scan.text
 
 import edu.uci.ics.amber.core.storage.FileResolver
 import edu.uci.ics.amber.core.tuple.{AttributeType, Schema, SchemaEnforceable, Tuple}
-import edu.uci.ics.texera.workflow.operators.source.scan.{FileAttributeType, FileDecodingMethod, FileScanSourceOpDesc, FileScanSourceOpExec}
+import edu.uci.ics.texera.workflow.operators.source.scan.{
+  FileAttributeType,
+  FileDecodingMethod,
+  FileScanSourceOpDesc,
+  FileScanSourceOpExec
+}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {

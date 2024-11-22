@@ -12,7 +12,7 @@ import java.time.{LocalDateTime, Duration => JDuration}
 import scala.concurrent.duration.DurationInt
 
 class WorkflowLifecycleManager(id: String, cleanUpTimeout: Int, cleanUpCallback: () => Unit)
-  extends LazyLogging {
+    extends LazyLogging {
   private var userCount = 0
   private var cleanUpExecution: Cancellable = Cancellable.alreadyCancelled
 

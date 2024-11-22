@@ -26,7 +26,7 @@ object AmberRuntime {
   }
 
   def scheduleRecurringCallThroughActorSystem(initialDelay: FiniteDuration, delay: FiniteDuration)(
-    call: => Unit
+      call: => Unit
   ): Cancellable = {
     _actorSystem.scheduler.scheduleWithFixedDelay(initialDelay, delay)(() => call)
   }
@@ -48,8 +48,7 @@ object AmberRuntime {
     }
 
     val masterConfig = ConfigFactory
-      .parseString(
-        s"""
+      .parseString(s"""
         akka.remote.artery.canonical.port = 2552
         akka.remote.artery.canonical.hostname = $localIpAddress
         akka.cluster.seed-nodes = [ "akka://Amber@$localIpAddress:2552" ]
@@ -70,8 +69,7 @@ object AmberRuntime {
       localIpAddress = getNodeIpAddress
     }
     val workerConfig = ConfigFactory
-      .parseString(
-        s"""
+      .parseString(s"""
         akka.remote.artery.canonical.hostname = $localIpAddress
         akka.remote.artery.canonical.port = 0
         akka.cluster.seed-nodes = [ "akka://Amber@$addr:2552" ]

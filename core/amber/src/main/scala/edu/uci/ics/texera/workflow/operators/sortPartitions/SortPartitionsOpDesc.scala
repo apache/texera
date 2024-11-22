@@ -12,8 +12,7 @@ import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttribute
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 
-@JsonSchemaInject(json =
-  """
+@JsonSchemaInject(json = """
 {
   "attributeTypeRules": {
     "sortAttributeName":{
@@ -41,9 +40,9 @@ class SortPartitionsOpDesc extends LogicalOp {
   var domainMax: Long = _
 
   override def getPhysicalOp(
-                              workflowId: WorkflowIdentity,
-                              executionId: ExecutionIdentity
-                            ): PhysicalOp =
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity
+  ): PhysicalOp =
     PhysicalOp
       .oneToOnePhysicalOp(
         workflowId,

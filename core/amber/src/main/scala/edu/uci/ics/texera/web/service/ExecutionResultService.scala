@@ -4,17 +4,30 @@ import akka.actor.Cancellable
 import com.fasterxml.jackson.annotation.{JsonTypeInfo, JsonTypeName}
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.core.storage.result.{OpResultStorage, OperatorResultMetadata, WorkflowResultStore}
+import edu.uci.ics.amber.core.storage.result.{
+  OpResultStorage,
+  OperatorResultMetadata,
+  WorkflowResultStore
+}
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.engine.architecture.controller.{ExecutionStateUpdate, FatalError}
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{COMPLETED, FAILED, KILLED, RUNNING}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
+  COMPLETED,
+  FAILED,
+  KILLED,
+  RUNNING
+}
 import edu.uci.ics.amber.engine.common.IncrementalOutputMode.{SET_DELTA, SET_SNAPSHOT}
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.executionruntimestate.ExecutionMetadataStore
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberRuntime, IncrementalOutputMode}
 import edu.uci.ics.amber.virtualidentity.OperatorIdentity
 import edu.uci.ics.texera.web.SubscriptionManager
-import edu.uci.ics.texera.web.model.websocket.event.{PaginatedResultEvent, TexeraWebSocketEvent, WebResultUpdateEvent}
+import edu.uci.ics.texera.web.model.websocket.event.{
+  PaginatedResultEvent,
+  TexeraWebSocketEvent,
+  WebResultUpdateEvent
+}
 import edu.uci.ics.texera.web.model.websocket.request.ResultPaginationRequest
 import edu.uci.ics.texera.web.service.ExecutionResultService.WebResultUpdate
 import edu.uci.ics.texera.web.storage.{ExecutionStateStore, WorkflowStateStore}
@@ -31,44 +44,44 @@ object ExecutionResultService {
 
   // convert Tuple from engine's format to JSON format
   def webDataFromTuple(
-                        mode: WebOutputMode,
-                        table: List[Tuple],
-                        chartType: Option[String]
-                      ): WebDataUpdate = {
+      mode: WebOutputMode,
+      table: List[Tuple],
+      chartType: Option[String]
+  ): WebDataUpdate = {
     val tableInJson = table.map(t => t.asKeyValuePairJson())
     WebDataUpdate(mode, tableInJson, chartType)
   }
 
   /**
-   * convert Tuple from engine's format to JSON format
-   */
+    * convert Tuple from engine's format to JSON format
+    */
   private def tuplesToWebData(
-                               mode: WebOutputMode,
-                               table: List[Tuple],
-                               chartType: Option[String]
-                             ): WebDataUpdate = {
+      mode: WebOutputMode,
+      table: List[Tuple],
+      chartType: Option[String]
+  ): WebDataUpdate = {
     val tableInJson = table.map(t => t.asKeyValuePairJson())
     WebDataUpdate(mode, tableInJson, chartType)
   }
 
   /**
-   * For SET_SNAPSHOT output mode: result is the latest snapshot
-   * FOR SET_DELTA output mode:
-   *   - for insert-only delta: effectively the same as latest snapshot
-   *   - for insert-retract delta: the union of all delta outputs, not compacted to a snapshot
-   *
-   * Produces the WebResultUpdate to send to frontend from a result update from the engine.
-   */
+    * For SET_SNAPSHOT output mode: result is the latest snapshot
+    * FOR SET_DELTA output mode:
+    *   - for insert-only delta: effectively the same as latest snapshot
+    *   - for insert-retract delta: the union of all delta outputs, not compacted to a snapshot
+    *
+    * Produces the WebResultUpdate to send to frontend from a result update from the engine.
+    */
   def convertWebResultUpdate(
-                              sink: ProgressiveSinkOpDesc,
-                              oldTupleCount: Int,
-                              newTupleCount: Int
-                            ): WebResultUpdate = {
+      sink: ProgressiveSinkOpDesc,
+      oldTupleCount: Int,
+      newTupleCount: Int
+  ): WebResultUpdate = {
     val webOutputMode: WebOutputMode = {
       (sink.getOutputMode, sink.getChartType) match {
         // visualization sinks use its corresponding mode
         case (SET_SNAPSHOT, Some(_)) => SetSnapshotMode()
-        case (SET_DELTA, Some(_)) => SetDeltaMode()
+        case (SET_DELTA, Some(_))    => SetDeltaMode()
         // Non-visualization sinks use pagination mode
         case (_, None) => PaginationMode()
       }
@@ -102,22 +115,22 @@ object ExecutionResultService {
   }
 
   /**
-   * Behavior for different web output modes:
-   *  - PaginationMode   (used by view result operator)
-   *     - send new number of tuples and dirty page index
-   *  - SetSnapshotMode  (used by visualization in snapshot mode)
-   *     - send entire snapshot result to frontend
-   *  - SetDeltaMode     (used by visualization in delta mode)
-   *     - send incremental delta result to frontend
-   */
+    * Behavior for different web output modes:
+    *  - PaginationMode   (used by view result operator)
+    *     - send new number of tuples and dirty page index
+    *  - SetSnapshotMode  (used by visualization in snapshot mode)
+    *     - send entire snapshot result to frontend
+    *  - SetDeltaMode     (used by visualization in delta mode)
+    *     - send incremental delta result to frontend
+    */
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
   sealed abstract class WebOutputMode extends Product with Serializable
 
   /**
-   * The result update of one operator that will be sent to the frontend.
-   * Can be either WebPaginationUpdate (for PaginationMode)
-   * or WebDataUpdate (for SetSnapshotMode or SetDeltaMode)
-   */
+    * The result update of one operator that will be sent to the frontend.
+    * Can be either WebPaginationUpdate (for PaginationMode)
+    * or WebDataUpdate (for SetSnapshotMode or SetDeltaMode)
+    */
   sealed abstract class WebResultUpdate extends Product with Serializable
 
   @JsonTypeName("PaginationMode")
@@ -130,27 +143,27 @@ object ExecutionResultService {
   final case class SetDeltaMode() extends WebOutputMode
 
   case class WebPaginationUpdate(
-                                  mode: PaginationMode,
-                                  totalNumTuples: Long,
-                                  dirtyPageIndices: List[Int]
-                                ) extends WebResultUpdate
+      mode: PaginationMode,
+      totalNumTuples: Long,
+      dirtyPageIndices: List[Int]
+  ) extends WebResultUpdate
 
   case class WebDataUpdate(mode: WebOutputMode, table: List[ObjectNode], chartType: Option[String])
-    extends WebResultUpdate
+      extends WebResultUpdate
 }
 
 /**
- * ExecutionResultService manages the materialized result of all sink operators in one workflow execution.
- *
- * On each result update from the engine, WorkflowResultService
- *  - update the result data for each operator,
- *  - send result update event to the frontend
- */
+  * ExecutionResultService manages the materialized result of all sink operators in one workflow execution.
+  *
+  * On each result update from the engine, WorkflowResultService
+  *  - update the result data for each operator,
+  *  - send result update event to the frontend
+  */
 class ExecutionResultService(
-                              val opResultStorage: OpResultStorage,
-                              val workflowStateStore: WorkflowStateStore
-                            ) extends SubscriptionManager
-  with LazyLogging {
+    val opResultStorage: OpResultStorage,
+    val workflowStateStore: WorkflowStateStore
+) extends SubscriptionManager
+    with LazyLogging {
 
   var sinkOperators: mutable.HashMap[OperatorIdentity, ProgressiveSinkOpDesc] =
     mutable.HashMap[OperatorIdentity, ProgressiveSinkOpDesc]()
@@ -159,10 +172,10 @@ class ExecutionResultService(
   var tableFields: mutable.Map[String, Map[String, Iterable[String]]] = mutable.Map()
 
   def attachToExecution(
-                         stateStore: ExecutionStateStore,
-                         logicalPlan: LogicalPlan,
-                         client: AmberClient
-                       ): Unit = {
+      stateStore: ExecutionStateStore,
+      logicalPlan: LogicalPlan,
+      client: AmberClient
+  ): Unit = {
 
     if (resultUpdateCancellable != null && !resultUpdateCancellable.isCancelled) {
       resultUpdateCancellable.cancel()
@@ -171,21 +184,22 @@ class ExecutionResultService(
     unsubscribeAll()
 
     addSubscription(stateStore.metadataStore.getStateObservable.subscribe {
-      newState: ExecutionMetadataStore => {
-        if (newState.state == RUNNING) {
-          if (resultUpdateCancellable == null || resultUpdateCancellable.isCancelled) {
-            resultUpdateCancellable = AmberRuntime
-              .scheduleRecurringCallThroughActorSystem(
-                2.seconds,
-                resultPullingFrequency.seconds
-              ) {
-                onResultUpdate()
-              }
+      newState: ExecutionMetadataStore =>
+        {
+          if (newState.state == RUNNING) {
+            if (resultUpdateCancellable == null || resultUpdateCancellable.isCancelled) {
+              resultUpdateCancellable = AmberRuntime
+                .scheduleRecurringCallThroughActorSystem(
+                  2.seconds,
+                  resultPullingFrequency.seconds
+                ) {
+                  onResultUpdate()
+                }
+            }
+          } else {
+            if (resultUpdateCancellable != null) resultUpdateCancellable.cancel()
           }
-        } else {
-          if (resultUpdateCancellable != null) resultUpdateCancellable.cancel()
         }
-      }
     })
 
     addSubscription(
@@ -255,7 +269,7 @@ class ExecutionResultService(
                 }
                 if (
                   tableFields.contains(opId.id) && tableFields(opId.id).contains("catFields") &&
-                    tableFields(opId.id).contains("dateFields") && tableFields(opId.id)
+                  tableFields(opId.id).contains("dateFields") && tableFields(opId.id)
                     .contains("numericFields")
                 ) {
                   val tableCatStats = sinkMgr.getCatColStats(tableFields(opId.id)("catFields"))

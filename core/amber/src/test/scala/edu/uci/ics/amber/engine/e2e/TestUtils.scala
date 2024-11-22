@@ -10,11 +10,11 @@ import edu.uci.ics.texera.workflow.common.workflow.{LogicalLink, WorkflowCompile
 object TestUtils {
 
   def buildWorkflow(
-                     operators: List[LogicalOp],
-                     links: List[LogicalLink],
-                     resultStorage: OpResultStorage,
-                     context: WorkflowContext
-                   ): Workflow = {
+      operators: List[LogicalOp],
+      links: List[LogicalLink],
+      resultStorage: OpResultStorage,
+      context: WorkflowContext
+  ): Workflow = {
     val workflowCompiler = new WorkflowCompiler(
       context
     )

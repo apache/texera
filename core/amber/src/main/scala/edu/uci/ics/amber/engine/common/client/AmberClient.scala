@@ -12,7 +12,11 @@ import edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerSer
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturn
 import edu.uci.ics.amber.engine.common.FutureBijection._
 import edu.uci.ics.amber.engine.common.ambermessage.{NotifyFailedNode, WorkflowRecoveryMessage}
-import edu.uci.ics.amber.engine.common.client.ClientActor.{CommandRequest, InitializeRequest, ObservableRequest}
+import edu.uci.ics.amber.engine.common.client.ClientActor.{
+  CommandRequest,
+  InitializeRequest,
+  ObservableRequest
+}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CLIENT
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.Disposable
@@ -25,13 +29,13 @@ import scala.concurrent.duration.DurationInt
 import scala.reflect.ClassTag
 
 class AmberClient(
-                   system: ActorSystem,
-                   workflowContext: WorkflowContext,
-                   physicalPlan: PhysicalPlan,
-                   opResultStorage: OpResultStorage,
-                   controllerConfig: ControllerConfig,
-                   errorHandler: Throwable => Unit
-                 ) {
+    system: ActorSystem,
+    workflowContext: WorkflowContext,
+    physicalPlan: PhysicalPlan,
+    opResultStorage: OpResultStorage,
+    controllerConfig: ControllerConfig,
+    errorHandler: Throwable => Unit
+) {
 
   private val clientActor = system.actorOf(Props(new ClientActor))
   private implicit val timeout: Timeout = Timeout(1.minute)
@@ -113,13 +117,14 @@ class AmberClient(
         registeredObservables(clazz) = ob
         ob
       }
-    observable.subscribe { evt: T => {
-      try {
-        callback(evt)
-      } catch {
-        case t: Throwable => errorHandler(t)
+    observable.subscribe { evt: T =>
+      {
+        try {
+          callback(evt)
+        } catch {
+          case t: Throwable => errorHandler(t)
+        }
       }
-    }
     }
   }
 

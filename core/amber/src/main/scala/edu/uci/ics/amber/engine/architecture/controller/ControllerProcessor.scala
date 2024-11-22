@@ -2,7 +2,12 @@ package edu.uci.ics.amber.engine.architecture.controller
 
 import edu.uci.ics.amber.core.storage.result.OpResultStorage
 import edu.uci.ics.amber.core.workflow.WorkflowContext
-import edu.uci.ics.amber.engine.architecture.common.{AkkaActorRefMappingService, AkkaActorService, AkkaMessageTransferService, AmberProcessor}
+import edu.uci.ics.amber.engine.architecture.common.{
+  AkkaActorRefMappingService,
+  AkkaActorService,
+  AkkaMessageTransferService,
+  AmberProcessor
+}
 import edu.uci.ics.amber.engine.architecture.controller.execution.WorkflowExecution
 import edu.uci.ics.amber.engine.architecture.logreplay.ReplayLogManager
 import edu.uci.ics.amber.engine.architecture.scheduling.WorkflowExecutionCoordinator
@@ -11,12 +16,12 @@ import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
 
 class ControllerProcessor(
-                           workflowContext: WorkflowContext,
-                           opResultStorage: OpResultStorage,
-                           controllerConfig: ControllerConfig,
-                           actorId: ActorVirtualIdentity,
-                           outputHandler: Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit
-                         ) extends AmberProcessor(actorId, outputHandler) {
+    workflowContext: WorkflowContext,
+    opResultStorage: OpResultStorage,
+    controllerConfig: ControllerConfig,
+    actorId: ActorVirtualIdentity,
+    outputHandler: Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit
+) extends AmberProcessor(actorId, outputHandler) {
 
   val workflowExecution: WorkflowExecution = WorkflowExecution()
   val workflowScheduler: WorkflowScheduler =

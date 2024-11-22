@@ -2,7 +2,12 @@ package edu.uci.ics.amber.engine.faulttolerance
 
 import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestKit}
-import edu.uci.ics.amber.engine.architecture.logreplay.{ProcessingStep, ReplayLogManagerImpl, ReplayLogRecord, ReplayOrderEnforcer}
+import edu.uci.ics.amber.engine.architecture.logreplay.{
+  ProcessingStep,
+  ReplayLogManagerImpl,
+  ReplayLogRecord,
+  ReplayOrderEnforcer
+}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkInputGateway
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, EmptyRequest}
 import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.METHOD_START_WORKER
@@ -18,20 +23,20 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import scala.collection.mutable
 
 class ReplaySpec
-  extends TestKit(ActorSystem("ReplaySpec"))
+    extends TestKit(ActorSystem("ReplaySpec"))
     with ImplicitSender
     with AnyFlatSpecLike
     with BeforeAndAfterAll {
 
   class IterableReadOnlyLogStore(iter: Iterable[ReplayLogRecord])
-    extends SequentialRecordStorage[ReplayLogRecord] {
+      extends SequentialRecordStorage[ReplayLogRecord] {
     override def getWriter(
-                            fileName: String
-                          ): SequentialRecordStorage.SequentialRecordWriter[ReplayLogRecord] = ???
+        fileName: String
+    ): SequentialRecordStorage.SequentialRecordWriter[ReplayLogRecord] = ???
 
     override def getReader(
-                            fileName: String
-                          ): SequentialRecordStorage.SequentialRecordReader[ReplayLogRecord] =
+        fileName: String
+    ): SequentialRecordStorage.SequentialRecordReader[ReplayLogRecord] =
       new SequentialRecordReader[ReplayLogRecord](null) {
         override def mkRecordIterator(): Iterator[ReplayLogRecord] = iter.iterator
       }

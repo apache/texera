@@ -15,11 +15,11 @@ object AsterixDBConnUtil {
   var asterixDBVersionMapping: Map[String, String] = Map()
 
   def queryAsterixDB(
-                      host: String,
-                      port: String,
-                      statement: String,
-                      format: String = "csv"
-                    ): Option[Iterator[AnyRef]] = {
+      host: String,
+      port: String,
+      statement: String,
+      format: String = "csv"
+  ): Option[Iterator[AnyRef]] = {
     if (!asterixDBVersionMapping.contains(host)) updateAsterixDBVersionMapping(host, port)
 
     val asterixAPIEndpoint = "http://" + host + ":" + port + "/query/service"
@@ -59,11 +59,11 @@ object AsterixDBConnUtil {
   }
 
   def fetchDataTypeFields(
-                           datatypeName: String,
-                           parentName: String,
-                           host: String,
-                           port: String
-                         ): Predef.Map[String, String] = {
+      datatypeName: String,
+      parentName: String,
+      host: String,
+      port: String
+  ): Predef.Map[String, String] = {
     val result: mutable.Map[String, String] = mutable.Map()
     val response = queryAsterixDB(
       host,

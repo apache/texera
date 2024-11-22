@@ -7,5 +7,5 @@ case object OperatorConfig {
 }
 
 case class OperatorConfig(
-                           workerConfigs: List[WorkerConfig]
-                         )
+    workerConfigs: List[WorkerConfig]
+)

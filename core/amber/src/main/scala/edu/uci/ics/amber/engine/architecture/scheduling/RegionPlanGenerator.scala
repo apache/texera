@@ -3,7 +3,10 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import edu.uci.ics.amber.core.storage.result.OpResultStorage
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.scheduling.RegionPlanGenerator.replaceVertex
-import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{DefaultResourceAllocator, ExecutionClusterInfo}
+import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
+  DefaultResourceAllocator,
+  ExecutionClusterInfo
+}
 import edu.uci.ics.amber.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
 import edu.uci.ics.amber.workflow.PhysicalLink
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
@@ -16,10 +19,10 @@ import scala.jdk.CollectionConverters.{CollectionHasAsScala, IteratorHasAsScala}
 
 object RegionPlanGenerator {
   def replaceVertex(
-                     graph: DirectedAcyclicGraph[Region, RegionLink],
-                     oldVertex: Region,
-                     newVertex: Region
-                   ): Unit = {
+      graph: DirectedAcyclicGraph[Region, RegionLink],
+      oldVertex: Region,
+      newVertex: Region
+  ): Unit = {
     if (oldVertex.equals(newVertex)) {
       return
     }
@@ -47,17 +50,17 @@ object RegionPlanGenerator {
 }
 
 abstract class RegionPlanGenerator(
-                                    workflowContext: WorkflowContext,
-                                    var physicalPlan: PhysicalPlan,
-                                    opResultStorage: OpResultStorage
-                                  ) {
+    workflowContext: WorkflowContext,
+    var physicalPlan: PhysicalPlan,
+    opResultStorage: OpResultStorage
+) {
   private val executionClusterInfo = new ExecutionClusterInfo()
 
   def generate(): (RegionPlan, PhysicalPlan)
 
   def allocateResource(
-                        regionDAG: DirectedAcyclicGraph[Region, RegionLink]
-                      ): Unit = {
+      regionDAG: DirectedAcyclicGraph[Region, RegionLink]
+  ): Unit = {
     val dataTransferBatchSize = workflowContext.workflowSettings.dataTransferBatchSize
 
     val resourceAllocator =
@@ -71,9 +74,9 @@ abstract class RegionPlanGenerator(
   }
 
   def getRegions(
-                  physicalOpId: PhysicalOpIdentity,
-                  regionDAG: DirectedAcyclicGraph[Region, RegionLink]
-                ): Set[Region] = {
+      physicalOpId: PhysicalOpIdentity,
+      regionDAG: DirectedAcyclicGraph[Region, RegionLink]
+  ): Set[Region] = {
     regionDAG
       .vertexSet()
       .asScala
@@ -82,12 +85,12 @@ abstract class RegionPlanGenerator(
   }
 
   /**
-   * For a dependee input link, although it connects two regions A->B, we include this link and its toOp in region A
-   * so that the dependee link will be completed first.
-   */
+    * For a dependee input link, although it connects two regions A->B, we include this link and its toOp in region A
+    * so that the dependee link will be completed first.
+    */
   def populateDependeeLinks(
-                             regionDAG: DirectedAcyclicGraph[Region, RegionLink]
-                           ): Unit = {
+      regionDAG: DirectedAcyclicGraph[Region, RegionLink]
+  ): Unit = {
 
     val dependeeLinks = physicalPlan
       .topologicalIterator()
@@ -122,9 +125,9 @@ abstract class RegionPlanGenerator(
   }
 
   def replaceLinkWithMaterialization(
-                                      physicalLink: PhysicalLink,
-                                      writerReaderPairs: mutable.HashMap[PhysicalOpIdentity, PhysicalOpIdentity]
-                                    ): PhysicalPlan = {
+      physicalLink: PhysicalLink,
+      writerReaderPairs: mutable.HashMap[PhysicalOpIdentity, PhysicalOpIdentity]
+  ): PhysicalPlan = {
 
     val fromOp = physicalPlan.getOperator(physicalLink.fromOpId)
     val fromPortId = physicalLink.fromPortId
@@ -167,9 +170,9 @@ abstract class RegionPlanGenerator(
   }
 
   def createMatReader(
-                       matWriterLogicalOpId: OperatorIdentity,
-                       physicalLink: PhysicalLink
-                     ): PhysicalOp = {
+      matWriterLogicalOpId: OperatorIdentity,
+      physicalLink: PhysicalLink
+  ): PhysicalOp = {
     val matReader = new CacheSourceOpDesc(
       matWriterLogicalOpId,
       opResultStorage: OpResultStorage
@@ -187,8 +190,8 @@ abstract class RegionPlanGenerator(
   }
 
   def createMatWriter(
-                       physicalLink: PhysicalLink
-                     ): PhysicalOp = {
+      physicalLink: PhysicalLink
+  ): PhysicalOp = {
     val matWriter = new ProgressiveSinkOpDesc()
     matWriter.setContext(workflowContext)
     matWriter.setOperatorId(s"materialized_${getMatIdFromPhysicalLink(physicalLink)}")

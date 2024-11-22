@@ -19,13 +19,21 @@ import edu.uci.ics.texera.workflow.operators.download.BulkDownloaderOpDesc
 import edu.uci.ics.texera.workflow.operators.dummy.DummyOpDesc
 import edu.uci.ics.texera.workflow.operators.filter.SpecializedFilterOpDesc
 import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc
-import edu.uci.ics.texera.workflow.operators.huggingFace.{HuggingFaceIrisLogisticRegressionOpDesc, HuggingFaceSentimentAnalysisOpDesc, HuggingFaceSpamSMSDetectionOpDesc, HuggingFaceTextSummarizationOpDesc}
+import edu.uci.ics.texera.workflow.operators.huggingFace.{
+  HuggingFaceIrisLogisticRegressionOpDesc,
+  HuggingFaceSentimentAnalysisOpDesc,
+  HuggingFaceSpamSMSDetectionOpDesc,
+  HuggingFaceTextSummarizationOpDesc
+}
 import edu.uci.ics.texera.workflow.operators.intersect.IntersectOpDesc
 import edu.uci.ics.texera.workflow.operators.intervalJoin.IntervalJoinOpDesc
 import edu.uci.ics.texera.workflow.operators.keywordSearch.KeywordSearchOpDesc
 import edu.uci.ics.texera.workflow.operators.limit.LimitOpDesc
 import edu.uci.ics.texera.workflow.operators.machineLearning.Scorer.MachineLearningScorerOpDesc
-import edu.uci.ics.texera.workflow.operators.machineLearning.sklearnAdvanced.KNNTrainer.{SklearnAdvancedKNNClassifierTrainerOpDesc, SklearnAdvancedKNNRegressorTrainerOpDesc}
+import edu.uci.ics.texera.workflow.operators.machineLearning.sklearnAdvanced.KNNTrainer.{
+  SklearnAdvancedKNNClassifierTrainerOpDesc,
+  SklearnAdvancedKNNRegressorTrainerOpDesc
+}
 import edu.uci.ics.texera.workflow.operators.machineLearning.sklearnAdvanced.SVCTrainer.SklearnAdvancedSVCTrainerOpDesc
 import edu.uci.ics.texera.workflow.operators.machineLearning.sklearnAdvanced.SVRTrainer.SVCTrainer.SklearnAdvancedSVRTrainerOpDesc
 import edu.uci.ics.texera.workflow.operators.projection.ProjectionOpDesc
@@ -38,7 +46,10 @@ import edu.uci.ics.texera.workflow.operators.sklearn._
 import edu.uci.ics.texera.workflow.operators.sort.SortOpDesc
 import edu.uci.ics.texera.workflow.operators.sortPartitions.SortPartitionsOpDesc
 import edu.uci.ics.texera.workflow.operators.source.apis.reddit.RedditSearchSourceOpDesc
-import edu.uci.ics.texera.workflow.operators.source.apis.twitter.v2.{TwitterFullArchiveSearchSourceOpDesc, TwitterSearchSourceOpDesc}
+import edu.uci.ics.texera.workflow.operators.source.apis.twitter.v2.{
+  TwitterFullArchiveSearchSourceOpDesc,
+  TwitterSearchSourceOpDesc
+}
 import edu.uci.ics.texera.workflow.operators.source.fetcher.URLFetcherOpDesc
 import edu.uci.ics.texera.workflow.operators.source.scan.FileScanSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.scan.csv.CSVScanSourceOpDesc
@@ -53,7 +64,12 @@ import edu.uci.ics.texera.workflow.operators.symmetricDifference.SymmetricDiffer
 import edu.uci.ics.texera.workflow.operators.typecasting.TypeCastingOpDesc
 import edu.uci.ics.texera.workflow.operators.udf.java.JavaUDFOpDesc
 import edu.uci.ics.texera.workflow.operators.udf.python.source.PythonUDFSourceOpDescV2
-import edu.uci.ics.texera.workflow.operators.udf.python.{DualInputPortsPythonUDFOpDescV2, PythonLambdaFunctionOpDesc, PythonTableReducerOpDesc, PythonUDFOpDescV2}
+import edu.uci.ics.texera.workflow.operators.udf.python.{
+  DualInputPortsPythonUDFOpDescV2,
+  PythonLambdaFunctionOpDesc,
+  PythonTableReducerOpDesc,
+  PythonUDFOpDescV2
+}
 import edu.uci.ics.texera.workflow.operators.udf.r.{RUDFOpDesc, RUDFSourceOpDesc}
 import edu.uci.ics.texera.workflow.operators.union.UnionOpDesc
 import edu.uci.ics.texera.workflow.operators.unneststring.UnnestStringOpDesc
@@ -95,7 +111,7 @@ import scala.collection.mutable
 import scala.util.Try
 
 trait StateTransferFunc
-  extends ((OperatorExecutor, OperatorExecutor) => Unit)
+    extends ((OperatorExecutor, OperatorExecutor) => Unit)
     with java.io.Serializable
 
 @JsonTypeInfo(
@@ -288,17 +304,17 @@ abstract class LogicalOp extends PortDescriptor with Serializable {
   def operatorIdentifier: OperatorIdentity = OperatorIdentity(operatorId)
 
   def getPhysicalOp(
-                     workflowId: WorkflowIdentity,
-                     executionId: ExecutionIdentity
-                   ): PhysicalOp = {
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity
+  ): PhysicalOp = {
     throw new UnimplementedException()
   }
 
   // a logical operator corresponds multiple physical operators (a small DAG)
   def getPhysicalPlan(
-                       workflowId: WorkflowIdentity,
-                       executionId: ExecutionIdentity
-                     ): PhysicalPlan = {
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity
+  ): PhysicalPlan = {
     new PhysicalPlan(
       operators = Set(getPhysicalOp(workflowId, executionId)),
       links = Set.empty
@@ -337,11 +353,11 @@ abstract class LogicalOp extends PortDescriptor with Serializable {
   }
 
   def runtimeReconfiguration(
-                              workflowId: WorkflowIdentity,
-                              executionId: ExecutionIdentity,
-                              oldOpDesc: LogicalOp,
-                              newOpDesc: LogicalOp
-                            ): Try[(PhysicalOp, Option[StateTransferFunc])] = {
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity,
+      oldOpDesc: LogicalOp,
+      newOpDesc: LogicalOp
+  ): Try[(PhysicalOp, Option[StateTransferFunc])] = {
     throw new UnsupportedOperationException(
       "operator " + getClass.getSimpleName + " does not support reconfiguration"
     )

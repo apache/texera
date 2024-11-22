@@ -8,19 +8,19 @@ import edu.uci.ics.amber.engine.common.{IncrementalOutputMode, ProgressiveUtils}
 import edu.uci.ics.amber.workflow.PortIdentity
 
 class ProgressiveSinkOpExec(outputMode: IncrementalOutputMode, storage: SinkStorageWriter)
-  extends SinkOperatorExecutor {
+    extends SinkOperatorExecutor {
 
   override def open(): Unit = {
     storage.open()
   }
 
   override def consumeTuple(
-                             tuple: Tuple,
-                             input: Int
-                           ): Unit = {
+      tuple: Tuple,
+      input: Int
+  ): Unit = {
     outputMode match {
       case SET_SNAPSHOT => updateSetSnapshot(tuple)
-      case SET_DELTA => storage.putOne(tuple)
+      case SET_DELTA    => storage.putOne(tuple)
     }
   }
 

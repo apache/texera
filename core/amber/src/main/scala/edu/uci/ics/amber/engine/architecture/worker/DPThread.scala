@@ -2,11 +2,18 @@ package edu.uci.ics.amber.engine.architecture.worker
 
 import edu.uci.ics.amber.engine.architecture.logreplay.ReplayLogManager
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerPayload
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{DPInputQueueElement, MainThreadDelegateMessage}
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
+  DPInputQueueElement,
+  MainThreadDelegateMessage
+}
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{READY, UNINITIALIZED}
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.actormessage.{ActorCommand, Backpressure}
-import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, DataPayload, WorkflowFIFOMessage}
+import edu.uci.ics.amber.engine.common.ambermessage.{
+  ControlPayload,
+  DataPayload,
+  WorkflowFIFOMessage
+}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
 import edu.uci.ics.amber.error.ErrorUtils.safely
 import edu.uci.ics.amber.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
@@ -14,11 +21,11 @@ import edu.uci.ics.amber.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import java.util.concurrent._
 
 class DPThread(
-                val actorId: ActorVirtualIdentity,
-                dp: DataProcessor,
-                logManager: ReplayLogManager,
-                internalQueue: LinkedBlockingQueue[DPInputQueueElement]
-              ) extends AmberLogging {
+    val actorId: ActorVirtualIdentity,
+    dp: DataProcessor,
+    logManager: ReplayLogManager,
+    internalQueue: LinkedBlockingQueue[DPInputQueueElement]
+) extends AmberLogging {
 
   // initialize dp thread upon construction
   @transient

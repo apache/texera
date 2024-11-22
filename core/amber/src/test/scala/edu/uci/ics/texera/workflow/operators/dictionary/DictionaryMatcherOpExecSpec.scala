@@ -45,8 +45,8 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   /**
-   * Test cases that all Matching Types should match the query
-   */
+    * Test cases that all Matching Types should match the query
+    */
   it should "match a tuple if present in the given dictionary entry when matching type is SCANBASED" in {
     opExec =
       new DictionaryMatcherOpExec(opDesc.attribute, opDesc.dictionary, MatchingType.SCANBASED)
@@ -79,8 +79,8 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   /**
-   * Test cases that SCANBASED and SUBSTRING Matching Types should fail to match a query
-   */
+    * Test cases that SCANBASED and SUBSTRING Matching Types should fail to match a query
+    */
   it should "not match a tuple if not present in the given dictionary entry when matching type is SCANBASED and not exact match" in {
     opExec =
       new DictionaryMatcherOpExec(opDesc.attribute, dictionaryConjunction, MatchingType.SCANBASED)
@@ -127,8 +127,8 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   /**
-   * Test cases that only SUBSTRING Matching Type should match the query
-   */
+    * Test cases that only SUBSTRING Matching Type should match the query
+    */
   it should "not match a tuple if not present in the given dictionary entry when matching type is SCANBASED when the entry contains more text" in {
     opExec =
       new DictionaryMatcherOpExec(opDesc.attribute, dictionarySubstring, MatchingType.SCANBASED)

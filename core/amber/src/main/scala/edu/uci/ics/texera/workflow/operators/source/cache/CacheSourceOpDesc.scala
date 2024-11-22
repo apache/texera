@@ -10,16 +10,16 @@ import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, Oper
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 
 class CacheSourceOpDesc(val targetSinkStorageId: OperatorIdentity, opResultStorage: OpResultStorage)
-  extends SourceOperatorDescriptor {
+    extends SourceOperatorDescriptor {
   assert(null != targetSinkStorageId)
   assert(null != opResultStorage)
 
   override def sourceSchema(): Schema = opResultStorage.get(targetSinkStorageId).getSchema
 
   override def getPhysicalOp(
-                              workflowId: WorkflowIdentity,
-                              executionId: ExecutionIdentity
-                            ): PhysicalOp = {
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity
+  ): PhysicalOp = {
     PhysicalOp
       .sourcePhysicalOp(
         workflowId,

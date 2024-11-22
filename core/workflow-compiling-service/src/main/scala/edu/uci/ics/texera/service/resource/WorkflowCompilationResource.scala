@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.service.resource
 
-import com.fasterxml.jackson.annotation.{JsonIgnore, JsonSubTypes, JsonTypeInfo}
+import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.compiler.WorkflowCompiler
 import edu.uci.ics.amber.compiler.model.LogicalPlanPojo
@@ -9,9 +9,8 @@ import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.virtualidentity.WorkflowIdentity
 import edu.uci.ics.amber.workflowruntimestate.WorkflowFatalError
 import jakarta.annotation.security.RolesAllowed
-import jakarta.ws.rs.{Consumes, POST, Path, PathParam, Produces}
+import jakarta.ws.rs.{Consumes, POST, Path, Produces}
 import jakarta.ws.rs.core.MediaType
-import org.jooq.types.UInteger
 
 @JsonTypeInfo(
   use = JsonTypeInfo.Id.NAME,

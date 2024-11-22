@@ -17,9 +17,9 @@ trait StartHandler {
   this: DataProcessorRPCHandlerInitializer =>
 
   override def startWorker(
-                            request: EmptyRequest,
-                            ctx: AsyncRPCContext
-                          ): Future[WorkerStateResponse] = {
+      request: EmptyRequest,
+      ctx: AsyncRPCContext
+  ): Future[WorkerStateResponse] = {
     logger.info("Starting the worker.")
     if (dp.executor.isInstanceOf[SourceOperatorExecutor]) {
       dp.stateManager.assertState(READY)

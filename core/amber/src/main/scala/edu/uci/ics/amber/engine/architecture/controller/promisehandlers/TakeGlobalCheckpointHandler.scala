@@ -17,9 +17,9 @@ trait TakeGlobalCheckpointHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
   override def takeGlobalCheckpoint(
-                                     msg: TakeGlobalCheckpointRequest,
-                                     ctx: AsyncRPCContext
-                                   ): Future[TakeGlobalCheckpointResponse] = {
+      msg: TakeGlobalCheckpointRequest,
+      ctx: AsyncRPCContext
+  ): Future[TakeGlobalCheckpointResponse] = {
     var estimationOnly = msg.estimationOnly
     val destinationURI = new URI(msg.destination)
     @transient val storage =

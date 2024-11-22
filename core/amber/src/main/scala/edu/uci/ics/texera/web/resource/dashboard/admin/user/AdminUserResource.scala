@@ -24,10 +24,10 @@ object AdminUserResource {
 class AdminUserResource {
 
   /**
-   * This method returns the list of users
-   *
-   * @return a list of users
-   */
+    * This method returns the list of users
+    *
+    * @return a list of users
+    */
   @GET
   @Path("/list")
   @Produces(Array(MediaType.APPLICATION_JSON))

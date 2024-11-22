@@ -6,14 +6,16 @@ import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
-import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstants, VisualizationOperator}
+import edu.uci.ics.texera.workflow.operators.visualization.{
+  VisualizationConstants,
+  VisualizationOperator
+}
 
 import java.util
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 //type constraint: measurementColumnName can only be a numeric column
-@JsonSchemaInject(json =
-  """
+@JsonSchemaInject(json = """
 {
   "attributeTypeRules": {
     "measurementColumnName": {

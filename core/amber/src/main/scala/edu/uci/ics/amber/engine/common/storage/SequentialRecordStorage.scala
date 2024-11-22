@@ -2,9 +2,16 @@ package edu.uci.ics.amber.engine.common.storage
 
 import com.esotericsoftware.kryo.io.{Input, Output}
 import com.twitter.chill.{KryoBase, KryoPool, KryoSerializer, ScalaKryoInstantiator}
-import edu.uci.ics.amber.engine.architecture.logreplay.{MessageContent, ProcessingStep, ReplayLogRecord}
+import edu.uci.ics.amber.engine.architecture.logreplay.{
+  MessageContent,
+  ProcessingStep,
+  ReplayLogRecord
+}
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState
-import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage.{SequentialRecordReader, SequentialRecordWriter}
+import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage.{
+  SequentialRecordReader,
+  SequentialRecordWriter
+}
 
 import java.io.{DataInputStream, DataOutputStream}
 import java.net.URI

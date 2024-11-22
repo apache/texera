@@ -9,15 +9,15 @@ import edu.uci.ics.texera.workflow.operators.source.scan.FileDecodingMethod
 import java.net.URI
 import scala.collection.compat.immutable.ArraySeq
 
-class CSVOldScanSourceOpExec private[csvOld](
-                                              fileUri: String,
-                                              fileEncoding: FileDecodingMethod,
-                                              limit: Option[Int],
-                                              offset: Option[Int],
-                                              customDelimiter: Option[String],
-                                              hasHeader: Boolean,
-                                              schemaFunc: () => Schema
-                                            ) extends SourceOperatorExecutor {
+class CSVOldScanSourceOpExec private[csvOld] (
+    fileUri: String,
+    fileEncoding: FileDecodingMethod,
+    limit: Option[Int],
+    offset: Option[Int],
+    customDelimiter: Option[String],
+    hasHeader: Boolean,
+    schemaFunc: () => Schema
+) extends SourceOperatorExecutor {
   var schema: Schema = _
   var reader: CSVReader = _
   var rows: Iterator[Seq[String]] = _

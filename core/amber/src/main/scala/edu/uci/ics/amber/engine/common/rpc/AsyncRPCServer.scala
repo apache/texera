@@ -2,7 +2,11 @@ package edu.uci.ics.amber.engine.common.rpc
 
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputGateway
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, ControlInvocation, ControlRequest}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
+  AsyncRPCContext,
+  ControlInvocation,
+  ControlRequest
+}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{ControlReturn, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.error.ErrorUtils.mkControlError
@@ -12,9 +16,9 @@ import java.lang.reflect.Method
 import scala.collection.mutable
 
 class AsyncRPCServer(
-                      outputGateway: NetworkOutputGateway,
-                      val actorId: ActorVirtualIdentity
-                    ) extends AmberLogging {
+    outputGateway: NetworkOutputGateway,
+    val actorId: ActorVirtualIdentity
+) extends AmberLogging {
 
   // variable to hold all handler implementations
   var handler: AnyRef = _
@@ -47,12 +51,12 @@ class AsyncRPCServer(
   }
 
   private def invokeMethod(
-                            method: Method,
-                            requestArg: ControlRequest,
-                            contextArg: AsyncRPCContext,
-                            id: Long,
-                            senderID: ActorVirtualIdentity
-                          ): Unit = {
+      method: Method,
+      requestArg: ControlRequest,
+      contextArg: AsyncRPCContext,
+      id: Long,
+      senderID: ActorVirtualIdentity
+  ): Unit = {
     try {
       val result =
         method.invoke(handler, requestArg, contextArg)

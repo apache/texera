@@ -4,8 +4,14 @@ import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.Tables._
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{User, Workflow}
-import edu.uci.ics.texera.web.resource.dashboard.hub.workflow.HubWorkflowResource.{fetchDashboardWorkflowsByWids, recordUserActivity}
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.{DashboardWorkflow, WorkflowWithPrivilege}
+import edu.uci.ics.texera.web.resource.dashboard.hub.workflow.HubWorkflowResource.{
+  fetchDashboardWorkflowsByWids,
+  recordUserActivity
+}
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.{
+  DashboardWorkflow,
+  WorkflowWithPrivilege
+}
 import org.jooq.impl.DSL
 import org.jooq.types.UInteger
 
@@ -72,11 +78,11 @@ object HubWorkflowResource {
   }
 
   def recordUserActivity(
-                          request: HttpServletRequest,
-                          userId: UInteger = UInteger.valueOf(0),
-                          workflowId: UInteger,
-                          action: String
-                        ): Unit = {
+      request: HttpServletRequest,
+      userId: UInteger = UInteger.valueOf(0),
+      workflowId: UInteger,
+      action: String
+  ): Unit = {
     val userIp = request.getRemoteAddr()
     //    println(s"User IP from getRemoteAddr: $userIp")
 
@@ -158,8 +164,8 @@ class HubWorkflowResource {
   @GET
   @Path("/public/{wid}")
   def retrievePublicWorkflow(
-                              @PathParam("wid") wid: UInteger
-                            ): WorkflowWithPrivilege = {
+      @PathParam("wid") wid: UInteger
+  ): WorkflowWithPrivilege = {
     val workflow = workflowDao.ctx
       .selectFrom(WORKFLOW)
       .where(WORKFLOW.WID.eq(wid))
@@ -193,9 +199,9 @@ class HubWorkflowResource {
   @Path("/isLiked")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def isLiked(
-               @QueryParam("workflowId") workflowId: UInteger,
-               @QueryParam("userId") userId: UInteger
-             ): Boolean = {
+      @QueryParam("workflowId") workflowId: UInteger,
+      @QueryParam("userId") userId: UInteger
+  ): Boolean = {
     val existingLike = context
       .selectFrom(WORKFLOW_USER_LIKES)
       .where(
@@ -246,9 +252,9 @@ class HubWorkflowResource {
   @Path("/unlike")
   @Consumes(Array(MediaType.APPLICATION_JSON))
   def unlikeWorkflow(
-                      @Context request: HttpServletRequest,
-                      likeRequest: Array[UInteger]
-                    ): Boolean = {
+      @Context request: HttpServletRequest,
+      likeRequest: Array[UInteger]
+  ): Boolean = {
     if (likeRequest.length != 2) {
       return false
     }

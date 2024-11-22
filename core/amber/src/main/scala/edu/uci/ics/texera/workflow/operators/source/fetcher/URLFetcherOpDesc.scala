@@ -33,8 +33,7 @@ class URLFetcherOpDesc extends SourceOperatorDescriptor {
         "URL content",
         if (decodingMethod == DecodingMethod.UTF_8) {
           AttributeType.STRING
-        }
-        else {
+        } else {
           AttributeType.ANY
         }
       )
@@ -42,9 +41,9 @@ class URLFetcherOpDesc extends SourceOperatorDescriptor {
   }
 
   override def getPhysicalOp(
-                              workflowId: WorkflowIdentity,
-                              executionId: ExecutionIdentity
-                            ): PhysicalOp = {
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity
+  ): PhysicalOp = {
     PhysicalOp
       .sourcePhysicalOp(
         workflowId,

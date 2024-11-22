@@ -1,7 +1,12 @@
 package edu.uci.ics.amber.engine.architecture.common
 
 import akka.actor.ActorRef
-import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.{CreditRequest, GetActorRef, NetworkMessage, RegisterActorRef}
+import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.{
+  CreditRequest,
+  GetActorRef,
+  NetworkMessage,
+  RegisterActorRef
+}
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
 import edu.uci.ics.amber.util.VirtualIdentityUtils

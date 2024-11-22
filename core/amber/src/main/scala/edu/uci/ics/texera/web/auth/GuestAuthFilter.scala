@@ -28,10 +28,10 @@ import javax.ws.rs.core.SecurityContext
     authenticate(requestContext, "", "")
 
   override protected def authenticate(
-                                       requestContext: ContainerRequestContext,
-                                       @Nullable credentials: String,
-                                       scheme: String
-                                     ): Boolean = {
+      requestContext: ContainerRequestContext,
+      @Nullable credentials: String,
+      scheme: String
+  ): Boolean = {
 
     val principal = Optional.of(new SessionUser(GUEST))
     val securityContext = requestContext.getSecurityContext

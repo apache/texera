@@ -13,13 +13,13 @@ import scala.collection.{Iterator, mutable}
 import scala.jdk.CollectionConverters.ListHasAsScala
 
 class TwitterSearchSourceOpExec(
-                                 apiKey: String,
-                                 apiSecretKey: String,
-                                 stopWhenRateLimited: Boolean,
-                                 searchQuery: String,
-                                 limit: Int,
-                                 schemaFunc: () => Schema
-                               ) extends TwitterSourceOpExec(apiKey, apiSecretKey, stopWhenRateLimited) {
+    apiKey: String,
+    apiSecretKey: String,
+    stopWhenRateLimited: Boolean,
+    searchQuery: String,
+    limit: Int,
+    schemaFunc: () => Schema
+) extends TwitterSourceOpExec(apiKey, apiSecretKey, stopWhenRateLimited) {
   val outputSchema: Schema = schemaFunc()
   var curLimit: Int = limit
   // nextToken is used to retrieve next page of results, if exists.
@@ -63,9 +63,9 @@ class TwitterSearchSourceOpExec(
     }
 
   private def queryForNextBatch(
-                                 query: String,
-                                 maxResults: Int
-                               ): Unit = {
+      query: String,
+      maxResults: Int
+  ): Unit = {
     def enforceRateLimit(): Unit = {
       // Twitter limit 1 request per second and 300 calls in 15 minutes for V2 FullArchiveSearch
       // If request too frequently, twitter will force the client wait for 5 minutes.

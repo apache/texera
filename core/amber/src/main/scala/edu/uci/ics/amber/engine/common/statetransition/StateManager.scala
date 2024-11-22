@@ -1,23 +1,26 @@
 package edu.uci.ics.amber.engine.common.statetransition
 
 import edu.uci.ics.amber.core.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.statetransition.StateManager.{InvalidStateException, InvalidTransitionException}
+import edu.uci.ics.amber.engine.common.statetransition.StateManager.{
+  InvalidStateException,
+  InvalidTransitionException
+}
 import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
 
 object StateManager {
 
   case class InvalidStateException(msg: String, actorId: ActorVirtualIdentity)
-    extends WorkflowRuntimeException(msg, Some(actorId))
+      extends WorkflowRuntimeException(msg, Some(actorId))
 
   case class InvalidTransitionException(msg: String, actorId: ActorVirtualIdentity)
-    extends WorkflowRuntimeException(msg, Some(actorId))
+      extends WorkflowRuntimeException(msg, Some(actorId))
 }
 
 class StateManager[T](
-                       actorId: ActorVirtualIdentity,
-                       stateTransitionGraph: Map[T, Set[T]],
-                       initialState: T
-                     ) extends Serializable {
+    actorId: ActorVirtualIdentity,
+    stateTransitionGraph: Map[T, Set[T]],
+    initialState: T
+) extends Serializable {
 
   private var currentState: T = initialState
 

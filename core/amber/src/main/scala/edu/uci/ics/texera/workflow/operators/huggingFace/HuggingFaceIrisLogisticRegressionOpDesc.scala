@@ -38,11 +38,11 @@ class HuggingFaceIrisLogisticRegressionOpDesc extends PythonOperatorDescriptor {
   var predictionProbabilityName: String = _
 
   /**
-   * Python code to apply a pre-trained liner regression model on the Iris dataset.
-   * For more info about the model, see https://huggingface.co/sadhaklal/logistic-regression-iris.
-   *
-   * @return a String representation of the executable Python source code.
-   */
+    * Python code to apply a pre-trained liner regression model on the Iris dataset.
+    * For more info about the model, see https://huggingface.co/sadhaklal/logistic-regression-iris.
+    *
+    * @return a String representation of the executable Python source code.
+    */
   override def generatePythonCode(): String = {
     s"""from pytexera import *
        |import numpy as np
@@ -94,7 +94,7 @@ class HuggingFaceIrisLogisticRegressionOpDesc extends PythonOperatorDescriptor {
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     if (
       predictionClassName == null || predictionClassName.trim.isEmpty ||
-        predictionProbabilityName == null || predictionProbabilityName.trim.isEmpty
+      predictionProbabilityName == null || predictionProbabilityName.trim.isEmpty
     )
       throw new RuntimeException("Result attribute name should not be empty")
     Schema

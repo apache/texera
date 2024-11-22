@@ -20,26 +20,26 @@ object UserQuotaResource {
   final private lazy val context = SqlServer.createDSLContext()
 
   case class Workflow(
-                       userId: UInteger,
-                       workflowId: UInteger,
-                       workflowName: String,
-                       creationTime: Long,
-                       lastModifiedTime: Long
-                     )
+      userId: UInteger,
+      workflowId: UInteger,
+      workflowName: String,
+      creationTime: Long,
+      lastModifiedTime: Long
+  )
 
   case class DatasetQuota(
-                           did: UInteger,
-                           name: String,
-                           creationTime: Long,
-                           size: Long
-                         )
+      did: UInteger,
+      name: String,
+      creationTime: Long,
+      size: Long
+  )
 
   case class MongoStorage(
-                           workflowName: String,
-                           size: Double,
-                           pointer: String,
-                           eid: UInteger
-                         )
+      workflowName: String,
+      size: Double,
+      pointer: String,
+      eid: UInteger
+  )
 
   def getDatabaseSize(collectionNames: Array[MongoStorage]): Array[MongoStorage] = {
     var count = 0
@@ -58,15 +58,14 @@ object UserQuotaResource {
     collectionNames
   }
 
-
   def getCollectionName(result: String): String = {
 
     /**
-     * Get the Collection Name from
-     * {"results":["1_TextInput-operator-6c3be22b-b2e2-4896-891c-cfa849638e5c"]}
-     * to
-     * 1_TextInput-operator-6c3be22b-b2e2-4896-891c-cfa849638e5c
-     */
+      * Get the Collection Name from
+      * {"results":["1_TextInput-operator-6c3be22b-b2e2-4896-891c-cfa849638e5c"]}
+      * to
+      * 1_TextInput-operator-6c3be22b-b2e2-4896-891c-cfa849638e5c
+      */
 
     var quoteCount = 0
     var name = ""

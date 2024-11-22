@@ -23,7 +23,7 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import scala.concurrent.duration._
 
 class PauseSpec
-  extends TestKit(ActorSystem("PauseSpec", AmberRuntime.akkaConfig))
+    extends TestKit(ActorSystem("PauseSpec", AmberRuntime.akkaConfig))
     with ImplicitSender
     with AnyFlatSpecLike
     with BeforeAndAfterAll {
@@ -42,9 +42,9 @@ class PauseSpec
   }
 
   def shouldPause(
-                   operators: List[LogicalOp],
-                   links: List[LogicalLink]
-                 ): Unit = {
+      operators: List[LogicalOp],
+      links: List[LogicalLink]
+  ): Unit = {
     val resultStorage = new OpResultStorage()
     val workflow = TestUtils.buildWorkflow(operators, links, resultStorage, new WorkflowContext())
     val client =

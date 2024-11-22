@@ -6,14 +6,18 @@ import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
-import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstants, VisualizationOperator}
+import edu.uci.ics.texera.workflow.operators.visualization.{
+  VisualizationConstants,
+  VisualizationOperator
+}
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
+
 /**
- * Visualization Operator for Ternary Plots.
- *
- * This operator uses three data fields to construct a ternary plot.
- * The points can optionally be color coded using a data field.
- */
+  * Visualization Operator for Ternary Plots.
+  *
+  * This operator uses three data fields to construct a ternary plot.
+  * The points can optionally be color coded using a data field.
+  */
 
 class TernaryPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
 

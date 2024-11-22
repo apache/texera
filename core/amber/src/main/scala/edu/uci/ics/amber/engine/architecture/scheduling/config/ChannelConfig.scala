@@ -1,16 +1,24 @@
 package edu.uci.ics.amber.engine.architecture.scheduling.config
 
-import edu.uci.ics.amber.core.workflow.{BroadcastPartition, HashPartition, OneToOnePartition, PartitionInfo, RangePartition, SinglePartition, UnknownPartition}
+import edu.uci.ics.amber.core.workflow.{
+  BroadcastPartition,
+  HashPartition,
+  OneToOnePartition,
+  PartitionInfo,
+  RangePartition,
+  SinglePartition,
+  UnknownPartition
+}
 import edu.uci.ics.amber.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.workflow.PortIdentity
 
 case object ChannelConfig {
   def generateChannelConfigs(
-                              fromWorkerIds: List[ActorVirtualIdentity],
-                              toWorkerIds: List[ActorVirtualIdentity],
-                              toPortId: PortIdentity,
-                              partitionInfo: PartitionInfo
-                            ): List[ChannelConfig] = {
+      fromWorkerIds: List[ActorVirtualIdentity],
+      toWorkerIds: List[ActorVirtualIdentity],
+      toPortId: PortIdentity,
+      partitionInfo: PartitionInfo
+  ): List[ChannelConfig] = {
     partitionInfo match {
       case HashPartition(_) | RangePartition(_, _, _) | BroadcastPartition() | UnknownPartition() =>
         fromWorkerIds.flatMap(fromWorkerId =>
@@ -38,6 +46,6 @@ case object ChannelConfig {
 }
 
 case class ChannelConfig(
-                          channelId: ChannelIdentity,
-                          toPortId: PortIdentity
-                        )
+    channelId: ChannelIdentity,
+    toPortId: PortIdentity
+)

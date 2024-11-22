@@ -16,7 +16,7 @@ class NetworkInputGatewaySpec extends AnyFlatSpec with MockFactory {
       Array(
         TupleLike(i) enforceSchema (
           Schema.builder().add("field1", AttributeType.INTEGER).build()
-          )
+        )
       )
     )
   }.toArray

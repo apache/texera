@@ -5,16 +5,19 @@ import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.texera.web.SubscriptionManager
 import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
 import edu.uci.ics.texera.web.model.websocket.request.ModifyLogicRequest
-import edu.uci.ics.texera.web.model.websocket.response.{ModifyLogicCompletedEvent, ModifyLogicResponse}
+import edu.uci.ics.texera.web.model.websocket.response.{
+  ModifyLogicCompletedEvent,
+  ModifyLogicResponse
+}
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
 
 import scala.util.{Failure, Success}
 
 class ExecutionReconfigurationService(
-                                       client: AmberClient,
-                                       stateStore: ExecutionStateStore,
-                                       workflow: Workflow
-                                     ) extends SubscriptionManager {
+    client: AmberClient,
+    stateStore: ExecutionStateStore,
+    workflow: Workflow
+) extends SubscriptionManager {
 
   // monitors notification from the engine that a reconfiguration on a worker is completed
   //  client.registerCallback[UpdateExecutorCompleted]((evt: UpdateExecutorCompleted) => {
@@ -29,7 +32,7 @@ class ExecutionReconfigurationService(
     stateStore.reconfigurationStore.registerDiffHandler((oldState, newState) => {
       if (
         oldState.completedReconfigurations != newState.completedReconfigurations
-          && oldState.currentReconfigId == newState.currentReconfigId
+        && oldState.currentReconfigId == newState.currentReconfigId
       ) {
         val diff = newState.completedReconfigurations -- oldState.completedReconfigurations
         val newlyCompletedOps = diff

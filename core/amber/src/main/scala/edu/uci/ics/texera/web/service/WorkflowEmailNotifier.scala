@@ -12,10 +12,10 @@ import java.time.format.DateTimeFormatter
 import java.time.{Instant, ZoneOffset}
 
 class WorkflowEmailNotifier(
-                             workflowId: Long,
-                             userEmail: String,
-                             sessionUri: URI
-                           ) extends EmailNotifier {
+    workflowId: Long,
+    userEmail: String,
+    sessionUri: URI
+) extends EmailNotifier {
   private val workflowName = WorkflowResource.getWorkflowName(UInteger.valueOf(workflowId))
   private val emailValidator = new EmailValidator()
   private val CompletedPausedOrTerminatedStates: Set[WorkflowAggregatedState] = Set(
@@ -26,9 +26,9 @@ class WorkflowEmailNotifier(
   )
 
   override def shouldSendEmail(
-                                oldState: WorkflowAggregatedState,
-                                newState: WorkflowAggregatedState
-                              ): Boolean = {
+      oldState: WorkflowAggregatedState,
+      newState: WorkflowAggregatedState
+  ): Boolean = {
     oldState == RUNNING && CompletedPausedOrTerminatedStates.contains(newState)
   }
 

@@ -11,8 +11,7 @@ import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttribute
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc
 
-@JsonSchemaInject(json =
-  """
+@JsonSchemaInject(json = """
 {
   "attributeTypeRules": {
     "attribute": {
@@ -36,9 +35,9 @@ class SentimentAnalysisOpDesc extends MapOpDesc {
   var resultAttribute: String = _
 
   override def getPhysicalOp(
-                              workflowId: WorkflowIdentity,
-                              executionId: ExecutionIdentity
-                            ): PhysicalOp = {
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity
+  ): PhysicalOp = {
     if (attribute == null)
       throw new RuntimeException("sentiment analysis: attribute is null")
 

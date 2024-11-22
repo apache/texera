@@ -26,9 +26,9 @@ class PostgreSQLSourceOpDesc extends SQLSourceOpDesc {
   override def getKeywords: Option[String] = super.getKeywords
 
   override def getPhysicalOp(
-                              workflowId: WorkflowIdentity,
-                              executionId: ExecutionIdentity
-                            ): PhysicalOp =
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity
+  ): PhysicalOp =
     PhysicalOp
       .sourcePhysicalOp(
         workflowId,

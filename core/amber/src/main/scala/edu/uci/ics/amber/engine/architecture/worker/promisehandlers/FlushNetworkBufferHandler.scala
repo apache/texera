@@ -9,9 +9,9 @@ trait FlushNetworkBufferHandler {
   this: DataProcessorRPCHandlerInitializer =>
 
   override def flushNetworkBuffer(
-                                   request: EmptyRequest,
-                                   ctx: AsyncRPCContext
-                                 ): Future[EmptyReturn] = {
+      request: EmptyRequest,
+      ctx: AsyncRPCContext
+  ): Future[EmptyReturn] = {
     dp.outputManager.flush()
     EmptyReturn()
   }

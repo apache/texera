@@ -32,9 +32,9 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
 
   @throws[IOException]
   override def getPhysicalOp(
-                              workflowId: WorkflowIdentity,
-                              executionId: ExecutionIdentity
-                            ): PhysicalOp = {
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity
+  ): PhysicalOp = {
     // fill in default values
     if (customDelimiter.isEmpty || customDelimiter.get.isEmpty)
       customDelimiter = Option(",")
@@ -64,10 +64,10 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
   }
 
   /**
-   * Infer Texera.Schema based on the top few lines of data.
-   *
-   * @return Texera.Schema build for this operator
-   */
+    * Infer Texera.Schema based on the top few lines of data.
+    *
+    * @return Texera.Schema build for this operator
+    */
   @Override
   def inferSchema(): Schema = {
     if (customDelimiter.isEmpty || fileUri.isEmpty) {

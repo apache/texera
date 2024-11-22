@@ -5,12 +5,12 @@ import java.sql.{Connection, DriverManager, SQLException}
 object MySQLConnUtil {
   @throws[SQLException]
   def connect(
-               host: String,
-               port: String,
-               database: String,
-               username: String,
-               password: String
-             ): Connection = {
+      host: String,
+      port: String,
+      database: String,
+      username: String,
+      password: String
+  ): Connection = {
     val url =
       "jdbc:mysql://" + host + ":" + port + "/" + database + "?autoReconnect=true&useSSL=true"
     val connection = DriverManager.getConnection(url, username, password)

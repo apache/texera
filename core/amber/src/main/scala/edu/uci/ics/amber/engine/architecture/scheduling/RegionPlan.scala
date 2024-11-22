@@ -7,9 +7,9 @@ import org.jgrapht.traverse.TopologicalOrderIterator
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
 case class RegionPlan(
-                       regions: Set[Region],
-                       regionLinks: Set[RegionLink]
-                     ) {
+    regions: Set[Region],
+    regionLinks: Set[RegionLink]
+) {
 
   @transient lazy val dag: DirectedAcyclicGraph[RegionIdentity, RegionLink] = {
     val jgraphtDag = new DirectedAcyclicGraph[RegionIdentity, RegionLink](classOf[RegionLink])

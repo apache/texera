@@ -16,10 +16,10 @@ trait Partitioner extends Serializable {
 }
 
 class NetworkOutputBuffer(
-                           val to: ActorVirtualIdentity,
-                           val dataOutputPort: NetworkOutputGateway,
-                           val batchSize: Int = AmberConfig.defaultDataTransferBatchSize
-                         ) {
+    val to: ActorVirtualIdentity,
+    val dataOutputPort: NetworkOutputGateway,
+    val batchSize: Int = AmberConfig.defaultDataTransferBatchSize
+) {
 
   var buffer = new ArrayBuffer[Tuple]()
 

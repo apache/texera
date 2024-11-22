@@ -5,7 +5,7 @@ import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.HashBas
 import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
 
 case class HashBasedShufflePartitioner(partitioning: HashBasedShufflePartitioning)
-  extends Partitioner {
+    extends Partitioner {
 
   private val receivers = partitioning.channels.map(_.toWorkerId).distinct
 

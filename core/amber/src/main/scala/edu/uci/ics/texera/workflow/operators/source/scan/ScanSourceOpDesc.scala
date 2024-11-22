@@ -15,8 +15,8 @@ import java.net.URI
 abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
 
   /** in the case we do not want to read the entire large file, but only
-   * the first a few lines of it to do the type inference.
-   */
+    * the first a few lines of it to do the type inference.
+    */
   @JsonIgnore
   var INFER_READ_LIMIT: Int = 100
 

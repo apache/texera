@@ -9,24 +9,24 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCHandlerInitializer
 import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
 
 class ControllerAsyncRPCHandlerInitializer(
-                                            val cp: ControllerProcessor
-                                          ) extends AsyncRPCHandlerInitializer(cp.asyncRPCClient, cp.asyncRPCServer)
-  with ControllerServiceFs2Grpc[Future, AsyncRPCContext]
-  with AmberLogging
-  with LinkWorkersHandler
-  with WorkerExecutionCompletedHandler
-  with WorkerStateUpdatedHandler
-  with PauseHandler
-  with QueryWorkerStatisticsHandler
-  with ResumeHandler
-  with StartWorkflowHandler
-  with PortCompletedHandler
-  with ConsoleMessageHandler
-  with RetryWorkflowHandler
-  with EvaluatePythonExpressionHandler
-  with DebugCommandHandler
-  with TakeGlobalCheckpointHandler
-  with ChannelMarkerHandler
-  with RetrieveWorkflowStateHandler {
+    val cp: ControllerProcessor
+) extends AsyncRPCHandlerInitializer(cp.asyncRPCClient, cp.asyncRPCServer)
+    with ControllerServiceFs2Grpc[Future, AsyncRPCContext]
+    with AmberLogging
+    with LinkWorkersHandler
+    with WorkerExecutionCompletedHandler
+    with WorkerStateUpdatedHandler
+    with PauseHandler
+    with QueryWorkerStatisticsHandler
+    with ResumeHandler
+    with StartWorkflowHandler
+    with PortCompletedHandler
+    with ConsoleMessageHandler
+    with RetryWorkflowHandler
+    with EvaluatePythonExpressionHandler
+    with DebugCommandHandler
+    with TakeGlobalCheckpointHandler
+    with ChannelMarkerHandler
+    with RetrieveWorkflowStateHandler {
   val actorId: ActorVirtualIdentity = cp.actorId
 }

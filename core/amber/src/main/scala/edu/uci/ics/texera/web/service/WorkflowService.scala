@@ -6,11 +6,21 @@ import edu.uci.ics.amber.core.WorkflowRuntimeException
 import edu.uci.ics.amber.core.storage.result.OpResultStorage
 import edu.uci.ics.amber.core.workflow.WorkflowContext
 import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{COMPLETED, FAILED}
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{FaultToleranceConfig, StateRestoreConfig}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
+  COMPLETED,
+  FAILED
+}
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
+  FaultToleranceConfig,
+  StateRestoreConfig
+}
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.error.ErrorUtils.{getOperatorFromActorIdOpt, getStackTraceWithAllCauses}
-import edu.uci.ics.amber.virtualidentity.{ChannelMarkerIdentity, ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.virtualidentity.{
+  ChannelMarkerIdentity,
+  ExecutionIdentity,
+  WorkflowIdentity
+}
 import edu.uci.ics.amber.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
 import edu.uci.ics.amber.workflowruntimestate.WorkflowFatalError
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
@@ -42,9 +52,9 @@ object WorkflowService {
   }
 
   def getOrCreate(
-                   workflowId: WorkflowIdentity,
-                   cleanupTimeout: Int = cleanUpDeadlineInSeconds
-                 ): WorkflowService = {
+      workflowId: WorkflowIdentity,
+      cleanupTimeout: Int = cleanUpDeadlineInSeconds
+  ): WorkflowService = {
     workflowServiceMapping.compute(
       mkWorkflowStateId(workflowId),
       (_, v) => {
@@ -59,10 +69,10 @@ object WorkflowService {
 }
 
 class WorkflowService(
-                       val workflowId: WorkflowIdentity,
-                       cleanUpTimeout: Int
-                     ) extends SubscriptionManager
-  with LazyLogging {
+    val workflowId: WorkflowIdentity,
+    cleanUpTimeout: Int
+) extends SubscriptionManager
+    with LazyLogging {
   // state across execution:
   var opResultStorage: OpResultStorage = new OpResultStorage()
   private val errorSubject = BehaviorSubject.create[TexeraWebSocketEvent]().toSerialized
@@ -89,16 +99,18 @@ class WorkflowService(
 
   var lastCompletedLogicalPlan: Option[LogicalPlan] = Option.empty
 
-  executionService.subscribe { executionService: WorkflowExecutionService => {
-    executionService.executionStateStore.metadataStore.registerDiffHandler {
-      (oldState, newState) => {
-        if (oldState.state != COMPLETED && newState.state == COMPLETED) {
-          lastCompletedLogicalPlan = Option.apply(executionService.workflow.logicalPlan)
-        }
-        Iterable.empty
+  executionService.subscribe { executionService: WorkflowExecutionService =>
+    {
+      executionService.executionStateStore.metadataStore.registerDiffHandler {
+        (oldState, newState) =>
+          {
+            if (oldState.state != COMPLETED && newState.state == COMPLETED) {
+              lastCompletedLogicalPlan = Option.apply(executionService.workflow.logicalPlan)
+            }
+            Iterable.empty
+          }
       }
     }
-  }
   }
 
   def connect(onNext: TexeraWebSocketEvent => Unit): Disposable = {
@@ -138,10 +150,10 @@ class WorkflowService(
   }
 
   def initExecutionService(
-                            req: WorkflowExecuteRequest,
-                            userOpt: Option[User],
-                            sessionUri: URI
-                          ): Unit = {
+      req: WorkflowExecuteRequest,
+      userOpt: Option[User],
+      sessionUri: URI
+  ): Unit = {
     val (uidOpt, userEmailOpt) = userOpt.map(user => (user.getUid, user.getEmail)).unzip
 
     val workflowContext: WorkflowContext = createWorkflowContext()
@@ -190,31 +202,32 @@ class WorkflowService(
     executionStateStore.metadataStore.updateState(state =>
       state.withExecutionId(workflowContext.executionId)
     )
-    val errorHandler: Throwable => Unit = { t => {
-      val fromActorOpt = t match {
-        case ex: WorkflowRuntimeException =>
-          ex.relatedWorkerId
-        case other =>
-          None
-      }
-      val (operatorId, workerId) = getOperatorFromActorIdOpt(fromActorOpt)
-      logger.error("error during execution", t)
-      executionStateStore.statsStore.updateState(stats =>
-        stats.withEndTimeStamp(System.currentTimeMillis())
-      )
-      executionStateStore.metadataStore.updateState { metadataStore =>
-        updateWorkflowState(FAILED, metadataStore).addFatalErrors(
-          WorkflowFatalError(
-            EXECUTION_FAILURE,
-            Timestamp(Instant.now),
-            t.toString,
-            getStackTraceWithAllCauses(t),
-            operatorId,
-            workerId
-          )
+    val errorHandler: Throwable => Unit = { t =>
+      {
+        val fromActorOpt = t match {
+          case ex: WorkflowRuntimeException =>
+            ex.relatedWorkerId
+          case other =>
+            None
+        }
+        val (operatorId, workerId) = getOperatorFromActorIdOpt(fromActorOpt)
+        logger.error("error during execution", t)
+        executionStateStore.statsStore.updateState(stats =>
+          stats.withEndTimeStamp(System.currentTimeMillis())
         )
+        executionStateStore.metadataStore.updateState { metadataStore =>
+          updateWorkflowState(FAILED, metadataStore).addFatalErrors(
+            WorkflowFatalError(
+              EXECUTION_FAILURE,
+              Timestamp(Instant.now),
+              t.toString,
+              getStackTraceWithAllCauses(t),
+              operatorId,
+              workerId
+            )
+          )
+        }
       }
-    }
     }
 
     // clean up results from previous run

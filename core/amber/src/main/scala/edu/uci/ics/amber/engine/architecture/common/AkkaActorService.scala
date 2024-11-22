@@ -34,10 +34,10 @@ class AkkaActorService(val id: ActorVirtualIdentity, actorContext: ActorContext)
   }
 
   def scheduleWithFixedDelay(
-                              initialDelay: FiniteDuration,
-                              delay: FiniteDuration,
-                              callable: () => Unit
-                            ): Cancellable = {
+      initialDelay: FiniteDuration,
+      delay: FiniteDuration,
+      callable: () => Unit
+  ): Cancellable = {
     actorContext.system.scheduler.scheduleWithFixedDelay(initialDelay, delay)(() => callable())
   }
 
@@ -46,10 +46,10 @@ class AkkaActorService(val id: ActorVirtualIdentity, actorContext: ActorContext)
   }
 
   def sendToSelfWithFixedDelay(
-                                initialDelay: FiniteDuration,
-                                delay: FiniteDuration,
-                                msg: Any
-                              ): Cancellable = {
+      initialDelay: FiniteDuration,
+      delay: FiniteDuration,
+      msg: Any
+  ): Cancellable = {
     actorContext.system.scheduler.scheduleWithFixedDelay(
       initialDelay,
       delay,

@@ -4,8 +4,8 @@ import edu.uci.ics.amber.core.executor.OperatorExecutor
 import edu.uci.ics.amber.core.tuple.{Tuple, TupleLike}
 
 /**
- * URL Visualization operator to render any given URL link
- */
+  * URL Visualization operator to render any given URL link
+  */
 class UrlVizOpExec(urlContentAttrName: String) extends OperatorExecutor {
 
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {

@@ -13,14 +13,14 @@ case class ExecutionStateUpdate(state: WorkflowAggregatedState) extends ClientEv
 case class ExecutionStatsUpdate(operatorMetrics: Map[String, OperatorMetrics]) extends ClientEvent
 
 case class ReportCurrentProcessingTuple(
-                                         operatorID: String,
-                                         tuple: Array[(Tuple, ActorVirtualIdentity)]
-                                       ) extends ClientEvent
+    operatorID: String,
+    tuple: Array[(Tuple, ActorVirtualIdentity)]
+) extends ClientEvent
 
 case class WorkerAssignmentUpdate(workerMapping: Map[String, Seq[String]]) extends ClientEvent
 
 final case class FatalError(e: Throwable, fromActor: Option[ActorVirtualIdentity] = None)
-  extends ClientEvent
+    extends ClientEvent
 
 case class UpdateExecutorCompleted(id: ActorVirtualIdentity) extends ClientEvent
 

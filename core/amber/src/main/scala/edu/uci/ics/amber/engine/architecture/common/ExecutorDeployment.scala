@@ -8,17 +8,23 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.AddressInfo
 import edu.uci.ics.amber.engine.architecture.pythonworker.PythonWorkflowWorker
 import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{FaultToleranceConfig, StateRestoreConfig, WorkerReplayInitialization}
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
+  FaultToleranceConfig,
+  StateRestoreConfig,
+  WorkerReplayInitialization
+}
 import edu.uci.ics.amber.util.VirtualIdentityUtils
 
 object ExecutorDeployment {
 
-  def createWorkers(op:PhysicalOp,
-                    controllerActorService: AkkaActorService,
-                    operatorExecution: OperatorExecution,
-                    operatorConfig: OperatorConfig,
-                    stateRestoreConfig: Option[StateRestoreConfig],
-                    replayLoggingConfig: Option[FaultToleranceConfig]):Unit ={
+  def createWorkers(
+      op: PhysicalOp,
+      controllerActorService: AkkaActorService,
+      operatorExecution: OperatorExecution,
+      operatorConfig: OperatorConfig,
+      stateRestoreConfig: Option[StateRestoreConfig],
+      replayLoggingConfig: Option[FaultToleranceConfig]
+  ): Unit = {
 
     val addressInfo = AddressInfo(
       controllerActorService.getClusterNodeAddresses,

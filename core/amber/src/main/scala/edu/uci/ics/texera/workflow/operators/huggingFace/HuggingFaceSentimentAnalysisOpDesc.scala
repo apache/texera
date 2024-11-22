@@ -81,8 +81,8 @@ class HuggingFaceSentimentAnalysisOpDesc extends PythonOperatorDescriptor {
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     if (
       resultAttributePositive == null || resultAttributePositive.trim.isEmpty ||
-        resultAttributeNeutral == null || resultAttributeNeutral.trim.isEmpty ||
-        resultAttributeNegative == null || resultAttributeNegative.trim.isEmpty
+      resultAttributeNeutral == null || resultAttributeNeutral.trim.isEmpty ||
+      resultAttributeNegative == null || resultAttributeNegative.trim.isEmpty
     )
       return null
     Schema

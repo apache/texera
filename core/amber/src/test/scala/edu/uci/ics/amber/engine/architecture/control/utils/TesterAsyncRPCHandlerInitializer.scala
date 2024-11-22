@@ -8,17 +8,17 @@ import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCHandlerInitializer, AsyncRPC
 import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
 
 class TesterAsyncRPCHandlerInitializer(
-                                        val myID: ActorVirtualIdentity,
-                                        source: ControlTesterRPCClient,
-                                        receiver: AsyncRPCServer
-                                      ) extends AsyncRPCHandlerInitializer(source, receiver)
-  with RPCTesterFs2Grpc[Future, AsyncRPCContext]
-  with PingPongHandler
-  with ChainHandler
-  with MultiCallHandler
-  with CollectHandler
-  with NestedHandler
-  with RecursionHandler
-  with ErrorHandler {
+    val myID: ActorVirtualIdentity,
+    source: ControlTesterRPCClient,
+    receiver: AsyncRPCServer
+) extends AsyncRPCHandlerInitializer(source, receiver)
+    with RPCTesterFs2Grpc[Future, AsyncRPCContext]
+    with PingPongHandler
+    with ChainHandler
+    with MultiCallHandler
+    with CollectHandler
+    with NestedHandler
+    with RecursionHandler
+    with ErrorHandler {
   def getProxy: RPCTesterFs2Grpc[Future, AsyncRPCContext] = source.getProxy
 }

@@ -2,7 +2,12 @@ package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue._
 import edu.uci.ics.amber.engine.common.actormessage.ActorCommand
-import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, ControlPayloadV2, DataFrame, DataPayload}
+import edu.uci.ics.amber.engine.common.ambermessage.{
+  ControlPayload,
+  ControlPayloadV2,
+  DataFrame,
+  DataPayload
+}
 import edu.uci.ics.amber.virtualidentity.ChannelIdentity
 import lbmq.LinkedBlockingMultiQueue
 
@@ -16,19 +21,19 @@ object WorkerBatchInternalQueue {
   sealed trait InternalQueueElement
 
   case class DataElement(dataPayload: DataPayload, from: ChannelIdentity)
-    extends InternalQueueElement
+      extends InternalQueueElement
 
   case class ControlElement(cmd: ControlPayload, from: ChannelIdentity) extends InternalQueueElement
 
   case class ControlElementV2(cmd: ControlPayloadV2, from: ChannelIdentity)
-    extends InternalQueueElement
+      extends InternalQueueElement
 
   case class ActorCommandElement(cmd: ActorCommand) extends InternalQueueElement
 }
 
 /** Inspired by the mailbox-ed thread, the internal queue should
- * be a part of DP thread.
- */
+  * be a part of DP thread.
+  */
 trait WorkerBatchInternalQueue {
 
   private val lbmq = new LinkedBlockingMultiQueue[Int, InternalQueueElement]()

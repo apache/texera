@@ -12,9 +12,9 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 
 class BulkDownloaderOpExec(
-                            workflowContext: WorkflowContext,
-                            urlAttribute: String
-                          ) extends OperatorExecutor {
+    workflowContext: WorkflowContext,
+    urlAttribute: String
+) extends OperatorExecutor {
 
   private val downloading = new mutable.Queue[Future[TupleLike]]()
 
@@ -60,10 +60,8 @@ class BulkDownloaderOpExec(
             case Some(contentStream) =>
               if (contentStream.available() > 0) {
                 val filename =
-                  s"w${workflowContext.workflowId.id}-e${workflowContext.executionId.id}-${
-                    urlObj.getHost
-                      .replace(".", "")
-                  }.download"
+                  s"w${workflowContext.workflowId.id}-e${workflowContext.executionId.id}-${urlObj.getHost
+                    .replace(".", "")}.download"
                 filename
               } else {
                 throw new RuntimeException(s"content is not available for $url")

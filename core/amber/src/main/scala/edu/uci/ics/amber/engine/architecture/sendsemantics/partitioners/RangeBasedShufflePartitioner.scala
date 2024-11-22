@@ -5,7 +5,7 @@ import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RangeBa
 import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
 
 case class RangeBasedShufflePartitioner(partitioning: RangeBasedShufflePartitioning)
-  extends Partitioner {
+    extends Partitioner {
 
   private val receivers = partitioning.channels.map(_.toWorkerId).distinct
   private val keysPerReceiver =

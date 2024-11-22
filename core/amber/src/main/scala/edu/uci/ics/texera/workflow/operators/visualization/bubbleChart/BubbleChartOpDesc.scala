@@ -6,13 +6,17 @@ import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
-import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstants, VisualizationOperator}
+import edu.uci.ics.texera.workflow.operators.visualization.{
+  VisualizationConstants,
+  VisualizationOperator
+}
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
+
 /**
- * Visualization Operator to visualize results as a Bubble Chart
- * User specifies 2 columns to use for the x, y labels. Size of bubbles determined via
- * third column of data. Bubbles can be sorted via color using a fourth column.
- */
+  * Visualization Operator to visualize results as a Bubble Chart
+  * User specifies 2 columns to use for the x, y labels. Size of bubbles determined via
+  * third column of data. Bubbles can be sorted via color using a fourth column.
+  */
 
 // type can be numerical only
 class BubbleChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor {

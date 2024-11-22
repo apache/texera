@@ -7,7 +7,7 @@ import edu.uci.ics.amber.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import scala.collection.mutable
 
 class PauseManager(val actorId: ActorVirtualIdentity, inputGateway: InputGateway)
-  extends AmberLogging {
+    extends AmberLogging {
 
   private val globalPauses = new mutable.HashSet[PauseType]()
   private val specificInputPauses = mutable.MultiDict[PauseType, ChannelIdentity]()

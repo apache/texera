@@ -13,14 +13,14 @@ import java.net.URI
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 import scala.util.{Failure, Success, Try}
 
-class JSONLScanSourceOpExec private[json](
-                                           fileUri: String,
-                                           fileEncoding: FileDecodingMethod,
-                                           startOffset: Int,
-                                           endOffset: Int,
-                                           flatten: Boolean,
-                                           schemaFunc: () => Schema
-                                         ) extends SourceOperatorExecutor {
+class JSONLScanSourceOpExec private[json] (
+    fileUri: String,
+    fileEncoding: FileDecodingMethod,
+    startOffset: Int,
+    endOffset: Int,
+    flatten: Boolean,
+    schemaFunc: () => Schema
+) extends SourceOperatorExecutor {
   private var schema: Schema = _
   private var rows: Iterator[String] = _
   private var reader: BufferedReader = _
@@ -35,7 +35,7 @@ class JSONLScanSourceOpExec private[json](
         TupleLike(fields: _*)
       } match {
         case Success(tuple) => Some(tuple)
-        case Failure(_) => None
+        case Failure(_)     => None
       }
     }
   }

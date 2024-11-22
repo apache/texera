@@ -16,9 +16,9 @@ class EmailNotificationService(emailNotifier: EmailNotifier) {
   private implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(executorService)
 
   def sendEmailNotification(
-                             oldState: WorkflowAggregatedState,
-                             newState: WorkflowAggregatedState
-                           ): Future[Unit] = {
+      oldState: WorkflowAggregatedState,
+      newState: WorkflowAggregatedState
+  ): Future[Unit] = {
     Future {
       if (emailNotifier.shouldSendEmail(oldState, newState)) {
         emailNotifier.sendStatusEmail(newState)

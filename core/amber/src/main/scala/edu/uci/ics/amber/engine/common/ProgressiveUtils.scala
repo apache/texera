@@ -28,16 +28,16 @@ object ProgressiveUtils {
   }
 
   def getTupleFlagAndValue(
-                            tuple: Tuple
-                          ): (Boolean, Tuple) = {
+      tuple: Tuple
+  ): (Boolean, Tuple) = {
     (
       isInsertion(tuple), {
-      val originalSchema = tuple.getSchema
-      val schema = originalSchema.getPartialSchema(
-        originalSchema.getAttributeNames.filterNot(_ == insertRetractFlagAttr.getName)
-      )
-      Tuple.builder(schema).add(tuple, isStrictSchemaMatch = false).build()
-    }
+        val originalSchema = tuple.getSchema
+        val schema = originalSchema.getPartialSchema(
+          originalSchema.getAttributeNames.filterNot(_ == insertRetractFlagAttr.getName)
+        )
+        Tuple.builder(schema).add(tuple, isStrictSchemaMatch = false).build()
+      }
     )
   }
 

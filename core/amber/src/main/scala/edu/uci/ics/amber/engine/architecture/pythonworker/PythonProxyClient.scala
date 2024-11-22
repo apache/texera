@@ -7,8 +7,15 @@ import edu.uci.ics.amber.core.WorkflowRuntimeException
 import edu.uci.ics.amber.core.executor.{OpExecInitInfo, OpExecInitInfoWithCode}
 import edu.uci.ics.amber.core.marker.State
 import edu.uci.ics.amber.core.tuple.{Schema, Tuple}
-import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{ActorCommandElement, ControlElement, DataElement}
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{ControlInvocation, InitializeExecutorRequest}
+import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{
+  ActorCommandElement,
+  ControlElement,
+  DataElement
+}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
+  ControlInvocation,
+  InitializeExecutorRequest
+}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ReturnInvocation
 import edu.uci.ics.amber.engine.common.actormessage.{ActorCommand, PythonActorMessage}
 import edu.uci.ics.amber.engine.common.ambermessage._
@@ -23,7 +30,7 @@ import java.util.concurrent.atomic.AtomicLong
 import scala.collection.mutable
 
 class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtualIdentity)
-  extends Runnable
+    extends Runnable
     with AmberLogging
     with AutoCloseable
     with WorkerBatchInternalQueue {
@@ -105,9 +112,9 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
   }
 
   def sendControl(
-                   from: ActorVirtualIdentity,
-                   payload: ControlPayload
-                 ): Result = {
+      from: ActorVirtualIdentity,
+      payload: ControlPayload
+  ): Result = {
     var payloadV2 = ControlPayloadV2.defaultInstance
     payloadV2 = payload match {
       case c: ControlInvocation =>
@@ -136,8 +143,8 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
   }
 
   def sendActorCommand(
-                        command: ActorCommand
-                      ): Result = {
+      command: ActorCommand
+  ): Result = {
     val action: Action = new Action("actor", PythonActorMessage(command).toByteArray)
     sendCreditedAction(action)
   }
@@ -162,10 +169,10 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
   }
 
   private def writeArrowStream(
-                                tuples: mutable.Queue[Tuple],
-                                from: ActorVirtualIdentity,
-                                payloadType: String
-                              ): Unit = {
+      tuples: mutable.Queue[Tuple],
+      from: ActorVirtualIdentity,
+      payloadType: String
+  ): Unit = {
 
     val schema = if (tuples.isEmpty) new Schema() else tuples.front.getSchema
     val descriptor = FlightDescriptor.command(PythonDataHeader(from, payloadType).toByteArray)

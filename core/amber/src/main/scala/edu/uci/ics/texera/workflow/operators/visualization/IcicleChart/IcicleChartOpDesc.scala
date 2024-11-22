@@ -8,11 +8,13 @@ import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttribute
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
 import edu.uci.ics.texera.workflow.operators.visualization.hierarchychart.HierarchySection
-import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstants, VisualizationOperator}
+import edu.uci.ics.texera.workflow.operators.visualization.{
+  VisualizationConstants,
+  VisualizationOperator
+}
 
 // type constraint: value can only be numeric
-@JsonSchemaInject(json =
-  """
+@JsonSchemaInject(json = """
 {
   "attributeTypeRules": {
     "value": {

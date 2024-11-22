@@ -11,7 +11,7 @@ import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration._
 
 class ExceptionBreakpointSpec
-  extends TestKit(ActorSystem("PrincipalSpec"))
+    extends TestKit(ActorSystem("PrincipalSpec"))
     with ImplicitSender
     with AnyFlatSpecLike
     with BeforeAndAfterAll {

@@ -10,14 +10,14 @@ import java.util
 import java.util.stream.{IntStream, Stream}
 import scala.collection.compat.immutable.ArraySeq
 
-class ParallelCSVScanSourceOpExec private[csv](
-                                                file: File,
-                                                customDelimiter: Option[String],
-                                                hasHeader: Boolean,
-                                                startOffset: Long,
-                                                endOffset: Long,
-                                                schemaFunc: () => Schema
-                                              ) extends SourceOperatorExecutor {
+class ParallelCSVScanSourceOpExec private[csv] (
+    file: File,
+    customDelimiter: Option[String],
+    hasHeader: Boolean,
+    startOffset: Long,
+    endOffset: Long,
+    schemaFunc: () => Schema
+) extends SourceOperatorExecutor {
   private var schema: Schema = _
   private var reader: BufferedBlockReader = _
 

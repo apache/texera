@@ -36,7 +36,7 @@ trait MockTexeraDB {
     var st: Statement = null
     try {
       st = conn.createStatement()
-      while ( {
+      while ({
         s.hasNext
       }) {
         var line = s.next

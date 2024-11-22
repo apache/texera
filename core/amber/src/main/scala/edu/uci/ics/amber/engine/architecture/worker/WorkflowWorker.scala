@@ -20,9 +20,9 @@ import scala.collection.mutable
 
 object WorkflowWorker {
   def props(
-             workerConfig: WorkerConfig,
-             replayInitialization: WorkerReplayInitialization
-           ): Props =
+      workerConfig: WorkerConfig,
+      replayInitialization: WorkerReplayInitialization
+  ): Props =
     Props(
       new WorkflowWorker(
         workerConfig,
@@ -43,9 +43,9 @@ object WorkflowWorker {
   final case class ActorCommandElement(cmd: ActorCommand) extends DPInputQueueElement
 
   final case class WorkerReplayInitialization(
-                                               restoreConfOpt: Option[StateRestoreConfig] = None,
-                                               faultToleranceConfOpt: Option[FaultToleranceConfig] = None
-                                             )
+      restoreConfOpt: Option[StateRestoreConfig] = None,
+      faultToleranceConfOpt: Option[FaultToleranceConfig] = None
+  )
 
   final case class StateRestoreConfig(readFrom: URI, replayDestination: ChannelMarkerIdentity)
 
@@ -53,9 +53,9 @@ object WorkflowWorker {
 }
 
 class WorkflowWorker(
-                      workerConfig: WorkerConfig,
-                      replayInitialization: WorkerReplayInitialization
-                    ) extends WorkflowActor(replayInitialization.faultToleranceConfOpt, workerConfig.workerId) {
+    workerConfig: WorkerConfig,
+    replayInitialization: WorkerReplayInitialization
+) extends WorkflowActor(replayInitialization.faultToleranceConfOpt, workerConfig.workerId) {
   val inputQueue: LinkedBlockingQueue[DPInputQueueElement] =
     new LinkedBlockingQueue()
   var dp = new DataProcessor(workerConfig.workerId, logManager.sendCommitted)

@@ -4,7 +4,10 @@ import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{PROJECT, PUBLIC_PROJECT, USER}
 import edu.uci.ics.texera.web.model.jooq.generated.enums.ProjectUserAccessPrivilege
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{ProjectUserAccessDao, PublicProjectDao}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
+  ProjectUserAccessDao,
+  PublicProjectDao
+}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{ProjectUserAccess, PublicProject}
 import io.dropwizard.auth.Auth
 import org.jooq.DSLContext
@@ -16,11 +19,11 @@ import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 
 case class DashboardPublicProject(
-                                   pid: UInteger,
-                                   name: String,
-                                   owner: String,
-                                   creationTime: Timestamp
-                                 ) {}
+    pid: UInteger,
+    name: String,
+    owner: String,
+    creationTime: Timestamp
+) {}
 
 @Path("/public/project")
 class PublicProjectResource {

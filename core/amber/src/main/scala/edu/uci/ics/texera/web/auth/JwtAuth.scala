@@ -17,7 +17,7 @@ object JwtAuth {
   final val TOKEN_EXPIRE_TIME_IN_DAYS = jwtConfig.getString("exp-in-days").toInt
   final val TOKEN_SECRET: String = jwtConfig.getString("256-bit-secret").toLowerCase() match {
     case "random" => getRandomHexString
-    case _ => jwtConfig.getString("256-bit-secret")
+    case _        => jwtConfig.getString("256-bit-secret")
   }
 
   val jwtConsumer: JwtConsumer = new JwtConsumerBuilder()

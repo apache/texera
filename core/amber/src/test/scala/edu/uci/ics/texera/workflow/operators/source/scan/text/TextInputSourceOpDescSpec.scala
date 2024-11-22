@@ -141,12 +141,12 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   /**
-   * Helper function using UTF-8 encoding to read text file
-   * into String
-   *
-   * @param filePath path of input file
-   * @return entire file represented as String
-   */
+    * Helper function using UTF-8 encoding to read text file
+    * into String
+    *
+    * @param filePath path of input file
+    * @return entire file represented as String
+    */
   def readFileIntoString(filePath: String): String = {
     val path: Path = Paths.get(filePath)
     new String(Files.readAllBytes(path), StandardCharsets.UTF_8)

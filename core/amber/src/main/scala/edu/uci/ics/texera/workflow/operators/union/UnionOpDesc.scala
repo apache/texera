@@ -12,9 +12,9 @@ import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 class UnionOpDesc extends LogicalOp {
 
   override def getPhysicalOp(
-                              workflowId: WorkflowIdentity,
-                              executionId: ExecutionIdentity
-                            ): PhysicalOp = {
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity
+  ): PhysicalOp = {
     PhysicalOp
       .oneToOnePhysicalOp(
         workflowId,

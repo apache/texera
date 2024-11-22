@@ -1,6 +1,10 @@
 package edu.uci.ics.amber.engine.architecture.common
 
-import edu.uci.ics.amber.engine.architecture.messaginglayer.{InputGateway, NetworkInputGateway, NetworkOutputGateway}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.{
+  InputGateway,
+  NetworkInputGateway,
+  NetworkOutputGateway
+}
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlInvocation
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ReturnInvocation
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
@@ -11,10 +15,10 @@ import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCServer}
 import edu.uci.ics.amber.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
 abstract class AmberProcessor(
-                               val actorId: ActorVirtualIdentity,
-                               @transient var outputHandler: Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit
-                             ) extends AmberLogging
-  with Serializable {
+    val actorId: ActorVirtualIdentity,
+    @transient var outputHandler: Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit
+) extends AmberLogging
+    with Serializable {
 
   /** FIFO & exactly once */
   val inputGateway: InputGateway = new NetworkInputGateway(this.actorId)
@@ -37,9 +41,9 @@ abstract class AmberProcessor(
   val statisticsManager: StatisticsManager = new StatisticsManager()
 
   def processControlPayload(
-                             channelId: ChannelIdentity,
-                             payload: ControlPayload
-                           ): Unit = {
+      channelId: ChannelIdentity,
+      payload: ControlPayload
+  ): Unit = {
     val controlProcessingStartTime = System.nanoTime();
     payload match {
       case invocation: ControlInvocation =>

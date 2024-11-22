@@ -2,7 +2,11 @@ package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
 import edu.uci.ics.amber.core.tuple.Tuple
-import edu.uci.ics.amber.engine.architecture.controller.{ControllerAsyncRPCHandlerInitializer, ExecutionStateUpdate, ExecutionStatsUpdate}
+import edu.uci.ics.amber.engine.architecture.controller.{
+  ControllerAsyncRPCHandlerInitializer,
+  ExecutionStateUpdate,
+  ExecutionStatsUpdate
+}
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, EmptyRequest}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{EmptyReturn, WorkerMetricsResponse}
 import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
@@ -10,9 +14,9 @@ import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
 import scala.collection.mutable
 
 /** pause the entire workflow
- *
- * possible sender: client, controller
- */
+  *
+  * possible sender: client, controller
+  */
 trait PauseHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 

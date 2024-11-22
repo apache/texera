@@ -6,14 +6,22 @@ import edu.uci.ics.amber.core.tuple.{AttributeType, Schema, Tuple, TupleLike}
 import edu.uci.ics.amber.core.workflow.WorkflowContext.DEFAULT_WORKFLOW_ID
 import edu.uci.ics.amber.engine.architecture.messaginglayer.WorkerTimerService
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, EmptyRequest}
-import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{METHOD_FLUSH_NETWORK_BUFFER, METHOD_OPEN_EXECUTOR}
+import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{
+  METHOD_FLUSH_NETWORK_BUFFER,
+  METHOD_OPEN_EXECUTOR
+}
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.READY
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, MarkerFrame, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.util.VirtualIdentityUtils
-import edu.uci.ics.amber.virtualidentity.{ActorVirtualIdentity, ChannelIdentity, OperatorIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.virtualidentity.{
+  ActorVirtualIdentity,
+  ChannelIdentity,
+  OperatorIdentity,
+  PhysicalOpIdentity
+}
 import edu.uci.ics.amber.workflow.PortIdentity
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterEach
@@ -57,25 +65,25 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     (executor.open _).expects().once()
     tuples.foreach { x =>
       (
-        (
-          tuple: Tuple,
-          input: Int
-        ) => executor.processTupleMultiPort(tuple, input)
-        )
+          (
+              tuple: Tuple,
+              input: Int
+          ) => executor.processTupleMultiPort(tuple, input)
+      )
         .expects(x, 0)
     }
     (
-      (
-        input: Int
-      ) => executor.produceStateOnFinish(input)
-      )
+        (
+          input: Int
+        ) => executor.produceStateOnFinish(input)
+    )
       .expects(0)
       .returning(None)
     (
-      (
-        input: Int
-      ) => executor.onFinishMultiPort(input)
-      )
+        (
+          input: Int
+        ) => executor.onFinishMultiPort(input)
+    )
       .expects(
         0
       )
@@ -121,25 +129,25 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     (executor.open _).expects().once()
     tuples.foreach { x =>
       (
-        (
-          tuple: Tuple,
-          input: Int
-        ) => executor.processTupleMultiPort(tuple, input)
-        )
+          (
+              tuple: Tuple,
+              input: Int
+          ) => executor.processTupleMultiPort(tuple, input)
+      )
         .expects(x, 0)
     }
     (
-      (
-        input: Int
-      ) => executor.produceStateOnFinish(input)
-      )
+        (
+          input: Int
+        ) => executor.produceStateOnFinish(input)
+    )
       .expects(0)
       .returning(None)
     (
-      (
-        input: Int
-      ) => executor.onFinishMultiPort(input)
-      )
+        (
+          input: Int
+        ) => executor.onFinishMultiPort(input)
+    )
       .expects(0)
     (adaptiveBatchingMonitor.startAdaptiveBatching _).expects().anyNumberOfTimes()
     dp.inputManager.addPort(inputPortId, schema)

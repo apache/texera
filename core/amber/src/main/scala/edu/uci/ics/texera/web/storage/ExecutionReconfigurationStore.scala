@@ -5,7 +5,7 @@ import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.workflow.common.operators.StateTransferFunc
 
 case class ExecutionReconfigurationStore(
-                                          currentReconfigId: Option[String] = None,
-                                          unscheduledReconfigurations: List[(PhysicalOp, Option[StateTransferFunc])] = List(),
-                                          completedReconfigurations: Set[ActorVirtualIdentity] = Set()
-                                        )
+    currentReconfigId: Option[String] = None,
+    unscheduledReconfigurations: List[(PhysicalOp, Option[StateTransferFunc])] = List(),
+    completedReconfigurations: Set[ActorVirtualIdentity] = Set()
+)

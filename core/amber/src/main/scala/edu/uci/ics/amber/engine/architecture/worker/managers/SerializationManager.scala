@@ -4,7 +4,12 @@ import edu.uci.ics.amber.core.executor.OpExecInitInfo.generateJavaOpExec
 import edu.uci.ics.amber.core.executor.{OpExecInitInfo, OperatorExecutor}
 import edu.uci.ics.amber.core.tuple.TupleLike
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.InitializeExecutorRequest
-import edu.uci.ics.amber.engine.common.{AmberLogging, AmberRuntime, CheckpointState, CheckpointSupport}
+import edu.uci.ics.amber.engine.common.{
+  AmberLogging,
+  AmberRuntime,
+  CheckpointState,
+  CheckpointSupport
+}
 import edu.uci.ics.amber.util.VirtualIdentityUtils
 import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.workflow.PortIdentity
@@ -19,8 +24,8 @@ class SerializationManager(val actorId: ActorVirtualIdentity) extends AmberLoggi
   }
 
   def restoreExecutorState(
-                            chkpt: CheckpointState
-                          ): (OperatorExecutor, Iterator[(TupleLike, Option[PortIdentity])]) = {
+      chkpt: CheckpointState
+  ): (OperatorExecutor, Iterator[(TupleLike, Option[PortIdentity])]) = {
     val opExecInitInfo: OpExecInitInfo = AmberRuntime.serde
       .deserialize(execInitMsg.opExecInitInfo.value.toByteArray, classOf[OpExecInitInfo])
       .get

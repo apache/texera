@@ -6,7 +6,10 @@ import edu.uci.ics.amber.core.marker.{EndOfInputChannel, StartOfInputChannel, St
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputGateway
 import edu.uci.ics.amber.engine.common.AmberLogging
-import edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.Value.{ControlInvocation => ControlInvocationV2, ReturnInvocation => ReturnInvocationV2}
+import edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.Value.{
+  ControlInvocation => ControlInvocationV2,
+  ReturnInvocation => ReturnInvocationV2
+}
 import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
 import org.apache.arrow.flight._
@@ -21,19 +24,19 @@ import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
 
 private class AmberProducer(
-                             actorId: ActorVirtualIdentity,
-                             outputPort: NetworkOutputGateway,
-                             promise: Promise[Int]
-                           ) extends NoOpFlightProducer {
+    actorId: ActorVirtualIdentity,
+    outputPort: NetworkOutputGateway,
+    promise: Promise[Int]
+) extends NoOpFlightProducer {
   var _portNumber: AtomicInteger = new AtomicInteger(0)
 
   def portNumber: AtomicInteger = _portNumber
 
   override def doAction(
-                         context: FlightProducer.CallContext,
-                         action: Action,
-                         listener: FlightProducer.StreamListener[Result]
-                       ): Unit = {
+      context: FlightProducer.CallContext,
+      action: Action,
+      listener: FlightProducer.StreamListener[Result]
+  ): Unit = {
     action.getType match {
       case "control" =>
         val pythonControlMessage = PythonControlMessage.parseFrom(action.getBody)
@@ -74,10 +77,10 @@ private class AmberProducer(
   }
 
   override def acceptPut(
-                          context: FlightProducer.CallContext,
-                          flightStream: FlightStream,
-                          ackStream: FlightProducer.StreamListener[PutResult]
-                        ): Runnable = { () =>
+      context: FlightProducer.CallContext,
+      flightStream: FlightStream,
+      ackStream: FlightProducer.StreamListener[PutResult]
+  ): Runnable = { () =>
     val dataHeader: PythonDataHeader = PythonDataHeader
       .parseFrom(flightStream.getDescriptor.getCommand)
     val to: ActorVirtualIdentity = dataHeader.tag
@@ -120,12 +123,12 @@ private class AmberProducer(
 }
 
 class PythonProxyServer(
-                         outputPort: NetworkOutputGateway,
-                         val actorId: ActorVirtualIdentity,
-                         promise: Promise[Int]
-                       ) extends Runnable
-  with AutoCloseable
-  with AmberLogging {
+    outputPort: NetworkOutputGateway,
+    val actorId: ActorVirtualIdentity,
+    promise: Promise[Int]
+) extends Runnable
+    with AutoCloseable
+    with AmberLogging {
   private lazy val portNumber: AtomicInteger = new AtomicInteger(getFreeLocalPort)
 
   def getPortNumber: AtomicInteger = portNumber
@@ -151,11 +154,11 @@ class PythonProxyServer(
   }
 
   /**
-   * Get a random free port.
-   *
-   * @return The port number.
-   * @throws IOException , might happen when getting a free port.
-   */
+    * Get a random free port.
+    *
+    * @return The port number.
+    * @throws IOException , might happen when getting a free port.
+    */
   @throws[IOException]
   private def getFreeLocalPort: Int = {
     var s: ServerSocket = null

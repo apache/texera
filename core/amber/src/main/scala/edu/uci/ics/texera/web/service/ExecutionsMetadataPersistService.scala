@@ -13,9 +13,9 @@ import org.jooq.types.UInteger
 import java.sql.Timestamp
 
 /**
- * This global object handles inserting a new entry to the DB to store metadata information about every workflow execution
- * It also updates the entry if an execution status is updated
- */
+  * This global object handles inserting a new entry to the DB to store metadata information about every workflow execution
+  * It also updates the entry if an execution status is updated
+  */
 object ExecutionsMetadataPersistService extends LazyLogging {
   final private lazy val context = SqlServer.createDSLContext()
   private val workflowExecutionsDao = new WorkflowExecutionsDao(
@@ -23,19 +23,19 @@ object ExecutionsMetadataPersistService extends LazyLogging {
   )
 
   /**
-   * This method inserts a new entry of a workflow execution in the database and returns the generated eId
-   *
-   * @param workflowId the given workflow
-   * @param uid        user id that initiated the execution
-   * @return generated execution ID
-   */
+    * This method inserts a new entry of a workflow execution in the database and returns the generated eId
+    *
+    * @param workflowId the given workflow
+    * @param uid        user id that initiated the execution
+    * @return generated execution ID
+    */
 
   def insertNewExecution(
-                          workflowId: WorkflowIdentity,
-                          uid: Option[UInteger],
-                          executionName: String,
-                          environmentVersion: String
-                        ): ExecutionIdentity = {
+      workflowId: WorkflowIdentity,
+      uid: Option[UInteger],
+      executionName: String,
+      environmentVersion: String
+  ): ExecutionIdentity = {
     if (!AmberConfig.isUserSystemEnabled) return DEFAULT_EXECUTION_ID
     // first retrieve the latest version of this workflow
     val vid = getLatestVersion(UInteger.valueOf(workflowId.id))
@@ -63,8 +63,8 @@ object ExecutionsMetadataPersistService extends LazyLogging {
   }
 
   def tryUpdateExistingExecution(
-                                  executionId: ExecutionIdentity
-                                )(updateFunc: WorkflowExecutions => Unit): Unit = {
+      executionId: ExecutionIdentity
+  )(updateFunc: WorkflowExecutions => Unit): Unit = {
     if (!AmberConfig.isUserSystemEnabled) return
     try {
       val execution = workflowExecutionsDao.fetchOneByEid(UInteger.valueOf(executionId.id))

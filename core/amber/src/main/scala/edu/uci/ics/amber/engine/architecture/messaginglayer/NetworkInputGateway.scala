@@ -7,7 +7,7 @@ import edu.uci.ics.amber.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import scala.collection.mutable
 
 class NetworkInputGateway(val actorId: ActorVirtualIdentity)
-  extends AmberLogging
+    extends AmberLogging
     with Serializable
     with InputGateway {
 

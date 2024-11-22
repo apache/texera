@@ -6,10 +6,10 @@ import edu.uci.ics.amber.virtualidentity.{ChannelIdentity, ChannelMarkerIdentity
 abstract class ReplayLogger {
 
   def logCurrentStepWithMessage(
-                                 step: Long,
-                                 channelId: ChannelIdentity,
-                                 msg: Option[WorkflowFIFOMessage]
-                               ): Unit
+      step: Long,
+      channelId: ChannelIdentity,
+      msg: Option[WorkflowFIFOMessage]
+  ): Unit
 
   def markAsReplayDestination(id: ChannelMarkerIdentity): Unit
 

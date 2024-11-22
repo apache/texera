@@ -23,9 +23,9 @@ object AiAssistantManager {
     case Some(aiAssistantConfig) =>
       val assistantType: String = aiAssistantConfig.getString("assistant")
       assistantType match {
-        case "none" => noAssistant
+        case "none"   => noAssistant
         case "openai" => initOpenAI()
-        case _ => noAssistant
+        case _        => noAssistant
       }
     case None =>
       noAssistant

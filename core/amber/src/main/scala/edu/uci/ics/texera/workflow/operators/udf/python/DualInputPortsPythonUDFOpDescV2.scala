@@ -60,9 +60,9 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
   var outputColumns: List[Attribute] = List()
 
   override def getPhysicalOp(
-                              workflowId: WorkflowIdentity,
-                              executionId: ExecutionIdentity
-                            ): PhysicalOp = {
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity
+  ): PhysicalOp = {
     Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.", Array())
     if (workers > 1) {
       PhysicalOp

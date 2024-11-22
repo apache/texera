@@ -7,9 +7,9 @@ import edu.uci.ics.texera.workflow.common.operators.map.MapOpExec
 import scala.collection.mutable
 
 class ProjectionOpExec(
-                        attributeUnits: List[AttributeUnit],
-                        dropOption: Boolean = false
-                      ) extends MapOpExec {
+    attributeUnits: List[AttributeUnit],
+    dropOption: Boolean = false
+) extends MapOpExec {
 
   setMapFunc(project)
 

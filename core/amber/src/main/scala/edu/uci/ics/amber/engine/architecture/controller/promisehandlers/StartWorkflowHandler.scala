@@ -7,17 +7,17 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.StartWorkflowRes
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.RUNNING
 
 /** start the workflow by starting the source workers
- * note that this SHOULD only be called once per workflow
- *
- * possible sender: client
- */
+  * note that this SHOULD only be called once per workflow
+  *
+  * possible sender: client
+  */
 trait StartWorkflowHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
   override def startWorkflow(
-                              request: EmptyRequest,
-                              ctx: AsyncRPCContext
-                            ): Future[StartWorkflowResponse] = {
+      request: EmptyRequest,
+      ctx: AsyncRPCContext
+  ): Future[StartWorkflowResponse] = {
     if (cp.workflowExecution.getState.isUninitialized) {
       cp.workflowExecutionCoordinator
         .executeNextRegions(cp.actorService)

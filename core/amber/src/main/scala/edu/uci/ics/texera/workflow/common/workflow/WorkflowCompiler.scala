@@ -36,9 +36,9 @@ object WorkflowCompiler {
 
   // util function for convert the error list to error map, and report the error in log
   private def convertErrorListToWorkflowFatalErrorMap(
-                                                       logger: Logger,
-                                                       errorList: List[(OperatorIdentity, Throwable)]
-                                                     ): Map[OperatorIdentity, WorkflowFatalError] = {
+      logger: Logger,
+      errorList: List[(OperatorIdentity, Throwable)]
+  ): Map[OperatorIdentity, WorkflowFatalError] = {
     val opIdToError = mutable.Map[OperatorIdentity, WorkflowFatalError]()
     errorList.map {
       case (opId, err) =>
@@ -56,9 +56,9 @@ object WorkflowCompiler {
   }
 
   private def collectInputSchemaFromPhysicalPlan(
-                                                  physicalPlan: PhysicalPlan,
-                                                  errorList: ArrayBuffer[(OperatorIdentity, Throwable)] // Mandatory error list
-                                                ): Map[OperatorIdentity, List[Option[Schema]]] = {
+      physicalPlan: PhysicalPlan,
+      errorList: ArrayBuffer[(OperatorIdentity, Throwable)] // Mandatory error list
+  ): Map[OperatorIdentity, List[Option[Schema]]] = {
     val physicalInputSchemas =
       physicalPlan.operators.filter(op => !op.isSinkOperator).map { physicalOp =>
         // Process inputPorts and capture Throwable values in the errorList
@@ -88,20 +88,20 @@ object WorkflowCompiler {
 }
 
 case class WorkflowCompilationResult(
-                                      physicalPlan: Option[PhysicalPlan], // if physical plan is none, the compilation is failed
-                                      operatorIdToInputSchemas: Map[OperatorIdentity, List[Option[Schema]]],
-                                      operatorIdToError: Map[OperatorIdentity, WorkflowFatalError]
-                                    )
+    physicalPlan: Option[PhysicalPlan], // if physical plan is none, the compilation is failed
+    operatorIdToInputSchemas: Map[OperatorIdentity, List[Option[Schema]]],
+    operatorIdToError: Map[OperatorIdentity, WorkflowFatalError]
+)
 
 class WorkflowCompiler(
-                        context: WorkflowContext
-                      ) extends LazyLogging {
+    context: WorkflowContext
+) extends LazyLogging {
 
   // function to expand logical plan to physical plan
   private def expandLogicalPlan(
-                                 logicalPlan: LogicalPlan,
-                                 errorList: Option[ArrayBuffer[(OperatorIdentity, Throwable)]]
-                               ): PhysicalPlan = {
+      logicalPlan: LogicalPlan,
+      errorList: Option[ArrayBuffer[(OperatorIdentity, Throwable)]]
+  ): PhysicalPlan = {
     var physicalPlan = PhysicalPlan(operators = Set.empty, links = Set.empty)
 
     logicalPlan.getTopologicalOpIds.asScala.foreach(logicalOpId =>
@@ -114,28 +114,28 @@ class WorkflowCompiler(
           .topologicalIterator()
           .map(subPlan.getOperator)
           .foreach({ physicalOp =>
-          {
-            val externalLinks = logicalPlan
-              .getUpstreamLinks(logicalOp.operatorIdentifier)
-              .filter(link => physicalOp.inputPorts.contains(link.toPortId))
-              .flatMap { link =>
-                physicalPlan
-                  .getPhysicalOpsOfLogicalOp(link.fromOpId)
-                  .find(_.outputPorts.contains(link.fromPortId))
-                  .map(fromOp =>
-                    PhysicalLink(fromOp.id, link.fromPortId, physicalOp.id, link.toPortId)
-                  )
-              }
+            {
+              val externalLinks = logicalPlan
+                .getUpstreamLinks(logicalOp.operatorIdentifier)
+                .filter(link => physicalOp.inputPorts.contains(link.toPortId))
+                .flatMap { link =>
+                  physicalPlan
+                    .getPhysicalOpsOfLogicalOp(link.fromOpId)
+                    .find(_.outputPorts.contains(link.fromPortId))
+                    .map(fromOp =>
+                      PhysicalLink(fromOp.id, link.fromPortId, physicalOp.id, link.toPortId)
+                    )
+                }
 
-            val internalLinks = subPlan.getUpstreamPhysicalLinks(physicalOp.id)
+              val internalLinks = subPlan.getUpstreamPhysicalLinks(physicalOp.id)
 
-            // Add the operator to the physical plan
-            physicalPlan = physicalPlan.addOperator(physicalOp.propagateSchema())
+              // Add the operator to the physical plan
+              physicalPlan = physicalPlan.addOperator(physicalOp.propagateSchema())
 
-            // Add all the links to the physical plan
-            physicalPlan = (externalLinks ++ internalLinks)
-              .foldLeft(physicalPlan) { (plan, link) => plan.addLink(link) }
-          }
+              // Add all the links to the physical plan
+              physicalPlan = (externalLinks ++ internalLinks)
+                .foldLeft(physicalPlan) { (plan, link) => plan.addLink(link) }
+            }
           })
       } match {
         case Success(_) =>
@@ -150,14 +150,14 @@ class WorkflowCompiler(
   }
 
   /**
-   * Compile a workflow to physical plan, along with the schema propagation result and error(if any)
-   *
-   * @param logicalPlanPojo the pojo parsed from workflow str provided by user
-   * @return WorkflowCompilationResult, containing the physical plan, input schemas per op and error per op
-   */
+    * Compile a workflow to physical plan, along with the schema propagation result and error(if any)
+    *
+    * @param logicalPlanPojo the pojo parsed from workflow str provided by user
+    * @return WorkflowCompilationResult, containing the physical plan, input schemas per op and error per op
+    */
   def compile(
-               logicalPlanPojo: LogicalPlanPojo
-             ): Workflow = {
+      logicalPlanPojo: LogicalPlanPojo
+  ): Workflow = {
     val errorList = new ArrayBuffer[(OperatorIdentity, Throwable)]()
     var opIdToInputSchema: Map[OperatorIdentity, List[Option[Schema]]] = Map()
     // 1. convert the pojo to logical plan

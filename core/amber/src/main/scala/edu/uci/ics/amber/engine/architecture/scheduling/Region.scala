@@ -16,12 +16,12 @@ case class RegionIdentity(id: Long)
 case class GlobalPortIdentity(opId: PhysicalOpIdentity, portId: PortIdentity, input: Boolean)
 
 case class Region(
-                   id: RegionIdentity,
-                   physicalOps: Set[PhysicalOp],
-                   physicalLinks: Set[PhysicalLink],
-                   resourceConfig: Option[ResourceConfig] = None,
-                   materializedPortIds: Set[GlobalPortIdentity] = Set.empty
-                 ) {
+    id: RegionIdentity,
+    physicalOps: Set[PhysicalOp],
+    physicalLinks: Set[PhysicalLink],
+    resourceConfig: Option[ResourceConfig] = None,
+    materializedPortIds: Set[GlobalPortIdentity] = Set.empty
+) {
 
   private val operators: Map[PhysicalOpIdentity, PhysicalOp] =
     getOperators.map(op => op.id -> op).toMap
@@ -55,9 +55,9 @@ case class Region(
   }
 
   /**
-   * Effective source operators in a region.
-   * The effective source contains operators that have 0 input links in this region.
-   */
+    * Effective source operators in a region.
+    * The effective source contains operators that have 0 input links in this region.
+    */
   def getSourceOperators: Set[PhysicalOp] = {
     getOperators
       .filter(physicalOp =>

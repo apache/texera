@@ -36,9 +36,9 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
 
   @throws[IOException]
   override def getPhysicalOp(
-                              workflowId: WorkflowIdentity,
-                              executionId: ExecutionIdentity
-                            ): PhysicalOp = {
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity
+  ): PhysicalOp = {
     val stream = DocumentFactory.newReadonlyDocument(new URI(fileUri.get)).asInputStream()
     // count lines and partition the task to each worker
     val reader = new BufferedReader(
@@ -59,7 +59,7 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
           val startOffset: Int = offsetValue + count / workerCount * idx
           val endOffset: Int =
             offsetValue + (if (idx != workerCount - 1) count / workerCount * (idx + 1)
-            else count)
+                           else count)
           new JSONLScanSourceOpExec(
             fileUri.get,
             fileEncoding,
@@ -79,10 +79,10 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
   }
 
   /**
-   * Infer Texera.Schema based on the top few lines of data.
-   *
-   * @return Texera.Schema build for this operator
-   */
+    * Infer Texera.Schema based on the top few lines of data.
+    *
+    * @return Texera.Schema build for this operator
+    */
   @Override
   def inferSchema(): Schema = {
     if (fileUri.isEmpty) {

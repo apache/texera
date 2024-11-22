@@ -9,22 +9,22 @@ import scala.collection.mutable.ArrayBuffer
 import scala.util.control.Breaks.{break, breakable}
 
 abstract class SQLSourceOpExec(
-                                // source configs
-                                table: String,
-                                var curLimit: Option[Long],
-                                var curOffset: Option[Long],
-                                // progressiveness related
-                                progressive: Option[Boolean],
-                                batchByColumn: Option[String],
-                                min: Option[String],
-                                max: Option[String],
-                                interval: Long,
-                                // filter conditions:
-                                keywordSearch: Boolean,
-                                keywordSearchByColumn: String,
-                                keywords: String,
-                                schemaFunc: () => Schema
-                              ) extends SourceOperatorExecutor {
+    // source configs
+    table: String,
+    var curLimit: Option[Long],
+    var curOffset: Option[Long],
+    // progressiveness related
+    progressive: Option[Boolean],
+    batchByColumn: Option[String],
+    min: Option[String],
+    max: Option[String],
+    interval: Long,
+    // filter conditions:
+    keywordSearch: Boolean,
+    keywordSearchByColumn: String,
+    keywords: String,
+    schemaFunc: () => Schema
+) extends SourceOperatorExecutor {
 
   // connection and query related
   var schema: Schema = _
@@ -39,17 +39,17 @@ abstract class SQLSourceOpExec(
   private var querySent: Boolean = false
 
   /**
-   * A generator of a Tuple, which converted from a SQL row
-   *
-   * @return Iterator[TupleLike]
-   */
+    * A generator of a Tuple, which converted from a SQL row
+    *
+    * @return Iterator[TupleLike]
+    */
   override def produceTuple(): Iterator[TupleLike] = {
     new Iterator[TupleLike]() {
       override def hasNext: Boolean = {
         cachedTuple match {
           // if existing Tuple in cache, means there exist next Tuple.
           case Some(_) => true
-          case None =>
+          case None    =>
             // cache the next Tuple
             cachedTuple = Option(next())
             cachedTuple.isDefined
@@ -58,13 +58,13 @@ abstract class SQLSourceOpExec(
       }
 
       /**
-       * Fetch the next row from resultSet, parse it into Tuple and return.
-       * - If resultSet is exhausted, send the next query until no more queries are available.
-       * - If no more queries, return null.
-       *
-       * @throws SQLException all possible exceptions from JDBC
-       * @return Tuple
-       */
+        * Fetch the next row from resultSet, parse it into Tuple and return.
+        * - If resultSet is exhausted, send the next query until no more queries are available.
+        * - If no more queries, return null.
+        *
+        * @throws SQLException all possible exceptions from JDBC
+        * @return Tuple
+        */
       @throws[SQLException]
       override def next(): Tuple = {
 
@@ -133,12 +133,12 @@ abstract class SQLSourceOpExec(
   }
 
   /**
-   * Establish a connection to the database server and load statistics for constructing future queries.
-   * - tableNames, to check if the input tableName exists on the database server, to prevent SQL injection.
-   * - batchColumnBoundaries, to be used to split mini queries, if progressive mode is enabled.
-   *
-   * @throws SQLException all possible exceptions from JDBC
-   */
+    * Establish a connection to the database server and load statistics for constructing future queries.
+    * - tableNames, to check if the input tableName exists on the database server, to prevent SQL injection.
+    * - batchColumnBoundaries, to be used to split mini queries, if progressive mode is enabled.
+    *
+    * @throws SQLException all possible exceptions from JDBC
+    */
   @throws[SQLException]
   override def open(): Unit = {
     schema = schemaFunc()
@@ -156,10 +156,10 @@ abstract class SQLSourceOpExec(
   }
 
   /**
-   * close resultSet, preparedStatement and connection
-   *
-   * @throws SQLException all possible exceptions from JDBC
-   */
+    * close resultSet, preparedStatement and connection
+    *
+    * @throws SQLException all possible exceptions from JDBC
+    */
   @throws[SQLException]
   override def close(): Unit = {
 
@@ -171,11 +171,11 @@ abstract class SQLSourceOpExec(
   }
 
   /**
-   * Build a Tuple from a row of curResultSet
-   *
-   * @return the new Tuple
-   * @throws SQLException all possible exceptions from JDBC
-   */
+    * Build a Tuple from a row of curResultSet
+    *
+    * @return the new Tuple
+    * @throws SQLException all possible exceptions from JDBC
+    */
   @throws[SQLException]
   protected def buildTupleFromRow: Tuple = {
     val tupleBuilder = Tuple.builder(schema)
@@ -202,16 +202,16 @@ abstract class SQLSourceOpExec(
   }
 
   /**
-   * Checks if there is a next query.
-   * - This is mostly used for progressive mode: if the lower bound is
-   * not yet reached upper bound, it will have next query.
-   * - If it is not progressive mode, this method will return false when
-   * invoked the second time. Which means there is only one query.
-   *
-   * @throws IllegalArgumentException if the given batchByAttribute's type is
-   *                                  not supported to be incremental.
-   * @return A boolean value whether there exists the next query or not.
-   */
+    * Checks if there is a next query.
+    * - This is mostly used for progressive mode: if the lower bound is
+    * not yet reached upper bound, it will have next query.
+    * - If it is not progressive mode, this method will return false when
+    * invoked the second time. Which means there is only one query.
+    *
+    * @throws IllegalArgumentException if the given batchByAttribute's type is
+    *                                  not supported to be incremental.
+    * @return A boolean value whether there exists the next query or not.
+    */
   @throws[IllegalArgumentException]
   protected def hasNextQuery: Boolean = {
     batchByAttribute match {
@@ -248,21 +248,21 @@ abstract class SQLSourceOpExec(
   }
 
   /**
-   * Add sliding window SQL statement, based on the batchByAttribute.
-   * Supported types:
-   *   - Long, Int: simple incremental by interval, which is a Long value.
-   *   - Timestamp: convert to Long type, same as Long.
-   *   - Double: incremental by interval, faction part stays the same.
-   *
-   * There will be a lower bound and upper bound for each sliding window.
-   *
-   * The last window would be [lower, upper], while the other windows will
-   * be [lower, nextLower)
-   *
-   * @param queryBuilder the target query builder
-   * @throws IllegalArgumentException if the given batchByAttribute's type is
-   *                                  not supported to be incremental.
-   */
+    * Add sliding window SQL statement, based on the batchByAttribute.
+    * Supported types:
+    *   - Long, Int: simple incremental by interval, which is a Long value.
+    *   - Timestamp: convert to Long type, same as Long.
+    *   - Double: incremental by interval, faction part stays the same.
+    *
+    * There will be a lower bound and upper bound for each sliding window.
+    *
+    * The last window would be [lower, upper], while the other windows will
+    * be [lower, nextLower)
+    *
+    * @param queryBuilder the target query builder
+    * @throws IllegalArgumentException if the given batchByAttribute's type is
+    *                                  not supported to be incremental.
+    */
   @throws[IllegalArgumentException]
   protected def addBatchSlidingWindow(queryBuilder: StringBuilder): Unit = {
     var nextLowerBound: Number = null
@@ -284,9 +284,9 @@ abstract class SQLSourceOpExec(
           " >= " + batchAttributeToString(curLowerBound) +
           " AND " + attribute.getName +
           (if (isLastBatch)
-            " <= " + batchAttributeToString(upperBound)
-          else
-            " < " + batchAttributeToString(nextLowerBound))
+             " <= " + batchAttributeToString(upperBound)
+           else
+             " < " + batchAttributeToString(nextLowerBound))
       case None =>
         throw new IllegalArgumentException(
           "no valid batchByColumn to iterate: " + batchByColumn.getOrElse("")
@@ -296,12 +296,12 @@ abstract class SQLSourceOpExec(
   }
 
   /**
-   * Convert the Number value to a String to be concatenate to SQL.
-   *
-   * @param value a Number, contains the value to be converted.
-   * @throws IllegalArgumentException when the batchByAttribute is missing or the type is unexpected
-   * @return a String of that value
-   */
+    * Convert the Number value to a String to be concatenate to SQL.
+    *
+    * @param value a Number, contains the value to be converted.
+    * @throws IllegalArgumentException when the batchByAttribute is missing or the type is unexpected
+    * @return a String of that value
+    */
   @throws[IllegalArgumentException]
   protected def batchAttributeToString(value: Number): String = {
     batchByAttribute match {
@@ -323,12 +323,12 @@ abstract class SQLSourceOpExec(
   }
 
   /**
-   * Fetch for a numeric value of the boundary of the batchByColumn.
-   *
-   * @param side either "MAX" or "MIN" for boundary
-   * @throws IllegalArgumentException if the batchByAttribute type is unexpected
-   * @return a numeric value, could be Int, Long or Double
-   */
+    * Fetch for a numeric value of the boundary of the batchByColumn.
+    *
+    * @param side either "MAX" or "MIN" for boundary
+    * @throws IllegalArgumentException if the batchByAttribute type is unexpected
+    * @return a numeric value, could be Int, Long or Double
+    */
   @throws[IllegalArgumentException]
   protected def fetchBatchByBoundary(side: String): Number = {
     batchByAttribute match {
@@ -360,41 +360,41 @@ abstract class SQLSourceOpExec(
   }
 
   /**
-   * Establishes the connection to database.
-   *
-   * @throws SQLException all possible exceptions from JDBC
-   * @return a SQL connection over JDBC
-   */
+    * Establishes the connection to database.
+    *
+    * @throws SQLException all possible exceptions from JDBC
+    * @return a SQL connection over JDBC
+    */
   @throws[SQLException]
   protected def establishConn(): Connection = null
 
   /**
-   * Fetch all table names from the given database. This is used to
-   * check the input table name to prevent from SQL injection.
-   *
-   * @throws SQLException all possible exceptions from JDBC
-   */
+    * Fetch all table names from the given database. This is used to
+    * check the input table name to prevent from SQL injection.
+    *
+    * @throws SQLException all possible exceptions from JDBC
+    */
   @throws[SQLException]
   protected def loadTableNames(): Unit
 
   protected def addFilterConditions(queryBuilder: StringBuilder): Unit
 
   /**
-   * generate sql query string using the info provided by user. One of following
-   * select * from TableName where 1 = 1 AND MATCH (ColumnName) AGAINST ( ? IN BOOLEAN MODE) LIMIT ?;
-   * select * from TableName where 1 = 1 AND MATCH (ColumnName) AGAINST ( ? IN BOOLEAN MODE);
-   * select * from TableName where 1 = 1 LIMIT ? ;
-   * select * from TableName where 1 = 1;
-   *
-   * with an optional appropriate batchByColumn sliding window,
-   * e.g. create_at >= '2017-01-14 03:47:59.0' AND create_at < '2017-01-15 03:47:59.0'
-   *
-   * Or a fixed offset [OFFSET ?] to be added if not progressive.
-   *
-   * @throws IllegalArgumentException if the given batchByAttribute's type is
-   *                                  not supported to be incremental.
-   * @return string of sql query
-   */
+    * generate sql query string using the info provided by user. One of following
+    * select * from TableName where 1 = 1 AND MATCH (ColumnName) AGAINST ( ? IN BOOLEAN MODE) LIMIT ?;
+    * select * from TableName where 1 = 1 AND MATCH (ColumnName) AGAINST ( ? IN BOOLEAN MODE);
+    * select * from TableName where 1 = 1 LIMIT ? ;
+    * select * from TableName where 1 = 1;
+    *
+    * with an optional appropriate batchByColumn sliding window,
+    * e.g. create_at >= '2017-01-14 03:47:59.0' AND create_at < '2017-01-15 03:47:59.0'
+    *
+    * Or a fixed offset [OFFSET ?] to be added if not progressive.
+    *
+    * @throws IllegalArgumentException if the given batchByAttribute's type is
+    *                                  not supported to be incremental.
+    * @return string of sql query
+    */
   @throws[IllegalArgumentException]
   protected def generateSqlQuery: Option[String] = {
     // in sql prepared statement, table name cannot be inserted using PreparedStatement.setString
@@ -417,7 +417,7 @@ abstract class SQLSourceOpExec(
     if (curLimit.isDefined) {
       if (curLimit.get > 0) addLimit(queryBuilder)
       else
-      // there should be no more queries as limit is equal or less than 0
+        // there should be no more queries as limit is equal or less than 0
         return None
     }
 
@@ -431,15 +431,15 @@ abstract class SQLSourceOpExec(
   }
 
   /**
-   * Get the next query.
-   * - If progressive mode is enabled, this method will be invoked
-   * many times, each yielding the next mini query.
-   * - If progressive mode is not enabled, this method will be invoked
-   * only once, returning the one giant query.
-   *
-   * @throws SQLException all possible exceptions from JDBC
-   * @return a PreparedStatement to be filled with values.
-   */
+    * Get the next query.
+    * - If progressive mode is enabled, this method will be invoked
+    * many times, each yielding the next mini query.
+    * - If progressive mode is not enabled, this method will be invoked
+    * only once, returning the one giant query.
+    *
+    * @throws SQLException all possible exceptions from JDBC
+    * @return a PreparedStatement to be filled with values.
+    */
   @throws[SQLException]
   private def getNextQuery: Option[PreparedStatement] = {
     if (hasNextQuery) {
@@ -478,12 +478,12 @@ abstract class SQLSourceOpExec(
   }
 
   /**
-   * Load the lower bound and upper bound of the batchByColumn. Those
-   * bounds will be used in progressive mode to determine mini-queries.
-   *
-   * @throws SQLException             all possible exceptions from JDBC
-   * @throws IllegalArgumentException if the batchByAttribute is missing or the type is unexpected
-   */
+    * Load the lower bound and upper bound of the batchByColumn. Those
+    * bounds will be used in progressive mode to determine mini-queries.
+    *
+    * @throws SQLException             all possible exceptions from JDBC
+    * @throws IllegalArgumentException if the batchByAttribute is missing or the type is unexpected
+    */
   @throws[SQLException]
   @throws[IllegalArgumentException]
   private def initBatchColumnBoundaries(): Unit = {
@@ -494,7 +494,7 @@ abstract class SQLSourceOpExec(
       else
         batchByAttribute.get.getType match {
           case AttributeType.TIMESTAMP => curLowerBound = parseTimestamp(min.get).getTime
-          case AttributeType.LONG => curLowerBound = min.get.toLong
+          case AttributeType.LONG      => curLowerBound = min.get.toLong
           case _ =>
             throw new IllegalArgumentException(s"Unsupported type ${batchByAttribute.get.getType}")
         }
@@ -503,7 +503,7 @@ abstract class SQLSourceOpExec(
       else
         batchByAttribute.get.getType match {
           case AttributeType.TIMESTAMP => upperBound = parseTimestamp(max.get).getTime
-          case AttributeType.LONG => upperBound = max.get.toLong
+          case AttributeType.LONG      => upperBound = max.get.toLong
           case _ =>
             throw new IllegalArgumentException(s"Unsupported type ${batchByAttribute.get.getType}")
         }

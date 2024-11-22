@@ -12,15 +12,15 @@ import java.net.URI
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
-class FileScanSourceOpExec private[scan](
-                                          fileUri: String,
-                                          fileAttributeType: FileAttributeType,
-                                          fileEncoding: FileDecodingMethod,
-                                          extract: Boolean,
-                                          outputFileName: Boolean,
-                                          fileScanLimit: Option[Int] = None,
-                                          fileScanOffset: Option[Int] = None
-                                        ) extends SourceOperatorExecutor {
+class FileScanSourceOpExec private[scan] (
+    fileUri: String,
+    fileAttributeType: FileAttributeType,
+    fileEncoding: FileDecodingMethod,
+    extract: Boolean,
+    outputFileName: Boolean,
+    fileScanLimit: Option[Int] = None,
+    fileScanOffset: Option[Int] = None
+) extends SourceOperatorExecutor {
 
   @throws[IOException]
   override def produceTuple(): Iterator[TupleLike] = {
@@ -70,7 +70,7 @@ class FileScanSourceOpExec private[scan](
           .map(line => {
             TupleLike(fileAttributeType match {
               case FileAttributeType.SINGLE_STRING => line
-              case _ => parseField(line, fileAttributeType.getType)
+              case _                               => parseField(line, fileAttributeType.getType)
             })
           })
       )

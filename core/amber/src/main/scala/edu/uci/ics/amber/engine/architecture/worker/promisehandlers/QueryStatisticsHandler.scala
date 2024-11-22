@@ -10,9 +10,9 @@ trait QueryStatisticsHandler {
   this: DataProcessorRPCHandlerInitializer =>
 
   override def queryStatistics(
-                                request: EmptyRequest,
-                                ctx: AsyncRPCContext
-                              ): Future[WorkerMetricsResponse] = {
+      request: EmptyRequest,
+      ctx: AsyncRPCContext
+  ): Future[WorkerMetricsResponse] = {
     WorkerMetricsResponse(WorkerMetrics(dp.stateManager.getCurrentState, dp.collectStatistics()))
   }
 

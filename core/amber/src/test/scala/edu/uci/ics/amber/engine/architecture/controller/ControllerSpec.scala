@@ -11,7 +11,7 @@ import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration._
 
 class ControllerSpec
-  extends TestKit(ActorSystem("ControllerSpec"))
+    extends TestKit(ActorSystem("ControllerSpec"))
     with ImplicitSender
     with AnyFlatSpecLike
     with BeforeAndAfterAll {

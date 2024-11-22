@@ -19,7 +19,7 @@ import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import scala.concurrent.duration.DurationInt
 
 class BatchSizePropagationSpec
-  extends TestKit(ActorSystem("BatchSizePropagationSpec"))
+    extends TestKit(ActorSystem("BatchSizePropagationSpec"))
     with ImplicitSender
     with AnyFlatSpecLike
     with BeforeAndAfterAll
@@ -39,9 +39,9 @@ class BatchSizePropagationSpec
   }
 
   def verifyBatchSizeInPartitioning(
-                                     workflowScheduler: WorkflowScheduler,
-                                     expectedBatchSize: Int
-                                   ): Unit = {
+      workflowScheduler: WorkflowScheduler,
+      expectedBatchSize: Int
+  ): Unit = {
     var nextRegions = workflowScheduler.getNextRegions
     while (nextRegions.nonEmpty) {
       nextRegions.foreach { region =>

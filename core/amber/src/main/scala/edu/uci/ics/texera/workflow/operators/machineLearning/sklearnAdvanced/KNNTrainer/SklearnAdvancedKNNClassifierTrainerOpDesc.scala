@@ -3,7 +3,7 @@ package edu.uci.ics.texera.workflow.operators.machineLearning.sklearnAdvanced.KN
 import edu.uci.ics.texera.workflow.operators.machineLearning.sklearnAdvanced.base.SklearnMLOperatorDescriptor
 
 class SklearnAdvancedKNNClassifierTrainerOpDesc
-  extends SklearnMLOperatorDescriptor[SklearnAdvancedKNNParameters] {
+    extends SklearnMLOperatorDescriptor[SklearnAdvancedKNNParameters] {
   override def getImportStatements: String = {
     "from sklearn.neighbors import KNeighborsClassifier"
   }

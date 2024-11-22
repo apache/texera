@@ -12,8 +12,8 @@ class EmptyReplayLogger extends ReplayLogger {
   def markAsReplayDestination(id: ChannelMarkerIdentity): Unit = {}
 
   override def logCurrentStepWithMessage(
-                                          step: Long,
-                                          channelId: ChannelIdentity,
-                                          msg: Option[WorkflowFIFOMessage]
-                                        ): Unit = {}
+      step: Long,
+      channelId: ChannelIdentity,
+      msg: Option[WorkflowFIFOMessage]
+  ): Unit = {}
 }

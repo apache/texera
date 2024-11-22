@@ -4,7 +4,7 @@ import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.texera.workflow.common.workflow.LogicalPlan
 
 case class Workflow(
-                     context: WorkflowContext,
-                     logicalPlan: LogicalPlan,
-                     physicalPlan: PhysicalPlan
-                   )
+    context: WorkflowContext,
+    logicalPlan: LogicalPlan,
+    physicalPlan: PhysicalPlan
+)

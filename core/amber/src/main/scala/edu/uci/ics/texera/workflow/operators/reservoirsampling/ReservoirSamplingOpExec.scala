@@ -6,7 +6,7 @@ import edu.uci.ics.amber.core.tuple.{Tuple, TupleLike}
 import scala.util.Random
 
 class ReservoirSamplingOpExec(actor: Int, kPerActor: Int => Int, seedFunc: Int => Int)
-  extends OperatorExecutor {
+    extends OperatorExecutor {
   private var n: Int = 0
   private val reservoir: Array[Tuple] = Array.ofDim(kPerActor(actor))
   private val rand: Random = new Random(seedFunc(actor))

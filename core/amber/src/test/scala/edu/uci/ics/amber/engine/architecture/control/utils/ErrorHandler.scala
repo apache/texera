@@ -8,9 +8,9 @@ trait ErrorHandler {
   this: TesterAsyncRPCHandlerInitializer =>
 
   override def sendErrorCommand(
-                                 request: ErrorCommand,
-                                 ctx: AsyncRPCContext
-                               ): Future[StringResponse] = {
+      request: ErrorCommand,
+      ctx: AsyncRPCContext
+  ): Future[StringResponse] = {
     throw new RuntimeException("this is an EXPECTED exception for testing")
   }
 

@@ -3,7 +3,11 @@ package edu.uci.ics.texera.web.resource.auth
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.JwtAuth._
-import edu.uci.ics.texera.web.model.http.request.auth.{RefreshTokenRequest, UserLoginRequest, UserRegistrationRequest}
+import edu.uci.ics.texera.web.model.http.request.auth.{
+  RefreshTokenRequest,
+  UserLoginRequest,
+  UserRegistrationRequest
+}
 import edu.uci.ics.texera.web.model.http.response.TokenIssueResponse
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.USER
 import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole
@@ -20,13 +24,13 @@ object AuthResource {
   final private lazy val userDao = new UserDao(SqlServer.createDSLContext.configuration)
 
   /**
-   * Retrieve exactly one User from databases with the given username and password.
-   * The password is used to validate against the hashed password stored in the db.
-   *
-   * @param name     String
-   * @param password String, plain text password
-   * @return
-   */
+    * Retrieve exactly one User from databases with the given username and password.
+    * The password is used to validate against the hashed password stored in the db.
+    *
+    * @param name     String
+    * @param password String, plain text password
+    * @return
+    */
   def retrieveUserByUsernameAndPassword(name: String, password: String): Option[User] = {
     Option(
       SqlServer.createDSLContext

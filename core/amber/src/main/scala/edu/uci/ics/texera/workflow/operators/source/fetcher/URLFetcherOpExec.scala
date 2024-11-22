@@ -15,7 +15,7 @@ class URLFetcherOpExec(url: String, decodingMethod: DecodingMethod) extends Sour
     val input = getInputStreamFromURL(urlObj)
     val contentInputStream = input match {
       case Some(value) => value
-      case None => IOUtils.toInputStream(s"Fetch failed for URL: $url", "UTF-8")
+      case None        => IOUtils.toInputStream(s"Fetch failed for URL: $url", "UTF-8")
     }
     Iterator(if (decodingMethod == DecodingMethod.UTF_8) {
       TupleLike(IOUtils.toString(contentInputStream, "UTF-8"))

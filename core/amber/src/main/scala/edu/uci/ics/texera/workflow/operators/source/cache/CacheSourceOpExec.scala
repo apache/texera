@@ -6,7 +6,7 @@ import edu.uci.ics.amber.core.storage.result.SinkStorageReader
 import edu.uci.ics.amber.core.tuple.TupleLike
 
 class CacheSourceOpExec(storage: SinkStorageReader)
-  extends SourceOperatorExecutor
+    extends SourceOperatorExecutor
     with LazyLogging {
 
   override def produceTuple(): Iterator[TupleLike] = storage.getAll.iterator

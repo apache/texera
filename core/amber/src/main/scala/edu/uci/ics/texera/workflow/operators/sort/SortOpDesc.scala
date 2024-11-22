@@ -20,7 +20,7 @@ class SortOpDesc extends PythonOperatorDescriptor {
     val sortOrders: String = "[" + attributes
       .map { criteria =>
         criteria.sortPreference match {
-          case SortPreference.ASC => "True"
+          case SortPreference.ASC  => "True"
           case SortPreference.DESC => "False"
         }
       }
