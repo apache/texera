@@ -18,8 +18,8 @@ export const defaultEnvironment = {
   exportExecutionResultEnabled: false,
 
   /**
-   * Whether automatically correcting attribute name on change is enabled
-   * See AutoAttributeCorrectionService for more details
+   * whether automatically correcting attribute name on change is enabled
+   * see AutoAttributeCorrectionService for more details
    */
   autoAttributeCorrectionEnabled: true,
 
@@ -53,6 +53,9 @@ export const defaultEnvironment = {
    */
   linkBreakpointEnabled: true,
 
+  /**
+   * whether rendering jointjs components asynchronously
+   */
   asyncRenderingEnabled: false,
 
   /**
@@ -67,6 +70,7 @@ export const defaultEnvironment = {
   productionSharedEditingServer: false,
 
   /**
+   * the file size limit for dataset upload
    */
   singleFileUploadMaximumSizeMB: 20,
 
@@ -76,7 +80,7 @@ export const defaultEnvironment = {
   defaultDataTransferBatchSize: 400,
 
   /**
-   * Whether to send email notification when workflow execution is completed/failed/paused/killed
+   * whether to send email notification when workflow execution is completed/failed/paused/killed
    */
   workflowEmailNotificationEnabled: false,
 };
