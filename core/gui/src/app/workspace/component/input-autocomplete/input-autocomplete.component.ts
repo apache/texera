@@ -32,10 +32,10 @@ export class InputAutoCompleteComponent extends FieldType<FieldTypeConfig> {
         selectedFilePath: this.formControl.getRawValue(),
       },
       nzBodyStyle: {
-        resize: "both", // 允许调整大小
-        overflow: "auto", // 确保内容可滚动
-        minHeight: "200px", // 设置最小高度
-        minWidth: "550px", // 设置最小宽度
+        resize: "both",
+        overflow: "auto",
+        minHeight: "200px",
+        minWidth: "550px",
         maxWidth: "90vw",
         maxHeight: "80vh",
       },
