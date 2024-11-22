@@ -2,8 +2,8 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 
 import edu.uci.ics.amber.core.storage.result.OpResultStorage
 import edu.uci.ics.amber.core.workflow.WorkflowContext
-import edu.uci.ics.amber.engine.e2e.TestOperators
 import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
+import edu.uci.ics.amber.operator.TestOperators
 import edu.uci.ics.amber.operator.split.SplitOpDesc
 import edu.uci.ics.amber.operator.udf.python.{DualInputPortsPythonUDFOpDescV2, PythonUDFOpDescV2}
 import edu.uci.ics.amber.virtualidentity.OperatorIdentity

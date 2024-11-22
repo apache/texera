@@ -31,8 +31,8 @@ import edu.uci.ics.amber.engine.common.SerializedState.{CP_STATE_KEY, DP_STATE_K
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
 import edu.uci.ics.amber.engine.common.{AmberRuntime, CheckpointState, CheckpointSupport}
-import edu.uci.ics.amber.engine.e2e.TestOperators
 import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
+import edu.uci.ics.amber.operator.TestOperators
 import edu.uci.ics.amber.virtualidentity.{
   ChannelMarkerIdentity,
   ExecutionIdentity,

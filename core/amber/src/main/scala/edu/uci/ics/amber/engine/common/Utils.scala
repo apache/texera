@@ -45,10 +45,11 @@ object Utils extends LazyLogging {
         .findAny
       if (searchChildren.isPresent) {
         searchChildren.get
+      }else{
+        throw new RuntimeException(
+          "Finding texera home path failed. Current working directory is " + currentWorkingDirectory
+        )
       }
-      throw new RuntimeException(
-        "Finding texera home path failed. Current working directory is " + currentWorkingDirectory
-      )
     }
   }
   val AMBER_HOME_FOLDER_NAME = "amber";

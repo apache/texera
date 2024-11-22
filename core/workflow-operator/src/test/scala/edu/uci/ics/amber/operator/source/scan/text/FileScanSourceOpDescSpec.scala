@@ -2,23 +2,18 @@ package edu.uci.ics.amber.operator.source.scan.text
 
 import edu.uci.ics.amber.core.storage.FileResolver
 import edu.uci.ics.amber.core.tuple.{AttributeType, Schema, SchemaEnforceable, Tuple}
-import edu.uci.ics.amber.operator.source.scan.{
-  FileAttributeType,
-  FileDecodingMethod,
-  FileScanSourceOpDesc,
-  FileScanSourceOpExec
-}
+import edu.uci.ics.amber.operator.TestOperators
+import edu.uci.ics.amber.operator.source.scan.{FileAttributeType, FileDecodingMethod, FileScanSourceOpDesc, FileScanSourceOpExec}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
+
 class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
-  val TestTextFilePath: String = "src/test/resources/line_numbers.txt"
-  val TestCRLFTextFilePath: String = "src/test/resources/line_numbers_crlf.txt"
-  val TestNumbersFilePath: String = "src/test/resources/numbers.txt"
+
   var fileScanSourceOpDesc: FileScanSourceOpDesc = _
 
   before {
     fileScanSourceOpDesc = new FileScanSourceOpDesc()
-    fileScanSourceOpDesc.fileUri = Some(FileResolver.resolve(TestTextFilePath).toASCIIString)
+    fileScanSourceOpDesc.setFileUri(FileResolver.resolve(TestOperators.TestTextFilePath))
     fileScanSourceOpDesc.fileEncoding = FileDecodingMethod.UTF_8
   }
 
@@ -56,12 +51,11 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "read first 5 lines of the input text file into corresponding output tuples" in {
-
     fileScanSourceOpDesc.attributeType = FileAttributeType.STRING
     fileScanSourceOpDesc.fileScanLimit = Option(5)
     val FileScanSourceOpExec =
       new FileScanSourceOpExec(
-        fileScanSourceOpDesc.fileUri.getOrElse(""),
+        fileScanSourceOpDesc.fileUri.get,
         fileScanSourceOpDesc.attributeType,
         fileScanSourceOpDesc.fileEncoding,
         fileScanSourceOpDesc.extract,
@@ -86,12 +80,12 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "read first 5 lines of the input text file with CRLF separators into corresponding output tuples" in {
-    fileScanSourceOpDesc.fileUri = Some(FileResolver.resolve(TestCRLFTextFilePath).toASCIIString)
+    fileScanSourceOpDesc.setFileUri(FileResolver.resolve(TestOperators.TestCRLFTextFilePath))
     fileScanSourceOpDesc.attributeType = FileAttributeType.STRING
     fileScanSourceOpDesc.fileScanLimit = Option(5)
     val FileScanSourceOpExec =
       new FileScanSourceOpExec(
-        fileScanSourceOpDesc.fileUri.getOrElse(""),
+        fileScanSourceOpDesc.fileUri.get,
         fileScanSourceOpDesc.attributeType,
         fileScanSourceOpDesc.fileEncoding,
         fileScanSourceOpDesc.extract,
@@ -119,7 +113,7 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     fileScanSourceOpDesc.attributeType = FileAttributeType.SINGLE_STRING
     val FileScanSourceOpExec =
       new FileScanSourceOpExec(
-        fileScanSourceOpDesc.fileUri.getOrElse(""),
+        fileScanSourceOpDesc.fileUri.get,
         fileScanSourceOpDesc.attributeType,
         fileScanSourceOpDesc.fileEncoding,
         fileScanSourceOpDesc.extract,
@@ -145,11 +139,11 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "read first 5 lines of the input text into corresponding output INTEGER tuples" in {
-    fileScanSourceOpDesc.fileUri = Some(FileResolver.resolve(TestNumbersFilePath).toASCIIString)
+    fileScanSourceOpDesc.setFileUri(FileResolver.resolve(TestOperators.TestNumbersFilePath))
     fileScanSourceOpDesc.attributeType = FileAttributeType.INTEGER
     fileScanSourceOpDesc.fileScanLimit = Option(5)
     val FileScanSourceOpExec = new FileScanSourceOpExec(
-      fileScanSourceOpDesc.fileUri.getOrElse(""),
+      fileScanSourceOpDesc.fileUri.get,
       fileScanSourceOpDesc.attributeType,
       fileScanSourceOpDesc.fileEncoding,
       fileScanSourceOpDesc.extract,
@@ -174,13 +168,13 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "read first 5 lines of the input text file with US_ASCII encoding" in {
-    fileScanSourceOpDesc.fileUri = Some(FileResolver.resolve(TestCRLFTextFilePath).toASCIIString)
+    fileScanSourceOpDesc.setFileUri(FileResolver.resolve(TestOperators.TestCRLFTextFilePath))
     fileScanSourceOpDesc.fileEncoding = FileDecodingMethod.ASCII
     fileScanSourceOpDesc.attributeType = FileAttributeType.STRING
     fileScanSourceOpDesc.fileScanLimit = Option(5)
     val FileScanSourceOpExec =
       new FileScanSourceOpExec(
-        fileScanSourceOpDesc.fileUri.getOrElse(""),
+        fileScanSourceOpDesc.fileUri.get,
         fileScanSourceOpDesc.attributeType,
         fileScanSourceOpDesc.fileEncoding,
         fileScanSourceOpDesc.extract,
