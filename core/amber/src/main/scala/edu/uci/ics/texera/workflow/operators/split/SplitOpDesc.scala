@@ -14,8 +14,8 @@ import scala.util.Random
 
 class SplitOpDesc extends LogicalOp {
 
-  @JsonProperty(value = "training percentage", required = false, defaultValue = "80")
-  @JsonPropertyDescription("percentage of training split data (default 80%)")
+  @JsonProperty(value = "split percentage", required = false, defaultValue = "80")
+  @JsonPropertyDescription("percentage of data going to the upper port (default 80%)")
   var k: Int = 80
 
   @JsonProperty(value = "random seed", required = false)
@@ -48,13 +48,13 @@ class SplitOpDesc extends LogicalOp {
 
   override def operatorInfo: OperatorInfo = {
     OperatorInfo(
-      userFriendlyName = "Training/Testing Split",
-      operatorDescription = "Split training and testing data to two different ports",
-      operatorGroupName = OperatorGroupConstants.MACHINE_LEARNING_GROUP,
+      userFriendlyName = "Split",
+      operatorDescription = "Split data to two different ports",
+      operatorGroupName = OperatorGroupConstants.UTILITY_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(
-        OutputPort(PortIdentity(), displayName = "training"),
-        OutputPort(PortIdentity(1), displayName = "testing")
+        OutputPort(PortIdentity()),
+        OutputPort(PortIdentity(1))
       ),
       dynamicInputPorts = true,
       dynamicOutputPorts = true

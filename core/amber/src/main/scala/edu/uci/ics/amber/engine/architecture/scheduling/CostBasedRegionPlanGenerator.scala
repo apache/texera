@@ -1,10 +1,9 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
-import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.model.{PhysicalPlan, WorkflowContext}
-import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, PhysicalOpIdentity}
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
+import edu.uci.ics.amber.engine.common.{AmberConfig, AmberLogging}
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import org.jgrapht.alg.connectivity.BiconnectivityInspector
 import org.jgrapht.graph.{DirectedAcyclicGraph, DirectedPseudograph}
@@ -15,13 +14,14 @@ import scala.jdk.CollectionConverters._
 class CostBasedRegionPlanGenerator(
     workflowContext: WorkflowContext,
     initialPhysicalPlan: PhysicalPlan,
-    opResultStorage: OpResultStorage
+    opResultStorage: OpResultStorage,
+    val actorId: ActorVirtualIdentity
 ) extends RegionPlanGenerator(
       workflowContext,
       initialPhysicalPlan,
       opResultStorage
     )
-    with LazyLogging {
+    with AmberLogging {
 
   case class SearchResult(
       state: Set[PhysicalLink],
@@ -33,7 +33,13 @@ class CostBasedRegionPlanGenerator(
 
   def generate(): (RegionPlan, PhysicalPlan) = {
 
+    val startTime = System.nanoTime()
     val regionDAG = createRegionDAG()
+    val totalRPGTime = System.nanoTime() - startTime
+    logger.info(
+      s"WID: ${workflowContext.workflowId.id}, EID: ${workflowContext.executionId.id}, total RPG time: " +
+        s"${totalRPGTime / 1e6} ms."
+    )
     (
       RegionPlan(
         regions = regionDAG.iterator().asScala.toSet,
@@ -125,6 +131,10 @@ class CostBasedRegionPlanGenerator(
     val searchResult = bottomUpSearch(globalSearch = AmberConfig.useGlobalSearch)
     // Only a non-dependee blocking link that has not already been materialized should be replaced
     // with a materialization write op + materialization read op.
+    logger.info(
+      s"WID: ${workflowContext.workflowId.id}, EID: ${workflowContext.executionId.id}, search time: " +
+        s"${searchResult.searchTimeNanoSeconds / 1e6} ms."
+    )
     val linksToMaterialize =
       (searchResult.state ++ physicalPlan.getNonMaterializedBlockingAndDependeeLinks).diff(
         physicalPlan.getDependeeLinks

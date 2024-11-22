@@ -4,6 +4,7 @@ import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowResultService } from "src/app/workspace/service/workflow-result/workflow-result.service";
 import { WorkflowResultExportService } from "src/app/workspace/service/workflow-result-export/workflow-result-export.service";
+import { ValidationWorkflowService } from "src/app/workspace/service/validation/validation-workflow.service";
 
 @UntilDestroy()
 @Component({
@@ -18,9 +19,34 @@ export class ContextMenuComponent {
     public workflowActionService: WorkflowActionService,
     public operatorMenuService: OperatorMenuService,
     public workflowResultExportService: WorkflowResultExportService,
-    private workflowResultService: WorkflowResultService
+    private workflowResultService: WorkflowResultService,
+    private validationWorkflowService: ValidationWorkflowService
   ) {
     this.registerWorkflowModifiableChangedHandler();
+  }
+
+  public canExecuteOperator(): boolean {
+    if (!this.hasExactlyOneOperatorSelected() || !this.isWorkflowModifiable) {
+      return false;
+    }
+
+    const operatorID = this.getSelectedOperatorID();
+    return this.isOperatorExecutable(operatorID);
+  }
+
+  private hasExactlyOneOperatorSelected(): boolean {
+    return this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs().length === 1;
+  }
+
+  private getSelectedOperatorID(): string {
+    return this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0];
+  }
+
+  private isOperatorExecutable(operatorID: string): boolean {
+    return (
+      this.validationWorkflowService.validateOperator(operatorID).isValid &&
+      !this.workflowActionService.getTexeraGraph().isOperatorDisabled(operatorID)
+    );
   }
 
   public onCopy(): void {
