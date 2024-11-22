@@ -13,11 +13,6 @@ export const defaultEnvironment = {
   apiUrl: "api",
 
   /**
-   * whether the backend supports checking execution status
-   */
-  executionStatusEnabled: true,
-
-  /**
    * whether export execution result is supported
    */
   exportExecutionResultEnabled: false,
@@ -58,22 +53,13 @@ export const defaultEnvironment = {
    */
   linkBreakpointEnabled: true,
 
-  /**
-   * whether operator caching is enabled
-   */
-  operatorCacheEnabled: false,
-
-  /**
-   * whether debugger is enabled
-   */
-  debuggerEnabled: false,
-
   asyncRenderingEnabled: false,
 
   /**
    * whether time-travel is enabled
    */
   timetravelEnabled: false,
+
   /**
    * Whether to connect to local or production shared editing server. Set to true if you have
    * reverse proxy set up for y-websocket.
