@@ -1,60 +1,54 @@
 package edu.uci.ics.texera.workflow.operators.source.sql.asterixdb
 
 import com.github.tototoshi.csv.CSVParser
-import edu.uci.ics.amber.engine.common.model.tuple.AttributeTypeUtils.parseField
-import edu.uci.ics.amber.engine.common.model.tuple.{AttributeType, Schema, Tuple, TupleLike}
 import edu.uci.ics.texera.workflow.operators.filter.FilterPredicate
 import edu.uci.ics.texera.workflow.operators.source.sql.SQLSourceOpExec
-import edu.uci.ics.texera.workflow.operators.source.sql.asterixdb.AsterixDBConnUtil.{
-  queryAsterixDB,
-  updateAsterixDBVersionMapping
-}
+import edu.uci.ics.texera.workflow.operators.source.sql.asterixdb.AsterixDBConnUtil.{queryAsterixDB, updateAsterixDBVersionMapping}
 
 import java.sql._
 import java.time.format.DateTimeFormatter
 import java.time.{ZoneId, ZoneOffset}
-import scala.collection.Iterator
 import scala.util.control.Breaks.{break, breakable}
 import scala.util.{Failure, Success, Try}
 
-class AsterixDBSourceOpExec private[asterixdb] (
-    host: String,
-    port: String,
-    database: String,
-    table: String,
-    limit: Option[Long],
-    offset: Option[Long],
-    progressive: Option[Boolean],
-    batchByColumn: Option[String],
-    min: Option[String],
-    max: Option[String],
-    interval: Long,
-    keywordSearch: Boolean,
-    keywordSearchByColumn: String,
-    keywords: String,
-    geoSearch: Boolean,
-    geoSearchByColumns: List[String],
-    geoSearchBoundingBox: List[String],
-    regexSearch: Boolean,
-    regexSearchByColumn: String,
-    regex: String,
-    filterCondition: Boolean,
-    filterPredicates: List[FilterPredicate],
-    schemaFunc: () => Schema
-) extends SQLSourceOpExec(
-      table,
-      limit,
-      offset,
-      progressive,
-      batchByColumn,
-      min,
-      max,
-      interval,
-      keywordSearch,
-      keywordSearchByColumn,
-      keywords,
-      schemaFunc
-    ) {
+class AsterixDBSourceOpExec private[asterixdb](
+                                                host: String,
+                                                port: String,
+                                                database: String,
+                                                table: String,
+                                                limit: Option[Long],
+                                                offset: Option[Long],
+                                                progressive: Option[Boolean],
+                                                batchByColumn: Option[String],
+                                                min: Option[String],
+                                                max: Option[String],
+                                                interval: Long,
+                                                keywordSearch: Boolean,
+                                                keywordSearchByColumn: String,
+                                                keywords: String,
+                                                geoSearch: Boolean,
+                                                geoSearchByColumns: List[String],
+                                                geoSearchBoundingBox: List[String],
+                                                regexSearch: Boolean,
+                                                regexSearchByColumn: String,
+                                                regex: String,
+                                                filterCondition: Boolean,
+                                                filterPredicates: List[FilterPredicate],
+                                                schemaFunc: () => Schema
+                                              ) extends SQLSourceOpExec(
+  table,
+  limit,
+  offset,
+  progressive,
+  batchByColumn,
+  min,
+  max,
+  interval,
+  keywordSearch,
+  keywordSearchByColumn,
+  keywords,
+  schemaFunc
+) {
 
   // format Timestamp. TODO: move to some util package
   private val formatter: DateTimeFormatter =
@@ -70,9 +64,10 @@ class AsterixDBSourceOpExec private[asterixdb] (
   }
 
   /**
-    * A generator of a Tuple, which converted from a CSV row of fields from AsterixDB
-    * @return Iterator[TupleLike]
-    */
+   * A generator of a Tuple, which converted from a CSV row of fields from AsterixDB
+   *
+   * @return Iterator[TupleLike]
+   */
   override def produceTuple(): Iterator[TupleLike] = {
     new Iterator[TupleLike]() {
       override def hasNext: Boolean = {
@@ -80,7 +75,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
         cachedTuple match {
           // if existing Tuple in cache, means there exist next Tuple.
           case Some(_) => true
-          case None    =>
+          case None =>
             // cache the next Tuple
             cachedTuple = Option(next())
             cachedTuple.isDefined
@@ -149,10 +144,10 @@ class AsterixDBSourceOpExec private[asterixdb] (
   }
 
   /**
-    * Build a Tuple from a row of curResultIterator
-    *
-    * @return the new Tuple
-    */
+   * Build a Tuple from a row of curResultIterator
+   *
+   * @return the new Tuple
+   */
   override def buildTupleFromRow: Tuple = {
 
     val tupleBuilder = Tuple.builder(schema)
@@ -170,7 +165,9 @@ class AsterixDBSourceOpExec private[asterixdb] (
           val columnType = attr.getType
 
           var value: String = null
-          Try({ value = values.get(i) })
+          Try({
+            value = values.get(i)
+          })
 
           if (value == null || value.equals("null")) {
             // add the field as null
@@ -194,22 +191,23 @@ class AsterixDBSourceOpExec private[asterixdb] (
   }
 
   /**
-    * close curResultIterator, curQueryString
-    */
+   * close curResultIterator, curQueryString
+   */
   override def close(): Unit = {
     curResultIterator = None
     curQueryString = None
   }
 
   /**
-    * add naive support for full text search.
-    * input is either
-    *     ['hello', 'world'], {'mode':'any'}
-    * or
-    *     ['hello', 'world'], {'mode':'all'}
-    * @param queryBuilder queryBuilder for concatenation
-    * @throws IllegalArgumentException if attribute does not support string based search
-    */
+   * add naive support for full text search.
+   * input is either
+   * ['hello', 'world'], {'mode':'any'}
+   * or
+   * ['hello', 'world'], {'mode':'all'}
+   *
+   * @param queryBuilder queryBuilder for concatenation
+   * @throws IllegalArgumentException if attribute does not support string based search
+   */
   @throws[IllegalArgumentException]
   def addFilterConditions(queryBuilder: StringBuilder): Unit = {
     if (keywordSearch) {
@@ -280,10 +278,11 @@ class AsterixDBSourceOpExec private[asterixdb] (
   }
 
   /**
-    * Fetch for a numeric value of the boundary of the batchByColumn.
-    * @param side either "MAX" or "MIN" for boundary
-    * @return a numeric value, could be Int, Long or Double
-    */
+   * Fetch for a numeric value of the boundary of the batchByColumn.
+   *
+   * @param side either "MAX" or "MIN" for boundary
+   * @return a numeric value, could be Int, Long or Double
+   */
   override def fetchBatchByBoundary(side: String): Number = {
     batchByAttribute match {
       case Some(attribute) =>
@@ -301,7 +300,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
           case Success(timestamp: Timestamp) =>
             parseField(timestamp, AttributeType.LONG).asInstanceOf[Number]
           case Success(otherTypes) => otherTypes.asInstanceOf[Number]
-          case Failure(_)          => 0
+          case Failure(_) => 0
         }
 
       case None => 0
@@ -309,9 +308,13 @@ class AsterixDBSourceOpExec private[asterixdb] (
   }
 
   override def addBaseSelect(queryBuilder: StringBuilder): Unit = {
-    queryBuilder ++= "\n" + s"SELECT ${schema.getAttributeNames.zipWithIndex
-      .map((entry: (String, Int)) => { s"if_missing(${entry._1},null) field_${entry._2}" })
-      .mkString(", ")} FROM $database.$table WHERE 1 = 1 "
+    queryBuilder ++= "\n" + s"SELECT ${
+      schema.getAttributeNames.zipWithIndex
+        .map((entry: (String, Int)) => {
+          s"if_missing(${entry._1},null) field_${entry._2}"
+        })
+        .mkString(", ")
+    } FROM $database.$table WHERE 1 = 1 "
   }
 
   override def addLimit(queryBuilder: StringBuilder): Unit = {
@@ -342,9 +345,9 @@ class AsterixDBSourceOpExec private[asterixdb] (
   }
 
   /**
-    * Fetch all table names from the given database. This is used to
-    * check the input table name to prevent from SQL injection.
-    */
+   * Fetch all table names from the given database. This is used to
+   * check the input table name to prevent from SQL injection.
+   */
   override protected def loadTableNames(): Unit = {
     // fetch for all tables, it is also equivalent to a health check
     val tables = queryAsterixDB(host, port, "select `DatasetName` from Metadata.`Dataset`;")

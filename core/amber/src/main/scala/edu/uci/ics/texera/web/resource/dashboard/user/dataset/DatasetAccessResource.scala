@@ -4,25 +4,18 @@ import edu.uci.ics.amber.engine.common.Utils.withTransaction
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.common.AccessEntry
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.USER
-import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
 import edu.uci.ics.texera.web.model.jooq.generated.enums.DatasetUserAccessPrivilege
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset.DATASET
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  DatasetDao,
-  DatasetUserAccessDao,
-  UserDao
-}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{DatasetDao, DatasetUserAccessDao, UserDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{DatasetUserAccess, User}
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetAccessResource.{
-  context,
-  getOwner
-}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetAccessResource.{context, getOwner}
 import org.jooq.DSLContext
 import org.jooq.types.UInteger
 
 import java.util
 import javax.annotation.security.RolesAllowed
-import javax.ws.rs.{DELETE, GET, PUT, Path, PathParam, Produces}
+import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
 
 object DatasetAccessResource {
@@ -30,8 +23,8 @@ object DatasetAccessResource {
 
   def userHasReadAccess(ctx: DSLContext, did: UInteger, uid: UInteger): Boolean = {
     userHasWriteAccess(ctx, did, uid) ||
-    datasetIsPublic(ctx, did) ||
-    getDatasetUserAccessPrivilege(ctx, did, uid) == DatasetUserAccessPrivilege.READ
+      datasetIsPublic(ctx, did) ||
+      getDatasetUserAccessPrivilege(ctx, did, uid) == DatasetUserAccessPrivilege.READ
   }
 
   def userOwnDataset(ctx: DSLContext, did: UInteger, uid: UInteger): Boolean = {
@@ -46,7 +39,7 @@ object DatasetAccessResource {
 
   def userHasWriteAccess(ctx: DSLContext, did: UInteger, uid: UInteger): Boolean = {
     userOwnDataset(ctx, did, uid) ||
-    getDatasetUserAccessPrivilege(ctx, did, uid) == DatasetUserAccessPrivilege.WRITE
+      getDatasetUserAccessPrivilege(ctx, did, uid) == DatasetUserAccessPrivilege.WRITE
   }
 
   def datasetIsPublic(ctx: DSLContext, did: UInteger): Boolean = {
@@ -60,10 +53,10 @@ object DatasetAccessResource {
   }
 
   def getDatasetUserAccessPrivilege(
-      ctx: DSLContext,
-      did: UInteger,
-      uid: UInteger
-  ): DatasetUserAccessPrivilege = {
+                                     ctx: DSLContext,
+                                     did: UInteger,
+                                     uid: UInteger
+                                   ): DatasetUserAccessPrivilege = {
     Option(
       ctx
         .select(DATASET_USER_ACCESS.PRIVILEGE)
@@ -92,11 +85,11 @@ object DatasetAccessResource {
 class DatasetAccessResource {
 
   /**
-    * This method returns the owner of a dataset
-    *
-    * @param did ,  dataset id
-    * @return ownerEmail,  the owner's email
-    */
+   * This method returns the owner of a dataset
+   *
+   * @param did ,  dataset id
+   * @return ownerEmail,  the owner's email
+   */
   @GET
   @Path("/owner/{did}")
   def getOwnerEmailOfDataset(@PathParam("did") did: UInteger): String = {
@@ -111,16 +104,16 @@ class DatasetAccessResource {
   }
 
   /**
-    * Returns information about all current shared access of the given dataset
-    *
-    * @param did dataset id
-    * @return a List of email/name/permission
-    */
+   * Returns information about all current shared access of the given dataset
+   *
+   * @param did dataset id
+   * @return a List of email/name/permission
+   */
   @GET
   @Path("/list/{did}")
   def getAccessList(
-      @PathParam("did") did: UInteger
-  ): util.List[AccessEntry] = {
+                     @PathParam("did") did: UInteger
+                   ): util.List[AccessEntry] = {
     withTransaction(context) { ctx =>
       val datasetDao = new DatasetDao(ctx.configuration())
       ctx
@@ -142,20 +135,20 @@ class DatasetAccessResource {
   }
 
   /**
-    * This method shares a dataset to a user with a specific access type
-    *
-    * @param did       the given dataset
-    * @param email     the email which the access is given to
-    * @param privilege the type of Access given to the target user
-    * @return rejection if user not permitted to share the workflow or Success Message
-    */
+   * This method shares a dataset to a user with a specific access type
+   *
+   * @param did       the given dataset
+   * @param email     the email which the access is given to
+   * @param privilege the type of Access given to the target user
+   * @return rejection if user not permitted to share the workflow or Success Message
+   */
   @PUT
   @Path("/grant/{did}/{email}/{privilege}")
   def grantAccess(
-      @PathParam("did") did: UInteger,
-      @PathParam("email") email: String,
-      @PathParam("privilege") privilege: String
-  ): Response = {
+                   @PathParam("did") did: UInteger,
+                   @PathParam("email") email: String,
+                   @PathParam("privilege") privilege: String
+                 ): Response = {
     withTransaction(context) { ctx =>
       val datasetUserAccessDao = new DatasetUserAccessDao(ctx.configuration())
       val userDao = new UserDao(ctx.configuration())
@@ -171,18 +164,18 @@ class DatasetAccessResource {
   }
 
   /**
-    * This method revoke the user's access of the given dataset
-    *
-    * @param did   the given dataset
-    * @param email the email of the use whose access is about to be removed
-    * @return message indicating a success message
-    */
+   * This method revoke the user's access of the given dataset
+   *
+   * @param did   the given dataset
+   * @param email the email of the use whose access is about to be removed
+   * @return message indicating a success message
+   */
   @DELETE
   @Path("/revoke/{did}/{email}")
   def revokeAccess(
-      @PathParam("did") did: UInteger,
-      @PathParam("email") email: String
-  ): Response = {
+                    @PathParam("did") did: UInteger,
+                    @PathParam("email") email: String
+                  ): Response = {
     withTransaction(context) { ctx =>
       val userDao = new UserDao(ctx.configuration())
 

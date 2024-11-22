@@ -1,8 +1,5 @@
 package edu.uci.ics.texera.workflow.operators.download
 
-import edu.uci.ics.amber.engine.common.executor.OperatorExecutor
-import edu.uci.ics.amber.engine.common.model.WorkflowContext
-import edu.uci.ics.amber.engine.common.model.tuple.{Tuple, TupleLike}
 import edu.uci.ics.texera.workflow.operators.source.fetcher.URLFetchUtil.getInputStreamFromURL
 
 import java.net.URL
@@ -12,11 +9,12 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 
 class BulkDownloaderOpExec(
-    workflowContext: WorkflowContext,
-    urlAttribute: String
-) extends OperatorExecutor {
+                            workflowContext: WorkflowContext,
+                            urlAttribute: String
+                          ) extends OperatorExecutor {
 
   private val downloading = new mutable.Queue[Future[TupleLike]]()
+
   private class DownloadResultIterator(blocking: Boolean) extends Iterator[TupleLike] {
     override def hasNext: Boolean = {
       if (downloading.isEmpty) {
@@ -35,7 +33,9 @@ class BulkDownloaderOpExec(
 
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
 
-    downloading.enqueue(Future { downloadTuple(tuple) })
+    downloading.enqueue(Future {
+      downloadTuple(tuple)
+    })
     new DownloadResultIterator(false)
   }
 
@@ -57,8 +57,10 @@ class BulkDownloaderOpExec(
             case Some(contentStream) =>
               if (contentStream.available() > 0) {
                 val filename =
-                  s"w${workflowContext.workflowId.id}-e${workflowContext.executionId.id}-${urlObj.getHost
-                    .replace(".", "")}.download"
+                  s"w${workflowContext.workflowId.id}-e${workflowContext.executionId.id}-${
+                    urlObj.getHost
+                      .replace(".", "")
+                  }.download"
                 filename
               } else {
                 throw new RuntimeException(s"content is not available for $url")

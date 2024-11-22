@@ -3,14 +3,7 @@ package edu.uci.ics.amber.engine.architecture.messaginglayer
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
 import edu.uci.ics.amber.engine.common.ambermessage._
-import edu.uci.ics.amber.engine.common.model.EndOfInputChannel
-import edu.uci.ics.amber.engine.common.model.tuple.{AttributeType, Schema, TupleLike}
-import edu.uci.ics.amber.virtualidentity.{
-  ActorVirtualIdentity,
-  ChannelIdentity,
-  OperatorIdentity,
-  PhysicalOpIdentity
-}
+import edu.uci.ics.amber.virtualidentity.{ActorVirtualIdentity, ChannelIdentity, OperatorIdentity, PhysicalOpIdentity}
 import edu.uci.ics.amber.workflow.{PhysicalLink, PortIdentity}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
@@ -38,11 +31,11 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
   }
 
   def mkDataMessage(
-      to: ActorVirtualIdentity,
-      from: ActorVirtualIdentity,
-      seq: Long,
-      payload: DataPayload
-  ): WorkflowFIFOMessage = {
+                     to: ActorVirtualIdentity,
+                     from: ActorVirtualIdentity,
+                     seq: Long,
+                     payload: DataPayload
+                   ): WorkflowFIFOMessage = {
     WorkflowFIFOMessage(ChannelIdentity(from, to, isControl = false), seq, payload)
   }
 

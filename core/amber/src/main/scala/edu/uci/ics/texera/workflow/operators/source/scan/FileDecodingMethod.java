@@ -29,5 +29,7 @@ public enum FileDecodingMethod {
         return this.getName();
     }
 
-    public Charset getCharset() {return this.charset;}
+    public Charset getCharset() {
+        return this.charset;
+    }
 }

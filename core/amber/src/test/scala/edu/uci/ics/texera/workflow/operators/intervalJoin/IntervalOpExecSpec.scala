@@ -1,13 +1,5 @@
 package edu.uci.ics.texera.workflow.operators.intervalJoin
 
-import edu.uci.ics.amber.engine.common.model.tuple.{
-  Attribute,
-  AttributeType,
-  Schema,
-  SchemaEnforceable,
-  Tuple,
-  TupleLike
-}
 import edu.uci.ics.amber.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
 import edu.uci.ics.amber.workflow.{PhysicalLink, PortIdentity}
 import org.scalatest.BeforeAndAfter
@@ -88,14 +80,14 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   def bruteForceJoin[T](
-      leftInput: Array[T],
-      rightInput: Array[T],
-      includeLeftBound: Boolean,
-      includeRightBound: Boolean,
-      constant: Long,
-      dataType: AttributeType,
-      timeIntervalType: TimeIntervalType = TimeIntervalType.DAY
-  ): Int = {
+                         leftInput: Array[T],
+                         rightInput: Array[T],
+                         includeLeftBound: Boolean,
+                         includeRightBound: Boolean,
+                         constant: Long,
+                         dataType: AttributeType,
+                         timeIntervalType: TimeIntervalType = TimeIntervalType.DAY
+                       ): Int = {
     var resultSize: Int = 0
     for (k <- leftInput.indices) {
       for (i <- rightInput.indices) {
@@ -184,12 +176,12 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   def compare(
-      input1: Long,
-      leftBound: Long,
-      rightBound: Long,
-      includeLeftBound: Boolean,
-      includeRightBound: Boolean
-  ): Boolean = {
+               input1: Long,
+               leftBound: Long,
+               rightBound: Long,
+               includeLeftBound: Boolean,
+               includeRightBound: Boolean
+             ): Boolean = {
     if (includeLeftBound && includeRightBound) {
       input1 >= leftBound && input1 <= rightBound
     } else if (includeLeftBound && !includeRightBound) {
@@ -202,16 +194,16 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   def testJoin[T](
-      leftKey: String,
-      rightKey: String,
-      includeLeftBound: Boolean,
-      includeRightBound: Boolean,
-      dataType: AttributeType,
-      timeIntervalType: TimeIntervalType,
-      intervalConstant: Long,
-      leftInput: Array[T],
-      rightInput: Array[T]
-  ): Unit = {
+                   leftKey: String,
+                   rightKey: String,
+                   includeLeftBound: Boolean,
+                   includeRightBound: Boolean,
+                   dataType: AttributeType,
+                   timeIntervalType: TimeIntervalType,
+                   intervalConstant: Long,
+                   leftInput: Array[T],
+                   rightInput: Array[T]
+                 ): Unit = {
     val inputSchemas =
       Array(schema(leftKey, dataType), schema(rightKey, dataType))
     opDesc = new IntervalJoinOpDesc(

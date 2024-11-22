@@ -1,50 +1,30 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
 import com.softwaremill.macwire.wire
+import edu.uci.ics.amber.core.executor.OperatorExecutor
+import edu.uci.ics.amber.core.marker.{EndOfInputChannel, StartOfInputChannel, State}
+import edu.uci.ics.amber.core.tuple.{FinalizeExecutor, FinalizePort, SchemaEnforceable, Tuple, TupleLike}
 import edu.uci.ics.amber.engine.architecture.common.AmberProcessor
 import edu.uci.ics.amber.engine.architecture.logreplay.ReplayLogManager
-import edu.uci.ics.amber.engine.architecture.messaginglayer.{
-  InputManager,
-  OutputManager,
-  WorkerTimerService
-}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.{InputManager, OutputManager, WorkerTimerService}
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType.REQUIRE_ALIGNMENT
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
-  ChannelMarkerPayload,
-  ConsoleMessageTriggeredRequest,
-  EmptyRequest,
-  PortCompletedRequest,
-  WorkerStateUpdatedRequest
-}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands._
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import edu.uci.ics.amber.engine.architecture.worker.managers.SerializationManager
-import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
-  COMPLETED,
-  READY,
-  RUNNING
-}
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{COMPLETED, READY, RUNNING}
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
 import edu.uci.ics.amber.engine.common.ambermessage._
-import edu.uci.ics.amber.engine.common.executor.OperatorExecutor
-import edu.uci.ics.amber.engine.common.model.{EndOfInputChannel, StartOfInputChannel, State}
-import edu.uci.ics.amber.engine.common.model.tuple.{
-  FinalizeExecutor,
-  FinalizePort,
-  SchemaEnforceable,
-  Tuple,
-  TupleLike
-}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
+import edu.uci.ics.amber.error.ErrorUtils.{mkConsoleMessage, safely}
 import edu.uci.ics.amber.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.workflow.PortIdentity
-import edu.uci.ics.amber.error.ErrorUtils.{mkConsoleMessage, safely}
 
 class DataProcessor(
-    actorId: ActorVirtualIdentity,
-    outputHandler: Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit
-) extends AmberProcessor(actorId, outputHandler)
-    with Serializable {
+                     actorId: ActorVirtualIdentity,
+                     outputHandler: Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit
+                   ) extends AmberProcessor(actorId, outputHandler)
+  with Serializable {
 
   @transient var executor: OperatorExecutor = _
 
@@ -62,20 +42,21 @@ class DataProcessor(
   val outputManager: OutputManager = new OutputManager(actorId, outputGateway)
   val channelMarkerManager: ChannelMarkerManager = new ChannelMarkerManager(actorId, inputGateway)
   val serializationManager: SerializationManager = new SerializationManager(actorId)
+
   def getQueuedCredit(channelId: ChannelIdentity): Long = {
     inputGateway.getChannel(channelId).getQueuedCredit
   }
 
   /**
-    * provide API for actor to get stats of this operator
-    */
+   * provide API for actor to get stats of this operator
+   */
   def collectStatistics(): WorkerStatistics =
     statisticsManager.getStatistics(executor)
 
   /**
-    * process currentInputTuple through executor logic.
-    * this function is only called by the DP thread.
-    */
+   * process currentInputTuple through executor logic.
+   * this function is only called by the DP thread.
+   */
   private[this] def processInputTuple(tuple: Tuple): Unit = {
     try {
       val portIdentity: PortIdentity =
@@ -109,9 +90,9 @@ class DataProcessor(
   }
 
   /**
-    * process start of an input port with Executor.produceStateOnStart().
-    * this function is only called by the DP thread.
-    */
+   * process start of an input port with Executor.produceStateOnStart().
+   * this function is only called by the DP thread.
+   */
   private[this] def processStartOfInputChannel(portId: Int): Unit = {
     try {
       outputManager.emitMarker(StartOfInputChannel())
@@ -126,9 +107,9 @@ class DataProcessor(
   }
 
   /**
-    * process end of an input port with Executor.produceStateOnFinish().
-    * this function is only called by the DP thread.
-    */
+   * process end of an input port with Executor.produceStateOnFinish().
+   * this function is only called by the DP thread.
+   */
   private[this] def processEndOfInputChannel(portId: Int): Unit = {
     try {
       val outputState = executor.produceStateOnFinish(portId)
@@ -146,8 +127,8 @@ class DataProcessor(
   }
 
   /** transfer one tuple from iterator to downstream.
-    * this function is only called by the DP thread
-    */
+   * this function is only called by the DP thread
+   */
   private[this] def outputOneTuple(): Unit = {
     adaptiveBatchingMonitor.startAdaptiveBatching()
     var out: (TupleLike, Option[PortIdentity]) = null
@@ -212,9 +193,9 @@ class DataProcessor(
   }
 
   def processDataPayload(
-      channelId: ChannelIdentity,
-      dataPayload: DataPayload
-  ): Unit = {
+                          channelId: ChannelIdentity,
+                          dataPayload: DataPayload
+                        ): Unit = {
     val dataProcessingStartTime = System.nanoTime()
     val portId = this.inputGateway.getChannel(channelId).getPortId
     dataPayload match {
@@ -256,10 +237,10 @@ class DataProcessor(
   }
 
   def processChannelMarker(
-      channelId: ChannelIdentity,
-      marker: ChannelMarkerPayload,
-      logManager: ReplayLogManager
-  ): Unit = {
+                            channelId: ChannelIdentity,
+                            marker: ChannelMarkerPayload,
+                            logManager: ReplayLogManager
+                          ): Unit = {
     val markerId = marker.id
     val command = marker.commandMapping.get(actorId.name)
     logger.info(s"receive marker from $channelId, id = ${marker.id}, cmd = ${command}")

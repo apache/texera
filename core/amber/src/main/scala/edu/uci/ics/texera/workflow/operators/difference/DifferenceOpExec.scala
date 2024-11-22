@@ -1,8 +1,5 @@
 package edu.uci.ics.texera.workflow.operators.difference
 
-import edu.uci.ics.amber.engine.common.executor.OperatorExecutor
-import edu.uci.ics.amber.engine.common.model.tuple.{Tuple, TupleLike}
-
 import scala.collection.mutable
 
 class DifferenceOpExec extends OperatorExecutor {

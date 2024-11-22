@@ -1,18 +1,12 @@
 package edu.uci.ics.texera.workflow.operators.intersect
 
-import edu.uci.ics.amber.engine.common.model.tuple.{
-  Attribute,
-  AttributeType,
-  Schema,
-  Tuple,
-  TupleLike
-}
 import edu.uci.ics.amber.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
 import edu.uci.ics.amber.workflow.{PhysicalLink, PortIdentity}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
 import scala.util.Random
+
 class IntersectOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   var opExec: IntersectOpExec = _
   var counter: Int = 0

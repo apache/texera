@@ -2,51 +2,36 @@ package edu.uci.ics.texera.web.service
 
 import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.architecture.controller.{
-  ExecutionStatsUpdate,
-  FatalError,
-  WorkerAssignmentUpdate,
-  WorkflowRecoveryStatus
-}
+import edu.uci.ics.amber.core.workflow.WorkflowContext
+import edu.uci.ics.amber.engine.architecture.controller.{ExecutionStatsUpdate, FatalError, WorkerAssignmentUpdate, WorkflowRecoveryStatus}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.FAILED
 import edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping
-import edu.uci.ics.amber.engine.common.{AmberConfig, Utils}
+import edu.uci.ics.amber.engine.common.Utils.maptoStatusCode
 import edu.uci.ics.amber.engine.common.client.AmberClient
-import edu.uci.ics.amber.engine.common.model.WorkflowContext
+import edu.uci.ics.amber.engine.common.executionruntimestate.{OperatorMetrics, OperatorStatistics, OperatorWorkerMapping}
+import edu.uci.ics.amber.engine.common.{AmberConfig, Utils}
 import edu.uci.ics.amber.error.ErrorUtils.{getOperatorFromActorIdOpt, getStackTraceWithAllCauses}
-import Utils.maptoStatusCode
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowRuntimeStatistics
+import edu.uci.ics.amber.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
+import edu.uci.ics.amber.workflowruntimestate.WorkflowFatalError
 import edu.uci.ics.texera.web.SubscriptionManager
-import edu.uci.ics.texera.web.model.websocket.event.{
-  ExecutionDurationUpdateEvent,
-  OperatorAggregatedMetrics,
-  OperatorStatisticsUpdateEvent,
-  WorkerAssignmentUpdateEvent
-}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowRuntimeStatistics
+import edu.uci.ics.texera.web.model.websocket.event.{ExecutionDurationUpdateEvent, OperatorAggregatedMetrics, OperatorStatisticsUpdateEvent, WorkerAssignmentUpdateEvent}
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
-import edu.uci.ics.amber.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
-import edu.uci.ics.amber.engine.common.executionruntimestate.{
-  OperatorMetrics,
-  OperatorStatistics,
-  OperatorWorkerMapping
-}
-import edu.uci.ics.amber.workflowruntimestate.WorkflowFatalError
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
-
-import java.time.Instant
 import org.jooq.types.{UInteger, ULong}
 
+import java.time.Instant
 import java.util
 import java.util.concurrent.Executors
 
 class ExecutionStatsService(
-    client: AmberClient,
-    stateStore: ExecutionStateStore,
-    workflowContext: WorkflowContext
-) extends SubscriptionManager
-    with LazyLogging {
+                             client: AmberClient,
+                             stateStore: ExecutionStateStore,
+                             workflowContext: WorkflowContext
+                           ) extends SubscriptionManager
+  with LazyLogging {
   private val metricsPersistThread = Executors.newSingleThreadExecutor()
   private var lastPersistedMetrics: Map[String, OperatorMetrics] = Map()
   registerCallbacks()
@@ -141,8 +126,8 @@ class ExecutionStatsService(
   }
 
   private def computeStatsDiff(
-      newMetrics: Map[String, OperatorMetrics]
-  ): Map[String, OperatorMetrics] = {
+                                newMetrics: Map[String, OperatorMetrics]
+                              ): Map[String, OperatorMetrics] = {
     val defaultMetrics =
       OperatorMetrics(
         WorkflowAggregatedState.UNINITIALIZED,
@@ -200,8 +185,8 @@ class ExecutionStatsService(
   }
 
   private def storeRuntimeStatistics(
-      operatorStatistics: scala.collection.immutable.Map[String, OperatorMetrics]
-  ): Unit = {
+                                      operatorStatistics: scala.collection.immutable.Map[String, OperatorMetrics]
+                                    ): Unit = {
     // Add a try-catch to not produce an error when "workflow_runtime_statistics" table does not exist in MySQL
     try {
       val list: util.ArrayList[WorkflowRuntimeStatistics] =

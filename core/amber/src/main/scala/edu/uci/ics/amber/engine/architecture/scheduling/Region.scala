@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
+import edu.uci.ics.amber.core.workflow.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.scheduling.config.ResourceConfig
-import edu.uci.ics.amber.engine.common.model.PhysicalOp
 import edu.uci.ics.amber.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.amber.workflow.{PhysicalLink, PortIdentity}
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
@@ -14,13 +14,14 @@ case class RegionLink(fromRegionId: RegionIdentity, toRegionId: RegionIdentity)
 case class RegionIdentity(id: Long)
 
 case class GlobalPortIdentity(opId: PhysicalOpIdentity, portId: PortIdentity, input: Boolean)
+
 case class Region(
-    id: RegionIdentity,
-    physicalOps: Set[PhysicalOp],
-    physicalLinks: Set[PhysicalLink],
-    resourceConfig: Option[ResourceConfig] = None,
-    materializedPortIds: Set[GlobalPortIdentity] = Set.empty
-) {
+                   id: RegionIdentity,
+                   physicalOps: Set[PhysicalOp],
+                   physicalLinks: Set[PhysicalLink],
+                   resourceConfig: Option[ResourceConfig] = None,
+                   materializedPortIds: Set[GlobalPortIdentity] = Set.empty
+                 ) {
 
   private val operators: Map[PhysicalOpIdentity, PhysicalOp] =
     getOperators.map(op => op.id -> op).toMap
@@ -31,9 +32,11 @@ case class Region(
     getLinks.foreach(link => jgraphtDag.addEdge(link.fromOpId, link.toOpId))
     jgraphtDag
   }
+
   def topologicalIterator(): Iterator[PhysicalOpIdentity] = {
     new TopologicalOrderIterator(dag).asScala
   }
+
   def getOperators: Set[PhysicalOp] = physicalOps
 
   def getLinks: Set[PhysicalLink] = physicalLinks
@@ -52,9 +55,9 @@ case class Region(
   }
 
   /**
-    * Effective source operators in a region.
-    * The effective source contains operators that have 0 input links in this region.
-    */
+   * Effective source operators in a region.
+   * The effective source contains operators that have 0 input links in this region.
+   */
   def getSourceOperators: Set[PhysicalOp] = {
     getOperators
       .filter(physicalOp =>

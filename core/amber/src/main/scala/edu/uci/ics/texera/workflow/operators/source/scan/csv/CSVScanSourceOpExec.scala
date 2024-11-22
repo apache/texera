@@ -1,27 +1,24 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.csv
 
 import com.univocity.parsers.csv.{CsvFormat, CsvParser, CsvParserSettings}
-import edu.uci.ics.amber.engine.common.executor.SourceOperatorExecutor
-import edu.uci.ics.amber.workflow.PortIdentity
 import edu.uci.ics.amber.engine.common.{CheckpointState, CheckpointSupport}
-import edu.uci.ics.amber.engine.common.model.tuple.{AttributeTypeUtils, Schema, TupleLike}
-import edu.uci.ics.amber.engine.common.storage.DocumentFactory
+import edu.uci.ics.amber.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.operators.source.scan.FileDecodingMethod
 
 import java.io.InputStreamReader
 import java.net.URI
 import scala.collection.immutable.ArraySeq
 
-class CSVScanSourceOpExec private[csv] (
-    fileUri: String,
-    fileEncoding: FileDecodingMethod,
-    limit: Option[Int],
-    offset: Option[Int],
-    customDelimiter: Option[String],
-    hasHeader: Boolean,
-    schemaFunc: () => Schema
-) extends SourceOperatorExecutor
-    with CheckpointSupport {
+class CSVScanSourceOpExec private[csv](
+                                        fileUri: String,
+                                        fileEncoding: FileDecodingMethod,
+                                        limit: Option[Int],
+                                        offset: Option[Int],
+                                        customDelimiter: Option[String],
+                                        hasHeader: Boolean,
+                                        schemaFunc: () => Schema
+                                      ) extends SourceOperatorExecutor
+  with CheckpointSupport {
   var inputReader: InputStreamReader = _
   var parser: CsvParser = _
   var schema: Schema = _
@@ -100,9 +97,9 @@ class CSVScanSourceOpExec private[csv] (
   }
 
   override def serializeState(
-      currentIteratorState: Iterator[(TupleLike, Option[PortIdentity])],
-      checkpoint: CheckpointState
-  ): Iterator[(TupleLike, Option[PortIdentity])] = {
+                               currentIteratorState: Iterator[(TupleLike, Option[PortIdentity])],
+                               checkpoint: CheckpointState
+                             ): Iterator[(TupleLike, Option[PortIdentity])] = {
     checkpoint.save(
       "numOutputRows",
       numRowGenerated
@@ -111,8 +108,8 @@ class CSVScanSourceOpExec private[csv] (
   }
 
   override def deserializeState(
-      checkpoint: CheckpointState
-  ): Iterator[(TupleLike, Option[PortIdentity])] = {
+                                 checkpoint: CheckpointState
+                               ): Iterator[(TupleLike, Option[PortIdentity])] = {
     open()
     numRowGenerated = checkpoint.load("numOutputRows")
     var tupleIterator = produceTuple().drop(numRowGenerated)

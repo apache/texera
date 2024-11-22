@@ -5,7 +5,8 @@ import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchema
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 
 //type constraint: value can only be numeric
-@JsonSchemaInject(json = """
+@JsonSchemaInject(json =
+  """
 {
   "attributeTypeRules": {
     "yValue": {

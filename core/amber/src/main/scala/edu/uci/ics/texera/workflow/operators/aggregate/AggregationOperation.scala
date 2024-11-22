@@ -2,15 +2,17 @@ package edu.uci.ics.texera.workflow.operators.aggregate
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
+import edu.uci.ics.amber.core.tuple.AttributeTypeUtils.parseTimestamp
+import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Tuple}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
-import edu.uci.ics.amber.engine.common.model.tuple.AttributeTypeUtils.parseTimestamp
-import edu.uci.ics.amber.engine.common.model.tuple.{Attribute, AttributeType, Tuple}
 
 import java.sql.Timestamp
 import javax.validation.constraints.NotNull
 
 case class AveragePartialObj(sum: Double, count: Double) extends Serializable {}
-@JsonSchemaInject(json = """
+
+@JsonSchemaInject(json =
+  """
 {
   "attributeTypeRules": {
     "attribute": {
@@ -59,13 +61,13 @@ class AggregationOperation {
   @JsonIgnore
   def getAggregationAttribute(attrType: AttributeType): Attribute = {
     val resultAttrType = this.aggFunction match {
-      case AggregationFunction.SUM     => attrType
-      case AggregationFunction.COUNT   => AttributeType.INTEGER
+      case AggregationFunction.SUM => attrType
+      case AggregationFunction.COUNT => AttributeType.INTEGER
       case AggregationFunction.AVERAGE => AttributeType.DOUBLE
-      case AggregationFunction.MIN     => attrType
-      case AggregationFunction.MAX     => attrType
-      case AggregationFunction.CONCAT  => AttributeType.STRING
-      case _                           => throw new RuntimeException("Unknown aggregation function: " + this.aggFunction)
+      case AggregationFunction.MIN => attrType
+      case AggregationFunction.MAX => attrType
+      case AggregationFunction.CONCAT => AttributeType.STRING
+      case _ => throw new RuntimeException("Unknown aggregation function: " + this.aggFunction)
     }
     new Attribute(resultAttribute, resultAttrType)
   }
@@ -74,11 +76,11 @@ class AggregationOperation {
   def getAggFunc(attrType: AttributeType): DistributedAggregation[Object] = {
     val aggFunc = aggFunction match {
       case AggregationFunction.AVERAGE => averageAgg()
-      case AggregationFunction.COUNT   => countAgg()
-      case AggregationFunction.MAX     => maxAgg(attrType)
-      case AggregationFunction.MIN     => minAgg(attrType)
-      case AggregationFunction.SUM     => sumAgg(attrType)
-      case AggregationFunction.CONCAT  => concatAgg()
+      case AggregationFunction.COUNT => countAgg()
+      case AggregationFunction.MAX => maxAgg(attrType)
+      case AggregationFunction.MIN => minAgg(attrType)
+      case AggregationFunction.SUM => sumAgg(attrType)
+      case AggregationFunction.CONCAT => concatAgg()
       case _ =>
         throw new UnsupportedOperationException("Unknown aggregation function: " + aggFunction)
     }
@@ -89,7 +91,7 @@ class AggregationOperation {
   def getFinal: AggregationOperation = {
     val newAggFunc = aggFunction match {
       case AggregationFunction.COUNT => AggregationFunction.SUM
-      case a: AggregationFunction    => a
+      case a: AggregationFunction => a
     }
     val res = new AggregationOperation()
     res.aggFunction = newAggFunc
@@ -101,9 +103,9 @@ class AggregationOperation {
   private def sumAgg(attributeType: AttributeType): DistributedAggregation[Object] = {
     if (
       attributeType != AttributeType.INTEGER &&
-      attributeType != AttributeType.DOUBLE &&
-      attributeType != AttributeType.LONG &&
-      attributeType != AttributeType.TIMESTAMP
+        attributeType != AttributeType.DOUBLE &&
+        attributeType != AttributeType.LONG &&
+        attributeType != AttributeType.TIMESTAMP
     ) {
       throw new UnsupportedOperationException(
         "Unsupported attribute type for sum aggregation: " + attributeType
@@ -143,8 +145,8 @@ class AggregationOperation {
           if (tuple.getField(attribute) != null) tuple.getField(attribute).toString else ""
         } else {
           partial + "," + (if (tuple.getField(attribute) != null)
-                             tuple.getField(attribute).toString
-                           else "")
+            tuple.getField(attribute).toString
+          else "")
         }
       },
       (partial1, partial2) => {
@@ -161,9 +163,9 @@ class AggregationOperation {
   private def minAgg(attributeType: AttributeType): DistributedAggregation[Object] = {
     if (
       attributeType != AttributeType.INTEGER &&
-      attributeType != AttributeType.DOUBLE &&
-      attributeType != AttributeType.LONG &&
-      attributeType != AttributeType.TIMESTAMP
+        attributeType != AttributeType.DOUBLE &&
+        attributeType != AttributeType.LONG &&
+        attributeType != AttributeType.TIMESTAMP
     ) {
       throw new UnsupportedOperationException(
         "Unsupported attribute type for min aggregation: " + attributeType
@@ -185,9 +187,9 @@ class AggregationOperation {
   private def maxAgg(attributeType: AttributeType): DistributedAggregation[Object] = {
     if (
       attributeType != AttributeType.INTEGER &&
-      attributeType != AttributeType.DOUBLE &&
-      attributeType != AttributeType.LONG &&
-      attributeType != AttributeType.TIMESTAMP
+        attributeType != AttributeType.DOUBLE &&
+        attributeType != AttributeType.LONG &&
+        attributeType != AttributeType.TIMESTAMP
     ) {
       throw new UnsupportedOperationException(
         "Unsupported attribute type for max aggregation: " + attributeType
@@ -290,9 +292,9 @@ class AggregationOperation {
 
   private def zero(attributeType: AttributeType): Object =
     attributeType match {
-      case AttributeType.INTEGER   => java.lang.Integer.valueOf(0)
-      case AttributeType.DOUBLE    => java.lang.Double.valueOf(0)
-      case AttributeType.LONG      => java.lang.Long.valueOf(0)
+      case AttributeType.INTEGER => java.lang.Integer.valueOf(0)
+      case AttributeType.DOUBLE => java.lang.Double.valueOf(0)
+      case AttributeType.LONG => java.lang.Long.valueOf(0)
       case AttributeType.TIMESTAMP => new Timestamp(0)
       case _ =>
         throw new UnsupportedOperationException(
@@ -302,9 +304,9 @@ class AggregationOperation {
 
   private def maxValue(attributeType: AttributeType): Object =
     attributeType match {
-      case AttributeType.INTEGER   => Integer.MAX_VALUE.asInstanceOf[Object]
-      case AttributeType.DOUBLE    => java.lang.Double.MAX_VALUE.asInstanceOf[Object]
-      case AttributeType.LONG      => java.lang.Long.MAX_VALUE.asInstanceOf[Object]
+      case AttributeType.INTEGER => Integer.MAX_VALUE.asInstanceOf[Object]
+      case AttributeType.DOUBLE => java.lang.Double.MAX_VALUE.asInstanceOf[Object]
+      case AttributeType.LONG => java.lang.Long.MAX_VALUE.asInstanceOf[Object]
       case AttributeType.TIMESTAMP => new Timestamp(java.lang.Long.MAX_VALUE)
       case _ =>
         throw new UnsupportedOperationException(
@@ -314,9 +316,9 @@ class AggregationOperation {
 
   private def minValue(attributeType: AttributeType): Object =
     attributeType match {
-      case AttributeType.INTEGER   => Integer.MIN_VALUE.asInstanceOf[Object]
-      case AttributeType.DOUBLE    => java.lang.Double.MIN_VALUE.asInstanceOf[Object]
-      case AttributeType.LONG      => java.lang.Long.MIN_VALUE.asInstanceOf[Object]
+      case AttributeType.INTEGER => Integer.MIN_VALUE.asInstanceOf[Object]
+      case AttributeType.DOUBLE => java.lang.Double.MIN_VALUE.asInstanceOf[Object]
+      case AttributeType.LONG => java.lang.Long.MIN_VALUE.asInstanceOf[Object]
       case AttributeType.TIMESTAMP => new Timestamp(0)
       case _ =>
         throw new UnsupportedOperationException(

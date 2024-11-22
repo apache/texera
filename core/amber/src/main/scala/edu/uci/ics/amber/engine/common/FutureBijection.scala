@@ -13,7 +13,7 @@ object FutureBijection {
     def asScala: ScalaFuture[A] = {
       val promise: ScalaPromise[A] = ScalaPromise()
       tf.respond {
-        case Return(value)    => promise.success(value)
+        case Return(value) => promise.success(value)
         case Throw(exception) => promise.failure(exception)
       }
       promise.future
@@ -25,7 +25,7 @@ object FutureBijection {
     def asTwitter(): TwitterFuture[A] = {
       val promise: TwitterPromise[A] = new TwitterPromise[A]()
       sf.onComplete {
-        case Success(value)     => promise.setValue(value)
+        case Success(value) => promise.setValue(value)
         case Failure(exception) => promise.setException(exception)
       }
       promise

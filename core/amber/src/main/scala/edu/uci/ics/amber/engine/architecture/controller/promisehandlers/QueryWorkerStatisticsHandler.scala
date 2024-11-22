@@ -1,29 +1,22 @@
 package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
-import edu.uci.ics.amber.engine.architecture.controller.{
-  ControllerAsyncRPCHandlerInitializer,
-  ExecutionStatsUpdate
-}
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
-  AsyncRPCContext,
-  EmptyRequest,
-  QueryStatisticsRequest
-}
+import edu.uci.ics.amber.engine.architecture.controller.{ControllerAsyncRPCHandlerInitializer, ExecutionStatsUpdate}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, EmptyRequest, QueryStatisticsRequest}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
-import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
+import edu.uci.ics.amber.util.VirtualIdentityUtils
 
 /** Get statistics from all the workers
-  *
-  * possible sender: controller(by statusUpdateAskHandle)
-  */
+ *
+ * possible sender: controller(by statusUpdateAskHandle)
+ */
 trait QueryWorkerStatisticsHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
   override def controllerInitiateQueryStatistics(
-      msg: QueryStatisticsRequest,
-      ctx: AsyncRPCContext
-  ): Future[EmptyReturn] = {
+                                                  msg: QueryStatisticsRequest,
+                                                  ctx: AsyncRPCContext
+                                                ): Future[EmptyReturn] = {
     // send to specified workers (or all workers by default)
     val workers = if (msg.filterByWorkers.nonEmpty) {
       msg.filterByWorkers

@@ -3,22 +3,10 @@ package edu.uci.ics.texera.workflow.operators.projection
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.common.model.PhysicalOp.oneToOnePhysicalOp
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.common.model.{PhysicalOp, SchemaPropagationFunc}
-import edu.uci.ics.amber.engine.common.model.tuple.{Attribute, Schema}
 import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.common.metadata._
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc
-import edu.uci.ics.texera.workflow.common.workflow.{
-  BroadcastPartition,
-  HashPartition,
-  PartitionInfo,
-  RangePartition,
-  SinglePartition,
-  UnknownPartition
-}
 
 class ProjectionOpDesc extends MapOpDesc {
 
@@ -30,9 +18,9 @@ class ProjectionOpDesc extends MapOpDesc {
   var attributes: List[AttributeUnit] = List()
 
   override def getPhysicalOp(
-      workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity
-  ): PhysicalOp = {
+                              workflowId: WorkflowIdentity,
+                              executionId: ExecutionIdentity
+                            ): PhysicalOp = {
     oneToOnePhysicalOp(
       workflowId,
       executionId,
@@ -60,9 +48,9 @@ class ProjectionOpDesc extends MapOpDesc {
       case RangePartition(rangeAttributeNames, min, max) =>
         if (rangeAttributeNames.nonEmpty) RangePartition(rangeAttributeNames, min, max)
         else UnknownPartition()
-      case SinglePartition()    => inputPartitionInfo
+      case SinglePartition() => inputPartitionInfo
       case BroadcastPartition() => inputPartitionInfo
-      case UnknownPartition()   => inputPartitionInfo
+      case UnknownPartition() => inputPartitionInfo
     }
 
     outputPartitionInfo

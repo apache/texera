@@ -5,20 +5,19 @@ import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import io.dropwizard.auth.AuthFilter
 
-import javax.annotation.Nullable
-import javax.annotation.Priority
-import javax.ws.rs.Priorities
-import javax.ws.rs.container.ContainerRequestContext
-import javax.ws.rs.container.PreMatching
-import javax.ws.rs.core.SecurityContext
 import java.io.IOException
 import java.util.Optional
+import javax.annotation.{Nullable, Priority}
+import javax.ws.rs.Priorities
+import javax.ws.rs.container.{ContainerRequestContext, PreMatching}
+import javax.ws.rs.core.SecurityContext
 
 @PreMatching
 @Priority(Priorities.AUTHENTICATION) object GuestAuthFilter {
   class Builder extends AuthFilter.AuthFilterBuilder[String, SessionUser, GuestAuthFilter] {
     override protected def newInstance = new GuestAuthFilter
   }
+
   val GUEST: User = new User(null, "guest", null, null, null, UserRole.REGULAR, null)
 }
 
@@ -29,10 +28,10 @@ import java.util.Optional
     authenticate(requestContext, "", "")
 
   override protected def authenticate(
-      requestContext: ContainerRequestContext,
-      @Nullable credentials: String,
-      scheme: String
-  ): Boolean = {
+                                       requestContext: ContainerRequestContext,
+                                       @Nullable credentials: String,
+                                       scheme: String
+                                     ): Boolean = {
 
     val principal = Optional.of(new SessionUser(GUEST))
     val securityContext = requestContext.getSecurityContext

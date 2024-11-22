@@ -1,14 +1,10 @@
 package edu.uci.ics.texera.workflow.operators.visualization.tablesChart
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import edu.uci.ics.amber.engine.common.model.tuple.{Attribute, AttributeType, Schema}
+import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
-import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
-import edu.uci.ics.texera.workflow.operators.visualization.{
-  VisualizationConstants,
-  VisualizationOperator
-}
+import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstants, VisualizationOperator}
 
 class TablesPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
 
@@ -48,6 +44,7 @@ class TablesPlotOpDesc extends VisualizationOperator with PythonOperatorDescript
        |
        |""".stripMargin
   }
+
   override def generatePythonCode(): String = {
     s"""
        |from pytexera import *

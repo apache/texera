@@ -3,20 +3,10 @@ package edu.uci.ics.amber.engine.architecture.worker
 import edu.uci.ics.amber.engine.architecture.logreplay.{ReplayLogManager, ReplayLogRecord}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.WorkerTimerService
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, EmptyRequest}
-import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{
-  METHOD_PAUSE_WORKER,
-  METHOD_RESUME_WORKER
-}
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
-  DPInputQueueElement,
-  FIFOMessageElement,
-  TimerBasedControlElement
-}
+import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{METHOD_PAUSE_WORKER, METHOD_RESUME_WORKER}
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{DPInputQueueElement, FIFOMessageElement, TimerBasedControlElement}
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, WorkflowFIFOMessage}
-import edu.uci.ics.amber.engine.common.executor.OperatorExecutor
-import edu.uci.ics.amber.engine.common.model.tuple.{AttributeType, Schema, Tuple, TupleLike}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
-import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
 import edu.uci.ics.amber.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.workflow.PortIdentity
@@ -55,11 +45,11 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     dpThread.start()
     tuples.foreach { x =>
       (
-          (
-              tuple: Tuple,
-              input: Int
-          ) => executor.processTupleMultiPort(tuple, input)
-      )
+        (
+          tuple: Tuple,
+          input: Int
+        ) => executor.processTupleMultiPort(tuple, input)
+        )
         .expects(x, 0)
     }
     val message = WorkflowFIFOMessage(dataChannelId, 0, DataFrame(tuples))
@@ -94,11 +84,11 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     dpThread.start()
     tuples.foreach { x =>
       (
-          (
-              tuple: Tuple,
-              input: Int
-          ) => executor.processTupleMultiPort(tuple, input)
-      )
+        (
+          tuple: Tuple,
+          input: Int
+        ) => executor.processTupleMultiPort(tuple, input)
+        )
         .expects(x, 0)
     }
     val message = WorkflowFIFOMessage(dataChannelId, 0, DataFrame(tuples))
@@ -142,11 +132,11 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     dpThread.start()
     tuples.foreach { x =>
       (
-          (
-              tuple: Tuple,
-              input: Int
-          ) => executor.processTupleMultiPort(tuple, input)
-      )
+        (
+          tuple: Tuple,
+          input: Int
+        ) => executor.processTupleMultiPort(tuple, input)
+        )
         .expects(x, 0)
     }
     val dataChannelID2 = ChannelIdentity(anotherSenderWorkerId, workerId, isControl = false)
@@ -188,11 +178,11 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     dpThread.start()
     tuples.foreach { x =>
       (
-          (
-              tuple: Tuple,
-              input: Int
-          ) => executor.processTupleMultiPort(tuple, input)
-      )
+        (
+          tuple: Tuple,
+          input: Int
+        ) => executor.processTupleMultiPort(tuple, input)
+        )
         .expects(x, 0)
     }
     val dataChannelId2 = ChannelIdentity(anotherSenderWorkerId, workerId, isControl = false)

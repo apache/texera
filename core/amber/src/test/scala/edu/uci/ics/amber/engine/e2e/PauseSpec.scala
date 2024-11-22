@@ -12,10 +12,8 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.COMPLETED
 import edu.uci.ics.amber.engine.common.AmberRuntime
 import edu.uci.ics.amber.engine.common.client.AmberClient
-import edu.uci.ics.amber.engine.common.model.WorkflowContext
 import edu.uci.ics.amber.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
-import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.workflow.LogicalLink
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -23,7 +21,7 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import scala.concurrent.duration._
 
 class PauseSpec
-    extends TestKit(ActorSystem("PauseSpec", AmberRuntime.akkaConfig))
+  extends TestKit(ActorSystem("PauseSpec", AmberRuntime.akkaConfig))
     with ImplicitSender
     with AnyFlatSpecLike
     with BeforeAndAfterAll {
@@ -42,9 +40,9 @@ class PauseSpec
   }
 
   def shouldPause(
-      operators: List[LogicalOp],
-      links: List[LogicalLink]
-  ): Unit = {
+                   operators: List[LogicalOp],
+                   links: List[LogicalLink]
+                 ): Unit = {
     val resultStorage = new OpResultStorage()
     val workflow = TestUtils.buildWorkflow(operators, links, resultStorage, new WorkflowContext())
     val client =

@@ -5,9 +5,9 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaBool;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaString;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
+import edu.uci.ics.amber.engine.common.model.tuple.AttributeType;
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeNameLambda;
 import edu.uci.ics.texera.workflow.common.metadata.annotations.HideAnnotation;
-import edu.uci.ics.amber.engine.common.model.tuple.AttributeType;
 
 import java.util.Objects;
 
@@ -21,9 +21,9 @@ public class LambdaAttributeUnit {
     @JsonSchemaTitle("New Attribute Name")
     @JsonSchemaInject(
             strings = {
-                @JsonSchemaString(path = HideAnnotation.hideTarget, value = "attributeName"),
-                @JsonSchemaString(path = HideAnnotation.hideType, value = HideAnnotation.Type.regex),
-                @JsonSchemaString(path = HideAnnotation.hideExpectedValue, value = "(?!Add New Column).*")
+                    @JsonSchemaString(path = HideAnnotation.hideTarget, value = "attributeName"),
+                    @JsonSchemaString(path = HideAnnotation.hideType, value = HideAnnotation.Type.regex),
+                    @JsonSchemaString(path = HideAnnotation.hideExpectedValue, value = "(?!Add New Column).*")
             },
             bools = @JsonSchemaBool(path = HideAnnotation.hideOnNull, value = true)
     )
@@ -52,7 +52,7 @@ public class LambdaAttributeUnit {
         return Objects.equals(attributeName, that.attributeName) &&
                 Objects.equals(expression, that.expression) &&
                 Objects.equals(newAttributeName, that.newAttributeName) &&
-                Objects.equals(attributeType, that.attributeType) ;
+                Objects.equals(attributeType, that.attributeType);
     }
 
     @Override

@@ -1,7 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.sort
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import edu.uci.ics.amber.engine.common.model.tuple.Schema
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
@@ -20,7 +19,7 @@ class SortOpDesc extends PythonOperatorDescriptor {
     val sortOrders: String = "[" + attributes
       .map { criteria =>
         criteria.sortPreference match {
-          case SortPreference.ASC  => "True"
+          case SortPreference.ASC => "True"
           case SortPreference.DESC => "False"
         }
       }

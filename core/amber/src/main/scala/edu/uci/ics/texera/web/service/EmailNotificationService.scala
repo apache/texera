@@ -7,6 +7,7 @@ import scala.concurrent.{ExecutionContext, Future}
 
 trait EmailNotifier {
   def shouldSendEmail(oldState: WorkflowAggregatedState, newState: WorkflowAggregatedState): Boolean
+
   def sendStatusEmail(state: WorkflowAggregatedState): Unit
 }
 
@@ -15,9 +16,9 @@ class EmailNotificationService(emailNotifier: EmailNotifier) {
   private implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(executorService)
 
   def sendEmailNotification(
-      oldState: WorkflowAggregatedState,
-      newState: WorkflowAggregatedState
-  ): Future[Unit] = {
+                             oldState: WorkflowAggregatedState,
+                             newState: WorkflowAggregatedState
+                           ): Future[Unit] = {
     Future {
       if (emailNotifier.shouldSendEmail(oldState, newState)) {
         emailNotifier.sendStatusEmail(newState)

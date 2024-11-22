@@ -115,7 +115,7 @@ message StartWorkflowResponse {
 }
 
 message WorkerStateResponse {
-   worker.WorkerState state = 1 [(scalapb.field).no_box = true];
+  worker.WorkerState state = 1 [(scalapb.field).no_box = true];
 }
 
 message WorkerMetricsResponse {

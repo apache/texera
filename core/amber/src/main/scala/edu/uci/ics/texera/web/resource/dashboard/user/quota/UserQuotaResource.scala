@@ -1,61 +1,72 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.quota
 
+import edu.uci.ics.amber.core.storage.util.mongo.MongoDatabaseManager
+import edu.uci.ics.amber.core.storage.util.mongo.MongoDatabaseManager.database
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource.{
-  DatasetQuota,
-  MongoStorage,
-  Workflow,
-  deleteMongoCollection,
-  getUserAccessedWorkflow,
-  getUserCreatedWorkflow,
-  getUserMongoDBSize
-}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables._
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.DatasetStatisticsUtils.getUserCreatedDatasets
+import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource._
+import io.dropwizard.auth.Auth
+import org.bson.Document
 import org.jooq.types.UInteger
 
 import java.util
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
-import edu.uci.ics.texera.web.model.jooq.generated.Tables._
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.DatasetStatisticsUtils.getUserCreatedDatasets
-import edu.uci.ics.texera.web.storage.MongoDatabaseManager
-import io.dropwizard.auth.Auth
-
 import scala.jdk.CollectionConverters.IterableHasAsScala
 
 object UserQuotaResource {
   final private lazy val context = SqlServer.createDSLContext()
 
   case class Workflow(
-      userId: UInteger,
-      workflowId: UInteger,
-      workflowName: String,
-      creationTime: Long,
-      lastModifiedTime: Long
-  )
+                       userId: UInteger,
+                       workflowId: UInteger,
+                       workflowName: String,
+                       creationTime: Long,
+                       lastModifiedTime: Long
+                     )
 
   case class DatasetQuota(
-      did: UInteger,
-      name: String,
-      creationTime: Long,
-      size: Long
-  )
+                           did: UInteger,
+                           name: String,
+                           creationTime: Long,
+                           size: Long
+                         )
 
   case class MongoStorage(
-      workflowName: String,
-      size: Double,
-      pointer: String,
-      eid: UInteger
-  )
+                           workflowName: String,
+                           size: Double,
+                           pointer: String,
+                           eid: UInteger
+                         )
+
+  def getDatabaseSize(collectionNames: Array[MongoStorage]): Array[MongoStorage] = {
+    var count = 0
+
+    for (collection <- collectionNames) {
+      val stats: Document = database.runCommand(new Document("collStats", collection.pointer))
+      collectionNames(count) = MongoStorage(
+        collection.workflowName,
+        stats.getInteger("totalSize").toDouble,
+        collection.pointer,
+        collection.eid
+      )
+      count += 1
+    }
+
+    collectionNames
+  }
+
 
   def getCollectionName(result: String): String = {
 
     /**
-      * Get the Collection Name from
-      * {"results":["1_TextInput-operator-6c3be22b-b2e2-4896-891c-cfa849638e5c"]}
-      * to
-      * 1_TextInput-operator-6c3be22b-b2e2-4896-891c-cfa849638e5c
-      */
+     * Get the Collection Name from
+     * {"results":["1_TextInput-operator-6c3be22b-b2e2-4896-891c-cfa849638e5c"]}
+     * to
+     * 1_TextInput-operator-6c3be22b-b2e2-4896-891c-cfa849638e5c
+     */
 
     var quoteCount = 0
     var name = ""
@@ -161,7 +172,7 @@ object UserQuotaResource {
       .asScala
       .toArray
 
-    val collectionSizes = MongoDatabaseManager.getDatabaseSize(collections)
+    val collectionSizes = getDatabaseSize(collections)
 
     collectionSizes
   }

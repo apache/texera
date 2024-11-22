@@ -7,46 +7,46 @@ import com.fasterxml.jackson.databind.node.{ArrayNode, ObjectNode}
 import com.kjetland.jackson.jsonSchema.JsonSchemaConfig.html5EnabledSchema
 import com.kjetland.jackson.jsonSchema.{JsonSchemaConfig, JsonSchemaDraft, JsonSchemaGenerator}
 import edu.uci.ics.amber.engine.common.Utils.objectMapper
-import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
+import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.operators.source.scan.csv.CSVScanSourceOpDesc
 
 import java.util
 import scala.jdk.CollectionConverters.{IteratorHasAsScala, ListHasAsScala}
 
 case class OperatorInfo(
-    userFriendlyName: String,
-    operatorDescription: String,
-    operatorGroupName: String,
-    inputPorts: List[InputPort],
-    outputPorts: List[OutputPort],
-    dynamicInputPorts: Boolean = false,
-    dynamicOutputPorts: Boolean = false,
-    supportReconfiguration: Boolean = false,
-    allowPortCustomization: Boolean = false
-)
+                         userFriendlyName: String,
+                         operatorDescription: String,
+                         operatorGroupName: String,
+                         inputPorts: List[InputPort],
+                         outputPorts: List[OutputPort],
+                         dynamicInputPorts: Boolean = false,
+                         dynamicOutputPorts: Boolean = false,
+                         supportReconfiguration: Boolean = false,
+                         allowPortCustomization: Boolean = false
+                       )
 
 case class OperatorMetadata(
-    operatorType: String,
-    jsonSchema: JsonNode,
-    additionalMetadata: OperatorInfo,
-    operatorVersion: String
-)
+                             operatorType: String,
+                             jsonSchema: JsonNode,
+                             additionalMetadata: OperatorInfo,
+                             operatorVersion: String
+                           )
 
 case class GroupInfo(
-    groupName: String,
-    children: List[GroupInfo] = null
-)
+                      groupName: String,
+                      children: List[GroupInfo] = null
+                    )
 
 case class AllOperatorMetadata(
-    operators: List[OperatorMetadata],
-    groups: List[GroupInfo]
-)
+                                operators: List[OperatorMetadata],
+                                groups: List[GroupInfo]
+                              )
 
 /**
-  * Generates the metadata of a Texera Operator Descriptor for the frontend.
-  * The type definitions correspond to "workspace/types/operator-schema.interface.ts" in frontend.
-  */
+ * Generates the metadata of a Texera Operator Descriptor for the frontend.
+ * The type definitions correspond to "workspace/types/operator-schema.interface.ts" in frontend.
+ */
 object OperatorMetadataGenerator {
 
   val texeraSchemaGeneratorConfig: JsonSchemaConfig = html5EnabledSchema.copy(

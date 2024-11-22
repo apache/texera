@@ -1,14 +1,8 @@
 package edu.uci.ics.texera.workflow.operators.projection
 
-import edu.uci.ics.amber.engine.common.model.tuple.{
-  Attribute,
-  AttributeType,
-  Schema,
-  SchemaEnforceable,
-  Tuple
-}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
+
 class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   val tupleSchema: Schema = Schema
     .builder()

@@ -16,7 +16,7 @@ public enum SklearnAdvancedSVCParameters implements ParamClass {
 
     SklearnAdvancedSVCParameters(String name, String type) {
         this.name = name;
-        this.type  = type;
+        this.type = type;
     }
 
     public String getType() {

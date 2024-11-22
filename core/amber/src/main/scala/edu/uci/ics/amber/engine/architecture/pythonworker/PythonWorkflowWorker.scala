@@ -5,16 +5,13 @@ import com.twitter.util.Promise
 import com.typesafe.config.{Config, ConfigFactory}
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkAck
-import edu.uci.ics.amber.engine.architecture.messaginglayer.{
-  NetworkInputGateway,
-  NetworkOutputGateway
-}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.{NetworkInputGateway, NetworkOutputGateway}
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.DataElement
 import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig
-import edu.uci.ics.amber.engine.common.{CheckpointState, Utils}
 import edu.uci.ics.amber.engine.common.actormessage.{Backpressure, CreditUpdate}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.ambermessage._
+import edu.uci.ics.amber.engine.common.{CheckpointState, Utils}
 import edu.uci.ics.amber.virtualidentity.ChannelIdentity
 
 import java.nio.file.Path
@@ -26,8 +23,8 @@ object PythonWorkflowWorker {
 }
 
 class PythonWorkflowWorker(
-    workerConfig: WorkerConfig
-) extends WorkflowActor(replayLogConfOpt = None, actorId = workerConfig.workerId) {
+                            workerConfig: WorkerConfig
+                          ) extends WorkflowActor(replayLogConfOpt = None, actorId = workerConfig.workerId) {
 
   // For receiving the Python server port number that will be available later
   private lazy val portNumberPromise = Promise[Int]()

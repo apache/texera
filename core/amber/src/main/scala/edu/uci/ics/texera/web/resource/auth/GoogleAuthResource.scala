@@ -1,15 +1,11 @@
 package edu.uci.ics.texera.web.resource.auth
+
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.web.SqlServer
-import edu.uci.ics.texera.web.auth.JwtAuth.{
-  TOKEN_EXPIRE_TIME_IN_DAYS,
-  dayToMin,
-  jwtClaims,
-  jwtToken
-}
+import edu.uci.ics.texera.web.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_DAYS, dayToMin, jwtClaims, jwtToken}
 import edu.uci.ics.texera.web.model.http.response.TokenIssueResponse
 import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
@@ -27,6 +23,7 @@ object GoogleAuthResource {
 @Path("/auth/google")
 class GoogleAuthResource {
   final private lazy val clientId = AmberConfig.googleClientId
+
   @GET
   @Path("/clientid")
   def getClientId: String = {

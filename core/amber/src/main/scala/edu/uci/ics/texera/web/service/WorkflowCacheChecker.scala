@@ -9,10 +9,10 @@ import scala.collection.mutable
 object WorkflowCacheChecker {
 
   def handleCacheStatusUpdate(
-      oldPlan: Option[LogicalPlan],
-      newPlan: LogicalPlan,
-      request: EditingTimeCompilationRequest
-  ): Map[String, String] = {
+                               oldPlan: Option[LogicalPlan],
+                               newPlan: LogicalPlan,
+                               request: EditingTimeCompilationRequest
+                             ): Map[String, String] = {
     val validCacheOps = new WorkflowCacheChecker(oldPlan, newPlan).getValidCacheReuse
     val cacheUpdateResult = request.opsToReuseResult
       .map(idString => OperatorIdentity(idString))

@@ -24,13 +24,13 @@ object Utils extends LazyLogging {
     .setDateFormat(new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"))
 
   /**
-    * Gets the real path of the amber home directory by:
-    * 1): check if the current directory is texera/core/amber
-    * if it's not then:
-    * 2): search the siblings and children to find the texera home path
-    *
-    * @return the real absolute path to amber home directory
-    */
+   * Gets the real path of the amber home directory by:
+   * 1): check if the current directory is texera/core/amber
+   * if it's not then:
+   * 2): search the siblings and children to find the texera home path
+   *
+   * @return the real absolute path to amber home directory
+   */
   lazy val amberHomePath: Path = {
     val currentWorkingDirectory = Paths.get(".").toRealPath()
     // check if the current directory is the amber home path
@@ -54,14 +54,15 @@ object Utils extends LazyLogging {
   val AMBER_HOME_FOLDER_NAME = "amber";
 
   /**
-    * Retry the given logic with a backoff time interval. The attempts are executed sequentially, thus blocking the thread.
-    * Backoff time is doubled after each attempt.
-    * @param attempts total number of attempts. if n <= 1 then it will not retry at all, decreased by 1 for each recursion.
-    * @param baseBackoffTimeInMS time to wait before next attempt, started with the base time, and doubled after each attempt.
-    * @param fn the target function to execute.
-    * @tparam T any return type from the provided function fn.
-    * @return the provided function fn's return, or any exception that still being raised after n attempts.
-    */
+   * Retry the given logic with a backoff time interval. The attempts are executed sequentially, thus blocking the thread.
+   * Backoff time is doubled after each attempt.
+   *
+   * @param attempts            total number of attempts. if n <= 1 then it will not retry at all, decreased by 1 for each recursion.
+   * @param baseBackoffTimeInMS time to wait before next attempt, started with the base time, and doubled after each attempt.
+   * @param fn                  the target function to execute.
+   * @tparam T any return type from the provided function fn.
+   * @return the provided function fn's return, or any exception that still being raised after n attempts.
+   */
   @tailrec
   def retry[T](attempts: Int, baseBackoffTimeInMS: Long)(fn: => T): T = {
     try {
@@ -84,8 +85,8 @@ object Utils extends LazyLogging {
   }
 
   /** An unmodifiable set containing some common URL words that are not usually useful
-    * for searching.
-    */
+   * for searching.
+   */
   final val URL_STOP_WORDS_SET = List[String](
     "http",
     "https",
@@ -100,36 +101,36 @@ object Utils extends LazyLogging {
   def aggregatedStateToString(state: WorkflowAggregatedState): String = {
     state match {
       case WorkflowAggregatedState.UNINITIALIZED => "Uninitialized"
-      case WorkflowAggregatedState.READY         => "Initializing"
-      case WorkflowAggregatedState.RUNNING       => "Running"
-      case WorkflowAggregatedState.PAUSING       => "Pausing"
-      case WorkflowAggregatedState.PAUSED        => "Paused"
-      case WorkflowAggregatedState.RESUMING      => "Resuming"
-      case WorkflowAggregatedState.COMPLETED     => "Completed"
-      case WorkflowAggregatedState.FAILED        => "Failed"
-      case WorkflowAggregatedState.KILLED        => "Killed"
-      case WorkflowAggregatedState.UNKNOWN       => "Unknown"
+      case WorkflowAggregatedState.READY => "Initializing"
+      case WorkflowAggregatedState.RUNNING => "Running"
+      case WorkflowAggregatedState.PAUSING => "Pausing"
+      case WorkflowAggregatedState.PAUSED => "Paused"
+      case WorkflowAggregatedState.RESUMING => "Resuming"
+      case WorkflowAggregatedState.COMPLETED => "Completed"
+      case WorkflowAggregatedState.FAILED => "Failed"
+      case WorkflowAggregatedState.KILLED => "Killed"
+      case WorkflowAggregatedState.UNKNOWN => "Unknown"
       case WorkflowAggregatedState.Unrecognized(unrecognizedValue) =>
         s"Unrecognized($unrecognizedValue)"
     }
   }
 
   /**
-    * @param state indicates the workflow state
-    * @return code indicates the status of the execution in the DB it is 0 by default for any unused states.
-    *         This code is stored in the DB and read in the frontend.
-    *         If these codes are changed, they also have to be changed in the frontend `ngbd-modal-workflow-executions.component.ts`
-    */
+   * @param state indicates the workflow state
+   * @return code indicates the status of the execution in the DB it is 0 by default for any unused states.
+   *         This code is stored in the DB and read in the frontend.
+   *         If these codes are changed, they also have to be changed in the frontend `ngbd-modal-workflow-executions.component.ts`
+   */
   def maptoStatusCode(state: WorkflowAggregatedState): Byte = {
     state match {
       case WorkflowAggregatedState.UNINITIALIZED => 0
-      case WorkflowAggregatedState.READY         => 0
-      case WorkflowAggregatedState.RUNNING       => 1
-      case WorkflowAggregatedState.PAUSED        => 2
-      case WorkflowAggregatedState.COMPLETED     => 3
-      case WorkflowAggregatedState.FAILED        => 4
-      case WorkflowAggregatedState.KILLED        => 5
-      case other                                 => -1
+      case WorkflowAggregatedState.READY => 0
+      case WorkflowAggregatedState.RUNNING => 1
+      case WorkflowAggregatedState.PAUSED => 2
+      case WorkflowAggregatedState.COMPLETED => 3
+      case WorkflowAggregatedState.FAILED => 4
+      case WorkflowAggregatedState.KILLED => 5
+      case other => -1
     }
   }
 

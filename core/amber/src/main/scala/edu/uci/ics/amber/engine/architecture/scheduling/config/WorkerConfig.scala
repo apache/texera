@@ -1,7 +1,8 @@
 package edu.uci.ics.amber.engine.architecture.scheduling.config
 
-import edu.uci.ics.amber.engine.common.model.PhysicalOp
-import edu.uci.ics.amber.engine.common.{AmberConfig, VirtualIdentityUtils}
+import edu.uci.ics.amber.core.workflow.PhysicalOp
+import edu.uci.ics.amber.engine.common.AmberConfig
+import edu.uci.ics.amber.util.VirtualIdentityUtils
 import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
 
 case object WorkerConfig {
@@ -25,6 +26,7 @@ case object WorkerConfig {
     )
   }
 }
+
 case class WorkerConfig(
-    workerId: ActorVirtualIdentity
-)
+                         workerId: ActorVirtualIdentity
+                       )

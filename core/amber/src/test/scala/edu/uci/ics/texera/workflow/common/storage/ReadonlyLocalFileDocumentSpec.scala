@@ -1,12 +1,11 @@
 package edu.uci.ics.amber.engine.common.storage
 
-import java.io.{ByteArrayOutputStream, File, InputStream}
-import java.nio.file.Files
-
-import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.BeforeAndAfter
+import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import java.io.{ByteArrayOutputStream, File, InputStream}
+import java.nio.file.Files
 import scala.util.Using
 
 class ReadonlyLocalFileDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfter {
@@ -33,7 +32,7 @@ class ReadonlyLocalFileDocumentSpec extends AnyFlatSpec with Matchers with Befor
     val buffer = new ByteArrayOutputStream()
     val data = new Array[Byte](1024)
     var nRead = 0
-    while ({
+    while ( {
       nRead = inputStream.read(data, 0, data.length)
       nRead != -1
     }) {

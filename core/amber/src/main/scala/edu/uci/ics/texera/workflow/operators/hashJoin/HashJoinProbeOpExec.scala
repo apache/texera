@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.hashJoin
 
-import edu.uci.ics.amber.engine.common.executor.OperatorExecutor
-import edu.uci.ics.amber.engine.common.model.tuple.{Tuple, TupleLike}
+import edu.uci.ics.amber.core.executor.OperatorExecutor
+import edu.uci.ics.amber.core.tuple.{Tuple, TupleLike}
 import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc.HASH_JOIN_INTERNAL_KEY_NAME
 
 import scala.collection.mutable
@@ -9,10 +9,10 @@ import scala.collection.mutable.ListBuffer
 
 object JoinUtils {
   def joinTuples(
-      leftTuple: Tuple,
-      rightTuple: Tuple,
-      skipAttributeName: Option[String] = None
-  ): TupleLike = {
+                  leftTuple: Tuple,
+                  rightTuple: Tuple,
+                  skipAttributeName: Option[String] = None
+                ): TupleLike = {
     val leftAttributeNames = leftTuple.getSchema.getAttributeNames
     val rightAttributeNames = rightTuple.getSchema.getAttributeNames.filterNot(name =>
       skipAttributeName.isDefined && name == skipAttributeName.get
@@ -39,10 +39,11 @@ object JoinUtils {
     TupleLike(leftTupleFields ++ rightTupleFields)
   }
 }
+
 class HashJoinProbeOpExec[K](
-    probeAttributeName: String,
-    joinType: JoinType
-) extends OperatorExecutor {
+                              probeAttributeName: String,
+                              joinType: JoinType
+                            ) extends OperatorExecutor {
   var currentTuple: Tuple = _
 
   var buildTableHashMap: mutable.HashMap[K, (ListBuffer[Tuple], Boolean)] = _
@@ -99,9 +100,9 @@ class HashJoinProbeOpExec[K](
   }
 
   private def performJoin(
-      probeTuple: Tuple,
-      matchedTuples: ListBuffer[Tuple]
-  ): Iterator[TupleLike] = {
+                           probeTuple: Tuple,
+                           matchedTuples: ListBuffer[Tuple]
+                         ): Iterator[TupleLike] = {
     matchedTuples.iterator.map { buildTuple =>
       JoinUtils.joinTuples(buildTuple, probeTuple, skipAttributeName = Some(probeAttributeName))
     }

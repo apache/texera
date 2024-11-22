@@ -1,13 +1,5 @@
 package edu.uci.ics.texera.workflow.operators.symmetricDifference
 
-import edu.uci.ics.amber.engine.common.model.tuple.{
-  Attribute,
-  AttributeType,
-  Schema,
-  SchemaEnforceable,
-  Tuple,
-  TupleLike
-}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -22,6 +14,7 @@ class SymmetricDifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       new Attribute("field3", AttributeType.BOOLEAN)
     )
     .build()
+
   def tuple(): Tuple = {
     counter += 1
 

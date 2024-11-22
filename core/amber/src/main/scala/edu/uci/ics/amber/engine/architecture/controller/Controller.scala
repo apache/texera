@@ -2,24 +2,18 @@ package edu.uci.ics.amber.engine.architecture.controller
 
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{AllForOneStrategy, Props, SupervisorStrategy}
-import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
+import edu.uci.ics.amber.core.storage.result.OpResultStorage
+import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
+import edu.uci.ics.amber.engine.architecture.common.{ExecutorDeployment, WorkflowActor}
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkAck
 import edu.uci.ics.amber.engine.architecture.controller.execution.OperatorExecution
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
-  FaultToleranceConfig,
-  StateRestoreConfig
-}
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
-  ChannelMarkerPayload,
-  ControlInvocation
-}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{ChannelMarkerPayload, ControlInvocation}
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{FaultToleranceConfig, StateRestoreConfig}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
-import edu.uci.ics.amber.engine.common.model.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowFIFOMessage}
-import edu.uci.ics.amber.virtualidentity.ChannelIdentity
-import edu.uci.ics.amber.engine.common.{AmberConfig, CheckpointState, SerializedState}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CLIENT, CONTROLLER, SELF}
-import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
+import edu.uci.ics.amber.engine.common.{AmberConfig, CheckpointState, SerializedState}
+import edu.uci.ics.amber.virtualidentity.ChannelIdentity
 
 import scala.concurrent.duration.DurationInt
 
@@ -33,19 +27,19 @@ object ControllerConfig {
 }
 
 final case class ControllerConfig(
-    statusUpdateIntervalMs: Option[Long],
-    stateRestoreConfOpt: Option[StateRestoreConfig],
-    faultToleranceConfOpt: Option[FaultToleranceConfig]
-)
+                                   statusUpdateIntervalMs: Option[Long],
+                                   stateRestoreConfOpt: Option[StateRestoreConfig],
+                                   faultToleranceConfOpt: Option[FaultToleranceConfig]
+                                 )
 
 object Controller {
 
   def props(
-      workflowContext: WorkflowContext,
-      physicalPlan: PhysicalPlan,
-      opResultStorage: OpResultStorage,
-      controllerConfig: ControllerConfig = ControllerConfig.default
-  ): Props =
+             workflowContext: WorkflowContext,
+             physicalPlan: PhysicalPlan,
+             opResultStorage: OpResultStorage,
+             controllerConfig: ControllerConfig = ControllerConfig.default
+           ): Props =
     Props(
       new Controller(
         workflowContext,
@@ -57,14 +51,14 @@ object Controller {
 }
 
 class Controller(
-    workflowContext: WorkflowContext,
-    physicalPlan: PhysicalPlan,
-    opResultStorage: OpResultStorage,
-    controllerConfig: ControllerConfig
-) extends WorkflowActor(
-      controllerConfig.faultToleranceConfOpt,
-      CONTROLLER
-    ) {
+                  workflowContext: WorkflowContext,
+                  physicalPlan: PhysicalPlan,
+                  opResultStorage: OpResultStorage,
+                  controllerConfig: ControllerConfig
+                ) extends WorkflowActor(
+  controllerConfig.faultToleranceConfOpt,
+  CONTROLLER
+) {
 
   actorRefMappingService.registerActorRef(CLIENT, context.parent)
   val controllerTimerService = new ControllerTimerService(controllerConfig, actorService)
@@ -123,9 +117,9 @@ class Controller(
           val msgToLog = Some(msg).filter(_.payload.isInstanceOf[ControlPayload])
           logManager.withFaultTolerant(msg.channelId, msgToLog) {
             msg.payload match {
-              case payload: ControlPayload      => cp.processControlPayload(msg.channelId, payload)
+              case payload: ControlPayload => cp.processControlPayload(msg.channelId, payload)
               case marker: ChannelMarkerPayload => // skip marker
-              case p                            => throw new RuntimeException(s"controller cannot handle $p")
+              case p => throw new RuntimeException(s"controller cannot handle $p")
             }
           }
         case None =>
@@ -163,19 +157,21 @@ class Controller(
   override def getQueuedCredit(channelId: ChannelIdentity): Long = {
     0 // no queued credit for controller
   }
+
   override def handleBackpressure(isBackpressured: Boolean): Unit = {}
+
   // adopted solution from
   // https://stackoverflow.com/questions/54228901/right-way-of-exception-handling-when-using-akka-actors
   override val supervisorStrategy: SupervisorStrategy =
-    AllForOneStrategy(maxNrOfRetries = 0, withinTimeRange = 1.minute) {
-      case e: Throwable =>
-        val failedWorker = actorRefMappingService.findActorVirtualIdentity(sender())
-        logger.error(s"Encountered fatal error from $failedWorker, amber is shutting done.", e)
-        cp.asyncRPCClient.sendToClient(
-          FatalError(e, failedWorker)
-        ) // only place to actively report fatal error
-        Stop
-    }
+  AllForOneStrategy(maxNrOfRetries = 0, withinTimeRange = 1.minute) {
+    case e: Throwable =>
+      val failedWorker = actorRefMappingService.findActorVirtualIdentity(sender())
+      logger.error(s"Encountered fatal error from $failedWorker, amber is shutting done.", e)
+      cp.asyncRPCClient.sendToClient(
+        FatalError(e, failedWorker)
+      ) // only place to actively report fatal error
+      Stop
+  }
 
   private def attachRuntimeServicesToCPState(): Unit = {
     cp.setupActorService(actorService)
@@ -196,7 +192,8 @@ class Controller(
       regionExecution.getAllOperatorExecutions.foreach {
         case (opId, opExecution) =>
           val op = physicalPlan.getOperator(opId)
-          op.build(
+          ExecutorDeployment.createWorkers(
+            op,
             actorService,
             OperatorExecution(), //use dummy value here
             regionExecution.region.resourceConfig.get.operatorConfigs(opId),

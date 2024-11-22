@@ -1,43 +1,42 @@
 package edu.uci.ics.texera.workflow.operators.source.sql.postgresql
 
-import edu.uci.ics.amber.engine.common.model.tuple.{AttributeType, Schema}
 import edu.uci.ics.texera.workflow.operators.source.sql.SQLSourceOpExec
 import edu.uci.ics.texera.workflow.operators.source.sql.postgresql.PostgreSQLConnUtil.connect
 
 import java.sql._
 
-class PostgreSQLSourceOpExec private[postgresql] (
-    host: String,
-    port: String,
-    database: String,
-    table: String,
-    username: String,
-    password: String,
-    limit: Option[Long],
-    offset: Option[Long],
-    progressive: Option[Boolean],
-    batchByColumn: Option[String],
-    min: Option[String],
-    max: Option[String],
-    interval: Long,
-    keywordSearch: Boolean,
-    keywordSearchByColumn: String,
-    keywords: String,
-    schemaFunc: () => Schema
-) extends SQLSourceOpExec(
-      table,
-      limit,
-      offset,
-      progressive,
-      batchByColumn,
-      min,
-      max,
-      interval,
-      keywordSearch,
-      keywordSearchByColumn,
-      keywords,
-      schemaFunc
-    ) {
+class PostgreSQLSourceOpExec private[postgresql](
+                                                  host: String,
+                                                  port: String,
+                                                  database: String,
+                                                  table: String,
+                                                  username: String,
+                                                  password: String,
+                                                  limit: Option[Long],
+                                                  offset: Option[Long],
+                                                  progressive: Option[Boolean],
+                                                  batchByColumn: Option[String],
+                                                  min: Option[String],
+                                                  max: Option[String],
+                                                  interval: Long,
+                                                  keywordSearch: Boolean,
+                                                  keywordSearchByColumn: String,
+                                                  keywords: String,
+                                                  schemaFunc: () => Schema
+                                                ) extends SQLSourceOpExec(
+  table,
+  limit,
+  offset,
+  progressive,
+  batchByColumn,
+  min,
+  max,
+  interval,
+  keywordSearch,
+  keywordSearchByColumn,
+  keywords,
+  schemaFunc
+) {
   val FETCH_TABLE_NAMES_SQL =
     "SELECT table_name FROM information_schema.tables WHERE table_type='BASE TABLE';"
 
@@ -65,7 +64,9 @@ class PostgreSQLSourceOpExec private[postgresql] (
   override protected def loadTableNames(): Unit = {
     val preparedStatement = connection.prepareStatement(FETCH_TABLE_NAMES_SQL)
     val resultSet = preparedStatement.executeQuery
-    while ({ resultSet.next }) {
+    while ( {
+      resultSet.next
+    }) {
       tableNames += resultSet.getString(1)
     }
     resultSet.close()

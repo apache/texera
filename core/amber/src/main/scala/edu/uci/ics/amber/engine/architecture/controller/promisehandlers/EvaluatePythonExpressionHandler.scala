@@ -2,10 +2,7 @@ package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
-  AsyncRPCContext,
-  EvaluatePythonExpressionRequest
-}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, EvaluatePythonExpressionRequest}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EvaluatePythonExpressionResponse
 import edu.uci.ics.amber.virtualidentity.OperatorIdentity
 
@@ -13,9 +10,9 @@ trait EvaluatePythonExpressionHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
   override def evaluatePythonExpression(
-      msg: EvaluatePythonExpressionRequest,
-      ctx: AsyncRPCContext
-  ): Future[EvaluatePythonExpressionResponse] = {
+                                         msg: EvaluatePythonExpressionRequest,
+                                         ctx: AsyncRPCContext
+                                       ): Future[EvaluatePythonExpressionResponse] = {
     val logicalOpId = new OperatorIdentity(msg.operatorId)
     val physicalOps = cp.workflowScheduler.physicalPlan.getPhysicalOpsOfLogicalOp(logicalOpId)
     if (physicalOps.size != 1) {

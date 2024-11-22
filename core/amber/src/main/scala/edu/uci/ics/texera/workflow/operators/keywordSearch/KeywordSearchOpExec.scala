@@ -1,10 +1,9 @@
 package edu.uci.ics.texera.workflow.operators.keywordSearch
 
-import edu.uci.ics.amber.engine.common.model.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpExec
-import org.apache.lucene.queryparser.classic.QueryParser
 import org.apache.lucene.analysis.core.SimpleAnalyzer
 import org.apache.lucene.index.memory.MemoryIndex
+import org.apache.lucene.queryparser.classic.QueryParser
 import org.apache.lucene.search.Query
 
 class KeywordSearchOpExec(attributeName: String, keyword: String) extends FilterOpExec {
@@ -13,6 +12,7 @@ class KeywordSearchOpExec(attributeName: String, keyword: String) extends Filter
   @transient private lazy val memoryIndex: MemoryIndex = new MemoryIndex()
 
   this.setFilterFunc(findKeyword)
+
   private def findKeyword(tuple: Tuple): Boolean = {
     Option[Any](tuple.getField(attributeName)).map(_.toString).exists { fieldValue =>
       memoryIndex.addField(attributeName, fieldValue, analyzer)

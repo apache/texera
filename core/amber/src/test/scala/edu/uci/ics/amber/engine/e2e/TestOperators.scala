@@ -1,11 +1,6 @@
 package edu.uci.ics.amber.engine.e2e
 
-import edu.uci.ics.texera.workflow.common.storage.FileResolver
-import edu.uci.ics.texera.workflow.operators.aggregate.{
-  AggregateOpDesc,
-  AggregationFunction,
-  AggregationOperation
-}
+import edu.uci.ics.texera.workflow.operators.aggregate.{AggregateOpDesc, AggregationFunction, AggregationOperation}
 import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc
 import edu.uci.ics.texera.workflow.operators.keywordSearch.KeywordSearchOpDesc
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
@@ -40,11 +35,12 @@ object TestOperators {
   def mediumFlattenJSONLScanOpDesc(): JSONLScanSourceOpDesc = {
     getJSONLScanOpDesc("src/test/resources/1000.jsonl", flatten = true)
   }
+
   def getCsvScanOpDesc(
-      fileName: String,
-      header: Boolean,
-      multiLine: Boolean = false
-  ): CSVScanSourceOpDesc = {
+                        fileName: String,
+                        header: Boolean,
+                        multiLine: Boolean = false
+                      ): CSVScanSourceOpDesc = {
     val csvHeaderlessOp = new CSVScanSourceOpDesc()
     csvHeaderlessOp.fileName = Some(fileName)
     csvHeaderlessOp.customDelimiter = Some(",")
@@ -81,10 +77,10 @@ object TestOperators {
   }
 
   def aggregateAndGroupByDesc(
-      attributeToAggregate: String,
-      aggFunction: AggregationFunction,
-      groupByAttributes: List[String]
-  ): AggregateOpDesc = {
+                               attributeToAggregate: String,
+                               aggFunction: AggregationFunction,
+                               groupByAttributes: List[String]
+                             ): AggregateOpDesc = {
     val aggOp = new AggregateOpDesc()
     val aggFunc = new AggregationOperation()
     aggFunc.aggFunction = aggFunction
@@ -96,13 +92,13 @@ object TestOperators {
   }
 
   def inMemoryMySQLSourceOpDesc(
-      host: String,
-      port: String,
-      database: String,
-      table: String,
-      username: String,
-      password: String
-  ): MySQLSourceOpDesc = {
+                                 host: String,
+                                 port: String,
+                                 database: String,
+                                 table: String,
+                                 username: String,
+                                 password: String
+                               ): MySQLSourceOpDesc = {
     val inMemoryMySQLSourceOpDesc = new MySQLSourceOpDesc()
     inMemoryMySQLSourceOpDesc.host = host
     inMemoryMySQLSourceOpDesc.port = port
@@ -132,7 +128,8 @@ object TestOperators {
   def pythonOpDesc(): PythonUDFOpDescV2 = {
     val udf = new PythonUDFOpDescV2()
     udf.workers = 1
-    udf.code = """
+    udf.code =
+      """
         |from pytexera import *
         |
         |class ProcessTupleOperator(UDFOperatorV2):

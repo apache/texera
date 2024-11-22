@@ -1,29 +1,13 @@
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.common.model.tuple.{
-  Attribute,
-  AttributeType,
-  AttributeTypeUtils,
-  Schema,
-  Tuple
-}
-import AttributeTypeUtils.AttributeTypeException
+import edu.uci.ics.amber.core.tuple.AttributeTypeUtils.AttributeTypeException
+import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, AttributeTypeUtils, Schema, Tuple}
 import org.apache.arrow.vector.types.FloatingPointPrecision
 import org.apache.arrow.vector.types.TimeUnit.MILLISECOND
 import org.apache.arrow.vector.types.pojo.ArrowType.PrimitiveType
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field}
-import org.apache.arrow.vector.{
-  BigIntVector,
-  BitVector,
-  FieldVector,
-  Float8Vector,
-  IntVector,
-  TimeStampVector,
-  VarBinaryVector,
-  VarCharVector,
-  VectorSchemaRoot
-}
+import org.apache.arrow.vector.{BigIntVector, BitVector, FieldVector, Float8Vector, IntVector, TimeStampVector, VarBinaryVector, VarCharVector, VectorSchemaRoot}
 
 import java.nio.charset.StandardCharsets
 import java.util
@@ -35,21 +19,21 @@ object ArrowUtils extends LazyLogging {
   implicit def bool2int(b: Boolean): Int = if (b) 1 else 0
 
   /**
-    * Reads a row of the given Arrow Vectors into a Texera.Tuple
-    * e.g.,
-    * rowIndex  IntVector BigIntVector  BooleanVector
-    * 0         1         100L          true
-    *
-    * the row at rowIndex 0 can be converted into `Tuple[1, 100L, true]`
-    *
-    * @param rowIndex         The row index of the target row to be converted in the Vectors.
-    * @param vectorSchemaRoot The root of the Vectors that stores the Arrow Fields. It contains multiple Vectors.
-    * @return
-    */
+   * Reads a row of the given Arrow Vectors into a Texera.Tuple
+   * e.g.,
+   * rowIndex  IntVector BigIntVector  BooleanVector
+   * 0         1         100L          true
+   *
+   * the row at rowIndex 0 can be converted into `Tuple[1, 100L, true]`
+   *
+   * @param rowIndex         The row index of the target row to be converted in the Vectors.
+   * @param vectorSchemaRoot The root of the Vectors that stores the Arrow Fields. It contains multiple Vectors.
+   * @return
+   */
   def getTexeraTuple(
-      rowIndex: Int,
-      vectorSchemaRoot: VectorSchemaRoot
-  ): Tuple = {
+                      rowIndex: Int,
+                      vectorSchemaRoot: VectorSchemaRoot
+                    ): Tuple = {
     val arrowSchema = vectorSchemaRoot.getSchema
     val schema = toTexeraSchema(arrowSchema)
 
@@ -78,11 +62,11 @@ object ArrowUtils extends LazyLogging {
   }
 
   /**
-    * Converts an Arrow Schema into Texera Schema.
-    *
-    * @param arrowSchema The Arrow Schema to be converted.
-    * @return A Texera Schema.
-    */
+   * Converts an Arrow Schema into Texera Schema.
+   *
+   * @param arrowSchema The Arrow Schema to be converted.
+   * @return A Texera Schema.
+   */
   def toTexeraSchema(arrowSchema: org.apache.arrow.vector.types.pojo.Schema): Schema =
     Schema
       .builder()
@@ -93,12 +77,12 @@ object ArrowUtils extends LazyLogging {
       .build()
 
   /**
-    * Converts an ArrowType into an AttributeType.
-    *
-    * @param srcType the ArrowType to be converted.
-    * @throws AttributeTypeException if the type cannot be converted.
-    * @return An AttributeType.
-    */
+   * Converts an ArrowType into an AttributeType.
+   *
+   * @param srcType the ArrowType to be converted.
+   * @throws AttributeTypeException if the type cannot be converted.
+   * @return An AttributeType.
+   */
   @throws[AttributeTypeException]
   def toAttributeType(srcType: ArrowType): AttributeType = {
     srcType match {
@@ -139,14 +123,14 @@ object ArrowUtils extends LazyLogging {
   }
 
   /**
-    * Writes a Texera.Tuple into a row of the Arrow Vectors. It will overwrite the data on the
-    * target row of the Vectors.
-    *
-    * @param tuple            A Texera.Tuple.
-    * @param index            The row index in the Vectors to be replaced.
-    * @param vectorSchemaRoot The root of the Vectors that stores the Arrow Fields. It contains
-    *                         multiple Vectors.
-    */
+   * Writes a Texera.Tuple into a row of the Arrow Vectors. It will overwrite the data on the
+   * target row of the Vectors.
+   *
+   * @param tuple            A Texera.Tuple.
+   * @param index            The row index in the Vectors to be replaced.
+   * @param vectorSchemaRoot The root of the Vectors that stores the Arrow Fields. It contains
+   *                         multiple Vectors.
+   */
   def setTexeraTuple(tuple: Tuple, index: Int, vectorSchemaRoot: VectorSchemaRoot): Unit = {
     val arrowSchema = vectorSchemaRoot.getSchema
     val arrowFields = arrowSchema.getFields.asScala.toList
@@ -212,11 +196,11 @@ object ArrowUtils extends LazyLogging {
   }
 
   /**
-    * Converts an Amber schema into Arrow schema.
-    *
-    * @param schema The Texera Schema.
-    * @return An Arrow Schema.
-    */
+   * Converts an Amber schema into Arrow schema.
+   *
+   * @param schema The Texera Schema.
+   * @return An Arrow Schema.
+   */
   def fromTexeraSchema(schema: Schema): org.apache.arrow.vector.types.pojo.Schema = {
     val arrowFields = new util.ArrayList[Field]
 
@@ -229,12 +213,12 @@ object ArrowUtils extends LazyLogging {
   }
 
   /**
-    * Converts an AttributeType into an ArrowType (PrimitiveType).
-    *
-    * @param srcType The AttributeType to be converted.
-    * @throws AttributeTypeException if the type cannot be converted.
-    * @return A PrimitiveType, a type of ArrowType, does not handle complex data.
-    */
+   * Converts an AttributeType into an ArrowType (PrimitiveType).
+   *
+   * @param srcType The AttributeType to be converted.
+   * @throws AttributeTypeException if the type cannot be converted.
+   * @return A PrimitiveType, a type of ArrowType, does not handle complex data.
+   */
   @throws[AttributeTypeException]
   def fromAttributeType(srcType: AttributeType): PrimitiveType = {
     srcType match {

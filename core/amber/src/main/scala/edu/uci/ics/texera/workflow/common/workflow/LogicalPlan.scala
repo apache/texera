@@ -1,30 +1,30 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.common.model.WorkflowContext
-import edu.uci.ics.amber.engine.common.model.tuple.Schema
+import edu.uci.ics.amber.core.storage.FileResolver
+import edu.uci.ics.amber.core.tuple.Schema
+import edu.uci.ics.amber.core.workflow.WorkflowContext
 import edu.uci.ics.amber.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.workflow.PortIdentity
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
-import edu.uci.ics.texera.workflow.common.storage.FileResolver
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 import org.jgrapht.graph.DirectedAcyclicGraph
 import org.jgrapht.util.SupplierUtil
 
 import java.util
-import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters.SetHasAsScala
 import scala.util.{Failure, Success, Try}
 
 object LogicalPlan {
 
   private def toJgraphtDAG(
-      operatorList: List[LogicalOp],
-      links: List[LogicalLink]
-  ): DirectedAcyclicGraph[OperatorIdentity, LogicalLink] = {
+                            operatorList: List[LogicalOp],
+                            links: List[LogicalLink]
+                          ): DirectedAcyclicGraph[OperatorIdentity, LogicalLink] = {
     val workflowDag =
       new DirectedAcyclicGraph[OperatorIdentity, LogicalLink](
         null, // vertexSupplier
@@ -44,17 +44,17 @@ object LogicalPlan {
   }
 
   def apply(
-      pojo: LogicalPlanPojo
-  ): LogicalPlan = {
+             pojo: LogicalPlanPojo
+           ): LogicalPlan = {
     LogicalPlan(pojo.operators, pojo.links)
   }
 
 }
 
 case class LogicalPlan(
-    operators: List[LogicalOp],
-    links: List[LogicalLink]
-) extends LazyLogging {
+                        operators: List[LogicalOp],
+                        links: List[LogicalLink]
+                      ) extends LazyLogging {
 
   private lazy val operatorMap: Map[OperatorIdentity, LogicalOp] =
     operators.map(op => (op.operatorIdentifier, op)).toMap
@@ -101,11 +101,11 @@ case class LogicalPlan(
   }
 
   def addLink(
-      fromOpId: OperatorIdentity,
-      fromPortId: PortIdentity,
-      toOpId: OperatorIdentity,
-      toPortId: PortIdentity
-  ): LogicalPlan = {
+               fromOpId: OperatorIdentity,
+               fromPortId: PortIdentity,
+               toOpId: OperatorIdentity,
+               toPortId: PortIdentity
+             ): LogicalPlan = {
     val newLink = LogicalLink(
       fromOpId,
       fromPortId,
@@ -147,14 +147,15 @@ case class LogicalPlan(
   }
 
   /**
-    * Resolve all user-given filename for the scan source operators to URIs, and call op.setFileUri to set the URi
-    * @param errorList if given, put errors during resolving to it
-    */
+   * Resolve all user-given filename for the scan source operators to URIs, and call op.setFileUri to set the URi
+   *
+   * @param errorList if given, put errors during resolving to it
+   */
   def resolveScanSourceOpFileName(
-      errorList: Option[ArrayBuffer[(OperatorIdentity, Throwable)]]
-  ): Unit = {
+                                   errorList: Option[ArrayBuffer[(OperatorIdentity, Throwable)]]
+                                 ): Unit = {
     operators.foreach {
-      case operator @ (scanOp: ScanSourceOpDesc) =>
+      case operator@(scanOp: ScanSourceOpDesc) =>
         Try {
           // Resolve file path for ScanSourceOpDesc
           val fileName = scanOp.fileName.getOrElse(throw new RuntimeException("no input file name"))
@@ -173,9 +174,9 @@ case class LogicalPlan(
   }
 
   def propagateWorkflowSchema(
-      context: WorkflowContext,
-      errorList: Option[ArrayBuffer[(OperatorIdentity, Throwable)]]
-  ): Unit = {
+                               context: WorkflowContext,
+                               errorList: Option[ArrayBuffer[(OperatorIdentity, Throwable)]]
+                             ): Unit = {
 
     operators.foreach(operator => {
       if (operator.getContext == null) {
@@ -217,7 +218,7 @@ case class LogicalPlan(
             logger.error("got error", err)
             errorList match {
               case Some(list) => list.append((opId, err))
-              case None       =>
+              case None =>
             }
         }
 

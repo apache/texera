@@ -3,54 +3,39 @@ package edu.uci.ics.amber.engine.common.rpc
 import com.twitter.util.{Future, Promise}
 import edu.uci.ics.amber.engine.architecture.controller.ClientEvent
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputGateway
-import edu.uci.ics.amber.engine.common.AmberLogging
-import edu.uci.ics.amber.virtualidentity.{
-  ActorVirtualIdentity,
-  ChannelIdentity,
-  ChannelMarkerIdentity
-}
-import edu.uci.ics.amber.engine.common.virtualidentity.util.CLIENT
-import io.grpc.MethodDescriptor
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
-  AsyncRPCContext,
-  ChannelMarkerPayload,
-  ChannelMarkerType,
-  ControlInvocation,
-  ControlRequest
-}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands._
 import edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerServiceFs2Grpc
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{
-  ControlError,
-  ControlReturn,
-  ReturnInvocation,
-  WorkerMetricsResponse
-}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{ControlError, ControlReturn, ReturnInvocation, WorkerMetricsResponse}
 import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceFs2Grpc
+import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.createProxy
+import edu.uci.ics.amber.engine.common.virtualidentity.util.CLIENT
 import edu.uci.ics.amber.error.ErrorUtils.reconstructThrowable
+import edu.uci.ics.amber.virtualidentity.{ActorVirtualIdentity, ChannelIdentity, ChannelMarkerIdentity}
+import io.grpc.MethodDescriptor
 
 import java.lang.reflect.{InvocationHandler, Method, Proxy}
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
 /** Motivation of having a separate module to handle control messages as RPCs:
-  * In the old design, every control message and its response are handled by
-  * message passing. That means developers need to manually send response back
-  * and write proper handlers on the sender side.
-  * Writing control messages becomes tedious if we use this way.
-  *
-  * So we want to implement rpc model on top of message passing.
-  * rpc (request-response)
-  * remote.callFunctionX().then(response => {
-  * })
-  * user-api: promise
-  *
-  * goal: request-response model with multiplexing
-  * client: initiate request
-  * (web browser, actor that invoke control command)
-  * server: handle request, return response
-  * (web server, actor that handles control command)
-  */
+ * In the old design, every control message and its response are handled by
+ * message passing. That means developers need to manually send response back
+ * and write proper handlers on the sender side.
+ * Writing control messages becomes tedious if we use this way.
+ *
+ * So we want to implement rpc model on top of message passing.
+ * rpc (request-response)
+ * remote.callFunctionX().then(response => {
+ * })
+ * user-api: promise
+ *
+ * goal: request-response model with multiplexing
+ * client: initiate request
+ * (web browser, actor that invoke control command)
+ * server: handle request, return response
+ * (web server, actor that handles control command)
+ */
 object AsyncRPCClient {
 
   final val IgnoreReply = -1
@@ -58,32 +43,32 @@ object AsyncRPCClient {
 
   object ControlInvocation {
     def apply(
-        method: MethodDescriptor[_, _],
-        payload: ControlRequest,
-        context: AsyncRPCContext,
-        commandID: Long
-    ): ControlInvocation = {
+               method: MethodDescriptor[_, _],
+               payload: ControlRequest,
+               context: AsyncRPCContext,
+               commandID: Long
+             ): ControlInvocation = {
       new ControlInvocation(method.getBareMethodName, payload, context, commandID)
     }
 
     def apply(
-        methodName: String,
-        payload: ControlRequest,
-        context: AsyncRPCContext,
-        commandID: Long
-    ): ControlInvocation = {
+               methodName: String,
+               payload: ControlRequest,
+               context: AsyncRPCContext,
+               commandID: Long
+             ): ControlInvocation = {
       new ControlInvocation(methodName, payload, context, commandID)
     }
   }
 
   /**
-    * Creates a dynamic proxy for the specified type `T`, which intercepts method calls
-    * and sends them as ControlInvocation messages via the provided output gateway.
-    */
+   * Creates a dynamic proxy for the specified type `T`, which intercepts method calls
+   * and sends them as ControlInvocation messages via the provided output gateway.
+   */
   def createProxy[T](
-      createPromise: () => (Promise[ControlReturn], Long),
-      outputGateway: NetworkOutputGateway
-  )(implicit ct: ClassTag[T]): T = {
+                      createPromise: () => (Promise[ControlReturn], Long),
+                      outputGateway: NetworkOutputGateway
+                    )(implicit ct: ClassTag[T]): T = {
     val handler = new InvocationHandler {
 
       override def invoke(proxy: Any, method: Method, args: Array[AnyRef]): AnyRef = {
@@ -112,9 +97,9 @@ object AsyncRPCClient {
 }
 
 class AsyncRPCClient(
-    outputGateway: NetworkOutputGateway,
-    val actorId: ActorVirtualIdentity
-) extends AmberLogging {
+                      outputGateway: NetworkOutputGateway,
+                      val actorId: ActorVirtualIdentity
+                    ) extends AmberLogging {
 
   private val unfulfilledPromises = mutable.HashMap[Long, Promise[ControlReturn]]()
   private var promiseID = 0L
@@ -133,21 +118,21 @@ class AsyncRPCClient(
   }
 
   def createInvocation(
-      methodName: String,
-      message: ControlRequest,
-      context: AsyncRPCContext
-  ): (ControlInvocation, Future[ControlReturn]) = {
+                        methodName: String,
+                        message: ControlRequest,
+                        context: AsyncRPCContext
+                      ): (ControlInvocation, Future[ControlReturn]) = {
     val (p, pid) = createPromise()
     (ControlInvocation(methodName, message, context, pid), p)
   }
 
   def sendChannelMarker(
-      markerId: ChannelMarkerIdentity,
-      markerType: ChannelMarkerType,
-      scope: Set[ChannelIdentity],
-      cmdMapping: Map[String, ControlInvocation],
-      channelId: ChannelIdentity
-  ): Unit = {
+                         markerId: ChannelMarkerIdentity,
+                         markerType: ChannelMarkerType,
+                         scope: Set[ChannelIdentity],
+                         cmdMapping: Map[String, ControlInvocation],
+                         channelId: ChannelIdentity
+                       ): Unit = {
     logger.debug(s"send marker: $markerId to $channelId")
     outputGateway.sendTo(
       channelId,

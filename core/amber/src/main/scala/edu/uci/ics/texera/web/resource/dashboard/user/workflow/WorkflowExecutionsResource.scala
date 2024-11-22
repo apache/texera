@@ -5,20 +5,9 @@ import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.virtualidentity.{ChannelMarkerIdentity, ExecutionIdentity}
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
-  USER,
-  WORKFLOW_EXECUTIONS,
-  WORKFLOW_RUNTIME_STATISTICS,
-  WORKFLOW_VERSION
-}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  WorkflowExecutionsDao,
-  WorkflowRuntimeStatisticsDao
-}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{
-  WorkflowExecutions,
-  WorkflowRuntimeStatistics
-}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER, WORKFLOW_EXECUTIONS, WORKFLOW_RUNTIME_STATISTICS, WORKFLOW_VERSION}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{WorkflowExecutionsDao, WorkflowRuntimeStatisticsDao}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{WorkflowExecutions, WorkflowRuntimeStatistics}
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource._
 import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
 import io.dropwizard.auth.Auth
@@ -66,10 +55,11 @@ object WorkflowExecutionsResource {
   }
 
   /**
-    * This function retrieves the latest execution id of a workflow
-    * @param wid workflow id
-    * @return UInteger
-    */
+   * This function retrieves the latest execution id of a workflow
+   *
+   * @param wid workflow id
+   * @return UInteger
+   */
   def getLatestExecutionID(wid: UInteger): Option[UInteger] = {
     val executions = context
       .select(WORKFLOW_EXECUTIONS.EID)
@@ -89,41 +79,43 @@ object WorkflowExecutionsResource {
   }
 
   case class WorkflowExecutionEntry(
-      eId: UInteger,
-      vId: UInteger,
-      userName: String,
-      status: Byte,
-      result: String,
-      startingTime: Timestamp,
-      completionTime: Timestamp,
-      bookmarked: Boolean,
-      name: String,
-      logLocation: String
-  )
+                                     eId: UInteger,
+                                     vId: UInteger,
+                                     userName: String,
+                                     status: Byte,
+                                     result: String,
+                                     startingTime: Timestamp,
+                                     completionTime: Timestamp,
+                                     bookmarked: Boolean,
+                                     name: String,
+                                     logLocation: String
+                                   )
 
   case class ExecutionResultEntry(
-      eId: UInteger,
-      result: String
-  )
+                                   eId: UInteger,
+                                   result: String
+                                 )
 
   case class OperatorRuntimeStatistics(
-      operatorId: String,
-      inputTupleCount: UInteger,
-      outputTupleCount: UInteger,
-      timestamp: Timestamp,
-      dataProcessingTime: ULong,
-      controlProcessingTime: ULong,
-      idleTime: ULong,
-      numWorkers: UInteger
-  )
+                                        operatorId: String,
+                                        inputTupleCount: UInteger,
+                                        outputTupleCount: UInteger,
+                                        timestamp: Timestamp,
+                                        dataProcessingTime: ULong,
+                                        controlProcessingTime: ULong,
+                                        idleTime: ULong,
+                                        numWorkers: UInteger
+                                      )
 }
 
 case class ExecutionGroupBookmarkRequest(
-    wid: UInteger,
-    eIds: Array[UInteger],
-    isBookmarked: Boolean
-)
+                                          wid: UInteger,
+                                          eIds: Array[UInteger],
+                                          isBookmarked: Boolean
+                                        )
+
 case class ExecutionGroupDeleteRequest(wid: UInteger, eIds: Array[UInteger])
+
 case class ExecutionRenameRequest(wid: UInteger, eId: UInteger, executionName: String)
 
 @Produces(Array(MediaType.APPLICATION_JSON))
@@ -135,10 +127,10 @@ class WorkflowExecutionsResource {
   @Path("/{wid}/interactions/{eid}")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def retrieveInteractionHistory(
-      @PathParam("wid") wid: UInteger,
-      @PathParam("eid") eid: UInteger,
-      @Auth sessionUser: SessionUser
-  ): List[String] = {
+                                  @PathParam("wid") wid: UInteger,
+                                  @PathParam("eid") eid: UInteger,
+                                  @Auth sessionUser: SessionUser
+                                ): List[String] = {
     val user = sessionUser.getUser
     if (!WorkflowAccessResource.hasReadAccess(wid, user.getUid)) {
       List()
@@ -167,18 +159,18 @@ class WorkflowExecutionsResource {
   }
 
   /**
-    * This method returns the executions of a workflow given by its ID
-    *
-    * @return executions[]
-    */
+   * This method returns the executions of a workflow given by its ID
+   *
+   * @return executions[]
+   */
   @GET
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/{wid}")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def retrieveExecutionsOfWorkflow(
-      @PathParam("wid") wid: UInteger,
-      @Auth sessionUser: SessionUser
-  ): List[WorkflowExecutionEntry] = {
+                                    @PathParam("wid") wid: UInteger,
+                                    @Auth sessionUser: SessionUser
+                                  ): List[WorkflowExecutionEntry] = {
     val user = sessionUser.getUser
     if (!WorkflowAccessResource.hasReadAccess(wid, user.getUid)) {
       List()
@@ -216,9 +208,9 @@ class WorkflowExecutionsResource {
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/{wid}/{eid}")
   def retrieveWorkflowRuntimeStatistics(
-      @PathParam("wid") wid: UInteger,
-      @PathParam("eid") eid: UInteger
-  ): List[OperatorRuntimeStatistics] = {
+                                         @PathParam("wid") wid: UInteger,
+                                         @PathParam("eid") eid: UInteger
+                                       ): List[OperatorRuntimeStatistics] = {
     context
       .select(
         WORKFLOW_RUNTIME_STATISTICS.OPERATOR_ID,
@@ -248,9 +240,9 @@ class WorkflowExecutionsResource {
   @Path("/set_execution_bookmarks")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def setExecutionAreBookmarked(
-      request: ExecutionGroupBookmarkRequest,
-      @Auth sessionUser: SessionUser
-  ): Unit = {
+                                 request: ExecutionGroupBookmarkRequest,
+                                 @Auth sessionUser: SessionUser
+                               ): Unit = {
     validateUserCanAccessWorkflow(sessionUser.getUser.getUid, request.wid)
     if (request.isBookmarked) {
       val eIdArray = request.eIds.mkString("(", ",", ")")
@@ -283,9 +275,9 @@ class WorkflowExecutionsResource {
   @Path("/delete_executions")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def groupDeleteExecutionsOfWorkflow(
-      request: ExecutionGroupDeleteRequest,
-      @Auth sessionUser: SessionUser
-  ): Unit = {
+                                       request: ExecutionGroupDeleteRequest,
+                                       @Auth sessionUser: SessionUser
+                                     ): Unit = {
     validateUserCanAccessWorkflow(sessionUser.getUser.getUid, request.wid)
     /* delete the execution in sql */
     val eIdArray = request.eIds.mkString("(", ",", ")")
@@ -302,9 +294,9 @@ class WorkflowExecutionsResource {
   @Path("/update_execution_name")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def updateWorkflowExecutionsName(
-      request: ExecutionRenameRequest,
-      @Auth sessionUser: SessionUser
-  ): Unit = {
+                                    request: ExecutionRenameRequest,
+                                    @Auth sessionUser: SessionUser
+                                  ): Unit = {
     validateUserCanAccessWorkflow(sessionUser.getUser.getUid, request.wid)
     val execution = getExecutionById(request.eId)
     execution.setName(request.executionName)

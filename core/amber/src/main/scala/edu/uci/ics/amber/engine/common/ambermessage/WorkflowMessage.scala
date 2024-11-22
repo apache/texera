@@ -8,7 +8,7 @@ case object WorkflowMessage {
       case dataMsg: WorkflowFIFOMessage =>
         dataMsg.payload match {
           case df: DataFrame => df.inMemSize
-          case _             => 200L
+          case _ => 200L
         }
       case _ => 200L
     }
@@ -18,12 +18,12 @@ case object WorkflowMessage {
 sealed trait WorkflowMessage extends Serializable
 
 case class WorkflowFIFOMessage(
-    channelId: ChannelIdentity,
-    sequenceNumber: Long,
-    payload: WorkflowFIFOMessagePayload
-) extends WorkflowMessage
+                                channelId: ChannelIdentity,
+                                sequenceNumber: Long,
+                                payload: WorkflowFIFOMessagePayload
+                              ) extends WorkflowMessage
 
 case class WorkflowRecoveryMessage(
-    from: ActorVirtualIdentity,
-    payload: RecoveryPayload
-)
+                                    from: ActorVirtualIdentity,
+                                    payload: RecoveryPayload
+                                  )

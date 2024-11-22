@@ -13,25 +13,25 @@ import javax.ws.rs.core.MediaType
 import scala.jdk.CollectionConverters.IterableHasAsScala
 
 /**
-  * This file handles various request related to saved-executions.
-  */
+ * This file handles various request related to saved-executions.
+ */
 
 object AdminExecutionResource {
   final private lazy val context = SqlServer.createDSLContext()
 
   case class dashboardExecution(
-      workflowName: String,
-      workflowId: UInteger,
-      userName: String,
-      userId: UInteger,
-      executionId: UInteger,
-      executionStatus: String,
-      executionTime: Double,
-      executionName: String,
-      startTime: Long,
-      endTime: Long,
-      access: Boolean
-  )
+                                 workflowName: String,
+                                 workflowId: UInteger,
+                                 userName: String,
+                                 userId: UInteger,
+                                 executionId: UInteger,
+                                 executionStatus: String,
+                                 executionTime: Double,
+                                 executionName: String,
+                                 startTime: Long,
+                                 endTime: Long,
+                                 access: Boolean
+                               )
 
   def mapToName(code: Byte): String = {
     code match {
@@ -53,8 +53,8 @@ object AdminExecutionResource {
 class AdminExecutionResource {
 
   /**
-    * This method retrieves all existing executions
-    */
+   * This method retrieves all existing executions
+   */
   @GET
   @Path("/executionList")
   @Produces(Array(MediaType.APPLICATION_JSON))

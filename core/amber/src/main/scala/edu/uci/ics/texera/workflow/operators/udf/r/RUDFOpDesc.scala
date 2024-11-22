@@ -3,14 +3,10 @@ package edu.uci.ics.texera.workflow.operators.udf.r
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.common.model.{PhysicalOp, SchemaPropagationFunc}
-import edu.uci.ics.amber.engine.common.model.tuple.{Attribute, Schema}
 import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort, PortIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.{LogicalOp, PortDescription, StateTransferFunc}
-import edu.uci.ics.texera.workflow.common.workflow.{PartitionInfo, UnknownPartition}
 
 import scala.util.{Success, Try}
 
@@ -56,9 +52,9 @@ class RUDFOpDesc extends LogicalOp {
   var outputColumns: List[Attribute] = List()
 
   override def getPhysicalOp(
-      workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity
-  ): PhysicalOp = {
+                              workflowId: WorkflowIdentity,
+                              executionId: ExecutionIdentity
+                            ): PhysicalOp = {
     Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.", Array())
     val opInfo = this.operatorInfo
     val partitionRequirement: List[Option[PartitionInfo]] = if (inputPorts != null) {
@@ -174,11 +170,11 @@ class RUDFOpDesc extends LogicalOp {
   }
 
   override def runtimeReconfiguration(
-      workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      oldLogicalOp: LogicalOp,
-      newLogicalOp: LogicalOp
-  ): Try[(PhysicalOp, Option[StateTransferFunc])] = {
+                                       workflowId: WorkflowIdentity,
+                                       executionId: ExecutionIdentity,
+                                       oldLogicalOp: LogicalOp,
+                                       newLogicalOp: LogicalOp
+                                     ): Try[(PhysicalOp, Option[StateTransferFunc])] = {
     Success(newLogicalOp.getPhysicalOp(workflowId, executionId), None)
   }
 }

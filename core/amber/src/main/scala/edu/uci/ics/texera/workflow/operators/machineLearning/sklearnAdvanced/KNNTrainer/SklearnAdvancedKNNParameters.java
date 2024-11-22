@@ -1,4 +1,3 @@
-
 package edu.uci.ics.texera.workflow.operators.machineLearning.sklearnAdvanced.KNNTrainer;
 
 import edu.uci.ics.texera.workflow.operators.machineLearning.sklearnAdvanced.base.ParamClass;

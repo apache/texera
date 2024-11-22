@@ -5,9 +5,10 @@ import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName;
 import org.jooq.tools.StringUtils;
+
 import java.util.Objects;
 
-public class AttributeUnit{
+public class AttributeUnit {
     @JsonProperty(required = true)
     @JsonSchemaTitle("Attribute")
     @JsonPropertyDescription("Attribute name in the schema")
@@ -25,13 +26,13 @@ public class AttributeUnit{
     }
 
 
-    String getOriginalAttribute(){
+    String getOriginalAttribute() {
         return originalAttribute;
     }
 
 
-    String getAlias(){
-        if(StringUtils.isBlank(alias)){
+    String getAlias() {
+        if (StringUtils.isBlank(alias)) {
             return originalAttribute;
         }
         return alias;

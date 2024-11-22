@@ -4,20 +4,16 @@ import akka.actor.{ActorSystem, Address, PoisonPill, Props}
 import akka.pattern._
 import akka.util.Timeout
 import com.twitter.util.{Future, Promise}
+import edu.uci.ics.amber.core.storage.result.OpResultStorage
+import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlRequest
 import edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerServiceFs2Grpc
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ControlReturn
 import edu.uci.ics.amber.engine.common.FutureBijection._
 import edu.uci.ics.amber.engine.common.ambermessage.{NotifyFailedNode, WorkflowRecoveryMessage}
-import edu.uci.ics.amber.engine.common.client.ClientActor.{
-  CommandRequest,
-  InitializeRequest,
-  ObservableRequest
-}
-import edu.uci.ics.amber.engine.common.model.{PhysicalPlan, WorkflowContext}
+import edu.uci.ics.amber.engine.common.client.ClientActor.{CommandRequest, InitializeRequest, ObservableRequest}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CLIENT
-import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.subjects.PublishSubject
@@ -29,13 +25,13 @@ import scala.concurrent.duration.DurationInt
 import scala.reflect.ClassTag
 
 class AmberClient(
-    system: ActorSystem,
-    workflowContext: WorkflowContext,
-    physicalPlan: PhysicalPlan,
-    opResultStorage: OpResultStorage,
-    controllerConfig: ControllerConfig,
-    errorHandler: Throwable => Unit
-) {
+                   system: ActorSystem,
+                   workflowContext: WorkflowContext,
+                   physicalPlan: PhysicalPlan,
+                   opResultStorage: OpResultStorage,
+                   controllerConfig: ControllerConfig,
+                   errorHandler: Throwable => Unit
+                 ) {
 
   private val clientActor = system.actorOf(Props(new ClientActor))
   private implicit val timeout: Timeout = Timeout(1.minute)
@@ -117,14 +113,13 @@ class AmberClient(
         registeredObservables(clazz) = ob
         ob
       }
-    observable.subscribe { evt: T =>
-      {
-        try {
-          callback(evt)
-        } catch {
-          case t: Throwable => errorHandler(t)
-        }
+    observable.subscribe { evt: T => {
+      try {
+        callback(evt)
+      } catch {
+        case t: Throwable => errorHandler(t)
       }
+    }
     }
   }
 

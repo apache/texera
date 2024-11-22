@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.common.operators.map
 
-import edu.uci.ics.amber.engine.common.model.PhysicalOp
+import edu.uci.ics.amber.core.workflow.PhysicalOp
 import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.operators.{LogicalOp, StateTransferFunc}
 
@@ -9,11 +9,11 @@ import scala.util.{Failure, Success, Try}
 abstract class MapOpDesc extends LogicalOp {
 
   override def runtimeReconfiguration(
-      workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      oldOpDesc: LogicalOp,
-      newOpDesc: LogicalOp
-  ): Try[(PhysicalOp, Option[StateTransferFunc])] = {
+                                       workflowId: WorkflowIdentity,
+                                       executionId: ExecutionIdentity,
+                                       oldOpDesc: LogicalOp,
+                                       newOpDesc: LogicalOp
+                                     ): Try[(PhysicalOp, Option[StateTransferFunc])] = {
     val inputSchemas = oldOpDesc.operatorInfo.inputPorts
       .map(inputPort => oldOpDesc.inputPortToSchemaMapping(inputPort.id))
       .toArray

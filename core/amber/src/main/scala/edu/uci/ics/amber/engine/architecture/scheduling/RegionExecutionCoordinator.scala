@@ -1,41 +1,26 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
-import com.google.protobuf.any.Any
 import com.google.protobuf.ByteString
+import com.google.protobuf.any.Any
 import com.twitter.util.Future
-import edu.uci.ics.amber.engine.architecture.common.AkkaActorService
-import edu.uci.ics.amber.engine.architecture.controller.{
-  ControllerConfig,
-  ExecutionStatsUpdate,
-  WorkerAssignmentUpdate
-}
-import edu.uci.ics.amber.engine.architecture.controller.execution.{
-  OperatorExecution,
-  WorkflowExecution
-}
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
-  AssignPortRequest,
-  EmptyRequest,
-  InitializeExecutorRequest,
-  LinkWorkersRequest
-}
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{
-  EmptyReturn,
-  WorkflowAggregatedState
-}
+import edu.uci.ics.amber.core.workflow.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.common.{AkkaActorService, ExecutorDeployment}
+import edu.uci.ics.amber.engine.architecture.controller.execution.{OperatorExecution, WorkflowExecution}
+import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ExecutionStatsUpdate, WorkerAssignmentUpdate}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AssignPortRequest, EmptyRequest, InitializeExecutorRequest, LinkWorkersRequest}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{EmptyReturn, WorkflowAggregatedState}
 import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, ResourceConfig}
 import edu.uci.ics.amber.engine.common.AmberRuntime
-import edu.uci.ics.amber.engine.common.model.PhysicalOp
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.workflow.PhysicalLink
 
 class RegionExecutionCoordinator(
-    region: Region,
-    workflowExecution: WorkflowExecution,
-    asyncRPCClient: AsyncRPCClient,
-    controllerConfig: ControllerConfig
-) {
+                                  region: Region,
+                                  workflowExecution: WorkflowExecution,
+                                  asyncRPCClient: AsyncRPCClient,
+                                  controllerConfig: ControllerConfig
+                                ) {
   def execute(actorService: AkkaActorService): Future[Unit] = {
 
     // fetch resource config
@@ -104,13 +89,15 @@ class RegionExecutionCoordinator(
       .flatMap(_ => sendStarts(region))
       .unit
   }
+
   private def buildOperator(
-      actorService: AkkaActorService,
-      physicalOp: PhysicalOp,
-      operatorConfig: OperatorConfig,
-      operatorExecution: OperatorExecution
-  ): Unit = {
-    physicalOp.build(
+                             actorService: AkkaActorService,
+                             physicalOp: PhysicalOp,
+                             operatorConfig: OperatorConfig,
+                             operatorExecution: OperatorExecution
+                           ): Unit = {
+    ExecutorDeployment.createWorkers(
+      physicalOp,
       actorService,
       operatorExecution,
       operatorConfig,
@@ -118,10 +105,11 @@ class RegionExecutionCoordinator(
       controllerConfig.faultToleranceConfOpt
     )
   }
+
   private def initExecutors(
-      operators: Set[PhysicalOp],
-      resourceConfig: ResourceConfig
-  ): Future[Seq[EmptyReturn]] = {
+                             operators: Set[PhysicalOp],
+                             resourceConfig: ResourceConfig
+                           ): Future[Seq[EmptyReturn]] = {
     Future
       .collect(
         operators
@@ -146,6 +134,7 @@ class RegionExecutionCoordinator(
           .toSeq
       )
   }
+
   private def assignPorts(region: Region): Future[Seq[EmptyReturn]] = {
     val resourceConfig = region.resourceConfig.get
     Future.collect(

@@ -21,11 +21,11 @@ public class BufferedBlockReader {
     private HashSet<Integer> keptFields = null;
     private char delimiter;
 
-    public BufferedBlockReader(InputStream input, long blockSize, char delimiter, int[] kept){
+    public BufferedBlockReader(InputStream input, long blockSize, char delimiter, int[] kept) {
         this.input = input;
         this.blockSize = blockSize;
         this.delimiter = delimiter;
-        if(kept != null){
+        if (kept != null) {
             this.keptFields = new HashSet<>(Ints.asList(kept));
         }
     }
@@ -34,30 +34,30 @@ public class BufferedBlockReader {
         outputStream.reset();
         fields.clear();
         int index = 0;
-        while(true) {
+        while (true) {
             if (cursor >= bufferSize) {
                 fillBuffer();
                 if (bufferSize == -1) {
-                    if(outputStream.size()>0) {
+                    if (outputStream.size() > 0) {
                         fields.add(outputStream.toString());
                     }
-                    return fields.isEmpty() ? null: fields.toArray(new String[0]);
+                    return fields.isEmpty() ? null : fields.toArray(new String[0]);
                 }
             }
             int start = cursor;
             while (cursor < bufferSize) {
                 if (buffer[cursor] == delimiter) {
-                    addField(start,index);
+                    addField(start, index);
                     outputStream.reset();
-                    start = cursor+1;
+                    start = cursor + 1;
                     index++;
-                }else if(buffer[cursor] == '\r' || buffer[cursor] == '\n'){
+                } else if (buffer[cursor] == '\r' || buffer[cursor] == '\n') {
                     // If line ended with '\r\n', all the fields will be outputted when buffer[cursor] == '\r'
                     // And then the cursor will move to '\n' and output Tuple(null) in next readLine() call
                     // The behavior above is the same for either
                     // 1. the current buffer keeps '\r\n'
                     // 2. '\n' comes from the next fillBuffer() call
-                    addField(start,index);
+                    addField(start, index);
                     cursor++;
                     return fields.toArray(new String[0]);
                 }
@@ -74,8 +74,8 @@ public class BufferedBlockReader {
     }
 
 
-    private void addField(int start, int fieldIndex){
-        if(keptFields == null || keptFields.contains(fieldIndex)) {
+    private void addField(int start, int fieldIndex) {
+        if (keptFields == null || keptFields.contains(fieldIndex)) {
             if (cursor - start > 0) {
                 outputStream.write(buffer, start, cursor - start);
                 fields.add(outputStream.toString());

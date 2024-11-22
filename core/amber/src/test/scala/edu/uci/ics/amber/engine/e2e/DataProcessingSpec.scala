@@ -12,12 +12,9 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.COMPLETED
 import edu.uci.ics.amber.engine.common.AmberRuntime
 import edu.uci.ics.amber.engine.common.client.AmberClient
-import edu.uci.ics.amber.engine.common.model.WorkflowContext
-import edu.uci.ics.amber.engine.common.model.tuple.{AttributeType, Tuple}
+import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
 import edu.uci.ics.amber.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.workflow.PortIdentity
-import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
-import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.workflow._
 import edu.uci.ics.texera.workflow.operators.aggregate.AggregationFunction
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -27,7 +24,7 @@ import java.sql.PreparedStatement
 import scala.concurrent.duration.DurationInt
 
 class DataProcessingSpec
-    extends TestKit(ActorSystem("DataProcessingSpec", AmberRuntime.akkaConfig))
+  extends TestKit(ActorSystem("DataProcessingSpec", AmberRuntime.akkaConfig))
     with ImplicitSender
     with AnyFlatSpecLike
     with BeforeAndAfterAll
@@ -43,6 +40,7 @@ class DataProcessingSpec
     system.actorOf(Props[SingleNodeListener](), "cluster-info")
     AmberRuntime.serde = SerializationExtension(system)
   }
+
   override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
     resultStorage.clear()

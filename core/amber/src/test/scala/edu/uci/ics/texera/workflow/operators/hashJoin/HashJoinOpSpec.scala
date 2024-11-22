@@ -1,13 +1,5 @@
 package edu.uci.ics.texera.workflow.operators.hashJoin
 
-import edu.uci.ics.amber.engine.common.model.tuple.{
-  Attribute,
-  AttributeType,
-  Schema,
-  SchemaEnforceable,
-  Tuple,
-  TupleLike
-}
 import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc.HASH_JOIN_INTERNAL_KEY_NAME
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
@@ -27,6 +19,7 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
       .add(buildInputSchema)
       .build()
   }
+
   def tuple(name: String, n: Int = 1, i: Option[Int]): Tuple = {
 
     Tuple

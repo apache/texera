@@ -1,9 +1,5 @@
 package edu.uci.ics.texera.web.service
 
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
-import java.nio.charset.StandardCharsets
-import java.util
-import java.util.concurrent.{Executors, ThreadPoolExecutor}
 import com.github.tototoshi.csv.CSVWriter
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.api.client.util.Lists
@@ -11,26 +7,26 @@ import com.google.api.services.drive.Drive
 import com.google.api.services.drive.model.{File, FileList, Permission}
 import com.google.api.services.sheets.v4.Sheets
 import com.google.api.services.sheets.v4.model.{Spreadsheet, SpreadsheetProperties, ValueRange}
-import edu.uci.ics.amber.engine.common.model.tuple.Tuple
-import edu.uci.ics.amber.virtualidentity.OperatorIdentity
+import edu.uci.ics.amber.core.storage.result.{OpResultStorage, SinkStorageReader}
+import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.engine.common.Utils.retry
+import edu.uci.ics.amber.util.PathUtils
+import edu.uci.ics.amber.virtualidentity.OperatorIdentity
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.websocket.request.ResultExportRequest
 import edu.uci.ics.texera.web.model.websocket.response.ResultExportResponse
 import edu.uci.ics.texera.web.resource.GoogleResource
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{
-  createNewDatasetVersionByAddingFiles,
-  sanitizePath
-}
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.PathUtils
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{createNewDatasetVersionByAddingFiles, sanitizePath}
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowVersionResource
-import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
-import edu.uci.ics.texera.workflow.operators.sink.storage.SinkStorageReader
 import org.jooq.types.UInteger
 
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
+import java.nio.charset.StandardCharsets
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
+import java.util
+import java.util.concurrent.{Executors, ThreadPoolExecutor}
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.SeqHasAsJava
@@ -45,14 +41,15 @@ object ResultExportService {
 }
 
 class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
+
   import ResultExportService._
 
   private val cache = new mutable.HashMap[String, String]
 
   def exportResult(
-      user: User,
-      request: ResultExportRequest
-  ): ResultExportResponse = {
+                    user: User,
+                    request: ResultExportRequest
+                  ): ResultExportResponse = {
     // retrieve the file link saved in the session if exists
     if (cache.contains(request.exportType)) {
       return ResultExportResponse(
@@ -86,11 +83,11 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
   }
 
   private def handleCSVRequest(
-      user: User,
-      request: ResultExportRequest,
-      results: Iterable[Tuple],
-      headers: List[String]
-  ): ResultExportResponse = {
+                                user: User,
+                                request: ResultExportRequest,
+                                results: Iterable[Tuple],
+                                headers: List[String]
+                              ): ResultExportResponse = {
     val stream = new ByteArrayOutputStream()
     val writer = CSVWriter.open(stream)
     writer.writeRow(headers)
@@ -126,11 +123,11 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
   }
 
   private def handleGoogleSheetRequest(
-      exportCache: mutable.HashMap[String, String],
-      request: ResultExportRequest,
-      results: Iterable[Tuple],
-      header: List[String]
-  ): ResultExportResponse = {
+                                        exportCache: mutable.HashMap[String, String],
+                                        request: ResultExportRequest,
+                                        results: Iterable[Tuple],
+                                        header: List[String]
+                                      ): ResultExportResponse = {
     // create google sheet
     val sheetService: Sheets = GoogleResource.getSheetService
     val sheetId: String =
@@ -153,11 +150,10 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
 
     // upload the content asynchronously to avoid long waiting on the user side.
     pool
-      .submit(() =>
-        {
-          uploadHeader(sheetService, sheetId, header)
-          uploadResult(sheetService, sheetId, results)
-        }.asInstanceOf[Runnable]
+      .submit(() => {
+        uploadHeader(sheetService, sheetId, header)
+        uploadResult(sheetService, sheetId, results)
+      }.asInstanceOf[Runnable]
       )
 
     // generate success response
@@ -170,8 +166,8 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
   }
 
   /**
-    * create the google sheet and return the sheet Id
-    */
+   * create the google sheet and return the sheet Id
+   */
   private def createGoogleSheet(sheetService: Sheets, workflowName: String): String = {
     val createSheetRequest = new Spreadsheet()
       .setProperties(new SpreadsheetProperties().setTitle(workflowName))
@@ -183,10 +179,10 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
   }
 
   private def handleDataRequest(
-      user: User,
-      request: ResultExportRequest,
-      results: Iterable[Tuple]
-  ): ResultExportResponse = {
+                                 user: User,
+                                 request: ResultExportRequest,
+                                 results: Iterable[Tuple]
+                               ): ResultExportResponse = {
     val rowIndex = request.rowIndex
     val columnIndex = request.columnIndex
     val filename = request.filename
@@ -202,8 +198,8 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
     // Convert the field to a byte array, regardless of its type
     val dataBytes: Array[Byte] = field match {
       case data: Array[Byte] => data
-      case data: String      => data.getBytes(StandardCharsets.UTF_8)
-      case data              => data.toString.getBytes(StandardCharsets.UTF_8)
+      case data: String => data.getBytes(StandardCharsets.UTF_8)
+      case data => data.toString.getBytes(StandardCharsets.UTF_8)
     }
 
     // Save the data file
@@ -226,14 +222,14 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
   }
 
   /**
-    * move the workflow results to a specific folder
-    */
+   * move the workflow results to a specific folder
+   */
   @tailrec
   private def moveToResultFolder(
-      driveService: Drive,
-      sheetId: String,
-      retry: Boolean = true
-  ): Unit = {
+                                  driveService: Drive,
+                                  sheetId: String,
+                                  retry: Boolean = true
+                                ): Unit = {
     val folderId = retrieveResultFolderId(driveService)
     try {
       driveService
@@ -279,24 +275,24 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
     }
 
   /**
-    * upload the result header to the google sheet
-    */
+   * upload the result header to the google sheet
+   */
   private def uploadHeader(
-      sheetService: Sheets,
-      sheetId: String,
-      header: List[AnyRef]
-  ): Unit = {
+                            sheetService: Sheets,
+                            sheetId: String,
+                            header: List[AnyRef]
+                          ): Unit = {
     uploadContent(sheetService, sheetId, List(header.asJava).asJava)
   }
 
   /**
-    * upload the result body to the google sheet
-    */
+   * upload the result body to the google sheet
+   */
   private def uploadResult(
-      sheetService: Sheets,
-      sheetId: String,
-      result: Iterable[Tuple]
-  ): Unit = {
+                            sheetService: Sheets,
+                            sheetId: String,
+                            result: Iterable[Tuple]
+                          ): Unit = {
     val content: util.List[util.List[AnyRef]] =
       Lists.newArrayListWithCapacity(UPLOAD_BATCH_ROW_COUNT)
     // use for loop to avoid copying the whole result at the same time
@@ -322,8 +318,8 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
   }
 
   /**
-    * convert the tuple content into the type the Google Sheet API supports
-    */
+   * convert the tuple content into the type the Google Sheet API supports
+   */
   private def convertUnsupported(content: Any): AnyRef = {
     content match {
 
@@ -340,14 +336,14 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
   }
 
   /**
-    * upload the content to the google sheet
-    * The type of content is java list because the google API is in java
-    */
+   * upload the content to the google sheet
+   * The type of content is java list because the google API is in java
+   */
   private def uploadContent(
-      sheetService: Sheets,
-      sheetId: String,
-      content: util.List[util.List[AnyRef]]
-  ): Unit = {
+                             sheetService: Sheets,
+                             sheetId: String,
+                             content: util.List[util.List[AnyRef]]
+                           ): Unit = {
     val body: ValueRange = new ValueRange().setValues(content)
     val range: String = "A1"
     val valueInputOption: String = "RAW"

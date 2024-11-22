@@ -2,15 +2,11 @@ package edu.uci.ics.texera.workflow.operators.visualization.filledAreaPlot
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.common.model.tuple.{Attribute, AttributeType, Schema}
+import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
-import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
-import edu.uci.ics.texera.workflow.operators.visualization.{
-  VisualizationConstants,
-  VisualizationOperator
-}
+import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstants, VisualizationOperator}
 
 class FilledAreaPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
 
@@ -76,8 +72,8 @@ class FilledAreaPlotOpDesc extends VisualizationOperator with PythonOperatorDesc
     val patternParam = if (pattern.nonEmpty) s""", pattern_shape="$pattern"""" else ""
 
     s"""
-             |            fig = px.area(table, x="$x", y="$y"$colorArg$facetColumnArg$lineGroupArg$patternParam)
-             |""".stripMargin
+       |            fig = px.area(table, x="$x", y="$y"$colorArg$facetColumnArg$lineGroupArg$patternParam)
+       |""".stripMargin
   }
 
   // The function below checks whether there are more than 5 percents of the groups have disjoint sets of x attributes.
@@ -106,7 +102,8 @@ class FilledAreaPlotOpDesc extends VisualizationOperator with PythonOperatorDesc
   }
 
   override def generatePythonCode(): String = {
-    val finalCode = s"""
+    val finalCode =
+      s"""
          |from pytexera import *
          |
          |import plotly

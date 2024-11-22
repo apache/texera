@@ -5,30 +5,30 @@ import com.fasterxml.jackson.annotation.JsonValue;
 /**
  * MatchingType: the type of matching to perform. <br>
  * Currently we have 3 types of matching: <br>
- *
+ * <p>
  * SCANBASED: <br>
  * Performs simple exact matching of the query. Matching is
  * case insensitive. <br>
- *
+ * <p>
  * SUBSTRING: <br>
  * Performs simple substring matching of the query. Matching is
  * case insensitive. <br>
- *
+ * <p>
  * CONJUNCTION_INDEXBASED: <br>
  * Performs search of conjunction of query tokens. The query is tokenized
  * into keywords, with each token treated as a separate keyword. The order
  * of tokens doesn't matter in the source tuple. <br>
- *
+ * <p>
  * For example: <br>
  * query "book appointment with the doctor" <br>
  * matches: "book appointment" <br>
  * also matches: "an appointment for a book" <br>
  * <br>
  *
- *  @author Zuozhi Wang
+ * @author Zuozhi Wang
  */
 
- public enum MatchingType {
+public enum MatchingType {
     SCANBASED("Scan"),
 
     SUBSTRING("Substring"),

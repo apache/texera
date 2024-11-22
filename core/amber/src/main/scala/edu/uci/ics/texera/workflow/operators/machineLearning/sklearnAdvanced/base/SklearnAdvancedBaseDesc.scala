@@ -2,17 +2,14 @@ package edu.uci.ics.texera.workflow.operators.machineLearning.sklearnAdvanced.ba
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.common.model.tuple.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort, PortIdentity}
-import edu.uci.ics.texera.workflow.common.metadata.annotations.{
-  AutofillAttributeName,
-  AutofillAttributeNameList
-}
+import edu.uci.ics.texera.workflow.common.metadata.annotations.{AutofillAttributeName, AutofillAttributeNameList}
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
 
 trait ParamClass {
   def getName: String
+
   def getType: String
 }
 
@@ -49,7 +46,9 @@ abstract class SklearnMLOperatorDescriptor[T <: ParamClass] extends PythonOperat
   }
 
   def getParameter(paraList: List[HyperParameters[T]]): List[String] = {
-    var workflowParam = ""; var portParam = ""; var paramString = ""
+    var workflowParam = "";
+    var portParam = "";
+    var paramString = ""
     for (ele <- paraList) {
       if (ele.parametersSource) {
         workflowParam = workflowParam + String.format("%s = {},", ele.parameter.getName)

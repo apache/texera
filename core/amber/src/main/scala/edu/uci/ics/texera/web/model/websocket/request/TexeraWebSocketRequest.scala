@@ -2,10 +2,7 @@ package edu.uci.ics.texera.web.model.websocket.request
 
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
-import edu.uci.ics.texera.web.model.websocket.request.python.{
-  DebugCommandRequest,
-  PythonExpressionEvaluateRequest
-}
+import edu.uci.ics.texera.web.model.websocket.request.python.{DebugCommandRequest, PythonExpressionEvaluateRequest}
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
 @JsonSubTypes(

@@ -1,11 +1,11 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.model.{PhysicalPlan, WorkflowContext}
+import edu.uci.ics.amber.core.WorkflowRuntimeException
+import edu.uci.ics.amber.core.storage.result.OpResultStorage
+import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.amber.workflow.PhysicalLink
-import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import org.jgrapht.alg.connectivity.BiconnectivityInspector
 import org.jgrapht.graph.DirectedAcyclicGraph
 
@@ -14,11 +14,11 @@ import scala.collection.mutable
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 class ExpansionGreedyRegionPlanGenerator(
-    workflowContext: WorkflowContext,
-    initialPhysicalPlan: PhysicalPlan,
-    opResultStorage: OpResultStorage
-) extends RegionPlanGenerator(workflowContext, initialPhysicalPlan, opResultStorage)
-    with LazyLogging {
+                                          workflowContext: WorkflowContext,
+                                          initialPhysicalPlan: PhysicalPlan,
+                                          opResultStorage: OpResultStorage
+                                        ) extends RegionPlanGenerator(workflowContext, initialPhysicalPlan, opResultStorage)
+  with LazyLogging {
   def generate(): (RegionPlan, PhysicalPlan) = {
 
     val regionDAG = createRegionDAG()
@@ -33,20 +33,20 @@ class ExpansionGreedyRegionPlanGenerator(
   }
 
   /**
-    * Takes in a pair of operatorIds, `upstreamOpId` and `downstreamOpId`, finds all regions they each
-    * belong to, and creates the order relationships between the Regions of upstreamOpId, with the Regions
-    * of downstreamOpId. The relation ship can be N to M.
-    *
-    * This method does not consider ports.
-    *
-    * Returns pairs of (upstreamRegion, downstreamRegion) indicating the order from
-    * upstreamRegion to downstreamRegion.
-    */
+   * Takes in a pair of operatorIds, `upstreamOpId` and `downstreamOpId`, finds all regions they each
+   * belong to, and creates the order relationships between the Regions of upstreamOpId, with the Regions
+   * of downstreamOpId. The relation ship can be N to M.
+   *
+   * This method does not consider ports.
+   *
+   * Returns pairs of (upstreamRegion, downstreamRegion) indicating the order from
+   * upstreamRegion to downstreamRegion.
+   */
   private def toRegionOrderPairs(
-      upstreamOpId: PhysicalOpIdentity,
-      downstreamOpId: PhysicalOpIdentity,
-      regionDAG: DirectedAcyclicGraph[Region, RegionLink]
-  ): Set[(Region, Region)] = {
+                                  upstreamOpId: PhysicalOpIdentity,
+                                  downstreamOpId: PhysicalOpIdentity,
+                                  regionDAG: DirectedAcyclicGraph[Region, RegionLink]
+                                ): Set[(Region, Region)] = {
 
     val upstreamRegions = getRegions(upstreamOpId, regionDAG)
     val downstreamRegions = getRegions(downstreamOpId, regionDAG)
@@ -59,8 +59,8 @@ class ExpansionGreedyRegionPlanGenerator(
   }
 
   /**
-    * Create Regions based on the PhysicalPlan. The Region are to be added to regionDAG separately.
-    */
+   * Create Regions based on the PhysicalPlan. The Region are to be added to regionDAG separately.
+   */
   private def createRegions(physicalPlan: PhysicalPlan): Set[Region] = {
     val dependeeLinksRemovedDAG = physicalPlan.getDependeeLinksRemovedDAG
     val connectedComponents = new BiconnectivityInspector[PhysicalOpIdentity, PhysicalLink](
@@ -85,22 +85,22 @@ class ExpansionGreedyRegionPlanGenerator(
   }
 
   /**
-    * Try connect the regions in the DAG while respecting the dependencies of PhysicalLinks (e.g., HashJoin).
-    * This function returns either a successful connected region DAG, or a list of PhysicalLinks that should be
-    * replaced for materialization.
-    *
-    * This function builds a region DAG from scratch. It first adds all the regions into the DAG. Then it starts adding
-    * edges on the DAG. To do so, it examines each PhysicalOp and checks its input links. The links will be problematic
-    * if the link's toOp (this PhysicalOp) has another link that has higher priority to run than this link (i.e., it has
-    * a dependency). If such links are found, the function will terminate after this PhysicalOp and return the set of
-    * links.
-    *
-    * If the function finds no such links for all PhysicalOps, it will return the connected Region DAG.
-    *
-    *  @return Either a partially connected region DAG, or a set of PhysicalLinks for materialization replacement.
-    */
+   * Try connect the regions in the DAG while respecting the dependencies of PhysicalLinks (e.g., HashJoin).
+   * This function returns either a successful connected region DAG, or a list of PhysicalLinks that should be
+   * replaced for materialization.
+   *
+   * This function builds a region DAG from scratch. It first adds all the regions into the DAG. Then it starts adding
+   * edges on the DAG. To do so, it examines each PhysicalOp and checks its input links. The links will be problematic
+   * if the link's toOp (this PhysicalOp) has another link that has higher priority to run than this link (i.e., it has
+   * a dependency). If such links are found, the function will terminate after this PhysicalOp and return the set of
+   * links.
+   *
+   * If the function finds no such links for all PhysicalOps, it will return the connected Region DAG.
+   *
+   * @return Either a partially connected region DAG, or a set of PhysicalLinks for materialization replacement.
+   */
   private def tryConnectRegionDAG()
-      : Either[DirectedAcyclicGraph[Region, RegionLink], Set[PhysicalLink]] = {
+  : Either[DirectedAcyclicGraph[Region, RegionLink], Set[PhysicalLink]] = {
 
     // creates an empty regionDAG
     val regionDAG = new DirectedAcyclicGraph[Region, RegionLink](classOf[RegionLink])
@@ -122,9 +122,9 @@ class ExpansionGreedyRegionPlanGenerator(
   }
 
   private def handleDependentLinks(
-      physicalOpId: PhysicalOpIdentity,
-      regionDAG: DirectedAcyclicGraph[Region, RegionLink]
-  ): Option[Set[PhysicalLink]] = {
+                                    physicalOpId: PhysicalOpIdentity,
+                                    regionDAG: DirectedAcyclicGraph[Region, RegionLink]
+                                  ): Option[Set[PhysicalLink]] = {
     // for operators like HashJoin that have an order among their blocking and pipelined inputs
     physicalPlan
       .getOperator(physicalOpId)
@@ -151,18 +151,19 @@ class ExpansionGreedyRegionPlanGenerator(
   }
 
   /**
-    * This function creates and connects a region DAG while conducting materialization replacement.
-    * It keeps attempting to create a region DAG from the given PhysicalPlan. When failed, a list
-    * of PhysicalLinks that causes the failure will be given to conduct materialization replacement,
-    * which changes the PhysicalPlan. It keeps attempting with the updated PhysicalPLan until a
-    * region DAG is built after connecting materialized pairs.
-    *
-    * @return a fully connected region DAG.
-    */
+   * This function creates and connects a region DAG while conducting materialization replacement.
+   * It keeps attempting to create a region DAG from the given PhysicalPlan. When failed, a list
+   * of PhysicalLinks that causes the failure will be given to conduct materialization replacement,
+   * which changes the PhysicalPlan. It keeps attempting with the updated PhysicalPLan until a
+   * region DAG is built after connecting materialized pairs.
+   *
+   * @return a fully connected region DAG.
+   */
   private def createRegionDAG(): DirectedAcyclicGraph[Region, RegionLink] = {
 
     val matReaderWriterPairs =
       new mutable.HashMap[PhysicalOpIdentity, PhysicalOpIdentity]()
+
     @tailrec
     def recConnectRegionDAG(): DirectedAcyclicGraph[Region, RegionLink] = {
       tryConnectRegionDAG() match {

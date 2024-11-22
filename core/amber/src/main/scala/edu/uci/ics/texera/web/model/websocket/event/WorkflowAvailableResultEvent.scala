@@ -5,10 +5,11 @@ import edu.uci.ics.texera.web.service.ExecutionResultService.WebOutputMode
 
 object WorkflowAvailableResultEvent {
   case class OperatorAvailableResult(
-      cacheValid: Boolean,
-      outputMode: WebOutputMode
-  )
+                                      cacheValid: Boolean,
+                                      outputMode: WebOutputMode
+                                    )
 }
+
 case class WorkflowAvailableResultEvent(
-    availableOperators: Map[String, OperatorAvailableResult]
-) extends TexeraWebSocketEvent
+                                         availableOperators: Map[String, OperatorAvailableResult]
+                                       ) extends TexeraWebSocketEvent

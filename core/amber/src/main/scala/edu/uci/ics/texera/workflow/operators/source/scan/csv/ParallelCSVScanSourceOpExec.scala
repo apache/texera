@@ -1,12 +1,5 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.csv
 
-import edu.uci.ics.amber.engine.common.executor.SourceOperatorExecutor
-import edu.uci.ics.amber.engine.common.model.tuple.{
-  Attribute,
-  AttributeTypeUtils,
-  Schema,
-  TupleLike
-}
 import edu.uci.ics.texera.workflow.common.scanner.BufferedBlockReader
 import org.tukaani.xz.SeekableFileInputStream
 
@@ -15,14 +8,14 @@ import java.util
 import java.util.stream.{IntStream, Stream}
 import scala.collection.compat.immutable.ArraySeq
 
-class ParallelCSVScanSourceOpExec private[csv] (
-    file: File,
-    customDelimiter: Option[String],
-    hasHeader: Boolean,
-    startOffset: Long,
-    endOffset: Long,
-    schemaFunc: () => Schema
-) extends SourceOperatorExecutor {
+class ParallelCSVScanSourceOpExec private[csv](
+                                                file: File,
+                                                customDelimiter: Option[String],
+                                                hasHeader: Boolean,
+                                                startOffset: Long,
+                                                endOffset: Long,
+                                                schemaFunc: () => Schema
+                                              ) extends SourceOperatorExecutor {
   private var schema: Schema = _
   private var reader: BufferedBlockReader = _
 

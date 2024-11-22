@@ -2,15 +2,11 @@ package edu.uci.ics.texera.workflow.operators.machineLearning.sklearnAdvanced.ba
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaBool;
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject;
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaString;
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInt;
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
+import com.kjetland.jackson.jsonSchema.annotations.*;
 import edu.uci.ics.texera.workflow.common.metadata.annotations.CommonOpDescAnnotation;
 import edu.uci.ics.texera.workflow.common.metadata.annotations.HideAnnotation;
 
-public class HyperParameters<T>{
+public class HyperParameters<T> {
     @JsonProperty(required = true)
     @JsonSchemaTitle("Parameter")
     @JsonPropertyDescription("Choose the name of the parameter")

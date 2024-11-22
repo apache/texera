@@ -1,20 +1,20 @@
 package edu.uci.ics.texera.workflow.operators.aggregate
 
-import edu.uci.ics.amber.engine.common.executor.OperatorExecutor
-import edu.uci.ics.amber.engine.common.model.tuple.{Tuple, TupleLike}
+import edu.uci.ics.amber.core.executor.OperatorExecutor
+import edu.uci.ics.amber.core.tuple.{Tuple, TupleLike}
 
 import scala.collection.mutable
 
 /**
-  * AggregateOpExec performs aggregation operations on input tuples, optionally grouping them by specified keys.
-  *
-  * @param aggregations a list of aggregation operations to apply on the tuples
-  * @param groupByKeys a list of attribute names to group the tuples by
-  */
+ * AggregateOpExec performs aggregation operations on input tuples, optionally grouping them by specified keys.
+ *
+ * @param aggregations a list of aggregation operations to apply on the tuples
+ * @param groupByKeys  a list of attribute names to group the tuples by
+ */
 class AggregateOpExec(
-    aggregations: List[AggregationOperation],
-    groupByKeys: List[String]
-) extends OperatorExecutor {
+                       aggregations: List[AggregationOperation],
+                       groupByKeys: List[String]
+                     ) extends OperatorExecutor {
 
   private val keyedPartialAggregates = new mutable.HashMap[List[Object], List[Object]]()
   private var distributedAggregations: List[DistributedAggregation[Object]] = _

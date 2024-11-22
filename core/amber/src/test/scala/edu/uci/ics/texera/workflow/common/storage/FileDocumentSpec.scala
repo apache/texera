@@ -1,15 +1,13 @@
 package edu.uci.ics.texera.workflow.common.storage
 
-import edu.uci.ics.amber.engine.common.storage.FileDocument
-
-import java.net.URI
-import java.nio.file.{Files, Paths}
-import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.BeforeAndAfter
 import org.scalatest.concurrent.ScalaFutures.convertScalaFuture
+import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, InputStream}
+import java.net.URI
+import java.nio.file.{Files, Paths}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.Using
@@ -42,7 +40,7 @@ class FileDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfter {
     val buffer = new ByteArrayOutputStream()
     val data = new Array[Byte](1024)
     var nRead = 0
-    while ({
+    while ( {
       nRead = inputStream.read(data, 0, data.length)
       nRead != -1
     }) {

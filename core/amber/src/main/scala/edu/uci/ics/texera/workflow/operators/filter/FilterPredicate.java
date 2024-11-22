@@ -4,12 +4,12 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaString;
+import edu.uci.ics.amber.core.tuple.Tuple$;
+import edu.uci.ics.amber.engine.common.model.tuple.AttributeType;
 import edu.uci.ics.amber.engine.common.model.tuple.AttributeTypeUtils;
+import edu.uci.ics.amber.engine.common.model.tuple.Tuple;
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName;
 import edu.uci.ics.texera.workflow.common.metadata.annotations.HideAnnotation;
-import edu.uci.ics.amber.engine.common.model.tuple.Tuple;
-import edu.uci.ics.amber.engine.common.model.tuple.AttributeType;
-
 
 import java.sql.Timestamp;
 import java.util.Objects;
@@ -59,7 +59,7 @@ public class FilterPredicate {
     }
 
     @JsonIgnore
-    public boolean evaluate(Tuple tuple) {
+    public boolean evaluate(Tuple$ tuple) {
         boolean isFieldNull = tuple.getField(attribute) == null;
         if (condition == ComparisonType.IS_NULL) {
             return isFieldNull;
@@ -90,12 +90,12 @@ public class FilterPredicate {
         }
     }
 
-    private boolean evaluateFilterBoolean(Tuple inputTuple) {
+    private boolean evaluateFilterBoolean(Tuple$ inputTuple) {
         Boolean tupleValue = inputTuple.getField(attribute);
         return evaluateFilter(tupleValue.toString().toLowerCase(), value.trim().toLowerCase(), condition);
     }
 
-    private boolean evaluateFilterDouble(Tuple inputTuple) {
+    private boolean evaluateFilterDouble(Tuple$ inputTuple) {
         Double tupleValue = inputTuple.getField(attribute);
         Double compareToValue = Double.parseDouble(value);
         return evaluateFilter(tupleValue, compareToValue, condition);

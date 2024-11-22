@@ -1,23 +1,21 @@
 package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
 import com.twitter.util.Future
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo.generateJavaOpExec
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
-  AsyncRPCContext,
-  InitializeExecutorRequest
-}
+import edu.uci.ics.amber.core.executor.OpExecInitInfo
+import edu.uci.ics.amber.core.executor.OpExecInitInfo.generateJavaOpExec
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, InitializeExecutorRequest}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
-import edu.uci.ics.amber.engine.common.{AmberRuntime, VirtualIdentityUtils}
+import edu.uci.ics.amber.engine.common.AmberRuntime
+import edu.uci.ics.amber.util.VirtualIdentityUtils
 
 trait InitializeExecutorHandler {
   this: DataProcessorRPCHandlerInitializer =>
 
   override def initializeExecutor(
-      req: InitializeExecutorRequest,
-      ctx: AsyncRPCContext
-  ): Future[EmptyReturn] = {
+                                   req: InitializeExecutorRequest,
+                                   ctx: AsyncRPCContext
+                                 ): Future[EmptyReturn] = {
     dp.serializationManager.setOpInitialization(req)
     val bytes = req.opExecInitInfo.value.toByteArray
     val opExecInitInfo: OpExecInitInfo =

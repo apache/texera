@@ -1,9 +1,6 @@
 package edu.uci.ics.amber.engine.common.storage
 
-import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage.{
-  SequentialRecordReader,
-  SequentialRecordWriter
-}
+import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage.{SequentialRecordReader, SequentialRecordWriter}
 import org.apache.commons.io.input.NullInputStream
 import org.apache.hadoop.io.IOUtils.NullOutputStream
 

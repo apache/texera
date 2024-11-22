@@ -13,20 +13,20 @@ import javax.websocket.server.{HandshakeRequest, ServerEndpointConfig}
 import scala.jdk.CollectionConverters.ListHasAsScala
 
 /**
-  * This configurator extracts HTTPSession and associates it to ServerEndpointConfig,
-  * allow it to be accessed by Websocket connections.
-  * <pre>
-  * See <a href="https://stackoverflow.com/questions/17936440/accessing-httpsession-
-  *   from-httpservletrequest-in-a-web-socket-serverendpoint"></a>
-  * </pre>
-  */
+ * This configurator extracts HTTPSession and associates it to ServerEndpointConfig,
+ * allow it to be accessed by Websocket connections.
+ * <pre>
+ * See <a href="https://stackoverflow.com/questions/17936440/accessing-httpsession-
+ * from-httpservletrequest-in-a-web-socket-serverendpoint"></a>
+ * </pre>
+ */
 class ServletAwareConfigurator extends ServerEndpointConfig.Configurator with LazyLogging {
 
   override def modifyHandshake(
-      config: ServerEndpointConfig,
-      request: HandshakeRequest,
-      response: HandshakeResponse
-  ): Unit = {
+                                config: ServerEndpointConfig,
+                                request: HandshakeRequest,
+                                response: HandshakeResponse
+                              ): Unit = {
     try {
       val params =
         URLEncodedUtils.parse(new URI("?" + request.getQueryString), Charset.defaultCharset())

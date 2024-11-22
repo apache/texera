@@ -23,9 +23,9 @@ trait CollectHandler {
   }
 
   override def sendGenerateNumber(
-      request: GenerateNumber,
-      ctx: AsyncRPCContext
-  ): Future[IntResponse] = {
+                                   request: GenerateNumber,
+                                   ctx: AsyncRPCContext
+                                 ): Future[IntResponse] = {
     IntResponse(Random.nextInt())
   }
 

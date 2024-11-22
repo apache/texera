@@ -1,17 +1,14 @@
 package edu.uci.ics.texera.workflow.operators.sortPartitions
 
-import edu.uci.ics.amber.engine.common.executor.OperatorExecutor
-import edu.uci.ics.amber.engine.common.model.tuple.{AttributeType, Tuple, TupleLike}
-
 import scala.collection.mutable.ArrayBuffer
 
 class SortPartitionOpExec(
-    sortAttributeName: String,
-    localIdx: Int,
-    domainMin: Long,
-    domainMax: Long,
-    numberOfWorkers: Int
-) extends OperatorExecutor {
+                           sortAttributeName: String,
+                           localIdx: Int,
+                           domainMin: Long,
+                           domainMax: Long,
+                           numberOfWorkers: Int
+                         ) extends OperatorExecutor {
 
   private var unorderedTuples: ArrayBuffer[Tuple] = _
 

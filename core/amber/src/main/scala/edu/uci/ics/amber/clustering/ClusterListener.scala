@@ -1,8 +1,8 @@
 package edu.uci.ics.amber.clustering
 
 import akka.actor.{Actor, Address}
-import akka.cluster.ClusterEvent._
 import akka.cluster.Cluster
+import akka.cluster.ClusterEvent._
 import com.google.protobuf.timestamp.Timestamp
 import com.twitter.util.{Await, Future}
 import edu.uci.ics.amber.clustering.ClusterListener.numWorkerNodesInCluster
@@ -22,6 +22,7 @@ import scala.collection.mutable.ArrayBuffer
 
 object ClusterListener {
   final case class GetAvailableNodeAddresses()
+
   var numWorkerNodesInCluster = 0
 }
 

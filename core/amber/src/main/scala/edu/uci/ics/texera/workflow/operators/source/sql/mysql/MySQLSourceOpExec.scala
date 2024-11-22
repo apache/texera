@@ -1,43 +1,42 @@
 package edu.uci.ics.texera.workflow.operators.source.sql.mysql
 
-import edu.uci.ics.amber.engine.common.model.tuple.{AttributeType, Schema}
-import edu.uci.ics.texera.workflow.operators.source.sql.mysql.MySQLConnUtil.connect
 import edu.uci.ics.texera.workflow.operators.source.sql.SQLSourceOpExec
+import edu.uci.ics.texera.workflow.operators.source.sql.mysql.MySQLConnUtil.connect
 
 import java.sql._
 
-class MySQLSourceOpExec private[mysql] (
-    host: String,
-    port: String,
-    database: String,
-    table: String,
-    username: String,
-    password: String,
-    limit: Option[Long],
-    offset: Option[Long],
-    progressive: Option[Boolean],
-    batchByColumn: Option[String],
-    min: Option[String],
-    max: Option[String],
-    interval: Long,
-    keywordSearch: Boolean,
-    keywordSearchByColumn: String,
-    keywords: String,
-    schemaFunc: () => Schema
-) extends SQLSourceOpExec(
-      table,
-      limit,
-      offset,
-      progressive,
-      batchByColumn,
-      min,
-      max,
-      interval,
-      keywordSearch,
-      keywordSearchByColumn,
-      keywords,
-      schemaFunc
-    ) {
+class MySQLSourceOpExec private[mysql](
+                                        host: String,
+                                        port: String,
+                                        database: String,
+                                        table: String,
+                                        username: String,
+                                        password: String,
+                                        limit: Option[Long],
+                                        offset: Option[Long],
+                                        progressive: Option[Boolean],
+                                        batchByColumn: Option[String],
+                                        min: Option[String],
+                                        max: Option[String],
+                                        interval: Long,
+                                        keywordSearch: Boolean,
+                                        keywordSearchByColumn: String,
+                                        keywords: String,
+                                        schemaFunc: () => Schema
+                                      ) extends SQLSourceOpExec(
+  table,
+  limit,
+  offset,
+  progressive,
+  batchByColumn,
+  min,
+  max,
+  interval,
+  keywordSearch,
+  keywordSearchByColumn,
+  keywords,
+  schemaFunc
+) {
 
   val FETCH_TABLE_NAMES_SQL =
     "SELECT table_name FROM information_schema.tables WHERE table_schema = ?;"
@@ -51,7 +50,7 @@ class MySQLSourceOpExec private[mysql] (
       val columnType = schema.getAttribute(keywordSearchByColumn).getType
 
       if (columnType == AttributeType.STRING)
-        // in sql prepared statement, column name cannot be inserted using PreparedStatement.setString either
+      // in sql prepared statement, column name cannot be inserted using PreparedStatement.setString either
         queryBuilder ++= " AND MATCH(" + keywordSearchByColumn + ") AGAINST (? IN BOOLEAN MODE)"
       else
         throw new RuntimeException("Can't do keyword search on type " + columnType.toString)
@@ -63,7 +62,9 @@ class MySQLSourceOpExec private[mysql] (
     val preparedStatement = connection.prepareStatement(FETCH_TABLE_NAMES_SQL)
     preparedStatement.setString(1, database)
     val resultSet = preparedStatement.executeQuery
-    while ({ resultSet.next }) {
+    while ( {
+      resultSet.next
+    }) {
       tableNames += resultSet.getString(1)
     }
     resultSet.close()

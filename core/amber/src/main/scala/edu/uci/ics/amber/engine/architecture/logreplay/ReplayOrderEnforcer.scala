@@ -5,11 +5,11 @@ import edu.uci.ics.amber.virtualidentity.ChannelIdentity
 import scala.collection.mutable
 
 class ReplayOrderEnforcer(
-    logManager: ReplayLogManager,
-    channelStepOrder: mutable.Queue[ProcessingStep],
-    startStep: Long,
-    private var onComplete: () => Unit
-) extends OrderEnforcer {
+                           logManager: ReplayLogManager,
+                           channelStepOrder: mutable.Queue[ProcessingStep],
+                           startStep: Long,
+                           private var onComplete: () => Unit
+                         ) extends OrderEnforcer {
   private var currentChannelId: ChannelIdentity = _
 
   private def triggerOnComplete(): Unit = {

@@ -9,17 +9,13 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.AsyncRPCContext
 import edu.uci.ics.amber.engine.architecture.rpc.testerservice.RPCTesterFs2Grpc
 import edu.uci.ics.amber.engine.common.CheckpointState
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
-import edu.uci.ics.amber.engine.common.ambermessage.{
-  ControlPayload,
-  DataPayload,
-  WorkflowFIFOMessage
-}
+import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, DataPayload, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
 object TrivialControlTester {
   class ControlTesterRPCClient(outputGateway: NetworkOutputGateway, actorId: ActorVirtualIdentity)
-      extends AsyncRPCClient(outputGateway, actorId) {
+    extends AsyncRPCClient(outputGateway, actorId) {
     val getProxy: RPCTesterFs2Grpc[Future, AsyncRPCContext] =
       AsyncRPCClient
         .createProxy[RPCTesterFs2Grpc[Future, AsyncRPCContext]](createPromise, outputGateway)
@@ -27,12 +23,12 @@ object TrivialControlTester {
 }
 
 class TrivialControlTester(
-    id: ActorVirtualIdentity
-) extends WorkflowActor(replayLogConfOpt = None, actorId = id) {
+                            id: ActorVirtualIdentity
+                          ) extends WorkflowActor(replayLogConfOpt = None, actorId = id) {
   val ap = new AmberProcessor(
     id,
     {
-      case Left(value)  => ???
+      case Left(value) => ???
       case Right(value) => transferService.send(value)
     }
   ) {
@@ -48,8 +44,8 @@ class TrivialControlTester(
       val msg = channel.take
       msg.payload match {
         case payload: ControlPayload => ap.processControlPayload(msg.channelId, payload)
-        case _: DataPayload          => ???
-        case _                       => ???
+        case _: DataPayload => ???
+        case _ => ???
       }
     }
     sender() ! NetworkAck(id, getInMemSize(workflowMsg), getQueuedCredit(workflowMsg.channelId))

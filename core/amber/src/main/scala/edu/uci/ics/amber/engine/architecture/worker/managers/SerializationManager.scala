@@ -1,17 +1,11 @@
 package edu.uci.ics.amber.engine.architecture.worker.managers
 
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo.generateJavaOpExec
+import edu.uci.ics.amber.core.executor.OpExecInitInfo.generateJavaOpExec
+import edu.uci.ics.amber.core.executor.{OpExecInitInfo, OperatorExecutor}
+import edu.uci.ics.amber.core.tuple.TupleLike
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.InitializeExecutorRequest
-import edu.uci.ics.amber.engine.common.executor.OperatorExecutor
-import edu.uci.ics.amber.engine.common.model.tuple.TupleLike
-import edu.uci.ics.amber.engine.common.{
-  AmberLogging,
-  AmberRuntime,
-  CheckpointState,
-  CheckpointSupport,
-  VirtualIdentityUtils
-}
+import edu.uci.ics.amber.engine.common.{AmberLogging, AmberRuntime, CheckpointState, CheckpointSupport}
+import edu.uci.ics.amber.util.VirtualIdentityUtils
 import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.workflow.PortIdentity
 
@@ -19,13 +13,14 @@ class SerializationManager(val actorId: ActorVirtualIdentity) extends AmberLoggi
 
   @transient private var serializationCall: () => Unit = _
   private var execInitMsg: InitializeExecutorRequest = _
+
   def setOpInitialization(msg: InitializeExecutorRequest): Unit = {
     execInitMsg = msg
   }
 
   def restoreExecutorState(
-      chkpt: CheckpointState
-  ): (OperatorExecutor, Iterator[(TupleLike, Option[PortIdentity])]) = {
+                            chkpt: CheckpointState
+                          ): (OperatorExecutor, Iterator[(TupleLike, Option[PortIdentity])]) = {
     val opExecInitInfo: OpExecInitInfo = AmberRuntime.serde
       .deserialize(execInitMsg.opExecInitInfo.value.toByteArray, classOf[OpExecInitInfo])
       .get

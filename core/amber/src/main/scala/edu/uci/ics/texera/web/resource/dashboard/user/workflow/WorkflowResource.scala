@@ -7,12 +7,7 @@ import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables._
 import edu.uci.ics.texera.web.model.jooq.generated.enums.WorkflowUserAccessPrivilege
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  WorkflowDao,
-  WorkflowOfProjectDao,
-  WorkflowOfUserDao,
-  WorkflowUserAccessDao
-}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{WorkflowDao, WorkflowOfProjectDao, WorkflowOfUserDao, WorkflowUserAccessDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
 import edu.uci.ics.texera.web.resource.dashboard.hub.workflow.HubWorkflowResource.recordUserActivity
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasReadAccess
@@ -34,10 +29,10 @@ import scala.jdk.CollectionConverters._
 import scala.util.control.NonFatal
 
 /**
-  * This file handles various request related to saved-workflows.
-  * It sends mysql queries to the MysqlDB regarding the UserWorkflow Table
-  * The details of UserWorkflowTable can be found in /core/scripts/sql/texera_ddl.sql
-  */
+ * This file handles various request related to saved-workflows.
+ * It sends mysql queries to the MysqlDB regarding the UserWorkflow Table
+ * The details of UserWorkflowTable can be found in /core/scripts/sql/texera_ddl.sql
+ */
 
 object WorkflowResource {
   final private lazy val context = SqlServer.createDSLContext()
@@ -87,32 +82,32 @@ object WorkflowResource {
   }
 
   case class DashboardWorkflow(
-      isOwner: Boolean,
-      accessLevel: String,
-      ownerName: String,
-      workflow: Workflow,
-      projectIDs: List[UInteger],
-      ownerId: UInteger
-  )
+                                isOwner: Boolean,
+                                accessLevel: String,
+                                ownerName: String,
+                                workflow: Workflow,
+                                projectIDs: List[UInteger],
+                                ownerId: UInteger
+                              )
 
   case class WorkflowWithPrivilege(
-      name: String,
-      description: String,
-      wid: UInteger,
-      content: String,
-      creationTime: Timestamp,
-      lastModifiedTime: Timestamp,
-      isPublished: Byte,
-      readonly: Boolean
-  )
+                                    name: String,
+                                    description: String,
+                                    wid: UInteger,
+                                    content: String,
+                                    creationTime: Timestamp,
+                                    lastModifiedTime: Timestamp,
+                                    isPublished: Byte,
+                                    readonly: Boolean
+                                  )
 
   case class WorkflowIDs(wids: List[UInteger], pid: Option[UInteger])
 
   private def updateWorkflowField(
-      workflow: Workflow,
-      sessionUser: SessionUser,
-      updateFunction: Workflow => Unit
-  ): Unit = {
+                                   workflow: Workflow,
+                                   sessionUser: SessionUser,
+                                   updateFunction: Workflow => Unit
+                                 ): Unit = {
     val wid = workflow.getWid
     val user = sessionUser.getUser
 
@@ -131,13 +126,13 @@ object WorkflowResource {
   }
 
   /**
-    * Updates operator IDs in the given workflow content by assigning new unique IDs.
-    * Each operator ID in the "operators" section is replaced with a new ID of the form:
-    * "<operatorType>-operator-<UUID>"
-    *
-    * @param workflowContent JSON string representing the workflow, containing operator details.
-    * @return The updated workflow content with new operator IDs.
-    */
+   * Updates operator IDs in the given workflow content by assigning new unique IDs.
+   * Each operator ID in the "operators" section is replaced with a new ID of the form:
+   * "<operatorType>-operator-<UUID>"
+   *
+   * @param workflowContent JSON string representing the workflow, containing operator details.
+   * @return The updated workflow content with new operator IDs.
+   */
   def assignNewOperatorIds(workflowContent: String): String = {
     val objectMapper = new ObjectMapper().registerModule(DefaultScalaModule)
     val operatorIdMap = objectMapper
@@ -165,10 +160,10 @@ object WorkflowResource {
 class WorkflowResource extends LazyLogging {
 
   /**
-    * This method returns all workflow IDs that the user has access to
-    *
-    * @return WorkflowID[]
-    */
+   * This method returns all workflow IDs that the user has access to
+   *
+   * @return WorkflowID[]
+   */
   @GET
   @Path("/user-workflow-ids")
   def retrieveIDs(@Auth user: SessionUser): util.List[String] = {
@@ -180,10 +175,10 @@ class WorkflowResource extends LazyLogging {
   }
 
   /**
-    * This method returns all owner user names of the workflows that the user has access to
-    *
-    * @return OwnerName[]
-    */
+   * This method returns all owner user names of the workflows that the user has access to
+   *
+   * @return OwnerName[]
+   */
   @GET
   @Path("/user-workflow-owners")
   def retrieveOwners(@Auth user: SessionUser): util.List[String] = {
@@ -199,16 +194,16 @@ class WorkflowResource extends LazyLogging {
   }
 
   /**
-    * This method returns workflow IDs, that contain the selected operators, as strings
-    *
-    * @return WorkflowID[]
-    */
+   * This method returns workflow IDs, that contain the selected operators, as strings
+   *
+   * @return WorkflowID[]
+   */
   @GET
   @Path("/search-by-operators")
   def searchWorkflowByOperator(
-      @QueryParam("operator") operator: String,
-      @Auth sessionUser: SessionUser
-  ): List[String] = {
+                                @QueryParam("operator") operator: String,
+                                @Auth sessionUser: SessionUser
+                              ): List[String] = {
     // Example GET url: localhost:8080/workflow/searchOperators?operator=Regex,CSVFileScan
     val user = sessionUser.getUser
     val quotes = "\""
@@ -251,15 +246,15 @@ class WorkflowResource extends LazyLogging {
   }
 
   /**
-    * This method returns the current in-session user's workflow list based on all workflows he/she has access to
-    *
-    * @return Workflow[]
-    */
+   * This method returns the current in-session user's workflow list based on all workflows he/she has access to
+   *
+   * @return Workflow[]
+   */
   @GET
   @Path("/list")
   def retrieveWorkflowsBySessionUser(
-      @Auth sessionUser: SessionUser
-  ): List[DashboardWorkflow] = {
+                                      @Auth sessionUser: SessionUser
+                                    ): List[DashboardWorkflow] = {
     val user = sessionUser.getUser
     val workflowEntries = context
       .select(
@@ -307,19 +302,19 @@ class WorkflowResource extends LazyLogging {
   }
 
   /**
-    * This method handles the client request to get a specific workflow to be displayed in canvas
-    * at current design, it only takes the workflowID and searches within the database for the matching workflow
-    * for future design, it should also take userID as an parameter.
-    *
-    * @param wid     workflow id, which serves as the primary key in the UserWorkflow database
-    * @return a json string representing an savedWorkflow
-    */
+   * This method handles the client request to get a specific workflow to be displayed in canvas
+   * at current design, it only takes the workflowID and searches within the database for the matching workflow
+   * for future design, it should also take userID as an parameter.
+   *
+   * @param wid workflow id, which serves as the primary key in the UserWorkflow database
+   * @return a json string representing an savedWorkflow
+   */
   @GET
   @Path("/{wid}")
   def retrieveWorkflow(
-      @PathParam("wid") wid: UInteger,
-      @Auth user: SessionUser
-  ): WorkflowWithPrivilege = {
+                        @PathParam("wid") wid: UInteger,
+                        @Auth user: SessionUser
+                      ): WorkflowWithPrivilege = {
     if (WorkflowAccessResource.hasReadAccess(wid, user.getUid)) {
       val workflow = workflowDao.fetchOneByWid(wid)
       WorkflowWithPrivilege(
@@ -338,14 +333,14 @@ class WorkflowResource extends LazyLogging {
   }
 
   /**
-    * This method persists the workflow into database
-    *
-    * @param workflow , a workflow
-    * @return Workflow, which contains the generated wid if not provided//
-    *         TODO: divide into two endpoints -> one for new-workflow and one for updating existing workflow
-    *         TODO: if the persist is triggered in parallel, the none atomic actions currently might cause an issue.
-    *             Should consider making the operations atomic
-    */
+   * This method persists the workflow into database
+   *
+   * @param workflow , a workflow
+   * @return Workflow, which contains the generated wid if not provided//
+   *         TODO: divide into two endpoints -> one for new-workflow and one for updating existing workflow
+   *         TODO: if the persist is triggered in parallel, the none atomic actions currently might cause an issue.
+   *         Should consider making the operations atomic
+   */
   @POST
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Path("/persist")
@@ -378,18 +373,18 @@ class WorkflowResource extends LazyLogging {
   }
 
   /**
-    * This method duplicates the target workflow, the new workflow name is appended with `_copy`
-    *
-    * @param workflow , a workflow to be duplicated
-    * @return Workflow, which contains the generated wid if not provided
-    */
+   * This method duplicates the target workflow, the new workflow name is appended with `_copy`
+   *
+   * @param workflow , a workflow to be duplicated
+   * @return Workflow, which contains the generated wid if not provided
+   */
   @POST
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Path("/duplicate")
   def duplicateWorkflow(
-      workflowIDs: WorkflowIDs,
-      @Auth sessionUser: SessionUser
-  ): List[DashboardWorkflow] = {
+                         workflowIDs: WorkflowIDs,
+                         @Auth sessionUser: SessionUser
+                       ): List[DashboardWorkflow] = {
 
     val user = sessionUser.getUser
     // do the permission check first
@@ -447,10 +442,10 @@ class WorkflowResource extends LazyLogging {
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/clone/{wid}")
   def cloneWorkflow(
-      @PathParam("wid") wid: UInteger,
-      @Auth sessionUser: SessionUser,
-      @Context request: HttpServletRequest
-  ): UInteger = {
+                     @PathParam("wid") wid: UInteger,
+                     @Auth sessionUser: SessionUser,
+                     @Context request: HttpServletRequest
+                   ): UInteger = {
     val oldWorkflow: Workflow = workflowDao.fetchOneByWid(wid)
     val newWorkflow: DashboardWorkflow = createWorkflow(
       new Workflow(
@@ -485,11 +480,11 @@ class WorkflowResource extends LazyLogging {
   }
 
   /**
-    * This method creates and insert a new workflow to database
-    *
-    * @param workflow , a workflow to be created
-    * @return Workflow, which contains the generated wid if not provided
-    */
+   * This method creates and insert a new workflow to database
+   *
+   * @param workflow , a workflow to be created
+   * @return Workflow, which contains the generated wid if not provided
+   */
   @POST
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
@@ -514,10 +509,10 @@ class WorkflowResource extends LazyLogging {
   }
 
   /**
-    * This method deletes the workflow from database
-    *
-    * @return Response, deleted - 200, not exists - 400
-    */
+   * This method deletes the workflow from database
+   *
+   * @return Response, deleted - 200, not exists - 400
+   */
   @POST
   @Path("/delete")
   def deleteWorkflow(workflowIDs: WorkflowIDs, @Auth sessionUser: SessionUser): Unit = {
@@ -544,9 +539,9 @@ class WorkflowResource extends LazyLogging {
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/update/name")
   def updateWorkflowName(
-      workflow: Workflow,
-      @Auth sessionUser: SessionUser
-  ): Unit = {
+                          workflow: Workflow,
+                          @Auth sessionUser: SessionUser
+                        ): Unit = {
     updateWorkflowField(workflow, sessionUser, _.setName(workflow.getName))
   }
 
@@ -555,9 +550,9 @@ class WorkflowResource extends LazyLogging {
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/update/description")
   def updateWorkflowDescription(
-      workflow: Workflow,
-      @Auth sessionUser: SessionUser
-  ): Unit = {
+                                 workflow: Workflow,
+                                 @Auth sessionUser: SessionUser
+                               ): Unit = {
     updateWorkflowField(workflow, sessionUser, _.setDescription(workflow.getDescription))
   }
 

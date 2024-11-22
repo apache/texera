@@ -1,23 +1,18 @@
 package edu.uci.ics.texera.workflow.operators.visualization.bubbleChart
 
-import com.fasterxml.jackson.annotation.JsonProperty
-import com.fasterxml.jackson.annotation.JsonPropertyDescription
+import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.common.model.tuple.{Attribute, AttributeType, Schema}
-import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
-import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
-import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
-import edu.uci.ics.texera.workflow.operators.visualization.{
-  VisualizationConstants,
-  VisualizationOperator
-}
+import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
+import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstants, VisualizationOperator}
 
 /**
-  * Visualization Operator to visualize results as a Bubble Chart
-  * User specifies 2 columns to use for the x, y labels. Size of bubbles determined via
-  * third column of data. Bubbles can be sorted via color using a fourth column.
-  */
+ * Visualization Operator to visualize results as a Bubble Chart
+ * User specifies 2 columns to use for the x, y labels. Size of bubbles determined via
+ * third column of data. Bubbles can be sorted via color using a fourth column.
+ */
 
 // type can be numerical only
 class BubbleChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
@@ -82,36 +77,37 @@ class BubbleChartOpDesc extends VisualizationOperator with PythonOperatorDescrip
   }
 
   override def generatePythonCode(): String = {
-    val finalCode = s"""
-        |from pytexera import *
-        |
-        |import plotly.express as px
-        |import plotly.graph_objects as go
-        |import plotly.io
-        |import numpy as np
-        |
-        |
-        |class ProcessTableOperator(UDFTableOperator):
-        |
-        |    def render_error(self, error_msg):
-        |        return '''<h1>TreeMap is not available.</h1>
-        |                  <p>Reasons are: {} </p>
-        |               '''.format(error_msg)
-        |
-        |    @overrides
-        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-        |        if table.empty:
-        |            yield {'html-content': self.render_error("Input table is empty.")}
-        |            return
-        |        ${manipulateTable()}
-        |        ${createPlotlyFigure()}
-        |        if table.empty:
-        |            yield {'html-content': self.render_error("No valid rows left (every row has at least 1 missing value).")}
-        |            return
-        |        fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
-        |        html = plotly.io.to_html(fig, include_plotlyjs = 'cdn', auto_play = False)
-        |        yield {'html-content':html}
-        |""".stripMargin
+    val finalCode =
+      s"""
+         |from pytexera import *
+         |
+         |import plotly.express as px
+         |import plotly.graph_objects as go
+         |import plotly.io
+         |import numpy as np
+         |
+         |
+         |class ProcessTableOperator(UDFTableOperator):
+         |
+         |    def render_error(self, error_msg):
+         |        return '''<h1>TreeMap is not available.</h1>
+         |                  <p>Reasons are: {} </p>
+         |               '''.format(error_msg)
+         |
+         |    @overrides
+         |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+         |        if table.empty:
+         |            yield {'html-content': self.render_error("Input table is empty.")}
+         |            return
+         |        ${manipulateTable()}
+         |        ${createPlotlyFigure()}
+         |        if table.empty:
+         |            yield {'html-content': self.render_error("No valid rows left (every row has at least 1 missing value).")}
+         |            return
+         |        fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
+         |        html = plotly.io.to_html(fig, include_plotlyjs = 'cdn', auto_play = False)
+         |        yield {'html-content':html}
+         |""".stripMargin
     finalCode
   }
 }

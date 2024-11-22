@@ -1,7 +1,5 @@
 package edu.uci.ics.texera.workflow.operators.source.fetcher
 
-import edu.uci.ics.amber.engine.common.executor.SourceOperatorExecutor
-import edu.uci.ics.amber.engine.common.model.tuple.TupleLike
 import edu.uci.ics.texera.workflow.operators.source.fetcher.URLFetchUtil.getInputStreamFromURL
 import org.apache.commons.io.IOUtils
 
@@ -15,7 +13,7 @@ class URLFetcherOpExec(url: String, decodingMethod: DecodingMethod) extends Sour
     val input = getInputStreamFromURL(urlObj)
     val contentInputStream = input match {
       case Some(value) => value
-      case None        => IOUtils.toInputStream(s"Fetch failed for URL: $url", "UTF-8")
+      case None => IOUtils.toInputStream(s"Fetch failed for URL: $url", "UTF-8")
     }
     Iterator(if (decodingMethod == DecodingMethod.UTF_8) {
       TupleLike(IOUtils.toString(contentInputStream, "UTF-8"))

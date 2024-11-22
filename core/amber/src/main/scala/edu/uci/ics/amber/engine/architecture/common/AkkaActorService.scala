@@ -1,17 +1,17 @@
 package edu.uci.ics.amber.engine.architecture.common
 
 import akka.actor.{ActorContext, ActorRef, Address, Cancellable, Props}
-import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
-
-import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import akka.util.Timeout
 import edu.uci.ics.amber.engine.common.FutureBijection._
+import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
 
 import scala.concurrent.ExecutionContext
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 class AkkaActorService(val id: ActorVirtualIdentity, actorContext: ActorContext) {
 
   implicit def ec: ExecutionContext = actorContext.dispatcher
+
   implicit val timeout: Timeout = 5.seconds
   implicit val self: ActorRef = actorContext.self
 
@@ -34,10 +34,10 @@ class AkkaActorService(val id: ActorVirtualIdentity, actorContext: ActorContext)
   }
 
   def scheduleWithFixedDelay(
-      initialDelay: FiniteDuration,
-      delay: FiniteDuration,
-      callable: () => Unit
-  ): Cancellable = {
+                              initialDelay: FiniteDuration,
+                              delay: FiniteDuration,
+                              callable: () => Unit
+                            ): Cancellable = {
     actorContext.system.scheduler.scheduleWithFixedDelay(initialDelay, delay)(() => callable())
   }
 
@@ -46,10 +46,10 @@ class AkkaActorService(val id: ActorVirtualIdentity, actorContext: ActorContext)
   }
 
   def sendToSelfWithFixedDelay(
-      initialDelay: FiniteDuration,
-      delay: FiniteDuration,
-      msg: Any
-  ): Cancellable = {
+                                initialDelay: FiniteDuration,
+                                delay: FiniteDuration,
+                                msg: Any
+                              ): Cancellable = {
     actorContext.system.scheduler.scheduleWithFixedDelay(
       initialDelay,
       delay,

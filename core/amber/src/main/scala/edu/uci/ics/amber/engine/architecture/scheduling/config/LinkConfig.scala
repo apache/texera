@@ -1,30 +1,16 @@
 package edu.uci.ics.amber.engine.architecture.scheduling.config
-import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.{
-  BroadcastPartitioning,
-  HashBasedShufflePartitioning,
-  OneToOnePartitioning,
-  Partitioning,
-  RangeBasedShufflePartitioning,
-  RoundRobinPartitioning
-}
+
+import edu.uci.ics.amber.core.workflow.{BroadcastPartition, HashPartition, OneToOnePartition, PartitionInfo, RangePartition, SinglePartition, UnknownPartition}
+import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings._
 import edu.uci.ics.amber.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
-import edu.uci.ics.texera.workflow.common.workflow.{
-  BroadcastPartition,
-  HashPartition,
-  OneToOnePartition,
-  PartitionInfo,
-  RangePartition,
-  SinglePartition,
-  UnknownPartition
-}
 
 case object LinkConfig {
   def toPartitioning(
-      fromWorkerIds: List[ActorVirtualIdentity],
-      toWorkerIds: List[ActorVirtualIdentity],
-      partitionInfo: PartitionInfo,
-      dataTransferBatchSize: Int
-  ): Partitioning = {
+                      fromWorkerIds: List[ActorVirtualIdentity],
+                      toWorkerIds: List[ActorVirtualIdentity],
+                      partitionInfo: PartitionInfo,
+                      dataTransferBatchSize: Int
+                    ): Partitioning = {
     partitionInfo match {
       case HashPartition(hashAttributeNames) =>
         HashBasedShufflePartitioning(
@@ -89,6 +75,6 @@ case object LinkConfig {
 }
 
 case class LinkConfig(
-    channelConfigs: List[ChannelConfig],
-    partitioning: Partitioning
-)
+                       channelConfigs: List[ChannelConfig],
+                       partitioning: Partitioning
+                     )

@@ -10,6 +10,7 @@ import scala.jdk.CollectionConverters._
 
 object DatasetStatisticsUtils {
   final private lazy val context = SqlServer.createDSLContext()
+
   // this function retrieves the total counts of dataset that belongs to the user
   def getUserCreatedDatasetCount(uid: UInteger): Int = {
     val count = context

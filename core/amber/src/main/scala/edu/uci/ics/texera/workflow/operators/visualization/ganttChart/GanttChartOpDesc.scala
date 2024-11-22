@@ -2,17 +2,14 @@ package edu.uci.ics.texera.workflow.operators.visualization.ganttChart
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import edu.uci.ics.amber.engine.common.model.tuple.{Attribute, AttributeType, Schema}
+import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
-import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
-import edu.uci.ics.texera.workflow.operators.visualization.{
-  VisualizationConstants,
-  VisualizationOperator
-}
+import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstants, VisualizationOperator}
 
-@JsonSchemaInject(json = """
+@JsonSchemaInject(json =
+  """
 {
   "attributeTypeRules": {
     "start": {
@@ -81,42 +78,43 @@ class GanttChartOpDesc extends VisualizationOperator with PythonOperatorDescript
     val patternParam = if (pattern.nonEmpty) s", pattern_shape='$pattern'" else ""
 
     s"""
-        |        fig = px.timeline(table, x_start='$start', x_end='$finish', y='$task' $colorSetting $patternParam)
-        |        fig.update_yaxes(autorange='reversed')
-        |        fig.update_layout(margin=dict(t=0, b=0, l=0, r=0))
-        |""".stripMargin
+       |        fig = px.timeline(table, x_start='$start', x_end='$finish', y='$task' $colorSetting $patternParam)
+       |        fig.update_yaxes(autorange='reversed')
+       |        fig.update_layout(margin=dict(t=0, b=0, l=0, r=0))
+       |""".stripMargin
 
   }
 
   override def generatePythonCode(): String = {
-    val finalCode = s"""
-                        |from pytexera import *
-                        |
-                        |import plotly.express as px
-                        |import plotly.graph_objects as go
-                        |import plotly.io
-                        |import numpy as np
-                        |
-                        |class ProcessTableOperator(UDFTableOperator):
-                        |    def render_error(self, error_msg):
-                        |        return '''<h1>Gantt Chart is not available.</h1>
-                        |                  <p>Reason: {} </p>
-                        |               '''.format(error_msg)
-                        |
-                        |    @overrides
-                        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-                        |        if table.empty:
-                        |           yield {'html-content': self.render_error("Input table is empty.")}
-                        |           return
-                        |        ${manipulateTable()}
-                        |        if table.empty:
-                        |           yield {'html-content': self.render_error("One or more of your input columns have all missing values")}
-                        |           return
-                        |        ${createPlotlyFigure()}
-                        |        # convert fig to html content
-                        |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
-                        |        yield {'html-content': html}
-                        |""".stripMargin
+    val finalCode =
+      s"""
+         |from pytexera import *
+         |
+         |import plotly.express as px
+         |import plotly.graph_objects as go
+         |import plotly.io
+         |import numpy as np
+         |
+         |class ProcessTableOperator(UDFTableOperator):
+         |    def render_error(self, error_msg):
+         |        return '''<h1>Gantt Chart is not available.</h1>
+         |                  <p>Reason: {} </p>
+         |               '''.format(error_msg)
+         |
+         |    @overrides
+         |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+         |        if table.empty:
+         |           yield {'html-content': self.render_error("Input table is empty.")}
+         |           return
+         |        ${manipulateTable()}
+         |        if table.empty:
+         |           yield {'html-content': self.render_error("One or more of your input columns have all missing values")}
+         |           return
+         |        ${createPlotlyFigure()}
+         |        # convert fig to html content
+         |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
+         |        yield {'html-content': html}
+         |""".stripMargin
     finalCode
   }
 

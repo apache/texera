@@ -1,29 +1,32 @@
 package edu.uci.ics.texera.web.resource
+
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.resource.aiassistant.AiAssistantManager
 import io.dropwizard.auth.Auth
+import kong.unirest.Unirest
+import play.api.libs.json._
+
+import java.nio.file.Paths
+import java.util.Base64
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
-import javax.ws.rs.Consumes
-import play.api.libs.json.Json
-import kong.unirest.Unirest
-import java.util.Base64
 import scala.sys.process._
-import play.api.libs.json._
-import java.nio.file.Paths
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.scala.DefaultScalaModule
 
 case class AIAssistantRequest(code: String, lineNumber: Int, allcode: String)
+
 case class LocateUnannotatedRequest(selectedCode: String, startLine: Int)
+
 case class UnannotatedArgument(
-    name: String,
-    startLine: Int,
-    startColumn: Int,
-    endLine: Int,
-    endColumn: Int
-)
+                                name: String,
+                                startLine: Int,
+                                startColumn: Int,
+                                endLine: Int,
+                                endColumn: Int
+                              )
+
 object UnannotatedArgument {
   implicit val format: Format[UnannotatedArgument] = Json.format[UnannotatedArgument]
 }
@@ -33,17 +36,19 @@ class AIAssistantResource {
   val objectMapper = new ObjectMapper()
   objectMapper.registerModule(DefaultScalaModule)
   final private lazy val isEnabled = AiAssistantManager.validAIAssistant
+
   @GET
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/isenabled")
   def isAIAssistantEnable: String = isEnabled
 
   /**
-    * A way to send prompts to open ai
-    * @param prompt The input prompt for the OpenAI model.
-    * @param user The authenticated session user.
-    * @return A response containing the generated comment from OpenAI or an error message.
-    */
+   * A way to send prompts to open ai
+   *
+   * @param prompt The input prompt for the OpenAI model.
+   * @param user   The authenticated session user.
+   * @return A response containing the generated comment from OpenAI or an error message.
+   */
   @POST
   @Path("/openai")
   @Consumes(Array(MediaType.APPLICATION_JSON))
@@ -85,16 +90,16 @@ class AIAssistantResource {
   }
 
   /**
-    * To get the type annotation suggestion from OpenAI
-    */
+   * To get the type annotation suggestion from OpenAI
+   */
   @POST
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/annotationresult")
   @Consumes(Array(MediaType.APPLICATION_JSON))
   def getAnnotation(
-      request: AIAssistantRequest,
-      @Auth user: SessionUser
-  ): Response = {
+                     request: AIAssistantRequest,
+                     @Auth user: SessionUser
+                   ): Response = {
     val finalPrompt = generatePrompt(request.code, request.lineNumber, request.allcode)
     val requestBodyJson = Json.obj(
       "model" -> "gpt-4",

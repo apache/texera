@@ -1,13 +1,5 @@
 package edu.uci.ics.texera.workflow.operators.cartesianProduct
 
-import edu.uci.ics.amber.engine.common.model.tuple.{
-  Attribute,
-  AttributeType,
-  Schema,
-  SchemaEnforceable,
-  Tuple,
-  TupleLike
-}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -28,10 +20,10 @@ class CartesianProductOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   def generate_schema(
-      base_name: String,
-      num_attributes: Int = 1,
-      append_num: Boolean = true
-  ): Schema = {
+                       base_name: String,
+                       num_attributes: Int = 1,
+                       append_num: Boolean = true
+                     ): Schema = {
     val attrs: Iterable[Attribute] = Range
       .inclusive(1, num_attributes)
       .map(num =>

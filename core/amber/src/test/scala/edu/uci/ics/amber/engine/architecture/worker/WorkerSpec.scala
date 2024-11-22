@@ -7,47 +7,16 @@ import com.google.protobuf.ByteString
 import com.google.protobuf.any.{Any => ProtoAny}
 import edu.uci.ics.amber.clustering.SingleNodeListener
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkMessage
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
-  AddInputChannelRequest,
-  AddPartitioningRequest,
-  AssignPortRequest,
-  AsyncRPCContext,
-  ControlInvocation,
-  EmptyRequest,
-  InitializeExecutorRequest
-}
-import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{
-  METHOD_ADD_INPUT_CHANNEL,
-  METHOD_ADD_PARTITIONING,
-  METHOD_ASSIGN_PORT,
-  METHOD_FLUSH_NETWORK_BUFFER,
-  METHOD_INITIALIZE_EXECUTOR
-}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands._
+import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc._
 import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
-  MainThreadDelegateMessage,
-  WorkerReplayInitialization
-}
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{MainThreadDelegateMessage, WorkerReplayInitialization}
 import edu.uci.ics.amber.engine.common.AmberRuntime
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, DataPayload, WorkflowFIFOMessage}
-import edu.uci.ics.amber.engine.common.executor.OperatorExecutor
-import edu.uci.ics.amber.engine.common.model.tuple.{
-  Attribute,
-  AttributeType,
-  Schema,
-  Tuple,
-  TupleLike
-}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
-import edu.uci.ics.amber.virtualidentity.{
-  ActorVirtualIdentity,
-  ChannelIdentity,
-  OperatorIdentity,
-  PhysicalOpIdentity
-}
+import edu.uci.ics.amber.virtualidentity.{ActorVirtualIdentity, ChannelIdentity, OperatorIdentity, PhysicalOpIdentity}
 import edu.uci.ics.amber.workflow.{PhysicalLink, PortIdentity}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
@@ -65,7 +34,7 @@ class DummyOperatorExecutor extends OperatorExecutor {
 }
 
 class WorkerSpec
-    extends TestKit(ActorSystem("WorkerSpec", AmberRuntime.akkaConfig))
+  extends TestKit(ActorSystem("WorkerSpec", AmberRuntime.akkaConfig))
     with ImplicitSender
     with AnyFlatSpecLike
     with BeforeAndAfterAll
@@ -78,6 +47,7 @@ class WorkerSpec
     }
     schemaBuilder.build()
   }
+
   def mkTuple(fields: Any*): Tuple = {
     Tuple.builder(mkSchema(fields: _*)).addSequentially(fields.toArray).build()
   }
@@ -86,9 +56,11 @@ class WorkerSpec
     system.actorOf(Props[SingleNodeListener](), "cluster-info")
     AmberRuntime.serde = SerializationExtension(system)
   }
+
   override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
   }
+
   private val identifier1 = ActorVirtualIdentity("Worker:WF1-E1-op-layer-1")
   private val identifier2 = ActorVirtualIdentity("Worker:WF1-E1-op-layer-2")
 
@@ -107,10 +79,10 @@ class WorkerSpec
     OneToOnePartitioning(10, Seq(ChannelIdentity(identifier1, identifier2, isControl = false)))
 
   def sendControlToWorker(
-      worker: ActorRef,
-      controls: Array[ControlInvocation],
-      beginSeqNum: Long = 0
-  ): Unit = {
+                           worker: ActorRef,
+                           controls: Array[ControlInvocation],
+                           beginSeqNum: Long = 0
+                         ): Unit = {
     var seq = beginSeqNum
     controls.foreach { ctrl =>
       worker ! NetworkMessage(
@@ -238,6 +210,7 @@ class WorkerSpec
         mkTuple(x)
       }.toArray
     }
+
     val batch1 = mkBatch(0, 400)
     val batch2 = mkBatch(400, 500)
     val batch3 = mkBatch(500, 800)

@@ -2,25 +2,19 @@ package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
-  AsyncRPCContext,
-  ControlInvocation,
-  PropagateChannelMarkerRequest
-}
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{
-  ControlReturn,
-  PropagateChannelMarkerResponse
-}
-import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, ControlInvocation, PropagateChannelMarkerRequest}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{ControlReturn, PropagateChannelMarkerResponse}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
+import edu.uci.ics.amber.util.VirtualIdentityUtils
 import edu.uci.ics.amber.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+
 trait ChannelMarkerHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
   override def propagateChannelMarker(
-      msg: PropagateChannelMarkerRequest,
-      ctx: AsyncRPCContext
-  ): Future[PropagateChannelMarkerResponse] = {
+                                       msg: PropagateChannelMarkerRequest,
+                                       ctx: AsyncRPCContext
+                                     ): Future[PropagateChannelMarkerResponse] = {
     // step1: create separate control commands for each target actor.
     val inputSet = msg.targetOps.flatMap { target =>
       cp.workflowExecution.getRunningRegionExecutions

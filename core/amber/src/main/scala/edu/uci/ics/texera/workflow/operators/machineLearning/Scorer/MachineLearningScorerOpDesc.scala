@@ -1,17 +1,9 @@
 package edu.uci.ics.texera.workflow.operators.machineLearning.Scorer
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.{
-  JsonSchemaInject,
-  JsonSchemaString,
-  JsonSchemaTitle
-}
-import edu.uci.ics.amber.engine.common.model.tuple.{Attribute, AttributeType, Schema}
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaString, JsonSchemaTitle}
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
-import edu.uci.ics.texera.workflow.common.metadata.annotations.{
-  AutofillAttributeName,
-  HideAnnotation
-}
+import edu.uci.ics.texera.workflow.common.metadata.annotations.{AutofillAttributeName, HideAnnotation}
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
 
@@ -67,6 +59,7 @@ class MachineLearningScorerOpDesc extends PythonOperatorDescriptor {
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
     )
+
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     val outputSchemaBuilder = Schema.builder()
     if (!isRegression) {
@@ -85,20 +78,20 @@ class MachineLearningScorerOpDesc extends PythonOperatorDescriptor {
     outputSchemaBuilder.build()
   }
 
-//  private def getClassificationScorerName(scorer: classificationMetricsFnc): String = {
-//    // Directly return the name of the scorer using the getName() method
-//    scorer.getName()
-//  }
-//  private def getRegressionScorerName(scorer: regressionMetricsFnc): String = {
-//    // Directly return the name of the scorer using the getName() method
-//    scorer.getName()
-//  }
+  //  private def getClassificationScorerName(scorer: classificationMetricsFnc): String = {
+  //    // Directly return the name of the scorer using the getName() method
+  //    scorer.getName()
+  //  }
+  //  private def getRegressionScorerName(scorer: regressionMetricsFnc): String = {
+  //    // Directly return the name of the scorer using the getName() method
+  //    scorer.getName()
+  //  }
 
   private def getMetricName(metric: Any): String =
     metric match {
-      case m: regressionMetricsFnc     => m.getName()
+      case m: regressionMetricsFnc => m.getName()
       case m: classificationMetricsFnc => m.getName()
-      case _                           => throw new IllegalArgumentException("Unknown metric type")
+      case _ => throw new IllegalArgumentException("Unknown metric type")
     }
 
   private def getSelectedMetrics(): String = {

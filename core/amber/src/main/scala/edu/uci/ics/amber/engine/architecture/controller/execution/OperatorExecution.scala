@@ -4,9 +4,9 @@ import edu.uci.ics.amber.engine.architecture.controller.execution.ExecutionUtils
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerExecution
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
 import edu.uci.ics.amber.engine.architecture.worker.statistics.{PortTupleCountMapping, WorkerState}
+import edu.uci.ics.amber.engine.common.executionruntimestate.{OperatorMetrics, OperatorStatistics}
 import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.workflow.PortIdentity
-import edu.uci.ics.amber.engine.common.executionruntimestate.{OperatorMetrics, OperatorStatistics}
 
 import java.util
 import scala.jdk.CollectionConverters._
@@ -17,14 +17,14 @@ case class OperatorExecution() {
     new util.concurrent.ConcurrentHashMap[ActorVirtualIdentity, WorkerExecution]()
 
   /**
-    * Initializes a `WorkerExecution` for the specified workerId and adds it to the workerExecutions map.
-    * If a `WorkerExecution` for the given workerId already exists, an AssertionError is thrown.
-    * After successfully adding the new `WorkerExecution`, it retrieves and returns the newly added instance.
-    *
-    * @param workerId The `ActorVirtualIdentity` representing the unique identity of the worker.
-    * @return The `WorkerExecution` instance associated with the specified workerId.
-    * @throws AssertionError if a `WorkerExecution` already exists for the given workerId.
-    */
+   * Initializes a `WorkerExecution` for the specified workerId and adds it to the workerExecutions map.
+   * If a `WorkerExecution` for the given workerId already exists, an AssertionError is thrown.
+   * After successfully adding the new `WorkerExecution`, it retrieves and returns the newly added instance.
+   *
+   * @param workerId The `ActorVirtualIdentity` representing the unique identity of the worker.
+   * @return The `WorkerExecution` instance associated with the specified workerId.
+   * @throws AssertionError if a `WorkerExecution` already exists for the given workerId.
+   */
   def initWorkerExecution(workerId: ActorVirtualIdentity): WorkerExecution = {
     assert(
       !workerExecutions.contains(workerId),
@@ -35,14 +35,14 @@ case class OperatorExecution() {
   }
 
   /**
-    * Retrieves the `WorkerExecution` instance associated with the specified workerId.
-    */
+   * Retrieves the `WorkerExecution` instance associated with the specified workerId.
+   */
   def getWorkerExecution(workerId: ActorVirtualIdentity): WorkerExecution =
     workerExecutions.get(workerId)
 
   /**
-    * Retrieves the set of all workerIds for which `WorkerExecution` instances have been initialized.
-    */
+   * Retrieves the set of all workerIds for which `WorkerExecution` instances have been initialized.
+   */
   def getWorkerIds: Set[ActorVirtualIdentity] = workerExecutions.keys.asScala.toSet
 
   def getState: WorkflowAggregatedState = {
@@ -58,8 +58,8 @@ case class OperatorExecution() {
   }
 
   private[this] def computeOperatorPortStats(
-      workerPortStats: Iterable[PortTupleCountMapping]
-  ): Seq[PortTupleCountMapping] = {
+                                              workerPortStats: Iterable[PortTupleCountMapping]
+                                            ): Seq[PortTupleCountMapping] = {
     workerPortStats
       .map(_.portId)
       .toSet

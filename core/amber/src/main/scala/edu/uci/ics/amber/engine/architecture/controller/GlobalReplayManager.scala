@@ -6,6 +6,7 @@ import scala.collection.mutable
 
 class GlobalReplayManager(onRecoveryStart: () => Unit, onRecoveryComplete: () => Unit) {
   private val recovering = mutable.HashSet[ActorVirtualIdentity]()
+
   def markRecoveryStatus(vid: ActorVirtualIdentity, isRecovering: Boolean): Unit = {
     val globalRecovering = recovering.nonEmpty
     if (isRecovering) {

@@ -1,8 +1,10 @@
 package edu.uci.ics.amber.util
 
+import edu.uci.ics.amber.util.PathUtils.{amberHomeDirectoryName, amberHomePath}
 import org.jooq.types.UInteger
 
 import java.nio.file.{Files, Path, Paths}
+import scala.jdk.CollectionConverters.IteratorHasAsScala
 
 object PathUtils {
   val amberHomeDirectoryName = "amber"
@@ -43,6 +45,19 @@ object PathUtils {
 
   def getDatasetPath(did: UInteger): Path = {
     datasetsRootPath.resolve(did.toString)
+  }
+
+  def getAllDatasetDirectories(): List[Path] = {
+    if (Files.exists(datasetsRootPath)) {
+      Files
+        .list(datasetsRootPath)
+        .filter(Files.isDirectory(_))
+        .iterator()
+        .asScala
+        .toList
+    } else {
+      List.empty[Path]
+    }
   }
 
   // path of the dropwizard config file

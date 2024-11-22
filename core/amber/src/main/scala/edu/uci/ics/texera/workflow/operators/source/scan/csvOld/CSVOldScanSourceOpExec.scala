@@ -1,31 +1,24 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.csvOld
 
 import com.github.tototoshi.csv.{CSVReader, DefaultCSVFormat}
-import edu.uci.ics.amber.engine.common.executor.SourceOperatorExecutor
-import edu.uci.ics.amber.engine.common.model.tuple.{
-  Attribute,
-  AttributeTypeUtils,
-  Schema,
-  TupleLike
-}
-import edu.uci.ics.amber.engine.common.storage.DocumentFactory
 import edu.uci.ics.texera.workflow.operators.source.scan.FileDecodingMethod
 
 import java.net.URI
 import scala.collection.compat.immutable.ArraySeq
 
-class CSVOldScanSourceOpExec private[csvOld] (
-    fileUri: String,
-    fileEncoding: FileDecodingMethod,
-    limit: Option[Int],
-    offset: Option[Int],
-    customDelimiter: Option[String],
-    hasHeader: Boolean,
-    schemaFunc: () => Schema
-) extends SourceOperatorExecutor {
+class CSVOldScanSourceOpExec private[csvOld](
+                                              fileUri: String,
+                                              fileEncoding: FileDecodingMethod,
+                                              limit: Option[Int],
+                                              offset: Option[Int],
+                                              customDelimiter: Option[String],
+                                              hasHeader: Boolean,
+                                              schemaFunc: () => Schema
+                                            ) extends SourceOperatorExecutor {
   var schema: Schema = _
   var reader: CSVReader = _
   var rows: Iterator[Seq[String]] = _
+
   override def produceTuple(): Iterator[TupleLike] = {
 
     var tuples = rows

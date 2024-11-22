@@ -1,8 +1,8 @@
 package edu.uci.ics.texera.workflow.operators.cartesianProduct
 
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.common.model.{PhysicalOp, SchemaPropagationFunc}
-import edu.uci.ics.amber.engine.common.model.tuple.{Attribute, Schema}
+import edu.uci.ics.amber.core.executor.OpExecInitInfo
+import edu.uci.ics.amber.core.tuple.{Attribute, Schema}
+import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort, PortIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
@@ -10,9 +10,9 @@ import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 
 class CartesianProductOpDesc extends LogicalOp {
   override def getPhysicalOp(
-      workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity
-  ): PhysicalOp = {
+                              workflowId: WorkflowIdentity,
+                              executionId: ExecutionIdentity
+                            ): PhysicalOp = {
     PhysicalOp
       .oneToOnePhysicalOp(
         workflowId,
@@ -41,17 +41,17 @@ class CartesianProductOpDesc extends LogicalOp {
   }
 
   /**
-    *    returns a Schema in order of the left input attributes followed by the right attributes
-    *    duplicate attribute names are handled with an increasing suffix count
-    *
-    *    Left schema attributes should always retain the same name in output schema
-    *
-    *    For example, Left(dup, dup#@1, dup#@2) cartesian product with Right(r1, r2, dup)
-    *    has output schema: (dup, dup#@1, dup#@2, r1, r2, dup#@3)
-    *
-    *    Since the last attribute of Right is a duplicate, it increases suffix until it is
-    *    no longer a duplicate, resulting in dup#@3
-    */
+   * returns a Schema in order of the left input attributes followed by the right attributes
+   * duplicate attribute names are handled with an increasing suffix count
+   *
+   * Left schema attributes should always retain the same name in output schema
+   *
+   * For example, Left(dup, dup#@1, dup#@2) cartesian product with Right(r1, r2, dup)
+   * has output schema: (dup, dup#@1, dup#@2, r1, r2, dup#@3)
+   *
+   * Since the last attribute of Right is a duplicate, it increases suffix until it is
+   * no longer a duplicate, resulting in dup#@3
+   */
   def getOutputSchemaInternal(schemas: Array[Schema]): Schema = {
     // merge left / right schemas together, sequentially with left schema first
     val builder = Schema.builder()

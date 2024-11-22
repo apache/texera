@@ -1,17 +1,17 @@
 package edu.uci.ics.texera.workflow.operators.projection
 
 import com.google.common.base.Preconditions
-import edu.uci.ics.amber.engine.common.model.tuple.{Tuple, TupleLike}
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpExec
 
 import scala.collection.mutable
 
 class ProjectionOpExec(
-    attributeUnits: List[AttributeUnit],
-    dropOption: Boolean = false
-) extends MapOpExec {
+                        attributeUnits: List[AttributeUnit],
+                        dropOption: Boolean = false
+                      ) extends MapOpExec {
 
   setMapFunc(project)
+
   def project(tuple: Tuple): TupleLike = {
     Preconditions.checkArgument(attributeUnits.nonEmpty)
     var selectedUnits: List[AttributeUnit] = List()

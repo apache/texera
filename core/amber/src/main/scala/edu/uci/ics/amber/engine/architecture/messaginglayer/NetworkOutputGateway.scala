@@ -1,29 +1,24 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import edu.uci.ics.amber.engine.common.AmberLogging
-import edu.uci.ics.amber.engine.common.ambermessage.{
-  ControlPayload,
-  DataPayload,
-  WorkflowFIFOMessage,
-  WorkflowFIFOMessagePayload
-}
+import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, DataPayload, WorkflowFIFOMessage, WorkflowFIFOMessagePayload}
+import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
+import edu.uci.ics.amber.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
 import java.util.concurrent.atomic.AtomicLong
-import edu.uci.ics.amber.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
-import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
-
 import scala.collection.mutable
 
 /**
-  * NetworkOutput for generating sequence number when sending payloads
-  * @param actorId ActorVirtualIdentity for the sender
-  * @param handler actual sending logic
-  */
+ * NetworkOutput for generating sequence number when sending payloads
+ *
+ * @param actorId ActorVirtualIdentity for the sender
+ * @param handler actual sending logic
+ */
 class NetworkOutputGateway(
-    val actorId: ActorVirtualIdentity,
-    val handler: WorkflowFIFOMessage => Unit
-) extends AmberLogging
-    with Serializable {
+                            val actorId: ActorVirtualIdentity,
+                            val handler: WorkflowFIFOMessage => Unit
+                          ) extends AmberLogging
+  with Serializable {
 
   private val idToSequenceNums = new mutable.HashMap[ChannelIdentity, AtomicLong]()
 
@@ -34,10 +29,10 @@ class NetworkOutputGateway(
   }
 
   private def sendToInternal(
-      to: ActorVirtualIdentity,
-      useControlChannel: Boolean,
-      payload: WorkflowFIFOMessagePayload
-  ): Unit = {
+                              to: ActorVirtualIdentity,
+                              useControlChannel: Boolean,
+                              payload: WorkflowFIFOMessagePayload
+                            ): Unit = {
     var receiverId = to
     if (to == SELF) {
       // selfID and VirtualIdentity.SELF should be one key

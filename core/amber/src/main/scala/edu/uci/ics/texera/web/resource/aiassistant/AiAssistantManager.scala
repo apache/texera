@@ -1,8 +1,9 @@
 package edu.uci.ics.texera.web.resource.aiassistant
 
-import edu.uci.ics.amber.engine.common.AmberConfig
-import java.net.{HttpURLConnection, URL}
 import com.typesafe.config.Config
+import edu.uci.ics.amber.engine.common.AmberConfig
+
+import java.net.{HttpURLConnection, URL}
 
 object AiAssistantManager {
   // Optionally retrieve the configuration
@@ -22,9 +23,9 @@ object AiAssistantManager {
     case Some(aiAssistantConfig) =>
       val assistantType: String = aiAssistantConfig.getString("assistant")
       assistantType match {
-        case "none"   => noAssistant
+        case "none" => noAssistant
         case "openai" => initOpenAI()
-        case _        => noAssistant
+        case _ => noAssistant
       }
     case None =>
       noAssistant

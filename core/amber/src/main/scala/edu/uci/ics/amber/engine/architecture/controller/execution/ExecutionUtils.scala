@@ -7,8 +7,8 @@ import edu.uci.ics.amber.engine.common.executionruntimestate.{OperatorMetrics, O
 object ExecutionUtils {
 
   /**
-    * Handle the case when a logical operator has two physical operators within a same region (e.g., Aggregate operator)
-    */
+   * Handle the case when a logical operator has two physical operators within a same region (e.g., Aggregate operator)
+   */
   def aggregateMetrics(metrics: Iterable[OperatorMetrics]): OperatorMetrics = {
     val aggregatedState = aggregateStates(
       metrics.map(_.operatorState),
@@ -56,14 +56,15 @@ object ExecutionUtils {
       )
     )
   }
+
   def aggregateStates[T](
-      states: Iterable[T],
-      completedState: T,
-      runningState: T,
-      uninitializedState: T,
-      pausedState: T,
-      readyState: T
-  ): WorkflowAggregatedState = {
+                          states: Iterable[T],
+                          completedState: T,
+                          runningState: T,
+                          uninitializedState: T,
+                          pausedState: T,
+                          readyState: T
+                        ): WorkflowAggregatedState = {
     if (states.isEmpty) {
       WorkflowAggregatedState.UNINITIALIZED
     } else if (states.forall(_ == completedState)) {

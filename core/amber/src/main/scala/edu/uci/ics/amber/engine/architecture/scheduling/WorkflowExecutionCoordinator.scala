@@ -11,21 +11,21 @@ import edu.uci.ics.amber.workflow.PhysicalLink
 import scala.collection.mutable
 
 class WorkflowExecutionCoordinator(
-    getNextRegions: () => Set[Region],
-    workflowExecution: WorkflowExecution,
-    controllerConfig: ControllerConfig,
-    asyncRPCClient: AsyncRPCClient
-) extends LazyLogging {
+                                    getNextRegions: () => Set[Region],
+                                    workflowExecution: WorkflowExecution,
+                                    controllerConfig: ControllerConfig,
+                                    asyncRPCClient: AsyncRPCClient
+                                  ) extends LazyLogging {
 
   private val executedRegions: mutable.ListBuffer[Set[Region]] = mutable.ListBuffer()
 
   private val regionExecutionCoordinators
-      : mutable.HashMap[RegionIdentity, RegionExecutionCoordinator] =
+  : mutable.HashMap[RegionIdentity, RegionExecutionCoordinator] =
     mutable.HashMap()
 
   /**
-    * Each invocation will execute the next batch of Regions that are ready to be executed, if there are any.
-    */
+   * Each invocation will execute the next batch of Regions that are ready to be executed, if there are any.
+   */
   def executeNextRegions(actorService: AkkaActorService): Future[Unit] = {
     if (workflowExecution.getRunningRegionExecutions.nonEmpty) {
       return Future(())

@@ -4,5 +4,6 @@ import edu.uci.ics.amber.virtualidentity.ChannelIdentity
 
 trait OrderEnforcer {
   var isCompleted: Boolean
+
   def canProceed(channelId: ChannelIdentity): Boolean
 }

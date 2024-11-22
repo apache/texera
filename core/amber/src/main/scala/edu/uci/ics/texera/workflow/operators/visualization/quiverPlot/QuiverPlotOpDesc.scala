@@ -2,17 +2,14 @@ package edu.uci.ics.texera.workflow.operators.visualization.quiverPlot
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import edu.uci.ics.amber.engine.common.model.tuple.{Attribute, AttributeType, Schema}
+import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
-import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
-import edu.uci.ics.texera.workflow.operators.visualization.{
-  VisualizationConstants,
-  VisualizationOperator
-}
+import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstants, VisualizationOperator}
 
-@JsonSchemaInject(json = """
+@JsonSchemaInject(json =
+  """
 {
   "attributeTypeRules": {
     "value": {
@@ -66,56 +63,57 @@ class QuiverPlotOpDesc extends VisualizationOperator with PythonOperatorDescript
   }
 
   override def generatePythonCode(): String = {
-    val finalCode = s"""
-                       |from pytexera import *
-                       |import pandas as pd
-                       |import plotly.figure_factory as ff
-                       |import numpy as np
-                       |import plotly.io
-                       |import plotly.graph_objects as go
-                       |
-                       |class ProcessTableOperator(UDFTableOperator):
-                       |
-                       |    def render_error(self, error_msg):
-                       |        return '''<h1>Quiver Plot is not available.</h1>
-                       |                  <p>Reasons are: {} </p>
-                       |               '''.format(error_msg)
-                       |
-                       |    @overrides
-                       |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-                       |        if table.empty:
-                       |            yield {'html-content': self.render_error("Input table is empty.")}
-                       |            return
-                       |
-                       |        required_columns = {'${x}', '${y}', '${u}', '${v}'}
-                       |        if not required_columns.issubset(table.columns):
-                       |            yield {'html-content': self.render_error(f"Input table must contain columns: {', '.join(required_columns)}")}
-                       |            return
-                       |
-                       |        ${manipulateTable()}
-                       |
-                       |        def type_check(value):
-                       |            return isinstance(value,(int,float))
-                       |        for col in required_columns:
-                       |            if not table[col].apply(type_check).all():
-                       |                yield {"html-content": "Type error: All columns should only contain numerical data"}
-                       |                return
-                       |
-                       |        try:
-                       |            #graph the quiver plot
-                       |            fig = ff.create_quiver(
-                       |                table['${x}'], table['${y}'],
-                       |                table['${u}'], table['${v}'],
-                       |                scale=0.1
-                       |            )
-                       |            html = fig.to_html(include_plotlyjs='cdn', full_html=False)
-                       |        except Exception as e:
-                       |            yield {'html-content': self.render_error(f"Plotly error: {str(e)}")}
-                       |            return
-                       |
-                       |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
-                       |        yield {'html-content': html}
-                       |""".stripMargin
+    val finalCode =
+      s"""
+         |from pytexera import *
+         |import pandas as pd
+         |import plotly.figure_factory as ff
+         |import numpy as np
+         |import plotly.io
+         |import plotly.graph_objects as go
+         |
+         |class ProcessTableOperator(UDFTableOperator):
+         |
+         |    def render_error(self, error_msg):
+         |        return '''<h1>Quiver Plot is not available.</h1>
+         |                  <p>Reasons are: {} </p>
+         |               '''.format(error_msg)
+         |
+         |    @overrides
+         |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+         |        if table.empty:
+         |            yield {'html-content': self.render_error("Input table is empty.")}
+         |            return
+         |
+         |        required_columns = {'${x}', '${y}', '${u}', '${v}'}
+         |        if not required_columns.issubset(table.columns):
+         |            yield {'html-content': self.render_error(f"Input table must contain columns: {', '.join(required_columns)}")}
+         |            return
+         |
+         |        ${manipulateTable()}
+         |
+         |        def type_check(value):
+         |            return isinstance(value,(int,float))
+         |        for col in required_columns:
+         |            if not table[col].apply(type_check).all():
+         |                yield {"html-content": "Type error: All columns should only contain numerical data"}
+         |                return
+         |
+         |        try:
+         |            #graph the quiver plot
+         |            fig = ff.create_quiver(
+         |                table['${x}'], table['${y}'],
+         |                table['${u}'], table['${v}'],
+         |                scale=0.1
+         |            )
+         |            html = fig.to_html(include_plotlyjs='cdn', full_html=False)
+         |        except Exception as e:
+         |            yield {'html-content': self.render_error(f"Plotly error: {str(e)}")}
+         |            return
+         |
+         |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
+         |        yield {'html-content': html}
+         |""".stripMargin
     finalCode
   }
 

@@ -2,33 +2,16 @@ package edu.uci.ics.amber.engine.architecture.control
 
 import akka.actor.{ActorRef, ActorSystem, PoisonPill, Props}
 import akka.testkit.{TestKit, TestProbe}
-import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.{
-  GetActorRef,
-  NetworkAck,
-  NetworkMessage,
-  RegisterActorRef
-}
+import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.{GetActorRef, NetworkAck, NetworkMessage, RegisterActorRef}
 import edu.uci.ics.amber.engine.architecture.control.utils.TrivialControlTester
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands._
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{
-  IntResponse,
-  ReturnInvocation,
-  StringResponse
-}
-import edu.uci.ics.amber.engine.architecture.rpc.testerservice.RPCTesterGrpc.{
-  METHOD_SEND_CHAIN,
-  METHOD_SEND_COLLECT,
-  METHOD_SEND_ERROR_COMMAND,
-  METHOD_SEND_MULTI_CALL,
-  METHOD_SEND_NESTED,
-  METHOD_SEND_PING,
-  METHOD_SEND_RECURSION
-}
-import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{IntResponse, ReturnInvocation, StringResponse}
+import edu.uci.ics.amber.engine.architecture.rpc.testerservice.RPCTesterGrpc._
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
+import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
-import edu.uci.ics.amber.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
+import edu.uci.ics.amber.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import io.grpc.MethodDescriptor
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
@@ -37,7 +20,7 @@ import scala.collection.mutable
 import scala.concurrent.duration._
 
 class TrivialControlSpec
-    extends TestKit(ActorSystem("TrivialControlSpec"))
+  extends TestKit(ActorSystem("TrivialControlSpec"))
     with AnyWordSpecLike
     with BeforeAndAfterEach
     with BeforeAndAfterAll {
@@ -47,9 +30,9 @@ class TrivialControlSpec
   }
 
   def testControl[T](
-      numActors: Int,
-      eventPairs: ((MethodDescriptor[_, _], ControlRequest), T)*
-  ): Unit = {
+                      numActors: Int,
+                      eventPairs: ((MethodDescriptor[_, _], ControlRequest), T)*
+                    ): Unit = {
     val (events, expectedValues) = eventPairs.unzip
     val (probe, idMap) = setUp(numActors, events: _*)
     var flag = 0
@@ -59,9 +42,9 @@ class TrivialControlSpec
           actor ! RegisterActorRef(id, idMap(id))
         }
       case NetworkMessage(
-            msgID,
-            workflowMsg @ WorkflowFIFOMessage(_, _, ReturnInvocation(id, returnValue))
-          ) =>
+      msgID,
+      workflowMsg@WorkflowFIFOMessage(_, _, ReturnInvocation(id, returnValue))
+      ) =>
         probe.sender() ! NetworkAck(
           msgID,
           getInMemSize(workflowMsg),
@@ -83,9 +66,9 @@ class TrivialControlSpec
   }
 
   def setUp(
-      numActors: Int,
-      cmd: (MethodDescriptor[_, _], ControlRequest)*
-  ): (TestProbe, mutable.HashMap[ActorVirtualIdentity, ActorRef]) = {
+             numActors: Int,
+             cmd: (MethodDescriptor[_, _], ControlRequest)*
+           ): (TestProbe, mutable.HashMap[ActorVirtualIdentity, ActorRef]) = {
     val probe = TestProbe()
     val idMap = mutable.HashMap[ActorVirtualIdentity, ActorRef]()
     for (i <- 0 until numActors) {

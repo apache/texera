@@ -1,12 +1,6 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
-import edu.uci.ics.amber.engine.common.model.{PhysicalOp, WorkflowContext}
-import edu.uci.ics.amber.engine.common.model.tuple.{AttributeType, Schema}
-import edu.uci.ics.amber.virtualidentity.{
-  ExecutionIdentity,
-  OperatorIdentity,
-  WorkflowIdentity
-}
+import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, OperatorIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort, PortIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
@@ -20,19 +14,23 @@ class SchemaPropagationSpec extends AnyFlatSpec with BeforeAndAfter {
 
   private abstract class TempTestSourceOpDesc extends SourceOperatorDescriptor {
     override def getPhysicalOp(
-        workflowId: WorkflowIdentity,
-        executionId: ExecutionIdentity
-    ): PhysicalOp = ???
+                                workflowId: WorkflowIdentity,
+                                executionId: ExecutionIdentity
+                              ): PhysicalOp = ???
+
     override def operatorInfo: OperatorInfo =
       OperatorInfo("", "", "", List(InputPort()), List(OutputPort()))
   }
+
   private class TempTestSinkOpDesc extends SinkOpDesc {
     override def getPhysicalOp(
-        workflowId: WorkflowIdentity,
-        executionId: ExecutionIdentity
-    ): PhysicalOp = ???
+                                workflowId: WorkflowIdentity,
+                                executionId: ExecutionIdentity
+                              ): PhysicalOp = ???
+
     override def operatorInfo: OperatorInfo =
       OperatorInfo("", "", "", List(InputPort()), List(OutputPort()))
+
     override def getOutputSchema(schemas: Array[Schema]): Schema = {
       Preconditions.checkArgument(schemas.length == 1)
       schemas(0)
@@ -48,16 +46,19 @@ class SchemaPropagationSpec extends AnyFlatSpec with BeforeAndAfter {
     val dataSchema = Schema.builder().add("dataCol", AttributeType.INTEGER).build()
     val trainingScan = new TempTestSourceOpDesc() {
       override def operatorIdentifier: OperatorIdentity = OperatorIdentity("trainingScan")
+
       override def sourceSchema(): Schema = dataSchema
     }
 
     val testingScan = new TempTestSourceOpDesc() {
       override def operatorIdentifier: OperatorIdentity = OperatorIdentity("testingScan")
+
       override def sourceSchema(): Schema = dataSchema
     }
 
     val inferenceScan = new TempTestSourceOpDesc() {
       override def operatorIdentifier: OperatorIdentity = OperatorIdentity("inferenceScan")
+
       override def sourceSchema(): Schema = dataSchema
     }
 
@@ -66,10 +67,11 @@ class SchemaPropagationSpec extends AnyFlatSpec with BeforeAndAfter {
 
     val mlTrainingOp = new LogicalOp() {
       override def operatorIdentifier: OperatorIdentity = OperatorIdentity("mlTrainingOp")
+
       override def getPhysicalOp(
-          workflowId: WorkflowIdentity,
-          executionId: ExecutionIdentity
-      ): PhysicalOp = ???
+                                  workflowId: WorkflowIdentity,
+                                  executionId: ExecutionIdentity
+                                ): PhysicalOp = ???
 
       override def operatorInfo: OperatorInfo =
         OperatorInfo(
@@ -97,10 +99,11 @@ class SchemaPropagationSpec extends AnyFlatSpec with BeforeAndAfter {
 
     val mlInferOp = new LogicalOp() {
       override def operatorIdentifier: OperatorIdentity = OperatorIdentity("mlInferOp")
+
       override def getPhysicalOp(
-          workflowId: WorkflowIdentity,
-          executionId: ExecutionIdentity
-      ): PhysicalOp = ???
+                                  workflowId: WorkflowIdentity,
+                                  executionId: ExecutionIdentity
+                                ): PhysicalOp = ???
 
       override def operatorInfo: OperatorInfo =
         OperatorInfo(

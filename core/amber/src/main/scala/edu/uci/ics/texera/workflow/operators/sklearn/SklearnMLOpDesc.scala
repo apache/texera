@@ -1,19 +1,9 @@
 package edu.uci.ics.texera.workflow.operators.sklearn
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.{
-  JsonSchemaInject,
-  JsonSchemaInt,
-  JsonSchemaString,
-  JsonSchemaTitle
-}
-import edu.uci.ics.amber.engine.common.model.tuple.{AttributeType, Schema}
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaInt, JsonSchemaString, JsonSchemaTitle}
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort, PortIdentity}
-import edu.uci.ics.texera.workflow.common.metadata.annotations.{
-  AutofillAttributeName,
-  CommonOpDescAnnotation,
-  HideAnnotation
-}
+import edu.uci.ics.texera.workflow.common.metadata.annotations.{AutofillAttributeName, CommonOpDescAnnotation, HideAnnotation}
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
 
@@ -83,14 +73,20 @@ abstract class SklearnMLOpDesc extends PythonOperatorDescriptor {
        |        X = table.drop("$target", axis=1)
        |        X = ${if (countVectorizer) "X['" + text + "']" else "X"}
        |        if port == 0:
-       |            self.model = make_pipeline(${if (countVectorizer) "CountVectorizer(),"
-    else ""} ${if (tfidfTransformer) "TfidfTransformer()," else ""} ${getImportStatements
-      .split(" ")
-      .last}()).fit(X, Y)
+       |            self.model = make_pipeline(${
+      if (countVectorizer) "CountVectorizer(),"
+      else ""
+    } ${if (tfidfTransformer) "TfidfTransformer()," else ""} ${
+      getImportStatements
+        .split(" ")
+        .last
+    }()).fit(X, Y)
        |        else:
        |            predictions = self.model.predict(X)
-       |            if ${if (classification) "True"
-    else "False"}:
+       |            if ${
+      if (classification) "True"
+      else "False"
+    }:
        |                print("Overall Accuracy:", accuracy_score(Y, predictions))
        |                f1s = f1_score(Y, predictions, average=None)
        |                precisions = precision_score(Y, predictions, average=None)

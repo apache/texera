@@ -2,9 +2,6 @@ package edu.uci.ics.texera.workflow.operators.source.fetcher
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.common.model.{PhysicalOp, SchemaPropagationFunc}
-import edu.uci.ics.amber.engine.common.model.tuple.{AttributeType, Schema}
 import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.workflow.OutputPort
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
@@ -31,7 +28,9 @@ class URLFetcherOpDesc extends SourceOperatorDescriptor {
       .builder()
       .add(
         "URL content",
-        if (decodingMethod == DecodingMethod.UTF_8) { AttributeType.STRING }
+        if (decodingMethod == DecodingMethod.UTF_8) {
+          AttributeType.STRING
+        }
         else {
           AttributeType.ANY
         }
@@ -40,9 +39,9 @@ class URLFetcherOpDesc extends SourceOperatorDescriptor {
   }
 
   override def getPhysicalOp(
-      workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity
-  ): PhysicalOp = {
+                              workflowId: WorkflowIdentity,
+                              executionId: ExecutionIdentity
+                            ): PhysicalOp = {
     PhysicalOp
       .sourcePhysicalOp(
         workflowId,

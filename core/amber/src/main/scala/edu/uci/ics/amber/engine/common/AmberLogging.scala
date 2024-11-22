@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.engine.common
 
 import com.typesafe.scalalogging.Logger
+import edu.uci.ics.amber.util.VirtualIdentityUtils
 import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
 import org.slf4j.LoggerFactory
 

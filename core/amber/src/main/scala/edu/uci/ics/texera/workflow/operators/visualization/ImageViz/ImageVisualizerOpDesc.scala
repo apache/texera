@@ -2,15 +2,11 @@ package edu.uci.ics.texera.workflow.operators.visualization.ImageViz
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.common.model.tuple.{Attribute, AttributeType, Schema}
+import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
-import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
-import edu.uci.ics.texera.workflow.operators.visualization.{
-  VisualizationConstants,
-  VisualizationOperator
-}
+import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstants, VisualizationOperator}
 
 class ImageVisualizerOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
 
@@ -41,37 +37,38 @@ class ImageVisualizerOpDesc extends VisualizationOperator with PythonOperatorDes
   }
 
   override def generatePythonCode(): String = {
-    val finalCode = s"""
-                       |from pytexera import *
-                       |import base64
-                       |from io import BytesIO
-                       |
-                       |class ProcessTupleOperator(UDFOperatorV2):
-                       |    images_html = []
-                       |
-                       |    def render_error(self, error_msg):
-                       |        return f'<h1>Image is not available.</h1><p>Reason: {error_msg}</p>'
-                       |
-                       |    def encode_image_to_html(self, binary_image_data):
-                       |        try:
-                       |            encoded_image_data = base64.b64encode(binary_image_data)
-                       |            encoded_image_str = encoded_image_data.decode("utf-8")
-                       |            html = f'<img src="data:image;base64,{encoded_image_str}" alt="Image" style="max-width: 100vw; max-height: 90vh; width: auto; height: auto;">'
-                       |            return html
-                       |        except Exception as e:
-                       |            return self.render_error("Binary input is not valid")
-                       |
-                       |    @overrides
-                       |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-                       |        ${createBinaryData()}
-                       |        self.images_html.append(self.encode_image_to_html(binary_image_data))
-                       |        yield
-                       |
-                       |    @overrides
-                       |    def on_finish(self, port: int) -> Iterator[Optional[TupleLike]]:
-                       |        all_images_html = "<div>" + "".join(self.images_html) + "</div>"
-                       |        yield {"html-content": all_images_html}
-                       |""".stripMargin
+    val finalCode =
+      s"""
+         |from pytexera import *
+         |import base64
+         |from io import BytesIO
+         |
+         |class ProcessTupleOperator(UDFOperatorV2):
+         |    images_html = []
+         |
+         |    def render_error(self, error_msg):
+         |        return f'<h1>Image is not available.</h1><p>Reason: {error_msg}</p>'
+         |
+         |    def encode_image_to_html(self, binary_image_data):
+         |        try:
+         |            encoded_image_data = base64.b64encode(binary_image_data)
+         |            encoded_image_str = encoded_image_data.decode("utf-8")
+         |            html = f'<img src="data:image;base64,{encoded_image_str}" alt="Image" style="max-width: 100vw; max-height: 90vh; width: auto; height: auto;">'
+         |            return html
+         |        except Exception as e:
+         |            return self.render_error("Binary input is not valid")
+         |
+         |    @overrides
+         |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+         |        ${createBinaryData()}
+         |        self.images_html.append(self.encode_image_to_html(binary_image_data))
+         |        yield
+         |
+         |    @overrides
+         |    def on_finish(self, port: int) -> Iterator[Optional[TupleLike]]:
+         |        all_images_html = "<div>" + "".join(self.images_html) + "</div>"
+         |        yield {"html-content": all_images_html}
+         |""".stripMargin
     finalCode
   }
 

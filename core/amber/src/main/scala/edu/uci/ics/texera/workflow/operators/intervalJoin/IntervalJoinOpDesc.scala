@@ -3,24 +3,18 @@ package edu.uci.ics.texera.workflow.operators.intervalJoin
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.common.model.{PhysicalOp, SchemaPropagationFunc}
-import edu.uci.ics.amber.engine.common.model.tuple.{Attribute, Schema}
 import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort, PortIdentity}
-import edu.uci.ics.texera.workflow.common.metadata.annotations.{
-  AutofillAttributeName,
-  AutofillAttributeNameOnPort1
-}
+import edu.uci.ics.texera.workflow.common.metadata.annotations.{AutofillAttributeName, AutofillAttributeNameOnPort1}
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
-import edu.uci.ics.texera.workflow.common.workflow.HashPartition
 
 /** This Operator have two assumptions:
-  * 1. The tuples in both inputs come in ascending order
-  * 2. The left input join key takes as points, join condition is: left key in the range of (right key, right key + constant)
-  */
-@JsonSchemaInject(json = """
+ * 1. The tuples in both inputs come in ascending order
+ * 2. The left input join key takes as points, join condition is: left key in the range of (right key, right key + constant)
+ */
+@JsonSchemaInject(json =
+  """
 {
   "attributeTypeRules": {
     "leftAttributeName": {
@@ -70,9 +64,9 @@ class IntervalJoinOpDesc extends LogicalOp {
   var timeIntervalType: Option[TimeIntervalType] = _
 
   override def getPhysicalOp(
-      workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity
-  ): PhysicalOp = {
+                              workflowId: WorkflowIdentity,
+                              executionId: ExecutionIdentity
+                            ): PhysicalOp = {
     val partitionRequirement = List(
       Option(HashPartition(List(leftAttributeName))),
       Option(HashPartition(List(rightAttributeName)))
@@ -128,13 +122,13 @@ class IntervalJoinOpDesc extends LogicalOp {
     )
 
   def this(
-      leftTableAttributeName: String,
-      rightTableAttributeName: String,
-      constant: Long,
-      includeLeftBound: Boolean,
-      includeRightBound: Boolean,
-      timeIntervalType: TimeIntervalType
-  ) = {
+            leftTableAttributeName: String,
+            rightTableAttributeName: String,
+            constant: Long,
+            includeLeftBound: Boolean,
+            includeRightBound: Boolean,
+            timeIntervalType: TimeIntervalType
+          ) = {
     this() // Calling primary constructor, and it is first line
     this.leftAttributeName = leftTableAttributeName
     this.rightAttributeName = rightTableAttributeName

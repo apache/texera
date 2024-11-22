@@ -2,9 +2,9 @@ package edu.uci.ics.texera.workflow.operators.dictionary
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.common.model.{PhysicalOp, SchemaPropagationFunc}
-import edu.uci.ics.amber.engine.common.model.tuple.{AttributeType, Schema}
+import edu.uci.ics.amber.core.executor.OpExecInitInfo
+import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
+import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
@@ -12,10 +12,10 @@ import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, Oper
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc
 
 /**
-  * Dictionary matcher operator matches a tuple if the specified column is in the given dictionary.
-  * It outputs an extra column to label the tuple if it is matched or not
-  * This is the description of the operator
-  */
+ * Dictionary matcher operator matches a tuple if the specified column is in the given dictionary.
+ * It outputs an extra column to label the tuple if it is matched or not
+ * This is the description of the operator
+ */
 class DictionaryMatcherOpDesc extends MapOpDesc {
   @JsonProperty(value = "Dictionary", required = true)
   @JsonPropertyDescription("dictionary values separated by a comma") var dictionary: String = _
@@ -30,9 +30,9 @@ class DictionaryMatcherOpDesc extends MapOpDesc {
   @JsonProperty(value = "Matching type", required = true) var matchingType: MatchingType = _
 
   override def getPhysicalOp(
-      workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity
-  ): PhysicalOp = {
+                              workflowId: WorkflowIdentity,
+                              executionId: ExecutionIdentity
+                            ): PhysicalOp = {
 
     PhysicalOp
       .oneToOnePhysicalOp(

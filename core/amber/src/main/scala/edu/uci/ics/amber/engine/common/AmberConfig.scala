@@ -39,12 +39,14 @@ object AmberConfig {
     val maxCredit = getConfSource.getLong("flow-control.max-credit-allowed-in-bytes-per-channel")
     if (maxCredit == -1L) Long.MaxValue else maxCredit
   }
+
   val creditPollingIntervalInMs: Int =
     getConfSource.getInt("flow-control.credit-poll-interval-in-ms")
 
   // Network buffering configuration
   def defaultDataTransferBatchSize: Int =
     getConfSource.getInt("network-buffering.default-data-transfer-batch-size")
+
   val enableAdaptiveNetworkBuffering: Boolean =
     getConfSource.getBoolean("network-buffering.enable-adaptive-buffering")
   val adaptiveBufferingTimeoutMs: Int =

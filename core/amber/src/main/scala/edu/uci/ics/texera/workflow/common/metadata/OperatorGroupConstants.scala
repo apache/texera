@@ -23,9 +23,9 @@ object OperatorGroupConstants {
   final val MACHINE_LEARNING_GENERAL_GROUP = "Machine Learning General"
 
   /**
-    * The order of the groups to show up in the frontend operator panel.
-    * The order numbers are relative.
-    */
+   * The order of the groups to show up in the frontend operator panel.
+   * The order numbers are relative.
+   */
   final val OperatorGroupOrderList: List[GroupInfo] = List(
     GroupInfo(INPUT_GROUP),
     GroupInfo(DATABASE_GROUP),

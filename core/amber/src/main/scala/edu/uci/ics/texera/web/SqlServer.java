@@ -23,7 +23,7 @@ public final class SqlServer {
         return context;
     }
 
-    public static void replaceDSLContext(DSLContext newContext){
+    public static void replaceDSLContext(DSLContext newContext) {
         context = newContext;
     }
 }

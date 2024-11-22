@@ -2,24 +2,24 @@ package edu.uci.ics.texera.workflow.operators.sink.managed;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Preconditions;
-import edu.uci.ics.amber.engine.common.model.PhysicalOp;
-import edu.uci.ics.amber.engine.common.model.SchemaPropagationFunc;
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo;
+import edu.uci.ics.amber.core.executor.OpExecInitInfo;
+import edu.uci.ics.amber.core.executor.OperatorExecutor;
+import edu.uci.ics.amber.core.storage.result.SinkStorageReader;
+import edu.uci.ics.amber.core.storage.result.SinkStorageWriter;
+import edu.uci.ics.amber.core.tuple.Schema;
+import edu.uci.ics.amber.core.workflow.PhysicalOp;
+import edu.uci.ics.amber.core.workflow.SchemaPropagationFunc;
+import edu.uci.ics.amber.engine.common.IncrementalOutputMode;
+import edu.uci.ics.amber.engine.common.ProgressiveUtils;
 import edu.uci.ics.amber.virtualidentity.ExecutionIdentity;
 import edu.uci.ics.amber.virtualidentity.OperatorIdentity;
 import edu.uci.ics.amber.virtualidentity.WorkflowIdentity;
 import edu.uci.ics.amber.workflow.InputPort;
 import edu.uci.ics.amber.workflow.OutputPort;
 import edu.uci.ics.amber.workflow.PortIdentity;
-import edu.uci.ics.amber.engine.common.IncrementalOutputMode;
-import edu.uci.ics.amber.engine.common.ProgressiveUtils;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
-import edu.uci.ics.amber.engine.common.executor.OperatorExecutor;
-import edu.uci.ics.amber.engine.common.model.tuple.Schema;
 import edu.uci.ics.texera.workflow.operators.sink.SinkOpDesc;
-import edu.uci.ics.texera.workflow.operators.sink.storage.SinkStorageReader;
-import edu.uci.ics.texera.workflow.operators.sink.storage.SinkStorageWriter;
 import edu.uci.ics.texera.workflow.operators.util.OperatorDescriptorUtils;
 import scala.Option;
 import scala.Tuple2;
@@ -27,7 +27,6 @@ import scala.collection.immutable.Map;
 
 import java.io.Serializable;
 import java.util.ArrayList;
-
 import java.util.function.Function;
 
 import static edu.uci.ics.amber.engine.common.IncrementalOutputMode.SET_SNAPSHOT;
@@ -61,14 +60,14 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
         // the writer will be set properly when workflow execution service receives the physical plan
         final SinkStorageWriter writer = (storage != null) ? storage.getStorageWriter() : null;
         return PhysicalOp.localPhysicalOp(
-                workflowId,
-                executionId,
-                operatorIdentifier(),
-                OpExecInitInfo.apply(
-                        (Function<Tuple2<Object, Object>, OperatorExecutor> & java.io.Serializable)
-                                worker -> new ProgressiveSinkOpExec(outputMode, writer)
+                        workflowId,
+                        executionId,
+                        operatorIdentifier(),
+                        OpExecInitInfo.apply(
+                                (Function<Tuple2<Object, Object>, OperatorExecutor> & java.io.Serializable)
+                                        worker -> new ProgressiveSinkOpExec(outputMode, writer)
+                        )
                 )
-        )
                 .withInputPorts(this.operatorInfo().inputPorts())
                 .withOutputPorts(this.operatorInfo().outputPorts())
                 .withPropagateSchema(
@@ -83,15 +82,15 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
                             if (this.outputMode.equals(SET_SNAPSHOT)) {
                                 if (inputSchema.containsAttribute(ProgressiveUtils.insertRetractFlagAttr().getName())) {
                                     // input is insert/retract delta: the flag column is removed in output
-                                    outputSchema= Schema.builder().add(inputSchema)
+                                    outputSchema = Schema.builder().add(inputSchema)
                                             .remove(ProgressiveUtils.insertRetractFlagAttr().getName()).build();
                                 } else {
                                     // input is insert-only delta: output schema is the same as input schema
-                                    outputSchema= inputSchema;
+                                    outputSchema = inputSchema;
                                 }
                             } else {
                                 // SET_DELTA: output schema is always the same as input schema
-                                outputSchema= inputSchema;
+                                outputSchema = inputSchema;
                             }
 
                             javaMap.put(operatorInfo().outputPorts().head().id(), outputSchema);

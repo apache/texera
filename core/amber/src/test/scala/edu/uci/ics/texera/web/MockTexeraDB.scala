@@ -1,10 +1,10 @@
 package edu.uci.ics.texera.web
 
+import ch.vorburger.mariadb4j.{DB, DBConfigurationBuilder}
 import com.mysql.cj.jdbc.MysqlDataSource
+import edu.uci.ics.amber.engine.common.Utils
 import org.jooq.DSLContext
 import org.jooq.impl.DSL
-import ch.vorburger.mariadb4j.{DB, DBConfigurationBuilder}
-import edu.uci.ics.amber.engine.common.Utils
 
 import java.io.{File, FileInputStream, InputStream}
 import java.nio.file.Path
@@ -36,7 +36,7 @@ trait MockTexeraDB {
     var st: Statement = null
     try {
       st = conn.createStatement()
-      while ({
+      while ( {
         s.hasNext
       }) {
         var line = s.next

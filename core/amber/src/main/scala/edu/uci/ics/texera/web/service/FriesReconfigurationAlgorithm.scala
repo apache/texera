@@ -1,11 +1,8 @@
 package edu.uci.ics.texera.web.service
 
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
-  ModifyLogicRequest,
-  PropagateChannelMarkerRequest
-}
+import edu.uci.ics.amber.core.workflow.PhysicalPlan
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{ModifyLogicRequest, PropagateChannelMarkerRequest}
 import edu.uci.ics.amber.engine.architecture.scheduling.{Region, WorkflowExecutionCoordinator}
-import edu.uci.ics.amber.engine.common.model.PhysicalPlan
 import edu.uci.ics.amber.virtualidentity.PhysicalOpIdentity
 import org.jgrapht.alg.connectivity.ConnectivityInspector
 
@@ -20,20 +17,20 @@ object FriesReconfigurationAlgorithm {
   }
 
   def scheduleReconfigurations(
-      workflowExecutionCoordinator: WorkflowExecutionCoordinator,
-      reconfiguration: ModifyLogicRequest,
-      epochMarkerId: String
-  ): Set[PropagateChannelMarkerRequest] = {
+                                workflowExecutionCoordinator: WorkflowExecutionCoordinator,
+                                reconfiguration: ModifyLogicRequest,
+                                epochMarkerId: String
+                              ): Set[PropagateChannelMarkerRequest] = {
     // independently schedule reconfigurations for each region:
     workflowExecutionCoordinator.getExecutingRegions
       .flatMap(region => computeMCS(region, reconfiguration, epochMarkerId))
   }
 
   private def computeMCS(
-      region: Region,
-      reconfiguration: ModifyLogicRequest,
-      epochMarkerId: String
-  ): List[PropagateChannelMarkerRequest] = {
+                          region: Region,
+                          reconfiguration: ModifyLogicRequest,
+                          epochMarkerId: String
+                        ): List[PropagateChannelMarkerRequest] = {
 
     // add all reconfiguration operators to M
     val reconfigOps = reconfiguration.updateRequest.map(req => req.targetOpId).toSet

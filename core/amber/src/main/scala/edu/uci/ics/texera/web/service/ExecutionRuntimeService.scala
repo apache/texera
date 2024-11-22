@@ -2,35 +2,26 @@ package edu.uci.ics.texera.web.service
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.ExecutionStateUpdate
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
-  EmptyRequest,
-  TakeGlobalCheckpointRequest
-}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{EmptyRequest, TakeGlobalCheckpointRequest}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState._
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.FaultToleranceConfig
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.virtualidentity.ChannelMarkerIdentity
-import edu.uci.ics.texera.web.{SubscriptionManager, WebsocketInput}
-import edu.uci.ics.texera.web.model.websocket.request.{
-  SkipTupleRequest,
-  WorkflowCheckpointRequest,
-  WorkflowKillRequest,
-  WorkflowPauseRequest,
-  WorkflowResumeRequest
-}
+import edu.uci.ics.texera.web.model.websocket.request._
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
+import edu.uci.ics.texera.web.{SubscriptionManager, WebsocketInput}
 
 import java.util.UUID
 
 class ExecutionRuntimeService(
-    client: AmberClient,
-    stateStore: ExecutionStateStore,
-    wsInput: WebsocketInput,
-    reconfigurationService: ExecutionReconfigurationService,
-    logConf: Option[FaultToleranceConfig]
-) extends SubscriptionManager
-    with LazyLogging {
+                               client: AmberClient,
+                               stateStore: ExecutionStateStore,
+                               wsInput: WebsocketInput,
+                               reconfigurationService: ExecutionReconfigurationService,
+                               logConf: Option[FaultToleranceConfig]
+                             ) extends SubscriptionManager
+  with LazyLogging {
 
   //Receive skip tuple
   addSubscription(wsInput.subscribe((req: SkipTupleRequest, uidOpt) => {

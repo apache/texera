@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.workflow.operators.projection
 
-import edu.uci.ics.amber.engine.common.model.tuple.{Attribute, AttributeType, Schema}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 

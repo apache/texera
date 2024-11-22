@@ -8,7 +8,7 @@ import javax.annotation.security.RolesAllowed
 import javax.mail.internet.{InternetAddress, MimeMessage}
 import javax.mail.{Message, PasswordAuthentication, Session, Transport}
 import javax.ws.rs._
-import scala.util.{Try, Success, Failure}
+import scala.util.{Failure, Success, Try}
 
 case class EmailMessage(receiver: String, subject: String, content: String)
 
@@ -43,10 +43,10 @@ class GmailService extends EmailService {
   }
 
   private def createMimeMessage(
-      session: Session,
-      emailMessage: EmailMessage,
-      recipientEmail: String
-  ): MimeMessage = {
+                                 session: Session,
+                                 emailMessage: EmailMessage,
+                                 recipientEmail: String
+                               ): MimeMessage = {
     val email = new MimeMessage(session)
     email.setFrom(new InternetAddress(gmail))
     email.addRecipient(Message.RecipientType.TO, new InternetAddress(recipientEmail))
@@ -56,15 +56,15 @@ class GmailService extends EmailService {
   }
 
   override def sendEmail(
-      emailMessage: EmailMessage,
-      recipientEmail: String
-  ): Either[String, Unit] = {
+                          emailMessage: EmailMessage,
+                          recipientEmail: String
+                        ): Either[String, Unit] = {
     Try {
       val session = createSession()
       val email = createMimeMessage(session, emailMessage, recipientEmail)
       Transport.send(email)
     } match {
-      case Success(_)         => Right(())
+      case Success(_) => Right(())
       case Failure(exception) => Left(s"Failed to send email: ${exception.getMessage}")
     }
   }
@@ -78,8 +78,8 @@ class GmailResource(emailService: EmailService) {
   def getSenderEmail: String = AmberConfig.gmail
 
   /**
-    * Send an email to the user.
-    */
+   * Send an email to the user.
+   */
   @PUT
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/send")

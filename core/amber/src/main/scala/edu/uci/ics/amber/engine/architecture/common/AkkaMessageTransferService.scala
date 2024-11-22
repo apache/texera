@@ -3,18 +3,18 @@ package edu.uci.ics.amber.engine.architecture.common
 import akka.actor.Cancellable
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkMessage
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{CongestionControl, FlowControl}
-import edu.uci.ics.amber.engine.common.{AmberConfig, AmberLogging}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
+import edu.uci.ics.amber.engine.common.{AmberConfig, AmberLogging}
 import edu.uci.ics.amber.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
 import scala.collection.mutable
 import scala.concurrent.duration.DurationInt
 
 class AkkaMessageTransferService(
-    actorService: AkkaActorService,
-    refService: AkkaActorRefMappingService,
-    handleBackpressure: Boolean => Unit
-) extends AmberLogging {
+                                  actorService: AkkaActorService,
+                                  refService: AkkaActorRefMappingService,
+                                  handleBackpressure: Boolean => Unit
+                                ) extends AmberLogging {
 
   override def actorId: ActorVirtualIdentity = actorService.id
 
@@ -29,10 +29,10 @@ class AkkaMessageTransferService(
   private var backpressured = false
 
   /** keeps track of every outgoing message.
-    * Each message is identified by this monotonic increasing ID.
-    * It's different from the sequence number and it will only
-    * be used by the output gate.
-    */
+   * Each message is identified by this monotonic increasing ID.
+   * It's different from the sequence number and it will only
+   * be used by the output gate.
+   */
   private var networkMessageID = 0L
 
   def initialize(): Unit = {
@@ -67,9 +67,9 @@ class AkkaMessageTransferService(
   }
 
   private def forwardToFlowControl(
-      msg: NetworkMessage,
-      chainedStep: NetworkMessage => Unit
-  ): Unit = {
+                                    msg: NetworkMessage,
+                                    chainedStep: NetworkMessage => Unit
+                                  ): Unit = {
     if (msg.internalMessage.channelId.isControl) {
       // skip flow control for all control channels
       chainedStep(msg)
@@ -84,9 +84,9 @@ class AkkaMessageTransferService(
   }
 
   private def forwardToCongestionControl(
-      msg: NetworkMessage,
-      chainedStep: NetworkMessage => Unit
-  ): Unit = {
+                                          msg: NetworkMessage,
+                                          chainedStep: NetworkMessage => Unit
+                                        ): Unit = {
     val congestionControl =
       channelToCC.getOrElseUpdate(msg.internalMessage.channelId, new CongestionControl())
     if (congestionControl.canSend) {
@@ -139,8 +139,10 @@ class AkkaMessageTransferService(
       return
     }
     backpressured = existOverloadedChannel
-    logger.debug(s"current backpressure status = $backpressured channel credits = ${channelToFC
-      .map(c => c._1 -> c._2.getCredit)}")
+    logger.debug(s"current backpressure status = $backpressured channel credits = ${
+      channelToFC
+        .map(c => c._1 -> c._2.getCredit)
+    }")
     handleBackpressure(backpressured)
   }
 

@@ -20,7 +20,7 @@ public enum SklearnAdvancedSVRParameters implements ParamClass {
 
     SklearnAdvancedSVRParameters(String name, String type) {
         this.name = name;
-        this.type  = type;
+        this.type = type;
     }
 
     public String getType() {

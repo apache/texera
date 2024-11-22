@@ -2,9 +2,6 @@ package edu.uci.ics.texera.workflow.operators.limit
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.common.model.PhysicalOp
-import edu.uci.ics.amber.engine.common.model.tuple.Schema
 import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
@@ -20,9 +17,9 @@ class LimitOpDesc extends LogicalOp {
   var limit: Int = _
 
   override def getPhysicalOp(
-      workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity
-  ): PhysicalOp = {
+                              workflowId: WorkflowIdentity,
+                              executionId: ExecutionIdentity
+                            ): PhysicalOp = {
     PhysicalOp
       .oneToOnePhysicalOp(
         workflowId,
@@ -50,11 +47,11 @@ class LimitOpDesc extends LogicalOp {
   override def getOutputSchema(schemas: Array[Schema]): Schema = schemas(0)
 
   override def runtimeReconfiguration(
-      workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      oldLogicalOp: LogicalOp,
-      newLogicalOp: LogicalOp
-  ): Try[(PhysicalOp, Option[StateTransferFunc])] = {
+                                       workflowId: WorkflowIdentity,
+                                       executionId: ExecutionIdentity,
+                                       oldLogicalOp: LogicalOp,
+                                       newLogicalOp: LogicalOp
+                                     ): Try[(PhysicalOp, Option[StateTransferFunc])] = {
     val newPhysicalOp = newLogicalOp.getPhysicalOp(workflowId, executionId)
     val stateTransferFunc: StateTransferFunc = (oldOp, newOp) => {
       val oldLimitOp = oldOp.asInstanceOf[LimitOpExec]

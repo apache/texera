@@ -1,16 +1,10 @@
 package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
 import com.twitter.util.Future
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
-  AsyncRPCContext,
-  PrepareCheckpointRequest
-}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, PrepareCheckpointRequest}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
-import edu.uci.ics.amber.engine.architecture.worker.{
-  DataProcessorRPCHandlerInitializer,
-  WorkflowWorker
-}
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
+import edu.uci.ics.amber.engine.architecture.worker.{DataProcessorRPCHandlerInitializer, WorkflowWorker}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.{CheckpointState, CheckpointSupport, SerializedState}
 import edu.uci.ics.amber.virtualidentity.ChannelMarkerIdentity
@@ -22,9 +16,9 @@ trait PrepareCheckpointHandler {
   this: DataProcessorRPCHandlerInitializer =>
 
   override def prepareCheckpoint(
-      msg: PrepareCheckpointRequest,
-      ctx: AsyncRPCContext
-  ): Future[EmptyReturn] = {
+                                  msg: PrepareCheckpointRequest,
+                                  ctx: AsyncRPCContext
+                                ): Future[EmptyReturn] = {
     logger.info("Start to take checkpoint")
     if (!msg.estimationOnly) {
       dp.serializationManager.registerSerialization(() => {
@@ -59,9 +53,9 @@ trait PrepareCheckpointHandler {
     val closure = (worker: WorkflowWorker) => {
       val queuedMsgs = mutable.ArrayBuffer[WorkflowFIFOMessage]()
       worker.inputQueue.forEach {
-        case WorkflowWorker.FIFOMessageElement(msg)           => queuedMsgs.append(msg)
+        case WorkflowWorker.FIFOMessageElement(msg) => queuedMsgs.append(msg)
         case WorkflowWorker.TimerBasedControlElement(control) => // skip
-        case WorkflowWorker.ActorCommandElement(cmd)          => // skip
+        case WorkflowWorker.ActorCommandElement(cmd) => // skip
       }
       chkpt.save(SerializedState.DP_QUEUED_MSG_KEY, queuedMsgs)
       // get all output messages from worker.transferService

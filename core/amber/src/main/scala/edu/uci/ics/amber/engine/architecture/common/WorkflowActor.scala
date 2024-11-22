@@ -4,30 +4,12 @@ import akka.actor.{Actor, ActorRef, Address, Stash}
 import akka.pattern.ask
 import akka.util.Timeout
 import edu.uci.ics.amber.clustering.ClusterListener.GetAvailableNodeAddresses
-import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.{
-  CreditRequest,
-  CreditResponse,
-  GetActorRef,
-  MessageBecomesDeadLetter,
-  NetworkAck,
-  NetworkMessage,
-  RegisterActorRef
-}
-import edu.uci.ics.amber.engine.architecture.logreplay.{
-  ReplayLogGenerator,
-  ReplayLogManager,
-  ReplayLogRecord,
-  ReplayOrderEnforcer
-}
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
-  MainThreadDelegateMessage,
-  TriggerSend,
-  FaultToleranceConfig,
-  StateRestoreConfig
-}
-import edu.uci.ics.amber.engine.common.{AmberLogging, CheckpointState}
+import edu.uci.ics.amber.engine.architecture.common.WorkflowActor._
+import edu.uci.ics.amber.engine.architecture.logreplay.{ReplayLogGenerator, ReplayLogManager, ReplayLogRecord, ReplayOrderEnforcer}
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{FaultToleranceConfig, MainThreadDelegateMessage, StateRestoreConfig, TriggerSend}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
+import edu.uci.ics.amber.engine.common.{AmberLogging, CheckpointState}
 import edu.uci.ics.amber.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
 import scala.concurrent.Await
@@ -36,26 +18,26 @@ import scala.concurrent.duration.DurationInt
 object WorkflowActor {
 
   /** Ack for NetworkMessage
-    *
-    * @param messageId Long, id of the received network message
-    * @param ackedCredit Long, received size of the message, used to subtract sender's inflight credit
-    * @param queuedCredit Long, receiver queue's size
-    */
+   *
+   * @param messageId    Long, id of the received network message
+   * @param ackedCredit  Long, received size of the message, used to subtract sender's inflight credit
+   * @param queuedCredit Long, receiver queue's size
+   */
   final case class NetworkAck(messageId: Long, ackedCredit: Long, queuedCredit: Long)
 
   final case class MessageBecomesDeadLetter(message: NetworkMessage)
 
   /** Identifier <-> ActorRef related messages
-    */
+   */
   final case class GetActorRef(id: ActorVirtualIdentity, replyTo: Set[ActorRef])
 
   final case class RegisterActorRef(id: ActorVirtualIdentity, ref: ActorRef)
 
   /** All outgoing message should be eventually NetworkMessage
-    *
-    * @param messageId       Long, id for a NetworkMessage, used for FIFO and ExactlyOnce
-    * @param internalMessage WorkflowMessage, the message payload
-    */
+   *
+   * @param messageId       Long, id for a NetworkMessage, used for FIFO and ExactlyOnce
+   * @param internalMessage WorkflowMessage, the message payload
+   */
   final case class NetworkMessage(messageId: Long, internalMessage: WorkflowFIFOMessage)
 
   // sent from network communicator to next worker to poll for credit information
@@ -65,11 +47,11 @@ object WorkflowActor {
 }
 
 abstract class WorkflowActor(
-    replayLogConfOpt: Option[FaultToleranceConfig],
-    val actorId: ActorVirtualIdentity
-) extends Actor
-    with Stash
-    with AmberLogging {
+                              replayLogConfOpt: Option[FaultToleranceConfig],
+                              val actorId: ActorVirtualIdentity
+                            ) extends Actor
+  with Stash
+  with AmberLogging {
 
   //
   // Akka related components:
@@ -101,11 +83,11 @@ abstract class WorkflowActor(
   def getLogName: String = actorId.name.replace("Worker:", "")
 
   def sendMessageFromLogWriterToActor(
-      msg: Either[MainThreadDelegateMessage, WorkflowFIFOMessage]
-  ): Unit = {
+                                       msg: Either[MainThreadDelegateMessage, WorkflowFIFOMessage]
+                                     ): Unit = {
     // limitation: TriggerSend will be processed after input messages before it.
     msg match {
-      case Left(value)  => self ! value
+      case Left(value) => self ! value
       case Right(value) => self ! TriggerSend(value)
     }
   }
@@ -124,7 +106,7 @@ abstract class WorkflowActor(
 
   // actor behavior for FIFO messages
   def receiveMessageAndAck: Receive = {
-    case NetworkMessage(id, workflowMsg @ WorkflowFIFOMessage(channel, _, _)) =>
+    case NetworkMessage(id, workflowMsg@WorkflowFIFOMessage(channel, _, _)) =>
       actorRefMappingService.registerActorRef(channel.fromWorkerId, sender())
       try {
         handleInputMessage(id, workflowMsg)
@@ -177,10 +159,10 @@ abstract class WorkflowActor(
   def loadFromCheckpoint(chkpt: CheckpointState): Unit
 
   def setupReplay(
-      amberProcessor: AmberProcessor,
-      stateRestoreConf: StateRestoreConfig,
-      onComplete: () => Unit
-  ): Unit = {
+                   amberProcessor: AmberProcessor,
+                   stateRestoreConf: StateRestoreConfig,
+                   onComplete: () => Unit
+                 ): Unit = {
     val logStorageToRead =
       SequentialRecordStorage.getStorage[ReplayLogRecord](Some(stateRestoreConf.readFrom))
     val replayTo = stateRestoreConf.replayDestination

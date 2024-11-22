@@ -8,14 +8,14 @@ import org.hibernate.validator.internal.constraintvalidators.hv.EmailValidator
 import org.jooq.types.UInteger
 
 import java.net.URI
-import java.time.{Instant, ZoneOffset}
 import java.time.format.DateTimeFormatter
+import java.time.{Instant, ZoneOffset}
 
 class WorkflowEmailNotifier(
-    workflowId: Long,
-    userEmail: String,
-    sessionUri: URI
-) extends EmailNotifier {
+                             workflowId: Long,
+                             userEmail: String,
+                             sessionUri: URI
+                           ) extends EmailNotifier {
   private val workflowName = WorkflowResource.getWorkflowName(UInteger.valueOf(workflowId))
   private val emailValidator = new EmailValidator()
   private val CompletedPausedOrTerminatedStates: Set[WorkflowAggregatedState] = Set(
@@ -26,9 +26,9 @@ class WorkflowEmailNotifier(
   )
 
   override def shouldSendEmail(
-      oldState: WorkflowAggregatedState,
-      newState: WorkflowAggregatedState
-  ): Boolean = {
+                                oldState: WorkflowAggregatedState,
+                                newState: WorkflowAggregatedState
+                              ): Boolean = {
     oldState == RUNNING && CompletedPausedOrTerminatedStates.contains(newState)
   }
 
@@ -65,19 +65,19 @@ class WorkflowEmailNotifier(
     val dashboardUrl = createDashboardUrl()
 
     s"""
-      |Hello,
-      |
-      |The workflow with the following details has changed its state:
-      |
-      |- Workflow ID: $workflowId
-      |- Workflow Name: $workflowName
-      |- State: $state
-      |- Timestamp: $timestamp
-      |
-      |You can view more details by visiting: $dashboardUrl
-      |
-      |Regards,
-      |Texera Team
+       |Hello,
+       |
+       |The workflow with the following details has changed its state:
+       |
+       |- Workflow ID: $workflowId
+       |- Workflow Name: $workflowName
+       |- State: $state
+       |- Timestamp: $timestamp
+       |
+       |You can view more details by visiting: $dashboardUrl
+       |
+       |Regards,
+       |Texera Team
     """.stripMargin.trim
   }
 

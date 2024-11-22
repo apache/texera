@@ -1,13 +1,11 @@
 package edu.uci.ics.texera.web.resource.dashboard
 
 import edu.uci.ics.texera.web.SqlServer
-import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.{
-  DashboardClickableFileEntry,
-  SearchQueryParams
-}
+import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.{DashboardClickableFileEntry, SearchQueryParams}
 import edu.uci.ics.texera.web.resource.dashboard.SearchQueryBuilder.context
+import org.jooq._
 import org.jooq.types.UInteger
-import org.jooq.{Condition, GroupField, Record, SelectGroupByStep, SelectHavingStep, TableLike}
+
 object SearchQueryBuilder {
 
   final lazy val context = SqlServer.createDSLContext()
@@ -23,10 +21,10 @@ trait SearchQueryBuilder {
   protected val mappedResourceSchema: UnifiedResourceSchema
 
   protected def constructFromClause(
-      uid: UInteger,
-      params: SearchQueryParams,
-      includePublic: Boolean = false
-  ): TableLike[_]
+                                     uid: UInteger,
+                                     params: SearchQueryParams,
+                                     includePublic: Boolean = false
+                                   ): TableLike[_]
 
   protected def constructWhereClause(uid: UInteger, params: SearchQueryParams): Condition
 
@@ -41,10 +39,10 @@ trait SearchQueryBuilder {
   }
 
   final def constructQuery(
-      uid: UInteger,
-      params: SearchQueryParams,
-      includePublic: Boolean
-  ): SelectHavingStep[Record] = {
+                            uid: UInteger,
+                            params: SearchQueryParams,
+                            includePublic: Boolean
+                          ): SelectHavingStep[Record] = {
     val query: SelectGroupByStep[Record] = context
       .select(mappedResourceSchema.allFields: _*)
       .from(constructFromClause(uid, params, includePublic))

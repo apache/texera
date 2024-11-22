@@ -7,9 +7,11 @@ import edu.stanford.nlp.pipeline.Annotation;
 import edu.stanford.nlp.sentiment.SentimentCoreAnnotations;
 import edu.stanford.nlp.trees.Tree;
 import edu.stanford.nlp.util.CoreMap;
+import edu.uci.ics.amber.core.tuple.Tuple$;
+import edu.uci.ics.amber.core.tuple.TupleLike$;
+import edu.uci.ics.amber.engine.common.model.tuple.Tuple;
 import edu.uci.ics.amber.engine.common.model.tuple.TupleLike;
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpExec;
-import edu.uci.ics.amber.engine.common.model.tuple.Tuple;
 import scala.Function1;
 
 import java.io.Serializable;
@@ -24,10 +26,10 @@ public class SentimentAnalysisOpExec extends MapOpExec {
         Properties props = new Properties();
         props.setProperty("annotators", "tokenize, ssplit, parse, sentiment");
         coreNlp = new StanfordCoreNLPWrapper(props);
-        this.setMapFunc((Function1<Tuple, TupleLike> & Serializable) this::sentimentAnalysis);
+        this.setMapFunc((Function1<Tuple$, TupleLike$> & Serializable) this::sentimentAnalysis);
     }
 
-    public TupleLike sentimentAnalysis(Tuple t) {
+    public TupleLike$ sentimentAnalysis(Tuple$ t) {
         String text = t.getField(attributeName).toString();
         Annotation documentAnnotation = new Annotation(text);
         coreNlp.get().annotate(documentAnnotation);

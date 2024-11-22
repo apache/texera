@@ -1,11 +1,11 @@
 package edu.uci.ics.texera.workflow.common.storage.partition
 
-import edu.uci.ics.amber.engine.common.storage.partition.PartitionDocument
+import org.scalatest.BeforeAndAfter
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+
 import java.net.URI
 import java.nio.file.{Files, Path, Paths}
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.BeforeAndAfter
-import org.scalatest.matchers.should.Matchers
 
 class PartitionDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfter {
 

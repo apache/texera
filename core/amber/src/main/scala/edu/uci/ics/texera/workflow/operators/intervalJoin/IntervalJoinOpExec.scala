@@ -1,25 +1,22 @@
 package edu.uci.ics.texera.workflow.operators.intervalJoin
 
-import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.executor.OperatorExecutor
-import edu.uci.ics.amber.engine.common.model.tuple.{AttributeType, Tuple, TupleLike}
 import edu.uci.ics.texera.workflow.operators.hashJoin.JoinUtils
 
 import java.sql.Timestamp
 import scala.collection.mutable.ListBuffer
 
 /** This Operator have two assumptions:
-  * 1. The tuples in both inputs come in ascending order
-  * 2. The left input join key takes as points, join condition is: left key in the range of (right key, right key + constant)
-  */
+ * 1. The tuples in both inputs come in ascending order
+ * 2. The left input join key takes as points, join condition is: left key in the range of (right key, right key + constant)
+ */
 class IntervalJoinOpExec(
-    leftAttributeName: String,
-    rightAttributeName: String,
-    includeLeftBound: Boolean,
-    includeRightBound: Boolean,
-    constant: Long,
-    timeIntervalType: Option[TimeIntervalType]
-) extends OperatorExecutor {
+                          leftAttributeName: String,
+                          rightAttributeName: String,
+                          includeLeftBound: Boolean,
+                          includeRightBound: Boolean,
+                          constant: Long,
+                          timeIntervalType: Option[TimeIntervalType]
+                        ) extends OperatorExecutor {
 
   var leftTable: ListBuffer[Tuple] = new ListBuffer[Tuple]()
   var rightTable: ListBuffer[Tuple] = new ListBuffer[Tuple]()
@@ -110,10 +107,10 @@ class IntervalJoinOpExec(
   }
 
   private def processNumValue[T](
-      pointValue: T,
-      leftBoundValue: T,
-      rightBoundValue: T
-  )(implicit ev$1: T => Ordered[T]): Int = {
+                                  pointValue: T,
+                                  leftBoundValue: T,
+                                  rightBoundValue: T
+                                )(implicit ev$1: T => Ordered[T]): Int = {
     if (includeLeftBound && includeRightBound) {
       if (pointValue >= leftBoundValue && pointValue <= rightBoundValue) 0
       else if (pointValue < leftBoundValue) -1
@@ -134,10 +131,10 @@ class IntervalJoinOpExec(
   }
 
   private def intervalCompare[K](
-      point: K,
-      leftBound: K,
-      dataType: AttributeType
-  ): Int = {
+                                  point: K,
+                                  leftBound: K,
+                                  dataType: AttributeType
+                                ): Int = {
     var result: Int = -2
     if (dataType == AttributeType.LONG) {
       val pointValue: Long = point.asInstanceOf[Long]

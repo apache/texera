@@ -1,23 +1,19 @@
 package edu.uci.ics.texera.web.resource.dashboard
 
-import org.jooq.impl.DSL
-import org.jooq.{Condition, GroupField, Record, TableLike}
-import org.jooq.types.UInteger
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{DATASET, DATASET_USER_ACCESS}
 import edu.uci.ics.texera.web.model.jooq.generated.enums.DatasetUserAccessPrivilege
 import edu.uci.ics.texera.web.model.jooq.generated.tables.User.USER
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{Dataset, User}
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.DashboardClickableFileEntry
-import edu.uci.ics.texera.web.resource.dashboard.FulltextSearchQueryUtils.{
-  getContainsFilter,
-  getDateFilter,
-  getFullTextSearchFilter,
-  getSubstringSearchFilter
-}
+import edu.uci.ics.texera.web.resource.dashboard.FulltextSearchQueryUtils.{getContainsFilter, getDateFilter, getFullTextSearchFilter, getSubstringSearchFilter}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.DashboardDataset
+import org.jooq.impl.DSL
+import org.jooq.types.UInteger
+import org.jooq.{Condition, GroupField, Record, TableLike}
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
+
 object DatasetSearchQueryBuilder extends SearchQueryBuilder {
   override protected val mappedResourceSchema: UnifiedResourceSchema = UnifiedResourceSchema(
     resourceType = DSL.inline(SearchQueryBuilder.DATASET_RESOURCE_TYPE),
@@ -40,10 +36,10 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder {
    * - includePublic - Boolean - Specifies whether to include public datasets in the result.
    */
   override protected def constructFromClause(
-      uid: UInteger,
-      params: DashboardResource.SearchQueryParams,
-      includePublic: Boolean = false
-  ): TableLike[_] = {
+                                              uid: UInteger,
+                                              params: DashboardResource.SearchQueryParams,
+                                              includePublic: Boolean = false
+                                            ): TableLike[_] = {
     val baseJoin = DATASET
       .leftJoin(DATASET_USER_ACCESS)
       .on(DATASET_USER_ACCESS.DID.eq(DATASET.DID))
@@ -72,9 +68,9 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder {
   }
 
   override protected def constructWhereClause(
-      uid: UInteger,
-      params: DashboardResource.SearchQueryParams
-  ): Condition = {
+                                               uid: UInteger,
+                                               params: DashboardResource.SearchQueryParams
+                                             ): Condition = {
     val splitKeywords = params.keywords.asScala
       .flatMap(_.split("[+\\-()<>~*@\"]"))
       .filter(_.nonEmpty)
@@ -96,13 +92,15 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder {
           )
       )
   }
+
   override protected def getGroupByFields: Seq[GroupField] = {
     Seq(DATASET.DID)
   }
+
   override protected def toEntryImpl(
-      uid: UInteger,
-      record: Record
-  ): DashboardResource.DashboardClickableFileEntry = {
+                                      uid: UInteger,
+                                      record: Record
+                                    ): DashboardResource.DashboardClickableFileEntry = {
     val dataset = record.into(DATASET).into(classOf[Dataset])
     val owner = record.into(USER).into(classOf[User])
     val dd = DashboardDataset(
@@ -123,4 +121,5 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder {
     )
   }
 }
+
 class DatasetSearchQueryBuilder {}

@@ -3,34 +3,14 @@ package edu.uci.ics.amber.engine.faulttolerance
 import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestKit}
 import edu.uci.ics.amber.engine.architecture.logreplay.{ReplayLogManager, ReplayLogRecord}
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
-  AddPartitioningRequest,
-  AsyncRPCContext,
-  EmptyRequest
-}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AddPartitioningRequest, AsyncRPCContext, EmptyRequest}
 import edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerServiceGrpc.METHOD_WORKER_EXECUTION_COMPLETED
-import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{
-  METHOD_ADD_PARTITIONING,
-  METHOD_PAUSE_WORKER,
-  METHOD_RESUME_WORKER,
-  METHOD_START_WORKER
-}
+import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{METHOD_ADD_PARTITIONING, METHOD_PAUSE_WORKER, METHOD_RESUME_WORKER, METHOD_START_WORKER}
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
-import edu.uci.ics.amber.engine.common.ambermessage.{
-  DataFrame,
-  WorkflowFIFOMessage,
-  WorkflowFIFOMessagePayload
-}
-import edu.uci.ics.amber.engine.common.model.tuple.{AttributeType, Schema, TupleLike}
+import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, WorkflowFIFOMessage, WorkflowFIFOMessagePayload}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
-import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
-import edu.uci.ics.amber.virtualidentity.{
-  ActorVirtualIdentity,
-  ChannelIdentity,
-  OperatorIdentity,
-  PhysicalOpIdentity
-}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
+import edu.uci.ics.amber.virtualidentity.{ActorVirtualIdentity, ChannelIdentity, OperatorIdentity, PhysicalOpIdentity}
 import edu.uci.ics.amber.workflow.{PhysicalLink, PortIdentity}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -38,7 +18,7 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import java.net.URI
 
 class LoggingSpec
-    extends TestKit(ActorSystem("LoggingSpec"))
+  extends TestKit(ActorSystem("LoggingSpec"))
     with ImplicitSender
     with AnyFlatSpecLike
     with BeforeAndAfterAll {

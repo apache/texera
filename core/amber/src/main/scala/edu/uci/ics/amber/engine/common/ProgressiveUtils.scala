@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.common
 
-import edu.uci.ics.amber.engine.common.model.tuple.{Attribute, AttributeType, Schema, Tuple}
+import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 
 object ProgressiveUtils {
 
@@ -28,16 +28,16 @@ object ProgressiveUtils {
   }
 
   def getTupleFlagAndValue(
-      tuple: Tuple
-  ): (Boolean, Tuple) = {
+                            tuple: Tuple
+                          ): (Boolean, Tuple) = {
     (
       isInsertion(tuple), {
-        val originalSchema = tuple.getSchema
-        val schema = originalSchema.getPartialSchema(
-          originalSchema.getAttributeNames.filterNot(_ == insertRetractFlagAttr.getName)
-        )
-        Tuple.builder(schema).add(tuple, isStrictSchemaMatch = false).build()
-      }
+      val originalSchema = tuple.getSchema
+      val schema = originalSchema.getPartialSchema(
+        originalSchema.getAttributeNames.filterNot(_ == insertRetractFlagAttr.getName)
+      )
+      Tuple.builder(schema).add(tuple, isStrictSchemaMatch = false).build()
+    }
     )
   }
 

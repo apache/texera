@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.workflow.common.operators.filter
 
-import edu.uci.ics.amber.engine.common.executor.OperatorExecutor
-import edu.uci.ics.amber.engine.common.model.tuple.{Tuple, TupleLike}
+import edu.uci.ics.amber.core.executor.OperatorExecutor
+import edu.uci.ics.amber.core.tuple.{Tuple, TupleLike}
 
 abstract class FilterOpExec extends OperatorExecutor with Serializable {
 

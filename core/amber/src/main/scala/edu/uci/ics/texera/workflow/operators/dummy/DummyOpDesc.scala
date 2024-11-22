@@ -2,11 +2,9 @@ package edu.uci.ics.texera.workflow.operators.dummy
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.common.model.tuple.Schema
-import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
-import edu.uci.ics.texera.workflow.common.operators.PortDescription
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort, PortIdentity}
-import edu.uci.ics.texera.workflow.common.operators.{LogicalOp, PortDescriptor}
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.texera.workflow.common.operators.{LogicalOp, PortDescription, PortDescriptor}
 
 class DummyOpDesc extends LogicalOp with PortDescriptor {
 
