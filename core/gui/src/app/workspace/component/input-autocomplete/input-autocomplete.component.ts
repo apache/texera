@@ -31,6 +31,14 @@ export class InputAutoCompleteComponent extends FieldType<FieldTypeConfig> {
       nzData: {
         selectedFilePath: this.formControl.getRawValue(),
       },
+      nzBodyStyle: {
+        resize: "both", // 允许调整大小
+        overflow: "auto", // 确保内容可滚动
+        // minHeight: "200px", // 设置最小高度
+        // minWidth: "300px", // 设置最小宽度
+      },
+      nzWidth: "fit-content",
+      
     });
     // Handle the selection from the modal
     modal.afterClose.pipe(untilDestroyed(this)).subscribe(fileNode => {
