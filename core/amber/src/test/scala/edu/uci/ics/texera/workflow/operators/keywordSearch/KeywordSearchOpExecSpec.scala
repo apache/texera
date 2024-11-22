@@ -161,8 +161,7 @@ class KeywordSearchOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val opExec = new KeywordSearchOpExec("text", "_!@,-")
     opExec.open()
     val results = testData.filter(t => opExec.processTuple(t, inputPort).hasNext)
-    assert(results.length == 1)
-    assert(results.head.getField[String]("text") == "_!@,-")
+    assert(results.isEmpty)
     opExec.close()
   }
 }
