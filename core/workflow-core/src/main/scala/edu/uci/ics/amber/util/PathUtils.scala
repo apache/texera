@@ -38,7 +38,8 @@ object PathUtils {
 
   lazy val workflowCompilingServicePath: Path = corePath.resolve("workflow-compiling-service")
 
-  private lazy val datasetsRootPath = corePath.resolve("amber").resolve("user-resources").resolve("datasets")
+  private lazy val datasetsRootPath =
+    corePath.resolve("amber").resolve("user-resources").resolve("datasets")
 
   def getDatasetPath(did: UInteger): Path = {
     datasetsRootPath.resolve(did.toString)
