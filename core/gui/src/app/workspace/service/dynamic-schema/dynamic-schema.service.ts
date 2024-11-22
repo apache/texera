@@ -20,7 +20,7 @@ export type SchemaTransformer = (operator: OperatorPredicate, schema: OperatorSc
  *  after an operator is added, modules, other modules can dynamically set the schema based on its need
  *
  * Currently, dynamic schema is changed through the following scenarios:
- *  - attribute names autocomplete by SchemaPropagationService
+ *  - attribute names autocomplete by WorkflowCompilingService
  *
  */
 @Injectable({

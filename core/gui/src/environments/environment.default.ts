@@ -13,30 +13,13 @@ export const defaultEnvironment = {
   apiUrl: "api",
 
   /**
-   * whether fetching available source tables is enabled
-   * see SourceTablesService for details
-   */
-  sourceTableEnabled: false,
-
-  /**
-   * whether operator schema propagation and autocomplete feature is enabled,
-   * see SchemaPropagationService for details
-   */
-  schemaPropagationEnabled: true,
-
-  /**
-   * whether the backend supports checking execution status
-   */
-  executionStatusEnabled: true,
-
-  /**
    * whether export execution result is supported
    */
   exportExecutionResultEnabled: false,
 
   /**
-   * Whether automatically correcting attribute name on change is enabled
-   * See AutoAttributeCorrectionService for more details
+   * whether automatically correcting attribute name on change is enabled
+   * see AutoAttributeCorrectionService for more details
    */
   autoAttributeCorrectionEnabled: true,
 
@@ -71,21 +54,15 @@ export const defaultEnvironment = {
   linkBreakpointEnabled: true,
 
   /**
-   * whether operator caching is enabled
+   * whether rendering jointjs components asynchronously
    */
-  operatorCacheEnabled: false,
-
-  /**
-   * whether debugger is enabled
-   */
-  debuggerEnabled: false,
-
   asyncRenderingEnabled: false,
 
   /**
    * whether time-travel is enabled
    */
   timetravelEnabled: false,
+
   /**
    * Whether to connect to local or production shared editing server. Set to true if you have
    * reverse proxy set up for y-websocket.
@@ -93,6 +70,7 @@ export const defaultEnvironment = {
   productionSharedEditingServer: false,
 
   /**
+   * the file size limit for dataset upload
    */
   singleFileUploadMaximumSizeMB: 20,
 
@@ -102,7 +80,7 @@ export const defaultEnvironment = {
   defaultDataTransferBatchSize: 400,
 
   /**
-   * Whether to send email notification when workflow execution is completed/failed/paused/killed
+   * whether to send email notification when workflow execution is completed/failed/paused/killed
    */
   workflowEmailNotificationEnabled: false,
 };

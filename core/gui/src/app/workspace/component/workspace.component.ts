@@ -40,16 +40,18 @@ export const SAVE_DEBOUNCE_TIME_IN_MS = 5000;
 export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   public pid?: number = undefined;
   public gitCommitHash: string = Version.raw;
-  public showResultPanel: boolean = false;
   public writeAccess: boolean = false;
   public isLoading: boolean = false;
   userSystemEnabled = environment.userSystemEnabled;
   @ViewChild("codeEditor", { read: ViewContainerRef }) codeEditorViewRef!: ViewContainerRef;
   constructor(
     private userService: UserService,
-    // list additional services in constructor so they are initialized even if no one use them directly
+    // list additional 3 services in constructor so they are initialized even if no one use them directly
+    // TODO: make their lifecycle better
     private workflowCompilingService: WorkflowCompilingService,
     private workflowConsoleService: WorkflowConsoleService,
+    private operatorReuseCacheStatusService: OperatorReuseCacheStatusService,
+    // end of additional services
     private undoRedoService: UndoRedoService,
     private workflowCacheService: WorkflowCacheService,
     private workflowPersistService: WorkflowPersistService,

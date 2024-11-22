@@ -1,13 +1,11 @@
 import { FormlyFieldConfig } from "@ngx-formly/core";
 import { isDefined } from "../util/predicate";
-import {
-  PortInputSchema,
-  SchemaAttribute,
-} from "../../workspace/service/dynamic-schema/schema-propagation/schema-propagation.service";
+
 import { Observable } from "rxjs";
 import { FORM_DEBOUNCE_TIME_MS } from "../../workspace/service/execute-workflow/execute-workflow.service";
 import { debounceTime, distinctUntilChanged, filter, share } from "rxjs/operators";
 import { HideType } from "../../workspace/types/custom-json-schema.interface";
+import { PortInputSchema } from "../../workspace/types/workflow-compiling.interface";
 
 export function getFieldByName(fieldName: string, fields: FormlyFieldConfig[]): FormlyFieldConfig | undefined {
   return fields.filter((field, _, __) => field.key === fieldName)[0];

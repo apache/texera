@@ -1,4 +1,3 @@
-import { SchemaAttribute } from "../service/dynamic-schema/schema-propagation/schema-propagation.service";
 import {
   ExecutionState,
   LogicalOperator,
@@ -9,6 +8,7 @@ import {
 } from "./execute-workflow.interface";
 import { IndexableObject } from "./result-table.interface";
 import { ConsoleUpdateEvent } from "./workflow-common.interface";
+import { SchemaAttribute } from "./workflow-compiling.interface";
 
 /**
  *  @fileOverview Type Definitions of WebSocket (Ws) API

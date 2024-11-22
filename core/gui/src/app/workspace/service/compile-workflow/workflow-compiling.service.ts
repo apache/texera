@@ -2,7 +2,6 @@ import { HttpClient, HttpHeaders } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { EMPTY, merge, Observable, ReplaySubject } from "rxjs";
 import { CustomJSONSchema7 } from "src/app/workspace/types/custom-json-schema.interface";
-import { environment } from "../../../../environments/environment";
 import { AppSettings } from "../../../common/app-setting";
 import { areOperatorSchemasEqual, OperatorSchema } from "../../types/operator-schema.interface";
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
@@ -51,11 +50,6 @@ export class WorkflowCompilingService {
     private workflowActionService: WorkflowActionService,
     private dynamicSchemaService: DynamicSchemaService
   ) {
-    // do nothing if schema propagation is not enabled
-    if (!environment.schemaPropagationEnabled) {
-      return;
-    }
-
     // invoke the compilation service when there are any changes on workflow topology and properties. This includes:
     // - operator add, delete, property changed, disabled
     // - link add, delete
@@ -104,13 +98,6 @@ export class WorkflowCompilingService {
       return {};
     }
     return this.currentCompilationStateInfo.operatorErrors;
-  }
-
-  public getOperatorInputSchemaMap(): Readonly<Record<string, OperatorInputSchema>> {
-    if (this.currentCompilationStateInfo.state == CompilationState.Uninitialized) {
-      return {};
-    }
-    return this.currentCompilationStateInfo.operatorInputSchemaMap;
   }
 
   public getOperatorInputSchema(operatorID: string): OperatorInputSchema | undefined {

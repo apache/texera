@@ -13,9 +13,6 @@ export class WorkflowStatusService {
   private currentStatus: Record<string, OperatorStatistics> = {};
 
   constructor(private workflowWebsocketService: WorkflowWebsocketService) {
-    if (!environment.executionStatusEnabled) {
-      return;
-    }
     this.getStatusUpdateStream().subscribe(event => (this.currentStatus = event));
 
     this.workflowWebsocketService.websocketEvent().subscribe(event => {
