@@ -1,18 +1,12 @@
 package edu.uci.ics.amber.operator.machineLearning.Scorer
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.{
-  JsonSchemaInject,
-  JsonSchemaString,
-  JsonSchemaTitle
-}
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaString, JsonSchemaTitle}
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
-import edu.uci.ics.amber.operator.PythonOperatorDescriptor
-import edu.uci.ics.amber.operator.metadata.OperatorInfo
-import edu.uci.ics.amber.operator.metadata.OperatorGroupConstants
-import edu.uci.ics.amber.operator.metadata.annotation.{AutofillAttributeName, HideAnnotation}
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
-
+import edu.uci.ics.amber.operator.PythonOperatorDescriptor
+import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.amber.operator.metadata.annotations.{AutofillAttributeName, HideAnnotation}
 class MachineLearningScorerOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(required = true, defaultValue = "false")
   @JsonSchemaTitle("Regression")
@@ -65,6 +59,7 @@ class MachineLearningScorerOpDesc extends PythonOperatorDescriptor {
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
     )
+
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     val outputSchemaBuilder = Schema.builder()
     if (!isRegression) {
@@ -83,14 +78,14 @@ class MachineLearningScorerOpDesc extends PythonOperatorDescriptor {
     outputSchemaBuilder.build()
   }
 
-//  private def getClassificationScorerName(scorer: classificationMetricsFnc): String = {
-//    // Directly return the name of the scorer using the getName() method
-//    scorer.getName()
-//  }
-//  private def getRegressionScorerName(scorer: regressionMetricsFnc): String = {
-//    // Directly return the name of the scorer using the getName() method
-//    scorer.getName()
-//  }
+  //  private def getClassificationScorerName(scorer: classificationMetricsFnc): String = {
+  //    // Directly return the name of the scorer using the getName() method
+  //    scorer.getName()
+  //  }
+  //  private def getRegressionScorerName(scorer: regressionMetricsFnc): String = {
+  //    // Directly return the name of the scorer using the getName() method
+  //    scorer.getName()
+  //  }
 
   private def getMetricName(metric: Any): String =
     metric match {
@@ -161,9 +156,7 @@ class MachineLearningScorerOpDesc extends PythonOperatorDescriptor {
          |      else:
          |        # calculate the number of unique labels
          |        labels = list(set(y_true))
-         |        # align the type of y_true and y_pred(str)
-         |        y_true_str = y_true.astype(str)
-         |        result = classification_metrics(y_true_str, y_pred, metric_list, labels)
+         |        result = classification_metrics(y_true, y_pred, metric_list, labels)
          |
          |      yield result
          |""".stripMargin

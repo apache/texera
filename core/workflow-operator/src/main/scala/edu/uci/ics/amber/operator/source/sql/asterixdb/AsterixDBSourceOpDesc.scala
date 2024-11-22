@@ -1,27 +1,18 @@
 package edu.uci.ics.amber.operator.source.sql.asterixdb
 
-import com.fasterxml.jackson.annotation.{
-  JsonIgnoreProperties,
-  JsonProperty,
-  JsonPropertyDescription
-}
+import com.fasterxml.jackson.annotation.{JsonIgnoreProperties, JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.amber.core.executor.OpExecInitInfo
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
-import edu.uci.ics.amber.operator.metadata.OperatorInfo
 import edu.uci.ics.amber.operator.filter.FilterPredicate
+import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.amber.operator.metadata.annotations.{AutofillAttributeName, AutofillAttributeNameList, UIWidget}
 import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.workflow.OutputPort
-import AsterixDBConnUtil.{fetchDataTypeFields, queryAsterixDB}
-import edu.uci.ics.amber.operator.metadata.OperatorGroupConstants
-import edu.uci.ics.amber.operator.metadata.annotation.{
-  AutofillAttributeName,
-  AutofillAttributeNameList,
-  UIWidget
-}
 import edu.uci.ics.amber.operator.source.sql.SQLSourceOpDesc
+import edu.uci.ics.amber.operator.source.sql.asterixdb.AsterixDBConnUtil.{fetchDataTypeFields, queryAsterixDB}
 import kong.unirest.json.JSONObject
 
 @JsonIgnoreProperties(value = Array("username", "password"))

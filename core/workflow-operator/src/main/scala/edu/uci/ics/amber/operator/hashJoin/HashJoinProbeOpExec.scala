@@ -2,7 +2,7 @@ package edu.uci.ics.amber.operator.hashJoin
 
 import edu.uci.ics.amber.core.executor.OperatorExecutor
 import edu.uci.ics.amber.core.tuple.{Tuple, TupleLike}
-import HashJoinOpDesc.HASH_JOIN_INTERNAL_KEY_NAME
+import edu.uci.ics.amber.operator.hashJoin.HashJoinOpDesc.HASH_JOIN_INTERNAL_KEY_NAME
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
@@ -39,6 +39,7 @@ object JoinUtils {
     TupleLike(leftTupleFields ++ rightTupleFields)
   }
 }
+
 class HashJoinProbeOpExec[K](
     probeAttributeName: String,
     joinType: JoinType

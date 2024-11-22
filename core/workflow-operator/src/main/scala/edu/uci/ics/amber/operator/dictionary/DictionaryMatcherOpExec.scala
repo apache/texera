@@ -1,32 +1,13 @@
 package edu.uci.ics.amber.operator.dictionary
 
 import edu.uci.ics.amber.core.tuple.{Tuple, TupleLike}
-import edu.uci.ics.amber.operator.dictionary.DictionaryMatcherOpExec.URL_STOP_WORDS_SET
 import edu.uci.ics.amber.operator.map.MapOpExec
 import org.apache.lucene.analysis.Analyzer
 import org.apache.lucene.analysis.en.EnglishAnalyzer
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute
-
 import java.io.StringReader
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
-
-object DictionaryMatcherOpExec {
-
-  /** An unmodifiable set containing some common URL words that are not usually useful
-    * for searching.
-    */
-  final val URL_STOP_WORDS_SET = List[String](
-    "http",
-    "https",
-    "org",
-    "net",
-    "com",
-    "store",
-    "www",
-    "html"
-  )
-}
 
 class DictionaryMatcherOpExec(
     attributeName: String,
@@ -39,6 +20,20 @@ class DictionaryMatcherOpExec(
   // this is needed for the simple Scan matching type
   var dictionaryEntries: List[String] = _
   var luceneAnalyzer: Analyzer = _
+
+  /** An unmodifiable set containing some common URL words that are not usually useful
+   * for searching.
+   */
+  final val URL_STOP_WORDS_SET = List[String](
+    "http",
+    "https",
+    "org",
+    "net",
+    "com",
+    "store",
+    "www",
+    "html"
+  )
 
   /**
     * first prepare the dictionary by splitting the values using a comma delimiter then tokenize the split values

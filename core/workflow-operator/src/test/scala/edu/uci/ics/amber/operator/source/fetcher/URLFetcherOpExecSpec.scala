@@ -3,7 +3,6 @@ package edu.uci.ics.amber.operator.source.fetcher
 import edu.uci.ics.amber.core.tuple.Schema
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
-
 class URLFetcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   val resultSchema: Schema = new URLFetcherOpDesc().sourceSchema()

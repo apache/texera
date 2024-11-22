@@ -2,8 +2,8 @@ package edu.uci.ics.amber.operator.source.scan.csvOld
 
 import com.github.tototoshi.csv.{CSVReader, DefaultCSVFormat}
 import edu.uci.ics.amber.core.executor.SourceOperatorExecutor
-import edu.uci.ics.amber.core.tuple.{Attribute, AttributeTypeUtils, Schema, TupleLike}
 import edu.uci.ics.amber.core.storage.DocumentFactory
+import edu.uci.ics.amber.core.tuple.{Attribute, AttributeTypeUtils, Schema, TupleLike}
 import edu.uci.ics.amber.operator.source.scan.FileDecodingMethod
 
 import java.net.URI
@@ -21,6 +21,7 @@ class CSVOldScanSourceOpExec private[csvOld] (
   var schema: Schema = _
   var reader: CSVReader = _
   var rows: Iterator[Seq[String]] = _
+
   override def produceTuple(): Iterator[TupleLike] = {
 
     var tuples = rows

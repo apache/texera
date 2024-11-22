@@ -1,14 +1,14 @@
 package edu.uci.ics.amber.operator.projection;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
-import edu.uci.ics.amber.operator.metadata.annotation.AutofillAttributeName;
+import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName;
 import org.jooq.tools.StringUtils;
+
 import java.util.Objects;
 
-public class AttributeUnit{
+public class AttributeUnit {
     @JsonProperty(required = true)
     @JsonSchemaTitle("Attribute")
     @JsonPropertyDescription("Attribute name in the schema")
@@ -20,23 +20,19 @@ public class AttributeUnit{
     @JsonPropertyDescription("Renamed attribute name")
     private String alias;
 
-    // TODO: explore the reason why this JsonCreator annotation is required
-    @JsonCreator
-    public AttributeUnit(
-            @JsonProperty("originalAttribute") String attributeName,
-            @JsonProperty("alias") String alias) {
+    AttributeUnit(String attributeName, String alias) {
         this.originalAttribute = attributeName;
         this.alias = alias;
     }
 
 
-    String getOriginalAttribute(){
+    String getOriginalAttribute() {
         return originalAttribute;
     }
 
 
-    String getAlias(){
-        if(StringUtils.isBlank(alias)){
+    String getAlias() {
+        if (StringUtils.isBlank(alias)) {
             return originalAttribute;
         }
         return alias;

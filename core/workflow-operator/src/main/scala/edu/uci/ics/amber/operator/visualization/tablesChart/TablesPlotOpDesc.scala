@@ -3,11 +3,9 @@ package edu.uci.ics.amber.operator.visualization.tablesChart
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
-import edu.uci.ics.amber.operator.metadata.OperatorInfo
-import edu.uci.ics.amber.operator.metadata.OperatorGroupConstants
-import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
+import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.visualization.{VisualizationConstants, VisualizationOperator}
-
+import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
 class TablesPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
 
   @JsonPropertyDescription("List of columns to include in the table chart")
@@ -46,6 +44,7 @@ class TablesPlotOpDesc extends VisualizationOperator with PythonOperatorDescript
        |
        |""".stripMargin
   }
+
   override def generatePythonCode(): String = {
     s"""
        |from pytexera import *

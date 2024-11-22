@@ -39,7 +39,7 @@ import edu.uci.ics.amber.virtualidentity.{
   WorkflowIdentity
 }
 import edu.uci.ics.amber.workflow.PortIdentity
-import edu.uci.ics.texera.workflow.common.workflow.LogicalLink
+import edu.uci.ics.texera.workflow.LogicalLink
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
 

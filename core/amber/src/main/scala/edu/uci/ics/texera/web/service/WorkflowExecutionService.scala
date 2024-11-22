@@ -17,7 +17,7 @@ import edu.uci.ics.texera.web.model.websocket.request.WorkflowExecuteRequest
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
 import edu.uci.ics.texera.web.{SubscriptionManager, TexeraWebApplication, WebsocketInput}
-import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, WorkflowCompiler}
+import edu.uci.ics.texera.workflow.{LogicalPlan, WorkflowCompiler}
 
 import java.net.URI
 import scala.collection.mutable

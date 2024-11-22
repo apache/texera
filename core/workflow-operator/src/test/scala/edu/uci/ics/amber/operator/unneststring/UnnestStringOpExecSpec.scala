@@ -1,10 +1,9 @@
 package edu.uci.ics.amber.operator.unneststring
 
-import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema, SchemaEnforceable, Tuple}
+import edu.uci.ics.amber.core.tuple._
 import edu.uci.ics.amber.workflow.PortIdentity
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
-
 class UnnestStringOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   val tupleSchema: Schema = Schema
     .builder()

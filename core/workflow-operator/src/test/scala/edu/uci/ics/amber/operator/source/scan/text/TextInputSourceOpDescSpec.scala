@@ -7,13 +7,10 @@ import org.scalatest.flatspec.AnyFlatSpec
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths}
-
 class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
-  val parentDir: String = "workflow-operator"
-
-  val TestTextFilePath: String = s"$parentDir/src/test/resources/line_numbers.txt"
-  val TestCRLFTextFilePath: String = s"$parentDir/src/test/resources/line_numbers_crlf.txt"
-  val TestNumbersFilePath: String = s"$parentDir/src/test/resources/numbers.txt"
+  val TestTextFilePath: String = "src/test/resources/line_numbers.txt"
+  val TestCRLFTextFilePath: String = "src/test/resources/line_numbers_crlf.txt"
+  val TestNumbersFilePath: String = "src/test/resources/numbers.txt"
   var textInputSourceOpDesc: TextInputSourceOpDesc = _
 
   before {

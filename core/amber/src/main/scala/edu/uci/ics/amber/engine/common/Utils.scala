@@ -84,20 +84,6 @@ object Utils extends LazyLogging {
     path.toRealPath().endsWith(AMBER_HOME_FOLDER_NAME)
   }
 
-  /** An unmodifiable set containing some common URL words that are not usually useful
-    * for searching.
-    */
-  final val URL_STOP_WORDS_SET = List[String](
-    "http",
-    "https",
-    "org",
-    "net",
-    "com",
-    "store",
-    "www",
-    "html"
-  )
-
   def aggregatedStateToString(state: WorkflowAggregatedState): String = {
     state match {
       case WorkflowAggregatedState.UNINITIALIZED => "Uninitialized"

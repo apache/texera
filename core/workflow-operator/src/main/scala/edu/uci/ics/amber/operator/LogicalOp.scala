@@ -3,11 +3,11 @@ package edu.uci.ics.amber.operator
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type
 import com.fasterxml.jackson.annotation._
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import edu.uci.ics.amber.core.executor.OperatorExecutor
 import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.operator.aggregate.AggregateOpDesc
 import edu.uci.ics.amber.operator.cartesianProduct.CartesianProductOpDesc
-import edu.uci.ics.amber.operator.metadata.OperatorInfo
 import edu.uci.ics.amber.operator.dictionary.DictionaryMatcherOpDesc
 import edu.uci.ics.amber.operator.difference.DifferenceOpDesc
 import edu.uci.ics.amber.operator.distinct.DistinctOpDesc
@@ -15,62 +15,27 @@ import edu.uci.ics.amber.operator.download.BulkDownloaderOpDesc
 import edu.uci.ics.amber.operator.dummy.DummyOpDesc
 import edu.uci.ics.amber.operator.filter.SpecializedFilterOpDesc
 import edu.uci.ics.amber.operator.hashJoin.HashJoinOpDesc
-import edu.uci.ics.amber.operator.huggingFace.{
-  HuggingFaceIrisLogisticRegressionOpDesc,
-  HuggingFaceSentimentAnalysisOpDesc,
-  HuggingFaceSpamSMSDetectionOpDesc,
-  HuggingFaceTextSummarizationOpDesc
-}
+import edu.uci.ics.amber.operator.huggingFace.{HuggingFaceIrisLogisticRegressionOpDesc, HuggingFaceSentimentAnalysisOpDesc, HuggingFaceSpamSMSDetectionOpDesc, HuggingFaceTextSummarizationOpDesc}
 import edu.uci.ics.amber.operator.intersect.IntersectOpDesc
 import edu.uci.ics.amber.operator.intervalJoin.IntervalJoinOpDesc
 import edu.uci.ics.amber.operator.keywordSearch.KeywordSearchOpDesc
 import edu.uci.ics.amber.operator.limit.LimitOpDesc
 import edu.uci.ics.amber.operator.machineLearning.Scorer.MachineLearningScorerOpDesc
-import edu.uci.ics.amber.operator.machineLearning.sklearnAdvanced.KNNTrainer.{
-  SklearnAdvancedKNNClassifierTrainerOpDesc,
-  SklearnAdvancedKNNRegressorTrainerOpDesc
-}
+import edu.uci.ics.amber.operator.machineLearning.sklearnAdvanced.KNNTrainer.{SklearnAdvancedKNNClassifierTrainerOpDesc, SklearnAdvancedKNNRegressorTrainerOpDesc}
 import edu.uci.ics.amber.operator.machineLearning.sklearnAdvanced.SVCTrainer.SklearnAdvancedSVCTrainerOpDesc
 import edu.uci.ics.amber.operator.machineLearning.sklearnAdvanced.SVRTrainer.SklearnAdvancedSVRTrainerOpDesc
-import edu.uci.ics.amber.operator.metadata.{OPVersion, PropertyNameConstants}
+import edu.uci.ics.amber.operator.metadata.{OperatorInfo, PropertyNameConstants}
 import edu.uci.ics.amber.operator.projection.ProjectionOpDesc
 import edu.uci.ics.amber.operator.randomksampling.RandomKSamplingOpDesc
 import edu.uci.ics.amber.operator.regex.RegexOpDesc
 import edu.uci.ics.amber.operator.reservoirsampling.ReservoirSamplingOpDesc
 import edu.uci.ics.amber.operator.sentiment.SentimentAnalysisOpDesc
 import edu.uci.ics.amber.operator.sink.managed.ProgressiveSinkOpDesc
-import edu.uci.ics.amber.operator.sklearn.{
-  SklearnAdaptiveBoostingOpDesc,
-  SklearnBaggingOpDesc,
-  SklearnBernoulliNaiveBayesOpDesc,
-  SklearnComplementNaiveBayesOpDesc,
-  SklearnDecisionTreeOpDesc,
-  SklearnDummyClassifierOpDesc,
-  SklearnExtraTreeOpDesc,
-  SklearnExtraTreesOpDesc,
-  SklearnGaussianNaiveBayesOpDesc,
-  SklearnGradientBoostingOpDesc,
-  SklearnKNNOpDesc,
-  SklearnLinearRegressionOpDesc,
-  SklearnLinearSVMOpDesc,
-  SklearnLogisticRegressionCVOpDesc,
-  SklearnLogisticRegressionOpDesc,
-  SklearnMultiLayerPerceptronOpDesc,
-  SklearnMultinomialNaiveBayesOpDesc,
-  SklearnNearestCentroidOpDesc,
-  SklearnPassiveAggressiveOpDesc,
-  SklearnPerceptronOpDesc,
-  SklearnPredictionOpDesc,
-  SklearnProbabilityCalibrationOpDesc,
-  SklearnRandomForestOpDesc,
-  SklearnRidgeCVOpDesc,
-  SklearnRidgeOpDesc,
-  SklearnSDGOpDesc,
-  SklearnSVMOpDesc
-}
+import edu.uci.ics.amber.operator.sklearn.{SklearnAdaptiveBoostingOpDesc, SklearnBaggingOpDesc, SklearnBernoulliNaiveBayesOpDesc, SklearnComplementNaiveBayesOpDesc, SklearnDecisionTreeOpDesc, SklearnDummyClassifierOpDesc, SklearnExtraTreeOpDesc, SklearnExtraTreesOpDesc, SklearnGaussianNaiveBayesOpDesc, SklearnGradientBoostingOpDesc, SklearnKNNOpDesc, SklearnLinearRegressionOpDesc, SklearnLinearSVMOpDesc, SklearnLogisticRegressionCVOpDesc, SklearnLogisticRegressionOpDesc, SklearnMultiLayerPerceptronOpDesc, SklearnMultinomialNaiveBayesOpDesc, SklearnNearestCentroidOpDesc, SklearnPassiveAggressiveOpDesc, SklearnPerceptronOpDesc, SklearnPredictionOpDesc, SklearnProbabilityCalibrationOpDesc, SklearnRandomForestOpDesc, SklearnRidgeCVOpDesc, SklearnRidgeOpDesc, SklearnSDGOpDesc, SklearnSVMOpDesc}
 import edu.uci.ics.amber.operator.sort.SortOpDesc
 import edu.uci.ics.amber.operator.sortPartitions.SortPartitionsOpDesc
 import edu.uci.ics.amber.operator.source.apis.reddit.RedditSearchSourceOpDesc
+import edu.uci.ics.amber.operator.source.apis.twitter.v2.{TwitterFullArchiveSearchSourceOpDesc, TwitterSearchSourceOpDesc}
 import edu.uci.ics.amber.operator.source.fetcher.URLFetcherOpDesc
 import edu.uci.ics.amber.operator.source.scan.FileScanSourceOpDesc
 import edu.uci.ics.amber.operator.source.scan.csv.CSVScanSourceOpDesc
@@ -84,12 +49,7 @@ import edu.uci.ics.amber.operator.split.SplitOpDesc
 import edu.uci.ics.amber.operator.symmetricDifference.SymmetricDifferenceOpDesc
 import edu.uci.ics.amber.operator.typecasting.TypeCastingOpDesc
 import edu.uci.ics.amber.operator.udf.java.JavaUDFOpDesc
-import edu.uci.ics.amber.operator.udf.python.{
-  DualInputPortsPythonUDFOpDescV2,
-  PythonLambdaFunctionOpDesc,
-  PythonTableReducerOpDesc,
-  PythonUDFOpDescV2
-}
+import edu.uci.ics.amber.operator.udf.python._
 import edu.uci.ics.amber.operator.udf.python.source.PythonUDFSourceOpDescV2
 import edu.uci.ics.amber.operator.udf.r.{RUDFOpDesc, RUDFSourceOpDesc}
 import edu.uci.ics.amber.operator.union.UnionOpDesc
@@ -132,6 +92,10 @@ import java.util.UUID
 import scala.collection.mutable
 import scala.util.Try
 
+trait StateTransferFunc
+    extends ((OperatorExecutor, OperatorExecutor) => Unit)
+    with java.io.Serializable
+
 @JsonTypeInfo(
   use = JsonTypeInfo.Id.NAME,
   include = JsonTypeInfo.As.PROPERTY,
@@ -147,6 +111,14 @@ import scala.util.Try
     new Type(value = classOf[JSONLScanSourceOpDesc], name = "JSONLFileScan"),
     new Type(value = classOf[FileScanSourceOpDesc], name = "FileScan"),
     new Type(value = classOf[TextInputSourceOpDesc], name = "TextInput"),
+    new Type(
+      value = classOf[TwitterFullArchiveSearchSourceOpDesc],
+      name = "TwitterFullArchiveSearch"
+    ),
+    new Type(
+      value = classOf[TwitterSearchSourceOpDesc],
+      name = "TwitterSearch"
+    ),
     new Type(value = classOf[ProgressiveSinkOpDesc], name = "SimpleSink"),
     new Type(value = classOf[CandlestickChartOpDesc], name = "CandlestickChart"),
     new Type(value = classOf[SplitOpDesc], name = "Split"),
@@ -310,13 +282,14 @@ abstract class LogicalOp extends PortDescriptor with Serializable {
   val inputPortToSchemaMapping: mutable.Map[PortIdentity, Schema] = mutable.HashMap()
   @JsonIgnore
   val outputPortToSchemaMapping: mutable.Map[PortIdentity, Schema] = mutable.HashMap()
+
   def operatorIdentifier: OperatorIdentity = OperatorIdentity(operatorId)
 
   def getPhysicalOp(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp = {
-    throw new UnsupportedOperationException()
+    ???
   }
 
   // a logical operator corresponds multiple physical operators (a small DAG)
@@ -337,7 +310,7 @@ abstract class LogicalOp extends PortDescriptor with Serializable {
   private def getOperatorVersion(): String = {
     val path = "core/amber/src/main/scala/"
     val operatorPath = path + this.getClass.getPackage.getName.replace(".", "/")
-    OPVersion.getVersion(this.getClass.getSimpleName, operatorPath)
+    OPversion.getVersion(this.getClass.getSimpleName, operatorPath)
   }
 
   // override if the operator has multiple output ports, schema must be specified for each port
@@ -352,6 +325,7 @@ abstract class LogicalOp extends PortDescriptor with Serializable {
   override def toString: String = ToStringBuilder.reflectionToString(this)
 
   def getContext: WorkflowContext = this.context
+
   def setContext(workflowContext: WorkflowContext): Unit = {
     this.context = workflowContext
   }

@@ -30,7 +30,7 @@ import edu.uci.ics.texera.web.service.WorkflowService.mkWorkflowStateId
 import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
 import edu.uci.ics.texera.web.storage.{ExecutionStateStore, WorkflowStateStore}
 import edu.uci.ics.texera.web.{SubscriptionManager, WorkflowLifecycleManager}
-import edu.uci.ics.texera.workflow.common.workflow.LogicalPlan
+import edu.uci.ics.texera.workflow.LogicalPlan
 import io.reactivex.rxjava3.disposables.{CompositeDisposable, Disposable}
 import io.reactivex.rxjava3.subjects.BehaviorSubject
 import org.jooq.types.UInteger

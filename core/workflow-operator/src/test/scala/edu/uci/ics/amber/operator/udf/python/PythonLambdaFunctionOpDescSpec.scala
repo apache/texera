@@ -3,7 +3,6 @@ package edu.uci.ics.amber.operator.udf.python
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
-
 class PythonLambdaFunctionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   val schema = new Schema(
     new Attribute("column_str", AttributeType.STRING),
