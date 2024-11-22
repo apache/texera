@@ -34,8 +34,10 @@ export class InputAutoCompleteComponent extends FieldType<FieldTypeConfig> {
       nzBodyStyle: {
         resize: "both", // 允许调整大小
         overflow: "auto", // 确保内容可滚动
-        // minHeight: "200px", // 设置最小高度
-        // minWidth: "300px", // 设置最小宽度
+        minHeight: "200px", // 设置最小高度
+        minWidth: "550px", // 设置最小宽度
+        maxWidth: "90vw",
+        maxHeight: "80vh",
       },
       nzWidth: "fit-content",
       
