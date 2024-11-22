@@ -17,8 +17,11 @@ RUN apk add --no-cache git && \
 
 FROM sbtscala/scala-sbt:eclipse-temurin-jammy-11.0.17_8_1.9.3_2.13.11
 
+# copy all projects under core to /core
+WORKDIR /core
+COPY core/ .
+
 WORKDIR /core/amber
-COPY core/* .
 RUN sbt clean package
 RUN apt-get update
 RUN apt-get install -y netcat unzip python3-pip
