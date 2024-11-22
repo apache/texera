@@ -1,9 +1,12 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.csv
 
+import edu.uci.ics.amber.core.storage.FileResolver
+import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
+import edu.uci.ics.amber.core.workflow.WorkflowContext
+import edu.uci.ics.amber.core.workflow.WorkflowContext.{DEFAULT_EXECUTION_ID, DEFAULT_WORKFLOW_ID}
 import edu.uci.ics.amber.workflow.PortIdentity
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
-
 class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
   val workflowContext = new WorkflowContext()

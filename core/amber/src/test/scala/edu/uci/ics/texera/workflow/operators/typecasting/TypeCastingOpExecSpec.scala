@@ -1,8 +1,8 @@
 package edu.uci.ics.texera.workflow.operators.typecasting
 
+import edu.uci.ics.amber.core.tuple._
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
-
 class TypeCastingOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   val tupleSchema: Schema = Schema
     .builder()

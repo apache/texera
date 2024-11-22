@@ -1,5 +1,8 @@
 package edu.uci.ics.texera.workflow.operators.intersect
 
+import edu.uci.ics.amber.core.executor.OperatorExecutor
+import edu.uci.ics.amber.core.tuple.{Tuple, TupleLike}
+
 import scala.collection.mutable
 
 class IntersectOpExec extends OperatorExecutor {

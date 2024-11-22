@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.dictionary
 
+import edu.uci.ics.amber.core.tuple.{Tuple, TupleLike}
 import edu.uci.ics.amber.engine.common.Utils
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpExec
 import org.apache.lucene.analysis.Analyzer

@@ -6,7 +6,7 @@ import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
 import scala.util.Random
-
+import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple, TupleLike}
 class IntersectOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   var opExec: IntersectOpExec = _
   var counter: Int = 0

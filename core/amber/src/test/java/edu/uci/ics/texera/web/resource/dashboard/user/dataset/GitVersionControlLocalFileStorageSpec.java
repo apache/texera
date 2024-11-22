@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.dataset;
 
+import edu.uci.ics.amber.core.storage.util.dataset.GitVersionControlLocalFileStorage;
 import edu.uci.ics.amber.core.storage.util.dataset.PhysicalFileNode;
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.service.GitVersionControlLocalFileStorage;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.junit.After;
 import org.junit.Assert;

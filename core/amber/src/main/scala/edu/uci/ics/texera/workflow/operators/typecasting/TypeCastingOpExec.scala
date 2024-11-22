@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.typecasting
 
+import edu.uci.ics.amber.core.tuple.{AttributeTypeUtils, Tuple, TupleLike}
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpExec
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala

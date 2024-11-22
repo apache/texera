@@ -1,6 +1,9 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.csvOld
 
 import com.github.tototoshi.csv.{CSVReader, DefaultCSVFormat}
+import edu.uci.ics.amber.core.executor.SourceOperatorExecutor
+import edu.uci.ics.amber.core.storage.DocumentFactory
+import edu.uci.ics.amber.core.tuple.{Attribute, AttributeTypeUtils, Schema, TupleLike}
 import edu.uci.ics.texera.workflow.operators.source.scan.FileDecodingMethod
 
 import java.net.URI

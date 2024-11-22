@@ -7,7 +7,7 @@ import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttribute
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
 import edu.uci.ics.texera.workflow.operators.visualization.{ImageUtility, VisualizationConstants, VisualizationOperator}
-
+import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 class WordCloudOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
   @JsonProperty(required = true)
   @JsonSchemaTitle("Text column")

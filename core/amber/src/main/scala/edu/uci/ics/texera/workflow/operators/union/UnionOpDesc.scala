@@ -1,6 +1,9 @@
 package edu.uci.ics.texera.workflow.operators.union
 
 import com.google.common.base.Preconditions
+import edu.uci.ics.amber.core.executor.OpExecInitInfo
+import edu.uci.ics.amber.core.tuple.Schema
+import edu.uci.ics.amber.core.workflow.PhysicalOp
 import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort, PortIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}

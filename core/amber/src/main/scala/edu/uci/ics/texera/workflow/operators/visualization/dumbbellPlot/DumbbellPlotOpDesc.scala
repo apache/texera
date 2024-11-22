@@ -10,7 +10,7 @@ import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstan
 
 import java.util
 import scala.jdk.CollectionConverters.CollectionHasAsScala
-
+import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 //type constraint: measurementColumnName can only be a numeric column
 @JsonSchemaInject(json =
   """

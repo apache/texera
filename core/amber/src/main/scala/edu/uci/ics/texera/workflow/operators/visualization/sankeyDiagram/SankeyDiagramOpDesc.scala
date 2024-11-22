@@ -7,7 +7,7 @@ import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttribute
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
 import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstants, VisualizationOperator}
-
+import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 class SankeyDiagramOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
 
   @JsonProperty(value = "Source Attribute", required = true)

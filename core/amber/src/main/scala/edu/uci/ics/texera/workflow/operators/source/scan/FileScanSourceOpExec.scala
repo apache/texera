@@ -1,5 +1,9 @@
 package edu.uci.ics.texera.workflow.operators.source.scan
 
+import edu.uci.ics.amber.core.executor.SourceOperatorExecutor
+import edu.uci.ics.amber.core.storage.DocumentFactory
+import edu.uci.ics.amber.core.tuple.AttributeTypeUtils.parseField
+import edu.uci.ics.amber.core.tuple.TupleLike
 import org.apache.commons.compress.archivers.{ArchiveInputStream, ArchiveStreamFactory}
 import org.apache.commons.io.IOUtils.toByteArray
 

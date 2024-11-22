@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.keywordSearch
 
+import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpExec
 import org.apache.lucene.analysis.standard.StandardAnalyzer
 import org.apache.lucene.index.memory.MemoryIndex

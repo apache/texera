@@ -2,10 +2,9 @@ package edu.uci.ics.texera.workflow.operators.filter;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
-import edu.uci.ics.amber.core.workflow.PhysicalOp$;
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo;
-import edu.uci.ics.amber.engine.common.executor.OperatorExecutor;
-import edu.uci.ics.amber.engine.common.model.PhysicalOp;
+import edu.uci.ics.amber.core.executor.OpExecInitInfo;
+import edu.uci.ics.amber.core.executor.OperatorExecutor;
+import edu.uci.ics.amber.core.workflow.PhysicalOp;
 import edu.uci.ics.amber.virtualidentity.ExecutionIdentity;
 import edu.uci.ics.amber.virtualidentity.WorkflowIdentity;
 import edu.uci.ics.amber.workflow.InputPort;
@@ -29,7 +28,7 @@ public class SpecializedFilterOpDesc extends FilterOpDesc {
     public java.util.List<FilterPredicate> predicates;
 
     @Override
-    public PhysicalOp$ getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId) {
+    public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId) {
         return PhysicalOp.oneToOnePhysicalOp(
                         workflowId,
                         executionId,

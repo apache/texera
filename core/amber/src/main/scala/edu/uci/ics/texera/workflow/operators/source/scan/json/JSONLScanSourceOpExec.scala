@@ -1,5 +1,9 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.json
 
+import edu.uci.ics.amber.core.executor.SourceOperatorExecutor
+import edu.uci.ics.amber.core.storage.DocumentFactory
+import edu.uci.ics.amber.core.tuple.AttributeTypeUtils.parseField
+import edu.uci.ics.amber.core.tuple.{Schema, TupleLike}
 import edu.uci.ics.amber.engine.common.Utils.objectMapper
 import edu.uci.ics.texera.workflow.operators.source.scan.FileDecodingMethod
 import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONUtil.JSONToMap

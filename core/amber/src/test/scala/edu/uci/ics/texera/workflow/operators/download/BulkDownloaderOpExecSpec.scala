@@ -1,8 +1,10 @@
 package edu.uci.ics.texera.workflow.operators.download
 
+import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
+import edu.uci.ics.amber.core.workflow.WorkflowContext
+import edu.uci.ics.amber.core.workflow.WorkflowContext.{DEFAULT_EXECUTION_ID, DEFAULT_WORKFLOW_ID}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
-
 class BulkDownloaderOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   val tupleSchema: Schema = Schema
     .builder()

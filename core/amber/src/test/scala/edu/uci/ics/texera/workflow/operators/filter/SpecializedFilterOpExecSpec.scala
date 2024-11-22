@@ -1,10 +1,10 @@
 package edu.uci.ics.texera.workflow.operators.filter
 
+import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
 import java.util.Arrays.asList
-
 class SpecializedFilterOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   val inputPort: Int = 0
 

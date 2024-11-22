@@ -1,8 +1,8 @@
 package edu.uci.ics.texera.workflow.operators.visualization.htmlviz
 
+import edu.uci.ics.amber.core.tuple._
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
-
 class HtmlVizOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   val schema = new Schema(
     new Attribute("field1", AttributeType.STRING),

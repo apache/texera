@@ -1,5 +1,8 @@
 package edu.uci.ics.texera.workflow.operators.download
 
+import edu.uci.ics.amber.core.executor.OperatorExecutor
+import edu.uci.ics.amber.core.tuple.{Tuple, TupleLike}
+import edu.uci.ics.amber.core.workflow.WorkflowContext
 import edu.uci.ics.texera.workflow.operators.source.fetcher.URLFetchUtil.getInputStreamFromURL
 
 import java.net.URL

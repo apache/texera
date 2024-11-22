@@ -1,5 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.split
 
+import edu.uci.ics.amber.core.executor.OperatorExecutor
+import edu.uci.ics.amber.core.tuple.{Tuple, TupleLike}
 import edu.uci.ics.amber.workflow.PortIdentity
 
 import scala.util.Random

@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.regex
 
+import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpExec
 
 import java.util.regex.Pattern

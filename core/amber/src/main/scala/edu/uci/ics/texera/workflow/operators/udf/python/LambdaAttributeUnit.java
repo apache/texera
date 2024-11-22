@@ -5,7 +5,7 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaBool;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaString;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
-import edu.uci.ics.amber.engine.common.model.tuple.AttributeType;
+import edu.uci.ics.amber.core.tuple.AttributeType;
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeNameLambda;
 import edu.uci.ics.texera.workflow.common.metadata.annotations.HideAnnotation;
 

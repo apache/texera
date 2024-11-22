@@ -1,12 +1,12 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.text
 
+import edu.uci.ics.amber.core.tuple.{AttributeType, Schema, SchemaEnforceable, Tuple}
 import edu.uci.ics.texera.workflow.operators.source.scan.FileAttributeType
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths}
-
 class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   val TestTextFilePath: String = "src/test/resources/line_numbers.txt"
   val TestCRLFTextFilePath: String = "src/test/resources/line_numbers_crlf.txt"

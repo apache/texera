@@ -6,6 +6,7 @@ import akka.testkit.{ImplicitSender, TestActorRef, TestKit}
 import com.google.protobuf.ByteString
 import com.google.protobuf.any.{Any => ProtoAny}
 import edu.uci.ics.amber.clustering.SingleNodeListener
+import edu.uci.ics.amber.core.executor.{OpExecInitInfo, OperatorExecutor}
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkMessage
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands._
 import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc._
@@ -26,7 +27,7 @@ import java.util.concurrent.CompletableFuture
 import scala.collection.mutable
 import scala.concurrent.duration.MILLISECONDS
 import scala.util.Random
-
+import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple, TupleLike}
 class DummyOperatorExecutor extends OperatorExecutor {
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
     Iterator(tuple)

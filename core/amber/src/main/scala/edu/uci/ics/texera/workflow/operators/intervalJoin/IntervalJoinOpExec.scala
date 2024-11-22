@@ -1,6 +1,10 @@
 package edu.uci.ics.texera.workflow.operators.intervalJoin
 
+import edu.uci.ics.amber.core.WorkflowRuntimeException
+import edu.uci.ics.amber.core.executor.OperatorExecutor
+import edu.uci.ics.amber.core.tuple.{AttributeType, TupleLike}
 import edu.uci.ics.texera.workflow.operators.hashJoin.JoinUtils
+import edu.uci.ics.amber.core.tuple.Tuple
 
 import java.sql.Timestamp
 import scala.collection.mutable.ListBuffer

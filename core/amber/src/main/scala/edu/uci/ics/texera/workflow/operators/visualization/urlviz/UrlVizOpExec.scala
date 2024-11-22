@@ -1,5 +1,8 @@
 package edu.uci.ics.texera.workflow.operators.visualization.urlviz
 
+import edu.uci.ics.amber.core.executor.OperatorExecutor
+import edu.uci.ics.amber.core.tuple.{Tuple, TupleLike}
+
 /**
  * URL Visualization operator to render any given URL link
  */

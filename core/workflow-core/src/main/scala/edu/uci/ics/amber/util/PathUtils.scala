@@ -1,6 +1,5 @@
 package edu.uci.ics.amber.util
 
-import edu.uci.ics.amber.util.PathUtils.{amberHomeDirectoryName, amberHomePath}
 import org.jooq.types.UInteger
 
 import java.nio.file.{Files, Path, Paths}
@@ -61,9 +60,6 @@ object PathUtils {
       List.empty[Path]
     }
   }
-
-  // path of the dropwizard config file
-  lazy val userResourcesConfigPath: Path = amberHomePath.resolve("user-resources")
 
   private def isCorePath(path: Path): Boolean = {
     path.toRealPath().endsWith(coreDirectoryName)

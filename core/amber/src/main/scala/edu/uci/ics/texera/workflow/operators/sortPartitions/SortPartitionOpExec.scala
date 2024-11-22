@@ -1,5 +1,8 @@
 package edu.uci.ics.texera.workflow.operators.sortPartitions
 
+import edu.uci.ics.amber.core.executor.OperatorExecutor
+import edu.uci.ics.amber.core.tuple.{AttributeType, Tuple, TupleLike}
+
 import scala.collection.mutable.ArrayBuffer
 
 class SortPartitionOpExec(

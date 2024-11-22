@@ -9,7 +9,7 @@ import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstan
 
 import java.util
 import scala.jdk.CollectionConverters.ListHasAsScala
-
+import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 class LineChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
 
   @JsonProperty(value = "yLabel", required = false, defaultValue = "Y Axis")

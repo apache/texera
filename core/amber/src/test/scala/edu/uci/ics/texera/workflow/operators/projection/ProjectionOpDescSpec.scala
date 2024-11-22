@@ -1,8 +1,8 @@
 package edu.uci.ics.texera.workflow.operators.projection
 
+import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
-
 class ProjectionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   val schema = new Schema(
     new Attribute("field1", AttributeType.STRING),

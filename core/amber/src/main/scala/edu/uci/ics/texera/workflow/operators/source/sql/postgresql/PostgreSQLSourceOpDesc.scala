@@ -11,6 +11,8 @@ import edu.uci.ics.texera.workflow.operators.source.sql.SQLSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.sql.postgresql.PostgreSQLConnUtil.connect
 
 import java.sql.{Connection, SQLException}
+import edu.uci.ics.amber.core.executor.OpExecInitInfo
+import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 
 class PostgreSQLSourceOpDesc extends SQLSourceOpDesc {
 

@@ -3,7 +3,8 @@ package edu.uci.ics.texera.workflow.operators.hashJoin
 import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc.HASH_JOIN_INTERNAL_KEY_NAME
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
-
+import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema, SchemaEnforceable, Tuple, TupleLike}
+import edu.uci.ics.amber.operator.hashJoin.HashJoinBuildOpExec
 class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
   val build: Int = 0
   val probe: Int = 1

@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.cartesianProduct
 
+import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema, SchemaEnforceable, Tuple, TupleLike}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 

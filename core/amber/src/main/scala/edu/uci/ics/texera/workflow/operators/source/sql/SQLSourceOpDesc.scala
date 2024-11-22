@@ -3,6 +3,7 @@ package edu.uci.ics.texera.workflow.operators.source.sql
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
+import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.{AutofillAttributeName, BatchByColumn, EnablePresets, UIWidget}
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 

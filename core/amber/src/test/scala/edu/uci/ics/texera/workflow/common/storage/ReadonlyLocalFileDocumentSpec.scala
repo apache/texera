@@ -1,5 +1,6 @@
 package edu.uci.ics.amber.engine.common.storage
 
+import edu.uci.ics.amber.core.storage.model.ReadonlyLocalFileDocument
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers

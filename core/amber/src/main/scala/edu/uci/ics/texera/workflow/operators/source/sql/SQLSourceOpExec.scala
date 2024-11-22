@@ -1,5 +1,9 @@
 package edu.uci.ics.texera.workflow.operators.source.sql
 
+import edu.uci.ics.amber.core.executor.SourceOperatorExecutor
+import edu.uci.ics.amber.core.tuple.AttributeTypeUtils.{parseField, parseTimestamp}
+import edu.uci.ics.amber.core.tuple._
+
 import java.sql._
 import scala.collection.mutable.ArrayBuffer
 import scala.util.control.Breaks.{break, breakable}

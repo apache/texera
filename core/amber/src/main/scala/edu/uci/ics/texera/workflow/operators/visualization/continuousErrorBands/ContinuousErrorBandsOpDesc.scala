@@ -9,7 +9,7 @@ import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstan
 
 import java.util
 import scala.jdk.CollectionConverters.ListHasAsScala
-
+import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 class ContinuousErrorBandsOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
 
   @JsonProperty(value = "xLabel", required = false, defaultValue = "X Axis")

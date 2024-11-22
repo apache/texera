@@ -1,5 +1,8 @@
 package edu.uci.ics.texera.workflow.operators.reservoirsampling
 
+import edu.uci.ics.amber.core.executor.OperatorExecutor
+import edu.uci.ics.amber.core.tuple.{Tuple, TupleLike}
+
 import scala.util.Random
 
 class ReservoirSamplingOpExec(actor: Int, kPerActor: Int => Int, seedFunc: Int => Int)

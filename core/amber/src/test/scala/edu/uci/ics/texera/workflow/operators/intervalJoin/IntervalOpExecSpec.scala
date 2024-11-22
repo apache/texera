@@ -8,7 +8,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import java.sql.Timestamp
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random.{nextInt, nextLong}
-
+import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema, SchemaEnforceable, Tuple, TupleLike}
 class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   val left: Int = 0
   val right: Int = 1

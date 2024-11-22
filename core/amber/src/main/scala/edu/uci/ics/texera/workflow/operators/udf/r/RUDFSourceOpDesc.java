@@ -4,15 +4,15 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.google.common.base.Preconditions;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
-import edu.uci.ics.amber.core.executor.OpExecInitInfo$;
-import edu.uci.ics.amber.core.tuple.Schema$;
-import edu.uci.ics.amber.core.workflow.PhysicalOp$;
-import edu.uci.ics.amber.core.workflow.SchemaPropagationFunc$;
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo;
-import edu.uci.ics.amber.engine.common.model.PhysicalOp;
-import edu.uci.ics.amber.engine.common.model.SchemaPropagationFunc;
-import edu.uci.ics.amber.engine.common.model.tuple.Attribute;
-import edu.uci.ics.amber.engine.common.model.tuple.Schema;
+import edu.uci.ics.amber.core.executor.OpExecInitInfo;
+import edu.uci.ics.amber.core.executor.OpExecInitInfo;
+import edu.uci.ics.amber.core.tuple.Attribute;
+import edu.uci.ics.amber.core.tuple.Schema;
+import edu.uci.ics.amber.core.tuple.Schema;
+import edu.uci.ics.amber.core.workflow.PhysicalOp;
+import edu.uci.ics.amber.core.workflow.PhysicalOp;
+import edu.uci.ics.amber.core.workflow.SchemaPropagationFunc;
+import edu.uci.ics.amber.core.workflow.SchemaPropagationFunc;
 import edu.uci.ics.amber.virtualidentity.ExecutionIdentity;
 import edu.uci.ics.amber.virtualidentity.WorkflowIdentity;
 import edu.uci.ics.amber.workflow.InputPort;
@@ -69,13 +69,13 @@ public class RUDFSourceOpDesc extends SourceOperatorDescriptor {
     public List<Attribute> columns;
 
     @Override
-    public PhysicalOp$ getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId) {
+    public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId) {
         String r_operator_type = useTupleAPI ? "r-tuple" : "r-table";
-        OpExecInitInfo$ exec = OpExecInitInfo.apply(code, r_operator_type);
+        OpExecInitInfo exec = OpExecInitInfo.apply(code, r_operator_type);
         Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.");
-        SchemaPropagationFunc$ func = SchemaPropagationFunc.apply((Function<Map<PortIdentity, Schema$>, Map<PortIdentity, Schema$>> & Serializable) inputSchemas -> {
+        SchemaPropagationFunc func = SchemaPropagationFunc.apply((Function<Map<PortIdentity, Schema>, Map<PortIdentity, Schema>> & Serializable) inputSchemas -> {
             // Initialize a Java HashMap
-            java.util.Map<PortIdentity, Schema$> javaMap = new java.util.HashMap<>();
+            java.util.Map<PortIdentity, Schema> javaMap = new java.util.HashMap<>();
 
             javaMap.put(operatorInfo().outputPorts().head().id(), sourceSchema());
 

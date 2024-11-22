@@ -1,5 +1,8 @@
 package edu.uci.ics.texera.workflow.operators.visualization.htmlviz
 
+import edu.uci.ics.amber.core.executor.OperatorExecutor
+import edu.uci.ics.amber.core.tuple.{Tuple, TupleLike}
+
 /**
  * HTML Visualization operator to render any given HTML code
  */

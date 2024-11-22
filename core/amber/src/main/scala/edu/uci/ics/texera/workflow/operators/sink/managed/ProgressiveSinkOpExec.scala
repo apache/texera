@@ -1,5 +1,8 @@
 package edu.uci.ics.texera.workflow.operators.sink.managed
 
+import edu.uci.ics.amber.core.executor.SinkOperatorExecutor
+import edu.uci.ics.amber.core.storage.result.SinkStorageWriter
+import edu.uci.ics.amber.core.tuple.{Tuple, TupleLike}
 import edu.uci.ics.amber.engine.common.IncrementalOutputMode._
 import edu.uci.ics.amber.engine.common.{IncrementalOutputMode, ProgressiveUtils}
 import edu.uci.ics.amber.workflow.PortIdentity

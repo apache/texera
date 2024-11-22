@@ -8,7 +8,9 @@ import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, Oper
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 
 import scala.util.Random
-
+import edu.uci.ics.amber.core.executor.OpExecInitInfo
+import edu.uci.ics.amber.core.tuple.Schema
+import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 class SplitOpDesc extends LogicalOp {
 
   @JsonProperty(value = "split percentage", required = false, defaultValue = "80")

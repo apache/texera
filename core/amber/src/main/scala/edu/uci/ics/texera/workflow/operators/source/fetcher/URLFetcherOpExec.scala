@@ -1,5 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.source.fetcher
 
+import edu.uci.ics.amber.core.executor.SourceOperatorExecutor
+import edu.uci.ics.amber.core.tuple.TupleLike
 import edu.uci.ics.texera.workflow.operators.source.fetcher.URLFetchUtil.getInputStreamFromURL
 import org.apache.commons.io.IOUtils
 
