@@ -21,8 +21,9 @@ then
   echo "${green}Amber compiled.${reset}"
   echo
 
-  echo "${green}Compiling WorkflowCompilingService...${reset}"
-  cd .. && bash scripts/build-workflow-compiling-service.sh
+  echo "${green}Compiling Services...${reset}"
+  cd .. && bash scripts/build-services.sh
+  echo "${green}Services compiled.${reset}"
 
   echo "${green}Compiling GUI...${reset}"
   cd gui && yarn install && ng build --configuration production --deploy-url=/ --base-href=/
