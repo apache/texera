@@ -9,7 +9,7 @@
  */
 import { IndexableObject } from "../../workspace/types/result-table.interface";
 import deepMap from "deep-map";
-import {AttributeType, SchemaAttribute} from "../../workspace/types/workflow-compiling.interface";
+import { AttributeType, SchemaAttribute } from "../../workspace/types/workflow-compiling.interface";
 
 export function formatBinaryData(value: string): string {
   const length = value.length;

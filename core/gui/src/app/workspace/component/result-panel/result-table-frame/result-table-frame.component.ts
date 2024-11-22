@@ -14,7 +14,7 @@ import { trimAndFormatData } from "src/app/common/util/json";
 import { ResultExportationComponent } from "../../result-exportation/result-exportation.component";
 import { WorkflowResultExportService } from "src/app/workspace/service/workflow-result-export/workflow-result-export.service";
 import { ChangeDetectorRef } from "@angular/core";
-import {AttributeType, SchemaAttribute} from "../../../types/workflow-compiling.interface";
+import { AttributeType, SchemaAttribute } from "../../../types/workflow-compiling.interface";
 
 export const TABLE_COLUMN_TEXT_LIMIT = 100;
 export const PRETTY_JSON_TEXT_LIMIT = 50000;
