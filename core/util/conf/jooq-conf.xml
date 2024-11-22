@@ -43,7 +43,7 @@
         </target>
     </generator>
     <generator>
-        <!-- The generator for micro-services/dao -->
+        <!-- The generator for dao -->
         <generate>
             <generatedAnnotation>false</generatedAnnotation>
 
@@ -83,7 +83,7 @@
             <packageName>edu.uci.ics.texera.dao.jooq.generated</packageName>
 
             <!-- The destination directory of your generated classes. Using Maven directory layout here -->
-            <directory>core/micro-services/dao/src/main/scala</directory>
+            <directory>core/dao/src/main/scala</directory>
         </target>
     </generator>
 </configuration>

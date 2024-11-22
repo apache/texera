@@ -106,7 +106,7 @@ trait MockTexeraDB {
     dslContext = Some(DSL.using(dataSource, sqlServerInstance.SQL_DIALECT))
 
     val ddlPath = {
-      Paths.get("../scripts/sql/texera_ddl.sql").toRealPath()
+      Paths.get("./scripts/sql/texera_ddl.sql").toRealPath()
     }
     executeScriptInJDBC(ddlPath)
 

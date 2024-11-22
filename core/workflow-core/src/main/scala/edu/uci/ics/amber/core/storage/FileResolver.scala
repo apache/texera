@@ -8,7 +8,6 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.User.USER
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{Dataset, DatasetVersion}
 import org.apache.commons.vfs2.FileNotFoundException
 
-import java.io.File
 import java.net.{URI, URLEncoder}
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}

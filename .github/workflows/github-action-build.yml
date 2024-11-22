@@ -83,7 +83,7 @@ jobs:
       - name: Run backend tests
         run: cd core/amber && sbt -v -J-Xmx2G test
 
-  micro-services:
+  core:
     strategy:
       matrix:
         os: [ ubuntu-latest ]
@@ -99,13 +99,13 @@ jobs:
           java-version: ${{ matrix.java-version }}
       - uses: coursier/cache-action@v6
         with:
-          extraSbtFiles: '["core/micro-services/*.sbt", "core/micro-services/project/**.{scala,sbt}", "core/micro-services/project/build.properties" ]'
+          extraSbtFiles: '["core/*.sbt", "core/project/**.{scala,sbt}", "core/project/build.properties" ]'
       - name: Lint with scalafmt
-        run: cd core/micro-services && sbt scalafmtCheckAll
+        run: cd core && sbt scalafmtCheckAll
       - name: Compile with sbt
-        run: cd core/micro-services && sbt clean package
+        run: cd core && sbt clean package
       - name: Run backend tests
-        run: cd core/micro-services && sbt test
+        run: cd core && sbt test
 
   python_udf:
     runs-on: ${{ matrix.os }}
