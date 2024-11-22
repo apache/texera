@@ -76,7 +76,7 @@
   </li>
   <li
     nz-menu-item
-    [nzDisabled] = true
+    [nzDisabled]="true"
     *ngIf="(operatorMenuService.isMarkForReuse && operatorMenuService.isReuseResultClickable)"
     (click)="operatorMenuService.reuseResultHighlightedOperator()">
     <span
