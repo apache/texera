@@ -39,3 +39,5 @@ RUN scripts/build-docker.sh
 CMD ["scripts/deploy-docker.sh"]
 
 EXPOSE 8080
+
+EXPOSE 9090
