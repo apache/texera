@@ -8,6 +8,8 @@ import org.apache.lucene.index.memory.MemoryIndex
 import org.apache.lucene.search.Query
 
 class KeywordSearchOpExec(attributeName: String, keyword: String) extends FilterOpExec {
+  // We chose StandardAnalyzer because it provides more comprehensive tokenization, retaining numeric tokens and handling a broader range of characters.
+  // This ensures that search functionality can include standalone numbers (e.g., "3") and complex queries while offering robust performance for most use cases.
   @transient private lazy val analyzer = new StandardAnalyzer()
   @transient lazy val query: Query = new QueryParser(attributeName, analyzer).parse(keyword)
   @transient private lazy val memoryIndex: MemoryIndex = new MemoryIndex()
