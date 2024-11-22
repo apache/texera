@@ -1,7 +1,6 @@
 import { Injectable } from "@angular/core";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
-import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
 import { JointUIService } from "../joint-ui/joint-ui.service";
 @Injectable({
   providedIn: "root",
@@ -10,8 +9,7 @@ export class OperatorReuseCacheStatusService {
   constructor(
     private jointUIService: JointUIService,
     private workflowActionService: WorkflowActionService,
-    private workflowWebsocketService: WorkflowWebsocketService,
-    private executeWorkflowService: ExecuteWorkflowService
+    private workflowWebsocketService: WorkflowWebsocketService
   ) {
     this.registerHandleCacheStatusUpdate();
   }
