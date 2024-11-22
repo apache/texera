@@ -54,7 +54,7 @@ export class AdminExecutionComponent implements OnInit, OnDestroy, AfterViewInit
     const tableContainer = document.querySelector(".execution-table");
     if (tableContainer) {
       const containerHeight = tableContainer.clientHeight;
-      this.pageSize = Math.floor((containerHeight - 11) / 11);
+      this.pageSize = Math.max(6, Math.floor((containerHeight - 11) / 11));
     }
   }
 
