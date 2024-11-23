@@ -17,8 +17,11 @@ RUN apk add --no-cache git && \
 
 FROM sbtscala/scala-sbt:eclipse-temurin-jammy-11.0.17_8_1.9.3_2.13.11
 
+# copy all projects under core to /core
+WORKDIR /core
+COPY core/ .
+
 WORKDIR /core/amber
-COPY core/amber .
 RUN sbt clean package
 RUN apt-get update
 RUN apt-get install -y netcat unzip python3-pip
@@ -27,15 +30,14 @@ RUN pip3 install -r requirements.txt
 RUN pip3 install -r operator-requirements.txt
 
 WORKDIR /core
-COPY core/scripts ./scripts
 # Add .git for runtime calls to jgit from OPversion
 COPY .git ../.git
 COPY --from=nodegui /gui/dist ./gui/dist
-# Copy the micro-services to make sure the micro-services can be built and run
-COPY core/micro-services ./micro-services
 
 RUN scripts/build-docker.sh
 
 CMD ["scripts/deploy-docker.sh"]
 
 EXPOSE 8080
+
+EXPOSE 9090

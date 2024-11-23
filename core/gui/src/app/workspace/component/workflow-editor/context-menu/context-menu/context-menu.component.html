@@ -76,6 +76,7 @@
   </li>
   <li
     nz-menu-item
+    [nzDisabled]="true"
     *ngIf="(operatorMenuService.isMarkForReuse && operatorMenuService.isReuseResultClickable)"
     (click)="operatorMenuService.reuseResultHighlightedOperator()">
     <span
@@ -109,7 +110,7 @@
 
   <li
     nz-menu-item
-    [nzDisabled]="!isSelectedOperatorValid()"
+    [nzDisabled]="!canExecuteOperator()"
     (click)="operatorMenuService.executeUpToOperator()">
     <span
       nz-icon

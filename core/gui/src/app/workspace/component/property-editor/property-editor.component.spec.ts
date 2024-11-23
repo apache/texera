@@ -16,7 +16,6 @@ describe("PropertyEditorComponent", () => {
   let component: PropertyEditorComponent;
   let fixture: ComponentFixture<PropertyEditorComponent>;
   let workflowActionService: WorkflowActionService;
-  environment.schemaPropagationEnabled = true;
 
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
