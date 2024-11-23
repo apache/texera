@@ -42,8 +42,8 @@ class SklearnLinearRegressionOpDesc extends PythonOperatorDescriptor {
        |            self.model = pipeline.fit(X, Y)
        |        else:
        |            predictions = self.model.predict(X)
-       |            mae = round(mean_absolute_error(Y, predictions), 2)
-       |            r2 = round(r2_score(Y, predictions), 2)
+       |            mae = round(mean_absolute_error(Y, predictions), 4)
+       |            r2 = round(r2_score(Y, predictions), 4)
        |            print("MAE:", mae, ", R2:", r2)
        |            yield {"model_name" : "LinearRegression", "model" : self.model}""".stripMargin
 
