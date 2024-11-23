@@ -76,6 +76,8 @@ class ScatterMatrixChartOpDesc extends VisualizationOperator with PythonOperator
          |
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+         |        import pandas as pd
+         |        pd.DataFrame.iteritems = pd.DataFrame.items
          |        ${createPlotlyFigure()}
          |        # convert fig to html content
          |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
