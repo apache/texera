@@ -7,6 +7,8 @@ import { NzModalService } from "ng-zorro-antd/modal";
 import { WorkflowExecutionHistoryComponent } from "../../user/user-workflow/ngbd-modal-workflow-executions/workflow-execution-history.component";
 import { WorkflowWebsocketService } from "../../../../workspace/service/workflow-websocket/workflow-websocket.service";
 
+export const NO_SORT = "NO_SORTING";
+
 @UntilDestroy()
 @Component({
   templateUrl: "./admin-execution.component.html",
@@ -18,8 +20,8 @@ export class AdminExecutionComponent implements OnInit, OnDestroy, AfterViewInit
   totalWorkflows: number = 0;
   pageSize: number = 6;
   currentPageIndex: number = 0;
-  sortField: string = "NO_SORTING";
-  sortDirection: string = "NO_SORTING";
+  sortField: string = NO_SORT;
+  sortDirection: string = NO_SORT;
   filter: string[] = [];
 
   // This interval function fetches the latest execution list.
@@ -252,8 +254,8 @@ export class AdminExecutionComponent implements OnInit, OnDestroy, AfterViewInit
    */
   onSortChange(sortField: string, sortOrder: string | null): void {
     if (sortField == this.sortField && sortOrder == null) {
-      this.sortField = "NO_SORTING";
-      this.sortDirection = "NO_SORTING";
+      this.sortField = NO_SORT;
+      this.sortDirection = NO_SORT;
       this.ngOnInit();
     } else if (sortOrder != null) {
       this.sortField = sortField;
