@@ -64,6 +64,9 @@ export class OperatorMenuComponent {
           list.push(x);
           this.opList.set(group, list);
         });
+        this.opList.forEach(value => {
+          value.sort((a, b) => a.operatorType.localeCompare(b.operatorType));
+        });
         this.fuse.setCollection(ops);
       });
   }
