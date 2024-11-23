@@ -178,10 +178,15 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     // update highlighted operator
     const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
     const currentHighlightedOperator = highlightedOperators.length === 1 ? highlightedOperators[0] : undefined;
+
     if (this.currentOperatorId !== currentHighlightedOperator) {
       // clear everything, prepare for state change
       this.clearResultPanel();
       this.currentOperatorId = currentHighlightedOperator;
+
+      if (!this.currentOperatorId) {
+        this.operatorTitle = "";
+      }
     }
 
     if (
@@ -268,8 +273,6 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
         .getOperatorDisplayNameChangedStream()
         .pipe(untilDestroyed(this))
         .subscribe(({ operatorID, newDisplayName }) => {
-          console.log(operatorID);
-          console.log(this.currentOperatorId);
           if (operatorID === this.currentOperatorId) {
             this.operatorTitle = newDisplayName;
           }
