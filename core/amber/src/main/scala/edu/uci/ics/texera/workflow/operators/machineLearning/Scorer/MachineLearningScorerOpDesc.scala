@@ -124,12 +124,12 @@ class MachineLearningScorerOpDesc extends PythonOperatorDescriptor {
          |  for metric in metric_list:
          |    prediction = None
          |    if metric == 'Accuracy':
-         |      result['Accuracy'][0] = accuracy_score(y_true, y_pred)
+         |      result['Accuracy'][0] = round(accuracy_score(y_true, y_pred), 4)
          |    else:
          |      for i, label in enumerate(labels):
          |        if label != 'Overall':
          |          prediction = metrics_func[metric](y_true, y_pred, average=None, labels=[label])
-         |          result[metric][i] = prediction[0]
+         |          result[metric][i] = round(prediction[0], 4)
          |
          |  # if the label is not a string, convert it to string
          |  labels = ['class_' + str(label) if type(label) != str else label for label in labels]
