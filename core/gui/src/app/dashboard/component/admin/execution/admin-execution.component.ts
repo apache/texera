@@ -7,7 +7,7 @@ import { NzModalService } from "ng-zorro-antd/modal";
 import { WorkflowExecutionHistoryComponent } from "../../user/user-workflow/ngbd-modal-workflow-executions/workflow-execution-history.component";
 import { WorkflowWebsocketService } from "../../../../workspace/service/workflow-websocket/workflow-websocket.service";
 
-export const NO_SORT = "NO_SORTING";
+export const NO_SORT = "NO_SORTING"; 
 
 @UntilDestroy()
 @Component({

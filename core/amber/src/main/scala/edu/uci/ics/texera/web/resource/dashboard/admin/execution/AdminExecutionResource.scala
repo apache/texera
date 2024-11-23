@@ -109,16 +109,16 @@ class AdminExecutionResource {
     val filter_status = filter.asScala.map(mapToStatus).toSeq.filter(_ != -1).asJava
 
     // Retrieve the latest execution id for each workflow
-    val latestExecutionId = context
-      .select(
-        WORKFLOW_VERSION.WID,
-        DSL.max(WORKFLOW_EXECUTIONS.EID).as("max_eid")
-      )
-      .from(WORKFLOW_EXECUTIONS)
-      .join(WORKFLOW_VERSION)
-      .on(WORKFLOW_VERSION.VID.eq(WORKFLOW_EXECUTIONS.VID))
-      .groupBy(WORKFLOW_VERSION.WID)
-      .asTable("latest_execution_id")
+//    val latestExecutionId = context
+//      .select(
+//        WORKFLOW_VERSION.WID,
+//        DSL.max(WORKFLOW_EXECUTIONS.EID).as("max_eid")
+//      )
+//      .from(WORKFLOW_EXECUTIONS)
+//      .join(WORKFLOW_VERSION)
+//      .on(WORKFLOW_VERSION.VID.eq(WORKFLOW_EXECUTIONS.VID))
+//      .groupBy(WORKFLOW_VERSION.WID)
+//      .asTable("latest_execution_id")
 
     // Base query that retrieves latest execution info for each workflow without sorting and filtering.
     // Only retrieving executions in current page according to pageSize and pageIndex parameters.
@@ -141,14 +141,23 @@ class AdminExecutionResource {
       .on(WORKFLOW_EXECUTIONS.UID.eq(USER.UID))
       .join(WORKFLOW)
       .on(WORKFLOW.WID.eq(WORKFLOW_VERSION.WID))
-      .join(latestExecutionId)
-      .on(
-        DSL.and(
-          WORKFLOW_EXECUTIONS.EID
-            .eq(latestExecutionId.field("max_eid").asInstanceOf[Field[UInteger]]),
-          WORKFLOW_VERSION.WID.eq(latestExecutionId.field(WORKFLOW_VERSION.WID))
-        )
+      .naturalJoin(
+        context
+          .select(
+            DSL.max(WORKFLOW_EXECUTIONS.EID).as("eid")
+          )
+          .from(WORKFLOW_EXECUTIONS)
+          .join(WORKFLOW_VERSION)
+          .on(WORKFLOW_VERSION.VID.eq(WORKFLOW_EXECUTIONS.VID))
+          .groupBy(WORKFLOW_VERSION.WID)
       )
+//      .on(
+//        DSL.and(
+//          WORKFLOW_EXECUTIONS.EID
+//            .eq(latestExecutionId.field("max_eid").asInstanceOf[Field[UInteger]]),
+//          WORKFLOW_VERSION.WID.eq(latestExecutionId.field(WORKFLOW_VERSION.WID))
+//        )
+//      )
 
     // Apply filter if the status are not empty.
     val executions_apply_filter = if (!filter_status.isEmpty) {
