@@ -25,6 +25,7 @@ import { isDefined } from "../../../../common/util/predicate";
 import { environment } from "../../../../../environments/environment";
 import { User } from "../../../../common/type/user";
 import { SharedModelChangeHandler } from "./shared-model-change-handler";
+import { ValidationWorkflowService } from "../../validation/validation-workflow.service";
 
 export const DEFAULT_WORKFLOW_NAME = "Untitled Workflow";
 export const DEFAULT_WORKFLOW = {
@@ -71,6 +72,7 @@ export class WorkflowActionService {
   private tempWorkflow?: Workflow;
   private workflowModificationEnabled = true;
   private enableModificationStream = new BehaviorSubject<boolean>(true);
+  private highlightingEnabled = false;
 
   private workflowMetadata: WorkflowMetadata;
   private workflowMetadataChangeSubject: Subject<WorkflowMetadata> = new Subject<WorkflowMetadata>();
@@ -737,6 +739,7 @@ export class WorkflowActionService {
     this.setWorkflowMetadata(undefined);
     this.setWorkflowSettings(undefined);
     this.reloadWorkflow(undefined);
+    this.setHighlightingEnabled(false);
   }
 
   public setWorkflowIsPublished(newPublishState: number): void {
@@ -833,5 +836,13 @@ export class WorkflowActionService {
       });
     }
     return updatedOperators;
+  }
+
+  public setHighlightingEnabled(enabled: boolean): void {
+    this.highlightingEnabled = enabled;
+  }
+
+  public getHighlightingEnabled() {
+    return this.highlightingEnabled;
   }
 }
