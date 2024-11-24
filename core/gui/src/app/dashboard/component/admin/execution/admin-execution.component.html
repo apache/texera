@@ -61,7 +61,7 @@
           { text: 'UNKNOWN', value: 'UNKNOWN'}]"
         [nzFilterFn]="true"
         (nzFilterChange)="onFilterChange($event)"
-        nzWidth="16%">
+        nzWidth="13%">
         Status
       </th>
       <th nzWidth="10%">Time Used (hh:mm:ss)</th>
@@ -70,10 +70,10 @@
         [nzSortFn]="true"
         [nzSortDirections]="['ascend', 'descend', null]"
         (nzSortOrderChange)="onSortChange('end_time', $event)"
-        nzWidth="15%">
+        nzWidth="20%">
         End Time
       </th>
-      <th nzWidth="15%">Action</th>
+      <th nzWidth="13%">Action</th>
     </tr>
   </thead>
   <tbody>
