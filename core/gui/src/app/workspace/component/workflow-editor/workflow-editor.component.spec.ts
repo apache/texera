@@ -180,6 +180,7 @@ describe("WorkflowEditorComponent", () => {
       fixture = TestBed.createComponent(WorkflowEditorComponent);
       component = fixture.componentInstance;
       workflowActionService = TestBed.inject(WorkflowActionService);
+      workflowActionService.setHighlightingEnabled(true);
       validationWorkflowService = TestBed.inject(ValidationWorkflowService);
       dragDropService = TestBed.inject(DragDropService);
       // detect changes to run ngAfterViewInit and bind Model

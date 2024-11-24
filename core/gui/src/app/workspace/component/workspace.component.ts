@@ -81,6 +81,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
      *    - NaN || undefined will result in undefined.
      */
     this.pid = parseInt(this.route.snapshot.queryParams.pid) || undefined;
+    this.workflowActionService.setHighlightingEnabled(true);
   }
 
   ngAfterViewInit(): void {
