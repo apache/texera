@@ -19,6 +19,7 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
   isLoading: boolean = true;
   totalWorkflows: number = 0;
   pageSize: number = 5;
+  // CurrentPageIndex is 0-indexed, but pageIndex in HTML is 1-indexed.
   currentPageIndex: number = 0;
   sortField: string = NO_SORT;
   sortDirection: string = NO_SORT;
@@ -244,12 +245,20 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
     }
   }
 
+  /**
+   * Function that displays executions in respond to page size and page index changes.
+   * @param params 
+   */
   onQueryParamsChange(params: NzTableQueryParams): void {
     const { pageSize, pageIndex, sort, filter } = params;
     if (pageSize != this.pageSize) {
       this.pageSize = pageSize;
+      // If the user is at the last page, and increment the pageSize, move user to new last page index if necessary.
+      if (Math.ceil(this.totalWorkflows / pageSize) < (this.currentPageIndex + 1)) {
+        this.currentPageIndex = Math.ceil(this.totalWorkflows / pageSize) - 1;
+      }
       this.ngOnInit();
-    } else if (pageIndex != this.currentPageIndex) {
+    } else if ((pageIndex - 1) != this.currentPageIndex) {
       this.currentPageIndex = pageIndex - 1;
       this.ngOnInit();
     }
