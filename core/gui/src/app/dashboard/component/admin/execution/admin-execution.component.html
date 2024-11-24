@@ -10,6 +10,7 @@
 
 <nz-table
   #basicTable
+  nzShowSizeChanger
   [nzData]="listOfExecutions"
   [nzLoading]="isLoading"
   [nzLoadingIndicator]="loadingTemplate"
@@ -18,7 +19,8 @@
   [nzTotal]="totalWorkflows"
   [nzPageSize]="pageSize"
   [nzPageIndex]="currentPageIndex + 1"
-  (nzPageIndexChange)="onPageIndexChange($event)"
+  [nzPageSizeOptions]="[5, 10, 20, 50]"
+  (nzQueryParams)="onQueryParamsChange($event)"
   class="execution-table">
   <thead>
     <tr>

@@ -1,8 +1,8 @@
-import { Component, OnDestroy, OnInit, AfterViewInit } from "@angular/core";
+import { Component, OnDestroy, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { AdminExecutionService } from "../../../service/admin/execution/admin-execution.service";
 import { Execution } from "../../../../common/type/execution";
-import { NzTableFilterFn } from "ng-zorro-antd/table";
+import { NzTableFilterFn, NzTableQueryParams } from "ng-zorro-antd/table";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { WorkflowExecutionHistoryComponent } from "../../user/user-workflow/ngbd-modal-workflow-executions/workflow-execution-history.component";
 import { WorkflowWebsocketService } from "../../../../workspace/service/workflow-websocket/workflow-websocket.service";
@@ -14,11 +14,11 @@ export const NO_SORT = "NO_SORTING";
   templateUrl: "./admin-execution.component.html",
   styleUrls: ["./admin-execution.component.scss"],
 })
-export class AdminExecutionComponent implements OnInit, OnDestroy, AfterViewInit {
+export class AdminExecutionComponent implements OnInit, OnDestroy {
   listOfExecutions: ReadonlyArray<Execution> = [];
   isLoading: boolean = true;
   totalWorkflows: number = 0;
-  pageSize: number = 6;
+  pageSize: number = 5;
   currentPageIndex: number = 0;
   sortField: string = NO_SORT;
   sortDirection: string = NO_SORT;
@@ -47,17 +47,6 @@ export class AdminExecutionComponent implements OnInit, OnDestroy, AfterViewInit
       .getTotalWorkflows()
       .pipe(untilDestroyed(this))
       .subscribe(total => (this.totalWorkflows = total));
-  }
-
-  /**
-   * Update the page size according to table's height after all components being rendered.
-   */
-  ngAfterViewInit() {
-    const tableContainer = document.querySelector(".execution-table");
-    if (tableContainer) {
-      const containerHeight = tableContainer.clientHeight;
-      this.pageSize = Math.max(6, Math.floor((containerHeight - 11) / 11));
-    }
   }
 
   ngOnDestroy(): void {
@@ -238,15 +227,6 @@ export class AdminExecutionComponent implements OnInit, OnDestroy, AfterViewInit
   }
 
   /**
-   * Update the current page index when user selects page.
-   * @param pageIndex
-   */
-  onPageIndexChange(pageIndex: number): void {
-    this.currentPageIndex = pageIndex - 1;
-    this.ngOnInit();
-  }
-
-  /**
    * Reorder the executions based on the selected field and order.
    * The sorting function is implemented in the backend.
    * @param sortField
@@ -260,6 +240,17 @@ export class AdminExecutionComponent implements OnInit, OnDestroy, AfterViewInit
     } else if (sortOrder != null) {
       this.sortField = sortField;
       this.sortDirection = sortOrder === "descend" ? "desc" : "asc";
+      this.ngOnInit();
+    }
+  }
+
+  onQueryParamsChange(params: NzTableQueryParams): void {
+    const { pageSize, pageIndex, sort, filter } = params;
+    if (pageSize != this.pageSize) {
+      this.pageSize = pageSize;
+      this.ngOnInit();
+    } else if (pageIndex != this.currentPageIndex) {
+      this.currentPageIndex = pageIndex - 1;
       this.ngOnInit();
     }
   }
