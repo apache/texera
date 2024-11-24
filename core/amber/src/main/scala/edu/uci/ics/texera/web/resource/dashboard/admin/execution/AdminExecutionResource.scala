@@ -5,7 +5,6 @@ import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables._
 import edu.uci.ics.texera.web.resource.dashboard.admin.execution.AdminExecutionResource._
 import io.dropwizard.auth.Auth
-import org.jooq.Field
 import org.jooq.impl.DSL
 import org.jooq.types.UInteger
 

@@ -7,7 +7,7 @@ import { NzModalService } from "ng-zorro-antd/modal";
 import { WorkflowExecutionHistoryComponent } from "../../user/user-workflow/ngbd-modal-workflow-executions/workflow-execution-history.component";
 import { WorkflowWebsocketService } from "../../../../workspace/service/workflow-websocket/workflow-websocket.service";
 
-export const NO_SORT = "NO_SORTING"; 
+export const NO_SORT = "NO_SORTING";
 
 @UntilDestroy()
 @Component({
@@ -247,18 +247,18 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
 
   /**
    * Function that displays executions in respond to page size and page index changes.
-   * @param params 
+   * @param params
    */
   onQueryParamsChange(params: NzTableQueryParams): void {
     const { pageSize, pageIndex, sort, filter } = params;
     if (pageSize != this.pageSize) {
       this.pageSize = pageSize;
       // If the user is at the last page, and increment the pageSize, move user to new last page index if necessary.
-      if (Math.ceil(this.totalWorkflows / pageSize) < (this.currentPageIndex + 1)) {
+      if (Math.ceil(this.totalWorkflows / pageSize) < this.currentPageIndex + 1) {
         this.currentPageIndex = Math.ceil(this.totalWorkflows / pageSize) - 1;
       }
       this.ngOnInit();
-    } else if ((pageIndex - 1) != this.currentPageIndex) {
+    } else if (pageIndex - 1 != this.currentPageIndex) {
       this.currentPageIndex = pageIndex - 1;
       this.ngOnInit();
     }
