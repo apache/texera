@@ -139,50 +139,17 @@
   </nz-sider>
 
   <div class="page-container">
-    <ul
-      class="nav-links"
-      [ngClass]="{ 'hidden': isLogin }">
-      <li
-        class="nav-item"
-        [hidden]="!showLinks">
-        <a
-          class="nav-link"
-          href="https://github.com/Texera/texera/wiki/Getting-Started"
-          >Getting Started</a
-        >
-      </li>
-      <li
-        class="nav-item"
-        [hidden]="!showLinks">
-        <a
-          class="nav-link"
-          href="https://texera.github.io/blog/"
-          >Blogs</a
-        >
-      </li>
-      <li
-        class="nav-item"
-        [hidden]="!showLinks">
-        <iframe
-          style="margin-top: 2px"
-          src="https://ghbtns.com/github-btn.html?user=Texera&repo=texera&type=star&count=true"
-          frameborder="0"
-          scrolling="0"
-          width="90"
-          height="20"
-          title="GitHub"></iframe>
-      </li>
-      <li
-        class="nav-item"
-        id="googleButton"></li>
-    </ul>
-
     <nz-layout>
       <div
         *ngIf="displayNavbar"
         id="nav">
         <texera-search-bar></texera-search-bar>
-        <texera-user-icon *ngIf="isLogin"></texera-user-icon>
+        <ng-container *ngIf="isLogin; else googleLogin">
+          <texera-user-icon></texera-user-icon>
+        </ng-container>
+        <ng-template #googleLogin>
+          <texera-google-login></texera-google-login>
+        </ng-template>
       </div>
 
       <nz-content>
