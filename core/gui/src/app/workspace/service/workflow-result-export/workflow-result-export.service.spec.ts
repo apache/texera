@@ -153,7 +153,7 @@ describe("WorkflowResultExportService", () => {
     });
 
     // Act
-    service.downloadOperatorsResultAsFile(false);
+    service.exportOperatorsResultToLocal(false);
 
     // Simulate asynchronous operations
     tick();
@@ -194,7 +194,7 @@ describe("WorkflowResultExportService", () => {
     downloadServiceSpy.downloadOperatorsResult.and.returnValue(of(new Blob()));
 
     // Act
-    service.downloadOperatorsResultAsFile(false);
+    service.exportOperatorsResultToLocal(false);
 
     expect(downloadServiceSpy.downloadOperatorsResult).toHaveBeenCalled();
     const args = downloadServiceSpy.downloadOperatorsResult.calls.mostRecent().args;
@@ -243,7 +243,7 @@ describe("WorkflowResultExportService", () => {
     downloadServiceSpy.downloadOperatorsResult.and.returnValue(of(new Blob()));
 
     // Act
-    service.downloadOperatorsResultAsFile(false);
+    service.exportOperatorsResultToLocal(false);
 
     // Assert
     expect(downloadServiceSpy.downloadOperatorsResult).toHaveBeenCalled();

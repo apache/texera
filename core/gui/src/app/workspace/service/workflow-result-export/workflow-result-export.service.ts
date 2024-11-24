@@ -89,7 +89,7 @@ export class WorkflowResultExportService {
    * Export the operator results as files.
    * If multiple operatorIds are provided, results are zipped into a single file.
    */
-  downloadOperatorsResultAsFile(downloadAll: boolean = true): void {
+  exportOperatorsResultToLocal(downloadAll: boolean = true): void {
     let operatorIds: string[];
     if (!downloadAll)
       operatorIds = [...this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()];
