@@ -86,12 +86,12 @@ abstract class SklearnClassifierOpDesc extends PythonOperatorDescriptor {
       .last}()).fit(X, Y)
        |        else:
        |            predictions = self.model.predict(X)
-       |            print("Overall Accuracy:", accuracy_score(Y, predictions))
+       |            print("Overall Accuracy:", round(accuracy_score(Y, predictions), 4))
        |            f1s = f1_score(Y, predictions, average=None)
        |            precisions = precision_score(Y, predictions, average=None)
        |            recalls = recall_score(Y, predictions, average=None)
        |            for i, class_name in enumerate(np.unique(Y)):
-       |                print("Class", repr(class_name), " - F1:", f1s[i], ", Precision:", precisions[i], ", Recall:", recalls[i])
+       |                print("Class", repr(class_name), " - F1:", round(f1s[i], 4), ", Precision:", round(precisions[i], 4), ", Recall:", round(recalls[i], 4))
        |            yield {"model_name" : "$getUserFriendlyModelName", "model" : self.model}""".stripMargin
 
   override def operatorInfo: OperatorInfo =
