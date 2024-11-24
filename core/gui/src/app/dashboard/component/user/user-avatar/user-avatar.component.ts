@@ -1,4 +1,5 @@
 import { Component, Input } from "@angular/core";
+import { UserService } from "../../../../common/service/user/user.service";
 @Component({
   selector: "texera-user-avatar",
   templateUrl: "./user-avatar.component.html",
@@ -15,6 +16,20 @@ export class UserAvatarComponent {
   @Input() userName?: string;
   @Input() userColor?: string;
   @Input() isOwner: Boolean = false;
+
+  constructor(private userService: UserService) {}
+
+  get avatarUrl(): string {
+    if (!this.googleAvatar) return "";
+
+    if (this.userService.hasAvatar(this.googleAvatar)) {
+      return this.userService.getAvatar(this.googleAvatar)!;
+    }
+
+    const url = `https://lh3.googleusercontent.com/a/${this.googleAvatar}`;
+    this.userService.setAvatar(this.googleAvatar, url);
+    return url;
+  }
 
   /**
    * abbreviates the name under 5 chars

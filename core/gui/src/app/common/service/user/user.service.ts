@@ -15,6 +15,8 @@ import { map } from "rxjs/operators";
 export class UserService {
   private currentUser?: User = undefined;
   private userChangeSubject: ReplaySubject<User | undefined> = new ReplaySubject<User | undefined>(1);
+  private cache: Map<string, { url: string; expiry: number }> = new Map();
+  private readonly cacheDuration = 3600 * 1000; // cache duration: 1h
 
   constructor(private authService: AuthService) {
     if (environment.userSystemEnabled) {
@@ -53,6 +55,7 @@ export class UserService {
   public logout(): void {
     this.authService.logout();
     this.changeUser(undefined);
+    this.clearCache();
   }
 
   public register(username: string, password: string): Observable<void> {
@@ -91,5 +94,32 @@ export class UserService {
       return { result: false, message: "Username should not be empty." };
     }
     return { result: true, message: "Username frontend validation success." };
+  }
+
+  getAvatar(googleAvatar: string): string | undefined {
+    const cached = this.cache.get(googleAvatar);
+
+    if (cached && Date.now() > cached.expiry) {
+      this.cache.delete(googleAvatar);
+      return undefined;
+    }
+
+    return cached?.url;
+  }
+
+  setAvatar(googleAvatar: string, avatarUrl: string): void {
+    this.cache.set(googleAvatar, {
+      url: avatarUrl,
+      expiry: Date.now() + this.cacheDuration,
+    });
+  }
+
+  hasAvatar(googleAvatar: string): boolean {
+    const cached = this.cache.get(googleAvatar);
+    return !!cached && Date.now() <= cached.expiry;
+  }
+
+  clearCache(): void {
+    this.cache.clear();
   }
 }
