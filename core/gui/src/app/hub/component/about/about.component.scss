@@ -1,9 +1,24 @@
+.about-page-container {
+  display: flex;
+  flex-direction: column;
+  padding: 0 133px;
+  align-items: center;
+  height: 100%;
+  width: 100%;
+  overflow-y: auto;
+}
+
 .content {
-  text-align: center;
+  text-align: left;
 }
 
 #logo {
   height: 70px;
   padding: 0;
   margin-right: 14px;
+}
+
+.workflow-gui-screenshot {
+  width: 100%;
+  height: 50%
 }
