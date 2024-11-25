@@ -1,39 +1,88 @@
+<!--<div-->
+<!--  nz-row-->
+<!--  nzJustify="space-around"-->
+<!--  nzAlign="middle"-->
+<!--  class="about-page-container">-->
+<!--  <div-->
+<!--    nz-col-->
+<!--    nzFlex="auto"-->
+<!--    class="content">-->
+<!--    <h1 class="about-title">About Texera Hub</h1>-->
+
+<!--    <p>The Texera Hub is an online platform for community users with various backgrounds to learn and practice data science, AI, and machine learning.-->
+<!--      It also allows users to share their data sets and analysis workflows. It has the following capabilities:</p>-->
+<!--    <ul>-->
+<!--      <li>Supporting no-code/low-code data science and AI/ML using GUI-based workflows</li>-->
+<!--      <li>Real-time collaboration with shared editing and shared execution of the same workflow by multiple users</li>-->
+<!--      <li>Allow user-defined functions (UDFs) in languages such as Python, R, Java, and Scala</li>-->
+<!--      <li>Debugging</li>-->
+<!--      <li>Parallel computing</li>-->
+<!--      <li>Commenting</li>-->
+<!--      <li>Version control</li>-->
+<!--      <li>Access control of datasets and workflows</li>-->
+<!--    </ul>-->
+<!--    <img-->
+<!--      class="workflow-gui-screenshot"-->
+<!--      src="../../../../../assets/workflow_gui.png"-->
+<!--      alt="workflow gui screenshot" />-->
+<!--    <p>To learn more, please visit <a href="http://texera.io">texera.io</a>.-->
+<!--      The <a href="https://github.com/Texera/texera">source code</a> of the platform is available on GitHub.</p>-->
+<!--    <p>If you have comments and questions, please send email to-->
+<!--      <img-->
+<!--        src="../../../../../assets/texera_email_screenshot.png"-->
+<!--        alt="texera email screenshot"/></p>-->
+<!--  </div>-->
+<!--</div>-->
+
 <div
   nz-row
   nzJustify="space-around"
   nzAlign="middle"
-  style="margin-top: 100px"
   class="about-page-container">
   <div
     nz-col
     nzFlex="auto"
     class="content">
-    <p>The Texera Hub is an online platform for community users with various backgrounds to learn and practice data science, AI, and machine learning.
-      It also allows users to share their data sets and analysis workflows. It has the following capabilities:</p>
-    <ul>
-      <li>Supporting no-code/low-code data science and AI/ML using GUI-based workflows</li>
-      <li>Real-time collaboration with shared editing and shared execution of the same workflow by multiple users</li>
-      <li>Allow user-defined functions (UDFs) in languages such as Python, R, Java, and Scala</li>
-      <li>Debugging</li>
-      <li>Parallel computing</li>
-      <li>Commenting</li>
-      <li>Version control</li>
-      <li>Access control of datasets and workflows</li>
-    </ul>
-    <p>The following is a screenshot of the platform.</p>
-    <img
-      class="workflow-gui-screenshot"
-      src="../../../../../assets/workflow_gui.png"
-      alt="workflow gui screenshot" />
-    <p>To learn more, please visit <a href="http://texera.io">texera.io</a>.
-      The <a href="https://github.com/Texera/texera">source code</a> of the platform is available on GitHub.</p>
-    <p>If you have comments and questions, please send email to
+    <h1 class="about-title">About Texera Hub</h1>
+
+    <p>The Texera Hub is an online platform for community users with various backgrounds to learn and practice data science, AI, and machine learning.</p>
+    <p>It also allows users to share their data sets and analysis workflows.</p>
+
+    <h2 class="content-title">Key Features</h2>
+    <div class="content-details">
       <img
-        src="../../../../../assets/texera_email_screenshot.png"
-        alt="texera email screenshot"/></p>
+        class="workflow-gui-screenshot"
+        src="../../../../../assets/workflow_gui.png"
+        alt="workflow gui screenshot" />
+      <div class="text-content">
+        <p>Supporting no-code/low-code data science and AI/ML using GUI-based workflows</p>
+        <p>Real-time collaboration with shared editing and shared execution of the same workflow by multiple users</p>
+        <p>Allow user-defined functions (UDFs) in languages such as Python, R, Java, and Scala</p>
+        <p>Parallel computing, Debugging, Version control, Commenting</p>
+        <p>Access control of datasets and workflows</p>
+      </div>
+    </div>
+
+    <h2 class="learn-more-title">Learn More</h2>
+    <div class="learn-more-section">
+      <p>
+        To learn more, please visit <a href="http://texera.io">texera.io</a>.
+        The <a href="https://github.com/Texera/texera">source code</a> of the platform is available on GitHub.
+      </p>
+      <p>
+        If you have comments and questions, please send email to
+        <img
+          src="../../../../../assets/texera_email_screenshot.png"
+          alt="texera email screenshot" />
+      </p>
+    </div>
   </div>
-  <texera-local-login
-    *ngIf="localLogin"
-    nz-col
-    nzFlex="600px"></texera-local-login>
 </div>
+
+
+<!--<div class="login-container">-->
+<!--  <texera-local-login-->
+<!--    *ngIf="localLogin"-->
+<!--    nz-col-->
+<!--    nzFlex="600px"></texera-local-login>-->
+<!--</div>-->
