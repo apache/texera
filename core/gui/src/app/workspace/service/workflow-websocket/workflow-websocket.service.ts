@@ -21,8 +21,7 @@ export const WS_RECONNECT_INTERVAL_MS = 3000;
   providedIn: "root",
 })
 export class WorkflowWebsocketService {
-  private static readonly TEXERA_WEBSOCKET_ENDPOINT = "wsapi/workflow-websocket";
-  // private static readonly TEXERA_WS_PROXY_ENDPOINT = "ws-proxy";
+  private static readonly TEXERA_WEBSOCKET_ENDPOINT = environment.envoyUrl;
 
   public isConnected: boolean = false;
   public numWorkers: number = -1;

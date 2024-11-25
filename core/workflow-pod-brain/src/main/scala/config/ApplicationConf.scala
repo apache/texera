@@ -3,7 +3,6 @@ package config
 import com.typesafe.config.{Config, ConfigFactory}
 
 case class KubernetesConfig(
-                             kubeConfigPath: String,
                              namespace: String,
                              workflowPodBrainNamespace: String,
                              workflowPodPoolNamespace: String,
@@ -26,7 +25,6 @@ object ApplicationConf {
 
   val appConfig: AppConfig = AppConfig(
     kubernetes = KubernetesConfig(
-      kubeConfigPath = expandPath(config.getString("kubernetes.kube-config-path")),
       namespace = config.getString("kubernetes.namespace"),
       workflowPodBrainNamespace = config.getString("kubernetes.brain-namespace"),
       workflowPodPoolNamespace = config.getString("kubernetes.pool-namespace"),

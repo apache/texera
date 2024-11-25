@@ -13,9 +13,14 @@ export const defaultEnvironment = {
   apiUrl: "api",
 
   /**
-   * root API the workflow pod brain
+   * root API of the workflow pod brain
    */
   workflowPodUrl: "workflowpod",
+
+  /**
+   * root API of the envoy proxy
+   */
+  envoyUrl: "wsapi/workflow-websocket",
 
   /**
    * whether fetching available source tables is enabled

@@ -13,8 +13,6 @@ class WorkflowPodBrainApplication extends Application[Configuration] {
     // Register http resources
     environment.jersey().register(new HelloWorldResource)
     environment.jersey().register(new WorkflowPodBrainResource)
-
-    println(s"Kube Config Path: ${appConfig.kubernetes.kubeConfigPath}")
   }
 }
 

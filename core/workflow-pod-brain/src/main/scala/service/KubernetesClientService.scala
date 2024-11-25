@@ -14,12 +14,12 @@ object KubernetesClientConfig {
 
   val kubernetesConfig = appConfig.kubernetes
   def createKubernetesCoreClient(): CoreV1Api = {
-    val client: ApiClient = Config.fromConfig(kubernetesConfig.kubeConfigPath)
+    val client: ApiClient = Config.defaultClient()
     Configuration.setDefaultApiClient(client)
     new CoreV1Api(client)
   }
   def createKubernetesAppsClient(): AppsV1Api = {
-    val client: ApiClient = Config.fromConfig(kubernetesConfig.kubeConfigPath)
+    val client: ApiClient = Config.defaultClient()
     Configuration.setDefaultApiClient(client)
     new AppsV1Api(client)
   }
