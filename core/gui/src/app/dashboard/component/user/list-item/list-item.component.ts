@@ -24,6 +24,8 @@ import { HubWorkflowDetailComponent } from "../../../../hub/component/workflow/d
 import { HubWorkflowService } from "../../../../hub/service/workflow/hub-workflow.service";
 import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
 import { formatSize } from "src/app/common/util/size-formatter.util";
+import { DatasetService, DEFAULT_DATASET_NAME } from "../../../service/user/dataset/dataset.service";
+import { NotificationService } from "../../../../common/service/notification/notification.service";
 import {
   DASHBOARD_HUB_WORKFLOW_RESULT_DETAIL,
   DASHBOARD_USER_PROJECT,
@@ -76,10 +78,12 @@ export class ListItemComponent implements OnInit, OnChanges {
     private searchService: SearchService,
     private modalService: NzModalService,
     private workflowPersistService: WorkflowPersistService,
+    private datasetService: DatasetService,
     private modal: NzModalService,
     private hubWorkflowService: HubWorkflowService,
     private downloadService: DownloadService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private notificationService: NotificationService
   ) {}
 
   initializeEntry() {
@@ -227,22 +231,26 @@ export class ListItemComponent implements OnInit, OnChanges {
     }, 0);
   }
 
-  private updateWorkflowProperty(
-    updateMethod: (id: number | undefined, value: string) => any,
+  private updateProperty(
+    updateMethod: (id: number, value: string) => any,
     propertyName: "name" | "description",
     newValue: string,
     originalValue: string | undefined
   ): void {
+    if (!this.entry.id) {
+      this.notificationService.error("Id is missing");
+      return;
+    }
+
     updateMethod(this.entry.id, newValue)
       .pipe(untilDestroyed(this))
       .subscribe({
         next: () => {
-          this.entry[propertyName] = newValue;
+          this.entry[propertyName] = newValue; // Dynamic property assignment
         },
-        error: (err: unknown) => {
-          console.error(`Failed to update workflow ${propertyName}:`, err);
-          // Use a fallback empty string if originalValue is undefined
-          this.entry[propertyName] = originalValue ?? "";
+        error: () => {
+          this.notificationService.error("Update failed");
+          (this.entry as any)[propertyName] = originalValue ?? ""; // Fallback to original value
           this.setEditingState(propertyName, false);
         },
         complete: () => {
@@ -259,24 +267,44 @@ export class ListItemComponent implements OnInit, OnChanges {
     }
   }
 
-  public confirmUpdateWorkflowCustomName(name: string): void {
-    const workflowName = name || DEFAULT_WORKFLOW_NAME;
-    this.updateWorkflowProperty(
-      this.workflowPersistService.updateWorkflowName.bind(this.workflowPersistService),
-      "name",
-      workflowName,
-      this.originalName
-    );
+  public confirmUpdateCustomName(name: string): void {
+    const newName = this.entry.type === "workflow" ? name || DEFAULT_WORKFLOW_NAME : name || DEFAULT_DATASET_NAME;
+
+    if (this.entry.type === "workflow") {
+      this.updateProperty(
+        this.workflowPersistService.updateWorkflowName.bind(this.workflowPersistService),
+        "name",
+        newName,
+        this.originalName
+      );
+    } else if (this.entry.type === "dataset") {
+      this.updateProperty(
+        this.datasetService.updateDatasetName.bind(this.datasetService),
+        "name",
+        newName,
+        this.originalName
+      );
+    }
   }
 
-  public confirmUpdateWorkflowCustomDescription(description: string | undefined): void {
+  public confirmUpdateCustomDescription(description: string | undefined): void {
     const updatedDescription = description ?? "";
-    this.updateWorkflowProperty(
-      this.workflowPersistService.updateWorkflowDescription.bind(this.workflowPersistService),
-      "description",
-      updatedDescription,
-      this.originalDescription
-    );
+
+    if (this.entry.type === "workflow") {
+      this.updateProperty(
+        this.workflowPersistService.updateWorkflowDescription.bind(this.workflowPersistService),
+        "description",
+        updatedDescription,
+        this.originalDescription
+      );
+    } else if (this.entry.type === "dataset") {
+      this.updateProperty(
+        this.datasetService.updateDatasetDescription.bind(this.datasetService),
+        "description",
+        updatedDescription,
+        this.originalDescription
+      );
+    }
   }
 
   formatTime(timestamp: number | undefined): string {
