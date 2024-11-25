@@ -32,6 +32,7 @@ export class InputAutoCompleteComponent extends FieldType<FieldTypeConfig> {
         selectedFilePath: this.formControl.getRawValue(),
       },
       nzBodyStyle: {
+        // Enables the file selection window to be resizable
         resize: "both",
         overflow: "auto",
         minHeight: "200px",
