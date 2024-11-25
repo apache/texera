@@ -1,7 +1,7 @@
 .about-page-container {
   display: flex;
   flex-direction: column;
-  padding: 0 133px;
+  padding-left: 100px;
   align-items: center;
   height: 100%;
   width: 100%;
@@ -9,6 +9,8 @@
 }
 
 .content {
+  max-width: 1200px;
+  width: 100%;
   text-align: left;
 }
 
@@ -19,6 +21,6 @@
 }
 
 .workflow-gui-screenshot {
-  width: 100%;
+  width: 70%;
   height: 50%
 }
