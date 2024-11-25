@@ -72,7 +72,7 @@ export class ResultExportationComponent implements OnInit {
     }
   }
 
-  onClickDownloadAllResult() {
+  onClickExportAllResult() {
     this.workflowResultExportService.exportOperatorsResultToLocal(this.sourceTriggered === "menu");
     this.modalRef.close();
   }
