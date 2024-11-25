@@ -1,7 +1,11 @@
 package edu.uci.ics.amber.operator
 
 import edu.uci.ics.amber.core.storage.FileResolver
-import edu.uci.ics.amber.operator.aggregate.{AggregateOpDesc, AggregationFunction, AggregationOperation}
+import edu.uci.ics.amber.operator.aggregate.{
+  AggregateOpDesc,
+  AggregationFunction,
+  AggregationOperation
+}
 import edu.uci.ics.amber.operator.hashJoin.HashJoinOpDesc
 import edu.uci.ics.amber.operator.keywordSearch.KeywordSearchOpDesc
 import edu.uci.ics.amber.operator.sink.managed.ProgressiveSinkOpDesc
@@ -29,7 +33,6 @@ object TestOperators {
   val TestTextFilePath: String = s"$parentDir/src/test/resources/line_numbers.txt"
   val TestCRLFTextFilePath: String = s"$parentDir/src/test/resources/line_numbers_crlf.txt"
   val TestNumbersFilePath: String = s"$parentDir/src/test/resources/numbers.txt"
-
 
   def headerlessSmallCsvScanOpDesc(): CSVScanSourceOpDesc = {
     getCsvScanOpDesc(CountrySalesHeaderlessSmallCsvPath, header = false)

@@ -45,7 +45,7 @@ object Utils extends LazyLogging {
         .findAny
       if (searchChildren.isPresent) {
         searchChildren.get
-      }else{
+      } else {
         throw new RuntimeException(
           "Finding texera home path failed. Current working directory is " + currentWorkingDirectory
         )

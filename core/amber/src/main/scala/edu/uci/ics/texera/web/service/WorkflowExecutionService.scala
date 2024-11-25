@@ -88,7 +88,8 @@ class WorkflowExecutionService(
 
   def executeWorkflow(): Unit = {
     workflow = new WorkflowCompiler(workflowContext).compile(
-      request.logicalPlan
+      request.logicalPlan,
+      resultService.opResultStorage
     )
 
     client = TexeraWebApplication.createAmberRuntime(

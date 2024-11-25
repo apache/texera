@@ -65,7 +65,7 @@ case class Schema @JsonCreator() (
     */
   def toRawSchema: Map[String, String] =
     getAttributes.foldLeft(ListMap[String, String]())((list, attr) =>
-      list + (attr.getName -> attr.getType.toString)
+      list + (attr.getName -> attr.getType.name())
     )
 }
 

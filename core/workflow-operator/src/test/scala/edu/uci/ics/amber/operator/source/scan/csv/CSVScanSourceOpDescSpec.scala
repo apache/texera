@@ -89,7 +89,8 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
   it should "infer schema from headerless multi-line-data csv with custom delimiter" in {
 
-    csvScanSourceOpDesc.fileName = Some(TestOperators.CountrySalesSmallMultiLineCustomDelimiterCsvPath)
+    csvScanSourceOpDesc.fileName =
+      Some(TestOperators.CountrySalesSmallMultiLineCustomDelimiterCsvPath)
     csvScanSourceOpDesc.customDelimiter = Some(";")
     csvScanSourceOpDesc.hasHeader = false
     csvScanSourceOpDesc.setContext(workflowContext)
@@ -104,7 +105,8 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
   it should "create one worker with multi-line-data csv" in {
 
-    csvScanSourceOpDesc.fileName = Some(TestOperators.CountrySalesSmallMultiLineCustomDelimiterCsvPath)
+    csvScanSourceOpDesc.fileName =
+      Some(TestOperators.CountrySalesSmallMultiLineCustomDelimiterCsvPath)
     csvScanSourceOpDesc.customDelimiter = Some(";")
     csvScanSourceOpDesc.hasHeader = false
     csvScanSourceOpDesc.setContext(workflowContext)

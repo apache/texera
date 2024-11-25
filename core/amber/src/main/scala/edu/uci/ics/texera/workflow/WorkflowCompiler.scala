@@ -2,15 +2,20 @@ package edu.uci.ics.texera.workflow
 
 import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.{LazyLogging, Logger}
+import edu.uci.ics.amber.core.storage.result.OpResultStorage
 import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
+import edu.uci.ics.amber.engine.common.Utils.objectMapper
+import edu.uci.ics.amber.operator.sink.managed.ProgressiveSinkOpDesc
+import edu.uci.ics.amber.operator.visualization.VisualizationConstants
 import edu.uci.ics.amber.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.workflow.PhysicalLink
 import edu.uci.ics.amber.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
 import edu.uci.ics.amber.workflowruntimestate.WorkflowFatalError
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
-import WorkflowCompiler.collectInputSchemaFromPhysicalPlan
+import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
+import edu.uci.ics.texera.workflow.WorkflowCompiler.collectInputSchemaFromPhysicalPlan
 
 import java.time.Instant
 import scala.collection.mutable
@@ -156,7 +161,8 @@ class WorkflowCompiler(
     * @return WorkflowCompilationResult, containing the physical plan, input schemas per op and error per op
     */
   def compile(
-      logicalPlanPojo: LogicalPlanPojo
+      logicalPlanPojo: LogicalPlanPojo,
+      storage: OpResultStorage = null
   ): Workflow = {
     val errorList = new ArrayBuffer[(OperatorIdentity, Throwable)]()
     var opIdToInputSchema: Map[OperatorIdentity, List[Option[Schema]]] = Map()
@@ -172,6 +178,12 @@ class WorkflowCompiler(
     // - resolve the file name in each scan source operator
     logicalPlan.resolveScanSourceOpFileName(Some(errorList))
 
+    logicalPlan.propagateWorkflowSchema(context, None)
+
+    if (storage != null) {
+      assignSinkStorage(logicalPlan, context, storage)
+    }
+
     // 3. expand the logical plan to the physical plan,
     val physicalPlan = expandLogicalPlan(logicalPlan, Some(errorList))
     if (errorList.isEmpty) {
@@ -182,4 +194,59 @@ class WorkflowCompiler(
 
     Workflow(context, logicalPlan, physicalPlan)
   }
+
+  /**
+    * Once standalone compiler is done, move this function to the execution service, and change the 1st parameter from LogicalPlan to PhysicalPlan
+    */
+  @Deprecated
+  def assignSinkStorage(
+      logicalPlan: LogicalPlan,
+      context: WorkflowContext,
+      storage: OpResultStorage,
+      reuseStorageSet: Set[OperatorIdentity] = Set()
+  ): Unit = {
+    // create a JSON object that holds pointers to the workflow's results in Mongo
+    val resultsJSON = objectMapper.createObjectNode()
+    val sinksPointers = objectMapper.createArrayNode()
+    // assign storage to texera-managed sinks before generating exec config
+    logicalPlan.operators.foreach {
+      case o @ (sink: ProgressiveSinkOpDesc) =>
+        val storageKey = sink.getUpstreamId.getOrElse(o.operatorIdentifier)
+        // due to the size limit of single document in mongoDB (16MB)
+        // for sinks visualizing HTMLs which could possibly be large in size, we always use the memory storage.
+        val storageType = {
+          if (sink.getChartType.contains(VisualizationConstants.HTML_VIZ)) OpResultStorage.MEMORY
+          else OpResultStorage.defaultStorageMode
+        }
+        if (reuseStorageSet.contains(storageKey) && storage.contains(storageKey)) {
+          sink.setStorage(storage.get(storageKey))
+        } else {
+          sink.setStorage(
+            storage.create(
+              s"${o.getContext.executionId}_",
+              storageKey,
+              storageType
+            )
+          )
+
+          sink.getStorage.setSchema(
+            logicalPlan.getOperator(storageKey).outputPortToSchemaMapping.values.head
+          )
+          // add the sink collection name to the JSON array of sinks
+          val storageNode = objectMapper.createObjectNode()
+          storageNode.put("storageType", storageType)
+          storageNode.put("storageKey", s"${o.getContext.executionId}_$storageKey")
+          sinksPointers.add(storageNode)
+        }
+        storage.get(storageKey)
+
+      case _ =>
+    }
+    // update execution entry in MySQL to have pointers to the mongo collections
+    resultsJSON.set("results", sinksPointers)
+    ExecutionsMetadataPersistService.tryUpdateExistingExecution(context.executionId) {
+      _.setResult(resultsJSON.toString)
+    }
+  }
+
 }
