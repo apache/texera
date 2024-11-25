@@ -55,7 +55,6 @@ export class UserService {
   public logout(): void {
     this.authService.logout();
     this.changeUser(undefined);
-    this.clearCache();
   }
 
   public register(username: string, password: string): Observable<void> {
@@ -96,30 +95,24 @@ export class UserService {
     return { result: true, message: "Username frontend validation success." };
   }
 
-  getAvatar(googleAvatar: string): string | undefined {
-    const cached = this.cache.get(googleAvatar);
+  getAvatar(googleAvatar: string): string {
+    if (!googleAvatar) return "";
 
-    if (cached && Date.now() > cached.expiry) {
-      this.cache.delete(googleAvatar);
-      return undefined;
+    const cached = this.cache.get(googleAvatar);
+    if (cached) {
+      if (Date.now() > cached.expiry) {
+        this.cache.delete(googleAvatar);
+      } else {
+        return cached.url;
+      }
     }
 
-    return cached?.url;
-  }
-
-  setAvatar(googleAvatar: string, avatarUrl: string): void {
+    const url = `https://lh3.googleusercontent.com/a/${googleAvatar}`;
     this.cache.set(googleAvatar, {
-      url: avatarUrl,
+      url: url,
       expiry: Date.now() + this.cacheDuration,
     });
-  }
 
-  hasAvatar(googleAvatar: string): boolean {
-    const cached = this.cache.get(googleAvatar);
-    return !!cached && Date.now() <= cached.expiry;
-  }
-
-  clearCache(): void {
-    this.cache.clear();
+    return url;
   }
 }

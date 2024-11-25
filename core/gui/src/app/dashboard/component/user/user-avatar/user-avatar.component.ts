@@ -20,15 +20,7 @@ export class UserAvatarComponent {
   constructor(private userService: UserService) {}
 
   get avatarUrl(): string {
-    if (!this.googleAvatar) return "";
-
-    if (this.userService.hasAvatar(this.googleAvatar)) {
-      return this.userService.getAvatar(this.googleAvatar)!;
-    }
-
-    const url = `https://lh3.googleusercontent.com/a/${this.googleAvatar}`;
-    this.userService.setAvatar(this.googleAvatar, url);
-    return url;
+    return this.googleAvatar ? this.userService.getAvatar(this.googleAvatar) : "";
   }
 
   /**
