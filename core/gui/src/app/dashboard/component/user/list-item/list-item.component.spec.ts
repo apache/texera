@@ -5,6 +5,7 @@ import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { of, throwError } from "rxjs";
 import { NO_ERRORS_SCHEMA } from "@angular/core";
+import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 
 describe("ListItemComponent", () => {
   let component: ListItemComponent;
@@ -18,7 +19,7 @@ describe("ListItemComponent", () => {
     ]);
 
     await TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule],
+      imports: [HttpClientTestingModule, BrowserAnimationsModule],
       declarations: [ListItemComponent],
       providers: [{ provide: WorkflowPersistService, useValue: workflowPersistServiceSpy }, NzModalService],
       schemas: [NO_ERRORS_SCHEMA],
@@ -31,10 +32,10 @@ describe("ListItemComponent", () => {
 
   it("should update workflow name successfully", () => {
     const newName = "New Workflow Name";
-    component.entry = { id: 1, name: "Old Name" } as any;
+    component.entry = { id: 1, name: "Old Name", type: "workflow" } as any;
     workflowPersistService.updateWorkflowName.and.returnValue(of({} as Response));
 
-    component.confirmUpdateWorkflowCustomName(newName);
+    component.confirmUpdateCustomName(newName);
 
     expect(workflowPersistService.updateWorkflowName).toHaveBeenCalledWith(1, newName);
     expect(component.entry.name).toBe(newName);
@@ -43,11 +44,11 @@ describe("ListItemComponent", () => {
 
   it("should handle error when updating workflow name", () => {
     const newName = "New Workflow Name";
-    component.entry = { id: 1, name: "Old Name" } as any;
+    component.entry = { id: 1, name: "Old Name", type: "workflow" } as any;
     component.originalName = "Old Name";
     workflowPersistService.updateWorkflowName.and.returnValue(throwError(() => new Error("Error")));
 
-    component.confirmUpdateWorkflowCustomName(newName);
+    component.confirmUpdateCustomName(newName);
 
     expect(workflowPersistService.updateWorkflowName).toHaveBeenCalledWith(1, newName);
     expect(component.entry.name).toBe("Old Name");
@@ -56,10 +57,10 @@ describe("ListItemComponent", () => {
 
   it("should update workflow description successfully", () => {
     const newDescription = "New Description";
-    component.entry = { id: 1, description: "Old Description" } as any;
+    component.entry = { id: 1, description: "Old Description", type: "workflow" } as any;
     workflowPersistService.updateWorkflowDescription.and.returnValue(of({} as Response));
 
-    component.confirmUpdateWorkflowCustomDescription(newDescription);
+    component.confirmUpdateCustomDescription(newDescription);
 
     expect(workflowPersistService.updateWorkflowDescription).toHaveBeenCalledWith(1, newDescription);
     expect(component.entry.description).toBe(newDescription);
@@ -68,11 +69,11 @@ describe("ListItemComponent", () => {
 
   it("should handle error when updating workflow description", () => {
     const newDescription = "New Description";
-    component.entry = { id: 1, description: "Old Description" } as any;
+    component.entry = { id: 1, description: "Old Description", type: "workflow" } as any;
     component.originalDescription = "Old Description";
     workflowPersistService.updateWorkflowDescription.and.returnValue(throwError(() => new Error("Error")));
 
-    component.confirmUpdateWorkflowCustomDescription(newDescription);
+    component.confirmUpdateCustomDescription(newDescription);
 
     expect(workflowPersistService.updateWorkflowDescription).toHaveBeenCalledWith(1, newDescription);
     expect(component.entry.description).toBe("Old Description");
