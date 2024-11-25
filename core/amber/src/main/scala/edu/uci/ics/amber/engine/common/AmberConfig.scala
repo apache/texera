@@ -80,8 +80,6 @@ object AmberConfig {
   val useGlobalSearch: Boolean = getConfSource.getBoolean("region-plan-generator.use-global-search")
 
   // Storage configuration
-  val sinkStorageMode: String = getConfSource.getString("storage.mode")
-  val sinkStorageMongoDBConfig: Config = getConfSource.getConfig("storage.mongodb")
   val sinkStorageTTLInSecs: Int = getConfSource.getInt("result-cleanup.ttl-in-seconds")
   val sinkStorageCleanUpCheckIntervalInSecs: Int =
     getConfSource.getInt("result-cleanup.collection-check-interval-in-seconds")
@@ -103,9 +101,6 @@ object AmberConfig {
     getConfSource.getInt("user-sys.version-time-limit-in-minutes")
   val cleanupAllExecutionResults: Boolean =
     getConfSource.getBoolean("web-server.clean-all-execution-results-on-server-start")
-
-  // JDBC configuration
-  val jdbcConfig: Config = getConfSource.getConfig("jdbc")
 
   // Language server configuration
   val pythonLanguageServerConfig: Config = getConfSource.getConfig("python-language-server")

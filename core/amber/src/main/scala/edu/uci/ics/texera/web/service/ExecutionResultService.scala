@@ -4,19 +4,11 @@ import akka.actor.Cancellable
 import com.fasterxml.jackson.annotation.{JsonTypeInfo, JsonTypeName}
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.core.storage.result.{
-  OpResultStorage,
-  OperatorResultMetadata,
-  WorkflowResultStore
-}
+import edu.uci.ics.amber.core.storage.StorageConfig
+import edu.uci.ics.amber.core.storage.result.{OpResultStorage, OperatorResultMetadata, WorkflowResultStore}
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.engine.architecture.controller.{ExecutionStateUpdate, FatalError}
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
-  COMPLETED,
-  FAILED,
-  KILLED,
-  RUNNING
-}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{COMPLETED, FAILED, KILLED, RUNNING}
 import edu.uci.ics.amber.operator.sink.IncrementalOutputMode.{SET_DELTA, SET_SNAPSHOT}
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.executionruntimestate.ExecutionMetadataStore
@@ -25,11 +17,7 @@ import edu.uci.ics.amber.operator.sink.IncrementalOutputMode
 import edu.uci.ics.amber.operator.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.amber.virtualidentity.OperatorIdentity
 import edu.uci.ics.texera.web.SubscriptionManager
-import edu.uci.ics.texera.web.model.websocket.event.{
-  PaginatedResultEvent,
-  TexeraWebSocketEvent,
-  WebResultUpdateEvent
-}
+import edu.uci.ics.texera.web.model.websocket.event.{PaginatedResultEvent, TexeraWebSocketEvent, WebResultUpdateEvent}
 import edu.uci.ics.texera.web.model.websocket.request.ResultPaginationRequest
 import edu.uci.ics.texera.web.service.ExecutionResultService.WebResultUpdate
 import edu.uci.ics.texera.web.storage.{ExecutionStateStore, WorkflowStateStore}
@@ -243,7 +231,7 @@ class ExecutionResultService(
                 info.tupleCount
               )
               if (
-                AmberConfig.sinkStorageMode.toLowerCase == "mongodb" && !opId.id.startsWith("sink")
+                StorageConfig.resultStorageMode.toLowerCase == "mongodb" && !opId.id.startsWith("sink")
               ) {
                 val sinkMgr = sinkOperators(opId).getStorage
                 if (oldState.resultInfo.isEmpty) {
@@ -290,7 +278,7 @@ class ExecutionResultService(
           WebResultUpdateEvent(
             buf.toMap,
             allTableStats.toMap,
-            AmberConfig.sinkStorageMode.toLowerCase
+            StorageConfig.resultStorageMode.toLowerCase
           )
         )
       })

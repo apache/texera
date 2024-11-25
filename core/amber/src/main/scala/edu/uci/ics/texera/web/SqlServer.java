@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.web;
 
 import com.mysql.cj.jdbc.MysqlDataSource;
+import edu.uci.ics.amber.core.storage.StorageConfig;
 import edu.uci.ics.amber.engine.common.AmberConfig;
 import org.jooq.DSLContext;
 import org.jooq.SQLDialect;
@@ -13,9 +14,9 @@ public final class SqlServer {
 
     static {
         dataSource = new MysqlDataSource();
-        dataSource.setUrl(AmberConfig.jdbcConfig().getString("url"));
-        dataSource.setUser(AmberConfig.jdbcConfig().getString("username"));
-        dataSource.setPassword(AmberConfig.jdbcConfig().getString("password"));
+        dataSource.setUrl(StorageConfig.jdbcUrl());
+        dataSource.setUser(StorageConfig.jdbcUsername());
+        dataSource.setPassword(StorageConfig.jdbcPassword());
         context = DSL.using(dataSource, SQL_DIALECT);
     }
 
