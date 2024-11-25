@@ -150,10 +150,13 @@ class AdminExecutionResource {
     var executions_apply_order =
       executions_apply_filter.limit(page_size).offset(page_index * page_size)
     if (sortField != "NO_SORTING") {
-      val orderByField = sortFieldMapping.getOrElse(sortField, WORKFLOW.NAME)
-      val order = if (sortDirection == "desc") orderByField.desc() else orderByField.asc()
-      executions_apply_order =
-        executions_apply_filter.orderBy(order).limit(page_size).offset(page_index * page_size)
+      executions_apply_order = executions_apply_filter
+        .orderBy(
+          if (sortDirection == "desc") sortFieldMapping.getOrElse(sortField, WORKFLOW.NAME).desc()
+          else sortFieldMapping.getOrElse(sortField, WORKFLOW.NAME).asc()
+        )
+        .limit(page_size)
+        .offset(page_index * page_size)
     }
 
     val executions = executions_apply_order.fetch()
