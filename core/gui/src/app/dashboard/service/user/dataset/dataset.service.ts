@@ -22,6 +22,7 @@ export const DATASET_DELETE_URL = DATASET_BASE_URL + "/delete";
 export const DATASET_VERSION_BASE_URL = "version";
 export const DATASET_VERSION_RETRIEVE_LIST_URL = DATASET_VERSION_BASE_URL + "/list";
 export const DATASET_VERSION_LATEST_URL = DATASET_VERSION_BASE_URL + "/latest";
+export const DEFAULT_DATASET_NAME = "Untitled dataset";
 
 @Injectable({
   providedIn: "root",
