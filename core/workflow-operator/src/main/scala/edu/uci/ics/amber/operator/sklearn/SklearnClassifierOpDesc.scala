@@ -1,21 +1,12 @@
-package edu.uci.ics.texera.workflow.operators.sklearn
+package edu.uci.ics.amber.operator.sklearn
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.{
-  JsonSchemaInject,
-  JsonSchemaInt,
-  JsonSchemaString,
-  JsonSchemaTitle
-}
-import edu.uci.ics.amber.engine.common.model.tuple.{AttributeType, Schema}
-import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIdentity}
-import edu.uci.ics.texera.workflow.common.metadata.annotations.{
-  AutofillAttributeName,
-  CommonOpDescAnnotation,
-  HideAnnotation
-}
-import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
-import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaInt, JsonSchemaString, JsonSchemaTitle}
+import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
+import edu.uci.ics.amber.operator.PythonOperatorDescriptor
+import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.amber.operator.metadata.annotations.{AutofillAttributeName, CommonOpDescAnnotation, HideAnnotation}
+import edu.uci.ics.amber.workflow.{InputPort, OutputPort, PortIdentity}
 
 abstract class SklearnClassifierOpDesc extends PythonOperatorDescriptor {
 

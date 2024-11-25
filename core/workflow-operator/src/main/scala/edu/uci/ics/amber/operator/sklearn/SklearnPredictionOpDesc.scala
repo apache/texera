@@ -2,10 +2,11 @@ package edu.uci.ics.amber.operator.sklearn
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
-import edu.uci.ics.amber.workflow.{InputPort, OutputPort, PortIdentity}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
+import edu.uci.ics.amber.operator.metadata.annotations.{AutofillAttributeName, AutofillAttributeNameOnPort1}
+import edu.uci.ics.amber.workflow.{InputPort, OutputPort, PortIdentity}
+
 class SklearnPredictionOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "Model Attribute", required = true, defaultValue = "model")
   @JsonPropertyDescription("attribute corresponding to ML model")
@@ -22,7 +23,7 @@ class SklearnPredictionOpDesc extends PythonOperatorDescriptor {
     defaultValue = ""
   )
   @JsonPropertyDescription("attribute name of the ground truth")
-  @AutofillAttributeName
+  @AutofillAttributeNameOnPort1
   var groundTruthAttribute: String = ""
 
   override def generatePythonCode(): String =
