@@ -184,7 +184,6 @@ Test / PB.protoSources += PB.externalSourcePath.value
 libraryDependencies += "org.scalamock" %% "scalamock" % "5.2.0" % Test
 // https://mvnrepository.com/artifact/ch.vorburger.mariaDB4j/mariaDB4j
 libraryDependencies += "ch.vorburger.mariaDB4j" % "mariaDB4j" % "2.4.0" % Test
-libraryDependencies += "mysql" % "mysql-connector-java" % "8.0.33" % Test
 // https://www.scalatest.org/getting_started_with_fun_suite
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.15" % Test
 // JUnit related dependencies
@@ -228,9 +227,6 @@ libraryDependencies += "io.github.redouane59.twitter" % "twittered" % "2.21"
 
 // https://mvnrepository.com/artifact/org.jooq/jooq
 libraryDependencies += "org.jooq" % "jooq" % "3.14.16"
-
-// https://mvnrepository.com/artifact/mysql/mysql-connector-java
-libraryDependencies += "mysql" % "mysql-connector-java" % "8.0.33"
 
 // https://mvnrepository.com/artifact/org.jgrapht/jgrapht-core
 libraryDependencies += "org.jgrapht" % "jgrapht-core" % "1.4.0"
