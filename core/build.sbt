@@ -18,6 +18,7 @@ lazy val WorkflowExecutionService = (project in file("amber"))
 // root project definition
 lazy val CoreProject = (project in file("."))
   .aggregate(DAO, WorkflowCore, WorkflowOperator, WorkflowCompilingService, WorkflowExecutionService)
+  .dependsOn(DAO % "test->test") // test scope dependency
   .settings(
     name := "core",
     version := "0.1.0",
