@@ -7,6 +7,7 @@ import org.jooq.DSLContext;
 import org.jooq.SQLDialect;
 import org.jooq.impl.DSL;
 
+@Deprecated(since = "use sql server in core.dao instead")
 public final class SqlServer {
     public static final SQLDialect SQL_DIALECT = SQLDialect.MYSQL;
     private static final MysqlDataSource dataSource;
