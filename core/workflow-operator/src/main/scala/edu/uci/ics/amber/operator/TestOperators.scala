@@ -14,10 +14,11 @@ import edu.uci.ics.amber.operator.source.scan.json.JSONLScanSourceOpDesc
 import edu.uci.ics.amber.operator.source.sql.asterixdb.AsterixDBSourceOpDesc
 import edu.uci.ics.amber.operator.source.sql.mysql.MySQLSourceOpDesc
 import edu.uci.ics.amber.operator.udf.python.PythonUDFOpDescV2
+import edu.uci.ics.amber.util.PathUtils
 
 object TestOperators {
 
-  val parentDir = "workflow-operator"
+  val parentDir = PathUtils.corePath.resolve("workflow-operator").toRealPath().toString
   val CountrySalesSmallCsvPath = s"$parentDir/src/test/resources/country_sales_small.csv"
   val CountrySalesMediumCsvPath = s"$parentDir/src/test/resources/country_sales_medium.csv"
   val CountrySalesHeaderlessSmallCsvPath =
@@ -40,7 +41,7 @@ object TestOperators {
 
   def headerlessSmallMultiLineDataCsvScanOpDesc(): CSVScanSourceOpDesc = {
     getCsvScanOpDesc(
-      CountrySalesSmallMultiLineCsvPath,
+      CountrySalesHeaderlessSmallCsvPath,
       header = false,
       multiLine = true
     )
