@@ -3,8 +3,9 @@ package edu.uci.ics.texera.web.resource.auth
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
+import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.amber.engine.common.AmberConfig
-import edu.uci.ics.texera.web.SqlServer
+import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.auth.JwtAuth.{
   TOKEN_EXPIRE_TIME_IN_DAYS,
   dayToMin,
@@ -22,7 +23,12 @@ import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 
 object GoogleAuthResource {
-  final private lazy val userDao = new UserDao(SqlServer.createDSLContext.configuration)
+  final private lazy val userDao = new UserDao(
+    SqlServer
+      .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+      .createDSLContext()
+      .configuration
+  )
 }
 
 @Path("/auth/google")

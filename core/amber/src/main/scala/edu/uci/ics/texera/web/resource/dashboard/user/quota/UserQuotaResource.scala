@@ -1,8 +1,9 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.quota
 
+import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.amber.core.storage.util.mongo.MongoDatabaseManager
 import edu.uci.ics.amber.core.storage.util.mongo.MongoDatabaseManager.database
-import edu.uci.ics.texera.web.SqlServer
+import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables._
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.DatasetStatisticsUtils.getUserCreatedDatasets
@@ -17,7 +18,9 @@ import javax.ws.rs.core.MediaType
 import scala.jdk.CollectionConverters.IterableHasAsScala
 
 object UserQuotaResource {
-  final private lazy val context = SqlServer.createDSLContext()
+  final private lazy val context = SqlServer
+    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .createDSLContext()
 
   case class Workflow(
       userId: UInteger,

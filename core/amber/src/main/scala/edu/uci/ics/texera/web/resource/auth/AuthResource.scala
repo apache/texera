@@ -1,7 +1,8 @@
 package edu.uci.ics.texera.web.resource.auth
 
+import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.amber.engine.common.AmberConfig
-import edu.uci.ics.texera.web.SqlServer
+import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.auth.JwtAuth._
 import edu.uci.ics.texera.web.model.http.request.auth.{
   RefreshTokenRequest,
@@ -21,7 +22,12 @@ import javax.ws.rs.core.MediaType
 
 object AuthResource {
 
-  final private lazy val userDao = new UserDao(SqlServer.createDSLContext.configuration)
+  final private lazy val userDao = new UserDao(
+    SqlServer
+      .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+      .createDSLContext()
+      .configuration
+  )
 
   /**
     * Retrieve exactly one User from databases with the given username and password.
@@ -33,7 +39,9 @@ object AuthResource {
     */
   def retrieveUserByUsernameAndPassword(name: String, password: String): Option[User] = {
     Option(
-      SqlServer.createDSLContext
+      SqlServer
+        .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+        .createDSLContext()
         .select()
         .from(USER)
         .where(USER.NAME.eq(name))

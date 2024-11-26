@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.web.resource.dashboard
 
-import edu.uci.ics.texera.web.SqlServer
+import edu.uci.ics.amber.core.storage.StorageConfig
+import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.enums.{
   DatasetUserAccessPrivilege,
   WorkflowUserAccessPrivilege
@@ -31,7 +32,9 @@ object UnifiedResourceSchema {
   val resourceOwnerIdField: Field[_] = DSL.field(DSL.name(resourceOwnerIdAlias))
   val resourceLastModifiedTimeField: Field[_] = DSL.field(DSL.name(resourceLastModifiedTimeAlias))
 
-  final lazy val context = SqlServer.createDSLContext()
+  final lazy val context = SqlServer
+    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .createDSLContext()
 
   def apply(
       resourceType: Field[String] = DSL.inline(""),

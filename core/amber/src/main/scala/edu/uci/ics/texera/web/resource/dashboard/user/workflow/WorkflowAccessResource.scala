@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 
-import edu.uci.ics.texera.web.SqlServer
+import edu.uci.ics.amber.core.storage.StorageConfig
+import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.common.AccessEntry
 import edu.uci.ics.texera.web.model.jooq.generated.Tables._
@@ -22,7 +23,9 @@ import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 
 object WorkflowAccessResource {
-  final private val context: DSLContext = SqlServer.createDSLContext
+  final private val context: DSLContext = SqlServer
+    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .createDSLContext()
 
   /**
     * Identifies whether the given user has read-only access over the given workflow

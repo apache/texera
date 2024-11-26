@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.dataset
 
-import edu.uci.ics.amber.core.storage.FileResolver
+import edu.uci.ics.amber.core.storage.{FileResolver, StorageConfig}
 import edu.uci.ics.amber.core.storage.model.DatasetFileDocument
 import edu.uci.ics.amber.core.storage.util.dataset.{
   GitVersionControlLocalFileStorage,
@@ -8,7 +8,7 @@ import edu.uci.ics.amber.core.storage.util.dataset.{
 }
 import edu.uci.ics.amber.engine.common.Utils.withTransaction
 import edu.uci.ics.amber.util.PathUtils
-import edu.uci.ics.texera.web.SqlServer
+import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.enums.DatasetUserAccessPrivilege
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset.DATASET
@@ -63,7 +63,9 @@ object DatasetResource {
   val datasetLocks: scala.collection.concurrent.Map[UInteger, ReentrantLock] =
     new scala.collection.concurrent.TrieMap[UInteger, ReentrantLock]()
 
-  private val context = SqlServer.createDSLContext()
+  private val context = SqlServer
+    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .createDSLContext()
 
   // error messages
   val ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE = "User has no read access to this dataset"
