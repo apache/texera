@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.web.resource.dashboard.file
 
-import edu.uci.ics.texera.dao.MockTexeraDB
+import edu.uci.ics.texera.web.MockTexeraDB
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER, WORKFLOW, WORKFLOW_OF_PROJECT}
 import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole
