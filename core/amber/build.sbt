@@ -225,12 +225,6 @@ libraryDependencies += "com.github.marianobarrios" % "lbmq" % "0.6.0"
 // https://mvnrepository.com/artifact/io.github.redouane59.twitter/twittered
 libraryDependencies += "io.github.redouane59.twitter" % "twittered" % "2.21"
 
-// https://mvnrepository.com/artifact/org.jooq/jooq
-libraryDependencies += "org.jooq" % "jooq" % "3.14.16"
-
-// https://mvnrepository.com/artifact/mysql/mysql-connector-java
-libraryDependencies += "mysql" % "mysql-connector-java" % "8.0.33"
-
 // https://mvnrepository.com/artifact/org.jgrapht/jgrapht-core
 libraryDependencies += "org.jgrapht" % "jgrapht-core" % "1.4.0"
 
