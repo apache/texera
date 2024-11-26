@@ -25,10 +25,6 @@ conflictManager := ConflictManager.latestRevision
 // ensuring no parallel execution of multiple tasks
 concurrentRestrictions in Global += Tags.limit(Tags.Test, 1)
 
-// temp fix for the netty dependency issue
-// https://github.com/coursier/coursier/issues/2016
-ThisBuild / useCoursier := false
-
 // add python as an additional source
 Compile / unmanagedSourceDirectories += baseDirectory.value / "src" / "main" / "python"
 
