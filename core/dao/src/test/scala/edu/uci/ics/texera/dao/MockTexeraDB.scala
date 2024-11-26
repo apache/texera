@@ -23,7 +23,7 @@ trait MockTexeraDB {
     val sqlFile = new File(path.toString)
     val in = new FileInputStream(sqlFile)
     val conn =
-      DriverManager.getConnection(dbInstance.get.getConfiguration.getURL(""), username, password)
+      DriverManager.getConnection(dbInstance.get.getConfiguration.getURL(database), username, password)
     importSQL(conn, in)
     conn.close()
   }
