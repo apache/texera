@@ -98,6 +98,8 @@ class DataProcessingSpec
     val table: String = "test"
     val username: String = "root"
     val password: String = ""
+    val driver = new com.mysql.jdbc.Driver()
+    DriverManager.registerDriver(driver)
 
     val config = DBConfigurationBuilder.newBuilder
       .setPort(0) // 0 => automatically detect free port
