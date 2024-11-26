@@ -184,6 +184,7 @@ Test / PB.protoSources += PB.externalSourcePath.value
 libraryDependencies += "org.scalamock" %% "scalamock" % "5.2.0" % Test
 // https://mvnrepository.com/artifact/ch.vorburger.mariaDB4j/mariaDB4j
 libraryDependencies += "ch.vorburger.mariaDB4j" % "mariaDB4j" % "2.4.0" % Test
+libraryDependencies += "mysql" % "mysql-connector-java" % "8.0.23" % Test
 // https://www.scalatest.org/getting_started_with_fun_suite
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.15" % Test
 // JUnit related dependencies
