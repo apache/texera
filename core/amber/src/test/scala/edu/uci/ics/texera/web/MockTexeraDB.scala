@@ -3,6 +3,7 @@ package edu.uci.ics.texera.web
 import ch.vorburger.mariadb4j.{DB, DBConfigurationBuilder}
 import com.mysql.cj.jdbc.MysqlDataSource
 import edu.uci.ics.amber.engine.common.Utils
+import edu.uci.ics.amber.util.PathUtils
 import org.jooq.DSLContext
 import org.jooq.impl.DSL
 
@@ -106,7 +107,7 @@ trait MockTexeraDB {
     dslContext = Some(DSL.using(dataSource, SqlServer.SQL_DIALECT))
 
     val ddlPath = {
-      Utils.amberHomePath.resolve("../scripts/sql/texera_ddl.sql").toRealPath()
+      PathUtils.corePath.resolve("scripts/sql/texera_ddl.sql").toRealPath()
     }
     executeScriptInJDBC(ddlPath)
 
