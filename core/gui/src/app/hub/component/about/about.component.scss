@@ -23,17 +23,10 @@
 }
 
 .content > h2 {
-  padding: 0 15px;
   font-size: 28px;
   font-weight: bold;
   margin-top: 20px;
 }
-
-//.content > p {
-//  font-size: 15px;
-//  font-weight: 300;
-//  margin-bottom: 20px;
-//}
 
 .content > p {
   font-size: 18px;
@@ -48,8 +41,8 @@
 }
 
 .workflow-gui-screenshot {
-  width: 70%;
-  height: 50%
+  width: 100%;
+  height: auto;
 }
 
 .login-container {
@@ -58,35 +51,29 @@
   margin: 0 auto;
 }
 
+.text-content {
+  width: 70%;
+  font-size: 16px;
+  line-height: 1.8;
+  font-weight: 400;
+}
+
 .content-details {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-top: 20px;
-  padding: 0 15px;
 
   img.workflow-gui-screenshot {
     width: 60%;
     height: auto;
     margin-right: 20px;
   }
-
-  .text-content {
-    width: 35%;
-    font-size: 16px;
-    line-height: 1.8;
-    font-weight: 400;
-
-    p {
-      margin-bottom: 15px;
-    }
-  }
 }
 
 .learn-more-section {
   margin-top: 20px;
   text-align: left;
-  padding: 0 15px;
 
   p {
     font-size: 16px;
