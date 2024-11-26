@@ -98,4 +98,5 @@ libraryDependencies ++= Seq(
   "edu.stanford.nlp" % "stanford-corenlp" % "4.5.4",
   "edu.stanford.nlp" % "stanford-corenlp" % "4.5.4" classifier "models",
   "io.github.redouane59.twitter" % "twittered" % "2.21",
+  "mysql" % "mysql-connector-java" % "8.0.33"
 )
