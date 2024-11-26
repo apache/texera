@@ -81,3 +81,11 @@ libraryDependencies ++= Seq(
   "org.jooq" % "jooq" % "3.14.16",
   "org.jooq" % "jooq-codegen" % "3.12.4"
 )
+
+/////////////////////////////////////////////////////////////////////////////
+// Additional Dependencies
+/////////////////////////////////////////////////////////////////////////////
+
+libraryDependencies ++= Seq(
+  "mysql" % "mysql-connector-java" % "8.0.33",          // MySQL connector
+)

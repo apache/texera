@@ -4,4 +4,4 @@ addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.11.0")
 addSbtPlugin("com.github.sbt" % "sbt-native-packager" % "1.9.16")
 // for scalapb code gen
 addSbtPlugin("org.typelevel" % "sbt-fs2-grpc" % "2.5.0")
-libraryDependencies += "mysql" % "mysql-connector-java" % "8.0.33"
+addSbtPlugin("mysql" % "mysql-connector-java" % "8.0.33")
