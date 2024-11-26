@@ -20,7 +20,7 @@ class CartesianProductOpExec extends OperatorExecutor {
     * with every tuple collected from the left stream.
     *
     * @param tuple Either a Tuple from one of the streams or an InputExhausted signal.
-    * @param port The port number indicating which stream the tuple is from (0 for left, 1 for right).
+    * @param port  The port number indicating which stream the tuple is from (0 for left, 1 for right).
     * @return An Iterator of TupleLike objects representing the Cartesian product.
     */
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {

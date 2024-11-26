@@ -8,7 +8,7 @@ import javax.annotation.security.RolesAllowed
 import javax.mail.internet.{InternetAddress, MimeMessage}
 import javax.mail.{Message, PasswordAuthentication, Session, Transport}
 import javax.ws.rs._
-import scala.util.{Try, Success, Failure}
+import scala.util.{Failure, Success, Try}
 
 case class EmailMessage(receiver: String, subject: String, content: String)
 

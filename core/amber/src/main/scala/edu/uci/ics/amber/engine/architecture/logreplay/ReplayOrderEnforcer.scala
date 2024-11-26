@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.logreplay
 
-import edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity
+import edu.uci.ics.amber.virtualidentity.ChannelIdentity
 
 import scala.collection.mutable
 

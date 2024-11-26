@@ -1,8 +1,8 @@
 package edu.uci.ics.amber.operator.source.sql.mysql
 
 import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
-import MySQLConnUtil.connect
 import edu.uci.ics.amber.operator.source.sql.SQLSourceOpExec
+import edu.uci.ics.amber.operator.source.sql.mysql.MySQLConnUtil.connect
 
 import java.sql._
 
@@ -63,7 +63,9 @@ class MySQLSourceOpExec private[mysql] (
     val preparedStatement = connection.prepareStatement(FETCH_TABLE_NAMES_SQL)
     preparedStatement.setString(1, database)
     val resultSet = preparedStatement.executeQuery
-    while ({ resultSet.next }) {
+    while ({
+      resultSet.next
+    }) {
       tableNames += resultSet.getString(1)
     }
     resultSet.close()

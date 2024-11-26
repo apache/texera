@@ -1,8 +1,8 @@
 package edu.uci.ics.amber.operator.source.apis.twitter.v2
 
 import edu.uci.ics.amber.core.tuple.{Schema, Tuple, TupleLike}
-import TwitterUtils.tweetDataToTuple
 import edu.uci.ics.amber.operator.source.apis.twitter.TwitterSourceOpExec
+import edu.uci.ics.amber.operator.source.apis.twitter.v2.TwitterUtils.tweetDataToTuple
 import io.github.redouane59.twitter.dto.endpoints.AdditionalParameters
 import io.github.redouane59.twitter.dto.tweet.TweetList
 import io.github.redouane59.twitter.dto.tweet.TweetV2.TweetData

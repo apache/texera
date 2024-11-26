@@ -97,5 +97,5 @@ libraryDependencies ++= Seq(
   "com.univocity" % "univocity-parsers" % "2.9.1",
   "edu.stanford.nlp" % "stanford-corenlp" % "4.5.4",
   "edu.stanford.nlp" % "stanford-corenlp" % "4.5.4" classifier "models",
-  "io.github.redouane59.twitter" % "twittered" % "2.21",
+  "io.github.redouane59.twitter" % "twittered" % "2.21"
 )

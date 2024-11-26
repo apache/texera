@@ -4,8 +4,8 @@ import edu.uci.ics.amber.core.tuple.{Attribute, AttributeTypeUtils, Schema, Tupl
 import io.github.redouane59.twitter.dto.tweet.TweetV2.TweetData
 import io.github.redouane59.twitter.dto.user.UserV2.UserData
 
-import java.time.{ZoneId, ZoneOffset}
 import java.time.format.DateTimeFormatter
+import java.time.{ZoneId, ZoneOffset}
 import scala.jdk.CollectionConverters.IterableHasAsScala
 
 object TwitterUtils {
@@ -75,7 +75,11 @@ object TwitterUtils {
         Boolean.box(user.get.isProtectedAccount),
         Boolean.box(user.get.isVerified)
       ),
-      tweetSchema.getAttributes.map((attribute: Attribute) => { attribute.getType }).toArray
+      tweetSchema.getAttributes
+        .map((attribute: Attribute) => {
+          attribute.getType
+        })
+        .toArray
     )
     Tuple.builder(tweetSchema).addSequentially(fields).build()
   }

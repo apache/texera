@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.project
 
-import edu.uci.ics.texera.web.SqlServer
+import edu.uci.ics.amber.core.storage.StorageConfig
+import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables._
 import edu.uci.ics.texera.web.model.jooq.generated.enums.ProjectUserAccessPrivilege
@@ -34,7 +35,9 @@ import scala.jdk.CollectionConverters.IterableHasAsScala
   */
 
 object ProjectResource {
-  final private lazy val context = SqlServer.createDSLContext()
+  final private lazy val context = SqlServer
+    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .createDSLContext()
   final private lazy val userProjectDao = new ProjectDao(context.configuration)
   final private lazy val workflowOfProjectDao = new WorkflowOfProjectDao(context.configuration)
   final private lazy val projectUserAccessDao = new ProjectUserAccessDao(context.configuration)
@@ -45,8 +48,8 @@ object ProjectResource {
     *
     * No insertion occurs if the workflow does not belong to any projects.
     *
-    * @param uid user ID
-    * @param wid workflow ID
+    * @param uid      user ID
+    * @param wid      workflow ID
     * @param fileName name of exported file
     * @return String containing status of adding exported file to project(s)
     */
@@ -80,6 +83,7 @@ object ProjectResource {
         .values(wid, pid)
     )
   }
+
   case class DashboardProject(
       pid: UInteger,
       name: String,
@@ -98,6 +102,7 @@ class ProjectResource {
 
   /**
     * This method returns the specified project
+    *
     * @param pid project id
     * @return project specified by the project id
     */
@@ -109,6 +114,7 @@ class ProjectResource {
 
   /**
     * This method returns the list of projects owned by the session user.
+    *
     * @param user the session user
     * @return a list of projects belonging to owner
     */
@@ -157,6 +163,7 @@ class ProjectResource {
   /**
     * This method inserts a new project into the database belonging to the session user
     * and with the specified name.
+    *
     * @param user the session user
     * @param name project name
     */
@@ -181,6 +188,7 @@ class ProjectResource {
 
   /**
     * This method adds a mapping between the specified workflow to the specified project into the database.
+    *
     * @param pid project ID
     * @param wid workflow ID
     */
@@ -202,7 +210,8 @@ class ProjectResource {
 
   /**
     * This method updates the project name of the specified, existing project
-    * @param pid project ID
+    *
+    * @param pid  project ID
     * @param name new name
     */
   @POST
@@ -226,6 +235,7 @@ class ProjectResource {
 
   /**
     * This method updates the description of a specified, existing project
+    *
     * @param pid project ID
     */
   @POST
@@ -248,7 +258,7 @@ class ProjectResource {
   /**
     * This method updates a project's color.
     *
-    * @param pid id of project to be updated
+    * @param pid      id of project to be updated
     * @param colorHex new HEX formatted color to be set
     */
   @POST

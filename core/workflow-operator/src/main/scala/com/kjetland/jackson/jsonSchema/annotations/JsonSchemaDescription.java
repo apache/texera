@@ -9,7 +9,7 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 /**
  * Same as com.fasterxml.jackson.annotation.JsonPropertyDescription
  */
-@Target({ METHOD, FIELD, PARAMETER, TYPE })
+@Target({METHOD, FIELD, PARAMETER, TYPE})
 @Retention(RUNTIME)
 public @interface JsonSchemaDescription {
     String value();

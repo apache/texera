@@ -40,6 +40,7 @@ class FlowControl {
   private var queuedCredit: Long = 0
   private val stashedMessages: mutable.Queue[NetworkMessage] = new mutable.Queue()
   private var overloaded = false
+
   def isOverloaded: Boolean = overloaded
 
   /**

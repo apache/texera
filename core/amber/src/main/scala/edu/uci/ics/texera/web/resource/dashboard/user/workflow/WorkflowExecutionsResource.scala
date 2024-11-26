@@ -1,9 +1,10 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 
+import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.amber.engine.architecture.logreplay.{ReplayDestination, ReplayLogRecord}
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
-import edu.uci.ics.amber.engine.common.virtualidentity.{ChannelMarkerIdentity, ExecutionIdentity}
-import edu.uci.ics.texera.web.SqlServer
+import edu.uci.ics.amber.virtualidentity.{ChannelMarkerIdentity, ExecutionIdentity}
+import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
   USER,
@@ -36,7 +37,9 @@ import scala.collection.mutable
 import scala.jdk.CollectionConverters.ListHasAsScala
 
 object WorkflowExecutionsResource {
-  final private lazy val context = SqlServer.createDSLContext()
+  final private lazy val context = SqlServer
+    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .createDSLContext()
   final private lazy val executionsDao = new WorkflowExecutionsDao(context.configuration)
   final private lazy val workflowRuntimeStatisticsDao = new WorkflowRuntimeStatisticsDao(
     context.configuration
@@ -67,6 +70,7 @@ object WorkflowExecutionsResource {
 
   /**
     * This function retrieves the latest execution id of a workflow
+    *
     * @param wid workflow id
     * @return UInteger
     */
@@ -123,7 +127,9 @@ case class ExecutionGroupBookmarkRequest(
     eIds: Array[UInteger],
     isBookmarked: Boolean
 )
+
 case class ExecutionGroupDeleteRequest(wid: UInteger, eIds: Array[UInteger])
+
 case class ExecutionRenameRequest(wid: UInteger, eId: UInteger, executionName: String)
 
 @Produces(Array(MediaType.APPLICATION_JSON))

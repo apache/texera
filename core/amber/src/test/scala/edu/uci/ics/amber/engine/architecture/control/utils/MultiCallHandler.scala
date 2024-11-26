@@ -3,7 +3,7 @@ package edu.uci.ics.amber.engine.architecture.control.utils
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands._
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns._
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
 
 trait MultiCallHandler {
   this: TesterAsyncRPCHandlerInitializer =>

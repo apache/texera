@@ -1,14 +1,13 @@
 package edu.uci.ics.amber.operator.source.cache
 
 import edu.uci.ics.amber.core.executor.OpExecInitInfo
+import edu.uci.ics.amber.core.storage.result.OpResultStorage
 import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
-import edu.uci.ics.amber.operator.metadata.OperatorInfo
+import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.source.SourceOperatorDescriptor
 import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, OperatorIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.workflow.OutputPort
-import edu.uci.ics.amber.core.storage.result.OpResultStorage
-import edu.uci.ics.amber.operator.metadata.OperatorGroupConstants
 
 class CacheSourceOpDesc(val targetSinkStorageId: OperatorIdentity, opResultStorage: OpResultStorage)
     extends SourceOperatorDescriptor {

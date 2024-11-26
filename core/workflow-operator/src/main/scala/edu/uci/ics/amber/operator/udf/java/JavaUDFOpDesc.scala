@@ -11,21 +11,19 @@ import edu.uci.ics.amber.core.workflow.{
   SchemaPropagationFunc,
   UnknownPartition
 }
+import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.{LogicalOp, PortDescription, StateTransferFunc}
-import edu.uci.ics.amber.operator.metadata.OperatorInfo
-import edu.uci.ics.amber.operator.metadata.OperatorGroupConstants
 import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort, PortIdentity}
 
 import scala.util.{Success, Try}
-
 class JavaUDFOpDesc extends LogicalOp {
   @JsonProperty(
     required = true,
     defaultValue =
       "import edu.uci.ics.texera.workflow.common.operators.map.MapOpExec;\n" +
-        "import edu.uci.ics.texera.workflow.common.tuple.Tuple;\n" +
-        "import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike;\n" +
+        "import edu.uci.ics.amber.engine.common.model.tuple.Tuple;\n" +
+        "import edu.uci.ics.amber.engine.common.model.tuple.TupleLike;\n" +
         "import scala.Function1;\n" +
         "import java.io.Serializable;\n" +
         "\n" +

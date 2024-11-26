@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.web.resource
 
-import edu.uci.ics.texera.web.SqlServer
+import edu.uci.ics.amber.core.storage.StorageConfig
+import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.USER_CONFIG
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserConfigDao
@@ -23,7 +24,10 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 @Consumes(Array(MediaType.TEXT_PLAIN))
 class UserConfigResource {
   final private lazy val userDictionaryDao = new UserConfigDao(
-    SqlServer.createDSLContext.configuration
+    SqlServer
+      .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+      .createDSLContext()
+      .configuration
   )
 
   @GET
@@ -38,7 +42,9 @@ class UserConfigResource {
     * the user_dictionary table as a json object
     */
   private def getDict(user: User): Map[String, String] = {
-    SqlServer.createDSLContext
+    SqlServer
+      .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+      .createDSLContext()
       .select()
       .from(USER_CONFIG)
       .where(USER_CONFIG.UID.eq(user.getUid))
@@ -68,10 +74,13 @@ class UserConfigResource {
     * This method retrieves a value from the user_dictionary table
     * given a user's uid and key. each tuple (uid, key) is a primary key
     * in user_dictionary, and should uniquely identify one value
+    *
     * @return String or null if entry doesn't exist
     */
   private def getValueByKey(user: User, key: String): String = {
-    SqlServer.createDSLContext
+    SqlServer
+      .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+      .createDSLContext()
       .fetchOne(
         USER_CONFIG,
         USER_CONFIG.UID.eq(user.getUid).and(USER_CONFIG.KEY.eq(key))
@@ -108,7 +117,9 @@ class UserConfigResource {
     */
   private def dictEntryExists(user: User, key: String): Boolean = {
     userDictionaryDao.existsById(
-      SqlServer.createDSLContext
+      SqlServer
+        .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+        .createDSLContext()
         .newRecord(USER_CONFIG.UID, USER_CONFIG.KEY)
         .values(user.getUid, key)
     )
@@ -142,7 +153,9 @@ class UserConfigResource {
     */
   private def deleteDictEntry(user: User, key: String): Unit = {
     userDictionaryDao.deleteById(
-      SqlServer.createDSLContext
+      SqlServer
+        .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+        .createDSLContext()
         .newRecord(USER_CONFIG.UID, USER_CONFIG.KEY)
         .values(user.getUid, key)
     )

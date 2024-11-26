@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.web.resource.dashboard
 
-import org.jooq.{Condition, Field}
 import org.jooq.impl.DSL.{condition, noCondition}
+import org.jooq.{Condition, Field}
 
 import java.sql.Timestamp
 import java.text.{ParseException, SimpleDateFormat}

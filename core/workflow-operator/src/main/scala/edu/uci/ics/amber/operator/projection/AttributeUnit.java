@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
-import edu.uci.ics.amber.operator.metadata.annotation.AutofillAttributeName;
+import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName;
 import org.jooq.tools.StringUtils;
 import java.util.Objects;
 
@@ -23,8 +23,8 @@ public class AttributeUnit{
     // TODO: explore the reason why this JsonCreator annotation is required
     @JsonCreator
     public AttributeUnit(
-            @JsonProperty("originalAttribute") String attributeName,
-            @JsonProperty("alias") String alias) {
+        @JsonProperty("originalAttribute") String attributeName,
+        @JsonProperty("alias") String alias) {
         this.originalAttribute = attributeName;
         this.alias = alias;
     }

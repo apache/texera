@@ -1,4 +1,3 @@
-
 package edu.uci.ics.amber.operator.machineLearning.sklearnAdvanced.KNNTrainer;
 
 import edu.uci.ics.amber.operator.machineLearning.sklearnAdvanced.base.ParamClass;

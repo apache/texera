@@ -6,13 +6,13 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
   FinalizeCheckpointRequest
 }
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.FinalizeCheckpointResponse
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import edu.uci.ics.amber.engine.architecture.worker.{
   DataProcessorRPCHandlerInitializer,
   WorkflowWorker
 }
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
-import edu.uci.ics.amber.engine.common.{CheckpointState, CheckpointSupport, SerializedState}
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
+import edu.uci.ics.amber.engine.common.{CheckpointState, CheckpointSupport, SerializedState}
 
 import java.net.URI
 import java.util.concurrent.CompletableFuture

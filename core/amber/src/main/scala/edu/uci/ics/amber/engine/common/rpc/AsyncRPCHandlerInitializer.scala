@@ -6,7 +6,7 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlcommands._
 import edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerServiceFs2Grpc
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns._
 import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceFs2Grpc
-import edu.uci.ics.amber.engine.common.virtualidentity.{
+import edu.uci.ics.amber.virtualidentity.{
   ActorVirtualIdentity,
   ChannelIdentity,
   ChannelMarkerIdentity
@@ -19,8 +19,11 @@ class AsyncRPCHandlerInitializer(
     ctrlReceiver: AsyncRPCServer
 ) {
   implicit def returnAsFuture[R](ret: R): Future[R] = Future[R](ret)
+
   implicit def actorIdAsContext(to: ActorVirtualIdentity): AsyncRPCContext = mkContext(to)
+
   implicit def stringToResponse(s: String): StringResponse = StringResponse(s)
+
   implicit def intToResponse(i: Int): IntResponse = IntResponse(i)
 
   // register all handlers
@@ -28,7 +31,9 @@ class AsyncRPCHandlerInitializer(
 
   def controllerInterface: ControllerServiceFs2Grpc[Future, AsyncRPCContext] =
     ctrlSource.controllerInterface
+
   def workerInterface: WorkerServiceFs2Grpc[Future, AsyncRPCContext] = ctrlSource.workerInterface
+
   def mkContext(to: ActorVirtualIdentity): AsyncRPCContext = ctrlSource.mkContext(to)
 
   def sendChannelMarker(

@@ -1,10 +1,10 @@
 package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
 import com.twitter.util.Future
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{EmptyRequest, AsyncRPCContext}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, EmptyRequest}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerMetricsResponse
-import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerMetrics
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerMetrics
 
 trait QueryStatisticsHandler {
   this: DataProcessorRPCHandlerInitializer =>

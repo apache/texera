@@ -48,12 +48,13 @@ public @interface JsonSchemaInject {
     /**
      * If merge is true (the default), the injected json will be injected into the generated jsonSchema-node. If merge = false, then
      * we skips the generated jsonSchema-node and use the entire injected one instead.
+     *
      * @return whether we should merge or replaceWith the injected json
      */
     boolean merge() default true;
 
     // This can be used in the same way as 'groups' in javax.validation.constraints, e.g @NotNull
-    Class<?>[] javaxValidationGroups() default { };
+    Class<?>[] javaxValidationGroups() default {};
 
     class None implements Supplier<JsonNode> {
         @Override

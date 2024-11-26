@@ -1,9 +1,5 @@
 package edu.uci.ics.texera.web.service
 
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
-import java.nio.charset.StandardCharsets
-import java.util
-import java.util.concurrent.{Executors, ThreadPoolExecutor}
 import com.github.tototoshi.csv.CSVWriter
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.api.client.util.Lists
@@ -11,9 +7,11 @@ import com.google.api.services.drive.Drive
 import com.google.api.services.drive.model.{File, FileList, Permission}
 import com.google.api.services.sheets.v4.Sheets
 import com.google.api.services.sheets.v4.model.{Spreadsheet, SpreadsheetProperties, ValueRange}
-import edu.uci.ics.amber.engine.common.model.tuple.Tuple
-import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
+import edu.uci.ics.amber.core.storage.result.{OpResultStorage, SinkStorageReader}
+import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.engine.common.Utils.retry
+import edu.uci.ics.amber.util.PathUtils
+import edu.uci.ics.amber.virtualidentity.OperatorIdentity
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.websocket.request.ResultExportRequest
 import edu.uci.ics.texera.web.model.websocket.response.ResultExportResponse
@@ -22,15 +20,16 @@ import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{
   createNewDatasetVersionByAddingFiles,
   sanitizePath
 }
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.PathUtils
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowVersionResource
-import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
-import edu.uci.ics.texera.workflow.operators.sink.storage.SinkStorageReader
 import org.jooq.types.UInteger
 
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
+import java.nio.charset.StandardCharsets
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
+import java.util
+import java.util.concurrent.{Executors, ThreadPoolExecutor}
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.SeqHasAsJava
@@ -45,6 +44,7 @@ object ResultExportService {
 }
 
 class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
+
   import ResultExportService._
 
   private val cache = new mutable.HashMap[String, String]

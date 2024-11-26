@@ -1,9 +1,8 @@
 package edu.uci.ics.amber.operator.source.fetcher
 
-import edu.uci.ics.amber.core.tuple.TupleLike
-import URLFetchUtil.getInputStreamFromURL
 import edu.uci.ics.amber.core.executor.SourceOperatorExecutor
-
+import edu.uci.ics.amber.core.tuple.TupleLike
+import edu.uci.ics.amber.operator.source.fetcher.URLFetchUtil.getInputStreamFromURL
 import org.apache.commons.io.IOUtils
 
 import java.net.URL

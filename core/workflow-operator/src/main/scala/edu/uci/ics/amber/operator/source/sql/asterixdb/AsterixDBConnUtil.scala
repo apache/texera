@@ -1,12 +1,13 @@
 package edu.uci.ics.amber.operator.source.sql.asterixdb
 
-import kong.unirest.{HttpResponse, JsonNode, Unirest}
 import kong.unirest.json.JSONObject
+import kong.unirest.{HttpResponse, JsonNode, Unirest}
 
 import scala.collection.mutable
 import scala.collection.mutable.Map
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 import scala.util.{Failure, Success, Try}
+
 object AsterixDBConnUtil {
 
   // as asterixDB version update is unlikely to happen, this map

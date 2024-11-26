@@ -1,16 +1,16 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
+import edu.uci.ics.amber.core.storage.result.OpResultStorage
+import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.scheduling.RegionPlanGenerator.replaceVertex
 import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
   DefaultResourceAllocator,
   ExecutionClusterInfo
 }
-import edu.uci.ics.amber.engine.common.model.{PhysicalOp, PhysicalPlan, WorkflowContext}
-import edu.uci.ics.amber.engine.common.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
-import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
-import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
-import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
-import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
+import edu.uci.ics.amber.operator.sink.managed.ProgressiveSinkOpDesc
+import edu.uci.ics.amber.operator.source.cache.CacheSourceOpDesc
+import edu.uci.ics.amber.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.workflow.PhysicalLink
 import org.jgrapht.graph.DirectedAcyclicGraph
 import org.jgrapht.traverse.TopologicalOrderIterator
 
@@ -86,7 +86,7 @@ abstract class RegionPlanGenerator(
 
   /**
     * For a dependee input link, although it connects two regions A->B, we include this link and its toOp in region A
-    *  so that the dependee link will be completed first.
+    * so that the dependee link will be completed first.
     */
   def populateDependeeLinks(
       regionDAG: DirectedAcyclicGraph[Region, RegionLink]

@@ -1,14 +1,12 @@
 package edu.uci.ics.amber.operator.visualization.bubbleChart
 
-import com.fasterxml.jackson.annotation.JsonProperty
-import com.fasterxml.jackson.annotation.JsonPropertyDescription
+import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
-import edu.uci.ics.amber.operator.metadata.OperatorInfo
-import edu.uci.ics.amber.operator.metadata.OperatorGroupConstants
-import edu.uci.ics.amber.operator.metadata.annotation.AutofillAttributeName
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
+import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.amber.operator.visualization.{VisualizationConstants, VisualizationOperator}
 
 /**
@@ -80,36 +78,37 @@ class BubbleChartOpDesc extends VisualizationOperator with PythonOperatorDescrip
   }
 
   override def generatePythonCode(): String = {
-    val finalCode = s"""
-        |from pytexera import *
-        |
-        |import plotly.express as px
-        |import plotly.graph_objects as go
-        |import plotly.io
-        |import numpy as np
-        |
-        |
-        |class ProcessTableOperator(UDFTableOperator):
-        |
-        |    def render_error(self, error_msg):
-        |        return '''<h1>TreeMap is not available.</h1>
-        |                  <p>Reasons are: {} </p>
-        |               '''.format(error_msg)
-        |
-        |    @overrides
-        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-        |        if table.empty:
-        |            yield {'html-content': self.render_error("Input table is empty.")}
-        |            return
-        |        ${manipulateTable()}
-        |        ${createPlotlyFigure()}
-        |        if table.empty:
-        |            yield {'html-content': self.render_error("No valid rows left (every row has at least 1 missing value).")}
-        |            return
-        |        fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
-        |        html = plotly.io.to_html(fig, include_plotlyjs = 'cdn', auto_play = False)
-        |        yield {'html-content':html}
-        |""".stripMargin
+    val finalCode =
+      s"""
+         |from pytexera import *
+         |
+         |import plotly.express as px
+         |import plotly.graph_objects as go
+         |import plotly.io
+         |import numpy as np
+         |
+         |
+         |class ProcessTableOperator(UDFTableOperator):
+         |
+         |    def render_error(self, error_msg):
+         |        return '''<h1>TreeMap is not available.</h1>
+         |                  <p>Reasons are: {} </p>
+         |               '''.format(error_msg)
+         |
+         |    @overrides
+         |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+         |        if table.empty:
+         |            yield {'html-content': self.render_error("Input table is empty.")}
+         |            return
+         |        ${manipulateTable()}
+         |        ${createPlotlyFigure()}
+         |        if table.empty:
+         |            yield {'html-content': self.render_error("No valid rows left (every row has at least 1 missing value).")}
+         |            return
+         |        fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
+         |        html = plotly.io.to_html(fig, include_plotlyjs = 'cdn', auto_play = False)
+         |        yield {'html-content':html}
+         |""".stripMargin
     finalCode
   }
 }

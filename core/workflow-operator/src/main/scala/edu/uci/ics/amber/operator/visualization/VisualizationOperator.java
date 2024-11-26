@@ -1,8 +1,8 @@
 package edu.uci.ics.amber.operator.visualization;
 
 
-import edu.uci.ics.amber.operator.sink.IncrementalOutputMode;
 import edu.uci.ics.amber.operator.LogicalOp;
+import edu.uci.ics.amber.operator.sink.IncrementalOutputMode;
 
 /**
  * Base class for visualization operators. Visualization Operators should precede ViewResult Operator.

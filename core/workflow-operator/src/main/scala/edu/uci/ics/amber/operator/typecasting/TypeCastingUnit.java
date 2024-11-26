@@ -5,68 +5,68 @@ import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 import edu.uci.ics.amber.core.tuple.AttributeType;
-import edu.uci.ics.amber.operator.metadata.annotation.AutofillAttributeName;
+import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName;
 
-@JsonSchemaInject(json = 
-"{" +
-"  \"attributeTypeRules\": {" +
-"    \"attribute\": {" +
-"      \"allOf\": [" +
-"        {" +
-"          \"if\": {" +
-"            \"resultType\": {" +
-"              \"valEnum\": [\"integer\"]" +
-"            }" +
-"          }," +
-"          \"then\": {" +
-"            \"enum\": [\"string\", \"long\", \"double\", \"boolean\"]" +
-"          }" +
-"        }," +
-"        {" +
-"          \"if\": {" +
-"            \"resultType\": {" +
-"              \"valEnum\": [\"double\"]" +
-"            }" +
-"          }," +
-"          \"then\": {" +
-"            \"enum\": [\"string\", \"integer\", \"long\", \"boolean\"]" +
-"          }" +
-"        }," +
-"        {" +
-"          \"if\": {" +
-"            \"resultType\": {" +
-"              \"valEnum\": [\"boolean\"]" +
-"            }" +
-"          }," +
-"          \"then\": {" +
-"            \"enum\": [\"string\", \"integer\", \"long\", \"double\"]" +
-"          }" +
-"        }," +
-"        {" +
-"          \"if\": {" +
-"            \"resultType\": {" +
-"              \"valEnum\": [\"long\"]" +
-"            }" +
-"          }," +
-"          \"then\": {" +
-"            \"enum\": [\"string\", \"integer\", \"double\", \"boolean\", \"timestamp\"]" +
-"          }" +
-"        }," +
-"        {" +
-"          \"if\": {" +
-"            \"resultType\": {" +
-"              \"valEnum\": [\"timestamp\"]" +
-"            }" +
-"          }," +
-"          \"then\": {" +
-"            \"enum\": [\"string\", \"long\"]" +
-"          }" +
-"        }" +
-"        " +
-"      ]" +
-"    }" +
-"  }" +
-"}"
+@JsonSchemaInject(json =
+        "{" +
+                "  \"attributeTypeRules\": {" +
+                "    \"attribute\": {" +
+                "      \"allOf\": [" +
+                "        {" +
+                "          \"if\": {" +
+                "            \"resultType\": {" +
+                "              \"valEnum\": [\"integer\"]" +
+                "            }" +
+                "          }," +
+                "          \"then\": {" +
+                "            \"enum\": [\"string\", \"long\", \"double\", \"boolean\"]" +
+                "          }" +
+                "        }," +
+                "        {" +
+                "          \"if\": {" +
+                "            \"resultType\": {" +
+                "              \"valEnum\": [\"double\"]" +
+                "            }" +
+                "          }," +
+                "          \"then\": {" +
+                "            \"enum\": [\"string\", \"integer\", \"long\", \"boolean\"]" +
+                "          }" +
+                "        }," +
+                "        {" +
+                "          \"if\": {" +
+                "            \"resultType\": {" +
+                "              \"valEnum\": [\"boolean\"]" +
+                "            }" +
+                "          }," +
+                "          \"then\": {" +
+                "            \"enum\": [\"string\", \"integer\", \"long\", \"double\"]" +
+                "          }" +
+                "        }," +
+                "        {" +
+                "          \"if\": {" +
+                "            \"resultType\": {" +
+                "              \"valEnum\": [\"long\"]" +
+                "            }" +
+                "          }," +
+                "          \"then\": {" +
+                "            \"enum\": [\"string\", \"integer\", \"double\", \"boolean\", \"timestamp\"]" +
+                "          }" +
+                "        }," +
+                "        {" +
+                "          \"if\": {" +
+                "            \"resultType\": {" +
+                "              \"valEnum\": [\"timestamp\"]" +
+                "            }" +
+                "          }," +
+                "          \"then\": {" +
+                "            \"enum\": [\"string\", \"long\"]" +
+                "          }" +
+                "        }" +
+                "        " +
+                "      ]" +
+                "    }" +
+                "  }" +
+                "}"
 )
 public class TypeCastingUnit {
     @JsonProperty(required = true)

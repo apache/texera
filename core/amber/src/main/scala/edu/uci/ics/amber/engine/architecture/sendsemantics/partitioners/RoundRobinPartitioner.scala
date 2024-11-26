@@ -1,8 +1,8 @@
 package edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners
 
+import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RoundRobinPartitioning
-import edu.uci.ics.amber.engine.common.model.tuple.Tuple
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
 
 case class RoundRobinPartitioner(partitioning: RoundRobinPartitioning) extends Partitioner {
   private var roundRobinIndex = 0

@@ -2,6 +2,7 @@ package edu.uci.ics.amber.operator.visualization.bubbleChart
 
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
+
 class BubbleChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   var opDesc: BubbleChartOpDesc = _
 

@@ -19,8 +19,8 @@ object JSONUtil {
     * will be converted to Map[String, String]{"A" : "a", "B": "1", "C": "2.3",
     * "D.some":"object", "E1":"X", "E2":"Y"}.
     *
-    * @param node the JSONNode to convert.
-    * @param flatten a boolean to toggle flatten mode.
+    * @param node       the JSONNode to convert.
+    * @param flatten    a boolean to toggle flatten mode.
     * @param parentName the parent's name to pass into children's naming conversion.
     * @return a Map[String, String] of all the key value pairs from the given JSONNode.
     */

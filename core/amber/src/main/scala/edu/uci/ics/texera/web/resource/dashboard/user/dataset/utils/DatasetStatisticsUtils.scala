@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils
 
-import edu.uci.ics.texera.web.SqlServer
+import edu.uci.ics.amber.core.storage.StorageConfig
+import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset.DATASET
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource
 import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource.DatasetQuota
@@ -9,7 +10,10 @@ import org.jooq.types.UInteger
 import scala.jdk.CollectionConverters._
 
 object DatasetStatisticsUtils {
-  final private lazy val context = SqlServer.createDSLContext()
+  final private lazy val context = SqlServer
+    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .createDSLContext()
+
   // this function retrieves the total counts of dataset that belongs to the user
   def getUserCreatedDatasetCount(uid: UInteger): Int = {
     val count = context

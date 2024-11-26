@@ -1,13 +1,14 @@
 package edu.uci.ics.texera.web.service
 
 import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.core.storage.StorageConfig
+import edu.uci.ics.amber.core.workflow.WorkflowContext.DEFAULT_EXECUTION_ID
 import edu.uci.ics.amber.engine.common.AmberConfig
-import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.texera.web.SqlServer
+import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowExecutionsDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowVersionResource._
-import edu.uci.ics.amber.engine.common.model.WorkflowContext.DEFAULT_EXECUTION_ID
 import org.jooq.types.UInteger
 
 import java.sql.Timestamp
@@ -17,7 +18,9 @@ import java.sql.Timestamp
   * It also updates the entry if an execution status is updated
   */
 object ExecutionsMetadataPersistService extends LazyLogging {
-  final private lazy val context = SqlServer.createDSLContext()
+  final private lazy val context = SqlServer
+    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .createDSLContext()
   private val workflowExecutionsDao = new WorkflowExecutionsDao(
     context.configuration
   )
@@ -25,8 +28,8 @@ object ExecutionsMetadataPersistService extends LazyLogging {
   /**
     * This method inserts a new entry of a workflow execution in the database and returns the generated eId
     *
-    * @param workflowId     the given workflow
-    * @param uid     user id that initiated the execution
+    * @param workflowId the given workflow
+    * @param uid        user id that initiated the execution
     * @return generated execution ID
     */
 

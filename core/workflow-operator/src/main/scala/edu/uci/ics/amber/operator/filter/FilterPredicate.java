@@ -7,9 +7,8 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaString;
 import edu.uci.ics.amber.core.tuple.AttributeType;
 import edu.uci.ics.amber.core.tuple.AttributeTypeUtils;
 import edu.uci.ics.amber.core.tuple.Tuple;
-import edu.uci.ics.amber.operator.metadata.annotation.AutofillAttributeName;
-import edu.uci.ics.amber.operator.metadata.annotation.HideAnnotation;
-
+import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName;
+import edu.uci.ics.amber.operator.metadata.annotations.HideAnnotation;
 
 import java.sql.Timestamp;
 import java.util.Objects;
@@ -61,9 +60,9 @@ public class FilterPredicate {
     @JsonIgnore
     public boolean evaluate(Tuple tuple) {
         boolean isFieldNull = tuple.getField(attribute) == null;
-        if (condition == ComparisonType.IS_NULL) {
+        if (condition == edu.uci.ics.amber.operator.filter.ComparisonType.IS_NULL) {
             return isFieldNull;
-        } else if (condition == ComparisonType.IS_NOT_NULL) {
+        } else if (condition == edu.uci.ics.amber.operator.filter.ComparisonType.IS_NOT_NULL) {
             return !isFieldNull;
         } else if (isFieldNull) {
             return false;

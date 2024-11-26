@@ -1,11 +1,10 @@
 package edu.uci.ics.amber.operator.sink.managed
 
-import edu.uci.ics.amber.core.tuple.{Tuple, TupleLike}
-import edu.uci.ics.amber.core.storage.result.SinkStorageWriter
-import edu.uci.ics.amber.operator.sink.IncrementalOutputMode.{SET_DELTA, SET_SNAPSHOT}
 import edu.uci.ics.amber.core.executor.SinkOperatorExecutor
+import edu.uci.ics.amber.core.storage.result.SinkStorageWriter
+import edu.uci.ics.amber.core.tuple.{Tuple, TupleLike}
+import edu.uci.ics.amber.operator.sink.{IncrementalOutputMode, ProgressiveUtils}
 import edu.uci.ics.amber.workflow.PortIdentity
-import edu.uci.ics.amber.operator.sink.IncrementalOutputMode
 
 class ProgressiveSinkOpExec(outputMode: IncrementalOutputMode, storage: SinkStorageWriter)
     extends SinkOperatorExecutor {
@@ -19,8 +18,8 @@ class ProgressiveSinkOpExec(outputMode: IncrementalOutputMode, storage: SinkStor
       input: Int
   ): Unit = {
     outputMode match {
-      case SET_SNAPSHOT => updateSetSnapshot(tuple)
-      case SET_DELTA    => storage.putOne(tuple)
+      case IncrementalOutputMode.SET_SNAPSHOT => updateSetSnapshot(tuple)
+      case IncrementalOutputMode.SET_DELTA    => storage.putOne(tuple)
     }
   }
 

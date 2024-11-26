@@ -2,6 +2,7 @@ package edu.uci.ics.amber.operator.distinct
 
 import edu.uci.ics.amber.core.executor.OperatorExecutor
 import edu.uci.ics.amber.core.tuple.{Tuple, TupleLike}
+
 import scala.collection.mutable
 
 /**
@@ -10,6 +11,7 @@ import scala.collection.mutable
   */
 class DistinctOpExec extends OperatorExecutor {
   private val seenTuples: mutable.LinkedHashSet[Tuple] = mutable.LinkedHashSet()
+
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
     seenTuples.add(tuple)
     Iterator.empty

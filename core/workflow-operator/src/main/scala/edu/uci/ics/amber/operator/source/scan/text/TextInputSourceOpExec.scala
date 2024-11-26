@@ -8,8 +8,8 @@ import edu.uci.ics.amber.operator.source.scan.FileAttributeType
 class TextInputSourceOpExec private[text] (
     fileAttributeType: FileAttributeType,
     textInput: String,
-    fileScanOffset: Option[Int] = None,
-    fileScanLimit: Option[Int] = None
+    fileScanLimit: Option[Int] = None,
+    fileScanOffset: Option[Int] = None
 ) extends SourceOperatorExecutor {
 
   override def produceTuple(): Iterator[TupleLike] = {

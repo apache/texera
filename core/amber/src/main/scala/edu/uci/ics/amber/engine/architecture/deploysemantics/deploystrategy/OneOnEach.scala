@@ -9,6 +9,7 @@ object OneOnEach {
 class OneOnEach extends DeployStrategy {
   var available: Array[Address] = _
   var index = 0
+
   override def initialize(available: Array[Address]): Unit = {
     this.available = available
   }

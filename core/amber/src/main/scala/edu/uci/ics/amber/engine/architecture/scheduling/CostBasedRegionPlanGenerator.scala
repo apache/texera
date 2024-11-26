@@ -1,10 +1,10 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
-import edu.uci.ics.amber.engine.common.model.{PhysicalPlan, WorkflowContext}
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, PhysicalOpIdentity}
-import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
+import edu.uci.ics.amber.core.storage.result.OpResultStorage
+import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberLogging}
-import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
+import edu.uci.ics.amber.virtualidentity.{ActorVirtualIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.workflow.PhysicalLink
 import org.jgrapht.alg.connectivity.BiconnectivityInspector
 import org.jgrapht.graph.{DirectedAcyclicGraph, DirectedPseudograph}
 
@@ -51,8 +51,9 @@ class CostBasedRegionPlanGenerator(
 
   /**
     * Create regions based on only pipelined edges. This does not add the region links.
+    *
     * @param physicalPlan The original physical plan without materializations added yet.
-    * @param matEdges Set of edges to materialize (including the original blocking edges).
+    * @param matEdges     Set of edges to materialize (including the original blocking edges).
     * @return A set of regions.
     */
   private def createRegions(
@@ -91,6 +92,7 @@ class CostBasedRegionPlanGenerator(
 
   /**
     * Checks a plan for schedulability, and returns a region DAG if the plan is schedulable.
+    *
     * @param matEdges Set of edges to materialize (including the original blocking edges).
     * @return If the plan is schedulable, a region DAG will be returned. Otherwise a DirectedPseudograph (with directed
     *         cycles) will be returned to indicate that the plan is unschedulable.
@@ -125,6 +127,7 @@ class CostBasedRegionPlanGenerator(
   /**
     * Performs a search to generate a region DAG.
     * Materializations are added only after the plan is determined to be schedulable.
+    *
     * @return A region DAG.
     */
   private def createRegionDAG(): DirectedAcyclicGraph[Region, RegionLink] = {
@@ -163,7 +166,7 @@ class CostBasedRegionPlanGenerator(
     * the materialization relationship.
     *
     * @param linksToMaterialize The set of physical links to be materialized as region links in the DAG.
-    * @param regionDAG The DAG of regions to be modified
+    * @param regionDAG          The DAG of regions to be modified
     */
   private def addMaterializationsAsRegionLinks(
       linksToMaterialize: Set[PhysicalLink],
@@ -301,7 +304,8 @@ class CostBasedRegionPlanGenerator(
 
   /**
     * The cost function used by the search. Takes in a region graph represented as set of regions and links.
-    * @param regions A set of regions created based on a search state.
+    *
+    * @param regions     A set of regions created based on a search state.
     * @param regionLinks A set of links to indicate dependencies between regions, based on the materialization edges.
     * @return A cost determined by the resource allocator.
     */

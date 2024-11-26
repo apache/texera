@@ -87,5 +87,5 @@ libraryDependencies ++= Seq(
 /////////////////////////////////////////////////////////////////////////////
 
 libraryDependencies ++= Seq(
-  "mysql" % "mysql-connector-java" % "8.0.23",          // MySQL connector
+  "mysql" % "mysql-connector-java" % "8.0.33",          // MySQL connector
 )

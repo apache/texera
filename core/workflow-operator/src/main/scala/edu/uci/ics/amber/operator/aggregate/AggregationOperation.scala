@@ -4,11 +4,13 @@ import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyD
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.amber.core.tuple.AttributeTypeUtils.parseTimestamp
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Tuple}
-import edu.uci.ics.amber.operator.metadata.annotation.AutofillAttributeName
+import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
 
 import java.sql.Timestamp
+import javax.validation.constraints.NotNull
 
 case class AveragePartialObj(sum: Double, count: Double) extends Serializable {}
+
 @JsonSchemaInject(json = """
 {
   "attributeTypeRules": {
@@ -52,6 +54,7 @@ class AggregationOperation {
 
   @JsonProperty(value = "result attribute", required = true)
   @JsonPropertyDescription("column name of average result")
+  @NotNull(message = "result attribute is required")
   var resultAttribute: String = _
 
   @JsonIgnore

@@ -3,6 +3,7 @@ package edu.uci.ics.amber.util
 import org.jooq.types.UInteger
 
 import java.nio.file.{Files, Path, Paths}
+import scala.jdk.CollectionConverters.IteratorHasAsScala
 
 object PathUtils {
   val coreDirectoryName = "core"
@@ -46,6 +47,19 @@ object PathUtils {
   }
 
   lazy val gitDirectoryPath: Path = corePath.getParent
+
+  def getAllDatasetDirectories(): List[Path] = {
+    if (Files.exists(datasetsRootPath)) {
+      Files
+        .list(datasetsRootPath)
+        .filter(Files.isDirectory(_))
+        .iterator()
+        .asScala
+        .toList
+    } else {
+      List.empty[Path]
+    }
+  }
 
   private def isCorePath(path: Path): Boolean = {
     path.toRealPath().endsWith(coreDirectoryName)

@@ -2,6 +2,7 @@ package edu.uci.ics.amber.operator.visualization.scatterplot
 
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
+
 class ScatterPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
   var opDesc: ScatterplotOpDesc = _

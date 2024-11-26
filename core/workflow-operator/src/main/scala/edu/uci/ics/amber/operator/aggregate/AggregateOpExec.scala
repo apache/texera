@@ -9,7 +9,7 @@ import scala.collection.mutable
   * AggregateOpExec performs aggregation operations on input tuples, optionally grouping them by specified keys.
   *
   * @param aggregations a list of aggregation operations to apply on the tuples
-  * @param groupByKeys a list of attribute names to group the tuples by
+  * @param groupByKeys  a list of attribute names to group the tuples by
   */
 class AggregateOpExec(
     aggregations: List[AggregationOperation],

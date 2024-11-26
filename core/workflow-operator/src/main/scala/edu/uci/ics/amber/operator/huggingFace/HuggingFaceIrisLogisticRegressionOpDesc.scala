@@ -3,11 +3,9 @@ package edu.uci.ics.amber.operator.huggingFace
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
-import edu.uci.ics.amber.operator.metadata.OperatorInfo
-import edu.uci.ics.amber.operator.metadata.OperatorGroupConstants
-import edu.uci.ics.amber.operator.metadata.annotation.AutofillAttributeName
+import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
+import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
-
 class HuggingFaceIrisLogisticRegressionOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "petalLengthCmAttribute", required = true)
@@ -39,9 +37,10 @@ class HuggingFaceIrisLogisticRegressionOpDesc extends PythonOperatorDescriptor {
   var predictionProbabilityName: String = _
 
   /**
-    *  Python code to apply a pre-trained liner regression model on the Iris dataset.
-    *  For more info about the model, see https://huggingface.co/sadhaklal/logistic-regression-iris.
-    *  @return a String representation of the executable Python source code.
+    * Python code to apply a pre-trained liner regression model on the Iris dataset.
+    * For more info about the model, see https://huggingface.co/sadhaklal/logistic-regression-iris.
+    *
+    * @return a String representation of the executable Python source code.
     */
   override def generatePythonCode(): String = {
     s"""from pytexera import *

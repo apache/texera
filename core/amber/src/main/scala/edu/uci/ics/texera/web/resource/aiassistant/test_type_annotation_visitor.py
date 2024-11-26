@@ -1,5 +1,7 @@
 import pytest
+
 from type_annotation_visitor import find_untyped_variables
+
 
 class TestFunctionsAndMethods:
 
@@ -79,7 +81,7 @@ lambda_function_with_annotation = lambda x: x * 2
 
     def test_lambda_functions(self, lambda_code):
         with pytest.raises(ValueError) as exc_info:
-                find_untyped_variables(lambda_code, 1)
+            find_untyped_variables(lambda_code, 1)
         assert "Lambda functions do not support type annotation" in str(exc_info.value)
 
     @pytest.fixture

@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.web.model.http.response
 
-import edu.uci.ics.amber.engine.common.model.tuple.Attribute
+import edu.uci.ics.amber.core.tuple.Attribute
 
 case class SchemaPropagationResponse(
     code: Int,

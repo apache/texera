@@ -7,7 +7,7 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
   DebugCommandRequest
 }
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
 
 trait DebugCommandHandler {
   this: ControllerAsyncRPCHandlerInitializer =>

@@ -9,6 +9,7 @@ object WorkflowAvailableResultEvent {
       outputMode: WebOutputMode
   )
 }
+
 case class WorkflowAvailableResultEvent(
     availableOperators: Map[String, OperatorAvailableResult]
 ) extends TexeraWebSocketEvent

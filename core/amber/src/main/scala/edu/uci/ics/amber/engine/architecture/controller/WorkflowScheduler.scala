@@ -1,5 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
+import edu.uci.ics.amber.core.storage.result.OpResultStorage
+import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.scheduling.{
   CostBasedRegionPlanGenerator,
   ExpansionGreedyRegionPlanGenerator,
@@ -7,9 +9,7 @@ import edu.uci.ics.amber.engine.architecture.scheduling.{
   Schedule
 }
 import edu.uci.ics.amber.engine.common.AmberConfig
-import edu.uci.ics.amber.engine.common.model.{PhysicalPlan, WorkflowContext}
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
+import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
 
 class WorkflowScheduler(
     workflowContext: WorkflowContext,

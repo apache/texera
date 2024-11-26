@@ -5,6 +5,7 @@ case object OperatorConfig {
     OperatorConfig(workerConfigs = List())
   }
 }
+
 case class OperatorConfig(
     workerConfigs: List[WorkerConfig]
 )

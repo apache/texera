@@ -10,7 +10,7 @@ object OperatorDescriptorUtils {
     * In the case that the goal is not a multiple of worker count,
     * this function tries to spread out the remainder evenly to the workers.
     *
-    * @param goal total goal to reach for all workers
+    * @param goal            total goal to reach for all workers
     * @param totalNumWorkers total number of workers
     * @return a list which size is equal to totalNumWorkers, each number is the goal assigned for that worker index
     */

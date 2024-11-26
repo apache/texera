@@ -1,5 +1,5 @@
 storage:
-  result-storage-mode: mongodb
+  result-storage-mode: memory
   mongodb:
     url: "mongodb://localhost:27017"
     database: "texera_storage"

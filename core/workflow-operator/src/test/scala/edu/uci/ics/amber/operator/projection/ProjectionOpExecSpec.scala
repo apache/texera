@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.operator.projection
 
-import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema, SchemaEnforceable, Tuple}
+import edu.uci.ics.amber.core.tuple._
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {

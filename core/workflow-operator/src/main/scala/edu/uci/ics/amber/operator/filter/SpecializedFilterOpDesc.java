@@ -24,7 +24,7 @@ public class SpecializedFilterOpDesc extends FilterOpDesc {
 
     @JsonProperty(value = "predicates", required = true)
     @JsonPropertyDescription("multiple predicates in OR")
-    public java.util.List<FilterPredicate> predicates;
+    public java.util.List<edu.uci.ics.amber.operator.filter.FilterPredicate> predicates;
 
     @Override
     public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId) {
@@ -34,7 +34,7 @@ public class SpecializedFilterOpDesc extends FilterOpDesc {
                         operatorIdentifier(),
                         OpExecInitInfo.apply(
                                 (Function<Tuple2<Object, Object>, OperatorExecutor> & java.io.Serializable)
-                                        x -> new SpecializedFilterOpExec(this.predicates)
+                                        x -> new edu.uci.ics.amber.operator.filter.SpecializedFilterOpExec(this.predicates)
                         )
                 )
                 .withInputPorts(operatorInfo().inputPorts())

@@ -1,8 +1,8 @@
 package edu.uci.ics.amber.operator.sentiment
 
-import java.util.Properties
-
 import edu.stanford.nlp.pipeline.StanfordCoreNLP
+
+import java.util.Properties
 
 /**
   * A serializable wrapper of [[StanfordCoreNLP]].

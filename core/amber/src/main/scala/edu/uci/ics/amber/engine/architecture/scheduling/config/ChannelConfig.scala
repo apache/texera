@@ -1,8 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.scheduling.config
 
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
-import edu.uci.ics.amber.engine.common.workflow.PortIdentity
-import edu.uci.ics.texera.workflow.common.workflow.{
+import edu.uci.ics.amber.core.workflow.{
   BroadcastPartition,
   HashPartition,
   OneToOnePartition,
@@ -11,6 +9,8 @@ import edu.uci.ics.texera.workflow.common.workflow.{
   SinglePartition,
   UnknownPartition
 }
+import edu.uci.ics.amber.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import edu.uci.ics.amber.workflow.PortIdentity
 
 case object ChannelConfig {
   def generateChannelConfigs(
@@ -44,6 +44,7 @@ case object ChannelConfig {
     }
   }
 }
+
 case class ChannelConfig(
     channelId: ChannelIdentity,
     toPortId: PortIdentity

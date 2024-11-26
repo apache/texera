@@ -2,6 +2,7 @@ package edu.uci.ics.amber.operator.visualization.ganttChart
 
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
+
 class GanttChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   var opDesc: GanttChartOpDesc = _
   before {

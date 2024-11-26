@@ -1,11 +1,12 @@
 package edu.uci.ics.amber.operator.source.scan.json
 
 import edu.uci.ics.amber.core.executor.SourceOperatorExecutor
+import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.tuple.AttributeTypeUtils.parseField
 import edu.uci.ics.amber.core.tuple.{Schema, TupleLike}
-import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.operator.source.scan.FileDecodingMethod
-import edu.uci.ics.amber.util.JSONUtils.{JSONToMap, objectMapper}
+import edu.uci.ics.amber.operator.source.scan.json.JSONUtil.JSONToMap
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 
 import java.io.{BufferedReader, InputStreamReader}
 import java.net.URI
@@ -38,6 +39,7 @@ class JSONLScanSourceOpExec private[json] (
       }
     }
   }
+
   override def open(): Unit = {
     schema = schemaFunc()
     reader = new BufferedReader(

@@ -2,39 +2,39 @@ syntax = "proto3";
 
 package edu.uci.ics.amber.engine.architecture.worker;
 
-import "edu/uci/ics/amber/engine/common/workflow.proto";
+import "edu/uci/ics/amber/workflow.proto";
 import "scalapb/scalapb.proto";
 
 option (scalapb.options) = {
-    scope: FILE,
-    preserve_unknown_fields: false
-    no_default_values_in_constructor: true
+  scope: FILE,
+  preserve_unknown_fields: false
+  no_default_values_in_constructor: true
 
 };
 
 enum WorkerState {
-    UNINITIALIZED = 0;
-    READY = 1;
-    RUNNING = 2;
-    PAUSED = 3;
-    COMPLETED = 4;
+  UNINITIALIZED = 0;
+  READY = 1;
+  RUNNING = 2;
+  PAUSED = 3;
+  COMPLETED = 4;
 
 }
 
 message PortTupleCountMapping {
-    common.PortIdentity port_id = 1 [(scalapb.field).no_box = true];
-    int64 tuple_count = 2;
+  PortIdentity port_id = 1 [(scalapb.field).no_box = true];
+  int64 tuple_count = 2;
 }
 
 message WorkerStatistics {
-    repeated PortTupleCountMapping input_tuple_count = 1;
-    repeated PortTupleCountMapping output_tuple_count = 2;
-    int64 data_processing_time = 3;
-    int64 control_processing_time = 4;
-    int64 idle_time = 5;
+  repeated PortTupleCountMapping input_tuple_count = 1;
+  repeated PortTupleCountMapping output_tuple_count = 2;
+  int64 data_processing_time = 3;
+  int64 control_processing_time = 4;
+  int64 idle_time = 5;
 }
 
 message WorkerMetrics {
-    WorkerState worker_state = 1 [(scalapb.field).no_box = true];
-    WorkerStatistics worker_statistics = 2 [(scalapb.field).no_box = true];
+  WorkerState worker_state = 1 [(scalapb.field).no_box = true];
+  WorkerStatistics worker_statistics = 2 [(scalapb.field).no_box = true];
 }

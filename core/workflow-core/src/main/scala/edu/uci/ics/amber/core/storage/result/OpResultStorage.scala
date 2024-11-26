@@ -2,7 +2,6 @@ package edu.uci.ics.amber.core.storage.result
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.storage.StorageConfig
-import edu.uci.ics.amber.core.storage.result.{MemoryStorage, MongoDBSinkStorage}
 import edu.uci.ics.amber.virtualidentity.OperatorIdentity
 
 import java.util.concurrent.ConcurrentHashMap
@@ -74,7 +73,7 @@ class OpResultStorage extends Serializable with LazyLogging {
   /**
     * Close this storage. Used for workflow cleanup.
     */
-  def close(): Unit = {
+  def clear(): Unit = {
     cache.forEach((_, sinkStorageReader) => sinkStorageReader.clear())
     cache.clear()
   }

@@ -10,6 +10,7 @@ import edu.uci.ics.amber.core.tuple.Schema;
 import edu.uci.ics.amber.core.workflow.PhysicalOp;
 import edu.uci.ics.amber.core.workflow.SchemaPropagationFunc;
 import edu.uci.ics.amber.operator.metadata.OperatorGroupConstants;
+import edu.uci.ics.amber.operator.metadata.OperatorInfo;
 import edu.uci.ics.amber.operator.source.SourceOperatorDescriptor;
 import edu.uci.ics.amber.operator.util.OperatorDescriptorUtils;
 import edu.uci.ics.amber.virtualidentity.ExecutionIdentity;
@@ -17,7 +18,6 @@ import edu.uci.ics.amber.virtualidentity.WorkflowIdentity;
 import edu.uci.ics.amber.workflow.InputPort;
 import edu.uci.ics.amber.workflow.OutputPort;
 import edu.uci.ics.amber.workflow.PortIdentity;
-import edu.uci.ics.amber.operator.metadata.OperatorInfo;
 import scala.Option;
 import scala.collection.immutable.Map;
 
@@ -32,18 +32,18 @@ import static scala.jdk.javaapi.CollectionConverters.asScala;
 
 public class RUDFSourceOpDesc extends SourceOperatorDescriptor {
     @JsonProperty(
-        required = true,
-        defaultValue =
-            "# If using Table API:\n" +
-            "# function() { \n" +
-            "#   return (data.frame(Column_Here = \"Value_Here\")) \n" +
-            "# }\n" +
-            "\n" +
-            "# If using Tuple API:\n" +
-            "# library(coro)\n" +
-            "# coro::generator(function() {\n" +
-            "#   yield (list(text= \"hello world!\"))\n" +
-            "# })"
+            required = true,
+            defaultValue =
+                    "# If using Table API:\n" +
+                            "# function() { \n" +
+                            "#   return (data.frame(Column_Here = \"Value_Here\")) \n" +
+                            "# }\n" +
+                            "\n" +
+                            "# If using Tuple API:\n" +
+                            "# library(coro)\n" +
+                            "# coro::generator(function() {\n" +
+                            "#   yield (list(text= \"hello world!\"))\n" +
+                            "# })"
     )
     @JsonSchemaTitle("R Source UDF Script")
     @JsonPropertyDescription("Input your code here")

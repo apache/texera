@@ -3,7 +3,8 @@ package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.texera.web.SqlServer
+import edu.uci.ics.amber.core.storage.StorageConfig
+import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables._
 import edu.uci.ics.texera.web.model.jooq.generated.enums.WorkflowUserAccessPrivilege
@@ -40,7 +41,9 @@ import scala.util.control.NonFatal
   */
 
 object WorkflowResource {
-  final private lazy val context = SqlServer.createDSLContext()
+  final private lazy val context = SqlServer
+    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .createDSLContext()
   final private lazy val workflowDao = new WorkflowDao(context.configuration)
   final private lazy val workflowOfUserDao = new WorkflowOfUserDao(
     context.configuration
@@ -311,7 +314,7 @@ class WorkflowResource extends LazyLogging {
     * at current design, it only takes the workflowID and searches within the database for the matching workflow
     * for future design, it should also take userID as an parameter.
     *
-    * @param wid     workflow id, which serves as the primary key in the UserWorkflow database
+    * @param wid workflow id, which serves as the primary key in the UserWorkflow database
     * @return a json string representing an savedWorkflow
     */
   @GET
@@ -344,7 +347,7 @@ class WorkflowResource extends LazyLogging {
     * @return Workflow, which contains the generated wid if not provided//
     *         TODO: divide into two endpoints -> one for new-workflow and one for updating existing workflow
     *         TODO: if the persist is triggered in parallel, the none atomic actions currently might cause an issue.
-    *             Should consider making the operations atomic
+    *         Should consider making the operations atomic
     */
   @POST
   @Consumes(Array(MediaType.APPLICATION_JSON))

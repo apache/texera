@@ -1,12 +1,13 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.dataset
 
+import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.amber.engine.common.Utils.withTransaction
-import edu.uci.ics.texera.web.SqlServer
+import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.model.common.AccessEntry
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.USER
-import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
 import edu.uci.ics.texera.web.model.jooq.generated.enums.DatasetUserAccessPrivilege
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset.DATASET
+import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   DatasetDao,
   DatasetUserAccessDao,
@@ -22,11 +23,13 @@ import org.jooq.types.UInteger
 
 import java.util
 import javax.annotation.security.RolesAllowed
-import javax.ws.rs.{DELETE, GET, PUT, Path, PathParam, Produces}
+import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
 
 object DatasetAccessResource {
-  private lazy val context: DSLContext = SqlServer.createDSLContext()
+  private lazy val context: DSLContext = SqlServer
+    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .createDSLContext()
 
   def userHasReadAccess(ctx: DSLContext, did: UInteger, uid: UInteger): Boolean = {
     userHasWriteAccess(ctx, did, uid) ||

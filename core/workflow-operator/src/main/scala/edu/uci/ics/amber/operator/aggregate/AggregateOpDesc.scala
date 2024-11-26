@@ -11,15 +11,18 @@ import edu.uci.ics.amber.core.workflow.{
   SchemaPropagationFunc
 }
 import edu.uci.ics.amber.operator.LogicalOp
-import edu.uci.ics.amber.operator.metadata.OperatorInfo
-import edu.uci.ics.amber.operator.metadata.OperatorGroupConstants
-import edu.uci.ics.amber.operator.metadata.annotation.AutofillAttributeNameList
+import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeNameList
+import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, PhysicalOpIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
+
+import javax.validation.constraints.{NotNull, Size}
 
 class AggregateOpDesc extends LogicalOp {
   @JsonProperty(value = "aggregations", required = true)
   @JsonPropertyDescription("multiple aggregation functions")
+  @NotNull(message = "aggregation cannot be null")
+  @Size(min = 1, message = "aggregations cannot be empty")
   var aggregations: List[AggregationOperation] = List()
 
   @JsonProperty("groupByKeys")
@@ -32,9 +35,6 @@ class AggregateOpDesc extends LogicalOp {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalPlan = {
-    if (aggregations.isEmpty) {
-      throw new UnsupportedOperationException("Aggregation Functions Cannot be Empty")
-    }
 
     // TODO: this is supposed to be blocking but due to limitations of materialization naming on the logical operator
     // we are keeping it not annotated as blocking.

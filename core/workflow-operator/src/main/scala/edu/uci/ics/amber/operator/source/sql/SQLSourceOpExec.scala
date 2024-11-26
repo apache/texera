@@ -1,8 +1,8 @@
 package edu.uci.ics.amber.operator.source.sql
 
-import edu.uci.ics.amber.core.tuple.AttributeTypeUtils.{parseField, parseTimestamp}
-import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple, TupleLike}
 import edu.uci.ics.amber.core.executor.SourceOperatorExecutor
+import edu.uci.ics.amber.core.tuple.AttributeTypeUtils.{parseField, parseTimestamp}
+import edu.uci.ics.amber.core.tuple._
 
 import java.sql._
 import scala.collection.mutable.ArrayBuffer
@@ -40,6 +40,7 @@ abstract class SQLSourceOpExec(
 
   /**
     * A generator of a Tuple, which converted from a SQL row
+    *
     * @return Iterator[TupleLike]
     */
   override def produceTuple(): Iterator[TupleLike] = {
@@ -156,6 +157,7 @@ abstract class SQLSourceOpExec(
 
   /**
     * close resultSet, preparedStatement and connection
+    *
     * @throws SQLException all possible exceptions from JDBC
     */
   @throws[SQLException]
@@ -205,8 +207,9 @@ abstract class SQLSourceOpExec(
     * not yet reached upper bound, it will have next query.
     * - If it is not progressive mode, this method will return false when
     * invoked the second time. Which means there is only one query.
+    *
     * @throws IllegalArgumentException if the given batchByAttribute's type is
-    *                          not supported to be incremental.
+    *                                  not supported to be incremental.
     * @return A boolean value whether there exists the next query or not.
     */
   @throws[IllegalArgumentException]
@@ -258,7 +261,7 @@ abstract class SQLSourceOpExec(
     *
     * @param queryBuilder the target query builder
     * @throws IllegalArgumentException if the given batchByAttribute's type is
-    *                          not supported to be incremental.
+    *                                  not supported to be incremental.
     */
   @throws[IllegalArgumentException]
   protected def addBatchSlidingWindow(queryBuilder: StringBuilder): Unit = {
@@ -321,6 +324,7 @@ abstract class SQLSourceOpExec(
 
   /**
     * Fetch for a numeric value of the boundary of the batchByColumn.
+    *
     * @param side either "MAX" or "MIN" for boundary
     * @throws IllegalArgumentException if the batchByAttribute type is unexpected
     * @return a numeric value, could be Int, Long or Double
@@ -357,6 +361,7 @@ abstract class SQLSourceOpExec(
 
   /**
     * Establishes the connection to database.
+    *
     * @throws SQLException all possible exceptions from JDBC
     * @return a SQL connection over JDBC
     */
@@ -366,6 +371,7 @@ abstract class SQLSourceOpExec(
   /**
     * Fetch all table names from the given database. This is used to
     * check the input table name to prevent from SQL injection.
+    *
     * @throws SQLException all possible exceptions from JDBC
     */
   @throws[SQLException]
@@ -386,7 +392,7 @@ abstract class SQLSourceOpExec(
     * Or a fixed offset [OFFSET ?] to be added if not progressive.
     *
     * @throws IllegalArgumentException if the given batchByAttribute's type is
-    *                          not supported to be incremental.
+    *                                  not supported to be incremental.
     * @return string of sql query
     */
   @throws[IllegalArgumentException]
@@ -430,6 +436,7 @@ abstract class SQLSourceOpExec(
     * many times, each yielding the next mini query.
     * - If progressive mode is not enabled, this method will be invoked
     * only once, returning the one giant query.
+    *
     * @throws SQLException all possible exceptions from JDBC
     * @return a PreparedStatement to be filled with values.
     */
@@ -474,7 +481,7 @@ abstract class SQLSourceOpExec(
     * Load the lower bound and upper bound of the batchByColumn. Those
     * bounds will be used in progressive mode to determine mini-queries.
     *
-    * @throws SQLException all possible exceptions from JDBC
+    * @throws SQLException             all possible exceptions from JDBC
     * @throws IllegalArgumentException if the batchByAttribute is missing or the type is unexpected
     */
   @throws[SQLException]

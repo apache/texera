@@ -51,7 +51,7 @@ message ScalaPbOptions {
 
   // If set to true, all generated messages in this file will preserve unknown
   // fields.
-  optional bool preserve_unknown_fields = 9 [default=true];
+  optional bool preserve_unknown_fields = 9 [default = true];
 
   // If defined, sets the name of the file-level object that would be generated. This
   // object extends `GeneratedFileObject` and contains descriptors, and list of message
@@ -70,7 +70,7 @@ message ScalaPbOptions {
   optional OptionsScope scope = 11;
 
   // If true, lenses will be generated.
-  optional bool lenses = 12 [default=true];
+  optional bool lenses = 12 [default = true];
 
   // If true, then source-code info information will be included in the
   // generated code - normally the source code info is cleared out to reduce
@@ -94,7 +94,7 @@ message ScalaPbOptions {
 
   // Indicate if prefix (enum name + optional underscore) should be removed in scala code
   // Strip is applied before enum value naming changes.
-  optional bool enum_strip_prefix = 17 [default=false];
+  optional bool enum_strip_prefix = 17 [default = false];
 
   // Scala type to use for bytes fields.
   optional string bytes_type = 21;
@@ -172,7 +172,7 @@ message ScalaPbOptions {
   optional bool ignore_all_transformations = 26;
 
   // If true, getters will be generated.
-  optional bool getters = 27 [default=true];
+  optional bool getters = 27 [default = true];
 
   // For use in tests only. Inhibit Java conversions even when when generator parameters
   // request for it.
@@ -354,7 +354,7 @@ enum MatchType {
 
 message FieldTransformation {
   optional google.protobuf.FieldDescriptorProto when = 1;
-  optional MatchType match_type = 2 [default=CONTAINS];
+  optional MatchType match_type = 2 [default = CONTAINS];
   optional google.protobuf.FieldOptions set = 3;
 }
 

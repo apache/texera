@@ -17,7 +17,7 @@ import scala.jdk.CollectionConverters.ListHasAsScala
   * allow it to be accessed by Websocket connections.
   * <pre>
   * See <a href="https://stackoverflow.com/questions/17936440/accessing-httpsession-
-  *   from-httpservletrequest-in-a-web-socket-serverendpoint"></a>
+  * from-httpservletrequest-in-a-web-socket-serverendpoint"></a>
   * </pre>
   */
 class ServletAwareConfigurator extends ServerEndpointConfig.Configurator with LazyLogging {
