@@ -15,7 +15,7 @@ import { catchError, map, shareReplay } from "rxjs/operators";
 export class UserService {
   private currentUser?: User = undefined;
   private userChangeSubject: ReplaySubject<User | undefined> = new ReplaySubject<User | undefined>(1);
-  private cache = new Map<string, { data: string; expiry: number }>();
+  private cache = new Map<string, { url: string; expiry: number }>();
   private readonly cacheDuration = 3600 * 1000; // cache duration: 1h
 
   constructor(private authService: AuthService) {
@@ -100,37 +100,39 @@ export class UserService {
 
     const cached = this.cache.get(googleAvatar);
     if (cached) {
-      if (Date.now() > cached.expiry) {
-        this.cache.delete(googleAvatar);
+      if (Date.now() <= cached.expiry) {
+        return of(cached.url);
       } else {
-        return of(cached.data);
+        URL.revokeObjectURL(cached.url);
+        this.cache.delete(googleAvatar);
       }
     }
 
     const url = `https://lh3.googleusercontent.com/a/${googleAvatar}`;
-    return this.fetchBase64Image(url).pipe(
-      map(base64 => {
+    return this.fetchBlob(url).pipe(
+      map(blob => {
+        const blobUrl = URL.createObjectURL(blob);
         this.cache.set(googleAvatar, {
-          data: base64,
+          url: blobUrl,
           expiry: Date.now() + this.cacheDuration,
         });
-        return base64;
+        return blobUrl;
       }),
       catchError(() => of(undefined)),
       shareReplay(1)
     );
   }
 
-  private fetchBase64Image(url: string): Observable<string> {
+  private fetchBlob(url: string): Observable<Blob> {
     return new Observable(observer => {
       fetch(url)
-        .then(response => response.blob())
-        .then(blob => {
-          const reader = new FileReader();
-          reader.onloadend = () => observer.next(reader.result as string);
-          reader.onerror = error => observer.error(error);
-          reader.readAsDataURL(blob);
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          return response.blob();
         })
+        .then(blob => observer.next(blob))
         .catch(error => observer.error(error));
     });
   }
