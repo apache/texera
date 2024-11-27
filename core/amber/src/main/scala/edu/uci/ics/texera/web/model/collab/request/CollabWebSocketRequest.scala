@@ -1,4 +1,5 @@
 package edu.uci.ics.texera.web.model.collab.request
+
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 

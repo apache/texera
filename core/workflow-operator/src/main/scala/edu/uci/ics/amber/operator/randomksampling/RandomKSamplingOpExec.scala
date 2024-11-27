@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.operator.randomksampling
 
 import edu.uci.ics.amber.operator.filter.FilterOpExec
+
 import scala.util.Random
 
 class RandomKSamplingOpExec(percentage: Int, worker: Int, seedFunc: Int => Int)

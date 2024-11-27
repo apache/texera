@@ -17,6 +17,7 @@ class BulkDownloaderOpExec(
 ) extends OperatorExecutor {
 
   private val downloading = new mutable.Queue[Future[TupleLike]]()
+
   private class DownloadResultIterator(blocking: Boolean) extends Iterator[TupleLike] {
     override def hasNext: Boolean = {
       if (downloading.isEmpty) {
@@ -35,7 +36,9 @@ class BulkDownloaderOpExec(
 
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
 
-    downloading.enqueue(Future { downloadTuple(tuple) })
+    downloading.enqueue(Future {
+      downloadTuple(tuple)
+    })
     new DownloadResultIterator(false)
   }
 

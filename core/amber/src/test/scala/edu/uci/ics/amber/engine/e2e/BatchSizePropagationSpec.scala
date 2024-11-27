@@ -4,26 +4,20 @@ import akka.actor.{ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
 import edu.uci.ics.amber.clustering.SingleNodeListener
+import edu.uci.ics.amber.core.storage.result.OpResultStorage
+import edu.uci.ics.amber.core.workflow.{WorkflowContext, WorkflowSettings}
 import edu.uci.ics.amber.engine.architecture.controller._
-import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.{
-  BroadcastPartitioning,
-  HashBasedShufflePartitioning,
-  OneToOnePartitioning,
-  RangeBasedShufflePartitioning,
-  RoundRobinPartitioning
-}
-import edu.uci.ics.amber.engine.common.model.WorkflowContext
-import edu.uci.ics.amber.engine.common.model.WorkflowSettings
+import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings._
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
-import edu.uci.ics.amber.engine.common.workflow.PortIdentity
-import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
+import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
+import edu.uci.ics.amber.operator.TestOperators
+import edu.uci.ics.amber.operator.aggregate.AggregationFunction
+import edu.uci.ics.amber.workflow.PortIdentity
+import edu.uci.ics.texera.workflow.LogicalLink
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
-import edu.uci.ics.texera.workflow.common.workflow.LogicalLink
 
 import scala.concurrent.duration.DurationInt
-import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
-import edu.uci.ics.texera.workflow.operators.aggregate.AggregationFunction
 
 class BatchSizePropagationSpec
     extends TestKit(ActorSystem("BatchSizePropagationSpec"))

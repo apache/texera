@@ -1,9 +1,8 @@
 package edu.uci.ics.amber.operator.difference
 
-import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple, TupleLike}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
-
+import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple, TupleLike}
 class DifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   var input1: Int = 0
   var input2: Int = 1

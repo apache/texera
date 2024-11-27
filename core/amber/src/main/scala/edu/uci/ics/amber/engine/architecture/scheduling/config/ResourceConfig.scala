@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.scheduling.config
 
-import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
-import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
+import edu.uci.ics.amber.virtualidentity.PhysicalOpIdentity
+import edu.uci.ics.amber.workflow.PhysicalLink
 
 case class ResourceConfig(
     operatorConfigs: Map[PhysicalOpIdentity, OperatorConfig],

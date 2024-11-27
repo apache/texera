@@ -4,11 +4,10 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
-import edu.uci.ics.amber.operator.metadata.OperatorInfo
-import edu.uci.ics.amber.operator.metadata.OperatorGroupConstants
-import edu.uci.ics.amber.operator.metadata.annotation.AutofillAttributeName
-import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
+import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.amber.operator.visualization.{VisualizationConstants, VisualizationOperator}
+import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
 
 //type constraint: value can only be numeric
 @JsonSchemaInject(json = """
@@ -86,43 +85,44 @@ class BarChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor
     if (categoryColumn != "No Selection")
       isCategoryColumn = "True"
 
-    val finalCode = s"""
-                       |from pytexera import *
-                       |
-                       |import plotly.express as px
-                       |import pandas as pd
-                       |import plotly.graph_objects as go
-                       |import plotly.io
-                       |import json
-                       |import pickle
-                       |import plotly
-                       |
-                       |class ProcessTableOperator(UDFTableOperator):
-                       |
-                       |    # Generate custom error message as html string
-                       |    def render_error(self, error_msg) -> str:
-                       |        return '''<h1>Bar chart is not available.</h1>
-                       |                  <p>Reason is: {} </p>
-                       |               '''.format(error_msg)
-                       |
-                       |    @overrides
-                       |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-                       |        ${manipulateTable()}
-                       |        if not table.empty and '$fields' != '$value':
-                       |           if $isHorizontalOrientation:
-                       |               fig = go.Figure(px.bar(table, y='$fields', x='$value', color="$categoryColumn" if $isCategoryColumn else None, pattern_shape="$pattern" if $isPatternSelected else None, orientation = 'h'))
-                       |           else:
-                       |               fig = go.Figure(px.bar(table, y='$value', x='$fields', color="$categoryColumn" if $isCategoryColumn else None, pattern_shape="$pattern" if $isPatternSelected else None))
-                       |           fig.update_layout(margin=dict(l=0, r=0, t=0, b=0))
-                       |           html = plotly.io.to_html(fig, include_plotlyjs = 'cdn', auto_play = False)
-                       |           # use latest plotly lib in html
-                       |           #html = html.replace('https://cdn.plot.ly/plotly-2.3.1.min.js', 'https://cdn.plot.ly/plotly-2.18.2.min.js')
-                       |        elif '$fields' == '$value':
-                       |           html = self.render_error('Fields should not have the same value.')
-                       |        elif table.empty:
-                       |           html = self.render_error('Table should not have any empty/null values or fields.')
-                       |        yield {'html-content':html}
-                       |        """.stripMargin
+    val finalCode =
+      s"""
+         |from pytexera import *
+         |
+         |import plotly.express as px
+         |import pandas as pd
+         |import plotly.graph_objects as go
+         |import plotly.io
+         |import json
+         |import pickle
+         |import plotly
+         |
+         |class ProcessTableOperator(UDFTableOperator):
+         |
+         |    # Generate custom error message as html string
+         |    def render_error(self, error_msg) -> str:
+         |        return '''<h1>Bar chart is not available.</h1>
+         |                  <p>Reason is: {} </p>
+         |               '''.format(error_msg)
+         |
+         |    @overrides
+         |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+         |        ${manipulateTable()}
+         |        if not table.empty and '$fields' != '$value':
+         |           if $isHorizontalOrientation:
+         |               fig = go.Figure(px.bar(table, y='$fields', x='$value', color="$categoryColumn" if $isCategoryColumn else None, pattern_shape="$pattern" if $isPatternSelected else None, orientation = 'h'))
+         |           else:
+         |               fig = go.Figure(px.bar(table, y='$value', x='$fields', color="$categoryColumn" if $isCategoryColumn else None, pattern_shape="$pattern" if $isPatternSelected else None))
+         |           fig.update_layout(margin=dict(l=0, r=0, t=0, b=0))
+         |           html = plotly.io.to_html(fig, include_plotlyjs = 'cdn', auto_play = False)
+         |           # use latest plotly lib in html
+         |           #html = html.replace('https://cdn.plot.ly/plotly-2.3.1.min.js', 'https://cdn.plot.ly/plotly-2.18.2.min.js')
+         |        elif '$fields' == '$value':
+         |           html = self.render_error('Fields should not have the same value.')
+         |        elif table.empty:
+         |           html = self.render_error('Table should not have any empty/null values or fields.')
+         |        yield {'html-content':html}
+         |        """.stripMargin
     finalCode
   }
 

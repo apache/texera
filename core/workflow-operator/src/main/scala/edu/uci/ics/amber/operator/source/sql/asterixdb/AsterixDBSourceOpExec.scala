@@ -4,13 +4,15 @@ import com.github.tototoshi.csv.CSVParser
 import edu.uci.ics.amber.core.tuple.AttributeTypeUtils.parseField
 import edu.uci.ics.amber.core.tuple.{AttributeType, Schema, Tuple, TupleLike}
 import edu.uci.ics.amber.operator.filter.FilterPredicate
-import AsterixDBConnUtil.{queryAsterixDB, updateAsterixDBVersionMapping}
 import edu.uci.ics.amber.operator.source.sql.SQLSourceOpExec
+import edu.uci.ics.amber.operator.source.sql.asterixdb.AsterixDBConnUtil.{
+  queryAsterixDB,
+  updateAsterixDBVersionMapping
+}
 
 import java.sql._
 import java.time.format.DateTimeFormatter
 import java.time.{ZoneId, ZoneOffset}
-import scala.collection.Iterator
 import scala.util.control.Breaks.{break, breakable}
 import scala.util.{Failure, Success, Try}
 
@@ -68,6 +70,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
 
   /**
     * A generator of a Tuple, which converted from a CSV row of fields from AsterixDB
+    *
     * @return Iterator[TupleLike]
     */
   override def produceTuple(): Iterator[TupleLike] = {
@@ -167,7 +170,9 @@ class AsterixDBSourceOpExec private[asterixdb] (
           val columnType = attr.getType
 
           var value: String = null
-          Try({ value = values.get(i) })
+          Try({
+            value = values.get(i)
+          })
 
           if (value == null || value.equals("null")) {
             // add the field as null
@@ -201,9 +206,10 @@ class AsterixDBSourceOpExec private[asterixdb] (
   /**
     * add naive support for full text search.
     * input is either
-    *     ['hello', 'world'], {'mode':'any'}
+    * ['hello', 'world'], {'mode':'any'}
     * or
-    *     ['hello', 'world'], {'mode':'all'}
+    * ['hello', 'world'], {'mode':'all'}
+    *
     * @param queryBuilder queryBuilder for concatenation
     * @throws IllegalArgumentException if attribute does not support string based search
     */
@@ -278,6 +284,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
 
   /**
     * Fetch for a numeric value of the boundary of the batchByColumn.
+    *
     * @param side either "MAX" or "MIN" for boundary
     * @return a numeric value, could be Int, Long or Double
     */
@@ -307,7 +314,9 @@ class AsterixDBSourceOpExec private[asterixdb] (
 
   override def addBaseSelect(queryBuilder: StringBuilder): Unit = {
     queryBuilder ++= "\n" + s"SELECT ${schema.getAttributeNames.zipWithIndex
-      .map((entry: (String, Int)) => { s"if_missing(${entry._1},null) field_${entry._2}" })
+      .map((entry: (String, Int)) => {
+        s"if_missing(${entry._1},null) field_${entry._2}"
+      })
       .mkString(", ")} FROM $database.$table WHERE 1 = 1 "
   }
 

@@ -1,10 +1,10 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
+import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessagePayload
-import edu.uci.ics.amber.engine.common.model.tuple.Tuple
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorMetrics
+import edu.uci.ics.amber.engine.common.executionruntimestate.OperatorMetrics
+import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
 
 trait ClientEvent extends WorkflowFIFOMessagePayload
 

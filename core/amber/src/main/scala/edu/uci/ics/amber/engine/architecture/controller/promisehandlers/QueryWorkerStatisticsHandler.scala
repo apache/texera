@@ -11,7 +11,7 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
   QueryStatisticsRequest
 }
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
-import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
+import edu.uci.ics.amber.util.VirtualIdentityUtils
 
 /** Get statistics from all the workers
   *

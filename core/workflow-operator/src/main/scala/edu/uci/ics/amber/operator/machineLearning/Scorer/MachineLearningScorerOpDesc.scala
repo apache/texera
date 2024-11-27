@@ -8,9 +8,8 @@ import com.kjetland.jackson.jsonSchema.annotations.{
 }
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
-import edu.uci.ics.amber.operator.metadata.OperatorInfo
-import edu.uci.ics.amber.operator.metadata.OperatorGroupConstants
-import edu.uci.ics.amber.operator.metadata.annotation.{AutofillAttributeName, HideAnnotation}
+import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.amber.operator.metadata.annotations.{AutofillAttributeName, HideAnnotation}
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
 
 class MachineLearningScorerOpDesc extends PythonOperatorDescriptor {
@@ -122,12 +121,12 @@ class MachineLearningScorerOpDesc extends PythonOperatorDescriptor {
          |  for metric in metric_list:
          |    prediction = None
          |    if metric == 'Accuracy':
-         |      result['Accuracy'][0] = accuracy_score(y_true, y_pred)
+         |      result['Accuracy'][0] = round(accuracy_score(y_true, y_pred), 4)
          |    else:
          |      for i, label in enumerate(labels):
          |        if label != 'Overall':
          |          prediction = metrics_func[metric](y_true, y_pred, average=None, labels=[label])
-         |          result[metric][i] = prediction[0]
+         |          result[metric][i] = round(prediction[0], 4)
          |
          |  # if the label is not a string, convert it to string
          |  labels = ['class_' + str(label) if type(label) != str else label for label in labels]
@@ -161,9 +160,7 @@ class MachineLearningScorerOpDesc extends PythonOperatorDescriptor {
          |      else:
          |        # calculate the number of unique labels
          |        labels = list(set(y_true))
-         |        # align the type of y_true and y_pred(str)
-         |        y_true_str = y_true.astype(str)
-         |        result = classification_metrics(y_true_str, y_pred, metric_list, labels)
+         |        result = classification_metrics(y_true, y_pred, metric_list, labels)
          |
          |      yield result
          |""".stripMargin

@@ -2,7 +2,7 @@ package edu.uci.ics.amber.operator.visualization.dumbbellPlot
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import edu.uci.ics.amber.operator.metadata.annotation.AutofillAttributeName
+import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
 
 @JsonSchemaInject(json = """
 {
