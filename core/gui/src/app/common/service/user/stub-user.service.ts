@@ -4,8 +4,6 @@ import { Observable, of, Subject } from "rxjs";
 import { Role, User } from "../../type/user";
 import { UserService } from "./user.service";
 import { PublicInterfaceOf } from "../../util/stub";
-import { types } from "sass";
-import Error = types.Error;
 
 export const MOCK_USER_ID = 1;
 export const MOCK_USER_NAME = "testUser";
