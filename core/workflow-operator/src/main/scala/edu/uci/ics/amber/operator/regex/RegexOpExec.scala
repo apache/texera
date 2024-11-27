@@ -10,6 +10,7 @@ class RegexOpExec(regex: String, caseInsensitive: Boolean, attributeName: String
   lazy val pattern: Pattern =
     Pattern.compile(regex, if (caseInsensitive) Pattern.CASE_INSENSITIVE else 0)
   this.setFilterFunc(this.matchRegex)
+
   private def matchRegex(tuple: Tuple): Boolean =
     Option[Any](tuple.getField(attributeName).toString)
       .map(_.toString)

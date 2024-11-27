@@ -3,9 +3,11 @@ package edu.uci.ics.amber.operator.sklearn
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
-import edu.uci.ics.amber.operator.metadata.OperatorInfo
-import edu.uci.ics.amber.operator.metadata.OperatorGroupConstants
-import edu.uci.ics.amber.operator.metadata.annotation.AutofillAttributeName
+import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.amber.operator.metadata.annotations.{
+  AutofillAttributeName,
+  AutofillAttributeNameOnPort1
+}
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort, PortIdentity}
 
 class SklearnPredictionOpDesc extends PythonOperatorDescriptor {
@@ -18,6 +20,15 @@ class SklearnPredictionOpDesc extends PythonOperatorDescriptor {
   @JsonPropertyDescription("attribute name of the prediction result")
   var resultAttribute: String = _
 
+  @JsonProperty(
+    value = "Ground Truth Attribute Name to Ignore",
+    required = false,
+    defaultValue = ""
+  )
+  @JsonPropertyDescription("attribute name of the ground truth")
+  @AutofillAttributeNameOnPort1
+  var groundTruthAttribute: String = ""
+
   override def generatePythonCode(): String =
     s"""from pytexera import *
        |from sklearn.pipeline import Pipeline
@@ -27,7 +38,12 @@ class SklearnPredictionOpDesc extends PythonOperatorDescriptor {
        |        if port == 0:
        |            self.model = tuple_["$model"]
        |        else:
-       |            tuple_["$resultAttribute"] = str(self.model.predict(Table.from_tuple_likes([tuple_]))[0])
+       |            input_features = tuple_
+       |            if "$groundTruthAttribute" != "":
+       |                input_features = input_features.get_partial_tuple([col for col in tuple_.get_field_names() if col != "$groundTruthAttribute"])
+       |                tuple_["$resultAttribute"] = type(tuple_["$groundTruthAttribute"])(self.model.predict(Table.from_tuple_likes([input_features]))[0])
+       |            else:
+       |                tuple_["$resultAttribute"] = str(self.model.predict(Table.from_tuple_likes([input_features]))[0])
        |            yield tuple_""".stripMargin
 
   override def operatorInfo: OperatorInfo =
@@ -42,10 +58,16 @@ class SklearnPredictionOpDesc extends PythonOperatorDescriptor {
       outputPorts = List(OutputPort())
     )
 
-  override def getOutputSchema(schemas: Array[Schema]): Schema =
+  override def getOutputSchema(schemas: Array[Schema]): Schema = {
+    var resultType = AttributeType.STRING
+    if (groundTruthAttribute != "") {
+      resultType =
+        schemas(1).attributes.find(attr => attr.getName == groundTruthAttribute).get.getType
+    }
     Schema
       .builder()
       .add(schemas(1))
-      .add(resultAttribute, AttributeType.STRING)
+      .add(resultAttribute, resultType)
       .build()
+  }
 }

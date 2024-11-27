@@ -7,7 +7,7 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerTy
   REQUIRE_ALIGNMENT
 }
 import edu.uci.ics.amber.engine.common.{AmberLogging, CheckpointState}
-import edu.uci.ics.amber.engine.common.virtualidentity.{
+import edu.uci.ics.amber.virtualidentity.{
   ActorVirtualIdentity,
   ChannelIdentity,
   ChannelMarkerIdentity
@@ -34,7 +34,7 @@ class ChannelMarkerManager(val actorId: ActorVirtualIdentity, inputGateway: Inpu
     * it checks if it's the first received marker. Post verification, it cleans up the markers.
     *
     * @return Boolean indicating if the epoch marker is completely received from all senders
-    *          within the scope. Returns true if the marker is aligned, otherwise false.
+    *         within the scope. Returns true if the marker is aligned, otherwise false.
     */
   def isMarkerAligned(
       from: ChannelIdentity,

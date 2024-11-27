@@ -4,11 +4,10 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
-import edu.uci.ics.amber.operator.metadata.OperatorInfo
-import edu.uci.ics.amber.operator.metadata.OperatorGroupConstants
-import edu.uci.ics.amber.operator.metadata.annotation.AutofillAttributeName
-import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
+import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.amber.operator.visualization.{VisualizationConstants, VisualizationOperator}
+import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
 
 class SankeyDiagramOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
 
@@ -76,32 +75,33 @@ class SankeyDiagramOpDesc extends VisualizationOperator with PythonOperatorDescr
   }
 
   override def generatePythonCode(): String = {
-    val finalCode = s"""
-                       |from pytexera import *
-                       |import plotly.graph_objects as go
-                       |import plotly.io
-                       |import pandas as pd
-                       |
-                       |class ProcessTableOperator(UDFTableOperator):
-                       |
-                       |    def render_error(self, error_msg):
-                       |        return '''<h1>Sankey Diagram is not available.</h1>
-                       |                  <p>Reasons are: {} </p>
-                       |               '''.format(error_msg)
-                       |
-                       |    @overrides
-                       |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-                       |        if table.empty:
-                       |            yield {'html-content': self.render_error("Input table is empty.")}
-                       |            return
-                       |        ${createPlotlyFigure()}
-                       |        if table.empty:
-                       |            yield {'html-content': self.render_error("No valid rows left (every row has at least 1 missing value).")}
-                       |            return
-                       |        # convert fig to html content
-                       |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
-                       |        yield {'html-content': html}
-                       |""".stripMargin
+    val finalCode =
+      s"""
+         |from pytexera import *
+         |import plotly.graph_objects as go
+         |import plotly.io
+         |import pandas as pd
+         |
+         |class ProcessTableOperator(UDFTableOperator):
+         |
+         |    def render_error(self, error_msg):
+         |        return '''<h1>Sankey Diagram is not available.</h1>
+         |                  <p>Reasons are: {} </p>
+         |               '''.format(error_msg)
+         |
+         |    @overrides
+         |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+         |        if table.empty:
+         |            yield {'html-content': self.render_error("Input table is empty.")}
+         |            return
+         |        ${createPlotlyFigure()}
+         |        if table.empty:
+         |            yield {'html-content': self.render_error("No valid rows left (every row has at least 1 missing value).")}
+         |            return
+         |        # convert fig to html content
+         |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
+         |        yield {'html-content': html}
+         |""".stripMargin
     finalCode
   }
 

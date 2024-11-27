@@ -6,7 +6,7 @@ import edu.uci.ics.amber.engine.architecture.common.AkkaActorService
 import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
 import edu.uci.ics.amber.engine.architecture.controller.execution.WorkflowExecution
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
-import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
+import edu.uci.ics.amber.workflow.PhysicalLink
 
 import scala.collection.mutable
 

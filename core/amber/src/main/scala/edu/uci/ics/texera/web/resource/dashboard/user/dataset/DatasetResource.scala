@@ -1,8 +1,14 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.dataset
 
+import edu.uci.ics.amber.core.storage.{FileResolver, StorageConfig}
+import edu.uci.ics.amber.core.storage.model.DatasetFileDocument
+import edu.uci.ics.amber.core.storage.util.dataset.{
+  GitVersionControlLocalFileStorage,
+  PhysicalFileNode
+}
 import edu.uci.ics.amber.engine.common.Utils.withTransaction
-import edu.uci.ics.amber.engine.common.storage.DatasetFileDocument
-import edu.uci.ics.texera.web.SqlServer
+import edu.uci.ics.amber.util.PathUtils
+import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.enums.DatasetUserAccessPrivilege
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset.DATASET
@@ -22,13 +28,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{
 }
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetAccessResource._
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{context, _}
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.{
-  DatasetFileNode,
-  PhysicalFileNode
-}
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.service.GitVersionControlLocalFileStorage
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.PathUtils
-import edu.uci.ics.texera.workflow.common.storage.FileResolver
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.DatasetFileNode
 import io.dropwizard.auth.Auth
 import org.apache.commons.lang3.StringUtils
 import org.glassfish.jersey.media.multipart.{FormDataMultiPart, FormDataParam}
@@ -45,11 +45,11 @@ import java.util.Optional
 import java.util.concurrent.locks.ReentrantLock
 import java.util.zip.{ZipEntry, ZipOutputStream}
 import javax.annotation.security.RolesAllowed
-import javax.ws.rs.core.{MediaType, Response, StreamingOutput}
 import javax.ws.rs._
-import scala.jdk.CollectionConverters._
+import javax.ws.rs.core.{MediaType, Response, StreamingOutput}
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
+import scala.jdk.CollectionConverters._
 import scala.jdk.OptionConverters._
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try, Using}
@@ -63,7 +63,9 @@ object DatasetResource {
   val datasetLocks: scala.collection.concurrent.Map[UInteger, ReentrantLock] =
     new scala.collection.concurrent.TrieMap[UInteger, ReentrantLock]()
 
-  private val context = SqlServer.createDSLContext()
+  private val context = SqlServer
+    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .createDSLContext()
 
   // error messages
   val ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE = "User has no read access to this dataset"
@@ -685,6 +687,7 @@ class DatasetResource {
 
   /**
     * This method returns a list of DashboardDatasets objects that are accessible by current user.
+    *
     * @param user the session user
     * @return list of user accessible DashboardDataset objects
     */

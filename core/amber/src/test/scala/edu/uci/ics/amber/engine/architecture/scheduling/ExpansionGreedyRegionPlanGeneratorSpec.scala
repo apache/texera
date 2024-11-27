@@ -1,17 +1,14 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
-import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
-import edu.uci.ics.amber.engine.common.workflow.PortIdentity
-import edu.uci.ics.amber.engine.e2e.TestOperators
+import edu.uci.ics.amber.core.storage.result.OpResultStorage
+import edu.uci.ics.amber.core.workflow.WorkflowContext
 import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
-import edu.uci.ics.amber.engine.common.model.WorkflowContext
-import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
-import edu.uci.ics.texera.workflow.common.workflow.LogicalLink
-import edu.uci.ics.texera.workflow.operators.split.SplitOpDesc
-import edu.uci.ics.texera.workflow.operators.udf.python.{
-  DualInputPortsPythonUDFOpDescV2,
-  PythonUDFOpDescV2
-}
+import edu.uci.ics.amber.operator.TestOperators
+import edu.uci.ics.amber.operator.split.SplitOpDesc
+import edu.uci.ics.amber.operator.udf.python.{DualInputPortsPythonUDFOpDescV2, PythonUDFOpDescV2}
+import edu.uci.ics.amber.virtualidentity.OperatorIdentity
+import edu.uci.ics.amber.workflow.PortIdentity
+import edu.uci.ics.texera.workflow.LogicalLink
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 

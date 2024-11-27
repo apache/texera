@@ -2,6 +2,7 @@ package edu.uci.ics.amber.operator.source.scan.csv
 
 import edu.uci.ics.amber.core.executor.SourceOperatorExecutor
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeTypeUtils, Schema, TupleLike}
+import edu.uci.ics.amber.operator.source.BufferedBlockReader
 import org.tukaani.xz.SeekableFileInputStream
 
 import java.io.File

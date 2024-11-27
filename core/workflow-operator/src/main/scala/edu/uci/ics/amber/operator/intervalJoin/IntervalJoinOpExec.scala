@@ -1,8 +1,8 @@
 package edu.uci.ics.amber.operator.intervalJoin
 
+import edu.uci.ics.amber.core.WorkflowRuntimeException
 import edu.uci.ics.amber.core.executor.OperatorExecutor
 import edu.uci.ics.amber.core.tuple.{AttributeType, Tuple, TupleLike}
-import edu.uci.ics.amber.core.WorkflowRuntimeException
 import edu.uci.ics.amber.operator.hashJoin.JoinUtils
 
 import java.sql.Timestamp

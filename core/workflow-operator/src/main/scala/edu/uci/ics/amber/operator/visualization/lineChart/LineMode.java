@@ -17,9 +17,9 @@ public enum LineMode {
         return mode;
     }
 
-    public String getModeInPlotly(){
+    public String getModeInPlotly() {
         // make the mode string compatible with plotly API.
-        switch(this){
+        switch (this) {
             case DOTS:
                 return "markers";
             case LINE:

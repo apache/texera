@@ -4,43 +4,8 @@
 package edu.uci.ics.texera.web.model.jooq.generated;
 
 
-import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetUserAccess;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetVersion;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.Project;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.ProjectUserAccess;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.PublicProject;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.User;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.UserConfig;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.Workflow;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowExecutions;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowOfProject;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowOfUser;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowRuntimeStatistics;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowUserAccess;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowUserClones;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowUserLikes;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowVersion;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowViewCount;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.records.DatasetRecord;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.records.DatasetUserAccessRecord;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.records.DatasetVersionRecord;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.records.ProjectRecord;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.records.ProjectUserAccessRecord;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.records.PublicProjectRecord;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.records.UserConfigRecord;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.records.UserRecord;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.records.WorkflowExecutionsRecord;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.records.WorkflowOfProjectRecord;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.records.WorkflowOfUserRecord;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.records.WorkflowRecord;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.records.WorkflowRuntimeStatisticsRecord;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.records.WorkflowUserAccessRecord;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.records.WorkflowUserClonesRecord;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.records.WorkflowUserLikesRecord;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.records.WorkflowVersionRecord;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.records.WorkflowViewCountRecord;
-
+import edu.uci.ics.texera.web.model.jooq.generated.tables.*;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.records.*;
 import org.jooq.ForeignKey;
 import org.jooq.Identity;
 import org.jooq.UniqueKey;
@@ -49,10 +14,10 @@ import org.jooq.types.UInteger;
 
 
 /**
- * A class modelling foreign key relationships and constraints of tables of 
+ * A class modelling foreign key relationships and constraints of tables of
  * the <code>texera_db</code> schema.
  */
-@SuppressWarnings({ "all", "unchecked", "rawtypes" })
+@SuppressWarnings({"all", "unchecked", "rawtypes"})
 public class Keys {
 
     // -------------------------------------------------------------------------

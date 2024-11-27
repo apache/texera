@@ -1,4 +1,5 @@
 package edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy
+
 import akka.actor.Address
 
 object RoundRobinDeployment {
@@ -8,6 +9,7 @@ object RoundRobinDeployment {
 class RoundRobinDeployment extends DeployStrategy {
   var available: Array[Address] = _
   var index = 0
+
   override def initialize(available: Array[Address]): Unit = {
     this.available = available
   }
