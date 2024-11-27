@@ -12,8 +12,24 @@
         placeholder="Enter filename for binary data" />
     </nz-form-item>
   </div>
-
+  <div class="input-wrapper">
+    <nz-form-item>
+      <nz-form-label nzFor="destinationInput">Destination</nz-form-label>
+      <nz-select
+        id="destinationInput"
+        [(ngModel)]="destination"
+        nzPlaceHolder="Select destination">
+        <nz-option
+          nzValue="local"
+          nzLabel="Local"></nz-option>
+        <nz-option
+          nzValue="dataset"
+          nzLabel="Dataset"></nz-option>
+      </nz-select>
+    </nz-form-item>
+  </div>
   <input
+    *ngIf="destination === 'dataset'"
     [(ngModel)]="inputDatasetName"
     (input)="onUserInputDatasetName($event)"
     type="text"
@@ -40,4 +56,11 @@
       </div>
     </nz-auto-option>
   </nz-autocomplete>
+  <button
+    nz-button
+    nzType="default"
+    *ngIf="destination === 'local'"
+    (click)="onClickExportAllResult()">
+    Export
+  </button>
 </div>

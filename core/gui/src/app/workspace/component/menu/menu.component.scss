@@ -8,6 +8,11 @@
   vertical-align: top;
 }
 
+.disabled-menu-item {
+  pointer-events: none; /* Disable interactions */
+  opacity: 0.5; /* Visual cue for disabled state */
+}
+
 #menu-content {
   display: inline-block;
   width: 100%;
