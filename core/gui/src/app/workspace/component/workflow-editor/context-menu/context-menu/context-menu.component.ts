@@ -4,6 +4,8 @@ import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowResultService } from "src/app/workspace/service/workflow-result/workflow-result.service";
 import { WorkflowResultExportService } from "src/app/workspace/service/workflow-result-export/workflow-result-export.service";
+import { NzModalService } from "ng-zorro-antd/modal";
+import { ResultExportationComponent } from "../../../result-exportation/result-exportation.component";
 import { ValidationWorkflowService } from "src/app/workspace/service/validation/validation-workflow.service";
 
 @UntilDestroy()
@@ -20,6 +22,7 @@ export class ContextMenuComponent {
     public operatorMenuService: OperatorMenuService,
     public workflowResultExportService: WorkflowResultExportService,
     private workflowResultService: WorkflowResultService,
+    private modalService: NzModalService,
     private validationWorkflowService: ValidationWorkflowService
   ) {
     this.registerWorkflowModifiableChangedHandler();
@@ -80,21 +83,20 @@ export class ContextMenuComponent {
       .subscribe(modifiable => (this.isWorkflowModifiable = modifiable));
   }
 
-  public writeDownloadLabel(): string {
-    const highlightedOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-    if (highlightedOperatorIDs.length > 1) {
-      return "download multiple results";
-    }
-
-    const operatorId = highlightedOperatorIDs[0];
-
-    const resultService = this.workflowResultService.getResultService(operatorId);
-    if (resultService?.getCurrentResultSnapshot() !== undefined) {
-      return "download result as HTML file";
-    }
-    if (this.workflowResultService.hasAnyResult(operatorId)) {
-      return "download result as CSV file";
-    }
-    return "download result";
+  /**
+   * This is the handler for the execution result export button for only highlighted operators.
+   *
+   */
+  public onClickExportHighlightedExecutionResult(exportType: string): void {
+    this.modalService.create({
+      nzTitle: "Export Highlighted Operators Result",
+      nzContent: ResultExportationComponent,
+      nzData: {
+        exportType: exportType,
+        workflowName: this.workflowActionService.getWorkflowMetadata()?.name,
+        sourceTriggered: "context-menu",
+      },
+      nzFooter: null,
+    });
   }
 }
