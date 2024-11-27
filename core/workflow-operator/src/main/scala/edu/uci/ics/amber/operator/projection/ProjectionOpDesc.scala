@@ -52,7 +52,7 @@ class ProjectionOpDesc extends MapOpDesc {
       case RangePartition(rangeAttributeNames, min, max) =>
         if (rangeAttributeNames.nonEmpty) RangePartition(rangeAttributeNames, min, max)
         else UnknownPartition()
-      case _   => inputPartitionInfo
+      case _ => inputPartitionInfo
     }
 
     outputPartitionInfo

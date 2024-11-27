@@ -7,8 +7,15 @@ import edu.uci.ics.amber.core.WorkflowRuntimeException
 import edu.uci.ics.amber.core.executor.{OpExecInitInfo, OpExecInitInfoWithCode}
 import edu.uci.ics.amber.core.marker.State
 import edu.uci.ics.amber.core.tuple.{Schema, Tuple}
-import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{ActorCommandElement, ControlElement, DataElement}
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{ControlInvocation, InitializeExecutorRequest}
+import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{
+  ActorCommandElement,
+  ControlElement,
+  DataElement
+}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
+  ControlInvocation,
+  InitializeExecutorRequest
+}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ReturnInvocation
 import edu.uci.ics.amber.engine.common.actormessage.{ActorCommand, PythonActorMessage}
 import edu.uci.ics.amber.engine.common.ambermessage._
@@ -94,7 +101,8 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
 
   private def sendData(dataPayload: DataPayload, from: ActorVirtualIdentity): Unit = {
     dataPayload match {
-      case DataFrame(frame) => writeArrowStream(mutable.Queue(ArraySeq.unsafeWrapArray(frame): _*), from, "Data")
+      case DataFrame(frame) =>
+        writeArrowStream(mutable.Queue(ArraySeq.unsafeWrapArray(frame): _*), from, "Data")
       case MarkerFrame(marker) =>
         marker match {
           case state: State =>
