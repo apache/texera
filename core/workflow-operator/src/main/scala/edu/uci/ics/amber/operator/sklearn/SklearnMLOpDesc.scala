@@ -8,16 +8,14 @@ import com.kjetland.jackson.jsonSchema.annotations.{
   JsonSchemaTitle
 }
 import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
+import edu.uci.ics.amber.workflow.{InputPort, OutputPort, PortIdentity}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
-import edu.uci.ics.amber.operator.metadata.OperatorInfo
-import edu.uci.ics.amber.operator.metadata.OperatorGroupConstants
-import edu.uci.ics.amber.operator.metadata.annotation.{
+import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.amber.operator.metadata.annotations.{
   AutofillAttributeName,
   CommonOpDescAnnotation,
   HideAnnotation
 }
-import edu.uci.ics.amber.workflow.{InputPort, OutputPort, PortIdentity}
-
 abstract class SklearnMLOpDesc extends PythonOperatorDescriptor {
 
   @JsonIgnore

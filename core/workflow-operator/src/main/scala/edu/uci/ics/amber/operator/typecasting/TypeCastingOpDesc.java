@@ -9,16 +9,15 @@ import edu.uci.ics.amber.core.tuple.AttributeTypeUtils;
 import edu.uci.ics.amber.core.tuple.Schema;
 import edu.uci.ics.amber.core.workflow.PhysicalOp;
 import edu.uci.ics.amber.core.workflow.SchemaPropagationFunc;
+import edu.uci.ics.amber.operator.map.MapOpDesc;
 import edu.uci.ics.amber.operator.metadata.OperatorGroupConstants;
+import edu.uci.ics.amber.operator.metadata.OperatorInfo;
 import edu.uci.ics.amber.operator.util.OperatorDescriptorUtils;
 import edu.uci.ics.amber.virtualidentity.ExecutionIdentity;
 import edu.uci.ics.amber.virtualidentity.WorkflowIdentity;
 import edu.uci.ics.amber.workflow.InputPort;
 import edu.uci.ics.amber.workflow.OutputPort;
 import edu.uci.ics.amber.workflow.PortIdentity;
-import edu.uci.ics.amber.operator.metadata.OperatorInfo;
-
-import edu.uci.ics.amber.operator.map.MapOpDesc;
 import scala.Tuple2;
 import scala.collection.immutable.Map;
 
@@ -34,18 +33,18 @@ public class TypeCastingOpDesc extends MapOpDesc {
     @JsonProperty(required = true)
     @JsonSchemaTitle("TypeCasting Units")
     @JsonPropertyDescription("Multiple type castings")
-    public java.util.List<TypeCastingUnit> typeCastingUnits = new ArrayList<>();
+    public java.util.List<edu.uci.ics.amber.operator.typecasting.TypeCastingUnit> typeCastingUnits = new ArrayList<>();
 
     @Override
     public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId) {
-        if (typeCastingUnits==null) typeCastingUnits = new ArrayList<>();
+        if (typeCastingUnits == null) typeCastingUnits = new ArrayList<>();
         return PhysicalOp.oneToOnePhysicalOp(
                         workflowId,
                         executionId,
                         operatorIdentifier(),
                         OpExecInitInfo.apply(
-                                (Function<Tuple2<Object, Object>, OperatorExecutor> & Serializable)
-                                        worker -> new TypeCastingOpExec(typeCastingUnits)
+                                (Function<Tuple2<Object, Object>, OperatorExecutor> & java.io.Serializable)
+                                        worker -> new edu.uci.ics.amber.operator.typecasting.TypeCastingOpExec(typeCastingUnits)
                         )
                 )
                 .withInputPorts(operatorInfo().inputPorts())
@@ -56,7 +55,7 @@ public class TypeCastingOpDesc extends MapOpDesc {
                             java.util.Map<PortIdentity, Schema> javaMap = new java.util.HashMap<>();
                             Schema outputSchema = inputSchemas.values().head();
                             if (typeCastingUnits != null) {
-                                for (TypeCastingUnit unit : typeCastingUnits) {
+                                for (edu.uci.ics.amber.operator.typecasting.TypeCastingUnit unit : typeCastingUnits) {
                                     outputSchema = AttributeTypeUtils.SchemaCasting(outputSchema, unit.attribute, unit.resultType);
                                 }
                             }
@@ -88,7 +87,7 @@ public class TypeCastingOpDesc extends MapOpDesc {
     public Schema getOutputSchema(Schema[] schemas) {
         Schema outputSchema = schemas[0];
         if (typeCastingUnits != null) {
-            for (TypeCastingUnit unit : typeCastingUnits) {
+            for (edu.uci.ics.amber.operator.typecasting.TypeCastingUnit unit : typeCastingUnits) {
                 outputSchema = AttributeTypeUtils.SchemaCasting(outputSchema, unit.attribute, unit.resultType);
             }
         }

@@ -20,8 +20,8 @@ message CreditUpdate {
 
 message ActorCommand {
   oneof sealed_value {
-      Backpressure backpressure = 1;
-      CreditUpdate creditUpdate = 2;
+    Backpressure backpressure = 1;
+    CreditUpdate creditUpdate = 2;
   }
 }
 

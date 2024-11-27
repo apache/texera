@@ -12,6 +12,7 @@ class ProjectionOpExec(
 ) extends MapOpExec {
 
   setMapFunc(project)
+
   def project(tuple: Tuple): TupleLike = {
     Preconditions.checkArgument(attributeUnits.nonEmpty)
     var selectedUnits: List[AttributeUnit] = List()

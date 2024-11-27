@@ -6,6 +6,7 @@ import edu.uci.ics.amber.operator.flatmap.FlatMapOpExec
 class UnnestStringOpExec(attributeName: String, delimiter: String) extends FlatMapOpExec {
 
   setFlatMapFunc(splitByDelimiter)
+
   private def splitByDelimiter(tuple: Tuple): Iterator[TupleLike] = {
     delimiter.r
       .split(tuple.getField(attributeName).toString)

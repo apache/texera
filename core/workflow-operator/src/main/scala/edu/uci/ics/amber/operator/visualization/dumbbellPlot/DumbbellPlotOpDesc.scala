@@ -3,16 +3,14 @@ package edu.uci.ics.amber.operator.visualization.dumbbellPlot
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
-import edu.uci.ics.amber.operator.PythonOperatorDescriptor
-import edu.uci.ics.amber.operator.metadata.OperatorInfo
-import edu.uci.ics.amber.operator.metadata.OperatorGroupConstants
-import edu.uci.ics.amber.operator.metadata.annotation.AutofillAttributeName
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
+import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.amber.operator.visualization.{VisualizationConstants, VisualizationOperator}
 
 import java.util
 import scala.jdk.CollectionConverters.CollectionHasAsScala
-
+import edu.uci.ics.amber.operator.PythonOperatorDescriptor
 //type constraint: measurementColumnName can only be a numeric column
 @JsonSchemaInject(json = """
 {
@@ -81,30 +79,30 @@ class DumbbellPlotOpDesc extends VisualizationOperator with PythonOperatorDescri
       showLegendsOption = "showlegend=True"
     }
     s"""
-     |
-     |        entityNames = list(table['${comparedColumnName}'].unique())
-     |        entityNames = sorted(entityNames, reverse=True)
-     |        categoryValues = [${dumbbellValues}]
-     |        filtered_table = table[(table['${comparedColumnName}'].isin(entityNames)) &
-     |                    (table['${categoryColumnName}'].isin(categoryValues))]
-     |
-     |        # Create the dumbbell line using Plotly
-     |        fig = go.Figure()
-     |        color = 'black'
-     |        for entity in entityNames:
-     |          entity_data = filtered_table[filtered_table['${comparedColumnName}'] == entity]
-     |          fig.add_trace(go.Scatter(x=entity_data['${measurementColumnName}'],
-     |                             y=[entity]*len(entity_data),
-     |                             mode='lines',
-     |                             name=entity,
-     |                             line=dict(color=color)))
-     |
-     |          fig.update_layout(xaxis_title="${measurementColumnName}",
-     |                  yaxis_title="${comparedColumnName}",
-     |                  yaxis=dict(categoryorder='array', categoryarray=entityNames),
-     |                  ${showLegendsOption}
-     |                  )
-     |""".stripMargin
+       |
+       |        entityNames = list(table['${comparedColumnName}'].unique())
+       |        entityNames = sorted(entityNames, reverse=True)
+       |        categoryValues = [${dumbbellValues}]
+       |        filtered_table = table[(table['${comparedColumnName}'].isin(entityNames)) &
+       |                    (table['${categoryColumnName}'].isin(categoryValues))]
+       |
+       |        # Create the dumbbell line using Plotly
+       |        fig = go.Figure()
+       |        color = 'black'
+       |        for entity in entityNames:
+       |          entity_data = filtered_table[filtered_table['${comparedColumnName}'] == entity]
+       |          fig.add_trace(go.Scatter(x=entity_data['${measurementColumnName}'],
+       |                             y=[entity]*len(entity_data),
+       |                             mode='lines',
+       |                             name=entity,
+       |                             line=dict(color=color)))
+       |
+       |          fig.update_layout(xaxis_title="${measurementColumnName}",
+       |                  yaxis_title="${comparedColumnName}",
+       |                  yaxis=dict(categoryorder='array', categoryarray=entityNames),
+       |                  ${showLegendsOption}
+       |                  )
+       |""".stripMargin
   }
 
   def addPlotlyDots(): String = {
@@ -138,32 +136,32 @@ class DumbbellPlotOpDesc extends VisualizationOperator with PythonOperatorDescri
 
   override def generatePythonCode(): String = {
     s"""
-     |from pytexera import *
-     |
-     |import plotly.express as px
-     |import plotly.graph_objects as go
-     |import plotly.io
-     |import numpy as np
-     |
-     |class ProcessTableOperator(UDFTableOperator):
-     |    def render_error(self, error_msg):
-     |        return '''<h1>DumbbellPlot is not available.</h1>
-     |                  <p>Reason is: {} </p>
-     |               '''.format(error_msg)
-     |
-     |    @overrides
-     |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-     |        if table.empty:
-     |           yield {'html-content': self.render_error("input table is empty.")}
-     |           return
-     |        ${createPlotlyDumbbellLineFigure()}
-     |        ${addPlotlyDots()}
-     |        # convert fig to html content
-     |        fig.update_layout(margin=dict(l=0, r=0, b=60, t=0))
-     |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
-     |        yield {'html-content': html}
-     |
-     |""".stripMargin
+       |from pytexera import *
+       |
+       |import plotly.express as px
+       |import plotly.graph_objects as go
+       |import plotly.io
+       |import numpy as np
+       |
+       |class ProcessTableOperator(UDFTableOperator):
+       |    def render_error(self, error_msg):
+       |        return '''<h1>DumbbellPlot is not available.</h1>
+       |                  <p>Reason is: {} </p>
+       |               '''.format(error_msg)
+       |
+       |    @overrides
+       |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+       |        if table.empty:
+       |           yield {'html-content': self.render_error("input table is empty.")}
+       |           return
+       |        ${createPlotlyDumbbellLineFigure()}
+       |        ${addPlotlyDots()}
+       |        # convert fig to html content
+       |        fig.update_layout(margin=dict(l=0, r=0, b=60, t=0))
+       |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
+       |        yield {'html-content': html}
+       |
+       |""".stripMargin
   }
 
   override def chartType(): String = VisualizationConstants.HTML_VIZ

@@ -4,31 +4,13 @@
 package edu.uci.ics.texera.web.model.jooq.generated;
 
 
-import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetUserAccess;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetVersion;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.Project;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.ProjectUserAccess;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.PublicProject;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.User;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.UserConfig;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.Workflow;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowExecutions;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowOfProject;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowOfUser;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowRuntimeStatistics;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowUserAccess;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowUserActivity;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowUserClones;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowUserLikes;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowVersion;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowViewCount;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.*;
 
 
 /**
  * Convenience access to all tables in texera_db
  */
-@SuppressWarnings({ "all", "unchecked", "rawtypes" })
+@SuppressWarnings({"all", "unchecked", "rawtypes"})
 public class Tables {
 
     /**

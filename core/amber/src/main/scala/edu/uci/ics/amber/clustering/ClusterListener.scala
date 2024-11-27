@@ -1,8 +1,8 @@
 package edu.uci.ics.amber.clustering
 
 import akka.actor.{Actor, Address}
-import akka.cluster.ClusterEvent._
 import akka.cluster.Cluster
+import akka.cluster.ClusterEvent._
 import com.google.protobuf.timestamp.Timestamp
 import com.twitter.util.{Await, Future}
 import edu.uci.ics.amber.clustering.ClusterListener.numWorkerNodesInCluster
@@ -10,21 +10,22 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregat
   COMPLETED,
   FAILED
 }
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberLogging}
 import edu.uci.ics.amber.error.ErrorUtils.getStackTraceWithAllCauses
+import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
+import edu.uci.ics.amber.workflowruntimestate.WorkflowFatalError
 import edu.uci.ics.texera.web.SessionState
 import edu.uci.ics.texera.web.model.websocket.response.ClusterStatusUpdateEvent
 import edu.uci.ics.texera.web.service.{WorkflowExecutionService, WorkflowService}
 import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
-import edu.uci.ics.amber.engine.common.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
-import edu.uci.ics.amber.engine.common.workflowruntimestate.WorkflowFatalError
 
 import java.time.Instant
 import scala.collection.mutable.ArrayBuffer
 
 object ClusterListener {
   final case class GetAvailableNodeAddresses()
+
   var numWorkerNodesInCluster = 0
 }
 

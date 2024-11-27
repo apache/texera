@@ -7,7 +7,7 @@ import com.kjetland.jackson.jsonSchema.annotations.{
   JsonSchemaString,
   JsonSchemaTitle
 }
-import edu.uci.ics.amber.operator.metadata.annotation.HideAnnotation
+import edu.uci.ics.amber.operator.metadata.annotations.HideAnnotation
 import edu.uci.ics.amber.operator.source.scan.FileAttributeType
 
 /**

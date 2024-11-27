@@ -1,5 +1,6 @@
 package edu.uci.ics.amber.operator.machineLearning.sklearnAdvanced.SVRTrainer
 
+import edu.uci.ics.amber.operator.machineLearning.sklearnAdvanced.SVRTrainer.SklearnAdvancedSVRParameters
 import edu.uci.ics.amber.operator.machineLearning.sklearnAdvanced.base.SklearnMLOperatorDescriptor
 
 class SklearnAdvancedSVRTrainerOpDesc
