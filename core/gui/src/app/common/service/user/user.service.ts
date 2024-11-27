@@ -1,9 +1,9 @@
 import { Injectable } from "@angular/core";
-import { Observable, ReplaySubject } from "rxjs";
+import { Observable, of, ReplaySubject } from "rxjs";
 import { Role, User } from "../../type/user";
 import { AuthService } from "./auth.service";
 import { environment } from "../../../../environments/environment";
-import { map } from "rxjs/operators";
+import { catchError, map, shareReplay } from "rxjs/operators";
 
 /**
  * User Service manages User information. It relies on different
@@ -15,7 +15,7 @@ import { map } from "rxjs/operators";
 export class UserService {
   private currentUser?: User = undefined;
   private userChangeSubject: ReplaySubject<User | undefined> = new ReplaySubject<User | undefined>(1);
-  private cache: Map<string, { url: string; expiry: number }> = new Map();
+  private cache = new Map<string, { data: string; expiry: number }>();
   private readonly cacheDuration = 3600 * 1000; // cache duration: 1h
 
   constructor(private authService: AuthService) {
@@ -95,24 +95,43 @@ export class UserService {
     return { result: true, message: "Username frontend validation success." };
   }
 
-  getAvatar(googleAvatar: string): string {
-    if (!googleAvatar) return "";
+  getAvatar(googleAvatar: string): Observable<string | undefined> {
+    if (!googleAvatar) return of(undefined);
 
     const cached = this.cache.get(googleAvatar);
     if (cached) {
       if (Date.now() > cached.expiry) {
         this.cache.delete(googleAvatar);
       } else {
-        return cached.url;
+        return of(cached.data);
       }
     }
 
     const url = `https://lh3.googleusercontent.com/a/${googleAvatar}`;
-    this.cache.set(googleAvatar, {
-      url: url,
-      expiry: Date.now() + this.cacheDuration,
-    });
+    return this.fetchBase64Image(url).pipe(
+      map(base64 => {
+        this.cache.set(googleAvatar, {
+          data: base64,
+          expiry: Date.now() + this.cacheDuration,
+        });
+        return base64;
+      }),
+      catchError(() => of(undefined)),
+      shareReplay(1)
+    );
+  }
 
-    return url;
+  private fetchBase64Image(url: string): Observable<string> {
+    return new Observable(observer => {
+      fetch(url)
+        .then(response => response.blob())
+        .then(blob => {
+          const reader = new FileReader();
+          reader.onloadend = () => observer.next(reader.result as string);
+          reader.onerror = error => observer.error(error);
+          reader.readAsDataURL(blob);
+        })
+        .catch(error => observer.error(error));
+    });
   }
 }

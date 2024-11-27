@@ -4,6 +4,8 @@ import { Observable, of, Subject } from "rxjs";
 import { Role, User } from "../../type/user";
 import { UserService } from "./user.service";
 import { PublicInterfaceOf } from "../../util/stub";
+import { types } from "sass";
+import Error = types.Error;
 
 export const MOCK_USER_ID = 1;
 export const MOCK_USER_NAME = "testUser";
@@ -60,7 +62,7 @@ export class StubUserService implements PublicInterfaceOf<UserService> {
     return this.user;
   }
 
-  getAvatar(googleAvatar: string): string {
-    return "";
+  getAvatar(googleAvatar: string): Observable<string | undefined> {
+    return of(undefined);
   }
 }
