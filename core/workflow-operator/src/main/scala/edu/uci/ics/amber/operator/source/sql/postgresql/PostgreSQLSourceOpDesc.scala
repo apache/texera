@@ -3,17 +3,17 @@ package edu.uci.ics.amber.operator.source.sql.postgresql
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
+import edu.uci.ics.amber.core.executor.OpExecInitInfo
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
+import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.amber.operator.metadata.annotations.UIWidget
+import edu.uci.ics.amber.operator.source.sql.SQLSourceOpDesc
+import edu.uci.ics.amber.operator.source.sql.postgresql.PostgreSQLConnUtil.connect
 import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.workflow.OutputPort
-import PostgreSQLConnUtil.connect
-import edu.uci.ics.amber.core.executor.OpExecInitInfo
-import edu.uci.ics.amber.operator.metadata.OperatorInfo
-import edu.uci.ics.amber.operator.metadata.OperatorGroupConstants
-import edu.uci.ics.amber.operator.metadata.annotation.UIWidget
-import edu.uci.ics.amber.operator.source.sql.SQLSourceOpDesc
 
 import java.sql.{Connection, SQLException}
+
 class PostgreSQLSourceOpDesc extends SQLSourceOpDesc {
 
   @JsonProperty()
@@ -61,6 +61,7 @@ class PostgreSQLSourceOpDesc extends SQLSourceOpDesc {
       .withPropagateSchema(
         SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> sourceSchema()))
       )
+
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
       "PostgreSQL Source",

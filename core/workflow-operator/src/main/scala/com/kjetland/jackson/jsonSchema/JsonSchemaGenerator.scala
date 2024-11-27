@@ -1,16 +1,6 @@
 package com.kjetland.jackson.jsonSchema
 
-import java.lang.annotation.Annotation
-import java.util
-import java.util.function.Supplier
-import java.util.{Optional, List => JList}
-import com.fasterxml.jackson.annotation.{
-  JsonProperty,
-  JsonPropertyDescription,
-  JsonSubTypes,
-  JsonTypeInfo,
-  JsonTypeName
-}
+import com.fasterxml.jackson.annotation._
 import com.fasterxml.jackson.core.JsonParser.NumberType
 import com.fasterxml.jackson.databind._
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
@@ -19,13 +9,24 @@ import com.fasterxml.jackson.databind.jsonFormatVisitors._
 import com.fasterxml.jackson.databind.jsontype.impl.MinimalClassNameIdResolver
 import com.fasterxml.jackson.databind.node.{ArrayNode, JsonNodeFactory, ObjectNode}
 import com.fasterxml.jackson.databind.util.ClassUtil
-import com.kjetland.jackson.jsonSchema.annotations._
+import com.kjetland.jackson.jsonSchema.annotations.{
+  JsonSchemaDefault,
+  JsonSchemaDescription,
+  JsonSchemaExamples,
+  JsonSchemaFormat,
+  JsonSchemaInject,
+  JsonSchemaOptions,
+  JsonSchemaTitle
+}
 import io.github.classgraph.{ClassGraph, ScanResult}
-
-import javax.validation.constraints._
-import javax.validation.groups.Default
 import org.slf4j.LoggerFactory
 
+import java.lang.annotation.Annotation
+import java.util
+import java.util.function.Supplier
+import java.util.{Optional, List => JList}
+import javax.validation.constraints._
+import javax.validation.groups.Default
 import scala.jdk.CollectionConverters.{CollectionHasAsScala, MapHasAsScala}
 
 object JsonSchemaGenerator {}
@@ -292,9 +293,10 @@ case class JsonSchemaConfig(
 
 /**
   * Json Schema Generator
+  *
   * @param rootObjectMapper pre-configured ObjectMapper
-  * @param debug Default = false - set to true if generator should log some debug info while generating the schema
-  * @param config default = vanillaJsonSchemaDraft4. Please use html5EnabledSchema if generating HTML5 GUI, e.g. using https://github.com/jdorn/json-editor
+  * @param debug            Default = false - set to true if generator should log some debug info while generating the schema
+  * @param config           default = vanillaJsonSchemaDraft4. Please use html5EnabledSchema if generating HTML5 GUI, e.g. using https://github.com/jdorn/json-editor
   */
 class JsonSchemaGenerator(
     val rootObjectMapper: ObjectMapper,
@@ -327,6 +329,7 @@ class JsonSchemaGenerator(
     var provider: SerializerProvider = null
 
     def getProvider: SerializerProvider = provider
+
     def setProvider(provider: SerializerProvider): Unit = this.provider = provider
   }
 
@@ -658,6 +661,7 @@ class JsonSchemaGenerator(
 
       new JsonStringFormatVisitor with EnumSupport {
         val _node = node
+
         override def format(format: JsonValueFormat): Unit = {
           setFormat(node, format.toString)
         }
@@ -759,8 +763,10 @@ class JsonSchemaGenerator(
 
       new JsonNumberFormatVisitor with EnumSupport {
         val _node = node
+
         override def numberType(_type: NumberType): Unit =
           l(s"JsonNumberFormatVisitor.numberType: ${_type}")
+
         override def format(format: JsonValueFormat): Unit = {
           setFormat(node, format.toString)
         }
@@ -810,8 +816,10 @@ class JsonSchemaGenerator(
 
       new JsonIntegerFormatVisitor with EnumSupport {
         val _node = node
+
         override def numberType(_type: NumberType): Unit =
           l(s"JsonIntegerFormatVisitor.numberType: ${_type}")
+
         override def format(format: JsonValueFormat): Unit = {
           setFormat(node, format.toString)
         }
@@ -837,6 +845,7 @@ class JsonSchemaGenerator(
 
       new JsonBooleanFormatVisitor with EnumSupport {
         val _node = node
+
         override def format(format: JsonValueFormat): Unit = {
           setFormat(node, format.toString)
         }
@@ -1558,12 +1567,14 @@ class JsonSchemaGenerator(
 
   def generateJsonSchema[T <: Any](clazz: Class[T]): JsonNode =
     generateJsonSchema(clazz, None, None)
+
   def generateJsonSchema[T <: Any](javaType: JavaType): JsonNode =
     generateJsonSchema(javaType, None, None)
 
   // Java-API
   def generateJsonSchema[T <: Any](clazz: Class[T], title: String, description: String): JsonNode =
     generateJsonSchema(clazz, Option(title), Option(description))
+
   // Java-API
   def generateJsonSchema[T <: Any](
       javaType: JavaType,

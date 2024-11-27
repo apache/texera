@@ -1,8 +1,8 @@
 package edu.uci.ics.amber.operator.source.sql.postgresql
 
 import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
-import PostgreSQLConnUtil.connect
 import edu.uci.ics.amber.operator.source.sql.SQLSourceOpExec
+import edu.uci.ics.amber.operator.source.sql.postgresql.PostgreSQLConnUtil.connect
 
 import java.sql._
 
@@ -65,7 +65,9 @@ class PostgreSQLSourceOpExec private[postgresql] (
   override protected def loadTableNames(): Unit = {
     val preparedStatement = connection.prepareStatement(FETCH_TABLE_NAMES_SQL)
     val resultSet = preparedStatement.executeQuery
-    while ({ resultSet.next }) {
+    while ({
+      resultSet.next
+    }) {
       tableNames += resultSet.getString(1)
     }
     resultSet.close()

@@ -1,11 +1,11 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.model.{PhysicalPlan, WorkflowContext}
-import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
-import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
-import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
+import edu.uci.ics.amber.core.WorkflowRuntimeException
+import edu.uci.ics.amber.core.storage.result.OpResultStorage
+import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
+import edu.uci.ics.amber.virtualidentity.PhysicalOpIdentity
+import edu.uci.ics.amber.workflow.PhysicalLink
 import org.jgrapht.alg.connectivity.BiconnectivityInspector
 import org.jgrapht.graph.DirectedAcyclicGraph
 
@@ -97,7 +97,7 @@ class ExpansionGreedyRegionPlanGenerator(
     *
     * If the function finds no such links for all PhysicalOps, it will return the connected Region DAG.
     *
-    *  @return Either a partially connected region DAG, or a set of PhysicalLinks for materialization replacement.
+    * @return Either a partially connected region DAG, or a set of PhysicalLinks for materialization replacement.
     */
   private def tryConnectRegionDAG()
       : Either[DirectedAcyclicGraph[Region, RegionLink], Set[PhysicalLink]] = {
@@ -163,6 +163,7 @@ class ExpansionGreedyRegionPlanGenerator(
 
     val matReaderWriterPairs =
       new mutable.HashMap[PhysicalOpIdentity, PhysicalOpIdentity]()
+
     @tailrec
     def recConnectRegionDAG(): DirectedAcyclicGraph[Region, RegionLink] = {
       tryConnectRegionDAG() match {

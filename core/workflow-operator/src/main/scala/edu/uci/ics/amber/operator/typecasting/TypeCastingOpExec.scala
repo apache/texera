@@ -7,6 +7,7 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 class TypeCastingOpExec(typeCastingUnits: java.util.List[TypeCastingUnit]) extends MapOpExec {
   this.setMapFunc(castTuple)
+
   private def castTuple(tuple: Tuple): TupleLike =
     AttributeTypeUtils.tupleCasting(
       tuple,

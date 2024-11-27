@@ -45,10 +45,11 @@ object Utils extends LazyLogging {
         .findAny
       if (searchChildren.isPresent) {
         searchChildren.get
+      } else {
+        throw new RuntimeException(
+          "Finding texera home path failed. Current working directory is " + currentWorkingDirectory
+        )
       }
-      throw new RuntimeException(
-        "Finding texera home path failed. Current working directory is " + currentWorkingDirectory
-      )
     }
   }
   val AMBER_HOME_FOLDER_NAME = "amber";
@@ -56,9 +57,10 @@ object Utils extends LazyLogging {
   /**
     * Retry the given logic with a backoff time interval. The attempts are executed sequentially, thus blocking the thread.
     * Backoff time is doubled after each attempt.
-    * @param attempts total number of attempts. if n <= 1 then it will not retry at all, decreased by 1 for each recursion.
+    *
+    * @param attempts            total number of attempts. if n <= 1 then it will not retry at all, decreased by 1 for each recursion.
     * @param baseBackoffTimeInMS time to wait before next attempt, started with the base time, and doubled after each attempt.
-    * @param fn the target function to execute.
+    * @param fn                  the target function to execute.
     * @tparam T any return type from the provided function fn.
     * @return the provided function fn's return, or any exception that still being raised after n attempts.
     */
@@ -82,20 +84,6 @@ object Utils extends LazyLogging {
   private def isAmberHomePath(path: Path): Boolean = {
     path.toRealPath().endsWith(AMBER_HOME_FOLDER_NAME)
   }
-
-  /** An unmodifiable set containing some common URL words that are not usually useful
-    * for searching.
-    */
-  final val URL_STOP_WORDS_SET = List[String](
-    "http",
-    "https",
-    "org",
-    "net",
-    "com",
-    "store",
-    "www",
-    "html"
-  )
 
   def aggregatedStateToString(state: WorkflowAggregatedState): String = {
     state match {

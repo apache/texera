@@ -3,10 +3,10 @@ package edu.uci.ics.amber.engine.architecture.pythonworker
 import com.google.protobuf.ByteString
 import com.google.protobuf.any.Any
 import com.twitter.util.{Await, Promise}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
-  OpExecInitInfo,
-  OpExecInitInfoWithCode
-}
+import edu.uci.ics.amber.core.WorkflowRuntimeException
+import edu.uci.ics.amber.core.executor.{OpExecInitInfo, OpExecInitInfoWithCode}
+import edu.uci.ics.amber.core.marker.State
+import edu.uci.ics.amber.core.tuple.{Schema, Tuple}
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{
   ActorCommandElement,
   ControlElement,
@@ -17,21 +17,10 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
   InitializeExecutorRequest
 }
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ReturnInvocation
-import edu.uci.ics.amber.engine.common.{AmberLogging, AmberRuntime}
 import edu.uci.ics.amber.engine.common.actormessage.{ActorCommand, PythonActorMessage}
-import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.ambermessage.{
-  ControlPayload,
-  ControlPayloadV2,
-  DataFrame,
-  DataPayload,
-  MarkerFrame,
-  PythonControlMessage,
-  PythonDataHeader
-}
-import edu.uci.ics.amber.engine.common.model.State
-import edu.uci.ics.amber.engine.common.model.tuple.{Schema, Tuple}
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.ambermessage._
+import edu.uci.ics.amber.engine.common.{AmberLogging, AmberRuntime}
+import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
 import org.apache.arrow.flight._
 import org.apache.arrow.memory.{ArrowBuf, BufferAllocator, RootAllocator}
 import org.apache.arrow.vector.VectorSchemaRoot
