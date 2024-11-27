@@ -2,16 +2,9 @@ package edu.uci.ics.amber.engine.architecture.worker
 
 import edu.uci.ics.amber.engine.architecture.messaginglayer.InputGateway
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerPayload
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType.{
-  NO_ALIGNMENT,
-  REQUIRE_ALIGNMENT
-}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType.{NO_ALIGNMENT, REQUIRE_ALIGNMENT}
 import edu.uci.ics.amber.engine.common.{AmberLogging, CheckpointState}
-import edu.uci.ics.amber.virtualidentity.{
-  ActorVirtualIdentity,
-  ChannelIdentity,
-  ChannelMarkerIdentity
-}
+import edu.uci.ics.amber.virtualidentity.{ActorVirtualIdentity, ChannelIdentity, ChannelMarkerIdentity}
 
 import scala.collection.mutable
 
@@ -51,6 +44,10 @@ class ChannelMarkerManager(val actorId: ActorVirtualIdentity, inputGateway: Inpu
     val epochMarkerCompleted = marker.markerType match {
       case REQUIRE_ALIGNMENT => markerReceivedFromAllChannels
       case NO_ALIGNMENT      => markerReceived(markerId).size == 1 // only the first marker triggers
+      case _ =>
+        throw new IllegalArgumentException(
+          s"Unsupported marker type: ${marker.markerType}"
+        )
     }
     if (markerReceivedFromAllChannels) {
       markerReceived.remove(markerId) // clean up if all markers are received
