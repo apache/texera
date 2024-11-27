@@ -90,6 +90,9 @@ trait MockTexeraDB {
   def initializeDBAndReplaceDSLContext(): Unit = {
     assert(dbInstance.isEmpty && dslContext.isEmpty)
 
+    val driver = new com.mysql.cj.jdbc.Driver()
+    DriverManager.registerDriver(driver)
+
     val config = DBConfigurationBuilder.newBuilder
       .setPort(0) // 0 => automatically detect free port
       .addArg("--default-time-zone=-8:00")
