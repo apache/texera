@@ -98,7 +98,7 @@ class DataProcessingSpec
     val table: String = "test"
     val username: String = "root"
     val password: String = ""
-    val driver = new com.mysql.jdbc.Driver()
+    val driver = new com.mysql.cj.jdbc.Driver()
     DriverManager.registerDriver(driver)
 
     val config = DBConfigurationBuilder.newBuilder
