@@ -15,11 +15,7 @@ object OpExecInitInfo {
       case OpExecInitInfoWithCode(codeGen) =>
         val (code, _) =
           codeGen(workerIdx, numWorkers)
-        JavaRuntimeCompilation
-          .compileCode(code)
-          .getDeclaredConstructor()
-          .newInstance()
-          .asInstanceOf[OperatorExecutor]
+        ExecFactory.newExecFromJavaCode(code)
       case OpExecInitInfoWithFunc(opGen) =>
         opGen(
           workerIdx,
