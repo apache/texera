@@ -166,6 +166,13 @@ The workflow in the use case shown below includes data cleaning, ML model traini
       <p><b>ICS 80: Data Science and AI/ML Using Workflows</b></p>
       A Spring 2024 course at UCI, teaching 42 undergraduates, most of whom are not computer science majors, to learn data science and AI/ML
     </td>
+    <td align="center">
+      <a href="https://sites.google.com/uci.edu/ds-workshop2024/home">
+        <img src="https://www.cerritos.edu/_resources/images/common/cerritos-college-logo.svg">
+      </a>
+      <p><b>Workshop of Data Science for Everyone at Cerritos College</b></p>
+      A two-day workshop designed for non-CS students to learn data science and ML without a single line of coding
+    </td>
   </tr>
 </table>
 
