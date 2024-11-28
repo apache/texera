@@ -2,6 +2,8 @@ package edu.uci.ics.amber.core.storage.result
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.storage.StorageConfig
+import edu.uci.ics.amber.core.storage.model.VirtualDocument
+import edu.uci.ics.amber.core.tuple.{Schema, Tuple}
 import edu.uci.ics.amber.virtualidentity.OperatorIdentity
 
 import java.util.concurrent.ConcurrentHashMap
@@ -83,7 +85,7 @@ class OpResultStorage extends Serializable with LazyLogging {
     */
   def remove(key: OperatorIdentity): Unit = {
     if (cache.contains(key)) {
-      cache.get(key)._1.remove()
+      cache.get(key)._1.clear()
     }
     cache.remove(key)
   }
@@ -92,7 +94,7 @@ class OpResultStorage extends Serializable with LazyLogging {
     * Close this storage. Used for workflow cleanup.
     */
   def clear(): Unit = {
-    cache.forEach((_, document) => document._1.remove())
+    cache.forEach((_, document) => document._1.clear())
     cache.clear()
   }
 

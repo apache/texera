@@ -228,10 +228,7 @@ class WorkflowCompiler(
               storageType
             )
           )
-
-          sink.getStorage.setSchema(
-            logicalPlan.getOperator(storageKey).outputPortToSchemaMapping.values.head
-          )
+          sink.setOpResultStorage(storage)
           // add the sink collection name to the JSON array of sinks
           val storageNode = objectMapper.createObjectNode()
           storageNode.put("storageType", storageType)

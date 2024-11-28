@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.operator.sink.managed
 
 import edu.uci.ics.amber.core.executor.SinkOperatorExecutor
-import edu.uci.ics.amber.core.storage.result.SinkStorageWriter
+import edu.uci.ics.amber.core.storage.model.BufferedItemWriter
 import edu.uci.ics.amber.core.tuple.{Tuple, TupleLike}
 import edu.uci.ics.amber.operator.sink.{IncrementalOutputMode, ProgressiveUtils}
 import edu.uci.ics.amber.workflow.PortIdentity
