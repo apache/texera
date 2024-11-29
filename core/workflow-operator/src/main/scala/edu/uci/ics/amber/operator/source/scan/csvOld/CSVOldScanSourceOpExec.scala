@@ -5,19 +5,15 @@ import edu.uci.ics.amber.core.executor.SourceOperatorExecutor
 import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeTypeUtils, Schema, TupleLike}
 import edu.uci.ics.amber.operator.source.scan.FileDecodingMethod
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 
 import java.net.URI
 import scala.collection.compat.immutable.ArraySeq
 
 class CSVOldScanSourceOpExec private[csvOld] (
-    fileUri: String,
-    fileEncoding: FileDecodingMethod,
-    limit: Option[Int],
-    offset: Option[Int],
-    customDelimiter: Option[String],
-    hasHeader: Boolean,
-    schema: Schema
+    descString: String
 ) extends SourceOperatorExecutor {
+  val desc: CSVOldScanSourceOpDesc = objectMapper.readValue(descString, classOf[CSVOldScanSourceOpDesc])
   var reader: CSVReader = _
   var rows: Iterator[Seq[String]] = _
 
@@ -28,7 +24,7 @@ class CSVOldScanSourceOpExec private[csvOld] (
         try {
           val parsedFields: Array[Any] = AttributeTypeUtils.parseFields(
             fields.toArray,
-            schema.getAttributes
+            desc.sourceSchema().getAttributes
               .map((attr: Attribute) => attr.getType)
               .toArray
           )
@@ -39,18 +35,18 @@ class CSVOldScanSourceOpExec private[csvOld] (
       )
       .filter(tuple => tuple != null)
 
-    if (limit.isDefined) tuples = tuples.take(limit.get)
+    if (desc.limit.isDefined) tuples = tuples.take(desc.limit.get)
     tuples
   }
 
   override def open(): Unit = {
     implicit object CustomFormat extends DefaultCSVFormat {
-      override val delimiter: Char = customDelimiter.get.charAt(0)
+      override val delimiter: Char = desc.customDelimiter.get.charAt(0)
     }
-    val filePath = DocumentFactory.newReadonlyDocument(new URI(fileUri)).asFile().toPath
-    reader = CSVReader.open(filePath.toString, fileEncoding.getCharset.name())(CustomFormat)
+    val filePath = DocumentFactory.newReadonlyDocument(new URI(desc.fileName.get)).asFile().toPath
+    reader = CSVReader.open(filePath.toString, desc.fileEncoding.getCharset.name())(CustomFormat)
     // skip line if this worker reads the start of a file, and the file has a header line
-    val startOffset = offset.getOrElse(0) + (if (hasHeader) 1 else 0)
+    val startOffset = desc.offset.getOrElse(0) + (if (desc.hasHeader) 1 else 0)
 
     rows = reader.iterator.drop(startOffset)
   }
