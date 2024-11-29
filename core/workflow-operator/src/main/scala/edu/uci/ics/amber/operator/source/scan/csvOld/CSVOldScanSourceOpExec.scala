@@ -11,7 +11,7 @@ import java.net.URI
 import scala.collection.compat.immutable.ArraySeq
 
 class CSVOldScanSourceOpExec private[csvOld] (
-    descString: String
+    descString: String,
 ) extends SourceOperatorExecutor {
   val desc: CSVOldScanSourceOpDesc = objectMapper.readValue(descString, classOf[CSVOldScanSourceOpDesc])
   var reader: CSVReader = _

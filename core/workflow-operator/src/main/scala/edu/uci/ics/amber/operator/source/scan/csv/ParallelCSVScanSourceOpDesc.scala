@@ -4,13 +4,14 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.github.tototoshi.csv.{CSVReader, DefaultCSVFormat}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.core.executor.OpExecInitInfo
+import edu.uci.ics.amber.core.executor.{ExecFactory, OpExecInitInfo}
 import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.tuple.AttributeTypeUtils.inferSchemaFromRows
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.operator.source.scan.ScanSourceOpDesc
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 
 import java.io.IOException
 import java.net.URI
@@ -36,13 +37,10 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
       executionId: ExecutionIdentity
   ): PhysicalOp = {
     // fill in default values
-    if (customDelimiter.get.isEmpty)
+    if (customDelimiter.get.isEmpty) {
       customDelimiter = Option(",")
+    }
 
-    // here, the stream requires to be seekable, so datasetFileDesc creates a temp file here
-    // TODO: consider a better way
-    val file = DocumentFactory.newReadonlyDocument(new URI(fileName.get)).asFile()
-    val totalBytes: Long = file.length()
 
     PhysicalOp
       .sourcePhysicalOp(
@@ -50,18 +48,11 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
         executionId,
         operatorIdentifier,
         OpExecInitInfo((idx, workerCount) => {
-          // TODO: add support for limit
-          // TODO: add support for offset
-          val startOffset: Long = totalBytes / workerCount * idx
-          val endOffset: Long =
-            if (idx != workerCount - 1) totalBytes / workerCount * (idx + 1) else totalBytes
-          new ParallelCSVScanSourceOpExec(
-            file,
-            customDelimiter,
-            hasHeader,
-            startOffset,
-            endOffset,
-            sourceSchema()
+          ExecFactory.newExecFromJavaClassName(
+            "edu.uci.ics.amber.operator.source.scan.csv.ParallelCSVScanSourceOpExec",
+            objectMapper.writeValueAsString(this),
+            idx,
+            workerCount
           )
         })
       )
