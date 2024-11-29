@@ -41,7 +41,7 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
 
     // here, the stream requires to be seekable, so datasetFileDesc creates a temp file here
     // TODO: consider a better way
-    val file = DocumentFactory.newReadonlyDocument(new URI(fileUri.get)).asFile()
+    val file = DocumentFactory.newReadonlyDocument(new URI(fileName.get)).asFile()
     val totalBytes: Long = file.length()
 
     PhysicalOp
@@ -74,10 +74,10 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
   }
 
   override def sourceSchema(): Schema = {
-    if (customDelimiter.isEmpty || fileUri.isEmpty) {
+    if (customDelimiter.isEmpty || !fileResolved) {
       return null
     }
-    val file = DocumentFactory.newReadonlyDocument(new URI(fileUri.get)).asFile()
+    val file = DocumentFactory.newReadonlyDocument(new URI(fileName.get)).asFile()
     implicit object CustomFormat extends DefaultCSVFormat {
       override val delimiter: Char = customDelimiter.get.charAt(0)
 

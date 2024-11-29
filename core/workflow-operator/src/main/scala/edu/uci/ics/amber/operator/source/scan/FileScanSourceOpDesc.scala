@@ -50,7 +50,7 @@ class FileScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
         operatorIdentifier,
         OpExecInitInfo((_, _) =>
           new FileScanSourceOpExec(
-            fileUri.get,
+            fileName.get,
             attributeType,
             encoding,
             extract,

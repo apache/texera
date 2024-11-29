@@ -131,4 +131,19 @@ object FileResolver {
         throw new FileNotFoundException(s"Dataset file $fileName not found.")
     }
   }
+
+  /**
+    * Checks if a given file path has a valid scheme.
+    *
+    * @param filePath The file path to check.
+    * @return `true` if the file path contains a valid scheme, `false` otherwise.
+    */
+  def isFileResolved(filePath: String): Boolean = {
+    try {
+      val uri = new URI(filePath)
+      uri.getScheme != null && uri.getScheme.nonEmpty
+    } catch {
+      case _: Exception => false // Invalid URI format
+    }
+  }
 }

@@ -3,6 +3,7 @@ package edu.uci.ics.amber.operator.source.scan
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import edu.uci.ics.amber.core.storage.FileResolver
 import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.source.SourceOperatorDescriptor
@@ -24,14 +25,13 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
   @JsonDeserialize(contentAs = classOf[java.lang.String])
   var fileName: Option[String] = None
 
+
+
   @JsonProperty(defaultValue = "UTF_8", required = true)
   @JsonSchemaTitle("File Encoding")
   @JsonPropertyDescription("decoding charset to use on input")
   var fileEncoding: FileDecodingMethod = FileDecodingMethod.UTF_8
 
-  // uri of the file
-  @JsonIgnore
-  var fileUri: Option[String] = None
 
   @JsonIgnore
   var fileTypeName: Option[String] = None
@@ -61,10 +61,12 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
     )
   }
 
-  def setFileUri(uri: URI): Unit = {
-    fileUri = Some(uri.toASCIIString)
+  def setResolvedFileName(uri: URI): Unit = {
+    fileName = Some(uri.toASCIIString)
   }
 
   override def equals(that: Any): Boolean =
     EqualsBuilder.reflectionEquals(this, that, "context", "fileHandle")
+
+  def fileResolved(): Boolean = fileName.isDefined && FileResolver.isFileResolved(fileName.get)
 }

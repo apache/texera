@@ -45,7 +45,7 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
         operatorIdentifier,
         OpExecInitInfo((_, _) =>
           new CSVOldScanSourceOpExec(
-            fileUri.get,
+            fileName.get,
             fileEncoding,
             limit,
             offset,
@@ -64,11 +64,11 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
 
   override def sourceSchema(): Schema = {
 
-    if (customDelimiter.isEmpty || fileUri.isEmpty) {
+    if (customDelimiter.isEmpty || !fileResolved) {
        null
     }else {
       // infer schema from the first few lines of the file
-      val file = DocumentFactory.newReadonlyDocument(new URI(fileUri.get)).asFile()
+      val file = DocumentFactory.newReadonlyDocument(new URI(fileName.get)).asFile()
       implicit object CustomFormat extends DefaultCSVFormat {
         override val delimiter: Char = customDelimiter.get.charAt(0)
       }

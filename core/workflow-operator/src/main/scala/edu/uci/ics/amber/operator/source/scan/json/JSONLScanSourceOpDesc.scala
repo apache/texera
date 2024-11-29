@@ -38,7 +38,7 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp = {
-    val stream = DocumentFactory.newReadonlyDocument(new URI(fileUri.get)).asInputStream()
+    val stream = DocumentFactory.newReadonlyDocument(new URI(fileName.get)).asInputStream()
     // count lines and partition the task to each worker
     val reader = new BufferedReader(
       new InputStreamReader(stream, fileEncoding.getCharset)
@@ -60,7 +60,7 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
             offsetValue + (if (idx != workerCount - 1) count / workerCount * (idx + 1)
                            else count)
           new JSONLScanSourceOpExec(
-            fileUri.get,
+            fileName.get,
             fileEncoding,
             startOffset,
             endOffset,
@@ -78,10 +78,10 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
   }
 
     override def sourceSchema(): Schema = {
-    if (fileUri.isEmpty) {
-       null
-    }else{
-      val stream = DocumentFactory.newReadonlyDocument(new URI(fileUri.get)).asInputStream()
+    if (!fileResolved) {
+       return null
+    }
+      val stream = DocumentFactory.newReadonlyDocument(new URI(fileName.get)).asInputStream()
       val reader = new BufferedReader(new InputStreamReader(stream, fileEncoding.getCharset))
       var fieldNames = Set[String]()
 
@@ -126,6 +126,6 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
             .map(i => new Attribute(sortedFieldNames(i), attributeTypes(i)))
         )
         .build()
-    }
+
     }
 }

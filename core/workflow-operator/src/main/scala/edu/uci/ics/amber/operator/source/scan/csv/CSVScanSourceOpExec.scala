@@ -5,20 +5,17 @@ import edu.uci.ics.amber.core.executor.SourceOperatorExecutor
 import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.tuple.{AttributeTypeUtils, Schema, TupleLike}
 import edu.uci.ics.amber.operator.source.scan.FileDecodingMethod
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 
 import java.io.InputStreamReader
 import java.net.URI
 import scala.collection.immutable.ArraySeq
 
 class CSVScanSourceOpExec private[csv] (
-    fileUri: String,
-    fileEncoding: FileDecodingMethod,
-    limit: Option[Int],
-    offset: Option[Int],
-    customDelimiter: Option[String],
-    hasHeader: Boolean,
-    schema:Schema
+    descString: String
 ) extends SourceOperatorExecutor {
+  println(descString)
+  val desc: CSVScanSourceOpDesc = objectMapper.readValue(descString, classOf[CSVScanSourceOpDesc])
   var inputReader: InputStreamReader = _
   var parser: CsvParser = _
   var nextRow: Array[String] = _
@@ -44,12 +41,12 @@ class CSVScanSourceOpExec private[csv] (
     }
 
     var tupleIterator = rowIterator
-      .drop(offset.getOrElse(0))
+      .drop(desc.offset.getOrElse(0))
       .map(row => {
         try {
           TupleLike(
             ArraySeq.unsafeWrapArray(
-              AttributeTypeUtils.parseFields(row.asInstanceOf[Array[Any]], schema)
+              AttributeTypeUtils.parseFields(row.asInstanceOf[Array[Any]], desc.sourceSchema())
             ): _*
           )
         } catch {
@@ -58,19 +55,19 @@ class CSVScanSourceOpExec private[csv] (
       })
       .filter(t => t != null)
 
-    if (limit.isDefined) tupleIterator = tupleIterator.take(limit.get)
+    if (desc.limit.isDefined) tupleIterator = tupleIterator.take(desc.limit.get)
 
     tupleIterator
   }
 
   override def open(): Unit = {
     inputReader = new InputStreamReader(
-      DocumentFactory.newReadonlyDocument(new URI(fileUri)).asInputStream(),
-      fileEncoding.getCharset
+      DocumentFactory.newReadonlyDocument(new URI(desc.fileName.get)).asInputStream(),
+      desc.fileEncoding.getCharset
     )
 
     val csvFormat = new CsvFormat()
-    csvFormat.setDelimiter(customDelimiter.get.charAt(0))
+    csvFormat.setDelimiter(desc.customDelimiter.get.charAt(0))
     csvFormat.setLineSeparator("\n")
     csvFormat.setComment(
       '\u0000'
@@ -78,7 +75,7 @@ class CSVScanSourceOpExec private[csv] (
     val csvSetting = new CsvParserSettings()
     csvSetting.setMaxCharsPerColumn(-1)
     csvSetting.setFormat(csvFormat)
-    csvSetting.setHeaderExtractionEnabled(hasHeader)
+    csvSetting.setHeaderExtractionEnabled(desc.hasHeader)
 
     parser = new CsvParser(csvSetting)
     parser.beginParsing(inputReader)
