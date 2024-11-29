@@ -17,11 +17,10 @@ class CSVScanSourceOpExec private[csv] (
     offset: Option[Int],
     customDelimiter: Option[String],
     hasHeader: Boolean,
-    schemaFunc: () => Schema
+    schema:Schema
 ) extends SourceOperatorExecutor {
   var inputReader: InputStreamReader = _
   var parser: CsvParser = _
-  var schema: Schema = _
   var nextRow: Array[String] = _
   var numRowGenerated = 0
 
@@ -83,8 +82,6 @@ class CSVScanSourceOpExec private[csv] (
 
     parser = new CsvParser(csvSetting)
     parser.beginParsing(inputReader)
-
-    schema = schemaFunc()
   }
 
   override def close(): Unit = {

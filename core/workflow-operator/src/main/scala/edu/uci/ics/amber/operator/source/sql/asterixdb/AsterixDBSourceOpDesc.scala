@@ -121,7 +121,7 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
             regex.orNull,
             filterCondition.getOrElse(false),
             filterPredicates,
-            () => sourceSchema()
+            sourceSchema()
           )
         )
       )
@@ -131,12 +131,6 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
         SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> sourceSchema()))
       )
 
-  override def sourceSchema(): Schema = {
-    if (this.host == null || this.port == null || this.database == null || this.table == null)
-      return null
-
-    querySchema
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
@@ -149,7 +143,11 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
 
   override def updatePort(): Unit = port = if (port.trim().equals("default")) "19002" else port
 
-  override def querySchema: Schema = {
+  override def sourceSchema(): Schema = {
+    if (this.host == null || this.port == null || this.database == null || this.table == null) {
+      return null
+    }
+
     updatePort()
 
     val sb: Schema.Builder = Schema.builder()

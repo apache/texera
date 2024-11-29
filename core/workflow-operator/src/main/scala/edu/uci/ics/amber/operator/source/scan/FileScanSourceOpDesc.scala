@@ -1,11 +1,7 @@
 package edu.uci.ics.amber.operator.source.scan
 
-import com.fasterxml.jackson.annotation.{JsonIgnoreProperties, JsonProperty}
-import com.kjetland.jackson.jsonSchema.annotations.{
-  JsonSchemaInject,
-  JsonSchemaString,
-  JsonSchemaTitle
-}
+import com.fasterxml.jackson.annotation.{JsonIgnore, JsonIgnoreProperties, JsonProperty}
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaString, JsonSchemaTitle}
 import edu.uci.ics.amber.core.executor.OpExecInitInfo
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
@@ -67,11 +63,11 @@ class FileScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withPropagateSchema(
-        SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> inferSchema()))
+        SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> sourceSchema()))
       )
   }
 
-  override def inferSchema(): Schema = {
+  override def sourceSchema(): Schema = {
     val builder = Schema.builder()
     if (outputFileName) builder.add(new Attribute("filename", AttributeType.STRING))
     builder.add(new Attribute(attributeName, attributeType.getType)).build()

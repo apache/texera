@@ -26,7 +26,7 @@ class URLFetcherOpDesc extends SourceOperatorDescriptor {
   )
   var decodingMethod: DecodingMethod = _
 
-  def sourceSchema(): Schema = {
+  override def sourceSchema(): Schema = {
     Schema
       .builder()
       .add(

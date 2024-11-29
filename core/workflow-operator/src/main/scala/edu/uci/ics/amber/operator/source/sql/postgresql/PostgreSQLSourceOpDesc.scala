@@ -52,7 +52,7 @@ class PostgreSQLSourceOpDesc extends SQLSourceOpDesc {
             keywordSearch.getOrElse(false),
             keywordSearchByColumn.orNull,
             keywords.orNull,
-            () => sourceSchema()
+            sourceSchema()
           )
         )
       )

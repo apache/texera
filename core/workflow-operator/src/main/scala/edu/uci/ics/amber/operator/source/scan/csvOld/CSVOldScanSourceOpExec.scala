@@ -16,9 +16,8 @@ class CSVOldScanSourceOpExec private[csvOld] (
     offset: Option[Int],
     customDelimiter: Option[String],
     hasHeader: Boolean,
-    schemaFunc: () => Schema
+    schema: Schema
 ) extends SourceOperatorExecutor {
-  var schema: Schema = _
   var reader: CSVReader = _
   var rows: Iterator[Seq[String]] = _
 
@@ -45,7 +44,6 @@ class CSVOldScanSourceOpExec private[csvOld] (
   }
 
   override def open(): Unit = {
-    schema = schemaFunc()
     implicit object CustomFormat extends DefaultCSVFormat {
       override val delimiter: Char = customDelimiter.get.charAt(0)
     }

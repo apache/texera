@@ -1,7 +1,6 @@
 package edu.uci.ics.amber.operator.source.scan.csv
 
-import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize
+import com.fasterxml.jackson.annotation.{JsonIgnore, JsonInclude, JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import com.univocity.parsers.csv.{CsvFormat, CsvParser, CsvParserSettings}
 import edu.uci.ics.amber.core.executor.OpExecInitInfo
@@ -20,7 +19,7 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
   @JsonProperty(defaultValue = ",")
   @JsonSchemaTitle("Delimiter")
   @JsonPropertyDescription("delimiter to separate each line into fields")
-  @JsonDeserialize(contentAs = classOf[java.lang.String])
+  @JsonInclude(JsonInclude.Include.NON_ABSENT)
   var customDelimiter: Option[String] = None
 
   @JsonProperty(defaultValue = "true")
@@ -52,65 +51,60 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
             offset,
             customDelimiter,
             hasHeader,
-            schemaFunc = () => sourceSchema()
+            sourceSchema()
           )
         )
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withPropagateSchema(
-        SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> inferSchema()))
+        SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> sourceSchema()))
       )
   }
 
-  /**
-    * Infer Texera.Schema based on the top few lines of data.
-    *
-    * @return Texera.Schema build for this operator
-    */
-  @Override
-  def inferSchema(): Schema = {
+
+  override def sourceSchema(): Schema = {
     if (customDelimiter.isEmpty || fileUri.isEmpty) {
-      return null
-    }
+      null
+    } else {
+      val stream = DocumentFactory.newReadonlyDocument(new URI(fileUri.get)).asInputStream()
+      val inputReader =
+        new InputStreamReader(stream, fileEncoding.getCharset)
 
-    val stream = DocumentFactory.newReadonlyDocument(new URI(fileUri.get)).asInputStream()
-    val inputReader =
-      new InputStreamReader(stream, fileEncoding.getCharset)
+      val csvFormat = new CsvFormat()
+      csvFormat.setDelimiter(customDelimiter.get.charAt(0))
+      csvFormat.setLineSeparator("\n")
+      val csvSetting = new CsvParserSettings()
+      csvSetting.setMaxCharsPerColumn(-1)
+      csvSetting.setFormat(csvFormat)
+      csvSetting.setHeaderExtractionEnabled(hasHeader)
+      csvSetting.setNullValue("")
+      val parser = new CsvParser(csvSetting)
+      parser.beginParsing(inputReader)
 
-    val csvFormat = new CsvFormat()
-    csvFormat.setDelimiter(customDelimiter.get.charAt(0))
-    csvFormat.setLineSeparator("\n")
-    val csvSetting = new CsvParserSettings()
-    csvSetting.setMaxCharsPerColumn(-1)
-    csvSetting.setFormat(csvFormat)
-    csvSetting.setHeaderExtractionEnabled(hasHeader)
-    csvSetting.setNullValue("")
-    val parser = new CsvParser(csvSetting)
-    parser.beginParsing(inputReader)
-
-    var data: Array[Array[String]] = Array()
-    val readLimit = limit.getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT)
-    for (i <- 0 until readLimit) {
-      val row = parser.parseNext()
-      if (row != null) {
-        data = data :+ row
+      var data: Array[Array[String]] = Array()
+      val readLimit = limit.getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT)
+      for (i <- 0 until readLimit) {
+        val row = parser.parseNext()
+        if (row != null) {
+          data = data :+ row
+        }
       }
+      parser.stopParsing()
+      inputReader.close()
+
+      val attributeTypeList: Array[AttributeType] = inferSchemaFromRows(
+        data.iterator.asInstanceOf[Iterator[Array[Any]]]
+      )
+      val header: Array[String] =
+        if (hasHeader) parser.getContext.headers()
+        else (1 to attributeTypeList.length).map(i => "column-" + i).toArray
+
+      Schema
+        .builder()
+        .add(header.indices.map(i => new Attribute(header(i), attributeTypeList(i))))
+        .build()
     }
-    parser.stopParsing()
-    inputReader.close()
-
-    val attributeTypeList: Array[AttributeType] = inferSchemaFromRows(
-      data.iterator.asInstanceOf[Iterator[Array[Any]]]
-    )
-    val header: Array[String] =
-      if (hasHeader) parser.getContext.headers()
-      else (1 to attributeTypeList.length).map(i => "column-" + i).toArray
-
-    Schema
-      .builder()
-      .add(header.indices.map(i => new Attribute(header(i), attributeTypeList(i))))
-      .build()
   }
 
 }

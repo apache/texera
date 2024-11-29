@@ -19,9 +19,9 @@ class JSONLScanSourceOpExec private[json] (
     startOffset: Int,
     endOffset: Int,
     flatten: Boolean,
-    schemaFunc: () => Schema
+    schema: Schema
 ) extends SourceOperatorExecutor {
-  private var schema: Schema = _
+
   private var rows: Iterator[String] = _
   private var reader: BufferedReader = _
 
@@ -41,7 +41,6 @@ class JSONLScanSourceOpExec private[json] (
   }
 
   override def open(): Unit = {
-    schema = schemaFunc()
     reader = new BufferedReader(
       new InputStreamReader(
         DocumentFactory.newReadonlyDocument(new URI(fileUri)).asInputStream(),

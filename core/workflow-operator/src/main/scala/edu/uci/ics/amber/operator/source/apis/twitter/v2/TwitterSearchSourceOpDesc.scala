@@ -46,7 +46,7 @@ class TwitterSearchSourceOpDesc extends TwitterSourceOpDesc {
             stopWhenRateLimited,
             searchQuery,
             limit,
-            () => sourceSchema()
+            sourceSchema()
           )
         )
       )

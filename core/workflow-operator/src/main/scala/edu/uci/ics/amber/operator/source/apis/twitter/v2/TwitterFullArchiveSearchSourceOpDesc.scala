@@ -58,7 +58,7 @@ class TwitterFullArchiveSearchSourceOpDesc extends TwitterSourceOpDesc {
             limit,
             fromDateTime,
             toDateTime,
-            () => sourceSchema()
+            sourceSchema()
           )
         )
       )

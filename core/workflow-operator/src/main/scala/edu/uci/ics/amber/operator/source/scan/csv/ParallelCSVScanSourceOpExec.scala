@@ -16,9 +16,8 @@ class ParallelCSVScanSourceOpExec private[csv] (
     hasHeader: Boolean,
     startOffset: Long,
     endOffset: Long,
-    schemaFunc: () => Schema
+    schema: Schema
 ) extends SourceOperatorExecutor {
-  private var schema: Schema = _
   private var reader: BufferedBlockReader = _
 
   override def produceTuple(): Iterator[TupleLike] =
@@ -69,7 +68,6 @@ class ParallelCSVScanSourceOpExec private[csv] (
 
   override def open(): Unit = {
     val stream = new SeekableFileInputStream(file)
-    schema = schemaFunc()
     stream.seek(startOffset)
     reader = new BufferedBlockReader(
       stream,

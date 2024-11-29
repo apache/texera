@@ -23,7 +23,7 @@ class PostgreSQLSourceOpExec private[postgresql] (
     keywordSearch: Boolean,
     keywordSearchByColumn: String,
     keywords: String,
-    schemaFunc: () => Schema
+    schema: Schema
 ) extends SQLSourceOpExec(
       table,
       limit,
@@ -36,7 +36,7 @@ class PostgreSQLSourceOpExec private[postgresql] (
       keywordSearch,
       keywordSearchByColumn,
       keywords,
-      schemaFunc
+  schema
     ) {
   val FETCH_TABLE_NAMES_SQL =
     "SELECT table_name FROM information_schema.tables WHERE table_type='BASE TABLE';"

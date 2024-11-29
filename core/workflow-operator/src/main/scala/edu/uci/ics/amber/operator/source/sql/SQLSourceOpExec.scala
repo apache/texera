@@ -23,11 +23,10 @@ abstract class SQLSourceOpExec(
     keywordSearch: Boolean,
     keywordSearchByColumn: String,
     keywords: String,
-    schemaFunc: () => Schema
+    schema: Schema
 ) extends SourceOperatorExecutor {
 
   // connection and query related
-  var schema: Schema = _
   val tableNames: ArrayBuffer[String] = ArrayBuffer()
   var batchByAttribute: Option[Attribute] = None
   var connection: Connection = _
@@ -141,7 +140,6 @@ abstract class SQLSourceOpExec(
     */
   @throws[SQLException]
   override def open(): Unit = {
-    schema = schemaFunc()
     batchByAttribute =
       if (progressive.getOrElse(false)) Option(schema.getAttribute(batchByColumn.get)) else None
     connection = establishConn()

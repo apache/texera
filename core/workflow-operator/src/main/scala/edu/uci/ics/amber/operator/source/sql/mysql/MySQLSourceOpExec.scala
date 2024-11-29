@@ -23,7 +23,7 @@ class MySQLSourceOpExec private[mysql] (
     keywordSearch: Boolean,
     keywordSearchByColumn: String,
     keywords: String,
-    schemaFunc: () => Schema
+    schema: Schema
 ) extends SQLSourceOpExec(
       table,
       limit,
@@ -36,7 +36,7 @@ class MySQLSourceOpExec private[mysql] (
       keywordSearch,
       keywordSearchByColumn,
       keywords,
-      schemaFunc
+      schema
     ) {
 
   val FETCH_TABLE_NAMES_SQL =

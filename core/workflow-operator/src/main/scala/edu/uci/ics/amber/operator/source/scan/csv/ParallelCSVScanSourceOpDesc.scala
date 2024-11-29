@@ -61,7 +61,7 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
             hasHeader,
             startOffset,
             endOffset,
-            schemaFunc = () => sourceSchema()
+            sourceSchema()
           )
         })
       )
@@ -69,17 +69,11 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
       .withOutputPorts(operatorInfo.outputPorts)
       .withParallelizable(true)
       .withPropagateSchema(
-        SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> inferSchema()))
+        SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> sourceSchema()))
       )
   }
 
-  /**
-    * Infer Texera.Schema based on the top few lines of data.
-    *
-    * @return Texera.Schema build for this operator
-    */
-  @Override
-  def inferSchema(): Schema = {
+  override def sourceSchema(): Schema = {
     if (customDelimiter.isEmpty || fileUri.isEmpty) {
       return null
     }
@@ -118,6 +112,7 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
           )
       )
       .build()
+
   }
 
 }

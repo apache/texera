@@ -22,9 +22,8 @@ class TwitterFullArchiveSearchSourceOpExec(
     limit: Int,
     fromDateTime: String,
     toDateTime: String,
-    schemaFunc: () => Schema
+    schema: Schema
 ) extends TwitterSourceOpExec(apiKey, apiSecretKey, stopWhenRateLimited) {
-  val outputSchema: Schema = schemaFunc()
 
   var curLimit: Int = limit
   // nextToken is used to retrieve next page of results, if exists.
@@ -65,7 +64,7 @@ class TwitterFullArchiveSearchSourceOpExec(
 
         val user = userCache.get(tweet.getAuthorId)
 
-        tweetDataToTuple(tweet, user, outputSchema)
+        tweetDataToTuple(tweet, user, schema)
       }
     }
 

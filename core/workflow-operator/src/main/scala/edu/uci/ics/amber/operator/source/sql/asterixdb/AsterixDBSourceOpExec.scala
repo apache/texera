@@ -39,7 +39,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
     regex: String,
     filterCondition: Boolean,
     filterPredicates: List[FilterPredicate],
-    schemaFunc: () => Schema
+    schema: Schema
 ) extends SQLSourceOpExec(
       table,
       limit,
@@ -52,7 +52,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
       keywordSearch,
       keywordSearchByColumn,
       keywords,
-      schemaFunc
+  schema
     ) {
 
   // format Timestamp. TODO: move to some util package
