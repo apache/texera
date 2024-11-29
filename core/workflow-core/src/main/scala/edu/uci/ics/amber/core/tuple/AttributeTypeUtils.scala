@@ -21,10 +21,10 @@ object AttributeTypeUtils extends Serializable {
     * @return schema of data
     */
   def SchemaCasting(
-                     schema: Schema,
-                     attribute: String,
-                     resultType: AttributeType
-                   ): Schema = {
+      schema: Schema,
+      attribute: String,
+      resultType: AttributeType
+  ): Schema = {
     // need a builder to maintain the order of original schema
     val builder = Schema.builder()
     val attributes: List[Attribute] = schema.getAttributes
@@ -33,8 +33,8 @@ object AttributeTypeUtils extends Serializable {
       if (attributes.apply(i).getName.equals(attribute)) {
         resultType match {
           case AttributeType.STRING | AttributeType.INTEGER | AttributeType.DOUBLE |
-               AttributeType.LONG | AttributeType.BOOLEAN | AttributeType.TIMESTAMP |
-               AttributeType.BINARY =>
+              AttributeType.LONG | AttributeType.BOOLEAN | AttributeType.TIMESTAMP |
+              AttributeType.BINARY =>
             builder.add(attribute, resultType)
           case AttributeType.ANY | _ =>
             builder.add(attribute, attributes.apply(i).getType)
@@ -60,9 +60,9 @@ object AttributeTypeUtils extends Serializable {
     *                        as specified by the typeCastingUnits.
     */
   def tupleCasting(
-                    tuple: Tuple,
-                    targetTypes: Map[String, AttributeType]
-                  ): TupleLike =
+      tuple: Tuple,
+      targetTypes: Map[String, AttributeType]
+  ): TupleLike =
     TupleLike(
       tuple.getSchema.getAttributes.map { attr =>
         val targetType = targetTypes.getOrElse(attr.getName, attr.getType)
@@ -82,9 +82,9 @@ object AttributeTypeUtils extends Serializable {
     */
   @throws[AttributeTypeException]
   def parseFields(
-                   fields: Array[Any],
-                   attributeTypes: Array[AttributeType]
-                 ): Array[Any] = {
+      fields: Array[Any],
+      attributeTypes: Array[AttributeType]
+  ): Array[Any] = {
     fields.indices.map(i => parseField(fields(i), attributeTypes(i))).toArray
   }
 
@@ -99,10 +99,10 @@ object AttributeTypeUtils extends Serializable {
     */
   @throws[AttributeTypeException]
   def parseField(
-                  field: Any,
-                  attributeType: AttributeType,
-                  force: Boolean = false
-                ): Any = {
+      field: Any,
+      attributeType: AttributeType,
+      force: Boolean = false
+  ): Any = {
     if (field == null) return null
     attributeType match {
       case AttributeType.INTEGER   => parseInteger(field, force)
@@ -268,9 +268,9 @@ object AttributeTypeUtils extends Serializable {
     * @return
     */
   private def inferRow(
-                        attributeTypes: Array[AttributeType],
-                        fields: Array[Any]
-                      ): Unit = {
+      attributeTypes: Array[AttributeType],
+      fields: Array[Any]
+  ): Unit = {
     for (i <- fields.indices) {
       attributeTypes.update(i, inferField(attributeTypes.apply(i), fields.apply(i)))
     }
@@ -372,5 +372,5 @@ object AttributeTypeUtils extends Serializable {
   }
 
   class AttributeTypeException(msg: String, cause: Throwable = null)
-    extends IllegalArgumentException(msg, cause) {}
+      extends IllegalArgumentException(msg, cause) {}
 }
