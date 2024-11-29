@@ -2,12 +2,13 @@ package edu.uci.ics.amber.operator.source.scan.text
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import edu.uci.ics.amber.core.executor.OpExecInitInfo
+import edu.uci.ics.amber.core.executor.{ExecFactory, OpExecInitInfo}
 import edu.uci.ics.amber.core.tuple.{Attribute, Schema}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.metadata.annotations.UIWidget
 import edu.uci.ics.amber.operator.source.SourceOperatorDescriptor
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.OutputPort
 
@@ -27,9 +28,11 @@ class TextInputSourceOpDesc extends SourceOperatorDescriptor with TextSourceOpDe
         executionId,
         operatorIdentifier,
         OpExecInitInfo((_, _) =>
-          new TextInputSourceOpExec(attributeType, textInput, fileScanLimit, fileScanOffset)
-        )
-      )
+          ExecFactory.newExecFromJavaClassName(
+            "edu.uci.ics.amber.operator.source.scan.text.TextInputSourceOpExec",
+            objectMapper.writeValueAsString(this)
+          )
+      ))
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withPropagateSchema(
