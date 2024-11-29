@@ -1,29 +1,26 @@
 package edu.uci.ics.amber.operator.source.sql.asterixdb
 
-import com.fasterxml.jackson.annotation.{
-  JsonIgnoreProperties,
-  JsonProperty,
-  JsonPropertyDescription
-}
+import com.fasterxml.jackson.annotation.{JsonIgnoreProperties, JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import edu.uci.ics.amber.core.executor.OpExecInitInfo
+import edu.uci.ics.amber.core.executor.{ExecFactory, OpExecInitInfo}
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
+import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.core.workflow.OutputPort
 import edu.uci.ics.amber.operator.filter.FilterPredicate
-import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameList,
   UIWidget
 }
-import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.amber.core.workflow.OutputPort
+import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.source.sql.SQLSourceOpDesc
 import edu.uci.ics.amber.operator.source.sql.asterixdb.AsterixDBConnUtil.{
   fetchDataTypeFields,
   queryAsterixDB
 }
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import kong.unirest.json.JSONObject
 
 @JsonIgnoreProperties(value = Array("username", "password"))
@@ -98,30 +95,9 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
         executionId,
         this.operatorIdentifier,
         OpExecInitInfo((_, _) =>
-          new AsterixDBSourceOpExec(
-            host,
-            port,
-            database,
-            table,
-            limit,
-            offset,
-            progressive,
-            batchByColumn,
-            min,
-            max,
-            interval,
-            keywordSearch.getOrElse(false),
-            keywordSearchByColumn.orNull,
-            keywords.orNull,
-            geoSearch.getOrElse(false),
-            geoSearchByColumns,
-            geoSearchBoundingBox,
-            regexSearch.getOrElse(false),
-            regexSearchByColumn.orNull,
-            regex.orNull,
-            filterCondition.getOrElse(false),
-            filterPredicates,
-            sourceSchema()
+          ExecFactory.newExecFromJavaClassName(
+            "edu.uci.ics.amber.operator.source.sql.asterixdb.AsterixDBSourceOpExec",
+            objectMapper.writeValueAsString(this)
           )
         )
       )
@@ -130,7 +106,6 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
       .withPropagateSchema(
         SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> sourceSchema()))
       )
-
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
