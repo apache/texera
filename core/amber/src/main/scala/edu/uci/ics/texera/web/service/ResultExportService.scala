@@ -17,7 +17,10 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.websocket.request.ResultExportRequest
 import edu.uci.ics.texera.web.model.websocket.response.ResultExportResponse
 import edu.uci.ics.texera.web.resource.GoogleResource
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{createNewDatasetVersionByAddingFiles, sanitizePath}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{
+  createNewDatasetVersionByAddingFiles,
+  sanitizePath
+}
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowVersionResource
 import org.jooq.types.UInteger
 import edu.uci.ics.amber.util.ArrowUtils
