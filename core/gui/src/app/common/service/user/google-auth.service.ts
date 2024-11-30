@@ -16,22 +16,26 @@ export class GoogleAuthService {
   constructor(private http: HttpClient) {}
   public googleAuthInit(parent: HTMLElement | null) {
     this.http.get(`${AppSettings.getApiEndpoint()}/auth/google/clientid`, { responseType: "text" }).subscribe({
-      next: response => {
-        window.onGoogleLibraryLoad = () => {
-          window.google.accounts.id.initialize({
-            client_id: response,
-            callback: (auth: CredentialResponse) => {
-              this._googleCredentialResponse.next(auth);
-            },
-          });
-          window.google.accounts.id.renderButton(parent, { width: 200 });
-          window.google.accounts.id.prompt();
-        };
-      },
-      error: (err: unknown) => {
-        console.error(err);
-      },
-    });
+        next: response => {
+          window.onGoogleLibraryLoad = () => {
+            window.google.accounts.id.initialize({
+              client_id: response,
+              callback: (auth: CredentialResponse) => {
+                this._googleCredentialResponse.next(auth);
+              },
+            });
+            window.google.accounts.id.renderButton(parent, { width: 200 });
+            window.google.accounts.id.prompt();
+          };
+
+          if (typeof window.google !== "undefined") {
+            window.onGoogleLibraryLoad();
+          }
+        },
+        error: (err: unknown) => {
+          console.error("Error fetching Google Client ID:", err);
+        },
+      });
   }
 
   get googleCredentialResponse() {
