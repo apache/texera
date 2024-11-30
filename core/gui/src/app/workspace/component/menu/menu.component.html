@@ -197,32 +197,15 @@
               nzType="comment"></i>
           </button>
           <button
-            (click)="onClickExportExecutionResult('csv')"
-            [disabled]="
-        !workflowResultExportService.exportExecutionResultEnabled ||
-        !workflowResultExportService.hasResultToExportOnHighlightedOperators
-      "
-            id="downloadExcelOptions"
             nz-button
             nz-dropdown
-            title="export execution result">
+            (click)="onClickExportExecutionResult('csv')"
+            [nzTrigger]="isExportDeactivate ? 'click' : 'hover'"
+            [disabled]="isExportDeactivate"
+            title="">
             <i
               nz-icon
               nzType="cloud-download"></i>
-          </button>
-          <button
-            (click)="workflowResultExportService.exportOperatorsResultAsFile(true)"
-            [disabled]="
-        !workflowResultExportService.exportExecutionResultEnabled ||
-        !workflowResultExportService.hasResultToExportOnAllOperators
-      "
-            id="downloadZipWorkflow"
-            nz-button
-            nz-dropdown
-            title="download all the operators result">
-            <i
-              nz-icon
-              nzType="download"></i>
           </button>
           <button
             (click)="operatorMenu.disableHighlightedOperators()"
