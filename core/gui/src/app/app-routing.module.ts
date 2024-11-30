@@ -22,6 +22,7 @@ import { HubWorkflowComponent } from "./hub/component/workflow/hub-workflow.comp
 import { HubWorkflowDetailComponent } from "./hub/component/workflow/detail/hub-workflow-detail.component";
 import { LandingPageComponent } from "./hub/component/landing-page/landing-page.component";
 import { DASHBOARD_USER_WORKFLOW } from "./app-routing.constant";
+import {HubDatasetComponent} from "./hub/component/dataset/hub-dataset.component";
 
 const routes: Routes = [];
 
@@ -54,6 +55,10 @@ if (environment.userSystemEnabled) {
                 component: HubWorkflowDetailComponent,
               },
             ],
+          },
+          {
+            path: "dataset",
+            component: HubDatasetComponent,
           },
         ],
       },
