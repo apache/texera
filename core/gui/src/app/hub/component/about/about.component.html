@@ -42,9 +42,10 @@
         .
       </p>
     </div>
+    <texera-local-login
+      *ngIf="localLogin"
+      class="login-container"
+      nz-col
+      nzFlex="300px"></texera-local-login>
   </div>
-  <texera-local-login
-    *ngIf="localLogin"
-    nz-col
-    nzFlex="300px"></texera-local-login>
 </div>

@@ -41,9 +41,11 @@
 }
 
 .login-container {
+  position: absolute;
+  top: 10px;
+  right: 10px;
   max-width: 350px;
   width: 100%;
-  margin: 0 auto;
 }
 
 .text-content {
