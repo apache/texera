@@ -8,7 +8,7 @@ import com.google.api.services.drive.model.{File, FileList, Permission}
 import com.google.api.services.sheets.v4.Sheets
 import com.google.api.services.sheets.v4.model.{Spreadsheet, SpreadsheetProperties, ValueRange}
 import edu.uci.ics.amber.core.storage.result.{OpResultStorage, SinkStorageReader}
-import edu.uci.ics.amber.core.tuple.Tuple
+import edu.uci.ics.amber.core.tuple.{AttributeType, Tuple}
 import edu.uci.ics.amber.engine.common.Utils.retry
 import edu.uci.ics.amber.util.PathUtils
 import edu.uci.ics.amber.virtualidentity.OperatorIdentity
@@ -33,13 +33,24 @@ import java.util.concurrent.{Executors, ThreadPoolExecutor}
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.SeqHasAsJava
+import org.apache.arrow.memory.RootAllocator
+import org.apache.arrow.vector._
+import org.apache.arrow.vector.ipc.ArrowFileWriter
+import org.apache.arrow.vector.types.{FloatingPointPrecision, TimeUnit}
+import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema => ArrowSchema}
+
+import java.sql.Timestamp
+import java.util.{ArrayList => JArrayList}
+import java.nio.ByteBuffer
+import java.nio.channels.WritableByteChannel
+import java.io.OutputStream
 
 object ResultExportService {
-  final val UPLOAD_BATCH_ROW_COUNT = 10000
-  final val RETRY_ATTEMPTS = 7
-  final val BASE_BACK_OOF_TIME_IN_MS = 1000
-  final val WORKFLOW_RESULT_FOLDER_NAME = "workflow_results"
-  final val pool: ThreadPoolExecutor =
+  final private val UPLOAD_BATCH_ROW_COUNT = 10000
+  final private val RETRY_ATTEMPTS = 7
+  final private val BASE_BACK_OOF_TIME_IN_MS = 1000
+  final private val WORKFLOW_RESULT_FOLDER_NAME = "workflow_results"
+  final private val pool: ThreadPoolExecutor =
     Executors.newFixedThreadPool(3).asInstanceOf[ThreadPoolExecutor]
 }
 
@@ -80,6 +91,8 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
         handleCSVRequest(user, request, results, attributeNames)
       case "data" =>
         handleDataRequest(user, request, results)
+      case "arrow" =>
+        handleArrowRequest(user, request, results)
       case _ =>
         ResultExportResponse("error", s"Unknown export type: ${request.exportType}")
     }
@@ -360,6 +373,140 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
         .execute
     }
 
+  }
+
+  private def handleArrowRequest(
+      user: User,
+      request: ResultExportRequest,
+      results: Iterable[Tuple]
+  ): ResultExportResponse = {
+    if (results.isEmpty) {
+      return ResultExportResponse("error", "No results to export")
+    }
+
+    val schema = results.head.getSchema
+    val stream = new ByteArrayOutputStream()
+    val channel = new WritableByteChannelImpl(stream)
+    val allocator = new RootAllocator()
+
+    try {
+      // Convert Texera Schema to Arrow Schema
+      val fields = schema.getAttributes.map { attr =>
+        val arrowType = attributeTypeToArrowType(attr.getType)
+        new Field(attr.getName, new FieldType(true, arrowType, null), new JArrayList())
+      }
+      val arrowSchema = new ArrowSchema(new JArrayList(fields.asJava))
+
+      // Create root and writer
+      val root = VectorSchemaRoot.create(arrowSchema, allocator)
+      val writer = new ArrowFileWriter(root, null, channel)
+
+      try {
+        writer.start()
+
+        // Process in batches to manage memory
+        results.grouped(1000).foreach { batch =>
+          root.setRowCount(batch.size)
+
+          // For each column
+          schema.getAttributes.zipWithIndex.foreach {
+            case (attr, colIdx) =>
+              val vector = root.getVector(colIdx)
+              // For each row in the batch
+              batch.zipWithIndex.foreach {
+                case (tuple, rowIdx) =>
+                  val value = tuple.getField(colIdx)
+                  if (value == null) {
+                    vector.setNull(rowIdx)
+                  } else {
+                    vector match {
+                      case v: VarCharVector => v.setSafe(rowIdx, value.toString.getBytes)
+                      case v: IntVector     => v.setSafe(rowIdx, value.asInstanceOf[Int])
+                      case v: BigIntVector  => v.setSafe(rowIdx, value.asInstanceOf[Long])
+                      case v: Float8Vector  => v.setSafe(rowIdx, value.asInstanceOf[Double])
+                      case v: BitVector =>
+                        v.setSafe(rowIdx, if (value.asInstanceOf[Boolean]) 1 else 0)
+                      case v: TimeStampMicroVector =>
+                        v.setSafe(rowIdx, value.asInstanceOf[Timestamp].getTime * 1000)
+                      case v: VarBinaryVector => v.setSafe(rowIdx, value.asInstanceOf[Array[Byte]])
+                    }
+                  }
+              }
+          }
+          writer.writeBatch()
+        }
+      } finally {
+        writer.end()
+        root.close()
+        channel.close()
+      }
+
+      val latestVersion =
+        WorkflowVersionResource.getLatestVersion(UInteger.valueOf(request.workflowId))
+      val timestamp = LocalDateTime
+        .now()
+        .truncatedTo(ChronoUnit.SECONDS)
+        .format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"))
+      val fileName = sanitizePath(
+        s"${request.workflowName}-v$latestVersion-${request.operatorName}-$timestamp.arrow"
+      )
+
+      // Save to datasets
+      request.datasetIds.foreach { did =>
+        val datasetPath = PathUtils.getDatasetPath(UInteger.valueOf(did))
+        val filePath = datasetPath.resolve(fileName)
+        createNewDatasetVersionByAddingFiles(
+          UInteger.valueOf(did),
+          user,
+          Map(filePath -> new ByteArrayInputStream(stream.toByteArray))
+        )
+      }
+
+      ResultExportResponse(
+        "success",
+        s"Arrow file saved as $fileName to Datasets ${request.datasetIds.mkString(",")}"
+      )
+    } finally {
+      allocator.close()
+    }
+  }
+
+  private def attributeTypeToArrowType(attributeType: AttributeType): ArrowType = {
+    attributeType match {
+      case AttributeType.STRING    => new ArrowType.Utf8()
+      case AttributeType.INTEGER   => new ArrowType.Int(32, true)
+      case AttributeType.LONG      => new ArrowType.Int(64, true)
+      case AttributeType.DOUBLE    => new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)
+      case AttributeType.BOOLEAN   => new ArrowType.Bool()
+      case AttributeType.TIMESTAMP => new ArrowType.Timestamp(TimeUnit.MICROSECOND, null)
+      case AttributeType.BINARY    => new ArrowType.Binary()
+      case _                       => new ArrowType.Utf8() // Default to string for unknown types
+    }
+  }
+
+  // Add this helper class to convert OutputStream to WritableByteChannel
+  private class WritableByteChannelImpl(out: OutputStream) extends WritableByteChannel {
+    private var open = true
+
+    override def write(src: ByteBuffer): Int = {
+      val len = src.remaining
+      if (src.hasArray) {
+        out.write(src.array, src.position, len)
+        src.position(src.position + len)
+      } else {
+        val arr = new Array[Byte](len)
+        src.get(arr)
+        out.write(arr)
+      }
+      len
+    }
+
+    override def isOpen: Boolean = open
+
+    override def close(): Unit = {
+      open = false
+      out.close()
+    }
   }
 
 }
