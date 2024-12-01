@@ -13,7 +13,12 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.BeforeAndAfterAll
 import com.fasterxml.jackson.databind.node.ObjectNode
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType}
-import edu.uci.ics.amber.operator.filter.{ComparisonType, FilterOpDesc, FilterPredicate, SpecializedFilterOpDesc}
+import edu.uci.ics.amber.operator.filter.{
+  ComparisonType,
+  FilterOpDesc,
+  FilterPredicate,
+  SpecializedFilterOpDesc
+}
 import edu.uci.ics.amber.operator.limit.LimitOpDesc
 
 class WorkflowCompilationResourceSpec extends AnyFlatSpec with BeforeAndAfterAll {
@@ -66,7 +71,7 @@ class WorkflowCompilationResourceSpec extends AnyFlatSpec with BeforeAndAfterAll
   // utility function to create a filter op
   private def getFilterOpDesc(
       filterPredicates: java.util.List[FilterPredicate]
-                             ): FilterOpDesc = {
+  ): FilterOpDesc = {
     val filterOpDesc = new SpecializedFilterOpDesc
     filterOpDesc.predicates = filterPredicates
     filterOpDesc
@@ -121,7 +126,14 @@ class WorkflowCompilationResourceSpec extends AnyFlatSpec with BeforeAndAfterAll
     val limitOpDesc2 = getLimitOpDesc(5)
 
     val logicalPlanPojo = LogicalPlanPojo(
-      operators = List(csvSourceOp, projectionOpDesc, limitOpDesc1, filterOpDesc1, filterOpDesc2, limitOpDesc2),
+      operators = List(
+        csvSourceOp,
+        projectionOpDesc,
+        limitOpDesc1,
+        filterOpDesc1,
+        filterOpDesc2,
+        limitOpDesc2
+      ),
       links = List(
         LogicalLink(
           csvSourceOp.operatorIdentifier,
