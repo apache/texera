@@ -1,5 +1,5 @@
 import {Component, OnInit} from "@angular/core";
-import {ActivatedRoute} from "@angular/router";
+import {ActivatedRoute, Router} from "@angular/router";
 import {UntilDestroy} from "@ngneat/until-destroy";
 
 @UntilDestroy()
@@ -8,9 +8,9 @@ import {UntilDestroy} from "@ngneat/until-destroy";
   templateUrl: "./hub-dataset-detail.component.html",
   styleUrls: ["./hub-dataset-detail.component.scss"],
 })
-export class HubDatasetDetailComponent implements OnInit{
+export class HubDatasetDetailComponent{
   public id: number | undefined;
-  constructor(private route: ActivatedRoute) {}
+  constructor(private route: ActivatedRoute, private router: Router) {}
 
   ngOnInit(): void {
     console.log("HubDatasetDetailComponent initialized");
@@ -19,5 +19,8 @@ export class HubDatasetDetailComponent implements OnInit{
       this.id = params["did"]
       console.log("Dataset ID:", params["did"]);
     });
+
+    console.log("Routes:", this.router.config);
+
   }
 }

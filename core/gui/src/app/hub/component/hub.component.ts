@@ -2,7 +2,7 @@ import { Component, Input } from "@angular/core";
 import {
   DASHBOARD_ABOUT,
   DASHBOARD_HOME,
-  DASHBOARD_HUB_DATASET,
+  DASHBOARD_HUB_DATASET_RESULT,
   DASHBOARD_HUB_WORKFLOW_RESULT
 } from "../../app-routing.constant";
 
@@ -16,5 +16,5 @@ export class HubComponent {
   protected readonly DASHBOARD_HOME = DASHBOARD_HOME;
   protected readonly DASHBOARD_ABOUT = DASHBOARD_ABOUT;
   protected readonly DASHBOARD_HUB_WORKFLOW_RESULT = DASHBOARD_HUB_WORKFLOW_RESULT;
-  protected readonly DASHBOARD_HUB_DATASET = DASHBOARD_HUB_DATASET;
+  protected readonly DASHBOARD_HUB_DATASET_RESULT = DASHBOARD_HUB_DATASET_RESULT;
 }

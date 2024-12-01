@@ -30,7 +30,7 @@ import {
   DASHBOARD_HUB_WORKFLOW_RESULT_DETAIL,
   DASHBOARD_USER_PROJECT,
   DASHBOARD_USER_WORKSPACE,
-  DASHBOARD_USER_DATASET,
+  DASHBOARD_USER_DATASET, DASHBOARD_HUB_DATASET_RESULT_DETAIL,
 } from "../../../../app-routing.constant";
 
 @UntilDestroy()
@@ -118,7 +118,7 @@ export class ListItemComponent implements OnInit, OnChanges {
       this.entryLink = [DASHBOARD_USER_PROJECT, String(this.entry.id)];
       this.iconType = "container";
     } else if (this.entry.type === "dataset") {
-      this.entryLink = [DASHBOARD_USER_DATASET, String(this.entry.id)];
+      this.entryLink = [DASHBOARD_HUB_DATASET_RESULT_DETAIL, String(this.entry.id)];
       this.iconType = "database";
     } else if (this.entry.type === "file") {
       // not sure where to redirect
