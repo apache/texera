@@ -1,17 +1,9 @@
 .about-page-container {
-  display: flex;
-  flex-direction: column;
-  padding: 0 133px;
-  align-items: center;
-  height: 100%;
-  width: 100%;
   overflow-y: auto;
 }
 
 .content {
-  margin-top: 20px;
-  padding: 20px 0;
-  //max-width: 1200px;
+  max-width: 1600px;
   width: 100%;
   text-align: left;
 }

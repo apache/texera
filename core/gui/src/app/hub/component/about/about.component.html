@@ -1,4 +1,8 @@
-<div class="about-page-container">
+<div
+  class="about-page-container"
+  nz-row
+  nzJustify="space-around"
+  nzAlign="middle">
   <div
     nz-col
     nzFlex="auto"
@@ -38,10 +42,9 @@
         .
       </p>
     </div>
-    <div class="login-container">
-      <texera-local-login
-        *ngIf="localLogin"
-        nz-col></texera-local-login>
-    </div>
   </div>
+  <texera-local-login
+    *ngIf="localLogin"
+    nz-col
+    nzFlex="300px"></texera-local-login>
 </div>
