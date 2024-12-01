@@ -1,8 +1,10 @@
 .about-page-container {
   overflow-y: auto;
+  height: 100%;
 }
 
 .content {
+  margin-top: 40px;
   max-width: 1600px;
   width: 100%;
   text-align: left;
@@ -17,13 +19,14 @@
 .content > h2 {
   font-size: 28px;
   font-weight: bold;
-  margin-top: 20px;
+  margin-top: 10px;
 }
 
 .content > p {
   font-size: 16px;
   font-weight: 400;
   line-height: 1.8;
+  margin-bottom: 10px;
 }
 
 #logo {
@@ -51,13 +54,13 @@
 }
 
 .learn-more-section {
-  margin-top: 20px;
+  margin-top: 10px;
   text-align: left;
 
   p {
     font-size: 16px;
     line-height: 1.8;
-    margin-bottom: 15px;
+    margin-bottom: 10px;
 
     a {
       color: #007acc;
