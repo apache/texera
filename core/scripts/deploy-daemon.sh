@@ -13,16 +13,8 @@ done
 
 if  ! $skipCompilation
 then
-  echo "${green}Compiling Amber...${reset}"
-  cd amber
-  sbt clean dist
-  unzip target/universal/texera-0.1-SNAPSHOT.zip -d target/universal/
-  rm target/universal/texera-0.1-SNAPSHOT.zip
-  echo "${green}Amber compiled.${reset}"
-  echo
-
   echo "${green}Compiling Services...${reset}"
-  cd .. && bash scripts/build-services.sh
+  bash scripts/build-services.sh
   echo "${green}Services compiled.${reset}"
 
   echo "${green}Compiling GUI...${reset}"
@@ -35,7 +27,7 @@ fi
 echo "${green}Starting TexeraWebApplication in daemon...${reset}"
 setsid nohup ./scripts/server.sh >/dev/null 2>&1 &
 echo "${green}Waiting TexeraWebApplication to launch on 8080...${reset}"
-while ! nc -z localhost 8080; do   
+while ! nc -z localhost 8080; do
 	sleep 0.1 # wait 100ms before check again
 done
 echo "${green}TexeraWebApplication launched at $(pgrep -f TexeraWebApplication)${reset}"
