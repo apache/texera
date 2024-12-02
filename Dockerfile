@@ -32,7 +32,7 @@ WORKDIR /core
 COPY .git ../.git
 COPY --from=nodegui /gui/dist ./gui/dist
 
-RUN scripts/build-docker.sh
+RUN scripts/build-services.sh
 
 CMD ["scripts/deploy-docker.sh"]
 
