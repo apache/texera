@@ -66,11 +66,8 @@
   <div
     id="content"
     *ngIf="width"
-  cdkDragHandle>
-    <h4
-      id="title">
-      Result Panel{{operatorTitle ? ': ' + operatorTitle : ''}}
-    </h4>
+    cdkDragHandle>
+    <h4 id="title">Result Panel{{operatorTitle ? ': ' + operatorTitle : ''}}</h4>
     <nz-tabset
       [nzSize]="'small'"
       [nzTabPosition]="'left'">
