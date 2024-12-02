@@ -166,7 +166,7 @@ class CostBasedRegionPlanGenerator(
     * the materialization relationship.
     *
     * @param linksToMaterialize The set of physical links to be materialized as region links in the DAG.
-    * @param regionDAG          The DAG of regions to be modified
+    * @param regionDAG The DAG of regions to be modified
     */
   private def addMaterializationsAsRegionLinks(
       linksToMaterialize: Set[PhysicalLink],
@@ -188,7 +188,7 @@ class CostBasedRegionPlanGenerator(
     * Otherwise, depending on the configuration, either a global search or a greedy search will be performed to find
     * an optimal plan. The search starts from a plan where all non-blocking edges are pipelined, and leads to a low-cost
     * schedulable plan by changing pipelined non-blocking edges to materialized. By default all pruning techniques
-    * are enabled (chains, clean edges).
+    * are enabled (chains, clean edges, and early stopping on schedulable states).
     *
     * @return A SearchResult containing the plan, the region DAG (without materializations added yet), the cost, the
     *         time to finish search, and the number of states explored.
@@ -196,7 +196,8 @@ class CostBasedRegionPlanGenerator(
   def bottomUpSearch(
       globalSearch: Boolean = false,
       oChains: Boolean = true,
-      oCleanEdges: Boolean = true
+      oCleanEdges: Boolean = true,
+      oEarlyStop: Boolean = true
   ): SearchResult = {
     val startTime = System.nanoTime()
     val originalNonBlockingEdges =
@@ -211,6 +212,8 @@ class CostBasedRegionPlanGenerator(
     val queue: mutable.Queue[Set[PhysicalLink]] = mutable.Queue(Set.empty[PhysicalLink])
     // Keep track of visited states to avoid revisiting
     val visited: mutable.Set[Set[PhysicalLink]] = mutable.Set.empty[Set[PhysicalLink]]
+    // Used for the Early Stop optimization technique
+    val schedulableStates: mutable.Set[Set[PhysicalLink]] = mutable.Set.empty[Set[PhysicalLink]]
     // Initialize the bestResult with an impossible high cost for comparison
     var bestResult: SearchResult = SearchResult(
       state = Set.empty,
@@ -221,16 +224,23 @@ class CostBasedRegionPlanGenerator(
     while (queue.nonEmpty) {
       // A state is represented as a set of materialized non-blocking edges.
       val currentState = queue.dequeue()
-      visited.add(currentState)
-
-      tryConnectRegionDAG(
-        physicalPlan.getNonMaterializedBlockingAndDependeeLinks ++ currentState
-      ) match {
-        case Left(regionDAG) =>
-          updateOptimumIfApplicable(regionDAG)
-          addNeighborStatesToFrontier()
-        case Right(_) =>
-          addNeighborStatesToFrontier()
+      // Early stop: stopping exploring states beyond a schedulable state since the cost will only increase.
+      // A state X is a descendant of an ancestor state Y in the bottom-up search process if Y's set of materialized
+      // edges is a subset of that of X's (since X is reachable from Y by adding more materialized edges.)
+      if (
+        !oEarlyStop || !schedulableStates
+          .exists(ancestorState => ancestorState.subsetOf(currentState))
+      ) {
+        visited.add(currentState)
+        tryConnectRegionDAG(
+          physicalPlan.getNonMaterializedBlockingAndDependeeLinks ++ currentState
+        ) match {
+          case Left(regionDAG) =>
+            updateOptimumIfApplicable(regionDAG)
+            addNeighborStatesToFrontier()
+          case Right(_) =>
+            addNeighborStatesToFrontier()
+        }
       }
 
       /**
@@ -238,6 +248,7 @@ class CostBasedRegionPlanGenerator(
         * and has a lower cost.
         */
       def updateOptimumIfApplicable(regionDAG: DirectedAcyclicGraph[Region, RegionLink]): Unit = {
+        if (oEarlyStop) schedulableStates.add(currentState)
         // Calculate the current state's cost and update the bestResult if it's lower
         val cost =
           evaluate(regionDAG.vertexSet().asScala.toSet, regionDAG.edgeSet().asScala.toSet)
@@ -267,11 +278,18 @@ class CostBasedRegionPlanGenerator(
           ) // Edges in chain with blocking edges should not be materialized
         }
 
-        val unvisitedNeighborStates = candidateEdges
+        var unvisitedNeighborStates = candidateEdges
           .map(edge => currentState + edge)
           .filter(neighborState =>
             !visited.contains(neighborState) && !queue.contains(neighborState)
           )
+
+        if (oEarlyStop) {
+          // Any descendant state of a schedulable state is not worth exploring.
+          unvisitedNeighborStates = unvisitedNeighborStates.filter(neighborState =>
+            !schedulableStates.exists(ancestorState => ancestorState.subsetOf(neighborState))
+          )
+        }
 
         if (globalSearch) {
           // include all unvisited neighbors
