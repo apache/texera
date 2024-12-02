@@ -2,7 +2,6 @@ package edu.uci.ics.texera.web.resource.dashboard.user.discussion
 
 import com.mysql.cj.jdbc.MysqlDataSource
 import edu.uci.ics.amber.core.storage.StorageConfig
-import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.web.auth.SessionUser
 import io.dropwizard.auth.Auth
 import org.jooq.SQLDialect
