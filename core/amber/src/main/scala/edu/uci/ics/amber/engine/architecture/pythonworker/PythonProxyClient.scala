@@ -27,6 +27,7 @@ import org.apache.arrow.vector.VectorSchemaRoot
 
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
+import scala.collection.compat.immutable.ArraySeq
 import scala.collection.mutable
 
 class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtualIdentity)
@@ -85,7 +86,7 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     }
   }
 
-  def mainLoop(): Unit = {
+  private def mainLoop(): Unit = {
     while (running) {
       getElement match {
         case DataElement(dataPayload, channel) =>
@@ -94,14 +95,14 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
           sendControl(channel.fromWorkerId, cmd)
         case ActorCommandElement(cmd) =>
           sendActorCommand(cmd)
-
       }
     }
   }
 
-  def sendData(dataPayload: DataPayload, from: ActorVirtualIdentity): Unit = {
+  private def sendData(dataPayload: DataPayload, from: ActorVirtualIdentity): Unit = {
     dataPayload match {
-      case DataFrame(frame) => writeArrowStream(mutable.Queue(frame: _*), from, "Data")
+      case DataFrame(frame) =>
+        writeArrowStream(mutable.Queue(ArraySeq.unsafeWrapArray(frame): _*), from, "Data")
       case MarkerFrame(marker) =>
         marker match {
           case state: State =>
@@ -111,7 +112,7 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     }
   }
 
-  def sendControl(
+  private def sendControl(
       from: ActorVirtualIdentity,
       payload: ControlPayload
   ): Result = {
@@ -119,7 +120,7 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     payloadV2 = payload match {
       case c: ControlInvocation =>
         val req = c.command match {
-          case InitializeExecutorRequest(worker, info, isSource, language) =>
+          case InitializeExecutorRequest(worker, info, isSource, _) =>
             val bytes = info.value.toByteArray
             val opExecInitInfo: OpExecInitInfo =
               AmberRuntime.serde.deserialize(bytes, classOf[OpExecInitInfo]).get
@@ -142,7 +143,7 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     sendCreditedAction(action)
   }
 
-  def sendActorCommand(
+  private def sendActorCommand(
       command: ActorCommand
   ): Result = {
     val action: Action = new Action("actor", PythonActorMessage(command).toByteArray)

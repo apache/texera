@@ -2,12 +2,7 @@ package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue._
 import edu.uci.ics.amber.engine.common.actormessage.ActorCommand
-import edu.uci.ics.amber.engine.common.ambermessage.{
-  ControlPayload,
-  ControlPayloadV2,
-  DataFrame,
-  DataPayload
-}
+import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, DataFrame, DataPayload}
 import edu.uci.ics.amber.virtualidentity.ChannelIdentity
 import lbmq.LinkedBlockingMultiQueue
 
@@ -24,9 +19,6 @@ object WorkerBatchInternalQueue {
       extends InternalQueueElement
 
   case class ControlElement(cmd: ControlPayload, from: ChannelIdentity) extends InternalQueueElement
-
-  case class ControlElementV2(cmd: ControlPayloadV2, from: ChannelIdentity)
-      extends InternalQueueElement
 
   case class ActorCommandElement(cmd: ActorCommand) extends InternalQueueElement
 }
@@ -67,16 +59,8 @@ trait WorkerBatchInternalQueue {
     }
   }
 
-  def enqueueMarker(elem: InternalQueueElement): Unit = {
-    dataQueue.add(elem)
-  }
-
   def enqueueCommand(cmd: ControlPayload, from: ChannelIdentity): Unit = {
     controlQueue.add(ControlElement(cmd, from))
-  }
-
-  def enqueueCommand(cmd: ControlPayloadV2, from: ChannelIdentity): Unit = {
-    controlQueue.add(ControlElementV2(cmd, from))
   }
 
   def enqueueActorCommand(command: ActorCommand): Unit = {

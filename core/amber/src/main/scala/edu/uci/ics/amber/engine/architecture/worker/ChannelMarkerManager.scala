@@ -51,6 +51,10 @@ class ChannelMarkerManager(val actorId: ActorVirtualIdentity, inputGateway: Inpu
     val epochMarkerCompleted = marker.markerType match {
       case REQUIRE_ALIGNMENT => markerReceivedFromAllChannels
       case NO_ALIGNMENT      => markerReceived(markerId).size == 1 // only the first marker triggers
+      case _ =>
+        throw new IllegalArgumentException(
+          s"Unsupported marker type: ${marker.markerType}"
+        )
     }
     if (markerReceivedFromAllChannels) {
       markerReceived.remove(markerId) // clean up if all markers are received
