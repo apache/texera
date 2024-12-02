@@ -1,7 +1,12 @@
 package edu.uci.ics.amber.core.tuple
 
-import edu.uci.ics.amber.core.tuple.AttributeTypeUtils.{inferField, inferSchemaFromRows}
 import edu.uci.ics.amber.core.tuple.AttributeType._
+import edu.uci.ics.amber.core.tuple.AttributeTypeUtils.{
+  AttributeTypeException,
+  inferField,
+  inferSchemaFromRows,
+  parseField
+}
 import org.scalatest.funsuite.AnyFunSuite
 
 class AttributeTypeUtilsSpec extends AnyFunSuite {
@@ -81,6 +86,89 @@ class AttributeTypeUtilsSpec extends AnyFunSuite {
     assert(attributeTypes(4) == LONG)
     assert(attributeTypes(5) == BOOLEAN)
 
+  }
+
+  test("parseField correctly parses to INTEGER") {
+    assert(parseField("123", AttributeType.INTEGER) == 123)
+    assert(parseField("1,234", AttributeType.INTEGER, force = true) == 1234)
+    assert(parseField(456, AttributeType.INTEGER) == 456)
+    assert(parseField(123.45, AttributeType.INTEGER) == 123)
+    assert(parseField(true, AttributeType.INTEGER) == 1)
+    assert(parseField(false, AttributeType.INTEGER) == 0)
+    assertThrows[AttributeTypeException] {
+      parseField("invalid", AttributeType.INTEGER)
+    }
+    assertThrows[AttributeTypeException] {
+      parseField("1,234", AttributeType.INTEGER)
+    }
+  }
+
+  test("parseField correctly parses to LONG") {
+    assert(parseField("1234567890", AttributeType.LONG) == 1234567890L)
+    assert(parseField("1,234,567", AttributeType.LONG, force = true) == 1234567L)
+    assert(parseField(12345L, AttributeType.LONG) == 12345L)
+    assert(parseField(123.45, AttributeType.LONG) == 123L)
+    assert(parseField(true, AttributeType.LONG) == 1L)
+    assertThrows[AttributeTypeException] {
+      parseField("invalid", AttributeType.LONG)
+    }
+    assertThrows[AttributeTypeException] {
+      parseField("1,234,567", AttributeType.LONG)
+    }
+  }
+
+  test("parseField correctly parses to DOUBLE") {
+    assert(parseField("123.45", AttributeType.DOUBLE) == 123.45)
+    assert(parseField(12345, AttributeType.DOUBLE) == 12345.0)
+    assert(parseField(12345L, AttributeType.DOUBLE) == 12345.0)
+    assert(parseField(true, AttributeType.DOUBLE) == 1.0)
+    assertThrows[AttributeTypeException] {
+      parseField("invalid", AttributeType.DOUBLE)
+    }
+  }
+
+  test("parseField correctly parses to BOOLEAN") {
+    assert(parseField("true", AttributeType.BOOLEAN) == true)
+    assert(parseField("True", AttributeType.BOOLEAN) == true)
+    assert(parseField("TRUE", AttributeType.BOOLEAN) == true)
+    assert(parseField("false", AttributeType.BOOLEAN) == false)
+    assert(parseField("False", AttributeType.BOOLEAN) == false)
+    assert(parseField("FALSE", AttributeType.BOOLEAN) == false)
+    assert(parseField("1", AttributeType.BOOLEAN) == true)
+    assert(parseField("0", AttributeType.BOOLEAN) == false)
+    assert(parseField(1, AttributeType.BOOLEAN) == true)
+    assert(parseField(0, AttributeType.BOOLEAN) == false)
+    assertThrows[AttributeTypeException] {
+      parseField("invalid", AttributeType.BOOLEAN)
+    }
+  }
+
+  test("parseField correctly parses to TIMESTAMP") {
+    val timestamp =
+      parseField("2023-11-13T10:15:30", AttributeType.TIMESTAMP).asInstanceOf[java.sql.Timestamp]
+    assert(timestamp.toString == "2023-11-13 10:15:30.0")
+
+    assert(
+      parseField(1699820130000L, AttributeType.TIMESTAMP)
+        .asInstanceOf[java.sql.Timestamp]
+        .getTime == 1699820130000L
+    )
+
+    assertThrows[AttributeTypeException] {
+      parseField("invalid", AttributeType.TIMESTAMP)
+    }
+  }
+
+  test("parseField correctly parses to STRING") {
+    assert(parseField(123, AttributeType.STRING) == "123")
+    assert(parseField(123.45, AttributeType.STRING) == "123.45")
+    assert(parseField(true, AttributeType.STRING) == "true")
+  }
+
+  test("parseField returns original value for BINARY and ANY") {
+    val binaryData = Array[Byte](1, 2, 3)
+    assert(parseField(binaryData, AttributeType.BINARY) == binaryData)
+    assert(parseField("anything", AttributeType.ANY) == "anything")
   }
 
 }
