@@ -43,7 +43,7 @@ export class ListItemComponent implements OnInit, OnChanges {
   private owners: number[] = [];
   public originalName: string = "";
   public originalDescription: string | undefined = undefined;
-  public enableDelete: boolean = true;
+  public disableDelete: boolean = false;
   @Input() currentUid: number | undefined;
   @ViewChild("nameInput") nameInput!: ElementRef;
   @ViewChild("descriptionInput") descriptionInput!: ElementRef;
@@ -90,7 +90,7 @@ export class ListItemComponent implements OnInit, OnChanges {
   initializeEntry() {
     if (this.entry.type === "workflow") {
       if (typeof this.entry.id === "number") {
-        this.enableDelete = !this.entry.workflow.isOwner;
+        this.disableDelete = !this.entry.workflow.isOwner;
         // eslint-disable-next-line rxjs-angular/prefer-takeuntil
         this.searchService.getWorkflowOwners(this.entry.id).subscribe((data: number[]) => {
           this.owners = data;
@@ -122,7 +122,7 @@ export class ListItemComponent implements OnInit, OnChanges {
     } else if (this.entry.type === "dataset") {
       this.entryLink = [DASHBOARD_USER_DATASET, String(this.entry.id)];
       this.iconType = "database";
-      this.enableDelete = !this.entry.dataset.isOwner;
+      this.disableDelete = !this.entry.dataset.isOwner;
     } else if (this.entry.type === "file") {
       // not sure where to redirect
       this.iconType = "folder-open";
