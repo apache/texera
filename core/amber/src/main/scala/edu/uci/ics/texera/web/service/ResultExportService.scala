@@ -380,14 +380,10 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
       request: ResultExportRequest,
       results: Iterable[Tuple]
   ): ResultExportResponse = {
-    println("handleArrowRequest called")
 
     if (results.isEmpty) {
-      println("No results to export")
       return ResultExportResponse("error", "No results to export")
     }
-
-    println(s"Number of results: ${results.size}")
 
     val schema = results.head.getSchema
     val stream = new ByteArrayOutputStream()
@@ -411,7 +407,6 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
 
         // Process in batches to manage memory
         results.grouped(1000).foreach { batch =>
-          println(s"Processing batch of size: ${batch.size}")
           root.setRowCount(batch.size)
 
           // For each column
@@ -422,7 +417,6 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
               batch.zipWithIndex.foreach {
                 case (tuple, rowIdx) =>
                   val value: Any = tuple.getField(colIdx)
-                  println(s"Processing value: $value of type ${value.getClass}")
                   if (value == null) {
                     vector.setNull(rowIdx)
                   } else {

@@ -1,3 +1,5 @@
+package edu.uci.ics.amber.operator.source.scan.arrow
+
 import edu.uci.ics.amber.core.executor.OpExecInitInfo
 import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
@@ -16,6 +18,8 @@ import org.apache.arrow.vector.types.pojo.{ArrowType, Schema => ArrowSchema}
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 class ArrowSourceOpDesc extends ScanSourceOpDesc {
+
+  fileTypeName = Option("Arrow")
 
   @throws[IOException]
   override def getPhysicalOp(

@@ -1,3 +1,5 @@
+package edu.uci.ics.amber.operator.source.scan.arrow
+
 import edu.uci.ics.amber.core.executor.SourceOperatorExecutor
 import edu.uci.ics.amber.core.storage.DocumentFactory
 import org.apache.arrow.memory.RootAllocator
@@ -42,7 +44,12 @@ class ArrowSourceOpExec(
         val fields = schema.getAttributes.zipWithIndex.map {
           case (attr, idx) =>
             val vector = root.getVector(idx)
-            vector.getObject(currentIndex)
+            val value = vector.getObject(currentIndex) match {
+              case text: org.apache.arrow.vector.util.Text => text.toString
+              case dateTime: java.time.LocalDateTime       => java.sql.Timestamp.valueOf(dateTime)
+              case other                                   => other
+            }
+            value
         }
         currentIndex += 1
         TupleLike(fields: _*)
