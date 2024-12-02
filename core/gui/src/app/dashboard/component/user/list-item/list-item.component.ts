@@ -90,7 +90,7 @@ export class ListItemComponent implements OnInit, OnChanges {
   initializeEntry() {
     if (this.entry.type === "workflow") {
       if (typeof this.entry.id === "number") {
-        this.deleteDisabled = this.entry.workflow.accessLevel !== "WRITE";
+        this.deleteDisabled = !this.entry.workflow.isOwner;
         // eslint-disable-next-line rxjs-angular/prefer-takeuntil
         this.searchService.getWorkflowOwners(this.entry.id).subscribe((data: number[]) => {
           this.owners = data;
@@ -122,7 +122,7 @@ export class ListItemComponent implements OnInit, OnChanges {
     } else if (this.entry.type === "dataset") {
       this.entryLink = [DASHBOARD_USER_DATASET, String(this.entry.id)];
       this.iconType = "database";
-      this.deleteDisabled = this.entry.dataset.accessPrivilege !== "WRITE";
+      this.deleteDisabled = !this.entry.dataset.isOwner;
     } else if (this.entry.type === "file") {
       // not sure where to redirect
       this.iconType = "folder-open";
