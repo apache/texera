@@ -10,6 +10,7 @@ import org.jgrapht.graph.{DirectedAcyclicGraph, DirectedPseudograph}
 
 import scala.collection.mutable
 import scala.jdk.CollectionConverters._
+import scala.util.control.Breaks.{break, breakable}
 
 class CostBasedRegionPlanGenerator(
     workflowContext: WorkflowContext,
@@ -224,22 +225,26 @@ class CostBasedRegionPlanGenerator(
     while (queue.nonEmpty) {
       // A state is represented as a set of materialized non-blocking edges.
       val currentState = queue.dequeue()
-      // Early stop: stopping exploring states beyond a schedulable state since the cost will only increase.
-      // A state X is a descendant of an ancestor state Y in the bottom-up search process if Y's set of materialized
-      // edges is a subset of that of X's (since X is reachable from Y by adding more materialized edges.)
-      if (
-        !oEarlyStop || !schedulableStates
-          .exists(ancestorState => ancestorState.subsetOf(currentState))
-      ) {
-        visited.add(currentState)
-        tryConnectRegionDAG(
-          physicalPlan.getNonMaterializedBlockingAndDependeeLinks ++ currentState
-        ) match {
-          case Left(regionDAG) =>
-            updateOptimumIfApplicable(regionDAG)
-            addNeighborStatesToFrontier()
-          case Right(_) =>
-            addNeighborStatesToFrontier()
+      breakable {
+        if (
+          oEarlyStop && schedulableStates
+            .exists(ancestorState => ancestorState.subsetOf(currentState))
+        ) {
+          // Early stop: stopping exploring states beyond a schedulable state since the cost will only increase.
+          // A state X is a descendant of an ancestor state Y in the bottom-up search process if Y's set of materialized
+          // edges is a subset of that of X's (since X is reachable from Y by adding more materialized edges.)
+          break
+        } else {
+          visited.add(currentState)
+          tryConnectRegionDAG(
+            physicalPlan.getNonMaterializedBlockingAndDependeeLinks ++ currentState
+          ) match {
+            case Left(regionDAG) =>
+              updateOptimumIfApplicable(regionDAG)
+              addNeighborStatesToFrontier()
+            case Right(_) =>
+              addNeighborStatesToFrontier()
+          }
         }
       }
 
@@ -278,26 +283,28 @@ class CostBasedRegionPlanGenerator(
           ) // Edges in chain with blocking edges should not be materialized
         }
 
-        var unvisitedNeighborStates = candidateEdges
+        val unvisitedNeighborStates = candidateEdges
           .map(edge => currentState + edge)
           .filter(neighborState =>
             !visited.contains(neighborState) && !queue.contains(neighborState)
           )
 
-        if (oEarlyStop) {
+        val filteredNeighborStates = if (oEarlyStop) {
           // Any descendant state of a schedulable state is not worth exploring.
-          unvisitedNeighborStates = unvisitedNeighborStates.filter(neighborState =>
+          unvisitedNeighborStates.filter(neighborState =>
             !schedulableStates.exists(ancestorState => ancestorState.subsetOf(neighborState))
           )
+        } else {
+          unvisitedNeighborStates
         }
 
         if (globalSearch) {
           // include all unvisited neighbors
-          unvisitedNeighborStates.foreach(neighborState => queue.enqueue(neighborState))
+          filteredNeighborStates.foreach(neighborState => queue.enqueue(neighborState))
         } else {
           // greedy search, only include an unvisited neighbor with the lowest cost
-          if (unvisitedNeighborStates.nonEmpty) {
-            val minCostNeighborState = unvisitedNeighborStates.minBy(neighborState =>
+          if (filteredNeighborStates.nonEmpty) {
+            val minCostNeighborState = filteredNeighborStates.minBy(neighborState =>
               tryConnectRegionDAG(
                 physicalPlan.getNonMaterializedBlockingAndDependeeLinks ++ neighborState
               ) match {
