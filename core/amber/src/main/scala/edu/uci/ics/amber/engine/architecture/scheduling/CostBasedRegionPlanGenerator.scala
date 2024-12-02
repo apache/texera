@@ -234,17 +234,16 @@ class CostBasedRegionPlanGenerator(
           // A state X is a descendant of an ancestor state Y in the bottom-up search process if Y's set of materialized
           // edges is a subset of that of X's (since X is reachable from Y by adding more materialized edges.)
           break
-        } else {
-          visited.add(currentState)
-          tryConnectRegionDAG(
-            physicalPlan.getNonMaterializedBlockingAndDependeeLinks ++ currentState
-          ) match {
-            case Left(regionDAG) =>
-              updateOptimumIfApplicable(regionDAG)
-              addNeighborStatesToFrontier()
-            case Right(_) =>
-              addNeighborStatesToFrontier()
-          }
+        }
+        visited.add(currentState)
+        tryConnectRegionDAG(
+          physicalPlan.getNonMaterializedBlockingAndDependeeLinks ++ currentState
+        ) match {
+          case Left(regionDAG) =>
+            updateOptimumIfApplicable(regionDAG)
+            addNeighborStatesToFrontier()
+          case Right(_) =>
+            addNeighborStatesToFrontier()
         }
       }
 
