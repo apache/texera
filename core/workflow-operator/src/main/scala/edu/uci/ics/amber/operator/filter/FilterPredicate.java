@@ -1,5 +1,6 @@
 package edu.uci.ics.amber.operator.filter;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject;
@@ -30,7 +31,12 @@ public class FilterPredicate {
     @JsonProperty(value = "value")
     public String value;
 
-    public FilterPredicate(String attribute, ComparisonType condition, String value) {
+    @JsonCreator
+    public FilterPredicate(
+        @JsonProperty("attribute") String attribute,
+        @JsonProperty("condition") ComparisonType condition,
+        @JsonProperty("value") String value
+    ) {
         this.attribute = attribute;
         this.condition = condition;
         this.value = value;

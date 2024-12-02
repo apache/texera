@@ -1,5 +1,6 @@
 package edu.uci.ics.amber.operator.filter;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 public enum ComparisonType {
@@ -31,4 +32,14 @@ public enum ComparisonType {
         return this.name;
     }
 
+    // Handle custom deserialization for enum
+    @JsonCreator
+    public static ComparisonType fromString(String value) {
+        for (ComparisonType type : ComparisonType.values()) {
+            if (type.name.equalsIgnoreCase(value)) {
+                return type;
+            }
+        }
+        throw new IllegalArgumentException("Unknown comparison type: " + value);
+    }
 }
