@@ -18,12 +18,12 @@ export class ResultExportationComponent implements OnInit {
    and second is menu which wants to export all operators
    */
   sourceTriggered: string = inject(NZ_MODAL_DATA).sourceTriggered;
-  exportType: string = inject(NZ_MODAL_DATA).exportType;
   workflowName: string = inject(NZ_MODAL_DATA).workflowName;
   inputFileName: string = inject(NZ_MODAL_DATA).defaultFileName ?? "default_filename";
   rowIndex: number = inject(NZ_MODAL_DATA).rowIndex ?? -1;
   columnIndex: number = inject(NZ_MODAL_DATA).columnIndex ?? -1;
   destination: string = "";
+  exportType: string = "";
 
   inputDatasetName = "";
 

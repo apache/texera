@@ -380,9 +380,14 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
       request: ResultExportRequest,
       results: Iterable[Tuple]
   ): ResultExportResponse = {
+    println("handleArrowRequest called")
+
     if (results.isEmpty) {
+      println("No results to export")
       return ResultExportResponse("error", "No results to export")
     }
+
+    println(s"Number of results: ${results.size}")
 
     val schema = results.head.getSchema
     val stream = new ByteArrayOutputStream()
@@ -406,6 +411,7 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
 
         // Process in batches to manage memory
         results.grouped(1000).foreach { batch =>
+          println(s"Processing batch of size: ${batch.size}")
           root.setRowCount(batch.size)
 
           // For each column
@@ -415,20 +421,28 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
               // For each row in the batch
               batch.zipWithIndex.foreach {
                 case (tuple, rowIdx) =>
-                  val value = tuple.getField(colIdx)
+                  val value: Any = tuple.getField(colIdx)
+                  println(s"Processing value: $value of type ${value.getClass}")
                   if (value == null) {
                     vector.setNull(rowIdx)
                   } else {
-                    vector match {
-                      case v: VarCharVector => v.setSafe(rowIdx, value.toString.getBytes)
-                      case v: IntVector     => v.setSafe(rowIdx, value.asInstanceOf[Int])
-                      case v: BigIntVector  => v.setSafe(rowIdx, value.asInstanceOf[Long])
-                      case v: Float8Vector  => v.setSafe(rowIdx, value.asInstanceOf[Double])
-                      case v: BitVector =>
-                        v.setSafe(rowIdx, if (value.asInstanceOf[Boolean]) 1 else 0)
-                      case v: TimeStampMicroVector =>
-                        v.setSafe(rowIdx, value.asInstanceOf[Timestamp].getTime * 1000)
-                      case v: VarBinaryVector => v.setSafe(rowIdx, value.asInstanceOf[Array[Byte]])
+                    value match {
+                      case v: String =>
+                        vector
+                          .asInstanceOf[VarCharVector]
+                          .setSafe(rowIdx, v.getBytes(StandardCharsets.UTF_8))
+                      case v: Int    => vector.asInstanceOf[IntVector].setSafe(rowIdx, v)
+                      case v: Long   => vector.asInstanceOf[BigIntVector].setSafe(rowIdx, v)
+                      case v: Double => vector.asInstanceOf[Float8Vector].setSafe(rowIdx, v)
+                      case v: Boolean =>
+                        vector.asInstanceOf[BitVector].setSafe(rowIdx, if (v) 1 else 0)
+                      case v: Timestamp =>
+                        vector.asInstanceOf[TimeStampMicroVector].setSafe(rowIdx, v.getTime * 1000)
+                      case v: Array[Byte] => vector.asInstanceOf[VarBinaryVector].setSafe(rowIdx, v)
+                      case _ =>
+                        throw new IllegalArgumentException(
+                          s"Unsupported vector type for value: $value"
+                        )
                     }
                   }
               }
