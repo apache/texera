@@ -7,6 +7,7 @@ import scala.concurrent.{ExecutionContext, Future}
 
 trait EmailNotifier {
   def shouldSendEmail(oldState: WorkflowAggregatedState, newState: WorkflowAggregatedState): Boolean
+
   def sendStatusEmail(state: WorkflowAggregatedState): Unit
 }
 

@@ -2,7 +2,7 @@ import { TestBed } from "@angular/core/testing";
 import { WorkflowResultService, OperatorPaginationResultService } from "./workflow-result.service";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import { of, Subject } from "rxjs";
-import { SchemaAttribute } from "../dynamic-schema/schema-propagation/schema-propagation.service";
+import { SchemaAttribute } from "../../types/workflow-compiling.interface";
 import { HttpClientModule } from "@angular/common/http";
 import { WorkflowConsoleService } from "../workflow-console/workflow-console.service";
 

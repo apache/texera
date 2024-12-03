@@ -28,6 +28,7 @@ export class WorkflowWebsocketService {
 
   public isConnected: boolean = false;
   public numWorkers: number = -1;
+  private connectedWid: number = 0;
 
   private websocket?: WebSocketSubject<TexeraWebsocketEvent | TexeraWebsocketRequest>;
   private wsWithReconnectSubscription?: Subscription;
@@ -103,17 +104,22 @@ export class WorkflowWebsocketService {
         this.webSocketResponseSubject.next(event as TexeraWebsocketEvent)
       );
 
-      // refresh connection status
-      this.websocketEvent().subscribe(evt => {
-        if (evt.type === "ClusterStatusUpdateEvent") {
-          this.numWorkers = evt.numWorkers;
-        }
-        this.isConnected = true;
-      });
+    // refresh connection status
+    this.websocketEvent().subscribe(evt => {
+      if (evt.type === "ClusterStatusUpdateEvent") {
+        this.numWorkers = evt.numWorkers;
+      }
+      this.isConnected = true;
+      this.connectedWid = wId;
+    });
     });
   }
 
   public reopenWebsocket(wId: number, uId: number | undefined) {
+    if (this.isConnected && this.connectedWid === wId) {
+      // prevent reconnections
+      return;
+    }
     this.closeWebsocket();
     this.openWebsocket(wId, uId);
   }

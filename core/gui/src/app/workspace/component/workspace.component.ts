@@ -17,13 +17,13 @@ import { of } from "rxjs";
 import { isDefined } from "../../common/util/predicate";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { Version } from "../../../environments/version";
-import { SchemaPropagationService } from "../service/dynamic-schema/schema-propagation/schema-propagation.service";
 import { WorkflowConsoleService } from "../service/workflow-console/workflow-console.service";
 import { OperatorReuseCacheStatusService } from "../service/workflow-status/operator-reuse-cache-status.service";
 import { CodeEditorService } from "../service/code-editor/code-editor.service";
 import { WorkflowMetadata } from "src/app/dashboard/type/workflow-metadata.interface";
 import { HubWorkflowService } from "../../hub/service/workflow/hub-workflow.service";
 import { THROTTLE_TIME_MS } from "../../hub/component/workflow/detail/hub-workflow-detail.component";
+import { WorkflowCompilingService } from "../service/compile-workflow/workflow-compiling.service";
 
 export const SAVE_DEBOUNCE_TIME_IN_MS = 5000;
 
@@ -40,17 +40,18 @@ export const SAVE_DEBOUNCE_TIME_IN_MS = 5000;
 export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   public pid?: number = undefined;
   public gitCommitHash: string = Version.raw;
-  public showResultPanel: boolean = false;
   public writeAccess: boolean = false;
   public isLoading: boolean = false;
   userSystemEnabled = environment.userSystemEnabled;
   @ViewChild("codeEditor", { read: ViewContainerRef }) codeEditorViewRef!: ViewContainerRef;
   constructor(
     private userService: UserService,
-    // list additional services in constructor so they are initialized even if no one use them directly
-    private schemaPropagationService: SchemaPropagationService,
-    private operatorReuseCacheStatus: OperatorReuseCacheStatusService,
+    // list additional 3 services in constructor so they are initialized even if no one use them directly
+    // TODO: make their lifecycle better
+    private workflowCompilingService: WorkflowCompilingService,
     private workflowConsoleService: WorkflowConsoleService,
+    private operatorReuseCacheStatusService: OperatorReuseCacheStatusService,
+    // end of additional services
     private undoRedoService: UndoRedoService,
     private workflowCacheService: WorkflowCacheService,
     private workflowPersistService: WorkflowPersistService,
@@ -80,6 +81,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
      *    - NaN || undefined will result in undefined.
      */
     this.pid = parseInt(this.route.snapshot.queryParams.pid) || undefined;
+    this.workflowActionService.setHighlightingEnabled(true);
   }
 
   ngAfterViewInit(): void {

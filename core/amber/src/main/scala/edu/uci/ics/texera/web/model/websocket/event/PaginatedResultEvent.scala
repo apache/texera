@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.web.model.websocket.event
 
 import com.fasterxml.jackson.databind.node.ObjectNode
-import edu.uci.ics.amber.engine.common.model.tuple.Attribute
+import edu.uci.ics.amber.core.tuple.Attribute
 import edu.uci.ics.texera.web.model.websocket.request.ResultPaginationRequest
 
 object PaginatedResultEvent {

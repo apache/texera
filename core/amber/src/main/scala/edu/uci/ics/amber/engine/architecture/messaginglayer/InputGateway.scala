@@ -1,7 +1,8 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import edu.uci.ics.amber.engine.architecture.logreplay.OrderEnforcer
-import edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity
+import edu.uci.ics.amber.virtualidentity.ChannelIdentity
+
 trait InputGateway {
 
   def tryPickControlChannel: Option[AmberFIFOChannel]

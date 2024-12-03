@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.web.model.websocket.request
 
-import edu.uci.ics.texera.workflow.common.operators.LogicalOp
-import edu.uci.ics.texera.workflow.common.workflow.LogicalLink
+import edu.uci.ics.amber.operator.LogicalOp
+import edu.uci.ics.texera.workflow.LogicalLink
 
 case class EditingTimeCompilationRequest(
     operators: List[LogicalOp],

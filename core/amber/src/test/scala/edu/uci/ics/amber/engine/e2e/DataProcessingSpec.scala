@@ -7,19 +7,20 @@ import akka.util.Timeout
 import ch.vorburger.mariadb4j.DB
 import com.twitter.util.{Await, Duration, Promise}
 import edu.uci.ics.amber.clustering.SingleNodeListener
+import edu.uci.ics.amber.core.storage.result.OpResultStorage
+import edu.uci.ics.amber.core.tuple.{AttributeType, Tuple}
+import edu.uci.ics.amber.core.workflow.WorkflowContext
 import edu.uci.ics.amber.engine.architecture.controller._
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.COMPLETED
 import edu.uci.ics.amber.engine.common.AmberRuntime
 import edu.uci.ics.amber.engine.common.client.AmberClient
-import edu.uci.ics.amber.engine.common.model.WorkflowContext
-import edu.uci.ics.amber.engine.common.model.tuple.{AttributeType, Tuple}
-import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
-import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
-import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
-import edu.uci.ics.texera.workflow.common.workflow._
-import edu.uci.ics.texera.workflow.operators.aggregate.AggregationFunction
+import edu.uci.ics.amber.operator.TestOperators
+import edu.uci.ics.amber.operator.aggregate.AggregationFunction
+import edu.uci.ics.amber.virtualidentity.OperatorIdentity
+import edu.uci.ics.amber.workflow.PortIdentity
+import edu.uci.ics.texera.workflow.LogicalLink
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
@@ -43,6 +44,7 @@ class DataProcessingSpec
     system.actorOf(Props[SingleNodeListener](), "cluster-info")
     AmberRuntime.serde = SerializationExtension(system)
   }
+
   override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
     resultStorage.clear()
@@ -96,6 +98,8 @@ class DataProcessingSpec
     val table: String = "test"
     val username: String = "root"
     val password: String = ""
+    val driver = new com.mysql.cj.jdbc.Driver()
+    DriverManager.registerDriver(driver)
 
     val config = DBConfigurationBuilder.newBuilder
       .setPort(0) // 0 => automatically detect free port

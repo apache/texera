@@ -11,11 +11,11 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
 }
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.DataElement
 import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig
-import edu.uci.ics.amber.engine.common.{CheckpointState, Utils}
 import edu.uci.ics.amber.engine.common.actormessage.{Backpressure, CreditUpdate}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.ambermessage._
-import edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity
+import edu.uci.ics.amber.engine.common.{CheckpointState, Utils}
+import edu.uci.ics.amber.virtualidentity.ChannelIdentity
 
 import java.nio.file.Path
 import java.util.concurrent.{ExecutorService, Executors}

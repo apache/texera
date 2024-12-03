@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.web.resource.dashboard.hub.workflow
 
-import edu.uci.ics.texera.web.SqlServer
+import edu.uci.ics.amber.core.storage.StorageConfig
+import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.Tables._
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{User, Workflow}
@@ -24,7 +25,9 @@ import javax.ws.rs.core.{Context, MediaType}
 import scala.jdk.CollectionConverters._
 
 object HubWorkflowResource {
-  final private lazy val context = SqlServer.createDSLContext()
+  final private lazy val context = SqlServer
+    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .createDSLContext()
 
   final private val ipv4Pattern: Pattern = Pattern.compile(
     "^([0-9]{1,3}\\.){3}[0-9]{1,3}$"
@@ -84,7 +87,7 @@ object HubWorkflowResource {
       action: String
   ): Unit = {
     val userIp = request.getRemoteAddr()
-//    println(s"User IP from getRemoteAddr: $userIp")
+    //    println(s"User IP from getRemoteAddr: $userIp")
 
     if (ipv4Pattern.matcher(userIp).matches()) {
       context
@@ -108,7 +111,9 @@ object HubWorkflowResource {
 @Produces(Array(MediaType.APPLICATION_JSON))
 @Path("/hub/workflow")
 class HubWorkflowResource {
-  final private lazy val context = SqlServer.createDSLContext()
+  final private lazy val context = SqlServer
+    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .createDSLContext()
   final private lazy val workflowDao = new WorkflowDao(context.configuration)
 
   @GET
