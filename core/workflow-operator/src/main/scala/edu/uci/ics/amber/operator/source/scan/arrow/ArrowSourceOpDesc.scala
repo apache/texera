@@ -16,6 +16,7 @@ import java.nio.file.StandardOpenOption
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.ipc.ArrowFileReader
 import org.apache.arrow.vector.types.pojo.{Schema => ArrowSchema}
+import scala.util.Using
 
 @JsonIgnoreProperties(value = Array("fileEncoding"))
 class ArrowSourceOpDesc extends ScanSourceOpDesc {
@@ -32,21 +33,22 @@ class ArrowSourceOpDesc extends ScanSourceOpDesc {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _) =>
-          new ArrowSourceOpExec(
-            fileUri.get,
-            fileEncoding,
-            limit,
-            offset,
-            schemaFunc = () => sourceSchema()
-          )
-        )
+        OpExecInitInfo((_, _) => createArrowSourceOpExec())
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withPropagateSchema(
         SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> inferSchema()))
       )
+  }
+
+  private def createArrowSourceOpExec() = {
+    new ArrowSourceOpExec(
+      fileUri.get,
+      limit,
+      offset,
+      schemaFunc = () => sourceSchema()
+    )
   }
 
   /**
@@ -58,17 +60,16 @@ class ArrowSourceOpDesc extends ScanSourceOpDesc {
   def inferSchema(): Schema = {
     val file = DocumentFactory.newReadonlyDocument(new URI(fileUri.get)).asFile()
     val allocator = new RootAllocator()
-    val channel = Files.newByteChannel(file.toPath, StandardOpenOption.READ)
-    val reader = new ArrowFileReader(channel, allocator)
 
-    try {
-      val arrowSchema: ArrowSchema = reader.getVectorSchemaRoot.getSchema
-      ArrowUtils.toTexeraSchema(arrowSchema)
-    } finally {
-      reader.close()
-      allocator.close()
-      channel.close()
-    }
+    Using
+      .Manager { use =>
+        val channel = use(Files.newByteChannel(file.toPath, StandardOpenOption.READ))
+        val reader = use(new ArrowFileReader(channel, allocator))
+        val arrowSchema: ArrowSchema = reader.getVectorSchemaRoot.getSchema
+        ArrowUtils.toTexeraSchema(arrowSchema)
+      }
+      .getOrElse {
+        throw new IOException("Failed to infer schema from Arrow file.")
+      }
   }
-
 }

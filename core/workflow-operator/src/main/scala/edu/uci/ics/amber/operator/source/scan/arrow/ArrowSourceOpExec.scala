@@ -6,7 +6,6 @@ import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.VectorSchemaRoot
 import org.apache.arrow.vector.ipc.ArrowFileReader
 import edu.uci.ics.amber.core.tuple.{Schema, TupleLike}
-import edu.uci.ics.amber.operator.source.scan.FileDecodingMethod
 import edu.uci.ics.amber.util.ArrowUtils
 
 import java.net.URI
@@ -15,36 +14,50 @@ import java.nio.file.StandardOpenOption
 
 class ArrowSourceOpExec(
     fileUri: String,
-    fileEncoding: FileDecodingMethod,
     limit: Option[Int],
     offset: Option[Int],
     schemaFunc: () => Schema
 ) extends SourceOperatorExecutor {
 
-  var reader: ArrowFileReader = _
-  var root: VectorSchemaRoot = _
-  var schema: Schema = _
+  private var reader: Option[ArrowFileReader] = None
+  private var root: Option[VectorSchemaRoot] = None
+  private var schema: Option[Schema] = None
+  private var allocator: Option[RootAllocator] = None
 
   override def open(): Unit = {
-    val file = DocumentFactory.newReadonlyDocument(new URI(fileUri)).asFile()
-    val allocator = new RootAllocator()
-    val channel = Files.newByteChannel(file.toPath, StandardOpenOption.READ)
-    reader = new ArrowFileReader(channel, allocator)
-    root = reader.getVectorSchemaRoot
-    schema = schemaFunc()
-    reader.loadNextBatch()
+    try {
+      val file = DocumentFactory.newReadonlyDocument(new URI(fileUri)).asFile()
+      val alloc = new RootAllocator()
+      allocator = Some(alloc)
+      val channel = Files.newByteChannel(file.toPath, StandardOpenOption.READ)
+      val arrowReader = new ArrowFileReader(channel, alloc)
+      val vectorRoot = arrowReader.getVectorSchemaRoot
+      schema = Some(schemaFunc())
+      arrowReader.loadNextBatch()
+      reader = Some(arrowReader)
+      root = Some(vectorRoot)
+    } catch {
+      case e: Exception =>
+        close() // Ensure resources are closed in case of an error
+        throw new RuntimeException("Failed to open Arrow source", e)
+    }
   }
 
   override def produceTuple(): Iterator[TupleLike] = {
     val rowIterator = new Iterator[TupleLike] {
       private var currentIndex = 0
 
-      override def hasNext: Boolean = currentIndex < root.getRowCount
+      override def hasNext: Boolean = root.exists(_.getRowCount > currentIndex)
 
       override def next(): TupleLike = {
-        val tuple = ArrowUtils.getTexeraTuple(currentIndex, root)
-        currentIndex += 1
-        tuple
+        root match {
+          case Some(r) =>
+            val tuple = ArrowUtils.getTexeraTuple(currentIndex, r)
+            currentIndex += 1
+            tuple
+          case None =>
+            throw new NoSuchElementException("No more tuples available")
+        }
       }
     }
 
@@ -54,11 +67,8 @@ class ArrowSourceOpExec(
   }
 
   override def close(): Unit = {
-    if (reader != null) {
-      reader.close()
-    }
-    if (root != null) {
-      root.close()
-    }
+    reader.foreach(_.close())
+    root.foreach(_.close())
+    allocator.foreach(_.close())
   }
 }
