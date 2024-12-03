@@ -12,29 +12,26 @@ import { lastValueFrom } from "rxjs";
 export class WorkflowPodBrainService {
   private static readonly TEXERA_CREATE_POD_ENDPOINT = "create";
   private static readonly TEXERA_DELETE_POD_ENDPOINT = "terminate";
-
-  private readonly uid: number | undefined;
-  private readonly wid: number | undefined;
+  private static readonly TEXERA_WORKFLOW_POD_ENDPOINT = "workflowpod";
 
   constructor(
     private http: HttpClient,
     private userService: UserService,
     private workflowActionService: WorkflowActionService
   ) {
-    this.uid = this.userService.getCurrentUser()?.uid ?? 1;
-    this.wid = this.workflowActionService.getWorkflowMetadata()?.wid;
+
   }
 
   public async sendRequest(requestType: string): Promise<Response | undefined> {
     try {
       const body = {
-        wid: this.wid,
-        uid: this.uid,
+        wid: this.workflowActionService.getWorkflowMetadata()?.wid,
+        uid: this.userService.getCurrentUser()?.uid ?? 1,
       };
 
       return await lastValueFrom(
         this.http.post<Response>(
-          `${AppSettings.getWorkflowPodEndpoint()}/${this.getRequestTypePath(requestType)}`,
+          `${WorkflowPodBrainService.TEXERA_WORKFLOW_POD_ENDPOINT}/${this.getRequestTypePath(requestType)}`,
           body,
           {
             responseType: "text" as "json",
@@ -50,8 +47,7 @@ export class WorkflowPodBrainService {
   private getRequestTypePath(requestType: string): string {
     if (requestType === PowerState.Initializing) {
       return WorkflowPodBrainService.TEXERA_CREATE_POD_ENDPOINT;
-    } else {
-      return WorkflowPodBrainService.TEXERA_DELETE_POD_ENDPOINT;
     }
+    return WorkflowPodBrainService.TEXERA_DELETE_POD_ENDPOINT;
   }
 }
