@@ -3,7 +3,6 @@ import { HttpClient } from "@angular/common/http";
 import { UserService } from "../../../common/service/user/user.service";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { PowerState } from "../../component/power-button/power-button.component";
-import { AppSettings } from "src/app/common/app-setting";
 import { lastValueFrom } from "rxjs";
 
 @Injectable({
@@ -18,9 +17,7 @@ export class WorkflowPodBrainService {
     private http: HttpClient,
     private userService: UserService,
     private workflowActionService: WorkflowActionService
-  ) {
-
-  }
+  ) {}
 
   public async sendRequest(requestType: string): Promise<Response | undefined> {
     try {
