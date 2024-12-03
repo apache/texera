@@ -108,26 +108,9 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
       writer.writeRow(tuple.getFields.toIndexedSeq)
     }
     writer.close()
-    val latestVersion =
-      WorkflowVersionResource.getLatestVersion(UInteger.valueOf(request.workflowId))
-    val timestamp = LocalDateTime
-      .now()
-      .truncatedTo(ChronoUnit.SECONDS)
-      .format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"))
-    val fileName = sanitizePath(
-      s"${request.workflowName}-v$latestVersion-${request.operatorName}-$timestamp.csv"
-    )
 
-    // add files to datasets
-    request.datasetIds.foreach(did => {
-      val datasetPath = PathUtils.getDatasetPath(UInteger.valueOf(did))
-      val filePath = datasetPath.resolve(fileName)
-      createNewDatasetVersionByAddingFiles(
-        UInteger.valueOf(did),
-        user,
-        Map(filePath -> new ByteArrayInputStream(stream.toByteArray))
-      )
-    })
+    val fileName = generateFileName(request, "csv")
+    saveToDatasets(request, user, stream.toByteArray, fileName)
 
     ResultExportResponse(
       "success",
@@ -201,33 +184,15 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
     val columnIndex = request.columnIndex
     val filename = request.filename
 
-    // Validate that the requested row and column exist
     if (rowIndex >= results.size || columnIndex >= results.head.getFields.size) {
       return ResultExportResponse("error", s"Invalid row or column index")
     }
 
     val selectedRow = results.toSeq(rowIndex)
     val field: Any = selectedRow.getField(columnIndex)
+    val dataBytes: Array[Byte] = convertFieldToBytes(field)
 
-    // Convert the field to a byte array, regardless of its type
-    val dataBytes: Array[Byte] = field match {
-      case data: Array[Byte] => data
-      case data: String      => data.getBytes(StandardCharsets.UTF_8)
-      case data              => data.toString.getBytes(StandardCharsets.UTF_8)
-    }
-
-    // Save the data file
-    val fileStream = new ByteArrayInputStream(dataBytes)
-
-    request.datasetIds.foreach { did =>
-      val datasetPath = PathUtils.getDatasetPath(UInteger.valueOf(did))
-      val filePath = datasetPath.resolve(filename)
-      createNewDatasetVersionByAddingFiles(
-        UInteger.valueOf(did),
-        user,
-        Map(filePath -> fileStream)
-      )
-    }
+    saveToDatasets(request, user, dataBytes, filename)
 
     ResultExportResponse(
       "success",
@@ -377,71 +342,106 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
       request: ResultExportRequest,
       results: Iterable[Tuple]
   ): ResultExportResponse = {
-
     if (results.isEmpty) {
       return ResultExportResponse("error", "No results to export")
     }
 
-    val schema = results.head.getSchema
     val stream = new ByteArrayOutputStream()
     val channel = new WritableByteChannelImpl(stream)
     val allocator = new RootAllocator()
 
     try {
-      // Use ArrowUtils to convert Texera Schema to Arrow Schema
-      val arrowSchema = ArrowUtils.fromTexeraSchema(schema)
-
-      // Create root and writer
-      val root = VectorSchemaRoot.create(arrowSchema, allocator)
-      val writer = new ArrowFileWriter(root, null, channel)
-
+      val (writer, root) = createArrowWriter(results, allocator, channel)
       try {
-        writer.start()
-
-        // Process in batches to manage memory
-        results.grouped(1000).foreach { batch =>
-          root.setRowCount(batch.size)
-
-          // Use ArrowUtils to set Texera tuples into Arrow vectors
-          batch.zipWithIndex.foreach {
-            case (tuple, rowIdx) =>
-              ArrowUtils.setTexeraTuple(tuple, rowIdx, root)
-          }
-          writer.writeBatch()
-        }
+        writeArrowData(writer, root, results)
       } finally {
         writer.end()
         root.close()
-        channel.close()
       }
-
-      val latestVersion =
-        WorkflowVersionResource.getLatestVersion(UInteger.valueOf(request.workflowId))
-      val timestamp = LocalDateTime
-        .now()
-        .truncatedTo(ChronoUnit.SECONDS)
-        .format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"))
-      val fileName = sanitizePath(
-        s"${request.workflowName}-v$latestVersion-${request.operatorName}-$timestamp.arrow"
-      )
-
-      // Save to datasets
-      request.datasetIds.foreach { did =>
-        val datasetPath = PathUtils.getDatasetPath(UInteger.valueOf(did))
-        val filePath = datasetPath.resolve(fileName)
-        createNewDatasetVersionByAddingFiles(
-          UInteger.valueOf(did),
-          user,
-          Map(filePath -> new ByteArrayInputStream(stream.toByteArray))
-        )
-      }
-
-      ResultExportResponse(
-        "success",
-        s"Arrow file saved as $fileName to Datasets ${request.datasetIds.mkString(",")}"
-      )
+      finalizeArrowExport(request, user, stream, "arrow")
     } finally {
       allocator.close()
+      channel.close()
+    }
+  }
+
+  private def createArrowWriter(
+      results: Iterable[Tuple],
+      allocator: RootAllocator,
+      channel: WritableByteChannel
+  ): (ArrowFileWriter, VectorSchemaRoot) = {
+    val schema = results.head.getSchema
+    val arrowSchema = ArrowUtils.fromTexeraSchema(schema)
+    val root = VectorSchemaRoot.create(arrowSchema, allocator)
+    val writer = new ArrowFileWriter(root, null, channel)
+    (writer, root)
+  }
+
+  private def writeArrowData(
+      writer: ArrowFileWriter,
+      root: VectorSchemaRoot,
+      results: Iterable[Tuple]
+  ): Unit = {
+    writer.start()
+    results.grouped(1000).foreach { batch =>
+      root.setRowCount(batch.size)
+      batch.zipWithIndex.foreach {
+        case (tuple, rowIdx) =>
+          ArrowUtils.setTexeraTuple(tuple, rowIdx, root)
+      }
+      writer.writeBatch()
+    }
+  }
+
+  private def finalizeArrowExport(
+      request: ResultExportRequest,
+      user: User,
+      stream: ByteArrayOutputStream,
+      extension: String
+  ): ResultExportResponse = {
+    val fileName = generateFileName(request, extension)
+    saveToDatasets(request, user, stream.toByteArray, fileName)
+    ResultExportResponse(
+      "success",
+      s"Arrow file saved as $fileName to Datasets ${request.datasetIds.mkString(",")}"
+    )
+  }
+
+  private def generateFileName(request: ResultExportRequest, extension: String): String = {
+    val latestVersion =
+      WorkflowVersionResource.getLatestVersion(UInteger.valueOf(request.workflowId))
+    val timestamp = LocalDateTime
+      .now()
+      .truncatedTo(ChronoUnit.SECONDS)
+      .format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"))
+    sanitizePath(
+      s"${request.workflowName}-v$latestVersion-${request.operatorName}-$timestamp.$extension"
+    )
+  }
+
+  private def saveToDatasets(
+      request: ResultExportRequest,
+      user: User,
+      data: Array[Byte],
+      fileName: String
+  ): Unit = {
+    val fileStream = new ByteArrayInputStream(data)
+    request.datasetIds.foreach { did =>
+      val datasetPath = PathUtils.getDatasetPath(UInteger.valueOf(did))
+      val filePath = datasetPath.resolve(fileName)
+      createNewDatasetVersionByAddingFiles(
+        UInteger.valueOf(did),
+        user,
+        Map(filePath -> fileStream)
+      )
+    }
+  }
+
+  private def convertFieldToBytes(field: Any): Array[Byte] = {
+    field match {
+      case data: Array[Byte] => data
+      case data: String      => data.getBytes(StandardCharsets.UTF_8)
+      case data              => data.toString.getBytes(StandardCharsets.UTF_8)
     }
   }
 
