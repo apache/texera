@@ -356,13 +356,40 @@ export class WorkflowResultExportService {
     const highlightedOperatorIds = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
     if (highlightedOperatorIds.length === 1) {
       const operatorId = highlightedOperatorIds[0];
-      const resultService = this.workflowResultService.getResultService(operatorId);
-      const paginatedResultService = this.workflowResultService.getPaginatedResultService(operatorId);
-
-      this.isTableOutput = !!paginatedResultService;
-      this.containsBinaryData =
-        paginatedResultService?.getSchema().some(attribute => attribute.attributeType === "binary") ?? false;
-      this.isVisualizationOutput = !!resultService && !paginatedResultService;
+      this.setOutputTypes(operatorId);
+    } else {
+      // Reset output types if no operator or multiple operators are highlighted
+      this.resetOutputTypes();
     }
+  }
+
+  private setOutputTypes(operatorId: string): void {
+    const resultService = this.workflowResultService.getResultService(operatorId);
+    const paginatedResultService = this.workflowResultService.getPaginatedResultService(operatorId);
+
+    this.isTableOutput = this.checkIfTableOutput(paginatedResultService);
+    this.containsBinaryData = this.checkIfContainsBinaryData(paginatedResultService);
+    this.isVisualizationOutput = this.checkIfVisualizationOutput(resultService, paginatedResultService);
+  }
+
+  private checkIfTableOutput(paginatedResultService?: OperatorPaginationResultService): boolean {
+    return paginatedResultService !== undefined;
+  }
+
+  private checkIfContainsBinaryData(paginatedResultService?: OperatorPaginationResultService): boolean {
+    return paginatedResultService?.getSchema().some(attribute => attribute.attributeType === "binary") ?? false;
+  }
+
+  private checkIfVisualizationOutput(
+    resultService?: OperatorResultService,
+    paginatedResultService?: OperatorPaginationResultService
+  ): boolean {
+    return resultService !== undefined && paginatedResultService === undefined;
+  }
+
+  private resetOutputTypes(): void {
+    this.isTableOutput = false;
+    this.containsBinaryData = false;
+    this.isVisualizationOutput = false;
   }
 }
