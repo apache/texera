@@ -202,7 +202,7 @@ object ArrowUtils extends LazyLogging {
       }
     }
 
-    vectorSchemaRoot.setRowCount(index + 1)
+    vectorSchemaRoot.setRowCount(vectorSchemaRoot.getRowCount + 1)
   }
 
   /**

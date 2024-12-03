@@ -355,7 +355,7 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
       try {
         writeArrowData(writer, root, results)
       } finally {
-        writer.end()
+        writer.close()
         root.close()
       }
       finalizeArrowExport(request, user, stream, "arrow")
@@ -383,14 +383,30 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
       results: Iterable[Tuple]
   ): Unit = {
     writer.start()
-    results.grouped(1000).foreach { batch =>
-      root.setRowCount(batch.size)
-      batch.zipWithIndex.foreach {
-        case (tuple, rowIdx) =>
-          ArrowUtils.setTexeraTuple(tuple, rowIdx, root)
+    val batchSize = 1000
+
+    // Convert to Seq to get total size
+    val resultSeq = results.toSeq
+    val totalSize = resultSeq.size
+
+    // Process in complete batches
+    for (batchStart <- 0 until totalSize by batchSize) {
+      val batchEnd = Math.min(batchStart + batchSize, totalSize)
+      val currentBatchSize = batchEnd - batchStart
+
+      // Process each tuple in the current batch
+      for (i <- 0 until currentBatchSize) {
+        val tuple = resultSeq(batchStart + i)
+        ArrowUtils.setTexeraTuple(tuple, i, root)
       }
+
+      // Set the correct row count for this batch and write it
+      root.setRowCount(currentBatchSize)
       writer.writeBatch()
+      root.clear()
     }
+
+    writer.end()
   }
 
   private def finalizeArrowExport(
