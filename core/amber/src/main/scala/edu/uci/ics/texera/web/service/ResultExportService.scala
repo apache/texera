@@ -22,6 +22,7 @@ import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{
 }
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowVersionResource
 import org.jooq.types.UInteger
+import edu.uci.ics.amber.util.ArrowUtils
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import java.nio.charset.StandardCharsets
@@ -37,10 +38,8 @@ import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector._
 import org.apache.arrow.vector.ipc.ArrowFileWriter
 import org.apache.arrow.vector.types.{FloatingPointPrecision, TimeUnit}
-import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema => ArrowSchema}
+import org.apache.arrow.vector.types.pojo.ArrowType
 
-import java.sql.Timestamp
-import java.util.{ArrayList => JArrayList}
 import java.nio.ByteBuffer
 import java.nio.channels.WritableByteChannel
 import java.io.OutputStream
@@ -391,12 +390,8 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
     val allocator = new RootAllocator()
 
     try {
-      // Convert Texera Schema to Arrow Schema
-      val fields = schema.getAttributes.map { attr =>
-        val arrowType = attributeTypeToArrowType(attr.getType)
-        new Field(attr.getName, new FieldType(true, arrowType, null), new JArrayList())
-      }
-      val arrowSchema = new ArrowSchema(new JArrayList(fields.asJava))
+      // Use ArrowUtils to convert Texera Schema to Arrow Schema
+      val arrowSchema = ArrowUtils.fromTexeraSchema(schema)
 
       // Create root and writer
       val root = VectorSchemaRoot.create(arrowSchema, allocator)
@@ -409,37 +404,10 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
         results.grouped(1000).foreach { batch =>
           root.setRowCount(batch.size)
 
-          // For each column
-          schema.getAttributes.zipWithIndex.foreach {
-            case (attr, colIdx) =>
-              val vector = root.getVector(colIdx)
-              // For each row in the batch
-              batch.zipWithIndex.foreach {
-                case (tuple, rowIdx) =>
-                  val value: Any = tuple.getField(colIdx)
-                  if (value == null) {
-                    vector.setNull(rowIdx)
-                  } else {
-                    value match {
-                      case v: String =>
-                        vector
-                          .asInstanceOf[VarCharVector]
-                          .setSafe(rowIdx, v.getBytes(StandardCharsets.UTF_8))
-                      case v: Int    => vector.asInstanceOf[IntVector].setSafe(rowIdx, v)
-                      case v: Long   => vector.asInstanceOf[BigIntVector].setSafe(rowIdx, v)
-                      case v: Double => vector.asInstanceOf[Float8Vector].setSafe(rowIdx, v)
-                      case v: Boolean =>
-                        vector.asInstanceOf[BitVector].setSafe(rowIdx, if (v) 1 else 0)
-                      case v: Timestamp =>
-                        vector.asInstanceOf[TimeStampMicroVector].setSafe(rowIdx, v.getTime * 1000)
-                      case v: Array[Byte] => vector.asInstanceOf[VarBinaryVector].setSafe(rowIdx, v)
-                      case _ =>
-                        throw new IllegalArgumentException(
-                          s"Unsupported vector type for value: $value"
-                        )
-                    }
-                  }
-              }
+          // Use ArrowUtils to set Texera tuples into Arrow vectors
+          batch.zipWithIndex.foreach {
+            case (tuple, rowIdx) =>
+              ArrowUtils.setTexeraTuple(tuple, rowIdx, root)
           }
           writer.writeBatch()
         }

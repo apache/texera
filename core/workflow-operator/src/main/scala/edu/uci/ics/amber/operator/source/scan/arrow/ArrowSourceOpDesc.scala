@@ -2,10 +2,11 @@ package edu.uci.ics.amber.operator.source.scan.arrow
 
 import edu.uci.ics.amber.core.executor.OpExecInitInfo
 import edu.uci.ics.amber.core.storage.DocumentFactory
-import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
+import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.operator.source.scan.ScanSourceOpDesc
 import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.util.ArrowUtils
 
 import java.io.IOException
 import java.net.URI
@@ -13,9 +14,7 @@ import java.nio.file.Files
 import java.nio.file.StandardOpenOption
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.ipc.ArrowFileReader
-import org.apache.arrow.vector.types.pojo.{ArrowType, Schema => ArrowSchema}
-
-import scala.jdk.CollectionConverters.CollectionHasAsScala
+import org.apache.arrow.vector.types.pojo.{Schema => ArrowSchema}
 
 class ArrowSourceOpDesc extends ScanSourceOpDesc {
 
@@ -62,26 +61,11 @@ class ArrowSourceOpDesc extends ScanSourceOpDesc {
 
     try {
       val arrowSchema: ArrowSchema = reader.getVectorSchemaRoot.getSchema
-      val attributes = arrowSchema.getFields.asScala.map { field =>
-        new Attribute(field.getName, arrowTypeToAttributeType(field.getType))
-      }
-      Schema.builder().add(attributes).build()
+      ArrowUtils.toTexeraSchema(arrowSchema)
     } finally {
       reader.close()
       allocator.close()
       channel.close()
-    }
-  }
-
-  private def arrowTypeToAttributeType(arrowType: ArrowType): AttributeType = {
-    arrowType match {
-      case _: ArrowType.Utf8          => AttributeType.STRING
-      case _: ArrowType.Int           => AttributeType.INTEGER
-      case _: ArrowType.FloatingPoint => AttributeType.DOUBLE
-      case _: ArrowType.Bool          => AttributeType.BOOLEAN
-      case _: ArrowType.Timestamp     => AttributeType.TIMESTAMP
-      case _: ArrowType.Binary        => AttributeType.BINARY
-      case _                          => AttributeType.STRING // Default to STRING for unknown types
     }
   }
 

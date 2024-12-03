@@ -1,4 +1,4 @@
-package edu.uci.ics.amber.engine.architecture.pythonworker
+package edu.uci.ics.amber.util
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.tuple.AttributeTypeUtils.AttributeTypeException
@@ -202,7 +202,7 @@ object ArrowUtils extends LazyLogging {
       }
     }
 
-    vectorSchemaRoot.setRowCount(vectorSchemaRoot.getRowCount + 1)
+    vectorSchemaRoot.setRowCount(index + 1)
   }
 
   /**

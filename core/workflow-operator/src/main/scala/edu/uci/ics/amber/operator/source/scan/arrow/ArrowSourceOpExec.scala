@@ -7,6 +7,7 @@ import org.apache.arrow.vector.VectorSchemaRoot
 import org.apache.arrow.vector.ipc.ArrowFileReader
 import edu.uci.ics.amber.core.tuple.{Schema, TupleLike}
 import edu.uci.ics.amber.operator.source.scan.FileDecodingMethod
+import edu.uci.ics.amber.util.ArrowUtils
 
 import java.net.URI
 import java.nio.file.{Files}
@@ -41,18 +42,9 @@ class ArrowSourceOpExec(
       override def hasNext: Boolean = currentIndex < root.getRowCount
 
       override def next(): TupleLike = {
-        val fields = schema.getAttributes.zipWithIndex.map {
-          case (attr, idx) =>
-            val vector = root.getVector(idx)
-            val value = vector.getObject(currentIndex) match {
-              case text: org.apache.arrow.vector.util.Text => text.toString
-              case dateTime: java.time.LocalDateTime       => java.sql.Timestamp.valueOf(dateTime)
-              case other                                   => other
-            }
-            value
-        }
+        val tuple = ArrowUtils.getTexeraTuple(currentIndex, root)
         currentIndex += 1
-        TupleLike(fields: _*)
+        tuple
       }
     }
 

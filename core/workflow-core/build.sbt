@@ -99,6 +99,17 @@ libraryDependencies ++= Seq(
   "org.apache.commons" % "commons-jcs3-core" % "3.2"             // Apache Commons JCS
 )
 
+/////////////////////////////////////////////////////////////////////////////
+// Arrow related
+val arrowVersion = "14.0.1"
+val arrowDependencies = Seq(
+  // https://mvnrepository.com/artifact/org.apache.arrow/flight-grpc
+  "org.apache.arrow" % "flight-grpc" % arrowVersion,
+  // https://mvnrepository.com/artifact/org.apache.arrow/flight-core
+  "org.apache.arrow" % "flight-core" % arrowVersion
+)
+
+libraryDependencies ++= arrowDependencies
 
 /////////////////////////////////////////////////////////////////////////////
 // Additional Dependencies
