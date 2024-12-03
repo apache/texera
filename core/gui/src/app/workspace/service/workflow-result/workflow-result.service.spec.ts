@@ -3,17 +3,11 @@ import { WorkflowResultService, OperatorPaginationResultService } from "./workfl
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import { of, Subject } from "rxjs";
 import { SchemaAttribute } from "../../types/workflow-compiling.interface";
-import { HttpClientModule } from "@angular/common/http";
-import { WorkflowConsoleService } from "../workflow-console/workflow-console.service";
 
 describe("WorkflowResultService", () => {
   let service: WorkflowResultService;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({
-      imports: [HttpClientModule],
-      providers: [WorkflowResultService, WorkflowWebsocketService],
-    });
     service = TestBed.inject(WorkflowResultService);
   });
 

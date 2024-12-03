@@ -63,8 +63,7 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
 
   constructor(
     private adminExecutionService: AdminExecutionService,
-    private modalService: NzModalService,
-    private websocketService: WorkflowWebsocketService
+    private modalService: NzModalService
   ) {}
 
   ngOnInit() {
@@ -273,9 +272,10 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
    Due to the Async nature when setting up the websocket, the socket would be closed before the connection is established.
    Therefore, commenting the code to ensure the connections is established and request has been sent.
    */
-  killExecution(wid: number, uId: number) {
-    this.websocketService.openWebsocket(wid, uId);
-    this.websocketService.send("WorkflowKillRequest", {});
+  killExecution(wid: number) {
+    let socket = new WorkflowWebsocketService();
+    socket.openWebsocket(wid);
+    socket.send("WorkflowKillRequest", {});
     // socket.closeWebsocket();
   }
 
@@ -283,9 +283,10 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
    Due to the Async nature when setting up the websocket, the socket would be closed before the connection is established.
    Therefore, commenting the code to ensure the connections is established and request has been sent.
    */
-  pauseExecution(wid: number, uId: number) {
-    this.websocketService.openWebsocket(wid, uId);
-    this.websocketService.send("WorkflowPauseRequest", {});
+  pauseExecution(wid: number) {
+    let socket = new WorkflowWebsocketService();
+    socket.openWebsocket(wid);
+    socket.send("WorkflowPauseRequest", {});
     // socket.closeWebsocket();
   }
 
@@ -293,9 +294,10 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
    Due to the Async nature when setting up the websocket, the socket would be closed before the connection is established.
    Therefore, commenting the code to ensure the connections is established and request has been sent.
    */
-  resumeExecution(wid: number, uId: number) {
-    this.websocketService.openWebsocket(wid, uId);
-    this.websocketService.send("WorkflowResumeRequest", {});
+  resumeExecution(wid: number) {
+    let socket = new WorkflowWebsocketService();
+    socket.openWebsocket(wid);
+    socket.send("WorkflowResumeRequest", {});
     // socket.closeWebsocket();
   }
 

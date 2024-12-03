@@ -51,10 +51,6 @@ export interface WorkflowFatalError
     };
   }> {}
 
-export type RuntimeClusterInfo = Readonly<{
-  port: number;
-}>;
-
 export interface WorkflowErrorEvent
   extends Readonly<{
     fatalErrors: ReadonlyArray<WorkflowFatalError>;
@@ -220,8 +216,8 @@ export type TexeraWebsocketEventTypeMap = {
 type ValueOf<T> = T[keyof T];
 type CustomUnionType<T> = ValueOf<{
   [P in keyof T]: {
-    type: P;
-  } & T[P];
+  type: P;
+} & T[P];
 }>;
 
 export type TexeraWebsocketRequestTypes = keyof TexeraWebsocketRequestTypeMap;
