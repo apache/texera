@@ -60,7 +60,7 @@ class CostBasedRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
       workflow.physicalPlan,
       resultStorage,
       CONTROLLER
-    ).bottomUpSearch(globalSearch = true, oChains = false, oCleanEdges = false)
+    ).bottomUpSearch(globalSearch = true, oChains = false, oCleanEdges = false, oEarlyStop = false)
 
     // Should have explored all possible states (2^4 states)
     assert(globalSearchNoPruningResult.numStatesExplored == 16)
@@ -70,7 +70,7 @@ class CostBasedRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
       workflow.physicalPlan,
       resultStorage,
       CONTROLLER
-    ).bottomUpSearch(globalSearch = true, oCleanEdges = false)
+    ).bottomUpSearch(globalSearch = true, oCleanEdges = false, oEarlyStop = false)
 
     // By applying pruning based on Chains alone, it should skip 10 (8 + 2) states. 8 states where CSV->Build is
     // materialized should be skipped because this edge is in the same chain as another blocking edge.
@@ -83,11 +83,22 @@ class CostBasedRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
       workflow.physicalPlan,
       resultStorage,
       CONTROLLER
-    ).bottomUpSearch(globalSearch = true, oChains = false)
+    ).bottomUpSearch(globalSearch = true, oChains = false, oEarlyStop = false)
 
     // By applying pruning based on Clean edges (bridges) alone, it should skip 8 states. There is one clean edge
     // in the DAG (Probe->Sink) and the 8 states where this edge is materialized should be skipped.
     assert(globalSearchOCleanEdgesResult.numStatesExplored == 8)
+
+    val globalSearchOEarlyStopResult = new CostBasedRegionPlanGenerator(
+      workflow.context,
+      workflow.physicalPlan,
+      resultStorage,
+      CONTROLLER
+    ).bottomUpSearch(globalSearch = true, oChains = false, oCleanEdges = false)
+
+    // By applying pruning based on Early Stop alone, only 6 states that are not descendants of a schedulable states
+    // should be explored.
+    assert(globalSearchOEarlyStopResult.numStatesExplored == 6)
 
     val globalSearchAllPruningEnabledResult = new CostBasedRegionPlanGenerator(
       workflow.context,
@@ -96,7 +107,7 @@ class CostBasedRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
       CONTROLLER
     ).bottomUpSearch(globalSearch = true)
 
-    // By combining both pruning techniques, only 3 states should be visited (1 state where both CSV->KeywordFilter and
+    // By combining all pruning techniques, only 3 states should be visited (1 state where both CSV->KeywordFilter and
     // KeywordFilter->Probe are pipelined, and two states where only one of CSV->KeywordFilter or KeywordFilter->Probe
     // is materialized. The other two edges should always be pipelined.)
     assert(globalSearchAllPruningEnabledResult.numStatesExplored == 3)
