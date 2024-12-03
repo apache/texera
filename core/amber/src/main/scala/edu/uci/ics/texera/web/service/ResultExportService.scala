@@ -41,7 +41,6 @@ import org.apache.arrow.vector.ipc.ArrowFileWriter
 import java.nio.ByteBuffer
 import java.nio.channels.WritableByteChannel
 import java.io.OutputStream
-import scala.util.Using
 
 object ResultExportService {
   final private val UPLOAD_BATCH_ROW_COUNT = 10000
@@ -347,22 +346,23 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
       return ResultExportResponse("error", "No results to export")
     }
 
-    Using
-      .Manager { use =>
-        val stream = use(new ByteArrayOutputStream())
-        val channel = use(new WritableByteChannelImpl(stream))
-        val allocator = use(new RootAllocator())
+    val stream = new ByteArrayOutputStream()
+    val channel = new WritableByteChannelImpl(stream)
+    val allocator = new RootAllocator()
 
-        val (writer, root) = createArrowWriter(results, allocator, channel)
-        use(writer)
-        use(root)
-
+    try {
+      val (writer, root) = createArrowWriter(results, allocator, channel)
+      try {
         writeArrowData(writer, root, results)
-        finalizeArrowExport(request, user, stream, "arrow")
+      } finally {
+        writer.end()
+        root.close()
       }
-      .getOrElse {
-        ResultExportResponse("error", "Failed to export results")
-      }
+      finalizeArrowExport(request, user, stream, "arrow")
+    } finally {
+      allocator.close()
+      channel.close()
+    }
   }
 
   private def createArrowWriter(
