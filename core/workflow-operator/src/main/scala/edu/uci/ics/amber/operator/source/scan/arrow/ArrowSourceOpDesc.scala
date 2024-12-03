@@ -1,5 +1,6 @@
 package edu.uci.ics.amber.operator.source.scan.arrow
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import edu.uci.ics.amber.core.executor.OpExecInitInfo
 import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.tuple.Schema
@@ -16,6 +17,7 @@ import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.ipc.ArrowFileReader
 import org.apache.arrow.vector.types.pojo.{Schema => ArrowSchema}
 
+@JsonIgnoreProperties(value = Array("fileEncoding"))
 class ArrowSourceOpDesc extends ScanSourceOpDesc {
 
   fileTypeName = Option("Arrow")

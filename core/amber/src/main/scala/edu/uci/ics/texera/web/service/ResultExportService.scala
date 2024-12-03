@@ -8,7 +8,7 @@ import com.google.api.services.drive.model.{File, FileList, Permission}
 import com.google.api.services.sheets.v4.Sheets
 import com.google.api.services.sheets.v4.model.{Spreadsheet, SpreadsheetProperties, ValueRange}
 import edu.uci.ics.amber.core.storage.result.{OpResultStorage, SinkStorageReader}
-import edu.uci.ics.amber.core.tuple.{AttributeType, Tuple}
+import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.engine.common.Utils.retry
 import edu.uci.ics.amber.util.PathUtils
 import edu.uci.ics.amber.virtualidentity.OperatorIdentity
@@ -37,8 +37,6 @@ import scala.jdk.CollectionConverters.SeqHasAsJava
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector._
 import org.apache.arrow.vector.ipc.ArrowFileWriter
-import org.apache.arrow.vector.types.{FloatingPointPrecision, TimeUnit}
-import org.apache.arrow.vector.types.pojo.ArrowType
 
 import java.nio.ByteBuffer
 import java.nio.channels.WritableByteChannel
@@ -444,19 +442,6 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
       )
     } finally {
       allocator.close()
-    }
-  }
-
-  private def attributeTypeToArrowType(attributeType: AttributeType): ArrowType = {
-    attributeType match {
-      case AttributeType.STRING    => new ArrowType.Utf8()
-      case AttributeType.INTEGER   => new ArrowType.Int(32, true)
-      case AttributeType.LONG      => new ArrowType.Int(64, true)
-      case AttributeType.DOUBLE    => new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)
-      case AttributeType.BOOLEAN   => new ArrowType.Bool()
-      case AttributeType.TIMESTAMP => new ArrowType.Timestamp(TimeUnit.MICROSECOND, null)
-      case AttributeType.BINARY    => new ArrowType.Binary()
-      case _                       => new ArrowType.Utf8() // Default to string for unknown types
     }
   }
 
