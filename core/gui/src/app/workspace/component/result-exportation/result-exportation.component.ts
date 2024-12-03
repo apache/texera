@@ -26,7 +26,7 @@ export class ResultExportationComponent implements OnInit {
   exportType: string = "";
   isTableOutput: boolean = false;
   isVisualizationOutput: boolean = false;
-
+  containsBinaryData: boolean = false;
   inputDatasetName = "";
 
   userAccessibleDatasets: DashboardDataset[] = [];
@@ -54,6 +54,7 @@ export class ResultExportationComponent implements OnInit {
     this.workflowResultExportService.determineOutputTypeForHighlightedOperator();
     this.isTableOutput = this.workflowResultExportService.isTableOutput;
     this.isVisualizationOutput = this.workflowResultExportService.isVisualizationOutput;
+    this.containsBinaryData = this.workflowResultExportService.containsBinaryData;
   }
 
   onUserInputDatasetName(event: Event): void {

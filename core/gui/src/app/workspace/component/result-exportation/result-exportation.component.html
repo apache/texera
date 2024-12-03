@@ -39,7 +39,7 @@
                 <nz-option
                   nzValue="csv"
                   nzLabel="CSV"
-                  [nzDisabled]="!isTableOutput"></nz-option>
+                  [nzDisabled]="!isTableOutput || containsBinaryData"></nz-option>
                 <nz-option
                   nzValue="html"
                   nzLabel="HTML"

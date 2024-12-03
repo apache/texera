@@ -24,7 +24,7 @@ export class WorkflowResultExportService {
   hasResultToExportOnAllOperators = new BehaviorSubject<boolean>(false);
   isTableOutput: boolean = false;
   isVisualizationOutput: boolean = false;
-
+  containsBinaryData: boolean = false;
   constructor(
     private workflowWebsocketService: WorkflowWebsocketService,
     private workflowActionService: WorkflowActionService,
@@ -360,10 +360,9 @@ export class WorkflowResultExportService {
       const paginatedResultService = this.workflowResultService.getPaginatedResultService(operatorId);
 
       this.isTableOutput = !!paginatedResultService;
+      this.containsBinaryData =
+        paginatedResultService?.getSchema().some(attribute => attribute.attributeType === "binary") ?? false;
       this.isVisualizationOutput = !!resultService && !paginatedResultService;
     }
   }
-
-  // Call this method when the component initializes or when the highlighted operator changes
-  // this.determineOutputTypeForHighlightedOperator();
 }
