@@ -22,6 +22,8 @@ export class WorkflowResultExportService {
   hasResultToExportOnHighlightedOperators: boolean = false;
   exportExecutionResultEnabled: boolean = environment.exportExecutionResultEnabled;
   hasResultToExportOnAllOperators = new BehaviorSubject<boolean>(false);
+  isTableOutput: boolean = false;
+  isVisualizationOutput: boolean = false;
 
   constructor(
     private workflowWebsocketService: WorkflowWebsocketService,
@@ -349,4 +351,19 @@ export class WorkflowResultExportService {
   getExportOnAllOperatorsStatusStream(): Observable<boolean> {
     return this.hasResultToExportOnAllOperators.asObservable();
   }
+
+  determineOutputTypeForHighlightedOperator(): void {
+    const highlightedOperatorIds = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+    if (highlightedOperatorIds.length === 1) {
+      const operatorId = highlightedOperatorIds[0];
+      const resultService = this.workflowResultService.getResultService(operatorId);
+      const paginatedResultService = this.workflowResultService.getPaginatedResultService(operatorId);
+
+      this.isTableOutput = !!paginatedResultService;
+      this.isVisualizationOutput = !!resultService && !paginatedResultService;
+    }
+  }
+
+  // Call this method when the component initializes or when the highlighted operator changes
+  // this.determineOutputTypeForHighlightedOperator();
 }

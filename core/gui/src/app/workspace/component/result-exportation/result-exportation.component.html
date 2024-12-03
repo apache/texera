@@ -11,8 +11,12 @@
                 [(ngModel)]="destination"
                 name="destination"
                 nzPlaceHolder="Select destination">
-                <nz-option nzValue="local" nzLabel="Local"></nz-option>
-                <nz-option nzValue="dataset" nzLabel="Dataset"></nz-option>
+                <nz-option
+                  nzValue="local"
+                  nzLabel="Local"></nz-option>
+                <nz-option
+                  nzValue="dataset"
+                  nzLabel="Dataset"></nz-option>
               </nz-select>
             </nz-form-control>
           </nz-form-item>
@@ -28,9 +32,18 @@
                 [(ngModel)]="exportType"
                 name="exportType"
                 nzPlaceHolder="Select export type">
-                <nz-option nzValue="arrow" nzLabel="Arrow"></nz-option>
-                <nz-option nzValue="csv" nzLabel="CSV"></nz-option>
-                <nz-option nzValue="html" nzLabel="HTML"></nz-option>
+                <nz-option
+                  nzValue="arrow"
+                  nzLabel="Arrow"
+                  [nzDisabled]="!isTableOutput"></nz-option>
+                <nz-option
+                  nzValue="csv"
+                  nzLabel="CSV"
+                  [nzDisabled]="!isTableOutput"></nz-option>
+                <nz-option
+                  nzValue="html"
+                  nzLabel="HTML"
+                  [nzDisabled]="!isVisualizationOutput"></nz-option>
               </nz-select>
             </nz-form-control>
           </nz-form-item>

@@ -24,6 +24,8 @@ export class ResultExportationComponent implements OnInit {
   columnIndex: number = inject(NZ_MODAL_DATA).columnIndex ?? -1;
   destination: string = "";
   exportType: string = "";
+  isTableOutput: boolean = false;
+  isVisualizationOutput: boolean = false;
 
   inputDatasetName = "";
 
@@ -45,6 +47,13 @@ export class ResultExportationComponent implements OnInit {
         this.userAccessibleDatasets = datasets.filter(dataset => dataset.accessPrivilege === "WRITE");
         this.filteredUserAccessibleDatasets = [...this.userAccessibleDatasets];
       });
+    this.updateOutputType();
+  }
+
+  updateOutputType(): void {
+    this.workflowResultExportService.determineOutputTypeForHighlightedOperator();
+    this.isTableOutput = this.workflowResultExportService.isTableOutput;
+    this.isVisualizationOutput = this.workflowResultExportService.isVisualizationOutput;
   }
 
   onUserInputDatasetName(event: Event): void {
