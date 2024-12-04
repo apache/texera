@@ -216,8 +216,8 @@ export type TexeraWebsocketEventTypeMap = {
 type ValueOf<T> = T[keyof T];
 type CustomUnionType<T> = ValueOf<{
   [P in keyof T]: {
-  type: P;
-} & T[P];
+    type: P;
+  } & T[P];
 }>;
 
 export type TexeraWebsocketRequestTypes = keyof TexeraWebsocketRequestTypeMap;
