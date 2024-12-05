@@ -24,11 +24,7 @@ import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowVersionRe
 import org.jooq.types.UInteger
 import edu.uci.ics.amber.util.ArrowUtils
 
-import java.io.{
-  InputStream,
-  PipedInputStream,
-  PipedOutputStream
-}
+import java.io.{PipedInputStream, PipedOutputStream}
 import java.nio.charset.StandardCharsets
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -380,7 +376,13 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
       }
     }).start()
 
-    finalizeArrowExport(request, user, pipedInputStream, "arrow")
+    val fileName = generateFileName(request, "arrow")
+    saveToDatasets(request, user, pipedInputStream, fileName)
+
+    ResultExportResponse(
+      "success",
+      s"Arrow file saved as $fileName to Datasets ${request.datasetIds.mkString(",")}"
+    )
   }
 
   private def createArrowWriter(
@@ -428,29 +430,6 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
     writer.end()
   }
 
-  private def finalizeArrowExport(
-      request: ResultExportRequest,
-      user: User,
-      stream: InputStream,
-      extension: String
-  ): ResultExportResponse = {
-    val pipedOutputStream = new PipedOutputStream()
-    val pipedInputStream = new PipedInputStream(pipedOutputStream)
-
-    new Thread(() => {
-      stream.transferTo(pipedOutputStream)
-      pipedOutputStream.close()
-    }).start()
-
-    val fileName = generateFileName(request, extension)
-    saveToDatasets(request, user, pipedInputStream, fileName)
-
-    ResultExportResponse(
-      "success",
-      s"Arrow file saved as $fileName to Datasets ${request.datasetIds.mkString(",")}"
-    )
-  }
-
   private def generateFileName(request: ResultExportRequest, extension: String): String = {
     val latestVersion =
       WorkflowVersionResource.getLatestVersion(UInteger.valueOf(request.workflowId))
@@ -466,7 +445,7 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
   private def saveToDatasets(
       request: ResultExportRequest,
       user: User,
-      dataStream: InputStream,
+      pipedInputStream: PipedInputStream,
       fileName: String
   ): Unit = {
     request.datasetIds.foreach { did =>
@@ -475,7 +454,7 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
       createNewDatasetVersionByAddingFiles(
         UInteger.valueOf(did),
         user,
-        Map(filePath -> dataStream)
+        Map(filePath -> pipedInputStream)
       )
     }
   }
