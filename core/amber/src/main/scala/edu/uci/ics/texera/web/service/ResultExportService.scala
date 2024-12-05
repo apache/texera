@@ -103,14 +103,17 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
     val pipedOutputStream = new PipedOutputStream()
     val pipedInputStream = new PipedInputStream(pipedOutputStream)
 
-    new Thread(() => {
-      val writer = CSVWriter.open(pipedOutputStream)
-      writer.writeRow(headers)
-      results.foreach { tuple =>
-        writer.writeRow(tuple.getFields.toIndexedSeq)
-      }
-      writer.close()
-    }).start()
+    // Use the thread pool to manage the thread with a lambda expression
+    pool.submit(() =>
+      {
+        val writer = CSVWriter.open(pipedOutputStream)
+        writer.writeRow(headers)
+        results.foreach { tuple =>
+          writer.writeRow(tuple.getFields.toIndexedSeq)
+        }
+        writer.close()
+      }.asInstanceOf[Runnable]
+    )
 
     val fileName = generateFileName(request, "csv")
     saveToDatasets(request, user, pipedInputStream, fileName)
@@ -198,10 +201,13 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
     val pipedOutputStream = new PipedOutputStream()
     val pipedInputStream = new PipedInputStream(pipedOutputStream)
 
-    new Thread(() => {
-      pipedOutputStream.write(dataBytes)
-      pipedOutputStream.close()
-    }).start()
+    // Use the thread pool to manage the thread with a lambda expression
+    pool.submit(() =>
+      {
+        pipedOutputStream.write(dataBytes)
+        pipedOutputStream.close()
+      }.asInstanceOf[Runnable]
+    )
 
     saveToDatasets(request, user, pipedInputStream, filename)
 
@@ -361,20 +367,23 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
     val pipedInputStream = new PipedInputStream(pipedOutputStream)
     val allocator = new RootAllocator()
 
-    new Thread(() => {
-      try {
-        val (writer, root) = createArrowWriter(results, allocator, pipedOutputStream)
+    // Use the thread pool to manage the thread with a lambda expression
+    pool.submit(() =>
+      {
         try {
-          writeArrowData(writer, root, results)
+          val (writer, root) = createArrowWriter(results, allocator, pipedOutputStream)
+          try {
+            writeArrowData(writer, root, results)
+          } finally {
+            writer.close()
+            root.close()
+          }
         } finally {
-          writer.close()
-          root.close()
+          allocator.close()
+          pipedOutputStream.close()
         }
-      } finally {
-        allocator.close()
-        pipedOutputStream.close()
-      }
-    }).start()
+      }.asInstanceOf[Runnable]
+    )
 
     val fileName = generateFileName(request, "arrow")
     saveToDatasets(request, user, pipedInputStream, fileName)
