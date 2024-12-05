@@ -40,6 +40,7 @@ import org.apache.arrow.vector.ipc.ArrowFileWriter
 
 import java.io.OutputStream
 import java.nio.channels.Channels
+import scala.util.Using
 
 object ResultExportService {
   final private val UPLOAD_BATCH_ROW_COUNT = 10000
@@ -370,17 +371,14 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
     // Use the thread pool to manage the thread with a lambda expression
     pool.submit(() =>
       {
-        try {
+        Using.Manager { use =>
           val (writer, root) = createArrowWriter(results, allocator, pipedOutputStream)
-          try {
-            writeArrowData(writer, root, results)
-          } finally {
-            writer.close()
-            root.close()
-          }
-        } finally {
-          allocator.close()
-          pipedOutputStream.close()
+          use(writer)
+          use(root)
+          use(allocator)
+          use(pipedOutputStream)
+
+          writeArrowData(writer, root, results)
         }
       }.asInstanceOf[Runnable]
     )
