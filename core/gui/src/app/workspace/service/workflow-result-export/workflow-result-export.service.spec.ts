@@ -266,41 +266,4 @@ describe("WorkflowResultExportService", () => {
       reader.readAsText(files[0].blob);
     });
   });
-
-  it("should set output types correctly when a single operator is highlighted", () => {
-    // Arrange
-    const jointGraphWrapperSpy = jasmine.createSpyObj("JointGraphWrapper", ["getCurrentHighlightedOperatorIDs"]);
-    jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.and.returnValue(["operator1"]);
-    workflowActionServiceSpy.getJointGraphWrapper.and.returnValue(jointGraphWrapperSpy);
-
-    const resultServiceSpy = jasmine.createSpyObj("OperatorResultService", ["getCurrentResultSnapshot"]);
-    const paginatedResultServiceSpy = jasmine.createSpyObj("OperatorPaginationResultService", ["getSchema"]);
-    paginatedResultServiceSpy.getSchema.and.returnValue([{ attributeName: "column1", attributeType: "string" }]);
-
-    workflowResultServiceSpy.getResultService.and.returnValue(resultServiceSpy);
-    workflowResultServiceSpy.getPaginatedResultService.and.returnValue(paginatedResultServiceSpy);
-
-    // Act
-    service.determineOutputTypeForHighlightedOperator();
-
-    // Assert
-    expect(service.isTableOutput).toBeTrue();
-    expect(service.containsBinaryData).toBeFalse();
-    expect(service.isVisualizationOutput).toBeFalse();
-  });
-
-  it("should reset output types when no operators are highlighted", () => {
-    // Arrange
-    const jointGraphWrapperSpy = jasmine.createSpyObj("JointGraphWrapper", ["getCurrentHighlightedOperatorIDs"]);
-    jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.and.returnValue([]);
-    workflowActionServiceSpy.getJointGraphWrapper.and.returnValue(jointGraphWrapperSpy);
-
-    // Act
-    service.determineOutputTypeForHighlightedOperator();
-
-    // Assert
-    expect(service.isTableOutput).toBeFalse();
-    expect(service.containsBinaryData).toBeFalse();
-    expect(service.isVisualizationOutput).toBeFalse();
-  });
 });

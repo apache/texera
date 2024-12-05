@@ -22,9 +22,6 @@ export class WorkflowResultExportService {
   hasResultToExportOnHighlightedOperators: boolean = false;
   exportExecutionResultEnabled: boolean = environment.exportExecutionResultEnabled;
   hasResultToExportOnAllOperators = new BehaviorSubject<boolean>(false);
-  isTableOutput: boolean = false;
-  isVisualizationOutput: boolean = false;
-  containsBinaryData: boolean = false;
   constructor(
     private workflowWebsocketService: WorkflowWebsocketService,
     private workflowActionService: WorkflowActionService,
@@ -350,46 +347,5 @@ export class WorkflowResultExportService {
 
   getExportOnAllOperatorsStatusStream(): Observable<boolean> {
     return this.hasResultToExportOnAllOperators.asObservable();
-  }
-
-  determineOutputTypeForHighlightedOperator(): void {
-    const highlightedOperatorIds = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-    if (highlightedOperatorIds.length === 1) {
-      const operatorId = highlightedOperatorIds[0];
-      this.setOutputTypes(operatorId);
-    } else {
-      // Reset output types if no operator or multiple operators are highlighted
-      this.resetOutputTypes();
-    }
-  }
-
-  private setOutputTypes(operatorId: string): void {
-    const resultService = this.workflowResultService.getResultService(operatorId);
-    const paginatedResultService = this.workflowResultService.getPaginatedResultService(operatorId);
-
-    this.isTableOutput = this.checkIfTableOutput(paginatedResultService);
-    this.containsBinaryData = this.checkIfContainsBinaryData(paginatedResultService);
-    this.isVisualizationOutput = this.checkIfVisualizationOutput(resultService, paginatedResultService);
-  }
-
-  private checkIfTableOutput(paginatedResultService?: OperatorPaginationResultService): boolean {
-    return paginatedResultService !== undefined;
-  }
-
-  private checkIfContainsBinaryData(paginatedResultService?: OperatorPaginationResultService): boolean {
-    return paginatedResultService?.getSchema().some(attribute => attribute.attributeType === "binary") ?? false;
-  }
-
-  private checkIfVisualizationOutput(
-    resultService?: OperatorResultService,
-    paginatedResultService?: OperatorPaginationResultService
-  ): boolean {
-    return resultService !== undefined && paginatedResultService === undefined;
-  }
-
-  private resetOutputTypes(): void {
-    this.isTableOutput = false;
-    this.containsBinaryData = false;
-    this.isVisualizationOutput = false;
   }
 }
