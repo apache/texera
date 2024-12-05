@@ -114,4 +114,92 @@ class CostBasedRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
 
   }
 
+  "CostBasedRegionPlanGenerator" should "finish top-down search using different pruning techniques with correct number of states explored in csv->->filter->join->sink workflow" in {
+    val headerlessCsvOpDesc1 = TestOperators.headerlessSmallCsvScanOpDesc()
+    val keywordOpDesc = TestOperators.keywordSearchOpDesc("column-1", "Asia")
+    val joinOpDesc = TestOperators.joinOpDesc("column-1", "column-1")
+    val sink = TestOperators.sinkOpDesc()
+    val resultStorage = new OpResultStorage()
+    val workflow = buildWorkflow(
+      List(
+        headerlessCsvOpDesc1,
+        keywordOpDesc,
+        joinOpDesc,
+        sink
+      ),
+      List(
+        LogicalLink(
+          headerlessCsvOpDesc1.operatorIdentifier,
+          PortIdentity(),
+          joinOpDesc.operatorIdentifier,
+          PortIdentity()
+        ),
+        LogicalLink(
+          headerlessCsvOpDesc1.operatorIdentifier,
+          PortIdentity(),
+          keywordOpDesc.operatorIdentifier,
+          PortIdentity()
+        ),
+        LogicalLink(
+          keywordOpDesc.operatorIdentifier,
+          PortIdentity(),
+          joinOpDesc.operatorIdentifier,
+          PortIdentity(1)
+        ),
+        LogicalLink(
+          joinOpDesc.operatorIdentifier,
+          PortIdentity(),
+          sink.operatorIdentifier,
+          PortIdentity()
+        )
+      ),
+      resultStorage,
+      new WorkflowContext()
+    )
+
+    val globalSearchNoPruningResult = new CostBasedRegionPlanGenerator(
+      workflow.context,
+      workflow.physicalPlan,
+      resultStorage,
+      CONTROLLER
+    ).topDownSearch(globalSearch = true, oChains = false, oCleanEdges = false)
+
+    // Should have explored all possible states (2^4 states)
+    assert(globalSearchNoPruningResult.numStatesExplored == 16)
+
+    val globalSearchOChainsResult = new CostBasedRegionPlanGenerator(
+      workflow.context,
+      workflow.physicalPlan,
+      resultStorage,
+      CONTROLLER
+    ).topDownSearch(globalSearch = true, oCleanEdges = false)
+
+    // By applying pruning based on Chains alone, it should start with a state where CSV->Build is pipelined because
+    // this edge is in the same chain as another blocking edge. That reduces the search space to 8 states.
+    assert(globalSearchOChainsResult.numStatesExplored == 8)
+
+    val globalSearchOCleanEdgesResult = new CostBasedRegionPlanGenerator(
+      workflow.context,
+      workflow.physicalPlan,
+      resultStorage,
+      CONTROLLER
+    ).topDownSearch(globalSearch = true, oChains = false)
+
+    // By applying pruning based on Clean Edges (bridges) alone, it should start with a state where Probe->Sink is
+    // pipelined because this edge is a clean edge. That reduces the search space to 8 states.
+    assert(globalSearchOCleanEdgesResult.numStatesExplored == 8)
+
+    val globalSearchAllPruningEnabledResult = new CostBasedRegionPlanGenerator(
+      workflow.context,
+      workflow.physicalPlan,
+      resultStorage,
+      CONTROLLER
+    ).topDownSearch(globalSearch = true)
+
+    // By combining both pruning techniques, the search should start with a state where both CSV->Build and Probe->Sink
+    // are pipelined, reducing the search space to 4 states.
+    assert(globalSearchAllPruningEnabledResult.numStatesExplored == 4)
+
+  }
+
 }

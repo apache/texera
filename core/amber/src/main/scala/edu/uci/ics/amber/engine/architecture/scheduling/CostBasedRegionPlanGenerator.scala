@@ -132,7 +132,11 @@ class CostBasedRegionPlanGenerator(
     * @return A region DAG.
     */
   private def createRegionDAG(): DirectedAcyclicGraph[Region, RegionLink] = {
-    val searchResult = bottomUpSearch(globalSearch = AmberConfig.useGlobalSearch)
+    val searchResult = if (AmberConfig.useTopDownSearch) {
+      topDownSearch(globalSearch = AmberConfig.useGlobalSearch)
+    } else {
+      bottomUpSearch(globalSearch = AmberConfig.useGlobalSearch)
+    }
     // Only a non-dependee blocking link that has not already been materialized should be replaced
     // with a materialization write op + materialization read op.
     logger.info(
@@ -304,6 +308,125 @@ class CostBasedRegionPlanGenerator(
           // greedy search, only include an unvisited neighbor with the lowest cost
           if (filteredNeighborStates.nonEmpty) {
             val minCostNeighborState = filteredNeighborStates.minBy(neighborState =>
+              tryConnectRegionDAG(
+                physicalPlan.getNonMaterializedBlockingAndDependeeLinks ++ neighborState
+              ) match {
+                case Left(regionDAG) =>
+                  evaluate(regionDAG.vertexSet().asScala.toSet, regionDAG.edgeSet().asScala.toSet)
+                case Right(_) =>
+                  Double.MaxValue
+              }
+            )
+            queue.enqueue(minCostNeighborState)
+          }
+        }
+      }
+    }
+
+    val searchTime = System.nanoTime() - startTime
+    bestResult.copy(
+      searchTimeNanoSeconds = searchTime,
+      numStatesExplored = visited.size
+    )
+  }
+
+  /**
+    * Another direction to perform the search. Depending on the configuration, either a global search or a greedy search
+    * will be performed to find an optimal plan. The search starts from a plan where all edges are materialized, and
+    * leads to a low-cost schedulable plan by changing materialized non-blocking edges to pipelined.
+    * By default, all pruning techniques are enabled (chains, clean edges).
+    *
+    * @return A SearchResult containing the plan, the region DAG (without materializations added yet), the cost, the
+    *         time to finish search, and the number of states explored.
+    */
+  def topDownSearch(
+      globalSearch: Boolean = false,
+      oChains: Boolean = true,
+      oCleanEdges: Boolean = true
+  ): SearchResult = {
+    val startTime = System.nanoTime()
+    // Starting from a state where all non-blocking edges are materialized
+    val originalSeedState = physicalPlan.links.diff(
+      physicalPlan.getNonMaterializedBlockingAndDependeeLinks
+    )
+
+    // Chain optimization: an edge in the same chain as a blocking edge should not be materialized
+    val seedStateOptimizedByChainsIfApplicable = if (oChains) {
+      val edgesInChainWithBlockingEdge = physicalPlan.maxChains
+        .filter(chain =>
+          chain.intersect(physicalPlan.getNonMaterializedBlockingAndDependeeLinks).nonEmpty
+        )
+        .flatten
+      originalSeedState.diff(edgesInChainWithBlockingEdge)
+    } else {
+      originalSeedState
+    }
+
+    // Clean edge optimization: a clean edge should not be materialized
+    val finalSeedState = if (oCleanEdges) {
+      seedStateOptimizedByChainsIfApplicable.intersect(physicalPlan.getNonBridgeNonBlockingLinks)
+    } else {
+      seedStateOptimizedByChainsIfApplicable
+    }
+
+    // Queue to hold states to be explored, starting with the seed state
+    val queue: mutable.Queue[Set[PhysicalLink]] = mutable.Queue(finalSeedState)
+    // Keep track of visited states to avoid revisiting
+    val visited: mutable.Set[Set[PhysicalLink]] = mutable.Set.empty[Set[PhysicalLink]]
+    // Initialize the bestResult with an impossible high cost for comparison
+    var bestResult: SearchResult = SearchResult(
+      state = Set.empty,
+      regionDAG = new DirectedAcyclicGraph[Region, RegionLink](classOf[RegionLink]),
+      cost = Double.PositiveInfinity
+    )
+
+    while (queue.nonEmpty) {
+      val currentState = queue.dequeue()
+      visited.add(currentState)
+      tryConnectRegionDAG(
+        physicalPlan.getNonMaterializedBlockingAndDependeeLinks ++ currentState
+      ) match {
+        case Left(regionDAG) =>
+          updateOptimumIfApplicable(regionDAG)
+          addNeighborStatesToFrontier()
+        // No need to explore further
+        case Right(_) =>
+          addNeighborStatesToFrontier()
+      }
+
+      /**
+        * An internal method of top-down search that updates the current optimum if the examined state is schedulable
+        * and has a lower cost.
+        */
+      def updateOptimumIfApplicable(regionDAG: DirectedAcyclicGraph[Region, RegionLink]): Unit = {
+        // Calculate the current state's cost and update the bestResult if it's lower
+        val cost =
+          evaluate(regionDAG.vertexSet().asScala.toSet, regionDAG.edgeSet().asScala.toSet)
+        if (cost < bestResult.cost) {
+          bestResult = SearchResult(currentState, regionDAG, cost)
+        }
+      }
+
+      /**
+        * An internal method of top-down search that performs state transitions (changing an materialized edge to
+        * pipelined) to include the unvisited neighbor(s) of the current state in the frontier (i.e., the queue).
+        * If using global search, all unvisited neighbors will be included. Otherwise in a greedy search, only the
+        * neighbor with the lowest cost will be included.
+        */
+      def addNeighborStatesToFrontier(): Unit = {
+        val unvisitedNeighborStates = currentState
+          .map(edge => currentState - edge)
+          .filter(neighborState =>
+            !visited.contains(neighborState) && !queue.contains(neighborState)
+          )
+
+        if (globalSearch) {
+          // include all unvisited neighbors
+          unvisitedNeighborStates.foreach(neighborState => queue.enqueue(neighborState))
+        } else {
+          // greedy search, only include an unvisited neighbor with the lowest cost
+          if (unvisitedNeighborStates.nonEmpty) {
+            val minCostNeighborState = unvisitedNeighborStates.minBy(neighborState =>
               tryConnectRegionDAG(
                 physicalPlan.getNonMaterializedBlockingAndDependeeLinks ++ neighborState
               ) match {
