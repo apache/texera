@@ -35,7 +35,6 @@ class ArrowSourceOpExec(
       schema = Some(schemaFunc())
       reader = Some(arrowReader)
       root = Some(vectorRoot)
-      arrowReader.loadNextBatch()
     } catch {
       case e: Exception =>
         close() // Ensure resources are closed in case of an error
@@ -52,8 +51,8 @@ class ArrowSourceOpExec(
         if (root.exists(_.getRowCount > currentIndex)) {
           true
         } else {
-          reader.exists(r => {
-            val hasMoreBatches = r.loadNextBatch()
+          reader.exists(arrowReader => {
+            val hasMoreBatches = arrowReader.loadNextBatch()
             if (hasMoreBatches) {
               currentIndex = 0
               currentBatchIndex += 1
@@ -66,17 +65,11 @@ class ArrowSourceOpExec(
       }
 
       override def next(): TupleLike = {
-        if (!hasNext) {
-          throw new NoSuchElementException("No more tuples available")
-        }
-        root match {
-          case Some(r) =>
-            val tuple = ArrowUtils.getTexeraTuple(currentIndex, r)
-            currentIndex += 1
-            tuple
-          case None =>
-            throw new NoSuchElementException("No more tuples available")
-        }
+        root.map { vectorSchemaRoot =>
+          val tuple = ArrowUtils.getTexeraTuple(currentIndex, vectorSchemaRoot)
+          currentIndex += 1
+          tuple
+        }.get
       }
     }
 
