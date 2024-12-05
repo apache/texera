@@ -24,7 +24,11 @@ import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowVersionRe
 import org.jooq.types.UInteger
 import edu.uci.ics.amber.util.ArrowUtils
 
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
+import java.io.{
+  InputStream,
+  PipedInputStream,
+  PipedOutputStream
+}
 import java.nio.charset.StandardCharsets
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -38,9 +42,8 @@ import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector._
 import org.apache.arrow.vector.ipc.ArrowFileWriter
 
-import java.nio.ByteBuffer
-import java.nio.channels.WritableByteChannel
 import java.io.OutputStream
+import java.nio.channels.Channels
 
 object ResultExportService {
   final private val UPLOAD_BATCH_ROW_COUNT = 10000
@@ -101,16 +104,20 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
       results: Iterable[Tuple],
       headers: List[String]
   ): ResultExportResponse = {
-    val stream = new ByteArrayOutputStream()
-    val writer = CSVWriter.open(stream)
-    writer.writeRow(headers)
-    results.foreach { tuple =>
-      writer.writeRow(tuple.getFields.toIndexedSeq)
-    }
-    writer.close()
+    val pipedOutputStream = new PipedOutputStream()
+    val pipedInputStream = new PipedInputStream(pipedOutputStream)
+
+    new Thread(() => {
+      val writer = CSVWriter.open(pipedOutputStream)
+      writer.writeRow(headers)
+      results.foreach { tuple =>
+        writer.writeRow(tuple.getFields.toIndexedSeq)
+      }
+      writer.close()
+    }).start()
 
     val fileName = generateFileName(request, "csv")
-    saveToDatasets(request, user, stream.toByteArray, fileName)
+    saveToDatasets(request, user, pipedInputStream, fileName)
 
     ResultExportResponse(
       "success",
@@ -192,7 +199,15 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
     val field: Any = selectedRow.getField(columnIndex)
     val dataBytes: Array[Byte] = convertFieldToBytes(field)
 
-    saveToDatasets(request, user, dataBytes, filename)
+    val pipedOutputStream = new PipedOutputStream()
+    val pipedInputStream = new PipedInputStream(pipedOutputStream)
+
+    new Thread(() => {
+      pipedOutputStream.write(dataBytes)
+      pipedOutputStream.close()
+    }).start()
+
+    saveToDatasets(request, user, pipedInputStream, filename)
 
     ResultExportResponse(
       "success",
@@ -346,33 +361,37 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
       return ResultExportResponse("error", "No results to export")
     }
 
-    val stream = new ByteArrayOutputStream()
-    val channel = new WritableByteChannelImpl(stream)
+    val pipedOutputStream = new PipedOutputStream()
+    val pipedInputStream = new PipedInputStream(pipedOutputStream)
     val allocator = new RootAllocator()
 
-    try {
-      val (writer, root) = createArrowWriter(results, allocator, channel)
+    new Thread(() => {
       try {
-        writeArrowData(writer, root, results)
+        val (writer, root) = createArrowWriter(results, allocator, pipedOutputStream)
+        try {
+          writeArrowData(writer, root, results)
+        } finally {
+          writer.close()
+          root.close()
+        }
       } finally {
-        writer.close()
-        root.close()
+        allocator.close()
+        pipedOutputStream.close()
       }
-      finalizeArrowExport(request, user, stream, "arrow")
-    } finally {
-      allocator.close()
-      channel.close()
-    }
+    }).start()
+
+    finalizeArrowExport(request, user, pipedInputStream, "arrow")
   }
 
   private def createArrowWriter(
       results: Iterable[Tuple],
       allocator: RootAllocator,
-      channel: WritableByteChannel
+      outputStream: OutputStream
   ): (ArrowFileWriter, VectorSchemaRoot) = {
     val schema = results.head.getSchema
     val arrowSchema = ArrowUtils.fromTexeraSchema(schema)
     val root = VectorSchemaRoot.create(arrowSchema, allocator)
+    val channel = Channels.newChannel(outputStream)
     val writer = new ArrowFileWriter(root, null, channel)
     (writer, root)
   }
@@ -412,11 +431,20 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
   private def finalizeArrowExport(
       request: ResultExportRequest,
       user: User,
-      stream: ByteArrayOutputStream,
+      stream: InputStream,
       extension: String
   ): ResultExportResponse = {
+    val pipedOutputStream = new PipedOutputStream()
+    val pipedInputStream = new PipedInputStream(pipedOutputStream)
+
+    new Thread(() => {
+      stream.transferTo(pipedOutputStream)
+      pipedOutputStream.close()
+    }).start()
+
     val fileName = generateFileName(request, extension)
-    saveToDatasets(request, user, stream.toByteArray, fileName)
+    saveToDatasets(request, user, pipedInputStream, fileName)
+
     ResultExportResponse(
       "success",
       s"Arrow file saved as $fileName to Datasets ${request.datasetIds.mkString(",")}"
@@ -438,17 +466,16 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
   private def saveToDatasets(
       request: ResultExportRequest,
       user: User,
-      data: Array[Byte],
+      dataStream: InputStream,
       fileName: String
   ): Unit = {
-    val fileStream = new ByteArrayInputStream(data)
     request.datasetIds.foreach { did =>
       val datasetPath = PathUtils.getDatasetPath(UInteger.valueOf(did))
       val filePath = datasetPath.resolve(fileName)
       createNewDatasetVersionByAddingFiles(
         UInteger.valueOf(did),
         user,
-        Map(filePath -> fileStream)
+        Map(filePath -> dataStream)
       )
     }
   }
@@ -460,30 +487,4 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
       case data              => data.toString.getBytes(StandardCharsets.UTF_8)
     }
   }
-
-  // Add this helper class to convert OutputStream to WritableByteChannel
-  private class WritableByteChannelImpl(out: OutputStream) extends WritableByteChannel {
-    private var open = true
-
-    override def write(src: ByteBuffer): Int = {
-      val len = src.remaining
-      if (src.hasArray) {
-        out.write(src.array, src.position, len)
-        src.position(src.position + len)
-      } else {
-        val arr = new Array[Byte](len)
-        src.get(arr)
-        out.write(arr)
-      }
-      len
-    }
-
-    override def isOpen: Boolean = open
-
-    override def close(): Unit = {
-      open = false
-      out.close()
-    }
-  }
-
 }
