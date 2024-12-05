@@ -2,12 +2,12 @@ package edu.uci.ics.texera.web
 
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.core.storage.result.OpResultStorage
+import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
 import edu.uci.ics.amber.engine.common.client.AmberClient
-import edu.uci.ics.amber.engine.common.model.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.common.{AmberRuntime, Utils}
 import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource
-import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import io.dropwizard.Configuration
 import io.dropwizard.setup.{Bootstrap, Environment}
 import io.dropwizard.websockets.WebsocketBundle

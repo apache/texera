@@ -8,27 +8,15 @@ import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.storage.result.OpResultStorage
 import edu.uci.ics.amber.core.storage.util.dataset.GitVersionControlLocalFileStorage
 import edu.uci.ics.amber.core.storage.util.mongo.MongoDatabaseManager
-import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
-import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
-  COMPLETED,
-  FAILED
-}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{COMPLETED, FAILED}
 import edu.uci.ics.amber.engine.common.AmberRuntime.scheduleRecurringCallThroughActorSystem
 import edu.uci.ics.amber.engine.common.Utils.{maptoStatusCode, objectMapper}
-import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
-import edu.uci.ics.amber.engine.common.{AmberConfig, AmberRuntime, Utils}
+import edu.uci.ics.amber.engine.common.{AmberConfig, Utils}
 import edu.uci.ics.amber.util.PathUtils
 import edu.uci.ics.amber.virtualidentity.ExecutionIdentity
-import edu.uci.ics.texera.web.TexeraWebApplication.startLocalProcess
 import edu.uci.ics.texera.web.auth.JwtAuth.jwtConsumer
-import edu.uci.ics.texera.web.auth.{
-  GuestAuthFilter,
-  SessionUser,
-  UserAuthenticator,
-  UserRoleAuthorizer
-}
+import edu.uci.ics.texera.web.auth.{GuestAuthFilter, SessionUser, UserAuthenticator, UserRoleAuthorizer}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions
 import edu.uci.ics.texera.web.resource._
 import edu.uci.ics.texera.web.resource.auth.{AuthResource, GoogleAuthResource}
@@ -36,34 +24,17 @@ import edu.uci.ics.texera.web.resource.dashboard.DashboardResource
 import edu.uci.ics.texera.web.resource.dashboard.admin.execution.AdminExecutionResource
 import edu.uci.ics.texera.web.resource.dashboard.admin.user.AdminUserResource
 import edu.uci.ics.texera.web.resource.dashboard.hub.workflow.HubWorkflowResource
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.{
-  DatasetFileNode,
-  DatasetFileNodeSerializer
-}
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.{
-  DatasetAccessResource,
-  DatasetResource
-}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.{DatasetFileNode, DatasetFileNodeSerializer}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.{DatasetAccessResource, DatasetResource}
 import edu.uci.ics.texera.web.resource.dashboard.user.discussion.UserDiscussionResource
-import edu.uci.ics.texera.web.resource.dashboard.user.project.{
-  ProjectAccessResource,
-  ProjectResource,
-  PublicProjectResource
-}
+import edu.uci.ics.texera.web.resource.dashboard.user.project.{ProjectAccessResource, ProjectResource, PublicProjectResource}
 import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.{
-  WorkflowAccessResource,
-  WorkflowExecutionsResource,
-  WorkflowResource,
-  WorkflowVersionResource
-}
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.{WorkflowAccessResource, WorkflowExecutionsResource, WorkflowResource, WorkflowVersionResource}
 import edu.uci.ics.texera.web.resource.languageserver.PythonLanguageServerManager
 import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
 import io.dropwizard.auth.{AuthDynamicFeature, AuthValueFactoryProvider}
-import io.dropwizard.lifecycle.ServerLifecycleListener
 import io.dropwizard.setup.{Bootstrap, Environment}
 import io.dropwizard.websockets.WebsocketBundle
-import org.apache.commons.jcs3.access.exception.InvalidArgumentException
 import org.eclipse.jetty.server.session.SessionHandler
 import org.eclipse.jetty.servlet.ErrorPageErrorHandler
 import org.eclipse.jetty.websocket.server.WebSocketUpgradeFilter
@@ -72,7 +43,6 @@ import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 
 import java.net.URI
 import java.time.Duration
-import scala.annotation.tailrec
 import scala.concurrent.duration.DurationInt
 
 object TexeraWebApplication {
@@ -84,60 +54,6 @@ object TexeraWebApplication {
     datasetPaths.foreach(path => {
       GitVersionControlLocalFileStorage.discardUncommittedChanges(path)
     })
-  }
-
-  private def redirectStream(
-      inputStream: java.io.InputStream,
-      outputStream: java.io.PrintStream
-  ): Unit = {
-    // Use a Future to handle each stream redirection asynchronously
-    FuturePool.unboundedPool {
-      val reader = new BufferedReader(new InputStreamReader(inputStream))
-      var line: String = null
-      while ({
-        line = reader.readLine(); line != null
-      }) {
-        outputStream.println(line)
-      }
-    }
-  }
-
-  private def startLocalProcess(newMainClass: String, args: Seq[String]): Process = {
-    val javaHome = sys.props("java.home")
-    val javaBin = s"$javaHome/bin/java"
-    val classpath = sys.props("java.class.path")
-
-    // Essential JVM options you want to keep (modify as needed)
-    val jvmOptions = Seq(
-      "-Dfile.encoding=UTF-8",
-      "-classpath",
-      classpath
-    )
-
-    // Main class and arguments
-    val mainClass = newMainClass
-
-    // Construct the command
-    val command = Seq(javaBin) ++ jvmOptions ++ Seq(mainClass) ++ args
-
-    // Start the new process
-    val process = new ProcessBuilder(command: _*).start()
-
-    // Redirect child process stdout and stderr to main process
-    // Note that InputStream IS the stdout.
-    redirectStream(process.getInputStream, System.out)
-    redirectStream(process.getErrorStream, System.err)
-
-    // Register a shutdown hook to terminate the new process when the original process exits
-    sys.addShutdownHook {
-      println(s"Shutting down $newMainClass process...")
-      process.destroy() // Gracefully stop the new process
-      if (process.isAlive) {
-        process.destroyForcibly() // Forcefully stop if it’s still running
-      }
-      println(s"$newMainClass process terminated.")
-    }
-    process
   }
 
   def main(args: Array[String]): Unit = {
@@ -278,17 +194,6 @@ class TexeraWebApplication
     environment.jersey.register(classOf[UserQuotaResource])
     environment.jersey.register(classOf[UserDiscussionResource])
     environment.jersey.register(classOf[AIAssistantResource])
-
-    if (AmberConfig.executionServerMode == "local") {
-      environment.lifecycle.addServerLifecycleListener(new ServerLifecycleListener() {
-        def serverStarted(server: Server): Unit = {
-          startLocalProcess(
-            "edu.uci.ics.texera.web.ExecutionRuntimeApplication",
-            Seq.empty
-          )
-        }
-      })
-    }
   }
 
   /**
