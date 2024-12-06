@@ -68,7 +68,7 @@ object ComputingUnitMaster {
         .resolve("src")
         .resolve("main")
         .resolve("resources")
-        .resolve("execution-runtime-config.yml")
+        .resolve("computing-unit-master-config.yml")
         .toString
     )
   }

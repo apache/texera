@@ -117,8 +117,7 @@ class ClusterListener extends Actor with AmberLogging {
       case other => //skip
     }
 
-    val addr = getAllAddress
-    numWorkerNodesInCluster = addr.size
+    numWorkerNodesInCluster = getAllAddress.size
     SessionState.getAllSessionStates.foreach { state =>
       state.send(ClusterStatusUpdateEvent(numWorkerNodesInCluster))
     }
