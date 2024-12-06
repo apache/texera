@@ -3,7 +3,6 @@ package edu.uci.ics.texera.web
 import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.github.dirkraft.dropwizard.fileassets.FileAssetsBundle
-import com.github.toastshaman.dropwizard.auth.jwt.JwtAuthFilter
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.storage.result.OpResultStorage
 import edu.uci.ics.amber.core.storage.util.dataset.GitVersionControlLocalFileStorage
@@ -18,13 +17,8 @@ import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.engine.common.{AmberConfig, Utils}
 import edu.uci.ics.amber.util.PathUtils
 import edu.uci.ics.amber.virtualidentity.ExecutionIdentity
-import edu.uci.ics.texera.web.auth.JwtAuth.jwtConsumer
-import edu.uci.ics.texera.web.auth.{
-  GuestAuthFilter,
-  SessionUser,
-  UserAuthenticator,
-  UserRoleAuthorizer
-}
+import edu.uci.ics.texera.web.auth.JwtAuth.setupJwtAuth
+import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions
 import edu.uci.ics.texera.web.resource._
 import edu.uci.ics.texera.web.resource.auth.{AuthResource, GoogleAuthResource}
@@ -55,7 +49,7 @@ import edu.uci.ics.texera.web.resource.dashboard.user.workflow.{
 }
 import edu.uci.ics.texera.web.resource.languageserver.PythonLanguageServerManager
 import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
-import io.dropwizard.auth.{AuthDynamicFeature, AuthValueFactoryProvider}
+import io.dropwizard.auth.AuthValueFactoryProvider
 import io.dropwizard.setup.{Bootstrap, Environment}
 import io.dropwizard.websockets.WebsocketBundle
 import org.eclipse.jetty.server.session.SessionHandler
@@ -170,27 +164,7 @@ class TexeraWebApplication
     environment.jersey.register(classOf[SystemMetadataResource])
     // environment.jersey().register(classOf[MockKillWorkerResource])
 
-    if (AmberConfig.isUserSystemEnabled) {
-      // register JWT Auth layer
-      environment.jersey.register(
-        new AuthDynamicFeature(
-          new JwtAuthFilter.Builder[SessionUser]()
-            .setJwtConsumer(jwtConsumer)
-            .setRealm("realm")
-            .setPrefix("Bearer")
-            .setAuthenticator(UserAuthenticator)
-            .setAuthorizer(UserRoleAuthorizer)
-            .buildAuthFilter()
-        )
-      )
-    } else {
-      // register Guest Auth layer
-      environment.jersey.register(
-        new AuthDynamicFeature(
-          new GuestAuthFilter.Builder().setAuthorizer(UserRoleAuthorizer).buildAuthFilter()
-        )
-      )
-    }
+    setupJwtAuth(environment)
 
     environment.jersey.register(
       new AuthValueFactoryProvider.Binder[SessionUser](classOf[SessionUser])

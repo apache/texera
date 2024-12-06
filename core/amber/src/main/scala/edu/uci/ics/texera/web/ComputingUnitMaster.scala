@@ -7,6 +7,7 @@ import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.{AmberRuntime, Utils}
+import edu.uci.ics.texera.web.auth.JwtAuth.setupJwtAuth
 import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource
 import io.dropwizard.Configuration
 import io.dropwizard.setup.{Bootstrap, Environment}
@@ -100,5 +101,6 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
     // register MultiPartFeature
     environment.jersey.register(classOf[MultiPartFeature])
 
+    setupJwtAuth(environment)
   }
 }
