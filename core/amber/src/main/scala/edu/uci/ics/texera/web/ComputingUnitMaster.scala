@@ -19,7 +19,7 @@ import org.glassfish.jersey.media.multipart.MultiPartFeature
 import java.time.Duration
 import scala.annotation.tailrec
 
-object ExecutionRuntimeApplication {
+object ComputingUnitMaster {
 
   def createAmberRuntime(
       workflowContext: WorkflowContext,
@@ -62,7 +62,7 @@ object ExecutionRuntimeApplication {
     // start actor system master node
     AmberRuntime.startActorMaster(clusterMode)
     // start web server
-    new ExecutionRuntimeApplication().run(
+    new ComputingUnitMaster().run(
       "server",
       Utils.amberHomePath
         .resolve("src")
@@ -74,7 +74,7 @@ object ExecutionRuntimeApplication {
   }
 }
 
-class ExecutionRuntimeApplication
+class ComputingUnitMaster
     extends io.dropwizard.Application[Configuration]
     with LazyLogging {
 
