@@ -79,8 +79,8 @@
         #nameInput
         class="resource-name-edit-input"
         [(ngModel)]="entry.name"
-        (blur)="confirmUpdateWorkflowCustomName(entry.name)"
-        (keydown.enter)="confirmUpdateWorkflowCustomName(entry.name)"
+        (blur)="confirmUpdateCustomName(entry.name)"
+        (keydown.enter)="confirmUpdateCustomName(entry.name)"
         (click)="$event.stopPropagation()"
         autofocus />
 
@@ -94,8 +94,8 @@
         #descriptionInput
         class="resource-description-edit-textarea"
         [(ngModel)]="entry.description"
-        (blur)="confirmUpdateWorkflowCustomDescription(entry.description)"
-        (keydown.enter)="confirmUpdateWorkflowCustomDescription(entry.description)"
+        (blur)="confirmUpdateCustomDescription(entry.description)"
+        (keydown.enter)="confirmUpdateCustomDescription(entry.description)"
         (click)="$event.stopPropagation()"
         autofocus></textarea>
     </div>
@@ -105,7 +105,7 @@
       nzFlex="50px"
       class="resource-info">
       <texera-user-avatar
-        [googleAvatar]="'https://lh3.googleusercontent.com/a/' + (entry.ownerGoogleAvatar || '')"
+        [googleAvatar]="entry.ownerGoogleAvatar"
         userColor="#1E90FF"
         [userName]="entry.ownerName || 'User'"
         [isOwner]="entry.ownerId === this.currentUid">

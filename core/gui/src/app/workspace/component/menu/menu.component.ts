@@ -1,5 +1,5 @@
 import { DatePipe, Location } from "@angular/common";
-import { Component, ElementRef, Input, OnInit, ViewChild } from "@angular/core";
+import { Component, ElementRef, Input, OnDestroy, OnInit, ViewChild } from "@angular/core";
 import { environment } from "../../../../environments/environment";
 import { UserService } from "../../../common/service/user/user.service";
 import {
@@ -30,6 +30,8 @@ import { NzModalService } from "ng-zorro-antd/modal";
 import { ResultExportationComponent } from "../result-exportation/result-exportation.component";
 import { ReportGenerationService } from "../../service/report-generation/report-generation.service";
 import { ShareAccessComponent } from "src/app/dashboard/component/user/share-access/share-access.component";
+import { PanelService } from "../../service/panel/panel.service";
+import { DASHBOARD_USER_WORKFLOW } from "../../../app-routing.constant";
 /**
  * MenuComponent is the top level menu bar that shows
  *  the Texera title and workflow execution button
@@ -51,7 +53,7 @@ import { ShareAccessComponent } from "src/app/dashboard/component/user/share-acc
   templateUrl: "menu.component.html",
   styleUrls: ["menu.component.scss"],
 })
-export class MenuComponent implements OnInit {
+export class MenuComponent implements OnInit, OnDestroy {
   public executionState: ExecutionState; // set this to true when the workflow is started
   public ExecutionState = ExecutionState; // make Angular HTML access enum definition
   public emailNotificationEnabled: boolean = environment.workflowEmailNotificationEnabled;
@@ -60,6 +62,8 @@ export class MenuComponent implements OnInit {
   public isSaving: boolean = false;
   public isWorkflowModifiable: boolean = false;
   public workflowId?: number;
+  public isExportDeactivate: boolean = false;
+  protected readonly DASHBOARD_USER_WORKFLOW = DASHBOARD_USER_WORKFLOW;
 
   @Input() public writeAccess: boolean = false;
   @Input() public pid?: number = undefined;
@@ -101,7 +105,8 @@ export class MenuComponent implements OnInit {
     public operatorMenu: OperatorMenuService,
     public coeditorPresenceService: CoeditorPresenceService,
     private modalService: NzModalService,
-    private reportGenerationService: ReportGenerationService
+    private reportGenerationService: ReportGenerationService,
+    private panelService: PanelService
   ) {
     workflowWebsocketService
       .subscribeToEvent("ExecutionDurationUpdateEvent")
@@ -149,8 +154,20 @@ export class MenuComponent implements OnInit {
         this.applyRunButtonBehavior(this.getRunButtonBehavior());
       });
 
+    // Subscribe to WorkflowResultExportService observable
+    this.workflowResultExportService
+      .getExportOnAllOperatorsStatusStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(hasResultToExport => {
+        this.isExportDeactivate = !this.workflowResultExportService.exportExecutionResultEnabled || !hasResultToExport;
+      });
+
     this.registerWorkflowMetadataDisplayRefresh();
     this.handleWorkflowVersionDisplay();
+  }
+
+  ngOnDestroy(): void {
+    this.workflowResultExportService.resetFlags();
   }
 
   public async onClickOpenShareAccess(): Promise<void> {
@@ -271,6 +288,14 @@ export class MenuComponent implements OnInit {
     this.executeWorkflowService.takeGlobalCheckpoint();
   }
 
+  public onClickClosePanels(): void {
+    this.panelService.closePanels();
+  }
+
+  public onClickResetPanels(): void {
+    this.panelService.resetPanels();
+  }
+
   /**
    * get the html to export all results.
    */
@@ -345,11 +370,12 @@ export class MenuComponent implements OnInit {
    */
   public onClickExportExecutionResult(exportType: string): void {
     this.modalService.create({
-      nzTitle: "Export Result and Save to a Dataset",
+      nzTitle: "Export All Operators Result",
       nzContent: ResultExportationComponent,
       nzData: {
         exportType: exportType,
         workflowName: this.currentWorkflowName,
+        sourceTriggered: "menu",
       },
       nzFooter: null,
     });

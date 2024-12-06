@@ -1,14 +1,21 @@
-import { ChangeDetectorRef, Component, OnInit, ViewChild } from "@angular/core";
+import { ChangeDetectorRef, Component, NgZone, OnInit, ViewChild } from "@angular/core";
 import { UserService } from "../../common/service/user/user.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { FlarumService } from "../service/user/flarum/flarum.service";
 import { HttpErrorResponse } from "@angular/common/http";
 import { ActivatedRoute, NavigationEnd, Router } from "@angular/router";
 import { HubComponent } from "../../hub/component/hub.component";
-import { GoogleAuthService } from "../../common/service/user/google-auth.service";
-import { NotificationService } from "../../common/service/notification/notification.service";
-import { catchError, mergeMap } from "rxjs/operators";
-import { throwError } from "rxjs";
+
+import {
+  DASHBOARD_ADMIN_EXECUTION,
+  DASHBOARD_ADMIN_GMAIL,
+  DASHBOARD_ADMIN_USER,
+  DASHBOARD_USER_DATASET,
+  DASHBOARD_USER_DISCUSSION,
+  DASHBOARD_USER_PROJECT,
+  DASHBOARD_USER_QUOTA,
+  DASHBOARD_USER_WORKFLOW,
+} from "../../app-routing.constant";
 
 @Component({
   selector: "texera-dashboard",
@@ -24,8 +31,16 @@ export class DashboardComponent implements OnInit {
   displayForum: boolean = true;
   displayNavbar: boolean = true;
   isCollpased: boolean = false;
-  routesWithoutNavbar: string[] = ["/workspace", "/home", "/about"];
+  routesWithoutNavbar: string[] = ["/workspace"];
   showLinks: boolean = false;
+  protected readonly DASHBOARD_USER_PROJECT = DASHBOARD_USER_PROJECT;
+  protected readonly DASHBOARD_USER_WORKFLOW = DASHBOARD_USER_WORKFLOW;
+  protected readonly DASHBOARD_USER_DATASET = DASHBOARD_USER_DATASET;
+  protected readonly DASHBOARD_USER_QUOTA = DASHBOARD_USER_QUOTA;
+  protected readonly DASHBOARD_USER_DISCUSSION = DASHBOARD_USER_DISCUSSION;
+  protected readonly DASHBOARD_ADMIN_USER = DASHBOARD_ADMIN_USER;
+  protected readonly DASHBOARD_ADMIN_GMAIL = DASHBOARD_ADMIN_GMAIL;
+  protected readonly DASHBOARD_ADMIN_EXECUTION = DASHBOARD_ADMIN_EXECUTION;
 
   constructor(
     private userService: UserService,
@@ -33,8 +48,7 @@ export class DashboardComponent implements OnInit {
     private flarumService: FlarumService,
     private cdr: ChangeDetectorRef,
     private route: ActivatedRoute,
-    private googleAuthService: GoogleAuthService,
-    private notificationService: NotificationService
+    private ngZone: NgZone
   ) {}
 
   ngOnInit(): void {
@@ -43,21 +57,6 @@ export class DashboardComponent implements OnInit {
 
     this.isCollpased = false;
 
-    if (!this.isLogin) {
-      this.googleAuthService.googleAuthInit(document.getElementById("googleButton"));
-      this.googleAuthService.googleCredentialResponse
-        .pipe(mergeMap(res => this.userService.googleLogin(res.credential)))
-        .pipe(
-          catchError((e: unknown) => {
-            this.notificationService.error((e as Error).message, { nzDuration: 10 });
-            return throwError(() => e);
-          })
-        )
-        .pipe(untilDestroyed(this))
-        .subscribe(() =>
-          this.router.navigateByUrl(this.route.snapshot.queryParams["returnUrl"] || "/dashboard/user/workflow")
-        );
-    }
     if (!document.cookie.includes("flarum_remember") && this.isLogin) {
       this.flarumService
         .auth()
@@ -93,9 +92,12 @@ export class DashboardComponent implements OnInit {
       .userChanged()
       .pipe(untilDestroyed(this))
       .subscribe(() => {
-        this.isLogin = this.userService.isLogin();
-        this.isAdmin = this.userService.isAdmin();
-        this.cdr.detectChanges();
+        this.ngZone.run(() => {
+          this.isLogin = this.userService.isLogin();
+          this.isAdmin = this.userService.isAdmin();
+          this.cdr.detectChanges();
+          this.router.navigateByUrl(this.route.snapshot.queryParams["returnUrl"] || DASHBOARD_USER_WORKFLOW);
+        });
       });
   }
 

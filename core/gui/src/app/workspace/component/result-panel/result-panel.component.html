@@ -18,7 +18,7 @@
       nz-menu-item
       (click)="openPanel()"
       *ngIf="!width"
-      nz-tooltip="Result Panel: {{operatorTitle}}">
+      nz-tooltip="Result Panel{{operatorTitle ? ': ' + operatorTitle : ''}}">
       <span
         nz-icon
         nzType="border"></span>
@@ -38,7 +38,8 @@
   [style.width.px]="width"
   [style.height.px]="height"
   (nzResize)="onResize($event)"
-  [cdkDragFreeDragPosition]="dragPosition">
+  [cdkDragFreeDragPosition]="dragPosition"
+  (cdkDragEnded)="handleEndDrag($event)">
   <ul
     nz-menu
     id="panel-button"
@@ -67,7 +68,7 @@
     <h4
       id="title"
       cdkDragHandle>
-      Result Panel: {{operatorTitle}}
+      Result Panel{{operatorTitle ? ': ' + operatorTitle : ''}}
     </h4>
     <nz-tabset
       [nzSize]="'small'"
@@ -88,5 +89,5 @@
   </div>
   <nz-resize-handles
     *ngIf="width"
-    [nzDirections]="['right', 'bottom', 'bottomRight']"></nz-resize-handles>
+    [nzDirections]="isPanelDocked() ? ['right'] : ['right', 'bottom', 'bottomRight']"></nz-resize-handles>
 </div>

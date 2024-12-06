@@ -8,12 +8,8 @@
  * @param rowData original row data returns from execution
  */
 import { IndexableObject } from "../../workspace/types/result-table.interface";
-import validator from "validator";
 import deepMap from "deep-map";
-import {
-  AttributeType,
-  SchemaAttribute,
-} from "src/app/workspace/service/dynamic-schema/schema-propagation/schema-propagation.service";
+import { AttributeType, SchemaAttribute } from "../../workspace/types/workflow-compiling.interface";
 
 export function formatBinaryData(value: string): string {
   const length = value.length;
@@ -29,7 +25,7 @@ export function formatBinaryData(value: string): string {
   return `bytes'${leadingBytes}...${trailingBytes}' (length: ${length})`;
 }
 
-export function trimAndFormatData(value: any, attributeType: AttributeType, maxLen: number): string {
+export function trimAndFormatData(value: any, attributeType: AttributeType, maxLen: number): any {
   if (value === null) {
     return "NULL";
   }
@@ -41,7 +37,7 @@ export function trimAndFormatData(value: any, attributeType: AttributeType, maxL
       return value.substring(0, maxLen) + "...";
     }
   }
-  return value?.toString() ?? "";
+  return value ?? "";
 }
 
 export function trimDisplayJsonData(

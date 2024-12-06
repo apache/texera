@@ -1,22 +1,24 @@
 package edu.uci.ics.texera.web.resource
+
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.resource.aiassistant.AiAssistantManager
 import io.dropwizard.auth.Auth
+import kong.unirest.Unirest
+import play.api.libs.json._
+
+import java.nio.file.Paths
+import java.util.Base64
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
-import javax.ws.rs.Consumes
-import play.api.libs.json.Json
-import kong.unirest.Unirest
-import java.util.Base64
 import scala.sys.process._
-import play.api.libs.json._
-import java.nio.file.Paths
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.scala.DefaultScalaModule
 
 case class AIAssistantRequest(code: String, lineNumber: Int, allcode: String)
+
 case class LocateUnannotatedRequest(selectedCode: String, startLine: Int)
+
 case class UnannotatedArgument(
     name: String,
     startLine: Int,
@@ -24,6 +26,7 @@ case class UnannotatedArgument(
     endLine: Int,
     endColumn: Int
 )
+
 object UnannotatedArgument {
   implicit val format: Format[UnannotatedArgument] = Json.format[UnannotatedArgument]
 }
@@ -33,6 +36,7 @@ class AIAssistantResource {
   val objectMapper = new ObjectMapper()
   objectMapper.registerModule(DefaultScalaModule)
   final private lazy val isEnabled = AiAssistantManager.validAIAssistant
+
   @GET
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/isenabled")
@@ -40,8 +44,9 @@ class AIAssistantResource {
 
   /**
     * A way to send prompts to open ai
+    *
     * @param prompt The input prompt for the OpenAI model.
-    * @param user The authenticated session user.
+    * @param user   The authenticated session user.
     * @return A response containing the generated comment from OpenAI or an error message.
     */
   @POST

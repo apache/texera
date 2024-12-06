@@ -2,24 +2,24 @@ package edu.uci.ics.amber.engine.architecture.controller
 
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{AllForOneStrategy, Props, SupervisorStrategy}
-import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
+import edu.uci.ics.amber.core.storage.result.OpResultStorage
+import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
+import edu.uci.ics.amber.engine.architecture.common.{ExecutorDeployment, WorkflowActor}
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkAck
 import edu.uci.ics.amber.engine.architecture.controller.execution.OperatorExecution
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
-  FaultToleranceConfig,
-  StateRestoreConfig
-}
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
   ChannelMarkerPayload,
   ControlInvocation
 }
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
+  FaultToleranceConfig,
+  StateRestoreConfig
+}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
-import edu.uci.ics.amber.engine.common.model.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowFIFOMessage}
-import edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity
-import edu.uci.ics.amber.engine.common.{AmberConfig, CheckpointState, SerializedState}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CLIENT, CONTROLLER, SELF}
-import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
+import edu.uci.ics.amber.engine.common.{AmberConfig, CheckpointState, SerializedState}
+import edu.uci.ics.amber.virtualidentity.ChannelIdentity
 
 import scala.concurrent.duration.DurationInt
 
@@ -163,7 +163,9 @@ class Controller(
   override def getQueuedCredit(channelId: ChannelIdentity): Long = {
     0 // no queued credit for controller
   }
+
   override def handleBackpressure(isBackpressured: Boolean): Unit = {}
+
   // adopted solution from
   // https://stackoverflow.com/questions/54228901/right-way-of-exception-handling-when-using-akka-actors
   override val supervisorStrategy: SupervisorStrategy =
@@ -196,7 +198,8 @@ class Controller(
       regionExecution.getAllOperatorExecutions.foreach {
         case (opId, opExecution) =>
           val op = physicalPlan.getOperator(opId)
-          op.build(
+          ExecutorDeployment.createWorkers(
+            op,
             actorService,
             OperatorExecution(), //use dummy value here
             regionExecution.region.resourceConfig.get.operatorConfigs(opId),

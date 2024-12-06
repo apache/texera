@@ -1,4 +1,5 @@
 package edu.uci.ics.texera.web.model.collab.event
+
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import edu.uci.ics.texera.web.model.collab.response.HeartBeatResponse
