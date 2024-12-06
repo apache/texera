@@ -104,7 +104,6 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
     val pipedOutputStream = new PipedOutputStream()
     val pipedInputStream = new PipedInputStream(pipedOutputStream)
 
-    // Use the thread pool to manage the thread with a lambda expression
     pool.submit(() =>
       {
         val writer = CSVWriter.open(pipedOutputStream)
@@ -202,7 +201,6 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
     val pipedOutputStream = new PipedOutputStream()
     val pipedInputStream = new PipedInputStream(pipedOutputStream)
 
-    // Use the thread pool to manage the thread with a lambda expression
     pool.submit(() =>
       {
         pipedOutputStream.write(dataBytes)
@@ -368,7 +366,6 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
     val pipedInputStream = new PipedInputStream(pipedOutputStream)
     val allocator = new RootAllocator()
 
-    // Use the thread pool to manage the thread with a lambda expression
     pool.submit(() =>
       {
         Using.Manager { use =>
