@@ -74,9 +74,7 @@ object ComputingUnitMaster {
   }
 }
 
-class ComputingUnitMaster
-    extends io.dropwizard.Application[Configuration]
-    with LazyLogging {
+class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with LazyLogging {
 
   override def initialize(bootstrap: Bootstrap[Configuration]): Unit = {
     // add websocket bundle
