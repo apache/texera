@@ -1,4 +1,5 @@
 <div
+  class="about-page-container"
   nz-row
   nzJustify="space-around"
   nzAlign="middle"
@@ -60,9 +61,10 @@
         <a href="https://reporter.nih.gov/project-details/10818244">NIH NIDDK</a>.
       </p>
     </div>
+    <texera-local-login
+      *ngIf="localLogin"
+      class="login-container"
+      nz-col
+      nzFlex="300px"></texera-local-login>
   </div>
-  <texera-local-login
-    *ngIf="localLogin"
-    nz-col
-    nzFlex="300px"></texera-local-login>
 </div>

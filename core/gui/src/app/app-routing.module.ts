@@ -22,6 +22,7 @@ import { HubWorkflowSearchComponent } from "./hub/component/workflow/search/hub-
 import { HubWorkflowComponent } from "./hub/component/workflow/hub-workflow.component";
 import { HubWorkflowDetailComponent } from "./hub/component/workflow/detail/hub-workflow-detail.component";
 import { LandingPageComponent } from "./hub/component/landing-page/landing-page.component";
+import { DASHBOARD_USER_WORKFLOW } from "./app-routing.constant";
 
 const routes: Routes = [];
 
@@ -130,7 +131,7 @@ if (environment.userSystemEnabled) {
 
   routes.push({
     path: "",
-    redirectTo: "dashboard/user/workflow",
+    redirectTo: DASHBOARD_USER_WORKFLOW,
     pathMatch: "full",
   });
 } else {
@@ -143,7 +144,7 @@ if (environment.userSystemEnabled) {
 // redirect all other paths to index.
 routes.push({
   path: "**",
-  redirectTo: "dashboard/user/workflow",
+  redirectTo: DASHBOARD_USER_WORKFLOW,
 });
 
 @NgModule({

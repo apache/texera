@@ -1,8 +1,9 @@
 package edu.uci.ics.texera.web.resource.aiassistant
 
-import edu.uci.ics.amber.engine.common.AmberConfig
-import java.net.{HttpURLConnection, URL}
 import com.typesafe.config.Config
+import edu.uci.ics.amber.engine.common.AmberConfig
+
+import java.net.{HttpURLConnection, URL}
 
 object AiAssistantManager {
   // Optionally retrieve the configuration

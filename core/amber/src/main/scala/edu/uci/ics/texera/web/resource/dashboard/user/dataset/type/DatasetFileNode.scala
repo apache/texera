@@ -1,5 +1,7 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`
 
+import edu.uci.ics.amber.core.storage.util.dataset.PhysicalFileNode
+
 import java.util
 import scala.collection.mutable
 
@@ -21,9 +23,13 @@ class DatasetFileNode(
 
   // Getters for the parameters
   def getName: String = name
+
   def getNodeType: String = nodeType
+
   def getParent: DatasetFileNode = parent
+
   def getOwnerEmail: String = ownerEmail
+
   def getSize: Option[Long] = size
 
   def getChildren: List[DatasetFileNode] = children.getOrElse(List())

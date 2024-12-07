@@ -1,6 +1,6 @@
 import { Component, inject, OnInit } from "@angular/core";
 import { UntilDestroy } from "@ngneat/until-destroy";
-import { WorkflowRuntimeStatistics } from "../../../../../type/workflow-runtime-statistics";
+import { OperatorRuntimeStatistics } from "../../../../../type/operator-runtime-statistics";
 import * as Plotly from "plotly.js-basic-dist-min";
 import { NzTabChangeEvent } from "ng-zorro-antd/tabs";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
@@ -12,9 +12,9 @@ import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
   styleUrls: ["./workflow-runtime-statistics.component.scss"],
 })
 export class WorkflowRuntimeStatisticsComponent implements OnInit {
-  readonly workflowRuntimeStatistics: WorkflowRuntimeStatistics[] = inject(NZ_MODAL_DATA).workflowRuntimeStatistics;
+  readonly workflowRuntimeStatistics: OperatorRuntimeStatistics[] = inject(NZ_MODAL_DATA).workflowRuntimeStatistics;
 
-  private groupedStats?: Record<string, WorkflowRuntimeStatistics[]>;
+  private groupedStats?: Record<string, OperatorRuntimeStatistics[]>;
   public metrics: string[] = [
     "Input Tuple Count",
     "Output Tuple Count",
@@ -43,13 +43,13 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
   /**
    * Convert an array into a record by combining stats to the same metric and accumulate tuple counts
    */
-  private groupStatsByOperatorId(): Record<string, WorkflowRuntimeStatistics[]> {
+  private groupStatsByOperatorId(): Record<string, OperatorRuntimeStatistics[]> {
     if (!this.workflowRuntimeStatistics) {
       return {};
     }
 
     const beginTimestamp = this.workflowRuntimeStatistics[0].timestamp;
-    return this.workflowRuntimeStatistics.reduce((acc: Record<string, WorkflowRuntimeStatistics[]>, stat) => {
+    return this.workflowRuntimeStatistics.reduce((acc: Record<string, OperatorRuntimeStatistics[]>, stat) => {
       const statsArray = acc[stat.operatorId] || [];
       const lastStat = statsArray[statsArray.length - 1];
 

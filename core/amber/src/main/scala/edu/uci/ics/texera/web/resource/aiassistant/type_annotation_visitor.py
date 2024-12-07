@@ -1,7 +1,8 @@
 import ast
+import base64
 import json
 import sys
-import base64
+
 
 class ParentNodeVisitor(ast.NodeVisitor):
     def __init__(self):
@@ -13,6 +14,7 @@ class ParentNodeVisitor(ast.NodeVisitor):
         self.parent = node
         super().generic_visit(node)
         self.parent = previous_parent
+
 
 class TypeAnnotationVisitor(ast.NodeVisitor):
     def __init__(self, start_line_offset=0):
@@ -60,7 +62,6 @@ class TypeAnnotationVisitor(ast.NodeVisitor):
             if not arg.annotation:
                 self.add_untyped_arg(arg)
 
-
     def add_untyped_arg(self, arg):
         start_line = arg.lineno + self.start_line_offset - 1
         start_col = arg.col_offset + 1
@@ -68,12 +69,14 @@ class TypeAnnotationVisitor(ast.NodeVisitor):
         end_col = start_col + len(arg.arg)
         self.untyped_args.append([arg.arg, start_line, start_col, end_line, end_col])
 
+
 def find_untyped_variables(source_code, start_line):
     tree = ast.parse(source_code)
     ParentNodeVisitor().visit(tree)
     visitor = TypeAnnotationVisitor(start_line_offset=start_line)
     visitor.visit(tree)
     return visitor.untyped_args
+
 
 if __name__ == "__main__":
     encoded_code = sys.argv[1]

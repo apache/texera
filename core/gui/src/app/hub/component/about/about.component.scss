@@ -75,3 +75,49 @@ iframe {
 .content-wrapper::-webkit-scrollbar-thumb:hover {
   background: #555;
 }
+
+.workflow-gui-screenshot {
+  width: 100%;
+  height: auto;
+}
+
+.login-container {
+  position: absolute;
+  top: 0;
+  right: 0;
+  max-width: 350px;
+  width: 100%;
+  background: white;
+}
+
+.text-content {
+  width: 70%;
+  font-size: 16px;
+  line-height: 1.8;
+  font-weight: 400;
+}
+
+.learn-more-section {
+  margin-top: 10px;
+  text-align: left;
+
+  p {
+    font-size: 16px;
+    line-height: 1.8;
+    margin-bottom: 10px;
+
+    a {
+      color: #007acc;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    img {
+      margin-left: 5px;
+      vertical-align: middle;
+    }
+  }
+}

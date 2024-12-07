@@ -8,6 +8,7 @@ import scala.annotation.tailrec
 object TexeraRunWorker {
 
   type OptionMap = Map[Symbol, Any]
+
   def parseArgs(args: Array[String]): OptionMap = {
     @tailrec
     def nextOption(map: OptionMap, list: List[String]): OptionMap = {
@@ -19,6 +20,7 @@ object TexeraRunWorker {
           throw new InvalidArgumentException("unknown command-line arg")
       }
     }
+
     nextOption(Map(), args.toList)
   }
 

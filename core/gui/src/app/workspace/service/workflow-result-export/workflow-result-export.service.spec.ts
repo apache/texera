@@ -153,7 +153,7 @@ describe("WorkflowResultExportService", () => {
     });
 
     // Act
-    service.exportOperatorsResultAsFile();
+    service.exportOperatorsResultToLocal(false);
 
     // Simulate asynchronous operations
     tick();
@@ -193,7 +193,8 @@ describe("WorkflowResultExportService", () => {
 
     downloadServiceSpy.downloadOperatorsResult.and.returnValue(of(new Blob()));
 
-    service.exportOperatorsResultAsFile();
+    // Act
+    service.exportOperatorsResultToLocal(false);
 
     expect(downloadServiceSpy.downloadOperatorsResult).toHaveBeenCalled();
     const args = downloadServiceSpy.downloadOperatorsResult.calls.mostRecent().args;
@@ -213,9 +214,6 @@ describe("WorkflowResultExportService", () => {
       };
       reader.readAsText(files[0].blob);
     });
-
-    // Act
-    service.exportOperatorsResultAsFile();
   });
 
   it("should export multiple visualization results as a zip file when there are multiple results", done => {
@@ -244,16 +242,16 @@ describe("WorkflowResultExportService", () => {
     // Spy on the 'downloadOperatorsResult' method
     downloadServiceSpy.downloadOperatorsResult.and.returnValue(of(new Blob()));
 
-    // Call the method that triggers the download
-    service.exportOperatorsResultAsFile();
+    // Act
+    service.exportOperatorsResultToLocal(false);
 
-    // Check if downloadOperatorsResult was called with the correct arguments
+    // Assert
     expect(downloadServiceSpy.downloadOperatorsResult).toHaveBeenCalled();
     const args = downloadServiceSpy.downloadOperatorsResult.calls.mostRecent().args;
     expect(args[0]).toEqual(jasmine.any(Array)); // Check if the first argument is an array
     expect(args[1]).toEqual(jasmine.objectContaining({ wid: jasmine.any(String) })); // Check if the second argument is a workflow object
 
-    // If you want to check the content of the observables, you can do something like this:
+    // Check the content of the observables
     const resultObservables = args[0];
     resultObservables[0].subscribe(files => {
       expect(files[0].filename).toBe("result_operator2_1.html");
@@ -267,8 +265,5 @@ describe("WorkflowResultExportService", () => {
       };
       reader.readAsText(files[0].blob);
     });
-
-    // Act
-    service.exportOperatorsResultAsFile();
   });
 });

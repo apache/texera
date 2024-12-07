@@ -1,6 +1,6 @@
 #nav {
-  height: 75px;
-  padding: 10px 0 10px 24px;
+  height: 70px;
+  padding: 10px 15px;
   display: flex;
   align-items: center;
   background-color: white;
@@ -14,15 +14,12 @@ texera-filters-instructions {
 texera-search-bar {
   flex: 1;
   max-width: calc(100% - 20px);
+  padding-right: 10px;
 }
 
 texera-google-login {
   float: right;
   padding: 5px 0;
-}
-
-texera-user-icon {
-  padding: 0 24px;
 }
 
 texera-user-icon {

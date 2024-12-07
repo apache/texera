@@ -3,6 +3,8 @@ package edu.uci.ics.amber.engine.common.client
 import akka.actor.{Actor, ActorRef}
 import akka.pattern.StatusReply.Ack
 import com.twitter.util.Promise
+import edu.uci.ics.amber.core.storage.result.OpResultStorage
+import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.{
   CreditRequest,
   CreditResponse,
@@ -16,8 +18,8 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{
   ControlReturn,
   ReturnInvocation
 }
-import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.AmberLogging
+import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.ambermessage.{
   ControlPayload,
   DataPayload,
@@ -30,12 +32,10 @@ import edu.uci.ics.amber.engine.common.client.ClientActor.{
   InitializeRequest,
   ObservableRequest
 }
-import edu.uci.ics.amber.engine.common.model.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CLIENT, CONTROLLER}
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.error.ErrorUtils.reconstructThrowable
-import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
+import edu.uci.ics.amber.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
 import scala.collection.mutable
 
@@ -47,8 +47,11 @@ private[client] object ClientActor {
       opResultStorage: OpResultStorage,
       controllerConfig: ControllerConfig
   )
+
   case class ObservableRequest(pf: PartialFunction[Any, Unit])
+
   case class ClosureRequest[T](closure: () => T)
+
   case class CommandRequest(
       methodName: String,
       command: ControlRequest,

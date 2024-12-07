@@ -25,6 +25,8 @@ import { map, mergeMap, switchMap, tap } from "rxjs/operators";
 import { environment } from "../../../../../environments/environment";
 import { DashboardWorkflow } from "../../../type/dashboard-workflow.interface";
 import { DownloadService } from "../../../service/user/download/download.service";
+import { DASHBOARD_USER_WORKSPACE } from "../../../../app-routing.constant";
+
 /**
  * Saved-workflow-section component contains information and functionality
  * of the saved workflows section and is re-used in the user projects section when a project is clicked
@@ -58,7 +60,6 @@ import { DownloadService } from "../../../service/user/download/download.service
   styleUrls: ["user-workflow.component.scss"],
 })
 export class UserWorkflowComponent implements AfterViewInit {
-  public ROUTER_WORKFLOW_BASE_URL = "/dashboard/user/workspace";
   private _searchResultsComponent?: SearchResultsComponent;
   public isLogin = this.userService.isLogin();
   private includePublic = false;
@@ -266,7 +267,7 @@ export class UserWorkflowComponent implements AfterViewInit {
       .subscribe({
         next: (wid: number | undefined) => {
           // Use the wid here for navigation
-          this.router.navigate([this.ROUTER_WORKFLOW_BASE_URL, wid]).then(null);
+          this.router.navigate([DASHBOARD_USER_WORKSPACE, wid]).then(null);
         },
         error: (err: unknown) => this.notificationService.error("Workflow creation failed"),
       });

@@ -10,7 +10,7 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
   WorkerStateUpdatedRequest
 }
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
-import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
+import edu.uci.ics.amber.util.VirtualIdentityUtils
 
 /** indicate the state change of a worker
   *

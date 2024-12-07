@@ -1,9 +1,9 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
+import edu.uci.ics.amber.core.tuple.{Schema, Tuple}
 import edu.uci.ics.amber.engine.common.AmberLogging
-import edu.uci.ics.amber.engine.common.model.tuple.{Schema, Tuple}
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
-import edu.uci.ics.amber.engine.common.workflow.PortIdentity
+import edu.uci.ics.amber.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import edu.uci.ics.amber.workflow.PortIdentity
 
 import scala.collection.mutable
 
@@ -13,6 +13,7 @@ class InputManager(val actorId: ActorVirtualIdentity) extends AmberLogging {
   var currentChannelId: ChannelIdentity = _
 
   private val ports: mutable.HashMap[PortIdentity, WorkerPort] = mutable.HashMap()
+
   def getAllPorts: Set[PortIdentity] = {
     this.ports.keys.toSet
   }
@@ -41,6 +42,7 @@ class InputManager(val actorId: ActorVirtualIdentity) extends AmberLogging {
     currentInputIdx += 1
     inputBatch(currentInputIdx)
   }
+
   def getCurrentTuple: Tuple = {
     if (inputBatch == null) {
       null

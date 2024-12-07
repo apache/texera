@@ -39,12 +39,14 @@ object AmberConfig {
     val maxCredit = getConfSource.getLong("flow-control.max-credit-allowed-in-bytes-per-channel")
     if (maxCredit == -1L) Long.MaxValue else maxCredit
   }
+
   val creditPollingIntervalInMs: Int =
     getConfSource.getInt("flow-control.credit-poll-interval-in-ms")
 
   // Network buffering configuration
   def defaultDataTransferBatchSize: Int =
     getConfSource.getInt("network-buffering.default-data-transfer-batch-size")
+
   val enableAdaptiveNetworkBuffering: Boolean =
     getConfSource.getBoolean("network-buffering.enable-adaptive-buffering")
   val adaptiveBufferingTimeoutMs: Int =
@@ -76,10 +78,10 @@ object AmberConfig {
   val enableCostBasedRegionPlanGenerator: Boolean =
     getConfSource.getBoolean("region-plan-generator.enable-cost-based-region-plan-generator")
   val useGlobalSearch: Boolean = getConfSource.getBoolean("region-plan-generator.use-global-search")
+  val useTopDownSearch: Boolean =
+    getConfSource.getBoolean("region-plan-generator.use-top-down-search")
 
   // Storage configuration
-  val sinkStorageMode: String = getConfSource.getString("storage.mode")
-  val sinkStorageMongoDBConfig: Config = getConfSource.getConfig("storage.mongodb")
   val sinkStorageTTLInSecs: Int = getConfSource.getInt("result-cleanup.ttl-in-seconds")
   val sinkStorageCleanUpCheckIntervalInSecs: Int =
     getConfSource.getInt("result-cleanup.collection-check-interval-in-seconds")
@@ -101,9 +103,6 @@ object AmberConfig {
     getConfSource.getInt("user-sys.version-time-limit-in-minutes")
   val cleanupAllExecutionResults: Boolean =
     getConfSource.getBoolean("web-server.clean-all-execution-results-on-server-start")
-
-  // JDBC configuration
-  val jdbcConfig: Config = getConfSource.getConfig("jdbc")
 
   // Language server configuration
   val pythonLanguageServerConfig: Config = getConfSource.getConfig("python-language-server")
