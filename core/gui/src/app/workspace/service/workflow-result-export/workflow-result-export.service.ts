@@ -22,7 +22,6 @@ export class WorkflowResultExportService {
   hasResultToExportOnHighlightedOperators: boolean = false;
   exportExecutionResultEnabled: boolean = environment.exportExecutionResultEnabled;
   hasResultToExportOnAllOperators = new BehaviorSubject<boolean>(false);
-
   constructor(
     private workflowWebsocketService: WorkflowWebsocketService,
     private workflowActionService: WorkflowActionService,

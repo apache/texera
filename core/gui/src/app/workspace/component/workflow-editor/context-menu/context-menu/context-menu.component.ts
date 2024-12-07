@@ -87,12 +87,11 @@ export class ContextMenuComponent {
    * This is the handler for the execution result export button for only highlighted operators.
    *
    */
-  public onClickExportHighlightedExecutionResult(exportType: string): void {
+  public onClickExportHighlightedExecutionResult(): void {
     this.modalService.create({
       nzTitle: "Export Highlighted Operators Result",
       nzContent: ResultExportationComponent,
       nzData: {
-        exportType: exportType,
         workflowName: this.workflowActionService.getWorkflowMetadata()?.name,
         sourceTriggered: "context-menu",
       },

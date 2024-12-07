@@ -126,16 +126,6 @@ val googleServiceDependencies = Seq(
 )
 
 /////////////////////////////////////////////////////////////////////////////
-// Arrow related
-val arrowVersion = "14.0.1"
-val arrowDependencies = Seq(
-  // https://mvnrepository.com/artifact/org.apache.arrow/flight-grpc
-  "org.apache.arrow" % "flight-grpc" % arrowVersion,
-  // https://mvnrepository.com/artifact/org.apache.arrow/flight-core
-  "org.apache.arrow" % "flight-core" % arrowVersion
-)
-
-/////////////////////////////////////////////////////////////////////////////
 // MongoDB related
 val mongoDbDependencies = Seq(
   // https://mvnrepository.com/artifact/org.mongodb/mongodb-driver-sync
@@ -148,7 +138,6 @@ libraryDependencies ++= akkaDependencies
 libraryDependencies ++= luceneDependencies
 libraryDependencies ++= dropwizardDependencies
 libraryDependencies ++= mbknorJacksonJsonSchemaDependencies
-libraryDependencies ++= arrowDependencies
 libraryDependencies ++= googleServiceDependencies
 libraryDependencies ++= mongoDbDependencies
 libraryDependencies ++= hadoopDependencies

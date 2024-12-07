@@ -173,6 +173,36 @@ export class WorkflowResultService {
     }
     return service;
   }
+
+  public determineOutputTypes(operatorId: string): {
+    isTableOutput: boolean;
+    isVisualizationOutput: boolean;
+    containsBinaryData: boolean;
+  } {
+    const resultService = this.getResultService(operatorId);
+    const paginatedResultService = this.getPaginatedResultService(operatorId);
+
+    return {
+      isTableOutput: this.hasTableOutput(paginatedResultService),
+      containsBinaryData: this.hasBinaryData(paginatedResultService),
+      isVisualizationOutput: this.hasVisualizationOutput(resultService, paginatedResultService),
+    };
+  }
+
+  private hasTableOutput(paginatedResultService?: OperatorPaginationResultService): boolean {
+    return paginatedResultService !== undefined;
+  }
+
+  private hasBinaryData(paginatedResultService?: OperatorPaginationResultService): boolean {
+    return paginatedResultService?.getSchema().some(attribute => attribute.attributeType === "binary") ?? false;
+  }
+
+  private hasVisualizationOutput(
+    resultService?: OperatorResultService,
+    paginatedResultService?: OperatorPaginationResultService
+  ): boolean {
+    return resultService !== undefined && paginatedResultService === undefined;
+  }
 }
 
 export class OperatorResultService {

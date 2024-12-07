@@ -1,4 +1,4 @@
-package edu.uci.ics.amber.engine.architecture.pythonworker
+package edu.uci.ics.amber.util
 
 import edu.uci.ics.amber.core.tuple.AttributeTypeUtils.AttributeTypeException
 import edu.uci.ics.amber.core.tuple.{AttributeType, Schema, Tuple}
