@@ -226,4 +226,15 @@ public class JGitVersionControl {
       return !status.isClean();
     }
   }
+
+  public static String getDirectoryPathOfCommit(Path repoPath, String commitHash) throws IOException {
+    try (Repository repository = new FileRepositoryBuilder()
+            .setGitDir(repoPath.resolve(".git").toFile())
+            .build();
+         RevWalk revWalk = new RevWalk(repository)) {
+
+      // The repository path is the directory path for the commit
+      return repoPath.toAbsolutePath().toString();
+    }
+  }
 }

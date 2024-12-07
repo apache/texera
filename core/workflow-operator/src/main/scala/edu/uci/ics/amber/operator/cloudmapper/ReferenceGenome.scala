@@ -6,7 +6,7 @@ import com.kjetland.jackson.jsonSchema.annotations.{
   JsonSchemaString,
   JsonSchemaTitle
 }
-import edu.uci.ics.texera.workflow.common.metadata.annotations.HideAnnotation
+import edu.uci.ics.amber.operator.metadata.annotations.HideAnnotation
 
 class ReferenceGenome {
   // Required field for selecting a reference genome.

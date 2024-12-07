@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.cluster
 
-import edu.uci.ics.texera.web.SqlServer
+import edu.uci.ics.amber.core.storage.StorageConfig
+import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.enums.ClusterStatus
 
 import javax.ws.rs.{Consumes, POST, Path}
@@ -22,7 +23,9 @@ import org.jooq.impl.DSL
 import java.sql.Timestamp
 
 object ClusterCallbackResource {
-  final private lazy val context = SqlServer.createDSLContext()
+  final private val context = SqlServer
+    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .createDSLContext()
   final private lazy val clusterDao = new ClusterDao(context.configuration)
   final private lazy val clusterActivityDao = new ClusterActivityDao(context.configuration)
 

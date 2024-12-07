@@ -112,6 +112,10 @@ public class GitVersionControlLocalFileStorage {
     return JGitVersionControl.getRootFileNodeOfCommit(baseRepoPath, versionCommitHashVal);
   }
 
+  public static String retrieveDirectoryPathOfVersion(Path baseRepoPath, String versionCommitHashVal) throws Exception {
+    return JGitVersionControl.getDirectoryPathOfCommit(baseRepoPath, versionCommitHashVal);
+  }
+
   /**
    * Retrieves the content of a specific file from a specific version identified by its commit hash.
    * Writes the file content to the provided OutputStream.

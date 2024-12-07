@@ -3,32 +3,20 @@ package edu.uci.ics.amber.operator
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type
 import com.fasterxml.jackson.annotation._
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.common.executor.OperatorExecutor
-import edu.uci.ics.amber.engine.common.model.{PhysicalOp, PhysicalPlan, WorkflowContext}
-import edu.uci.ics.amber.engine.common.model.tuple.Schema
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ExecutionIdentity,
-  OperatorIdentity,
-  WorkflowIdentity
-}
-import edu.uci.ics.amber.engine.common.workflow.PortIdentity
-import edu.uci.ics.texera.web.OPversion
-import edu.uci.ics.texera.workflow.common.metadata.{OperatorInfo, PropertyNameConstants}
-import edu.uci.ics.texera.workflow.operators.aggregate.AggregateOpDesc
-import edu.uci.ics.texera.workflow.operators.cartesianProduct.CartesianProductOpDesc
-import edu.uci.ics.texera.workflow.operators.cloudmapper.CloudMapperSourceOpDesc
-import edu.uci.ics.texera.workflow.operators.dictionary.DictionaryMatcherOpDesc
-import edu.uci.ics.texera.workflow.operators.difference.DifferenceOpDesc
-import edu.uci.ics.texera.workflow.operators.distinct.DistinctOpDesc
-import edu.uci.ics.texera.workflow.operators.download.BulkDownloaderOpDesc
-import edu.uci.ics.texera.workflow.operators.dummy.DummyOpDesc
-import edu.uci.ics.texera.workflow.operators.filter.SpecializedFilterOpDesc
-import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc
-import edu.uci.ics.texera.workflow.operators.intersect.IntersectOpDesc
-import edu.uci.ics.texera.workflow.operators.intervalJoin.IntervalJoinOpDesc
-import edu.uci.ics.texera.workflow.operators.keywordSearch.KeywordSearchOpDesc
-import edu.uci.ics.texera.workflow.operators.limit.LimitOpDesc
-import edu.uci.ics.texera.workflow.operators.huggingFace.{
+import edu.uci.ics.amber.core.executor.OperatorExecutor
+import edu.uci.ics.amber.core.tuple.Schema
+import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan, WorkflowContext}
+import edu.uci.ics.amber.operator.aggregate.AggregateOpDesc
+import edu.uci.ics.amber.operator.cartesianProduct.CartesianProductOpDesc
+import edu.uci.ics.amber.operator.cloudmapper.CloudMapperSourceOpDesc
+import edu.uci.ics.amber.operator.dictionary.DictionaryMatcherOpDesc
+import edu.uci.ics.amber.operator.difference.DifferenceOpDesc
+import edu.uci.ics.amber.operator.distinct.DistinctOpDesc
+import edu.uci.ics.amber.operator.download.BulkDownloaderOpDesc
+import edu.uci.ics.amber.operator.dummy.DummyOpDesc
+import edu.uci.ics.amber.operator.filter.SpecializedFilterOpDesc
+import edu.uci.ics.amber.operator.hashJoin.HashJoinOpDesc
+import edu.uci.ics.amber.operator.huggingFace.{
   HuggingFaceIrisLogisticRegressionOpDesc,
   HuggingFaceSentimentAnalysisOpDesc,
   HuggingFaceSpamSMSDetectionOpDesc,

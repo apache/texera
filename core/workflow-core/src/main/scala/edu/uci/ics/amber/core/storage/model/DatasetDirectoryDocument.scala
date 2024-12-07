@@ -1,46 +1,36 @@
-package edu.uci.ics.amber.engine.common.storage
+package edu.uci.ics.amber.core.storage.model
 
-import edu.uci.ics.texera.web.SqlServer
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Dataset
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.DatasetVersion
-import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset.DATASET
-import edu.uci.ics.texera.web.model.jooq.generated.tables.User.USER
-import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetVersion.DATASET_VERSION
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.service.GitVersionControlLocalFileStorage
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.PathUtils
+import edu.uci.ics.amber.core.storage.StorageConfig
+import edu.uci.ics.amber.core.storage.util.dataset.GitVersionControlLocalFileStorage
+import edu.uci.ics.amber.util.PathUtils
+import edu.uci.ics.texera.dao.SqlServer
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{Dataset, DatasetVersion, User}
 import org.jooq.types.UInteger
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{DatasetDao, UserDao, DatasetVersionDao}
 
 import java.io.{File, FileOutputStream, InputStream}
 import java.nio.file.{Files, Path, Paths}
-import javax.ws.rs.BadRequestException
+import scala.jdk.CollectionConverters._
 
 class DatasetDirectoryDocument(fileFullPath: Path, shouldContainFile: Boolean = true) {
 
-  private val context = SqlServer.createDSLContext()
+  private val context = SqlServer
+    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .createDSLContext()
   private val (dataset, datasetVersion, fileRelativePath) =
     resolvePath(fileFullPath, shouldContainFile)
   private var tempFile: Option[File] = None
+  private val datasetDao = new DatasetDao(context.configuration())
+  private val userDao = new UserDao(context.configuration())
+  private val datasetVersionDao = new DatasetVersionDao(context.configuration())
 
   private def getDatasetByName(ownerEmail: String, datasetName: String): Dataset = {
-    context
-      .select(DATASET.fields: _*)
-      .from(DATASET)
-      .leftJoin(USER)
-      .on(USER.UID.eq(DATASET.OWNER_UID))
-      .where(USER.EMAIL.eq(ownerEmail))
-      .and(DATASET.NAME.eq(datasetName))
-      .fetchOneInto(classOf[Dataset])
+    val user: User = userDao.fetchOneByEmail(ownerEmail)
+    datasetDao.fetchByOwnerUid(user.getUid).asScala.find(_.getName == datasetName).orNull
   }
 
-  private def getDatasetVersionByName(
-      did: UInteger,
-      versionName: String
-  ): DatasetVersion = {
-    context
-      .selectFrom(DATASET_VERSION)
-      .where(DATASET_VERSION.DID.eq(did))
-      .and(DATASET_VERSION.NAME.eq(versionName))
-      .fetchOneInto(classOf[DatasetVersion])
+  private def getDatasetVersionByName(did: UInteger, versionName: String): DatasetVersion = {
+    datasetVersionDao.fetchByDid(did).asScala.find(_.getName == versionName).orNull
   }
 
   def resolvePath(
@@ -48,14 +38,6 @@ class DatasetDirectoryDocument(fileFullPath: Path, shouldContainFile: Boolean = 
       shouldContainFile: Boolean
   ): (Dataset, DatasetVersion, Option[Path]) = {
     val pathSegments = (0 until path.getNameCount).map(path.getName(_).toString).toArray
-    val expectedLength = if (shouldContainFile) 4 else 3
-
-    if (pathSegments.length < expectedLength) {
-      throw new BadRequestException(
-        s"Invalid path format. Expected format: /ownerEmail/datasetName/versionName" +
-          (if (shouldContainFile) "/fileRelativePath" else "")
-      )
-    }
 
     val ownerEmail = pathSegments(0)
     val datasetName = pathSegments(1)

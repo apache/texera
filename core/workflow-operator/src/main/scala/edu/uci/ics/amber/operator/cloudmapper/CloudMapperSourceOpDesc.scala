@@ -1,13 +1,13 @@
-package edu.uci.ics.texera.workflow.operators.cloudmapper
+package edu.uci.ics.amber.operator.cloudmapper
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.common.AmberConfig
-import edu.uci.ics.amber.engine.common.model.tuple.{Attribute, AttributeType, Schema}
-import edu.uci.ics.amber.engine.common.workflow.OutputPort
-import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
-import edu.uci.ics.texera.workflow.common.operators.source.PythonSourceOperatorDescriptor
-import edu.uci.ics.texera.workflow.operators.util.OperatorFilePathUtils
+import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
+import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.amber.operator.source.PythonSourceOperatorDescriptor
+import edu.uci.ics.amber.workflow.OutputPort
+import edu.uci.ics.texera.workflow.operators.cloudmapper.{ReferenceGenome, ReferenceGenomeEnum}
+import edu.uci.ics.amber.operator.util.OperatorFilePathUtils
 
 class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
   @JsonProperty(required = true)
@@ -27,6 +27,8 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
   @JsonSchemaTitle("Cluster")
   @JsonPropertyDescription("Cluster")
   val cluster: String = ""
+
+  var clusterLauncherServiceTarget: String = "http://localhost:4000"
 
   // Getter to retrieve only the id part (cid) from the cluster
   def clusterId: String = {
@@ -130,7 +132,7 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
        |        form_data, files = create_job_form_data(${clusterId}, job_form)
        |
        |        # Send the POST request to start the job
-       |        response = requests.post("${AmberConfig.clusterLauncherServiceTarget}/api/job/create",
+       |        response = requests.post("${clusterLauncherServiceTarget}/api/job/create",
        |                                 data=form_data, files=files)
        |
        |        # Extract the job ID from the initial response
@@ -139,7 +141,7 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
        |        # Poll until the job is finished
        |        while True:
        |            # Poll the status endpoint
-       |            status_response = requests.get(f'${AmberConfig.clusterLauncherServiceTarget}/api/job/status/{job_id}')
+       |            status_response = requests.get(f'${clusterLauncherServiceTarget}/api/job/status/{job_id}')
        |            status = status_response.json().get("status")
        |
        |            if status == "finished":
@@ -160,7 +162,7 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
        |            yield
        |
        |        # Request to download files after the job is completed
-       |        download_response = requests.get(f'${AmberConfig.clusterLauncherServiceTarget}/api/job/download/{job_id}',
+       |        download_response = requests.get(f'${clusterLauncherServiceTarget}/api/job/download/{job_id}',
        |                                         params={'cid': str(${clusterId})})
        |
        |        if download_response.status_code == 200:
