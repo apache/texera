@@ -8,8 +8,13 @@ import edu.uci.ics.amber.workflow.PhysicalLink
 import org.jgrapht.alg.connectivity.BiconnectivityInspector
 import org.jgrapht.graph.{DirectedAcyclicGraph, DirectedPseudograph}
 
+import java.util.concurrent.TimeoutException
 import scala.collection.mutable
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration.DurationInt
+import scala.concurrent.{Await, Future}
 import scala.jdk.CollectionConverters._
+import scala.util.{Failure, Success, Try}
 import scala.util.control.Breaks.{break, breakable}
 
 class CostBasedRegionPlanGenerator(
@@ -132,17 +137,36 @@ class CostBasedRegionPlanGenerator(
     * @return A region DAG.
     */
   private def createRegionDAG(): DirectedAcyclicGraph[Region, RegionLink] = {
-    val searchResult = if (AmberConfig.useTopDownSearch) {
-      topDownSearch(globalSearch = AmberConfig.useGlobalSearch)
-    } else {
-      bottomUpSearch(globalSearch = AmberConfig.useGlobalSearch)
+    val searchResultFuture: Future[SearchResult] = Future {
+      if (AmberConfig.useTopDownSearch)
+        topDownSearch(globalSearch = AmberConfig.useGlobalSearch)
+      else
+        bottomUpSearch(globalSearch = AmberConfig.useGlobalSearch)
     }
-    // Only a non-dependee blocking link that has not already been materialized should be replaced
-    // with a materialization write op + materialization read op.
+    val searchResult = Try(
+      Await.result(searchResultFuture, AmberConfig.searchTimeoutMilliseconds.milliseconds)
+    ) match {
+      case Failure(exception) =>
+        exception match {
+          case _: TimeoutException =>
+            logger.warn(
+              s"WID: ${workflowContext.workflowId.id}, EID: ${workflowContext.executionId.id}, search for region plan " +
+                s"timed out, falling back to bottom-up greedy search.",
+              exception
+            )
+            bottomUpSearch()
+          case _ => throw new RuntimeException(exception)
+        }
+
+      case Success(result) =>
+        result
+    }
     logger.info(
       s"WID: ${workflowContext.workflowId.id}, EID: ${workflowContext.executionId.id}, search time: " +
         s"${searchResult.searchTimeNanoSeconds / 1e6} ms."
     )
+    // Only a non-dependee blocking link that has not already been materialized should be replaced
+    // with a materialization write op + materialization read op.
     val linksToMaterialize =
       (searchResult.state ++ physicalPlan.getNonMaterializedBlockingAndDependeeLinks).diff(
         physicalPlan.getDependeeLinks
