@@ -7,7 +7,7 @@ import org.bson.Document
 import scala.collection.mutable
 
 /**
-  * MongoDBBufferedItemWriter provides a buffered writer implementation for MongoDB.
+  * MongoDBBufferedItemWriter provides a thread-safe buffered writer implementation for MongoDB.
   * It buffers items in memory and writes them to the MongoDB collection in batches.
   * @param _bufferSize the size of the buffer.
   * @param id the identifier for the MongoDB collection.
@@ -28,7 +28,7 @@ class MongoDBBufferedItemWriter[T >: Null <: AnyRef](
   /**
     * A buffer for storing items before they are written to the MongoDB collection.
     */
-  var uncommittedInsertions: mutable.ArrayBuffer[T] = _
+  private var uncommittedInsertions: mutable.ArrayBuffer[T] = _
 
   /**
     * Lazy initialization of the MongoDB collection manager.
@@ -39,43 +39,47 @@ class MongoDBBufferedItemWriter[T >: Null <: AnyRef](
     * Open the writer, initializing the buffer.
     * This method should be called before any write operations.
     */
-  override def open(): Unit = {
-    uncommittedInsertions = new mutable.ArrayBuffer[T]()
-  }
+  override def open(): Unit =
+    this.synchronized {
+      uncommittedInsertions = new mutable.ArrayBuffer[T]()
+    }
 
   /**
     * Close the writer, flushing any remaining items in the buffer to the MongoDB collection.
     * This method should be called after all write operations are completed.
     */
-  override def close(): Unit = {
-    if (uncommittedInsertions.nonEmpty) {
-      collection.insertMany(uncommittedInsertions.map(toDocument))
-      uncommittedInsertions.clear()
+  override def close(): Unit =
+    this.synchronized {
+      if (uncommittedInsertions.nonEmpty) {
+        collection.insertMany(uncommittedInsertions.map(toDocument))
+        uncommittedInsertions.clear()
+      }
     }
-  }
 
   /**
     * Put one item into the buffer. If the buffer is full, it is flushed to the MongoDB collection.
     * @param item the data item to be written.
     */
-  override def putOne(item: T): Unit = {
-    uncommittedInsertions.append(item)
-    if (uncommittedInsertions.size == bufferSize) {
-      collection.insertMany(uncommittedInsertions.map(toDocument))
-      uncommittedInsertions.clear()
+  override def putOne(item: T): Unit =
+    this.synchronized {
+      uncommittedInsertions.append(item)
+      if (uncommittedInsertions.size >= bufferSize) {
+        collection.insertMany(uncommittedInsertions.map(toDocument))
+        uncommittedInsertions.clear()
+      }
     }
-  }
 
   /**
     * Remove one item from the buffer. If the item is not found in the buffer, it is deleted from the MongoDB collection.
     * @param item the data item to be removed.
     */
-  override def removeOne(item: T): Unit = {
-    val index = uncommittedInsertions.indexOf(item)
-    if (index != -1) {
-      uncommittedInsertions.remove(index)
-    } else {
-      collection.deleteMany(toDocument(item))
+  override def removeOne(item: T): Unit =
+    this.synchronized {
+      val index = uncommittedInsertions.indexOf(item)
+      if (index != -1) {
+        uncommittedInsertions.remove(index)
+      } else {
+        collection.deleteMany(toDocument(item))
+      }
     }
-  }
 }
