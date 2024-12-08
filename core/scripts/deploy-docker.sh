@@ -24,8 +24,8 @@ if ! ps -p $! > /dev/null; then
     exit 1
 fi
 
-# Start worker.sh in the background
-bash scripts/worker.sh &
+# Start computing unit master node in the background
+bash scripts/workflow-computing-unit.sh &
 
-# Wait for one of server.sh and worker.sh to complete
+# Wait for one of server.sh and computing unit master node to complete
 wait -n
