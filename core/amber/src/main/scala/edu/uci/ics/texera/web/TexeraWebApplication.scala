@@ -109,32 +109,6 @@ class TexeraWebApplication
     val customSerializerModule = new SimpleModule("CustomSerializers")
     customSerializerModule.addSerializer(classOf[DatasetFileNode], new DatasetFileNodeSerializer())
     bootstrap.getObjectMapper.registerModule(customSerializerModule)
-
-    if (AmberConfig.isUserSystemEnabled) {
-      val timeToLive: Int = AmberConfig.sinkStorageTTLInSecs
-      if (AmberConfig.cleanupAllExecutionResults) {
-        // do one time cleanup of collections that were not closed gracefully before restart/crash
-        // retrieve all executions that were executing before the reboot.
-        val allExecutionsBeforeRestart: List[WorkflowExecutions] =
-          WorkflowExecutionsResource.getExpiredExecutionsWithResultOrLog(-1)
-        cleanExecutions(
-          allExecutionsBeforeRestart,
-          statusByte => {
-            if (statusByte != maptoStatusCode(COMPLETED)) {
-              maptoStatusCode(FAILED) // for incomplete executions, mark them as failed.
-            } else {
-              statusByte
-            }
-          }
-        )
-      }
-      scheduleRecurringCallThroughActorSystem(
-        2.seconds,
-        AmberConfig.sinkStorageCleanUpCheckIntervalInSecs.seconds
-      ) {
-        recurringCheckExpiredResults(timeToLive)
-      }
-    }
   }
 
   override def run(configuration: TexeraWebConfiguration, environment: Environment): Unit = {
@@ -191,81 +165,5 @@ class TexeraWebApplication
     environment.jersey.register(classOf[UserQuotaResource])
     environment.jersey.register(classOf[UserDiscussionResource])
     environment.jersey.register(classOf[AIAssistantResource])
-  }
-
-  /**
-    * This function drops the collections.
-    * MongoDB doesn't have an API of drop collection where collection name in (from a subquery), so the implementation is to retrieve
-    * the entire list of those documents that have expired, then loop the list to drop them one by one
-    */
-  private def cleanExecutions(
-      executions: List[WorkflowExecutions],
-      statusChangeFunc: Byte => Byte
-  ): Unit = {
-    // drop the collection and update the status to ABORTED
-    executions.foreach(execEntry => {
-      dropCollections(execEntry.getResult)
-      deleteReplayLog(execEntry.getLogLocation)
-      // then delete the pointer from mySQL
-      val executionIdentity = ExecutionIdentity(execEntry.getEid.longValue())
-      ExecutionsMetadataPersistService.tryUpdateExistingExecution(executionIdentity) { execution =>
-        execution.setResult("")
-        execution.setLogLocation(null)
-        execution.setStatus(statusChangeFunc(execution.getStatus))
-      }
-    })
-  }
-
-  def dropCollections(result: String): Unit = {
-    if (result == null || result.isEmpty) {
-      return
-    }
-    // TODO: merge this logic to the server-side in-mem cleanup
-    // parse the JSON
-    try {
-      val node = objectMapper.readTree(result)
-      val collectionEntries = node.get("results")
-      // loop every collection and drop it
-      collectionEntries.forEach(collection => {
-        val storageType = collection.get("storageType").asText()
-        val collectionName = collection.get("storageKey").asText()
-        storageType match {
-          case OpResultStorage.MEMORY =>
-          // rely on the server-side result cleanup logic.
-          case OpResultStorage.MONGODB =>
-            MongoDatabaseManager.dropCollection(collectionName)
-        }
-      })
-    } catch {
-      case e: Throwable =>
-        logger.warn("result collection cleanup failed.", e)
-    }
-  }
-
-  def deleteReplayLog(logLocation: String): Unit = {
-    if (logLocation == null || logLocation.isEmpty) {
-      return
-    }
-    val uri = new URI(logLocation)
-    try {
-      val storage = SequentialRecordStorage.getStorage(Some(uri))
-      storage.deleteStorage()
-    } catch {
-      case throwable: Throwable =>
-        logger.warn(s"failed to delete log at $logLocation", throwable)
-    }
-  }
-
-  /**
-    * This function is called periodically and checks all expired collections and deletes them
-    */
-  def recurringCheckExpiredResults(
-      timeToLive: Int
-  ): Unit = {
-    // retrieve all executions that are completed and their last update time goes beyond the ttl
-    val expiredResults: List[WorkflowExecutions] =
-      WorkflowExecutionsResource.getExpiredExecutionsWithResultOrLog(timeToLive)
-    // drop the collections and clean the logs
-    cleanExecutions(expiredResults, statusByte => statusByte)
   }
 }
