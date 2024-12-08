@@ -368,12 +368,11 @@ export class MenuComponent implements OnInit, OnDestroy {
    * This is the handler for the execution result export button.
    *
    */
-  public onClickExportExecutionResult(exportType: string): void {
+  public onClickExportExecutionResult(): void {
     this.modalService.create({
       nzTitle: "Export All Operators Result",
       nzContent: ResultExportationComponent,
       nzData: {
-        exportType: exportType,
         workflowName: this.currentWorkflowName,
         sourceTriggered: "menu",
       },
