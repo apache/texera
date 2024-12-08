@@ -4,22 +4,11 @@ import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.github.dirkraft.dropwizard.fileassets.FileAssetsBundle
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.core.storage.result.OpResultStorage
 import edu.uci.ics.amber.core.storage.util.dataset.GitVersionControlLocalFileStorage
-import edu.uci.ics.amber.core.storage.util.mongo.MongoDatabaseManager
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
-  COMPLETED,
-  FAILED
-}
-import edu.uci.ics.amber.engine.common.AmberRuntime.scheduleRecurringCallThroughActorSystem
-import edu.uci.ics.amber.engine.common.Utils.{maptoStatusCode, objectMapper}
-import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
-import edu.uci.ics.amber.engine.common.{AmberConfig, Utils}
+import edu.uci.ics.amber.engine.common.Utils
 import edu.uci.ics.amber.util.PathUtils
-import edu.uci.ics.amber.virtualidentity.ExecutionIdentity
 import edu.uci.ics.texera.web.auth.JwtAuth.setupJwtAuth
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions
 import edu.uci.ics.texera.web.resource._
 import edu.uci.ics.texera.web.resource.auth.{AuthResource, GoogleAuthResource}
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource
@@ -48,7 +37,6 @@ import edu.uci.ics.texera.web.resource.dashboard.user.workflow.{
   WorkflowVersionResource
 }
 import edu.uci.ics.texera.web.resource.languageserver.PythonLanguageServerManager
-import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
 import io.dropwizard.auth.AuthValueFactoryProvider
 import io.dropwizard.setup.{Bootstrap, Environment}
 import io.dropwizard.websockets.WebsocketBundle
@@ -58,9 +46,7 @@ import org.eclipse.jetty.websocket.server.WebSocketUpgradeFilter
 import org.glassfish.jersey.media.multipart.MultiPartFeature
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 
-import java.net.URI
 import java.time.Duration
-import scala.concurrent.duration.DurationInt
 
 object TexeraWebApplication {
 

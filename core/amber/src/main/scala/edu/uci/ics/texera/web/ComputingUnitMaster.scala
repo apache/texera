@@ -6,7 +6,10 @@ import edu.uci.ics.amber.core.storage.result.OpResultStorage
 import edu.uci.ics.amber.core.storage.util.mongo.MongoDatabaseManager
 import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{COMPLETED, FAILED}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
+  COMPLETED,
+  FAILED
+}
 import edu.uci.ics.amber.engine.common.AmberRuntime.scheduleRecurringCallThroughActorSystem
 import edu.uci.ics.amber.engine.common.Utils.{maptoStatusCode, objectMapper}
 import edu.uci.ics.amber.engine.common.client.AmberClient
@@ -120,7 +123,7 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
         // do one time cleanup of collections that were not closed gracefully before restart/crash
         // retrieve all executions that were executing before the reboot.
         val allExecutionsBeforeRestart: List[WorkflowExecutions] =
-        WorkflowExecutionsResource.getExpiredExecutionsWithResultOrLog(-1)
+          WorkflowExecutionsResource.getExpiredExecutionsWithResultOrLog(-1)
         cleanExecutions(
           allExecutionsBeforeRestart,
           statusByte => {
@@ -142,14 +145,14 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
   }
 
   /**
-   * This function drops the collections.
-   * MongoDB doesn't have an API of drop collection where collection name in (from a subquery), so the implementation is to retrieve
-   * the entire list of those documents that have expired, then loop the list to drop them one by one
-   */
+    * This function drops the collections.
+    * MongoDB doesn't have an API of drop collection where collection name in (from a subquery), so the implementation is to retrieve
+    * the entire list of those documents that have expired, then loop the list to drop them one by one
+    */
   private def cleanExecutions(
-                               executions: List[WorkflowExecutions],
-                               statusChangeFunc: Byte => Byte
-                             ): Unit = {
+      executions: List[WorkflowExecutions],
+      statusChangeFunc: Byte => Byte
+  ): Unit = {
     // drop the collection and update the status to ABORTED
     executions.foreach(execEntry => {
       dropCollections(execEntry.getResult)
@@ -205,11 +208,11 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
   }
 
   /**
-   * This function is called periodically and checks all expired collections and deletes them
-   */
+    * This function is called periodically and checks all expired collections and deletes them
+    */
   private def recurringCheckExpiredResults(
-                                    timeToLive: Int
-                                  ): Unit = {
+      timeToLive: Int
+  ): Unit = {
     // retrieve all executions that are completed and their last update time goes beyond the ttl
     val expiredResults: List[WorkflowExecutions] =
       WorkflowExecutionsResource.getExpiredExecutionsWithResultOrLog(timeToLive)
