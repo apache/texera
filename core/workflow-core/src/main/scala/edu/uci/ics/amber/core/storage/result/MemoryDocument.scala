@@ -21,7 +21,7 @@ object MemoryDocument {
   * @tparam T the type of data items stored in the document.
   */
 class MemoryDocument[T >: Null <: AnyRef](key: String)
-  extends VirtualDocument[T]
+    extends VirtualDocument[T]
     with BufferedItemWriter[T] {
 
   /**

@@ -15,10 +15,10 @@ import scala.collection.mutable
   * @tparam T the type of data items to be written.
   */
 class MongoDBBufferedItemWriter[T >: Null <: AnyRef](
-                                                      _bufferSize: Int,
-                                                      id: String,
-                                                      toDocument: T => Document
-                                                    ) extends BufferedItemWriter[T] {
+    _bufferSize: Int,
+    id: String,
+    toDocument: T => Document
+) extends BufferedItemWriter[T] {
 
   /**
     * The size of the buffer.

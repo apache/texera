@@ -133,7 +133,7 @@ class MongoCollectionManager(collection: MongoCollection[Document]) {
       doc.keySet().asScala.filter { key =>
         doc.get(key) match {
           case _: java.lang.Integer | _: java.lang.Long | _: java.lang.Float |
-               _: java.lang.Double =>
+              _: java.lang.Double =>
             true
           case _ => false
         }

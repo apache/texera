@@ -19,10 +19,10 @@ import java.util.Date
   * @tparam T the type of data items stored in the document.
   */
 class MongoDocument[T >: Null <: AnyRef](
-                                          id: String,
-                                          var toDocument: T => Document,
-                                          var fromDocument: Option[Document => T] = None
-                                        ) extends VirtualDocument[T] {
+    id: String,
+    var toDocument: T => Document,
+    var fromDocument: Option[Document => T] = None
+) extends VirtualDocument[T] {
 
   /**
     * The batch size for committing items to the MongoDB collection.

@@ -138,6 +138,42 @@ object PhysicalOp {
     manyToOnePhysicalOp(physicalOpId, workflowId, executionId, opExecInitInfo)
       .withLocationPreference(Some(PreferController))
   }
+
+  def collectSchemasFromPorts(
+      physicalOp: PhysicalOp,
+      fromInput: Boolean,
+      errorList: Option[ArrayBuffer[(OperatorIdentity, Throwable)]]
+  ): List[Option[Schema]] = {
+    if (fromInput) {
+      physicalOp.inputPorts.values
+        .filterNot(_._1.id.internal) // Skip internal ports
+        .map {
+          case (_, _, schema) =>
+            schema match {
+              case Left(err) =>
+                errorList.foreach(errList => errList.append((physicalOp.id.logicalOpId, err)))
+                None
+              case Right(validSchema) =>
+                Some(validSchema)
+            }
+        }
+        .toList
+    } else {
+      physicalOp.outputPorts.values
+        .filterNot(_._1.id.internal)
+        .map {
+          case (_, _, schema) =>
+            schema match {
+              case Left(err) =>
+                errorList.foreach(errList => errList.append((physicalOp.id.logicalOpId, err)))
+                None
+              case Right(validSchema) =>
+                Some(validSchema)
+            }
+        }
+        .toList
+    }
+  }
 }
 
 // @JsonIgnore is not working when directly annotated to fields of a case class
