@@ -59,8 +59,9 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
 
     @Override
     public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId) {
-        // Since during workflow compilation phase, the storage can be null, the writer should also be null
-        // the writer will be set properly when workflow execution service receives the physical plan
+        // The writer can be null because for workflow compiliong service, the assignSinkStorage will not happen, which
+        //   make the storage of sink null during the whole lifecycle of compilation.
+        // TODO: consider a better way to avoid passing a null writer to the OpExec
         BufferedItemWriter<Tuple> writer;
         if (this.storage != null)
             writer = this.storage.writer();

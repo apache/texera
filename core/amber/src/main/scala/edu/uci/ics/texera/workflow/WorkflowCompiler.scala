@@ -164,9 +164,8 @@ class WorkflowCompiler(
     */
   def compile(
       logicalPlanPojo: LogicalPlanPojo,
-      storage: OpResultStorage = null
+      storage: OpResultStorage
   ): Workflow = {
-    val errorList = new ArrayBuffer[(OperatorIdentity, Throwable)]()
     // 1. convert the pojo to logical plan
     var logicalPlan: LogicalPlan = LogicalPlan(logicalPlanPojo)
 
@@ -177,20 +176,15 @@ class WorkflowCompiler(
       logicalPlan
     )
     // - resolve the file name in each scan source operator
-    logicalPlan.resolveScanSourceOpFileName(Some(errorList))
+    logicalPlan.resolveScanSourceOpFileName(None)
 
     // 3. Propagate the schema to get the input & output schemas for each port of each operator
     logicalPlan.propagateWorkflowSchema(context, None)
 
-    // 4. expand the logical plan to the physical plan,
-    // - assign the sink storage
-    if (storage != null) {
-      assignSinkStorage(logicalPlan, context, storage)
-    }
-    val physicalPlan = expandLogicalPlan(logicalPlan, Some(errorList))
-    if (errorList.nonEmpty) {
-      // TODO: should throw error here
-    }
+    // 4. assign the sink storage using logical plan and expand the logical plan to the physical plan,
+    assignSinkStorage(logicalPlan, context, storage)
+    val physicalPlan = expandLogicalPlan(logicalPlan, None)
+
     Workflow(context, logicalPlan, physicalPlan)
   }
 
@@ -220,6 +214,7 @@ class WorkflowCompiler(
         if (reuseStorageSet.contains(storageKey) && storage.contains(storageKey)) {
           sink.setStorage(storage.get(storageKey))
         } else {
+          // get the schema for result storage in certain mode
           val sinkStorageSchema: Option[Schema] =
             if (storageType == OpResultStorage.MONGODB) {
               // use the output schema on the first output port as the schema for storage
