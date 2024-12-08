@@ -77,7 +77,6 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
       return ResultExportResponse("error", "The workflow contains no results")
     }
 
-    // convert the ITuple into tuple
     val results: Iterable[Tuple] = operatorResult.get().to(Iterable)
     val attributeNames = results.head.getSchema.getAttributeNames
 
