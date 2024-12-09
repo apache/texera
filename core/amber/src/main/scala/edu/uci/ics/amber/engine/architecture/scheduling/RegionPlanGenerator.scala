@@ -1,6 +1,8 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
 import edu.uci.ics.amber.core.storage.result.OpResultStorage
+import edu.uci.ics.amber.core.tuple.Schema
+import edu.uci.ics.amber.core.workflow.PhysicalOp.getExternalPortSchemas
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.scheduling.RegionPlanGenerator.replaceVertex
 import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
@@ -139,8 +141,9 @@ abstract class RegionPlanGenerator(
       .removeLink(physicalLink)
 
     // create cache writer and link
+    val matWriterInputSchema = fromOp.outputPorts(fromPortId)._3.toOption.get
     val matWriterPhysicalOp: PhysicalOp =
-      createMatWriter(physicalLink)
+      createMatWriter(physicalLink, Array(matWriterInputSchema))
     val sourceToWriterLink =
       PhysicalLink(
         fromOp.id,
@@ -190,18 +193,19 @@ abstract class RegionPlanGenerator(
   }
 
   def createMatWriter(
-      physicalLink: PhysicalLink
+      physicalLink: PhysicalLink,
+      inputSchema: Array[Schema]
   ): PhysicalOp = {
     val matWriter = new ProgressiveSinkOpDesc()
     matWriter.setContext(workflowContext)
     matWriter.setOperatorId(s"materialized_${getMatIdFromPhysicalLink(physicalLink)}")
-
     // expect exactly one input port and one output port
-
+    val schema = matWriter.getOutputSchema(inputSchema)
     matWriter.setStorage(
       opResultStorage.create(
         key = matWriter.operatorIdentifier,
-        mode = OpResultStorage.defaultStorageMode
+        mode = OpResultStorage.defaultStorageMode,
+        schema = Some(schema)
       )
     )
 

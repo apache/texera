@@ -4,9 +4,12 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Preconditions;
 import edu.uci.ics.amber.core.executor.OpExecInitInfo;
 import edu.uci.ics.amber.core.executor.OperatorExecutor;
-import edu.uci.ics.amber.core.storage.result.SinkStorageReader;
-import edu.uci.ics.amber.core.storage.result.SinkStorageWriter;
+import edu.uci.ics.amber.core.storage.model.BufferedItemWriter;
+import edu.uci.ics.amber.core.storage.model.VirtualDocument;
+import edu.uci.ics.amber.core.storage.result.MongoDocument;
+import edu.uci.ics.amber.core.storage.result.OpResultStorage;
 import edu.uci.ics.amber.core.tuple.Schema;
+import edu.uci.ics.amber.core.tuple.Tuple;
 import edu.uci.ics.amber.core.workflow.PhysicalOp;
 import edu.uci.ics.amber.core.workflow.SchemaPropagationFunc;
 import edu.uci.ics.amber.operator.metadata.OperatorGroupConstants;
@@ -44,8 +47,9 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
     @JsonIgnore
     private Option<String> chartType = Option.empty();
 
+    // TODO: remove this from Desc
     @JsonIgnore
-    private SinkStorageReader storage = null;
+    private VirtualDocument<Tuple> storage = null;
 
     // corresponding upstream operator ID and output port, will be set by workflow compiler
     @JsonIgnore
@@ -56,9 +60,15 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
 
     @Override
     public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId) {
-        // Since during workflow compilation phase, the storage can be null, the writer should also be null
-        // the writer will be set properly when workflow execution service receives the physical plan
-        final SinkStorageWriter writer = (storage != null) ? storage.getStorageWriter() : null;
+        // The writer can be null because for workflow compiliong service, the assignSinkStorage will not happen, which
+        //   make the storage of sink null during the whole lifecycle of compilation.
+        // TODO: consider a better way to avoid passing a null writer to the OpExec
+        BufferedItemWriter<Tuple> writer;
+        if (this.storage != null)
+            writer = this.storage.writer();
+        else {
+            writer = null;
+        }
         return PhysicalOp.localPhysicalOp(
                         workflowId,
                         executionId,
@@ -94,9 +104,6 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
                             }
 
                             javaMap.put(operatorInfo().outputPorts().head().id(), outputSchema);
-
-                            // set schema for the storage
-                            getStorage().setSchema(outputSchema);
                             // Convert the Java Map to a Scala immutable Map
                             return OperatorDescriptorUtils.toImmutableMap(javaMap);
                         })
@@ -159,12 +166,12 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
     }
 
     @JsonIgnore
-    public void setStorage(SinkStorageReader storage) {
+    public void setStorage(VirtualDocument<Tuple> storage) {
         this.storage = storage;
     }
 
     @JsonIgnore
-    public SinkStorageReader getStorage() {
+    public VirtualDocument<Tuple> getStorage() {
         return this.storage;
     }
 
