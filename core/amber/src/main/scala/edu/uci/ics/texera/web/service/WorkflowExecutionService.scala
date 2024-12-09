@@ -87,10 +87,13 @@ class WorkflowExecutionService(
   var executionConsoleService: ExecutionConsoleService = _
 
   def executeWorkflow(): Unit = {
-    workflow = new WorkflowCompiler(workflowContext).compile(
-      request.logicalPlan,
-      resultService.opResultStorage
-    )
+    try {
+      workflow = new WorkflowCompiler(workflowContext)
+        .compile(request.logicalPlan, resultService.opResultStorage)
+    } catch {
+      case err: Throwable =>
+        errorHandler(err)
+    }
 
     client = ComputingUnitMaster.createAmberRuntime(
       workflowContext,
