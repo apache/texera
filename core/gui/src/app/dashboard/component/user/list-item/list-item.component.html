@@ -208,6 +208,7 @@
       nz-button
       nzType="text"
       title="Delete"
+      [disabled]="disableDelete"
       (nzOnConfirm)="deleted.emit()"
       nz-popconfirm
       nzPopconfirmTitle="Confirm to delete this item.">
