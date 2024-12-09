@@ -5,8 +5,10 @@ import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberLogging}
 import edu.uci.ics.amber.virtualidentity.{ActorVirtualIdentity, PhysicalOpIdentity}
 import edu.uci.ics.amber.workflow.PhysicalLink
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 import org.jgrapht.alg.connectivity.BiconnectivityInspector
 import org.jgrapht.graph.{DirectedAcyclicGraph, DirectedPseudograph}
+import org.jooq.types.UInteger
 
 import java.util.concurrent.TimeoutException
 import scala.collection.mutable
@@ -36,6 +38,25 @@ class CostBasedRegionPlanGenerator(
       searchTimeNanoSeconds: Long = 0,
       numStatesExplored: Int = 0
   )
+
+  private var pastStatsAvailable: Boolean = true
+
+  private val operatorEstimatedTime = getOperatorEstimatedTime
+
+  private def getOperatorEstimatedTime: Map[String, Double] = {
+    val wid: UInteger = UInteger.valueOf(this.workflowContext.workflowId.id)
+    val previousStats = WorkflowExecutionsResource.getStatsForRegionPlanGenerator(wid)
+    if (previousStats.isEmpty) {
+      pastStatsAvailable = false
+      logger.info(s"WID: ${workflowContext.workflowId.id}, EID: ${workflowContext.executionId.id}, no past execution statistics available. Using number of materialized edges as the cost. ")
+    }
+    previousStats.map {
+      case (operatorId, statsList) =>
+        val latestStat = statsList.maxByOption(_.getTime)
+        operatorId -> (latestStat.get.getDataProcessingTime
+          .doubleValue() + latestStat.get.getControlProcessingTime.doubleValue()) / 1e9
+    }
+  }
 
   def generate(): (RegionPlan, PhysicalPlan) = {
 
@@ -481,10 +502,26 @@ class CostBasedRegionPlanGenerator(
     * @return A cost determined by the resource allocator.
     */
   private def evaluate(regions: Set[Region], regionLinks: Set[RegionLink]): Double = {
-    // Using number of materialized ports as the cost.
-    // This is independent of the schedule / resource allocator.
-    // In the future we may need to use the ResourceAllocator to get the cost.
-    regions.flatMap(_.materializedPortIds).size
+    if (this.pastStatsAvailable) {
+      // Use past statistics (wall-clock runtime). We use the execution time of the longest-running
+      // operator in each region to represent the region's execution time, and use the sum of all the regions'
+      // execution time as the wall-clock runtime of the workflow.
+      // This assumes a schedule is a total-order of the regions.
+      regions.foldLeft(0.0) { (sum, region) =>
+      {
+        val times = region.getOperators.map(op => {
+          this.operatorEstimatedTime.getOrElse(op.id.logicalOpId.id, 1.0)
+        })
+        val maxTime = if (times.nonEmpty) times.max else 0.0
+        sum + maxTime
+      }
+      }
+
+    } else {
+      // Without past statistics (e.g., first execution), we use number of materialized ports as the cost.
+      // This is independent of the schedule / resource allocator.
+      regions.flatMap(_.materializedPortIds).size
+    }
   }
 
 }
