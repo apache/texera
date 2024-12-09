@@ -1,0 +1,34 @@
+server:
+  applicationContextPath: /
+  applicationConnectors:
+    - type: http
+      port: 8085
+
+  # Disable the admin connectors if you don't need an admin interface
+  adminConnectors: []
+
+  # Optional: Minimize the request log configuration if not handling HTTP requests
+  requestLog:
+    type: classic
+    timeZone: UTC
+    appenders:
+      - type: console
+        threshold: ERROR  # Only log errors in console for simplicity
+
+logging:
+  level: INFO
+  loggers:
+    "io.dropwizard": INFO
+  appenders:
+    - type: console
+      logFormat: "[%date{ISO8601}] [%level] [%logger] [%thread] - %msg %n"
+    - type: file
+      currentLogFilename: ../log/computing-unit-master.log
+      threshold: ALL
+      queueSize: 512
+      discardingThreshold: 0
+      archive: false
+      timeZone: UTC
+      logFormat: "[%date{ISO8601}] [%level] [%logger] [%thread] - %msg %n"
+      bufferSize: 8KiB
+      immediateFlush: true
