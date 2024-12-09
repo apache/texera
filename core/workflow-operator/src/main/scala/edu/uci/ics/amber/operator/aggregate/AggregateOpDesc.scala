@@ -4,7 +4,12 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.core.executor.{ExecFactory, OpExecInitInfo}
 import edu.uci.ics.amber.core.tuple.Schema
-import edu.uci.ics.amber.core.workflow.{HashPartition, PhysicalOp, PhysicalPlan, SchemaPropagationFunc}
+import edu.uci.ics.amber.core.workflow.{
+  HashPartition,
+  PhysicalOp,
+  PhysicalPlan,
+  SchemaPropagationFunc
+}
 import edu.uci.ics.amber.operator.LogicalOp
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeNameList
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
@@ -41,30 +46,32 @@ class AggregateOpDesc extends LogicalOp {
     val inputPort = InputPort(PortIdentity())
     val outputPort = OutputPort(PortIdentity(internal = true))
     val partialDesc = objectMapper.writeValueAsString(this)
+    val localAggregations = List(aggregations: _*)
     val partialPhysicalOp = PhysicalOp
-        .oneToOnePhysicalOp(
-          PhysicalOpIdentity(operatorIdentifier, "localAgg"),
-          workflowId,
-          executionId,
-          OpExecInitInfo((_, _) => {
-            ExecFactory.newExecFromJavaClassName(
-              "edu.uci.ics.amber.operator.aggregate.AggregateOpExec",
-              partialDesc
-            )
-          })
-        )
-        .withIsOneToManyOp(true)
-        .withInputPorts(List(inputPort))
-        .withOutputPorts(List(outputPort))
-        .withPropagateSchema(
-          SchemaPropagationFunc(inputSchemas =>
-            Map(
-              PortIdentity(internal = true) -> getOutputSchema(
-                operatorInfo.inputPorts.map(port => inputSchemas(port.id)).toArray
-              )
+      .oneToOnePhysicalOp(
+        PhysicalOpIdentity(operatorIdentifier, "localAgg"),
+        workflowId,
+        executionId,
+        OpExecInitInfo((_, _) => {
+          ExecFactory.newExecFromJavaClassName(
+            "edu.uci.ics.amber.operator.aggregate.AggregateOpExec",
+            partialDesc
+          )
+        })
+      )
+      .withIsOneToManyOp(true)
+      .withInputPorts(List(inputPort))
+      .withOutputPorts(List(outputPort))
+      .withPropagateSchema(
+        SchemaPropagationFunc(inputSchemas => {
+          aggregations = localAggregations
+          Map(
+            PortIdentity(internal = true) -> getOutputSchema(
+              operatorInfo.inputPorts.map(port => inputSchemas(port.id)).toArray
             )
           )
-        )
+        })
+      )
 
     val finalInputPort = InputPort(PortIdentity(0, internal = true))
     val finalOutputPort = OutputPort(PortIdentity(0), blocking = true)
