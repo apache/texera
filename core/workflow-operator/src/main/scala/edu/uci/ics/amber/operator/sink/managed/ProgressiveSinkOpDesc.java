@@ -47,6 +47,7 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
     @JsonIgnore
     private Option<String> chartType = Option.empty();
 
+    // TODO: remove this from Desc
     @JsonIgnore
     private VirtualDocument<Tuple> storage = null;
 

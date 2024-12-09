@@ -4,7 +4,7 @@ import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.{LazyLogging, Logger}
 import edu.uci.ics.amber.core.storage.result.OpResultStorage
 import edu.uci.ics.amber.core.tuple.Schema
-import edu.uci.ics.amber.core.workflow.PhysicalOp.collectSchemasFromPorts
+import edu.uci.ics.amber.core.workflow.PhysicalOp.getExternalPortSchemas
 import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.common.Utils.objectMapper
@@ -48,7 +48,7 @@ object WorkflowCompiler {
     physicalPlan.operators
       .filter(op => op.isSinkOperator)
       .map { physicalOp =>
-        physicalOp.id.logicalOpId -> collectSchemasFromPorts(
+        physicalOp.id.logicalOpId -> getExternalPortSchemas(
           physicalOp,
           fromInput = true,
           Some(errorList)

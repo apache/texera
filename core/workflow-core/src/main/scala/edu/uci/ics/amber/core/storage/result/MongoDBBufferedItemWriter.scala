@@ -9,13 +9,13 @@ import scala.collection.mutable
 /**
   * MongoDBBufferedItemWriter provides a thread-safe buffered writer implementation for MongoDB.
   * It buffers items in memory and writes them to the MongoDB collection in batches.
-  * @param _bufferSize the size of the buffer.
+  * @param size the size of the buffer.
   * @param id the identifier for the MongoDB collection.
   * @param toDocument a function that converts an item of type T to a MongoDB Document.
   * @tparam T the type of data items to be written.
   */
 class MongoDBBufferedItemWriter[T >: Null <: AnyRef](
-    _bufferSize: Int,
+    size: Int,
     id: String,
     toDocument: T => Document
 ) extends BufferedItemWriter[T] {
@@ -23,7 +23,7 @@ class MongoDBBufferedItemWriter[T >: Null <: AnyRef](
   /**
     * The size of the buffer.
     */
-  override val bufferSize: Int = _bufferSize
+  override val bufferSize: Int = size
 
   /**
     * A buffer for storing items before they are written to the MongoDB collection.
