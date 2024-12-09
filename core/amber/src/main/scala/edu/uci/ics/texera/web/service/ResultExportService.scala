@@ -7,7 +7,8 @@ import com.google.api.services.drive.Drive
 import com.google.api.services.drive.model.{File, FileList, Permission}
 import com.google.api.services.sheets.v4.Sheets
 import com.google.api.services.sheets.v4.model.{Spreadsheet, SpreadsheetProperties, ValueRange}
-import edu.uci.ics.amber.core.storage.result.{OpResultStorage, SinkStorageReader}
+import edu.uci.ics.amber.core.storage.model.VirtualDocument
+import edu.uci.ics.amber.core.storage.result.OpResultStorage
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.engine.common.Utils.retry
 import edu.uci.ics.amber.util.PathUtils
@@ -70,14 +71,13 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
     }
 
     // By now the workflow should finish running
-    val operatorWithResult: SinkStorageReader =
+    val operatorResult: VirtualDocument[Tuple] =
       opResultStorage.get(OperatorIdentity(request.operatorId))
-    if (operatorWithResult == null) {
+    if (operatorResult == null) {
       return ResultExportResponse("error", "The workflow contains no results")
     }
 
-    // convert the ITuple into tuple
-    val results: Iterable[Tuple] = operatorWithResult.getAll
+    val results: Iterable[Tuple] = operatorResult.get().to(Iterable)
     val attributeNames = results.head.getSchema.getAttributeNames
 
     // handle the request according to export type

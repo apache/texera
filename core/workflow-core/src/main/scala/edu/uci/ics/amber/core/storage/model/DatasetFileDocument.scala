@@ -68,7 +68,7 @@ class DatasetFileDocument(uri: URI) extends VirtualDocument[Nothing] {
     }
   }
 
-  override def remove(): Unit = {
+  override def clear(): Unit = {
     // first remove the temporary file
     tempFile match {
       case Some(file) => Files.delete(file.toPath)
