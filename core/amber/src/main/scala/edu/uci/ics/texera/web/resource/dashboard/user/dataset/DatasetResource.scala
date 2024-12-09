@@ -339,7 +339,7 @@ object DatasetResource {
           }
 
           datasetOperation.filesToRemove.foreach { fileUri =>
-            new DatasetFileDocument(fileUri).remove()
+            new DatasetFileDocument(fileUri).clear()
           }
         }
       )

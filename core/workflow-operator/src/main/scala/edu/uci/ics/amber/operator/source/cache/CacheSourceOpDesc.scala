@@ -14,7 +14,7 @@ class CacheSourceOpDesc(val targetSinkStorageId: OperatorIdentity, opResultStora
   assert(null != targetSinkStorageId)
   assert(null != opResultStorage)
 
-  override def sourceSchema(): Schema = opResultStorage.get(targetSinkStorageId).getSchema
+  override def sourceSchema(): Schema = opResultStorage.getSchema(targetSinkStorageId).get
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,

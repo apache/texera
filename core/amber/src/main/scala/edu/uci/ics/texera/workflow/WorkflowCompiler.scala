@@ -4,6 +4,7 @@ import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.{LazyLogging, Logger}
 import edu.uci.ics.amber.core.storage.result.OpResultStorage
 import edu.uci.ics.amber.core.tuple.Schema
+import edu.uci.ics.amber.core.workflow.PhysicalOp.getExternalPortSchemas
 import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.common.Utils.objectMapper
@@ -15,7 +16,7 @@ import edu.uci.ics.amber.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
 import edu.uci.ics.amber.workflowruntimestate.WorkflowFatalError
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
-import edu.uci.ics.texera.workflow.WorkflowCompiler.collectInputSchemaFromPhysicalPlan
+import edu.uci.ics.texera.workflow.WorkflowCompiler.collectInputSchemasOfSinks
 
 import java.time.Instant
 import scala.collection.mutable
@@ -40,32 +41,29 @@ object WorkflowCompiler {
   }
 
   // util function for convert the error list to error map, and report the error in log
-  private def convertErrorListToWorkflowFatalErrorMap(
-      logger: Logger,
-      errorList: List[(OperatorIdentity, Throwable)]
-  ): Map[OperatorIdentity, WorkflowFatalError] = {
-    val opIdToError = mutable.Map[OperatorIdentity, WorkflowFatalError]()
-    errorList.map {
-      case (opId, err) =>
-        // map each error to WorkflowFatalError, and report them in the log
-        logger.error(s"Error occurred in logical plan compilation for opId: $opId", err)
-        opIdToError += (opId -> WorkflowFatalError(
-          COMPILATION_ERROR,
-          Timestamp(Instant.now),
-          err.toString,
-          getStackTraceWithAllCauses(err),
-          opId.id
-        ))
-    }
-    opIdToError.toMap
+  private def collectInputSchemasOfSinks(
+      physicalPlan: PhysicalPlan,
+      errorList: ArrayBuffer[(OperatorIdentity, Throwable)] // Mandatory error list
+  ): Map[OperatorIdentity, Array[Schema]] = {
+    physicalPlan.operators
+      .filter(op => op.isSinkOperator)
+      .map { physicalOp =>
+        physicalOp.id.logicalOpId -> getExternalPortSchemas(
+          physicalOp,
+          fromInput = true,
+          Some(errorList)
+        ).flatten.toArray
+      }
+      .toMap
   }
 
-  private def collectInputSchemaFromPhysicalPlan(
+  // Only collects the input schemas for the sink operator
+  private def collectInputSchemaFromPhysicalPlanForSink(
       physicalPlan: PhysicalPlan,
       errorList: ArrayBuffer[(OperatorIdentity, Throwable)] // Mandatory error list
   ): Map[OperatorIdentity, List[Option[Schema]]] = {
     val physicalInputSchemas =
-      physicalPlan.operators.filter(op => !op.isSinkOperator).map { physicalOp =>
+      physicalPlan.operators.filter(op => op.isSinkOperator).map { physicalOp =>
         // Process inputPorts and capture Throwable values in the errorList
         physicalOp.id -> physicalOp.inputPorts.values
           .filterNot(_._1.id.internal)
@@ -157,15 +155,17 @@ class WorkflowCompiler(
   /**
     * Compile a workflow to physical plan, along with the schema propagation result and error(if any)
     *
+    * Comparing to WorkflowCompilingService's compiler, which is used solely for workflow editing,
+    *  This compile is used before executing the workflow.
+    *
+    * TODO: we should consider merge this compile with WorkflowCompilingService's compile
     * @param logicalPlanPojo the pojo parsed from workflow str provided by user
-    * @return WorkflowCompilationResult, containing the physical plan, input schemas per op and error per op
+    * @return Workflow, containing the physical plan, logical plan and workflow context
     */
   def compile(
       logicalPlanPojo: LogicalPlanPojo,
-      storage: OpResultStorage = null
+      storage: OpResultStorage
   ): Workflow = {
-    val errorList = new ArrayBuffer[(OperatorIdentity, Throwable)]()
-    var opIdToInputSchema: Map[OperatorIdentity, List[Option[Schema]]] = Map()
     // 1. convert the pojo to logical plan
     var logicalPlan: LogicalPlan = LogicalPlan(logicalPlanPojo)
 
@@ -176,21 +176,14 @@ class WorkflowCompiler(
       logicalPlan
     )
     // - resolve the file name in each scan source operator
-    logicalPlan.resolveScanSourceOpFileName(Some(errorList))
+    logicalPlan.resolveScanSourceOpFileName(None)
 
+    // 3. Propagate the schema to get the input & output schemas for each port of each operator
     logicalPlan.propagateWorkflowSchema(context, None)
 
-    if (storage != null) {
-      assignSinkStorage(logicalPlan, context, storage)
-    }
-
-    // 3. expand the logical plan to the physical plan,
-    val physicalPlan = expandLogicalPlan(logicalPlan, Some(errorList))
-    if (errorList.isEmpty) {
-      // no error during the expansion, then do:
-      // - collect the input schema for each op
-      opIdToInputSchema = collectInputSchemaFromPhysicalPlan(physicalPlan, errorList)
-    }
+    // 4. assign the sink storage using logical plan and expand the logical plan to the physical plan,
+    assignSinkStorage(logicalPlan, context, storage)
+    val physicalPlan = expandLogicalPlan(logicalPlan, None)
 
     Workflow(context, logicalPlan, physicalPlan)
   }
@@ -221,16 +214,21 @@ class WorkflowCompiler(
         if (reuseStorageSet.contains(storageKey) && storage.contains(storageKey)) {
           sink.setStorage(storage.get(storageKey))
         } else {
+          // get the schema for result storage in certain mode
+          val sinkStorageSchema: Option[Schema] =
+            if (storageType == OpResultStorage.MONGODB) {
+              // use the output schema on the first output port as the schema for storage
+              Some(o.outputPortToSchemaMapping.head._2)
+            } else {
+              None
+            }
           sink.setStorage(
             storage.create(
               s"${o.getContext.executionId}_",
               storageKey,
-              storageType
+              storageType,
+              sinkStorageSchema
             )
-          )
-
-          sink.getStorage.setSchema(
-            logicalPlan.getOperator(storageKey).outputPortToSchemaMapping.values.head
           )
           // add the sink collection name to the JSON array of sinks
           val storageNode = objectMapper.createObjectNode()
