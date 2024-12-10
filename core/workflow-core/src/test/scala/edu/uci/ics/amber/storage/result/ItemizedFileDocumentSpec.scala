@@ -11,7 +11,6 @@ import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.util.Using
 
 class ItemizedFileDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfter {
 
@@ -100,6 +99,46 @@ class ItemizedFileDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndA
         }
       }
       .futureValue
+  }
+
+  it should "handle concurrent reads and writes safely" in {
+    val numberOfWrites = 5
+    val numberOfReads = 5
+
+    // Writer thread to add items
+    val writerFuture = Future {
+      fileDocument.open()
+      (1 to numberOfWrites).foreach { i =>
+        fileDocument.putOne(s"Read-Write Test Write $i")
+      }
+      fileDocument.close()
+    }
+
+    // Reader threads to read items concurrently
+    val readerFutures = (1 to numberOfReads).map { _ =>
+      Future {
+        fileDocument.open()
+        val items = fileDocument.get().toList
+        fileDocument.close()
+        items
+      }
+    }
+
+    // Wait for all futures to complete
+    val combinedFuture = for {
+      _ <- writerFuture
+      readerResults <- Future.sequence(readerFutures)
+    } yield readerResults
+
+    val results = combinedFuture.futureValue
+
+    // Verify the results
+    results.foreach { items =>
+      items should contain(initialContent)
+      (1 to numberOfWrites).foreach { i =>
+        items should contain(s"Read-Write Test Write $i")
+      }
+    }
   }
 
   it should "handle writing after reopening the file" in {

@@ -7,14 +7,13 @@ import org.scalatest.matchers.should.Matchers
 
 import java.net.URI
 import java.nio.file.{Files, Paths}
-import scala.util.Using
 
 class PartitionDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfter {
 
   var partitionDocument: PartitionDocument[String] = _
   val numOfPartitions = 3
-  val partitionId =
-    Files.createTempDirectory("partition_doc_test").toUri.toString + "/test_partition"
+  val partitionId: String =
+    Files.createTempDirectory("partition_doc_test").resolve("test_partition").toUri.toString
 
   before {
     // Initialize the PartitionDocument with a base ID and number of partitions
