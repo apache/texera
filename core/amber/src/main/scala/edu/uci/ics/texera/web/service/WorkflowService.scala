@@ -6,11 +6,21 @@ import edu.uci.ics.amber.core.WorkflowRuntimeException
 import edu.uci.ics.amber.core.storage.result.{OpResultStorage, ResultStorage}
 import edu.uci.ics.amber.core.workflow.WorkflowContext
 import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{COMPLETED, FAILED}
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{FaultToleranceConfig, StateRestoreConfig}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
+  COMPLETED,
+  FAILED
+}
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
+  FaultToleranceConfig,
+  StateRestoreConfig
+}
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.error.ErrorUtils.{getOperatorFromActorIdOpt, getStackTraceWithAllCauses}
-import edu.uci.ics.amber.virtualidentity.{ChannelMarkerIdentity, ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.virtualidentity.{
+  ChannelMarkerIdentity,
+  ExecutionIdentity,
+  WorkflowIdentity
+}
 import edu.uci.ics.amber.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
 import edu.uci.ics.amber.workflowruntimestate.WorkflowFatalError
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
@@ -218,7 +228,9 @@ class WorkflowService(
     }
 
     // clean up results from previous run
-    ResultStorage.getOpResultStorage(workflowId).clear() // TODO: change this behavior after enabling cache.
+    ResultStorage
+      .getOpResultStorage(workflowId)
+      .clear() // TODO: change this behavior after enabling cache.
     try {
       val execution = new WorkflowExecutionService(
         controllerConf,

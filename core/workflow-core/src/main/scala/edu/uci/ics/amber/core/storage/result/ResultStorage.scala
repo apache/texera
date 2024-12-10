@@ -9,7 +9,7 @@ object ResultStorage {
     edu.uci.ics.amber.core.storage.result.OpResultStorage
   ] = scala.collection.mutable.Map.empty
 
-  def getOpResultStorage (workflowIdentity: WorkflowIdentity) : OpResultStorage = {
+  def getOpResultStorage(workflowIdentity: WorkflowIdentity): OpResultStorage = {
     workflowToOpResultMapping.getOrElseUpdate(workflowIdentity, new OpResultStorage())
   }
 }

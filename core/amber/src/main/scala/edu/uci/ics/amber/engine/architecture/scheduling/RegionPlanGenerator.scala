@@ -4,7 +4,10 @@ import edu.uci.ics.amber.core.storage.result.{OpResultStorage, ResultStorage}
 import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.scheduling.RegionPlanGenerator.replaceVertex
-import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{DefaultResourceAllocator, ExecutionClusterInfo}
+import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
+  DefaultResourceAllocator,
+  ExecutionClusterInfo
+}
 import edu.uci.ics.amber.operator.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.amber.operator.source.cache.CacheSourceOpDesc
 import edu.uci.ics.amber.virtualidentity.{OperatorIdentity, PhysicalOpIdentity, WorkflowIdentity}
@@ -49,7 +52,7 @@ object RegionPlanGenerator {
 
 abstract class RegionPlanGenerator(
     workflowContext: WorkflowContext,
-    var physicalPlan: PhysicalPlan,
+    var physicalPlan: PhysicalPlan
 ) {
   private val executionClusterInfo = new ExecutionClusterInfo()
 
@@ -198,11 +201,13 @@ abstract class RegionPlanGenerator(
     matWriter.setOperatorId(s"materialized_${getMatIdFromPhysicalLink(physicalLink)}")
     // expect exactly one input port and one output port
     val schema = matWriter.getOutputSchema(inputSchema)
-    ResultStorage.getOpResultStorage(workflowIdentity).create(
-      key = matWriter.operatorIdentifier,
-      mode = OpResultStorage.defaultStorageMode,
-      schema = Some(schema)
-    )
+    ResultStorage
+      .getOpResultStorage(workflowIdentity)
+      .create(
+        key = matWriter.operatorIdentifier,
+        mode = OpResultStorage.defaultStorageMode,
+        schema = Some(schema)
+      )
     matWriter.setUpstreamId(
       matWriter.operatorIdentifier
     )

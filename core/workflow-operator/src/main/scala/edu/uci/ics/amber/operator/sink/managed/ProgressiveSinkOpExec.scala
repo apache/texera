@@ -8,9 +8,13 @@ import edu.uci.ics.amber.operator.sink.{IncrementalOutputMode, ProgressiveUtils}
 import edu.uci.ics.amber.virtualidentity.{OperatorIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.workflow.PortIdentity
 
-class ProgressiveSinkOpExec(outputMode: IncrementalOutputMode, storageKey:String, workflowIdentity:WorkflowIdentity)
-    extends SinkOperatorExecutor {
-  val writer: BufferedItemWriter[Tuple] =  ResultStorage.getOpResultStorage(workflowIdentity).get(OperatorIdentity(storageKey)).writer()
+class ProgressiveSinkOpExec(
+    outputMode: IncrementalOutputMode,
+    storageKey: String,
+    workflowIdentity: WorkflowIdentity
+) extends SinkOperatorExecutor {
+  val writer: BufferedItemWriter[Tuple] =
+    ResultStorage.getOpResultStorage(workflowIdentity).get(OperatorIdentity(storageKey)).writer()
 
   override def open(): Unit = {
     writer.open()

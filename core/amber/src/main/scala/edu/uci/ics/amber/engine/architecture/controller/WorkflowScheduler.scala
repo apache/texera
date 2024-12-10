@@ -33,7 +33,7 @@ class WorkflowScheduler(
       // ExpansionGreedyRegionPlanGenerator is the stable default plan generator.
       new ExpansionGreedyRegionPlanGenerator(
         workflowContext,
-        physicalPlan,
+        physicalPlan
       ).generate()
     }
     this.physicalPlan = updatedPhysicalPlan

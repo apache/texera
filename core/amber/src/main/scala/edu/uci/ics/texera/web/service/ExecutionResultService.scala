@@ -5,10 +5,20 @@ import com.fasterxml.jackson.annotation.{JsonTypeInfo, JsonTypeName}
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.storage.StorageConfig
-import edu.uci.ics.amber.core.storage.result.{MongoDocument, OperatorResultMetadata, ResultStorage, WorkflowResultStore}
+import edu.uci.ics.amber.core.storage.result.{
+  MongoDocument,
+  OperatorResultMetadata,
+  ResultStorage,
+  WorkflowResultStore
+}
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.engine.architecture.controller.{ExecutionStateUpdate, FatalError}
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{COMPLETED, FAILED, KILLED, RUNNING}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
+  COMPLETED,
+  FAILED,
+  KILLED,
+  RUNNING
+}
 import edu.uci.ics.amber.operator.sink.IncrementalOutputMode.{SET_DELTA, SET_SNAPSHOT}
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.executionruntimestate.ExecutionMetadataStore
@@ -17,7 +27,11 @@ import edu.uci.ics.amber.operator.sink.IncrementalOutputMode
 import edu.uci.ics.amber.operator.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.amber.virtualidentity.OperatorIdentity
 import edu.uci.ics.texera.web.SubscriptionManager
-import edu.uci.ics.texera.web.model.websocket.event.{PaginatedResultEvent, TexeraWebSocketEvent, WebResultUpdateEvent}
+import edu.uci.ics.texera.web.model.websocket.event.{
+  PaginatedResultEvent,
+  TexeraWebSocketEvent,
+  WebResultUpdateEvent
+}
 import edu.uci.ics.texera.web.model.websocket.request.ResultPaginationRequest
 import edu.uci.ics.texera.web.service.ExecutionResultService.WebResultUpdate
 import edu.uci.ics.texera.web.storage.{ExecutionStateStore, WorkflowStateStore}
@@ -76,7 +90,8 @@ object ExecutionResultService {
       }
     }
 
-    val storage = ResultStorage.getOpResultStorage(sink.getContext.workflowId).get(sink.getUpstreamId.get)
+    val storage =
+      ResultStorage.getOpResultStorage(sink.getContext.workflowId).get(sink.getUpstreamId.get)
     val webUpdate = (webOutputMode, sink.getOutputMode) match {
       case (PaginationMode(), SET_SNAPSHOT) =>
         val numTuples = storage.getCount
@@ -231,10 +246,11 @@ class ExecutionResultService(
               if (
                 StorageConfig.resultStorageMode.toLowerCase == "mongodb"
                 && !opId.id.startsWith("sink")
-
               ) {
                 val sinkOp = sinkOperators(opId)
-                val opStorage = ResultStorage.getOpResultStorage(sinkOp.getContext.workflowId).get(sinkOp.getUpstreamId.get)
+                val opStorage = ResultStorage
+                  .getOpResultStorage(sinkOp.getContext.workflowId)
+                  .get(sinkOp.getUpstreamId.get)
                 opStorage match {
                   case mongoDocument: MongoDocument[Tuple] =>
                     val tableCatStats = mongoDocument.getCategoricalStats
@@ -286,7 +302,11 @@ class ExecutionResultService(
 
       if (sinkOperators.contains(opId)) {
         val sinkOp = sinkOperators(opId)
-        ResultStorage.getOpResultStorage(sinkOp.getContext.workflowId).get(sinkOp.getUpstreamId.get).getRange(from, from + request.pageSize).to(Iterable)
+        ResultStorage
+          .getOpResultStorage(sinkOp.getContext.workflowId)
+          .get(sinkOp.getUpstreamId.get)
+          .getRange(from, from + request.pageSize)
+          .to(Iterable)
       } else {
         Iterable.empty
       }
@@ -305,7 +325,11 @@ class ExecutionResultService(
       val newInfo: Map[OperatorIdentity, OperatorResultMetadata] = sinkOperators.map {
 
         case (id, sink) =>
-          val count = ResultStorage.getOpResultStorage(sink.getContext.workflowId).get(sink.getUpstreamId.get).getCount.toInt
+          val count = ResultStorage
+            .getOpResultStorage(sink.getContext.workflowId)
+            .get(sink.getUpstreamId.get)
+            .getCount
+            .toInt
           val mode = sink.getOutputMode
           val changeDetector =
             if (mode == IncrementalOutputMode.SET_SNAPSHOT) {
