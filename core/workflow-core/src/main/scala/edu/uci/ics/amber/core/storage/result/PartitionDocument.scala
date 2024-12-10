@@ -12,10 +12,10 @@ import java.net.URI
   * To write over the partition, you should get the FileDocument first, then call write-related methods over it. FileDocument guarantees the thread-safe read/write.
   *
   * The Type parameter T is used to specify the type of data item stored in the partition
-  * @param uri the id of this partition document. Note that this URI does not physically corresponds to a file.
+  * @param id the id of this partition document.
   * @param numOfPartition number of partitions
   */
-class PartitionDocument[T >: Null <: AnyRef](val uri: URI, val numOfPartition: Int)
+class PartitionDocument[T >: Null <: AnyRef](val id: String, val numOfPartition: Int)
     extends VirtualDocument[ItemizedFileDocument[T]] {
 
   /**
@@ -27,7 +27,7 @@ class PartitionDocument[T >: Null <: AnyRef](val uri: URI, val numOfPartition: I
     if (i < 0 || i >= numOfPartition) {
       throw new RuntimeException(f"Index $i out of bound")
     }
-    new URI(s"${uri}_$i")
+    new URI(s"${id}_partition$i")
   }
 
   override def getURI: URI =
