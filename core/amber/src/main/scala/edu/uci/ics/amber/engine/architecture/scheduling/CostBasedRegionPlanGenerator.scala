@@ -20,12 +20,10 @@ import scala.util.control.Breaks.{break, breakable}
 class CostBasedRegionPlanGenerator(
     workflowContext: WorkflowContext,
     initialPhysicalPlan: PhysicalPlan,
-    opResultStorage: OpResultStorage,
     val actorId: ActorVirtualIdentity
 ) extends RegionPlanGenerator(
       workflowContext,
-      initialPhysicalPlan,
-      opResultStorage
+      initialPhysicalPlan
     )
     with AmberLogging {
 

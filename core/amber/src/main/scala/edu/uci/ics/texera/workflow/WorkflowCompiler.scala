@@ -2,7 +2,7 @@ package edu.uci.ics.texera.workflow
 
 import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.{LazyLogging, Logger}
-import edu.uci.ics.amber.core.storage.result.OpResultStorage
+import edu.uci.ics.amber.core.storage.result.{OpResultStorage, ResultStorage}
 import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.core.workflow.PhysicalOp.getExternalPortSchemas
 import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
@@ -163,8 +163,7 @@ class WorkflowCompiler(
     * @return Workflow, containing the physical plan, logical plan and workflow context
     */
   def compile(
-      logicalPlanPojo: LogicalPlanPojo,
-      storage: OpResultStorage
+      logicalPlanPojo: LogicalPlanPojo
   ): Workflow = {
     // 1. convert the pojo to logical plan
     var logicalPlan: LogicalPlan = LogicalPlan(logicalPlanPojo)
@@ -182,7 +181,7 @@ class WorkflowCompiler(
     logicalPlan.propagateWorkflowSchema(context, None)
 
     // 4. assign the sink storage using logical plan and expand the logical plan to the physical plan,
-    assignSinkStorage(logicalPlan, context, storage)
+    assignSinkStorage(logicalPlan, context)
     val physicalPlan = expandLogicalPlan(logicalPlan, None)
 
     Workflow(context, logicalPlan, physicalPlan)
@@ -195,9 +194,9 @@ class WorkflowCompiler(
   def assignSinkStorage(
       logicalPlan: LogicalPlan,
       context: WorkflowContext,
-      storage: OpResultStorage,
       reuseStorageSet: Set[OperatorIdentity] = Set()
   ): Unit = {
+    val storage = ResultStorage.getOpResultStorage(context.workflowId)
     // create a JSON object that holds pointers to the workflow's results in Mongo
     val resultsJSON = objectMapper.createObjectNode()
     val sinksPointers = objectMapper.createArrayNode()

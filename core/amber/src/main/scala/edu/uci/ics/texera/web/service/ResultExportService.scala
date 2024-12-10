@@ -8,19 +8,16 @@ import com.google.api.services.drive.model.{File, FileList, Permission}
 import com.google.api.services.sheets.v4.Sheets
 import com.google.api.services.sheets.v4.model.{Spreadsheet, SpreadsheetProperties, ValueRange}
 import edu.uci.ics.amber.core.storage.model.VirtualDocument
-import edu.uci.ics.amber.core.storage.result.OpResultStorage
+import edu.uci.ics.amber.core.storage.result.{OpResultStorage, ResultStorage}
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.engine.common.Utils.retry
 import edu.uci.ics.amber.util.PathUtils
-import edu.uci.ics.amber.virtualidentity.OperatorIdentity
+import edu.uci.ics.amber.virtualidentity.{OperatorIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.websocket.request.ResultExportRequest
 import edu.uci.ics.texera.web.model.websocket.response.ResultExportResponse
 import edu.uci.ics.texera.web.resource.GoogleResource
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{
-  createNewDatasetVersionByAddingFiles,
-  sanitizePath
-}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{createNewDatasetVersionByAddingFiles, sanitizePath}
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowVersionResource
 import org.jooq.types.UInteger
 import edu.uci.ics.amber.util.ArrowUtils
@@ -52,7 +49,7 @@ object ResultExportService {
     Executors.newFixedThreadPool(3).asInstanceOf[ThreadPoolExecutor]
 }
 
-class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
+class ResultExportService(workflowIdentity: WorkflowIdentity) {
 
   import ResultExportService._
 
@@ -72,7 +69,7 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
 
     // By now the workflow should finish running
     val operatorResult: VirtualDocument[Tuple] =
-      opResultStorage.get(OperatorIdentity(request.operatorId))
+      ResultStorage.getOpResultStorage(workflowIdentity).get(OperatorIdentity(request.operatorId))
     if (operatorResult == null) {
       return ResultExportResponse("error", "The workflow contains no results")
     }

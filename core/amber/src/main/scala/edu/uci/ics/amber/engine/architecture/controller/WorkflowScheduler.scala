@@ -1,6 +1,5 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
-import edu.uci.ics.amber.core.storage.result.OpResultStorage
 import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.scheduling.{
   CostBasedRegionPlanGenerator,
@@ -13,7 +12,6 @@ import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
 
 class WorkflowScheduler(
     workflowContext: WorkflowContext,
-    opResultStorage: OpResultStorage,
     actorId: ActorVirtualIdentity
 ) extends java.io.Serializable {
   var physicalPlan: PhysicalPlan = _
@@ -29,7 +27,6 @@ class WorkflowScheduler(
       new CostBasedRegionPlanGenerator(
         workflowContext,
         physicalPlan,
-        opResultStorage,
         actorId
       ).generate()
     } else {
@@ -37,7 +34,6 @@ class WorkflowScheduler(
       new ExpansionGreedyRegionPlanGenerator(
         workflowContext,
         physicalPlan,
-        opResultStorage
       ).generate()
     }
     this.physicalPlan = updatedPhysicalPlan
