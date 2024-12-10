@@ -165,10 +165,18 @@ case class LogicalPlan(
           scanOp.setFileUri(fileUri)
         } match {
           case Success(_) => // Successfully resolved and set the file URI
+
           case Failure(err) =>
             logger.error("Error resolving file path for ScanSourceOpDesc", err)
-            errorList.foreach(_.append((operator.operatorIdentifier, err)))
+            errorList match {
+              case Some(errList) =>
+                errList.append((operator.operatorIdentifier, err))
+              case None =>
+                // Throw the error if no errorList is provided
+                throw err
+            }
         }
+
       case _ => // Skip non-ScanSourceOpDesc operators
     }
   }
@@ -218,7 +226,8 @@ case class LogicalPlan(
             logger.error("got error", err)
             errorList match {
               case Some(list) => list.append((opId, err))
-              case None       =>
+              case None => // Throw the error if no errorList is provided
+                throw err
             }
         }
 

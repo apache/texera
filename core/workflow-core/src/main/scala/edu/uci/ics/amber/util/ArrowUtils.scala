@@ -1,4 +1,4 @@
-package edu.uci.ics.amber.engine.architecture.pythonworker
+package edu.uci.ics.amber.util
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.tuple.AttributeTypeUtils.AttributeTypeException
