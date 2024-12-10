@@ -11,21 +11,32 @@ object ExecFactory {
 
   def newExecFromJavaClassName[K](
       className: String,
-      descString: String,
+      descString: String = "",
       idx: Int = 0,
       workerCount: Int = 1
   ): OperatorExecutor = {
     val clazz = Class.forName(className).asInstanceOf[Class[K]]
     if (idx == 0 && workerCount == 1) {
-      clazz
-        .getDeclaredConstructor(classOf[String])
-        .newInstance(descString)
-        .asInstanceOf[OperatorExecutor]
+      if (descString.isEmpty) {
+        clazz.getDeclaredConstructor().newInstance().asInstanceOf[OperatorExecutor]
+      } else {
+        clazz
+          .getDeclaredConstructor(classOf[String])
+          .newInstance(descString)
+          .asInstanceOf[OperatorExecutor]
+      }
     } else {
-      clazz
-        .getDeclaredConstructor(classOf[String], classOf[Int], classOf[Int])
-        .newInstance(descString, idx, workerCount)
-        .asInstanceOf[OperatorExecutor]
+      if (descString.isEmpty) {
+        clazz
+          .getDeclaredConstructor(classOf[Int], classOf[Int])
+          .newInstance(idx, workerCount)
+          .asInstanceOf[OperatorExecutor]
+      } else {
+        clazz
+          .getDeclaredConstructor(classOf[String], classOf[Int], classOf[Int])
+          .newInstance(descString, idx, workerCount)
+          .asInstanceOf[OperatorExecutor]
+      }
     }
   }
 

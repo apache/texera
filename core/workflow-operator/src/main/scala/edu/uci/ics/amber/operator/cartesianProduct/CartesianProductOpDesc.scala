@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.operator.cartesianProduct
 
-import edu.uci.ics.amber.core.executor.OpExecInitInfo
+import edu.uci.ics.amber.core.executor.{ExecFactory, OpExecInitInfo}
 import edu.uci.ics.amber.core.tuple.{Attribute, Schema}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.operator.LogicalOp
@@ -18,7 +18,7 @@ class CartesianProductOpDesc extends LogicalOp {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _) => new CartesianProductOpExec())
+        OpExecInitInfo((_, _) => ExecFactory.newExecFromJavaClassName("edu.uci.ics.amber.operator.cartesianProduct.CartesianProductOpExec"))
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
