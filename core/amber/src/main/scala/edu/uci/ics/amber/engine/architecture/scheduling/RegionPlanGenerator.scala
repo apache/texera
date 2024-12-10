@@ -198,12 +198,13 @@ abstract class RegionPlanGenerator(
     matWriter.setOperatorId(s"materialized_${getMatIdFromPhysicalLink(physicalLink)}")
     // expect exactly one input port and one output port
     val schema = matWriter.getOutputSchema(inputSchema)
-    matWriter.setStorage(
-      ResultStorage.getOpResultStorage(workflowIdentity).create(
-        key = matWriter.operatorIdentifier,
-        mode = OpResultStorage.defaultStorageMode,
-        schema = Some(schema)
-      )
+    ResultStorage.getOpResultStorage(workflowIdentity).create(
+      key = matWriter.operatorIdentifier,
+      mode = OpResultStorage.defaultStorageMode,
+      schema = Some(schema)
+    )
+    matWriter.setStorageKey(
+      matWriter.operatorIdentifier.id
     )
 
     matWriter.getPhysicalOp(

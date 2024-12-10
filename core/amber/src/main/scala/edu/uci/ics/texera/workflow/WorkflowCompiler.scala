@@ -1,7 +1,6 @@
 package edu.uci.ics.texera.workflow
 
-import com.google.protobuf.timestamp.Timestamp
-import com.typesafe.scalalogging.{LazyLogging, Logger}
+import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.storage.result.{OpResultStorage, ResultStorage}
 import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.core.workflow.PhysicalOp.getExternalPortSchemas
@@ -12,14 +11,10 @@ import edu.uci.ics.amber.operator.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.amber.operator.visualization.VisualizationConstants
 import edu.uci.ics.amber.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.workflow.PhysicalLink
-import edu.uci.ics.amber.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
 import edu.uci.ics.amber.workflowruntimestate.WorkflowFatalError
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
-import edu.uci.ics.texera.workflow.WorkflowCompiler.collectInputSchemasOfSinks
 
-import java.time.Instant
-import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 import scala.util.{Failure, Success, Try}
@@ -211,7 +206,7 @@ class WorkflowCompiler(
           else OpResultStorage.defaultStorageMode
         }
         if (reuseStorageSet.contains(storageKey) && storage.contains(storageKey)) {
-          sink.setStorage(storage.get(storageKey))
+          sink.setStorageKey(storageKey.id)
         } else {
           // get the schema for result storage in certain mode
           val sinkStorageSchema: Option[Schema] =
@@ -221,13 +216,14 @@ class WorkflowCompiler(
             } else {
               None
             }
-          sink.setStorage(
-            storage.create(
-              s"${o.getContext.executionId}_",
-              storageKey,
-              storageType,
-              sinkStorageSchema
-            )
+          storage.create(
+            s"${o.getContext.executionId}_",
+            storageKey,
+            storageType,
+            sinkStorageSchema
+          )
+          sink.setStorageKey(
+            storageKey.id
           )
           // add the sink collection name to the JSON array of sinks
           val storageNode = objectMapper.createObjectNode()

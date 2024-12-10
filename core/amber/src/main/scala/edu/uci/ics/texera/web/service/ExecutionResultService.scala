@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.{JsonTypeInfo, JsonTypeName}
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.storage.StorageConfig
-import edu.uci.ics.amber.core.storage.result.{MongoDocument, OperatorResultMetadata, WorkflowResultStore}
+import edu.uci.ics.amber.core.storage.result.{MongoDocument, OperatorResultMetadata, ResultStorage, WorkflowResultStore}
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.engine.architecture.controller.{ExecutionStateUpdate, FatalError}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{COMPLETED, FAILED, KILLED, RUNNING}
@@ -76,7 +76,7 @@ object ExecutionResultService {
       }
     }
 
-    val storage = sink.getStorage
+    val storage = ResultStorage.getOpResultStorage(sink.getContext.workflowId).get(OperatorIdentity(sink.getStorageKey))
     val webUpdate = (webOutputMode, sink.getOutputMode) match {
       case (PaginationMode(), SET_SNAPSHOT) =>
         val numTuples = storage.getCount
@@ -231,18 +231,22 @@ class ExecutionResultService(
               if (
                 StorageConfig.resultStorageMode.toLowerCase == "mongodb"
                 && !opId.id.startsWith("sink")
-                && sinkOperators(opId).getStorage.isInstanceOf[MongoDocument[Tuple]]
-              ) {
-                val mongoDocument: MongoDocument[Tuple] =
-                  sinkOperators(opId).getStorage.asInstanceOf[MongoDocument[Tuple]]
-                val tableCatStats = mongoDocument.getCategoricalStats
-                val tableDateStats = mongoDocument.getDateColStats
-                val tableNumericStats = mongoDocument.getNumericColStats
 
-                if (
-                  tableNumericStats.nonEmpty || tableCatStats.nonEmpty || tableDateStats.nonEmpty
-                ) {
-                  allTableStats(opId.id) = tableNumericStats ++ tableCatStats ++ tableDateStats
+              ) {
+                val sinkOp = sinkOperators(opId)
+                val opStorage = ResultStorage.getOpResultStorage(sinkOp.getContext.workflowId).get(OperatorIdentity(sinkOp.getStorageKey))
+                opStorage match {
+                  case mongoDocument: MongoDocument[Tuple] =>
+                    val tableCatStats = mongoDocument.getCategoricalStats
+                    val tableDateStats = mongoDocument.getDateColStats
+                    val tableNumericStats = mongoDocument.getNumericColStats
+
+                    if (
+                      tableNumericStats.nonEmpty || tableCatStats.nonEmpty || tableDateStats.nonEmpty
+                    ) {
+                      allTableStats(opId.id) = tableNumericStats ++ tableCatStats ++ tableDateStats
+                    }
+                  case _ =>
                 }
               }
           }
@@ -278,12 +282,15 @@ class ExecutionResultService(
     // calculate from index (pageIndex starts from 1 instead of 0)
     val from = request.pageSize * (request.pageIndex - 1)
     val opId = OperatorIdentity(request.operatorID)
-    val paginationIterable =
+    val paginationIterable = {
+
       if (sinkOperators.contains(opId)) {
-        sinkOperators(opId).getStorage.getRange(from, from + request.pageSize).to(Iterable)
+        val sinkOp = sinkOperators(opId)
+        ResultStorage.getOpResultStorage(sinkOp.getContext.workflowId).get(OperatorIdentity(sinkOp.getStorageKey)).getRange(from, from + request.pageSize).to(Iterable)
       } else {
         Iterable.empty
       }
+    }
     val mappedResults = paginationIterable
       .map(tuple => tuple.asKeyValuePairJson())
       .toList
@@ -296,8 +303,9 @@ class ExecutionResultService(
   private def onResultUpdate(): Unit = {
     workflowStateStore.resultStore.updateState { _ =>
       val newInfo: Map[OperatorIdentity, OperatorResultMetadata] = sinkOperators.map {
+
         case (id, sink) =>
-          val count = sink.getStorage.getCount.toInt
+          val count = ResultStorage.getOpResultStorage(sink.getContext.workflowId).get(OperatorIdentity(sink.getStorageKey)).getCount.toInt
           val mode = sink.getOutputMode
           val changeDetector =
             if (mode == IncrementalOutputMode.SET_SNAPSHOT) {

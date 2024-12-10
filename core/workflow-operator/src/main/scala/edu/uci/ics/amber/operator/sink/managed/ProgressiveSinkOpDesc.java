@@ -6,8 +6,6 @@ import edu.uci.ics.amber.core.executor.OpExecInitInfo;
 import edu.uci.ics.amber.core.executor.OperatorExecutor;
 import edu.uci.ics.amber.core.storage.model.BufferedItemWriter;
 import edu.uci.ics.amber.core.storage.model.VirtualDocument;
-import edu.uci.ics.amber.core.storage.result.MongoDocument;
-import edu.uci.ics.amber.core.storage.result.OpResultStorage;
 import edu.uci.ics.amber.core.tuple.Schema;
 import edu.uci.ics.amber.core.tuple.Tuple;
 import edu.uci.ics.amber.core.workflow.PhysicalOp;
@@ -49,7 +47,7 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
 
     // TODO: remove this from Desc
     @JsonIgnore
-    private VirtualDocument<Tuple> storage = null;
+    private String storageKey = null;
 
     // corresponding upstream operator ID and output port, will be set by workflow compiler
     @JsonIgnore
@@ -60,22 +58,14 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
 
     @Override
     public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId) {
-        // The writer can be null because for workflow compiliong service, the assignSinkStorage will not happen, which
-        //   make the storage of sink null during the whole lifecycle of compilation.
-        // TODO: consider a better way to avoid passing a null writer to the OpExec
-        BufferedItemWriter<Tuple> writer;
-        if (this.storage != null)
-            writer = this.storage.writer();
-        else {
-            writer = null;
-        }
+
         return PhysicalOp.localPhysicalOp(
                         workflowId,
                         executionId,
                         operatorIdentifier(),
                         OpExecInitInfo.apply(
                                 (Function<Tuple2<Object, Object>, OperatorExecutor> & java.io.Serializable)
-                                        worker -> new edu.uci.ics.amber.operator.sink.managed.ProgressiveSinkOpExec(outputMode, writer)
+                                        worker -> new edu.uci.ics.amber.operator.sink.managed.ProgressiveSinkOpExec(outputMode, this.storageKey, workflowId)
                         )
                 )
                 .withInputPorts(this.operatorInfo().inputPorts())
@@ -166,13 +156,13 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
     }
 
     @JsonIgnore
-    public void setStorage(VirtualDocument<Tuple> storage) {
-        this.storage = storage;
+    public void setStorageKey(String storageKey) {
+        this.storageKey = storageKey;
     }
 
     @JsonIgnore
-    public VirtualDocument<Tuple> getStorage() {
-        return this.storage;
+    public String getStorageKey() {
+        return this.storageKey;
     }
 
     public Option<OperatorIdentity> getUpstreamId() {
