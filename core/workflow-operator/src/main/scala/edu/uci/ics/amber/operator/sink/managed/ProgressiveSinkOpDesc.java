@@ -4,10 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Preconditions;
 import edu.uci.ics.amber.core.executor.OpExecInitInfo;
 import edu.uci.ics.amber.core.executor.OperatorExecutor;
-import edu.uci.ics.amber.core.storage.model.BufferedItemWriter;
-import edu.uci.ics.amber.core.storage.model.VirtualDocument;
 import edu.uci.ics.amber.core.tuple.Schema;
-import edu.uci.ics.amber.core.tuple.Tuple;
 import edu.uci.ics.amber.core.workflow.PhysicalOp;
 import edu.uci.ics.amber.core.workflow.SchemaPropagationFunc;
 import edu.uci.ics.amber.operator.metadata.OperatorGroupConstants;
@@ -45,9 +42,6 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
     @JsonIgnore
     private Option<String> chartType = Option.empty();
 
-    // TODO: remove this from Desc
-    @JsonIgnore
-    private String storageKey = null;
 
     // corresponding upstream operator ID and output port, will be set by workflow compiler
     @JsonIgnore
@@ -65,7 +59,7 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
                         operatorIdentifier(),
                         OpExecInitInfo.apply(
                                 (Function<Tuple2<Object, Object>, OperatorExecutor> & java.io.Serializable)
-                                        worker -> new edu.uci.ics.amber.operator.sink.managed.ProgressiveSinkOpExec(outputMode, this.storageKey, workflowId)
+                                        worker -> new edu.uci.ics.amber.operator.sink.managed.ProgressiveSinkOpExec(outputMode, this.getUpstreamId().get().id(), workflowId)
                         )
                 )
                 .withInputPorts(this.operatorInfo().inputPorts())
@@ -155,28 +149,23 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
         this.chartType = Option.apply(chartType);
     }
 
-    @JsonIgnore
-    public void setStorageKey(String storageKey) {
-        this.storageKey = storageKey;
-    }
 
     @JsonIgnore
-    public String getStorageKey() {
-        return this.storageKey;
-    }
-
     public Option<OperatorIdentity> getUpstreamId() {
         return upstreamId;
     }
 
+    @JsonIgnore
     public void setUpstreamId(OperatorIdentity upstreamId) {
         this.upstreamId = Option.apply(upstreamId);
     }
 
+    @JsonIgnore
     public Option<Integer> getUpstreamPort() {
         return upstreamPort;
     }
 
+    @JsonIgnore
     public void setUpstreamPort(Integer upstreamPort) {
         this.upstreamPort = Option.apply(upstreamPort);
     }

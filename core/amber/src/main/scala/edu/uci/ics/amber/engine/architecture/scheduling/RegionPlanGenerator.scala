@@ -203,8 +203,8 @@ abstract class RegionPlanGenerator(
       mode = OpResultStorage.defaultStorageMode,
       schema = Some(schema)
     )
-    matWriter.setStorageKey(
-      matWriter.operatorIdentifier.id
+    matWriter.setUpstreamId(
+      matWriter.operatorIdentifier
     )
 
     matWriter.getPhysicalOp(

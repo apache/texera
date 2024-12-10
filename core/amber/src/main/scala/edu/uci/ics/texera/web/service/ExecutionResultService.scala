@@ -76,7 +76,7 @@ object ExecutionResultService {
       }
     }
 
-    val storage = ResultStorage.getOpResultStorage(sink.getContext.workflowId).get(OperatorIdentity(sink.getStorageKey))
+    val storage = ResultStorage.getOpResultStorage(sink.getContext.workflowId).get(sink.getUpstreamId.get)
     val webUpdate = (webOutputMode, sink.getOutputMode) match {
       case (PaginationMode(), SET_SNAPSHOT) =>
         val numTuples = storage.getCount
@@ -234,7 +234,7 @@ class ExecutionResultService(
 
               ) {
                 val sinkOp = sinkOperators(opId)
-                val opStorage = ResultStorage.getOpResultStorage(sinkOp.getContext.workflowId).get(OperatorIdentity(sinkOp.getStorageKey))
+                val opStorage = ResultStorage.getOpResultStorage(sinkOp.getContext.workflowId).get(sinkOp.getUpstreamId.get)
                 opStorage match {
                   case mongoDocument: MongoDocument[Tuple] =>
                     val tableCatStats = mongoDocument.getCategoricalStats
@@ -286,7 +286,7 @@ class ExecutionResultService(
 
       if (sinkOperators.contains(opId)) {
         val sinkOp = sinkOperators(opId)
-        ResultStorage.getOpResultStorage(sinkOp.getContext.workflowId).get(OperatorIdentity(sinkOp.getStorageKey)).getRange(from, from + request.pageSize).to(Iterable)
+        ResultStorage.getOpResultStorage(sinkOp.getContext.workflowId).get(sinkOp.getUpstreamId.get).getRange(from, from + request.pageSize).to(Iterable)
       } else {
         Iterable.empty
       }
@@ -305,7 +305,7 @@ class ExecutionResultService(
       val newInfo: Map[OperatorIdentity, OperatorResultMetadata] = sinkOperators.map {
 
         case (id, sink) =>
-          val count = ResultStorage.getOpResultStorage(sink.getContext.workflowId).get(OperatorIdentity(sink.getStorageKey)).getCount.toInt
+          val count = ResultStorage.getOpResultStorage(sink.getContext.workflowId).get(sink.getUpstreamId.get).getCount.toInt
           val mode = sink.getOutputMode
           val changeDetector =
             if (mode == IncrementalOutputMode.SET_SNAPSHOT) {

@@ -205,9 +205,7 @@ class WorkflowCompiler(
           if (sink.getChartType.contains(VisualizationConstants.HTML_VIZ)) OpResultStorage.MEMORY
           else OpResultStorage.defaultStorageMode
         }
-        if (reuseStorageSet.contains(storageKey) && storage.contains(storageKey)) {
-          sink.setStorageKey(storageKey.id)
-        } else {
+        if (!reuseStorageSet.contains(storageKey) || !storage.contains(storageKey)) {
           // get the schema for result storage in certain mode
           val sinkStorageSchema: Option[Schema] =
             if (storageType == OpResultStorage.MONGODB) {
@@ -221,9 +219,6 @@ class WorkflowCompiler(
             storageKey,
             storageType,
             sinkStorageSchema
-          )
-          sink.setStorageKey(
-            storageKey.id
           )
           // add the sink collection name to the JSON array of sinks
           val storageNode = objectMapper.createObjectNode()
