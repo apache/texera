@@ -1,5 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
+import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.amber.core.storage.result.OpResultStorage
 import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberLogging}
@@ -38,10 +39,15 @@ class CostBasedRegionPlanGenerator(
       numStatesExplored: Int = 0
   )
 
-  private val operatorEstimatedTimeOption =
-    WorkflowExecutionsResource.getOperatorExecutionTimeInSecondsForRegionPlanGenerator(
-      this.workflowContext.workflowId.id
-    )
+  private val operatorEstimatedTimeOption = {
+    if (StorageConfig.jdbcUsername.isEmpty) {
+      None
+    } else {
+      WorkflowExecutionsResource.getOperatorExecutionTimeInSecondsForRegionPlanGenerator(
+        this.workflowContext.workflowId.id
+      )
+    }
+  }
 
   def generate(): (RegionPlan, PhysicalPlan) = {
     this.operatorEstimatedTimeOption match {
