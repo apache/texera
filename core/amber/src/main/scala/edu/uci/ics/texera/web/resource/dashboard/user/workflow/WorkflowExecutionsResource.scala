@@ -123,11 +123,13 @@ object WorkflowExecutionsResource {
 
   /**
     * Retrieve the latest successful execution to get statistics to calculate costs in CostBasedRegionPlanGenerator.
+    * Using the total control processing time plus data processing time of an operator as its cost.
+    * If no past statistics are available (e.g., first execution), return None.
     */
-  def getStatsForRegionPlanGenerator(
-      wid: UInteger
-  ): Map[String, List[WorkflowRuntimeStatistics]] = {
-
+  def getOperatorExecutionTimeInSecondsForRegionPlanGenerator(
+      wid: Long
+  ): Option[Map[String, Double]] = {
+    val widAsUInteger = UInteger.valueOf(wid)
     val latestSuccessfulExecution = context
       .select(
         WORKFLOW_EXECUTIONS.EID,
@@ -149,7 +151,7 @@ object WorkflowExecutionsResource {
       .from(WORKFLOW_EXECUTIONS)
       .join(WORKFLOW_VERSION)
       .on(WORKFLOW_VERSION.VID.eq(WORKFLOW_EXECUTIONS.VID))
-      .where(WORKFLOW_VERSION.WID.eq(wid).and(WORKFLOW_EXECUTIONS.STATUS.eq(3.toByte)))
+      .where(WORKFLOW_VERSION.WID.eq(widAsUInteger).and(WORKFLOW_EXECUTIONS.STATUS.eq(3.toByte)))
       .orderBy(WORKFLOW_EXECUTIONS.STARTING_TIME.desc())
       .limit(1)
       .fetchInto(classOf[WorkflowExecutionEntry])
@@ -159,50 +161,35 @@ object WorkflowExecutionsResource {
 
     if (latestSuccessfulExecution.isDefined) {
       val eid = latestSuccessfulExecution.get.eId
-      val stats = context
+      val rawStats = context
         .select(
           WORKFLOW_RUNTIME_STATISTICS.OPERATOR_ID,
           WORKFLOW_RUNTIME_STATISTICS.TIME,
           WORKFLOW_RUNTIME_STATISTICS.DATA_PROCESSING_TIME,
-          WORKFLOW_RUNTIME_STATISTICS.CONTROL_PROCESSING_TIME,
+          WORKFLOW_RUNTIME_STATISTICS.CONTROL_PROCESSING_TIME
         )
         .from(WORKFLOW_RUNTIME_STATISTICS)
         .where(
           WORKFLOW_RUNTIME_STATISTICS.WORKFLOW_ID
-            .eq(wid)
+            .eq(widAsUInteger)
             .and(WORKFLOW_RUNTIME_STATISTICS.EXECUTION_ID.eq(eid))
         )
         .orderBy(WORKFLOW_RUNTIME_STATISTICS.TIME, WORKFLOW_RUNTIME_STATISTICS.OPERATOR_ID)
         .fetchInto(classOf[WorkflowRuntimeStatistics])
         .asScala
         .toList
-      if (stats.isEmpty) {
-        Map.empty[String, List[WorkflowRuntimeStatistics]]
+      if (rawStats.isEmpty) {
+        None
       } else {
-        val beginTimestamp =
-          stats.head.getTime.getTime // Convert timestamp to long for easier manipulation
-        stats.foldLeft(Map.empty[String, List[WorkflowRuntimeStatistics]]) { (acc, stat) =>
-          val statsArray = acc.getOrElse(stat.getOperatorId, List.empty)
-          val lastStat = statsArray.lastOption
-
-          val updatedStat = lastStat match {
-            case Some(last) =>
-              val newStat = new WorkflowRuntimeStatistics(stat)
-              newStat.setTime(new Timestamp(stat.getTime.getTime - beginTimestamp))
-              newStat.setDataProcessingTime(stat.getDataProcessingTime.add(last.getDataProcessingTime))
-              newStat.setControlProcessingTime(stat.getControlProcessingTime.add(last.getControlProcessingTime))
-              newStat
-            case None =>
-              val newStat = new WorkflowRuntimeStatistics(stat)
-              newStat.setTime(new Timestamp(stat.getTime.getTime - beginTimestamp))
-              newStat
-          }
-
-          acc + (stat.getOperatorId -> (statsArray :+ updatedStat))
+        val cumulatedStats = rawStats.foldLeft(Map.empty[String, Double]) { (acc, stat) =>
+          val opTotalExecutionTime = acc.getOrElse(stat.getOperatorId, 0.0)
+          acc + (stat.getOperatorId -> (opTotalExecutionTime + (stat.getDataProcessingTime
+            .doubleValue() + stat.getControlProcessingTime.doubleValue()) / 1e9))
         }
+        Some(cumulatedStats)
       }
     } else {
-      Map.empty[String, List[WorkflowRuntimeStatistics]]
+      None
     }
   }
 }
