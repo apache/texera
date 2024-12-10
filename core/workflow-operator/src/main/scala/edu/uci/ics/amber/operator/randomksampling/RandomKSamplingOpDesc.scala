@@ -1,10 +1,11 @@
 package edu.uci.ics.amber.operator.randomksampling
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import edu.uci.ics.amber.core.executor.OpExecInitInfo
+import edu.uci.ics.amber.core.executor.{ExecFactory, OpExecInitInfo}
 import edu.uci.ics.amber.core.workflow.PhysicalOp
 import edu.uci.ics.amber.operator.filter.FilterOpDesc
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort}
 
@@ -26,7 +27,8 @@ class RandomKSamplingOpDesc extends FilterOpDesc {
         executionId,
         operatorIdentifier,
         OpExecInitInfo((idx, workerCount) =>
-          new RandomKSamplingOpExec(percentage, idx, Array.fill(workerCount)(Random.nextInt()))
+          ExecFactory.newExecFromJavaClassName( "edu.uci.ics.amber.operator.randomksampling.RandomKSamplingOpExec",
+            objectMapper.writeValueAsString(this), idx, workerCount)
         )
       )
       .withInputPorts(operatorInfo.inputPorts)
