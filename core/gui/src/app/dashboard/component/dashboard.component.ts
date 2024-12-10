@@ -66,7 +66,7 @@ export class DashboardComponent implements OnInit {
             document.cookie = `flarum_remember=${response.token};path=/`;
           },
           error: (err: unknown) => {
-            if ((err as HttpErrorResponse).status == 404) {
+            if ([404, 500].includes((err as HttpErrorResponse).status)) {
               this.displayForum = false;
             } else {
               this.flarumService
