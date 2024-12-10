@@ -2,7 +2,7 @@ package edu.uci.ics.amber.operator.reservoirsampling
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
-import edu.uci.ics.amber.core.executor.OpExecInitInfo
+import edu.uci.ics.amber.core.executor.{ExecFactory, OpExecInitInfo}
 import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.core.workflow.PhysicalOp
 import edu.uci.ics.amber.operator.LogicalOp
@@ -10,6 +10,7 @@ import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort}
 import edu.uci.ics.amber.operator.util.OperatorDescriptorUtils.equallyPartitionGoal
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 
 import scala.util.Random
 
@@ -29,10 +30,11 @@ class ReservoirSamplingOpDesc extends LogicalOp {
         executionId,
         operatorIdentifier,
         OpExecInitInfo((idx, workerCount) =>
-          new ReservoirSamplingOpExec(
+          ExecFactory.newExecFromJavaClassName(
+            "edu.uci.ics.amber.operator.reservoirsampling.ReservoirSamplingOpExec",
+            objectMapper.writeValueAsString(this),
             idx,
-            equallyPartitionGoal(k, workerCount),
-            Array.fill(workerCount)(Random.nextInt())
+            workerCount
           )
         )
       )
