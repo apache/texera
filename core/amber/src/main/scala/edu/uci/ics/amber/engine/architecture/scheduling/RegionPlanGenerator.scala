@@ -170,7 +170,7 @@ abstract class RegionPlanGenerator(
       .addLink(readerToDestLink)
   }
 
-  def createMatReader(
+  private def createMatReader(
       matWriterLogicalOpId: OperatorIdentity,
       physicalLink: PhysicalLink,
       workflowIdentity: WorkflowIdentity
@@ -191,7 +191,7 @@ abstract class RegionPlanGenerator(
 
   }
 
-  def createMatWriter(
+  private def createMatWriter(
       physicalLink: PhysicalLink,
       inputSchema: Array[Schema],
       workflowIdentity: WorkflowIdentity
