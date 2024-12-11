@@ -2,14 +2,14 @@ package edu.uci.ics.amber.core.storage.result
 
 import edu.uci.ics.amber.virtualidentity.WorkflowIdentity
 
+import scala.collection.mutable
+
 object ResultStorage {
 
-  val workflowToOpResultMapping: scala.collection.mutable.Map[
-    edu.uci.ics.amber.virtualidentity.WorkflowIdentity,
-    edu.uci.ics.amber.core.storage.result.OpResultStorage
-  ] = scala.collection.mutable.Map.empty
+  private val workflowIdToOpResultMapping: mutable.Map[WorkflowIdentity, OpResultStorage] =
+    mutable.Map.empty
 
   def getOpResultStorage(workflowIdentity: WorkflowIdentity): OpResultStorage = {
-    workflowToOpResultMapping.getOrElseUpdate(workflowIdentity, new OpResultStorage())
+    workflowIdToOpResultMapping.getOrElseUpdate(workflowIdentity, new OpResultStorage())
   }
 }
