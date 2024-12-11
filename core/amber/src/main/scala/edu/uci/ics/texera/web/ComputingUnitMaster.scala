@@ -39,7 +39,6 @@ object ComputingUnitMaster {
   def createAmberRuntime(
       workflowContext: WorkflowContext,
       physicalPlan: PhysicalPlan,
-      opResultStorage: OpResultStorage,
       conf: ControllerConfig,
       errorHandler: Throwable => Unit
   ): AmberClient = {
@@ -47,7 +46,6 @@ object ComputingUnitMaster {
       AmberRuntime.actorSystem,
       workflowContext,
       physicalPlan,
-      opResultStorage,
       conf,
       errorHandler
     )

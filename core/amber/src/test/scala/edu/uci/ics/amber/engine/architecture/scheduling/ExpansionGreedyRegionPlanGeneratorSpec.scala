@@ -1,6 +1,5 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
-import edu.uci.ics.amber.core.storage.result.OpResultStorage
 import edu.uci.ics.amber.core.workflow.WorkflowContext
 import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
 import edu.uci.ics.amber.operator.TestOperators
@@ -18,7 +17,6 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
     val headerlessCsvOpDesc = TestOperators.headerlessSmallCsvScanOpDesc()
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("column-1", "Asia")
     val sink = TestOperators.sinkOpDesc()
-    val resultStorage = new OpResultStorage()
     val workflow = buildWorkflow(
       List(headerlessCsvOpDesc, keywordOpDesc, sink),
       List(
@@ -35,14 +33,12 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
           PortIdentity(0)
         )
       ),
-      resultStorage,
       new WorkflowContext()
     )
 
     val (regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
       workflow.context,
-      workflow.physicalPlan,
-      resultStorage
+      workflow.physicalPlan
     ).generate()
 
     assert(regionPlan.regions.size == 1)
@@ -67,7 +63,6 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
     val headerlessCsvOpDesc2 = TestOperators.headerlessSmallCsvScanOpDesc()
     val joinOpDesc = TestOperators.joinOpDesc("column-1", "column-1")
     val sink = TestOperators.sinkOpDesc()
-    val resultStorage = new OpResultStorage()
     val workflow = buildWorkflow(
       List(
         headerlessCsvOpDesc1,
@@ -95,14 +90,12 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
           PortIdentity()
         )
       ),
-      resultStorage,
       new WorkflowContext()
     )
 
     val (regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
       workflow.context,
-      workflow.physicalPlan,
-      resultStorage
+      workflow.physicalPlan
     ).generate()
 
     assert(regionPlan.regions.size == 2)
@@ -151,7 +144,6 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("column-1", "Asia")
     val joinOpDesc = TestOperators.joinOpDesc("column-1", "column-1")
     val sink = TestOperators.sinkOpDesc()
-    val resultStorage = new OpResultStorage()
     val workflow = buildWorkflow(
       List(
         headerlessCsvOpDesc1,
@@ -185,14 +177,12 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
           PortIdentity()
         )
       ),
-      resultStorage,
       new WorkflowContext()
     )
 
     val (regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
       workflow.context,
-      workflow.physicalPlan,
-      resultStorage
+      workflow.physicalPlan
     ).generate()
 
     assert(regionPlan.regions.size == 2)
@@ -218,7 +208,6 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
     val hashJoin1 = TestOperators.joinOpDesc("column-1", "Region")
     val hashJoin2 = TestOperators.joinOpDesc("column-2", "Country")
     val sink = TestOperators.sinkOpDesc()
-    val resultStorage = new OpResultStorage()
     val workflow = buildWorkflow(
       List(
         buildCsv,
@@ -259,14 +248,12 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
           PortIdentity()
         )
       ),
-      resultStorage,
       new WorkflowContext()
     )
 
     val (regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
       workflow.context,
-      workflow.physicalPlan,
-      resultStorage
+      workflow.physicalPlan
     ).generate()
 
     assert(regionPlan.regions.size == 2)
@@ -292,7 +279,6 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
     val training = new PythonUDFOpDescV2()
     val inference = new DualInputPortsPythonUDFOpDescV2()
     val sink = TestOperators.sinkOpDesc()
-    val resultStorage = new OpResultStorage()
     val workflow = buildWorkflow(
       List(
         csv,
@@ -333,14 +319,12 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
           PortIdentity()
         )
       ),
-      resultStorage,
       new WorkflowContext()
     )
 
     val (regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
       workflow.context,
-      workflow.physicalPlan,
-      resultStorage
+      workflow.physicalPlan
     ).generate()
 
     assert(regionPlan.regions.size == 2)

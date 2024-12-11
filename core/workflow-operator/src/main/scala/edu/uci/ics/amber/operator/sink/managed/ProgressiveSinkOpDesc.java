@@ -4,12 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Preconditions;
 import edu.uci.ics.amber.core.executor.OpExecInitInfo;
 import edu.uci.ics.amber.core.executor.OperatorExecutor;
-import edu.uci.ics.amber.core.storage.model.BufferedItemWriter;
-import edu.uci.ics.amber.core.storage.model.VirtualDocument;
-import edu.uci.ics.amber.core.storage.result.MongoDocument;
-import edu.uci.ics.amber.core.storage.result.OpResultStorage;
 import edu.uci.ics.amber.core.tuple.Schema;
-import edu.uci.ics.amber.core.tuple.Tuple;
 import edu.uci.ics.amber.core.workflow.PhysicalOp;
 import edu.uci.ics.amber.core.workflow.SchemaPropagationFunc;
 import edu.uci.ics.amber.operator.metadata.OperatorGroupConstants;
@@ -47,9 +42,6 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
     @JsonIgnore
     private Option<String> chartType = Option.empty();
 
-    // TODO: remove this from Desc
-    @JsonIgnore
-    private VirtualDocument<Tuple> storage = null;
 
     // corresponding upstream operator ID and output port, will be set by workflow compiler
     @JsonIgnore
@@ -60,22 +52,14 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
 
     @Override
     public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId) {
-        // The writer can be null because for workflow compiliong service, the assignSinkStorage will not happen, which
-        //   make the storage of sink null during the whole lifecycle of compilation.
-        // TODO: consider a better way to avoid passing a null writer to the OpExec
-        BufferedItemWriter<Tuple> writer;
-        if (this.storage != null)
-            writer = this.storage.writer();
-        else {
-            writer = null;
-        }
+
         return PhysicalOp.localPhysicalOp(
                         workflowId,
                         executionId,
                         operatorIdentifier(),
                         OpExecInitInfo.apply(
                                 (Function<Tuple2<Object, Object>, OperatorExecutor> & java.io.Serializable)
-                                        worker -> new edu.uci.ics.amber.operator.sink.managed.ProgressiveSinkOpExec(outputMode, writer)
+                                        worker -> new edu.uci.ics.amber.operator.sink.managed.ProgressiveSinkOpExec(outputMode, this.getUpstreamId().get().id(), workflowId)
                         )
                 )
                 .withInputPorts(this.operatorInfo().inputPorts())
@@ -165,28 +149,23 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
         this.chartType = Option.apply(chartType);
     }
 
-    @JsonIgnore
-    public void setStorage(VirtualDocument<Tuple> storage) {
-        this.storage = storage;
-    }
 
     @JsonIgnore
-    public VirtualDocument<Tuple> getStorage() {
-        return this.storage;
-    }
-
     public Option<OperatorIdentity> getUpstreamId() {
         return upstreamId;
     }
 
+    @JsonIgnore
     public void setUpstreamId(OperatorIdentity upstreamId) {
         this.upstreamId = Option.apply(upstreamId);
     }
 
+    @JsonIgnore
     public Option<Integer> getUpstreamPort() {
         return upstreamPort;
     }
 
+    @JsonIgnore
     public void setUpstreamPort(Integer upstreamPort) {
         this.upstreamPort = Option.apply(upstreamPort);
     }

@@ -122,11 +122,10 @@ class BatchSizePropagationSpec
           PortIdentity()
         )
       ),
-      resultStorage,
       context
     )
 
-    val workflowScheduler = new WorkflowScheduler(context, resultStorage, CONTROLLER)
+    val workflowScheduler = new WorkflowScheduler(context, CONTROLLER)
     workflowScheduler.updateSchedule(workflow.physicalPlan)
 
     verifyBatchSizeInPartitioning(workflowScheduler, 1)
@@ -159,11 +158,10 @@ class BatchSizePropagationSpec
           PortIdentity()
         )
       ),
-      resultStorage,
       context
     )
 
-    val workflowScheduler = new WorkflowScheduler(context, resultStorage, CONTROLLER)
+    val workflowScheduler = new WorkflowScheduler(context, CONTROLLER)
     workflowScheduler.updateSchedule(workflow.physicalPlan)
 
     verifyBatchSizeInPartitioning(workflowScheduler, 500)
@@ -204,11 +202,10 @@ class BatchSizePropagationSpec
           PortIdentity()
         )
       ),
-      resultStorage,
       context
     )
 
-    val workflowScheduler = new WorkflowScheduler(context, resultStorage, CONTROLLER)
+    val workflowScheduler = new WorkflowScheduler(context, CONTROLLER)
     workflowScheduler.updateSchedule(workflow.physicalPlan)
 
     verifyBatchSizeInPartitioning(workflowScheduler, 100)
@@ -253,11 +250,10 @@ class BatchSizePropagationSpec
           PortIdentity()
         )
       ),
-      resultStorage,
       context
     )
 
-    val workflowScheduler = new WorkflowScheduler(context, resultStorage, CONTROLLER)
+    val workflowScheduler = new WorkflowScheduler(context, CONTROLLER)
     workflowScheduler.updateSchedule(workflow.physicalPlan)
 
     verifyBatchSizeInPartitioning(workflowScheduler, 300)
@@ -302,11 +298,10 @@ class BatchSizePropagationSpec
           PortIdentity()
         )
       ),
-      resultStorage,
       context
     )
 
-    val workflowScheduler = new WorkflowScheduler(context, resultStorage, CONTROLLER)
+    val workflowScheduler = new WorkflowScheduler(context, CONTROLLER)
     workflowScheduler.updateSchedule(workflow.physicalPlan)
 
     verifyBatchSizeInPartitioning(workflowScheduler, 1)

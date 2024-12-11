@@ -89,7 +89,7 @@ class WorkflowExecutionService(
   def executeWorkflow(): Unit = {
     try {
       workflow = new WorkflowCompiler(workflowContext)
-        .compile(request.logicalPlan, resultService.opResultStorage)
+        .compile(request.logicalPlan)
     } catch {
       case err: Throwable =>
         errorHandler(err)
@@ -98,7 +98,6 @@ class WorkflowExecutionService(
     client = ComputingUnitMaster.createAmberRuntime(
       workflowContext,
       workflow.physicalPlan,
-      resultService.opResultStorage,
       controllerConfig,
       errorHandler
     )

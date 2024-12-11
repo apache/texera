@@ -1,6 +1,5 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
-import edu.uci.ics.amber.core.storage.result.OpResultStorage
 import edu.uci.ics.amber.core.workflow.WorkflowContext
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
@@ -17,7 +16,6 @@ class CostBasedRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("column-1", "Asia")
     val joinOpDesc = TestOperators.joinOpDesc("column-1", "column-1")
     val sink = TestOperators.sinkOpDesc()
-    val resultStorage = new OpResultStorage()
     val workflow = buildWorkflow(
       List(
         headerlessCsvOpDesc1,
@@ -51,14 +49,12 @@ class CostBasedRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
           PortIdentity()
         )
       ),
-      resultStorage,
       new WorkflowContext()
     )
 
     val globalSearchNoPruningResult = new CostBasedRegionPlanGenerator(
       workflow.context,
       workflow.physicalPlan,
-      resultStorage,
       CONTROLLER
     ).bottomUpSearch(globalSearch = true, oChains = false, oCleanEdges = false, oEarlyStop = false)
 
@@ -68,7 +64,6 @@ class CostBasedRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
     val globalSearchOChainsResult = new CostBasedRegionPlanGenerator(
       workflow.context,
       workflow.physicalPlan,
-      resultStorage,
       CONTROLLER
     ).bottomUpSearch(globalSearch = true, oCleanEdges = false, oEarlyStop = false)
 
@@ -81,7 +76,6 @@ class CostBasedRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
     val globalSearchOCleanEdgesResult = new CostBasedRegionPlanGenerator(
       workflow.context,
       workflow.physicalPlan,
-      resultStorage,
       CONTROLLER
     ).bottomUpSearch(globalSearch = true, oChains = false, oEarlyStop = false)
 
@@ -92,7 +86,6 @@ class CostBasedRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
     val globalSearchOEarlyStopResult = new CostBasedRegionPlanGenerator(
       workflow.context,
       workflow.physicalPlan,
-      resultStorage,
       CONTROLLER
     ).bottomUpSearch(globalSearch = true, oChains = false, oCleanEdges = false)
 
@@ -103,7 +96,6 @@ class CostBasedRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
     val globalSearchAllPruningEnabledResult = new CostBasedRegionPlanGenerator(
       workflow.context,
       workflow.physicalPlan,
-      resultStorage,
       CONTROLLER
     ).bottomUpSearch(globalSearch = true)
 
@@ -119,7 +111,6 @@ class CostBasedRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("column-1", "Asia")
     val joinOpDesc = TestOperators.joinOpDesc("column-1", "column-1")
     val sink = TestOperators.sinkOpDesc()
-    val resultStorage = new OpResultStorage()
     val workflow = buildWorkflow(
       List(
         headerlessCsvOpDesc1,
@@ -153,14 +144,12 @@ class CostBasedRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
           PortIdentity()
         )
       ),
-      resultStorage,
       new WorkflowContext()
     )
 
     val globalSearchNoPruningResult = new CostBasedRegionPlanGenerator(
       workflow.context,
       workflow.physicalPlan,
-      resultStorage,
       CONTROLLER
     ).topDownSearch(globalSearch = true, oChains = false, oCleanEdges = false)
 
@@ -170,7 +159,6 @@ class CostBasedRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
     val globalSearchOChainsResult = new CostBasedRegionPlanGenerator(
       workflow.context,
       workflow.physicalPlan,
-      resultStorage,
       CONTROLLER
     ).topDownSearch(globalSearch = true, oCleanEdges = false)
 
@@ -181,7 +169,6 @@ class CostBasedRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
     val globalSearchOCleanEdgesResult = new CostBasedRegionPlanGenerator(
       workflow.context,
       workflow.physicalPlan,
-      resultStorage,
       CONTROLLER
     ).topDownSearch(globalSearch = true, oChains = false)
 
@@ -192,7 +179,6 @@ class CostBasedRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
     val globalSearchAllPruningEnabledResult = new CostBasedRegionPlanGenerator(
       workflow.context,
       workflow.physicalPlan,
-      resultStorage,
       CONTROLLER
     ).topDownSearch(globalSearch = true)
 

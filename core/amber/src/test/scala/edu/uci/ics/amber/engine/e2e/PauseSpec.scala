@@ -46,13 +46,12 @@ class PauseSpec
       links: List[LogicalLink]
   ): Unit = {
     val resultStorage = new OpResultStorage()
-    val workflow = TestUtils.buildWorkflow(operators, links, resultStorage, new WorkflowContext())
+    val workflow = TestUtils.buildWorkflow(operators, links, new WorkflowContext())
     val client =
       new AmberClient(
         system,
         workflow.context,
         workflow.physicalPlan,
-        resultStorage,
         ControllerConfig.default,
         error => {}
       )

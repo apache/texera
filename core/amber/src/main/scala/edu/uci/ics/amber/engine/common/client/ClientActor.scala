@@ -3,7 +3,6 @@ package edu.uci.ics.amber.engine.common.client
 import akka.actor.{Actor, ActorRef}
 import akka.pattern.StatusReply.Ack
 import com.twitter.util.Promise
-import edu.uci.ics.amber.core.storage.result.OpResultStorage
 import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.{
   CreditRequest,
@@ -44,7 +43,6 @@ private[client] object ClientActor {
   case class InitializeRequest(
       workflowContext: WorkflowContext,
       physicalPlan: PhysicalPlan,
-      opResultStorage: OpResultStorage,
       controllerConfig: ControllerConfig
   )
 
@@ -77,10 +75,10 @@ private[client] class ClientActor extends Actor with AmberLogging {
   }
 
   override def receive: Receive = {
-    case InitializeRequest(workflowContext, physicalPlan, opResultStorage, controllerConfig) =>
+    case InitializeRequest(workflowContext, physicalPlan, controllerConfig) =>
       assert(controller == null)
       controller = context.actorOf(
-        Controller.props(workflowContext, physicalPlan, opResultStorage, controllerConfig)
+        Controller.props(workflowContext, physicalPlan, controllerConfig)
       )
       sender() ! Ack
     case CreditRequest(channelId: ChannelIdentity) =>

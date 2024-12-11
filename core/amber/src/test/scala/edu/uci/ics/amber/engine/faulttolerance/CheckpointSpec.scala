@@ -41,7 +41,6 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
         PortIdentity()
       )
     ),
-    resultStorage,
     new WorkflowContext()
   )
 
@@ -55,7 +54,6 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
     val cp =
       new ControllerProcessor(
         workflow.context,
-        resultStorage,
         ControllerConfig.default,
         CONTROLLER,
         msg => {}

@@ -3,7 +3,7 @@ package edu.uci.ics.texera.web.service
 import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.WorkflowRuntimeException
-import edu.uci.ics.amber.core.storage.result.OpResultStorage
+import edu.uci.ics.amber.core.storage.result.ResultStorage
 import edu.uci.ics.amber.core.workflow.WorkflowContext
 import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
@@ -33,7 +33,6 @@ import edu.uci.ics.texera.web.{SubscriptionManager, WorkflowLifecycleManager}
 import edu.uci.ics.texera.workflow.LogicalPlan
 import io.reactivex.rxjava3.disposables.{CompositeDisposable, Disposable}
 import io.reactivex.rxjava3.subjects.BehaviorSubject
-import org.jooq.types.UInteger
 import play.api.libs.json.Json
 
 import java.net.URI
@@ -74,20 +73,17 @@ class WorkflowService(
 ) extends SubscriptionManager
     with LazyLogging {
   // state across execution:
-  var opResultStorage: OpResultStorage = new OpResultStorage()
   private val errorSubject = BehaviorSubject.create[TexeraWebSocketEvent]().toSerialized
   val stateStore = new WorkflowStateStore()
   var executionService: BehaviorSubject[WorkflowExecutionService] = BehaviorSubject.create()
 
-  val resultService: ExecutionResultService =
-    new ExecutionResultService(opResultStorage, stateStore)
-  val exportService: ResultExportService =
-    new ResultExportService(opResultStorage, UInteger.valueOf(workflowId.id))
+  val resultService: ExecutionResultService = new ExecutionResultService(stateStore)
+  val exportService: ResultExportService = new ResultExportService(workflowId)
   val lifeCycleManager: WorkflowLifecycleManager = new WorkflowLifecycleManager(
     s"workflowId=$workflowId",
     cleanUpTimeout,
     () => {
-      opResultStorage.clear()
+      ResultStorage.getOpResultStorage(workflowId).clear()
       WorkflowService.workflowServiceMapping.remove(mkWorkflowStateId(workflowId))
       if (executionService.getValue != null) {
         // shutdown client
@@ -231,7 +227,9 @@ class WorkflowService(
     }
 
     // clean up results from previous run
-    opResultStorage.clear() // TODO: change this behavior after enabling cache.
+    ResultStorage
+      .getOpResultStorage(workflowId)
+      .clear() // TODO: change this behavior after enabling cache.
     try {
       val execution = new WorkflowExecutionService(
         controllerConf,

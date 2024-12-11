@@ -4,7 +4,6 @@ import akka.actor.{ActorSystem, Address, PoisonPill, Props}
 import akka.pattern._
 import akka.util.Timeout
 import com.twitter.util.{Future, Promise}
-import edu.uci.ics.amber.core.storage.result.OpResultStorage
 import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlRequest
@@ -32,7 +31,6 @@ class AmberClient(
     system: ActorSystem,
     workflowContext: WorkflowContext,
     physicalPlan: PhysicalPlan,
-    opResultStorage: OpResultStorage,
     controllerConfig: ControllerConfig,
     errorHandler: Throwable => Unit
 ) {
@@ -46,7 +44,6 @@ class AmberClient(
     clientActor ? InitializeRequest(
       workflowContext,
       physicalPlan,
-      opResultStorage,
       controllerConfig
     ),
     10.seconds
