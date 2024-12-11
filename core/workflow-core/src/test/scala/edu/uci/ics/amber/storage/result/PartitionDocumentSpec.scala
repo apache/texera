@@ -12,8 +12,8 @@ class PartitionDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfte
 
   var partitionDocument: PartitionDocument[String] = _
   val numOfPartitions = 3
-  val partitionId: String =
-    Files.createTempDirectory("partition_doc_test").resolve("test_partition").toUri.toString
+  val tempDir = Files.createTempDirectory("partition_doc_test")
+  val partitionId: String = tempDir.resolve("test_partition").toUri.toString.stripSuffix("/")
 
   before {
     // Initialize the PartitionDocument with a base ID and number of partitions
@@ -24,62 +24,60 @@ class PartitionDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfte
     // Clean up all partitions after each test
     partitionDocument.clear()
     for (i <- 0 until numOfPartitions) {
-      Files.deleteIfExists(Paths.get(new URI(s"${partitionId}_partition$i")))
+      val partitionPath = Paths.get(new URI(s"${partitionId}_partition$i"))
+      Files.deleteIfExists(partitionPath)
     }
-    Files.deleteIfExists(Paths.get(new URI(partitionId).getPath.stripSuffix("/test_partition")))
+    Files.deleteIfExists(tempDir)
   }
 
-  "PartitionDocument" should "create and write to each partition" in {
+  "PartitionDocument" should "create and write to each partition directly" in {
     for (i <- 0 until numOfPartitions) {
-      val fileDoc = partitionDocument.getItem(i)
+      val partitionURI = new URI(s"${partitionId}_partition$i")
+      val fileDoc = new ItemizedFileDocument[String](partitionURI)
       fileDoc.open()
       fileDoc.putOne(s"Data for partition $i")
       fileDoc.close()
     }
 
     for (i <- 0 until numOfPartitions) {
-      val fileDoc = partitionDocument.getItem(i)
-      val items = fileDoc.get().toList
-      items should contain(s"Data for partition $i")
+      val item = partitionDocument.getItem(i)
+      item should be(s"Data for partition $i")
     }
   }
 
   it should "read from multiple partitions" in {
-    // Write some data to each partition
+    // Write some data directly to each partition
     for (i <- 0 until numOfPartitions) {
-      val fileDoc = partitionDocument.getItem(i)
+      val partitionURI = new URI(s"${partitionId}_partition$i")
+      val fileDoc = new ItemizedFileDocument[String](partitionURI)
       fileDoc.open()
       fileDoc.putOne(s"Content in partition $i")
       fileDoc.close()
     }
 
-    // Read and verify data from each partition
-    val partitionIterator = partitionDocument.get()
+    // Read and verify data from each partition using PartitionDocument
+    val items = partitionDocument.get().toList
     for (i <- 0 until numOfPartitions) {
-      val fileDoc = partitionIterator.next()
-      val items = fileDoc.get().toList
       items should contain(s"Content in partition $i")
     }
   }
 
   it should "clear all partitions" in {
-    // Write some data to each partition
+    // Write some data directly to each partition
     for (i <- 0 until numOfPartitions) {
-      val fileDoc = partitionDocument.getItem(i)
+      val partitionURI = new URI(s"${partitionId}_partition$i")
+      val fileDoc = new ItemizedFileDocument[String](partitionURI)
       fileDoc.open()
       fileDoc.putOne(s"Some data in partition $i")
       fileDoc.close()
     }
 
-    // Clear all partitions
+    // Clear all partitions using PartitionDocument
     partitionDocument.clear()
 
     // Verify that each partition is empty
-    for (i <- 0 until numOfPartitions) {
-      val fileDoc = partitionDocument.getItem(i)
-      val items = fileDoc.get().toList
-      items should be(empty)
-    }
+    val items = partitionDocument.get().toList
+    items should be(empty)
   }
 
   it should "handle concurrent writes to different partitions" in {
@@ -88,7 +86,8 @@ class PartitionDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfte
 
     val futures = (0 until numOfPartitions).map { i =>
       Future {
-        val fileDoc = partitionDocument.getItem(i)
+        val partitionURI = new URI(s"${partitionId}_partition$i")
+        val fileDoc = new ItemizedFileDocument[String](partitionURI)
         fileDoc.open()
         fileDoc.putOne(s"Concurrent write to partition $i")
         fileDoc.close()
@@ -97,10 +96,9 @@ class PartitionDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfte
 
     Future.sequence(futures).futureValue
 
-    // Verify data written concurrently
+    // Verify data written concurrently using PartitionDocument
+    val items = partitionDocument.get().toList
     for (i <- 0 until numOfPartitions) {
-      val fileDoc = partitionDocument.getItem(i)
-      val items = fileDoc.get().toList
       items should contain(s"Concurrent write to partition $i")
     }
   }
@@ -112,6 +110,6 @@ class PartitionDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfte
       partitionDocument.getItem(invalidIndex)
     }
 
-    exception.getMessage should include(s"Index $invalidIndex out of bound")
+    exception.getMessage should include(s"Index $invalidIndex out of bounds")
   }
 }

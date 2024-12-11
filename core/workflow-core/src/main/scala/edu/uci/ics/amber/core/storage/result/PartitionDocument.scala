@@ -3,29 +3,28 @@ package edu.uci.ics.amber.core.storage.result
 import edu.uci.ics.amber.core.storage.model.VirtualDocument
 
 import java.net.URI
+import java.util.concurrent.locks.ReentrantLock
 
-/**
-  * PartitionDocument is a storage object that consists #numOfPartition physical files as its underlying data storage.
-  * Each underlying file's URI is in the format of {partitionDocumentURI}_{index}.
-  *
-  * PartitionDocument only support getting the FileDocument that corresponds to the single partition either by index or by iterator.
-  * To write over the partition, you should get the FileDocument first, then call write-related methods over it. FileDocument guarantees the thread-safe read/write.
-  *
-  * The Type parameter T is used to specify the type of data item stored in the partition
-  * @param id the id of this partition document.
-  * @param numOfPartition number of partitions
-  */
 class PartitionDocument[T >: Null <: AnyRef](val id: String, val numOfPartition: Int)
-    extends VirtualDocument[ItemizedFileDocument[T]] {
+  extends VirtualDocument[T] {
+
+  // Array of partitions
+  private val partitions = Array.tabulate(numOfPartition)(i => new ItemizedFileDocument[T](getPartitionURI(i)))
+
+  // Cursor for each partition to track read position
+  private val cursors = Array.fill(numOfPartition)(0)
+
+  // Mutex for thread safety
+  private val mutex = new ReentrantLock()
 
   /**
-    * Utility functions to generate the partition URI by index
-    * @param i index of the partition
-    * @return the URI of the partition
-    */
+   * Utility function to generate the partition URI by index.
+   * @param i Index of the partition.
+   * @return The URI of the partition.
+   */
   private def getPartitionURI(i: Int): URI = {
     if (i < 0 || i >= numOfPartition) {
-      throw new RuntimeException(f"Index $i out of bound")
+      throw new RuntimeException(s"Index $i out of bounds")
     }
     new URI(s"${id}_partition$i")
   }
@@ -36,43 +35,101 @@ class PartitionDocument[T >: Null <: AnyRef](val id: String, val numOfPartition:
     )
 
   /**
-    * Get the partition by index i.
-    * This method is THREAD-UNSAFE, as multiple threads can get any partition by index. But the returned FileDocument is thread-safe
-    * @param i index starting from 0
-    * @return FileDocument corresponds to the certain partition
-    */
-  override def getItem(i: Int): ItemizedFileDocument[T] = {
-    new ItemizedFileDocument(getPartitionURI(i))
+   * Get the partition item by index.
+   * This method uses a mutex to ensure thread safety when updating the cursor.
+   * @param i Index starting from 0.
+   * @return The data item of type T.
+   */
+  override def getItem(i: Int): T = {
+    mutex.lock()
+    try {
+      val partitionIndex = i % numOfPartition
+      val document = partitions(partitionIndex)
+      val item = document.getItem(cursors(partitionIndex))
+      cursors(partitionIndex) += 1
+      item
+    } finally {
+      mutex.unlock()
+    }
   }
 
   /**
-    * Get the iterator of partitions.
-    * This method is THREAD-UNSAFE, as multiple threads can get the iterator and loop through all partitions. But the returned FileDocument is thread-safe
-    *  @return an iterator that return the FileDocument corresponds to the certain partition
-    */
-  override def get(): Iterator[ItemizedFileDocument[T]] =
-    new Iterator[ItemizedFileDocument[T]] {
-      private var i: Int = 0
+   * Get an iterator over all items in the partitions.
+   * @return An iterator that returns items of type T.
+   */
+  override def get(): Iterator[T] = new Iterator[T] {
+    private var partitionIndex = 0
+    private val iterators = partitions.map(_.get())
 
-      override def hasNext: Boolean = i < numOfPartition
+    override def hasNext: Boolean = iterators.exists(_.hasNext)
 
-      override def next(): ItemizedFileDocument[T] = {
-        if (!hasNext) {
-          throw new NoSuchElementException("No more partitions")
+    override def next(): T = {
+      mutex.lock()
+      try {
+        while (!iterators(partitionIndex).hasNext) {
+          partitionIndex = (partitionIndex + 1) % numOfPartition
         }
-        val document = new ItemizedFileDocument[T](getPartitionURI(i))
-        i += 1
-        document
+        iterators(partitionIndex).next()
+      } finally {
+        mutex.unlock()
       }
     }
+  }
 
   /**
-    * Remove all partitions.
-    * This method is THREAD-UNSAFE. But FileDocument's remove is thread-safe
-    */
+   * Get an iterator over a range of items.
+   * @param from The starting index (inclusive).
+   * @param until The ending index (exclusive).
+   * @return An iterator over the specified range of items.
+   */
+  override def getRange(from: Int, until: Int): Iterator[T] = {
+    mutex.lock()
+    try {
+      get().slice(from, until)
+    } finally {
+      mutex.unlock()
+    }
+  }
+
+  /**
+   * Get an iterator over all items after the specified index.
+   * @param offset The starting index (exclusive).
+   * @return An iterator over the items after the specified offset.
+   */
+  override def getAfter(offset: Int): Iterator[T] = {
+    mutex.lock()
+    try {
+      get().drop(offset + 1)
+    } finally {
+      mutex.unlock()
+    }
+  }
+
+  /**
+   * Get the total count of items across all partitions.
+   * @return The total count of items.
+   */
+  override def getCount: Long = {
+    mutex.lock()
+    try {
+      partitions.map(_.getCount).sum
+    } finally {
+      mutex.unlock()
+    }
+  }
+
+  /**
+   * Remove all partitions.
+   * This method is thread-safe due to the mutex.
+   */
   override def clear(): Unit = {
-    for (i <- 0 until numOfPartition) {
-      getItem(i).clear()
+    mutex.lock()
+    try {
+      for (partition <- partitions) {
+        partition.clear()
+      }
+    } finally {
+      mutex.unlock()
     }
   }
 }

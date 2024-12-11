@@ -155,6 +155,13 @@ class ItemizedFileDocument[T >: Null <: AnyRef](val uri: URI)
     iterator.drop(i).next()
   }
 
+  override def getRange(from: Int, until: Int): Iterator[T] = get().slice(from, until)
+
+  override def getAfter(offset: Int): Iterator[T] = get().drop(offset + 1)
+
+  override def getCount: Long = get().size
+
+
   /**
     * Get an iterator of data items of type T. Each returned item will be deserialized using Kryo.
     *
