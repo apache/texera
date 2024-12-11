@@ -22,12 +22,10 @@ import scala.util.{Failure, Success, Try}
 class CostBasedRegionPlanGenerator(
     workflowContext: WorkflowContext,
     initialPhysicalPlan: PhysicalPlan,
-    opResultStorage: OpResultStorage,
     val actorId: ActorVirtualIdentity
 ) extends RegionPlanGenerator(
       workflowContext,
-      initialPhysicalPlan,
-      opResultStorage
+      initialPhysicalPlan
     )
     with AmberLogging {
 
