@@ -16,13 +16,10 @@ object ItemizedFileDocument {
 
 /**
   * ItemizedFileDocument provides methods to read/write items to a file located on the filesystem.
-  * All methods are THREAD-SAFE, implemented using a read-write lock:
-  * - 1 writer at a time: only 1 thread can acquire the write lock.
-  * - n readers at a time: multiple threads can acquire the read lock.
-  *
   * The type parameter T specifies the iterable data item stored in the file.
   *
-  * @param uri the identifier of the file. If the file doesn't physically exist, ItemizedFileDocument will create it during construction.
+  * @param uri the identifier of the file.
+  *   If the file doesn't physically exist, ItemizedFileDocument will create it during construction.
   */
 class ItemizedFileDocument[T >: Null <: AnyRef](val uri: URI)
     extends VirtualDocument[T]
@@ -44,6 +41,17 @@ class ItemizedFileDocument[T >: Null <: AnyRef](val uri: URI)
     }
   }
 
+  // Check and create the file if it does not exist
+  withWriteLock {
+    if (!file.exists()) {
+      val parentDir = file.getParent
+      if (parentDir != null && !parentDir.exists()) {
+        parentDir.createFolder() // Create all necessary parent directories
+      }
+      file.createFile() // Create the file if it does not exist
+    }
+  }
+
   // Utility function to wrap code block with read lock
   private def withReadLock[M](block: => M): M = {
     lock.readLock().lock()
@@ -61,17 +69,6 @@ class ItemizedFileDocument[T >: Null <: AnyRef](val uri: URI)
       block
     } finally {
       lock.writeLock().unlock()
-    }
-  }
-
-  // Check and create the file if it does not exist
-  withWriteLock {
-    if (!file.exists()) {
-      val parentDir = file.getParent
-      if (parentDir != null && !parentDir.exists()) {
-        parentDir.createFolder() // Create all necessary parent directories
-      }
-      file.createFile() // Create the file if it does not exist
     }
   }
 
@@ -160,7 +157,6 @@ class ItemizedFileDocument[T >: Null <: AnyRef](val uri: URI)
   override def getAfter(offset: Int): Iterator[T] = get().drop(offset + 1)
 
   override def getCount: Long = get().size
-
 
   /**
     * Get an iterator of data items of type T. Each returned item will be deserialized using Kryo.

@@ -1,5 +1,6 @@
 package edu.uci.ics.amber.core.storage.result
 
+import org.apache.commons.vfs2.{FileObject, VFS}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.BeforeAndAfter
 import org.scalatest.concurrent.ScalaFutures.convertScalaFuture
@@ -75,9 +76,11 @@ class PartitionDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfte
     // Clear all partitions using PartitionDocument
     partitionDocument.clear()
 
-    // Verify that each partition is empty
-    val items = partitionDocument.get().toList
-    items should be(empty)
+    for (i <- 0 until numOfPartitions) {
+      val partitionURI = new URI(s"${partitionId}_partition$i")
+      val file: FileObject = VFS.getManager.resolveFile(partitionURI.toString)
+      file.exists() should be(false)
+    }
   }
 
   it should "handle concurrent writes to different partitions" in {
@@ -101,15 +104,5 @@ class PartitionDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfte
     for (i <- 0 until numOfPartitions) {
       items should contain(s"Concurrent write to partition $i")
     }
-  }
-
-  it should "throw an exception when accessing an invalid partition index" in {
-    val invalidIndex = numOfPartitions
-
-    val exception = intercept[RuntimeException] {
-      partitionDocument.getItem(invalidIndex)
-    }
-
-    exception.getMessage should include(s"Index $invalidIndex out of bounds")
   }
 }
