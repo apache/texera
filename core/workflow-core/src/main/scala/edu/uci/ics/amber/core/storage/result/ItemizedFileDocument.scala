@@ -20,7 +20,7 @@ object ItemizedFileDocument {
   *
   * @param uri the identifier of the file.
   *   If the file doesn't physically exist, ItemizedFileDocument will create the file(possibly also the parent folder)
- *      during its initialization.
+  *      during its initialization.
   *   The lifecycle of the file is bundled with JVM, i.e. when JVM exits, the file gets deleted.
   */
 class ItemizedFileDocument[T >: Null <: AnyRef](val uri: URI)
@@ -75,9 +75,9 @@ class ItemizedFileDocument[T >: Null <: AnyRef](val uri: URI)
   }
 
   /**
-   * Utility function to get an iterator of data items of type T.
-   * Each returned item will be deserialized using Kryo.
-   */
+    * Utility function to get an iterator of data items of type T.
+    * Each returned item will be deserialized using Kryo.
+    */
   private def getIterator: Iterator[T] = {
     lazy val input = new com.twitter.chill.Input(file.getContent.getInputStream)
     new Iterator[T] {
@@ -180,10 +180,11 @@ class ItemizedFileDocument[T >: Null <: AnyRef](val uri: URI)
     * @param i index starting from 0
     * @return data item of type T
     */
-  override def getItem(i: Int): T = withReadLock {
-    val iterator = getIterator
-    iterator.drop(i).next()
-  }
+  override def getItem(i: Int): T =
+    withReadLock {
+      val iterator = getIterator
+      iterator.drop(i).next()
+    }
 
   override def getRange(from: Int, until: Int): Iterator[T] =
     withReadLock {
@@ -198,11 +199,12 @@ class ItemizedFileDocument[T >: Null <: AnyRef](val uri: URI)
   override def getCount: Long =
     withReadLock {
       getIterator.size
-  }
+    }
 
-  override def get(): Iterator[T] = withReadLock {
-    getIterator
-  }
+  override def get(): Iterator[T] =
+    withReadLock {
+      getIterator
+    }
 
   /**
     * Physically remove the file specified by the URI. This method is THREAD-SAFE.

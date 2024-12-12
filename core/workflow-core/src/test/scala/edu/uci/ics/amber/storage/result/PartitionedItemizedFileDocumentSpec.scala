@@ -9,13 +9,17 @@ import org.scalatest.matchers.should.Matchers
 
 class PartitionedItemizedFileDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfter {
 
-  var partitionDocument: PartitionedItemizedFileDocument[String] = _
+  var partitionDocument: PartitionedItemizedFileDocument[ItemizedFileDocument[String], String] = _
   val numOfPartitions = 3
   val partitionId: String = "partition_doc_test"
 
   before {
     // Initialize the PartitionDocument with a base ID and number of partitions
-    partitionDocument = new PartitionedItemizedFileDocument[String](partitionId, numOfPartitions)
+    partitionDocument = new PartitionedItemizedFileDocument[ItemizedFileDocument[String], String](
+      partitionId,
+      numOfPartitions,
+      uri => new ItemizedFileDocument[String](uri)
+    )
   }
 
   after {
