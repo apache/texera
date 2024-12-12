@@ -6,6 +6,8 @@ import { getLocalDirectory, LanguageName } from "./server-commons.ts";
 import fs from "fs";
 import hoconParser from "hocon-parser";
 import { fileURLToPath } from "url";
+import { exec } from "child_process";
+import { promisify } from "util";
 
 const runPythonServer = async (
   baseDir: string,
@@ -44,7 +46,12 @@ const runPythonServerWithRetry = async (
     );
 
     try {
-      await runPythonServer(baseDir, relativeDir, provider, serverPort);
+      if (provider === "pyright") {
+        await runPythonServer(baseDir, relativeDir, provider, serverPort);
+      } else if (provider === "pylsp") {
+        const pylspCommand = `pylsp --port ${serverPort} --ws`;
+        await promisify(exec)(pylspCommand);
+      }
       started = true; // Mark as started if no error occurs
     } catch (err) {
       console.error(
@@ -60,11 +67,11 @@ const runPythonServerWithRetry = async (
     tryCount++;
   }
   if (started)
-    console.log(
-      `${provider} server started on port ${serverPort} successfully`,
-    );
+    console.log(`${provider} language server is running on port ${serverPort}`);
   else
-    console.log(`${provider} server failed to started on port ${serverPort}`);
+    console.log(
+      `Failed to start ${provider} on port ${serverPort} after ${maxRetries} attempts`,
+    );
 };
 
 const baseDir = getLocalDirectory(import.meta.url);
@@ -82,6 +89,13 @@ const languageServerProvider = pythonLanguageServerConfig.provider;
 const pythonLanguageServerPort = pythonLanguageServerConfig.port;
 const languageServerRetryCounts = pythonLanguageServerConfig.retryCounts;
 const languageServerWaitTimeMs = pythonLanguageServerConfig.waitTimeMs;
+
+const supportedProviders = ["pyright", "pylsp"];
+if (!supportedProviders.includes(languageServerProvider.toLowerCase())) {
+  throw new Error(
+    `Unknown language server: ${languageServerProvider}. Supported language servers are: ${supportedProviders.join(", ")}.`,
+  );
+}
 
 const runDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 runPythonServerWithRetry(
