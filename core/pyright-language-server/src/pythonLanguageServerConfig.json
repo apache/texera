@@ -1,5 +1,13 @@
 {
-  "languageServerDir": "../node_modules/pyright/dist",
-  "amberConfigFilePath": "../../amber/src/main/resources/application.conf",
-  "clientPathName": "/python-language-server"
+  "Path": {
+    "languageServerDir": "../node_modules/pyright/dist",
+    "amberConfigFilePath": "../../amber/src/main/resources/application.conf",
+    "clientPathName": "/python-language-server"
+  },
+  "pythonLanguageServer": {
+    "provider": "pyright",
+    "port": 3000,
+    "retryCounts": 3,
+    "waitTimeMs": 200
+  }
 }
