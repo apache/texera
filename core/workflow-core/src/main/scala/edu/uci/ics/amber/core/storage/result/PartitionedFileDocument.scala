@@ -1,14 +1,14 @@
 package edu.uci.ics.amber.core.storage.result
 
 import edu.uci.ics.amber.core.storage.model.VirtualDocument
-import edu.uci.ics.amber.core.storage.result.PartitionedItemizedFileDocument.getPartitionURI
+import edu.uci.ics.amber.core.storage.result.PartitionedFileDocument.getPartitionURI
 import edu.uci.ics.amber.util.PathUtils.workflowResultsRootPath
 import org.apache.commons.vfs2.VFS
 
 import java.net.URI
 import java.util.concurrent.locks.ReentrantLock
 
-object PartitionedItemizedFileDocument {
+object PartitionedFileDocument {
 
   /**
     * Utility function to generate the partition URI by index.
@@ -18,7 +18,7 @@ object PartitionedItemizedFileDocument {
   }
 }
 
-class PartitionedItemizedFileDocument[R <: VirtualDocument[T], T >: Null <: AnyRef](
+class PartitionedFileDocument[R <: VirtualDocument[T], T >: Null <: AnyRef](
     val id: String,
     val numOfPartition: Int,
     createPartition: URI => R

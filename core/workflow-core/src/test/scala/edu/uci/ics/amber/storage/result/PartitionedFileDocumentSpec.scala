@@ -1,21 +1,21 @@
 package edu.uci.ics.amber.core.storage.result
 
-import edu.uci.ics.amber.core.storage.result.PartitionedItemizedFileDocument.getPartitionURI
+import edu.uci.ics.amber.core.storage.result.PartitionedFileDocument.getPartitionURI
 import org.apache.commons.vfs2.{FileObject, VFS}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.BeforeAndAfter
 import org.scalatest.concurrent.ScalaFutures.convertScalaFuture
 import org.scalatest.matchers.should.Matchers
 
-class PartitionedItemizedFileDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfter {
+class PartitionedFileDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfter {
 
-  var partitionDocument: PartitionedItemizedFileDocument[ItemizedFileDocument[String], String] = _
+  var partitionDocument: PartitionedFileDocument[ItemizedFileDocument[String], String] = _
   val numOfPartitions = 3
   val partitionId: String = "partition_doc_test"
 
   before {
     // Initialize the PartitionDocument with a base ID and number of partitions
-    partitionDocument = new PartitionedItemizedFileDocument[ItemizedFileDocument[String], String](
+    partitionDocument = new PartitionedFileDocument[ItemizedFileDocument[String], String](
       partitionId,
       numOfPartitions,
       uri => new ItemizedFileDocument[String](uri)
