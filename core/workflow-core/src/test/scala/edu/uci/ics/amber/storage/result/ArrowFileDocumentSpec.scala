@@ -14,6 +14,17 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.jdk.CollectionConverters._
 
+object ArrowFileDocumentSpec {
+  def stringSerializer(item: String, index: Int, root: VectorSchemaRoot): Unit = {
+    val vector = root.getVector("data").asInstanceOf[VarCharVector]
+    vector.setSafe(index, item.getBytes("UTF-8"))
+  }
+
+  def stringDeserializer(index: Int, root: VectorSchemaRoot): String = {
+    new String(root.getVector("data").asInstanceOf[VarCharVector].get(index))
+  }
+}
+
 class ArrowFileDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfter {
 
   val stringArrowSchema = new Schema(List(

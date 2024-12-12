@@ -1,13 +1,34 @@
 package edu.uci.ics.amber.core.storage.result
 
+import edu.uci.ics.amber.core.storage.result.ArrowFileDocumentSpec.{stringDeserializer, stringSerializer}
 import edu.uci.ics.amber.core.storage.result.PartitionedFileDocument.getPartitionURI
+import org.apache.arrow.vector.types.pojo.{ArrowType, Field, Schema}
+import org.apache.arrow.vector.{VarCharVector, VectorSchemaRoot}
 import org.apache.commons.vfs2.{FileObject, VFS}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.BeforeAndAfter
 import org.scalatest.concurrent.ScalaFutures.convertScalaFuture
 import org.scalatest.matchers.should.Matchers
 
+import scala.jdk.CollectionConverters.IterableHasAsJava
+
+object ArrowFileDocumentSpec {
+  def stringSerializer(item: String, index: Int, root: VectorSchemaRoot): Unit = {
+    val vector = root.getVector("data").asInstanceOf[VarCharVector]
+    vector.setSafe(index, item.getBytes("UTF-8"))
+  }
+
+  def stringDeserializer(index: Int, root: VectorSchemaRoot): String = {
+    new String(root.getVector("data").asInstanceOf[VarCharVector].get(index))
+  }
+}
+
+
 class PartitionedFileDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfter {
+
+  val stringArrowSchema = new Schema(List(
+    Field.nullablePrimitive("data", ArrowType.Utf8.INSTANCE)
+  ).asJava)
 
   var partitionDocument: PartitionedFileDocument[ArrowFileDocument[String], String] = _
   val numOfPartitions = 3
@@ -18,7 +39,7 @@ class PartitionedFileDocumentSpec extends AnyFlatSpec with Matchers with BeforeA
     partitionDocument = new PartitionedFileDocument[ArrowFileDocument[String], String](
       partitionId,
       numOfPartitions,
-      uri => new ArrowFileDocument[String](uri)
+      uri => new ArrowFileDocument[String](uri, stringArrowSchema, stringSerializer, stringDeserializer)
     )
   }
 
@@ -30,7 +51,7 @@ class PartitionedFileDocumentSpec extends AnyFlatSpec with Matchers with BeforeA
   "PartitionDocument" should "create and write to each partition directly" in {
     for (i <- 0 until numOfPartitions) {
       val partitionURI = getPartitionURI(partitionId, i)
-      val fileDoc = new ArrowFileDocument[String](partitionURI)
+      val fileDoc = new ArrowFileDocument[String](partitionURI, stringArrowSchema, stringSerializer, stringDeserializer)
       fileDoc.open()
       fileDoc.putOne(s"Data for partition $i")
       fileDoc.close()
@@ -46,7 +67,7 @@ class PartitionedFileDocumentSpec extends AnyFlatSpec with Matchers with BeforeA
     // Write some data directly to each partition
     for (i <- 0 until numOfPartitions) {
       val partitionURI = getPartitionURI(partitionId, i)
-      val fileDoc = new ArrowFileDocument[String](partitionURI)
+      val fileDoc = new ArrowFileDocument[String](partitionURI, stringArrowSchema, stringSerializer, stringDeserializer)
       fileDoc.open()
       fileDoc.putOne(s"Content in partition $i")
       fileDoc.close()
@@ -63,7 +84,7 @@ class PartitionedFileDocumentSpec extends AnyFlatSpec with Matchers with BeforeA
     // Write some data directly to each partition
     for (i <- 0 until numOfPartitions) {
       val partitionURI = getPartitionURI(partitionId, i)
-      val fileDoc = new ArrowFileDocument[String](partitionURI)
+      val fileDoc = new ArrowFileDocument[String](partitionURI, stringArrowSchema, stringSerializer, stringDeserializer)
       fileDoc.open()
       fileDoc.putOne(s"Some data in partition $i")
       fileDoc.close()
@@ -86,7 +107,7 @@ class PartitionedFileDocumentSpec extends AnyFlatSpec with Matchers with BeforeA
     val futures = (0 until numOfPartitions).map { i =>
       Future {
         val partitionURI = getPartitionURI(partitionId, i)
-        val fileDoc = new ArrowFileDocument[String](partitionURI)
+        val fileDoc = new ArrowFileDocument[String](partitionURI, stringArrowSchema, stringSerializer, stringDeserializer)
         fileDoc.open()
         fileDoc.putOne(s"Concurrent write to partition $i")
         fileDoc.close()
