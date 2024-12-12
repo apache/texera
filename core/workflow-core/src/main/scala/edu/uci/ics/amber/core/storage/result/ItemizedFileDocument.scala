@@ -19,13 +19,15 @@ object ItemizedFileDocument {
   * The type parameter T specifies the iterable data item stored in the file.
   *
   * @param uri the identifier of the file.
-  *   If the file doesn't physically exist, ItemizedFileDocument will create it during construction.
+  *   If the file doesn't physically exist, ItemizedFileDocument will create the file(possibly also the parent folder)
+ *      during its initialization.
+  *   The lifecycle of the file is bundled with JVM, i.e. when JVM exits, the file gets deleted.
   */
 class ItemizedFileDocument[T >: Null <: AnyRef](val uri: URI)
     extends VirtualDocument[T]
     with BufferedItemWriter[T] {
 
-  val file: FileObject = VFS.getManager.resolveFile(uri.toString)
+  val file: FileObject = VFS.getManager.resolveFile(uri)
   val lock = new ReentrantReadWriteLock()
 
   // Buffer to store items before flushing
@@ -69,6 +71,37 @@ class ItemizedFileDocument[T >: Null <: AnyRef](val uri: URI)
       block
     } finally {
       lock.writeLock().unlock()
+    }
+  }
+
+  /**
+   * Utility function to get an iterator of data items of type T.
+   * Each returned item will be deserialized using Kryo.
+   */
+  private def getIterator: Iterator[T] = {
+    lazy val input = new com.twitter.chill.Input(file.getContent.getInputStream)
+    new Iterator[T] {
+      var record: T = internalNext()
+
+      private def internalNext(): T = {
+        try {
+          val len = input.readInt()
+          val bytes = input.readBytes(len)
+          ItemizedFileDocument.kryoPool.fromBytes(bytes).asInstanceOf[T]
+        } catch {
+          case _: Throwable =>
+            input.close()
+            null
+        }
+      }
+
+      override def next(): T = {
+        val currentRecord = record
+        record = internalNext()
+        currentRecord
+      }
+
+      override def hasNext: Boolean = record != null
     }
   }
 
@@ -147,47 +180,28 @@ class ItemizedFileDocument[T >: Null <: AnyRef](val uri: URI)
     * @param i index starting from 0
     * @return data item of type T
     */
-  override def getItem(i: Int): T = {
-    val iterator = get()
+  override def getItem(i: Int): T = withReadLock {
+    val iterator = getIterator
     iterator.drop(i).next()
   }
 
-  override def getRange(from: Int, until: Int): Iterator[T] = get().slice(from, until)
-
-  override def getAfter(offset: Int): Iterator[T] = get().drop(offset + 1)
-
-  override def getCount: Long = get().size
-
-  /**
-    * Get an iterator of data items of type T. Each returned item will be deserialized using Kryo.
-    *
-    * @return an iterator that returns data items of type T
-    */
-  override def get(): Iterator[T] = {
-    lazy val input = new com.twitter.chill.Input(file.getContent.getInputStream)
-    new Iterator[T] {
-      var record: T = internalNext()
-
-      private def internalNext(): T = {
-        try {
-          val len = input.readInt()
-          val bytes = input.readBytes(len)
-          ItemizedFileDocument.kryoPool.fromBytes(bytes).asInstanceOf[T]
-        } catch {
-          case _: Throwable =>
-            input.close()
-            null
-        }
-      }
-
-      override def next(): T = {
-        val currentRecord = record
-        record = internalNext()
-        currentRecord
-      }
-
-      override def hasNext: Boolean = record != null
+  override def getRange(from: Int, until: Int): Iterator[T] =
+    withReadLock {
+      getIterator.slice(from, until)
     }
+
+  override def getAfter(offset: Int): Iterator[T] =
+    withReadLock {
+      getIterator.drop(offset + 1)
+    }
+
+  override def getCount: Long =
+    withReadLock {
+      getIterator.size
+  }
+
+  override def get(): Iterator[T] = withReadLock {
+    getIterator
   }
 
   /**

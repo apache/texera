@@ -1,39 +1,31 @@
 package edu.uci.ics.amber.core.storage.result
 
+import edu.uci.ics.amber.core.storage.result.PartitionedItemizedFileDocument.getPartitionURI
 import org.apache.commons.vfs2.{FileObject, VFS}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.BeforeAndAfter
 import org.scalatest.concurrent.ScalaFutures.convertScalaFuture
 import org.scalatest.matchers.should.Matchers
 
-import java.net.URI
-import java.nio.file.{Files, Paths}
+class PartitionedItemizedFileDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfter {
 
-class PartitionDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfter {
-
-  var partitionDocument: PartitionDocument[String] = _
+  var partitionDocument: PartitionedItemizedFileDocument[String] = _
   val numOfPartitions = 3
-  val tempDir = Files.createTempDirectory("partition_doc_test")
-  val partitionId: String = tempDir.resolve("test_partition").toUri.toString.stripSuffix("/")
+  val partitionId: String = "partition_doc_test"
 
   before {
     // Initialize the PartitionDocument with a base ID and number of partitions
-    partitionDocument = new PartitionDocument[String](partitionId, numOfPartitions)
+    partitionDocument = new PartitionedItemizedFileDocument[String](partitionId, numOfPartitions)
   }
 
   after {
     // Clean up all partitions after each test
     partitionDocument.clear()
-    for (i <- 0 until numOfPartitions) {
-      val partitionPath = Paths.get(new URI(s"${partitionId}_partition$i"))
-      Files.deleteIfExists(partitionPath)
-    }
-    Files.deleteIfExists(tempDir)
   }
 
   "PartitionDocument" should "create and write to each partition directly" in {
     for (i <- 0 until numOfPartitions) {
-      val partitionURI = new URI(s"${partitionId}_partition$i")
+      val partitionURI = getPartitionURI(partitionId, i)
       val fileDoc = new ItemizedFileDocument[String](partitionURI)
       fileDoc.open()
       fileDoc.putOne(s"Data for partition $i")
@@ -49,7 +41,7 @@ class PartitionDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfte
   it should "read from multiple partitions" in {
     // Write some data directly to each partition
     for (i <- 0 until numOfPartitions) {
-      val partitionURI = new URI(s"${partitionId}_partition$i")
+      val partitionURI = getPartitionURI(partitionId, i)
       val fileDoc = new ItemizedFileDocument[String](partitionURI)
       fileDoc.open()
       fileDoc.putOne(s"Content in partition $i")
@@ -66,7 +58,7 @@ class PartitionDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfte
   it should "clear all partitions" in {
     // Write some data directly to each partition
     for (i <- 0 until numOfPartitions) {
-      val partitionURI = new URI(s"${partitionId}_partition$i")
+      val partitionURI = getPartitionURI(partitionId, i)
       val fileDoc = new ItemizedFileDocument[String](partitionURI)
       fileDoc.open()
       fileDoc.putOne(s"Some data in partition $i")
@@ -77,7 +69,7 @@ class PartitionDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfte
     partitionDocument.clear()
 
     for (i <- 0 until numOfPartitions) {
-      val partitionURI = new URI(s"${partitionId}_partition$i")
+      val partitionURI = getPartitionURI(partitionId, i)
       val file: FileObject = VFS.getManager.resolveFile(partitionURI.toString)
       file.exists() should be(false)
     }
@@ -89,7 +81,7 @@ class PartitionDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfte
 
     val futures = (0 until numOfPartitions).map { i =>
       Future {
-        val partitionURI = new URI(s"${partitionId}_partition$i")
+        val partitionURI = getPartitionURI(partitionId, i)
         val fileDoc = new ItemizedFileDocument[String](partitionURI)
         fileDoc.open()
         fileDoc.putOne(s"Concurrent write to partition $i")

@@ -39,6 +39,9 @@ object PathUtils {
 
   lazy val workflowCompilingServicePath: Path = corePath.resolve("workflow-compiling-service")
 
+  lazy val workflowResultsRootPath: Path =
+    corePath.resolve("amber").resolve("user-resources").resolve("workflow-results")
+
   private lazy val datasetsRootPath =
     corePath.resolve("amber").resolve("user-resources").resolve("datasets")
 
