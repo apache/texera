@@ -7,7 +7,7 @@ import akka.util.Timeout
 import ch.vorburger.mariadb4j.DB
 import com.twitter.util.{Await, Duration, Promise}
 import edu.uci.ics.amber.clustering.SingleNodeListener
-import edu.uci.ics.amber.core.storage.result.OpResultStorage
+import edu.uci.ics.amber.core.storage.result.{OpResultStorage, ResultStorage}
 import edu.uci.ics.amber.core.tuple.{AttributeType, Tuple}
 import edu.uci.ics.amber.core.workflow.WorkflowContext
 import edu.uci.ics.amber.engine.architecture.controller._
@@ -37,8 +37,8 @@ class DataProcessingSpec
   implicit val timeout: Timeout = Timeout(5.seconds)
 
   var inMemoryMySQLInstance: Option[DB] = None
-
-  val resultStorage = new OpResultStorage() {}
+  val workflowContext: WorkflowContext = new WorkflowContext()
+  val resultStorage: OpResultStorage = ResultStorage.getOpResultStorage(workflowContext.workflowId)
 
   override def beforeAll(): Unit = {
     system.actorOf(Props[SingleNodeListener](), "cluster-info")
@@ -56,7 +56,6 @@ class DataProcessingSpec
       system,
       workflow.context,
       workflow.physicalPlan,
-      resultStorage,
       ControllerConfig.default,
       error => {}
     )
@@ -78,7 +77,7 @@ class DataProcessingSpec
             }
             .map {
               case (sinkOpId, upstreamOpId) =>
-                (sinkOpId, resultStorage.get(upstreamOpId).getAll.toList)
+                (sinkOpId, resultStorage.get(upstreamOpId).get().toList)
             }
             .toMap
           completion.setDone()
@@ -137,8 +136,7 @@ class DataProcessingSpec
           PortIdentity()
         )
       ),
-      resultStorage,
-      new WorkflowContext()
+      workflowContext
     )
     val results = executeWorkflow(workflow)(sink.operatorIdentifier)
 
@@ -158,8 +156,7 @@ class DataProcessingSpec
           PortIdentity()
         )
       ),
-      resultStorage,
-      new WorkflowContext()
+      workflowContext
     )
     val results = executeWorkflow(workflow)(sink.operatorIdentifier)
 
@@ -179,8 +176,7 @@ class DataProcessingSpec
           PortIdentity()
         )
       ),
-      resultStorage,
-      new WorkflowContext()
+      workflowContext
     )
     val results = executeWorkflow(workflow)(sink.operatorIdentifier)
 
@@ -211,8 +207,7 @@ class DataProcessingSpec
           PortIdentity()
         )
       ),
-      resultStorage,
-      new WorkflowContext()
+      workflowContext
     )
     val results = executeWorkflow(workflow)(sink.operatorIdentifier)
 
@@ -250,8 +245,7 @@ class DataProcessingSpec
           PortIdentity()
         )
       ),
-      resultStorage,
-      new WorkflowContext()
+      workflowContext
     )
     executeWorkflow(workflow)
   }
@@ -269,8 +263,7 @@ class DataProcessingSpec
           PortIdentity()
         )
       ),
-      resultStorage,
-      new WorkflowContext()
+      workflowContext
     )
     executeWorkflow(workflow)
   }
@@ -295,8 +288,7 @@ class DataProcessingSpec
           PortIdentity()
         )
       ),
-      resultStorage,
-      new WorkflowContext()
+      workflowContext
     )
     executeWorkflow(workflow)
   }
@@ -329,8 +321,7 @@ class DataProcessingSpec
           PortIdentity()
         )
       ),
-      resultStorage,
-      new WorkflowContext()
+      workflowContext
     )
     executeWorkflow(workflow)
   }
@@ -367,8 +358,7 @@ class DataProcessingSpec
           PortIdentity()
         )
       ),
-      resultStorage,
-      new WorkflowContext()
+      workflowContext
     )
     executeWorkflow(workflow)
   }
@@ -405,8 +395,7 @@ class DataProcessingSpec
           PortIdentity()
         )
       ),
-      resultStorage,
-      new WorkflowContext()
+      workflowContext
     )
     executeWorkflow(workflow)
   }
@@ -447,8 +436,7 @@ class DataProcessingSpec
           PortIdentity()
         )
       ),
-      resultStorage,
-      new WorkflowContext()
+      workflowContext
     )
     executeWorkflow(workflow)
 

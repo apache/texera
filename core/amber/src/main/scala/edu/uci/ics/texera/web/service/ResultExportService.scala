@@ -7,11 +7,12 @@ import com.google.api.services.drive.Drive
 import com.google.api.services.drive.model.{File, FileList, Permission}
 import com.google.api.services.sheets.v4.Sheets
 import com.google.api.services.sheets.v4.model.{Spreadsheet, SpreadsheetProperties, ValueRange}
-import edu.uci.ics.amber.core.storage.result.{OpResultStorage, SinkStorageReader}
+import edu.uci.ics.amber.core.storage.model.VirtualDocument
+import edu.uci.ics.amber.core.storage.result.{OpResultStorage, ResultStorage}
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.engine.common.Utils.retry
 import edu.uci.ics.amber.util.PathUtils
-import edu.uci.ics.amber.virtualidentity.OperatorIdentity
+import edu.uci.ics.amber.virtualidentity.{OperatorIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.websocket.request.ResultExportRequest
 import edu.uci.ics.texera.web.model.websocket.response.ResultExportResponse
@@ -51,7 +52,7 @@ object ResultExportService {
     Executors.newFixedThreadPool(3).asInstanceOf[ThreadPoolExecutor]
 }
 
-class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
+class ResultExportService(workflowIdentity: WorkflowIdentity) {
 
   import ResultExportService._
 
@@ -70,14 +71,13 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
     }
 
     // By now the workflow should finish running
-    val operatorWithResult: SinkStorageReader =
-      opResultStorage.get(OperatorIdentity(request.operatorId))
-    if (operatorWithResult == null) {
+    val operatorResult: VirtualDocument[Tuple] =
+      ResultStorage.getOpResultStorage(workflowIdentity).get(OperatorIdentity(request.operatorId))
+    if (operatorResult == null) {
       return ResultExportResponse("error", "The workflow contains no results")
     }
 
-    // convert the ITuple into tuple
-    val results: Iterable[Tuple] = operatorWithResult.getAll
+    val results: Iterable[Tuple] = operatorResult.get().to(Iterable)
     val attributeNames = results.head.getSchema.getAttributeNames
 
     // handle the request according to export type
