@@ -9,16 +9,16 @@ import org.scalatest.matchers.should.Matchers
 
 class PartitionedFileDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfter {
 
-  var partitionDocument: PartitionedFileDocument[ItemizedFileDocument[String], String] = _
+  var partitionDocument: PartitionedFileDocument[ArrowFileDocument[String], String] = _
   val numOfPartitions = 3
   val partitionId: String = "partition_doc_test"
 
   before {
     // Initialize the PartitionDocument with a base ID and number of partitions
-    partitionDocument = new PartitionedFileDocument[ItemizedFileDocument[String], String](
+    partitionDocument = new PartitionedFileDocument[ArrowFileDocument[String], String](
       partitionId,
       numOfPartitions,
-      uri => new ItemizedFileDocument[String](uri)
+      uri => new ArrowFileDocument[String](uri)
     )
   }
 
@@ -30,7 +30,7 @@ class PartitionedFileDocumentSpec extends AnyFlatSpec with Matchers with BeforeA
   "PartitionDocument" should "create and write to each partition directly" in {
     for (i <- 0 until numOfPartitions) {
       val partitionURI = getPartitionURI(partitionId, i)
-      val fileDoc = new ItemizedFileDocument[String](partitionURI)
+      val fileDoc = new ArrowFileDocument[String](partitionURI)
       fileDoc.open()
       fileDoc.putOne(s"Data for partition $i")
       fileDoc.close()
@@ -46,7 +46,7 @@ class PartitionedFileDocumentSpec extends AnyFlatSpec with Matchers with BeforeA
     // Write some data directly to each partition
     for (i <- 0 until numOfPartitions) {
       val partitionURI = getPartitionURI(partitionId, i)
-      val fileDoc = new ItemizedFileDocument[String](partitionURI)
+      val fileDoc = new ArrowFileDocument[String](partitionURI)
       fileDoc.open()
       fileDoc.putOne(s"Content in partition $i")
       fileDoc.close()
@@ -63,7 +63,7 @@ class PartitionedFileDocumentSpec extends AnyFlatSpec with Matchers with BeforeA
     // Write some data directly to each partition
     for (i <- 0 until numOfPartitions) {
       val partitionURI = getPartitionURI(partitionId, i)
-      val fileDoc = new ItemizedFileDocument[String](partitionURI)
+      val fileDoc = new ArrowFileDocument[String](partitionURI)
       fileDoc.open()
       fileDoc.putOne(s"Some data in partition $i")
       fileDoc.close()
@@ -86,7 +86,7 @@ class PartitionedFileDocumentSpec extends AnyFlatSpec with Matchers with BeforeA
     val futures = (0 until numOfPartitions).map { i =>
       Future {
         val partitionURI = getPartitionURI(partitionId, i)
-        val fileDoc = new ItemizedFileDocument[String](partitionURI)
+        val fileDoc = new ArrowFileDocument[String](partitionURI)
         fileDoc.open()
         fileDoc.putOne(s"Concurrent write to partition $i")
         fileDoc.close()
