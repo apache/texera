@@ -56,7 +56,18 @@ abstract class RegionPlanGenerator(
 ) {
   private val executionClusterInfo = new ExecutionClusterInfo()
 
-  def generate(): (RegionPlan, PhysicalPlan)
+  def generate(): (Schedule, RegionPlan, PhysicalPlan)
+
+  def generateSchedule(regionPlan: RegionPlan): Schedule = {
+    val levelSets = regionPlan
+      .topologicalIterator()
+      .zipWithIndex
+      .map(zippedRegionId => {
+        zippedRegionId._2 -> Set.apply(regionPlan.getRegion(zippedRegionId._1))
+      })
+      .toMap
+    Schedule.apply(levelSets)
+  }
 
   def allocateResource(
       regionDAG: DirectedAcyclicGraph[Region, RegionLink]

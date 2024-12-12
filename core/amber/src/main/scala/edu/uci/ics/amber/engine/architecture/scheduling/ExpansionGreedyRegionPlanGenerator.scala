@@ -17,15 +17,18 @@ class ExpansionGreedyRegionPlanGenerator(
     initialPhysicalPlan: PhysicalPlan
 ) extends RegionPlanGenerator(workflowContext, initialPhysicalPlan)
     with LazyLogging {
-  def generate(): (RegionPlan, PhysicalPlan) = {
+  def generate(): (Schedule, RegionPlan, PhysicalPlan) = {
 
     val regionDAG = createRegionDAG()
+    val regionPlan = RegionPlan(
+      regions = regionDAG.vertexSet().asScala.toSet,
+      regionLinks = regionDAG.edgeSet().asScala.toSet
+    )
+    val schedule = generateSchedule(regionPlan)
 
     (
-      RegionPlan(
-        regions = regionDAG.vertexSet().asScala.toSet,
-        regionLinks = regionDAG.edgeSet().asScala.toSet
-      ),
+      schedule,
+      regionPlan,
       physicalPlan
     )
   }

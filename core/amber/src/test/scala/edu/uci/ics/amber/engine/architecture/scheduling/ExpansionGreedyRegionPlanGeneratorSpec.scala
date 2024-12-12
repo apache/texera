@@ -36,7 +36,7 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
       new WorkflowContext()
     )
 
-    val (regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
+    val (_, regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
       workflow.context,
       workflow.physicalPlan
     ).generate()
@@ -93,7 +93,7 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
       new WorkflowContext()
     )
 
-    val (regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
+    val (_, regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
       workflow.context,
       workflow.physicalPlan
     ).generate()
@@ -180,7 +180,7 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
       new WorkflowContext()
     )
 
-    val (regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
+    val (_, regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
       workflow.context,
       workflow.physicalPlan
     ).generate()
@@ -251,7 +251,7 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
       new WorkflowContext()
     )
 
-    val (regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
+    val (_, regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
       workflow.context,
       workflow.physicalPlan
     ).generate()
@@ -322,7 +322,7 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
       new WorkflowContext()
     )
 
-    val (regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
+    val (_, regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
       workflow.context,
       workflow.physicalPlan
     ).generate()
