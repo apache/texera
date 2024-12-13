@@ -16,11 +16,11 @@ import scala.jdk.CollectionConverters._
 import scala.util.control.Breaks.{break, breakable}
 import scala.util.{Failure, Success, Try}
 
-class CostBasedRegionPlanGenerator(
+class CostBasedScheduleGenerator(
     workflowContext: WorkflowContext,
     initialPhysicalPlan: PhysicalPlan,
     val actorId: ActorVirtualIdentity
-) extends RegionPlanGenerator(
+) extends ScheduleGenerator(
       workflowContext,
       initialPhysicalPlan
     )
@@ -42,7 +42,7 @@ class CostBasedRegionPlanGenerator(
       regions = regionDAG.iterator().asScala.toSet,
       regionLinks = regionDAG.edgeSet().asScala.toSet
     )
-    val schedule = generateSchedule(regionPlan)
+    val schedule = generateScheduleFromRegionPlan(regionPlan)
     logger.info(
       s"WID: ${workflowContext.workflowId.id}, EID: ${workflowContext.executionId.id}, total RPG time: " +
         s"${totalRPGTime / 1e6} ms."

@@ -2,8 +2,8 @@ package edu.uci.ics.amber.engine.architecture.controller
 
 import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.scheduling.{
-  CostBasedRegionPlanGenerator,
-  ExpansionGreedyRegionPlanGenerator,
+  CostBasedScheduleGenerator,
+  ExpansionGreedyScheduleGenerator,
   Region,
   Schedule
 }
@@ -23,16 +23,16 @@ class WorkflowScheduler(
   def updateSchedule(physicalPlan: PhysicalPlan): Unit = {
     // generate a schedule using a region plan generator.
     val (generatedSchedule, updatedPhysicalPlan) =
-      if (AmberConfig.enableCostBasedRegionPlanGenerator) {
+      if (AmberConfig.enableCostBasedScheduleGenerator) {
         // CostBasedRegionPlanGenerator considers costs to try to find an optimal plan.
-        new CostBasedRegionPlanGenerator(
+        new CostBasedScheduleGenerator(
           workflowContext,
           physicalPlan,
           actorId
         ).generate()
       } else {
         // ExpansionGreedyRegionPlanGenerator is the stable default plan generator.
-        new ExpansionGreedyRegionPlanGenerator(
+        new ExpansionGreedyScheduleGenerator(
           workflowContext,
           physicalPlan
         ).generate()

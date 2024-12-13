@@ -11,7 +11,7 @@ import edu.uci.ics.texera.workflow.LogicalLink
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 
-class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
+class ExpansionGreedyScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
 
   "RegionPlanGenerator" should "correctly find regions in headerlessCsv->keyword->sink workflow" in {
     val headerlessCsvOpDesc = TestOperators.headerlessSmallCsvScanOpDesc()
@@ -36,13 +36,13 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
       new WorkflowContext()
     )
 
-    val (schedule, _) = new ExpansionGreedyRegionPlanGenerator(
+    val (schedule, _) = new ExpansionGreedyScheduleGenerator(
       workflow.context,
       workflow.physicalPlan
     ).generate()
-    
+
     // Assuming each level only has one region
-    val regionList = schedule.toList.map(level=>level.head)
+    val regionList = schedule.toList.map(level => level.head)
     assert(regionList.size == 1)
 
     regionList.zip(Iterator(3)).foreach {
@@ -96,13 +96,13 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
       new WorkflowContext()
     )
 
-    val (schedule, _) = new ExpansionGreedyRegionPlanGenerator(
+    val (schedule, _) = new ExpansionGreedyScheduleGenerator(
       workflow.context,
       workflow.physicalPlan
     ).generate()
 
     // Assuming each level only has one region
-    val regionList = schedule.toList.map(level=>level.head)
+    val regionList = schedule.toList.map(level => level.head)
     assert(regionList.size == 2)
 
     regionList.zip(Iterator(3, 3)).foreach {
@@ -121,18 +121,22 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
     }
 
     // The fist region should be the build region
-    assert(regionList.head.getOperators
-      .map(_.id)
-      .exists(physicalOpId =>
-        OperatorIdentity(physicalOpId.logicalOpId.id) == headerlessCsvOpDesc1.operatorIdentifier
-      ))
+    assert(
+      regionList.head.getOperators
+        .map(_.id)
+        .exists(physicalOpId =>
+          OperatorIdentity(physicalOpId.logicalOpId.id) == headerlessCsvOpDesc1.operatorIdentifier
+        )
+    )
 
     // The second region should be the probe region
-    assert(regionList(1).getOperators
-      .map(_.id)
-      .exists(physicalOpId =>
-        OperatorIdentity(physicalOpId.logicalOpId.id) == headerlessCsvOpDesc2.operatorIdentifier
-      ))
+    assert(
+      regionList(1).getOperators
+        .map(_.id)
+        .exists(physicalOpId =>
+          OperatorIdentity(physicalOpId.logicalOpId.id) == headerlessCsvOpDesc2.operatorIdentifier
+        )
+    )
 
   }
 
@@ -177,13 +181,13 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
       new WorkflowContext()
     )
 
-    val (schedule, _) = new ExpansionGreedyRegionPlanGenerator(
+    val (schedule, _) = new ExpansionGreedyScheduleGenerator(
       workflow.context,
       workflow.physicalPlan
     ).generate()
 
     // Assuming each level only has one region
-    val regionList = schedule.toList.map(level=>level.head)
+    val regionList = schedule.toList.map(level => level.head)
     assert(regionList.size == 2)
 
     regionList.zip(Iterator(5, 3)).foreach {
@@ -251,13 +255,13 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
       new WorkflowContext()
     )
 
-    val (schedule, _) = new ExpansionGreedyRegionPlanGenerator(
+    val (schedule, _) = new ExpansionGreedyScheduleGenerator(
       workflow.context,
       workflow.physicalPlan
     ).generate()
 
     // Assuming each level only has one region
-    val regionList = schedule.toList.map(level=>level.head)
+    val regionList = schedule.toList.map(level => level.head)
     assert(regionList.size == 2)
     regionList.zip(Iterator(5, 4)).foreach {
       case (region, opCount) =>
@@ -324,12 +328,12 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
       new WorkflowContext()
     )
 
-    val (schedule, _) = new ExpansionGreedyRegionPlanGenerator(
+    val (schedule, _) = new ExpansionGreedyScheduleGenerator(
       workflow.context,
       workflow.physicalPlan
     ).generate()
 
-    val regionList = schedule.toList.map(level=>level.head)
+    val regionList = schedule.toList.map(level => level.head)
     assert(regionList.size == 2)
     regionList.zip(Iterator(5, 3)).foreach {
       case (region, opCount) =>

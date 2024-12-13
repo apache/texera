@@ -3,7 +3,7 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import edu.uci.ics.amber.core.storage.result.{OpResultStorage, ResultStorage}
 import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan, WorkflowContext}
-import edu.uci.ics.amber.engine.architecture.scheduling.RegionPlanGenerator.replaceVertex
+import edu.uci.ics.amber.engine.architecture.scheduling.ScheduleGenerator.replaceVertex
 import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
   DefaultResourceAllocator,
   ExecutionClusterInfo
@@ -18,7 +18,7 @@ import org.jgrapht.traverse.TopologicalOrderIterator
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.{CollectionHasAsScala, IteratorHasAsScala}
 
-object RegionPlanGenerator {
+object ScheduleGenerator {
   def replaceVertex(
       graph: DirectedAcyclicGraph[Region, RegionLink],
       oldVertex: Region,
@@ -50,7 +50,7 @@ object RegionPlanGenerator {
   }
 }
 
-abstract class RegionPlanGenerator(
+abstract class ScheduleGenerator(
     workflowContext: WorkflowContext,
     var physicalPlan: PhysicalPlan
 ) {
@@ -59,9 +59,9 @@ abstract class RegionPlanGenerator(
   def generate(): (Schedule, PhysicalPlan)
 
   /**
-   * A schedule is a ranking on the regions of a region plan. Currently we use a total order of the regions.
-   */
-  def generateSchedule(regionPlan: RegionPlan): Schedule = {
+    * A schedule is a ranking on the regions of a region plan. Currently we use a total order of the regions.
+    */
+  def generateScheduleFromRegionPlan(regionPlan: RegionPlan): Schedule = {
     val levelSets = regionPlan
       .topologicalIterator()
       .zipWithIndex
