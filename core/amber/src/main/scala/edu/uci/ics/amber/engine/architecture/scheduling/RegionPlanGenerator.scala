@@ -56,8 +56,11 @@ abstract class RegionPlanGenerator(
 ) {
   private val executionClusterInfo = new ExecutionClusterInfo()
 
-  def generate(): (Schedule, RegionPlan, PhysicalPlan)
+  def generate(): (Schedule, PhysicalPlan)
 
+  /**
+   * A schedule is a ranking on the regions of a region plan. Currently we use a total order of the regions.
+   */
   def generateSchedule(regionPlan: RegionPlan): Schedule = {
     val levelSets = regionPlan
       .topologicalIterator()

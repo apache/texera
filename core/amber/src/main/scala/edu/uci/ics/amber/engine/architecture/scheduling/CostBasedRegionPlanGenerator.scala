@@ -34,7 +34,7 @@ class CostBasedRegionPlanGenerator(
       numStatesExplored: Int = 0
   )
 
-  def generate(): (Schedule, RegionPlan, PhysicalPlan) = {
+  def generate(): (Schedule, PhysicalPlan) = {
     val startTime = System.nanoTime()
     val regionDAG = createRegionDAG()
     val totalRPGTime = System.nanoTime() - startTime
@@ -49,7 +49,6 @@ class CostBasedRegionPlanGenerator(
     )
     (
       schedule,
-      regionPlan,
       physicalPlan
     )
   }

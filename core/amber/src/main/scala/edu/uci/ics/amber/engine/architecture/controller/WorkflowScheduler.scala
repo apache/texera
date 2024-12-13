@@ -22,7 +22,7 @@ class WorkflowScheduler(
     */
   def updateSchedule(physicalPlan: PhysicalPlan): Unit = {
     // generate a schedule using a region plan generator.
-    val (generatedSchedule, _, updatedPhysicalPlan) =
+    val (generatedSchedule, updatedPhysicalPlan) =
       if (AmberConfig.enableCostBasedRegionPlanGenerator) {
         // CostBasedRegionPlanGenerator considers costs to try to find an optimal plan.
         new CostBasedRegionPlanGenerator(
