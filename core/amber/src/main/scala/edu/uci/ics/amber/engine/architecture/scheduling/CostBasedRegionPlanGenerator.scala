@@ -34,9 +34,6 @@ class CostBasedRegionPlanGenerator(
       numStatesExplored: Int = 0
   )
 
-  private val costEstimator =
-    new DefaultCostEstimator(workflowContext = workflowContext, actorId = actorId)
-
   def generate(): (Schedule, RegionPlan, PhysicalPlan) = {
     val startTime = System.nanoTime()
     val regionDAG = createRegionDAG()
@@ -285,9 +282,7 @@ class CostBasedRegionPlanGenerator(
         if (oEarlyStop) schedulableStates.add(currentState)
         // Calculate the current state's cost and update the bestResult if it's lower
         val cost =
-          evaluate(
-            RegionPlan(regionDAG.vertexSet().asScala.toSet, regionDAG.edgeSet().asScala.toSet)
-          )
+          evaluate(regionDAG.vertexSet().asScala.toSet, regionDAG.edgeSet().asScala.toSet)
         if (cost < bestResult.cost) {
           bestResult = SearchResult(currentState, regionDAG, cost)
         }
@@ -340,12 +335,7 @@ class CostBasedRegionPlanGenerator(
                 physicalPlan.getNonMaterializedBlockingAndDependeeLinks ++ neighborState
               ) match {
                 case Left(regionDAG) =>
-                  evaluate(
-                    RegionPlan(
-                      regionDAG.vertexSet().asScala.toSet,
-                      regionDAG.edgeSet().asScala.toSet
-                    )
-                  )
+                  evaluate(regionDAG.vertexSet().asScala.toSet, regionDAG.edgeSet().asScala.toSet)
                 case Right(_) =>
                   Double.MaxValue
               }
@@ -434,9 +424,7 @@ class CostBasedRegionPlanGenerator(
       def updateOptimumIfApplicable(regionDAG: DirectedAcyclicGraph[Region, RegionLink]): Unit = {
         // Calculate the current state's cost and update the bestResult if it's lower
         val cost =
-          evaluate(
-            RegionPlan(regionDAG.vertexSet().asScala.toSet, regionDAG.edgeSet().asScala.toSet)
-          )
+          evaluate(regionDAG.vertexSet().asScala.toSet, regionDAG.edgeSet().asScala.toSet)
         if (cost < bestResult.cost) {
           bestResult = SearchResult(currentState, regionDAG, cost)
         }
@@ -466,12 +454,7 @@ class CostBasedRegionPlanGenerator(
                 physicalPlan.getNonMaterializedBlockingAndDependeeLinks ++ neighborState
               ) match {
                 case Left(regionDAG) =>
-                  evaluate(
-                    RegionPlan(
-                      regionDAG.vertexSet().asScala.toSet,
-                      regionDAG.edgeSet().asScala.toSet
-                    )
-                  )
+                  evaluate(regionDAG.vertexSet().asScala.toSet, regionDAG.edgeSet().asScala.toSet)
                 case Right(_) =>
                   Double.MaxValue
               }
@@ -490,16 +473,17 @@ class CostBasedRegionPlanGenerator(
   }
 
   /**
-    * The cost function used by the search. Takes a region plan, generates one or more (to be done in the future)
-    * schedules based on the region plan, and calculates the cost of the schedule(s) using Cost Estimator. Uses the cost
-    * of the best schedule (currently only considers one schedule) as the cost of the region plan.
+    * The cost function used by the search. Takes in a region graph represented as set of regions and links.
     *
-    * @return A cost determined by the cost estimator.
+    * @param regions     A set of regions created based on a search state.
+    * @param regionLinks A set of links to indicate dependencies between regions, based on the materialization edges.
+    * @return A cost determined by the resource allocator.
     */
-  private def evaluate(regionPlan: RegionPlan): Double = {
-    val schedule = generateSchedule(regionPlan)
-    // In the future we may allow multiple regions in a level and split the resources.
-    schedule.map(level => level.map(region => costEstimator.estimate(region, 1)).sum).sum
+  private def evaluate(regions: Set[Region], regionLinks: Set[RegionLink]): Double = {
+    // Using number of materialized ports as the cost.
+    // This is independent of the schedule / resource allocator.
+    // In the future we may need to use the ResourceAllocator to get the cost.
+    regions.flatMap(_.materializedPortIds).size
   }
 
 }
