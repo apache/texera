@@ -26,10 +26,11 @@ const runPythonServer = (baseDir: string, relativeDir: string, serverPort: numbe
   });
 };
 
+
 const baseDir = getLocalDirectory(import.meta.url);
 const relativeDir = "./node_modules/pyright/dist/pyright-langserver.js";
 
-const configFilePath = resolve(baseDir, "pythonLanguageServerConfig.json");
+const configFilePath = resolve(baseDir, "config.json");
 const configContent = fs.readFileSync(configFilePath, "utf-8");
 const config = JSON.parse(configContent) as Record<string, any>;
 
