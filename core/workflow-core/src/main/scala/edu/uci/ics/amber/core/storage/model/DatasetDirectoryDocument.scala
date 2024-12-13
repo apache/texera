@@ -4,13 +4,13 @@ import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.amber.core.storage.util.dataset.GitVersionControlLocalFileStorage
 import edu.uci.ics.amber.util.PathUtils
 import edu.uci.ics.texera.dao.SqlServer
-import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{Dataset, DatasetVersion, User}
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{Dataset, DatasetVersion}
 import org.jooq.types.UInteger
-import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{DatasetDao, UserDao, DatasetVersionDao}
-
+import edu.uci.ics.texera.dao.jooq.generated.tables.Dataset.DATASET
+import edu.uci.ics.texera.dao.jooq.generated.tables.User.USER
+import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetVersion.DATASET_VERSION
 import java.io.{File, FileOutputStream, InputStream}
 import java.nio.file.{Files, Path, Paths}
-import scala.jdk.CollectionConverters._
 
 class DatasetDirectoryDocument(fileFullPath: Path, shouldContainFile: Boolean = true) {
 
@@ -20,17 +20,24 @@ class DatasetDirectoryDocument(fileFullPath: Path, shouldContainFile: Boolean = 
   private val (dataset, datasetVersion, fileRelativePath) =
     resolvePath(fileFullPath, shouldContainFile)
   private var tempFile: Option[File] = None
-  private val datasetDao = new DatasetDao(context.configuration())
-  private val userDao = new UserDao(context.configuration())
-  private val datasetVersionDao = new DatasetVersionDao(context.configuration())
 
   private def getDatasetByName(ownerEmail: String, datasetName: String): Dataset = {
-    val user: User = userDao.fetchOneByEmail(ownerEmail)
-    datasetDao.fetchByOwnerUid(user.getUid).asScala.find(_.getName == datasetName).orNull
+    context
+      .select(DATASET.fields: _*)
+      .from(DATASET)
+      .leftJoin(USER)
+      .on(USER.UID.eq(DATASET.OWNER_UID))
+      .where(USER.EMAIL.eq(ownerEmail))
+      .and(DATASET.NAME.eq(datasetName))
+      .fetchOneInto(classOf[Dataset])
   }
 
   private def getDatasetVersionByName(did: UInteger, versionName: String): DatasetVersion = {
-    datasetVersionDao.fetchByDid(did).asScala.find(_.getName == versionName).orNull
+    context
+      .selectFrom(DATASET_VERSION)
+      .where(DATASET_VERSION.DID.eq(did))
+      .and(DATASET_VERSION.NAME.eq(versionName))
+      .fetchOneInto(classOf[DatasetVersion])
   }
 
   def resolvePath(
