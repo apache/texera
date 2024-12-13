@@ -2,10 +2,10 @@ import { AfterViewInit, Component, ElementRef, ViewChild } from "@angular/core";
 import { UserService } from "../../../../common/service/user/user.service";
 import { ActivatedRoute, Router } from "@angular/router";
 import { mergeMap } from "rxjs/operators";
-import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { GoogleAuthService } from "../../../../common/service/user/google-auth.service";
+import { DASHBOARD_USER_WORKFLOW } from "../../../../app-routing.constant";
+import { take } from "rxjs";
 
-@UntilDestroy()
 @Component({
   selector: "texera-google-login",
   template: "",
@@ -25,8 +25,11 @@ export class GoogleLoginComponent implements AfterViewInit {
     this.googleAuthService.googleCredentialResponse
       .pipe(
         mergeMap(res => this.userService.googleLogin(res.credential)),
-        untilDestroyed(this)
+        take(1)
       )
-      .subscribe(() => {});
+      // eslint-disable-next-line rxjs-angular/prefer-takeuntil
+      .subscribe(() => {
+        this.router.navigateByUrl(this.route.snapshot.queryParams["returnUrl"] || DASHBOARD_USER_WORKFLOW);
+      });
   }
 }
