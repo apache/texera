@@ -1,12 +1,5 @@
 {
-  "Path": {
-    "languageServerDir": "../node_modules/pyright/dist",
-    "clientPathName": "/python-language-server"
-  },
-  "pythonLanguageServer": {
-    "provider": "pyright",
-    "port": 3000,
-    "retryCounts": 3,
-    "waitTimeMs": 200
-  }
+  "languageServerDir": "../node_modules/pyright/dist",
+  "clientPathName": "/python-language-server",
+  "port": 3000
 }

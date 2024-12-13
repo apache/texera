@@ -14,32 +14,27 @@ import {
 } from "./server-commons.ts";
 
 /** LSP server runner */
-export const runLanguageServer = async (
+export const runLanguageServer = (
   languageServerRunConfig: LanguageServerRunConfig,
-): Promise<void> => {
-  return new Promise((resolve, reject) => {
-    process.on("uncaughtException", (err) => {
-      reject(err);
-    });
+) => {
+  process.on("uncaughtException", (err) => {
+    console.error("Uncaught Exception: ", err.toString());
+    if (err.stack !== undefined) {
+      console.error(err.stack);
+    }
+  });
 
-    // create the express application
-    const app = express();
-    // serve the static content, i.e. index.html
-    const dir = getLocalDirectory(import.meta.url);
-    app.use(express.static(dir));
-    // start the HTTP server
-    const httpServer: Server = app.listen(
-      languageServerRunConfig.serverPort,
-      () => {
-        resolve();
-      },
-    );
-
-    const wss = new WebSocketServer(languageServerRunConfig.wsServerOptions);
-    // create the WebSocket
-    upgradeWsServer(languageServerRunConfig, {
-      server: httpServer,
-      wss,
-    });
+  // create the express application
+  const app = express();
+  // server the static content, i.e. index.html
+  const dir = getLocalDirectory(import.meta.url);
+  app.use(express.static(dir));
+  // start the http server
+  const httpServer: Server = app.listen(languageServerRunConfig.serverPort);
+  const wss = new WebSocketServer(languageServerRunConfig.wsServerOptions);
+  // create the web socket
+  upgradeWsServer(languageServerRunConfig, {
+    server: httpServer,
+    wss,
   });
 };
