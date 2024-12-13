@@ -1,7 +1,6 @@
 import { Component, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { NzTableQueryParams } from "ng-zorro-antd/table";
-import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowResultService } from "../../../service/workflow-result/workflow-result.service";
 import { PanelResizeService } from "../../../service/workflow-result/panel-resize/panel-resize.service";
@@ -12,7 +11,6 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 import { trimAndFormatData } from "src/app/common/util/json";
 import { ResultExportationComponent } from "../../result-exportation/result-exportation.component";
-import { WorkflowResultExportService } from "src/app/workspace/service/workflow-result-export/workflow-result-export.service";
 import { ChangeDetectorRef } from "@angular/core";
 import { AttributeType, SchemaAttribute } from "../../../types/workflow-compiling.interface";
 
@@ -57,18 +55,14 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   prevTableStats: Record<string, Record<string, number>> = {};
   widthPercent: string = "";
   sinkStorageMode: string = "";
-  hasBinaryData: boolean = false;
-  binaryDataColumns: Set<string> = new Set();
   private schema: ReadonlyArray<SchemaAttribute> = [];
 
   constructor(
-    private executeWorkflowService: ExecuteWorkflowService,
     private modalService: NzModalService,
     private workflowActionService: WorkflowActionService,
     private workflowResultService: WorkflowResultService,
     private resizeService: PanelResizeService,
     private sanitizer: DomSanitizer,
-    private workflowResultExportService: WorkflowResultExportService,
     private changeDetectorRef: ChangeDetectorRef
   ) {}
 
@@ -85,7 +79,6 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
         this.tableStats = paginatedResultService.getStats();
         this.prevTableStats = this.tableStats;
         this.schema = paginatedResultService.getSchema();
-        this.updateBinaryDataInfo();
       }
     }
   }
@@ -151,7 +144,6 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.operatorId);
       if (paginatedResultService) {
         this.schema = paginatedResultService.getSchema();
-        this.updateBinaryDataInfo();
       }
     }
   }
@@ -313,7 +305,6 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
         if (this.currentPageIndex === pageData.pageIndex) {
           this.setupResultTable(pageData.table, paginatedResultService.getCurrentTotalNumTuples());
           this.schema = pageData.schema;
-          this.updateBinaryDataInfo();
           this.changeDetectorRef.detectChanges();
         }
       });
@@ -395,25 +386,5 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       },
       nzFooter: null,
     });
-  }
-
-  downloadAllBinaryData(): void {
-    if (!this.operatorId) {
-      return;
-    }
-    this.workflowResultExportService.exportAllBinaryDataAsZIP(this.binaryDataColumns, this.operatorId);
-  }
-
-  private updateBinaryDataInfo(): void {
-    if (this.hasBinaryData) {
-      return;
-    }
-
-    for (const attribute of this.schema) {
-      if (attribute.attributeType === "binary") {
-        this.binaryDataColumns.add(attribute.attributeName);
-        this.hasBinaryData = true;
-      }
-    }
   }
 }
