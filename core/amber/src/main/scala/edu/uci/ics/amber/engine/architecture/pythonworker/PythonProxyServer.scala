@@ -11,6 +11,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.Value.{
   ReturnInvocation => ReturnInvocationV2
 }
 import edu.uci.ics.amber.engine.common.ambermessage._
+import edu.uci.ics.amber.util.ArrowUtils
 import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
 import org.apache.arrow.flight._
 import org.apache.arrow.memory.{ArrowBuf, BufferAllocator, RootAllocator}

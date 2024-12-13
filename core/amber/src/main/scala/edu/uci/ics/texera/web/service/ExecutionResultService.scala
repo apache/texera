@@ -6,8 +6,9 @@ import com.fasterxml.jackson.databind.node.ObjectNode
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.amber.core.storage.result.{
-  OpResultStorage,
+  MongoDocument,
   OperatorResultMetadata,
+  ResultStorage,
   WorkflowResultStore
 }
 import edu.uci.ics.amber.core.tuple.Tuple
@@ -89,7 +90,8 @@ object ExecutionResultService {
       }
     }
 
-    val storage = sink.getStorage
+    val storage =
+      ResultStorage.getOpResultStorage(sink.getContext.workflowId).get(sink.getUpstreamId.get)
     val webUpdate = (webOutputMode, sink.getOutputMode) match {
       case (PaginationMode(), SET_SNAPSHOT) =>
         val numTuples = storage.getCount
@@ -101,9 +103,9 @@ object ExecutionResultService {
           (1 to maxPageIndex).toList
         )
       case (SetSnapshotMode(), SET_SNAPSHOT) =>
-        tuplesToWebData(webOutputMode, storage.getAll.toList, sink.getChartType)
+        tuplesToWebData(webOutputMode, storage.get().toList, sink.getChartType)
       case (SetDeltaMode(), SET_DELTA) =>
-        val deltaList = storage.getAllAfter(oldTupleCount).toList
+        val deltaList = storage.getAfter(oldTupleCount).toList
         tuplesToWebData(webOutputMode, deltaList, sink.getChartType)
 
       // currently not supported mode combinations
@@ -162,7 +164,6 @@ object ExecutionResultService {
   *  - send result update event to the frontend
   */
 class ExecutionResultService(
-    val opResultStorage: OpResultStorage,
     val workflowStateStore: WorkflowStateStore
 ) extends SubscriptionManager
     with LazyLogging {
@@ -171,7 +172,6 @@ class ExecutionResultService(
     mutable.HashMap[OperatorIdentity, ProgressiveSinkOpDesc]()
   private val resultPullingFrequency = AmberConfig.executionResultPollingInSecs
   private var resultUpdateCancellable: Cancellable = _
-  var tableFields: mutable.Map[String, Map[String, Iterable[String]]] = mutable.Map()
 
   def attachToExecution(
       stateStore: ExecutionStateStore,
@@ -244,47 +244,25 @@ class ExecutionResultService(
                 info.tupleCount
               )
               if (
-                StorageConfig.resultStorageMode.toLowerCase == "mongodb" && !opId.id
-                  .startsWith("sink")
+                StorageConfig.resultStorageMode.toLowerCase == "mongodb"
+                && !opId.id.startsWith("sink")
               ) {
-                val sinkMgr = sinkOperators(opId).getStorage
-                if (oldState.resultInfo.isEmpty) {
-                  val fields = sinkMgr.getAllFields()
-                  if (fields.length >= 3) {
-                    // The fields array for MongoDB operators should contain three arrays:
-                    // 1. numericFields: An array of numeric field names
-                    // 2. catFields: An array of categorical field names
-                    // 3. dateFields: An array of date field names
-                    val NumericFieldsNamesArray = "numericFields"
-                    val CategoricalFieldsNamesArray = "catFields"
-                    val DateFieldsNamesArray = "dateFields"
+                val sinkOp = sinkOperators(opId)
+                val opStorage = ResultStorage
+                  .getOpResultStorage(sinkOp.getContext.workflowId)
+                  .get(sinkOp.getUpstreamId.get)
+                opStorage match {
+                  case mongoDocument: MongoDocument[Tuple] =>
+                    val tableCatStats = mongoDocument.getCategoricalStats
+                    val tableDateStats = mongoDocument.getDateColStats
+                    val tableNumericStats = mongoDocument.getNumericColStats
 
-                    // Update tableFields with extracted fields
-                    tableFields.update(
-                      opId.id,
-                      Map(
-                        NumericFieldsNamesArray -> fields(0),
-                        CategoricalFieldsNamesArray -> fields(1),
-                        DateFieldsNamesArray -> fields(2)
-                      )
-                    )
-                  }
-                }
-                if (
-                  tableFields.contains(opId.id) && tableFields(opId.id).contains("catFields") &&
-                  tableFields(opId.id).contains("dateFields") && tableFields(opId.id)
-                    .contains("numericFields")
-                ) {
-                  val tableCatStats = sinkMgr.getCatColStats(tableFields(opId.id)("catFields"))
-                  val tableDateStats = sinkMgr.getDateColStats(tableFields(opId.id)("dateFields"))
-                  val tableNumericStats =
-                    sinkMgr.getNumericColStats(tableFields(opId.id)("numericFields"))
-                  val allStats = tableNumericStats ++ tableCatStats ++ tableDateStats
-                  if (
-                    tableNumericStats.nonEmpty || tableCatStats.nonEmpty || tableDateStats.nonEmpty
-                  ) {
-                    allTableStats(opId.id) = allStats
-                  }
+                    if (
+                      tableNumericStats.nonEmpty || tableCatStats.nonEmpty || tableDateStats.nonEmpty
+                    ) {
+                      allTableStats(opId.id) = tableNumericStats ++ tableCatStats ++ tableDateStats
+                    }
+                  case _ =>
                 }
               }
           }
@@ -320,12 +298,19 @@ class ExecutionResultService(
     // calculate from index (pageIndex starts from 1 instead of 0)
     val from = request.pageSize * (request.pageIndex - 1)
     val opId = OperatorIdentity(request.operatorID)
-    val paginationIterable =
+    val paginationIterable = {
+
       if (sinkOperators.contains(opId)) {
-        sinkOperators(opId).getStorage.getRange(from, from + request.pageSize)
+        val sinkOp = sinkOperators(opId)
+        ResultStorage
+          .getOpResultStorage(sinkOp.getContext.workflowId)
+          .get(sinkOp.getUpstreamId.get)
+          .getRange(from, from + request.pageSize)
+          .to(Iterable)
       } else {
         Iterable.empty
       }
+    }
     val mappedResults = paginationIterable
       .map(tuple => tuple.asKeyValuePairJson())
       .toList
@@ -338,8 +323,13 @@ class ExecutionResultService(
   private def onResultUpdate(): Unit = {
     workflowStateStore.resultStore.updateState { _ =>
       val newInfo: Map[OperatorIdentity, OperatorResultMetadata] = sinkOperators.map {
+
         case (id, sink) =>
-          val count = sink.getStorage.getCount.toInt
+          val count = ResultStorage
+            .getOpResultStorage(sink.getContext.workflowId)
+            .get(sink.getUpstreamId.get)
+            .getCount
+            .toInt
           val mode = sink.getOutputMode
           val changeDetector =
             if (mode == IncrementalOutputMode.SET_SNAPSHOT) {

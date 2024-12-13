@@ -7,11 +7,12 @@ import com.google.api.services.drive.Drive
 import com.google.api.services.drive.model.{File, FileList, Permission}
 import com.google.api.services.sheets.v4.Sheets
 import com.google.api.services.sheets.v4.model.{Spreadsheet, SpreadsheetProperties, ValueRange}
-import edu.uci.ics.amber.core.storage.result.{OpResultStorage, SinkStorageReader}
+import edu.uci.ics.amber.core.storage.model.VirtualDocument
+import edu.uci.ics.amber.core.storage.result.{OpResultStorage, ResultStorage}
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.engine.common.Utils.retry
 import edu.uci.ics.amber.util.PathUtils
-import edu.uci.ics.amber.virtualidentity.OperatorIdentity
+import edu.uci.ics.amber.virtualidentity.{OperatorIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.websocket.request.ResultExportRequest
 import edu.uci.ics.texera.web.model.websocket.response.ResultExportResponse
@@ -22,8 +23,9 @@ import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{
 }
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowVersionResource
 import org.jooq.types.UInteger
+import edu.uci.ics.amber.util.ArrowUtils
 
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
+import java.io.{PipedInputStream, PipedOutputStream}
 import java.nio.charset.StandardCharsets
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -33,17 +35,24 @@ import java.util.concurrent.{Executors, ThreadPoolExecutor}
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.SeqHasAsJava
+import org.apache.arrow.memory.RootAllocator
+import org.apache.arrow.vector._
+import org.apache.arrow.vector.ipc.ArrowFileWriter
+
+import java.io.OutputStream
+import java.nio.channels.Channels
+import scala.util.Using
 
 object ResultExportService {
-  final val UPLOAD_BATCH_ROW_COUNT = 10000
-  final val RETRY_ATTEMPTS = 7
-  final val BASE_BACK_OOF_TIME_IN_MS = 1000
-  final val WORKFLOW_RESULT_FOLDER_NAME = "workflow_results"
-  final val pool: ThreadPoolExecutor =
+  final private val UPLOAD_BATCH_ROW_COUNT = 10000
+  final private val RETRY_ATTEMPTS = 7
+  final private val BASE_BACK_OOF_TIME_IN_MS = 1000
+  final private val WORKFLOW_RESULT_FOLDER_NAME = "workflow_results"
+  final private val pool: ThreadPoolExecutor =
     Executors.newFixedThreadPool(3).asInstanceOf[ThreadPoolExecutor]
 }
 
-class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
+class ResultExportService(workflowIdentity: WorkflowIdentity) {
 
   import ResultExportService._
 
@@ -62,14 +71,13 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
     }
 
     // By now the workflow should finish running
-    val operatorWithResult: SinkStorageReader =
-      opResultStorage.get(OperatorIdentity(request.operatorId))
-    if (operatorWithResult == null) {
+    val operatorResult: VirtualDocument[Tuple] =
+      ResultStorage.getOpResultStorage(workflowIdentity).get(OperatorIdentity(request.operatorId))
+    if (operatorResult == null) {
       return ResultExportResponse("error", "The workflow contains no results")
     }
 
-    // convert the ITuple into tuple
-    val results: Iterable[Tuple] = operatorWithResult.getAll
+    val results: Iterable[Tuple] = operatorResult.get().to(Iterable)
     val attributeNames = results.head.getSchema.getAttributeNames
 
     // handle the request according to export type
@@ -80,6 +88,8 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
         handleCSVRequest(user, request, results, attributeNames)
       case "data" =>
         handleDataRequest(user, request, results)
+      case "arrow" =>
+        handleArrowRequest(user, request, results)
       case _ =>
         ResultExportResponse("error", s"Unknown export type: ${request.exportType}")
     }
@@ -91,33 +101,22 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
       results: Iterable[Tuple],
       headers: List[String]
   ): ResultExportResponse = {
-    val stream = new ByteArrayOutputStream()
-    val writer = CSVWriter.open(stream)
-    writer.writeRow(headers)
-    results.foreach { tuple =>
-      writer.writeRow(tuple.getFields.toIndexedSeq)
-    }
-    writer.close()
-    val latestVersion =
-      WorkflowVersionResource.getLatestVersion(UInteger.valueOf(request.workflowId))
-    val timestamp = LocalDateTime
-      .now()
-      .truncatedTo(ChronoUnit.SECONDS)
-      .format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"))
-    val fileName = sanitizePath(
-      s"${request.workflowName}-v$latestVersion-${request.operatorName}-$timestamp.csv"
+    val pipedOutputStream = new PipedOutputStream()
+    val pipedInputStream = new PipedInputStream(pipedOutputStream)
+
+    pool.submit(() =>
+      {
+        val writer = CSVWriter.open(pipedOutputStream)
+        writer.writeRow(headers)
+        results.foreach { tuple =>
+          writer.writeRow(tuple.getFields.toIndexedSeq)
+        }
+        writer.close()
+      }.asInstanceOf[Runnable]
     )
 
-    // add files to datasets
-    request.datasetIds.foreach(did => {
-      val datasetPath = PathUtils.getDatasetPath(UInteger.valueOf(did))
-      val filePath = datasetPath.resolve(fileName)
-      createNewDatasetVersionByAddingFiles(
-        UInteger.valueOf(did),
-        user,
-        Map(filePath -> new ByteArrayInputStream(stream.toByteArray))
-      )
-    })
+    val fileName = generateFileName(request, "csv")
+    saveToDatasets(request, user, pipedInputStream, fileName)
 
     ResultExportResponse(
       "success",
@@ -191,33 +190,25 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
     val columnIndex = request.columnIndex
     val filename = request.filename
 
-    // Validate that the requested row and column exist
     if (rowIndex >= results.size || columnIndex >= results.head.getFields.size) {
       return ResultExportResponse("error", s"Invalid row or column index")
     }
 
     val selectedRow = results.toSeq(rowIndex)
     val field: Any = selectedRow.getField(columnIndex)
+    val dataBytes: Array[Byte] = convertFieldToBytes(field)
 
-    // Convert the field to a byte array, regardless of its type
-    val dataBytes: Array[Byte] = field match {
-      case data: Array[Byte] => data
-      case data: String      => data.getBytes(StandardCharsets.UTF_8)
-      case data              => data.toString.getBytes(StandardCharsets.UTF_8)
-    }
+    val pipedOutputStream = new PipedOutputStream()
+    val pipedInputStream = new PipedInputStream(pipedOutputStream)
 
-    // Save the data file
-    val fileStream = new ByteArrayInputStream(dataBytes)
+    pool.submit(() =>
+      {
+        pipedOutputStream.write(dataBytes)
+        pipedOutputStream.close()
+      }.asInstanceOf[Runnable]
+    )
 
-    request.datasetIds.foreach { did =>
-      val datasetPath = PathUtils.getDatasetPath(UInteger.valueOf(did))
-      val filePath = datasetPath.resolve(filename)
-      createNewDatasetVersionByAddingFiles(
-        UInteger.valueOf(did),
-        user,
-        Map(filePath -> fileStream)
-      )
-    }
+    saveToDatasets(request, user, pipedInputStream, filename)
 
     ResultExportResponse(
       "success",
@@ -362,4 +353,121 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
 
   }
 
+  private def handleArrowRequest(
+      user: User,
+      request: ResultExportRequest,
+      results: Iterable[Tuple]
+  ): ResultExportResponse = {
+    if (results.isEmpty) {
+      return ResultExportResponse("error", "No results to export")
+    }
+
+    val pipedOutputStream = new PipedOutputStream()
+    val pipedInputStream = new PipedInputStream(pipedOutputStream)
+    val allocator = new RootAllocator()
+
+    pool.submit(() =>
+      {
+        Using.Manager { use =>
+          val (writer, root) = createArrowWriter(results, allocator, pipedOutputStream)
+          use(writer)
+          use(root)
+          use(allocator)
+          use(pipedOutputStream)
+
+          writeArrowData(writer, root, results)
+        }
+      }.asInstanceOf[Runnable]
+    )
+
+    val fileName = generateFileName(request, "arrow")
+    saveToDatasets(request, user, pipedInputStream, fileName)
+
+    ResultExportResponse(
+      "success",
+      s"Arrow file saved as $fileName to Datasets ${request.datasetIds.mkString(",")}"
+    )
+  }
+
+  private def createArrowWriter(
+      results: Iterable[Tuple],
+      allocator: RootAllocator,
+      outputStream: OutputStream
+  ): (ArrowFileWriter, VectorSchemaRoot) = {
+    val schema = results.head.getSchema
+    val arrowSchema = ArrowUtils.fromTexeraSchema(schema)
+    val root = VectorSchemaRoot.create(arrowSchema, allocator)
+    val channel = Channels.newChannel(outputStream)
+    val writer = new ArrowFileWriter(root, null, channel)
+    (writer, root)
+  }
+
+  private def writeArrowData(
+      writer: ArrowFileWriter,
+      root: VectorSchemaRoot,
+      results: Iterable[Tuple]
+  ): Unit = {
+    writer.start()
+    val batchSize = 1000
+
+    // Convert to Seq to get total size
+    val resultSeq = results.toSeq
+    val totalSize = resultSeq.size
+
+    // Process in complete batches
+    for (batchStart <- 0 until totalSize by batchSize) {
+      val batchEnd = Math.min(batchStart + batchSize, totalSize)
+      val currentBatchSize = batchEnd - batchStart
+
+      // Process each tuple in the current batch
+      for (i <- 0 until currentBatchSize) {
+        val tuple = resultSeq(batchStart + i)
+        ArrowUtils.setTexeraTuple(tuple, i, root)
+      }
+
+      // Set the correct row count for this batch and write it
+      root.setRowCount(currentBatchSize)
+      writer.writeBatch()
+      root.clear()
+    }
+
+    writer.end()
+  }
+
+  private def generateFileName(request: ResultExportRequest, extension: String): String = {
+    val latestVersion =
+      WorkflowVersionResource.getLatestVersion(UInteger.valueOf(request.workflowId))
+    val timestamp = LocalDateTime
+      .now()
+      .truncatedTo(ChronoUnit.SECONDS)
+      .format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"))
+    sanitizePath(
+      s"${request.workflowName}-v$latestVersion-${request.operatorName}-$timestamp.$extension"
+    )
+  }
+
+  private def saveToDatasets(
+      request: ResultExportRequest,
+      user: User,
+      pipedInputStream: PipedInputStream,
+      fileName: String
+  ): Unit = {
+    request.datasetIds.foreach { did =>
+      val datasetPath = PathUtils.getDatasetPath(UInteger.valueOf(did))
+      val filePath = datasetPath.resolve(fileName)
+      createNewDatasetVersionByAddingFiles(
+        UInteger.valueOf(did),
+        user,
+        Map(filePath -> pipedInputStream)
+      )
+    }
+  }
+
+  private def convertFieldToBytes(field: Any): Array[Byte] = {
+    field match {
+      case data: Array[Byte] => data
+      case data: String      => data.getBytes(StandardCharsets.UTF_8)
+      case data              => data.toString.getBytes(StandardCharsets.UTF_8)
+    }
+  }
 }

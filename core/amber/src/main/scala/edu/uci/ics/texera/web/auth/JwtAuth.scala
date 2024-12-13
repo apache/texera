@@ -1,8 +1,11 @@
 package edu.uci.ics.texera.web.auth
 
+import com.github.toastshaman.dropwizard.auth.jwt.JwtAuthFilter
 import com.typesafe.config.Config
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
+import io.dropwizard.auth.AuthDynamicFeature
+import io.dropwizard.setup.Environment
 import org.jose4j.jws.AlgorithmIdentifiers.HMAC_SHA256
 import org.jose4j.jws.JsonWebSignature
 import org.jose4j.jwt.JwtClaims
@@ -27,6 +30,31 @@ object JwtAuth {
     .setVerificationKey(new HmacKey(TOKEN_SECRET.getBytes))
     .setRelaxVerificationKeyValidation()
     .build
+
+  def setupJwtAuth(environment: Environment): Unit = {
+    if (AmberConfig.isUserSystemEnabled) {
+      // register JWT Auth layer
+      environment.jersey.register(
+        new AuthDynamicFeature(
+          new JwtAuthFilter.Builder[SessionUser]()
+            .setJwtConsumer(jwtConsumer)
+            .setRealm("realm")
+            .setPrefix("Bearer")
+            .setAuthenticator(UserAuthenticator)
+            .setAuthorizer(UserRoleAuthorizer)
+            .buildAuthFilter()
+        )
+      )
+    } else {
+      // register Guest Auth layer
+      environment.jersey.register(
+        new AuthDynamicFeature(
+          new GuestAuthFilter.Builder().setAuthorizer(UserRoleAuthorizer).buildAuthFilter()
+        )
+      )
+    }
+
+  }
 
   def jwtToken(claims: JwtClaims): String = {
     val jws = new JsonWebSignature()

@@ -39,3 +39,5 @@ CMD ["scripts/deploy-docker.sh"]
 EXPOSE 8080
 
 EXPOSE 9090
+
+EXPOSE 8085
