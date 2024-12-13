@@ -140,6 +140,37 @@ class ClusterCallbackResource {
   }
 
   /**
+    * Handles the callback to change the cluster status to SHUTTING_DOWN.
+    *
+    * @param callbackPayload The payload containing the cluster ID and success status.
+    * @return A Response indicating the result of the operation.
+    */
+  @POST
+  @Path("/cluster/shutdown")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  def handleClusterShutdownCallback(callbackPayload: CallbackPayload): Response = {
+    val clusterId = callbackPayload.clusterId
+    val success = callbackPayload.success
+
+    // Fetch the cluster by its ID
+    val cluster = clusterDao.fetchOneByCid(clusterId)
+
+    // Check if the operation is successful and the cluster exists
+    if (success && cluster != null) {
+      // Update the cluster status to SHUTTING_DOWN
+      updateClusterStatus(clusterId, ClusterStatus.SHUTTING_DOWN, context)
+      // Return a success response
+      Response.ok(s"Cluster with ID $clusterId status updated to SHUTTING_DOWN").build()
+    } else {
+      // Return a NOT_FOUND response if the cluster is not found or the status update is not allowed
+      Response
+        .status(Response.Status.NOT_FOUND)
+        .entity("Cluster not found or status update not allowed")
+        .build()
+    }
+  }
+
+  /**
     * Inserts a new cluster activity record with the given start time.
     *
     * @param clusterId The ID of the cluster.

@@ -131,6 +131,8 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
        |        # Create form data and files based on the provided job_form
        |        form_data, files = create_job_form_data(${clusterId}, job_form)
        |
+       |        yield
+       |
        |        # Send the POST request to start the job
        |        response = requests.post("${clusterLauncherServiceTarget}/api/job/create",
        |                                 data=form_data, files=files)
