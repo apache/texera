@@ -1,5 +1,4 @@
 {
   "languageServerDir": "../node_modules/pyright/dist",
-  "clientPathName": "/python-language-server",
-  "port": 3000
+  "clientPathName": "/python-language-server"
 }
