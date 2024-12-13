@@ -204,7 +204,6 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
                 this.displayJson = true;
                 this.readFileAsText(blob);
                 break;
-              case MIME_TYPES.OCTET_STREAM:
               case MIME_TYPES.TXT:
               default:
                 this.displayPlainText = true;
@@ -254,7 +253,7 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
   }
 
   isPreviewSupported(mimeType: string) {
-    return Object.hasOwnProperty.call(MIME_TYPE_SIZE_LIMITS_MB, mimeType);
+    return mimeType !== MIME_TYPES.OCTET_STREAM && Object.hasOwnProperty.call(MIME_TYPE_SIZE_LIMITS_MB, mimeType);
   }
 
   private readFileAsText(blob: Blob) {

@@ -4,8 +4,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Preconditions;
 import edu.uci.ics.amber.core.executor.OpExecInitInfo;
 import edu.uci.ics.amber.core.executor.OperatorExecutor;
-import edu.uci.ics.amber.core.storage.result.SinkStorageReader;
-import edu.uci.ics.amber.core.storage.result.SinkStorageWriter;
 import edu.uci.ics.amber.core.tuple.Schema;
 import edu.uci.ics.amber.core.workflow.PhysicalOp;
 import edu.uci.ics.amber.core.workflow.SchemaPropagationFunc;
@@ -44,8 +42,6 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
     @JsonIgnore
     private Option<String> chartType = Option.empty();
 
-    @JsonIgnore
-    private SinkStorageReader storage = null;
 
     // corresponding upstream operator ID and output port, will be set by workflow compiler
     @JsonIgnore
@@ -56,16 +52,14 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
 
     @Override
     public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId) {
-        // Since during workflow compilation phase, the storage can be null, the writer should also be null
-        // the writer will be set properly when workflow execution service receives the physical plan
-        final SinkStorageWriter writer = (storage != null) ? storage.getStorageWriter() : null;
+
         return PhysicalOp.localPhysicalOp(
                         workflowId,
                         executionId,
                         operatorIdentifier(),
                         OpExecInitInfo.apply(
                                 (Function<Tuple2<Object, Object>, OperatorExecutor> & java.io.Serializable)
-                                        worker -> new edu.uci.ics.amber.operator.sink.managed.ProgressiveSinkOpExec(outputMode, writer)
+                                        worker -> new edu.uci.ics.amber.operator.sink.managed.ProgressiveSinkOpExec(outputMode, this.getUpstreamId().get().id(), workflowId)
                         )
                 )
                 .withInputPorts(this.operatorInfo().inputPorts())
@@ -94,9 +88,6 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
                             }
 
                             javaMap.put(operatorInfo().outputPorts().head().id(), outputSchema);
-
-                            // set schema for the storage
-                            getStorage().setSchema(outputSchema);
                             // Convert the Java Map to a Scala immutable Map
                             return OperatorDescriptorUtils.toImmutableMap(javaMap);
                         })
@@ -158,28 +149,23 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
         this.chartType = Option.apply(chartType);
     }
 
-    @JsonIgnore
-    public void setStorage(SinkStorageReader storage) {
-        this.storage = storage;
-    }
 
     @JsonIgnore
-    public SinkStorageReader getStorage() {
-        return this.storage;
-    }
-
     public Option<OperatorIdentity> getUpstreamId() {
         return upstreamId;
     }
 
+    @JsonIgnore
     public void setUpstreamId(OperatorIdentity upstreamId) {
         this.upstreamId = Option.apply(upstreamId);
     }
 
+    @JsonIgnore
     public Option<Integer> getUpstreamPort() {
         return upstreamPort;
     }
 
+    @JsonIgnore
     public void setUpstreamPort(Integer upstreamPort) {
         this.upstreamPort = Option.apply(upstreamPort);
     }
