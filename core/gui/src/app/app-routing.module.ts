@@ -36,10 +36,6 @@ if (environment.userSystemEnabled) {
         component: LandingPageComponent,
       },
       {
-        path: "about",
-        component: AboutComponent,
-      },
-      {
         path: "hub",
         children: [
           {
