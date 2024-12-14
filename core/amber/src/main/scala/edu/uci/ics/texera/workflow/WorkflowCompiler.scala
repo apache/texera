@@ -1,8 +1,7 @@
 package edu.uci.ics.texera.workflow
 
-import com.google.protobuf.timestamp.Timestamp
-import com.typesafe.scalalogging.{LazyLogging, Logger}
-import edu.uci.ics.amber.core.storage.result.OpResultStorage
+import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.core.storage.result.{OpResultStorage, ResultStorage}
 import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.core.workflow.PhysicalOp.getExternalPortSchemas
 import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
@@ -12,14 +11,10 @@ import edu.uci.ics.amber.operator.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.amber.operator.visualization.VisualizationConstants
 import edu.uci.ics.amber.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.workflow.PhysicalLink
-import edu.uci.ics.amber.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
 import edu.uci.ics.amber.workflowruntimestate.WorkflowFatalError
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
-import edu.uci.ics.texera.workflow.WorkflowCompiler.collectInputSchemasOfSinks
 
-import java.time.Instant
-import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 import scala.util.{Failure, Success, Try}
@@ -163,8 +158,7 @@ class WorkflowCompiler(
     * @return Workflow, containing the physical plan, logical plan and workflow context
     */
   def compile(
-      logicalPlanPojo: LogicalPlanPojo,
-      storage: OpResultStorage
+      logicalPlanPojo: LogicalPlanPojo
   ): Workflow = {
     // 1. convert the pojo to logical plan
     var logicalPlan: LogicalPlan = LogicalPlan(logicalPlanPojo)
@@ -182,7 +176,7 @@ class WorkflowCompiler(
     logicalPlan.propagateWorkflowSchema(context, None)
 
     // 4. assign the sink storage using logical plan and expand the logical plan to the physical plan,
-    assignSinkStorage(logicalPlan, context, storage)
+    assignSinkStorage(logicalPlan, context)
     val physicalPlan = expandLogicalPlan(logicalPlan, None)
 
     Workflow(context, logicalPlan, physicalPlan)
@@ -195,9 +189,9 @@ class WorkflowCompiler(
   def assignSinkStorage(
       logicalPlan: LogicalPlan,
       context: WorkflowContext,
-      storage: OpResultStorage,
       reuseStorageSet: Set[OperatorIdentity] = Set()
   ): Unit = {
+    val storage = ResultStorage.getOpResultStorage(context.workflowId)
     // create a JSON object that holds pointers to the workflow's results in Mongo
     val resultsJSON = objectMapper.createObjectNode()
     val sinksPointers = objectMapper.createArrayNode()
@@ -211,9 +205,7 @@ class WorkflowCompiler(
           if (sink.getChartType.contains(VisualizationConstants.HTML_VIZ)) OpResultStorage.MEMORY
           else OpResultStorage.defaultStorageMode
         }
-        if (reuseStorageSet.contains(storageKey) && storage.contains(storageKey)) {
-          sink.setStorage(storage.get(storageKey))
-        } else {
+        if (!reuseStorageSet.contains(storageKey) || !storage.contains(storageKey)) {
           // get the schema for result storage in certain mode
           val sinkStorageSchema: Option[Schema] =
             if (storageType == OpResultStorage.MONGODB) {
@@ -222,13 +214,11 @@ class WorkflowCompiler(
             } else {
               None
             }
-          sink.setStorage(
-            storage.create(
-              s"${o.getContext.executionId}_",
-              storageKey,
-              storageType,
-              sinkStorageSchema
-            )
+          storage.create(
+            s"${o.getContext.executionId}_",
+            storageKey,
+            storageType,
+            sinkStorageSchema
           )
           // add the sink collection name to the JSON array of sinks
           val storageNode = objectMapper.createObjectNode()

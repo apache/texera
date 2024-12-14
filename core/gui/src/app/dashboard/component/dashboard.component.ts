@@ -3,7 +3,7 @@ import { UserService } from "../../common/service/user/user.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { FlarumService } from "../service/user/flarum/flarum.service";
 import { HttpErrorResponse } from "@angular/common/http";
-import { ActivatedRoute, NavigationEnd, Router } from "@angular/router";
+import { NavigationEnd, Router } from "@angular/router";
 import { HubComponent } from "../../hub/component/hub.component";
 
 import {
@@ -47,7 +47,6 @@ export class DashboardComponent implements OnInit {
     private router: Router,
     private flarumService: FlarumService,
     private cdr: ChangeDetectorRef,
-    private route: ActivatedRoute,
     private ngZone: NgZone
   ) {}
 
@@ -66,7 +65,7 @@ export class DashboardComponent implements OnInit {
             document.cookie = `flarum_remember=${response.token};path=/`;
           },
           error: (err: unknown) => {
-            if ((err as HttpErrorResponse).status == 404) {
+            if ([404, 500].includes((err as HttpErrorResponse).status)) {
               this.displayForum = false;
             } else {
               this.flarumService
@@ -96,7 +95,6 @@ export class DashboardComponent implements OnInit {
           this.isLogin = this.userService.isLogin();
           this.isAdmin = this.userService.isAdmin();
           this.cdr.detectChanges();
-          this.router.navigateByUrl(this.route.snapshot.queryParams["returnUrl"] || DASHBOARD_USER_WORKFLOW);
         });
       });
   }
