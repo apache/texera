@@ -9,7 +9,7 @@ import edu.uci.ics.texera.workflow.LogicalLink
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 
-class CostBasedRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
+class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
 
   "CostBasedRegionPlanGenerator" should "finish bottom-up search using different pruning techniques with correct number of states explored in csv->->filter->join->sink workflow" in {
     val headerlessCsvOpDesc1 = TestOperators.headerlessSmallCsvScanOpDesc()
@@ -52,7 +52,7 @@ class CostBasedRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
       new WorkflowContext()
     )
 
-    val globalSearchNoPruningResult = new CostBasedRegionPlanGenerator(
+    val globalSearchNoPruningResult = new CostBasedScheduleGenerator(
       workflow.context,
       workflow.physicalPlan,
       CONTROLLER
@@ -61,7 +61,7 @@ class CostBasedRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
     // Should have explored all possible states (2^4 states)
     assert(globalSearchNoPruningResult.numStatesExplored == 16)
 
-    val globalSearchOChainsResult = new CostBasedRegionPlanGenerator(
+    val globalSearchOChainsResult = new CostBasedScheduleGenerator(
       workflow.context,
       workflow.physicalPlan,
       CONTROLLER
@@ -73,7 +73,7 @@ class CostBasedRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
     // should be skipped because these two edges are in the same chain.
     assert(globalSearchOChainsResult.numStatesExplored == 6)
 
-    val globalSearchOCleanEdgesResult = new CostBasedRegionPlanGenerator(
+    val globalSearchOCleanEdgesResult = new CostBasedScheduleGenerator(
       workflow.context,
       workflow.physicalPlan,
       CONTROLLER
@@ -83,7 +83,7 @@ class CostBasedRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
     // in the DAG (Probe->Sink) and the 8 states where this edge is materialized should be skipped.
     assert(globalSearchOCleanEdgesResult.numStatesExplored == 8)
 
-    val globalSearchOEarlyStopResult = new CostBasedRegionPlanGenerator(
+    val globalSearchOEarlyStopResult = new CostBasedScheduleGenerator(
       workflow.context,
       workflow.physicalPlan,
       CONTROLLER
@@ -93,7 +93,7 @@ class CostBasedRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
     // should be explored.
     assert(globalSearchOEarlyStopResult.numStatesExplored == 6)
 
-    val globalSearchAllPruningEnabledResult = new CostBasedRegionPlanGenerator(
+    val globalSearchAllPruningEnabledResult = new CostBasedScheduleGenerator(
       workflow.context,
       workflow.physicalPlan,
       CONTROLLER
@@ -147,7 +147,7 @@ class CostBasedRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
       new WorkflowContext()
     )
 
-    val globalSearchNoPruningResult = new CostBasedRegionPlanGenerator(
+    val globalSearchNoPruningResult = new CostBasedScheduleGenerator(
       workflow.context,
       workflow.physicalPlan,
       CONTROLLER
@@ -156,7 +156,7 @@ class CostBasedRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
     // Should have explored all possible states (2^4 states)
     assert(globalSearchNoPruningResult.numStatesExplored == 16)
 
-    val globalSearchOChainsResult = new CostBasedRegionPlanGenerator(
+    val globalSearchOChainsResult = new CostBasedScheduleGenerator(
       workflow.context,
       workflow.physicalPlan,
       CONTROLLER
@@ -166,7 +166,7 @@ class CostBasedRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
     // this edge is in the same chain as another blocking edge. That reduces the search space to 8 states.
     assert(globalSearchOChainsResult.numStatesExplored == 8)
 
-    val globalSearchOCleanEdgesResult = new CostBasedRegionPlanGenerator(
+    val globalSearchOCleanEdgesResult = new CostBasedScheduleGenerator(
       workflow.context,
       workflow.physicalPlan,
       CONTROLLER
@@ -176,7 +176,7 @@ class CostBasedRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
     // pipelined because this edge is a clean edge. That reduces the search space to 8 states.
     assert(globalSearchOCleanEdgesResult.numStatesExplored == 8)
 
-    val globalSearchAllPruningEnabledResult = new CostBasedRegionPlanGenerator(
+    val globalSearchAllPruningEnabledResult = new CostBasedScheduleGenerator(
       workflow.context,
       workflow.physicalPlan,
       CONTROLLER

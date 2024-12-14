@@ -11,7 +11,7 @@ import edu.uci.ics.texera.workflow.LogicalLink
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 
-class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
+class ExpansionGreedyScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
 
   "RegionPlanGenerator" should "correctly find regions in headerlessCsv->keyword->sink workflow" in {
     val headerlessCsvOpDesc = TestOperators.headerlessSmallCsvScanOpDesc()
@@ -36,25 +36,28 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
       new WorkflowContext()
     )
 
-    val (regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
+    val (schedule, _) = new ExpansionGreedyScheduleGenerator(
       workflow.context,
       workflow.physicalPlan
     ).generate()
 
-    assert(regionPlan.regions.size == 1)
-    regionPlan.topologicalIterator().zip(Iterator(3)).foreach {
-      case (regionId, opCount) =>
-        assert(regionPlan.getRegion(regionId).getOperators.size == opCount)
+    // Assuming each level only has one region
+    val regionList = schedule.toList.map(level => level.head)
+    assert(regionList.size == 1)
+
+    regionList.zip(Iterator(3)).foreach {
+      case (region, opCount) =>
+        assert(region.getOperators.size == opCount)
     }
 
-    regionPlan.topologicalIterator().zip(Iterator(2)).foreach {
-      case (regionId, linkCount) =>
-        assert(regionPlan.getRegion(regionId).getLinks.size == linkCount)
+    regionList.zip(Iterator(2)).foreach {
+      case (region, linkCount) =>
+        assert(region.getLinks.size == linkCount)
     }
 
-    regionPlan.topologicalIterator().zip(Iterator(4)).foreach {
-      case (regionId, portCount) =>
-        assert(regionPlan.getRegion(regionId).getPorts.size == portCount)
+    regionList.zip(Iterator(4)).foreach {
+      case (region, portCount) =>
+        assert(region.getPorts.size == portCount)
     }
   }
 
@@ -93,48 +96,46 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
       new WorkflowContext()
     )
 
-    val (regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
+    val (schedule, _) = new ExpansionGreedyScheduleGenerator(
       workflow.context,
       workflow.physicalPlan
     ).generate()
 
-    assert(regionPlan.regions.size == 2)
-    regionPlan.topologicalIterator().zip(Iterator(3, 3)).foreach {
-      case (regionId, opCount) =>
-        assert(regionPlan.getRegion(regionId).getOperators.size == opCount)
+    // Assuming each level only has one region
+    val regionList = schedule.toList.map(level => level.head)
+    assert(regionList.size == 2)
+
+    regionList.zip(Iterator(3, 3)).foreach {
+      case (region, opCount) =>
+        assert(region.getOperators.size == opCount)
     }
 
-    regionPlan.topologicalIterator().zip(Iterator(2, 2)).foreach {
-      case (regionId, linkCount) =>
-        assert(regionPlan.getRegion(regionId).getLinks.size == linkCount)
+    regionList.zip(Iterator(2, 2)).foreach {
+      case (region, linkCount) =>
+        assert(region.getLinks.size == linkCount)
     }
 
-    regionPlan.topologicalIterator().zip(Iterator(4, 4)).foreach {
-      case (regionId, portCount) =>
-        assert(regionPlan.getRegion(regionId).getPorts.size == portCount)
+    regionList.zip(Iterator(4, 4)).foreach {
+      case (region, portCount) =>
+        assert(region.getPorts.size == portCount)
     }
 
-    val buildRegion = regionPlan.regions
-      .find(region =>
-        region.getOperators
-          .map(_.id)
-          .exists(physicalOpId =>
-            OperatorIdentity(physicalOpId.logicalOpId.id) == headerlessCsvOpDesc1.operatorIdentifier
-          )
-      )
-      .get
-    val probeRegion = regionPlan.regions
-      .find(region =>
-        region.getOperators
-          .map(_.id)
-          .exists(physicalOpId =>
-            OperatorIdentity(physicalOpId.logicalOpId.id) == headerlessCsvOpDesc2.operatorIdentifier
-          )
-      )
-      .get
-
+    // The fist region should be the build region
     assert(
-      regionPlan.regionLinks.contains(RegionLink(buildRegion.id, probeRegion.id))
+      regionList.head.getOperators
+        .map(_.id)
+        .exists(physicalOpId =>
+          OperatorIdentity(physicalOpId.logicalOpId.id) == headerlessCsvOpDesc1.operatorIdentifier
+        )
+    )
+
+    // The second region should be the probe region
+    assert(
+      regionList(1).getOperators
+        .map(_.id)
+        .exists(physicalOpId =>
+          OperatorIdentity(physicalOpId.logicalOpId.id) == headerlessCsvOpDesc2.operatorIdentifier
+        )
     )
 
   }
@@ -180,28 +181,31 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
       new WorkflowContext()
     )
 
-    val (regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
+    val (schedule, _) = new ExpansionGreedyScheduleGenerator(
       workflow.context,
       workflow.physicalPlan
     ).generate()
 
-    assert(regionPlan.regions.size == 2)
-    regionPlan.topologicalIterator().zip(Iterator(5, 3)).foreach {
-      case (regionId, opCount) =>
-        assert(regionPlan.getRegion(regionId).getOperators.size == opCount)
+    // Assuming each level only has one region
+    val regionList = schedule.toList.map(level => level.head)
+    assert(regionList.size == 2)
+
+    regionList.zip(Iterator(5, 3)).foreach {
+      case (region, opCount) =>
+        assert(region.getOperators.size == opCount)
     }
 
-    regionPlan.topologicalIterator().zip(Iterator(4, 2)).foreach {
-      case (regionId, linkCount) =>
-        assert(regionPlan.getRegion(regionId).getLinks.size == linkCount)
+    regionList.zip(Iterator(4, 2)).foreach {
+      case (region, linkCount) =>
+        assert(region.getLinks.size == linkCount)
     }
 
-    regionPlan.topologicalIterator().zip(Iterator(7, 4)).foreach {
-      case (regionId, portCount) =>
-        assert(regionPlan.getRegion(regionId).getPorts.size == portCount)
+    regionList.zip(Iterator(7, 4)).foreach {
+      case (region, portCount) =>
+        assert(region.getPorts.size == portCount)
     }
   }
-
+//
   "RegionPlanGenerator" should "correctly find regions in buildcsv->probecsv->hashjoin->hashjoin->sink workflow" in {
     val buildCsv = TestOperators.headerlessSmallCsvScanOpDesc()
     val probeCsv = TestOperators.smallCsvScanOpDesc()
@@ -251,25 +255,27 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
       new WorkflowContext()
     )
 
-    val (regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
+    val (schedule, _) = new ExpansionGreedyScheduleGenerator(
       workflow.context,
       workflow.physicalPlan
     ).generate()
 
-    assert(regionPlan.regions.size == 2)
-    regionPlan.topologicalIterator().zip(Iterator(5, 4)).foreach {
-      case (regionId, opCount) =>
-        assert(regionPlan.getRegion(regionId).getOperators.size == opCount)
+    // Assuming each level only has one region
+    val regionList = schedule.toList.map(level => level.head)
+    assert(regionList.size == 2)
+    regionList.zip(Iterator(5, 4)).foreach {
+      case (region, opCount) =>
+        assert(region.getOperators.size == opCount)
     }
 
-    regionPlan.topologicalIterator().zip(Iterator(4, 3)).foreach {
-      case (regionId, linkCount) =>
-        assert(regionPlan.getRegion(regionId).getLinks.size == linkCount)
+    regionList.zip(Iterator(4, 3)).foreach {
+      case (region, linkCount) =>
+        assert(region.getLinks.size == linkCount)
     }
 
-    regionPlan.topologicalIterator().zip(Iterator(7, 6)).foreach {
-      case (regionId, portCount) =>
-        assert(regionPlan.getRegion(regionId).getPorts.size == portCount)
+    regionList.zip(Iterator(7, 6)).foreach {
+      case (region, portCount) =>
+        assert(region.getPorts.size == portCount)
     }
   }
 
@@ -322,25 +328,26 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
       new WorkflowContext()
     )
 
-    val (regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
+    val (schedule, _) = new ExpansionGreedyScheduleGenerator(
       workflow.context,
       workflow.physicalPlan
     ).generate()
 
-    assert(regionPlan.regions.size == 2)
-    regionPlan.topologicalIterator().zip(Iterator(5, 3)).foreach {
-      case (regionId, opCount) =>
-        assert(regionPlan.getRegion(regionId).getOperators.size == opCount)
+    val regionList = schedule.toList.map(level => level.head)
+    assert(regionList.size == 2)
+    regionList.zip(Iterator(5, 3)).foreach {
+      case (region, opCount) =>
+        assert(region.getOperators.size == opCount)
     }
 
-    regionPlan.topologicalIterator().zip(Iterator(4, 2)).foreach {
-      case (regionId, linkCount) =>
-        assert(regionPlan.getRegion(regionId).getLinks.size == linkCount)
+    regionList.zip(Iterator(4, 2)).foreach {
+      case (region, linkCount) =>
+        assert(region.getLinks.size == linkCount)
     }
 
-    regionPlan.topologicalIterator().zip(Iterator(8, 4)).foreach {
-      case (regionId, portCount) =>
-        assert(regionPlan.getRegion(regionId).getPorts.size == portCount)
+    regionList.zip(Iterator(8, 4)).foreach {
+      case (region, portCount) =>
+        assert(region.getPorts.size == portCount)
     }
   }
 

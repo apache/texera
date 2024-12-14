@@ -75,13 +75,13 @@ object AmberConfig {
   val isFaultToleranceEnabled: Boolean = faultToleranceLogRootFolder.nonEmpty
 
   // Region plan generator
-  val enableCostBasedRegionPlanGenerator: Boolean =
-    getConfSource.getBoolean("region-plan-generator.enable-cost-based-region-plan-generator")
-  val useGlobalSearch: Boolean = getConfSource.getBoolean("region-plan-generator.use-global-search")
+  val enableCostBasedScheduleGenerator: Boolean =
+    getConfSource.getBoolean("schedule-generator.enable-cost-based-schedule-generator")
+  val useGlobalSearch: Boolean = getConfSource.getBoolean("schedule-generator.use-global-search")
   val useTopDownSearch: Boolean =
-    getConfSource.getBoolean("region-plan-generator.use-top-down-search")
+    getConfSource.getBoolean("schedule-generator.use-top-down-search")
   val searchTimeoutMilliseconds: Int =
-    getConfSource.getInt("region-plan-generator.search-timeout-milliseconds")
+    getConfSource.getInt("schedule-generator.search-timeout-milliseconds")
 
   // Storage configuration
   val sinkStorageTTLInSecs: Int = getConfSource.getInt("result-cleanup.ttl-in-seconds")

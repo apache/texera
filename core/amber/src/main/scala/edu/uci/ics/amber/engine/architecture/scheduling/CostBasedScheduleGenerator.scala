@@ -1,6 +1,5 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
-import edu.uci.ics.amber.core.storage.result.OpResultStorage
 import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberLogging}
 import edu.uci.ics.amber.virtualidentity.{ActorVirtualIdentity, PhysicalOpIdentity}
@@ -14,14 +13,14 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, Future}
 import scala.jdk.CollectionConverters._
-import scala.util.{Failure, Success, Try}
 import scala.util.control.Breaks.{break, breakable}
+import scala.util.{Failure, Success, Try}
 
-class CostBasedRegionPlanGenerator(
+class CostBasedScheduleGenerator(
     workflowContext: WorkflowContext,
     initialPhysicalPlan: PhysicalPlan,
     val actorId: ActorVirtualIdentity
-) extends RegionPlanGenerator(
+) extends ScheduleGenerator(
       workflowContext,
       initialPhysicalPlan
     )
@@ -35,20 +34,21 @@ class CostBasedRegionPlanGenerator(
       numStatesExplored: Int = 0
   )
 
-  def generate(): (RegionPlan, PhysicalPlan) = {
-
+  def generate(): (Schedule, PhysicalPlan) = {
     val startTime = System.nanoTime()
     val regionDAG = createRegionDAG()
     val totalRPGTime = System.nanoTime() - startTime
+    val regionPlan = RegionPlan(
+      regions = regionDAG.iterator().asScala.toSet,
+      regionLinks = regionDAG.edgeSet().asScala.toSet
+    )
+    val schedule = generateScheduleFromRegionPlan(regionPlan)
     logger.info(
       s"WID: ${workflowContext.workflowId.id}, EID: ${workflowContext.executionId.id}, total RPG time: " +
         s"${totalRPGTime / 1e6} ms."
     )
     (
-      RegionPlan(
-        regions = regionDAG.iterator().asScala.toSet,
-        regionLinks = regionDAG.edgeSet().asScala.toSet
-      ),
+      schedule,
       physicalPlan
     )
   }

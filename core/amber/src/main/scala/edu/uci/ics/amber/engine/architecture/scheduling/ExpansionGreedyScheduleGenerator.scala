@@ -12,20 +12,22 @@ import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
-class ExpansionGreedyRegionPlanGenerator(
+class ExpansionGreedyScheduleGenerator(
     workflowContext: WorkflowContext,
     initialPhysicalPlan: PhysicalPlan
-) extends RegionPlanGenerator(workflowContext, initialPhysicalPlan)
+) extends ScheduleGenerator(workflowContext, initialPhysicalPlan)
     with LazyLogging {
-  def generate(): (RegionPlan, PhysicalPlan) = {
+  def generate(): (Schedule, PhysicalPlan) = {
 
     val regionDAG = createRegionDAG()
+    val regionPlan = RegionPlan(
+      regions = regionDAG.vertexSet().asScala.toSet,
+      regionLinks = regionDAG.edgeSet().asScala.toSet
+    )
+    val schedule = generateScheduleFromRegionPlan(regionPlan)
 
     (
-      RegionPlan(
-        regions = regionDAG.vertexSet().asScala.toSet,
-        regionLinks = regionDAG.edgeSet().asScala.toSet
-      ),
+      schedule,
       physicalPlan
     )
   }
