@@ -40,7 +40,6 @@ import edu.uci.ics.texera.web.resource.dashboard.user.workflow.{
   WorkflowResource,
   WorkflowVersionResource
 }
-import edu.uci.ics.texera.web.resource.languageserver.PythonLanguageServerManager
 import io.dropwizard.auth.AuthValueFactoryProvider
 import io.dropwizard.setup.{Bootstrap, Environment}
 import io.dropwizard.websockets.WebsocketBundle
@@ -79,7 +78,6 @@ object TexeraWebApplication {
         .resolve("web-config.yml")
         .toString
     )
-    PythonLanguageServerManager.startLanguageServer()
   }
 }
 
