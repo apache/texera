@@ -1,7 +1,7 @@
 <div class="centered-container">
   <div class="input-wrapper">
     <form nz-form>
-      <nz-row>
+      <nz-row *ngIf="exportType !== 'data'">
         <nz-col [nzSpan]="24">
           <nz-form-item>
             <nz-form-label nzFor="exportTypeInput">Export Type</nz-form-label>
@@ -28,6 +28,22 @@
           </nz-form-item>
         </nz-col>
       </nz-row>
+      <nz-row *ngIf="exportType === 'data'">
+        <nz-col [nzSpan]="24">
+          <nz-form-item>
+            <nz-form-label nzFor="filenameInput">Filename</nz-form-label>
+            <nz-form-control>
+              <input
+                id="filenameInput"
+                [(ngModel)]="inputFileName"
+                name="filename"
+                type="text"
+                nz-input
+                placeholder="Enter filename for binary data" />
+            </nz-form-control>
+          </nz-form-item>
+        </nz-col>
+      </nz-row>
       <nz-row>
         <nz-col [nzSpan]="24">
           <nz-form-item>
@@ -42,22 +58,6 @@
                   nzValue="dataset"
                   nzLabel="Dataset"></nz-option>
               </nz-select>
-            </nz-form-control>
-          </nz-form-item>
-        </nz-col>
-      </nz-row>
-      <nz-row *ngIf="exportType === 'data'">
-        <nz-col [nzSpan]="24">
-          <nz-form-item>
-            <nz-form-label nzFor="filenameInput">Filename</nz-form-label>
-            <nz-form-control>
-              <input
-                id="filenameInput"
-                [(ngModel)]="inputFileName"
-                name="filename"
-                type="text"
-                nz-input
-                placeholder="Enter filename for binary data" />
             </nz-form-control>
           </nz-form-item>
         </nz-col>
