@@ -59,4 +59,8 @@ export class StubUserService implements PublicInterfaceOf<UserService> {
   getCurrentUser(): User | undefined {
     return this.user;
   }
+
+  getAvatar(googleAvatar: string): Observable<string | undefined> {
+    return of(undefined);
+  }
 }
