@@ -3,8 +3,8 @@ import { UserService } from "../../../../common/service/user/user.service";
 import { mergeMap } from "rxjs/operators";
 import { GoogleAuthService } from "../../../../common/service/user/google-auth.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import {DASHBOARD_USER_WORKFLOW} from "../../../../app-routing.constant";
-import {ActivatedRoute, Router} from "@angular/router";
+import { DASHBOARD_USER_WORKFLOW } from "../../../../app-routing.constant";
+import { ActivatedRoute, Router } from "@angular/router";
 
 @UntilDestroy()
 @Component({
