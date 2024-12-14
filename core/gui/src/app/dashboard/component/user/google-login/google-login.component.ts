@@ -1,9 +1,10 @@
 import { AfterViewInit, Component, ElementRef, ViewChild } from "@angular/core";
 import { UserService } from "../../../../common/service/user/user.service";
-import { ActivatedRoute, Router } from "@angular/router";
 import { mergeMap } from "rxjs/operators";
-import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { GoogleAuthService } from "../../../../common/service/user/google-auth.service";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { DASHBOARD_USER_WORKFLOW } from "../../../../app-routing.constant";
+import { ActivatedRoute, Router } from "@angular/router";
 
 @UntilDestroy()
 @Component({
@@ -27,6 +28,8 @@ export class GoogleLoginComponent implements AfterViewInit {
         mergeMap(res => this.userService.googleLogin(res.credential)),
         untilDestroyed(this)
       )
-      .subscribe(() => {});
+      .subscribe(() => {
+        this.router.navigateByUrl(this.route.snapshot.queryParams["returnUrl"] || DASHBOARD_USER_WORKFLOW);
+      });
   }
 }
