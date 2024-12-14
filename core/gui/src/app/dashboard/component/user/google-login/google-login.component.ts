@@ -1,11 +1,12 @@
 import { AfterViewInit, Component, ElementRef, ViewChild } from "@angular/core";
 import { UserService } from "../../../../common/service/user/user.service";
-import { ActivatedRoute, Router } from "@angular/router";
 import { mergeMap } from "rxjs/operators";
 import { GoogleAuthService } from "../../../../common/service/user/google-auth.service";
-import { DASHBOARD_USER_WORKFLOW } from "../../../../app-routing.constant";
-import { take } from "rxjs";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import {DASHBOARD_USER_WORKFLOW} from "../../../../app-routing.constant";
+import {ActivatedRoute, Router} from "@angular/router";
 
+@UntilDestroy()
 @Component({
   selector: "texera-google-login",
   template: "",
@@ -21,13 +22,18 @@ export class GoogleLoginComponent implements AfterViewInit {
   ) {}
 
   ngAfterViewInit(): void {
+    setTimeout(() => {
+      this.initializeGoogleLogin();
+    }, 0);
+  }
+
+  private initializeGoogleLogin(): void {
     this.googleAuthService.googleAuthInit(this.elementRef.nativeElement);
     this.googleAuthService.googleCredentialResponse
       .pipe(
         mergeMap(res => this.userService.googleLogin(res.credential)),
-        take(1)
+        untilDestroyed(this)
       )
-      // eslint-disable-next-line rxjs-angular/prefer-takeuntil
       .subscribe(() => {
         this.router.navigateByUrl(this.route.snapshot.queryParams["returnUrl"] || DASHBOARD_USER_WORKFLOW);
       });
