@@ -22,12 +22,6 @@ export class GoogleLoginComponent implements AfterViewInit {
   ) {}
 
   ngAfterViewInit(): void {
-    setTimeout(() => {
-      this.initializeGoogleLogin();
-    }, 0);
-  }
-
-  private initializeGoogleLogin(): void {
     this.googleAuthService.googleAuthInit(this.elementRef.nativeElement);
     this.googleAuthService.googleCredentialResponse
       .pipe(
