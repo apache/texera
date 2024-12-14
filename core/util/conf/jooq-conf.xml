@@ -1,48 +1,5 @@
 <configuration>
     <generator>
-        <generate>
-            <generatedAnnotation>false</generatedAnnotation>
-
-            <daos>true</daos>
-            <interfaces>true</interfaces>
-        </generate>
-        <!-- The default code generator. You can override this one, to generate your own code style.
-             Supported generators:
-             - org.jooq.codegen.JavaGenerator
-             - org.jooq.codegen.ScalaGenerator
-             Defaults to org.jooq.codegen.JavaGenerator -->
-        <name>org.jooq.codegen.JavaGenerator</name>
-
-        <database>
-            <!-- The database type. The format here is:
-                 org.jooq.meta.[database].[database]Database -->
-            <name>org.jooq.meta.mysql.MySQLDatabase</name>
-
-            <!-- The database schema (or in the absence of schema support, in your RDBMS this
-                 can be the owner, user, database name) to be generated -->
-            <inputSchema>texera_db</inputSchema>
-
-            <!-- All elements that are generated from your schema
-                 (A Java regular expression. Use the pipe to separate several expressions)
-                 Watch out for case-sensitivity. Depending on your database, this might be important! -->
-            <includes>.*</includes>
-
-            <!-- All elements that are excluded from your schema
-                 (A Java regular expression. Use the pipe to separate several expressions).
-                 Excludes match before includes, i.e. excludes have a higher priority -->
-            <excludes>(test_.*)|(ignore_.*)</excludes>
-
-        </database>
-
-        <target>
-            <!-- The destination package of your generated classes (within the destination directory) -->
-            <packageName>edu.uci.ics.texera.web.model.jooq.generated</packageName>
-
-            <!-- The destination directory of your generated classes. Using Maven directory layout here -->
-            <directory>core/amber/src/main/scala</directory>
-        </target>
-    </generator>
-    <generator>
         <!-- The generator for dao -->
         <generate>
             <generatedAnnotation>false</generatedAnnotation>
