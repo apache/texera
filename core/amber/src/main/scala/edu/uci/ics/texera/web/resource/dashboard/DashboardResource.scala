@@ -203,6 +203,7 @@ class DashboardResource {
     userIdToInfoMap
   }
 
+  // todo: move this function to WorkflowResource.scala
   @GET
   @Path("/workflowUserAccess")
   def workflowUserAccess(

@@ -1125,6 +1125,20 @@ class DatasetResource {
       .build()
   }
 
+  @GET
+  @Path("/datasetUserAccess")
+  def workflowUserAccess(
+    @QueryParam("did") did: UInteger
+  ): util.List[UInteger] = {
+    val records = context
+      .select(DATASET_USER_ACCESS.UID)
+      .from(DATASET_USER_ACCESS)
+      .where(DATASET_USER_ACCESS.DID.eq(did))
+      .fetch()
+
+    records.getValues(DATASET_USER_ACCESS.UID)
+  }
+
   private def getLatestVersionInfo(did: UInteger, user: SessionUser): (Dataset, DatasetVersion) = {
     validateUserAccess(did, user.getUid)
     val dataset = getDatasetByID(context, did)

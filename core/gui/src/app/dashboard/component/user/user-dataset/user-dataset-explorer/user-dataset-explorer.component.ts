@@ -40,6 +40,8 @@ export class UserDatasetExplorerComponent implements OnInit {
   public isCreatingDataset: boolean = false;
   public versionCreatorBaseVersion: DatasetVersion | undefined;
   public isLogin: boolean = this.userService.isLogin();
+  public disableDownload: boolean = false;
+  public disablePublish: boolean = false;
 
   constructor(
     private route: ActivatedRoute,
@@ -70,6 +72,10 @@ export class UserDatasetExplorerComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    const fullPath = this.router.url;
+    if (fullPath.includes("hub")) {
+      this.applyHubRestrictions();
+    }
     this.route.params
       .pipe(
         switchMap(params => {
@@ -111,6 +117,13 @@ export class UserDatasetExplorerComponent implements OnInit {
           this.siderWidth = this.MAX_SIDER_WIDTH;
         });
     }
+  }
+
+  applyHubRestrictions() {
+    if (!this.isLogin) {
+      this.disableDownload = true;
+    }
+    this.disablePublish = true;
   }
 
   public onCreationFinished(creationID: number) {

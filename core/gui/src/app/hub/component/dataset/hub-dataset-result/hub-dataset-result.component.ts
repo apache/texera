@@ -68,8 +68,10 @@ export class HubDatasetResultComponent implements AfterViewInit  {
   }
 
   /**
-   * Searches workflows with keywords and filters given in the masterFilterList.
+   * Searches dataset with keywords and filters given in the masterFilterList.
    * @returns
+   *
+   * todo: Integrate the search functions from different interfaces into a single method.
    */
   async search(forced: Boolean = false): Promise<void> {
     const sameList =

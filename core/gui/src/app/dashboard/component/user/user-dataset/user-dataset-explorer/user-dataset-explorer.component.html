@@ -42,6 +42,7 @@
           <button
             nz-button
             nz-tooltip="Download the file"
+            [disabled]="disableDownload"
             (click)="onClickDownloadCurrentFile()">
             <i
               nz-icon
@@ -161,6 +162,7 @@
             nz-tooltip="Download Dataset"
             (click)="onClickDownloadVersionAsZip()"
             *ngIf="selectedVersion"
+            [disabled]="disableDownload"
             class="spaced-button">
             <i
               nz-icon
