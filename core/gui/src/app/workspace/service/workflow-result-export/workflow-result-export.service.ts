@@ -1,4 +1,3 @@
-import * as JSZip from "jszip";
 import * as Papa from "papaparse";
 import { Injectable } from "@angular/core";
 import { environment } from "../../../../environments/environment";
@@ -13,7 +12,6 @@ import { filter } from "rxjs/operators";
 import { OperatorResultService, WorkflowResultService } from "../workflow-result/workflow-result.service";
 import { OperatorPaginationResultService } from "../workflow-result/workflow-result.service";
 import { DownloadService } from "../../../dashboard/service/user/download/download.service";
-import { Buffer } from "buffer";
 
 @Injectable({
   providedIn: "root",
@@ -22,7 +20,6 @@ export class WorkflowResultExportService {
   hasResultToExportOnHighlightedOperators: boolean = false;
   exportExecutionResultEnabled: boolean = environment.exportExecutionResultEnabled;
   hasResultToExportOnAllOperators = new BehaviorSubject<boolean>(false);
-
   constructor(
     private workflowWebsocketService: WorkflowWebsocketService,
     private workflowActionService: WorkflowActionService,
@@ -125,99 +122,6 @@ export class WorkflowResultExportService {
           console.error("Error exporting operator results:", error);
         },
       });
-  }
-
-  /**
-   * Export all binary data as a ZIP file.
-   */
-  exportAllBinaryDataAsZIP(binaryDataColumns: Set<string>, operatorId: string): void {
-    const paginatedResultService = this.workflowResultService.getPaginatedResultService(operatorId);
-
-    if (!paginatedResultService) {
-      return;
-    }
-
-    this.createZipFromPaginatedData(paginatedResultService, binaryDataColumns, operatorId);
-  }
-
-  private createZipFromPaginatedData(
-    paginatedResultService: OperatorPaginationResultService,
-    binaryDataColumns: Set<string>,
-    operatorId: string
-  ): void {
-    const zip = new JSZip();
-    let currentPage = 1;
-    const pageSize = 10;
-
-    paginatedResultService
-      .selectPage(currentPage, pageSize)
-      .pipe(
-        expand((pageData: PaginatedResultEvent) =>
-          pageData.table.length === pageSize ? paginatedResultService.selectPage(++currentPage, pageSize) : EMPTY
-        ),
-        finalize(() => this.finalizeZip(zip, operatorId))
-      )
-      .subscribe({
-        next: (pageData: PaginatedResultEvent) =>
-          this.processPage(pageData, currentPage, pageSize, zip, binaryDataColumns),
-        error: (error: unknown) => {
-          console.error("Error processing paginated data:", error);
-        },
-      });
-  }
-
-  private processPage(
-    pageData: PaginatedResultEvent,
-    currentPage: number,
-    pageSize: number,
-    zip: JSZip,
-    binaryDataColumns: Set<string>
-  ): void {
-    pageData.table.forEach((row, rowIndex) => {
-      const folderName = `row_${(currentPage - 1) * pageSize + rowIndex + 1}`;
-      this.processBinaryDataColumns(row, binaryDataColumns, folderName, zip);
-    });
-  }
-
-  private processBinaryDataColumns(row: any, binaryDataColumns: Set<string>, folderName: string, zip: JSZip): void {
-    binaryDataColumns.forEach(name => {
-      const binaryData = row[name];
-      if (binaryData === null) {
-        return;
-      }
-      const blob = this.base64ToBlob(binaryData);
-      zip.folder(folderName)?.file(name, blob);
-    });
-  }
-
-  private async finalizeZip(zip: JSZip, operatorId: string): Promise<void> {
-    try {
-      const content = await zip.generateAsync({ type: "blob" });
-      const fileName = `binary_data_${operatorId}.zip`;
-      this.downloadService
-        .downloadOperatorsResult(
-          [of([{ filename: fileName, blob: content }])],
-          this.workflowActionService.getWorkflow()
-        )
-        .subscribe({
-          error: (error: unknown) => {
-            console.error("Error exporting binary data:", error);
-          },
-        });
-    } catch (error) {
-      console.error("Error generating ZIP file:", error);
-    }
-  }
-
-  private base64ToBlob(base64: string): Blob {
-    const buffer = Buffer.from(base64.split(",")[1] || base64, "base64");
-    const byteArray = new Uint8Array(buffer);
-
-    for (let i = 0; i < byteArray.length; i++) {
-      byteArray[i] = buffer[i];
-    }
-
-    return new Blob([byteArray]);
   }
 
   /**

@@ -2,7 +2,6 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.WorkflowRuntimeException
-import edu.uci.ics.amber.core.storage.result.OpResultStorage
 import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.amber.workflow.PhysicalLink
@@ -15,9 +14,8 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 class ExpansionGreedyRegionPlanGenerator(
     workflowContext: WorkflowContext,
-    initialPhysicalPlan: PhysicalPlan,
-    opResultStorage: OpResultStorage
-) extends RegionPlanGenerator(workflowContext, initialPhysicalPlan, opResultStorage)
+    initialPhysicalPlan: PhysicalPlan
+) extends RegionPlanGenerator(workflowContext, initialPhysicalPlan)
     with LazyLogging {
   def generate(): (RegionPlan, PhysicalPlan) = {
 

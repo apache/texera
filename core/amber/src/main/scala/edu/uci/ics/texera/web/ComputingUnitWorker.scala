@@ -5,7 +5,7 @@ import org.apache.commons.jcs3.access.exception.InvalidArgumentException
 
 import scala.annotation.tailrec
 
-object TexeraRunWorker {
+object ComputingUnitWorker {
 
   type OptionMap = Map[Symbol, Any]
 

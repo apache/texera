@@ -21,8 +21,6 @@ FROM sbtscala/scala-sbt:eclipse-temurin-jammy-11.0.17_8_1.9.3_2.13.11
 WORKDIR /core
 COPY core/ .
 
-WORKDIR /core/amber
-RUN sbt clean package
 RUN apt-get update
 RUN apt-get install -y netcat unzip python3-pip
 RUN pip3 install python-lsp-server python-lsp-server[websockets]
@@ -34,10 +32,12 @@ WORKDIR /core
 COPY .git ../.git
 COPY --from=nodegui /gui/dist ./gui/dist
 
-RUN scripts/build-docker.sh
+RUN scripts/build-services.sh
 
 CMD ["scripts/deploy-docker.sh"]
 
 EXPOSE 8080
 
 EXPOSE 9090
+
+EXPOSE 8085
