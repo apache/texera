@@ -144,7 +144,9 @@
         *ngIf="displayNavbar"
         id="nav">
         <texera-search-bar></texera-search-bar>
-        <texera-user-icon [hidden]="!isLogin"></texera-user-icon>
+        <ng-container *ngIf="isLogin">
+          <texera-user-icon></texera-user-icon>
+        </ng-container>
         <texera-google-login [hidden]="isLogin"></texera-google-login>
       </div>
 
