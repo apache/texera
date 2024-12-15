@@ -25,15 +25,10 @@ class DefaultCostEstimator(
     with AmberLogging {
 
   // Requires mysql database to retrieve execution statistics, otherwise use number of materialized ports as a default.
-  private val operatorEstimatedTimeOption = {
-    if (StorageConfig.jdbcUsername.isEmpty) {
-      None
-    } else {
-      WorkflowExecutionsResource.getOperatorExecutionTimeInSeconds(
-        this.workflowContext.workflowId.id
-      )
-    }
-  }
+  private val operatorEstimatedTimeOption =
+    WorkflowExecutionsResource.getOperatorExecutionTimeInSeconds(
+      this.workflowContext.workflowId.id
+    )
 
   operatorEstimatedTimeOption match {
     case None =>
