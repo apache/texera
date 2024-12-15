@@ -42,6 +42,8 @@ class DefaultCostEstimatorSpec
     val workflow = new Workflow
     workflow.setName("test workflow")
     workflow.setWid(UInteger.valueOf(1))
+    workflow.setContent("test workflow content")
+    workflow.setDescription("test description")
     workflow
   }
 
@@ -49,6 +51,7 @@ class DefaultCostEstimatorSpec
     val workflowVersion = new WorkflowVersion
     workflowVersion.setWid(UInteger.valueOf(1))
     workflowVersion.setVid(UInteger.valueOf(1))
+    workflowVersion.setContent("test version content")
     workflowVersion
   }
 
@@ -74,7 +77,7 @@ class DefaultCostEstimatorSpec
 
   private val keywordOpDescStatisticsEntry: WorkflowRuntimeStatistics = {
     val workflowRuntimeStatistics = new WorkflowRuntimeStatistics
-    workflowRuntimeStatistics.setOperatorId(headerlessCsvOpDesc.operatorIdentifier.id)
+    workflowRuntimeStatistics.setOperatorId(keywordOpDesc.operatorIdentifier.id)
     workflowRuntimeStatistics.setWorkflowId(UInteger.valueOf(1))
     workflowRuntimeStatistics.setExecutionId(UInteger.valueOf(1))
     workflowRuntimeStatistics.setDataProcessingTime(ULong.valueOf(300))
@@ -84,7 +87,7 @@ class DefaultCostEstimatorSpec
 
   private val sinkOpDescStatisticsEntry: WorkflowRuntimeStatistics = {
     val workflowRuntimeStatistics = new WorkflowRuntimeStatistics
-    workflowRuntimeStatistics.setOperatorId(headerlessCsvOpDesc.operatorIdentifier.id)
+    workflowRuntimeStatistics.setOperatorId(sink.operatorIdentifier.id)
     workflowRuntimeStatistics.setWorkflowId(UInteger.valueOf(1))
     workflowRuntimeStatistics.setExecutionId(UInteger.valueOf(1))
     workflowRuntimeStatistics.setDataProcessingTime(ULong.valueOf(200))
