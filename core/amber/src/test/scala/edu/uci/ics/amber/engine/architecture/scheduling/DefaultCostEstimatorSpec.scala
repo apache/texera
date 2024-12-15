@@ -9,13 +9,16 @@ import edu.uci.ics.amber.operator.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.amber.operator.source.scan.csv.CSVScanSourceOpDesc
 import edu.uci.ics.amber.workflow.PortIdentity
 import edu.uci.ics.texera.dao.MockTexeraDB
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
+import edu.uci.ics.texera.dao.jooq.generated.enums.UserRole
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
+  UserDao,
   WorkflowDao,
   WorkflowExecutionsDao,
   WorkflowRuntimeStatisticsDao,
   WorkflowVersionDao
 }
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
+  User,
   Workflow,
   WorkflowExecutions,
   WorkflowRuntimeStatistics,
@@ -37,6 +40,16 @@ class DefaultCostEstimatorSpec
   private val keywordOpDesc: KeywordSearchOpDesc =
     TestOperators.keywordSearchOpDesc("column-1", "Asia")
   private val sink: ProgressiveSinkOpDesc = TestOperators.sinkOpDesc()
+
+  private val testUser: User = {
+    val user = new User
+    user.setUid(UInteger.valueOf(1))
+    user.setName("test_user")
+    user.setRole(UserRole.ADMIN)
+    user.setPassword("123")
+    user.setEmail("test_user@test.com")
+    user
+  }
 
   private val testWorkflowEntry: Workflow = {
     val workflow = new Workflow
@@ -155,12 +168,14 @@ class DefaultCostEstimatorSpec
       new WorkflowContext()
     )
 
+    val userDao = new UserDao(getDSLContext.configuration())
     val workflowDao = new WorkflowDao(getDSLContext.configuration())
     val workflowExecutionsDao = new WorkflowExecutionsDao(getDSLContext.configuration())
     val workflowVersionDao = new WorkflowVersionDao(getDSLContext.configuration())
     val workflowRuntimeStatisticsDao =
       new WorkflowRuntimeStatisticsDao(getDSLContext.configuration())
 
+    userDao.insert(testUser)
     workflowDao.insert(testWorkflowEntry)
     workflowVersionDao.insert(testWorkflowVersionEntry)
     workflowExecutionsDao.insert(testWorkflowExecutionEntry)
