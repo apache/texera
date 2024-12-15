@@ -18,6 +18,7 @@ import org.jooq.impl.DSL.field
 import org.jooq.types.UInteger
 
 import scala.jdk.CollectionConverters.ListHasAsScala
+import scala.util.{Failure, Success, Try}
 
 /**
   * A cost estimator should estimate a cost of running a region under the given resource constraints as units.
@@ -38,9 +39,14 @@ class DefaultCostEstimator(
     with AmberLogging {
 
   // Requires mysql database to retrieve execution statistics, otherwise use number of materialized ports as a default.
-  private val operatorEstimatedTimeOption = getOperatorExecutionTimeInSeconds(
-    this.workflowContext.workflowId.id
-  )
+  private val operatorEstimatedTimeOption = Try(
+    this.getOperatorExecutionTimeInSeconds(
+      this.workflowContext.workflowId.id
+    )
+  ) match {
+    case Failure(_)      => None
+    case Success(result) => result
+  }
 
   operatorEstimatedTimeOption match {
     case None =>
