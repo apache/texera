@@ -1,21 +1,21 @@
-import {AfterViewInit, Component, Input, ViewChild} from "@angular/core";
-import {SearchResultsComponent} from "../../../../dashboard/component/user/search-results/search-results.component";
-import {FiltersComponent} from "../../../../dashboard/component/user/filters/filters.component";
-import {UntilDestroy, untilDestroyed} from "@ngneat/until-destroy";
-import {SortMethod} from "../../../../dashboard/type/sort-method";
-import {UserService} from "../../../../common/service/user/user.service";
-import {SearchService} from "../../../../dashboard/service/user/search.service";
-import {isDefined} from "../../../../common/util/predicate";
-import {firstValueFrom} from "rxjs";
-import {DashboardEntry, UserInfo} from "../../../../dashboard/type/dashboard-entry";
+import { AfterViewInit, Component, Input, ViewChild } from "@angular/core";
+import { SearchResultsComponent } from "../../../../dashboard/component/user/search-results/search-results.component";
+import { FiltersComponent } from "../../../../dashboard/component/user/filters/filters.component";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { SortMethod } from "../../../../dashboard/type/sort-method";
+import { UserService } from "../../../../common/service/user/user.service";
+import { SearchService } from "../../../../dashboard/service/user/search.service";
+import { isDefined } from "../../../../common/util/predicate";
+import { firstValueFrom } from "rxjs";
+import { DashboardEntry, UserInfo } from "../../../../dashboard/type/dashboard-entry";
 
 @UntilDestroy()
 @Component({
   selector: "texera-hub-dataset-result",
   templateUrl: "./hub-dataset-result.component.html",
-  styleUrls: ["./hub-dataset-result.component.scss"]
+  styleUrls: ["./hub-dataset-result.component.scss"],
 })
-export class HubDatasetResultComponent implements AfterViewInit  {
+export class HubDatasetResultComponent implements AfterViewInit {
   currentUid = this.userService.getCurrentUser()?.uid;
 
   private isLogin = false;

@@ -3,7 +3,7 @@ import {
   DASHBOARD_ABOUT,
   DASHBOARD_HOME,
   DASHBOARD_HUB_DATASET_RESULT,
-  DASHBOARD_HUB_WORKFLOW_RESULT
+  DASHBOARD_HUB_WORKFLOW_RESULT,
 } from "../../app-routing.constant";
 
 @Component({

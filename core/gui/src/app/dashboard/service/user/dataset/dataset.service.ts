@@ -24,7 +24,7 @@ export const DATASET_VERSION_RETRIEVE_LIST_URL = DATASET_VERSION_BASE_URL + "/li
 export const DATASET_VERSION_LATEST_URL = DATASET_VERSION_BASE_URL + "/latest";
 export const DATASET_PUBLIC_VERSION_BASE_URL = "publicVersion";
 export const DATASET_PUBLIC_VERSION_RETRIEVE_LIST_URL = DATASET_PUBLIC_VERSION_BASE_URL + "/list";
-export const DATASET_GET_OWNERS_URL = DATASET_BASE_URL + "/datasetUserAccess"
+export const DATASET_GET_OWNERS_URL = DATASET_BASE_URL + "/datasetUserAccess";
 
 export const DEFAULT_DATASET_NAME = "Untitled dataset";
 
@@ -168,20 +168,18 @@ export class DatasetService {
   public retrieveDatasetVersionFileTree(
     did: number,
     dvid: number,
-    isLogin: boolean = true,
+    isLogin: boolean = true
   ): Observable<{ fileNodes: DatasetFileNode[]; size: number }> {
     const apiUrl = isLogin
       ? `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/${DATASET_VERSION_BASE_URL}/${dvid}/rootFileNodes`
       : `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/${DATASET_PUBLIC_VERSION_BASE_URL}/${dvid}/rootFileNodes`;
 
-    return this.http
-      .get<DatasetVersionRootFileNodesResponse>(apiUrl)
-      .pipe(
-        map(response => ({
-          fileNodes: response.rootFileNodes.fileNodes,
-          size: response.size,
-        }))
-      );
+    return this.http.get<DatasetVersionRootFileNodesResponse>(apiUrl).pipe(
+      map(response => ({
+        fileNodes: response.rootFileNodes.fileNodes,
+        size: response.size,
+      }))
+    );
   }
 
   public deleteDatasets(dids: number[]): Observable<Response> {
@@ -211,7 +209,7 @@ export class DatasetService {
     );
   }
 
-  public getDatasetOwners (did: number): Observable<number[]> {
+  public getDatasetOwners(did: number): Observable<number[]> {
     return this.http.get<number[]>(`${AppSettings.getApiEndpoint()}/${DATASET_GET_OWNERS_URL}?did=${did}`);
   }
 }

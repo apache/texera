@@ -10,7 +10,7 @@ import { NotificationService } from "../../../../../common/service/notification/
 import { DownloadService } from "../../../../service/user/download/download.service";
 import { formatSize } from "src/app/common/util/size-formatter.util";
 import { DASHBOARD_USER_DATASET } from "../../../../../app-routing.constant";
-import {UserService} from "../../../../../common/service/user/user.service";
+import { UserService } from "../../../../../common/service/user/user.service";
 
 @UntilDestroy()
 @Component({
