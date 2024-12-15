@@ -1,28 +1,7 @@
 <div class="centered-container">
   <div class="input-wrapper">
     <form nz-form>
-      <nz-row>
-        <nz-col [nzSpan]="24">
-          <nz-form-item>
-            <nz-form-label nzFor="destinationInput">Destination</nz-form-label>
-            <nz-form-control>
-              <nz-select
-                id="destinationInput"
-                [(ngModel)]="destination"
-                name="destination"
-                nzPlaceHolder="Select destination">
-                <nz-option
-                  nzValue="local"
-                  nzLabel="Local"></nz-option>
-                <nz-option
-                  nzValue="dataset"
-                  nzLabel="Dataset"></nz-option>
-              </nz-select>
-            </nz-form-control>
-          </nz-form-item>
-        </nz-col>
-      </nz-row>
-      <nz-row>
+      <nz-row *ngIf="exportType !== 'data'">
         <nz-col [nzSpan]="24">
           <nz-form-item>
             <nz-form-label nzFor="exportTypeInput">Export Type</nz-form-label>
@@ -33,17 +12,17 @@
                 name="exportType"
                 nzPlaceHolder="Select export type">
                 <nz-option
+                  *ngIf="isTableOutput"
                   nzValue="arrow"
-                  nzLabel="Arrow"
-                  [nzDisabled]="!isTableOutput"></nz-option>
+                  nzLabel="Binary Format (.arrow)"></nz-option>
                 <nz-option
+                  *ngIf="isTableOutput && !containsBinaryData"
                   nzValue="csv"
-                  nzLabel="CSV"
-                  [nzDisabled]="!isTableOutput || containsBinaryData"></nz-option>
+                  nzLabel="Comma Separated Values (.csv)"></nz-option>
                 <nz-option
+                  *ngIf="isVisualizationOutput"
                   nzValue="html"
-                  nzLabel="HTML"
-                  [nzDisabled]="!isVisualizationOutput"></nz-option>
+                  nzLabel="Web Page (.html)"></nz-option>
               </nz-select>
             </nz-form-control>
           </nz-form-item>
@@ -61,6 +40,24 @@
                 type="text"
                 nz-input
                 placeholder="Enter filename for binary data" />
+            </nz-form-control>
+          </nz-form-item>
+        </nz-col>
+      </nz-row>
+      <nz-row>
+        <nz-col [nzSpan]="24">
+          <nz-form-item>
+            <nz-form-label nzFor="destinationInput">Destination</nz-form-label>
+            <nz-form-control>
+              <nz-select
+                id="destinationInput"
+                [(ngModel)]="destination"
+                name="destination"
+                nzPlaceHolder="Select destination">
+                <nz-option
+                  nzValue="dataset"
+                  nzLabel="Dataset"></nz-option>
+              </nz-select>
             </nz-form-control>
           </nz-form-item>
         </nz-col>
