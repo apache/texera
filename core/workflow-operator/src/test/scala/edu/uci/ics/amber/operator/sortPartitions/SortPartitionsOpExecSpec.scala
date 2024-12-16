@@ -22,9 +22,9 @@ class SortPartitionsOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       )
       .build()
 
-  var opExec: SortPartitionOpExec = _
+  var opExec: SortPartitionsOpExec = _
   before {
-    opExec = new SortPartitionOpExec(
+    opExec = new SortPartitionsOpExec(
       "field2",
       0,
       0,
