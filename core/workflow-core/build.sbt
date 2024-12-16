@@ -111,6 +111,12 @@ val arrowDependencies = Seq(
 
 libraryDependencies ++= arrowDependencies
 
+libraryDependencies ++= Seq(
+  "org.apache.iceberg" % "iceberg-api" % "1.7.1",
+  "org.apache.iceberg" % "iceberg-core" % "1.7.1",
+  "org.apache.iceberg" % "iceberg-parquet" % "1.7.1",
+)
+
 /////////////////////////////////////////////////////////////////////////////
 // Additional Dependencies
 /////////////////////////////////////////////////////////////////////////////
