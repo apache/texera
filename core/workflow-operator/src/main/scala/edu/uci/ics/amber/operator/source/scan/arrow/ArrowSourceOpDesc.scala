@@ -44,7 +44,7 @@ class ArrowSourceOpDesc extends ScanSourceOpDesc {
 
   private def createArrowSourceOpExec() = {
     new ArrowSourceOpExec(
-      fileUri.get,
+      fileName.get,
       limit,
       offset,
       schemaFunc = () => sourceSchema()
@@ -58,7 +58,7 @@ class ArrowSourceOpDesc extends ScanSourceOpDesc {
     */
   @Override
   def inferSchema(): Schema = {
-    val file = DocumentFactory.newReadonlyDocument(new URI(fileUri.get)).asFile()
+    val file = DocumentFactory.newReadonlyDocument(new URI(fileName.get)).asFile()
     val allocator = new RootAllocator()
 
     Using
