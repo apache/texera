@@ -24,7 +24,7 @@ export class ResultExportationComponent implements OnInit {
   rowIndex: number = inject(NZ_MODAL_DATA).rowIndex ?? -1;
   columnIndex: number = inject(NZ_MODAL_DATA).columnIndex ?? -1;
   destination: string = "";
-  exportType: string = "";
+  exportType: string = inject(NZ_MODAL_DATA).exportType ?? "";
   isTableOutput: boolean = false;
   isVisualizationOutput: boolean = false;
   containsBinaryData: boolean = false;
