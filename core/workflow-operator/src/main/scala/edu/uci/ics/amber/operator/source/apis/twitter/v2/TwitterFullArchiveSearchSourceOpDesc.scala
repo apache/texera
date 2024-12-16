@@ -1,16 +1,13 @@
 package edu.uci.ics.amber.operator.source.apis.twitter.v2
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty}
-import com.kjetland.jackson.jsonSchema.annotations.{
-  JsonSchemaDescription,
-  JsonSchemaInject,
-  JsonSchemaTitle
-}
-import edu.uci.ics.amber.core.executor.OpExecInitInfo
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaDescription, JsonSchemaInject, JsonSchemaTitle}
+import edu.uci.ics.amber.core.executor.{ExecFactory, OpExecInitInfo}
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.operator.metadata.annotations.UIWidget
 import edu.uci.ics.amber.operator.source.apis.twitter.TwitterSourceOpDesc
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 
 class TwitterFullArchiveSearchSourceOpDesc extends TwitterSourceOpDesc {
@@ -49,18 +46,10 @@ class TwitterFullArchiveSearchSourceOpDesc extends TwitterSourceOpDesc {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _) =>
-          new TwitterFullArchiveSearchSourceOpExec(
-            apiKey,
-            apiSecretKey,
-            stopWhenRateLimited,
-            searchQuery,
-            limit,
-            fromDateTime,
-            toDateTime,
-            sourceSchema()
-          )
-        )
+        OpExecInitInfo((_, _) => ExecFactory.newExecFromJavaClassName(
+          "edu.uci.ics.amber.operator.source.apis.twitter.v2.TwitterFullArchiveSearchSourceOpExec",
+          objectMapper.writeValueAsString(this)
+        ))
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
