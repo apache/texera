@@ -11,7 +11,11 @@
   <h4 align="center">
     <a href="https://texera.io">Official Site</a>
     |
-    <a href="https://texera.io/category/blog/">Blogs</a>
+    <a href="https://texera.io/publications/">Publications</a>
+    |
+    <a href="https://texera.io/category/video/">Video</a>
+    | 
+    <a href="https://texera.io/category/blog/">Blog</a>
     |
     <a href="https://github.com/Texera/texera/wiki/Getting-Started">Getting Started</a>
     <br>
