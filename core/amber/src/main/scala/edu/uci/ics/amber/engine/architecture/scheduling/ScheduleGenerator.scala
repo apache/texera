@@ -188,7 +188,7 @@ abstract class ScheduleGenerator(
       matWriterLogicalOpId: OperatorIdentity,
       physicalLink: PhysicalLink
   ): PhysicalOp = {
-    val opResultStorage = ResultStorage.getOpResultStorage(workflowContext.workflowId)
+    val opResultStorage =  ResultStorage.getOpResultStorage(workflowContext.workflowId)
     PhysicalOp
       .sourcePhysicalOp(
         workflowContext.workflowId,
