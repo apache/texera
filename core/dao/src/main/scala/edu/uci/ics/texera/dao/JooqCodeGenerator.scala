@@ -11,17 +11,27 @@ object JooqCodeGenerator {
   @throws[Exception]
   def main(args: Array[String]): Unit = {
     // Path to jOOQ configuration XML
-    val jooqXmlPath: Path = Path.of("dao").resolve("src").resolve("main").resolve("resources").resolve("jooq-conf.xml")
+    val jooqXmlPath: Path =
+      Path.of("dao").resolve("src").resolve("main").resolve("resources").resolve("jooq-conf.xml")
     val jooqConfig: Configuration = GenerationTool.load(Files.newInputStream(jooqXmlPath))
     // Path to the YAML configuration file
-    val yamlConfPath: Path = Path.of("workflow-core").resolve("src").resolve("main").resolve("resources").resolve("storage-config.yaml")
+    val yamlConfPath: Path = Path
+      .of("workflow-core")
+      .resolve("src")
+      .resolve("main")
+      .resolve("resources")
+      .resolve("storage-config.yaml")
     // Load YAML configuration
     val yaml: Yaml = new Yaml
     try {
       val inputStream: InputStream = Files.newInputStream(yamlConfPath)
       try {
         val config: Map[String, AnyRef] = yaml.load(inputStream)
-        val jdbcConfigMap: Map[String, AnyRef] = (config.get("storage").asInstanceOf[Map[String, AnyRef]]).get("jdbc").asInstanceOf[Map[String, AnyRef]]
+        val jdbcConfigMap: Map[String, AnyRef] = (config
+          .get("storage")
+          .asInstanceOf[Map[String, AnyRef]])
+          .get("jdbc")
+          .asInstanceOf[Map[String, AnyRef]]
         // Set JDBC configuration for jOOQ
         val jooqJdbcConfig: Jdbc = new Jdbc
         jooqJdbcConfig.setDriver("com.mysql.cj.jdbc.Driver")
