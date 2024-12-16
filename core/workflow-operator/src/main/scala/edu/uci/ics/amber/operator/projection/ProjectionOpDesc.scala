@@ -31,7 +31,12 @@ class ProjectionOpDesc extends MapOpDesc {
       workflowId,
       executionId,
       operatorIdentifier,
-      OpExecInitInfo((_, _) => newExecFromJavaClassName("edu.uci.ics.amber.operator.projection.ProjectionOpExec", objectMapper.writeValueAsString(this)))
+      OpExecInitInfo((_, _) =>
+        newExecFromJavaClassName(
+          "edu.uci.ics.amber.operator.projection.ProjectionOpExec",
+          objectMapper.writeValueAsString(this)
+        )
+      )
     )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)

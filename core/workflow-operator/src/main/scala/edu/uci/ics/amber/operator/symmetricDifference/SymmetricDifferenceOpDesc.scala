@@ -21,7 +21,11 @@ class SymmetricDifferenceOpDesc extends LogicalOp {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _) => ExecFactory.newExecFromJavaClassName("edu.uci.ics.amber.operator.symmetricDifference.SymmetricDifferenceOpExec"))
+        OpExecInitInfo((_, _) =>
+          ExecFactory.newExecFromJavaClassName(
+            "edu.uci.ics.amber.operator.symmetricDifference.SymmetricDifferenceOpExec"
+          )
+        )
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)

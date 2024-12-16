@@ -20,7 +20,9 @@ class DistinctOpDesc extends LogicalOp {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _) => ExecFactory.newExecFromJavaClassName("edu.uci.ics.amber.operator.distinct.DistinctOpExec"))
+        OpExecInitInfo((_, _) =>
+          ExecFactory.newExecFromJavaClassName("edu.uci.ics.amber.operator.distinct.DistinctOpExec")
+        )
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)

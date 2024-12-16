@@ -6,9 +6,8 @@ import edu.uci.ics.amber.util.JSONUtils.objectMapper
 
 import java.util.regex.Pattern
 
-class RegexOpExec(descString: String)
-    extends FilterOpExec {
-    private val desc: RegexOpDesc = objectMapper.readValue(descString, classOf[RegexOpDesc])
+class RegexOpExec(descString: String) extends FilterOpExec {
+  private val desc: RegexOpDesc = objectMapper.readValue(descString, classOf[RegexOpDesc])
   lazy val pattern: Pattern =
     Pattern.compile(desc.regex, if (desc.caseInsensitive) Pattern.CASE_INSENSITIVE else 0)
   this.setFilterFunc(this.matchRegex)

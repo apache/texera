@@ -11,7 +11,7 @@ import scala.util.control.Breaks.{break, breakable}
 
 abstract class SQLSourceOpExec(descString: String) extends SourceOperatorExecutor {
   val desc: SQLSourceOpDesc = objectMapper.readValue(descString, classOf[SQLSourceOpDesc])
-  val schema:Schema = desc.sourceSchema()
+  val schema: Schema = desc.sourceSchema()
   var curLimit: Option[Long] = None
   var curOffset: Option[Long] = None
   // connection and query related
@@ -129,7 +129,8 @@ abstract class SQLSourceOpExec(descString: String) extends SourceOperatorExecuto
   @throws[SQLException]
   override def open(): Unit = {
     batchByAttribute =
-      if (desc.progressive.getOrElse(false)) Option(schema.getAttribute(desc.batchByColumn.get)) else None
+      if (desc.progressive.getOrElse(false)) Option(schema.getAttribute(desc.batchByColumn.get))
+      else None
     connection = establishConn()
 
     // load user table names from the given database
@@ -437,7 +438,11 @@ abstract class SQLSourceOpExec(descString: String) extends SourceOperatorExecuto
 
           // fill up the keywords
           val keywords = desc.keywords.orNull
-          if (desc.keywordSearch.getOrElse(false) && desc.keywordSearchByColumn.orNull != null && keywords != null) {
+          if (
+            desc.keywordSearch.getOrElse(
+              false
+            ) && desc.keywordSearchByColumn.orNull != null && keywords != null
+          ) {
             preparedStatement.setString(curIndex, keywords)
             curIndex += 1
           }

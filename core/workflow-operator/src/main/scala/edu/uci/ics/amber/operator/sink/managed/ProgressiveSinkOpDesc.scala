@@ -24,7 +24,7 @@ class ProgressiveSinkOpDesc extends SinkOpDesc {
   private var chartType: Option[String] = None
   // corresponding upstream operator ID and output port, will be set by workflow compiler
   private var upstreamId: Option[OperatorIdentity] = None
-   private var upstreamPort: Option[Integer] = None
+  private var upstreamPort: Option[Integer] = None
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity

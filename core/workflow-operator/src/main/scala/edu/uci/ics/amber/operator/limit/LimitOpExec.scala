@@ -4,7 +4,7 @@ import edu.uci.ics.amber.core.executor.OperatorExecutor
 import edu.uci.ics.amber.core.tuple.{Tuple, TupleLike}
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
 
-class LimitOpExec(descString:String) extends OperatorExecutor {
+class LimitOpExec(descString: String) extends OperatorExecutor {
   private val desc: LimitOpDesc = objectMapper.readValue(descString, classOf[LimitOpDesc])
   var count = 0
 

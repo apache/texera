@@ -26,7 +26,8 @@ class MySQLSourceOpDesc extends SQLSourceOpDesc {
           ExecFactory.newExecFromJavaClassName(
             "edu.uci.ics.amber.operator.source.sql.mysql.MySQLSourceOpExec",
             objectMapper.writeValueAsString(this)
-        ))
+          )
+        )
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)

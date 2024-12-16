@@ -54,7 +54,7 @@ class CSVOldScanSourceOpExec private[csvOld] (
   }
 
   override def close(): Unit = {
-    if (reader!=null) {
+    if (reader != null) {
       reader.close()
     }
   }

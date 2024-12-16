@@ -7,18 +7,23 @@ import edu.uci.ics.amber.util.JSONUtils.objectMapper
 
 import java.sql._
 
-class PostgreSQLSourceOpExec private[postgresql] (descString: String) extends SQLSourceOpExec(descString) {
-  override val desc: PostgreSQLSourceOpDesc = objectMapper.readValue(descString, classOf[PostgreSQLSourceOpDesc])
+class PostgreSQLSourceOpExec private[postgresql] (descString: String)
+    extends SQLSourceOpExec(descString) {
+  override val desc: PostgreSQLSourceOpDesc =
+    objectMapper.readValue(descString, classOf[PostgreSQLSourceOpDesc])
   val FETCH_TABLE_NAMES_SQL =
     "SELECT table_name FROM information_schema.tables WHERE table_type='BASE TABLE';"
 
   @throws[SQLException]
-  override def establishConn(): Connection = connect(desc.host, desc.port, desc.database, desc.username, desc.password)
+  override def establishConn(): Connection =
+    connect(desc.host, desc.port, desc.database, desc.username, desc.password)
 
   @throws[RuntimeException]
   override def addFilterConditions(queryBuilder: StringBuilder): Unit = {
     val keywordSearchByColumn = desc.keywordSearchByColumn.orNull
-    if (desc.keywordSearch.getOrElse(false) && keywordSearchByColumn != null && desc.keywords != null) {
+    if (
+      desc.keywordSearch.getOrElse(false) && keywordSearchByColumn != null && desc.keywords != null
+    ) {
       val columnType = schema.getAttribute(keywordSearchByColumn).getType
 
       if (columnType == AttributeType.STRING) {

@@ -7,16 +7,17 @@ import edu.uci.ics.amber.operator.source.scan.FileAttributeType
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
 
 class TextInputSourceOpExec private[text] (
-  descString: String
+    descString: String
 ) extends SourceOperatorExecutor {
-  private val desc: TextInputSourceOpDesc = objectMapper.readValue(descString, classOf[TextInputSourceOpDesc])
+  private val desc: TextInputSourceOpDesc =
+    objectMapper.readValue(descString, classOf[TextInputSourceOpDesc])
   override def produceTuple(): Iterator[TupleLike] = {
     (if (desc.attributeType.isSingle) {
        Iterator(desc.textInput)
      } else {
-      desc.textInput.linesIterator.slice(
-        desc.fileScanOffset.getOrElse(0),
-        desc.fileScanOffset.getOrElse(0) + desc.fileScanLimit.getOrElse(Int.MaxValue)
+       desc.textInput.linesIterator.slice(
+         desc.fileScanOffset.getOrElse(0),
+         desc.fileScanOffset.getOrElse(0) + desc.fileScanLimit.getOrElse(Int.MaxValue)
        )
      }).map(line =>
       TupleLike(desc.attributeType match {

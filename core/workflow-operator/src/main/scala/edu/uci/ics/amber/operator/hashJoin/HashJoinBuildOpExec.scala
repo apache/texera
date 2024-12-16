@@ -7,8 +7,9 @@ import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
-class HashJoinBuildOpExec[K](descString:String) extends OperatorExecutor {
-  private val desc: HashJoinOpDesc[K] = objectMapper.readValue(descString, classOf[HashJoinOpDesc[K]])
+class HashJoinBuildOpExec[K](descString: String) extends OperatorExecutor {
+  private val desc: HashJoinOpDesc[K] =
+    objectMapper.readValue(descString, classOf[HashJoinOpDesc[K]])
   var buildTableHashMap: mutable.HashMap[K, ListBuffer[Tuple]] = _
 
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {

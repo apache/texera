@@ -4,7 +4,10 @@ import com.github.tototoshi.csv.CSVParser
 import edu.uci.ics.amber.core.tuple.AttributeTypeUtils.parseField
 import edu.uci.ics.amber.core.tuple.{AttributeType, Tuple, TupleLike}
 import edu.uci.ics.amber.operator.source.sql.SQLSourceOpExec
-import edu.uci.ics.amber.operator.source.sql.asterixdb.AsterixDBConnUtil.{queryAsterixDB, updateAsterixDBVersionMapping}
+import edu.uci.ics.amber.operator.source.sql.asterixdb.AsterixDBConnUtil.{
+  queryAsterixDB,
+  updateAsterixDBVersionMapping
+}
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
 
 import java.sql._
@@ -321,7 +324,8 @@ class AsterixDBSourceOpExec private[asterixdb] (
     */
   override protected def loadTableNames(): Unit = {
     // fetch for all tables, it is also equivalent to a health check
-    val tables = queryAsterixDB(desc.host, desc.port, "select `DatasetName` from Metadata.`Dataset`;")
+    val tables =
+      queryAsterixDB(desc.host, desc.port, "select `DatasetName` from Metadata.`Dataset`;")
     tables.get.foreach(table => {
       tableNames.append(table.toString.stripPrefix("\"").stripLineEnd.stripSuffix("\""))
     })

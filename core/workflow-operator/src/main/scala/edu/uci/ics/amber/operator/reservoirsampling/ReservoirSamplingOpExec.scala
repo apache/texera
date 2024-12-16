@@ -9,7 +9,8 @@ import scala.util.Random
 
 class ReservoirSamplingOpExec(descString: String, idx: Int, workerCount: Int)
     extends OperatorExecutor {
-  private val desc: ReservoirSamplingOpDesc = objectMapper.readValue(descString, classOf[ReservoirSamplingOpDesc])
+  private val desc: ReservoirSamplingOpDesc =
+    objectMapper.readValue(descString, classOf[ReservoirSamplingOpDesc])
   private val count: Int = equallyPartitionGoal(desc.k, workerCount)(idx)
   private var n: Int = 0
   private val reservoir: Array[Tuple] = Array.ofDim(count)

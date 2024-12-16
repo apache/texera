@@ -121,7 +121,7 @@ abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
   private def querySchema: Schema = {
     if (
       this.host == null || this.port == null || this.database == null
-        || this.table == null || this.username == null || this.password == null
+      || this.table == null || this.username == null || this.password == null
     ) {
       return null
     }

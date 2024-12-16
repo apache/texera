@@ -41,7 +41,6 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
       customDelimiter = Option(",")
     }
 
-
     PhysicalOp
       .sourcePhysicalOp(
         workflowId,

@@ -25,13 +25,10 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
   @JsonDeserialize(contentAs = classOf[java.lang.String])
   var fileName: Option[String] = None
 
-
-
   @JsonProperty(defaultValue = "UTF_8", required = true)
   @JsonSchemaTitle("File Encoding")
   @JsonPropertyDescription("decoding charset to use on input")
   var fileEncoding: FileDecodingMethod = FileDecodingMethod.UTF_8
-
 
   @JsonIgnore
   var fileTypeName: Option[String] = None
@@ -47,7 +44,6 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
   @JsonPropertyDescription("starting point of output")
   @JsonDeserialize(contentAs = classOf[Int])
   var offset: Option[Int] = None
-
 
   override def sourceSchema(): Schema = null
 

@@ -85,7 +85,9 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "read first 5 lines of the input text file with CRLF separators into corresponding output tuples" in {
-    fileScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(TestOperators.TestCRLFTextFilePath))
+    fileScanSourceOpDesc.setResolvedFileName(
+      FileResolver.resolve(TestOperators.TestCRLFTextFilePath)
+    )
     fileScanSourceOpDesc.attributeType = FileAttributeType.STRING
     fileScanSourceOpDesc.fileScanLimit = Option(5)
     val FileScanSourceOpExec =
@@ -144,7 +146,9 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "read first 5 lines of the input text into corresponding output INTEGER tuples" in {
-    fileScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(TestOperators.TestNumbersFilePath))
+    fileScanSourceOpDesc.setResolvedFileName(
+      FileResolver.resolve(TestOperators.TestNumbersFilePath)
+    )
     fileScanSourceOpDesc.attributeType = FileAttributeType.INTEGER
     fileScanSourceOpDesc.fileScanLimit = Option(5)
     val FileScanSourceOpExec = new FileScanSourceOpExec(
@@ -173,7 +177,9 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "read first 5 lines of the input text file with US_ASCII encoding" in {
-    fileScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(TestOperators.TestCRLFTextFilePath))
+    fileScanSourceOpDesc.setResolvedFileName(
+      FileResolver.resolve(TestOperators.TestCRLFTextFilePath)
+    )
     fileScanSourceOpDesc.fileEncoding = FileDecodingMethod.ASCII
     fileScanSourceOpDesc.attributeType = FileAttributeType.STRING
     fileScanSourceOpDesc.fileScanLimit = Option(5)

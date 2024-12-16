@@ -47,7 +47,7 @@ class JSONLScanSourceOpExec private[json] (
     val offsetValue = desc.offset.getOrElse(0)
     var lines = reader.lines().iterator().asScala.drop(offsetValue)
     if (desc.limit.isDefined) lines = lines.take(desc.limit.get)
-    val (it1, it2)= lines.duplicate
+    val (it1, it2) = lines.duplicate
     val count: Int = it1.map(_ => 1).sum
 
     val startOffset: Int = offsetValue + count / workerCount * idx

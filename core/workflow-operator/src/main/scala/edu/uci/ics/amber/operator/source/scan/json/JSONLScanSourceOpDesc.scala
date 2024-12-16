@@ -39,19 +39,18 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
       executionId: ExecutionIdentity
   ): PhysicalOp = {
 
-
     PhysicalOp
       .sourcePhysicalOp(
         workflowId,
         executionId,
         operatorIdentifier,
         OpExecInitInfo((idx, workerCount) => {
-            ExecFactory.newExecFromJavaClassName(
-              "edu.uci.ics.amber.operator.source.scan.json.JSONLScanSourceOpExec",
-              objectMapper.writeValueAsString(this),
-              idx,
-              workerCount
-            )
+          ExecFactory.newExecFromJavaClassName(
+            "edu.uci.ics.amber.operator.source.scan.json.JSONLScanSourceOpExec",
+            objectMapper.writeValueAsString(this),
+            idx,
+            workerCount
+          )
         })
       )
       .withInputPorts(operatorInfo.inputPorts)
@@ -64,7 +63,7 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
 
   override def sourceSchema(): Schema = {
     if (!fileResolved) {
-       return null
+      return null
     }
     val stream = DocumentFactory.newReadonlyDocument(new URI(fileName.get)).asInputStream()
     val reader = new BufferedReader(new InputStreamReader(stream, fileEncoding.getCharset))

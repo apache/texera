@@ -12,9 +12,10 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
 class DictionaryMatcherOpExec(
-  descString: String
+    descString: String
 ) extends MapOpExec {
-  private val desc: DictionaryMatcherOpDesc = objectMapper.readValue(descString, classOf[DictionaryMatcherOpDesc])
+  private val desc: DictionaryMatcherOpDesc =
+    objectMapper.readValue(descString, classOf[DictionaryMatcherOpDesc])
   // this is needed for the matching types Phrase and Conjunction
   var tokenizedDictionaryEntries: ListBuffer[mutable.Set[String]] = _
   // this is needed for the simple Scan matching type

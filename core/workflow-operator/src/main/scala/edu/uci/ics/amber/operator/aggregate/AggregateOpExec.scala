@@ -10,7 +10,7 @@ import scala.collection.mutable
   * AggregateOpExec performs aggregation operations on input tuples, optionally grouping them by specified keys.
   */
 class AggregateOpExec(
-    descString:String
+    descString: String
 ) extends OperatorExecutor {
   println(descString)
   private val desc: AggregateOpDesc = objectMapper.readValue(descString, classOf[AggregateOpDesc])
@@ -22,8 +22,9 @@ class AggregateOpExec(
 
     // Initialize distributedAggregations if it's not yet initialized
     if (distributedAggregations == null) {
-      distributedAggregations =
-        desc.aggregations.map(agg => agg.getAggFunc(tuple.getSchema.getAttribute(agg.attribute).getType))
+      distributedAggregations = desc.aggregations.map(agg =>
+        agg.getAggFunc(tuple.getSchema.getAttribute(agg.attribute).getType)
+      )
     }
 
     // Construct the group key

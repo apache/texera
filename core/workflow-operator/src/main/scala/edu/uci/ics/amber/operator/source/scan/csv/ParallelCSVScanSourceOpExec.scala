@@ -82,7 +82,6 @@ class ParallelCSVScanSourceOpExec private[csv] (
 
     val stream = new SeekableFileInputStream(file)
 
-
     stream.seek(startOffset)
     reader = new BufferedBlockReader(
       stream,

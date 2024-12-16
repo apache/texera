@@ -27,8 +27,12 @@ class RandomKSamplingOpDesc extends FilterOpDesc {
         executionId,
         operatorIdentifier,
         OpExecInitInfo((idx, workerCount) =>
-          ExecFactory.newExecFromJavaClassName( "edu.uci.ics.amber.operator.randomksampling.RandomKSamplingOpExec",
-            objectMapper.writeValueAsString(this), idx, workerCount)
+          ExecFactory.newExecFromJavaClassName(
+            "edu.uci.ics.amber.operator.randomksampling.RandomKSamplingOpExec",
+            objectMapper.writeValueAsString(this),
+            idx,
+            workerCount
+          )
         )
       )
       .withInputPorts(operatorInfo.inputPorts)

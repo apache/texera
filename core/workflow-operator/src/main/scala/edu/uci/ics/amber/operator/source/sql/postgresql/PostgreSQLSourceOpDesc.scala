@@ -36,10 +36,10 @@ class PostgreSQLSourceOpDesc extends SQLSourceOpDesc {
         executionId,
         operatorIdentifier,
         OpExecInitInfo((_, _) =>
-            ExecFactory.newExecFromJavaClassName(
-                "edu.uci.ics.amber.operator.source.sql.postgresql.PostgreSQLSourceOpExec",
-                objectMapper.writeValueAsString(this)
-            )
+          ExecFactory.newExecFromJavaClassName(
+            "edu.uci.ics.amber.operator.source.sql.postgresql.PostgreSQLSourceOpExec",
+            objectMapper.writeValueAsString(this)
+          )
         )
       )
       .withInputPorts(operatorInfo.inputPorts)

@@ -32,7 +32,8 @@ class TextInputSourceOpDesc extends SourceOperatorDescriptor with TextSourceOpDe
             "edu.uci.ics.amber.operator.source.scan.text.TextInputSourceOpExec",
             objectMapper.writeValueAsString(this)
           )
-      ))
+        )
+      )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withPropagateSchema(
