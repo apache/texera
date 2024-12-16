@@ -11,7 +11,6 @@ import edu.uci.ics.amber.operator.cartesianProduct.CartesianProductOpDesc
 import edu.uci.ics.amber.operator.dictionary.DictionaryMatcherOpDesc
 import edu.uci.ics.amber.operator.difference.DifferenceOpDesc
 import edu.uci.ics.amber.operator.distinct.DistinctOpDesc
-import edu.uci.ics.amber.operator.download.BulkDownloaderOpDesc
 import edu.uci.ics.amber.operator.dummy.DummyOpDesc
 import edu.uci.ics.amber.operator.filter.SpecializedFilterOpDesc
 import edu.uci.ics.amber.operator.hashJoin.HashJoinOpDesc
@@ -202,7 +201,6 @@ trait StateTransferFunc
     new Type(value = classOf[RedditSearchSourceOpDesc], name = "RedditSearch"),
     new Type(value = classOf[PythonLambdaFunctionOpDesc], name = "PythonLambdaFunction"),
     new Type(value = classOf[PythonTableReducerOpDesc], name = "PythonTableReducer"),
-    new Type(value = classOf[BulkDownloaderOpDesc], name = "BulkDownloader"),
     new Type(value = classOf[URLFetcherOpDesc], name = "URLFetcher"),
     new Type(value = classOf[CartesianProductOpDesc], name = "CartesianProduct"),
     new Type(value = classOf[FilledAreaPlotOpDesc], name = "FilledAreaPlot"),
