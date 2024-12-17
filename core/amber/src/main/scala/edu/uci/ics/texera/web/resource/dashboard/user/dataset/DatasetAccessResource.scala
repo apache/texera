@@ -8,11 +8,7 @@ import edu.uci.ics.texera.dao.jooq.generated.Tables.USER
 import edu.uci.ics.texera.dao.jooq.generated.enums.DatasetUserAccessPrivilege
 import edu.uci.ics.texera.dao.jooq.generated.tables.Dataset.DATASET
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
-import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
-  DatasetDao,
-  DatasetUserAccessDao,
-  UserDao
-}
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{DatasetDao, DatasetUserAccessDao, UserDao}
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{DatasetUserAccess, User}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetAccessResource.{
   context,
