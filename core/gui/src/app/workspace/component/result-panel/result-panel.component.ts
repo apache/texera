@@ -1,4 +1,14 @@
-import { ChangeDetectorRef, Component, OnInit, Type, HostListener, OnDestroy } from "@angular/core";
+import {
+  ChangeDetectorRef,
+  Component,
+  OnInit,
+  Type,
+  HostListener,
+  OnDestroy,
+  ViewChild,
+  ElementRef,
+  AfterViewInit,
+} from "@angular/core";
 import { merge } from "rxjs";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
@@ -17,7 +27,7 @@ import { NzResizeEvent } from "ng-zorro-antd/resizable";
 import { VisualizationFrameContentComponent } from "../visualization-panel-content/visualization-frame-content.component";
 import { calculateTotalTranslate3d } from "../../../common/util/panel-dock";
 import { isDefined } from "../../../common/util/predicate";
-import { CdkDragEnd } from "@angular/cdk/drag-drop";
+import { CdkDragEnd, CdkDragStart } from "@angular/cdk/drag-drop";
 import { PanelService } from "../../service/panel/panel.service";
 import { WorkflowCompilingService } from "../../service/compile-workflow/workflow-compiling.service";
 import { CompilationState } from "../../types/workflow-compiling.interface";
@@ -36,6 +46,8 @@ export const DEFAULT_HEIGHT = 300;
   styleUrls: ["./result-panel.component.scss"],
 })
 export class ResultPanelComponent implements OnInit, OnDestroy {
+  @ViewChild("dynamicComponent")
+  componentOutlets!: ElementRef;
   frameComponentConfigs: Map<string, { component: Type<any>; componentInputs: {} }> = new Map();
   protected readonly window = window;
   id = -1;
@@ -316,12 +328,23 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     return this.returnPosition.x === this.dragPosition.x && this.returnPosition.y === this.dragPosition.y;
   }
 
+  handleStartDrag() {
+    let visualizationResult = this.componentOutlets.nativeElement.querySelector("#html-content");
+    if (visualizationResult !== null) {
+      visualizationResult.style.zIndex = -1;
+    }
+  }
+
   handleEndDrag({ source }: CdkDragEnd) {
     /**
      * records the most recent panel location, updating dragPosition when dragging is over
      */
     const { x, y } = source.getFreeDragPosition();
     this.dragPosition = { x: x, y: y };
+    let visualizationResult = this.componentOutlets.nativeElement.querySelector("#html-content");
+    if (visualizationResult !== null) {
+      visualizationResult.style.zIndex = 0;
+    }
   }
 
   onResize({ width, height }: NzResizeEvent) {
