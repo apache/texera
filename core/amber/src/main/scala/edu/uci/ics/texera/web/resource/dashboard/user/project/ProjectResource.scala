@@ -3,14 +3,14 @@ package edu.uci.ics.texera.web.resource.dashboard.user.project
 import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables._
-import edu.uci.ics.texera.web.model.jooq.generated.enums.ProjectUserAccessPrivilege
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
+import edu.uci.ics.texera.dao.jooq.generated.Tables._
+import edu.uci.ics.texera.dao.jooq.generated.enums.ProjectUserAccessPrivilege
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
   ProjectDao,
   ProjectUserAccessDao,
   WorkflowOfProjectDao
 }
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos._
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.SearchQueryParams
 import edu.uci.ics.texera.web.resource.dashboard.user.project.ProjectResource._

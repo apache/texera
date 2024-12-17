@@ -4,16 +4,12 @@ import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.amber.engine.common.Utils.withTransaction
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.model.common.AccessEntry
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.USER
-import edu.uci.ics.texera.web.model.jooq.generated.enums.DatasetUserAccessPrivilege
-import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset.DATASET
-import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  DatasetDao,
-  DatasetUserAccessDao,
-  UserDao
-}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{DatasetUserAccess, User}
+import edu.uci.ics.texera.dao.jooq.generated.Tables.USER
+import edu.uci.ics.texera.dao.jooq.generated.enums.DatasetUserAccessPrivilege
+import edu.uci.ics.texera.dao.jooq.generated.tables.Dataset.DATASET
+import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{DatasetDao, DatasetUserAccessDao, UserDao}
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{DatasetUserAccess, User}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetAccessResource.{
   context,
   getOwner

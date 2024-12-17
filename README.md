@@ -1,7 +1,7 @@
 <h1 align="center">Texera - Collaborative Data Science and AI/ML Using Workflows</h1>
 
 <p align="center">
-  <img src="core/gui/src/assets/logos/full_logo_small.png" alt="texera-logo" width="192px" height="109px"/>
+  <a href="https://texera.io"> <img src="core/gui/src/assets/logos/full_logo_small.png" alt="texera-logo" width="192px" height="109px"/> </a>
   <br>
   <i>Texera supports scalable data computation and enables advanced AI/ML techniques.</i>
   <br>
@@ -11,7 +11,11 @@
   <h4 align="center">
     <a href="https://texera.io">Official Site</a>
     |
-    <a href="https://texera.io/?cat=11">Blogs</a>
+    <a href="https://texera.io/publications/">Publications</a>
+    |
+    <a href="https://texera.io/category/video/">Video</a>
+    | 
+    <a href="https://texera.io/category/blog/">Blog</a>
     |
     <a href="https://github.com/Texera/texera/wiki/Getting-Started">Getting Started</a>
     <br>
