@@ -3,9 +3,9 @@ package edu.uci.ics.texera.web.resource
 import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.USER_CONFIG
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserConfigDao
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{User, UserConfig}
+import edu.uci.ics.texera.dao.jooq.generated.Tables.USER_CONFIG
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.UserConfigDao
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{User, UserConfig}
 import io.dropwizard.auth.Auth
 
 import javax.annotation.security.RolesAllowed

@@ -2,9 +2,9 @@ package edu.uci.ics.texera.web.resource.dashboard.admin.user
 
 import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.texera.dao.SqlServer
-import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
+import edu.uci.ics.texera.dao.jooq.generated.enums.UserRole
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.UserDao
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.resource.dashboard.admin.user.AdminUserResource.userDao
 import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource._
 import org.jasypt.util.password.StrongPasswordEncryptor

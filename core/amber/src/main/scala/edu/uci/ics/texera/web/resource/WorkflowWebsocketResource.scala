@@ -8,7 +8,7 @@ import edu.uci.ics.amber.error.ErrorUtils.getStackTraceWithAllCauses
 import edu.uci.ics.amber.virtualidentity.WorkflowIdentity
 import edu.uci.ics.amber.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
 import edu.uci.ics.amber.workflowruntimestate.WorkflowFatalError
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.websocket.event.{WorkflowErrorEvent, WorkflowStateEvent}
 import edu.uci.ics.texera.web.model.websocket.request._
 import edu.uci.ics.texera.web.model.websocket.response._
