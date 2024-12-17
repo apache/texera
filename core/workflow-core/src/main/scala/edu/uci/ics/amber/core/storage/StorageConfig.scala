@@ -1,5 +1,6 @@
 package edu.uci.ics.amber.core.storage
 
+import edu.uci.ics.amber.util.PathUtils.corePath
 import org.yaml.snakeyaml.Yaml
 
 import java.util.{Map => JMap}
@@ -50,4 +51,7 @@ object StorageConfig {
     .asInstanceOf[Map[String, Any]]("jdbc")
     .asInstanceOf[Map[String, Any]]("password")
     .asInstanceOf[String]
+
+  // For file storage specifics
+  val fileStorageDirectoryUri = corePath.resolve("amber").resolve("user-resources").resolve("workflow-results").toUri
 }
