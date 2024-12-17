@@ -80,7 +80,7 @@ export class DashboardComponent implements OnInit {
       });
   }
 
-  forumLogin(){
+  forumLogin() {
     if (!document.cookie.includes("flarum_remember") && this.isLogin) {
       this.flarumService
         .auth()

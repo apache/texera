@@ -15,16 +15,17 @@ export class FlarumService {
     const user = this.userService.getCurrentUser();
     return this.http.post(
       "forum/api/users",
-      { data: { attributes: { username: user!.email.split("@")[0]+user!.uid, email: user!.email, password: user!.googleId }}},
-      { headers: { Authorization: "Token hdebsyxiigyklxgsqivyswwiisohzlnezzzzzzzz;userId=1" }}
+      {
+        data: {
+          attributes: { username: user!.email.split("@")[0] + user!.uid, email: user!.email, password: user!.googleId },
+        },
+      },
+      { headers: { Authorization: "Token hdebsyxiigyklxgsqivyswwiisohzlnezzzzzzzz;userId=1" } }
     );
   }
 
   auth() {
     const user = this.userService.getCurrentUser();
-    return this.http.post(
-      "forum/api/token",
-      { identification: user!.email, password: user!.googleId, remember: "1" }
-    );
+    return this.http.post("forum/api/token", { identification: user!.email, password: user!.googleId, remember: "1" });
   }
 }
