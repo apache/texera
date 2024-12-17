@@ -3,7 +3,7 @@ package edu.uci.ics.texera.web.auth
 import com.github.toastshaman.dropwizard.auth.jwt.JwtAuthFilter
 import com.typesafe.config.Config
 import edu.uci.ics.amber.engine.common.AmberConfig
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import io.dropwizard.auth.AuthDynamicFeature
 import io.dropwizard.setup.Environment
 import org.jose4j.jws.AlgorithmIdentifiers.HMAC_SHA256
