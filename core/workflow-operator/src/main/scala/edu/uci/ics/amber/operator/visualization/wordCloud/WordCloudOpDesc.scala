@@ -1,22 +1,15 @@
 package edu.uci.ics.amber.operator.visualization.wordCloud
 
 import com.fasterxml.jackson.annotation.JsonProperty
-import com.kjetland.jackson.jsonSchema.annotations.{
-  JsonSchemaInject,
-  JsonSchemaInt,
-  JsonSchemaTitle
-}
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaInt, JsonSchemaTitle}
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import edu.uci.ics.amber.operator.visualization.{
-  ImageUtility,
-  VisualizationConstants,
-  VisualizationOperator
-}
+import edu.uci.ics.amber.operator.visualization.ImageUtility
+import edu.uci.ics.amber.workflow.OutputPort.OutputMode
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
-class WordCloudOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
+class WordCloudOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(required = true)
   @JsonSchemaTitle("Text column")
   @AutofillAttributeName
@@ -37,7 +30,7 @@ class WordCloudOpDesc extends VisualizationOperator with PythonOperatorDescripto
       "Generate word cloud for result texts",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort())
+      outputPorts = List(OutputPort(mode=OutputMode.SINGLE_SNAPSHOT))
     )
 
   def manipulateTable(): String = {
@@ -92,6 +85,4 @@ class WordCloudOpDesc extends VisualizationOperator with PythonOperatorDescripto
     print(finalCode)
     finalCode
   }
-
-  override def chartType(): String = VisualizationConstants.HTML_VIZ
 }

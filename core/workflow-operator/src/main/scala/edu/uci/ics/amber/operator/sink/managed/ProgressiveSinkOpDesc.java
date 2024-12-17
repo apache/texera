@@ -36,11 +36,7 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
     // use SET_SNAPSHOT as the default output mode
     // this will be set internally by the workflow compiler
     @JsonIgnore
-    private IncrementalOutputMode outputMode = SET_SNAPSHOT;
-
-    // whether this sink corresponds to a visualization result, default is no
-    @JsonIgnore
-    private Option<String> chartType = Option.empty();
+    private OutputPort.OutputMode outputMode = OutputPort.OutputMode$.MODULE$.fromValue(0);
 
 
     // corresponding upstream operator ID and output port, will be set by workflow compiler
@@ -101,7 +97,7 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
                 "View the results",
                 OperatorGroupConstants.UTILITY_GROUP(),
                 asScala(singletonList(new InputPort(new PortIdentity(0, false), "", false, asScala(new ArrayList<PortIdentity>()).toSeq()))).toList(),
-                asScala(singletonList(new OutputPort(new PortIdentity(0, false), "", false))).toList(),
+                asScala(singletonList(new OutputPort(new PortIdentity(0, false), "", false, OutputPort.OutputMode$.MODULE$.fromValue(0)))).toList(),
                 false,
                 false,
                 false,
@@ -130,25 +126,14 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
     }
 
     @JsonIgnore
-    public IncrementalOutputMode getOutputMode() {
+    public OutputPort.OutputMode getOutputMode() {
         return outputMode;
     }
 
     @JsonIgnore
-    public void setOutputMode(IncrementalOutputMode outputMode) {
+    public void setOutputMode(OutputPort.OutputMode outputMode) {
         this.outputMode = outputMode;
     }
-
-    @JsonIgnore
-    public Option<String> getChartType() {
-        return this.chartType;
-    }
-
-    @JsonIgnore
-    public void setChartType(String chartType) {
-        this.chartType = Option.apply(chartType);
-    }
-
 
     @JsonIgnore
     public Option<OperatorIdentity> getUpstreamId() {

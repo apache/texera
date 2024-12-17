@@ -5,35 +5,20 @@ import com.fasterxml.jackson.annotation.{JsonTypeInfo, JsonTypeName}
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.storage.StorageConfig
-import edu.uci.ics.amber.core.storage.result.{
-  MongoDocument,
-  OperatorResultMetadata,
-  ResultStorage,
-  WorkflowResultStore
-}
+import edu.uci.ics.amber.core.storage.result.{MongoDocument, OperatorResultMetadata, ResultStorage, WorkflowResultStore}
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.engine.architecture.controller.{ExecutionStateUpdate, FatalError}
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
-  COMPLETED,
-  FAILED,
-  KILLED,
-  RUNNING
-}
-import edu.uci.ics.amber.operator.sink.IncrementalOutputMode.{SET_DELTA, SET_SNAPSHOT}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{COMPLETED, FAILED, KILLED, RUNNING}
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.executionruntimestate.ExecutionMetadataStore
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberRuntime}
 import edu.uci.ics.amber.operator.sink.IncrementalOutputMode
 import edu.uci.ics.amber.operator.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.amber.virtualidentity.OperatorIdentity
+import edu.uci.ics.amber.workflow.OutputPort.OutputMode
 import edu.uci.ics.texera.web.SubscriptionManager
-import edu.uci.ics.texera.web.model.websocket.event.{
-  PaginatedResultEvent,
-  TexeraWebSocketEvent,
-  WebResultUpdateEvent
-}
+import edu.uci.ics.texera.web.model.websocket.event.{PaginatedResultEvent, TexeraWebSocketEvent, WebResultUpdateEvent}
 import edu.uci.ics.texera.web.model.websocket.request.ResultPaginationRequest
-import edu.uci.ics.texera.web.service.ExecutionResultService.WebResultUpdate
 import edu.uci.ics.texera.web.storage.{ExecutionStateStore, WorkflowStateStore}
 import edu.uci.ics.texera.workflow.LogicalPlan
 
@@ -76,37 +61,38 @@ object ExecutionResultService {
     * Produces the WebResultUpdate to send to frontend from a result update from the engine.
     */
   def convertWebResultUpdate(
-      sink: ProgressiveSinkOpDesc,
-      oldTupleCount: Int,
-      newTupleCount: Int
-  ): WebResultUpdate = {
+                              sink: ProgressiveSinkOpDesc,
+                              oldTupleCount: Int,
+                              newTupleCount: Int
+                            ): WebResultUpdate = {
     val webOutputMode: WebOutputMode = {
-      (sink.getOutputMode, sink.getChartType) match {
-        // visualization sinks use its corresponding mode
-        case (SET_SNAPSHOT, Some(_)) => SetSnapshotMode()
-        case (SET_DELTA, Some(_))    => SetDeltaMode()
-        // Non-visualization sinks use pagination mode
-        case (_, None) => PaginationMode()
+      sink.getOutputMode match {
+        // currently, only table outputs are using these modes
+        case OutputMode.SET_DELTA    => SetDeltaMode()
+        case OutputMode.SET_SNAPSHOT => PaginationMode()
+
+        // currently, only visualizations are using single snapshot mode
+        case OutputMode.SINGLE_SNAPSHOT => SetSnapshotMode()
       }
     }
 
     val storage =
       ResultStorage.getOpResultStorage(sink.getContext.workflowId).get(sink.getUpstreamId.get)
-    val webUpdate = (webOutputMode, sink.getOutputMode) match {
-      case (PaginationMode(), SET_SNAPSHOT) =>
+    val webUpdate = webOutputMode match {
+      case PaginationMode() =>
         val numTuples = storage.getCount
         val maxPageIndex =
-          Math.ceil(numTuples / ExecutionResultService.defaultPageSize.toDouble).toInt
+          Math.ceil(numTuples / defaultPageSize.toDouble).toInt
         WebPaginationUpdate(
           PaginationMode(),
           newTupleCount,
           (1 to maxPageIndex).toList
         )
-      case (SetSnapshotMode(), SET_SNAPSHOT) =>
-        tuplesToWebData(webOutputMode, storage.get().toList, sink.getChartType)
-      case (SetDeltaMode(), SET_DELTA) =>
+      case SetSnapshotMode() =>
+        tuplesToWebData(webOutputMode, storage.get().toList, Some("HTML visualization"))
+      case SetDeltaMode() =>
         val deltaList = storage.getAfter(oldTupleCount).toList
-        tuplesToWebData(webOutputMode, deltaList, sink.getChartType)
+        tuplesToWebData(webOutputMode, deltaList, Some("HTML visualization"))
 
       // currently not supported mode combinations
       // (PaginationMode, SET_DELTA) | (DataSnapshotMode, SET_DELTA) | (DataDeltaMode, SET_SNAPSHOT)
@@ -154,6 +140,8 @@ object ExecutionResultService {
 
   case class WebDataUpdate(mode: WebOutputMode, table: List[ObjectNode], chartType: Option[String])
       extends WebResultUpdate
+
+
 }
 
 /**
@@ -227,7 +215,7 @@ class ExecutionResultService(
 
     addSubscription(
       workflowStateStore.resultStore.registerDiffHandler((oldState, newState) => {
-        val buf = mutable.HashMap[String, WebResultUpdate]()
+        val buf = mutable.HashMap[String, ExecutionResultService.WebResultUpdate]()
         val allTableStats = mutable.Map[String, Map[String, Map[String, Any]]]()
         newState.resultInfo
           .filter(info => {

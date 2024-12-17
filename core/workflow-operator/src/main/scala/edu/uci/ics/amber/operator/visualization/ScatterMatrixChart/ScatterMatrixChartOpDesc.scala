@@ -5,12 +5,9 @@ import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchema
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import edu.uci.ics.amber.operator.metadata.annotations.{
-  AutofillAttributeName,
-  AutofillAttributeNameList
-}
-import edu.uci.ics.amber.operator.visualization.{VisualizationConstants, VisualizationOperator}
+import edu.uci.ics.amber.operator.metadata.annotations.{AutofillAttributeName, AutofillAttributeNameList}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
+import edu.uci.ics.amber.workflow.OutputPort.OutputMode
 @JsonSchemaInject(json = """
 {
   "attributeTypeRules": {
@@ -20,7 +17,7 @@ import edu.uci.ics.amber.operator.PythonOperatorDescriptor
   }
 }
 """)
-class ScatterMatrixChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
+class ScatterMatrixChartOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "Selected Attributes", required = true)
   @JsonSchemaTitle("Selected Attributes")
@@ -44,7 +41,7 @@ class ScatterMatrixChartOpDesc extends VisualizationOperator with PythonOperator
       "Visualize datasets in a Scatter Matrix",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort())
+      outputPorts = List(OutputPort(mode=OutputMode.SINGLE_SNAPSHOT))
     )
 
   def createPlotlyFigure(): String = {
@@ -81,6 +78,4 @@ class ScatterMatrixChartOpDesc extends VisualizationOperator with PythonOperator
     finalcode
   }
 
-  // make the chart type to html visualization so it can be recognized by both backend and frontend.
-  override def chartType(): String = VisualizationConstants.HTML_VIZ
 }
