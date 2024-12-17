@@ -56,26 +56,8 @@ export class DashboardComponent implements OnInit {
 
     this.isCollpased = false;
 
-    if (!document.cookie.includes("flarum_remember") && this.isLogin) {
-      this.flarumService
-        .auth()
-        .pipe(untilDestroyed(this))
-        .subscribe({
-          next: (response: any) => {
-            document.cookie = `flarum_remember=${response.token};path=/`;
-          },
-          error: (err: unknown) => {
-            if ([404, 500].includes((err as HttpErrorResponse).status)) {
-              this.displayForum = false;
-            } else {
-              this.flarumService
-                .register()
-                .pipe(untilDestroyed(this))
-                .subscribe(() => this.ngOnInit());
-            }
-          },
-        });
-    }
+    this.forumLogin();
+
     this.router.events.pipe(untilDestroyed(this)).subscribe(() => {
       this.checkRoute();
     });
@@ -97,6 +79,29 @@ export class DashboardComponent implements OnInit {
           this.cdr.detectChanges();
         });
       });
+  }
+
+  forumLogin(){
+    if (!document.cookie.includes("flarum_remember") && this.isLogin) {
+      this.flarumService
+        .auth()
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          next: (response: any) => {
+            document.cookie = `flarum_remember=${response.token};path=/`;
+          },
+          error: (err: unknown) => {
+            if ([404, 500].includes((err as HttpErrorResponse).status)) {
+              this.displayForum = false;
+            } else {
+              this.flarumService
+                .register()
+                .pipe(untilDestroyed(this))
+                .subscribe(() => this.forumLogin());
+            }
+          },
+        });
+    }
   }
 
   checkRoute() {

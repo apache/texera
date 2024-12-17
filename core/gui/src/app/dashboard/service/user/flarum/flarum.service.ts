@@ -11,7 +11,7 @@ export class FlarumService {
     private http: HttpClient,
     private userService: UserService
   ) {}
-  public register() {
+  register() {
     return this.http.put(`${AppSettings.getApiEndpoint()}/discussion/register`, {});
   }
 
