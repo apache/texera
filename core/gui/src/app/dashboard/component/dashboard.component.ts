@@ -56,8 +56,6 @@ export class DashboardComponent implements OnInit {
 
     this.isCollpased = false;
 
-    this.forumLogin();
-
     this.router.events.pipe(untilDestroyed(this)).subscribe(() => {
       this.checkRoute();
     });
@@ -76,6 +74,7 @@ export class DashboardComponent implements OnInit {
         this.ngZone.run(() => {
           this.isLogin = this.userService.isLogin();
           this.isAdmin = this.userService.isAdmin();
+          this.forumLogin();
           this.cdr.detectChanges();
         });
       });
