@@ -1,17 +1,23 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
+import edu.uci.ics.amber.core.executor.OpExecInitInfo
 import edu.uci.ics.amber.core.storage.result.{OpResultStorage, ResultStorage}
 import edu.uci.ics.amber.core.tuple.Schema
-import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan, WorkflowContext}
+import edu.uci.ics.amber.core.workflow.{
+  PhysicalOp,
+  PhysicalPlan,
+  SchemaPropagationFunc,
+  WorkflowContext
+}
 import edu.uci.ics.amber.engine.architecture.scheduling.ScheduleGenerator.replaceVertex
 import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
   DefaultResourceAllocator,
   ExecutionClusterInfo
 }
 import edu.uci.ics.amber.operator.sink.managed.ProgressiveSinkOpDesc
-import edu.uci.ics.amber.operator.source.cache.CacheSourceOpDesc
+import edu.uci.ics.amber.operator.source.cache.CacheSourceOpExec
 import edu.uci.ics.amber.virtualidentity.{OperatorIdentity, PhysicalOpIdentity, WorkflowIdentity}
-import edu.uci.ics.amber.workflow.PhysicalLink
+import edu.uci.ics.amber.workflow.{OutputPort, PhysicalLink}
 import org.jgrapht.graph.DirectedAcyclicGraph
 import org.jgrapht.traverse.TopologicalOrderIterator
 
@@ -155,7 +161,7 @@ abstract class ScheduleGenerator(
     // create cache writer and link
     val matWriterInputSchema = fromOp.outputPorts(fromPortId)._3.toOption.get
     val matWriterPhysicalOp: PhysicalOp =
-      createMatWriter(physicalLink, Array(matWriterInputSchema), workflowContext.workflowId)
+      createMatWriter(physicalLink, Array(matWriterInputSchema))
     val sourceToWriterLink =
       PhysicalLink(
         fromOp.id,
@@ -169,7 +175,7 @@ abstract class ScheduleGenerator(
 
     // create cache reader and link
     val matReaderPhysicalOp: PhysicalOp =
-      createMatReader(matWriterPhysicalOp.id.logicalOpId, physicalLink, workflowContext.workflowId)
+      createMatReader(matWriterPhysicalOp.id.logicalOpId, physicalLink)
     val readerToDestLink =
       PhysicalLink(
         matReaderPhysicalOp.id,
@@ -186,20 +192,28 @@ abstract class ScheduleGenerator(
 
   private def createMatReader(
       matWriterLogicalOpId: OperatorIdentity,
-      physicalLink: PhysicalLink,
-      workflowIdentity: WorkflowIdentity
+      physicalLink: PhysicalLink
   ): PhysicalOp = {
-    val matReader = new CacheSourceOpDesc(
-      matWriterLogicalOpId,
-      ResultStorage.getOpResultStorage(workflowIdentity)
-    )
-    matReader.setContext(workflowContext)
-    matReader.setOperatorId(s"cacheSource_${getMatIdFromPhysicalLink(physicalLink)}")
-
-    matReader
-      .getPhysicalOp(
+    val opResultStorage = ResultStorage.getOpResultStorage(workflowContext.workflowId)
+    PhysicalOp
+      .sourcePhysicalOp(
         workflowContext.workflowId,
-        workflowContext.executionId
+        workflowContext.executionId,
+        OperatorIdentity(s"cacheSource_${getMatIdFromPhysicalLink(physicalLink)}"),
+        OpExecInitInfo((_, _) =>
+          new CacheSourceOpExec(
+            opResultStorage.get(matWriterLogicalOpId)
+          )
+        )
+      )
+      .withInputPorts(List.empty)
+      .withOutputPorts(List(OutputPort()))
+      .withPropagateSchema(
+        SchemaPropagationFunc(_ =>
+          Map(
+            OutputPort().id -> opResultStorage.getSchema(matWriterLogicalOpId).get
+          )
+        )
       )
       .propagateSchema()
 
@@ -207,8 +221,7 @@ abstract class ScheduleGenerator(
 
   private def createMatWriter(
       physicalLink: PhysicalLink,
-      inputSchema: Array[Schema],
-      workflowIdentity: WorkflowIdentity
+      inputSchema: Array[Schema]
   ): PhysicalOp = {
     val matWriter = new ProgressiveSinkOpDesc()
     matWriter.setContext(workflowContext)
@@ -216,7 +229,7 @@ abstract class ScheduleGenerator(
     // expect exactly one input port and one output port
     val schema = matWriter.getOutputSchema(inputSchema)
     ResultStorage
-      .getOpResultStorage(workflowIdentity)
+      .getOpResultStorage(workflowContext.workflowId)
       .create(
         key = matWriter.operatorIdentifier,
         mode = OpResultStorage.defaultStorageMode,
