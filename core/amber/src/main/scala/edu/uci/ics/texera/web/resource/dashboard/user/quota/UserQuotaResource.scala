@@ -5,7 +5,7 @@ import edu.uci.ics.amber.core.storage.util.mongo.MongoDatabaseManager
 import edu.uci.ics.amber.core.storage.util.mongo.MongoDatabaseManager.database
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables._
+import edu.uci.ics.texera.dao.jooq.generated.Tables._
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.DatasetStatisticsUtils.getUserCreatedDatasets
 import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource._
 import io.dropwizard.auth.Auth
