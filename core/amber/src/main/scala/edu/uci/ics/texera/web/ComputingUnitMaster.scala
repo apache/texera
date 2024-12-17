@@ -17,7 +17,7 @@ import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberRuntime, Utils}
 import edu.uci.ics.amber.virtualidentity.ExecutionIdentity
 import edu.uci.ics.texera.web.auth.JwtAuth.setupJwtAuth
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions
 import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService

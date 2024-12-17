@@ -2,7 +2,7 @@ package edu.uci.ics.texera.web.resource.dashboard
 
 import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.texera.dao.SqlServer
-import edu.uci.ics.texera.web.model.jooq.generated.enums.{
+import edu.uci.ics.texera.dao.jooq.generated.enums.{
   DatasetUserAccessPrivilege,
   WorkflowUserAccessPrivilege
 }

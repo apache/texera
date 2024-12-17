@@ -6,17 +6,17 @@ import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.virtualidentity.{ChannelMarkerIdentity, ExecutionIdentity}
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
+import edu.uci.ics.texera.dao.jooq.generated.Tables.{
   USER,
   WORKFLOW_EXECUTIONS,
   WORKFLOW_RUNTIME_STATISTICS,
   WORKFLOW_VERSION
 }
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
   WorkflowExecutionsDao,
   WorkflowRuntimeStatisticsDao
 }
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
   WorkflowExecutions,
   WorkflowRuntimeStatistics
 }

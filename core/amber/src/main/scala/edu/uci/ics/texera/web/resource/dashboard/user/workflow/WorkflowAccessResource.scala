@@ -4,14 +4,14 @@ import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.common.AccessEntry
-import edu.uci.ics.texera.web.model.jooq.generated.Tables._
-import edu.uci.ics.texera.web.model.jooq.generated.enums.WorkflowUserAccessPrivilege
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
+import edu.uci.ics.texera.dao.jooq.generated.Tables._
+import edu.uci.ics.texera.dao.jooq.generated.enums.WorkflowUserAccessPrivilege
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
   UserDao,
   WorkflowOfUserDao,
   WorkflowUserAccessDao
 }
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowUserAccess
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowUserAccess
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.context
 import io.dropwizard.auth.Auth
 import org.jooq.DSLContext

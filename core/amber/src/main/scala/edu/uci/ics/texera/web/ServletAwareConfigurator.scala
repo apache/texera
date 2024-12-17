@@ -2,7 +2,7 @@ package edu.uci.ics.texera.web
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.texera.web.auth.JwtAuth.jwtConsumer
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.http.client.utils.URLEncodedUtils
 import org.jooq.types.UInteger
 

@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.web.auth
 
-import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole
+import edu.uci.ics.texera.dao.jooq.generated.enums.UserRole
 import io.dropwizard.auth.Authorizer
 
 object UserRoleAuthorizer extends Authorizer[SessionUser] {

@@ -2,7 +2,7 @@ package edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils
 
 import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.texera.dao.SqlServer
-import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset.DATASET
+import edu.uci.ics.texera.dao.jooq.generated.tables.Dataset.DATASET
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource
 import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource.DatasetQuota
 import org.jooq.types.UInteger
