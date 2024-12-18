@@ -9,7 +9,6 @@ import edu.uci.ics.amber.core.workflow.PhysicalOp;
 import edu.uci.ics.amber.core.workflow.SchemaPropagationFunc;
 import edu.uci.ics.amber.operator.metadata.OperatorGroupConstants;
 import edu.uci.ics.amber.operator.metadata.OperatorInfo;
-import edu.uci.ics.amber.operator.sink.IncrementalOutputMode;
 import edu.uci.ics.amber.operator.sink.ProgressiveUtils;
 import edu.uci.ics.amber.operator.sink.SinkOpDesc;
 import edu.uci.ics.amber.operator.util.OperatorDescriptorUtils;
@@ -27,7 +26,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.function.Function;
 
-import static edu.uci.ics.amber.operator.sink.IncrementalOutputMode.SET_SNAPSHOT;
+
 import static java.util.Collections.singletonList;
 import static scala.jdk.javaapi.CollectionConverters.asScala;
 
@@ -69,7 +68,7 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
 
                             // SET_SNAPSHOT:
                             Schema outputSchema;
-                            if (this.outputMode.equals(SET_SNAPSHOT)) {
+                            if (this.outputMode.equals(OutputPort.OutputMode$.MODULE$.fromValue(0))) {
                                 if (inputSchema.containsAttribute(ProgressiveUtils.insertRetractFlagAttr().getName())) {
                                     // input is insert/retract delta: the flag column is removed in output
                                     outputSchema = Schema.builder().add(inputSchema)
@@ -110,7 +109,7 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
         Schema inputSchema = schemas[0];
 
         // SET_SNAPSHOT:
-        if (this.outputMode.equals(SET_SNAPSHOT)) {
+        if (this.outputMode.equals(OutputPort.OutputMode$.MODULE$.fromValue(0))) {
             if (inputSchema.containsAttribute(ProgressiveUtils.insertRetractFlagAttr().getName())) {
                 // input is insert/retract delta: the flag column is removed in output
                 return Schema.builder().add(inputSchema)
