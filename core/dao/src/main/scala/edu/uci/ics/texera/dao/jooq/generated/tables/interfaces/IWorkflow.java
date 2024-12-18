@@ -77,14 +77,14 @@ public interface IWorkflow extends Serializable {
     public Timestamp getLastModifiedTime();
 
     /**
-     * Setter for <code>texera_db.workflow.is_published</code>.
+     * Setter for <code>texera_db.workflow.is_public</code>.
      */
-    public void setIsPublished(Byte value);
+    public void setIsPublic(Byte value);
 
     /**
-     * Getter for <code>texera_db.workflow.is_published</code>.
+     * Getter for <code>texera_db.workflow.is_public</code>.
      */
-    public Byte getIsPublished();
+    public Byte getIsPublic();
 
     // -------------------------------------------------------------------------
     // FROM and INTO

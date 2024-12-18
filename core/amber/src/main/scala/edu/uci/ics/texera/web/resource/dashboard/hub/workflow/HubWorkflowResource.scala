@@ -130,7 +130,7 @@ class HubWorkflowResource {
   def getPublishedWorkflowCount: Integer = {
     context.selectCount
       .from(WORKFLOW)
-      .where(WORKFLOW.IS_PUBLISHED.eq(1.toByte))
+      .where(WORKFLOW.IS_PUBLIC.eq(1.toByte))
       .fetchOne(0, classOf[Integer])
   }
 
@@ -174,7 +174,7 @@ class HubWorkflowResource {
     val workflow = workflowDao.ctx
       .selectFrom(WORKFLOW)
       .where(WORKFLOW.WID.eq(wid))
-      .and(WORKFLOW.IS_PUBLISHED.isTrue)
+      .and(WORKFLOW.IS_PUBLIC.isTrue)
       .fetchOne()
     WorkflowWithPrivilege(
       workflow.getName,
@@ -183,7 +183,7 @@ class HubWorkflowResource {
       workflow.getContent,
       workflow.getCreationTime,
       workflow.getLastModifiedTime,
-      workflow.getIsPublished,
+      workflow.getIsPublic,
       readonly = true
     )
   }
@@ -328,7 +328,7 @@ class HubWorkflowResource {
       .from(WORKFLOW_USER_LIKES)
       .join(WORKFLOW)
       .on(WORKFLOW_USER_LIKES.WID.eq(WORKFLOW.WID))
-      .where(WORKFLOW.IS_PUBLISHED.eq(1.toByte))
+      .where(WORKFLOW.IS_PUBLIC.eq(1.toByte))
       .groupBy(WORKFLOW_USER_LIKES.WID)
       .orderBy(DSL.count(WORKFLOW_USER_LIKES.WID).desc())
       .limit(8)
@@ -350,7 +350,7 @@ class HubWorkflowResource {
       .from(WORKFLOW_USER_CLONES)
       .join(WORKFLOW)
       .on(WORKFLOW_USER_CLONES.WID.eq(WORKFLOW.WID))
-      .where(WORKFLOW.IS_PUBLISHED.eq(1.toByte))
+      .where(WORKFLOW.IS_PUBLIC.eq(1.toByte))
       .groupBy(WORKFLOW_USER_CLONES.WID)
       .orderBy(DSL.count(WORKFLOW_USER_CLONES.WID).desc())
       .limit(8)

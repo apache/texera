@@ -332,7 +332,7 @@ class WorkflowResource extends LazyLogging {
         workflow.getContent,
         workflow.getCreationTime,
         workflow.getLastModifiedTime,
-        workflow.getIsPublished,
+        workflow.getIsPublic,
         !WorkflowAccessResource.hasWriteAccess(wid, user.getUid)
       )
     } else {
@@ -568,7 +568,7 @@ class WorkflowResource extends LazyLogging {
   @Path("/public/{wid}")
   def makePublic(@PathParam("wid") wid: UInteger, @Auth user: SessionUser): Unit = {
     val workflow: Workflow = workflowDao.fetchOneByWid(wid)
-    workflow.setIsPublished(1.toByte)
+    workflow.setIsPublic(1.toByte)
     workflowDao.update(workflow)
   }
 
@@ -576,7 +576,7 @@ class WorkflowResource extends LazyLogging {
   @Path("/private/{wid}")
   def makePrivate(@PathParam("wid") wid: UInteger): Unit = {
     val workflow: Workflow = workflowDao.fetchOneByWid(wid)
-    workflow.setIsPublished(0.toByte)
+    workflow.setIsPublic(0.toByte)
     workflowDao.update(workflow)
   }
 
@@ -584,7 +584,7 @@ class WorkflowResource extends LazyLogging {
   @Path("/type/{wid}")
   def getWorkflowType(@PathParam("wid") wid: UInteger): String = {
     val workflow: Workflow = workflowDao.fetchOneByWid(wid)
-    if (workflow.getIsPublished == 1.toByte) {
+    if (workflow.getIsPublic == 1.toByte) {
       "Public"
     } else {
       "Private"

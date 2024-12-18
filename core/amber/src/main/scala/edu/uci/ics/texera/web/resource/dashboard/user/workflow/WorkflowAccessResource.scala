@@ -83,7 +83,7 @@ object WorkflowAccessResource {
 
   def isPublic(wid: UInteger): Boolean = {
     context
-      .select(WORKFLOW.IS_PUBLISHED)
+      .select(WORKFLOW.IS_PUBLIC)
       .from(WORKFLOW)
       .where(WORKFLOW.WID.eq(wid))
       .fetchOneInto(classOf[Boolean])

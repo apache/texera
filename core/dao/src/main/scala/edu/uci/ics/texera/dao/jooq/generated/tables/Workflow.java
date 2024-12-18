@@ -35,7 +35,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Workflow extends TableImpl<WorkflowRecord> {
 
-    private static final long serialVersionUID = -256100701;
+    private static final long serialVersionUID = 1942522218;
 
     /**
      * The reference instance of <code>texera_db.workflow</code>
@@ -81,9 +81,9 @@ public class Workflow extends TableImpl<WorkflowRecord> {
     public final TableField<WorkflowRecord, Timestamp> LAST_MODIFIED_TIME = createField(DSL.name("last_modified_time"), org.jooq.impl.SQLDataType.TIMESTAMP.nullable(false).defaultValue(org.jooq.impl.DSL.field("CURRENT_TIMESTAMP", org.jooq.impl.SQLDataType.TIMESTAMP)), this, "");
 
     /**
-     * The column <code>texera_db.workflow.is_published</code>.
+     * The column <code>texera_db.workflow.is_public</code>.
      */
-    public final TableField<WorkflowRecord, Byte> IS_PUBLISHED = createField(DSL.name("is_published"), org.jooq.impl.SQLDataType.TINYINT.nullable(false).defaultValue(org.jooq.impl.DSL.inline("0", org.jooq.impl.SQLDataType.TINYINT)), this, "");
+    public final TableField<WorkflowRecord, Byte> IS_PUBLIC = createField(DSL.name("is_public"), org.jooq.impl.SQLDataType.TINYINT.nullable(false).defaultValue(org.jooq.impl.DSL.inline("0", org.jooq.impl.SQLDataType.TINYINT)), this, "");
 
     /**
      * Create a <code>texera_db.workflow</code> table reference
