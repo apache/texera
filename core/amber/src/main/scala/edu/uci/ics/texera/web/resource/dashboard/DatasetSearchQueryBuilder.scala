@@ -1,9 +1,9 @@
 package edu.uci.ics.texera.web.resource.dashboard
 
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{DATASET, DATASET_USER_ACCESS}
-import edu.uci.ics.texera.web.model.jooq.generated.enums.DatasetUserAccessPrivilege
-import edu.uci.ics.texera.web.model.jooq.generated.tables.User.USER
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{Dataset, User}
+import edu.uci.ics.texera.dao.jooq.generated.Tables.{DATASET, DATASET_USER_ACCESS}
+import edu.uci.ics.texera.dao.jooq.generated.enums.DatasetUserAccessPrivilege
+import edu.uci.ics.texera.dao.jooq.generated.tables.User.USER
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{Dataset, User}
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.DashboardClickableFileEntry
 import edu.uci.ics.texera.web.resource.dashboard.FulltextSearchQueryUtils.{
   getContainsFilter,

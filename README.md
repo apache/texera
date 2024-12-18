@@ -1,7 +1,7 @@
 <h1 align="center">Texera - Collaborative Data Science and AI/ML Using Workflows</h1>
 
 <p align="center">
-  <img src="core/gui/src/assets/logos/full_logo_small.png" alt="texera-logo" width="192px" height="109px"/>
+  <a href="https://texera.io"> <img src="core/gui/src/assets/logos/full_logo_small.png" alt="texera-logo" width="192px" height="109px"/> </a>
   <br>
   <i>Texera supports scalable data computation and enables advanced AI/ML techniques.</i>
   <br>
@@ -9,9 +9,13 @@
   <br>
   
   <h4 align="center">
-    <a href="https://github.com/Texera/texera#videos">Demo Video</a>
+    <a href="https://texera.io">Official Site</a>
     |
-    <a href="https://texera.github.io/blog/">Blogs</a>
+    <a href="https://texera.io/publications/">Publications</a>
+    |
+    <a href="https://texera.io/category/video/">Video</a>
+    | 
+    <a href="https://texera.io/category/blog/">Blog</a>
     |
     <a href="https://github.com/Texera/texera/wiki/Getting-Started">Getting Started</a>
     <br>
@@ -28,13 +32,6 @@
   <img alt="Static Badge" src="https://img.shields.io/badge/Deployments-7-blue">
   <img alt="Static Badge" src="https://img.shields.io/badge/Largest_Deployment-100_nodes,_400_cores-green">
 </p>
-
-# Motivation
-
-* Data science is labor-intensive and particularly challenging for non-IT users applying AI/ML.
-* Many workflow-based data science platforms lack parallelism, limiting their ability to handle big datasets.
-* Cloud services and technologies have advanced significantly over the past decade, enabling powerful browser-based interfaces supported by high-speed networks.
-* Existing data science platforms offer limited interaction during long-running jobs, making them difficult to manage after execution begins.
 
 # Goals
 
@@ -147,59 +144,6 @@ The workflow in the use case shown below includes data cleaning, ML model traini
   Lu He, Changyang He, Tera Leigh Reynolds, Qiushi Bai, Yicong Huang, Chen Li, Kai Zheng, and Yunan Chen  
   _In JAMIA 2021_ | [PDF](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7989302/pdf/ocab047.pdf)
 </details>
-
-
-# Education
-<table>
-  <tr style="height: 500px;">
-    <td align="center">
-      <a href="https://ds4all.ics.uci.edu/">
-        <img src="https://ds4all.ics.uci.edu/wp-content/uploads/2023/07/banner-1024x576.png">
-      </a>
-      <p><b>Data Science for All</b></p>
-      An NSF-funded summer program to teach high-school students data science and AI/ML
-    </td>
-    <td align="center">
-      <a href="https://canvas.eee.uci.edu/courses/63639/pages/syllabus">
-        <img src="https://github.com/user-attachments/assets/a7569fd3-6857-48b4-80dc-d9f006ae2c8f">
-      </a>
-      <p><b>ICS 80: Data Science and AI/ML Using Workflows</b></p>
-      A Spring 2024 course at UCI, teaching 42 undergraduates, most of whom are not computer science majors, to learn data science and AI/ML
-    </td>
-    <td align="center">
-      <a href="https://sites.google.com/uci.edu/ds-workshop2024/home">
-        <img src="https://www.cerritos.edu/_resources/images/common/cerritos-college-logo.svg">
-      </a>
-      <p><b>Workshop of Data Science for Everyone at Cerritos College</b></p>
-      A two-day workshop designed for non-CS students to learn data science and ML without a single line of coding
-    </td>
-  </tr>
-</table>
-
-
-# Videos
-<table>
-  <tr style="height: 500px;">
-    <td align="center">
-      <a href="https://www.youtube.com/watch?v=B81iMFS5fPc">
-        <img src="https://img.youtube.com/vi/B81iMFS5fPc/0.jpg"  alt="Watch the video">
-      </a>
-      <p><b>dkNET Webinar 04/26/2024</b></p>
-    </td>
-    <td align="center">
-      <a href="https://www.youtube.com/watch?v=SP-XiDADbw0">
-        <img src="https://img.youtube.com/vi/SP-XiDADbw0/0.jpg" alt="Watch the video">
-      </a>
-      <p><b>Texera Demo @ VLDB'20</b></p>
-    </td>
-    <td align="center">
-      <a href="https://www.youtube.com/watch?v=T5ShFRfHmgI">
-        <img src="https://img.youtube.com/vi/T5ShFRfHmgI/0.jpg"  alt="Watch the video">
-      </a>
-      <p><b>Amber Presentation @ VLDB'20</b></p>
-    </td>
-  </tr>
-</table>
 
 # Getting Started
 
