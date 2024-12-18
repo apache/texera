@@ -1,8 +1,8 @@
 package edu.uci.ics.texera.web.auth
 
 import edu.uci.ics.texera.web.auth.GuestAuthFilter.GUEST
-import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
+import edu.uci.ics.texera.dao.jooq.generated.enums.UserRole
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import io.dropwizard.auth.AuthFilter
 
 import java.io.IOException

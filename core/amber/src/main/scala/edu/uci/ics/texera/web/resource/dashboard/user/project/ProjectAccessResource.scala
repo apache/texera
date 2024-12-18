@@ -3,14 +3,10 @@ package edu.uci.ics.texera.web.resource.dashboard.user.project
 import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.model.common.AccessEntry
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{PROJECT_USER_ACCESS, USER}
-import edu.uci.ics.texera.web.model.jooq.generated.enums.ProjectUserAccessPrivilege
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  ProjectDao,
-  ProjectUserAccessDao,
-  UserDao
-}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.ProjectUserAccess
+import edu.uci.ics.texera.dao.jooq.generated.Tables.{PROJECT_USER_ACCESS, USER}
+import edu.uci.ics.texera.dao.jooq.generated.enums.ProjectUserAccessPrivilege
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{ProjectDao, ProjectUserAccessDao, UserDao}
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.ProjectUserAccess
 import org.jooq.DSLContext
 import org.jooq.types.UInteger
 

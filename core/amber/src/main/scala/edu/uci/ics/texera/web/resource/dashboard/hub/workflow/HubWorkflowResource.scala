@@ -2,9 +2,9 @@ package edu.uci.ics.texera.web.resource.dashboard.hub.workflow
 
 import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.texera.dao.SqlServer
-import edu.uci.ics.texera.web.model.jooq.generated.Tables._
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowDao
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{User, Workflow}
+import edu.uci.ics.texera.dao.jooq.generated.Tables._
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.WorkflowDao
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{User, Workflow}
 import edu.uci.ics.texera.web.resource.dashboard.hub.workflow.HubWorkflowResource.{
   fetchDashboardWorkflowsByWids,
   recordUserActivity

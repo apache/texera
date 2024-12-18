@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.web.resource.dashboard
 
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{PROJECT, PROJECT_USER_ACCESS}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Project
+import edu.uci.ics.texera.dao.jooq.generated.Tables.{PROJECT, PROJECT_USER_ACCESS}
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.Project
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.DashboardClickableFileEntry
 import edu.uci.ics.texera.web.resource.dashboard.FulltextSearchQueryUtils.{
   getContainsFilter,
