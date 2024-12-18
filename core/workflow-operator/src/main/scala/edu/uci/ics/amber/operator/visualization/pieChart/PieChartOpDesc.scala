@@ -9,7 +9,6 @@ import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
 
-
 // type constraint: value can only be numeric
 @JsonSchemaInject(json = """
 {
@@ -20,7 +19,7 @@ import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
   }
 }
 """)
-class PieChartOpDesc extends  PythonOperatorDescriptor {
+class PieChartOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Value Column")
@@ -44,7 +43,7 @@ class PieChartOpDesc extends  PythonOperatorDescriptor {
       "Visualize data in a Pie Chart",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode=OutputMode.SINGLE_SNAPSHOT))
+      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
   def manipulateTable(): String = {

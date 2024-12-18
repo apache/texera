@@ -52,7 +52,7 @@ class QuiverPlotOpDesc extends PythonOperatorDescriptor {
       "Visualize vector data in a Quiver Plot",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode=OutputMode.SINGLE_SNAPSHOT))
+      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
   //data cleaning for missing value

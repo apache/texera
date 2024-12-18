@@ -11,7 +11,7 @@ import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
 import java.util
 import scala.jdk.CollectionConverters.ListHasAsScala
 
-class LineChartOpDesc extends  PythonOperatorDescriptor {
+class LineChartOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "yLabel", required = false, defaultValue = "Y Axis")
   @JsonSchemaTitle("Y Label")
@@ -36,7 +36,7 @@ class LineChartOpDesc extends  PythonOperatorDescriptor {
       "View the result in line chart",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode=OutputMode.SINGLE_SNAPSHOT))
+      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
   def createPlotlyFigure(): String = {

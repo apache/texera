@@ -21,7 +21,6 @@ class HtmlVizOpDesc extends LogicalOp {
   @JsonSchemaTitle("HTML content")
   @AutofillAttributeName var htmlContentAttrName: String = _
 
-
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
@@ -52,7 +51,7 @@ class HtmlVizOpDesc extends LogicalOp {
       "Render the result of HTML content",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode=OutputMode.SINGLE_SNAPSHOT))
+      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema =

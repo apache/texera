@@ -7,7 +7,7 @@ import edu.uci.ics.amber.operator.PythonOperatorDescriptor
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.workflow.OutputPort.OutputMode
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
-class FigureFactoryTableOpDesc extends  PythonOperatorDescriptor {
+class FigureFactoryTableOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(required = false)
   @JsonSchemaTitle("Font Size")
@@ -100,7 +100,7 @@ class FigureFactoryTableOpDesc extends  PythonOperatorDescriptor {
       "Visualize data in a figure factory table",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode=OutputMode.SINGLE_SNAPSHOT))
+      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
   }
 

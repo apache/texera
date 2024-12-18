@@ -60,7 +60,7 @@ class BarChartOpDesc extends PythonOperatorDescriptor {
       "Visualize data in a Bar Chart",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode=OutputMode.SINGLE_SNAPSHOT))
+      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
   def manipulateTable(): String = {

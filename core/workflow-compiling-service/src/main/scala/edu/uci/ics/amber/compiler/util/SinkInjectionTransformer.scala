@@ -61,7 +61,8 @@ object SinkInjectionTransformer {
         sinkOp.setUpstreamPort(edge.get.fromPortId.id)
 
         // set output mode for visualization operator
-        val outputPort = upstream.get.operatorInfo.outputPorts.find(port => port.id == edge.get.fromPortId).get
+        val outputPort =
+          upstream.get.operatorInfo.outputPorts.find(port => port.id == edge.get.fromPortId).get
         sinkOp.setOutputMode(outputPort.mode)
       }
     })

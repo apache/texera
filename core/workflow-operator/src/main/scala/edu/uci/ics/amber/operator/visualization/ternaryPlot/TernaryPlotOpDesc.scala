@@ -16,7 +16,7 @@ import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
   * The points can optionally be color coded using a data field.
   */
 
-class TernaryPlotOpDesc extends  PythonOperatorDescriptor {
+class TernaryPlotOpDesc extends PythonOperatorDescriptor {
 
   // Add annotations for the first variable
   @JsonProperty(value = "firstVariable", required = true)
@@ -54,7 +54,7 @@ class TernaryPlotOpDesc extends  PythonOperatorDescriptor {
       operatorDescription = "Points are graphed on a Ternary Plot using 3 specified data fields",
       operatorGroupName = OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode=OutputMode.SINGLE_SNAPSHOT))
+      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
   /** Returns the output schema set as html-content */

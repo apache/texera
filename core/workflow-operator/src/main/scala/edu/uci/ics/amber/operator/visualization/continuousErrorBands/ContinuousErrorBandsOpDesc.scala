@@ -35,7 +35,7 @@ class ContinuousErrorBandsOpDesc extends PythonOperatorDescriptor {
       "Visualize error or uncertainty along a continuous line",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode=OutputMode.SINGLE_SNAPSHOT))
+      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
   def createPlotlyFigure(): String = {

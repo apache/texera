@@ -62,7 +62,7 @@ class UrlVizOpDesc extends LogicalOp {
       "Render the content of URL",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode=OutputMode.SINGLE_SNAPSHOT))
+      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema =

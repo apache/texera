@@ -8,7 +8,7 @@ import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
-class HistogramChartOpDesc extends  PythonOperatorDescriptor {
+class HistogramChartOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Value Column")
   @JsonPropertyDescription("Column for counting values.")
@@ -44,7 +44,7 @@ class HistogramChartOpDesc extends  PythonOperatorDescriptor {
       "Visualize data in a Histogram Chart",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode=OutputMode.SINGLE_SNAPSHOT))
+      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
   def createPlotlyFigure(): String = {

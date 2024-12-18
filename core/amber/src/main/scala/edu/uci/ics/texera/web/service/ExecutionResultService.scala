@@ -5,10 +5,20 @@ import com.fasterxml.jackson.annotation.{JsonTypeInfo, JsonTypeName}
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.storage.StorageConfig
-import edu.uci.ics.amber.core.storage.result.{MongoDocument, OperatorResultMetadata, ResultStorage, WorkflowResultStore}
+import edu.uci.ics.amber.core.storage.result.{
+  MongoDocument,
+  OperatorResultMetadata,
+  ResultStorage,
+  WorkflowResultStore
+}
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.engine.architecture.controller.{ExecutionStateUpdate, FatalError}
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{COMPLETED, FAILED, KILLED, RUNNING}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
+  COMPLETED,
+  FAILED,
+  KILLED,
+  RUNNING
+}
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.executionruntimestate.ExecutionMetadataStore
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberRuntime}
@@ -17,7 +27,11 @@ import edu.uci.ics.amber.operator.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.amber.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.workflow.OutputPort.OutputMode
 import edu.uci.ics.texera.web.SubscriptionManager
-import edu.uci.ics.texera.web.model.websocket.event.{PaginatedResultEvent, TexeraWebSocketEvent, WebResultUpdateEvent}
+import edu.uci.ics.texera.web.model.websocket.event.{
+  PaginatedResultEvent,
+  TexeraWebSocketEvent,
+  WebResultUpdateEvent
+}
 import edu.uci.ics.texera.web.model.websocket.request.ResultPaginationRequest
 import edu.uci.ics.texera.web.storage.{ExecutionStateStore, WorkflowStateStore}
 import edu.uci.ics.texera.workflow.LogicalPlan
@@ -61,10 +75,10 @@ object ExecutionResultService {
     * Produces the WebResultUpdate to send to frontend from a result update from the engine.
     */
   def convertWebResultUpdate(
-                              sink: ProgressiveSinkOpDesc,
-                              oldTupleCount: Int,
-                              newTupleCount: Int
-                            ): WebResultUpdate = {
+      sink: ProgressiveSinkOpDesc,
+      oldTupleCount: Int,
+      newTupleCount: Int
+  ): WebResultUpdate = {
     val webOutputMode: WebOutputMode = {
       sink.getOutputMode match {
         // currently, only table outputs are using these modes
@@ -140,7 +154,6 @@ object ExecutionResultService {
 
   case class WebDataUpdate(mode: WebOutputMode, table: List[ObjectNode], chartType: Option[String])
       extends WebResultUpdate
-
 
 }
 

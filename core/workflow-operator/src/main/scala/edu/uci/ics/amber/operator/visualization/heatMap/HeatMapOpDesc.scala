@@ -38,7 +38,7 @@ class HeatMapOpDesc extends PythonOperatorDescriptor {
       "Visualize data in a HeatMap Chart",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode=OutputMode.SINGLE_SNAPSHOT))
+      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
   private def createHeatMap(): String = {

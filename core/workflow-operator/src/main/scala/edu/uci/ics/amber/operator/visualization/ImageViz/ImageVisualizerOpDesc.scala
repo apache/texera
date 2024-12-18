@@ -26,7 +26,7 @@ class ImageVisualizerOpDesc extends PythonOperatorDescriptor {
       "visualize image content",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode=OutputMode.SINGLE_SNAPSHOT))
+      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
   def createBinaryData(): String = {

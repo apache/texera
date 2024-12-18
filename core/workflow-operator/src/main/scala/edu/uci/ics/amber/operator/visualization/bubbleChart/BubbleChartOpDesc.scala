@@ -43,8 +43,6 @@ class BubbleChartOpDesc extends PythonOperatorDescriptor {
   @JsonPropertyDescription("Picks data column to color bubbles with if color is enabled")
   @AutofillAttributeName var colorCategory: String = ""
 
-
-
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Schema.builder().add(new Attribute("html-content", AttributeType.STRING)).build()
   }
@@ -55,7 +53,7 @@ class BubbleChartOpDesc extends PythonOperatorDescriptor {
       "a 3D Scatter Plot; Bubbles are graphed using x and y labels, and their sizes determined by a z-value.",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode=OutputMode.SINGLE_SNAPSHOT))
+      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
   def manipulateTable(): String = {

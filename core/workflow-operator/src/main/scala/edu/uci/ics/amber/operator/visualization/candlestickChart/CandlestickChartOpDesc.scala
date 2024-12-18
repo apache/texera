@@ -51,7 +51,7 @@ class CandlestickChartOpDesc extends PythonOperatorDescriptor {
       "Visualize data in a Candlestick Chart",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode=OutputMode.SINGLE_SNAPSHOT))
+      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
   override def generatePythonCode(): String = {

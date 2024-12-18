@@ -19,7 +19,7 @@ import edu.uci.ics.amber.operator.PythonOperatorDescriptor
   }
 }
 """)
-class HierarchyChartOpDesc extends  PythonOperatorDescriptor {
+class HierarchyChartOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(required = true)
   @JsonSchemaTitle("Chart Type")
   @JsonPropertyDescription("treemap or sunburst")
@@ -48,7 +48,7 @@ class HierarchyChartOpDesc extends  PythonOperatorDescriptor {
       "Visualize data in hierarchy",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode=OutputMode.SINGLE_SNAPSHOT))
+      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
   private def getHierarchyAttributesInPython: String =
@@ -108,6 +108,5 @@ class HierarchyChartOpDesc extends  PythonOperatorDescriptor {
          |""".stripMargin
     finalCode
   }
-
 
 }

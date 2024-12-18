@@ -45,7 +45,7 @@ class FunnelPlotOpDesc extends PythonOperatorDescriptor {
       "Visualize data in a Funnel Plot",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode=OutputMode.SINGLE_SNAPSHOT))
+      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
   private def createPlotlyFigure(): String = {

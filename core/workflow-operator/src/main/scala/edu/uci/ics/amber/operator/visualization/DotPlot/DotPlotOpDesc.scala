@@ -9,7 +9,7 @@ import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
 
-class DotPlotOpDesc extends  PythonOperatorDescriptor {
+class DotPlotOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "Count Attribute", required = true)
   @JsonSchemaTitle("Count Attribute")
@@ -27,7 +27,7 @@ class DotPlotOpDesc extends  PythonOperatorDescriptor {
       "Visualize data using a dot plot",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode=OutputMode.SINGLE_SNAPSHOT))
+      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
   def createPlotlyFigure(): String = {

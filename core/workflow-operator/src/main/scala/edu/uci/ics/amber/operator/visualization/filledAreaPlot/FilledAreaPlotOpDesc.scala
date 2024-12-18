@@ -9,7 +9,6 @@ import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.amber.workflow.OutputPort.OutputMode
 
-
 class FilledAreaPlotOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(required = true)
@@ -57,7 +56,7 @@ class FilledAreaPlotOpDesc extends PythonOperatorDescriptor {
       "Visualize data in filled area plot",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode=OutputMode.SINGLE_SNAPSHOT))
+      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
   def createPlotlyFigure(): String = {

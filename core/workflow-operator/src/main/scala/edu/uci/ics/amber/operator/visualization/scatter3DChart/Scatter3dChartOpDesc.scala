@@ -44,7 +44,7 @@ class Scatter3dChartOpDesc extends PythonOperatorDescriptor {
       "Visualize data in a Scatter3D Plot",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode=OutputMode.SINGLE_SNAPSHOT))
+      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
   private def createPlotlyFigure(): String = {

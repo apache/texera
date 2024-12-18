@@ -9,7 +9,6 @@ import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.amber.workflow.OutputPort.OutputMode
 
-
 @JsonSchemaInject(
   json =
     "{" +
@@ -23,7 +22,7 @@ import edu.uci.ics.amber.workflow.OutputPort.OutputMode
       "  }" +
       "}"
 )
-class ScatterplotOpDesc extends  PythonOperatorDescriptor {
+class ScatterplotOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("X-Column")
@@ -71,7 +70,7 @@ class ScatterplotOpDesc extends  PythonOperatorDescriptor {
       "View the result in a scatterplot",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort(mode=OutputMode.SINGLE_SNAPSHOT))
+      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
   def manipulateTable(): String = {
