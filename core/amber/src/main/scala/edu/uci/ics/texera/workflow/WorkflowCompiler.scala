@@ -4,7 +4,12 @@ import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.executor.OpExecInitInfo
 import edu.uci.ics.amber.core.storage.result.{OpResultStorage, ResultStorage}
 import edu.uci.ics.amber.core.tuple.Schema
-import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan, SchemaPropagationFunc, WorkflowContext}
+import edu.uci.ics.amber.core.workflow.{
+  PhysicalOp,
+  PhysicalPlan,
+  SchemaPropagationFunc,
+  WorkflowContext
+}
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.common.Utils.objectMapper
 import edu.uci.ics.amber.operator.SpecialPhysicalOpFactory
@@ -71,52 +76,59 @@ class WorkflowCompiler(
           })
 
         // assign the view results
-        subPlan.topologicalIterator().map(subPlan.getOperator).flatMap { physicalOp =>
-          physicalOp.outputPorts.map(outputPort => (physicalOp, outputPort))
-        }.filter({
-          case (physicalOp, (_, (outputPort, _, _))) => toAddSink.contains(physicalOp.id.logicalOpId) && !outputPort.id.internal
-        }).foreach({
-          case (physicalOp, (_, (outputPort, _, schema))) =>
-            val storage = ResultStorage.getOpResultStorage(context.workflowId)
-            val storageKey = OperatorIdentity("sink_" + physicalOp.id.logicalOpId.id)
+        subPlan
+          .topologicalIterator()
+          .map(subPlan.getOperator)
+          .flatMap { physicalOp =>
+            physicalOp.outputPorts.map(outputPort => (physicalOp, outputPort))
+          }
+          .filter({
+            case (physicalOp, (_, (outputPort, _, _))) =>
+              toAddSink.contains(physicalOp.id.logicalOpId) && !outputPort.id.internal
+          })
+          .foreach({
+            case (physicalOp, (_, (outputPort, _, schema))) =>
+              val storage = ResultStorage.getOpResultStorage(context.workflowId)
+              val storageKey = OperatorIdentity("sink_" + physicalOp.id.logicalOpId.id)
 
-            // due to the size limit of single document in mongoDB (16MB)
-            // for sinks visualizing HTMLs which could possibly be large in size, we always use the memory storage.
-            val storageType = {
-              if (outputPort.mode == SINGLE_SNAPSHOT) OpResultStorage.MEMORY
-              else OpResultStorage.defaultStorageMode
-            }
-            if (!storage.contains(storageKey)) {
-              // get the schema for result storage in certain mode
-              val sinkStorageSchema: Option[Schema] =
-                if (storageType == OpResultStorage.MONGODB) {
-                  // use the output schema on the first output port as the schema for storage
-                  Some(schema.right.get)
-                } else {
-                  None
-                }
-              storage.create(
-                s"${context.executionId}_",
-                storageKey,
-                storageType,
-                sinkStorageSchema
+              // due to the size limit of single document in mongoDB (16MB)
+              // for sinks visualizing HTMLs which could possibly be large in size, we always use the memory storage.
+              val storageType = {
+                if (outputPort.mode == SINGLE_SNAPSHOT) OpResultStorage.MEMORY
+                else OpResultStorage.defaultStorageMode
+              }
+              if (!storage.contains(storageKey)) {
+                // get the schema for result storage in certain mode
+                val sinkStorageSchema: Option[Schema] =
+                  if (storageType == OpResultStorage.MONGODB) {
+                    // use the output schema on the first output port as the schema for storage
+                    Some(schema.right.get)
+                  } else {
+                    None
+                  }
+                storage.create(
+                  s"${context.executionId}_",
+                  storageKey,
+                  storageType,
+                  sinkStorageSchema
+                )
+                // add the sink collection name to the JSON array of sinks
+                val storageNode = objectMapper.createObjectNode()
+                storageNode.put("storageType", storageType)
+                storageNode.put("storageKey", s"${context.executionId}_$storageKey")
+                sinksPointers.add(storageNode)
+              }
+
+              val sinkPhysicalOp = SpecialPhysicalOpFactory.newSinkPhysicalOp(
+                context.workflowId,
+                context.executionId,
+                storageKey.id,
+                outputPort.mode
               )
-              // add the sink collection name to the JSON array of sinks
-              val storageNode = objectMapper.createObjectNode()
-              storageNode.put("storageType", storageType)
-              storageNode.put("storageKey", s"${context.executionId}_$storageKey")
-              sinksPointers.add(storageNode)
-            }
-
-            val sinkPhysicalOp = SpecialPhysicalOpFactory.newSinkPhysicalOp(
-              context.workflowId,
-              context.executionId,
-              storageKey.id,
-              outputPort.mode
-            )
-            val sinkLink = PhysicalLink(physicalOp.id, outputPort.id, sinkPhysicalOp.id, PortIdentity())
-            physicalPlan = physicalPlan.addOperator(sinkPhysicalOp).addLink(sinkLink)
-        })
+              val sinkLink =
+                PhysicalLink(physicalOp.id, outputPort.id, sinkPhysicalOp.id, PortIdentity())
+              physicalPlan = physicalPlan.addOperator(sinkPhysicalOp).addLink(sinkLink)
+          })
       } match {
         case Success(_) =>
 

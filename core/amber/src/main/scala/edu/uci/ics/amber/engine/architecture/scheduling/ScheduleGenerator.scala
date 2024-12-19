@@ -2,9 +2,17 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 
 import edu.uci.ics.amber.core.executor.OpExecInitInfo
 import edu.uci.ics.amber.core.storage.result.{OpResultStorage, ResultStorage}
-import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan, SchemaPropagationFunc, WorkflowContext}
+import edu.uci.ics.amber.core.workflow.{
+  PhysicalOp,
+  PhysicalPlan,
+  SchemaPropagationFunc,
+  WorkflowContext
+}
 import edu.uci.ics.amber.engine.architecture.scheduling.ScheduleGenerator.replaceVertex
-import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{DefaultResourceAllocator, ExecutionClusterInfo}
+import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
+  DefaultResourceAllocator,
+  ExecutionClusterInfo
+}
 import edu.uci.ics.amber.operator.SpecialPhysicalOpFactory
 import edu.uci.ics.amber.operator.source.cache.CacheSourceOpExec
 import edu.uci.ics.amber.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
@@ -163,7 +171,12 @@ abstract class ScheduleGenerator(
       .addLink(sourceToWriterLink)
 
     // expect exactly one input port and one output port
-    val schema = newPhysicalPlan.getOperator(matWriterPhysicalOp.id).outputPorts(OutputPort().id)._3.toOption.get
+    val schema = newPhysicalPlan
+      .getOperator(matWriterPhysicalOp.id)
+      .outputPorts(OutputPort().id)
+      ._3
+      .toOption
+      .get
     ResultStorage
       .getOpResultStorage(workflowContext.workflowId)
       .create(
@@ -171,7 +184,6 @@ abstract class ScheduleGenerator(
         mode = OpResultStorage.defaultStorageMode,
         schema = Some(schema)
       )
-
 
     // create cache reader and link
     val matReaderPhysicalOp: PhysicalOp =
@@ -219,9 +231,9 @@ abstract class ScheduleGenerator(
 
   }
 
-  private def createMatWriter(
-      physicalLink: PhysicalLink): PhysicalOp = {
-    val outputMode =physicalPlan.getOperator(physicalLink.fromOpId).outputPorts(physicalLink.fromPortId)._1.mode
+  private def createMatWriter(physicalLink: PhysicalLink): PhysicalOp = {
+    val outputMode =
+      physicalPlan.getOperator(physicalLink.fromOpId).outputPorts(physicalLink.fromPortId)._1.mode
     val storageKey = s"materialized_${getMatIdFromPhysicalLink(physicalLink)}"
     SpecialPhysicalOpFactory.newSinkPhysicalOp(
       workflowContext.workflowId,

@@ -11,45 +11,52 @@ import edu.uci.ics.amber.workflow.OutputPort.OutputMode.SET_SNAPSHOT
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort, PortIdentity}
 
 object SpecialPhysicalOpFactory {
-  def newSinkPhysicalOp(workflowIdentity: WorkflowIdentity, executionIdentity: ExecutionIdentity, storageKey: String, outputMode: OutputMode): PhysicalOp = PhysicalOp.localPhysicalOp(
-      workflowIdentity,
-      executionIdentity,
-      OperatorIdentity(storageKey),
-      OpExecInitInfo(
-        (idx, workers) =>
+  def newSinkPhysicalOp(
+      workflowIdentity: WorkflowIdentity,
+      executionIdentity: ExecutionIdentity,
+      storageKey: String,
+      outputMode: OutputMode
+  ): PhysicalOp =
+    PhysicalOp
+      .localPhysicalOp(
+        workflowIdentity,
+        executionIdentity,
+        OperatorIdentity(storageKey),
+        OpExecInitInfo((idx, workers) =>
           new ProgressiveSinkOpExec(
             outputMode,
             storageKey,
             workflowIdentity
           )
+        )
       )
-    )
-    .withInputPorts(List(InputPort(PortIdentity())))
-    .withOutputPorts(List(OutputPort(PortIdentity())))
-    .withPropagateSchema(
-      SchemaPropagationFunc((inputSchemas: Map[PortIdentity, Schema]) => {
-        // Get the first schema from inputSchemas
-        val inputSchema = inputSchemas.values.head
+      .withInputPorts(List(InputPort(PortIdentity())))
+      .withOutputPorts(List(OutputPort(PortIdentity())))
+      .withPropagateSchema(
+        SchemaPropagationFunc((inputSchemas: Map[PortIdentity, Schema]) => {
+          // Get the first schema from inputSchemas
+          val inputSchema = inputSchemas.values.head
 
-        // Define outputSchema based on outputMode
-        val outputSchema = if (outputMode == SET_SNAPSHOT) {
-          if (inputSchema.containsAttribute(ProgressiveUtils.insertRetractFlagAttr.getName)) {
-            // input is insert/retract delta: remove the flag column in the output
-            Schema.builder()
-              .add(inputSchema)
-              .remove(ProgressiveUtils.insertRetractFlagAttr.getName)
-              .build()
+          // Define outputSchema based on outputMode
+          val outputSchema = if (outputMode == SET_SNAPSHOT) {
+            if (inputSchema.containsAttribute(ProgressiveUtils.insertRetractFlagAttr.getName)) {
+              // input is insert/retract delta: remove the flag column in the output
+              Schema
+                .builder()
+                .add(inputSchema)
+                .remove(ProgressiveUtils.insertRetractFlagAttr.getName)
+                .build()
+            } else {
+              // input is insert-only delta: output schema is the same as input schema
+              inputSchema
+            }
           } else {
-            // input is insert-only delta: output schema is the same as input schema
+            // SET_DELTA: output schema is the same as input schema
             inputSchema
           }
-        } else {
-          // SET_DELTA: output schema is the same as input schema
-          inputSchema
-        }
 
-        // Create a Scala immutable Map
-        Map(PortIdentity() -> outputSchema)
-      })
-    )
+          // Create a Scala immutable Map
+          Map(PortIdentity() -> outputSchema)
+        })
+      )
 }

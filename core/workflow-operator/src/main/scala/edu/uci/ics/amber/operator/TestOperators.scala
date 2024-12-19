@@ -1,7 +1,11 @@
 package edu.uci.ics.amber.operator
 
 import edu.uci.ics.amber.core.storage.FileResolver
-import edu.uci.ics.amber.operator.aggregate.{AggregateOpDesc, AggregationFunction, AggregationOperation}
+import edu.uci.ics.amber.operator.aggregate.{
+  AggregateOpDesc,
+  AggregationFunction,
+  AggregationOperation
+}
 import edu.uci.ics.amber.operator.hashJoin.HashJoinOpDesc
 import edu.uci.ics.amber.operator.keywordSearch.KeywordSearchOpDesc
 import edu.uci.ics.amber.operator.source.scan.csv.CSVScanSourceOpDesc
