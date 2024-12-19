@@ -7,6 +7,7 @@ import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan, SchemaPropagationFunc, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.common.Utils.objectMapper
+import edu.uci.ics.amber.operator.SpecialPhysicalOpFactory
 import edu.uci.ics.amber.operator.sink.ProgressiveUtils
 import edu.uci.ics.amber.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.workflow.OutputPort.OutputMode.{SET_SNAPSHOT, SINGLE_SNAPSHOT}
@@ -106,47 +107,13 @@ class WorkflowCompiler(
               sinksPointers.add(storageNode)
             }
 
-            val sinkPhysicalOp = PhysicalOp.localPhysicalOp(
-                context.workflowId,
-                context.executionId,
-                OperatorIdentity("sink_" + storageKey.id),
-                OpExecInitInfo(
-                  (idx, workers) =>
-                    new edu.uci.ics.amber.operator.sink.managed.ProgressiveSinkOpExec(
-                      outputPort.mode,
-                      storageKey.id,
-                      context.workflowId
-                    )
-                )
-              )
-              .withInputPorts(List(InputPort(PortIdentity())))
-              .withOutputPorts(List(OutputPort(PortIdentity())))
-              .withPropagateSchema(
-                SchemaPropagationFunc((inputSchemas: Map[PortIdentity, Schema]) => {
-                  // Get the first schema from inputSchemas
-                  val inputSchema = inputSchemas.values.head
-
-                  // Define outputSchema based on outputMode
-                  val outputSchema = if (outputPort.mode == SET_SNAPSHOT) {
-                    if (inputSchema.containsAttribute(ProgressiveUtils.insertRetractFlagAttr.getName)) {
-                      // input is insert/retract delta: remove the flag column in the output
-                      Schema.builder()
-                        .add(inputSchema)
-                        .remove(ProgressiveUtils.insertRetractFlagAttr.getName)
-                        .build()
-                    } else {
-                      // input is insert-only delta: output schema is the same as input schema
-                      inputSchema
-                    }
-                  } else {
-                    // SET_DELTA: output schema is the same as input schema
-                    inputSchema
-                  }
-
-                  // Create a Scala immutable Map
-                  Map(PortIdentity() -> outputSchema)
-                })
-              )
+            val sinkPhysicalOp = SpecialPhysicalOpFactory.newSinkPhysicalOp(
+              context.workflowId,
+              context.executionId,
+              storageKey.id,
+              outputPort.mode,
+              isMaterialization = false
+            )
             val sinkLink = PhysicalLink(physicalOp.id, outputPort.id, sinkPhysicalOp.id, PortIdentity())
             physicalPlan = physicalPlan.addOperator(sinkPhysicalOp).addLink(sinkLink)
         })
