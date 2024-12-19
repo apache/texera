@@ -48,7 +48,7 @@ object ExecutionResultService {
     */
   private def tuplesToWebData(
       mode: WebOutputMode,
-      table: List[Tuple],
+      table: List[Tuple]
   ): WebDataUpdate = {
     val tableInJson = table.map(t => t.asKeyValuePairJson())
     WebDataUpdate(mode, tableInJson)
