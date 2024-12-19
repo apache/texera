@@ -4,10 +4,10 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
+import edu.uci.ics.amber.workflow.OutputPort.OutputMode
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
-import edu.uci.ics.amber.operator.visualization.{VisualizationConstants, VisualizationOperator}
 
 /**
   * Visualization Operator to visualize results as a Bubble Chart
@@ -16,7 +16,7 @@ import edu.uci.ics.amber.operator.visualization.{VisualizationConstants, Visuali
   */
 
 // type can be numerical only
-class BubbleChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
+class BubbleChartOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "xValue", required = true)
   @JsonSchemaTitle("X-Column")
@@ -43,8 +43,6 @@ class BubbleChartOpDesc extends VisualizationOperator with PythonOperatorDescrip
   @JsonPropertyDescription("Picks data column to color bubbles with if color is enabled")
   @AutofillAttributeName var colorCategory: String = ""
 
-  override def chartType: String = VisualizationConstants.HTML_VIZ
-
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Schema.builder().add(new Attribute("html-content", AttributeType.STRING)).build()
   }
@@ -55,7 +53,7 @@ class BubbleChartOpDesc extends VisualizationOperator with PythonOperatorDescrip
       "a 3D Scatter Plot; Bubbles are graphed using x and y labels, and their sizes determined by a z-value.",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort())
+      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
   def manipulateTable(): String = {

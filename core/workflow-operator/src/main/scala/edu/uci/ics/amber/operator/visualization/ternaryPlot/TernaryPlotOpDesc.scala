@@ -6,7 +6,7 @@ import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import edu.uci.ics.amber.operator.visualization.{VisualizationConstants, VisualizationOperator}
+import edu.uci.ics.amber.workflow.OutputPort.OutputMode
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
 
 /**
@@ -16,7 +16,7 @@ import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
   * The points can optionally be color coded using a data field.
   */
 
-class TernaryPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
+class TernaryPlotOpDesc extends PythonOperatorDescriptor {
 
   // Add annotations for the first variable
   @JsonProperty(value = "firstVariable", required = true)
@@ -47,9 +47,6 @@ class TernaryPlotOpDesc extends VisualizationOperator with PythonOperatorDescrip
   @JsonPropertyDescription("Specify the data field to color")
   @AutofillAttributeName var colorDataField: String = ""
 
-  // Register chart type as a visualization operator
-  override def chartType: String = VisualizationConstants.HTML_VIZ
-
   // OperatorInfo instance describing ternary plot
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
@@ -57,7 +54,7 @@ class TernaryPlotOpDesc extends VisualizationOperator with PythonOperatorDescrip
       operatorDescription = "Points are graphed on a Ternary Plot using 3 specified data fields",
       operatorGroupName = OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort())
+      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
   /** Returns the output schema set as html-content */

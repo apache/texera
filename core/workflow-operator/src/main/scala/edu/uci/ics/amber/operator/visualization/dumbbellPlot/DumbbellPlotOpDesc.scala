@@ -3,10 +3,10 @@ package edu.uci.ics.amber.operator.visualization.dumbbellPlot
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
+import edu.uci.ics.amber.workflow.OutputPort.OutputMode
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
-import edu.uci.ics.amber.operator.visualization.{VisualizationConstants, VisualizationOperator}
 
 import java.util
 import scala.jdk.CollectionConverters.CollectionHasAsScala
@@ -21,7 +21,7 @@ import edu.uci.ics.amber.operator.PythonOperatorDescriptor
   }
 }
 """)
-class DumbbellPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
+class DumbbellPlotOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "categoryColumnName", required = true)
   @JsonSchemaTitle("Category Column Name")
@@ -69,7 +69,7 @@ class DumbbellPlotOpDesc extends VisualizationOperator with PythonOperatorDescri
       "Visualize data in a Dumbbell Plots. A dumbbell plots (also known as a lollipop chart) is typically used to compare two distinct values or time points for the same entity.",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort())
+      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
   def createPlotlyDumbbellLineFigure(): String = {
@@ -163,6 +163,4 @@ class DumbbellPlotOpDesc extends VisualizationOperator with PythonOperatorDescri
        |
        |""".stripMargin
   }
-
-  override def chartType(): String = VisualizationConstants.HTML_VIZ
 }

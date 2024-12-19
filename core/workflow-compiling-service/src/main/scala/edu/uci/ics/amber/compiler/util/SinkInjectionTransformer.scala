@@ -3,7 +3,6 @@ package edu.uci.ics.amber.compiler.util
 import edu.uci.ics.amber.compiler.model.LogicalPlan
 import edu.uci.ics.amber.operator.sink.SinkOpDesc
 import edu.uci.ics.amber.operator.sink.managed.ProgressiveSinkOpDesc
-import edu.uci.ics.amber.operator.visualization.VisualizationOperator
 import edu.uci.ics.amber.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.workflow.PortIdentity
 
@@ -62,14 +61,9 @@ object SinkInjectionTransformer {
         sinkOp.setUpstreamPort(edge.get.fromPortId.id)
 
         // set output mode for visualization operator
-        (upstream.get, sinkOp) match {
-          // match the combination of a visualization operator followed by a sink operator
-          case (viz: VisualizationOperator, sink: ProgressiveSinkOpDesc) =>
-            sink.setOutputMode(viz.outputMode())
-            sink.setChartType(viz.chartType())
-          case _ =>
-          //skip
-        }
+        val outputPort =
+          upstream.get.operatorInfo.outputPorts.find(port => port.id == edge.get.fromPortId).get
+        sinkOp.setOutputMode(outputPort.mode)
       }
     })
 

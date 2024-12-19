@@ -8,8 +8,8 @@ import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.common.Utils.objectMapper
 import edu.uci.ics.amber.operator.sink.managed.ProgressiveSinkOpDesc
-import edu.uci.ics.amber.operator.visualization.VisualizationConstants
 import edu.uci.ics.amber.virtualidentity.OperatorIdentity
+import edu.uci.ics.amber.workflow.OutputPort.OutputMode.SINGLE_SNAPSHOT
 import edu.uci.ics.amber.workflow.PhysicalLink
 import edu.uci.ics.amber.workflowruntimestate.WorkflowFatalError
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
@@ -202,7 +202,7 @@ class WorkflowCompiler(
         // due to the size limit of single document in mongoDB (16MB)
         // for sinks visualizing HTMLs which could possibly be large in size, we always use the memory storage.
         val storageType = {
-          if (sink.getChartType.contains(VisualizationConstants.HTML_VIZ)) OpResultStorage.MEMORY
+          if (sink.getOutputMode == SINGLE_SNAPSHOT) OpResultStorage.MEMORY
           else OpResultStorage.defaultStorageMode
         }
         if (!reuseStorageSet.contains(storageKey) || !storage.contains(storageKey)) {

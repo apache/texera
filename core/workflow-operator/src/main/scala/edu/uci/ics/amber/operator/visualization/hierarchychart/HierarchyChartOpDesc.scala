@@ -3,10 +3,11 @@ package edu.uci.ics.amber.operator.visualization.hierarchychart
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
-import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
+
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
-import edu.uci.ics.amber.operator.visualization.{VisualizationConstants, VisualizationOperator}
+import edu.uci.ics.amber.workflow.OutputPort.OutputMode
+import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
 // type constraint: value can only be numeric
 @JsonSchemaInject(json = """
@@ -18,7 +19,7 @@ import edu.uci.ics.amber.operator.PythonOperatorDescriptor
   }
 }
 """)
-class HierarchyChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
+class HierarchyChartOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(required = true)
   @JsonSchemaTitle("Chart Type")
   @JsonPropertyDescription("treemap or sunburst")
@@ -47,7 +48,7 @@ class HierarchyChartOpDesc extends VisualizationOperator with PythonOperatorDesc
       "Visualize data in hierarchy",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort())
+      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
   private def getHierarchyAttributesInPython: String =
@@ -108,6 +109,4 @@ class HierarchyChartOpDesc extends VisualizationOperator with PythonOperatorDesc
     finalCode
   }
 
-  // make the chart type to html visualization so it can be recognized by both backend and frontend.
-  override def chartType(): String = VisualizationConstants.HTML_VIZ
 }

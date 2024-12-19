@@ -6,10 +6,10 @@ import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
-import edu.uci.ics.amber.operator.visualization.{VisualizationConstants, VisualizationOperator}
+import edu.uci.ics.amber.workflow.OutputPort.OutputMode
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
 
-class ContourPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
+class ContourPlotOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "x", required = true)
   @JsonSchemaTitle("x")
@@ -56,7 +56,7 @@ class ContourPlotOpDesc extends VisualizationOperator with PythonOperatorDescrip
       "Displays terrain or gradient variations in a Contour Plot",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort())
+      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
   override def generatePythonCode(): String = {
@@ -92,6 +92,4 @@ class ContourPlotOpDesc extends VisualizationOperator with PythonOperatorDescrip
        |        yield {'html-content': html}
        |""".stripMargin
   }
-
-  override def chartType(): String = VisualizationConstants.HTML_VIZ
 }

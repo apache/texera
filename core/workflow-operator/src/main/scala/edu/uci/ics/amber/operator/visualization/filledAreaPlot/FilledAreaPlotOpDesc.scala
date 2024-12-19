@@ -7,9 +7,9 @@ import edu.uci.ics.amber.operator.PythonOperatorDescriptor
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
-import edu.uci.ics.amber.operator.visualization.{VisualizationConstants, VisualizationOperator}
+import edu.uci.ics.amber.workflow.OutputPort.OutputMode
 
-class FilledAreaPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
+class FilledAreaPlotOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("X-axis Attribute")
@@ -56,7 +56,7 @@ class FilledAreaPlotOpDesc extends VisualizationOperator with PythonOperatorDesc
       "Visualize data in filled area plot",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort())
+      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
   def createPlotlyFigure(): String = {
@@ -143,6 +143,4 @@ class FilledAreaPlotOpDesc extends VisualizationOperator with PythonOperatorDesc
     finalCode
   }
 
-  // make the chart type to html visualization so it can be recognized by both backend and frontend.
-  override def chartType(): String = VisualizationConstants.HTML_VIZ
 }

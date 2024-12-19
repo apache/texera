@@ -4,15 +4,13 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import edu.uci.ics.amber.operator.visualization.{VisualizationConstants, VisualizationOperator}
+import edu.uci.ics.amber.workflow.OutputPort.OutputMode
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
-class TablesPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
+class TablesPlotOpDesc extends PythonOperatorDescriptor {
 
   @JsonPropertyDescription("List of columns to include in the table chart")
   @JsonProperty(value = "add attribute", required = true)
   var includedColumns: List[TablesConfig] = List()
-
-  override def chartType(): String = VisualizationConstants.HTML_VIZ
 
   private def getAttributes: String =
     includedColumns.map(_.attributeName).mkString("'", "','", "'")
@@ -78,7 +76,7 @@ class TablesPlotOpDesc extends VisualizationOperator with PythonOperatorDescript
       "Visualize data in a table chart.",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort())
+      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
   }
 

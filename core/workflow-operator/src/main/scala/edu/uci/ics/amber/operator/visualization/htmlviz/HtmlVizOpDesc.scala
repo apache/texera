@@ -5,22 +5,21 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.core.executor.OpExecInitInfo
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
+import edu.uci.ics.amber.operator.LogicalOp
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import edu.uci.ics.amber.operator.visualization.{VisualizationConstants, VisualizationOperator}
 import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.workflow.OutputPort.OutputMode
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
 
 /**
   * HTML Visualization operator to render any given HTML code
   * This is the description of the operator
   */
-class HtmlVizOpDesc extends VisualizationOperator {
+class HtmlVizOpDesc extends LogicalOp {
   @JsonProperty(required = true)
   @JsonSchemaTitle("HTML content")
   @AutofillAttributeName var htmlContentAttrName: String = _
-
-  override def chartType: String = VisualizationConstants.HTML_VIZ
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
@@ -52,7 +51,7 @@ class HtmlVizOpDesc extends VisualizationOperator {
       "Render the result of HTML content",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort())
+      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema =

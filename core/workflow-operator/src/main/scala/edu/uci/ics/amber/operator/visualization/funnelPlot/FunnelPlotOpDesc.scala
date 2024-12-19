@@ -6,7 +6,7 @@ import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import edu.uci.ics.amber.operator.visualization.{VisualizationConstants, VisualizationOperator}
+import edu.uci.ics.amber.workflow.OutputPort.OutputMode
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
 @JsonSchemaInject(json = """
 {
@@ -15,7 +15,7 @@ import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
   }
 }
 """)
-class FunnelPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
+class FunnelPlotOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("X Column")
@@ -45,7 +45,7 @@ class FunnelPlotOpDesc extends VisualizationOperator with PythonOperatorDescript
       "Visualize data in a Funnel Plot",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort())
+      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
   private def createPlotlyFigure(): String = {
@@ -95,6 +95,4 @@ class FunnelPlotOpDesc extends VisualizationOperator with PythonOperatorDescript
 
     finalcode
   }
-
-  override def chartType(): String = VisualizationConstants.HTML_VIZ
 }
