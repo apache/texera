@@ -241,7 +241,7 @@ class ExecutionResultService(
               if (StorageConfig.resultStorageMode.toLowerCase == "mongodb") {
                 val opStorage = ResultStorage
                   .getOpResultStorage(workflowIdentity)
-                  .get(opId)
+                  .get(physicalPlan.getPhysicalOpsOfLogicalOp(opId).head.id.logicalOpId)
                 opStorage match {
                   case mongoDocument: MongoDocument[Tuple] =>
                     val tableCatStats = mongoDocument.getCategoricalStats
