@@ -1,22 +1,15 @@
 package edu.uci.ics.texera.workflow
 
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.core.executor.OpExecInitInfo
 import edu.uci.ics.amber.core.storage.result.{OpResultStorage, ResultStorage}
 import edu.uci.ics.amber.core.tuple.Schema
-import edu.uci.ics.amber.core.workflow.{
-  PhysicalOp,
-  PhysicalPlan,
-  SchemaPropagationFunc,
-  WorkflowContext
-}
+import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.common.Utils.objectMapper
 import edu.uci.ics.amber.operator.SpecialPhysicalOpFactory
-import edu.uci.ics.amber.operator.sink.ProgressiveUtils
 import edu.uci.ics.amber.virtualidentity.OperatorIdentity
-import edu.uci.ics.amber.workflow.OutputPort.OutputMode.{SET_SNAPSHOT, SINGLE_SNAPSHOT}
-import edu.uci.ics.amber.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
+import edu.uci.ics.amber.workflow.OutputPort.OutputMode.SINGLE_SNAPSHOT
+import edu.uci.ics.amber.workflow.{PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
 
@@ -89,7 +82,7 @@ class WorkflowCompiler(
           .foreach({
             case (physicalOp, (_, (outputPort, _, schema))) =>
               val storage = ResultStorage.getOpResultStorage(context.workflowId)
-              val storageKey = OperatorIdentity("sink_" + physicalOp.id.logicalOpId.id)
+              val storageKey = physicalOp.id.logicalOpId
 
               // due to the size limit of single document in mongoDB (16MB)
               // for sinks visualizing HTMLs which could possibly be large in size, we always use the memory storage.
@@ -126,7 +119,12 @@ class WorkflowCompiler(
                 outputPort.mode
               )
               val sinkLink =
-                PhysicalLink(physicalOp.id, outputPort.id, sinkPhysicalOp.id, PortIdentity())
+                PhysicalLink(
+                  physicalOp.id,
+                  outputPort.id,
+                  sinkPhysicalOp.id,
+                  PortIdentity(internal = true)
+                )
               physicalPlan = physicalPlan.addOperator(sinkPhysicalOp).addLink(sinkLink)
           })
       } match {
