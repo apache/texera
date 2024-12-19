@@ -4,7 +4,6 @@ import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.executor.OpExecInitInfo
 import edu.uci.ics.amber.core.storage.result.{OpResultStorage, ResultStorage}
 import edu.uci.ics.amber.core.tuple.Schema
-import edu.uci.ics.amber.core.workflow.PhysicalOp.getExternalPortSchemas
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan, SchemaPropagationFunc, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.common.Utils.objectMapper
@@ -12,85 +11,12 @@ import edu.uci.ics.amber.operator.sink.ProgressiveUtils
 import edu.uci.ics.amber.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.workflow.OutputPort.OutputMode.{SET_SNAPSHOT, SINGLE_SNAPSHOT}
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
-import edu.uci.ics.amber.workflowruntimestate.WorkflowFatalError
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
 
 import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 import scala.util.{Failure, Success, Try}
-
-object WorkflowCompiler {
-  // util function for extracting the error causes
-  private def getStackTraceWithAllCauses(err: Throwable, topLevel: Boolean = true): String = {
-    val header = if (topLevel) {
-      "Stack trace for developers: \n\n"
-    } else {
-      "\n\nCaused by:\n"
-    }
-    val message = header + err.toString + "\n" + err.getStackTrace.mkString("\n")
-    if (err.getCause != null) {
-      message + getStackTraceWithAllCauses(err.getCause, topLevel = false)
-    } else {
-      message
-    }
-  }
-
-  // util function for convert the error list to error map, and report the error in log
-  private def collectInputSchemasOfSinks(
-      physicalPlan: PhysicalPlan,
-      errorList: ArrayBuffer[(OperatorIdentity, Throwable)] // Mandatory error list
-  ): Map[OperatorIdentity, Array[Schema]] = {
-    physicalPlan.operators
-      .filter(op => op.isSinkOperator)
-      .map { physicalOp =>
-        physicalOp.id.logicalOpId -> getExternalPortSchemas(
-          physicalOp,
-          fromInput = true,
-          Some(errorList)
-        ).flatten.toArray
-      }
-      .toMap
-  }
-
-  // Only collects the input schemas for the sink operator
-  private def collectInputSchemaFromPhysicalPlanForSink(
-      physicalPlan: PhysicalPlan,
-      errorList: ArrayBuffer[(OperatorIdentity, Throwable)] // Mandatory error list
-  ): Map[OperatorIdentity, List[Option[Schema]]] = {
-    val physicalInputSchemas =
-      physicalPlan.operators.filter(op => op.isSinkOperator).map { physicalOp =>
-        // Process inputPorts and capture Throwable values in the errorList
-        physicalOp.id -> physicalOp.inputPorts.values
-          .filterNot(_._1.id.internal)
-          .map {
-            case (port, _, schema) =>
-              schema match {
-                case Left(err) =>
-                  // Save the Throwable into the errorList
-                  errorList.append((physicalOp.id.logicalOpId, err))
-                  port.id -> None // Use None for this port
-                case Right(validSchema) =>
-                  port.id -> Some(validSchema) // Use the valid schema
-              }
-          }
-          .toList // Convert to a list for further processing
-      }
-
-    // Group the physical input schemas by their logical operator ID and consolidate the schemas
-    physicalInputSchemas
-      .groupBy(_._1.logicalOpId)
-      .view
-      .mapValues(_.flatMap(_._2).toList.sortBy(_._1.id).map(_._2))
-      .toMap
-  }
-}
-
-case class WorkflowCompilationResult(
-    physicalPlan: Option[PhysicalPlan], // if physical plan is none, the compilation is failed
-    operatorIdToInputSchemas: Map[OperatorIdentity, List[Option[Schema]]],
-    operatorIdToError: Map[OperatorIdentity, WorkflowFatalError]
-)
 
 class WorkflowCompiler(
     context: WorkflowContext
@@ -237,7 +163,6 @@ class WorkflowCompiler(
 
     // update execution entry in MySQL to have pointers to the mongo collections
     resultsJSON.set("results", sinksPointers)
-    println("hello!!!" + resultsJSON.toString)
     ExecutionsMetadataPersistService.tryUpdateExistingExecution(context.executionId) {
       _.setResult(resultsJSON.toString)
     }
@@ -258,24 +183,15 @@ class WorkflowCompiler(
       logicalPlanPojo: LogicalPlanPojo
   ): Workflow = {
     // 1. convert the pojo to logical plan
-    var logicalPlan: LogicalPlan = LogicalPlan(logicalPlanPojo)
+    val logicalPlan: LogicalPlan = LogicalPlan(logicalPlanPojo)
 
-//    // 2. Manipulate logical plan by:
-//    // - inject sink
-//    logicalPlan = SinkInjectionTransformer.transform(
-//      logicalPlanPojo.opsToViewResult,
-//      logicalPlan
-//    )
-    // - resolve the file name in each scan source operator
+    // 2. resolve the file name in each scan source operator
     logicalPlan.resolveScanSourceOpFileName(None)
 
     // 3. Propagate the schema to get the input & output schemas for each port of each operator
     logicalPlan.propagateWorkflowSchema(context, None)
 
-//    // 4. assign the sink storage using logical plan
-//    assignSinkStorage(logicalPlan, context)
-
-    // 5. expand the logical plan to the physical plan,
+    // 4. expand the logical plan to the physical plan, and assign storage
     val physicalPlan = expandLogicalPlan(logicalPlan, logicalPlanPojo.opsToViewResult, None)
 
     Workflow(context, logicalPlan, physicalPlan)
