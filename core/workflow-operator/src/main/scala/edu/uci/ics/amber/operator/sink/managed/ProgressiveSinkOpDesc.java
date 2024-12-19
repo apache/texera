@@ -96,7 +96,7 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
                 "View the results",
                 OperatorGroupConstants.UTILITY_GROUP(),
                 asScala(singletonList(new InputPort(new PortIdentity(0, false), "", false, asScala(new ArrayList<PortIdentity>()).toSeq()))).toList(),
-                asScala(singletonList(new OutputPort(new PortIdentity(0, false), "", false, OutputPort.OutputMode$.MODULE$.fromValue(0)))).toList(),
+                asScala(singletonList(new OutputPort(new PortIdentity(0, false), "", false, OutputPort.OutputMode$.MODULE$.fromValue(0), ""))).toList(),
                 false,
                 false,
                 false,

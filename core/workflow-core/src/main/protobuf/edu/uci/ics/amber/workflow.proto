@@ -40,6 +40,7 @@ message OutputPort {
   string displayName = 2;
   bool blocking = 3;
   OutputMode mode = 4;
+  string storageUrl = 5;
 }
 
 

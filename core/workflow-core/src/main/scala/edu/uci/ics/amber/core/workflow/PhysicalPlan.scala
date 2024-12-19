@@ -126,6 +126,10 @@ case class PhysicalPlan(
 
   }
 
+  def getTerminalPhysicalOpIds(): Set[PhysicalOpIdentity] = {
+    operators.filter(op => dag.outDegreeOf(op.id) == 0).map(_.id)
+  }
+
   @JsonIgnore
   def getOutputPartitionInfo(
       link: PhysicalLink,

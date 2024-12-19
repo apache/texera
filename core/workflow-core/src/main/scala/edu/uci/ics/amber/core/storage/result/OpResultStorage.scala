@@ -7,6 +7,7 @@ import edu.uci.ics.amber.core.tuple.{Schema, Tuple}
 import edu.uci.ics.amber.virtualidentity.OperatorIdentity
 
 import java.util.concurrent.ConcurrentHashMap
+import scala.collection.convert.ImplicitConversions.`iterator asScala`
 
 object OpResultStorage {
   val defaultStorageMode: String = StorageConfig.resultStorageMode.toLowerCase
@@ -96,6 +97,10 @@ class OpResultStorage extends Serializable with LazyLogging {
   def clear(): Unit = {
     cache.forEach((_, document) => document._1.clear())
     cache.clear()
+  }
+
+  def getAllKeys: Set[OperatorIdentity] = {
+    cache.keySet().iterator().toSet
   }
 
 }
