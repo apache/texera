@@ -267,9 +267,7 @@ class ExecutionResultService(
       })
     )
 
-    // first clear all the results
-    ResultStorage.getOpResultStorage(workflowIdentity).clear()
-
+    // clear all the result metadata
     workflowStateStore.resultStore.updateState { _ =>
       WorkflowResultStore() // empty result store
     }
