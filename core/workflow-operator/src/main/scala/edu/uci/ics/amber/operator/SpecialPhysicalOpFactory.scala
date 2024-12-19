@@ -35,8 +35,8 @@ object SpecialPhysicalOpFactory {
           )
         )
       )
-      .withInputPorts(List(InputPort(PortIdentity(internal = true))))
-      .withOutputPorts(List(OutputPort(PortIdentity(internal = true))))
+      .withInputPorts(List(InputPort(PortIdentity())))
+      .withOutputPorts(List(OutputPort(PortIdentity())))
       .withPropagateSchema(
         SchemaPropagationFunc((inputSchemas: Map[PortIdentity, Schema]) => {
           // Get the first schema from inputSchemas

@@ -302,6 +302,7 @@ class ExecutionResultService(
         ResultStorage
           .getOpResultStorage(workflowIdentity)
           .getAllKeys
+          .filter(!_.id.startsWith("materialized_"))
           .map(storageKey => {
             val count = ResultStorage
               .getOpResultStorage(workflowIdentity)

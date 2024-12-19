@@ -123,7 +123,7 @@ class WorkflowCompiler(
                   physicalOp.id,
                   outputPort.id,
                   sinkPhysicalOp.id,
-                  PortIdentity(internal = true)
+                  PortIdentity()
                 )
               physicalPlan = physicalPlan.addOperator(sinkPhysicalOp).addLink(sinkLink)
           })
