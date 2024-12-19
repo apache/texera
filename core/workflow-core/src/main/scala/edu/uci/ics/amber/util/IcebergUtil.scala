@@ -11,6 +11,7 @@ import org.apache.iceberg.types.Type.PrimitiveType
 import org.apache.iceberg.{CatalogProperties, Table, Schema => IcebergSchema}
 
 import java.net.URI
+import java.nio.ByteBuffer
 import java.sql.Timestamp
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -22,8 +23,8 @@ object IcebergUtil {
     * Creates and initializes a JdbcCatalog with the given parameters.
     *
     * @param catalogName  The name of the catalog.
-    * @param warehouseUri    The warehouse directory path.
-    * @param jdbcUri          The JDBC URI for the catalog.
+    * @param warehouseUri The warehouse directory path.
+    * @param jdbcUri      The JDBC URI for the catalog.
     * @param jdbcUser     The JDBC username.
     * @param jdbcPassword The JDBC password.
     * @return The initialized JdbcCatalog.
@@ -49,17 +50,21 @@ object IcebergUtil {
     catalog
   }
 
-  def loadOrCreateTable(
+  def loadTable(
       catalog: Catalog,
       tableNamespace: String,
       tableName: String,
-      tableSchema: IcebergSchema
-  ): Table = {
+      tableSchema: IcebergSchema,
+      createIfNotExist: Boolean
+  ): Option[Table] = {
     val identifier = TableIdentifier.of(tableNamespace, tableName)
     if (!catalog.tableExists(identifier)) {
-      catalog.createTable(identifier, tableSchema)
+      if (!createIfNotExist) {
+        return None
+      }
+      Some(catalog.createTable(identifier, tableSchema))
     } else {
-      catalog.loadTable(identifier)
+      Some(catalog.loadTable(identifier))
     }
   }
 
@@ -72,7 +77,7 @@ object IcebergUtil {
   def toIcebergSchema(amberSchema: Schema): IcebergSchema = {
     val icebergFields = amberSchema.getAttributes.zipWithIndex.map {
       case (attribute, index) =>
-        Types.NestedField.required(index + 1, attribute.getName, toIcebergType(attribute.getType))
+        Types.NestedField.optional(index + 1, attribute.getName, toIcebergType(attribute.getType))
     }
     new IcebergSchema(icebergFields.asJava)
   }
@@ -98,21 +103,22 @@ object IcebergUtil {
   }
 
   /**
-    * Converts a custom Amber `Tuple` to an Iceberg `GenericRecord`.
+    * Converts a custom Amber `Tuple` to an Iceberg `GenericRecord`, handling `null` values.
     *
     * @param tuple The custom Amber Tuple.
     * @return An Iceberg GenericRecord.
     */
   def toGenericRecord(tuple: Tuple): Record = {
-    // Convert the Amber schema to an Iceberg schema
     val icebergSchema = toIcebergSchema(tuple.schema)
     val record = GenericRecord.create(icebergSchema)
 
     tuple.schema.getAttributes.zipWithIndex.foreach {
       case (attribute, index) =>
         val value = tuple.getField[AnyRef](index) match {
-          case ts: Timestamp => ts.toInstant.atZone(ZoneId.systemDefault()).toLocalDateTime
-          case other         => other
+          case null               => null
+          case ts: Timestamp      => ts.toInstant.atZone(ZoneId.systemDefault()).toLocalDateTime
+          case bytes: Array[Byte] => ByteBuffer.wrap(bytes)
+          case other              => other
         }
         record.setField(attribute.getName, value)
     }
@@ -121,17 +127,22 @@ object IcebergUtil {
   }
 
   /**
-    * Converts an Iceberg `Record` to an Amber `Tuple`.
+    * Converts an Iceberg `Record` to an Amber `Tuple`, handling `null` values.
     *
-    * @param record The Iceberg Record.
+    * @param record      The Iceberg Record.
     * @param amberSchema The corresponding Amber Schema.
     * @return An Amber Tuple.
     */
   def fromRecord(record: Record, amberSchema: Schema): Tuple = {
     val fieldValues = amberSchema.getAttributes.map { attribute =>
       val value = record.getField(attribute.getName) match {
+        case null               => null
         case ldt: LocalDateTime => Timestamp.valueOf(ldt)
-        case other              => other
+        case buffer: ByteBuffer =>
+          val bytes = new Array[Byte](buffer.remaining())
+          buffer.get(bytes)
+          bytes
+        case other => other
       }
       value
     }

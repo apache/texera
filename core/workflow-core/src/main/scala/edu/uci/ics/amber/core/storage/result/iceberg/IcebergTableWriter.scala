@@ -27,7 +27,9 @@ class IcebergTableWriter[T](
 
   // Load the Iceberg table
   private val table: Table =
-    IcebergUtil.loadOrCreateTable(catalog, tableNamespace, tableName, tableSchema)
+    IcebergUtil
+      .loadTable(catalog, tableNamespace, tableName, tableSchema, createIfNotExist = true)
+      .get
 
   override def open(): Unit =
     withLock {

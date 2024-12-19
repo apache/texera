@@ -2,9 +2,10 @@ package edu.uci.ics.amber.core.storage.result.iceberg
 
 import edu.uci.ics.amber.core.storage.model.{BufferedItemWriter, VirtualDocument}
 import edu.uci.ics.amber.util.IcebergUtil
-import org.apache.iceberg.Table
+import org.apache.iceberg.{Snapshot, Table}
 import org.apache.iceberg.catalog.{Catalog, TableIdentifier}
 import org.apache.iceberg.data.{IcebergGenerics, Record}
+import org.apache.iceberg.exceptions.NoSuchTableException
 import org.apache.iceberg.io.CloseableIterable
 
 import java.net.URI
@@ -26,7 +27,11 @@ class IcebergDocument[T >: Null <: AnyRef](
     * Returns the URI of the table location.
     */
   override def getURI: URI = {
-    val table = IcebergUtil.loadOrCreateTable(catalog, tableNamespace, tableName, tableSchema)
+    val table = IcebergUtil
+      .loadTable(catalog, tableNamespace, tableName, tableSchema, createIfNotExist = false)
+      .getOrElse(
+        throw new NoSuchTableException(f"table ${tableNamespace}.${tableName} doesn't exist")
+      )
     URI.create(table.location())
   }
 
@@ -41,36 +46,45 @@ class IcebergDocument[T >: Null <: AnyRef](
       }
     }
 
-  /**
-    * Returns an iterator that iterates over all records in the table, including new records
-    * from concurrent writers as they commit.
-    */
-  override def get(): Iterator[T] =
+  override def get(): Iterator[T] = {
     new Iterator[T] {
-      private val table =
-        IcebergUtil.loadOrCreateTable(catalog, tableNamespace, tableName, tableSchema)
-      private var currentSnapshot = table.currentSnapshot()
-      private var recordIterator = loadRecords()
+      private var table: Option[Table] = loadTable()
+      private var currentSnapshot: Option[Snapshot] =
+        table.flatMap(t => Option(t.currentSnapshot()))
+      private var recordIterator: Iterator[T] = loadRecords()
+
+      /**
+        * Loads the table, handling cases where it may not exist.
+        */
+      private def loadTable(): Option[Table] = {
+        IcebergUtil.loadTable(
+          catalog,
+          tableNamespace,
+          tableName,
+          tableSchema,
+          createIfNotExist = false
+        )
+      }
 
       /**
         * Loads all records from the current snapshot.
         */
       private def loadRecords(): Iterator[T] = {
-        if (currentSnapshot != null) {
-          try {
-            val records: CloseableIterable[Record] = IcebergGenerics.read(table).build()
-            records.iterator().asScala.map(record => deserde(tableSchema, record))
-          } catch {
-            case _: java.io.FileNotFoundException =>
-              println("Metadata file not found. Returning an empty iterator.")
-              Iterator.empty
-            case e: Exception =>
-              println(s"Error during record loading: ${e.getMessage}")
-              e.printStackTrace()
-              Iterator.empty
-          }
-        } else {
-          Iterator.empty
+        table match {
+          case Some(t) if currentSnapshot.isDefined =>
+            try {
+              val records: CloseableIterable[Record] = IcebergGenerics.read(t).build()
+              records.iterator().asScala.map(record => deserde(tableSchema, record))
+            } catch {
+              case _: java.io.FileNotFoundException =>
+                println("Metadata file not found. Returning an empty iterator.")
+                Iterator.empty
+              case e: Exception =>
+                println(s"Error during record loading: ${e.getMessage}")
+                e.printStackTrace()
+                Iterator.empty
+            }
+          case _ => Iterator.empty
         }
       }
 
@@ -79,8 +93,10 @@ class IcebergDocument[T >: Null <: AnyRef](
           true
         } else {
           // Refresh the table and check for new commits
-          table.refresh()
-          val newSnapshot = table.currentSnapshot()
+          table = loadTable()
+          table.foreach(_.refresh())
+          val newSnapshot = table.flatMap(t => Option(t.currentSnapshot()))
+
           if (newSnapshot != currentSnapshot) {
             currentSnapshot = newSnapshot
             recordIterator = loadRecords()
@@ -91,8 +107,12 @@ class IcebergDocument[T >: Null <: AnyRef](
         }
       }
 
-      override def next(): T = recordIterator.next()
+      override def next(): T = {
+        if (!hasNext) throw new NoSuchElementException("No more records available")
+        recordIterator.next()
+      }
     }
+  }
 
   /**
     * Returns a BufferedItemWriter for writing data to the table.
