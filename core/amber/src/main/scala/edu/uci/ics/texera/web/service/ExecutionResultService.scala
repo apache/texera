@@ -241,7 +241,7 @@ class ExecutionResultService(
               if (StorageConfig.resultStorageMode.toLowerCase == "mongodb") {
                 val opStorage = ResultStorage
                   .getOpResultStorage(workflowIdentity)
-                  .get(physicalPlan.getPhysicalOpsOfLogicalOp(opId).head.id.logicalOpId)
+                  .get(opId)
                 opStorage match {
                   case mongoDocument: MongoDocument[Tuple] =>
                     val tableCatStats = mongoDocument.getCategoricalStats
@@ -267,8 +267,9 @@ class ExecutionResultService(
       })
     )
 
-//    // first clear all the results
-//    sinkOperators.clear()
+    // first clear all the results
+    ResultStorage.getOpResultStorage(workflowIdentity).clear()
+
     workflowStateStore.resultStore.updateState { _ =>
       WorkflowResultStore() // empty result store
     }
