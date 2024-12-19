@@ -10,7 +10,7 @@ class LocalInputFile(path: String) extends InputFile {
 
   override def location(): String = path
 
-  override def getLength(): Long = {
+  override def getLength: Long = {
     try {
       Files.size(Paths.get(path))
     } catch {
