@@ -11,10 +11,10 @@ import edu.uci.ics.amber.workflow.OutputPort.OutputMode.SET_SNAPSHOT
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort, PortIdentity}
 
 object SpecialPhysicalOpFactory {
-  def newSinkPhysicalOp(workflowIdentity: WorkflowIdentity, executionIdentity: ExecutionIdentity, storageKey: String, outputMode: OutputMode, isMaterialization: Boolean = false): PhysicalOp = PhysicalOp.localPhysicalOp(
+  def newSinkPhysicalOp(workflowIdentity: WorkflowIdentity, executionIdentity: ExecutionIdentity, storageKey: String, outputMode: OutputMode): PhysicalOp = PhysicalOp.localPhysicalOp(
       workflowIdentity,
       executionIdentity,
-      OperatorIdentity("sink_" + storageKey),
+      OperatorIdentity(storageKey),
       OpExecInitInfo(
         (idx, workers) =>
           new ProgressiveSinkOpExec(

@@ -56,6 +56,7 @@ class OpResultStorage extends Serializable with LazyLogging {
       mode: String,
       schema: Option[Schema] = None
   ): VirtualDocument[Tuple] = {
+
     val storage: VirtualDocument[Tuple] =
       if (mode == "memory") {
         new MemoryDocument[Tuple](key.id)

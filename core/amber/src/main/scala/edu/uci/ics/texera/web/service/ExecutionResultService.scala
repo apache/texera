@@ -289,13 +289,15 @@ class ExecutionResultService(
         ResultStorage
           .getOpResultStorage(workflowIdentity)
           .getAllKeys
-          .filter(opId => !opId.id.startsWith("materialized"))
-          .map(opId => {
+          .filter(storageKey => storageKey.id.startsWith("sink_"))
+          .map(storageKey => {
             val count = ResultStorage
               .getOpResultStorage(workflowIdentity)
-              .get(opId)
+              .get(storageKey)
               .getCount
               .toInt
+
+            val opId = OperatorIdentity(storageKey.id.substring(5))
 
             // use the first output port's mode
             val mode = physicalPlan

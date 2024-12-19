@@ -78,7 +78,8 @@ class WorkflowCompiler(
         }).foreach({
           case (physicalOp, (_, (outputPort, _, schema))) =>
             val storage = ResultStorage.getOpResultStorage(context.workflowId)
-            val storageKey = physicalOp.id.logicalOpId
+            val storageKey = OperatorIdentity("sink_" + physicalOp.id.logicalOpId.id)
+
             // due to the size limit of single document in mongoDB (16MB)
             // for sinks visualizing HTMLs which could possibly be large in size, we always use the memory storage.
             val storageType = {
@@ -111,8 +112,7 @@ class WorkflowCompiler(
               context.workflowId,
               context.executionId,
               storageKey.id,
-              outputPort.mode,
-              isMaterialization = false
+              outputPort.mode
             )
             val sinkLink = PhysicalLink(physicalOp.id, outputPort.id, sinkPhysicalOp.id, PortIdentity())
             physicalPlan = physicalPlan.addOperator(sinkPhysicalOp).addLink(sinkLink)
