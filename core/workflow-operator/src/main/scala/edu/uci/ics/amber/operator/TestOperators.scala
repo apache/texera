@@ -1,14 +1,9 @@
 package edu.uci.ics.amber.operator
 
 import edu.uci.ics.amber.core.storage.FileResolver
-import edu.uci.ics.amber.operator.aggregate.{
-  AggregateOpDesc,
-  AggregationFunction,
-  AggregationOperation
-}
+import edu.uci.ics.amber.operator.aggregate.{AggregateOpDesc, AggregationFunction, AggregationOperation}
 import edu.uci.ics.amber.operator.hashJoin.HashJoinOpDesc
 import edu.uci.ics.amber.operator.keywordSearch.KeywordSearchOpDesc
-import edu.uci.ics.amber.operator.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.amber.operator.source.scan.csv.CSVScanSourceOpDesc
 import edu.uci.ics.amber.operator.source.scan.json.JSONLScanSourceOpDesc
 import edu.uci.ics.amber.operator.source.sql.asterixdb.AsterixDBSourceOpDesc
@@ -142,10 +137,6 @@ object TestOperators {
     asterixDBOp.table = "ds_tweet"
     asterixDBOp.limit = Some(1000)
     asterixDBOp
-  }
-
-  def sinkOpDesc(): ProgressiveSinkOpDesc = {
-    new ProgressiveSinkOpDesc()
   }
 
   def pythonOpDesc(): PythonUDFOpDescV2 = {

@@ -2,14 +2,12 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 
 import edu.uci.ics.amber.core.executor.OpExecInitInfo
 import edu.uci.ics.amber.core.storage.result.{OpResultStorage, ResultStorage}
-import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan, SchemaPropagationFunc, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.scheduling.ScheduleGenerator.replaceVertex
 import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{DefaultResourceAllocator, ExecutionClusterInfo}
 import edu.uci.ics.amber.operator.SpecialPhysicalOpFactory
-import edu.uci.ics.amber.operator.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.amber.operator.source.cache.CacheSourceOpExec
-import edu.uci.ics.amber.virtualidentity.{OperatorIdentity, PhysicalOpIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
 import edu.uci.ics.amber.workflow.{OutputPort, PhysicalLink}
 import org.jgrapht.graph.DirectedAcyclicGraph
 import org.jgrapht.traverse.TopologicalOrderIterator
