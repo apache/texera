@@ -6,10 +6,10 @@ import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
-import edu.uci.ics.amber.operator.visualization.{VisualizationConstants, VisualizationOperator}
+import edu.uci.ics.amber.workflow.OutputPort.OutputMode
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
 
-class WaterfallChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
+class WaterfallChartOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "xColumn", required = true)
   @JsonSchemaTitle("X Axis Values")
@@ -33,7 +33,7 @@ class WaterfallChartOpDesc extends VisualizationOperator with PythonOperatorDesc
       "Visualize data as a waterfall chart",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort())
+      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
   def createPlotlyFigure(): String = {
@@ -83,6 +83,4 @@ class WaterfallChartOpDesc extends VisualizationOperator with PythonOperatorDesc
     finalCode
   }
 
-  // Specify the chart type as HTML visualization
-  override def chartType(): String = VisualizationConstants.HTML_VIZ
 }

@@ -6,7 +6,7 @@ import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
-import edu.uci.ics.amber.operator.visualization.{VisualizationConstants, VisualizationOperator}
+import edu.uci.ics.amber.workflow.OutputPort.OutputMode
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
 
 //type constraint: value can only be numeric
@@ -19,7 +19,7 @@ import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
   }
 }
 """)
-class BarChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
+class BarChartOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Value Column")
@@ -60,7 +60,7 @@ class BarChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor
       "Visualize data in a Bar Chart",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort())
+      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
   def manipulateTable(): String = {
@@ -126,6 +126,4 @@ class BarChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor
     finalCode
   }
 
-  // make the chart type to html visualization so it can be recognized by both backend and frontend.
-  override def chartType(): String = VisualizationConstants.HTML_VIZ
 }

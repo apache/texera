@@ -19,13 +19,12 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregat
   KILLED,
   RUNNING
 }
-import edu.uci.ics.amber.operator.sink.IncrementalOutputMode.{SET_DELTA, SET_SNAPSHOT}
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.executionruntimestate.ExecutionMetadataStore
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberRuntime}
-import edu.uci.ics.amber.operator.sink.IncrementalOutputMode
 import edu.uci.ics.amber.operator.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.amber.virtualidentity.OperatorIdentity
+import edu.uci.ics.amber.workflow.OutputPort.OutputMode
 import edu.uci.ics.texera.web.SubscriptionManager
 import edu.uci.ics.texera.web.model.websocket.event.{
   PaginatedResultEvent,
@@ -33,7 +32,6 @@ import edu.uci.ics.texera.web.model.websocket.event.{
   WebResultUpdateEvent
 }
 import edu.uci.ics.texera.web.model.websocket.request.ResultPaginationRequest
-import edu.uci.ics.texera.web.service.ExecutionResultService.WebResultUpdate
 import edu.uci.ics.texera.web.storage.{ExecutionStateStore, WorkflowStateStore}
 import edu.uci.ics.texera.workflow.LogicalPlan
 
@@ -43,28 +41,17 @@ import scala.concurrent.duration.DurationInt
 
 object ExecutionResultService {
 
-  val defaultPageSize: Int = 5
-
-  // convert Tuple from engine's format to JSON format
-  def webDataFromTuple(
-      mode: WebOutputMode,
-      table: List[Tuple],
-      chartType: Option[String]
-  ): WebDataUpdate = {
-    val tableInJson = table.map(t => t.asKeyValuePairJson())
-    WebDataUpdate(mode, tableInJson, chartType)
-  }
+  private val defaultPageSize: Int = 5
 
   /**
     * convert Tuple from engine's format to JSON format
     */
   private def tuplesToWebData(
       mode: WebOutputMode,
-      table: List[Tuple],
-      chartType: Option[String]
+      table: List[Tuple]
   ): WebDataUpdate = {
     val tableInJson = table.map(t => t.asKeyValuePairJson())
-    WebDataUpdate(mode, tableInJson, chartType)
+    WebDataUpdate(mode, tableInJson)
   }
 
   /**
@@ -75,41 +62,40 @@ object ExecutionResultService {
     *
     * Produces the WebResultUpdate to send to frontend from a result update from the engine.
     */
-  def convertWebResultUpdate(
+  private def convertWebResultUpdate(
       sink: ProgressiveSinkOpDesc,
       oldTupleCount: Int,
       newTupleCount: Int
   ): WebResultUpdate = {
     val webOutputMode: WebOutputMode = {
-      (sink.getOutputMode, sink.getChartType) match {
-        // visualization sinks use its corresponding mode
-        case (SET_SNAPSHOT, Some(_)) => SetSnapshotMode()
-        case (SET_DELTA, Some(_))    => SetDeltaMode()
-        // Non-visualization sinks use pagination mode
-        case (_, None) => PaginationMode()
+      sink.getOutputMode match {
+        // currently, only table outputs are using these modes
+        case OutputMode.SET_DELTA    => SetDeltaMode()
+        case OutputMode.SET_SNAPSHOT => PaginationMode()
+
+        // currently, only visualizations are using single snapshot mode
+        case OutputMode.SINGLE_SNAPSHOT => SetSnapshotMode()
       }
     }
 
     val storage =
       ResultStorage.getOpResultStorage(sink.getContext.workflowId).get(sink.getUpstreamId.get)
-    val webUpdate = (webOutputMode, sink.getOutputMode) match {
-      case (PaginationMode(), SET_SNAPSHOT) =>
+    val webUpdate = webOutputMode match {
+      case PaginationMode() =>
         val numTuples = storage.getCount
         val maxPageIndex =
-          Math.ceil(numTuples / ExecutionResultService.defaultPageSize.toDouble).toInt
+          Math.ceil(numTuples / defaultPageSize.toDouble).toInt
         WebPaginationUpdate(
           PaginationMode(),
           newTupleCount,
           (1 to maxPageIndex).toList
         )
-      case (SetSnapshotMode(), SET_SNAPSHOT) =>
-        tuplesToWebData(webOutputMode, storage.get().toList, sink.getChartType)
-      case (SetDeltaMode(), SET_DELTA) =>
+      case SetSnapshotMode() =>
+        tuplesToWebData(webOutputMode, storage.get().toList)
+      case SetDeltaMode() =>
         val deltaList = storage.getAfter(oldTupleCount).toList
-        tuplesToWebData(webOutputMode, deltaList, sink.getChartType)
+        tuplesToWebData(webOutputMode, deltaList)
 
-      // currently not supported mode combinations
-      // (PaginationMode, SET_DELTA) | (DataSnapshotMode, SET_DELTA) | (DataDeltaMode, SET_SNAPSHOT)
       case _ =>
         throw new RuntimeException(
           "update mode combination not supported: " + (webOutputMode, sink.getOutputMode)
@@ -152,8 +138,8 @@ object ExecutionResultService {
       dirtyPageIndices: List[Int]
   ) extends WebResultUpdate
 
-  case class WebDataUpdate(mode: WebOutputMode, table: List[ObjectNode], chartType: Option[String])
-      extends WebResultUpdate
+  case class WebDataUpdate(mode: WebOutputMode, table: List[ObjectNode]) extends WebResultUpdate
+
 }
 
 /**
@@ -227,7 +213,7 @@ class ExecutionResultService(
 
     addSubscription(
       workflowStateStore.resultStore.registerDiffHandler((oldState, newState) => {
-        val buf = mutable.HashMap[String, WebResultUpdate]()
+        val buf = mutable.HashMap[String, ExecutionResultService.WebResultUpdate]()
         val allTableStats = mutable.Map[String, Map[String, Map[String, Any]]]()
         newState.resultInfo
           .filter(info => {
@@ -332,7 +318,7 @@ class ExecutionResultService(
             .toInt
           val mode = sink.getOutputMode
           val changeDetector =
-            if (mode == IncrementalOutputMode.SET_SNAPSHOT) {
+            if (mode == OutputMode.SET_SNAPSHOT) {
               UUID.randomUUID.toString
             } else ""
           (id, OperatorResultMetadata(count, changeDetector))
