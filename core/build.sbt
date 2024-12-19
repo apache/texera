@@ -3,7 +3,13 @@ lazy val WorkflowCore = (project in file("workflow-core"))
   .dependsOn(DAO)
   .configs(Test)
   .dependsOn(DAO % "test->test") // test scope dependency
-lazy val WorkflowOperator = (project in file("workflow-operator")).dependsOn(WorkflowCore)
+lazy val WorkflowOperator = (project in file("workflow-operator"))
+  .dependsOn(WorkflowCore)
+  .settings(
+    dependencyOverrides ++= Seq(
+      "org.apache.commons" % "commons-compress" % "1.23.0", // because of the dependency introduced by iceberg
+    )
+  )
 lazy val WorkflowCompilingService = (project in file("workflow-compiling-service"))
   .dependsOn(WorkflowOperator)
   .settings(

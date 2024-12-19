@@ -115,6 +115,8 @@ libraryDependencies ++= Seq(
   "org.apache.iceberg" % "iceberg-api" % "1.7.1",
   "org.apache.iceberg" % "iceberg-core" % "1.7.1",
   "org.apache.iceberg" % "iceberg-parquet" % "1.7.1",
+  "org.apache.iceberg" % "iceberg-data" % "1.7.1",
+  "org.apache.hadoop" % "hadoop-client" % "3.3.1",
 )
 
 /////////////////////////////////////////////////////////////////////////////

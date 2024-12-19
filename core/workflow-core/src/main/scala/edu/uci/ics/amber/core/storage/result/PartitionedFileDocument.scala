@@ -1,8 +1,8 @@
 package edu.uci.ics.amber.core.storage.result
 
+import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.amber.core.storage.model.VirtualDocument
 import edu.uci.ics.amber.core.storage.result.PartitionedFileDocument.getPartitionURI
-import edu.uci.ics.amber.util.PathUtils.workflowResultsRootPath
 import org.apache.commons.vfs2.VFS
 
 import java.net.URI
@@ -14,7 +14,7 @@ object PartitionedFileDocument {
     * Utility function to generate the partition URI by index.
     */
   def getPartitionURI(id: String, i: Int): URI = {
-    workflowResultsRootPath.resolve(id).resolve(s"partition$i").toUri
+    StorageConfig.fileStorageDirectoryUri.resolve(id).resolve(s"partition$i")
   }
 }
 
@@ -36,7 +36,7 @@ class PartitionedFileDocument[R <: VirtualDocument[T], T >: Null <: AnyRef](
   // Use round-robin to decide which partition to go to when reading the i-th item
   private def getPartitionIndex(i: Int): Int = i % numOfPartition
 
-  override def getURI: URI = workflowResultsRootPath.resolve(id).toUri
+  override def getURI: URI = StorageConfig.fileStorageDirectoryUri.resolve(id)
 
   override def getItem(i: Int): T = {
     mutex.lock()

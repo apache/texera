@@ -53,5 +53,6 @@ object StorageConfig {
     .asInstanceOf[String]
 
   // For file storage specifics
-  val fileStorageDirectoryUri = corePath.resolve("amber").resolve("user-resources").resolve("workflow-results").toUri
+  val fileStorageDirectoryUri =
+    corePath.resolve("amber").resolve("user-resources").resolve("workflow-results").toUri
 }
