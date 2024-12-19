@@ -24,7 +24,10 @@ import edu.uci.ics.amber.error.ErrorUtils.{getOperatorFromActorIdOpt, getStackTr
 import edu.uci.ics.amber.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
 import edu.uci.ics.amber.workflowruntimestate.WorkflowFatalError
 import edu.uci.ics.texera.web.SubscriptionManager
-import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowRuntimeStatistics
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
+  OperatorRuntimeStatistics,
+  OperatorExecutions
+}
 import edu.uci.ics.texera.web.model.websocket.event.{
   ExecutionDurationUpdateEvent,
   OperatorAggregatedMetrics,
@@ -48,6 +51,8 @@ class ExecutionStatsService(
     with LazyLogging {
   private val metricsPersistThread = Executors.newSingleThreadExecutor()
   private var lastPersistedMetrics: Map[String, OperatorMetrics] = Map()
+  private var insertedOperatorExecutions: Set[String] = Set()
+  private var operatorIdToExecutionId: Map[String, ULong] = Map()
   registerCallbacks()
 
   addSubscription(
@@ -201,31 +206,63 @@ class ExecutionStatsService(
   private def storeRuntimeStatistics(
       operatorStatistics: scala.collection.immutable.Map[String, OperatorMetrics]
   ): Unit = {
-    // Add a try-catch to not produce an error when "workflow_runtime_statistics" table does not exist in MySQL
     try {
-      val list: util.ArrayList[WorkflowRuntimeStatistics] =
-        new util.ArrayList[WorkflowRuntimeStatistics]()
+      val executionList: util.ArrayList[OperatorExecutions] =
+        new util.ArrayList[OperatorExecutions]()
+
       for ((operatorId, stat) <- operatorStatistics) {
-        val execution = new WorkflowRuntimeStatistics()
-        execution.setWorkflowId(UInteger.valueOf(workflowContext.workflowId.id))
-        execution.setExecutionId(UInteger.valueOf(workflowContext.executionId.id))
-        execution.setOperatorId(operatorId)
-        execution.setInputTupleCnt(
-          UInteger.valueOf(stat.operatorStatistics.inputCount.map(_.tupleCount).sum)
+        // Check if the operator execution has already been inserted
+        if (!insertedOperatorExecutions.contains(operatorId)) {
+          // Create and populate the operator execution entry
+          val execution = new OperatorExecutions()
+          execution.setWorkflowExecutionId(UInteger.valueOf(workflowContext.executionId.id))
+          execution.setOperatorId(operatorId)
+          execution.setNumWorkers(UInteger.valueOf(stat.operatorStatistics.numWorkers))
+          executionList.add(execution)
+
+          // Mark this operator as inserted
+          insertedOperatorExecutions += operatorId
+        }
+      }
+
+      // Insert into operator_executions table and retrieve generated IDs
+      if (!executionList.isEmpty) {
+        val insertedExecutionIds =
+          WorkflowExecutionsResource.insertOperatorExecutions(executionList)
+
+        // Update the persistent map with new operatorId to operator_execution_id mappings
+        insertedExecutionIds.forEach {
+          case (operatorId, executionId) =>
+            operatorIdToExecutionId += (operatorId -> executionId)
+        }
+      }
+
+      val runtimeStatsList: util.ArrayList[OperatorRuntimeStatistics] =
+        new util.ArrayList[OperatorRuntimeStatistics]()
+
+      for ((operatorId, stat) <- operatorStatistics) {
+        // Create and populate the operator runtime statistics entry
+        val runtimeStats = new OperatorRuntimeStatistics()
+        runtimeStats.setOperatorExecutionId(operatorIdToExecutionId(operatorId))
+        runtimeStats.setInputTupleCnt(
+          ULong.valueOf(stat.operatorStatistics.inputCount.map(_.tupleCount).sum)
         )
-        execution.setOutputTupleCnt(
-          UInteger.valueOf(stat.operatorStatistics.outputCount.map(_.tupleCount).sum)
+        runtimeStats.setOutputTupleCnt(
+          ULong.valueOf(stat.operatorStatistics.outputCount.map(_.tupleCount).sum)
         )
-        execution.setStatus(maptoStatusCode(stat.operatorState))
-        execution.setDataProcessingTime(ULong.valueOf(stat.operatorStatistics.dataProcessingTime))
-        execution.setControlProcessingTime(
+        runtimeStats.setStatus(maptoStatusCode(stat.operatorState))
+        runtimeStats.setDataProcessingTime(
+          ULong.valueOf(stat.operatorStatistics.dataProcessingTime)
+        )
+        runtimeStats.setControlProcessingTime(
           ULong.valueOf(stat.operatorStatistics.controlProcessingTime)
         )
-        execution.setIdleTime(ULong.valueOf(stat.operatorStatistics.idleTime))
-        execution.setNumWorkers(UInteger.valueOf(stat.operatorStatistics.numWorkers))
-        list.add(execution)
+        runtimeStats.setIdleTime(ULong.valueOf(stat.operatorStatistics.idleTime))
+        runtimeStatsList.add(runtimeStats)
       }
-      WorkflowExecutionsResource.insertWorkflowRuntimeStatistics(list)
+
+      // Insert into operator_runtime_statistics table
+      WorkflowExecutionsResource.insertOperatorRuntimeStatistics(runtimeStatsList)
     } catch {
       case err: Throwable => logger.error("error occurred when storing runtime statistics", err)
     }
