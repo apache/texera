@@ -96,8 +96,6 @@ object ExecutionResultService {
         val deltaList = storage.getAfter(oldTupleCount).toList
         tuplesToWebData(webOutputMode, deltaList)
 
-      // currently not supported mode combinations
-      // (PaginationMode, SET_DELTA) | (DataSnapshotMode, SET_DELTA) | (DataDeltaMode, SET_SNAPSHOT)
       case _ =>
         throw new RuntimeException(
           "update mode combination not supported: " + (webOutputMode, sink.getOutputMode)
