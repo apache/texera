@@ -6,8 +6,8 @@ import edu.uci.ics.amber.compiler.WorkflowCompiler.{
   collectInputSchemaFromPhysicalPlan,
   convertErrorListToWorkflowFatalErrorMap
 }
+
 import edu.uci.ics.amber.compiler.model.{LogicalPlan, LogicalPlanPojo}
-import edu.uci.ics.amber.compiler.util.SinkInjectionTransformer
 import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.virtualidentity.OperatorIdentity
