@@ -147,6 +147,59 @@ trait VirtualDocumentSpec[T] extends AnyFlatSpec with BeforeAndAfterEach {
     )
   }
 
+  it should "allow a reader to read data while a writer is writing items incrementally" in {
+    val allItems = generateSampleItems()
+    val batchSize = allItems.length / 5 // Divide items into 5 incremental batches
+
+    // Split items into 5 batches
+    val itemBatches = allItems.grouped(batchSize).toList
+
+    // Flag to indicate when writing is done
+    @volatile var writingComplete = false
+
+    // Start the writer in a Future to write batches with delays
+    val writerFuture = Future {
+      val writer = document.writer()
+      writer.open()
+      try {
+        itemBatches.foreach { batch =>
+          batch.foreach(writer.putOne)
+          Thread.sleep(500) // Simulate delay between batches
+        }
+      } finally {
+        writer.close()
+        writingComplete = true
+      }
+    }
+
+    // Start the reader in another Future
+    val readerFuture = Future {
+      val reader = document.get()
+      val retrievedItems = scala.collection.mutable.ListBuffer[T]()
+
+      // Keep checking for new data until writing is complete and no more items are available
+      while (!writingComplete || reader.hasNext) {
+        if (reader.hasNext) {
+          retrievedItems += reader.next()
+        } else {
+          Thread.sleep(200) // Wait before retrying to avoid busy-waiting
+        }
+      }
+
+      retrievedItems.toList
+    }
+
+    // Wait for both writer and reader to complete
+    val retrievedItems = Await.result(readerFuture, 30.seconds)
+    Await.result(writerFuture, 30.seconds)
+
+    // Verify that the retrieved items match the original items
+    assert(
+      retrievedItems.toSet == allItems.toSet,
+      "All items should be read correctly while writing is happening concurrently."
+    )
+  }
+
   /**
     * Generates a sample list of items for testing.
     * Subclasses should override this to provide their specific sample items.

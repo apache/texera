@@ -23,8 +23,8 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] {
       new Attribute("col-bool", AttributeType.BOOLEAN),
       new Attribute("col-long", AttributeType.LONG),
       new Attribute("col-double", AttributeType.DOUBLE),
-      new Attribute("col-timestamp", AttributeType.TIMESTAMP)
-//      new Attribute("col-binary", AttributeType.BINARY)
+      new Attribute("col-timestamp", AttributeType.TIMESTAMP),
+      new Attribute("col-binary", AttributeType.BINARY)
     )
   )
 
@@ -84,6 +84,7 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] {
         .add("col-long", AttributeType.LONG, 12345678901234L)
         .add("col-double", AttributeType.DOUBLE, 3.14159)
         .add("col-timestamp", AttributeType.TIMESTAMP, new Timestamp(System.currentTimeMillis()))
+        .add("col-binary", AttributeType.BINARY, Array[Byte](0, 1, 2, 3, 4, 5, 6, 7))
         .build(),
       Tuple
         .builder(amberSchema)
@@ -93,6 +94,7 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] {
         .add("col-long", AttributeType.LONG, -98765432109876L)
         .add("col-double", AttributeType.DOUBLE, -0.001)
         .add("col-timestamp", AttributeType.TIMESTAMP, new Timestamp(0L))
+        .add("col-binary", AttributeType.BINARY, Array[Byte](127, -128, 0, 64))
         .build(),
       Tuple
         .builder(amberSchema)
@@ -102,22 +104,57 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] {
         .add("col-long", AttributeType.LONG, Long.MaxValue)
         .add("col-double", AttributeType.DOUBLE, Double.MaxValue)
         .add("col-timestamp", AttributeType.TIMESTAMP, new Timestamp(1234567890L))
+        .add("col-binary", AttributeType.BINARY, Array[Byte](1, 2, 3, 4, 5))
         .build()
     )
 
-    // Generate additional tuples with random data
+    // Function to generate random binary data
+    def generateRandomBinary(size: Int): Array[Byte] = {
+      val array = new Array[Byte](size)
+      scala.util.Random.nextBytes(array)
+      array
+    }
+
+    // Generate additional tuples with random data and occasional nulls
     val additionalTuples = (1 to 20000).map { i =>
       Tuple
         .builder(amberSchema)
-        .add("col-string", AttributeType.STRING, s"Generated String $i")
-        .add("col-int", AttributeType.INTEGER, i)
-        .add("col-bool", AttributeType.BOOLEAN, i % 2 == 0)
-        .add("col-long", AttributeType.LONG, i.toLong * 1000000L)
-        .add("col-double", AttributeType.DOUBLE, i * 0.12345)
+        .add(
+          "col-string",
+          AttributeType.STRING,
+          if (i % 7 == 0) null else s"Generated String $i"
+        )
+        .add(
+          "col-int",
+          AttributeType.INTEGER,
+          if (i % 5 == 0) null else i
+        )
+        .add(
+          "col-bool",
+          AttributeType.BOOLEAN,
+          if (i % 6 == 0) null else i % 2 == 0
+        )
+        .add(
+          "col-long",
+          AttributeType.LONG,
+          if (i % 4 == 0) null else i.toLong * 1000000L
+        )
+        .add(
+          "col-double",
+          AttributeType.DOUBLE,
+          if (i % 3 == 0) null else i * 0.12345
+        )
         .add(
           "col-timestamp",
           AttributeType.TIMESTAMP,
-          new Timestamp(System.currentTimeMillis() + i * 1000L)
+          if (i % 8 == 0) null
+          else new Timestamp(System.currentTimeMillis() + i * 1000L)
+        )
+        .add(
+          "col-binary",
+          AttributeType.BINARY,
+          if (i % 9 == 0) null
+          else generateRandomBinary(scala.util.Random.nextInt(10) + 1)
         )
         .build()
     }
