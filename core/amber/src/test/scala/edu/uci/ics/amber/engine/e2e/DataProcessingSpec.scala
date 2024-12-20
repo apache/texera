@@ -69,16 +69,8 @@ class DataProcessingSpec
       .registerCallback[ExecutionStateUpdate](evt => {
         if (evt.state == COMPLETED) {
           results = workflow.logicalPlan.getTerminalOperatorIds
-            .map(sinkOpId =>
-              (sinkOpId, workflow.logicalPlan.getUpstreamOps(sinkOpId).head.operatorIdentifier)
-            )
-            .filter {
-              case (_, upstreamOpId) => resultStorage.contains(upstreamOpId)
-            }
-            .map {
-              case (sinkOpId, upstreamOpId) =>
-                (sinkOpId, resultStorage.get(upstreamOpId).get().toList)
-            }
+            .filter(terminalOpId => resultStorage.contains(terminalOpId))
+            .map(terminalOpId => terminalOpId -> resultStorage.get(terminalOpId).get().toList)
             .toMap
           completion.setDone()
         }
