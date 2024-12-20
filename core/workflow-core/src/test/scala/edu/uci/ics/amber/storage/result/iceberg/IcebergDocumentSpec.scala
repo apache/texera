@@ -42,9 +42,9 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] {
   val catalog: Catalog = IcebergUtil.createJdbcCatalog(
     "iceberg_document_test",
     StorageConfig.fileStorageDirectoryUri,
-    StorageConfig.jdbcUrl,
-    StorageConfig.jdbcUsername,
-    StorageConfig.jdbcPassword
+    StorageConfig.icebergCatalogUrl,
+    StorageConfig.icebergCatalogUsername,
+    StorageConfig.icebergCatalogPassword
   )
 
   val tableNamespace = "test_namespace"

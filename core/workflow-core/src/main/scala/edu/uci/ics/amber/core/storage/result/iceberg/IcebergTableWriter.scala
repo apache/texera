@@ -1,7 +1,8 @@
 package edu.uci.ics.amber.core.storage.result.iceberg
 
+import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.amber.core.storage.model.BufferedItemWriter
-import edu.uci.ics.amber.core.storage.util.StorageUtil.withLock
+import edu.uci.ics.amber.core.storage.util.StorageUtil.{withLock, withReadLock}
 import edu.uci.ics.amber.util.IcebergUtil
 import org.apache.iceberg.{Schema, Table}
 import org.apache.iceberg.catalog.{Catalog, TableIdentifier}
@@ -24,14 +25,13 @@ class IcebergTableWriter[T](
 
   private val lock = new ReentrantLock()
   private val buffer = new ArrayBuffer[T]()
-  override val bufferSize: Int = 3000
+  override val bufferSize: Int = StorageConfig.icebergTableCommitBatchSize
 
   // Load the Iceberg table
-  private val table: Table = synchronized {
+  private val table: Table =
     IcebergUtil
-      .loadTable(catalog, tableNamespace, tableName, tableSchema, createIfNotExist = false)
+      .loadTable(catalog, tableNamespace, tableName)
       .get
-  }
 
   override def open(): Unit =
     withLock(lock) {

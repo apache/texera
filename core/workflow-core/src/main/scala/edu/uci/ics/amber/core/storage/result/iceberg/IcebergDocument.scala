@@ -23,10 +23,9 @@ class IcebergDocument[T >: Null <: AnyRef](
 ) extends VirtualDocument[T] {
 
   private val lock = new ReentrantReadWriteLock()
+
   synchronized {
-    IcebergUtil
-      .loadTable(catalog, tableNamespace, tableName, tableSchema, createIfNotExist = true)
-      .get
+    IcebergUtil.createTable(catalog, tableNamespace, tableName, tableSchema)
   }
 
   /**
@@ -34,7 +33,7 @@ class IcebergDocument[T >: Null <: AnyRef](
     */
   override def getURI: URI = {
     val table = IcebergUtil
-      .loadTable(catalog, tableNamespace, tableName, tableSchema, createIfNotExist = false)
+      .loadTable(catalog, tableNamespace, tableName)
       .getOrElse(
         throw new NoSuchTableException(f"table ${tableNamespace}.${tableName} doesn't exist")
       )
@@ -64,9 +63,7 @@ class IcebergDocument[T >: Null <: AnyRef](
           IcebergUtil.loadTable(
             catalog,
             tableNamespace,
-            tableName,
-            tableSchema,
-            createIfNotExist = false
+            tableName
           )
         }
 

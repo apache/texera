@@ -8,7 +8,13 @@ import org.apache.iceberg.types.Types
 import org.apache.iceberg.data.{GenericRecord, Record}
 import org.apache.iceberg.jdbc.JdbcCatalog
 import org.apache.iceberg.types.Type.PrimitiveType
-import org.apache.iceberg.{CatalogProperties, PartitionSpec, Table, Schema => IcebergSchema}
+import org.apache.iceberg.{
+  CatalogProperties,
+  PartitionSpec,
+  Table,
+  TableProperties,
+  Schema => IcebergSchema
+}
 
 import java.net.URI
 import java.nio.ByteBuffer
@@ -50,32 +56,36 @@ object IcebergUtil {
     catalog
   }
 
-  def loadTable(
+  def createTable(
       catalog: Catalog,
       tableNamespace: String,
       tableName: String,
-      tableSchema: IcebergSchema,
-      createIfNotExist: Boolean
-  ): Option[Table] = {
+      tableSchema: IcebergSchema
+  ): Table = {
     val tableProperties = Map(
-      "commit.retry.num-retries" -> "10",
-      "commit.retry.min-wait-ms" -> "10"
+      TableProperties.COMMIT_NUM_RETRIES -> StorageConfig.icebergTableCommitNumRetries.toString,
+      TableProperties.COMMIT_MAX_RETRY_WAIT_MS -> StorageConfig.icebergTableCommitMaxRetryWaitMs.toString,
+      TableProperties.COMMIT_MIN_RETRY_WAIT_MS -> StorageConfig.icebergTableCommitMinRetryWaitMs.toString
     )
     val identifier = TableIdentifier.of(tableNamespace, tableName)
-    if (!catalog.tableExists(identifier)) {
-      if (!createIfNotExist) {
-        return None
-      }
-      Some(
-        catalog.createTable(
-          identifier,
-          tableSchema,
-          PartitionSpec.unpartitioned,
-          tableProperties.asJava
-        )
-      )
-    } else {
+    catalog.createTable(
+      identifier,
+      tableSchema,
+      PartitionSpec.unpartitioned,
+      tableProperties.asJava
+    )
+  }
+
+  def loadTable(
+      catalog: Catalog,
+      tableNamespace: String,
+      tableName: String
+  ): Option[Table] = {
+    val identifier = TableIdentifier.of(tableNamespace, tableName)
+    try {
       Some(catalog.loadTable(identifier))
+    } catch {
+      case exception: Exception => None
     }
   }
 
