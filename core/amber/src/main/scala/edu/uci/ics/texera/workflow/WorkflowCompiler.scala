@@ -68,7 +68,7 @@ class WorkflowCompiler(
             }
           })
 
-        // assign the view results
+        // assign the sinks to toAddSink operators' external output ports
         subPlan
           .topologicalIterator()
           .map(subPlan.getOperator)
