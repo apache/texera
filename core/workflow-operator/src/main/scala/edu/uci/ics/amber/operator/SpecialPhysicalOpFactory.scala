@@ -35,8 +35,8 @@ object SpecialPhysicalOpFactory {
           )
         )
       )
-      .withInputPorts(List(InputPort(PortIdentity())))
-      .withOutputPorts(List(OutputPort(PortIdentity())))
+      .withInputPorts(List(InputPort(PortIdentity(internal = true))))
+      .withOutputPorts(List(OutputPort(PortIdentity(internal = true))))
       .withPropagateSchema(
         SchemaPropagationFunc((inputSchemas: Map[PortIdentity, Schema]) => {
           // Get the first schema from inputSchemas
@@ -63,7 +63,7 @@ object SpecialPhysicalOpFactory {
           }
 
           // Create a Scala immutable Map
-          Map(PortIdentity() -> outputSchema)
+          Map(PortIdentity(internal = true) -> outputSchema)
         })
       )
 }

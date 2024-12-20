@@ -173,7 +173,7 @@ abstract class ScheduleGenerator(
     // expect exactly one input port and one output port
     val schema = newPhysicalPlan
       .getOperator(matWriterPhysicalOp.id)
-      .outputPorts(OutputPort().id)
+      .outputPorts(matWriterPhysicalOp.outputPorts.keys.head)
       ._3
       .toOption
       .get
