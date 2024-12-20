@@ -28,6 +28,7 @@ class ProgressiveSinkOpExec(
     outputMode match {
       case OutputMode.SET_SNAPSHOT | OutputMode.SINGLE_SNAPSHOT => updateSetSnapshot(tuple)
       case OutputMode.SET_DELTA                                 => writer.putOne(tuple)
+      case _                                                    => throw new UnsupportedOperationException("Unsupported output mode")
     }
   }
 

@@ -60,6 +60,8 @@ object SpecialPhysicalOpFactory {
             case SET_DELTA =>
               // output schema is the same as input schema
               inputSchema
+            case _ =>
+              throw new UnsupportedOperationException(s"Output mode $outputMode is not supported.")
           }
 
           // Create a Scala immutable Map
