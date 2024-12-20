@@ -24,20 +24,13 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
   val resultStorage = new OpResultStorage()
   val csvOpDesc = TestOperators.mediumCsvScanOpDesc()
   val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
-  val sink = TestOperators.sinkOpDesc()
   val workflow = buildWorkflow(
-    List(csvOpDesc, keywordOpDesc, sink),
+    List(csvOpDesc, keywordOpDesc),
     List(
       LogicalLink(
         csvOpDesc.operatorIdentifier,
         PortIdentity(),
         keywordOpDesc.operatorIdentifier,
-        PortIdentity()
-      ),
-      LogicalLink(
-        keywordOpDesc.operatorIdentifier,
-        PortIdentity(),
-        sink.operatorIdentifier,
         PortIdentity()
       )
     ),

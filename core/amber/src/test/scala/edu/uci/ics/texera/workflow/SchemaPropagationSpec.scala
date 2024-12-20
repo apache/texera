@@ -4,7 +4,6 @@ import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, WorkflowContext}
 import edu.uci.ics.amber.operator.LogicalOp
 import edu.uci.ics.amber.operator.metadata.OperatorInfo
-import edu.uci.ics.amber.operator.sink.SinkOpDesc
 import edu.uci.ics.amber.operator.source.SourceOperatorDescriptor
 import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, OperatorIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort, PortIdentity}
@@ -24,7 +23,7 @@ class SchemaPropagationSpec extends AnyFlatSpec with BeforeAndAfter {
       OperatorInfo("", "", "", List(InputPort()), List(OutputPort()))
   }
 
-  private class TempTestSinkOpDesc extends SinkOpDesc {
+  private class TempTestSinkOpDesc extends LogicalOp {
     override def getPhysicalOp(
         workflowId: WorkflowIdentity,
         executionId: ExecutionIdentity
