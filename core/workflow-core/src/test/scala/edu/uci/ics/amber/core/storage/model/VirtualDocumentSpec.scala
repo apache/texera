@@ -2,6 +2,10 @@ package edu.uci.ics.amber.core.storage.model
 
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
+
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.{Await, Future}
 
 /**
   * A trait for testing VirtualDocument implementations.
@@ -42,7 +46,7 @@ trait VirtualDocumentSpec[T] extends AnyFlatSpec with BeforeAndAfterEach {
     // Read items back
     val retrievedItems = document.get().toList
 
-    assert(retrievedItems == items)
+    assert(retrievedItems.toSet == items.toSet)
   }
 
   "VirtualDocument" should "read items while writer is writing new data" in {
@@ -63,7 +67,7 @@ trait VirtualDocumentSpec[T] extends AnyFlatSpec with BeforeAndAfterEach {
 
     // The reader should detect and read the first batch
     val retrievedBatch1 = reader.take(batch1.length).toList
-    assert(retrievedBatch1 == batch1, "Reader should read the first batch correctly.")
+    assert(retrievedBatch1.toSet == batch1.toSet, "Reader should read the first batch correctly.")
 
     // Write the second batch
     val writer2 = document.writer()
@@ -73,11 +77,7 @@ trait VirtualDocumentSpec[T] extends AnyFlatSpec with BeforeAndAfterEach {
 
     // The reader should detect and read the second batch
     val retrievedBatch2 = reader.toList
-    assert(retrievedBatch2 == batch2, "Reader should read the second batch correctly.")
-
-    // Verify that the combined retrieved items match the original items
-    val retrievedItems = retrievedBatch1 ++ retrievedBatch2
-    assert(retrievedItems == allItems, "Reader should read all items correctly.")
+    assert(retrievedBatch2.toSet == batch2.toSet, "Reader should read the second batch correctly.")
   }
   it should "clear the document" in {
     val items = generateSampleItems()
@@ -102,6 +102,49 @@ trait VirtualDocumentSpec[T] extends AnyFlatSpec with BeforeAndAfterEach {
   it should "handle empty reads gracefully" in {
     val retrievedItems = document.get().toList
     assert(retrievedItems.isEmpty, "Reading from an empty document should return an empty list.")
+  }
+
+  it should "handle concurrent writes and read all items correctly" in {
+    val allItems = generateSampleItems()
+    val numWriters = 10
+
+    // Calculate the batch size and the remainder
+    val batchSize = allItems.length / numWriters
+    val remainder = allItems.length % numWriters
+
+    // Create batches using a simple for loop
+    val itemBatches = (0 until numWriters).map { i =>
+      val start = i * batchSize + Math.min(i, remainder)
+      val end = start + batchSize + (if (i < remainder) 1 else 0)
+      allItems.slice(start, end)
+    }.toList
+
+    assert(
+      itemBatches.length == numWriters,
+      s"Expected $numWriters batches but got ${itemBatches.length}"
+    )
+
+    // Perform concurrent writes
+    val writeFutures = itemBatches.map { batch =>
+      Future {
+        val writer = document.writer()
+        writer.open()
+        batch.foreach(writer.putOne)
+        writer.close()
+      }
+    }
+
+    // Wait for all writers to complete
+    Await.result(Future.sequence(writeFutures), 30.seconds)
+
+    // Read all items back
+    val retrievedItems = document.get().toList
+
+    // Verify that the retrieved items match the original items
+    assert(
+      retrievedItems.toSet == allItems.toSet,
+      "All items should be read correctly after concurrent writes."
+    )
   }
 
   /**

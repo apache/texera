@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.core.storage.result.iceberg
 
 import edu.uci.ics.amber.core.storage.model.BufferedItemWriter
+import edu.uci.ics.amber.core.storage.util.StorageUtil.withLock
 import edu.uci.ics.amber.util.IcebergUtil
 import org.apache.iceberg.{Schema, Table}
 import org.apache.iceberg.catalog.{Catalog, TableIdentifier}
@@ -23,21 +24,22 @@ class IcebergTableWriter[T](
 
   private val lock = new ReentrantLock()
   private val buffer = new ArrayBuffer[T]()
-  override val bufferSize: Int = 1024
+  override val bufferSize: Int = 3000
 
   // Load the Iceberg table
-  private val table: Table =
+  private val table: Table = synchronized {
     IcebergUtil
-      .loadTable(catalog, tableNamespace, tableName, tableSchema, createIfNotExist = true)
+      .loadTable(catalog, tableNamespace, tableName, tableSchema, createIfNotExist = false)
       .get
+  }
 
   override def open(): Unit =
-    withLock {
+    withLock(lock) {
       buffer.clear()
     }
 
   override def putOne(item: T): Unit =
-    withLock {
+    withLock(lock) {
       buffer.append(item)
       if (buffer.size >= bufferSize) {
         flushBuffer()
@@ -45,61 +47,46 @@ class IcebergTableWriter[T](
     }
 
   override def removeOne(item: T): Unit =
-    withLock {
+    withLock(lock) {
       buffer -= item
     }
 
   private def flushBuffer(): Unit =
-    withLock {
+    withLock(lock) {
       if (buffer.nonEmpty) {
+
+        // Create a unique file path using UUID
+        val filepath = s"${table.location()}/${UUID.randomUUID().toString}"
+        val outputFile: OutputFile = table.io().newOutputFile(filepath)
+
+        // Create a Parquet data writer
+        val dataWriter: DataWriter[Record] = Parquet
+          .writeData(outputFile)
+          .forTable(table)
+          .createWriterFunc(GenericParquetWriter.buildWriter)
+          .overwrite()
+          .build()
+
         try {
-          // Create a unique file path using UUID
-          val filepath = s"${table.location()}/${UUID.randomUUID().toString}"
-          val outputFile: OutputFile = table.io().newOutputFile(filepath)
-
-          // Create a Parquet data writer
-          val dataWriter: DataWriter[Record] = Parquet
-            .writeData(outputFile)
-            .forTable(table)
-            .createWriterFunc(GenericParquetWriter.buildWriter)
-            .overwrite()
-            .build()
-
-          try {
-            buffer.foreach { item =>
-              val record = serde(item)
-              dataWriter.write(record)
-            }
-          } finally {
-            dataWriter.close()
+          buffer.foreach { item =>
+            val record = serde(item)
+            dataWriter.write(record)
           }
-
-          // Commit the new file to the table
-          val dataFile = dataWriter.toDataFile
-          table.newAppend().appendFile(dataFile).commit()
-
-          println(s"Flushed ${buffer.size} records to ${filepath}")
-
-          buffer.clear()
-        } catch {
-          case e: Exception =>
-            println(s"Error during flush: ${e.getMessage}")
-            e.printStackTrace()
+        } finally {
+          dataWriter.close()
         }
+
+        // Commit the new file to the table
+        val dataFile = dataWriter.toDataFile
+        table.newAppend().appendFile(dataFile).commit()
+        buffer.clear()
       }
     }
 
   override def close(): Unit =
-    withLock {
+    withLock(lock) {
       if (buffer.nonEmpty) {
         flushBuffer()
       }
     }
-
-  // Utility function to wrap code block with write lock
-  private def withLock[M](block: => M): M = {
-    lock.lock()
-    try block
-    finally lock.unlock()
-  }
 }

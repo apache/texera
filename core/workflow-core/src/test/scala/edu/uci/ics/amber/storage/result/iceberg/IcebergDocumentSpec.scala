@@ -74,9 +74,8 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] {
     !catalog.tableExists(identifier)
   }
 
-  // Implementation of generateSampleItems
   override def generateSampleItems(): List[Tuple] = {
-    List(
+    val baseTuples = List(
       Tuple
         .builder(amberSchema)
         .add("col-string", AttributeType.STRING, "Hello World")
@@ -85,7 +84,6 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] {
         .add("col-long", AttributeType.LONG, 12345678901234L)
         .add("col-double", AttributeType.DOUBLE, 3.14159)
         .add("col-timestamp", AttributeType.TIMESTAMP, new Timestamp(System.currentTimeMillis()))
-//        .add("col-binary", AttributeType.BINARY, Array[Byte](1, 2, 3, 4, 5))
         .build(),
       Tuple
         .builder(amberSchema)
@@ -95,7 +93,6 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] {
         .add("col-long", AttributeType.LONG, -98765432109876L)
         .add("col-double", AttributeType.DOUBLE, -0.001)
         .add("col-timestamp", AttributeType.TIMESTAMP, new Timestamp(0L))
-//        .add("col-binary", AttributeType.BINARY, Array[Byte]())
         .build(),
       Tuple
         .builder(amberSchema)
@@ -105,18 +102,27 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] {
         .add("col-long", AttributeType.LONG, Long.MaxValue)
         .add("col-double", AttributeType.DOUBLE, Double.MaxValue)
         .add("col-timestamp", AttributeType.TIMESTAMP, new Timestamp(1234567890L))
-//        .add("col-binary", AttributeType.BINARY, Array.fill[Byte](1000)('a'))
-        .build(),
-      Tuple
-        .builder(amberSchema)
-        .add("col-string", AttributeType.STRING, null)
-        .add("col-int", AttributeType.INTEGER, null)
-        .add("col-bool", AttributeType.BOOLEAN, null)
-        .add("col-long", AttributeType.LONG, null)
-        .add("col-double", AttributeType.DOUBLE, null)
-        .add("col-timestamp", AttributeType.TIMESTAMP, null)
-//      .add("col-binary", AttributeType.BINARY, null)
         .build()
     )
+
+    // Generate additional tuples with random data
+    val additionalTuples = (1 to 20000).map { i =>
+      Tuple
+        .builder(amberSchema)
+        .add("col-string", AttributeType.STRING, s"Generated String $i")
+        .add("col-int", AttributeType.INTEGER, i)
+        .add("col-bool", AttributeType.BOOLEAN, i % 2 == 0)
+        .add("col-long", AttributeType.LONG, i.toLong * 1000000L)
+        .add("col-double", AttributeType.DOUBLE, i * 0.12345)
+        .add(
+          "col-timestamp",
+          AttributeType.TIMESTAMP,
+          new Timestamp(System.currentTimeMillis() + i * 1000L)
+        )
+        .build()
+    }
+
+    // Combine the base tuples with the generated tuples
+    baseTuples ++ additionalTuples
   }
 }

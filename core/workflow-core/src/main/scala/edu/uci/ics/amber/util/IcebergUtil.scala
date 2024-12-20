@@ -8,7 +8,7 @@ import org.apache.iceberg.types.Types
 import org.apache.iceberg.data.{GenericRecord, Record}
 import org.apache.iceberg.jdbc.JdbcCatalog
 import org.apache.iceberg.types.Type.PrimitiveType
-import org.apache.iceberg.{CatalogProperties, Table, Schema => IcebergSchema}
+import org.apache.iceberg.{CatalogProperties, PartitionSpec, Table, Schema => IcebergSchema}
 
 import java.net.URI
 import java.nio.ByteBuffer
@@ -57,12 +57,23 @@ object IcebergUtil {
       tableSchema: IcebergSchema,
       createIfNotExist: Boolean
   ): Option[Table] = {
+    val tableProperties = Map(
+      "commit.retry.num-retries" -> "10",
+      "commit.retry.min-wait-ms" -> "10"
+    )
     val identifier = TableIdentifier.of(tableNamespace, tableName)
     if (!catalog.tableExists(identifier)) {
       if (!createIfNotExist) {
         return None
       }
-      Some(catalog.createTable(identifier, tableSchema))
+      Some(
+        catalog.createTable(
+          identifier,
+          tableSchema,
+          PartitionSpec.unpartitioned,
+          tableProperties.asJava
+        )
+      )
     } else {
       Some(catalog.loadTable(identifier))
     }
