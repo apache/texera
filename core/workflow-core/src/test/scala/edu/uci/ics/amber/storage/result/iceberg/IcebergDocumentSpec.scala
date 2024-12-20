@@ -96,28 +96,27 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] {
         .add("col-double", AttributeType.DOUBLE, -0.001)
         .add("col-timestamp", AttributeType.TIMESTAMP, new Timestamp(0L))
 //        .add("col-binary", AttributeType.BINARY, Array[Byte]())
+        .build(),
+      Tuple
+        .builder(amberSchema)
+        .add("col-string", AttributeType.STRING, "Special Characters: \n\t\r")
+        .add("col-int", AttributeType.INTEGER, Int.MaxValue)
+        .add("col-bool", AttributeType.BOOLEAN, true)
+        .add("col-long", AttributeType.LONG, Long.MaxValue)
+        .add("col-double", AttributeType.DOUBLE, Double.MaxValue)
+        .add("col-timestamp", AttributeType.TIMESTAMP, new Timestamp(1234567890L))
+//        .add("col-binary", AttributeType.BINARY, Array.fill[Byte](1000)('a'))
+        .build(),
+      Tuple
+        .builder(amberSchema)
+        .add("col-string", AttributeType.STRING, null)
+        .add("col-int", AttributeType.INTEGER, null)
+        .add("col-bool", AttributeType.BOOLEAN, null)
+        .add("col-long", AttributeType.LONG, null)
+        .add("col-double", AttributeType.DOUBLE, null)
+        .add("col-timestamp", AttributeType.TIMESTAMP, null)
+//      .add("col-binary", AttributeType.BINARY, null)
         .build()
-//
-//      Tuple
-//        .builder(amberSchema)
-//        .add("col-string", AttributeType.STRING, "Special Characters: \n\t\r")
-//        .add("col-int", AttributeType.INTEGER, Int.MaxValue)
-//        .add("col-bool", AttributeType.BOOLEAN, true)
-//        .add("col-long", AttributeType.LONG, Long.MaxValue)
-//        .add("col-double", AttributeType.DOUBLE, Double.MaxValue)
-//        .add("col-timestamp", AttributeType.TIMESTAMP, new Timestamp(1234567890L))
-////        .add("col-binary", AttributeType.BINARY, Array.fill[Byte](1000)('a'))
-//        .build(),
-//      Tuple
-//        .builder(amberSchema)
-//        .add("col-string", AttributeType.STRING, null)
-//        .add("col-int", AttributeType.INTEGER, null)
-//        .add("col-bool", AttributeType.BOOLEAN, null)
-//        .add("col-long", AttributeType.LONG, null)
-//        .add("col-double", AttributeType.DOUBLE, null)
-//        .add("col-timestamp", AttributeType.TIMESTAMP, null)
-////      .add("col-binary", AttributeType.BINARY, null)
-//        .build()
     )
   }
 }

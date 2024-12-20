@@ -63,7 +63,7 @@ trait VirtualDocumentSpec[T] extends AnyFlatSpec with BeforeAndAfterEach {
 
     // The reader should detect and read the first batch
     val retrievedBatch1 = reader.take(batch1.length).toList
-    assert(retrievedBatch1.toSet == batch1.toSet, "Reader should read the first batch correctly.")
+    assert(retrievedBatch1 == batch1, "Reader should read the first batch correctly.")
 
     // Write the second batch
     val writer2 = document.writer()
@@ -73,11 +73,11 @@ trait VirtualDocumentSpec[T] extends AnyFlatSpec with BeforeAndAfterEach {
 
     // The reader should detect and read the second batch
     val retrievedBatch2 = reader.toList
-    assert(retrievedBatch2.toSet == batch2.toSet, "Reader should read the second batch correctly.")
+    assert(retrievedBatch2 == batch2, "Reader should read the second batch correctly.")
 
     // Verify that the combined retrieved items match the original items
     val retrievedItems = retrievedBatch1 ++ retrievedBatch2
-    assert(retrievedItems.toSet == allItems.toSet, "Reader should read all items correctly.")
+    assert(retrievedItems == allItems, "Reader should read all items correctly.")
   }
   it should "clear the document" in {
     val items = generateSampleItems()

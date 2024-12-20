@@ -53,15 +53,21 @@ class IcebergDocument[T >: Null <: AnyRef](
       private var recordIterator: Iterator[T] = loadRecords()
 
       /**
-       * Loads the table, handling cases where it may not exist.
-       */
+        * Loads the table, handling cases where it may not exist.
+        */
       private def loadTable(): Option[Table] = {
-        IcebergUtil.loadTable(catalog, tableNamespace, tableName, tableSchema, createIfNotExist = false)
+        IcebergUtil.loadTable(
+          catalog,
+          tableNamespace,
+          tableName,
+          tableSchema,
+          createIfNotExist = false
+        )
       }
 
       /**
-       * Loads records incrementally using `newIncrementalAppendScan` from the last snapshot ID.
-       */
+        * Loads records incrementally using `newIncrementalAppendScan` from the last snapshot ID.
+        */
       private def loadRecords(): Iterator[T] = {
         table match {
           case Some(t) =>
