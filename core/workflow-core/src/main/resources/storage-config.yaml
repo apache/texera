@@ -1,5 +1,5 @@
 storage:
-  result-storage-mode: memory
+  result-storage-mode: iceberg
   mongodb:
     url: "mongodb://localhost:27017"
     database: "texera_storage"
@@ -11,6 +11,7 @@ storage:
         username: "root"
         password: "123456"
     table:
+      namespace: "operator-result"
       commit:
         batch-size: 4096 # decide the buffer size of our IcebergTableWriter
         retry:

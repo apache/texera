@@ -3,8 +3,12 @@ package edu.uci.ics.amber.core.storage.result
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.amber.core.storage.model.VirtualDocument
+import edu.uci.ics.amber.core.storage.result.iceberg.IcebergDocument
 import edu.uci.ics.amber.core.tuple.{Schema, Tuple}
+import edu.uci.ics.amber.util.IcebergUtil
 import edu.uci.ics.amber.virtualidentity.OperatorIdentity
+import org.apache.iceberg.data.Record
+import org.apache.iceberg.{Schema => IcebergSchema}
 
 import java.util.concurrent.ConcurrentHashMap
 import scala.collection.convert.ImplicitConversions.`iterator asScala`
@@ -13,6 +17,7 @@ object OpResultStorage {
   val defaultStorageMode: String = StorageConfig.resultStorageMode.toLowerCase
   val MEMORY = "memory"
   val MONGODB = "mongodb"
+  val ICEBERG = "iceberg"
 }
 
 /**
@@ -60,7 +65,7 @@ class OpResultStorage extends Serializable with LazyLogging {
     val storage: VirtualDocument[Tuple] =
       if (mode == "memory") {
         new MemoryDocument[Tuple](key.id)
-      } else {
+      } else if (mode == OpResultStorage.MONGODB) {
         try {
           val fromDocument = schema.map(Tuple.fromDocument)
           new MongoDocument[Tuple](executionId + key, Tuple.toDocument, fromDocument)
@@ -71,6 +76,27 @@ class OpResultStorage extends Serializable with LazyLogging {
             // fall back to memory
             new MemoryDocument[Tuple](key.id)
         }
+      } else {
+        val icebergCatalog = IcebergUtil.createJdbcCatalog(
+          "operator-result",
+          StorageConfig.fileStorageDirectoryUri,
+          StorageConfig.icebergCatalogUrl,
+          StorageConfig.icebergCatalogUsername,
+          StorageConfig.icebergCatalogPassword
+        )
+        val icebergSchema = IcebergUtil.toIcebergSchema(schema.get)
+        val serde: Tuple => Record = tuple => IcebergUtil.toGenericRecord(tuple)
+        val deserde: (IcebergSchema, Record) => Tuple = (_, record) =>
+          IcebergUtil.fromRecord(record, schema.get)
+
+        new IcebergDocument[Tuple](
+          icebergCatalog,
+          StorageConfig.icebergTableNamespace,
+          executionId + key,
+          icebergSchema,
+          serde,
+          deserde
+        )
       }
     cache.put(key, (storage, schema))
     storage

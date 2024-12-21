@@ -183,6 +183,7 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
           // rely on the server-side result cleanup logic.
           case OpResultStorage.MONGODB =>
             MongoDatabaseManager.dropCollection(collectionName)
+          case OpResultStorage.ICEBERG =>
         }
       })
     } catch {

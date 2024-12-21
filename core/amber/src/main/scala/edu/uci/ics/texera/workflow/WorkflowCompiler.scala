@@ -93,7 +93,9 @@ class WorkflowCompiler(
               if (!storage.contains(storageKey)) {
                 // get the schema for result storage in certain mode
                 val sinkStorageSchema: Option[Schema] =
-                  if (storageType == OpResultStorage.MONGODB) {
+                  if (
+                    storageType == OpResultStorage.MONGODB || storageType == OpResultStorage.ICEBERG
+                  ) {
                     // use the output schema on the first output port as the schema for storage
                     Some(schema.right.get)
                   } else {

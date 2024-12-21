@@ -15,7 +15,8 @@ lazy val WorkflowCompilingService = (project in file("workflow-compiling-service
   .settings(
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher
-      "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.16.1"
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.16.1",
+      "com.fasterxml.jackson.core" % "jackson-databind" % "2.16.1",
     )
   )
 
