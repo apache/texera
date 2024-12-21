@@ -38,11 +38,6 @@ lazy val WorkflowExecutionService = (project in file("amber"))
       "org.eclipse.jetty" % "jetty-server" % "9.4.20.v20190813",
       "org.eclipse.jetty" % "jetty-servlet" % "9.4.20.v20190813",
       "org.eclipse.jetty" % "jetty-http" % "9.4.20.v20190813",
-      "org.eclipse.jetty" % "jetty-util" % "9.4.20.v20190813",
-      "org.eclipse.jetty" % "jetty-io" % "9.4.20.v20190813",
-      "org.eclipse.jetty.websocket" % "websocket-server" % "9.4.20.v20190813",
-      "org.eclipse.jetty.websocket" % "websocket-common" % "9.4.20.v20190813",
-      "org.eclipse.jetty.websocket" % "websocket-client" % "9.4.20.v20190813"
     )
   )
   .configs(Test)
