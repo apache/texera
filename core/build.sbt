@@ -17,11 +17,34 @@ lazy val WorkflowCompilingService = (project in file("workflow-compiling-service
       // override it as io.dropwizard 4 require 2.16.1 or higher
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.16.1",
       "com.fasterxml.jackson.core" % "jackson-databind" % "2.16.1",
+      "org.glassfish.jersey.core" % "jersey-common" % "3.0.12"
     )
   )
 
 lazy val WorkflowExecutionService = (project in file("amber"))
   .dependsOn(WorkflowOperator)
+  .settings(
+    dependencyOverrides ++= Seq(
+      // override it as io.dropwizard 4 require 2.16.1 or higher
+      "com.fasterxml.jackson.core" % "jackson-core" % "2.15.1",
+      "com.fasterxml.jackson.core" % "jackson-databind" % "2.15.1",
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.15.1",
+      "org.slf4j" % "slf4j-api" % "1.7.26",
+      "org.glassfish.jersey.media" % "jersey-media-multipart" % "2.25.1",
+      "org.glassfish.jersey.core" % "jersey-common" % "2.25.1",
+      "org.glassfish.jersey.core" % "jersey-server" % "2.25.1",
+      "javax.xml.bind" % "jaxb-api" % "2.3.1",
+      "com.sun.xml.bind" % "jaxb-impl" % "2.3.1",
+      "org.eclipse.jetty" % "jetty-server" % "9.4.20.v20190813",
+      "org.eclipse.jetty" % "jetty-servlet" % "9.4.20.v20190813",
+      "org.eclipse.jetty" % "jetty-http" % "9.4.20.v20190813",
+      "org.eclipse.jetty" % "jetty-util" % "9.4.20.v20190813",
+      "org.eclipse.jetty" % "jetty-io" % "9.4.20.v20190813",
+      "org.eclipse.jetty.websocket" % "websocket-server" % "9.4.20.v20190813",
+      "org.eclipse.jetty.websocket" % "websocket-common" % "9.4.20.v20190813",
+      "org.eclipse.jetty.websocket" % "websocket-client" % "9.4.20.v20190813"
+    )
+  )
   .configs(Test)
   .dependsOn(DAO % "test->test") // test scope dependency
 

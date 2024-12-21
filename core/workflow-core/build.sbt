@@ -111,12 +111,23 @@ val arrowDependencies = Seq(
 
 libraryDependencies ++= arrowDependencies
 
+val excludeHadoopJersey = ExclusionRule(organization = "com.sun.jersey")
+val excludeHadoopSlf4j = ExclusionRule(organization = "org.slf4j")
+val excludeHadoopJetty = ExclusionRule(organization = "org.eclipse.jetty")
+val excludeHadoopJsp = ExclusionRule(organization = "javax.servlet.jsp")
 libraryDependencies ++= Seq(
   "org.apache.iceberg" % "iceberg-api" % "1.7.1",
   "org.apache.iceberg" % "iceberg-core" % "1.7.1",
   "org.apache.iceberg" % "iceberg-parquet" % "1.7.1",
   "org.apache.iceberg" % "iceberg-data" % "1.7.1",
-  "org.apache.hadoop" % "hadoop-client" % "3.3.1",
+  "org.apache.hadoop" % "hadoop-client" % "3.3.1" excludeAll(
+    ExclusionRule("javax.xml.bind"),
+    ExclusionRule("org.glassfish.jersey"),
+    excludeHadoopJersey,
+    excludeHadoopSlf4j,
+    excludeHadoopJetty,
+    excludeHadoopJsp,
+  )
 )
 
 /////////////////////////////////////////////////////////////////////////////
@@ -131,7 +142,5 @@ libraryDependencies ++= Seq(
   "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5",          // Scala Logging
   "org.eclipse.jgit" % "org.eclipse.jgit" % "5.13.0.202109080827-r",  // jgit
   "org.yaml" % "snakeyaml" % "1.30",                                  // yaml reader (downgrade to 1.30 due to dropwizard 1.3.23 required by amber)
-  "org.apache.commons" % "commons-vfs2" % "2.9.0",                     // for FileResolver throw VFS-related exceptions
-  "com.twitter" % "chill-java" % "0.10.0",                             // for Kryo serde/deserde
-  "com.twitter" %% "chill" % "0.10.0",                                 // for Kyro serde/deserde
+  "org.apache.commons" % "commons-vfs2" % "2.9.0",                     // for FileResolver throw VFS-related exceptions   // for Kyro serde/deserde
 )
