@@ -6,10 +6,10 @@ import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
-import edu.uci.ics.amber.operator.visualization.{VisualizationConstants, VisualizationOperator}
+import edu.uci.ics.amber.workflow.OutputPort.OutputMode
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
 
-class SankeyDiagramOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
+class SankeyDiagramOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "Source Attribute", required = true)
   @JsonSchemaTitle("Source Attribute")
@@ -39,7 +39,7 @@ class SankeyDiagramOpDesc extends VisualizationOperator with PythonOperatorDescr
       "Visualize data using a Sankey diagram",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort())
+      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
   def createPlotlyFigure(): String = {
@@ -104,7 +104,4 @@ class SankeyDiagramOpDesc extends VisualizationOperator with PythonOperatorDescr
          |""".stripMargin
     finalCode
   }
-
-  // make the chart type to html visualization so it can be recognized by both backend and frontend.
-  override def chartType(): String = VisualizationConstants.HTML_VIZ
 }

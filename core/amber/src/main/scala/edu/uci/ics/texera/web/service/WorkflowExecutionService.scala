@@ -114,7 +114,7 @@ class WorkflowExecutionService(
     executionConsoleService = new ExecutionConsoleService(client, executionStateStore, wsInput)
 
     logger.info("Starting the workflow execution.")
-    resultService.attachToExecution(executionStateStore, workflow.logicalPlan, client)
+    resultService.attachToExecution(executionStateStore, workflow.physicalPlan, client)
     executionStateStore.metadataStore.updateState(metadataStore =>
       updateWorkflowState(READY, metadataStore)
         .withFatalErrors(Seq.empty)

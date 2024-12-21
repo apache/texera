@@ -6,8 +6,8 @@ import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
-import edu.uci.ics.amber.operator.visualization.{VisualizationConstants, VisualizationOperator}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
+import edu.uci.ics.amber.workflow.OutputPort.OutputMode
 @JsonSchemaInject(json = """
 {
   "attributeTypeRules": {
@@ -15,7 +15,7 @@ import edu.uci.ics.amber.operator.PythonOperatorDescriptor
   }
 }
 """)
-class Scatter3dChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
+class Scatter3dChartOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "x", required = true)
   @JsonSchemaTitle("X Column")
   @JsonPropertyDescription("Data column for the x-axis")
@@ -44,7 +44,7 @@ class Scatter3dChartOpDesc extends VisualizationOperator with PythonOperatorDesc
       "Visualize data in a Scatter3D Plot",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort())
+      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
   private def createPlotlyFigure(): String = {
@@ -105,7 +105,4 @@ class Scatter3dChartOpDesc extends VisualizationOperator with PythonOperatorDesc
          |""".stripMargin
     finalcode
   }
-
-  // make the chart type to html visualization so it can be recognized by both backend and frontend.
-  override def chartType(): String = VisualizationConstants.HTML_VIZ
 }

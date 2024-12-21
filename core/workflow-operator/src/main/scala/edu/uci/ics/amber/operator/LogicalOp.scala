@@ -37,7 +37,6 @@ import edu.uci.ics.amber.operator.randomksampling.RandomKSamplingOpDesc
 import edu.uci.ics.amber.operator.regex.RegexOpDesc
 import edu.uci.ics.amber.operator.reservoirsampling.ReservoirSamplingOpDesc
 import edu.uci.ics.amber.operator.sentiment.SentimentAnalysisOpDesc
-import edu.uci.ics.amber.operator.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.amber.operator.sklearn.{
   SklearnAdaptiveBoostingOpDesc,
   SklearnBaggingOpDesc,
@@ -158,7 +157,6 @@ trait StateTransferFunc
       value = classOf[TwitterSearchSourceOpDesc],
       name = "TwitterSearch"
     ),
-    new Type(value = classOf[ProgressiveSinkOpDesc], name = "SimpleSink"),
     new Type(value = classOf[CandlestickChartOpDesc], name = "CandlestickChart"),
     new Type(value = classOf[SplitOpDesc], name = "Split"),
     new Type(value = classOf[ContourPlotOpDesc], name = "ContourPlot"),
