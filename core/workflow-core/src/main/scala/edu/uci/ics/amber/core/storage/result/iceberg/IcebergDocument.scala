@@ -121,6 +121,14 @@ class IcebergDocument[T >: Null <: AnyRef](
       }
     }
 
+  override def getRange(from: Int, until: Int): Iterator[T] = {
+    get().slice(from, until)
+  }
+
+  override def getAfter(offset: Int): Iterator[T] = {
+    get().drop(offset + 1)
+  }
+
   /**
     * Returns a BufferedItemWriter for writing data to the table.
     */

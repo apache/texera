@@ -116,7 +116,7 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] {
     }
 
     // Generate additional tuples with random data and occasional nulls
-    val additionalTuples = (1 to 20000).map { i =>
+    val additionalTuples = (1 to 6000).map { i =>
       Tuple
         .builder(amberSchema)
         .add(

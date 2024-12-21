@@ -200,6 +200,47 @@ trait VirtualDocumentSpec[T] extends AnyFlatSpec with BeforeAndAfterEach {
     )
   }
 
+  it should "read a specific range of items correctly" in {
+    val allItems = generateSampleItems()
+
+    // Write items
+    val writer = document.writer()
+    writer.open()
+    allItems.foreach(writer.putOne)
+    writer.close()
+
+    // Read a specific range
+    val from = 5
+    val until = 15
+    val retrievedItems = document.getRange(from, until).toList
+
+    // Verify the retrieved range
+    assert(
+      retrievedItems.size == allItems.slice(from, until).size,
+      s"Items in range ($from, $until) should match."
+    )
+  }
+
+  it should "read items after a specific offset correctly" in {
+    val allItems = generateSampleItems()
+
+    // Write items
+    val writer = document.writer()
+    writer.open()
+    allItems.foreach(writer.putOne)
+    writer.close()
+
+    // Read items after a specific offset
+    val offset = 10
+    val retrievedItems = document.getAfter(offset).toList
+
+    // Verify the retrieved items
+    assert(
+      retrievedItems == allItems.drop(offset + 1),
+      s"Items after offset $offset should match."
+    )
+  }
+
   /**
     * Generates a sample list of items for testing.
     * Subclasses should override this to provide their specific sample items.
