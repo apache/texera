@@ -7,7 +7,7 @@ import edu.uci.ics.amber.operator.PythonOperatorDescriptor
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
-import edu.uci.ics.amber.operator.visualization.{VisualizationConstants, VisualizationOperator}
+import edu.uci.ics.amber.workflow.OutputPort.OutputMode
 
 @JsonSchemaInject(json = """
 {
@@ -21,7 +21,7 @@ import edu.uci.ics.amber.operator.visualization.{VisualizationConstants, Visuali
   }
 }
 """)
-class GanttChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
+class GanttChartOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "start", required = true)
   @JsonSchemaTitle("Start Datetime Column")
@@ -63,7 +63,7 @@ class GanttChartOpDesc extends VisualizationOperator with PythonOperatorDescript
       "A Gantt chart is a type of bar chart that illustrates a project schedule. The chart lists the tasks to be performed on the vertical axis, and time intervals on the horizontal axis. The width of the horizontal bars in the graph shows the duration of each activity.",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort())
+      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
   def manipulateTable(): String = {
@@ -117,7 +117,4 @@ class GanttChartOpDesc extends VisualizationOperator with PythonOperatorDescript
          |""".stripMargin
     finalCode
   }
-
-  // make the chart type to html visualization so it can be recognized by both backend and frontend.
-  override def chartType(): String = VisualizationConstants.HTML_VIZ
 }

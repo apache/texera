@@ -75,7 +75,7 @@ public class TypeCastingOpDesc extends MapOpDesc {
                 "Cast between types",
                 OperatorGroupConstants.CLEANING_GROUP(),
                 asScala(singletonList(new InputPort(new PortIdentity(0, false), "", false, asScala(new ArrayList<PortIdentity>()).toSeq()))).toList(),
-                asScala(singletonList(new OutputPort(new PortIdentity(0, false), "", false))).toList(),
+                asScala(singletonList(new OutputPort(new PortIdentity(0, false), "", false, OutputPort.OutputMode$.MODULE$.fromValue(0)))).toList(),
                 false,
                 false,
                 false,

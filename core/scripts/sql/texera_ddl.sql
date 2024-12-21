@@ -244,3 +244,9 @@ CREATE TABLE IF NOT EXISTS workflow_view_count
     PRIMARY KEY (`wid`),
     FOREIGN KEY (`wid`) REFERENCES `workflow` (`wid`) ON DELETE CASCADE
     ) ENGINE = INNODB;
+
+ALTER TABLE dataset
+MODIFY COLUMN is_public BOOLEAN NOT NULL DEFAULT true;
+
+ALTER TABLE workflow
+CHANGE COLUMN is_published is_public BOOLEAN NOT NULL DEFAULT false;

@@ -17,7 +17,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Workflow implements IWorkflow {
 
-    private static final long serialVersionUID = -212123101;
+    private static final long serialVersionUID = 1973264418;
 
     private String    name;
     private String    description;
@@ -25,7 +25,7 @@ public class Workflow implements IWorkflow {
     private String    content;
     private Timestamp creationTime;
     private Timestamp lastModifiedTime;
-    private Byte      isPublished;
+    private Byte      isPublic;
 
     public Workflow() {}
 
@@ -36,7 +36,7 @@ public class Workflow implements IWorkflow {
         this.content = value.getContent();
         this.creationTime = value.getCreationTime();
         this.lastModifiedTime = value.getLastModifiedTime();
-        this.isPublished = value.getIsPublished();
+        this.isPublic = value.getIsPublic();
     }
 
     public Workflow(
@@ -46,7 +46,7 @@ public class Workflow implements IWorkflow {
         String    content,
         Timestamp creationTime,
         Timestamp lastModifiedTime,
-        Byte      isPublished
+        Byte      isPublic
     ) {
         this.name = name;
         this.description = description;
@@ -54,7 +54,7 @@ public class Workflow implements IWorkflow {
         this.content = content;
         this.creationTime = creationTime;
         this.lastModifiedTime = lastModifiedTime;
-        this.isPublished = isPublished;
+        this.isPublic = isPublic;
     }
 
     @Override
@@ -118,13 +118,13 @@ public class Workflow implements IWorkflow {
     }
 
     @Override
-    public Byte getIsPublished() {
-        return this.isPublished;
+    public Byte getIsPublic() {
+        return this.isPublic;
     }
 
     @Override
-    public void setIsPublished(Byte isPublished) {
-        this.isPublished = isPublished;
+    public void setIsPublic(Byte isPublic) {
+        this.isPublic = isPublic;
     }
 
     @Override
@@ -137,7 +137,7 @@ public class Workflow implements IWorkflow {
         sb.append(", ").append(content);
         sb.append(", ").append(creationTime);
         sb.append(", ").append(lastModifiedTime);
-        sb.append(", ").append(isPublished);
+        sb.append(", ").append(isPublic);
 
         sb.append(")");
         return sb.toString();
@@ -155,7 +155,7 @@ public class Workflow implements IWorkflow {
         setContent(from.getContent());
         setCreationTime(from.getCreationTime());
         setLastModifiedTime(from.getLastModifiedTime());
-        setIsPublished(from.getIsPublished());
+        setIsPublic(from.getIsPublic());
     }
 
     @Override

@@ -77,7 +77,7 @@ class WorkflowService(
   val stateStore = new WorkflowStateStore()
   var executionService: BehaviorSubject[WorkflowExecutionService] = BehaviorSubject.create()
 
-  val resultService: ExecutionResultService = new ExecutionResultService(stateStore)
+  val resultService: ExecutionResultService = new ExecutionResultService(workflowId, stateStore)
   val exportService: ResultExportService = new ResultExportService(workflowId)
   val lifeCycleManager: WorkflowLifecycleManager = new WorkflowLifecycleManager(
     s"workflowId=$workflowId",
