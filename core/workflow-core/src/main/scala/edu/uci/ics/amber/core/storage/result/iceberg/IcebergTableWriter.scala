@@ -60,6 +60,10 @@ class IcebergTableWriter[T](
         val outputFile: OutputFile = table.io().newOutputFile(filepath)
 
         // Create a Parquet data writer
+        // This part introduces the dependency to the Hadoop. In the source code of iceberg-parquet, see the line 160
+        //    https://github.com/apache/iceberg/blob/main/parquet/src/main/java/org/apache/iceberg/parquet/Parquet.java
+        //    although the file is not of type HadoopOutputFile, it still creats a Hadoop Configuration() as the
+        //    placeholder.
         val dataWriter: DataWriter[Record] = Parquet
           .writeData(outputFile)
           .forTable(table)
@@ -68,6 +72,8 @@ class IcebergTableWriter[T](
           .build()
 
         try {
+          // TODO: as Iceberg doesn't guarantee the order of the data written to the table, we need to think about how
+          //   how to guarantee the order, possibly adding a additional timestamp field and use it as the sorting key
           buffer.foreach { item =>
             val record = serde(item)
             dataWriter.write(record)
