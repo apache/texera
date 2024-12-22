@@ -60,7 +60,8 @@ object IcebergUtil {
       catalog: Catalog,
       tableNamespace: String,
       tableName: String,
-      tableSchema: IcebergSchema
+      tableSchema: IcebergSchema,
+      overrideIfExists: Boolean
   ): Table = {
     val tableProperties = Map(
       TableProperties.COMMIT_NUM_RETRIES -> StorageConfig.icebergTableCommitNumRetries.toString,
@@ -68,6 +69,9 @@ object IcebergUtil {
       TableProperties.COMMIT_MIN_RETRY_WAIT_MS -> StorageConfig.icebergTableCommitMinRetryWaitMs.toString
     )
     val identifier = TableIdentifier.of(tableNamespace, tableName)
+    if (catalog.tableExists(identifier) && overrideIfExists) {
+      catalog.dropTable(identifier)
+    }
     catalog.createTable(
       identifier,
       tableSchema,

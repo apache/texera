@@ -24,8 +24,16 @@ class IcebergDocument[T >: Null <: AnyRef](
 
   private val lock = new ReentrantReadWriteLock()
 
+  // During construction, the table gonna be created.
+  // If the table already exists, it will drop the existing table and create a new one
   synchronized {
-    IcebergUtil.createTable(catalog, tableNamespace, tableName, tableSchema)
+    IcebergUtil.createTable(
+      catalog,
+      tableNamespace,
+      tableName,
+      tableSchema,
+      overrideIfExists = true
+    )
   }
 
   /**
@@ -127,6 +135,10 @@ class IcebergDocument[T >: Null <: AnyRef](
 
   override def getAfter(offset: Int): Iterator[T] = {
     get().drop(offset + 1)
+  }
+
+  override def getCount: Long = {
+    get().length
   }
 
   /**
