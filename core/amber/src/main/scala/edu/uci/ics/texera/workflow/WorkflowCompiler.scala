@@ -71,7 +71,7 @@ class WorkflowCompiler(
         // assign the sinks to toAddSink operators' external output ports
         subPlan
           .topologicalIterator()
-          .map(subPlan.getOperator)
+          .map(physicalPlan.getOperator)
           .flatMap { physicalOp =>
             physicalOp.outputPorts.map(outputPort => (physicalOp, outputPort))
           }
