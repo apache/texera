@@ -2,19 +2,17 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 
 import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.amber.core.workflow.WorkflowContext
+import edu.uci.ics.amber.engine.architecture.scheduling.DefaultCostEstimator.DEFAULT_OPERATOR_COST
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.SqlServer.withTransaction
 import edu.uci.ics.texera.dao.jooq.generated.Tables.{
-  USER,
   WORKFLOW_EXECUTIONS,
   WORKFLOW_RUNTIME_STATISTICS,
   WORKFLOW_VERSION
 }
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowRuntimeStatistics
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource.WorkflowExecutionEntry
-import org.jooq.impl.DSL.field
 import org.jooq.types.UInteger
 
 import scala.jdk.CollectionConverters.ListHasAsScala
@@ -25,6 +23,10 @@ import scala.util.{Failure, Success, Try}
   */
 trait CostEstimator {
   def estimate(region: Region, resourceUnits: Int): Double
+}
+
+object DefaultCostEstimator {
+  val DEFAULT_OPERATOR_COST: Double = 1.0
 }
 
 /**
@@ -65,7 +67,7 @@ class DefaultCostEstimator(
         // execution time as the wall-clock runtime of the workflow.
         // This assumes a schedule is a total-order of the regions.
         val opExecutionTimes = region.getOperators.map(op => {
-          operatorEstimatedTime.getOrElse(op.id.logicalOpId.id, 1.0)
+          operatorEstimatedTime.getOrElse(op.id.logicalOpId.id, DEFAULT_OPERATOR_COST)
         })
         val longestRunningOpExecutionTime = opExecutionTimes.max
         longestRunningOpExecutionTime
@@ -95,66 +97,50 @@ class DefaultCostEstimator(
         .createDSLContext()
     ) { context =>
       val widAsUInteger = UInteger.valueOf(wid)
-      val latestSuccessfulExecution = context
+      val rawStats = context
         .select(
-          WORKFLOW_EXECUTIONS.EID,
-          WORKFLOW_EXECUTIONS.VID,
-          field(
-            context
-              .select(USER.NAME)
-              .from(USER)
-              .where(WORKFLOW_EXECUTIONS.UID.eq(USER.UID))
-          ),
-          WORKFLOW_EXECUTIONS.STATUS,
-          WORKFLOW_EXECUTIONS.RESULT,
-          WORKFLOW_EXECUTIONS.STARTING_TIME,
-          WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME,
-          WORKFLOW_EXECUTIONS.BOOKMARKED,
-          WORKFLOW_EXECUTIONS.NAME,
-          WORKFLOW_EXECUTIONS.LOG_LOCATION
+          WORKFLOW_RUNTIME_STATISTICS.OPERATOR_ID,
+          WORKFLOW_RUNTIME_STATISTICS.TIME,
+          WORKFLOW_RUNTIME_STATISTICS.DATA_PROCESSING_TIME,
+          WORKFLOW_RUNTIME_STATISTICS.CONTROL_PROCESSING_TIME,
+          WORKFLOW_RUNTIME_STATISTICS.EXECUTION_ID
         )
-        .from(WORKFLOW_EXECUTIONS)
-        .join(WORKFLOW_VERSION)
-        .on(WORKFLOW_VERSION.VID.eq(WORKFLOW_EXECUTIONS.VID))
-        .where(WORKFLOW_VERSION.WID.eq(widAsUInteger).and(WORKFLOW_EXECUTIONS.STATUS.eq(3.toByte)))
-        .orderBy(WORKFLOW_EXECUTIONS.STARTING_TIME.desc())
-        .limit(1)
-        .fetchInto(classOf[WorkflowExecutionEntry])
+        .from(WORKFLOW_RUNTIME_STATISTICS)
+        .where(
+          WORKFLOW_RUNTIME_STATISTICS.WORKFLOW_ID
+            .eq(widAsUInteger)
+            .and(
+              WORKFLOW_RUNTIME_STATISTICS.EXECUTION_ID.eq(
+                context
+                  .select(
+                    WORKFLOW_EXECUTIONS.EID
+                  )
+                  .from(WORKFLOW_EXECUTIONS)
+                  .join(WORKFLOW_VERSION)
+                  .on(WORKFLOW_VERSION.VID.eq(WORKFLOW_EXECUTIONS.VID))
+                  .where(
+                    WORKFLOW_VERSION.WID
+                      .eq(widAsUInteger)
+                      .and(WORKFLOW_EXECUTIONS.STATUS.eq(3.toByte))
+                  )
+                  .orderBy(WORKFLOW_EXECUTIONS.STARTING_TIME.desc())
+                  .limit(1)
+              )
+            )
+        )
+        .orderBy(WORKFLOW_RUNTIME_STATISTICS.TIME, WORKFLOW_RUNTIME_STATISTICS.OPERATOR_ID)
+        .fetchInto(classOf[WorkflowRuntimeStatistics])
         .asScala
         .toList
-        .headOption
-
-      if (latestSuccessfulExecution.isDefined) {
-        val eid = latestSuccessfulExecution.get.eId
-        val rawStats = context
-          .select(
-            WORKFLOW_RUNTIME_STATISTICS.OPERATOR_ID,
-            WORKFLOW_RUNTIME_STATISTICS.TIME,
-            WORKFLOW_RUNTIME_STATISTICS.DATA_PROCESSING_TIME,
-            WORKFLOW_RUNTIME_STATISTICS.CONTROL_PROCESSING_TIME
-          )
-          .from(WORKFLOW_RUNTIME_STATISTICS)
-          .where(
-            WORKFLOW_RUNTIME_STATISTICS.WORKFLOW_ID
-              .eq(widAsUInteger)
-              .and(WORKFLOW_RUNTIME_STATISTICS.EXECUTION_ID.eq(eid))
-          )
-          .orderBy(WORKFLOW_RUNTIME_STATISTICS.TIME, WORKFLOW_RUNTIME_STATISTICS.OPERATOR_ID)
-          .fetchInto(classOf[WorkflowRuntimeStatistics])
-          .asScala
-          .toList
-        if (rawStats.isEmpty) {
-          None
-        } else {
-          val cumulatedStats = rawStats.foldLeft(Map.empty[String, Double]) { (acc, stat) =>
-            val opTotalExecutionTime = acc.getOrElse(stat.getOperatorId, 0.0)
-            acc + (stat.getOperatorId -> (opTotalExecutionTime + (stat.getDataProcessingTime
-              .doubleValue() + stat.getControlProcessingTime.doubleValue()) / 1e9))
-          }
-          Some(cumulatedStats)
-        }
-      } else {
+      if (rawStats.isEmpty) {
         None
+      } else {
+        val cumulatedStats = rawStats.foldLeft(Map.empty[String, Double]) { (acc, stat) =>
+          val opTotalExecutionTime = acc.getOrElse(stat.getOperatorId, 0.0)
+          acc + (stat.getOperatorId -> (opTotalExecutionTime + (stat.getDataProcessingTime
+            .doubleValue() + stat.getControlProcessingTime.doubleValue()) / 1e9))
+        }
+        Some(cumulatedStats)
       }
     }
     operatorEstimatedTimeOption

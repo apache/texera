@@ -1,11 +1,12 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
 import edu.uci.ics.amber.core.workflow.WorkflowContext
+import edu.uci.ics.amber.engine.architecture.scheduling.DefaultCostEstimator.DEFAULT_OPERATOR_COST
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
 import edu.uci.ics.amber.operator.TestOperators
+import edu.uci.ics.amber.operator.aggregate.{AggregateOpDesc, AggregationFunction}
 import edu.uci.ics.amber.operator.keywordSearch.KeywordSearchOpDesc
-import edu.uci.ics.amber.operator.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.amber.operator.source.scan.csv.CSVScanSourceOpDesc
 import edu.uci.ics.amber.workflow.PortIdentity
 import edu.uci.ics.texera.dao.MockTexeraDB
@@ -29,6 +30,8 @@ import org.jooq.types.{UInteger, ULong}
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.flatspec.AnyFlatSpec
 
+import scala.jdk.CollectionConverters.CollectionHasAsScala
+
 class DefaultCostEstimatorSpec
     extends AnyFlatSpec
     with BeforeAndAfterAll
@@ -39,7 +42,10 @@ class DefaultCostEstimatorSpec
     TestOperators.headerlessSmallCsvScanOpDesc()
   private val keywordOpDesc: KeywordSearchOpDesc =
     TestOperators.keywordSearchOpDesc("column-1", "Asia")
-  private val sink: ProgressiveSinkOpDesc = TestOperators.sinkOpDesc()
+  private val groupByOpDesc: AggregateOpDesc =
+    TestOperators.aggregateAndGroupByDesc("Region", AggregationFunction.COUNT, List[String]())
+  private val keywordOp2Desc: KeywordSearchOpDesc =
+    TestOperators.keywordSearchOpDesc("Region", "Asia")
 
   private val testUser: User = {
     val user = new User
@@ -98,13 +104,23 @@ class DefaultCostEstimatorSpec
     workflowRuntimeStatistics
   }
 
-  private val sinkOpDescStatisticsEntry: WorkflowRuntimeStatistics = {
+  private val groupByOpDescStatisticsEntry: WorkflowRuntimeStatistics = {
     val workflowRuntimeStatistics = new WorkflowRuntimeStatistics
-    workflowRuntimeStatistics.setOperatorId(sink.operatorIdentifier.id)
+    workflowRuntimeStatistics.setOperatorId(groupByOpDesc.operatorIdentifier.id)
     workflowRuntimeStatistics.setWorkflowId(UInteger.valueOf(1))
     workflowRuntimeStatistics.setExecutionId(UInteger.valueOf(1))
-    workflowRuntimeStatistics.setDataProcessingTime(ULong.valueOf(200))
-    workflowRuntimeStatistics.setControlProcessingTime(ULong.valueOf(200))
+    workflowRuntimeStatistics.setDataProcessingTime(ULong.valueOf(1000))
+    workflowRuntimeStatistics.setControlProcessingTime(ULong.valueOf(1000))
+    workflowRuntimeStatistics
+  }
+
+  private val keywordOp2DescStatisticsEntry: WorkflowRuntimeStatistics = {
+    val workflowRuntimeStatistics = new WorkflowRuntimeStatistics
+    workflowRuntimeStatistics.setOperatorId(keywordOp2Desc.operatorIdentifier.id)
+    workflowRuntimeStatistics.setWorkflowId(UInteger.valueOf(1))
+    workflowRuntimeStatistics.setExecutionId(UInteger.valueOf(1))
+    workflowRuntimeStatistics.setDataProcessingTime(ULong.valueOf(100))
+    workflowRuntimeStatistics.setControlProcessingTime(ULong.valueOf(100))
     workflowRuntimeStatistics
   }
 
@@ -114,18 +130,12 @@ class DefaultCostEstimatorSpec
 
   "DefaultCostEstimator" should "use fallback method when no past statistics are available" in {
     val workflow = buildWorkflow(
-      List(headerlessCsvOpDesc, keywordOpDesc, sink),
+      List(headerlessCsvOpDesc, keywordOpDesc),
       List(
         LogicalLink(
           headerlessCsvOpDesc.operatorIdentifier,
           PortIdentity(0),
           keywordOpDesc.operatorIdentifier,
-          PortIdentity(0)
-        ),
-        LogicalLink(
-          keywordOpDesc.operatorIdentifier,
-          PortIdentity(0),
-          sink.operatorIdentifier,
           PortIdentity(0)
         )
       ),
@@ -150,18 +160,12 @@ class DefaultCostEstimatorSpec
 
   "DefaultCostEstimator" should "use the latest successful execution to estimate cost when available" in {
     val workflow = buildWorkflow(
-      List(headerlessCsvOpDesc, keywordOpDesc, sink),
+      List(headerlessCsvOpDesc, keywordOpDesc),
       List(
         LogicalLink(
           headerlessCsvOpDesc.operatorIdentifier,
           PortIdentity(0),
           keywordOpDesc.operatorIdentifier,
-          PortIdentity(0)
-        ),
-        LogicalLink(
-          keywordOpDesc.operatorIdentifier,
-          PortIdentity(0),
-          sink.operatorIdentifier,
           PortIdentity(0)
         )
       ),
@@ -181,7 +185,6 @@ class DefaultCostEstimatorSpec
     workflowExecutionsDao.insert(testWorkflowExecutionEntry)
     workflowRuntimeStatisticsDao.insert(headerlessCsvOpStatisticsEntry)
     workflowRuntimeStatisticsDao.insert(keywordOpDescStatisticsEntry)
-    workflowRuntimeStatisticsDao.insert(sinkOpDescStatisticsEntry)
 
     val costEstimator = new DefaultCostEstimator(
       workflow.context,
@@ -197,6 +200,78 @@ class DefaultCostEstimatorSpec
     val costOfRegion = costEstimator.estimate(region, 1)
 
     assert(costOfRegion != 0)
+  }
+
+  "DefaultCostEstimator" should "use correctly estimate costs in a search" in {
+    val workflow = buildWorkflow(
+      List(headerlessCsvOpDesc, groupByOpDesc, keywordOp2Desc),
+      List(
+        LogicalLink(
+          headerlessCsvOpDesc.operatorIdentifier,
+          PortIdentity(0),
+          groupByOpDesc.operatorIdentifier,
+          PortIdentity(0)
+        ),
+        LogicalLink(
+          groupByOpDesc.operatorIdentifier,
+          PortIdentity(0),
+          keywordOp2Desc.operatorIdentifier,
+          PortIdentity(0)
+        )
+      ),
+      new WorkflowContext()
+    )
+
+    val userDao = new UserDao(getDSLContext.configuration())
+    val workflowDao = new WorkflowDao(getDSLContext.configuration())
+    val workflowExecutionsDao = new WorkflowExecutionsDao(getDSLContext.configuration())
+    val workflowVersionDao = new WorkflowVersionDao(getDSLContext.configuration())
+    val workflowRuntimeStatisticsDao =
+      new WorkflowRuntimeStatisticsDao(getDSLContext.configuration())
+
+    userDao.insert(testUser)
+    workflowDao.insert(testWorkflowEntry)
+    workflowVersionDao.insert(testWorkflowVersionEntry)
+    workflowExecutionsDao.insert(testWorkflowExecutionEntry)
+    workflowRuntimeStatisticsDao.insert(headerlessCsvOpStatisticsEntry)
+    workflowRuntimeStatisticsDao.insert(groupByOpDescStatisticsEntry)
+    workflowRuntimeStatisticsDao.insert(keywordOp2DescStatisticsEntry)
+
+    // Should contain two regions, one with CSV->localAgg->globalAgg, another with keyword->sink
+    val searchResult = new CostBasedScheduleGenerator(
+      workflow.context,
+      workflow.physicalPlan,
+      CONTROLLER
+    ).bottomUpSearch()
+
+    val groupByRegion =
+      searchResult.regionDAG.vertexSet().asScala.filter(region => region.physicalOps.size == 3).head
+    val keywordRegion =
+      searchResult.regionDAG.vertexSet().asScala.filter(region => region.physicalOps.size == 2).head
+
+    val costEstimator = new DefaultCostEstimator(
+      workflow.context,
+      CONTROLLER
+    )
+
+    val groupByRegionCost = costEstimator.estimate(groupByRegion, 1)
+
+    val groupByOperatorCost = (groupByOpDescStatisticsEntry.getControlProcessingTime
+      .doubleValue() + groupByOpDescStatisticsEntry.getControlProcessingTime.doubleValue()) / 1e9
+
+    // The cost of the first region should be the cost of the GroupBy operator (note the two physical operators for
+    // the GroupBy logical operator have the same cost because we use logical operator in the statistics.
+    // The GroupBy operator has a longer running time.
+    assert(groupByRegionCost == groupByOperatorCost)
+
+    val keywordRegionCost = costEstimator.estimate(keywordRegion, 1)
+
+    // The cost of the second region should be the cost of the sink because it has a default value of 1.0s (there is no
+    // such operator in the logical operators), which is larger than the estimated time of the keyword operator.
+    assert(keywordRegionCost == DEFAULT_OPERATOR_COST)
+
+    // The cost of the region plan should be the sum of region costs
+    assert(searchResult.cost == groupByRegionCost + keywordRegionCost)
   }
 
   override protected def afterAll(): Unit = {
