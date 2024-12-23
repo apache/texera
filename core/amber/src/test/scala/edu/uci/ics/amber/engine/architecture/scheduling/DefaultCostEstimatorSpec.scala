@@ -254,9 +254,12 @@ class DefaultCostEstimatorSpec
 
     val keywordRegionCost = costEstimator.estimate(keywordRegion, 1)
 
-    // The cost of the second region should be the cost of the sink because it has a default value of 1.0s (there is no
-    // such operator in the logical operators), which is larger than the estimated time of the keyword operator.
-    assert(keywordRegionCost == DEFAULT_OPERATOR_COST)
+    val keywordOperatorCost = (keywordOpDescStatisticsEntry.getControlProcessingTime
+      .doubleValue() + keywordOpDescStatisticsEntry.getControlProcessingTime.doubleValue()) / 1e9
+
+    // The cost of the second region should be the cost of the keyword operator, since the sink operator has the same
+    // logical operator as the keyword operator.
+    assert(keywordRegionCost == keywordOperatorCost)
 
     // The cost of the region plan should be the sum of region costs
     assert(searchResult.cost == groupByRegionCost + keywordRegionCost)
