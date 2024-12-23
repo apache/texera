@@ -43,9 +43,7 @@ class DefaultCostEstimatorSpec
   private val keywordOpDesc: KeywordSearchOpDesc =
     TestOperators.keywordSearchOpDesc("column-1", "Asia")
   private val groupByOpDesc: AggregateOpDesc =
-    TestOperators.aggregateAndGroupByDesc("Region", AggregationFunction.COUNT, List[String]())
-  private val keywordOp2Desc: KeywordSearchOpDesc =
-    TestOperators.keywordSearchOpDesc("Region", "Asia")
+    TestOperators.aggregateAndGroupByDesc("column-1", AggregationFunction.COUNT, List[String]())
 
   private val testUser: User = {
     val user = new User
@@ -111,16 +109,6 @@ class DefaultCostEstimatorSpec
     workflowRuntimeStatistics.setExecutionId(UInteger.valueOf(1))
     workflowRuntimeStatistics.setDataProcessingTime(ULong.valueOf(1000))
     workflowRuntimeStatistics.setControlProcessingTime(ULong.valueOf(1000))
-    workflowRuntimeStatistics
-  }
-
-  private val keywordOp2DescStatisticsEntry: WorkflowRuntimeStatistics = {
-    val workflowRuntimeStatistics = new WorkflowRuntimeStatistics
-    workflowRuntimeStatistics.setOperatorId(keywordOp2Desc.operatorIdentifier.id)
-    workflowRuntimeStatistics.setWorkflowId(UInteger.valueOf(1))
-    workflowRuntimeStatistics.setExecutionId(UInteger.valueOf(1))
-    workflowRuntimeStatistics.setDataProcessingTime(ULong.valueOf(100))
-    workflowRuntimeStatistics.setControlProcessingTime(ULong.valueOf(100))
     workflowRuntimeStatistics
   }
 
@@ -204,7 +192,7 @@ class DefaultCostEstimatorSpec
 
   "DefaultCostEstimator" should "use correctly estimate costs in a search" in {
     val workflow = buildWorkflow(
-      List(headerlessCsvOpDesc, groupByOpDesc, keywordOp2Desc),
+      List(headerlessCsvOpDesc, groupByOpDesc, keywordOpDesc),
       List(
         LogicalLink(
           headerlessCsvOpDesc.operatorIdentifier,
@@ -215,7 +203,7 @@ class DefaultCostEstimatorSpec
         LogicalLink(
           groupByOpDesc.operatorIdentifier,
           PortIdentity(0),
-          keywordOp2Desc.operatorIdentifier,
+          keywordOpDesc.operatorIdentifier,
           PortIdentity(0)
         )
       ),
@@ -235,7 +223,7 @@ class DefaultCostEstimatorSpec
     workflowExecutionsDao.insert(testWorkflowExecutionEntry)
     workflowRuntimeStatisticsDao.insert(headerlessCsvOpStatisticsEntry)
     workflowRuntimeStatisticsDao.insert(groupByOpDescStatisticsEntry)
-    workflowRuntimeStatisticsDao.insert(keywordOp2DescStatisticsEntry)
+    workflowRuntimeStatisticsDao.insert(keywordOpDescStatisticsEntry)
 
     // Should contain two regions, one with CSV->localAgg->globalAgg, another with keyword->sink
     val searchResult = new CostBasedScheduleGenerator(
