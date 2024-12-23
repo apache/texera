@@ -112,7 +112,7 @@ class DefaultCostEstimatorSpec
     workflowRuntimeStatistics
   }
 
-  override protected def beforeAll(): Unit = {
+  override protected def beforeEach(): Unit = {
     initializeDBAndReplaceDSLContext()
   }
 
@@ -262,7 +262,7 @@ class DefaultCostEstimatorSpec
     assert(searchResult.cost == groupByRegionCost + keywordRegionCost)
   }
 
-  override protected def afterAll(): Unit = {
+  override protected def afterEach(): Unit = {
     shutdownDB()
   }
 
