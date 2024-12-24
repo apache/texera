@@ -23,6 +23,13 @@
   color: gray;
 }
 
+.question-circle-button{
+  position: absolute; 
+  right: 0; 
+  top: 50%; 
+  transform: translate(0, -50%);
+}
+
 ::ng-deep {
   // overwrite the color of the Formly error message box
   .property-editor-form {
