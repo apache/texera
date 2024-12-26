@@ -72,7 +72,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
 
     // By now the workflow should finish running
     val operatorResult: VirtualDocument[Tuple] =
-      ResultStorage.getOpResultStorage(workflowIdentity).get(OperatorIdentity(request.operatorId))
+      ResultStorage.getOpResultStorage(workflowIdentity).get(request.operatorId)
     if (operatorResult == null) {
       return ResultExportResponse("error", "The workflow contains no results")
     }

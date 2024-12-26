@@ -7,7 +7,8 @@ import edu.uci.ics.amber.core.tuple.{Schema, Tuple}
 import edu.uci.ics.amber.virtualidentity.OperatorIdentity
 
 import java.util.concurrent.ConcurrentHashMap
-import scala.collection.convert.ImplicitConversions.`iterator asScala`
+import scala.jdk.CollectionConverters.IteratorHasAsScala
+
 
 object OpResultStorage {
   val defaultStorageMode: String = StorageConfig.resultStorageMode.toLowerCase
@@ -23,8 +24,8 @@ class OpResultStorage extends Serializable with LazyLogging {
 
   // since some op need to get the schema from the OpResultStorage, the schema is stored as part of the OpResultStorage.cache
   // TODO: once we make the storage self-contained, i.e. storing Schema in the storage as metadata, we can remove it
-  val cache: ConcurrentHashMap[OperatorIdentity, (VirtualDocument[Tuple], Option[Schema])] =
-    new ConcurrentHashMap[OperatorIdentity, (VirtualDocument[Tuple], Option[Schema])]()
+  val cache: ConcurrentHashMap[String, (VirtualDocument[Tuple], Option[Schema])] =
+    new ConcurrentHashMap[String, (VirtualDocument[Tuple], Option[Schema])]()
 
   /**
     * Retrieve the result of an operator from OpResultStorage
@@ -32,7 +33,7 @@ class OpResultStorage extends Serializable with LazyLogging {
     *            Currently it is the uuid inside the cache source or cache sink operator.
     * @return The storage object of this operator.
     */
-  def get(key: OperatorIdentity): VirtualDocument[Tuple] = {
+  def get(key: String): VirtualDocument[Tuple] = {
     cache.get(key)._1
   }
 
@@ -41,25 +42,25 @@ class OpResultStorage extends Serializable with LazyLogging {
     * @param key the uuid inside the cache source or cache sink operator.
     * @return The result schema of this operator.
     */
-  def getSchema(key: OperatorIdentity): Option[Schema] = {
+  def getSchema(key: String): Option[Schema] = {
     cache.get(key)._2
   }
 
-  def setSchema(key: OperatorIdentity, schema: Schema): Unit = {
+  def setSchema(key: String, schema: Schema): Unit = {
     val storage = get(key)
     cache.put(key, (storage, Some(schema)))
   }
 
   def create(
       executionId: String = "",
-      key: OperatorIdentity,
+      key: String,
       mode: String,
       schema: Option[Schema] = None
   ): VirtualDocument[Tuple] = {
 
     val storage: VirtualDocument[Tuple] =
       if (mode == "memory") {
-        new MemoryDocument[Tuple](key.id)
+        new MemoryDocument[Tuple](key)
       } else {
         try {
           val fromDocument = schema.map(Tuple.fromDocument)
@@ -69,14 +70,14 @@ class OpResultStorage extends Serializable with LazyLogging {
             logger.warn("Failed to create mongo storage", t)
             logger.info(s"Fall back to memory storage for $key")
             // fall back to memory
-            new MemoryDocument[Tuple](key.id)
+            new MemoryDocument[Tuple](key)
         }
       }
     cache.put(key, (storage, schema))
     storage
   }
 
-  def contains(key: OperatorIdentity): Boolean = {
+  def contains(key: String): Boolean = {
     cache.containsKey(key)
   }
 
@@ -100,8 +101,8 @@ class OpResultStorage extends Serializable with LazyLogging {
     cache.clear()
   }
 
-  def getAllKeys: Set[OperatorIdentity] = {
-    cache.keySet().iterator().toSet
+  def getAllKeys: Set[String] = {
+    cache.keySet().iterator().asScala.toSet
   }
 
 }

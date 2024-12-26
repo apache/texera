@@ -15,7 +15,7 @@ class ProgressiveSinkOpExec(
     workflowIdentity: WorkflowIdentity
 ) extends SinkOperatorExecutor {
   val writer: BufferedItemWriter[Tuple] =
-    ResultStorage.getOpResultStorage(workflowIdentity).get(OperatorIdentity(storageKey)).writer()
+    ResultStorage.getOpResultStorage(workflowIdentity).get(storageKey).writer()
 
   override def open(): Unit = {
     writer.open()

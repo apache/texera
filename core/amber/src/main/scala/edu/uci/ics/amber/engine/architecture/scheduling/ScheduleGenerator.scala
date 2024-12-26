@@ -180,7 +180,7 @@ abstract class ScheduleGenerator(
     ResultStorage
       .getOpResultStorage(workflowContext.workflowId)
       .create(
-        key = matWriterPhysicalOp.id.logicalOpId,
+        key = matWriterPhysicalOp.id.logicalOpId.id,
         mode = OpResultStorage.defaultStorageMode,
         schema = Some(schema)
       )
@@ -214,7 +214,7 @@ abstract class ScheduleGenerator(
         OperatorIdentity(s"cacheSource_${getMatIdFromPhysicalLink(physicalLink)}"),
         OpExecInitInfo((_, _) =>
           new CacheSourceOpExec(
-            opResultStorage.get(matWriterLogicalOpId)
+            opResultStorage.get(matWriterLogicalOpId.id)
           )
         )
       )
@@ -223,7 +223,7 @@ abstract class ScheduleGenerator(
       .withPropagateSchema(
         SchemaPropagationFunc(_ =>
           Map(
-            OutputPort().id -> opResultStorage.getSchema(matWriterLogicalOpId).get
+            OutputPort().id -> opResultStorage.getSchema(matWriterLogicalOpId.id).get
           )
         )
       )

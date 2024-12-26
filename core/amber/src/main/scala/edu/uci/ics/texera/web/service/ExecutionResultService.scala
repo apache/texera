@@ -89,7 +89,7 @@ object ExecutionResultService {
     }
 
     val storage =
-      ResultStorage.getOpResultStorage(workflowIdentity).get(physicalOps.head.id.logicalOpId)
+      ResultStorage.getOpResultStorage(workflowIdentity).get(physicalOps.head.id.logicalOpId.id)
     val webUpdate = webOutputMode match {
       case PaginationMode() =>
         val numTuples = storage.getCount
@@ -241,7 +241,7 @@ class ExecutionResultService(
               if (StorageConfig.resultStorageMode.toLowerCase == "mongodb") {
                 val opStorage = ResultStorage
                   .getOpResultStorage(workflowIdentity)
-                  .get(physicalPlan.getPhysicalOpsOfLogicalOp(opId).head.id.logicalOpId)
+                  .get(physicalPlan.getPhysicalOpsOfLogicalOp(opId).head.id.logicalOpId.id)
                 opStorage match {
                   case mongoDocument: MongoDocument[Tuple] =>
                     val tableCatStats = mongoDocument.getCategoricalStats
@@ -282,7 +282,7 @@ class ExecutionResultService(
 
       ResultStorage
         .getOpResultStorage(workflowIdentity)
-        .get(opId)
+        .get(request.operatorID)
         .getRange(from, from + request.pageSize)
         .to(Iterable)
 
@@ -302,7 +302,7 @@ class ExecutionResultService(
         ResultStorage
           .getOpResultStorage(workflowIdentity)
           .getAllKeys
-          .filter(!_.id.startsWith("materialized_"))
+          .filter(!_.startsWith("materialized_"))
           .map(storageKey => {
             val count = ResultStorage
               .getOpResultStorage(workflowIdentity)
@@ -310,7 +310,7 @@ class ExecutionResultService(
               .getCount
               .toInt
 
-            val opId = storageKey
+            val opId = OperatorIdentity(storageKey)
 
             // use the first output port's mode
             val mode = physicalPlan
