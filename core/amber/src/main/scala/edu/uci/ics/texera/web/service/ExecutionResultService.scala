@@ -277,15 +277,12 @@ class ExecutionResultService(
   def handleResultPagination(request: ResultPaginationRequest): TexeraWebSocketEvent = {
     // calculate from index (pageIndex starts from 1 instead of 0)
     val from = request.pageSize * (request.pageIndex - 1)
-    val opId = OperatorIdentity(request.operatorID)
     val paginationIterable = {
-
       ResultStorage
         .getOpResultStorage(workflowIdentity)
         .get(request.operatorID)
         .getRange(from, from + request.pageSize)
         .to(Iterable)
-
     }
     val mappedResults = paginationIterable
       .map(tuple => tuple.asKeyValuePairJson())

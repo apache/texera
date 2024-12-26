@@ -28,7 +28,7 @@ class WorkflowCompiler(
       errorList: Option[ArrayBuffer[(OperatorIdentity, Throwable)]]
   ): PhysicalPlan = {
     val terminalLogicalOps = logicalPlan.getTerminalOperatorIds
-    val toAddSink = (terminalLogicalOps ++ logicalOpsToViewResult).toSet
+    val toAddSink = (terminalLogicalOps ++ logicalOpsToViewResult.map(OperatorIdentity(_))).toSet
     var physicalPlan = PhysicalPlan(operators = Set.empty, links = Set.empty)
     // create a JSON object that holds pointers to the workflow's results in Mongo
     val resultsJSON = objectMapper.createObjectNode()
@@ -92,7 +92,7 @@ class WorkflowCompiler(
               }
               if (!storage.contains(storageKey)) {
                 // get the schema for result storage in certain mode
-                val sinkStorageSchema= schema.right.get
+                val sinkStorageSchema= schema.toOption.get
                 storage.create(
                   s"${context.executionId}_",
                   storageKey,

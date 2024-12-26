@@ -4,7 +4,6 @@ import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.amber.core.storage.model.VirtualDocument
 import edu.uci.ics.amber.core.tuple.{Schema, Tuple}
-import edu.uci.ics.amber.virtualidentity.OperatorIdentity
 
 import java.util.concurrent.ConcurrentHashMap
 import scala.jdk.CollectionConverters.IteratorHasAsScala
@@ -24,7 +23,7 @@ class OpResultStorage extends Serializable with LazyLogging {
 
   // since some op need to get the schema from the OpResultStorage, the schema is stored as part of the OpResultStorage.cache
   // TODO: once we make the storage self-contained, i.e. storing Schema in the storage as metadata, we can remove it
-  val cache: ConcurrentHashMap[String, (VirtualDocument[Tuple], Schema)] =
+  private val cache: ConcurrentHashMap[String, (VirtualDocument[Tuple], Schema)] =
     new ConcurrentHashMap[String, (VirtualDocument[Tuple], Schema)]()
 
   /**
@@ -77,17 +76,6 @@ class OpResultStorage extends Serializable with LazyLogging {
     cache.containsKey(key)
   }
 
-  /**
-    * Manually remove an entry from the cache.
-    * @param key The key used for storage and retrieval.
-    *            Currently it is the uuid inside the cache source or cache sink operator.
-    */
-  def remove(key: OperatorIdentity): Unit = {
-    if (cache.contains(key)) {
-      cache.get(key)._1.clear()
-    }
-    cache.remove(key)
-  }
 
   /**
     * Close this storage. Used for workflow cleanup.
