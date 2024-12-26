@@ -24,8 +24,8 @@ class OpResultStorage extends Serializable with LazyLogging {
 
   // since some op need to get the schema from the OpResultStorage, the schema is stored as part of the OpResultStorage.cache
   // TODO: once we make the storage self-contained, i.e. storing Schema in the storage as metadata, we can remove it
-  val cache: ConcurrentHashMap[String, (VirtualDocument[Tuple], Option[Schema])] =
-    new ConcurrentHashMap[String, (VirtualDocument[Tuple], Option[Schema])]()
+  val cache: ConcurrentHashMap[String, (VirtualDocument[Tuple], Schema)] =
+    new ConcurrentHashMap[String, (VirtualDocument[Tuple], Schema)]()
 
   /**
     * Retrieve the result of an operator from OpResultStorage
@@ -42,20 +42,16 @@ class OpResultStorage extends Serializable with LazyLogging {
     * @param key the uuid inside the cache source or cache sink operator.
     * @return The result schema of this operator.
     */
-  def getSchema(key: String): Option[Schema] = {
+  def getSchema(key: String): Schema = {
     cache.get(key)._2
   }
 
-  def setSchema(key: String, schema: Schema): Unit = {
-    val storage = get(key)
-    cache.put(key, (storage, Some(schema)))
-  }
 
   def create(
       executionId: String = "",
       key: String,
       mode: String,
-      schema: Option[Schema] = None
+      schema: Schema
   ): VirtualDocument[Tuple] = {
 
     val storage: VirtualDocument[Tuple] =
@@ -63,8 +59,8 @@ class OpResultStorage extends Serializable with LazyLogging {
         new MemoryDocument[Tuple](key)
       } else {
         try {
-          val fromDocument = schema.map(Tuple.fromDocument)
-          new MongoDocument[Tuple](executionId + key, Tuple.toDocument, fromDocument)
+
+          new MongoDocument[Tuple](executionId + key, Tuple.toDocument, Tuple.fromDocument(schema))
         } catch {
           case t: Throwable =>
             logger.warn("Failed to create mongo storage", t)

@@ -182,7 +182,7 @@ abstract class ScheduleGenerator(
       .create(
         key = matWriterPhysicalOp.id.logicalOpId.id,
         mode = OpResultStorage.defaultStorageMode,
-        schema = Some(schema)
+        schema = schema
       )
 
     // create cache reader and link
@@ -223,7 +223,7 @@ abstract class ScheduleGenerator(
       .withPropagateSchema(
         SchemaPropagationFunc(_ =>
           Map(
-            OutputPort().id -> opResultStorage.getSchema(matWriterLogicalOpId.id).get
+            OutputPort().id -> opResultStorage.getSchema(matWriterLogicalOpId.id)
           )
         )
       )
