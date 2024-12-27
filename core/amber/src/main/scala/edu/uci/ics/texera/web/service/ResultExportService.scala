@@ -17,13 +17,11 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.websocket.request.ResultExportRequest
 import edu.uci.ics.texera.web.model.websocket.response.ResultExportResponse
 import edu.uci.ics.texera.web.resource.GoogleResource
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{
-  createNewDatasetVersionByAddingFiles,
-  sanitizePath
-}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{createNewDatasetVersionByAddingFiles, sanitizePath}
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowVersionResource
 import org.jooq.types.UInteger
 import edu.uci.ics.amber.util.ArrowUtils
+import edu.uci.ics.amber.workflow.PortIdentity
 
 import java.io.{PipedInputStream, PipedOutputStream}
 import java.nio.charset.StandardCharsets
@@ -71,8 +69,9 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
     }
 
     // By now the workflow should finish running
+    // Only supports external port 0 for now. TODO: support multiple ports
     val operatorResult: VirtualDocument[Tuple] =
-      ResultStorage.getOpResultStorage(workflowIdentity).get(request.operatorId)
+      ResultStorage.getOpResultStorage(workflowIdentity).get(OpResultStorage.storageKey(OperatorIdentity(request.operatorId), PortIdentity()))
     if (operatorResult == null) {
       return ResultExportResponse("error", "The workflow contains no results")
     }
@@ -190,7 +189,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
     val columnIndex = request.columnIndex
     val filename = request.filename
 
-    if (rowIndex >= results.size || columnIndex >= results.head.getFields.size) {
+    if (rowIndex >= results.size || columnIndex >= results.head.getFields.length) {
       return ResultExportResponse("error", s"Invalid row or column index")
     }
 

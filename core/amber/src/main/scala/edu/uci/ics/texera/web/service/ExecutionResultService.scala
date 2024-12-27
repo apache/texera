@@ -5,32 +5,19 @@ import com.fasterxml.jackson.annotation.{JsonTypeInfo, JsonTypeName}
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.storage.StorageConfig
-import edu.uci.ics.amber.core.storage.result.{
-  MongoDocument,
-  OperatorResultMetadata,
-  ResultStorage,
-  WorkflowResultStore
-}
+import edu.uci.ics.amber.core.storage.result.{MongoDocument, OpResultStorage, OperatorResultMetadata, ResultStorage, WorkflowResultStore}
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan}
 import edu.uci.ics.amber.engine.architecture.controller.{ExecutionStateUpdate, FatalError}
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
-  COMPLETED,
-  FAILED,
-  KILLED,
-  RUNNING
-}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{COMPLETED, FAILED, KILLED, RUNNING}
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.executionruntimestate.ExecutionMetadataStore
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberRuntime}
 import edu.uci.ics.amber.virtualidentity.{OperatorIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.workflow.OutputPort.OutputMode
+import edu.uci.ics.amber.workflow.PortIdentity
 import edu.uci.ics.texera.web.SubscriptionManager
-import edu.uci.ics.texera.web.model.websocket.event.{
-  PaginatedResultEvent,
-  TexeraWebSocketEvent,
-  WebResultUpdateEvent
-}
+import edu.uci.ics.texera.web.model.websocket.event.{PaginatedResultEvent, TexeraWebSocketEvent, WebResultUpdateEvent}
 import edu.uci.ics.texera.web.model.websocket.request.ResultPaginationRequest
 import edu.uci.ics.texera.web.storage.{ExecutionStateStore, WorkflowStateStore}
 
@@ -89,7 +76,7 @@ object ExecutionResultService {
     }
 
     val storage =
-      ResultStorage.getOpResultStorage(workflowIdentity).get(physicalOps.head.id.logicalOpId.id)
+      ResultStorage.getOpResultStorage(workflowIdentity).get(OpResultStorage.storageKey(physicalOps.head.id.logicalOpId, PortIdentity()))
     val webUpdate = webOutputMode match {
       case PaginationMode() =>
         val numTuples = storage.getCount
@@ -241,7 +228,7 @@ class ExecutionResultService(
               if (StorageConfig.resultStorageMode.toLowerCase == "mongodb") {
                 val opStorage = ResultStorage
                   .getOpResultStorage(workflowIdentity)
-                  .get(physicalPlan.getPhysicalOpsOfLogicalOp(opId).head.id.logicalOpId.id)
+                  .get(OpResultStorage.storageKey(opId, PortIdentity()))
                 opStorage match {
                   case mongoDocument: MongoDocument[Tuple] =>
                     val tableCatStats = mongoDocument.getCategoricalStats
@@ -280,7 +267,7 @@ class ExecutionResultService(
     val paginationIterable = {
       ResultStorage
         .getOpResultStorage(workflowIdentity)
-        .get(request.operatorID)
+        .get(OpResultStorage.storageKey(OperatorIdentity(request.operatorID), PortIdentity()))
         .getRange(from, from + request.pageSize)
         .to(Iterable)
     }
@@ -307,7 +294,7 @@ class ExecutionResultService(
               .getCount
               .toInt
 
-            val opId = OperatorIdentity(storageKey)
+            val (opId, portId) = OpResultStorage.decodeStorageKey(storageKey)
 
             // use the first output port's mode
             val mode = physicalPlan

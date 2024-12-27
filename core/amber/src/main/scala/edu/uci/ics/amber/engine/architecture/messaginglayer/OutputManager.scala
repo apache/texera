@@ -192,7 +192,7 @@ class OutputManager(
   }
 
   def getSingleOutputPortIdentity: PortIdentity = {
-    assert(ports.size == 1)
+    assert(ports.size == 1, "expect 1 output port, got " + ports.size)
     ports.head._1
   }
 

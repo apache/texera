@@ -82,7 +82,7 @@ class WorkflowCompiler(
           .foreach({
             case (physicalOp, (_, (outputPort, _, schema))) =>
               val storage = ResultStorage.getOpResultStorage(context.workflowId)
-              val storageKey = physicalOp.id.logicalOpId.id
+              val storageKey = OpResultStorage.storageKey(physicalOp.id.logicalOpId, outputPort.id)
 
               // due to the size limit of single document in mongoDB (16MB)
               // for sinks visualizing HTMLs which could possibly be large in size, we always use the memory storage.

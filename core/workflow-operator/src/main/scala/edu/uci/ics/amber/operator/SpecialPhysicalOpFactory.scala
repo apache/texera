@@ -1,16 +1,12 @@
 package edu.uci.ics.amber.operator
 
 import edu.uci.ics.amber.core.executor.OpExecInitInfo
+import edu.uci.ics.amber.core.storage.result.OpResultStorage
 import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.operator.sink.ProgressiveUtils
 import edu.uci.ics.amber.operator.sink.managed.ProgressiveSinkOpExec
-import edu.uci.ics.amber.virtualidentity.{
-  ExecutionIdentity,
-  OperatorIdentity,
-  PhysicalOpIdentity,
-  WorkflowIdentity
-}
+import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, OperatorIdentity, PhysicalOpIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.workflow.OutputPort.OutputMode
 import edu.uci.ics.amber.workflow.OutputPort.OutputMode.{SET_DELTA, SET_SNAPSHOT, SINGLE_SNAPSHOT}
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort, PortIdentity}
@@ -21,10 +17,11 @@ object SpecialPhysicalOpFactory {
       executionIdentity: ExecutionIdentity,
       storageKey: String,
       outputMode: OutputMode
-  ): PhysicalOp =
+  ): PhysicalOp = {
+    val (opId, portId) = OpResultStorage.decodeStorageKey(storageKey)
     PhysicalOp
       .localPhysicalOp(
-        PhysicalOpIdentity(OperatorIdentity(storageKey), "sink"),
+        PhysicalOpIdentity(opId, "sink"),
         workflowIdentity,
         executionIdentity,
         OpExecInitInfo((idx, workers) =>
@@ -68,4 +65,5 @@ object SpecialPhysicalOpFactory {
           Map(PortIdentity(internal = true) -> outputSchema)
         })
       )
+  }
 }
