@@ -28,7 +28,7 @@ class WorkflowCompiler(
       errorList: Option[ArrayBuffer[(OperatorIdentity, Throwable)]]
   ): PhysicalPlan = {
     val terminalLogicalOps = logicalPlan.getTerminalOperatorIds
-    val toAddSink = (terminalLogicalOps ++ logicalOpsToViewResult).toSet
+    val toAddSink = (terminalLogicalOps ++ logicalOpsToViewResult.map(OperatorIdentity(_))).toSet
     var physicalPlan = PhysicalPlan(operators = Set.empty, links = Set.empty)
     // create a JSON object that holds pointers to the workflow's results in Mongo
     val resultsJSON = objectMapper.createObjectNode()
