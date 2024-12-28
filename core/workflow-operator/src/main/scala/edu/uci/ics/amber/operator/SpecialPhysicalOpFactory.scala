@@ -27,7 +27,7 @@ object SpecialPhysicalOpFactory {
     val (opId, portId) = OpResultStorage.decodeStorageKey(storageKey)
     PhysicalOp
       .localPhysicalOp(
-        PhysicalOpIdentity(opId, "sink"),
+        PhysicalOpIdentity(opId, s"sink${portId.id}"),
         workflowIdentity,
         executionIdentity,
         OpExecInitInfo((idx, workers) =>
@@ -77,14 +77,14 @@ object SpecialPhysicalOpFactory {
       workflowIdentity: WorkflowIdentity,
       executionIdentity: ExecutionIdentity,
       storageKey: String
-  ) = {
+  ): PhysicalOp = {
 
     val (opId, portId) = OpResultStorage.decodeStorageKey(storageKey)
     val opResultStorage = ResultStorage.getOpResultStorage(workflowIdentity)
     val outputPort = OutputPort()
     PhysicalOp
       .sourcePhysicalOp(
-        PhysicalOpIdentity(opId, s"source"),
+        PhysicalOpIdentity(opId, s"source${portId.id}"),
         workflowIdentity,
         executionIdentity,
         OpExecInitInfo((_, _) => new CacheSourceOpExec(storageKey, workflowIdentity))
