@@ -75,33 +75,52 @@ class WorkflowCompiler(
           .foreach { physicalOp =>
             physicalOp.outputPorts
               .filterNot(_._1.internal)
-              .foreach { case (outputPortId, (outputPort, _, schema)) =>
-                val storage = ResultStorage.getOpResultStorage(context.workflowId)
-                val storageKey = OpResultStorage.storageKey(physicalOp.id.logicalOpId, outputPortId)
+              .foreach {
+                case (outputPortId, (outputPort, _, schema)) =>
+                  val storage = ResultStorage.getOpResultStorage(context.workflowId)
+                  val storageKey =
+                    OpResultStorage.storageKey(physicalOp.id.logicalOpId, outputPortId)
 
-                // Determine the storage type, defaulting to memory for large HTML visualizations
-                val storageType = if (outputPort.mode == SINGLE_SNAPSHOT) OpResultStorage.MEMORY else OpResultStorage.defaultStorageMode
+                  // Determine the storage type, defaulting to memory for large HTML visualizations
+                  val storageType =
+                    if (outputPort.mode == SINGLE_SNAPSHOT) OpResultStorage.MEMORY
+                    else OpResultStorage.defaultStorageMode
 
-                if (!storage.contains(storageKey)) {
-                  // Create storage if it doesn't exist
-                  val sinkStorageSchema = schema.getOrElse(throw new IllegalStateException("Schema is missing"))
-                  storage.create(s"${context.executionId}_", storageKey, storageType, sinkStorageSchema)
+                  if (!storage.contains(storageKey)) {
+                    // Create storage if it doesn't exist
+                    val sinkStorageSchema =
+                      schema.getOrElse(throw new IllegalStateException("Schema is missing"))
+                    storage.create(
+                      s"${context.executionId}_",
+                      storageKey,
+                      storageType,
+                      sinkStorageSchema
+                    )
 
-                  // Add sink collection name to the JSON array of sinks
-                  sinksPointers.add(
-                    objectMapper.createObjectNode()
-                      .put("storageType", storageType)
-                      .put("storageKey", s"${context.executionId}_$storageKey")
+                    // Add sink collection name to the JSON array of sinks
+                    sinksPointers.add(
+                      objectMapper
+                        .createObjectNode()
+                        .put("storageType", storageType)
+                        .put("storageKey", s"${context.executionId}_$storageKey")
+                    )
+                  }
+
+                  // Create and link the sink operator
+                  val sinkPhysicalOp = SpecialPhysicalOpFactory.newSinkPhysicalOp(
+                    context.workflowId,
+                    context.executionId,
+                    storageKey,
+                    outputPort.mode
                   )
-                }
+                  val sinkLink = PhysicalLink(
+                    physicalOp.id,
+                    outputPort.id,
+                    sinkPhysicalOp.id,
+                    sinkPhysicalOp.outputPorts.head._1
+                  )
 
-                // Create and link the sink operator
-                val sinkPhysicalOp = SpecialPhysicalOpFactory.newSinkPhysicalOp(
-                  context.workflowId, context.executionId, storageKey, outputPort.mode
-                )
-                val sinkLink = PhysicalLink(physicalOp.id, outputPort.id, sinkPhysicalOp.id, sinkPhysicalOp.outputPorts.head._1)
-
-                physicalPlan = physicalPlan.addOperator(sinkPhysicalOp).addLink(sinkLink)
+                  physicalPlan = physicalPlan.addOperator(sinkPhysicalOp).addLink(sinkLink)
               }
           }
       } match {

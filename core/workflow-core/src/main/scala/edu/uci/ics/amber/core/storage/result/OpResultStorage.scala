@@ -28,10 +28,10 @@ object OpResultStorage {
     * @return The generated storage key as a string.
     */
   def storageKey(
-                  operatorId: OperatorIdentity,
-                  portIdentity: PortIdentity,
-                  isMaterialized: Boolean = false
-                ): String = {
+      operatorId: OperatorIdentity,
+      portIdentity: PortIdentity,
+      isMaterialized: Boolean = false
+  ): String = {
     val prefix = if (isMaterialized) "materialized_" else ""
     s"$prefix${operatorId.id}_${portIdentity.id}_${portIdentity.internal}"
   }
@@ -78,7 +78,7 @@ class OpResultStorage extends Serializable with LazyLogging {
   def get(key: String): VirtualDocument[Tuple] = {
     Option(cache.get(key)) match {
       case Some((document, _)) => document
-      case None => throw new NoSuchElementException(s"Storage with key $key not found")
+      case None                => throw new NoSuchElementException(s"Storage with key $key not found")
     }
   }
 
@@ -102,11 +102,11 @@ class OpResultStorage extends Serializable with LazyLogging {
     * @return A `VirtualDocument[Tuple]` instance for storing results.
     */
   def create(
-              executionId: String = "",
-              key: String,
-              mode: String,
-              schema: Schema
-            ): VirtualDocument[Tuple] = {
+      executionId: String = "",
+      key: String,
+      mode: String,
+      schema: Schema
+  ): VirtualDocument[Tuple] = {
     val storage: VirtualDocument[Tuple] =
       if (mode == OpResultStorage.MEMORY) {
         new MemoryDocument[Tuple](key)

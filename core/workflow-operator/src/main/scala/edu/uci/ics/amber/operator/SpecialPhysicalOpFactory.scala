@@ -6,7 +6,12 @@ import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.operator.sink.ProgressiveUtils
 import edu.uci.ics.amber.operator.sink.managed.ProgressiveSinkOpExec
-import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, OperatorIdentity, PhysicalOpIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.virtualidentity.{
+  ExecutionIdentity,
+  OperatorIdentity,
+  PhysicalOpIdentity,
+  WorkflowIdentity
+}
 import edu.uci.ics.amber.workflow.OutputPort.OutputMode
 import edu.uci.ics.amber.workflow.OutputPort.OutputMode.{SET_DELTA, SET_SNAPSHOT, SINGLE_SNAPSHOT}
 import edu.uci.ics.amber.workflow.{InputPort, OutputPort, PortIdentity}

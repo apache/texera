@@ -2,9 +2,17 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 
 import edu.uci.ics.amber.core.executor.OpExecInitInfo
 import edu.uci.ics.amber.core.storage.result.{OpResultStorage, ResultStorage}
-import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan, SchemaPropagationFunc, WorkflowContext}
+import edu.uci.ics.amber.core.workflow.{
+  PhysicalOp,
+  PhysicalPlan,
+  SchemaPropagationFunc,
+  WorkflowContext
+}
 import edu.uci.ics.amber.engine.architecture.scheduling.ScheduleGenerator.replaceVertex
-import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{DefaultResourceAllocator, ExecutionClusterInfo}
+import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
+  DefaultResourceAllocator,
+  ExecutionClusterInfo
+}
 import edu.uci.ics.amber.operator.SpecialPhysicalOpFactory
 import edu.uci.ics.amber.operator.source.cache.CacheSourceOpExec
 import edu.uci.ics.amber.virtualidentity.PhysicalOpIdentity
@@ -155,7 +163,8 @@ abstract class ScheduleGenerator(
       physicalLink.fromPortId,
       isMaterialized = true
     )
-    val fromPort = physicalPlan.getOperator(physicalLink.fromOpId).outputPorts(physicalLink.fromPortId)._1
+    val fromPort =
+      physicalPlan.getOperator(physicalLink.fromOpId).outputPorts(physicalLink.fromPortId)._1
     val matWriterPhysicalOp: PhysicalOp = createMatWriter(fromPort, storageKey)
     val sourceToWriterLink =
       PhysicalLink(
@@ -215,12 +224,14 @@ abstract class ScheduleGenerator(
       )
       .withInputPorts(List.empty)
       .withOutputPorts(List(outputPort))
-      .withPropagateSchema(SchemaPropagationFunc(_ => Map(outputPort.id -> opResultStorage.getSchema(storageKey))))
+      .withPropagateSchema(
+        SchemaPropagationFunc(_ => Map(outputPort.id -> opResultStorage.getSchema(storageKey)))
+      )
       .propagateSchema()
 
   }
 
-  private def createMatWriter(outputPort:OutputPort, storageKey: String): PhysicalOp = {
+  private def createMatWriter(outputPort: OutputPort, storageKey: String): PhysicalOp = {
     val outputMode = outputPort.mode
     SpecialPhysicalOpFactory.newSinkPhysicalOp(
       workflowContext.workflowId,
