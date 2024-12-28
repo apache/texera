@@ -1,11 +1,12 @@
 package edu.uci.ics.amber.operator
 
 import edu.uci.ics.amber.core.executor.OpExecInitInfo
-import edu.uci.ics.amber.core.storage.result.OpResultStorage
+import edu.uci.ics.amber.core.storage.result.{OpResultStorage, ResultStorage}
 import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.operator.sink.ProgressiveUtils
 import edu.uci.ics.amber.operator.sink.managed.ProgressiveSinkOpExec
+import edu.uci.ics.amber.operator.source.cache.CacheSourceOpExec
 import edu.uci.ics.amber.virtualidentity.{
   ExecutionIdentity,
   OperatorIdentity,
@@ -71,4 +72,30 @@ object SpecialPhysicalOpFactory {
         })
       )
   }
+
+  def newSourcePhysicalOp(
+      workflowIdentity: WorkflowIdentity,
+      executionIdentity: ExecutionIdentity,
+      storageKey: String
+  ) = {
+
+    val (opId, portId) = OpResultStorage.decodeStorageKey(storageKey)
+    val opResultStorage = ResultStorage.getOpResultStorage(workflowIdentity)
+    val outputPort = OutputPort()
+    PhysicalOp
+      .sourcePhysicalOp(
+        PhysicalOpIdentity(opId, s"source"),
+        workflowIdentity,
+        executionIdentity,
+        OpExecInitInfo((_, _) => new CacheSourceOpExec(storageKey, workflowIdentity))
+      )
+      .withInputPorts(List.empty)
+      .withOutputPorts(List(outputPort))
+      .withPropagateSchema(
+        SchemaPropagationFunc(_ => Map(outputPort.id -> opResultStorage.getSchema(storageKey)))
+      )
+      .propagateSchema()
+
+  }
+
 }

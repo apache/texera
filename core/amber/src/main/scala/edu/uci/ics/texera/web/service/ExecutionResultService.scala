@@ -89,7 +89,7 @@ object ExecutionResultService {
         case OutputMode.SINGLE_SNAPSHOT => SetSnapshotMode()
       }
     }
-    println("all storages: ", ResultStorage.getOpResultStorage(workflowIdentity).getAllKeys)
+
     val storage =
       ResultStorage
         .getOpResultStorage(workflowIdentity)
