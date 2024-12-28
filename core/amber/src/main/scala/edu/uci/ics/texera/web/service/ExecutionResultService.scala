@@ -74,7 +74,7 @@ object ExecutionResultService {
         case OutputMode.SINGLE_SNAPSHOT => SetSnapshotMode()
       }
     }
-
+    println("all storages: ", ResultStorage.getOpResultStorage(workflowIdentity).getAllKeys)
     val storage =
       ResultStorage.getOpResultStorage(workflowIdentity).get(OpResultStorage.storageKey(physicalOps.head.id.logicalOpId, PortIdentity()))
     val webUpdate = webOutputMode match {
@@ -294,7 +294,7 @@ class ExecutionResultService(
               .getCount
               .toInt
 
-            val (opId, portId) = OpResultStorage.decodeStorageKey(storageKey)
+            val (opId, storagePortId) = OpResultStorage.decodeStorageKey(storageKey)
 
             // use the first output port's mode
             val mode = physicalPlan

@@ -155,7 +155,8 @@ abstract class ScheduleGenerator(
       physicalLink.fromPortId,
       isMaterialized = true
     )
-    val matWriterPhysicalOp: PhysicalOp = createMatWriter(physicalLink, storageKey)
+    val fromPort = physicalPlan.getOperator(physicalLink.fromOpId).outputPorts(physicalLink.fromPortId)._1
+    val matWriterPhysicalOp: PhysicalOp = createMatWriter(fromPort, storageKey)
     val sourceToWriterLink =
       PhysicalLink(
         fromOp.id,
@@ -203,6 +204,7 @@ abstract class ScheduleGenerator(
       storageKey: String,
       physicalLink: PhysicalLink
   ): PhysicalOp = {
+    val outputPort = OutputPort()
     val opResultStorage = ResultStorage.getOpResultStorage(workflowContext.workflowId)
     PhysicalOp
       .sourcePhysicalOp(
@@ -212,21 +214,14 @@ abstract class ScheduleGenerator(
         OpExecInitInfo((_, _) => new CacheSourceOpExec(opResultStorage.get(storageKey)))
       )
       .withInputPorts(List.empty)
-      .withOutputPorts(List(OutputPort()))
-      .withPropagateSchema(
-        SchemaPropagationFunc(_ =>
-          Map(
-            OutputPort().id -> opResultStorage.getSchema(storageKey)
-          )
-        )
-      )
+      .withOutputPorts(List(outputPort))
+      .withPropagateSchema(SchemaPropagationFunc(_ => Map(outputPort.id -> opResultStorage.getSchema(storageKey))))
       .propagateSchema()
 
   }
 
-  private def createMatWriter(physicalLink: PhysicalLink, storageKey: String): PhysicalOp = {
-    val outputMode =
-      physicalPlan.getOperator(physicalLink.fromOpId).outputPorts(physicalLink.fromPortId)._1.mode
+  private def createMatWriter(outputPort:OutputPort, storageKey: String): PhysicalOp = {
+    val outputMode = outputPort.mode
     SpecialPhysicalOpFactory.newSinkPhysicalOp(
       workflowContext.workflowId,
       workflowContext.executionId,
@@ -234,11 +229,4 @@ abstract class ScheduleGenerator(
       outputMode
     )
   }
-
-  private def getMatIdFromPhysicalLink(physicalLink: PhysicalLink) =
-    s"${physicalLink.fromOpId.logicalOpId}_${physicalLink.fromOpId.layerName}_" +
-      s"${physicalLink.fromPortId.id}_" +
-      s"${physicalLink.toOpId.logicalOpId}_${physicalLink.toOpId.layerName}_" +
-      s"${physicalLink.toPortId.id}"
-
 }

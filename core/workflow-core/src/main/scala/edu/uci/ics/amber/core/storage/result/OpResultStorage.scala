@@ -10,83 +10,117 @@ import edu.uci.ics.amber.workflow.PortIdentity
 import java.util.concurrent.ConcurrentHashMap
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
+/**
+  * Companion object for `OpResultStorage`, providing utility functions
+  * for key generation, decoding, and storage modes.
+  */
 object OpResultStorage {
   val defaultStorageMode: String = StorageConfig.resultStorageMode.toLowerCase
-  val MEMORY = "memory"
-  val MONGODB = "mongodb"
+  val MEMORY: String = "memory"
+  val MONGODB: String = "mongodb"
 
+  /**
+    * Generates a unique storage key based on operator and port identities.
+    *
+    * @param operatorId     The identity of the operator.
+    * @param portIdentity   The identity of the port.
+    * @param isMaterialized Whether the storage is materialized.
+    * @return The generated storage key as a string.
+    */
   def storageKey(
-      operatorId: OperatorIdentity,
-      portIdentity: PortIdentity,
-      isMaterialized: Boolean = false
-  ): String = {
-    s"${if (isMaterialized) "materialized_" else ""}${operatorId.id}_${portIdentity.id}_${portIdentity.internal}"
+                  operatorId: OperatorIdentity,
+                  portIdentity: PortIdentity,
+                  isMaterialized: Boolean = false
+                ): String = {
+    val prefix = if (isMaterialized) "materialized_" else ""
+    s"$prefix${operatorId.id}_${portIdentity.id}_${portIdentity.internal}"
   }
 
+  /**
+    * Decodes a storage key back into its original components.
+    *
+    * @param key The storage key to decode.
+    * @return A tuple containing the operator identity and port identity.
+    * @throws IllegalArgumentException If the key format is invalid.
+    */
   def decodeStorageKey(key: String): (OperatorIdentity, PortIdentity) = {
-    var res = key
-    if (key.startsWith("materialized_")) {
-      res = key.substring(13)
-    }
-
-    res.split("_", 3) match {
-      case Array(opId, portId, internal) => (OperatorIdentity(opId), PortIdentity(portId.toInt, internal.toBoolean))
-      case _                   => throw new IllegalArgumentException(s"Invalid storage key: $key")
+    val processedKey = if (key.startsWith("materialized_")) key.substring(13) else key
+    processedKey.split("_", 3) match {
+      case Array(opId, portId, internal) =>
+        (OperatorIdentity(opId), PortIdentity(portId.toInt, internal.toBoolean))
+      case _ =>
+        throw new IllegalArgumentException(s"Invalid storage key: $key")
     }
   }
 }
 
 /**
-  * Public class of operator result storage.
-  * One execution links one instance of OpResultStorage, both have the same lifecycle.
+  * Handles the storage of operator results during workflow execution.
+  * Each `OpResultStorage` instance is tied to the lifecycle of a single execution.
   */
 class OpResultStorage extends Serializable with LazyLogging {
 
-  // since some op need to get the schema from the OpResultStorage, the schema is stored as part of the OpResultStorage.cache
-  // TODO: once we make the storage self-contained, i.e. storing Schema in the storage as metadata, we can remove it
+  /**
+    * In-memory cache for storing results and their associated schemas.
+    * TODO: Once the storage is self-contained (i.e., stores schemas as metadata),
+    *       this can be removed.
+    */
   private val cache: ConcurrentHashMap[String, (VirtualDocument[Tuple], Schema)] =
-    new ConcurrentHashMap[String, (VirtualDocument[Tuple], Schema)]()
+    new ConcurrentHashMap()
 
   /**
-    * Retrieve the result of an operator from OpResultStorage
-    * @param key The key used for storage and retrieval.
-    *            Currently it is the uuid inside the cache source or cache sink operator.
-    * @return The storage object of this operator.
+    * Retrieves the result of an operator from the storage.
+    *
+    * @param key The storage key associated with the result.
+    * @return The result stored as a `VirtualDocument[Tuple]`.
+    * @throws NoSuchElementException If the key is not found in the cache.
     */
   def get(key: String): VirtualDocument[Tuple] = {
-    if (!cache.containsKey(key)) {
-      throw new NoSuchElementException(s"Storage with key $key not found")
+    Option(cache.get(key)) match {
+      case Some((document, _)) => document
+      case None => throw new NoSuchElementException(s"Storage with key $key not found")
     }
-    cache.get(key)._1
   }
 
   /**
-    * Retrieve the schema of the result associate with target operator
-    * @param key the uuid inside the cache source or cache sink operator.
-    * @return The result schema of this operator.
+    * Retrieves the schema associated with an operator's result.
+    *
+    * @param key The storage key associated with the schema.
+    * @return The schema of the result.
     */
   def getSchema(key: String): Schema = {
     cache.get(key)._2
   }
 
+  /**
+    * Creates a new storage object for an operator result.
+    *
+    * @param executionId An optional execution ID for unique identification.
+    * @param key         The storage key for the result.
+    * @param mode        The storage mode (e.g., "memory" or "mongodb").
+    * @param schema      The schema of the result.
+    * @return A `VirtualDocument[Tuple]` instance for storing results.
+    */
   def create(
-      executionId: String = "",
-      key: String,
-      mode: String,
-      schema: Schema
-  ): VirtualDocument[Tuple] = {
+              executionId: String = "",
+              key: String,
+              mode: String,
+              schema: Schema
+            ): VirtualDocument[Tuple] = {
     val storage: VirtualDocument[Tuple] =
-      if (mode == "memory") {
+      if (mode == OpResultStorage.MEMORY) {
         new MemoryDocument[Tuple](key)
       } else {
         try {
-
-          new MongoDocument[Tuple](executionId + key, Tuple.toDocument, Tuple.fromDocument(schema))
+          new MongoDocument[Tuple](
+            executionId + key,
+            Tuple.toDocument,
+            Tuple.fromDocument(schema)
+          )
         } catch {
           case t: Throwable =>
-            logger.warn("Failed to create mongo storage", t)
-            logger.info(s"Fall back to memory storage for $key")
-            // fall back to memory
+            logger.warn("Failed to create MongoDB storage", t)
+            logger.info(s"Falling back to memory storage for $key")
             new MemoryDocument[Tuple](key)
         }
       }
@@ -94,20 +128,28 @@ class OpResultStorage extends Serializable with LazyLogging {
     storage
   }
 
-  def contains(key: String): Boolean = {
-    cache.containsKey(key)
-  }
+  /**
+    * Checks if a storage key exists in the cache.
+    *
+    * @param key The storage key to check.
+    * @return True if the key exists, false otherwise.
+    */
+  def contains(key: String): Boolean = cache.containsKey(key)
 
   /**
-    * Close this storage. Used for workflow cleanup.
+    * Clears all stored results. Typically used during workflow cleanup.
     */
   def clear(): Unit = {
     cache.forEach((_, document) => document._1.clear())
     cache.clear()
   }
 
+  /**
+    * Retrieves all storage keys currently in the cache.
+    *
+    * @return A set of all keys in the cache.
+    */
   def getAllKeys: Set[String] = {
     cache.keySet().iterator().asScala.toSet
   }
-
 }
