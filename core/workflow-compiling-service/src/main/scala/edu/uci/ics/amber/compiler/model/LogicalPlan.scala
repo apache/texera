@@ -72,8 +72,6 @@ case class LogicalPlan(
     this.copy(operators :+ op, links)
   }
 
-
-
   def addLink(
       fromOpId: OperatorIdentity,
       fromPortId: PortIdentity,
@@ -90,13 +88,9 @@ case class LogicalPlan(
     this.copy(operators, newLinks)
   }
 
-
-
   def getUpstreamLinks(opId: OperatorIdentity): List[LogicalLink] = {
     links.filter(l => l.toOpId == opId)
   }
-
-
 
   /**
     * Resolve all user-given filename for the scan source operators to URIs, and call op.setFileUri to set the URi

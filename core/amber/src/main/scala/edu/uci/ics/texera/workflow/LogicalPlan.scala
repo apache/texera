@@ -61,7 +61,6 @@ case class LogicalPlan(
 
   def getTopologicalOpIds: util.Iterator[OperatorIdentity] = jgraphtDag.iterator()
 
-
   def getOperator(opId: OperatorIdentity): LogicalOp = operatorMap(opId)
 
   def getSourceOperatorIds: List[OperatorIdentity] =
@@ -71,7 +70,6 @@ case class LogicalPlan(
     operatorMap.keys
       .filter(op => jgraphtDag.outDegreeOf(op) == 0)
       .toList
-
 
   def getUpstreamOps(opId: OperatorIdentity): List[LogicalOp] = {
     jgraphtDag
@@ -85,8 +83,6 @@ case class LogicalPlan(
     // TODO: fix schema for the new operator
     this.copy(operators :+ op, links)
   }
-
-
 
   def addLink(
       fromOpId: OperatorIdentity,
@@ -107,8 +103,6 @@ case class LogicalPlan(
   def removeLink(linkToRemove: LogicalLink): LogicalPlan = {
     this.copy(operators, links.filter(l => l != linkToRemove))
   }
-
-
 
   def getUpstreamLinks(opId: OperatorIdentity): List[LogicalLink] = {
     links.filter(l => l.toOpId == opId)
