@@ -37,7 +37,6 @@ class WorkflowCompiler(
     logicalPlan.getTopologicalOpIds.asScala.foreach(logicalOpId =>
       Try {
         val logicalOp = logicalPlan.getOperator(logicalOpId)
-        logicalOp.setContext(context)
 
         val subPlan = logicalOp.getPhysicalPlan(context.workflowId, context.executionId)
         subPlan
@@ -165,10 +164,7 @@ class WorkflowCompiler(
     // 2. resolve the file name in each scan source operator
     logicalPlan.resolveScanSourceOpFileName(None)
 
-    // 3. Propagate the schema to get the input & output schemas for each port of each operator
-    logicalPlan.propagateWorkflowSchema(context, None)
-
-    // 4. expand the logical plan to the physical plan, and assign storage
+    // 3. expand the logical plan to the physical plan, and assign storage
     val physicalPlan = expandLogicalPlan(logicalPlan, logicalPlanPojo.opsToViewResult, None)
 
     Workflow(context, logicalPlan, physicalPlan)

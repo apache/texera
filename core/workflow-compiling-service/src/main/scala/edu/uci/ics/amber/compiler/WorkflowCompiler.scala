@@ -110,7 +110,6 @@ class WorkflowCompiler(
     logicalPlan.getTopologicalOpIds.asScala.foreach(logicalOpId =>
       Try {
         val logicalOp = logicalPlan.getOperator(logicalOpId)
-        logicalOp.setContext(context)
 
         val subPlan = logicalOp.getPhysicalPlan(context.workflowId, context.executionId)
         subPlan
