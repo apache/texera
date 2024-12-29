@@ -313,18 +313,13 @@ class ExecutionResultService(
 
             val (opId, storagePortId) = OpResultStorage.decodeStorageKey(storageKey)
 
-            // use the first output port's mode
+            // Retrieve the mode of the specified output port
             val mode = physicalPlan
               .getPhysicalOpsOfLogicalOp(opId)
-              .flatMap(physicalOp => physicalOp.outputPorts)
-              .filter({
-                case (portId, (port, links, schema)) =>
-                  !portId.internal
-              })
-              .map({
-                case (portId, (port, links, schema)) => port.mode
-              })
+              .flatMap(_.outputPorts.get(storagePortId))
+              .map(_._1.mode)
               .head
+
             val changeDetector =
               if (mode == OutputMode.SET_SNAPSHOT) {
                 UUID.randomUUID.toString
