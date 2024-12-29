@@ -69,8 +69,15 @@ class DataProcessingSpec
       .registerCallback[ExecutionStateUpdate](evt => {
         if (evt.state == COMPLETED) {
           results = workflow.logicalPlan.getTerminalOperatorIds
-            .filter(terminalOpId => resultStorage.contains(terminalOpId))
-            .map(terminalOpId => terminalOpId -> resultStorage.get(terminalOpId).get().toList)
+            .filter(terminalOpId =>
+              resultStorage.contains(OpResultStorage.storageKey(terminalOpId, PortIdentity()))
+            )
+            .map(terminalOpId =>
+              terminalOpId -> resultStorage
+                .get(OpResultStorage.storageKey(terminalOpId, PortIdentity()))
+                .get()
+                .toList
+            )
             .toMap
           completion.setDone()
         }
