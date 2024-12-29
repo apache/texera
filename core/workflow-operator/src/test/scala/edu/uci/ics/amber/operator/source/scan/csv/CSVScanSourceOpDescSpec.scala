@@ -2,7 +2,6 @@ package edu.uci.ics.amber.operator.source.scan.csv
 
 import edu.uci.ics.amber.core.storage.FileResolver
 import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
-import edu.uci.ics.amber.core.workflow.WorkflowContext
 import edu.uci.ics.amber.core.workflow.WorkflowContext.{DEFAULT_EXECUTION_ID, DEFAULT_WORKFLOW_ID}
 import edu.uci.ics.amber.operator.TestOperators
 import edu.uci.ics.amber.workflow.PortIdentity
@@ -11,7 +10,6 @@ import org.scalatest.flatspec.AnyFlatSpec
 
 class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
-  val workflowContext = new WorkflowContext()
   var csvScanSourceOpDesc: CSVScanSourceOpDesc = _
   var parallelCsvScanSourceOpDesc: ParallelCSVScanSourceOpDesc = _
   before {
@@ -28,7 +26,6 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     parallelCsvScanSourceOpDesc.fileName = Some(TestOperators.CountrySalesSmallCsvPath)
     parallelCsvScanSourceOpDesc.customDelimiter = Some(",")
     parallelCsvScanSourceOpDesc.hasHeader = true
-    parallelCsvScanSourceOpDesc.setContext(workflowContext)
     parallelCsvScanSourceOpDesc.setFileUri(
       FileResolver.resolve(parallelCsvScanSourceOpDesc.fileName.get)
     )
@@ -45,7 +42,6 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     parallelCsvScanSourceOpDesc.fileName = Some(TestOperators.CountrySalesHeaderlessSmallCsvPath)
     parallelCsvScanSourceOpDesc.customDelimiter = Some(",")
     parallelCsvScanSourceOpDesc.hasHeader = false
-    parallelCsvScanSourceOpDesc.setContext(workflowContext)
     parallelCsvScanSourceOpDesc.setFileUri(
       FileResolver.resolve(parallelCsvScanSourceOpDesc.fileName.get)
     )
@@ -62,7 +58,6 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     csvScanSourceOpDesc.fileName = Some(TestOperators.CountrySalesSmallMultiLineCsvPath)
     csvScanSourceOpDesc.customDelimiter = Some(",")
     csvScanSourceOpDesc.hasHeader = true
-    csvScanSourceOpDesc.setContext(workflowContext)
     csvScanSourceOpDesc.setFileUri(FileResolver.resolve(csvScanSourceOpDesc.fileName.get))
 
     val inferredSchema: Schema = csvScanSourceOpDesc.inferSchema()
@@ -77,7 +72,6 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     csvScanSourceOpDesc.fileName = Some(TestOperators.CountrySalesHeaderlessSmallCsvPath)
     csvScanSourceOpDesc.customDelimiter = Some(",")
     csvScanSourceOpDesc.hasHeader = false
-    csvScanSourceOpDesc.setContext(workflowContext)
     csvScanSourceOpDesc.setFileUri(FileResolver.resolve(csvScanSourceOpDesc.fileName.get))
 
     val inferredSchema: Schema = csvScanSourceOpDesc.inferSchema()
@@ -93,7 +87,6 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
       Some(TestOperators.CountrySalesSmallMultiLineCustomDelimiterCsvPath)
     csvScanSourceOpDesc.customDelimiter = Some(";")
     csvScanSourceOpDesc.hasHeader = false
-    csvScanSourceOpDesc.setContext(workflowContext)
     csvScanSourceOpDesc.setFileUri(FileResolver.resolve(csvScanSourceOpDesc.fileName.get))
 
     val inferredSchema: Schema = csvScanSourceOpDesc.inferSchema()
@@ -109,7 +102,6 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
       Some(TestOperators.CountrySalesSmallMultiLineCustomDelimiterCsvPath)
     csvScanSourceOpDesc.customDelimiter = Some(";")
     csvScanSourceOpDesc.hasHeader = false
-    csvScanSourceOpDesc.setContext(workflowContext)
     csvScanSourceOpDesc.setFileUri(FileResolver.resolve(csvScanSourceOpDesc.fileName.get))
 
     assert(
