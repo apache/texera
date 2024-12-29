@@ -2,11 +2,9 @@ package edu.uci.ics.texera.workflow
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.storage.FileResolver
-import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.operator.LogicalOp
 import edu.uci.ics.amber.operator.source.scan.ScanSourceOpDesc
 import edu.uci.ics.amber.virtualidentity.OperatorIdentity
-import edu.uci.ics.amber.workflow.PortIdentity
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import org.jgrapht.graph.DirectedAcyclicGraph
 import org.jgrapht.util.SupplierUtil
@@ -45,7 +43,6 @@ object LogicalPlan {
   ): LogicalPlan = {
     LogicalPlan(pojo.operators, pojo.links)
   }
-
 }
 
 case class LogicalPlan(
@@ -63,9 +60,6 @@ case class LogicalPlan(
 
   def getOperator(opId: OperatorIdentity): LogicalOp = operatorMap(opId)
 
-  def getSourceOperatorIds: List[OperatorIdentity] =
-    operatorMap.keys.filter(op => jgraphtDag.inDegreeOf(op) == 0).toList
-
   def getTerminalOperatorIds: List[OperatorIdentity] =
     operatorMap.keys
       .filter(op => jgraphtDag.outDegreeOf(op) == 0)
@@ -79,43 +73,8 @@ case class LogicalPlan(
       .toList
   }
 
-  def addOperator(op: LogicalOp): LogicalPlan = {
-    // TODO: fix schema for the new operator
-    this.copy(operators :+ op, links)
-  }
-
-  def addLink(
-      fromOpId: OperatorIdentity,
-      fromPortId: PortIdentity,
-      toOpId: OperatorIdentity,
-      toPortId: PortIdentity
-  ): LogicalPlan = {
-    val newLink = LogicalLink(
-      fromOpId,
-      fromPortId,
-      toOpId,
-      toPortId
-    )
-    val newLinks = links :+ newLink
-    this.copy(operators, newLinks)
-  }
-
-  def removeLink(linkToRemove: LogicalLink): LogicalPlan = {
-    this.copy(operators, links.filter(l => l != linkToRemove))
-  }
-
   def getUpstreamLinks(opId: OperatorIdentity): List[LogicalLink] = {
     links.filter(l => l.toOpId == opId)
-  }
-
-  def getInputSchemaMap: Map[OperatorIdentity, List[Option[Schema]]] = {
-    operators
-      .map(operator => {
-        operator.operatorIdentifier -> operator.operatorInfo.inputPorts.map(inputPort =>
-          operator.inputPortToSchemaMapping.get(inputPort.id)
-        )
-      })
-      .toMap
   }
 
   /**
