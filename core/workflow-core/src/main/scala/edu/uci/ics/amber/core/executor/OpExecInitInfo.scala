@@ -3,8 +3,6 @@ package edu.uci.ics.amber.core.executor
 object OpExecInitInfo {
 
   type OpExecFunc = (Int, Int) => OperatorExecutor
-  type JavaOpExecFunc =
-    java.util.function.Function[(Int, Int), OperatorExecutor] with java.io.Serializable
 
   def generateJavaOpExec(
       opExecInitInfo: OpExecInitInfo,
@@ -27,8 +25,6 @@ object OpExecInitInfo {
   def apply(code: String, language: String): OpExecInitInfo =
     OpExecInitInfoWithCode((_, _) => (code, language))
   def apply(opExecFunc: OpExecFunc): OpExecInitInfo = OpExecInitInfoWithFunc(opExecFunc)
-  def apply(opExecFunc: JavaOpExecFunc): OpExecInitInfo =
-    OpExecInitInfoWithFunc((idx, totalWorkerCount) => opExecFunc.apply(idx, totalWorkerCount))
 }
 
 /**
