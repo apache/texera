@@ -2,7 +2,7 @@ package edu.uci.ics.amber.operator
 
 import edu.uci.ics.amber.core.executor.OpExecInitInfoWithCode
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
-import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 
 trait PythonOperatorDescriptor extends LogicalOp {
   override def getPhysicalOp(

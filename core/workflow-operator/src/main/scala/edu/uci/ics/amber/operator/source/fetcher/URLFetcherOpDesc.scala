@@ -7,8 +7,8 @@ import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.source.SourceOperatorDescriptor
-import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.amber.workflow.OutputPort
+import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.core.workflow.OutputPort
 
 class URLFetcherOpDesc extends SourceOperatorDescriptor {
 

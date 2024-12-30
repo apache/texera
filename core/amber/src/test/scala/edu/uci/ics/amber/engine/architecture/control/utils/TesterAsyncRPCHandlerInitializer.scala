@@ -5,7 +5,7 @@ import edu.uci.ics.amber.engine.architecture.control.utils.TrivialControlTester.
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.AsyncRPCContext
 import edu.uci.ics.amber.engine.architecture.rpc.testerservice.RPCTesterFs2Grpc
 import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCHandlerInitializer, AsyncRPCServer}
-import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
 
 class TesterAsyncRPCHandlerInitializer(
     val myID: ActorVirtualIdentity,

@@ -8,8 +8,8 @@ import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.operator.flatmap.FlatMapOpDesc
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
-import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
+import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort}
 
 class UnnestStringOpDesc extends FlatMapOpDesc {
   @JsonProperty(value = "Delimiter", required = true, defaultValue = ",")

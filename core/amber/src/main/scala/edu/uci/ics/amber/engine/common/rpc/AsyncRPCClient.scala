@@ -16,7 +16,7 @@ import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.createProxy
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CLIENT
 import edu.uci.ics.amber.error.ErrorUtils.reconstructThrowable
-import edu.uci.ics.amber.virtualidentity.{
+import edu.uci.ics.amber.core.virtualidentity.{
   ActorVirtualIdentity,
   ChannelIdentity,
   ChannelMarkerIdentity

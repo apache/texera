@@ -13,8 +13,12 @@ import edu.uci.ics.amber.core.workflow.{
 import edu.uci.ics.amber.operator.LogicalOp
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeNameList
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, PhysicalOpIdentity, WorkflowIdentity}
-import edu.uci.ics.amber.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{
+  ExecutionIdentity,
+  PhysicalOpIdentity,
+  WorkflowIdentity
+}
+import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
 
 import javax.validation.constraints.{NotNull, Size}
 

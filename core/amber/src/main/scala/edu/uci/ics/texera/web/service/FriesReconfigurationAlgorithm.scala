@@ -6,7 +6,7 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
   PropagateChannelMarkerRequest
 }
 import edu.uci.ics.amber.engine.architecture.scheduling.{Region, WorkflowExecutionCoordinator}
-import edu.uci.ics.amber.virtualidentity.PhysicalOpIdentity
+import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
 import org.jgrapht.alg.connectivity.ConnectivityInspector
 
 import scala.collection.mutable

@@ -5,7 +5,7 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.source.PythonSourceOperatorDescriptor
-import edu.uci.ics.amber.workflow.OutputPort
+import edu.uci.ics.amber.core.workflow.OutputPort
 
 class RedditSearchSourceOpDesc extends PythonSourceOperatorDescriptor {
   @JsonProperty(required = true)

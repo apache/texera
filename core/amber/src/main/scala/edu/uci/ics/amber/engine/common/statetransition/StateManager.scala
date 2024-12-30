@@ -5,7 +5,7 @@ import edu.uci.ics.amber.engine.common.statetransition.StateManager.{
   InvalidStateException,
   InvalidTransitionException
 }
-import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
 
 object StateManager {
 
