@@ -20,14 +20,16 @@ object OpResultStorage {
   val MONGODB: String = "mongodb"
 
   /**
-    * Generates a unique storage key based on operator and port identities.
+    * Creates a unique storage key by combining operator and port identities.
     *
-    * @param operatorId     The identity of the operator.
-    * @param portIdentity   The identity of the port.
-    * @param isMaterialized Whether the storage is materialized.
-    * @return The generated storage key as a string.
+    * @param operatorId     The unique identifier of the operator.
+    * @param portIdentity   The unique identifier of the port.
+    * @param isMaterialized Indicates whether the storage is materialized (e.g., persisted).
+    * @return A string representing the generated storage key, formatted as:
+    *         "materialized_<operatorId>_<portId>_<isInternal>" if materialized,
+    *         otherwise "<operatorId>_<portId>_<isInternal>".
     */
-  def storageKey(
+  def createStorageKey(
       operatorId: OperatorIdentity,
       portIdentity: PortIdentity,
       isMaterialized: Boolean = false

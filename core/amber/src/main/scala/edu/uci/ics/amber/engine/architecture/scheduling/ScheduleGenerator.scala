@@ -151,7 +151,7 @@ abstract class ScheduleGenerator(
       .removeLink(physicalLink)
 
     // create cache writer and link
-    val storageKey = OpResultStorage.storageKey(
+    val storageKey = OpResultStorage.createStorageKey(
       physicalLink.fromOpId.logicalOpId,
       physicalLink.fromPortId,
       isMaterialized = true

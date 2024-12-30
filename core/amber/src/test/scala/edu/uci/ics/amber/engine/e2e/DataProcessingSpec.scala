@@ -70,11 +70,12 @@ class DataProcessingSpec
         if (evt.state == COMPLETED) {
           results = workflow.logicalPlan.getTerminalOperatorIds
             .filter(terminalOpId =>
-              resultStorage.contains(OpResultStorage.storageKey(terminalOpId, PortIdentity()))
+              // expecting the first output port only.
+              resultStorage.contains(OpResultStorage.createStorageKey(terminalOpId, PortIdentity()))
             )
             .map(terminalOpId =>
               terminalOpId -> resultStorage
-                .get(OpResultStorage.storageKey(terminalOpId, PortIdentity()))
+                .get(OpResultStorage.createStorageKey(terminalOpId, PortIdentity()))
                 .get()
                 .toList
             )

@@ -78,7 +78,7 @@ class WorkflowCompiler(
                 case (outputPortId, (outputPort, _, schema)) =>
                   val storage = ResultStorage.getOpResultStorage(context.workflowId)
                   val storageKey =
-                    OpResultStorage.storageKey(physicalOp.id.logicalOpId, outputPortId)
+                    OpResultStorage.createStorageKey(physicalOp.id.logicalOpId, outputPortId)
 
                   // Determine the storage type, defaulting to memory for large HTML visualizations
                   val storageType =

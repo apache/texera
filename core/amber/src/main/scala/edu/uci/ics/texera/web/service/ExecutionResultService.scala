@@ -5,13 +5,8 @@ import com.fasterxml.jackson.annotation.{JsonTypeInfo, JsonTypeName}
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.storage.StorageConfig
-import edu.uci.ics.amber.core.storage.result.{
-  MongoDocument,
-  OpResultStorage,
-  OperatorResultMetadata,
-  ResultStorage,
-  WorkflowResultStore
-}
+import edu.uci.ics.amber.core.storage.result.OpResultStorage.MONGODB
+import edu.uci.ics.amber.core.storage.result._
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan}
 import edu.uci.ics.amber.engine.architecture.controller.{ExecutionStateUpdate, FatalError}
@@ -93,7 +88,7 @@ object ExecutionResultService {
     val storage =
       ResultStorage
         .getOpResultStorage(workflowIdentity)
-        .get(OpResultStorage.storageKey(physicalOps.head.id.logicalOpId, PortIdentity()))
+        .get(OpResultStorage.createStorageKey(physicalOps.head.id.logicalOpId, PortIdentity()))
     val webUpdate = webOutputMode match {
       case PaginationMode() =>
         val numTuples = storage.getCount
@@ -242,10 +237,12 @@ class ExecutionResultService(
                 oldInfo.tupleCount,
                 info.tupleCount
               )
-              if (StorageConfig.resultStorageMode.toLowerCase == "mongodb") {
+              if (StorageConfig.resultStorageMode == MONGODB) {
+                // using the first port for now. TODO: support multiple ports
+                val storageKey = OpResultStorage.createStorageKey(opId, PortIdentity())
                 val opStorage = ResultStorage
                   .getOpResultStorage(workflowIdentity)
-                  .get(OpResultStorage.storageKey(opId, PortIdentity()))
+                  .get(storageKey)
                 opStorage match {
                   case mongoDocument: MongoDocument[Tuple] =>
                     val tableCatStats = mongoDocument.getCategoricalStats
@@ -281,10 +278,14 @@ class ExecutionResultService(
   def handleResultPagination(request: ResultPaginationRequest): TexeraWebSocketEvent = {
     // calculate from index (pageIndex starts from 1 instead of 0)
     val from = request.pageSize * (request.pageIndex - 1)
+
+    // using the first port for now. TODO: support multiple ports
+    val storageKey =
+      OpResultStorage.createStorageKey(OperatorIdentity(request.operatorID), PortIdentity())
     val paginationIterable = {
       ResultStorage
         .getOpResultStorage(workflowIdentity)
-        .get(OpResultStorage.storageKey(OperatorIdentity(request.operatorID), PortIdentity()))
+        .get(storageKey)
         .getRange(from, from + request.pageSize)
         .to(Iterable)
     }
