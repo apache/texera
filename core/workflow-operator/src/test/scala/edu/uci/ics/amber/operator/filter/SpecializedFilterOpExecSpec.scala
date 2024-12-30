@@ -45,7 +45,7 @@ class SpecializedFilterOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     .build()
 
   it should "open and close" in {
-    val opExec = new SpecializedFilterOpExec(asList())
+    val opExec = new SpecializedFilterOpExec(List())
     opExec.open()
     opExec.close()
   }
@@ -60,7 +60,7 @@ class SpecializedFilterOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "do nothing when predicates is an empty list" in {
-    val opExec = new SpecializedFilterOpExec(asList())
+    val opExec = new SpecializedFilterOpExec(List())
     opExec.open()
     assert(opExec.processTuple(allNullTuple, inputPort).isEmpty)
     opExec.close()
@@ -68,16 +68,16 @@ class SpecializedFilterOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   it should "not have is_null comparisons be affected by values" in {
     val opExec = new SpecializedFilterOpExec(
-      asList(new FilterPredicate("string", ComparisonType.IS_NULL, "value"))
+      List(new FilterPredicate("string", ComparisonType.IS_NULL, "value"))
     )
     opExec.open()
-    assert(!opExec.processTuple(allNullTuple, inputPort).isEmpty)
+    assert(opExec.processTuple(allNullTuple, inputPort).nonEmpty)
     opExec.close()
   }
 
   it should "not have is_not_null comparisons be affected by values" in {
     val opExec = new SpecializedFilterOpExec(
-      asList(new FilterPredicate("string", ComparisonType.IS_NOT_NULL, "value"))
+      List(new FilterPredicate("string", ComparisonType.IS_NOT_NULL, "value"))
     )
     opExec.open()
     assert(opExec.processTuple(allNullTuple, inputPort).isEmpty)
@@ -91,7 +91,7 @@ class SpecializedFilterOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
         assert(attributes.length == 1)
 
         val opExec = new SpecializedFilterOpExec(
-          asList(new FilterPredicate(attributes(0).getName, ComparisonType.IS_NULL, null))
+          List(new FilterPredicate(attributes(0).getName, ComparisonType.IS_NULL, null))
         )
 
         opExec.open()
@@ -102,7 +102,7 @@ class SpecializedFilterOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   it should "filter out non null tuples when filtering is_null" in {
     val opExec = new SpecializedFilterOpExec(
-      asList(new FilterPredicate("string", ComparisonType.IS_NULL, "value"))
+      List(new FilterPredicate("string", ComparisonType.IS_NULL, "value"))
     )
     opExec.open()
     assert(opExec.processTuple(nonNullTuple, inputPort).isEmpty)
@@ -111,7 +111,7 @@ class SpecializedFilterOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   it should "output non null tuples when filter is_not_null" in {
     val opExec = new SpecializedFilterOpExec(
-      asList(new FilterPredicate("string", ComparisonType.IS_NOT_NULL, "value"))
+      List(new FilterPredicate("string", ComparisonType.IS_NOT_NULL, "value"))
     )
     opExec.open()
     assert(opExec.processTuple(nonNullTuple, inputPort).nonEmpty)
@@ -125,7 +125,7 @@ class SpecializedFilterOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
         assert(attributes.length == 1)
 
         val opExec = new SpecializedFilterOpExec(
-          asList(new FilterPredicate(attributes(0).getName, ComparisonType.IS_NOT_NULL, null))
+          List(new FilterPredicate(attributes(0).getName, ComparisonType.IS_NOT_NULL, null))
         )
 
         opExec.open()
