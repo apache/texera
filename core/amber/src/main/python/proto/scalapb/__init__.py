@@ -21,8 +21,7 @@ class MatchType(betterproto.Enum):
 
 class ScalaPbOptionsOptionsScope(betterproto.Enum):
     """
-    Whether to apply the options only to this file, or for the entire package
-    (and its subpackages)
+    Whether to apply the options only to this file, or for the entire package (and its subpackages)
     """
 
     FILE = 0
@@ -46,63 +45,63 @@ class ScalaPbOptions(betterproto.Message):
 
     flat_package: bool = betterproto.bool_field(2)
     """
-    If true, the compiler does not append the proto base file name into the
-    generated package name. If false (the default), the generated scala package
-    name is the package_name.basename where basename is the proto file name
-    without the .proto extension.
+    If true, the compiler does not append the proto base file name
+     into the generated package name. If false (the default), the
+     generated scala package name is the package_name.basename where
+     basename is the proto file name without the .proto extension.
     """
 
     import_: List[str] = betterproto.string_field(3)
     """
-    Adds the following imports at the top of the file (this is meant to provide
-    implicit TypeMappers)
+    Adds the following imports at the top of the file (this is meant
+     to provide implicit TypeMappers)
     """
 
     preamble: List[str] = betterproto.string_field(4)
     """
-    Text to add to the generated scala file.  This can be used only when
-    single_file is true.
+    Text to add to the generated scala file.  This can be used only
+     when single_file is true.
     """
 
     single_file: bool = betterproto.bool_field(5)
     """
-    If true, all messages and enums (but not services) will be written to a
-    single Scala file.
+    If true, all messages and enums (but not services) will be written
+     to a single Scala file.
     """
 
     no_primitive_wrappers: bool = betterproto.bool_field(7)
     """
-    By default, wrappers defined at https://github.com/google/protobuf/blob/mas
-    ter/src/google/protobuf/wrappers.proto, are mapped to an Option[T] where T
-    is a primitive type. When this field is set to true, we do not perform this
-    transformation.
+    By default, wrappers defined at
+     https://github.com/google/protobuf/blob/master/src/google/protobuf/wrappers.proto,
+     are mapped to an Option[T] where T is a primitive type. When this field
+     is set to true, we do not perform this transformation.
     """
 
     primitive_wrappers: bool = betterproto.bool_field(6)
     """
     DEPRECATED. In ScalaPB <= 0.5.47, it was necessary to explicitly enable
-    primitive_wrappers. This field remains here for backwards compatibility,
-    but it has no effect on generated code. It is an error to set both
-    `primitive_wrappers` and `no_primitive_wrappers`.
+     primitive_wrappers. This field remains here for backwards compatibility,
+     but it has no effect on generated code. It is an error to set both
+     `primitive_wrappers` and `no_primitive_wrappers`.
     """
 
     collection_type: str = betterproto.string_field(8)
     """
     Scala type to be used for repeated fields. If unspecified,
-    `scala.collection.Seq` will be used.
+     `scala.collection.Seq` will be used.
     """
 
     preserve_unknown_fields: bool = betterproto.bool_field(9)
     """
     If set to true, all generated messages in this file will preserve unknown
-    fields.
+     fields.
     """
 
     object_name: str = betterproto.string_field(10)
     """
-    If defined, sets the name of the file-level object that would be generated.
-    This object extends `GeneratedFileObject` and contains descriptors, and
-    list of message and enum companions.
+    If defined, sets the name of the file-level object that would be generated. This
+     object extends `GeneratedFileObject` and contains descriptors, and list of message
+     and enum companions.
     """
 
     scope: "ScalaPbOptionsOptionsScope" = betterproto.enum_field(11)
@@ -114,15 +113,15 @@ class ScalaPbOptions(betterproto.Message):
     retain_source_code_info: bool = betterproto.bool_field(13)
     """
     If true, then source-code info information will be included in the
-    generated code - normally the source code info is cleared out to reduce
-    code size.  The source code info is useful for extracting source code
-    location from the descriptors as well as comments.
+     generated code - normally the source code info is cleared out to reduce
+     code size.  The source code info is useful for extracting source code
+     location from the descriptors as well as comments.
     """
 
     map_type: str = betterproto.string_field(14)
     """
     Scala type to be used for maps. If unspecified,
-    `scala.collection.immutable.Map` will be used.
+     `scala.collection.immutable.Map` will be used.
     """
 
     no_default_values_in_constructor: bool = betterproto.bool_field(15)
@@ -133,8 +132,8 @@ class ScalaPbOptions(betterproto.Message):
     enum_value_naming: "ScalaPbOptionsEnumValueNaming" = betterproto.enum_field(16)
     enum_strip_prefix: bool = betterproto.bool_field(17)
     """
-    Indicate if prefix (enum name + optional underscore) should be removed in
-    scala code Strip is applied before enum value naming changes.
+    Indicate if prefix (enum name + optional underscore) should be removed in scala code
+     Strip is applied before enum value naming changes.
     """
 
     bytes_type: str = betterproto.string_field(21)
@@ -169,9 +168,8 @@ class ScalaPbOptions(betterproto.Message):
     field_transformations: List["FieldTransformation"] = betterproto.message_field(25)
     ignore_all_transformations: bool = betterproto.bool_field(26)
     """
-    Ignores all transformations for this file. This is meant to allow specific
-    files to opt out from transformations inherited through package-scoped
-    options.
+    Ignores all transformations for this file. This is meant to allow specific files to
+     opt out from transformations inherited through package-scoped options.
     """
 
     getters: bool = betterproto.bool_field(27)
@@ -179,17 +177,17 @@ class ScalaPbOptions(betterproto.Message):
 
     test_only_no_java_conversions: bool = betterproto.bool_field(999)
     """
-    For use in tests only. Inhibit Java conversions even when when generator
-    parameters request for it.
+    For use in tests only. Inhibit Java conversions even when when generator parameters
+     request for it.
     """
 
 
 @dataclass(eq=False, repr=False)
 class ScalaPbOptionsAuxMessageOptions(betterproto.Message):
     """
-    AuxMessageOptions enables you to set message-level options through package-
-    scoped options. This is useful when you can't add a dependency on
-    scalapb.proto from the proto file that defines the message.
+    AuxMessageOptions enables you to set message-level options through package-scoped options.
+     This is useful when you can't add a dependency on scalapb.proto from the proto file that
+     defines the message.
     """
 
     target: str = betterproto.string_field(1)
@@ -197,17 +195,17 @@ class ScalaPbOptionsAuxMessageOptions(betterproto.Message):
 
     options: "MessageOptions" = betterproto.message_field(2)
     """
-    Options to apply to the message. If there are any options defined on the
-    target message they take precedence over the options.
+    Options to apply to the message. If there are any options defined on the target message
+     they take precedence over the options.
     """
 
 
 @dataclass(eq=False, repr=False)
 class ScalaPbOptionsAuxFieldOptions(betterproto.Message):
     """
-    AuxFieldOptions enables you to set field-level options through package-
-    scoped options. This is useful when you can't add a dependency on
-    scalapb.proto from the proto file that defines the field.
+    AuxFieldOptions enables you to set field-level options through package-scoped options.
+     This is useful when you can't add a dependency on scalapb.proto from the proto file that
+     defines the field.
     """
 
     target: str = betterproto.string_field(1)
@@ -215,17 +213,17 @@ class ScalaPbOptionsAuxFieldOptions(betterproto.Message):
 
     options: "FieldOptions" = betterproto.message_field(2)
     """
-    Options to apply to the field. If there are any options defined on the
-    target message they take precedence over the options.
+    Options to apply to the field. If there are any options defined on the target message
+     they take precedence over the options.
     """
 
 
 @dataclass(eq=False, repr=False)
 class ScalaPbOptionsAuxEnumOptions(betterproto.Message):
     """
-    AuxEnumOptions enables you to set enum-level options through package-scoped
-    options. This is useful when you can't add a dependency on scalapb.proto
-    from the proto file that defines the enum.
+    AuxEnumOptions enables you to set enum-level options through package-scoped options.
+     This is useful when you can't add a dependency on scalapb.proto from the proto file that
+     defines the enum.
     """
 
     target: str = betterproto.string_field(1)
@@ -233,17 +231,17 @@ class ScalaPbOptionsAuxEnumOptions(betterproto.Message):
 
     options: "EnumOptions" = betterproto.message_field(2)
     """
-    Options to apply to the enum. If there are any options defined on the
-    target enum they take precedence over the options.
+    Options to apply to the enum. If there are any options defined on the target enum
+     they take precedence over the options.
     """
 
 
 @dataclass(eq=False, repr=False)
 class ScalaPbOptionsAuxEnumValueOptions(betterproto.Message):
     """
-    AuxEnumValueOptions enables you to set enum value level options through
-    package-scoped options.  This is useful when you can't add a dependency on
-    scalapb.proto from the proto file that defines the enum.
+    AuxEnumValueOptions enables you to set enum value level options through package-scoped
+     options.  This is useful when you can't add a dependency on scalapb.proto from the proto
+     file that defines the enum.
     """
 
     target: str = betterproto.string_field(1)
@@ -251,8 +249,8 @@ class ScalaPbOptionsAuxEnumValueOptions(betterproto.Message):
 
     options: "EnumValueOptions" = betterproto.message_field(2)
     """
-    Options to apply to the enum value. If there are any options defined on the
-    target enum value they take precedence over the options.
+    Options to apply to the enum value. If there are any options defined on
+     the target enum value they take precedence over the options.
     """
 
 
@@ -269,8 +267,8 @@ class MessageOptions(betterproto.Message):
 
     type: str = betterproto.string_field(4)
     """
-    All instances of this message will be converted to this type. An implicit
-    TypeMapper must be present.
+    All instances of this message will be converted to this type. An implicit TypeMapper
+     must be present.
     """
 
     companion_annotations: List[str] = betterproto.string_field(5)
@@ -280,30 +278,26 @@ class MessageOptions(betterproto.Message):
 
     sealed_oneof_extends: List[str] = betterproto.string_field(6)
     """
-    Additional classes and traits to mix in to generated sealed_oneof base
-    trait.
+    Additional classes and traits to mix in to generated sealed_oneof base trait.
     """
 
     no_box: bool = betterproto.bool_field(7)
     """
-    If true, when this message is used as an optional field, do not wrap it in
-    an `Option`. This is equivalent of setting `(field).no_box` to true on each
-    field with the message type.
+    If true, when this message is used as an optional field, do not wrap it in an `Option`.
+     This is equivalent of setting `(field).no_box` to true on each field with the message type.
     """
 
     unknown_fields_annotations: List[str] = betterproto.string_field(8)
     """
-    Custom annotations to add to the generated `unknownFields` case class
-    field.
+    Custom annotations to add to the generated `unknownFields` case class field.
     """
 
 
 @dataclass(eq=False, repr=False)
 class Collection(betterproto.Message):
     """
-    Represents a custom Collection type in Scala. This allows ScalaPB to
-    integrate with collection types that are different enough from the ones in
-    the standard library.
+    Represents a custom Collection type in Scala. This allows ScalaPB to integrate with
+     collection types that are different enough from the ones in the standard library.
     """
 
     type: str = betterproto.string_field(1)
@@ -312,14 +306,14 @@ class Collection(betterproto.Message):
     non_empty: bool = betterproto.bool_field(2)
     """
     Set to true if this collection type is not allowed to be empty, for example
-    cats.data.NonEmptyList.  When true, ScalaPB will not generate `clearX` for
-    the repeated field and not provide a default argument in the constructor.
+     cats.data.NonEmptyList.  When true, ScalaPB will not generate `clearX` for the repeated
+     field and not provide a default argument in the constructor.
     """
 
     adapter: str = betterproto.string_field(3)
     """
-    An Adapter is a Scala object available at runtime that provides certain
-    static methods that can operate on this collection type.
+    An Adapter is a Scala object available at runtime that provides certain static methods
+     that can operate on this collection type.
     """
 
 
@@ -329,16 +323,16 @@ class FieldOptions(betterproto.Message):
     scala_name: str = betterproto.string_field(2)
     collection_type: str = betterproto.string_field(3)
     """
-    Can be specified only if this field is repeated. If unspecified, it falls
-    back to the file option named `collection_type`, which defaults to
-    `scala.collection.Seq`.
+    Can be specified only if this field is repeated. If unspecified,
+     it falls back to the file option named `collection_type`, which defaults
+     to `scala.collection.Seq`.
     """
 
     collection: "Collection" = betterproto.message_field(8)
     key_type: str = betterproto.string_field(4)
     """
-    If the field is a map, you can specify custom Scala types for the key or
-    value.
+    If the field is a map, you can specify custom Scala types for the key
+     or value.
     """
 
     value_type: str = betterproto.string_field(5)
@@ -347,22 +341,20 @@ class FieldOptions(betterproto.Message):
 
     map_type: str = betterproto.string_field(7)
     """
-    Can be specified only if this field is a map. If unspecified, it falls back
-    to the file option named `map_type` which defaults to
-    `scala.collection.immutable.Map`
+    Can be specified only if this field is a map. If unspecified,
+     it falls back to the file option named `map_type` which defaults to
+     `scala.collection.immutable.Map`
     """
 
     no_box: bool = betterproto.bool_field(30)
     """
-    Do not box this value in Option[T]. If set, this overrides
-    MessageOptions.no_box
+    Do not box this value in Option[T]. If set, this overrides MessageOptions.no_box
     """
 
     required: bool = betterproto.bool_field(31)
     """
-    Like no_box it does not box a value in Option[T], but also fails parsing
-    when a value is not provided. This enables to emulate required fields in
-    proto3.
+    Like no_box it does not box a value in Option[T], but also fails parsing when a value
+     is not provided. This enables to emulate required fields in proto3.
     """
 
 
@@ -376,8 +368,8 @@ class EnumOptions(betterproto.Message):
 
     type: str = betterproto.string_field(3)
     """
-    All instances of this enum will be converted to this type. An implicit
-    TypeMapper must be present.
+    All instances of this enum will be converted to this type. An implicit TypeMapper
+     must be present.
     """
 
     base_annotations: List[str] = betterproto.string_field(4)
