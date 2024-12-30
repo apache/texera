@@ -16,7 +16,7 @@ import scala.collection.{Iterator, mutable}
 import scala.jdk.CollectionConverters.ListHasAsScala
 
 class TwitterFullArchiveSearchSourceOpExec(
-  descString: String
+    descString: String
 ) extends TwitterSourceOpExec(descString) {
   private val desc: TwitterFullArchiveSearchSourceOpDesc =
     objectMapper.readValue(descString, classOf[TwitterFullArchiveSearchSourceOpDesc])

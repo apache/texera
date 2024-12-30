@@ -7,9 +7,10 @@ import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import scala.collection.mutable.ArrayBuffer
 
 class SortPartitionsOpExec(
-    descString: String,
+    descString: String
 ) extends OperatorExecutor {
-  private val desc: SortPartitionsOpDesc = objectMapper.readValue(descString, classOf[SortPartitionsOpDesc])
+  private val desc: SortPartitionsOpDesc =
+    objectMapper.readValue(descString, classOf[SortPartitionsOpDesc])
   private var unorderedTuples: ArrayBuffer[Tuple] = _
 
   private def sortTuples(): Iterator[TupleLike] = unorderedTuples.sortWith(compareTuples).iterator

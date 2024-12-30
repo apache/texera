@@ -31,10 +31,12 @@ class SplitOpDesc extends LogicalOp {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _) => ExecFactory.newExecFromJavaClassName(
-          "edu.uci.ics.amber.operator.split.SplitOpExec",
-          objectMapper.writeValueAsString(this)
-        ))
+        OpExecInitInfo((_, _) =>
+          ExecFactory.newExecFromJavaClassName(
+            "edu.uci.ics.amber.operator.split.SplitOpExec",
+            objectMapper.writeValueAsString(this)
+          )
+        )
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)

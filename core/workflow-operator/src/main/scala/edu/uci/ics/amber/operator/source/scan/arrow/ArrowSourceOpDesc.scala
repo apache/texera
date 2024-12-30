@@ -35,10 +35,12 @@ class ArrowSourceOpDesc extends ScanSourceOpDesc {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _) => ExecFactory.newExecFromJavaClassName(
-          "edu.uci.ics.amber.operator.source.scan.arrow.ArrowSourceOpExec",
-          objectMapper.writeValueAsString(this)
-        ))
+        OpExecInitInfo((_, _) =>
+          ExecFactory.newExecFromJavaClassName(
+            "edu.uci.ics.amber.operator.source.scan.arrow.ArrowSourceOpExec",
+            objectMapper.writeValueAsString(this)
+          )
+        )
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)

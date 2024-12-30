@@ -42,10 +42,12 @@ class UrlVizOpDesc extends LogicalOp {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _) => ExecFactory.newExecFromJavaClassName(
-          "edu.uci.ics.amber.operator.visualization.urlviz.UrlVizOpExec",
-          objectMapper.writeValueAsString(this)
-        ))
+        OpExecInitInfo((_, _) =>
+          ExecFactory.newExecFromJavaClassName(
+            "edu.uci.ics.amber.operator.visualization.urlviz.UrlVizOpExec",
+            objectMapper.writeValueAsString(this)
+          )
+        )
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)

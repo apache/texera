@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.operator.source.sql.postgresql
 
-import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
+import edu.uci.ics.amber.core.tuple.AttributeType
 import edu.uci.ics.amber.operator.source.sql.SQLSourceOpExec
 import edu.uci.ics.amber.operator.source.sql.postgresql.PostgreSQLConnUtil.connect
 import edu.uci.ics.amber.util.JSONUtils.objectMapper

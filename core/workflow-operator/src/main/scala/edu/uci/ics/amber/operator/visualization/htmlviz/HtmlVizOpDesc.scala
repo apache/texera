@@ -31,10 +31,12 @@ class HtmlVizOpDesc extends LogicalOp {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _) => ExecFactory.newExecFromJavaClassName(
-          "edu.uci.ics.amber.operator.visualization.htmlviz.HtmlVizOpExec",
-          objectMapper.writeValueAsString(this)
-        ))
+        OpExecInitInfo((_, _) =>
+          ExecFactory.newExecFromJavaClassName(
+            "edu.uci.ics.amber.operator.visualization.htmlviz.HtmlVizOpExec",
+            objectMapper.writeValueAsString(this)
+          )
+        )
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)

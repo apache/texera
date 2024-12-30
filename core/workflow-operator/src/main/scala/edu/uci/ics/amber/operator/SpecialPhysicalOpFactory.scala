@@ -7,11 +7,7 @@ import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.operator.sink.ProgressiveUtils
 import edu.uci.ics.amber.operator.sink.managed.ProgressiveSinkOpExec
 import edu.uci.ics.amber.operator.source.cache.CacheSourceOpExec
-import edu.uci.ics.amber.core.virtualidentity.{
-  ExecutionIdentity,
-  PhysicalOpIdentity,
-  WorkflowIdentity
-}
+import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, PhysicalOpIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode
 import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode.{
   SET_DELTA,

@@ -6,9 +6,10 @@ import io.github.redouane59.twitter.TwitterClient
 import io.github.redouane59.twitter.signature.TwitterCredentials
 
 abstract class TwitterSourceOpExec(
-  descString: String
+    descString: String
 ) extends SourceOperatorExecutor {
-  private val desc: TwitterSourceOpDesc = objectMapper.readValue(descString, classOf[TwitterSourceOpDesc])
+  private val desc: TwitterSourceOpDesc =
+    objectMapper.readValue(descString, classOf[TwitterSourceOpDesc])
   // batch size for each API request defined by Twitter
   //  500 is the maximum tweets for each request
   val TWITTER_API_BATCH_SIZE_MAX = 500

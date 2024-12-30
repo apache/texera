@@ -45,10 +45,12 @@ class UnnestStringOpDesc extends FlatMapOpDesc {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _) => ExecFactory.newExecFromJavaClassName(
-          "edu.uci.ics.amber.operator.unneststring.UnnestStringOpExec",
-          objectMapper.writeValueAsString(this)
-        ))
+        OpExecInitInfo((_, _) =>
+          ExecFactory.newExecFromJavaClassName(
+            "edu.uci.ics.amber.operator.unneststring.UnnestStringOpExec",
+            objectMapper.writeValueAsString(this)
+          )
+        )
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)

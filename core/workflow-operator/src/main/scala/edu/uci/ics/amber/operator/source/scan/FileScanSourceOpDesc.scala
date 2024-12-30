@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.operator.source.scan
 
-import com.fasterxml.jackson.annotation.{JsonIgnore, JsonIgnoreProperties, JsonProperty}
+import com.fasterxml.jackson.annotation.{JsonIgnoreProperties, JsonProperty}
 import com.kjetland.jackson.jsonSchema.annotations.{
   JsonSchemaInject,
   JsonSchemaString,

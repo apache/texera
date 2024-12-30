@@ -50,10 +50,11 @@ class SortPartitionsOpDesc extends LogicalOp {
         executionId,
         operatorIdentifier,
         OpExecInitInfo(opExecFunc =
-          (_, _) => ExecFactory.newExecFromJavaClassName(
-            "edu.uci.ics.amber.operator.sortPartitions.SortPartitionsOpExec",
-            objectMapper.writeValueAsString(this)
-          )
+          (_, _) =>
+            ExecFactory.newExecFromJavaClassName(
+              "edu.uci.ics.amber.operator.sortPartitions.SortPartitionsOpExec",
+              objectMapper.writeValueAsString(this)
+            )
         )
       )
       .withInputPorts(operatorInfo.inputPorts)

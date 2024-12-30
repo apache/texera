@@ -14,9 +14,10 @@ import scala.collection.{Iterator, mutable}
 import scala.jdk.CollectionConverters.ListHasAsScala
 
 class TwitterSearchSourceOpExec(
-  descString: String
+    descString: String
 ) extends TwitterSourceOpExec(descString) {
-  private val desc: TwitterSearchSourceOpDesc = objectMapper.readValue(descString, classOf[TwitterSearchSourceOpDesc])
+  private val desc: TwitterSearchSourceOpDesc =
+    objectMapper.readValue(descString, classOf[TwitterSearchSourceOpDesc])
   var curLimit: Int = desc.limit
   // nextToken is used to retrieve next page of results, if exists.
   var nextToken: String = _

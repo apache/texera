@@ -13,9 +13,10 @@ import java.net.URI
 import java.nio.file.{Files, StandardOpenOption}
 
 class ArrowSourceOpExec(
-  descString: String
+    descString: String
 ) extends SourceOperatorExecutor {
-  private val desc: ArrowSourceOpDesc = objectMapper.readValue(descString, classOf[ArrowSourceOpDesc])
+  private val desc: ArrowSourceOpDesc =
+    objectMapper.readValue(descString, classOf[ArrowSourceOpDesc])
   private var reader: Option[ArrowFileReader] = None
   private var root: Option[VectorSchemaRoot] = None
   private var allocator: Option[RootAllocator] = None

@@ -2,12 +2,11 @@ package edu.uci.ics.amber.operator.source.scan.csv
 
 import edu.uci.ics.amber.core.executor.SourceOperatorExecutor
 import edu.uci.ics.amber.core.storage.DocumentFactory
-import edu.uci.ics.amber.core.tuple.{Attribute, AttributeTypeUtils, Schema, TupleLike}
+import edu.uci.ics.amber.core.tuple.{Attribute, AttributeTypeUtils, TupleLike}
 import edu.uci.ics.amber.operator.source.BufferedBlockReader
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import org.tukaani.xz.SeekableFileInputStream
 
-import java.io.File
 import java.net.URI
 import java.util
 import java.util.stream.{IntStream, Stream}
