@@ -10,12 +10,16 @@ import edu.uci.ics.amber.workflow.OutputPort.OutputMode
 import edu.uci.ics.amber.workflow.PortIdentity
 
 class ProgressiveSinkOpExec(
+    workerId: Int,
     outputMode: OutputMode,
     storageKey: String,
     workflowIdentity: WorkflowIdentity
 ) extends SinkOperatorExecutor {
   val writer: BufferedItemWriter[Tuple] =
-    ResultStorage.getOpResultStorage(workflowIdentity).get(OperatorIdentity(storageKey)).writer()
+    ResultStorage
+      .getOpResultStorage(workflowIdentity)
+      .get(OperatorIdentity(storageKey))
+      .writer(workerId.toString)
 
   override def open(): Unit = {
     writer.open()

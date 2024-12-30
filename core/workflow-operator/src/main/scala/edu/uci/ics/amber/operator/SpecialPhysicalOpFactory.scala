@@ -29,6 +29,7 @@ object SpecialPhysicalOpFactory {
         executionIdentity,
         OpExecInitInfo((idx, workers) =>
           new ProgressiveSinkOpExec(
+            idx,
             outputMode,
             storageKey,
             workflowIdentity

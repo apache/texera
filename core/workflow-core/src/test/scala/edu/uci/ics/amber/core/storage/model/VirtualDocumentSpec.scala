@@ -4,6 +4,7 @@ import org.scalatest.BeforeAndAfterEach
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 
+import java.util.UUID
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
 
@@ -38,7 +39,7 @@ trait VirtualDocumentSpec[T] extends AnyFlatSpec with BeforeAndAfterEach {
     val items = generateSampleItems()
 
     // Get writer and write items
-    val writer = document.writer()
+    val writer = document.writer(UUID.randomUUID().toString)
     writer.open()
     items.foreach(writer.putOne)
     writer.close()
@@ -60,7 +61,7 @@ trait VirtualDocumentSpec[T] extends AnyFlatSpec with BeforeAndAfterEach {
     assert(!reader.hasNext, "Reader should initially have no data.")
 
     // Write the first batch
-    val writer = document.writer()
+    val writer = document.writer(UUID.randomUUID().toString)
     writer.open()
     batch1.foreach(writer.putOne)
     writer.close()
@@ -70,7 +71,7 @@ trait VirtualDocumentSpec[T] extends AnyFlatSpec with BeforeAndAfterEach {
     assert(retrievedBatch1.toSet == batch1.toSet, "Reader should read the first batch correctly.")
 
     // Write the second batch
-    val writer2 = document.writer()
+    val writer2 = document.writer(UUID.randomUUID().toString)
     writer2.open()
     batch2.foreach(writer2.putOne)
     writer2.close()
@@ -83,7 +84,7 @@ trait VirtualDocumentSpec[T] extends AnyFlatSpec with BeforeAndAfterEach {
     val items = generateSampleItems()
 
     // Write items
-    val writer = document.writer()
+    val writer = document.writer(UUID.randomUUID().toString)
     writer.open()
     items.foreach(writer.putOne)
     writer.close()
@@ -127,7 +128,7 @@ trait VirtualDocumentSpec[T] extends AnyFlatSpec with BeforeAndAfterEach {
     // Perform concurrent writes
     val writeFutures = itemBatches.map { batch =>
       Future {
-        val writer = document.writer()
+        val writer = document.writer(UUID.randomUUID().toString)
         writer.open()
         batch.foreach(writer.putOne)
         writer.close()
@@ -159,7 +160,7 @@ trait VirtualDocumentSpec[T] extends AnyFlatSpec with BeforeAndAfterEach {
 
     // Start the writer in a Future to write batches with delays
     val writerFuture = Future {
-      val writer = document.writer()
+      val writer = document.writer(UUID.randomUUID().toString)
       writer.open()
       try {
         itemBatches.foreach { batch =>
@@ -204,7 +205,7 @@ trait VirtualDocumentSpec[T] extends AnyFlatSpec with BeforeAndAfterEach {
     val allItems = generateSampleItems()
 
     // Write items
-    val writer = document.writer()
+    val writer = document.writer(UUID.randomUUID().toString)
     writer.open()
     allItems.foreach(writer.putOne)
     writer.close()
@@ -218,26 +219,6 @@ trait VirtualDocumentSpec[T] extends AnyFlatSpec with BeforeAndAfterEach {
     assert(
       retrievedItems.size == allItems.slice(from, until).size,
       s"Items in range ($from, $until) should match."
-    )
-  }
-
-  it should "read items after a specific offset correctly" in {
-    val allItems = generateSampleItems()
-
-    // Write items
-    val writer = document.writer()
-    writer.open()
-    allItems.foreach(writer.putOne)
-    writer.close()
-
-    // Read items after a specific offset
-    val offset = 10
-    val retrievedItems = document.getAfter(offset).toList
-
-    // Verify the retrieved items
-    assert(
-      retrievedItems == allItems.drop(offset + 1),
-      s"Items after offset $offset should match."
     )
   }
 

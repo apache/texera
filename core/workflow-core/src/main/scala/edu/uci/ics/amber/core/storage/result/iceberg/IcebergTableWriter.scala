@@ -16,6 +16,7 @@ import java.util.concurrent.locks.ReentrantLock
 import scala.collection.mutable.ArrayBuffer
 
 class IcebergTableWriter[T](
+    val writerIdentifier: String,
     val catalog: Catalog,
     val tableNamespace: String,
     val tableName: String,
@@ -25,6 +26,8 @@ class IcebergTableWriter[T](
 
   private val lock = new ReentrantLock()
   private val buffer = new ArrayBuffer[T]()
+  // the incremental filename's index, incremented everytime a new buffer is flushed
+  private var filenameIdx = 0
   override val bufferSize: Int = StorageConfig.icebergTableCommitBatchSize
 
   // Load the Iceberg table
@@ -55,8 +58,10 @@ class IcebergTableWriter[T](
     withLock(lock) {
       if (buffer.nonEmpty) {
 
-        // Create a unique file path using UUID
-        val filepath = s"${table.location()}/${UUID.randomUUID().toString}"
+        // Create a unique file path using writer's identifier and the filename's idx
+        val filepath = s"${table.location()}/${writerIdentifier}_${filenameIdx}"
+        // increment the idx by 1
+        filenameIdx += 1
         val outputFile: OutputFile = table.io().newOutputFile(filepath)
 
         // Create a Parquet data writer

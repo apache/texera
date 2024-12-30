@@ -144,7 +144,14 @@ class IcebergDocument[T >: Null <: AnyRef](
   /**
     * Returns a BufferedItemWriter for writing data to the table.
     */
-  override def writer(): BufferedItemWriter[T] = {
-    new IcebergTableWriter[T](catalog, tableNamespace, tableName, tableSchema, serde)
+  override def writer(writerIdentifier: String): BufferedItemWriter[T] = {
+    new IcebergTableWriter[T](
+      writerIdentifier,
+      catalog,
+      tableNamespace,
+      tableName,
+      tableSchema,
+      serde
+    )
   }
 }
