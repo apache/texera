@@ -4,8 +4,7 @@ import edu.uci.ics.amber.core.executor.OpExecInitInfo
 import edu.uci.ics.amber.core.storage.result.{OpResultStorage, ResultStorage}
 import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
-import edu.uci.ics.amber.operator.sink.ProgressiveUtils
-import edu.uci.ics.amber.operator.sink.managed.ProgressiveSinkOpExec
+import edu.uci.ics.amber.operator.sink.{ProgressiveSinkOpExec, ProgressiveUtils}
 import edu.uci.ics.amber.operator.source.cache.CacheSourceOpExec
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, PhysicalOpIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode
