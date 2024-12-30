@@ -57,8 +57,8 @@ class SentimentAnalysisOpDesc extends MapOpDesc {
       )
   }
 
-  override def operatorInfo =
-    new OperatorInfo(
+  override def operatorInfo: OperatorInfo =
+    OperatorInfo(
       "Sentiment Analysis",
       "analysis the sentiment of a text using machine learning",
       OperatorGroupConstants.MACHINE_LEARNING_GROUP,

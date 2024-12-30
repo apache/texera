@@ -121,7 +121,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
           )
         )
 
-    new PhysicalPlan(
+    PhysicalPlan(
       operators = Set(buildPhysicalOp, probePhysicalOp),
       links = Set(
         PhysicalLink(
