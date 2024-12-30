@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyD
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.core.tuple.Schema
-import edu.uci.ics.amber.core.workflow.WorkflowContext
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.source.SourceOperatorDescriptor
 import edu.uci.ics.amber.workflow.OutputPort
@@ -52,10 +51,6 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
   override def sourceSchema(): Schema = {
     if (fileUri.isEmpty) return null
     inferSchema()
-  }
-
-  override def setContext(workflowContext: WorkflowContext): Unit = {
-    super.setContext(workflowContext)
   }
 
   override def operatorInfo: OperatorInfo = {
