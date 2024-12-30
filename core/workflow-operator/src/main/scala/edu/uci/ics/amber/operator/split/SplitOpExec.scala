@@ -2,7 +2,7 @@ package edu.uci.ics.amber.operator.split
 
 import edu.uci.ics.amber.core.executor.OperatorExecutor
 import edu.uci.ics.amber.core.tuple.{Tuple, TupleLike}
-import edu.uci.ics.amber.workflow.PortIdentity
+import edu.uci.ics.amber.core.workflow.PortIdentity
 
 import scala.util.Random
 

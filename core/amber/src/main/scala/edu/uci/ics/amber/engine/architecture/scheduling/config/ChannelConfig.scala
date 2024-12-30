@@ -9,8 +9,8 @@ import edu.uci.ics.amber.core.workflow.{
   SinglePartition,
   UnknownPartition
 }
-import edu.uci.ics.amber.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
-import edu.uci.ics.amber.workflow.PortIdentity
+import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import edu.uci.ics.amber.core.workflow.PortIdentity
 
 case object ChannelConfig {
   def generateChannelConfigs(

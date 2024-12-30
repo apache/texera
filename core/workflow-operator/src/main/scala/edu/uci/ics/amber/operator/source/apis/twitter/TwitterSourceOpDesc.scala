@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaDescription, JsonSchemaTitle}
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.source.SourceOperatorDescriptor
-import edu.uci.ics.amber.workflow.OutputPort
+import edu.uci.ics.amber.core.workflow.OutputPort
 
 abstract class TwitterSourceOpDesc extends SourceOperatorDescriptor {
 

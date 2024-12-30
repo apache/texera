@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.storage.FileResolver
 import edu.uci.ics.amber.operator.LogicalOp
 import edu.uci.ics.amber.operator.source.scan.ScanSourceOpDesc
-import edu.uci.ics.amber.virtualidentity.OperatorIdentity
+import edu.uci.ics.amber.core.virtualidentity.OperatorIdentity
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import org.jgrapht.graph.DirectedAcyclicGraph
 import org.jgrapht.util.SupplierUtil

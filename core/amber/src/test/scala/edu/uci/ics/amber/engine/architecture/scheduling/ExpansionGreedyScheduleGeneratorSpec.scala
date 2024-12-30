@@ -5,8 +5,8 @@ import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
 import edu.uci.ics.amber.operator.TestOperators
 import edu.uci.ics.amber.operator.split.SplitOpDesc
 import edu.uci.ics.amber.operator.udf.python.{DualInputPortsPythonUDFOpDescV2, PythonUDFOpDescV2}
-import edu.uci.ics.amber.virtualidentity.OperatorIdentity
-import edu.uci.ics.amber.workflow.PortIdentity
+import edu.uci.ics.amber.core.virtualidentity.OperatorIdentity
+import edu.uci.ics.amber.core.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.LogicalLink
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec

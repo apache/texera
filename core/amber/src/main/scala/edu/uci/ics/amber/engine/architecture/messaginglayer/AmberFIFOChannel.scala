@@ -3,8 +3,8 @@ package edu.uci.ics.amber.engine.architecture.messaginglayer
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
-import edu.uci.ics.amber.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
-import edu.uci.ics.amber.workflow.PortIdentity
+import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import edu.uci.ics.amber.core.workflow.PortIdentity
 
 import java.util.concurrent.atomic.AtomicLong
 import scala.collection.mutable

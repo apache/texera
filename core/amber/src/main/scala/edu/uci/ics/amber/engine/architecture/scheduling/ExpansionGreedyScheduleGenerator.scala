@@ -3,8 +3,8 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.WorkflowRuntimeException
 import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
-import edu.uci.ics.amber.virtualidentity.PhysicalOpIdentity
-import edu.uci.ics.amber.workflow.PhysicalLink
+import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
+import edu.uci.ics.amber.core.workflow.PhysicalLink
 import org.jgrapht.alg.connectivity.BiconnectivityInspector
 import org.jgrapht.graph.DirectedAcyclicGraph
 

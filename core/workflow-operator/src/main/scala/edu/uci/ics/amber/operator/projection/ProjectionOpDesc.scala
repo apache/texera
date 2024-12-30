@@ -9,8 +9,8 @@ import edu.uci.ics.amber.core.workflow.PhysicalOp.oneToOnePhysicalOp
 import edu.uci.ics.amber.core.workflow._
 import edu.uci.ics.amber.operator.map.MapOpDesc
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
+import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort}
 
 class ProjectionOpDesc extends MapOpDesc {
 

@@ -13,7 +13,7 @@ import edu.uci.ics.amber.engine.architecture.worker.{
 }
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.{CheckpointState, CheckpointSupport, SerializedState}
-import edu.uci.ics.amber.virtualidentity.ChannelMarkerIdentity
+import edu.uci.ics.amber.core.virtualidentity.ChannelMarkerIdentity
 
 import java.util.concurrent.CompletableFuture
 import scala.collection.mutable

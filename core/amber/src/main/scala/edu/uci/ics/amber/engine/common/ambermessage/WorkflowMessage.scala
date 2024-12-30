@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.common.ambermessage
 
-import edu.uci.ics.amber.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
 case object WorkflowMessage {
   def getInMemSize(msg: WorkflowMessage): Long = {

@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.util
 
-import edu.uci.ics.amber.virtualidentity.{
+import edu.uci.ics.amber.core.virtualidentity.{
   ActorVirtualIdentity,
   OperatorIdentity,
   PhysicalOpIdentity,

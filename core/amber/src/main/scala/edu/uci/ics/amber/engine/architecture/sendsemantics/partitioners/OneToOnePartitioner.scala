@@ -2,7 +2,7 @@ package edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners
 
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
-import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
 
 case class OneToOnePartitioner(partitioning: OneToOnePartitioning, actorId: ActorVirtualIdentity)
     extends Partitioner {

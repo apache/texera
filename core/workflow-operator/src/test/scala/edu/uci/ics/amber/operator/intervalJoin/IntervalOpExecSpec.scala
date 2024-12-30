@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.operator.intervalJoin
 
-import edu.uci.ics.amber.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
-import edu.uci.ics.amber.workflow.{PhysicalLink, PortIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.core.workflow.{PhysicalLink, PortIdentity}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 

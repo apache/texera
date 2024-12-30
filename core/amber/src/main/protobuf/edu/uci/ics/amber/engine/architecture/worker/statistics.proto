@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package edu.uci.ics.amber.engine.architecture.worker;
 
-import "edu/uci/ics/amber/workflow.proto";
+import "edu/uci/ics/amber/core/workflow.proto";
 import "scalapb/scalapb.proto";
 
 option (scalapb.options) = {
@@ -22,7 +22,7 @@ enum WorkerState {
 }
 
 message PortTupleCountMapping {
-  PortIdentity port_id = 1 [(scalapb.field).no_box = true];
+  core.PortIdentity port_id = 1 [(scalapb.field).no_box = true];
   int64 tuple_count = 2;
 }
 

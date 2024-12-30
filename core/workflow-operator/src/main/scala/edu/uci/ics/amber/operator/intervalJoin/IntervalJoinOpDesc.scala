@@ -12,8 +12,8 @@ import edu.uci.ics.amber.operator.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameOnPort1
 }
-import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.amber.workflow.{InputPort, OutputPort, PortIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 
 /** This Operator have two assumptions:
   * 1. The tuples in both inputs come in ascending order

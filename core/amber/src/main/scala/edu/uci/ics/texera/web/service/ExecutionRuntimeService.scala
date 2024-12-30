@@ -9,7 +9,7 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState._
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.FaultToleranceConfig
 import edu.uci.ics.amber.engine.common.client.AmberClient
-import edu.uci.ics.amber.virtualidentity.ChannelMarkerIdentity
+import edu.uci.ics.amber.core.virtualidentity.ChannelMarkerIdentity
 import edu.uci.ics.texera.web.model.websocket.request._
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState

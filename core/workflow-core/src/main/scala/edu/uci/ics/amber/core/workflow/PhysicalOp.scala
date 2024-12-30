@@ -4,13 +4,13 @@ import com.fasterxml.jackson.annotation.{JsonIgnore, JsonIgnoreProperties}
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.executor.{OpExecInitInfo, OpExecInitInfoWithCode}
 import edu.uci.ics.amber.core.tuple.Schema
-import edu.uci.ics.amber.virtualidentity.{
+import edu.uci.ics.amber.core.virtualidentity.{
   ExecutionIdentity,
   OperatorIdentity,
   PhysicalOpIdentity,
   WorkflowIdentity
 }
-import edu.uci.ics.amber.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
+import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
 

@@ -9,8 +9,8 @@ import edu.uci.ics.amber.core.workflow.{PhysicalOp, RangePartition}
 import edu.uci.ics.amber.operator.LogicalOp
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
+import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort}
 
 @JsonSchemaInject(json = """
 {

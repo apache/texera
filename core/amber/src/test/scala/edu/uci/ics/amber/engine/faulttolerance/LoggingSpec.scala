@@ -25,13 +25,13 @@ import edu.uci.ics.amber.engine.common.ambermessage.{
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
-import edu.uci.ics.amber.virtualidentity.{
+import edu.uci.ics.amber.core.virtualidentity.{
   ActorVirtualIdentity,
   ChannelIdentity,
   OperatorIdentity,
   PhysicalOpIdentity
 }
-import edu.uci.ics.amber.workflow.{PhysicalLink, PortIdentity}
+import edu.uci.ics.amber.core.workflow.{PhysicalLink, PortIdentity}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
 

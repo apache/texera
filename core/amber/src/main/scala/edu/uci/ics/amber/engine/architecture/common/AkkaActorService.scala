@@ -3,7 +3,7 @@ package edu.uci.ics.amber.engine.architecture.common
 import akka.actor.{ActorContext, ActorRef, Address, Cancellable, Props}
 import akka.util.Timeout
 import edu.uci.ics.amber.engine.common.FutureBijection._
-import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.{DurationInt, FiniteDuration}

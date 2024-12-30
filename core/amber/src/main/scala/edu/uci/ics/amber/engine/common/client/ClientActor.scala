@@ -34,7 +34,7 @@ import edu.uci.ics.amber.engine.common.client.ClientActor.{
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CLIENT, CONTROLLER}
 import edu.uci.ics.amber.error.ErrorUtils.reconstructThrowable
-import edu.uci.ics.amber.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
 import scala.collection.mutable
 

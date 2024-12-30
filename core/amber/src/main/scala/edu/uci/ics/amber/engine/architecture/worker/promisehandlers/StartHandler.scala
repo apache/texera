@@ -10,8 +10,8 @@ import edu.uci.ics.amber.engine.architecture.worker.DataProcessorRPCHandlerIniti
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{READY, RUNNING}
 import edu.uci.ics.amber.engine.common.ambermessage.MarkerFrame
 import edu.uci.ics.amber.engine.common.virtualidentity.util.SOURCE_STARTER_ACTOR
-import edu.uci.ics.amber.virtualidentity.ChannelIdentity
-import edu.uci.ics.amber.workflow.PortIdentity
+import edu.uci.ics.amber.core.virtualidentity.ChannelIdentity
+import edu.uci.ics.amber.core.workflow.PortIdentity
 
 trait StartHandler {
   this: DataProcessorRPCHandlerInitializer =>

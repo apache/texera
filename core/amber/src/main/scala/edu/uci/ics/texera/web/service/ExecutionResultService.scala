@@ -19,9 +19,9 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregat
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.executionruntimestate.ExecutionMetadataStore
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberRuntime}
-import edu.uci.ics.amber.virtualidentity.{OperatorIdentity, WorkflowIdentity}
-import edu.uci.ics.amber.workflow.OutputPort.OutputMode
-import edu.uci.ics.amber.workflow.PortIdentity
+import edu.uci.ics.amber.core.virtualidentity.{OperatorIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode
+import edu.uci.ics.amber.core.workflow.PortIdentity
 import edu.uci.ics.texera.web.SubscriptionManager
 import edu.uci.ics.texera.web.model.websocket.event.{
   PaginatedResultEvent,

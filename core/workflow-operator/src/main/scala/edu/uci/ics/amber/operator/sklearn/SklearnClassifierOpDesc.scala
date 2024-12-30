@@ -15,7 +15,7 @@ import edu.uci.ics.amber.operator.metadata.annotations.{
   CommonOpDescAnnotation,
   HideAnnotation
 }
-import edu.uci.ics.amber.workflow.{InputPort, OutputPort, PortIdentity}
+import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 
 abstract class SklearnClassifierOpDesc extends PythonOperatorDescriptor {
 

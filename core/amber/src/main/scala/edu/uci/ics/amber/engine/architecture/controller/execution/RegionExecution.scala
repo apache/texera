@@ -5,8 +5,8 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregat
 import edu.uci.ics.amber.engine.architecture.scheduling.Region
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
 import edu.uci.ics.amber.engine.common.executionruntimestate.OperatorMetrics
-import edu.uci.ics.amber.virtualidentity.PhysicalOpIdentity
-import edu.uci.ics.amber.workflow.PhysicalLink
+import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
+import edu.uci.ics.amber.core.workflow.PhysicalLink
 
 import scala.collection.mutable
 

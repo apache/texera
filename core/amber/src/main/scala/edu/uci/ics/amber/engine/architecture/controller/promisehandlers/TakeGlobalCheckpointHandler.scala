@@ -9,7 +9,7 @@ import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
 import edu.uci.ics.amber.engine.common.{CheckpointState, SerializedState}
-import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
 
 import java.net.URI
 

@@ -2,7 +2,7 @@ package edu.uci.ics.texera.web.storage
 
 import edu.uci.ics.amber.core.workflow.PhysicalOp
 import edu.uci.ics.amber.operator.StateTransferFunc
-import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
 
 case class ExecutionReconfigurationStore(
     currentReconfigId: Option[String] = None,

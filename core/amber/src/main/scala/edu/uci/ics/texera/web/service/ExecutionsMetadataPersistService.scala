@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.amber.core.workflow.WorkflowContext.DEFAULT_EXECUTION_ID
 import edu.uci.ics.amber.engine.common.AmberConfig
-import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.WorkflowExecutionsDao
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions

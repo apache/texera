@@ -10,7 +10,7 @@ import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.metadata.annotations.{AutofillAttributeName, HideAnnotation}
-import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
+import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort}
 
 class MachineLearningScorerOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(required = true, defaultValue = "false")

@@ -16,7 +16,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.{
 }
 import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
 import edu.uci.ics.amber.error.ErrorUtils.safely
-import edu.uci.ics.amber.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
 import java.util.concurrent._
 

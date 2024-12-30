@@ -5,9 +5,9 @@ import edu.uci.ics.amber.core.storage.model.BufferedItemWriter
 import edu.uci.ics.amber.core.storage.result.ResultStorage
 import edu.uci.ics.amber.core.tuple.{Tuple, TupleLike}
 import edu.uci.ics.amber.operator.sink.ProgressiveUtils
-import edu.uci.ics.amber.virtualidentity.WorkflowIdentity
-import edu.uci.ics.amber.workflow.OutputPort.OutputMode
-import edu.uci.ics.amber.workflow.PortIdentity
+import edu.uci.ics.amber.core.virtualidentity.WorkflowIdentity
+import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode
+import edu.uci.ics.amber.core.workflow.PortIdentity
 
 class ProgressiveSinkOpExec(
     outputMode: OutputMode,

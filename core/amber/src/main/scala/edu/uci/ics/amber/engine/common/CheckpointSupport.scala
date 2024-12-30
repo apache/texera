@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.common
 
 import edu.uci.ics.amber.core.tuple.TupleLike
-import edu.uci.ics.amber.workflow.PortIdentity
+import edu.uci.ics.amber.core.workflow.PortIdentity
 
 trait CheckpointSupport {
   def serializeState(

@@ -6,7 +6,7 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.source.SourceOperatorDescriptor
-import edu.uci.ics.amber.workflow.OutputPort
+import edu.uci.ics.amber.core.workflow.OutputPort
 import org.apache.commons.lang3.builder.EqualsBuilder
 
 import java.net.URI

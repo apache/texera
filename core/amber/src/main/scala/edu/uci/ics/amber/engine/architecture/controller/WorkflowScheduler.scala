@@ -8,7 +8,7 @@ import edu.uci.ics.amber.engine.architecture.scheduling.{
   Schedule
 }
 import edu.uci.ics.amber.engine.common.AmberConfig
-import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
 
 class WorkflowScheduler(
     workflowContext: WorkflowContext,

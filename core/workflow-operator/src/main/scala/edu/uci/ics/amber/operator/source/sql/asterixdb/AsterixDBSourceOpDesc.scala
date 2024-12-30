@@ -17,8 +17,8 @@ import edu.uci.ics.amber.operator.metadata.annotations.{
   AutofillAttributeNameList,
   UIWidget
 }
-import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.amber.workflow.OutputPort
+import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.core.workflow.OutputPort
 import edu.uci.ics.amber.operator.source.sql.SQLSourceOpDesc
 import edu.uci.ics.amber.operator.source.sql.asterixdb.AsterixDBConnUtil.{
   fetchDataTypeFields,

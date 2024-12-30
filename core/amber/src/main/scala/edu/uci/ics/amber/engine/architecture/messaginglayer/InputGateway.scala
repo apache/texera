@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import edu.uci.ics.amber.engine.architecture.logreplay.OrderEnforcer
-import edu.uci.ics.amber.virtualidentity.ChannelIdentity
+import edu.uci.ics.amber.core.virtualidentity.ChannelIdentity
 
 trait InputGateway {
 

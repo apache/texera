@@ -5,8 +5,8 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import edu.uci.ics.amber.workflow.OutputPort.OutputMode
-import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
+import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode
+import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort}
 
 import java.util
 import scala.jdk.CollectionConverters.ListHasAsScala

@@ -7,7 +7,7 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
   EvaluatePythonExpressionRequest
 }
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EvaluatePythonExpressionResponse
-import edu.uci.ics.amber.virtualidentity.OperatorIdentity
+import edu.uci.ics.amber.core.virtualidentity.OperatorIdentity
 
 trait EvaluatePythonExpressionHandler {
   this: ControllerAsyncRPCHandlerInitializer =>

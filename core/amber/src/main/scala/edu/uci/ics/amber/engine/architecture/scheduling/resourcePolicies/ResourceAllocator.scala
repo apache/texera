@@ -10,8 +10,8 @@ import edu.uci.ics.amber.engine.architecture.scheduling.config.{
   OperatorConfig,
   ResourceConfig
 }
-import edu.uci.ics.amber.virtualidentity.PhysicalOpIdentity
-import edu.uci.ics.amber.workflow.{PhysicalLink, PortIdentity}
+import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
+import edu.uci.ics.amber.core.workflow.{PhysicalLink, PortIdentity}
 
 import scala.collection.mutable
 

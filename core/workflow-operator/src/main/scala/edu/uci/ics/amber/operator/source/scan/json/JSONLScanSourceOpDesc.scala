@@ -10,7 +10,7 @@ import edu.uci.ics.amber.core.tuple.{Attribute, Schema}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.operator.source.scan.ScanSourceOpDesc
 import edu.uci.ics.amber.util.JSONUtils.{JSONToMap, objectMapper}
-import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 
 import java.io._
 import java.net.URI

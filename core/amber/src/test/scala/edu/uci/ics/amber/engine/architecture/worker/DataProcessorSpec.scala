@@ -16,13 +16,13 @@ import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, MarkerFrame, Wor
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.util.VirtualIdentityUtils
-import edu.uci.ics.amber.virtualidentity.{
+import edu.uci.ics.amber.core.virtualidentity.{
   ActorVirtualIdentity,
   ChannelIdentity,
   OperatorIdentity,
   PhysicalOpIdentity
 }
-import edu.uci.ics.amber.workflow.PortIdentity
+import edu.uci.ics.amber.core.workflow.PortIdentity
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.flatspec.AnyFlatSpec

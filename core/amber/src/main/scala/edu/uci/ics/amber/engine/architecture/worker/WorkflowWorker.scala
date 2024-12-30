@@ -12,7 +12,7 @@ import edu.uci.ics.amber.engine.common.actormessage.{ActorCommand, Backpressure}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.{CheckpointState, SerializedState}
-import edu.uci.ics.amber.virtualidentity.{ChannelIdentity, ChannelMarkerIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{ChannelIdentity, ChannelMarkerIdentity}
 
 import java.net.URI
 import java.util.concurrent.LinkedBlockingQueue

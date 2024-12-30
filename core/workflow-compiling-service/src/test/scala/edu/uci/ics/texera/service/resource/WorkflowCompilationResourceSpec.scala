@@ -8,7 +8,7 @@ import edu.uci.ics.amber.compiler.model.{LogicalLink, LogicalPlanPojo}
 import edu.uci.ics.amber.operator.projection.{AttributeUnit, ProjectionOpDesc}
 import edu.uci.ics.amber.operator.source.scan.csv.CSVScanSourceOpDesc
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
-import edu.uci.ics.amber.workflow.PortIdentity
+import edu.uci.ics.amber.core.workflow.PortIdentity
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.BeforeAndAfterAll
 import com.fasterxml.jackson.databind.node.ObjectNode

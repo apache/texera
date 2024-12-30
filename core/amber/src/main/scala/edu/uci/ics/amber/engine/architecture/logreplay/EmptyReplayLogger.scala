@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.logreplay
 
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
-import edu.uci.ics.amber.virtualidentity.{ChannelIdentity, ChannelMarkerIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{ChannelIdentity, ChannelMarkerIdentity}
 
 class EmptyReplayLogger extends ReplayLogger {
 

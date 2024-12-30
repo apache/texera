@@ -2,7 +2,7 @@ package edu.uci.ics.amber.util.serde
 
 import com.fasterxml.jackson.core.JsonGenerator
 import com.fasterxml.jackson.databind.{JsonSerializer, SerializerProvider}
-import edu.uci.ics.amber.workflow.PortIdentity
+import edu.uci.ics.amber.core.workflow.PortIdentity
 
 class PortIdentityKeySerializer extends JsonSerializer[PortIdentity] {
   override def serialize(

@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.util.serde
 
 import com.fasterxml.jackson.databind.{DeserializationContext, KeyDeserializer}
-import edu.uci.ics.amber.workflow.PortIdentity
+import edu.uci.ics.amber.core.workflow.PortIdentity
 
 class PortIdentityKeyDeserializer extends KeyDeserializer {
   override def deserializeKey(key: String, ctxt: DeserializationContext): PortIdentity = {

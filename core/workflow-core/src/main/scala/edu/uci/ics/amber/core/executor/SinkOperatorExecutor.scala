@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.core.executor
 
 import edu.uci.ics.amber.core.tuple.{Tuple, TupleLike}
-import edu.uci.ics.amber.workflow.PortIdentity
+import edu.uci.ics.amber.core.workflow.PortIdentity
 
 trait SinkOperatorExecutor extends OperatorExecutor {
 

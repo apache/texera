@@ -7,7 +7,7 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerTy
   REQUIRE_ALIGNMENT
 }
 import edu.uci.ics.amber.engine.common.{AmberLogging, CheckpointState}
-import edu.uci.ics.amber.virtualidentity.{
+import edu.uci.ics.amber.core.virtualidentity.{
   ActorVirtualIdentity,
   ChannelIdentity,
   ChannelMarkerIdentity

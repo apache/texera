@@ -6,7 +6,7 @@ import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.operator.source.scan.ScanSourceOpDesc
-import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.util.ArrowUtils
 
 import java.io.IOException

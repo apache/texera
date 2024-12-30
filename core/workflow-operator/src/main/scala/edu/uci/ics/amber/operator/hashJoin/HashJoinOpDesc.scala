@@ -6,8 +6,12 @@ import edu.uci.ics.amber.core.executor.OpExecInitInfo
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.core.workflow._
 import edu.uci.ics.amber.operator.LogicalOp
-import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, PhysicalOpIdentity, WorkflowIdentity}
-import edu.uci.ics.amber.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{
+  ExecutionIdentity,
+  PhysicalOpIdentity,
+  WorkflowIdentity
+}
+import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
 import edu.uci.ics.amber.operator.hashJoin.HashJoinOpDesc.HASH_JOIN_INTERNAL_KEY_NAME
 import edu.uci.ics.amber.operator.metadata.annotations.{
   AutofillAttributeName,

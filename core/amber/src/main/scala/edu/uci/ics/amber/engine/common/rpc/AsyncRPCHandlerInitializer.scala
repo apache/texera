@@ -6,7 +6,7 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlcommands._
 import edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerServiceFs2Grpc
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns._
 import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceFs2Grpc
-import edu.uci.ics.amber.virtualidentity.{
+import edu.uci.ics.amber.core.virtualidentity.{
   ActorVirtualIdentity,
   ChannelIdentity,
   ChannelMarkerIdentity

@@ -18,8 +18,8 @@ import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
 import edu.uci.ics.amber.operator.TestOperators
 import edu.uci.ics.amber.operator.aggregate.AggregationFunction
-import edu.uci.ics.amber.virtualidentity.OperatorIdentity
-import edu.uci.ics.amber.workflow.PortIdentity
+import edu.uci.ics.amber.core.virtualidentity.OperatorIdentity
+import edu.uci.ics.amber.core.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.LogicalLink
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}

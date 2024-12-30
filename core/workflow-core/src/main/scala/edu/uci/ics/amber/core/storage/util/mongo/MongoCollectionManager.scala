@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.core.storage.util.mongo
 
-import com.mongodb.client.model.{Aggregates, IndexOptions, Indexes, Sorts}
+import com.mongodb.client.model.{Aggregates, Sorts}
 import com.mongodb.client.{FindIterable, MongoCollection}
 import org.bson.Document
 

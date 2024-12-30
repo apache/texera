@@ -18,7 +18,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CLIENT, CONTROLLER, SELF}
 import edu.uci.ics.amber.engine.common.{AmberConfig, CheckpointState, SerializedState}
-import edu.uci.ics.amber.virtualidentity.ChannelIdentity
+import edu.uci.ics.amber.core.virtualidentity.ChannelIdentity
 
 import scala.concurrent.duration.DurationInt
 
