@@ -11,7 +11,6 @@ import edu.uci.ics.amber.util.IcebergUtil
 import org.apache.iceberg.data.Record
 import org.apache.iceberg.{Schema => IcebergSchema}
 
-
 import java.util.concurrent.ConcurrentHashMap
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
