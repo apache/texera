@@ -14,6 +14,7 @@ from core.util.customized_queue.queue_base import IQueue, QueueElement
 from proto.edu.uci.ics.amber.core import ActorVirtualIdentity
 from proto.edu.uci.ics.amber.engine.common import ControlPayloadV2
 
+
 @dataclass
 class InternalQueueElement(QueueElement):
     pass
