@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.storage.result.iceberg
 
-import edu.uci.ics.amber.core.storage.StorageConfig
+import edu.uci.ics.amber.core.storage.{IcebergCatalog, StorageConfig}
 import edu.uci.ics.amber.core.storage.model.VirtualDocumentSpec
 import edu.uci.ics.amber.core.storage.result.iceberg.IcebergDocument
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
@@ -47,6 +47,8 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] {
     StorageConfig.icebergCatalogPassword
   )
 
+  IcebergCatalog.replaceInstance(catalog)
+
   val tableNamespace = "test_namespace"
   var tableName: String = _
 
@@ -59,7 +61,6 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] {
   // Implementation of getDocument
   override def getDocument: IcebergDocument[Tuple] = {
     new IcebergDocument[Tuple](
-      catalog,
       tableNamespace,
       tableName,
       icebergSchema,

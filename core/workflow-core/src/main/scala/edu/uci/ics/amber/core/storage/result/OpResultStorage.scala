@@ -77,20 +77,12 @@ class OpResultStorage extends Serializable with LazyLogging {
             new MemoryDocument[Tuple](key.id)
         }
       } else {
-        val icebergCatalog = IcebergUtil.createJdbcCatalog(
-          "operator-result",
-          StorageConfig.fileStorageDirectoryUri,
-          StorageConfig.icebergCatalogUrl,
-          StorageConfig.icebergCatalogUsername,
-          StorageConfig.icebergCatalogPassword
-        )
         val icebergSchema = IcebergUtil.toIcebergSchema(schema.get)
         val serde: Tuple => Record = tuple => IcebergUtil.toGenericRecord(tuple)
         val deserde: (IcebergSchema, Record) => Tuple = (_, record) =>
           IcebergUtil.fromRecord(record, schema.get)
 
         new IcebergDocument[Tuple](
-          icebergCatalog,
           StorageConfig.icebergTableNamespace,
           executionId + key,
           icebergSchema,

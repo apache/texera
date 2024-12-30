@@ -1,5 +1,6 @@
 package edu.uci.ics.amber.core.storage.result.iceberg
 
+import edu.uci.ics.amber.core.storage.IcebergCatalog
 import edu.uci.ics.amber.core.storage.model.{BufferedItemWriter, VirtualDocument}
 import edu.uci.ics.amber.core.storage.util.StorageUtil.{withLock, withReadLock, withWriteLock}
 import edu.uci.ics.amber.util.IcebergUtil
@@ -14,7 +15,6 @@ import java.util.concurrent.locks.{ReentrantLock, ReentrantReadWriteLock}
 import scala.jdk.CollectionConverters._
 
 class IcebergDocument[T >: Null <: AnyRef](
-    val catalog: Catalog,
     val tableNamespace: String,
     val tableName: String,
     val tableSchema: org.apache.iceberg.Schema,
@@ -23,6 +23,8 @@ class IcebergDocument[T >: Null <: AnyRef](
 ) extends VirtualDocument[T] {
 
   private val lock = new ReentrantReadWriteLock()
+
+  @transient lazy val catalog: Catalog = IcebergCatalog.getInstance()
 
   // During construction, the table gonna be created.
   // If the table already exists, it will drop the existing table and create a new one

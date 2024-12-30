@@ -87,7 +87,7 @@ class WorkflowCompiler(
               // due to the size limit of single document in mongoDB (16MB)
               // for sinks visualizing HTMLs which could possibly be large in size, we always use the memory storage.
               val storageType = {
-                if (outputPort.mode == SINGLE_SNAPSHOT) OpResultStorage.MEMORY
+                if (outputPort.mode == SINGLE_SNAPSHOT) OpResultStorage.ICEBERG
                 else OpResultStorage.defaultStorageMode
               }
               if (!storage.contains(storageKey)) {
