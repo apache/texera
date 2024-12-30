@@ -5,7 +5,7 @@ import edu.uci.ics.amber.core.storage.model.BufferedItemWriter
 import edu.uci.ics.amber.core.storage.result.ResultStorage
 import edu.uci.ics.amber.core.tuple.{Tuple, TupleLike}
 import edu.uci.ics.amber.operator.sink.ProgressiveUtils
-import edu.uci.ics.amber.virtualidentity.{OperatorIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.virtualidentity.WorkflowIdentity
 import edu.uci.ics.amber.workflow.OutputPort.OutputMode
 import edu.uci.ics.amber.workflow.PortIdentity
 
@@ -43,8 +43,11 @@ class ProgressiveSinkOpExec(
   }
 
   override def onFinishMultiPort(port: Int): Iterator[(TupleLike, Option[PortIdentity])] = {
-    writer.close()
     Iterator.empty
+  }
+
+  override def close(): Unit = {
+    writer.close()
   }
 
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = Iterator.empty

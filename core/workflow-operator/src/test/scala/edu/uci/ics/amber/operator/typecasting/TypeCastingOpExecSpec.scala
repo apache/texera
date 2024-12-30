@@ -25,9 +25,7 @@ class TypeCastingOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   val castingUnit2 = new TypeCastingUnit()
   castingUnit2.attribute = "field3"
   castingUnit2.resultType = AttributeType.STRING
-  val castingUnits: java.util.List[TypeCastingUnit] = new java.util.ArrayList()
-  castingUnits.add(castingUnit1)
-  castingUnits.add(castingUnit2)
+  val castingUnits: List[TypeCastingUnit] = List(castingUnit1, castingUnit2)
 
   val tuple: Tuple = Tuple
     .builder(tupleSchema)

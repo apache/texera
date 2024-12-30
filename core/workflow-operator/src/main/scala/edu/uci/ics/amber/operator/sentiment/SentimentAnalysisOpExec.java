@@ -17,13 +17,13 @@ import java.util.*;
 
 public class SentimentAnalysisOpExec extends MapOpExec {
     private final String attributeName;
-    private final edu.uci.ics.amber.operator.sentiment.StanfordCoreNLPWrapper coreNlp;
+    private final StanfordCoreNLPWrapper coreNlp;
 
     public SentimentAnalysisOpExec(String attributeName) {
         this.attributeName = attributeName;
         Properties props = new Properties();
         props.setProperty("annotators", "tokenize, ssplit, parse, sentiment");
-        coreNlp = new edu.uci.ics.amber.operator.sentiment.StanfordCoreNLPWrapper(props);
+        coreNlp = new StanfordCoreNLPWrapper(props);
         this.setMapFunc((Function1<Tuple, TupleLike> & Serializable) this::sentimentAnalysis);
     }
 

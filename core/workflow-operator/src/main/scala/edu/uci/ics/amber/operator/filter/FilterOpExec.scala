@@ -7,8 +7,8 @@ abstract class FilterOpExec extends OperatorExecutor with Serializable {
 
   var filterFunc: Tuple => Boolean = _
 
-  def setFilterFunc(func: Tuple => java.lang.Boolean): Unit =
-    filterFunc = (tuple: Tuple) => func.apply(tuple).booleanValue()
+  def setFilterFunc(func: Tuple => Boolean): Unit =
+    filterFunc = func
 
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] =
     if (filterFunc(tuple)) Iterator.single(tuple) else Iterator.empty
