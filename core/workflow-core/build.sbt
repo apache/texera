@@ -111,10 +111,10 @@ val arrowDependencies = Seq(
 
 libraryDependencies ++= arrowDependencies
 
-val excludeHadoopJersey = ExclusionRule(organization = "com.sun.jersey")
-val excludeHadoopSlf4j = ExclusionRule(organization = "org.slf4j")
-val excludeHadoopJetty = ExclusionRule(organization = "org.eclipse.jetty")
-val excludeHadoopJsp = ExclusionRule(organization = "javax.servlet.jsp")
+/////////////////////////////////////////////////////////////////////////////
+// Iceberg-related Dependencies
+/////////////////////////////////////////////////////////////////////////////
+
 libraryDependencies ++= Seq(
   "org.apache.iceberg" % "iceberg-api" % "1.7.1",
   "org.apache.iceberg" % "iceberg-core" % "1.7.1",
@@ -123,10 +123,10 @@ libraryDependencies ++= Seq(
   "org.apache.hadoop" % "hadoop-common" % "3.3.1" excludeAll(
     ExclusionRule("javax.xml.bind"),
     ExclusionRule("org.glassfish.jersey"),
-    excludeHadoopJersey,
-    excludeHadoopSlf4j,
-    excludeHadoopJetty,
-    excludeHadoopJsp,
+    ExclusionRule(organization = "com.sun.jersey"),
+    ExclusionRule(organization = "org.slf4j"),
+    ExclusionRule(organization = "org.eclipse.jetty"),
+    ExclusionRule(organization = "javax.servlet.jsp"),
   )
 )
 
