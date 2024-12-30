@@ -6,7 +6,7 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.AsyncRPCContext
 import edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerServiceFs2Grpc
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCHandlerInitializer
-import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
 
 class ControllerAsyncRPCHandlerInitializer(
     val cp: ControllerProcessor

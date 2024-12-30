@@ -21,7 +21,7 @@ import edu.uci.ics.amber.engine.common.actormessage.{ActorCommand, PythonActorMe
 import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.{AmberLogging, AmberRuntime}
 import edu.uci.ics.amber.util.ArrowUtils
-import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.arrow.flight._
 import org.apache.arrow.memory.{ArrowBuf, BufferAllocator, RootAllocator}
 import org.apache.arrow.vector.VectorSchemaRoot

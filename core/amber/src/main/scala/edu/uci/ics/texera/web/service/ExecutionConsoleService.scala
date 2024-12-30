@@ -16,7 +16,7 @@ import edu.uci.ics.amber.engine.common.executionruntimestate.{
   OperatorConsole
 }
 import edu.uci.ics.amber.util.VirtualIdentityUtils
-import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
 import edu.uci.ics.texera.web.model.websocket.event.python.ConsoleUpdateEvent
 import edu.uci.ics.texera.web.model.websocket.request.RetryRequest
