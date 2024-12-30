@@ -179,11 +179,10 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
         val storageType = collection.get("storageType").asText()
         val collectionName = collection.get("storageKey").asText()
         storageType match {
-          case OpResultStorage.MEMORY =>
+          case OpResultStorage.MEMORY | OpResultStorage.ICEBERG  =>
           // rely on the server-side result cleanup logic.
           case OpResultStorage.MONGODB =>
             MongoDatabaseManager.dropCollection(collectionName)
-          case OpResultStorage.ICEBERG =>
         }
       })
     } catch {
