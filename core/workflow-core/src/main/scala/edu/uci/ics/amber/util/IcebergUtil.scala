@@ -24,8 +24,8 @@ import java.time.ZoneId
 import scala.jdk.CollectionConverters._
 
 /**
- * Util functions to interact with Iceberg Tables
- */
+  * Util functions to interact with Iceberg Tables
+  */
 object IcebergUtil {
 
   /**

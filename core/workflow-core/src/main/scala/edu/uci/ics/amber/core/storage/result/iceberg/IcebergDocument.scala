@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.core.storage.result.iceberg
 
-import edu.uci.ics.amber.core.storage.IcebergCatalog
+import edu.uci.ics.amber.core.storage.IcebergCatalogInstance
 import edu.uci.ics.amber.core.storage.model.{BufferedItemWriter, VirtualDocument}
 import edu.uci.ics.amber.core.storage.util.StorageUtil.{withLock, withReadLock, withWriteLock}
 import edu.uci.ics.amber.util.IcebergUtil
@@ -38,7 +38,7 @@ class IcebergDocument[T >: Null <: AnyRef](
 
   private val lock = new ReentrantReadWriteLock()
 
-  @transient lazy val catalog: Catalog = IcebergCatalog.getInstance()
+  @transient lazy val catalog: Catalog = IcebergCatalogInstance.getInstance()
 
   // During construction, create or override the table
   synchronized {
