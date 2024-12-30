@@ -5,7 +5,6 @@ import edu.uci.ics.amber.core.storage.model.BufferedItemWriter
 import edu.uci.ics.amber.core.storage.result.ResultStorage
 import edu.uci.ics.amber.core.tuple.{Tuple, TupleLike}
 import edu.uci.ics.amber.operator.sink.ProgressiveUtils
-import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import edu.uci.ics.amber.core.virtualidentity.WorkflowIdentity
 import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode
 import edu.uci.ics.amber.core.workflow.PortIdentity
@@ -29,7 +28,7 @@ class ProgressiveSinkOpExec(
       tuple: Tuple,
       input: Int
   ): Unit = {
-    desc.outputMode match {
+    outputMode match {
       case OutputMode.SET_SNAPSHOT | OutputMode.SINGLE_SNAPSHOT => updateSetSnapshot(tuple)
       case OutputMode.SET_DELTA                                 => writer.putOne(tuple)
       case _                                                    => throw new UnsupportedOperationException("Unsupported output mode")

@@ -9,8 +9,6 @@ import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort}
 
-import scala.util.Random
-
 class RandomKSamplingOpDesc extends FilterOpDesc {
 
   @JsonProperty(value = "random k sample percentage", required = true)

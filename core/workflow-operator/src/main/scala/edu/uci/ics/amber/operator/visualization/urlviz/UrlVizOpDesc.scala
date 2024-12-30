@@ -10,7 +10,6 @@ import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdenti
 import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort}
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
-import edu.uci.ics.amber.operator.visualization.{VisualizationConstants, VisualizationOperator}
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode
 

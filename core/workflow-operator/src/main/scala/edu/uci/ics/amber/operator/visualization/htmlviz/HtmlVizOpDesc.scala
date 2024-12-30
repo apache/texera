@@ -8,7 +8,6 @@ import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.operator.LogicalOp
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import edu.uci.ics.amber.operator.visualization.{VisualizationConstants, VisualizationOperator}
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode
