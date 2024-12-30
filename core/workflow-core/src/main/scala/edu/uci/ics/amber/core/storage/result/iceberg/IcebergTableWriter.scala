@@ -24,7 +24,6 @@ class IcebergTableWriter[T](
     val serde: T => Record
 ) extends BufferedItemWriter[T] {
 
-  private val lock = new ReentrantLock()
   private val buffer = new ArrayBuffer[T]()
   // the incremental filename's index, incremented everytime a new buffer is flushed
   private var filenameIdx = 0
@@ -37,67 +36,60 @@ class IcebergTableWriter[T](
       .get
 
   override def open(): Unit =
-    withLock(lock) {
-      buffer.clear()
-    }
+    buffer.clear()
 
-  override def putOne(item: T): Unit =
-    withLock(lock) {
-      buffer.append(item)
-      if (buffer.size >= bufferSize) {
-        flushBuffer()
-      }
+  override def putOne(item: T): Unit = {
+    buffer.append(item)
+    if (buffer.size >= bufferSize) {
+      flushBuffer()
     }
+  }
 
   override def removeOne(item: T): Unit =
-    withLock(lock) {
-      buffer -= item
-    }
+    buffer -= item
 
-  private def flushBuffer(): Unit =
-    withLock(lock) {
-      if (buffer.nonEmpty) {
+  private def flushBuffer(): Unit = {
+    if (buffer.nonEmpty) {
 
-        // Create a unique file path using writer's identifier and the filename's idx
-        val filepath = s"${table.location()}/${writerIdentifier}_${filenameIdx}"
-        // increment the idx by 1
-        filenameIdx += 1
-        val outputFile: OutputFile = table.io().newOutputFile(filepath)
+      // Create a unique file path using writer's identifier and the filename's idx
+      val filepath = s"${table.location()}/${writerIdentifier}_${filenameIdx}"
+      // increment the idx by 1
+      filenameIdx += 1
+      val outputFile: OutputFile = table.io().newOutputFile(filepath)
 
-        // Create a Parquet data writer
-        // This part introduces the dependency to the Hadoop. In the source code of iceberg-parquet, see the line 160
-        //    https://github.com/apache/iceberg/blob/main/parquet/src/main/java/org/apache/iceberg/parquet/Parquet.java
-        //    although the file is not of type HadoopOutputFile, it still creats a Hadoop Configuration() as the
-        //    placeholder.
-        val dataWriter: DataWriter[Record] = Parquet
-          .writeData(outputFile)
-          .forTable(table)
-          .createWriterFunc(GenericParquetWriter.buildWriter)
-          .overwrite()
-          .build()
+      // Create a Parquet data writer to write a new file
+      // This part introduces the dependency to the Hadoop. In the source code of iceberg-parquet, see the line 160
+      //    https://github.com/apache/iceberg/blob/main/parquet/src/main/java/org/apache/iceberg/parquet/Parquet.java
+      //    although the file is not of type HadoopOutputFile, it still creats a Hadoop Configuration() as the
+      //    placeholder.
+      val dataWriter: DataWriter[Record] = Parquet
+        .writeData(outputFile)
+        .forTable(table)
+        .createWriterFunc(GenericParquetWriter.buildWriter)
+        .overwrite()
+        .build()
 
-        try {
-          // TODO: as Iceberg doesn't guarantee the order of the data written to the table, we need to think about how
-          //   how to guarantee the order, possibly adding a additional timestamp field and use it as the sorting key
-          buffer.foreach { item =>
-            val record = serde(item)
-            dataWriter.write(record)
-          }
-        } finally {
-          dataWriter.close()
+      try {
+        // TODO: as Iceberg doesn't guarantee the order of the data written to the table, we need to think about how
+        //   how to guarantee the order, possibly adding a additional timestamp field and use it as the sorting key
+        buffer.foreach { item =>
+          val record = serde(item)
+          dataWriter.write(record)
         }
-
-        // Commit the new file to the table
-        val dataFile = dataWriter.toDataFile
-        table.newAppend().appendFile(dataFile).commit()
-        buffer.clear()
+      } finally {
+        dataWriter.close()
       }
-    }
 
-  override def close(): Unit =
-    withLock(lock) {
-      if (buffer.nonEmpty) {
-        flushBuffer()
-      }
+      // Commit the new file to the table
+      val dataFile = dataWriter.toDataFile
+      table.newAppend().appendFile(dataFile).commit()
+      buffer.clear()
     }
+  }
+
+  override def close(): Unit = {
+    if (buffer.nonEmpty) {
+      flushBuffer()
+    }
+  }
 }
