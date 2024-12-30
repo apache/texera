@@ -11,7 +11,6 @@ import org.jgrapht.util.SupplierUtil
 
 import java.util
 import scala.collection.mutable.ArrayBuffer
-import scala.jdk.CollectionConverters.SetHasAsScala
 import scala.util.{Failure, Success, Try}
 
 object LogicalPlan {
@@ -64,14 +63,6 @@ case class LogicalPlan(
     operatorMap.keys
       .filter(op => jgraphtDag.outDegreeOf(op) == 0)
       .toList
-
-  def getUpstreamOps(opId: OperatorIdentity): List[LogicalOp] = {
-    jgraphtDag
-      .incomingEdgesOf(opId)
-      .asScala
-      .map(e => operatorMap(e.fromOpId))
-      .toList
-  }
 
   def getUpstreamLinks(opId: OperatorIdentity): List[LogicalLink] = {
     links.filter(l => l.toOpId == opId)
