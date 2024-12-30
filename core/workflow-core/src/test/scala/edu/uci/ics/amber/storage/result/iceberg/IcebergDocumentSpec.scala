@@ -5,6 +5,7 @@ import edu.uci.ics.amber.core.storage.model.VirtualDocumentSpec
 import edu.uci.ics.amber.core.storage.result.iceberg.IcebergDocument
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import edu.uci.ics.amber.util.IcebergUtil
+import edu.uci.ics.texera.dao.MockTexeraDB
 import org.apache.iceberg.catalog.Catalog
 import org.apache.iceberg.data.Record
 import org.apache.iceberg.{Schema => IcebergSchema}
@@ -13,7 +14,7 @@ import org.apache.iceberg.catalog.TableIdentifier
 import java.sql.Timestamp
 import java.util.UUID
 
-class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] {
+class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with MockTexeraDB {
 
   // Define Amber Schema with all possible attribute types
   val amberSchema: Schema = Schema(
@@ -39,14 +40,16 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] {
     IcebergUtil.fromRecord(record, amberSchema)
 
   // Create catalog instance
+  // - init the test db
+  initializeDBAndReplaceDSLContext()
+  // - create catalog using the test db's url, username and password and replace the catalog singleton
   val catalog: Catalog = IcebergUtil.createJdbcCatalog(
     "iceberg_document_test",
     StorageConfig.fileStorageDirectoryUri,
-    StorageConfig.icebergCatalogUrl,
-    StorageConfig.icebergCatalogUsername,
-    StorageConfig.icebergCatalogPassword
+    getJdbcUrl,
+    getJdbcUsername,
+    getJdbcPassword
   )
-
   IcebergCatalogInstance.replaceInstance(catalog)
 
   val tableNamespace = "test_namespace"
@@ -117,7 +120,7 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] {
     }
 
     // Generate additional tuples with random data and occasional nulls
-    val additionalTuples = (1 to 6000).map { i =>
+    val additionalTuples = (1 to 10000).map { i =>
       Tuple
         .builder(amberSchema)
         .add(

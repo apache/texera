@@ -113,7 +113,7 @@ trait VirtualDocumentSpec[T] extends AnyFlatSpec with BeforeAndAfterEach {
     val batchSize = allItems.length / numWriters
     val remainder = allItems.length % numWriters
 
-    // Create batches using a simple for loop
+    // Create writer's batches
     val itemBatches = (0 until numWriters).map { i =>
       val start = i * batchSize + Math.min(i, remainder)
       val end = start + batchSize + (if (i < remainder) 1 else 0)

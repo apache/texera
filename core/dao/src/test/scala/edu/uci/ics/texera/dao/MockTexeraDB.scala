@@ -119,4 +119,10 @@ trait MockTexeraDB {
 
     sqlServerInstance.replaceDSLContext(dslContext.get)
   }
+
+  def getJdbcUrl: String = getDBInstance.getConfiguration.getURL(database)
+
+  def getJdbcUsername: String = username
+
+  def getJdbcPassword: String = password
 }
