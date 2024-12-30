@@ -4,7 +4,6 @@ import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
-import java.util.Arrays.asList
 class SpecializedFilterOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   val inputPort: Int = 0
 
@@ -91,7 +90,7 @@ class SpecializedFilterOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
         assert(attributes.length == 1)
 
         val opExec = new SpecializedFilterOpExec(
-          List(new FilterPredicate(attributes(0).getName, ComparisonType.IS_NULL, null))
+          List(new FilterPredicate(attributes.head.getName, ComparisonType.IS_NULL, null))
         )
 
         opExec.open()
@@ -125,7 +124,7 @@ class SpecializedFilterOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
         assert(attributes.length == 1)
 
         val opExec = new SpecializedFilterOpExec(
-          List(new FilterPredicate(attributes(0).getName, ComparisonType.IS_NOT_NULL, null))
+          List(new FilterPredicate(attributes.head.getName, ComparisonType.IS_NOT_NULL, null))
         )
 
         opExec.open()
