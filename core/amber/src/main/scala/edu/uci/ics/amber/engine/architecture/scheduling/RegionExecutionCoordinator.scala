@@ -28,7 +28,7 @@ import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, 
 import edu.uci.ics.amber.engine.common.AmberRuntime
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
-import edu.uci.ics.amber.workflow.PhysicalLink
+import edu.uci.ics.amber.core.workflow.PhysicalLink
 
 class RegionExecutionCoordinator(
     region: Region,

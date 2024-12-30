@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.core
 
-import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
 
 class WorkflowRuntimeException(
     val message: String,

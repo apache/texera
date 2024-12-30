@@ -5,7 +5,7 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessage
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessageType.ERROR
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{ControlError, ErrorLanguage}
 import edu.uci.ics.amber.util.VirtualIdentityUtils
-import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
 
 import java.time.Instant
 import scala.util.control.ControlThrowable

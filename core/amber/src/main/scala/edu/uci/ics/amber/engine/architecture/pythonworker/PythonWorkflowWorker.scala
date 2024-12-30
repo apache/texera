@@ -15,7 +15,7 @@ import edu.uci.ics.amber.engine.common.actormessage.{Backpressure, CreditUpdate}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.{CheckpointState, Utils}
-import edu.uci.ics.amber.virtualidentity.ChannelIdentity
+import edu.uci.ics.amber.core.virtualidentity.ChannelIdentity
 
 import java.nio.file.Path
 import java.util.concurrent.{ExecutorService, Executors}

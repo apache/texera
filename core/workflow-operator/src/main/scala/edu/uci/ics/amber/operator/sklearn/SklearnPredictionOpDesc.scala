@@ -8,7 +8,7 @@ import edu.uci.ics.amber.operator.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameOnPort1
 }
-import edu.uci.ics.amber.workflow.{InputPort, OutputPort, PortIdentity}
+import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 
 class SklearnPredictionOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "Model Attribute", required = true, defaultValue = "model")

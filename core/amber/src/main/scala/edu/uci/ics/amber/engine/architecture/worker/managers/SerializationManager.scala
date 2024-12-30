@@ -11,8 +11,8 @@ import edu.uci.ics.amber.engine.common.{
   CheckpointSupport
 }
 import edu.uci.ics.amber.util.VirtualIdentityUtils
-import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.amber.workflow.PortIdentity
+import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.core.workflow.PortIdentity
 
 class SerializationManager(val actorId: ActorVirtualIdentity) extends AmberLogging {
 

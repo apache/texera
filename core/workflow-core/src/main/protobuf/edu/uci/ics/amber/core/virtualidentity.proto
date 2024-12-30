@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package edu.uci.ics.amber;
+package edu.uci.ics.amber.core;
 
 import "scalapb/scalapb.proto";
 

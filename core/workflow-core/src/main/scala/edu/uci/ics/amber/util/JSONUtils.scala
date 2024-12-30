@@ -6,7 +6,7 @@ import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
 import com.fasterxml.jackson.module.noctordeser.NoCtorDeserModule
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import edu.uci.ics.amber.util.serde.{PortIdentityKeyDeserializer, PortIdentityKeySerializer}
-import edu.uci.ics.amber.workflow.PortIdentity
+import edu.uci.ics.amber.core.workflow.PortIdentity
 
 import java.text.SimpleDateFormat
 import scala.jdk.CollectionConverters.IteratorHasAsScala
