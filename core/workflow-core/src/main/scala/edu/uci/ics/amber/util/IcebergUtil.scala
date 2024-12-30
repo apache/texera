@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.util
 
 import edu.uci.ics.amber.core.storage.StorageConfig
-import edu.uci.ics.amber.core.storage.result.iceberg.fileio.LocalFileIO
+import edu.uci.ics.amber.core.storage.result.iceberg.LocalFileIO
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.iceberg.catalog.{Catalog, TableIdentifier}
 import org.apache.iceberg.types.Types

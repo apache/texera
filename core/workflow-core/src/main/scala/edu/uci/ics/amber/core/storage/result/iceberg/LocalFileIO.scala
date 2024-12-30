@@ -1,7 +1,8 @@
-package edu.uci.ics.amber.core.storage.result.iceberg.fileio
+package edu.uci.ics.amber.core.storage.result.iceberg
 
-import org.apache.iceberg.io.{FileIO, InputFile, OutputFile}
+import org.apache.iceberg.Files.{localInput, localOutput}
 import org.apache.iceberg.exceptions.RuntimeIOException
+import org.apache.iceberg.io.{FileIO, InputFile, OutputFile}
 
 import java.io.IOException
 import java.nio.file.{Files, Paths}
@@ -25,7 +26,7 @@ class LocalFileIO extends FileIO {
     */
   override def newInputFile(path: String): InputFile = {
     ensureNotClosed()
-    new LocalInputFile(path)
+    localInput(path)
   }
 
   /**
@@ -37,7 +38,7 @@ class LocalFileIO extends FileIO {
     */
   override def newOutputFile(path: String): OutputFile = {
     ensureNotClosed()
-    new LocalOutputFile(path)
+    localOutput(path)
   }
 
   /**
