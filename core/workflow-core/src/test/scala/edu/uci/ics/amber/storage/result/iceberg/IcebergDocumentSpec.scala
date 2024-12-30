@@ -10,55 +10,68 @@ import org.apache.iceberg.catalog.Catalog
 import org.apache.iceberg.data.Record
 import org.apache.iceberg.{Schema => IcebergSchema}
 import org.apache.iceberg.catalog.TableIdentifier
+import org.scalatest.BeforeAndAfterAll
 
 import java.sql.Timestamp
 import java.util.UUID
 
-class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with MockTexeraDB {
+class IcebergDocumentSpec
+    extends VirtualDocumentSpec[Tuple]
+    with MockTexeraDB
+    with BeforeAndAfterAll {
 
-  // Define Amber Schema with all possible attribute types
-  val amberSchema: Schema = Schema(
-    List(
-      new Attribute("col-string", AttributeType.STRING),
-      new Attribute("col-int", AttributeType.INTEGER),
-      new Attribute("col-bool", AttributeType.BOOLEAN),
-      new Attribute("col-long", AttributeType.LONG),
-      new Attribute("col-double", AttributeType.DOUBLE),
-      new Attribute("col-timestamp", AttributeType.TIMESTAMP),
-      new Attribute("col-binary", AttributeType.BINARY)
-    )
-  )
-
-  // Define Iceberg Schema
-  val icebergSchema: IcebergSchema = IcebergUtil.toIcebergSchema(amberSchema)
-
-  // Serialization function: Tuple -> Record
-  val serde: Tuple => Record = tuple => IcebergUtil.toGenericRecord(tuple)
-
-  // Deserialization function: Record -> Tuple
-  val deserde: (IcebergSchema, Record) => Tuple = (schema, record) =>
-    IcebergUtil.fromRecord(record, amberSchema)
-
-  // Create catalog instance
-  // - init the test db
-  initializeDBAndReplaceDSLContext()
-  // - create catalog using the test db's url, username and password and replace the catalog singleton
-  val catalog: Catalog = IcebergUtil.createJdbcCatalog(
-    "iceberg_document_test",
-    StorageConfig.fileStorageDirectoryUri,
-    getJdbcUrl,
-    getJdbcUsername,
-    getJdbcPassword
-  )
-  IcebergCatalogInstance.replaceInstance(catalog)
-
+  var amberSchema: Schema = _
+  var icebergSchema: IcebergSchema = _
+  var serde: Tuple => Record = _
+  var deserde: (IcebergSchema, Record) => Tuple = _
+  var catalog: Catalog = _
   val tableNamespace = "test_namespace"
   var tableName: String = _
+
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+
+    // Initialize Amber Schema with all possible attribute types
+    amberSchema = Schema(
+      List(
+        new Attribute("col-string", AttributeType.STRING),
+        new Attribute("col-int", AttributeType.INTEGER),
+        new Attribute("col-bool", AttributeType.BOOLEAN),
+        new Attribute("col-long", AttributeType.LONG),
+        new Attribute("col-double", AttributeType.DOUBLE),
+        new Attribute("col-timestamp", AttributeType.TIMESTAMP),
+        new Attribute("col-binary", AttributeType.BINARY)
+      )
+    )
+
+    // Initialize Iceberg Schema
+    icebergSchema = IcebergUtil.toIcebergSchema(amberSchema)
+
+    // Initialize serialization and deserialization functions
+    serde = tuple => IcebergUtil.toGenericRecord(tuple)
+    deserde = (schema, record) => IcebergUtil.fromRecord(record, amberSchema)
+
+    // Initialize the test database and create the Iceberg catalog
+    initializeDBAndReplaceDSLContext()
+    catalog = IcebergUtil.createJdbcCatalog(
+      "iceberg_document_test",
+      StorageConfig.fileStorageDirectoryUri,
+      getJdbcUrl,
+      getJdbcUsername,
+      getJdbcPassword
+    )
+    IcebergCatalogInstance.replaceInstance(catalog)
+  }
 
   override def beforeEach(): Unit = {
     // Generate a unique table name for each test
     tableName = s"test_table_${UUID.randomUUID().toString.replace("-", "")}"
     super.beforeEach()
+  }
+
+  override def afterAll(): Unit = {
+    shutdownDB()
+    super.afterAll()
   }
 
   // Implementation of getDocument
@@ -72,7 +85,7 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with MockTexeraDB {
     )
   }
 
-  // Implementation of isDocumentClearedgetSam
+  // Implementation of isDocumentCleared
   override def isDocumentCleared: Boolean = {
     val identifier = TableIdentifier.of(tableNamespace, tableName)
     !catalog.tableExists(identifier)
@@ -112,58 +125,30 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with MockTexeraDB {
         .build()
     )
 
-    // Function to generate random binary data
     def generateRandomBinary(size: Int): Array[Byte] = {
       val array = new Array[Byte](size)
       scala.util.Random.nextBytes(array)
       array
     }
 
-    // Generate additional tuples with random data and occasional nulls
     val additionalTuples = (1 to 10000).map { i =>
       Tuple
         .builder(amberSchema)
-        .add(
-          "col-string",
-          AttributeType.STRING,
-          if (i % 7 == 0) null else s"Generated String $i"
-        )
-        .add(
-          "col-int",
-          AttributeType.INTEGER,
-          if (i % 5 == 0) null else i
-        )
-        .add(
-          "col-bool",
-          AttributeType.BOOLEAN,
-          if (i % 6 == 0) null else i % 2 == 0
-        )
-        .add(
-          "col-long",
-          AttributeType.LONG,
-          if (i % 4 == 0) null else i.toLong * 1000000L
-        )
-        .add(
-          "col-double",
-          AttributeType.DOUBLE,
-          if (i % 3 == 0) null else i * 0.12345
-        )
+        .add("col-string", AttributeType.STRING, if (i % 7 == 0) null else s"Generated String $i")
+        .add("col-int", AttributeType.INTEGER, if (i % 5 == 0) null else i)
+        .add("col-bool", AttributeType.BOOLEAN, if (i % 6 == 0) null else i % 2 == 0)
+        .add("col-long", AttributeType.LONG, if (i % 4 == 0) null else i.toLong * 1000000L)
+        .add("col-double", AttributeType.DOUBLE, if (i % 3 == 0) null else i * 0.12345)
         .add(
           "col-timestamp",
           AttributeType.TIMESTAMP,
           if (i % 8 == 0) null
           else new Timestamp(System.currentTimeMillis() + i * 1000L)
         )
-        .add(
-          "col-binary",
-          AttributeType.BINARY,
-          if (i % 9 == 0) null
-          else generateRandomBinary(scala.util.Random.nextInt(10) + 1)
-        )
+        .add("col-binary", AttributeType.BINARY, if (i % 9 == 0) null else generateRandomBinary(10))
         .build()
     }
 
-    // Combine the base tuples with the generated tuples
     baseTuples ++ additionalTuples
   }
 }
