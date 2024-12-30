@@ -201,7 +201,7 @@ trait VirtualDocumentSpec[T] extends AnyFlatSpec with BeforeAndAfterEach {
     )
   }
 
-  it should "read a specific range of items correctly" in {
+  it should "read all items using ranges correctly" in {
     val allItems = generateSampleItems()
 
     // Write items
@@ -210,15 +210,17 @@ trait VirtualDocumentSpec[T] extends AnyFlatSpec with BeforeAndAfterEach {
     allItems.foreach(writer.putOne)
     writer.close()
 
-    // Read a specific range
-    val from = 5
-    val until = 15
-    val retrievedItems = document.getRange(from, until).toList
+    // Read all items using ranges
+    val batchSize = 15
+    val ranges = allItems.indices.grouped(batchSize).toList
+    val retrievedItems = ranges.flatMap { range =>
+      document.getRange(range.head, range.lastOption.getOrElse(range.head) + 1).toList
+    }
 
-    // Verify the retrieved range
+    // Verify that the retrieved items match the original items
     assert(
-      retrievedItems.size == allItems.slice(from, until).size,
-      s"Items in range ($from, $until) should match."
+      retrievedItems.toSet == allItems.toSet,
+      "All items should be retrieved correctly using ranges."
     )
   }
 
