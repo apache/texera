@@ -17,14 +17,19 @@ class TypeCastingOpDesc extends MapOpDesc {
   @JsonPropertyDescription("Multiple type castings")
   var typeCastingUnits: List[TypeCastingUnit] = List.empty
 
-  override def getPhysicalOp(workflowId: WorkflowIdentity, executionId: ExecutionIdentity): PhysicalOp = {
+  override def getPhysicalOp(
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity
+  ): PhysicalOp = {
     if (typeCastingUnits == null) typeCastingUnits = List.empty
-    PhysicalOp.oneToOnePhysicalOp(
+    PhysicalOp
+      .oneToOnePhysicalOp(
         workflowId,
         executionId,
         operatorIdentifier,
         OpExecInitInfo((_, _) => new TypeCastingOpExec(typeCastingUnits))
-      ).withInputPorts(operatorInfo.inputPorts)
+      )
+      .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withPropagateSchema(
         SchemaPropagationFunc { inputSchemas: Map[PortIdentity, Schema] =>

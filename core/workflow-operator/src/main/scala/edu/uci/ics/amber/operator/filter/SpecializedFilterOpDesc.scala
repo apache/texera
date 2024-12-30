@@ -13,15 +13,16 @@ class SpecializedFilterOpDesc extends FilterOpDesc {
   @JsonPropertyDescription("multiple predicates in OR")
   var predicates: List[FilterPredicate] = List.empty
 
-  override def getPhysicalOp(workflowId: WorkflowIdentity, executionId: ExecutionIdentity): PhysicalOp = {
+  override def getPhysicalOp(
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity
+  ): PhysicalOp = {
     PhysicalOp
       .oneToOnePhysicalOp(
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo(
-          (_, _) => new SpecializedFilterOpExec(predicates)
-        )
+        OpExecInitInfo((_, _) => new SpecializedFilterOpExec(predicates))
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
