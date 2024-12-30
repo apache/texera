@@ -7,9 +7,9 @@ storage:
   iceberg:
     catalog:
       jdbc: # currently we only support storing catalog info via jdbc, i.e. https://iceberg.apache.org/docs/1.7.1/jdbc/
-        url: "jdbc:mysql://0.0.0.0:3306/texera_iceberg?serverTimezone=UTC"
-        username: "root"
-        password: "123456"
+        url: "jdbc:mysql://localhost:3306/texera_iceberg?serverTimezone=UTC"
+        username: ""
+        password: ""
     table:
       namespace: "operator-result"
       commit:
@@ -22,6 +22,6 @@ storage:
           min-wait-ms: 100   # 0.1s
           max-wait-ms: 10000 # 10s
   jdbc:
-    url: "jdbc:mysql://0.0.0.0:3306/texera_db?serverTimezone=UTC"
-    username: "root"
-    password: "123456"
+    url: "jdbc:mysql://localhost:3306/texera_db?serverTimezone=UTC"
+    username: ""
+    password: ""
