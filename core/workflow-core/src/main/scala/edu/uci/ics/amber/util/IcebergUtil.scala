@@ -80,7 +80,7 @@ object IcebergUtil {
     )
   }
 
-  def loadTable(
+  def loadTableMetadata(
       catalog: Catalog,
       tableNamespace: String,
       tableName: String

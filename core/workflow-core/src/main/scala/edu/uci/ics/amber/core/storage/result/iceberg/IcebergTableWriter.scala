@@ -32,7 +32,7 @@ class IcebergTableWriter[T](
   // Load the Iceberg table
   private val table: Table =
     IcebergUtil
-      .loadTable(catalog, tableNamespace, tableName)
+      .loadTableMetadata(catalog, tableNamespace, tableName)
       .get
 
   override def open(): Unit =

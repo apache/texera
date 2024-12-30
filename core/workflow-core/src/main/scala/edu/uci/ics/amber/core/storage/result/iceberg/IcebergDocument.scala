@@ -14,6 +14,20 @@ import java.net.URI
 import java.util.concurrent.locks.{ReentrantLock, ReentrantReadWriteLock}
 import scala.jdk.CollectionConverters._
 
+/**
+  * IcebergDocument is used to read and write a set of T as an Iceberg table.
+  * It provides iterator-based read methods and supports multiple writers to write to the same table.
+  *
+  * - On construction, the table will be created if it does not exist.
+  * - If the table exists, it will be overridden.
+  *
+  * @param tableNamespace namespace of the table.
+  * @param tableName name of the table.
+  * @param tableSchema schema of the table.
+  * @param serde function to serialize T into an Iceberg Record.
+  * @param deserde function to deserialize an Iceberg Record into T.
+  * @tparam T type of the data items stored in the Iceberg table.
+  */
 class IcebergDocument[T >: Null <: AnyRef](
     val tableNamespace: String,
     val tableName: String,
@@ -26,8 +40,7 @@ class IcebergDocument[T >: Null <: AnyRef](
 
   @transient lazy val catalog: Catalog = IcebergCatalog.getInstance()
 
-  // During construction, the table gonna be created.
-  // If the table already exists, it will drop the existing table and create a new one
+  // During construction, create or override the table
   synchronized {
     IcebergUtil.createTable(
       catalog,
@@ -40,10 +53,11 @@ class IcebergDocument[T >: Null <: AnyRef](
 
   /**
     * Returns the URI of the table location.
+    * @throws NoSuchTableException if the table does not exist.
     */
   override def getURI: URI = {
     val table = IcebergUtil
-      .loadTable(catalog, tableNamespace, tableName)
+      .loadTableMetadata(catalog, tableNamespace, tableName)
       .getOrElse(
         throw new NoSuchTableException(f"table ${tableNamespace}.${tableName} doesn't exist")
       )
@@ -51,7 +65,7 @@ class IcebergDocument[T >: Null <: AnyRef](
   }
 
   /**
-    * Deletes the table.
+    * Deletes the table and clears its contents.
     */
   override def clear(): Unit =
     withWriteLock(lock) {
@@ -61,47 +75,60 @@ class IcebergDocument[T >: Null <: AnyRef](
       }
     }
 
+  /**
+    * Get an iterator for reading records from the table.
+    */
   override def get(): Iterator[T] =
     withReadLock(lock) {
       new Iterator[T] {
         private val iteLock = new ReentrantLock()
-        private var table: Option[Table] = loadTable()
+        // Load the table instance, initially the table instance may not exists
+        private var table: Option[Table] = loadTableMetadata()
+
+        // Last seen snapshot id(logically it's like a version number). While reading, new snapshots may be created
         private var lastSnapshotId: Option[Long] = None
+
+        // Iterator for the records
         private var recordIterator: Iterator[T] = loadRecords()
 
-        private def loadTable(): Option[Table] = {
-          IcebergUtil.loadTable(
+        // Util function to load the table's metadata
+        private def loadTableMetadata(): Option[Table] = {
+          IcebergUtil.loadTableMetadata(
             catalog,
             tableNamespace,
             tableName
           )
         }
 
-        /**
-          * Loads records incrementally using `newIncrementalAppendScan` from the last snapshot ID.
-          */
+        // Util function to load new records when current iterator reach to EOF
         private def loadRecords(): Iterator[T] =
           withLock(iteLock) {
             table match {
               case Some(t) =>
-                val currentSnapshot = Option(t.currentSnapshot())
-                val currentSnapshotId = currentSnapshot.map(_.snapshotId())
+                val currentSnapshotId = Option(t.currentSnapshot()).map(_.snapshotId())
 
                 val records: CloseableIterable[Record] = (lastSnapshotId, currentSnapshotId) match {
-                  case (Some(lastId), Some(currId)) if lastId != currId =>
-                    // Perform incremental append scan if snapshot IDs are different
-                    IcebergGenerics.read(t).appendsAfter(lastId).build()
-
+                  // case1: the read hasn't started yet(because the lastSnapshotId is None)
+                  // - create a iterator that will read from the beginning of the table
                   case (None, Some(_)) =>
-                    // First read, perform a full scan
                     IcebergGenerics.read(t).build()
 
+                  // case2: the read is ongoing and two Ids are not equal
+                  case (Some(lastId), Some(currId)) if lastId != currId =>
+                    // This means that the new snapshots have been produced since last read, thus
+                    //   create a iterator that only reads the new data
+                    IcebergGenerics.read(t).appendsAfter(lastId).build()
+
+                  // case3: the read is ongoing and two Ids are equal
+                  case (Some(lastId), Some(currId)) if lastId == currId =>
+                    // This means that there is no new data during the read, thus no new record
+                    CloseableIterable.empty()
+
+                  // default case: Both Ids are None, meaning no data yet.
                   case _ =>
-                    // No new data; return an empty iterator
                     CloseableIterable.empty()
                 }
 
-                // Update the last snapshot ID to the current one
                 lastSnapshotId = currentSnapshotId
                 records.iterator().asScala.map(record => deserde(tableSchema, record))
 
@@ -113,14 +140,13 @@ class IcebergDocument[T >: Null <: AnyRef](
           if (recordIterator.hasNext) {
             true
           } else {
-            // Refresh the table and check for new commits
+            // Refresh table and check for new data
             if (table.isEmpty) {
-              table = loadTable()
+              table = loadTableMetadata()
             }
             table.foreach(_.refresh())
             recordIterator = loadRecords()
             recordIterator.hasNext
-
           }
         }
 
@@ -131,20 +157,31 @@ class IcebergDocument[T >: Null <: AnyRef](
       }
     }
 
+  /**
+    * Get records within a specified range [from, until).
+    */
   override def getRange(from: Int, until: Int): Iterator[T] = {
     get().slice(from, until)
   }
 
+  /**
+    * Get records starting after a specified offset.
+    */
   override def getAfter(offset: Int): Iterator[T] = {
     get().drop(offset + 1)
   }
 
+  /**
+    * Get the total count of records in the table.
+    */
   override def getCount: Long = {
     get().length
   }
 
   /**
-    * Returns a BufferedItemWriter for writing data to the table.
+    * Creates a BufferedItemWriter for writing data to the table.
+    * @param writerIdentifier The writer's ID. It should be unique within the same table, as each writer will use it as
+    *                         the prefix of the files they append
     */
   override def writer(writerIdentifier: String): BufferedItemWriter[T] = {
     new IcebergTableWriter[T](
