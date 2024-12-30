@@ -23,6 +23,9 @@ import java.time.LocalDateTime
 import java.time.ZoneId
 import scala.jdk.CollectionConverters._
 
+/**
+ * Util functions to interact with Iceberg Tables
+ */
 object IcebergUtil {
 
   /**
@@ -56,6 +59,18 @@ object IcebergUtil {
     catalog
   }
 
+  /**
+    * Creates a new Iceberg table with the specified schema and properties.
+    * - Drops the existing table if `overrideIfExists` is true and the table already exists.
+    * - Creates an unpartitioned table with custom commit retry properties.
+    *
+    * @param catalog the Iceberg catalog to manage the table.
+    * @param tableNamespace the namespace of the table.
+    * @param tableName the name of the table.
+    * @param tableSchema the schema of the table.
+    * @param overrideIfExists whether to drop and recreate the table if it exists.
+    * @return the created Iceberg table.
+    */
   def createTable(
       catalog: Catalog,
       tableNamespace: String,
@@ -80,6 +95,16 @@ object IcebergUtil {
     )
   }
 
+  /**
+    * Loads metadata for an existing Iceberg table.
+    * - Returns `Some(Table)` if the table exists and is successfully loaded.
+    * - Returns `None` if the table does not exist or cannot be loaded.
+    *
+    * @param catalog the Iceberg catalog to load the table from.
+    * @param tableNamespace the namespace of the table.
+    * @param tableName the name of the table.
+    * @return an Option containing the table, or None if not found.
+    */
   def loadTableMetadata(
       catalog: Catalog,
       tableNamespace: String,
@@ -89,7 +114,7 @@ object IcebergUtil {
     try {
       Some(catalog.loadTable(identifier))
     } catch {
-      case exception: Exception => None
+      case _: Exception => None
     }
   }
 
@@ -152,7 +177,7 @@ object IcebergUtil {
   }
 
   /**
-    * Converts an Iceberg `Record` to an Amber `Tuple`, handling `null` values.
+    * Converts an Iceberg `Record` to an Amber `Tuple`
     *
     * @param record      The Iceberg Record.
     * @param amberSchema The corresponding Amber Schema.
@@ -176,7 +201,7 @@ object IcebergUtil {
   }
 
   /**
-    * Converts an Iceberg `Schema` to a custom Amber `Schema`.
+    * Converts an Iceberg `Schema` to an Amber `Schema`.
     *
     * @param icebergSchema The Iceberg Schema.
     * @return The corresponding Amber Schema.
@@ -194,7 +219,7 @@ object IcebergUtil {
   }
 
   /**
-    * Converts an Iceberg `Type` to a custom Amber `AttributeType`.
+    * Converts an Iceberg `Type` to an Amber `AttributeType`.
     *
     * @param icebergType The Iceberg Type.
     * @return The corresponding Amber AttributeType.
