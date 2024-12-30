@@ -9,12 +9,15 @@ import edu.uci.ics.amber.operator.sink.managed.ProgressiveSinkOpExec
 import edu.uci.ics.amber.operator.source.cache.CacheSourceOpExec
 import edu.uci.ics.amber.core.virtualidentity.{
   ExecutionIdentity,
-  OperatorIdentity,
   PhysicalOpIdentity,
   WorkflowIdentity
 }
 import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode
-import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode.{SET_DELTA, SET_SNAPSHOT, SINGLE_SNAPSHOT}
+import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode.{
+  SET_DELTA,
+  SET_SNAPSHOT,
+  SINGLE_SNAPSHOT
+}
 import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 
 object SpecialPhysicalOpFactory {
