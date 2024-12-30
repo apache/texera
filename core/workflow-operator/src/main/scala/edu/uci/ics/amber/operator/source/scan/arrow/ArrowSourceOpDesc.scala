@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.operator.source.scan.arrow
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
-import edu.uci.ics.amber.core.executor.{ExecFactory, OpExecInitInfo}
+import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
@@ -35,11 +35,9 @@ class ArrowSourceOpDesc extends ScanSourceOpDesc {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _) =>
-          ExecFactory.newExecFromJavaClassName(
-            "edu.uci.ics.amber.operator.source.scan.arrow.ArrowSourceOpExec",
-            objectMapper.writeValueAsString(this)
-          )
+        OpExecWithClassName(
+          "edu.uci.ics.amber.operator.source.scan.arrow.ArrowSourceOpExec",
+          objectMapper.writeValueAsString(this)
         )
       )
       .withInputPorts(operatorInfo.inputPorts)

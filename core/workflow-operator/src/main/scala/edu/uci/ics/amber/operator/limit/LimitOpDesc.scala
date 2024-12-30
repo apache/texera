@@ -2,7 +2,7 @@ package edu.uci.ics.amber.operator.limit
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.core.executor.{ExecFactory, OpExecInitInfo}
+import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.core.workflow.PhysicalOp
 import edu.uci.ics.amber.operator.{LogicalOp, StateTransferFunc}
@@ -29,11 +29,9 @@ class LimitOpDesc extends LogicalOp {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _) =>
-          ExecFactory.newExecFromJavaClassName(
-            "edu.uci.ics.amber.operator.limit.LimitOpExec",
-            objectMapper.writeValueAsString(this)
-          )
+        OpExecWithClassName(
+          "edu.uci.ics.amber.operator.limit.LimitOpExec",
+          objectMapper.writeValueAsString(this)
         )
       )
       .withInputPorts(operatorInfo.inputPorts)

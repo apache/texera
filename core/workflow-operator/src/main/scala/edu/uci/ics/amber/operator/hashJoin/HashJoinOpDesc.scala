@@ -2,7 +2,7 @@ package edu.uci.ics.amber.operator.hashJoin
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import edu.uci.ics.amber.core.executor.{ExecFactory, OpExecInitInfo}
+import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.core.workflow._
 import edu.uci.ics.amber.operator.LogicalOp
@@ -68,11 +68,9 @@ class HashJoinOpDesc[K] extends LogicalOp {
           PhysicalOpIdentity(operatorIdentifier, "build"),
           workflowId,
           executionId,
-          OpExecInitInfo((_, _) =>
-            ExecFactory.newExecFromJavaClassName[K](
-              "edu.uci.ics.amber.operator.hashJoin.HashJoinBuildOpExec",
-              objectMapper.writeValueAsString(this)
-            )
+          OpExecWithClassName(
+            "edu.uci.ics.amber.operator.hashJoin.HashJoinBuildOpExec",
+            objectMapper.writeValueAsString(this)
           )
         )
         .withInputPorts(List(buildInputPort))
@@ -102,11 +100,9 @@ class HashJoinOpDesc[K] extends LogicalOp {
           PhysicalOpIdentity(operatorIdentifier, "probe"),
           workflowId,
           executionId,
-          OpExecInitInfo((_, _) =>
-            ExecFactory.newExecFromJavaClassName[K](
-              "edu.uci.ics.amber.operator.hashJoin.HashJoinProbeOpExec",
-              objectMapper.writeValueAsString(this)
-            )
+          OpExecWithClassName(
+            "edu.uci.ics.amber.operator.hashJoin.HashJoinProbeOpExec",
+            objectMapper.writeValueAsString(this)
           )
         )
         .withInputPorts(

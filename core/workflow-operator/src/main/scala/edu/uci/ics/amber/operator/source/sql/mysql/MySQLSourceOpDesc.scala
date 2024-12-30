@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.operator.source.sql.mysql
 
-import edu.uci.ics.amber.core.executor.{ExecFactory, OpExecInitInfo}
+import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.source.sql.SQLSourceOpDesc
@@ -22,11 +22,9 @@ class MySQLSourceOpDesc extends SQLSourceOpDesc {
         workflowId,
         executionId,
         this.operatorIdentifier,
-        OpExecInitInfo((_, _) =>
-          ExecFactory.newExecFromJavaClassName(
-            "edu.uci.ics.amber.operator.source.sql.mysql.MySQLSourceOpExec",
-            objectMapper.writeValueAsString(this)
-          )
+        OpExecWithClassName(
+          "edu.uci.ics.amber.operator.source.sql.mysql.MySQLSourceOpExec",
+          objectMapper.writeValueAsString(this)
         )
       )
       .withInputPorts(operatorInfo.inputPorts)

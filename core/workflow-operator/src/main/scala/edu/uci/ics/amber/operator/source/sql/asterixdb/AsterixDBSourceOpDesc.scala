@@ -7,7 +7,7 @@ import com.fasterxml.jackson.annotation.{
 }
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import edu.uci.ics.amber.core.executor.{ExecFactory, OpExecInitInfo}
+import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
@@ -98,11 +98,9 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
         workflowId,
         executionId,
         this.operatorIdentifier,
-        OpExecInitInfo((_, _) =>
-          ExecFactory.newExecFromJavaClassName(
-            "edu.uci.ics.amber.operator.source.sql.asterixdb.AsterixDBSourceOpExec",
-            objectMapper.writeValueAsString(this)
-          )
+        OpExecWithClassName(
+          "edu.uci.ics.amber.operator.source.sql.asterixdb.AsterixDBSourceOpExec",
+          objectMapper.writeValueAsString(this)
         )
       )
       .withInputPorts(operatorInfo.inputPorts)

@@ -2,7 +2,7 @@ package edu.uci.ics.amber.operator.source.fetcher
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.core.executor.{ExecFactory, OpExecInitInfo}
+import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
@@ -50,11 +50,9 @@ class URLFetcherOpDesc extends SourceOperatorDescriptor {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _) =>
-          ExecFactory.newExecFromJavaClassName(
-            "edu.uci.ics.amber.operator.source.fetcher.URLFetcherOpExec",
-            objectMapper.writeValueAsString(this)
-          )
+        OpExecWithClassName(
+          "edu.uci.ics.amber.operator.source.fetcher.URLFetcherOpExec",
+          objectMapper.writeValueAsString(this)
         )
       )
       .withInputPorts(operatorInfo.inputPorts)

@@ -6,12 +6,13 @@ import com.kjetland.jackson.jsonSchema.annotations.{
   JsonSchemaString,
   JsonSchemaTitle
 }
-import edu.uci.ics.amber.core.executor.OpExecInitInfo
+import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
+import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.operator.metadata.annotations.HideAnnotation
 import edu.uci.ics.amber.operator.source.scan.text.TextSourceOpDesc
-import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 
 @JsonIgnoreProperties(value = Array("limit", "offset", "fileEncoding"))
 class FileScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
@@ -52,16 +53,9 @@ class FileScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _) =>
-          new FileScanSourceOpExec(
-            fileName.get,
-            attributeType,
-            encoding,
-            extract,
-            outputFileName,
-            fileScanLimit,
-            fileScanOffset
-          )
+        OpExecWithClassName(
+          "edu.uci.ics.amber.operator.source.scan.FileScanSourceOpExec",
+          objectMapper.writeValueAsString(this)
         )
       )
       .withInputPorts(operatorInfo.inputPorts)

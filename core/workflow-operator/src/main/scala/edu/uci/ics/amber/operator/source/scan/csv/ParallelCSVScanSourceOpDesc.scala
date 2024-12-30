@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.github.tototoshi.csv.{CSVReader, DefaultCSVFormat}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.core.executor.{ExecFactory, OpExecInitInfo}
+import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.tuple.AttributeTypeUtils.inferSchemaFromRows
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
@@ -46,14 +46,10 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((idx, workerCount) => {
-          ExecFactory.newExecFromJavaClassName(
-            "edu.uci.ics.amber.operator.source.scan.csv.ParallelCSVScanSourceOpExec",
-            objectMapper.writeValueAsString(this),
-            idx,
-            workerCount
-          )
-        })
+        OpExecWithClassName(
+          "edu.uci.ics.amber.operator.source.scan.csv.ParallelCSVScanSourceOpExec",
+          objectMapper.writeValueAsString(this)
+        )
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)

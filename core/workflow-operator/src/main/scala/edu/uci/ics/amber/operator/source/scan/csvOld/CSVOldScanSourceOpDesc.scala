@@ -3,7 +3,7 @@ package edu.uci.ics.amber.operator.source.scan.csvOld
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.github.tototoshi.csv.{CSVReader, DefaultCSVFormat}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.core.executor.{ExecFactory, OpExecInitInfo}
+import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.tuple.AttributeTypeUtils.inferSchemaFromRows
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
@@ -43,11 +43,9 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _) =>
-          ExecFactory.newExecFromJavaClassName(
-            "edu.uci.ics.amber.operator.source.scan.csvOld.CSVOldScanSourceOpExec",
-            objectMapper.writeValueAsString(this)
-          )
+        OpExecWithClassName(
+          "edu.uci.ics.amber.operator.source.scan.csvOld.CSVOldScanSourceOpExec",
+          objectMapper.writeValueAsString(this)
         )
       )
       .withInputPorts(operatorInfo.inputPorts)

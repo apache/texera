@@ -1,12 +1,11 @@
 package edu.uci.ics.amber.operator.cartesianProduct
 
-import edu.uci.ics.amber.core.executor.{ExecFactory, OpExecInitInfo}
+import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.tuple.{Attribute, Schema}
-import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
+import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.core.workflow._
 import edu.uci.ics.amber.operator.LogicalOp
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 
 class CartesianProductOpDesc extends LogicalOp {
   override def getPhysicalOp(
@@ -18,11 +17,7 @@ class CartesianProductOpDesc extends LogicalOp {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _) =>
-          ExecFactory.newExecFromJavaClassName(
-            "edu.uci.ics.amber.operator.cartesianProduct.CartesianProductOpExec"
-          )
-        )
+        OpExecWithClassName("edu.uci.ics.amber.operator.cartesianProduct.CartesianProductOpExec")
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)

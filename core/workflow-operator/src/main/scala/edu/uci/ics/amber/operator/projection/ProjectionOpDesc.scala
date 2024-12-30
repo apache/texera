@@ -3,8 +3,7 @@ package edu.uci.ics.amber.operator.projection
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.core.executor.ExecFactory.newExecFromJavaClassName
-import edu.uci.ics.amber.core.executor.OpExecInitInfo
+import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.tuple.{Attribute, Schema}
 import edu.uci.ics.amber.core.workflow.PhysicalOp.oneToOnePhysicalOp
 import edu.uci.ics.amber.core.workflow._
@@ -31,11 +30,9 @@ class ProjectionOpDesc extends MapOpDesc {
       workflowId,
       executionId,
       operatorIdentifier,
-      OpExecInitInfo((_, _) =>
-        newExecFromJavaClassName(
-          "edu.uci.ics.amber.operator.projection.ProjectionOpExec",
-          objectMapper.writeValueAsString(this)
-        )
+      OpExecWithClassName(
+        "edu.uci.ics.amber.operator.projection.ProjectionOpExec",
+        objectMapper.writeValueAsString(this)
       )
     )
       .withInputPorts(operatorInfo.inputPorts)

@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.operator.intersect
 
 import com.google.common.base.Preconditions
-import edu.uci.ics.amber.core.executor.{ExecFactory, OpExecInitInfo}
+import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.core.workflow.{HashPartition, PhysicalOp}
 import edu.uci.ics.amber.operator.LogicalOp
@@ -20,11 +20,7 @@ class IntersectOpDesc extends LogicalOp {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _) =>
-          ExecFactory.newExecFromJavaClassName(
-            "edu.uci.ics.amber.operator.intersect.IntersectOpExec"
-          )
-        )
+        OpExecWithClassName("edu.uci.ics.amber.operator.intersect.IntersectOpExec")
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)

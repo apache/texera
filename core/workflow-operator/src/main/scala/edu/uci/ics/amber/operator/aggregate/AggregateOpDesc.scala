@@ -2,24 +2,18 @@ package edu.uci.ics.amber.operator.aggregate
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.core.executor.{ExecFactory, OpExecInitInfo}
+import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.tuple.Schema
-import edu.uci.ics.amber.core.workflow.{
-  HashPartition,
-  PhysicalOp,
-  PhysicalPlan,
-  SchemaPropagationFunc
-}
-import edu.uci.ics.amber.operator.LogicalOp
-import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeNameList
-import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import edu.uci.ics.amber.core.virtualidentity.{
   ExecutionIdentity,
   PhysicalOpIdentity,
   WorkflowIdentity
 }
-import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
+import edu.uci.ics.amber.core.workflow._
+import edu.uci.ics.amber.operator.LogicalOp
+import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeNameList
+import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 
 import javax.validation.constraints.{NotNull, Size}
 
@@ -52,12 +46,7 @@ class AggregateOpDesc extends LogicalOp {
         PhysicalOpIdentity(operatorIdentifier, "localAgg"),
         workflowId,
         executionId,
-        OpExecInitInfo((_, _) => {
-          ExecFactory.newExecFromJavaClassName(
-            "edu.uci.ics.amber.operator.aggregate.AggregateOpExec",
-            partialDesc
-          )
-        })
+        OpExecWithClassName("edu.uci.ics.amber.operator.aggregate.AggregateOpExec", partialDesc)
       )
       .withIsOneToManyOp(true)
       .withInputPorts(List(inputPort))
@@ -84,12 +73,7 @@ class AggregateOpDesc extends LogicalOp {
         PhysicalOpIdentity(operatorIdentifier, "globalAgg"),
         workflowId,
         executionId,
-        OpExecInitInfo((_, _) =>
-          ExecFactory.newExecFromJavaClassName(
-            "edu.uci.ics.amber.operator.aggregate.AggregateOpExec",
-            finalDesc
-          )
-        )
+        OpExecWithClassName("edu.uci.ics.amber.operator.aggregate.AggregateOpExec", finalDesc)
       )
       .withParallelizable(false)
       .withIsOneToManyOp(true)

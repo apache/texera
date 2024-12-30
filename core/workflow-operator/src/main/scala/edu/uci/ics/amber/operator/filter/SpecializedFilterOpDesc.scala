@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.operator.filter
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import edu.uci.ics.amber.core.executor.{ExecFactory, OpExecInitInfo}
+import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.workflow.PhysicalOp
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
@@ -23,11 +23,9 @@ class SpecializedFilterOpDesc extends FilterOpDesc {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _) =>
-          ExecFactory.newExecFromJavaClassName(
-            "edu.uci.ics.amber.operator.filter.SpecializedFilterOpExec",
-            objectMapper.writeValueAsString(this)
-          )
+        OpExecWithClassName(
+          "edu.uci.ics.amber.operator.filter.SpecializedFilterOpExec",
+          objectMapper.writeValueAsString(this)
         )
       )
       .withInputPorts(operatorInfo.inputPorts)
