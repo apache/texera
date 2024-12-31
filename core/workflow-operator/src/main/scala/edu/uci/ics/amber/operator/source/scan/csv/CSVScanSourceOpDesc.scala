@@ -58,7 +58,7 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
   }
 
   override def sourceSchema(): Schema = {
-    if (customDelimiter.isEmpty || !fileResolved) {
+    if (customDelimiter.isEmpty || !fileResolved()) {
       return null
     }
     val stream = DocumentFactory.newReadonlyDocument(new URI(fileName.get)).asInputStream()

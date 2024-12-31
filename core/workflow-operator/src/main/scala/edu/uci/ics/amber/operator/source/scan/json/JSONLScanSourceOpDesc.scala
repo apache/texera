@@ -58,7 +58,7 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
   }
 
   override def sourceSchema(): Schema = {
-    if (!fileResolved) {
+    if (!fileResolved()) {
       return null
     }
     val stream = DocumentFactory.newReadonlyDocument(new URI(fileName.get)).asInputStream()

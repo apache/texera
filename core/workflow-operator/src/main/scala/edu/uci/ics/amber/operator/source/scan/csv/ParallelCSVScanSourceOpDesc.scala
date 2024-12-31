@@ -60,7 +60,7 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
   }
 
   override def sourceSchema(): Schema = {
-    if (customDelimiter.isEmpty || !fileResolved) {
+    if (customDelimiter.isEmpty || !fileResolved()) {
       return null
     }
     val file = DocumentFactory.newReadonlyDocument(new URI(fileName.get)).asFile()

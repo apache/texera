@@ -56,7 +56,7 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
   }
 
   override def sourceSchema(): Schema = {
-    if (customDelimiter.isEmpty || !fileResolved) {
+    if (customDelimiter.isEmpty || !fileResolved()) {
       return null
     }
     // infer schema from the first few lines of the file

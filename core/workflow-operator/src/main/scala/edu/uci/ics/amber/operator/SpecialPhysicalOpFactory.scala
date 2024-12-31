@@ -30,12 +30,7 @@ object SpecialPhysicalOpFactory {
         PhysicalOpIdentity(opId, s"sink${portId.id}"),
         workflowIdentity,
         executionIdentity,
-        OpExecSink(
-          "edu.uci.ics.amber.operator.sink.ProgressiveSinkOpExec",
-          storageKey,
-          workflowIdentity,
-          outputMode
-        )
+        OpExecSink(storageKey, workflowIdentity, outputMode)
       )
       .withInputPorts(List(InputPort(PortIdentity(internal = true))))
       .withOutputPorts(List(OutputPort(PortIdentity(internal = true))))
@@ -86,11 +81,7 @@ object SpecialPhysicalOpFactory {
         PhysicalOpIdentity(opId, s"source${portId.id}"),
         workflowIdentity,
         executionIdentity,
-        OpExecSource(
-          "edu.uci.ics.amber.operator.source.cache.CacheSourceOpExec",
-          storageKey,
-          workflowIdentity
-        )
+        OpExecSource(storageKey, workflowIdentity)
       )
       .withInputPorts(List.empty)
       .withOutputPorts(List(outputPort))
