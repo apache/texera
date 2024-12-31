@@ -87,7 +87,12 @@ case class Schema @JsonCreator() (
     */
   def add(attributeName: String, attributeType: AttributeType): Schema = add(List(new Attribute(attributeName, attributeType)))
 
-
+  /**
+    * Creates a new Schema by adding a Schema.
+    */
+  def add(schema: Schema): Schema = {
+    add(schema.attributes)
+  }
 
   /**
     * Creates a new Schema by removing a single attribute.
