@@ -39,10 +39,26 @@ class ProjectionOpDesc extends MapOpDesc {
       .withOutputPorts(operatorInfo.outputPorts)
       .withDerivePartition(derivePartition())
       .withPropagateSchema(SchemaPropagationFunc(inputSchemas => {
+        Preconditions.checkArgument(attributes.nonEmpty)
+        val inputSchema = inputSchemas.values.head
+        val outputSchema = if (!isDrop) {
+          Schema
+            .builder()
+            .add(attributes.map { attribute =>
+              val originalType = inputSchema.getAttribute(attribute.getOriginalAttribute).getType
+              new Attribute(attribute.getAlias, originalType)
+            })
+            .build()
+        } else {
+          val outputSchemaBuilder = Schema.builder()
+          outputSchemaBuilder.add(inputSchema)
+          for (attribute <- attributes) {
+            outputSchemaBuilder.removeIfExists(attribute.getOriginalAttribute)
+          }
+          outputSchemaBuilder.build()
+        }
         Map(
-          operatorInfo.outputPorts.head.id -> getOutputSchema(
-            Array(inputSchemas(operatorInfo.inputPorts.head.id))
-          )
+          operatorInfo.outputPorts.head.id -> outputSchema
         )
       }))
   }
@@ -70,29 +86,5 @@ class ProjectionOpDesc extends MapOpDesc {
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
     )
-  }
-
-  override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    Preconditions.checkArgument(schemas.length == 1)
-    Preconditions.checkArgument(attributes.nonEmpty)
-    if (!isDrop) {
-      Schema
-        .builder()
-        .add(attributes.map { attribute =>
-          val originalType = schemas.head.getAttribute(attribute.getOriginalAttribute).getType
-          new Attribute(attribute.getAlias, originalType)
-        })
-        .build()
-    } else {
-      val outputSchemaBuilder = Schema.builder()
-      val inputSchema = schemas(0)
-      outputSchemaBuilder.add(inputSchema)
-      for (attribute <- attributes) {
-        outputSchemaBuilder.removeIfExists(attribute.getOriginalAttribute)
-      }
-      outputSchemaBuilder.build()
-
-    }
-
   }
 }

@@ -5,7 +5,7 @@ import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort}
+import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 class HuggingFaceIrisLogisticRegressionOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "petalLengthCmAttribute", required = true)
@@ -90,17 +90,21 @@ class HuggingFaceIrisLogisticRegressionOpDesc extends PythonOperatorDescriptor {
       outputPorts = List(OutputPort())
     )
 
-  override def getOutputSchema(schemas: Array[Schema]): Schema = {
+  override def getOutputSchemas(
+      inputSchemas: Map[PortIdentity, Schema]
+  ): Map[PortIdentity, Schema] = {
     if (
       predictionClassName == null || predictionClassName.trim.isEmpty ||
       predictionProbabilityName == null || predictionProbabilityName.trim.isEmpty
     )
       throw new RuntimeException("Result attribute name should not be empty")
-    Schema
-      .builder()
-      .add(schemas(0))
-      .add(predictionClassName, AttributeType.STRING)
-      .add(predictionProbabilityName, AttributeType.DOUBLE)
-      .build()
+    Map(
+      operatorInfo.outputPorts.head.id -> Schema
+        .builder()
+        .add(inputSchemas(operatorInfo.inputPorts.head.id))
+        .add(predictionClassName, AttributeType.STRING)
+        .add(predictionProbabilityName, AttributeType.DOUBLE)
+        .build()
+    )
   }
 }

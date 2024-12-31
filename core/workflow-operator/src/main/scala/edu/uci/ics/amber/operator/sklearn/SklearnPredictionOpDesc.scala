@@ -58,16 +58,21 @@ class SklearnPredictionOpDesc extends PythonOperatorDescriptor {
       outputPorts = List(OutputPort())
     )
 
-  override def getOutputSchema(schemas: Array[Schema]): Schema = {
+  override def getOutputSchemas(
+      inputSchemas: Map[PortIdentity, Schema]
+  ): Map[PortIdentity, Schema] = {
     var resultType = AttributeType.STRING
+    val inputSchema = inputSchemas(operatorInfo.inputPorts(1).id)
     if (groundTruthAttribute != "") {
       resultType =
-        schemas(1).attributes.find(attr => attr.getName == groundTruthAttribute).get.getType
+        inputSchema.attributes.find(attr => attr.getName == groundTruthAttribute).get.getType
     }
-    Schema
-      .builder()
-      .add(schemas(1))
-      .add(resultAttribute, resultType)
-      .build()
+    Map(
+      operatorInfo.outputPorts.head.id -> Schema
+        .builder()
+        .add(inputSchema)
+        .add(resultAttribute, resultType)
+        .build()
+    )
   }
 }

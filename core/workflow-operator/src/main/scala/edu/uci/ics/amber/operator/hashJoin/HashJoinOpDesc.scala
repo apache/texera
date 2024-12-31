@@ -118,13 +118,32 @@ class HashJoinOpDesc[K] extends LogicalOp {
         .withDerivePartition(_ => HashPartition(List(probeAttributeName)))
         .withParallelizable(true)
         .withPropagateSchema(
-          SchemaPropagationFunc(inputSchemas =>
-            Map(
-              PortIdentity() -> getOutputSchema(
-                Array(inputSchemas(PortIdentity(internal = true)), inputSchemas(PortIdentity(1)))
-              )
-            )
-          )
+          SchemaPropagationFunc(inputSchemas => {
+            val buildSchema = inputSchemas(PortIdentity(internal = true))
+            val probeSchema = inputSchemas(PortIdentity(1))
+            val builder = Schema.builder()
+            builder.add(buildSchema)
+            builder.removeIfExists(HASH_JOIN_INTERNAL_KEY_NAME)
+            val leftAttributeNames = buildSchema.getAttributeNames
+            val rightAttributeNames =
+              probeSchema.getAttributeNames.filterNot(name => name == probeAttributeName)
+
+            // Create a Map from rightTuple's fields, renaming conflicts
+            rightAttributeNames
+              .foreach { name =>
+                var newName = name
+                while (
+                  leftAttributeNames.contains(newName) || rightAttributeNames
+                    .filter(attrName => name != attrName)
+                    .contains(newName)
+                ) {
+                  newName = s"$newName#@1"
+                }
+                builder.add(new Attribute(newName, probeSchema.getAttribute(name).getType))
+              }
+            val outputSchema = builder.build()
+            Map(PortIdentity() -> outputSchema)
+          })
         )
 
     PhysicalPlan(
@@ -151,31 +170,4 @@ class HashJoinOpDesc[K] extends LogicalOp {
       ),
       outputPorts = List(OutputPort())
     )
-
-  // remove the probe attribute in the output
-  override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    val buildSchema = schemas(0)
-    val probeSchema = schemas(1)
-    val builder = Schema.builder()
-    builder.add(buildSchema)
-    builder.removeIfExists(HASH_JOIN_INTERNAL_KEY_NAME)
-    val leftAttributeNames = buildSchema.getAttributeNames
-    val rightAttributeNames =
-      probeSchema.getAttributeNames.filterNot(name => name == probeAttributeName)
-
-    // Create a Map from rightTuple's fields, renaming conflicts
-    rightAttributeNames
-      .foreach { name =>
-        var newName = name
-        while (
-          leftAttributeNames.contains(newName) || rightAttributeNames
-            .filter(attrName => name != attrName)
-            .contains(newName)
-        ) {
-          newName = s"$newName#@1"
-        }
-        builder.add(new Attribute(newName, probeSchema.getAttribute(name).getType))
-      }
-    builder.build()
-  }
 }

@@ -28,15 +28,13 @@ class UnnestStringOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc.attribute = "field1"
     opDesc.delimiter = "-"
     opDesc.resultAttribute = "split"
-    opDesc.inputPortToSchemaMapping(PortIdentity()) = tupleSchema
-    opDesc.outputPortToSchemaMapping(PortIdentity()) = opDesc.getOutputSchema(Array(tupleSchema))
   }
 
   it should "open" in {
     opDesc.attribute = "field1"
     opDesc.delimiter = "-"
     opExec = new UnnestStringOpExec(objectMapper.writeValueAsString(opDesc))
-    outputSchema = opDesc.getOutputSchema(Array(tupleSchema))
+    outputSchema = opDesc.getExternalOutputSchemas(Map(PortIdentity() -> tupleSchema)).values.head
     opExec.open()
     assert(opExec.flatMapFunc != null)
   }
@@ -45,7 +43,7 @@ class UnnestStringOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc.attribute = "field1"
     opDesc.delimiter = "-"
     opExec = new UnnestStringOpExec(objectMapper.writeValueAsString(opDesc))
-    outputSchema = opDesc.getOutputSchema(Array(tupleSchema))
+    outputSchema = opDesc.getExternalOutputSchemas(Map(PortIdentity() -> tupleSchema)).values.head
     opExec.open()
     val processedTuple = opExec
       .processTuple(tuple, 0)
@@ -61,7 +59,7 @@ class UnnestStringOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc.attribute = "field3"
     opDesc.delimiter = "-"
     opExec = new UnnestStringOpExec(objectMapper.writeValueAsString(opDesc))
-    outputSchema = opDesc.getOutputSchema(Array(tupleSchema))
+    outputSchema = opDesc.getExternalOutputSchemas(Map(PortIdentity() -> tupleSchema)).values.head
     opExec.open()
     val processedTuple = opExec
       .processTuple(tuple, 0)
@@ -75,7 +73,7 @@ class UnnestStringOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc.attribute = "field1"
     opDesc.delimiter = "/"
     opExec = new UnnestStringOpExec(objectMapper.writeValueAsString(opDesc))
-    outputSchema = opDesc.getOutputSchema(Array(tupleSchema))
+    outputSchema = opDesc.getExternalOutputSchemas(Map(PortIdentity() -> tupleSchema)).values.head
     val tuple: Tuple = Tuple
       .builder(tupleSchema)
       .add(new Attribute("field1", AttributeType.STRING), "//a//b/")
@@ -97,7 +95,7 @@ class UnnestStringOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc.attribute = "field1"
     opDesc.delimiter = "<\\d*>"
     opExec = new UnnestStringOpExec(objectMapper.writeValueAsString(opDesc))
-    outputSchema = opDesc.getOutputSchema(Array(tupleSchema))
+    outputSchema = opDesc.getExternalOutputSchemas(Map(PortIdentity() -> tupleSchema)).values.head
     val tuple: Tuple = Tuple
       .builder(tupleSchema)
       .add(new Attribute("field1", AttributeType.STRING), "<>a<1>b<12>")

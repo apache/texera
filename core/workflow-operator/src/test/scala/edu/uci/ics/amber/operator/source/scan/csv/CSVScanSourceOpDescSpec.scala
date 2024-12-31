@@ -4,7 +4,6 @@ import edu.uci.ics.amber.core.storage.FileResolver
 import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
 import edu.uci.ics.amber.core.workflow.WorkflowContext.{DEFAULT_EXECUTION_ID, DEFAULT_WORKFLOW_ID}
 import edu.uci.ics.amber.operator.TestOperators
-import edu.uci.ics.amber.core.workflow.PortIdentity
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -14,11 +13,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   var parallelCsvScanSourceOpDesc: ParallelCSVScanSourceOpDesc = _
   before {
     csvScanSourceOpDesc = new CSVScanSourceOpDesc()
-    csvScanSourceOpDesc.outputPortToSchemaMapping(PortIdentity()) =
-      csvScanSourceOpDesc.getOutputSchema(Array())
     parallelCsvScanSourceOpDesc = new ParallelCSVScanSourceOpDesc()
-    parallelCsvScanSourceOpDesc.outputPortToSchemaMapping(PortIdentity()) =
-      parallelCsvScanSourceOpDesc.getOutputSchema(Array())
   }
 
   it should "infer schema from single-line-data csv" in {

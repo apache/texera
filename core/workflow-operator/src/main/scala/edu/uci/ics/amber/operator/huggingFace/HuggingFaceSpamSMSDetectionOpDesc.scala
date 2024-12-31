@@ -5,7 +5,7 @@ import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort}
+import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 class HuggingFaceSpamSMSDetectionOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "attribute", required = true)
   @JsonPropertyDescription("column to perform spam detection on")
@@ -54,12 +54,16 @@ class HuggingFaceSpamSMSDetectionOpDesc extends PythonOperatorDescriptor {
       outputPorts = List(OutputPort())
     )
 
-  override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    Schema
-      .builder()
-      .add(schemas(0))
-      .add(resultAttributeSpam, AttributeType.BOOLEAN)
-      .add(resultAttributeProbability, AttributeType.DOUBLE)
-      .build()
+  override def getOutputSchemas(
+      inputSchemas: Map[PortIdentity, Schema]
+  ): Map[PortIdentity, Schema] = {
+    Map(
+      operatorInfo.outputPorts.head.id -> Schema
+        .builder()
+        .add(inputSchemas.values.head)
+        .add(resultAttributeSpam, AttributeType.BOOLEAN)
+        .add(resultAttributeProbability, AttributeType.DOUBLE)
+        .build()
+    )
   }
 }

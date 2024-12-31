@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.operator.udf.python
 
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
+import edu.uci.ics.amber.core.workflow.PortIdentity
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 class PythonLambdaFunctionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
@@ -25,7 +26,7 @@ class PythonLambdaFunctionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
         AttributeType.STRING
       )
     )
-    val outputSchema = opDesc.getOutputSchema(Array(schema))
+    val outputSchema = opDesc.getExternalOutputSchemas(Map(PortIdentity() -> schema)).values.head
     assert(outputSchema.getAttributes.length == 4)
   }
 
@@ -44,7 +45,7 @@ class PythonLambdaFunctionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
         AttributeType.INTEGER
       )
     )
-    val outputSchema = opDesc.getOutputSchema(Array(schema))
+    val outputSchema = opDesc.getExternalOutputSchemas(Map(PortIdentity() -> schema)).values.head
     assert(outputSchema.getAttributes.length == 5)
   }
 
@@ -57,7 +58,7 @@ class PythonLambdaFunctionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
         AttributeType.STRING
       )
     )
-    val outputSchema = opDesc.getOutputSchema(Array(schema))
+    val outputSchema = opDesc.getExternalOutputSchemas(Map(PortIdentity() -> schema)).values.head
     assert(outputSchema.getAttributes.length == 3)
   }
 
@@ -72,7 +73,7 @@ class PythonLambdaFunctionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     )
 
     assertThrows[RuntimeException] {
-      opDesc.getOutputSchema(Array(schema))
+      opDesc.getExternalOutputSchemas(Map(PortIdentity() -> schema)).values.head
     }
 
   }

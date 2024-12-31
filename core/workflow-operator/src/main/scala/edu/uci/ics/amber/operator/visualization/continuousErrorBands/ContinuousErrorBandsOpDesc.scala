@@ -6,7 +6,7 @@ import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode
-import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort}
+import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 
 import java.util
 import scala.jdk.CollectionConverters.ListHasAsScala
@@ -25,8 +25,14 @@ class ContinuousErrorBandsOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "bands", required = true)
   var bands: util.List[BandConfig] = _
 
-  override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    Schema.builder().add(new Attribute("html-content", AttributeType.STRING)).build()
+  override def getOutputSchemas(
+      inputSchemas: Map[PortIdentity, Schema]
+  ): Map[PortIdentity, Schema] = {
+    val outputSchema = Schema
+      .builder()
+      .add(new Attribute("html-content", AttributeType.STRING))
+      .build()
+    Map(operatorInfo.outputPorts.head.id -> outputSchema)
   }
 
   override def operatorInfo: OperatorInfo =

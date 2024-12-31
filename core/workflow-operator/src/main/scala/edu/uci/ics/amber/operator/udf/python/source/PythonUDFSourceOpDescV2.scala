@@ -8,7 +8,7 @@ import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.source.SourceOperatorDescriptor
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.amber.core.workflow.{OutputPort, PortIdentity}
+import edu.uci.ics.amber.core.workflow.OutputPort
 
 class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
 
@@ -41,18 +41,14 @@ class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
       executionId: ExecutionIdentity
   ): PhysicalOp = {
     require(workers >= 1, "Need at least 1 worker.")
-
-    val func = SchemaPropagationFunc { _: Map[PortIdentity, Schema] =>
-      val outputSchema = sourceSchema()
-      Map(operatorInfo.outputPorts.head.id -> outputSchema)
-    }
-
     val physicalOp = PhysicalOp
       .sourcePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecWithCode(code, "python"))
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withIsOneToManyOp(true)
-      .withPropagateSchema(func)
+      .withPropagateSchema(
+        SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> sourceSchema()))
+      )
       .withLocationPreference(Option.empty)
 
     if (workers > 1) {

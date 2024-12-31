@@ -1,16 +1,14 @@
 package edu.uci.ics.amber.operator.dictionary
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.google.common.base.Preconditions
 import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
-import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
+import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.operator.map.MapOpDesc
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
-import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort}
 
 /**
   * Dictionary matcher operator matches a tuple if the specified column is in the given dictionary.
@@ -48,9 +46,16 @@ class DictionaryMatcherOpDesc extends MapOpDesc {
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withPropagateSchema(
-        SchemaPropagationFunc(inputSchemas =>
-          Map(operatorInfo.outputPorts.head.id -> getOutputSchema(inputSchemas.values.toArray))
-        )
+        SchemaPropagationFunc(inputSchemas => {
+          if (resultAttribute == null || resultAttribute.trim.isEmpty) return null
+          Map(
+            operatorInfo.outputPorts.head.id -> Schema
+              .builder()
+              .add(inputSchemas.values.head)
+              .add(resultAttribute, AttributeType.BOOLEAN)
+              .build()
+          )
+        })
       )
   }
 
@@ -63,10 +68,4 @@ class DictionaryMatcherOpDesc extends MapOpDesc {
       outputPorts = List(OutputPort()),
       supportReconfiguration = true
     )
-
-  override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    Preconditions.checkArgument(schemas.length == 1)
-    if (resultAttribute == null || resultAttribute.trim.isEmpty) return null
-    Schema.builder().add(schemas(0)).add(resultAttribute, AttributeType.BOOLEAN).build()
-  }
 }
