@@ -26,13 +26,13 @@ trait InitializeExecutorHandler {
       case OpExecWithClassName(className, descString) =>
         ExecFactory.newExecFromJavaClassName(className, descString, workerIdx, workerCount)
       case OpExecWithCode(code, language) => ExecFactory.newExecFromJavaCode(code)
-      case OpExecSink(className, storageKey, workflowIdentity, outputMode) =>
+      case OpExecSink(storageKey, workflowIdentity, outputMode) =>
         new ProgressiveSinkOpExec(
           outputMode,
           storageKey,
           workflowIdentity
         )
-      case OpExecSource(className, storageKey, workflowIdentity) =>
+      case OpExecSource(storageKey, workflowIdentity) =>
         new CacheSourceOpExec(storageKey, workflowIdentity)
     }
     EmptyReturn()

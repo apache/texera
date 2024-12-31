@@ -24,16 +24,14 @@ message OpExecWithClassName {
 }
 
 message OpExecSink  {
-  string className = 1;
-  string storageKey = 2;
-  WorkflowIdentity workflowIdentity = 3 [(scalapb.field).no_box = true];
-  OutputPort.OutputMode outputMode = 4 [(scalapb.field).no_box = true];
+  string storageKey = 1;
+  WorkflowIdentity workflowIdentity = 2 [(scalapb.field).no_box = true];
+  OutputPort.OutputMode outputMode = 3 [(scalapb.field).no_box = true];
 }
 
 message OpExecSource {
-  string className = 1;
-  string storageKey = 2;
-  WorkflowIdentity workflowIdentity = 3 [(scalapb.field).no_box = true];
+  string storageKey = 1;
+  WorkflowIdentity workflowIdentity = 2 [(scalapb.field).no_box = true];
 }
 
 message OpExecInitInfo {

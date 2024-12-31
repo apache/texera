@@ -112,17 +112,15 @@ class OpExecWithClassName(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class OpExecSink(betterproto.Message):
-    class_name: str = betterproto.string_field(1)
-    storage_key: str = betterproto.string_field(2)
-    workflow_identity: "WorkflowIdentity" = betterproto.message_field(3)
-    output_mode: "OutputPortOutputMode" = betterproto.enum_field(4)
+    storage_key: str = betterproto.string_field(1)
+    workflow_identity: "WorkflowIdentity" = betterproto.message_field(2)
+    output_mode: "OutputPortOutputMode" = betterproto.enum_field(3)
 
 
 @dataclass(eq=False, repr=False)
 class OpExecSource(betterproto.Message):
-    class_name: str = betterproto.string_field(1)
-    storage_key: str = betterproto.string_field(2)
-    workflow_identity: "WorkflowIdentity" = betterproto.message_field(3)
+    storage_key: str = betterproto.string_field(1)
+    workflow_identity: "WorkflowIdentity" = betterproto.message_field(2)
 
 
 @dataclass(eq=False, repr=False)
