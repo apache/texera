@@ -10,10 +10,7 @@ import java.io.InputStreamReader
 import java.net.URI
 import scala.collection.immutable.ArraySeq
 
-class CSVScanSourceOpExec private[csv] (
-    descString: String
-) extends SourceOperatorExecutor {
-  println(descString)
+class CSVScanSourceOpExec private[csv] (descString: String) extends SourceOperatorExecutor {
   val desc: CSVScanSourceOpDesc = objectMapper.readValue(descString, classOf[CSVScanSourceOpDesc])
   var inputReader: InputStreamReader = _
   var parser: CsvParser = _

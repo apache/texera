@@ -9,12 +9,8 @@ import scala.collection.mutable
 /**
   * AggregateOpExec performs aggregation operations on input tuples, optionally grouping them by specified keys.
   */
-class AggregateOpExec(
-    descString: String
-) extends OperatorExecutor {
-  println(descString)
+class AggregateOpExec(descString: String) extends OperatorExecutor {
   private val desc: AggregateOpDesc = objectMapper.readValue(descString, classOf[AggregateOpDesc])
-  println("hello!", desc)
   private val keyedPartialAggregates = new mutable.HashMap[List[Object], List[Object]]()
   private var distributedAggregations: List[DistributedAggregation[Object]] = _
 
