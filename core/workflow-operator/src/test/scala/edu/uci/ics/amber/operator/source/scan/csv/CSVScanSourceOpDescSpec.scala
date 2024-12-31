@@ -29,7 +29,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     parallelCsvScanSourceOpDesc.setResolvedFileName(
       FileResolver.resolve(parallelCsvScanSourceOpDesc.fileName.get)
     )
-    val inferredSchema: Schema = parallelCsvScanSourceOpDesc.inferSchema()
+    val inferredSchema: Schema = parallelCsvScanSourceOpDesc.sourceSchema()
 
     assert(inferredSchema.getAttributes.length == 14)
     assert(inferredSchema.getAttribute("Order ID").getType == AttributeType.INTEGER)
@@ -46,7 +46,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
       FileResolver.resolve(parallelCsvScanSourceOpDesc.fileName.get)
     )
 
-    val inferredSchema: Schema = parallelCsvScanSourceOpDesc.inferSchema()
+    val inferredSchema: Schema = parallelCsvScanSourceOpDesc.sourceSchema()
 
     assert(inferredSchema.getAttributes.length == 14)
     assert(inferredSchema.getAttribute("column-10").getType == AttributeType.DOUBLE)
@@ -60,7 +60,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     csvScanSourceOpDesc.hasHeader = true
     csvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(csvScanSourceOpDesc.fileName.get))
 
-    val inferredSchema: Schema = csvScanSourceOpDesc.inferSchema()
+    val inferredSchema: Schema = csvScanSourceOpDesc.sourceSchema()
 
     assert(inferredSchema.getAttributes.length == 14)
     assert(inferredSchema.getAttribute("Order ID").getType == AttributeType.INTEGER)
@@ -74,7 +74,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     csvScanSourceOpDesc.hasHeader = false
     csvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(csvScanSourceOpDesc.fileName.get))
 
-    val inferredSchema: Schema = csvScanSourceOpDesc.inferSchema()
+    val inferredSchema: Schema = csvScanSourceOpDesc.sourceSchema()
 
     assert(inferredSchema.getAttributes.length == 14)
     assert(inferredSchema.getAttribute("column-10").getType == AttributeType.DOUBLE)
@@ -89,7 +89,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     csvScanSourceOpDesc.hasHeader = false
     csvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(csvScanSourceOpDesc.fileName.get))
 
-    val inferredSchema: Schema = csvScanSourceOpDesc.inferSchema()
+    val inferredSchema: Schema = csvScanSourceOpDesc.sourceSchema()
 
     assert(inferredSchema.getAttributes.length == 14)
     assert(inferredSchema.getAttribute("column-10").getType == AttributeType.DOUBLE)
