@@ -11,7 +11,7 @@ import scala.util.control.Breaks.{break, breakable}
 
 abstract class SQLSourceOpExec(descString: String) extends SourceOperatorExecutor {
   val desc: SQLSourceOpDesc = objectMapper.readValue(descString, classOf[SQLSourceOpDesc])
-  val schema: Schema = desc.sourceSchema()
+  var schema: Schema = _
   var curLimit: Option[Long] = None
   var curOffset: Option[Long] = None
   // connection and query related

@@ -22,6 +22,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
 
   override val desc: AsterixDBSourceOpDesc =
     objectMapper.readValue(descString, classOf[AsterixDBSourceOpDesc])
+  schema = desc.sourceSchema()
   // format Timestamp. TODO: move to some util package
   private val formatter: DateTimeFormatter =
     DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneId.from(ZoneOffset.UTC))

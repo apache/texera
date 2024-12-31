@@ -11,6 +11,7 @@ class PostgreSQLSourceOpExec private[postgresql] (descString: String)
     extends SQLSourceOpExec(descString) {
   override val desc: PostgreSQLSourceOpDesc =
     objectMapper.readValue(descString, classOf[PostgreSQLSourceOpDesc])
+  schema = desc.sourceSchema()
   val FETCH_TABLE_NAMES_SQL =
     "SELECT table_name FROM information_schema.tables WHERE table_type='BASE TABLE';"
 

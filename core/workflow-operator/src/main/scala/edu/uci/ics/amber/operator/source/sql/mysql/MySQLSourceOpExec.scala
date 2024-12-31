@@ -12,6 +12,7 @@ class MySQLSourceOpExec private[mysql] (
 ) extends SQLSourceOpExec(descString) {
   override val desc: MySQLSourceOpDesc =
     objectMapper.readValue(descString, classOf[MySQLSourceOpDesc])
+  schema = desc.sourceSchema()
   val FETCH_TABLE_NAMES_SQL =
     "SELECT table_name FROM information_schema.tables WHERE table_schema = ?;"
 
