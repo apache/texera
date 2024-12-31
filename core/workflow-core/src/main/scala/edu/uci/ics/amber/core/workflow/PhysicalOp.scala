@@ -137,38 +137,12 @@ object PhysicalOp {
     manyToOnePhysicalOp(physicalOpId, workflowId, executionId, opExecInitInfo)
       .withLocationPreference(Some(PreferController))
   }
-
-  def getExternalPortSchemas(
-      physicalOp: PhysicalOp,
-      fromInput: Boolean,
-      errorList: Option[ArrayBuffer[(OperatorIdentity, Throwable)]]
-  ): List[Option[Schema]] = {
-
-    // Select either input ports or output ports and filter out the internal ports
-    val ports = if (fromInput) {
-      physicalOp.inputPorts.values.filterNot { case (port, _, _) => port.id.internal }
-    } else {
-      physicalOp.outputPorts.values.filterNot { case (port, _, _) => port.id.internal }
-    }
-
-    ports.map {
-      case (_, _, schema) =>
-        schema match {
-          case Left(err) =>
-            errorList.foreach(errList => errList.append((physicalOp.id.logicalOpId, err)))
-            None
-          case Right(validSchema) =>
-            Some(validSchema)
-        }
-    }.toList
-  }
 }
 
 // @JsonIgnore is not working when directly annotated to fields of a case class
 // https://stackoverflow.com/questions/40482904/jsonignore-doesnt-work-in-scala-case-class
 @JsonIgnoreProperties(
   Array(
-    "opExecInitInfo", // function type, ignore it
     "derivePartition", // function type, ignore it
     "inputPorts", // may contain very long stacktrace, ignore it
     "outputPorts", // same reason with above
@@ -184,6 +158,7 @@ case class PhysicalOp(
     workflowId: WorkflowIdentity,
     // the execution id number
     executionId: ExecutionIdentity,
+    // information regarding initializing an operator executor instance
     opExecInitInfo: OpExecInitInfo,
     // preference of parallelism
     parallelizable: Boolean = true,
