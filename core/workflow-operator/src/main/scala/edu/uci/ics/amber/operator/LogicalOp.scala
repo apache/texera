@@ -339,6 +339,13 @@ abstract class LogicalOp extends PortDescriptor with Serializable {
   @JsonPropertyDescription("Add dummy property if needed")
   var dummyPropertyList: List[DummyProperties] = List()
 
+  /**
+    * Propagates the schema from external input ports to external output ports.
+    * This method is primarily used to derive the output schemas for logical operators.
+    *
+    * @param inputSchemas A map containing the schemas of the external input ports.
+    * @return A map of external output port identities to their corresponding schemas.
+    */
   def getExternalOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
   ): Map[PortIdentity, Schema] = {
@@ -346,12 +353,14 @@ abstract class LogicalOp extends PortDescriptor with Serializable {
       .getPhysicalPlan(DEFAULT_WORKFLOW_ID, DEFAULT_EXECUTION_ID)
       .propagateSchema(inputSchemas)
       .operators
-      .flatMap(
-        _.outputPorts.values
-          .filterNot(port => port._1.id.internal)
-          .map(port => (port._1.id, port._3.toOption.get))
-      )
+      .flatMap { operator =>
+        operator.outputPorts.values
+          .filterNot { case (port, _, _) => port.id.internal } // Exclude internal ports
+          .map {
+            case (port, _, schemaEither) =>
+              port.id -> schemaEither.toOption.get // Map external port ID to its schema
+          }
+      }
       .toMap
-
   }
 }
