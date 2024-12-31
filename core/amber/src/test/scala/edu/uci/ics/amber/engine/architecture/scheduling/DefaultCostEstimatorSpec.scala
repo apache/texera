@@ -1,34 +1,20 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
-import edu.uci.ics.amber.core.workflow.WorkflowContext
-import edu.uci.ics.amber.engine.architecture.scheduling.DefaultCostEstimator.DEFAULT_OPERATOR_COST
+import edu.uci.ics.amber.core.workflow.{PortIdentity, WorkflowContext}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
 import edu.uci.ics.amber.operator.TestOperators
 import edu.uci.ics.amber.operator.aggregate.{AggregateOpDesc, AggregationFunction}
 import edu.uci.ics.amber.operator.keywordSearch.KeywordSearchOpDesc
 import edu.uci.ics.amber.operator.source.scan.csv.CSVScanSourceOpDesc
-import edu.uci.ics.amber.workflow.PortIdentity
 import edu.uci.ics.texera.dao.MockTexeraDB
 import edu.uci.ics.texera.dao.jooq.generated.enums.UserRole
-import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
-  UserDao,
-  WorkflowDao,
-  WorkflowExecutionsDao,
-  WorkflowRuntimeStatisticsDao,
-  WorkflowVersionDao
-}
-import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
-  User,
-  Workflow,
-  WorkflowExecutions,
-  WorkflowRuntimeStatistics,
-  WorkflowVersion
-}
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos._
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos._
 import edu.uci.ics.texera.workflow.LogicalLink
 import org.jooq.types.{UInteger, ULong}
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
