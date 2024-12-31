@@ -56,15 +56,22 @@ case class Schema @JsonCreator() (
   def containsAttribute(attributeName: String): Boolean =
     attributeIndex.contains(attributeName.toLowerCase)
 
-  override def hashCode(): Int = attributes.hashCode
+  override def hashCode(): Int = {
+    val prime = 31
+    var result = 1
+    result = prime * result + (if (attributes == null) 0 else attributes.hashCode)
+    result = prime * result + (if (attributeIndex == null) 0 else attributeIndex.hashCode)
+    result
+  }
 
-  override def equals(obj: Any): Boolean =
+  override def equals(obj: Any): Boolean = {
     obj match {
       case that: Schema => this.attributes == that.attributes
       case _            => false
     }
+  }
 
-  override def toString: String = s"Schema[$attributes]"
+  override def toString: String = s"Schema[${attributes.map(_.toString).mkString(", ")}]"
 
   /**
     * Creates a new Schema containing only the specified attributes.
@@ -118,9 +125,19 @@ case class Schema @JsonCreator() (
 
   /**
     * Creates a new Schema by removing attributes with the specified names.
+    * Throws an exception if any of the specified attributes do not exist in the schema.
     */
   def remove(attributeNames: Iterable[String]): Schema = {
     val attributesToRemove = attributeNames.map(_.toLowerCase).toSet
+
+    // Check for non-existent attributes
+    val nonExistentAttributes = attributesToRemove.diff(attributes.map(_.getName.toLowerCase).toSet)
+    if (nonExistentAttributes.nonEmpty) {
+      throw new IllegalArgumentException(
+        s"Cannot remove non-existent attributes: ${nonExistentAttributes.mkString(", ")}"
+      )
+    }
+
     val remainingAttributes =
       attributes.filterNot(attr => attributesToRemove.contains(attr.getName.toLowerCase))
     Schema(remainingAttributes)
