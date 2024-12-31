@@ -2,7 +2,7 @@ package edu.uci.ics.amber.operator.udf.python.source
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.core.executor.OpExecInitInfo
+import edu.uci.ics.amber.core.executor.OpExecWithCode
 import edu.uci.ics.amber.core.tuple.{Attribute, Schema}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
@@ -40,7 +40,6 @@ class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp = {
-    val exec = OpExecInitInfo(code, "python")
     require(workers >= 1, "Need at least 1 worker.")
 
     val func = SchemaPropagationFunc { _: Map[PortIdentity, Schema] =>
@@ -49,7 +48,7 @@ class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
     }
 
     val physicalOp = PhysicalOp
-      .sourcePhysicalOp(workflowId, executionId, operatorIdentifier, exec)
+      .sourcePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecWithCode(code, "python"))
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withIsOneToManyOp(true)

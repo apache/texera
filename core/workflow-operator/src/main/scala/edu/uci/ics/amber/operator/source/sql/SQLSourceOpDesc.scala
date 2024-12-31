@@ -106,20 +106,7 @@ abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
   @BatchByColumn
   var interval = 0L
 
-  /**
-    * Make sure all the required parameters are not empty,
-    * then query the remote PostgreSQL server for the table schema
-    *
-    * @return Tuple.Schema
-    */
-  override def sourceSchema(): Schema = {
-    if (
-      this.host == null || this.port == null || this.database == null
-      || this.table == null || this.username == null || this.password == null
-    )
-      return null
-    querySchema
-  }
+  override def sourceSchema(): Schema = querySchema
 
   // needs to define getters for sub classes to override Jackson Annotations
   def getKeywords: Option[String] = keywords
@@ -131,7 +118,14 @@ abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
     *
     * @return Schema
     */
-  protected def querySchema: Schema = {
+  private def querySchema: Schema = {
+    if (
+      this.host == null || this.port == null || this.database == null
+      || this.table == null || this.username == null || this.password == null
+    ) {
+      return null
+    }
+
     updatePort()
     val schemaBuilder = Schema.builder()
     try {

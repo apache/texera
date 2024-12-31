@@ -12,6 +12,7 @@ import edu.uci.ics.amber.core.tuple.{
   TupleLike
 }
 import edu.uci.ics.amber.operator.hashJoin.HashJoinBuildOpExec
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
   val build: Int = 0
   val probe: Int = 1
@@ -51,10 +52,11 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc = new HashJoinOpDesc[String]()
     opDesc.buildAttributeName = "build_1"
     opDesc.probeAttributeName = "probe_1"
+    opDesc.joinType = JoinType.INNER
     val inputSchemas = Array(schema("build"), schema("probe"))
     val outputSchema = opDesc.getOutputSchema(inputSchemas)
 
-    buildOpExec = new HashJoinBuildOpExec[String]("build_1")
+    buildOpExec = new HashJoinBuildOpExec[String](objectMapper.writeValueAsString(opDesc))
     buildOpExec.open()
 
     (0 to 7).map(i => {
@@ -67,10 +69,7 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
       buildOpExec.onFinish(build)
     assert(buildOpOutputIterator.hasNext)
 
-    probeOpExec = new HashJoinProbeOpExec[String](
-      "probe_1",
-      JoinType.INNER
-    )
+    probeOpExec = new HashJoinProbeOpExec[String](objectMapper.writeValueAsString(opDesc))
 
     probeOpExec.open()
     while (buildOpOutputIterator.hasNext) {
@@ -109,10 +108,11 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc = new HashJoinOpDesc[String]()
     opDesc.buildAttributeName = "same"
     opDesc.probeAttributeName = "same"
+    opDesc.joinType = JoinType.INNER
     val inputSchemas = Array(schema("same", 1), schema("same", 2))
     val outputSchema = opDesc.getOutputSchema(inputSchemas)
 
-    buildOpExec = new HashJoinBuildOpExec[String]("same")
+    buildOpExec = new HashJoinBuildOpExec[String](objectMapper.writeValueAsString(opDesc))
     buildOpExec.open()
 
     (0 to 7).map(i => {
@@ -124,11 +124,7 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
       buildOpExec.onFinish(build)
     assert(buildOpOutputIterator.hasNext)
 
-    probeOpExec = new HashJoinProbeOpExec[String](
-      "same",
-      JoinType.INNER
-    )
-
+    probeOpExec = new HashJoinProbeOpExec[String](objectMapper.writeValueAsString(opDesc))
     probeOpExec.open()
 
     while (buildOpOutputIterator.hasNext) {
@@ -166,10 +162,11 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc = new HashJoinOpDesc[String]()
     opDesc.buildAttributeName = "same"
     opDesc.probeAttributeName = "same"
+    opDesc.joinType = JoinType.FULL_OUTER
     val inputSchemas = Array(schema("same", 1), schema("same", 2))
     val outputSchema = opDesc.getOutputSchema(inputSchemas)
 
-    buildOpExec = new HashJoinBuildOpExec[String]("same")
+    buildOpExec = new HashJoinBuildOpExec[String](objectMapper.writeValueAsString(opDesc))
     buildOpExec.open()
 
     (0 to 7).map(i => {
@@ -181,11 +178,7 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
       buildOpExec.onFinish(build)
     assert(buildOpOutputIterator.hasNext)
 
-    probeOpExec = new HashJoinProbeOpExec[String](
-      "same",
-      JoinType.FULL_OUTER
-    )
-
+    probeOpExec = new HashJoinProbeOpExec[String](objectMapper.writeValueAsString(opDesc))
     probeOpExec.open()
 
     while (buildOpOutputIterator.hasNext) {

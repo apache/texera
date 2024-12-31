@@ -3,23 +3,24 @@ package edu.uci.ics.amber.operator.projection
 import com.google.common.base.Preconditions
 import edu.uci.ics.amber.core.tuple.{Tuple, TupleLike}
 import edu.uci.ics.amber.operator.map.MapOpExec
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 
 import scala.collection.mutable
 
 class ProjectionOpExec(
-    attributeUnits: List[AttributeUnit],
-    dropOption: Boolean = false
+    descString: String
 ) extends MapOpExec {
 
+  val desc: ProjectionOpDesc = objectMapper.readValue(descString, classOf[ProjectionOpDesc])
   setMapFunc(project)
 
   def project(tuple: Tuple): TupleLike = {
-    Preconditions.checkArgument(attributeUnits.nonEmpty)
+    Preconditions.checkArgument(desc.attributes.nonEmpty)
     var selectedUnits: List[AttributeUnit] = List()
     val fields = mutable.LinkedHashMap[String, Any]()
-    if (dropOption) {
+    if (desc.isDrop) {
       val allAttribute = tuple.schema.getAttributeNames
-      val selectedAttributes = attributeUnits.map(_.getOriginalAttribute)
+      val selectedAttributes = desc.attributes.map(_.getOriginalAttribute)
       val keepAttributes = allAttribute.diff(selectedAttributes)
 
       keepAttributes.foreach { attribute =>
@@ -31,7 +32,7 @@ class ProjectionOpExec(
 
     } else {
 
-      selectedUnits = attributeUnits
+      selectedUnits = desc.attributes
     }
 
     selectedUnits.foreach { attributeUnit =>

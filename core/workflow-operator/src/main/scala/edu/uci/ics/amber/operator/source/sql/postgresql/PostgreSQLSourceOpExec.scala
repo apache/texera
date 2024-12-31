@@ -1,52 +1,30 @@
 package edu.uci.ics.amber.operator.source.sql.postgresql
 
-import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
+import edu.uci.ics.amber.core.tuple.AttributeType
 import edu.uci.ics.amber.operator.source.sql.SQLSourceOpExec
 import edu.uci.ics.amber.operator.source.sql.postgresql.PostgreSQLConnUtil.connect
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 
 import java.sql._
 
-class PostgreSQLSourceOpExec private[postgresql] (
-    host: String,
-    port: String,
-    database: String,
-    table: String,
-    username: String,
-    password: String,
-    limit: Option[Long],
-    offset: Option[Long],
-    progressive: Option[Boolean],
-    batchByColumn: Option[String],
-    min: Option[String],
-    max: Option[String],
-    interval: Long,
-    keywordSearch: Boolean,
-    keywordSearchByColumn: String,
-    keywords: String,
-    schemaFunc: () => Schema
-) extends SQLSourceOpExec(
-      table,
-      limit,
-      offset,
-      progressive,
-      batchByColumn,
-      min,
-      max,
-      interval,
-      keywordSearch,
-      keywordSearchByColumn,
-      keywords,
-      schemaFunc
-    ) {
+class PostgreSQLSourceOpExec private[postgresql] (descString: String)
+    extends SQLSourceOpExec(descString) {
+  override val desc: PostgreSQLSourceOpDesc =
+    objectMapper.readValue(descString, classOf[PostgreSQLSourceOpDesc])
+  schema = desc.sourceSchema()
   val FETCH_TABLE_NAMES_SQL =
     "SELECT table_name FROM information_schema.tables WHERE table_type='BASE TABLE';"
 
   @throws[SQLException]
-  override def establishConn(): Connection = connect(host, port, database, username, password)
+  override def establishConn(): Connection =
+    connect(desc.host, desc.port, desc.database, desc.username, desc.password)
 
   @throws[RuntimeException]
   override def addFilterConditions(queryBuilder: StringBuilder): Unit = {
-    if (keywordSearch && keywordSearchByColumn != null && keywords != null) {
+    val keywordSearchByColumn = desc.keywordSearchByColumn.orNull
+    if (
+      desc.keywordSearch.getOrElse(false) && keywordSearchByColumn != null && desc.keywords != null
+    ) {
       val columnType = schema.getAttribute(keywordSearchByColumn).getType
 
       if (columnType == AttributeType.STRING) {

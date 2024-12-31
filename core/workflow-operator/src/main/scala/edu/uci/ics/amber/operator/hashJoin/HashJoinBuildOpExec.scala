@@ -2,17 +2,19 @@ package edu.uci.ics.amber.operator.hashJoin
 
 import edu.uci.ics.amber.core.executor.OperatorExecutor
 import edu.uci.ics.amber.core.tuple.{Tuple, TupleLike}
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
-class HashJoinBuildOpExec[K](buildAttributeName: String) extends OperatorExecutor {
-
+class HashJoinBuildOpExec[K](descString: String) extends OperatorExecutor {
+  private val desc: HashJoinOpDesc[K] =
+    objectMapper.readValue(descString, classOf[HashJoinOpDesc[K]])
   var buildTableHashMap: mutable.HashMap[K, ListBuffer[Tuple]] = _
 
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
 
-    val key = tuple.getField(buildAttributeName).asInstanceOf[K]
+    val key = tuple.getField(desc.buildAttributeName).asInstanceOf[K]
     buildTableHashMap.getOrElseUpdate(key, new ListBuffer[Tuple]()) += tuple
     Iterator()
   }

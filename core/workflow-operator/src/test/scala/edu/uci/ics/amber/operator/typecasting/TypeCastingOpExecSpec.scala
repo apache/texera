@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.operator.typecasting
 
 import edu.uci.ics.amber.core.tuple._
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 class TypeCastingOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
@@ -27,6 +28,8 @@ class TypeCastingOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   castingUnit2.resultType = AttributeType.STRING
   val castingUnits: List[TypeCastingUnit] = List(castingUnit1, castingUnit2)
 
+  val opDesc: TypeCastingOpDesc = new TypeCastingOpDesc()
+  opDesc.typeCastingUnits = castingUnits
   val tuple: Tuple = Tuple
     .builder(tupleSchema)
     .add(new Attribute("field1", AttributeType.STRING), "hello")
@@ -42,14 +45,15 @@ class TypeCastingOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     .build()
 
   it should "open" in {
-    val typeCastingOpExec = new TypeCastingOpExec(castingUnits)
+
+    val typeCastingOpExec = new TypeCastingOpExec(objectMapper.writeValueAsString(opDesc))
     typeCastingOpExec.open()
 
   }
 
   it should "process Tuple" in {
 
-    val typeCastingOpExec = new TypeCastingOpExec(castingUnits)
+    val typeCastingOpExec = new TypeCastingOpExec(objectMapper.writeValueAsString(opDesc))
 
     typeCastingOpExec.open()
 

@@ -2,7 +2,7 @@ package edu.uci.ics.amber.core.workflow
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonIgnoreProperties}
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.core.executor.{OpExecInitInfo, OpExecInitInfoWithCode}
+import edu.uci.ics.amber.core.executor.{OpExecWithCode, OpExecInitInfo}
 import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.core.virtualidentity.{
   ExecutionIdentity,
@@ -10,7 +10,6 @@ import edu.uci.ics.amber.core.virtualidentity.{
   PhysicalOpIdentity,
   WorkflowIdentity
 }
-import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
 
@@ -84,7 +83,7 @@ object PhysicalOp {
       executionId: ExecutionIdentity,
       opExecInitInfo: OpExecInitInfo
   ): PhysicalOp =
-    PhysicalOp(physicalOpId, workflowId, executionId, opExecInitInfo = opExecInitInfo)
+    PhysicalOp(physicalOpId, workflowId, executionId, opExecInitInfo)
 
   def manyToOnePhysicalOp(
       workflowId: WorkflowIdentity,
@@ -137,31 +136,6 @@ object PhysicalOp {
   ): PhysicalOp = {
     manyToOnePhysicalOp(physicalOpId, workflowId, executionId, opExecInitInfo)
       .withLocationPreference(Some(PreferController))
-  }
-
-  def getExternalPortSchemas(
-      physicalOp: PhysicalOp,
-      fromInput: Boolean,
-      errorList: Option[ArrayBuffer[(OperatorIdentity, Throwable)]]
-  ): List[Option[Schema]] = {
-
-    // Select either input ports or output ports and filter out the internal ports
-    val ports = if (fromInput) {
-      physicalOp.inputPorts.values.filterNot { case (port, _, _) => port.id.internal }
-    } else {
-      physicalOp.outputPorts.values.filterNot { case (port, _, _) => port.id.internal }
-    }
-
-    ports.map {
-      case (_, _, schema) =>
-        schema match {
-          case Left(err) =>
-            errorList.foreach(errList => errList.append((physicalOp.id.logicalOpId, err)))
-            None
-          case Right(validSchema) =>
-            Some(validSchema)
-        }
-    }.toList
   }
 }
 
@@ -218,8 +192,6 @@ case class PhysicalOp(
       .toList
       .distinct
 
-  private lazy val isInitWithCode: Boolean = opExecInitInfo.isInstanceOf[OpExecInitInfoWithCode]
-
   /**
     * Helper functions related to compile-time operations
     */
@@ -239,18 +211,10 @@ case class PhysicalOp(
   @JsonIgnore // this is needed to prevent the serialization issue
   def isPythonBased: Boolean = {
     opExecInitInfo match {
-      case opExecInfo: OpExecInitInfoWithCode =>
-        val (_, language) = opExecInfo.codeGen(0, 0)
+      case OpExecWithCode(_, language) =>
         language == "python" || language == "r-tuple" || language == "r-table"
       case _ => false
     }
-  }
-
-  @JsonIgnore // this is needed to prevent the serialization issue
-  def getPythonCode: String = {
-    val (code, _) =
-      opExecInitInfo.asInstanceOf[OpExecInitInfoWithCode].codeGen(0, 0)
-    code
   }
 
   /**

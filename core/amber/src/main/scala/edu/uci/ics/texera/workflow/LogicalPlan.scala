@@ -84,7 +84,7 @@ case class LogicalPlan(
           val fileUri = FileResolver.resolve(fileName) // Convert to URI
 
           // Set the URI in the ScanSourceOpDesc
-          scanOp.setFileUri(fileUri)
+          scanOp.setResolvedFileName(fileUri)
         } match {
           case Success(_) => // Successfully resolved and set the file URI
 

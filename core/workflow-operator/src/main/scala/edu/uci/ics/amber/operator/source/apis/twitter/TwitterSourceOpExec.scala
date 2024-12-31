@@ -1,14 +1,15 @@
 package edu.uci.ics.amber.operator.source.apis.twitter
 
 import edu.uci.ics.amber.core.executor.SourceOperatorExecutor
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import io.github.redouane59.twitter.TwitterClient
 import io.github.redouane59.twitter.signature.TwitterCredentials
 
 abstract class TwitterSourceOpExec(
-    apiKey: String,
-    apiSecretKey: String,
-    stopWhenRateLimited: Boolean
+    descString: String
 ) extends SourceOperatorExecutor {
+  private val desc: TwitterSourceOpDesc =
+    objectMapper.readValue(descString, classOf[TwitterSourceOpDesc])
   // batch size for each API request defined by Twitter
   //  500 is the maximum tweets for each request
   val TWITTER_API_BATCH_SIZE_MAX = 500
@@ -28,11 +29,11 @@ abstract class TwitterSourceOpExec(
     twitterClient = new TwitterClient(
       TwitterCredentials
         .builder()
-        .apiKey(apiKey)
-        .apiSecretKey(apiSecretKey)
+        .apiKey(desc.apiKey)
+        .apiSecretKey(desc.apiSecretKey)
         .build()
     )
-    twitterClient.setAutomaticRetry(!stopWhenRateLimited)
+    twitterClient.setAutomaticRetry(!desc.stopWhenRateLimited)
   }
 
   override def close(): Unit = {}

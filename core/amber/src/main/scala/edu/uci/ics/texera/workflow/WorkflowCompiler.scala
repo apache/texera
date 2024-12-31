@@ -8,7 +8,7 @@ import edu.uci.ics.amber.engine.common.Utils.objectMapper
 import edu.uci.ics.amber.operator.SpecialPhysicalOpFactory
 import edu.uci.ics.amber.core.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode.SINGLE_SNAPSHOT
-import edu.uci.ics.amber.core.workflow.{PhysicalLink, PortIdentity}
+import edu.uci.ics.amber.core.workflow.PhysicalLink
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
 

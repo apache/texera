@@ -2,17 +2,15 @@ package edu.uci.ics.amber.operator.sortPartitions
 
 import edu.uci.ics.amber.core.executor.OperatorExecutor
 import edu.uci.ics.amber.core.tuple.{AttributeType, Tuple, TupleLike}
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 
 import scala.collection.mutable.ArrayBuffer
 
-class SortPartitionOpExec(
-    sortAttributeName: String,
-    localIdx: Int,
-    domainMin: Long,
-    domainMax: Long,
-    numberOfWorkers: Int
+class SortPartitionsOpExec(
+    descString: String
 ) extends OperatorExecutor {
-
+  private val desc: SortPartitionsOpDesc =
+    objectMapper.readValue(descString, classOf[SortPartitionsOpDesc])
   private var unorderedTuples: ArrayBuffer[Tuple] = _
 
   private def sortTuples(): Iterator[TupleLike] = unorderedTuples.sortWith(compareTuples).iterator
@@ -25,8 +23,8 @@ class SortPartitionOpExec(
   override def onFinish(port: Int): Iterator[TupleLike] = sortTuples()
 
   private def compareTuples(t1: Tuple, t2: Tuple): Boolean = {
-    val attributeType = t1.getSchema.getAttribute(sortAttributeName).getType
-    val attributeIndex = t1.getSchema.getIndex(sortAttributeName)
+    val attributeType = t1.getSchema.getAttribute(desc.sortAttributeName).getType
+    val attributeIndex = t1.getSchema.getIndex(desc.sortAttributeName)
     attributeType match {
       case AttributeType.LONG =>
         t1.getField[Long](attributeIndex) < t2.getField[Long](attributeIndex)

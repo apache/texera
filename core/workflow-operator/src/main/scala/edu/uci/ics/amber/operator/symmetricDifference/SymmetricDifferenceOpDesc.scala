@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.operator.symmetricDifference
 
 import com.google.common.base.Preconditions
-import edu.uci.ics.amber.core.executor.OpExecInitInfo
+import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.core.workflow.{HashPartition, PhysicalOp}
 import edu.uci.ics.amber.operator.LogicalOp
@@ -21,7 +21,9 @@ class SymmetricDifferenceOpDesc extends LogicalOp {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _) => new SymmetricDifferenceOpExec())
+        OpExecWithClassName(
+          "edu.uci.ics.amber.operator.symmetricDifference.SymmetricDifferenceOpExec"
+        )
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)

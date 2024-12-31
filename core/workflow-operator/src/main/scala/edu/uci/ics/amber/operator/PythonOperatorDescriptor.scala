@@ -1,29 +1,27 @@
 package edu.uci.ics.amber.operator
 
-import edu.uci.ics.amber.core.executor.OpExecInitInfoWithCode
-import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
+import edu.uci.ics.amber.core.executor.OpExecWithCode
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 
 trait PythonOperatorDescriptor extends LogicalOp {
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp = {
-    val opExecInitInfo = OpExecInitInfoWithCode((_, _) => (generatePythonCode(), "python"))
-
     val physicalOp = if (asSource()) {
       PhysicalOp.sourcePhysicalOp(
         workflowId,
         executionId,
         operatorIdentifier,
-        opExecInitInfo
+        OpExecWithCode(generatePythonCode(), "python")
       )
     } else {
       PhysicalOp.oneToOnePhysicalOp(
         workflowId,
         executionId,
         operatorIdentifier,
-        opExecInitInfo
+        OpExecWithCode(generatePythonCode(), "python")
       )
     }
 

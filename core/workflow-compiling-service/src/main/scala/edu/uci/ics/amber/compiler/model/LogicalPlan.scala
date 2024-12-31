@@ -2,10 +2,7 @@ package edu.uci.ics.amber.compiler.model
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.storage.FileResolver
-import edu.uci.ics.amber.core.tuple.Schema
-import edu.uci.ics.amber.core.workflow.WorkflowContext
 import edu.uci.ics.amber.operator.LogicalOp
-import edu.uci.ics.amber.operator.source.SourceOperatorDescriptor
 import edu.uci.ics.amber.operator.source.scan.ScanSourceOpDesc
 import edu.uci.ics.amber.core.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.core.workflow.PortIdentity
@@ -14,8 +11,6 @@ import org.jgrapht.util.SupplierUtil
 
 import java.util
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.mutable
-import scala.jdk.CollectionConverters.SetHasAsScala
 import scala.util.{Failure, Success, Try}
 
 object LogicalPlan {
@@ -107,7 +102,7 @@ case class LogicalPlan(
           val fileUri = FileResolver.resolve(fileName) // Convert to URI
 
           // Set the URI in the ScanSourceOpDesc
-          scanOp.setFileUri(fileUri)
+          scanOp.setResolvedFileName(fileUri)
         } match {
           case Success(_) => // Successfully resolved and set the file URI
           case Failure(err) =>

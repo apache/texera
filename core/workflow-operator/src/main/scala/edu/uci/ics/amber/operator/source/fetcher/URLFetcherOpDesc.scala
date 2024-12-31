@@ -2,11 +2,12 @@ package edu.uci.ics.amber.operator.source.fetcher
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.core.executor.OpExecInitInfo
+import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.source.SourceOperatorDescriptor
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.OutputPort
 
@@ -26,7 +27,7 @@ class URLFetcherOpDesc extends SourceOperatorDescriptor {
   )
   var decodingMethod: DecodingMethod = _
 
-  def sourceSchema(): Schema = {
+  override def sourceSchema(): Schema = {
     Schema
       .builder()
       .add(
@@ -49,7 +50,10 @@ class URLFetcherOpDesc extends SourceOperatorDescriptor {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _) => new URLFetcherOpExec(url, decodingMethod))
+        OpExecWithClassName(
+          "edu.uci.ics.amber.operator.source.fetcher.URLFetcherOpExec",
+          objectMapper.writeValueAsString(this)
+        )
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)

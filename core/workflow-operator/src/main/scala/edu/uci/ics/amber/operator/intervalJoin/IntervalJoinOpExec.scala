@@ -4,6 +4,7 @@ import edu.uci.ics.amber.core.WorkflowRuntimeException
 import edu.uci.ics.amber.core.executor.OperatorExecutor
 import edu.uci.ics.amber.core.tuple.{AttributeType, Tuple, TupleLike}
 import edu.uci.ics.amber.operator.hashJoin.JoinUtils
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 
 import java.sql.Timestamp
 import scala.collection.mutable.ListBuffer
@@ -13,14 +14,10 @@ import scala.collection.mutable.ListBuffer
   * 2. The left input join key takes as points, join condition is: left key in the range of (right key, right key + constant)
   */
 class IntervalJoinOpExec(
-    leftAttributeName: String,
-    rightAttributeName: String,
-    includeLeftBound: Boolean,
-    includeRightBound: Boolean,
-    constant: Long,
-    timeIntervalType: Option[TimeIntervalType]
+    descString: String
 ) extends OperatorExecutor {
-
+  private val desc: IntervalJoinOpDesc =
+    objectMapper.readValue(descString, classOf[IntervalJoinOpDesc])
   var leftTable: ListBuffer[Tuple] = new ListBuffer[Tuple]()
   var rightTable: ListBuffer[Tuple] = new ListBuffer[Tuple]()
 
@@ -34,10 +31,10 @@ class IntervalJoinOpExec(
           .filter(rightTableTuple => {
 
             intervalCompare(
-              tuple.getField(leftAttributeName),
-              rightTableTuple.getField(rightAttributeName),
+              tuple.getField(desc.leftAttributeName),
+              rightTableTuple.getField(desc.rightAttributeName),
               rightTableTuple.getSchema
-                .getAttribute(rightAttributeName)
+                .getAttribute(desc.rightAttributeName)
                 .getType
             ) == 0
           })
@@ -53,10 +50,10 @@ class IntervalJoinOpExec(
         leftTable
           .filter(leftTableTuple => {
             intervalCompare(
-              leftTableTuple.getField(leftAttributeName),
-              tuple.getField(rightAttributeName),
+              leftTableTuple.getField(desc.leftAttributeName),
+              tuple.getField(desc.rightAttributeName),
               leftTableTuple.getSchema
-                .getAttribute(leftAttributeName)
+                .getAttribute(desc.leftAttributeName)
                 .getType
             ) == 0
           })
@@ -74,10 +71,10 @@ class IntervalJoinOpExec(
     while (rightTable.nonEmpty) {
       if (
         intervalCompare(
-          leftTableSmallestTuple.getField(leftAttributeName),
-          rightTable.head.getField(rightAttributeName),
+          leftTableSmallestTuple.getField(desc.leftAttributeName),
+          rightTable.head.getField(desc.rightAttributeName),
           leftTableSmallestTuple.getSchema
-            .getAttribute(leftAttributeName)
+            .getAttribute(desc.leftAttributeName)
             .getType
         ) > 0
       ) {
@@ -94,10 +91,10 @@ class IntervalJoinOpExec(
     while (leftTable.nonEmpty) {
       if (
         intervalCompare(
-          leftTable.head.getField(leftAttributeName),
-          rightTableSmallestTuple.getField(rightAttributeName),
+          leftTable.head.getField(desc.leftAttributeName),
+          rightTableSmallestTuple.getField(desc.rightAttributeName),
           rightTableSmallestTuple.getSchema
-            .getAttribute(rightAttributeName)
+            .getAttribute(desc.rightAttributeName)
             .getType
         ) < 0
       ) {
@@ -114,15 +111,15 @@ class IntervalJoinOpExec(
       leftBoundValue: T,
       rightBoundValue: T
   )(implicit ev$1: T => Ordered[T]): Int = {
-    if (includeLeftBound && includeRightBound) {
+    if (desc.includeLeftBound && desc.includeRightBound) {
       if (pointValue >= leftBoundValue && pointValue <= rightBoundValue) 0
       else if (pointValue < leftBoundValue) -1
       else 1
-    } else if (includeLeftBound && !includeRightBound) {
+    } else if (desc.includeLeftBound && !desc.includeRightBound) {
       if (pointValue >= leftBoundValue && pointValue < rightBoundValue) 0
       else if (pointValue < leftBoundValue) -1
       else 1
-    } else if (!includeLeftBound && includeRightBound) {
+    } else if (!desc.includeLeftBound && desc.includeRightBound) {
       if (pointValue > leftBoundValue && pointValue <= rightBoundValue) 0
       else if (pointValue <= leftBoundValue) -1
       else 1
@@ -142,7 +139,7 @@ class IntervalJoinOpExec(
     if (dataType == AttributeType.LONG) {
       val pointValue: Long = point.asInstanceOf[Long]
       val leftBoundValue: Long = leftBound.asInstanceOf[Long]
-      val constantValue: Long = constant
+      val constantValue: Long = desc.constant
       val rightBoundValue: Long = leftBoundValue + constantValue
       result = processNumValue[Long](
         pointValue,
@@ -153,7 +150,7 @@ class IntervalJoinOpExec(
     } else if (dataType == AttributeType.DOUBLE) {
       val pointValue: Double = point.asInstanceOf[Double]
       val leftBoundValue: Double = leftBound.asInstanceOf[Double]
-      val constantValue: Double = constant.asInstanceOf[Double]
+      val constantValue: Double = desc.constant.asInstanceOf[Double]
       val rightBoundValue: Double = leftBoundValue + constantValue
       result = processNumValue[Double](
         pointValue,
@@ -163,7 +160,7 @@ class IntervalJoinOpExec(
     } else if (dataType == AttributeType.INTEGER) {
       val pointValue: Int = point.asInstanceOf[Int]
       val leftBoundValue: Int = leftBound.asInstanceOf[Int]
-      val constantValue: Int = constant.asInstanceOf[Int]
+      val constantValue: Int = desc.constant.asInstanceOf[Int]
       val rightBoundValue: Int = leftBoundValue + constantValue
       result = processNumValue[Int](
         pointValue,
@@ -174,21 +171,21 @@ class IntervalJoinOpExec(
       val pointValue: Timestamp = point.asInstanceOf[Timestamp]
       val leftBoundValue: Timestamp = leftBound.asInstanceOf[Timestamp]
       val rightBoundValue: Timestamp =
-        timeIntervalType match {
+        desc.timeIntervalType match {
           case Some(TimeIntervalType.YEAR) =>
-            Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusYears(constant))
+            Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusYears(desc.constant))
           case Some(TimeIntervalType.MONTH) =>
-            Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusMonths(constant))
+            Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusMonths(desc.constant))
           case Some(TimeIntervalType.DAY) =>
-            Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusDays(constant))
+            Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusDays(desc.constant))
           case Some(TimeIntervalType.HOUR) =>
-            Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusHours(constant))
+            Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusHours(desc.constant))
           case Some(TimeIntervalType.MINUTE) =>
-            Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusMinutes(constant))
+            Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusMinutes(desc.constant))
           case Some(TimeIntervalType.SECOND) =>
-            Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusSeconds(constant))
+            Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusSeconds(desc.constant))
           case None =>
-            Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusDays(constant))
+            Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusDays(desc.constant))
         }
       result = processNumValue(
         pointValue.getTime,

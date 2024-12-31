@@ -3,6 +3,7 @@ package edu.uci.ics.amber.operator.source.apis.twitter.v2
 import edu.uci.ics.amber.core.tuple.{Schema, Tuple, TupleLike}
 import edu.uci.ics.amber.operator.source.apis.twitter.TwitterSourceOpExec
 import edu.uci.ics.amber.operator.source.apis.twitter.v2.TwitterUtils.tweetDataToTuple
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import io.github.redouane59.twitter.dto.endpoints.AdditionalParameters
 import io.github.redouane59.twitter.dto.tweet.TweetList
 import io.github.redouane59.twitter.dto.tweet.TweetV2.TweetData
@@ -13,15 +14,11 @@ import scala.collection.{Iterator, mutable}
 import scala.jdk.CollectionConverters.ListHasAsScala
 
 class TwitterSearchSourceOpExec(
-    apiKey: String,
-    apiSecretKey: String,
-    stopWhenRateLimited: Boolean,
-    searchQuery: String,
-    limit: Int,
-    schemaFunc: () => Schema
-) extends TwitterSourceOpExec(apiKey, apiSecretKey, stopWhenRateLimited) {
-  val outputSchema: Schema = schemaFunc()
-  var curLimit: Int = limit
+    descString: String
+) extends TwitterSourceOpExec(descString) {
+  private val desc: TwitterSearchSourceOpDesc =
+    objectMapper.readValue(descString, classOf[TwitterSearchSourceOpDesc])
+  var curLimit: Int = desc.limit
   // nextToken is used to retrieve next page of results, if exists.
   var nextToken: String = _
   // contains tweets from the previous request.
@@ -29,6 +26,7 @@ class TwitterSearchSourceOpExec(
   var userCache: Map[String, UserData] = Map()
   var hasNextRequest: Boolean = curLimit > 0
   var lastQueryTime: Long = 0
+  val schema: Schema = desc.sourceSchema()
 
   override def produceTuple(): Iterator[TupleLike] =
     new Iterator[TupleLike]() {
@@ -38,7 +36,7 @@ class TwitterSearchSourceOpExec(
         // if the current cache is exhausted, query for the next response
         if (tweetCache.isEmpty && hasNextRequest) {
           queryForNextBatch(
-            searchQuery,
+            desc.searchQuery,
             curLimit.min(TWITTER_API_BATCH_SIZE_MAX)
           )
         }
@@ -58,7 +56,7 @@ class TwitterSearchSourceOpExec(
 
         val user = userCache.get(tweet.getAuthorId)
 
-        tweetDataToTuple(tweet, user, outputSchema)
+        tweetDataToTuple(tweet, user, schema)
       }
     }
 

@@ -3,7 +3,7 @@ package edu.uci.ics.amber.operator.udf.python
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.core.executor.OpExecInitInfo
+import edu.uci.ics.amber.core.executor.OpExecWithCode
 import edu.uci.ics.amber.core.tuple.{Attribute, Schema}
 import edu.uci.ics.amber.core.workflow.{
   PartitionInfo,
@@ -104,7 +104,7 @@ class PythonUDFOpDescV2 extends LogicalOp {
           workflowId,
           executionId,
           operatorIdentifier,
-          OpExecInitInfo(code, "python")
+          OpExecWithCode(code, "python")
         )
         .withDerivePartition(_ => UnknownPartition())
         .withInputPorts(operatorInfo.inputPorts)
@@ -120,7 +120,7 @@ class PythonUDFOpDescV2 extends LogicalOp {
           workflowId,
           executionId,
           operatorIdentifier,
-          OpExecInitInfo(code, "python")
+          OpExecWithCode(code, "python")
         )
         .withDerivePartition(_ => UnknownPartition())
         .withInputPorts(operatorInfo.inputPorts)
