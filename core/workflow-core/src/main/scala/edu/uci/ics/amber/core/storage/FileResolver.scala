@@ -25,6 +25,9 @@ object FileResolver {
     * @return Either[String, DatasetFileDocument] - the resolved path as a String or a DatasetFileDocument
     */
   def resolve(fileName: String): URI = {
+    if (isFileResolved(fileName)) {
+      return new URI(fileName)
+    }
     val resolvers: Seq[String => URI] = Seq(localResolveFunc, datasetResolveFunc)
 
     // Try each resolver function in sequence
