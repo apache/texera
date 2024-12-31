@@ -17,7 +17,7 @@ import betterproto.lib.google.protobuf as betterproto_lib_google_protobuf
 import grpclib
 from betterproto.grpc.grpclib_server import ServiceBase
 
-from ... import common as __common__
+from .... import core as ___core__
 from .. import (
     sendsemantics as _sendsemantics__,
     worker as _worker__,
@@ -146,8 +146,8 @@ class EmptyRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class AsyncRpcContext(betterproto.Message):
-    sender: "__common__.ActorVirtualIdentity" = betterproto.message_field(1)
-    receiver: "__common__.ActorVirtualIdentity" = betterproto.message_field(2)
+    sender: "___core__.ActorVirtualIdentity" = betterproto.message_field(1)
+    receiver: "___core__.ActorVirtualIdentity" = betterproto.message_field(2)
 
 
 @dataclass(eq=False, repr=False)
@@ -162,9 +162,9 @@ class ControlInvocation(betterproto.Message):
 class ChannelMarkerPayload(betterproto.Message):
     """Message for ChannelMarkerPayload"""
 
-    id: "__common__.ChannelMarkerIdentity" = betterproto.message_field(1)
+    id: "___core__.ChannelMarkerIdentity" = betterproto.message_field(1)
     marker_type: "ChannelMarkerType" = betterproto.enum_field(2)
-    scope: List["__common__.ChannelIdentity"] = betterproto.message_field(3)
+    scope: List["___core__.ChannelIdentity"] = betterproto.message_field(3)
     command_mapping: Dict[str, "ControlInvocation"] = betterproto.map_field(
         4, betterproto.TYPE_STRING, betterproto.TYPE_MESSAGE
     )
@@ -172,13 +172,13 @@ class ChannelMarkerPayload(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class PropagateChannelMarkerRequest(betterproto.Message):
-    source_op_to_start_prop: List["__common__.PhysicalOpIdentity"] = (
+    source_op_to_start_prop: List["___core__.PhysicalOpIdentity"] = (
         betterproto.message_field(1)
     )
-    id: "__common__.ChannelMarkerIdentity" = betterproto.message_field(2)
+    id: "___core__.ChannelMarkerIdentity" = betterproto.message_field(2)
     marker_type: "ChannelMarkerType" = betterproto.enum_field(3)
-    scope: List["__common__.PhysicalOpIdentity"] = betterproto.message_field(4)
-    target_ops: List["__common__.PhysicalOpIdentity"] = betterproto.message_field(5)
+    scope: List["___core__.PhysicalOpIdentity"] = betterproto.message_field(4)
+    target_ops: List["___core__.PhysicalOpIdentity"] = betterproto.message_field(5)
     marker_command: "ControlRequest" = betterproto.message_field(6)
     marker_method_name: str = betterproto.string_field(7)
 
@@ -186,7 +186,7 @@ class PropagateChannelMarkerRequest(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class TakeGlobalCheckpointRequest(betterproto.Message):
     estimation_only: bool = betterproto.bool_field(1)
-    checkpoint_id: "__common__.ChannelMarkerIdentity" = betterproto.message_field(2)
+    checkpoint_id: "___core__.ChannelMarkerIdentity" = betterproto.message_field(2)
     destination: str = betterproto.string_field(3)
 
 
@@ -215,7 +215,7 @@ class ModifyLogicRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class RetryWorkflowRequest(betterproto.Message):
-    workers: List["__common__.ActorVirtualIdentity"] = betterproto.message_field(1)
+    workers: List["___core__.ActorVirtualIdentity"] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -235,7 +235,7 @@ class ConsoleMessageTriggeredRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class PortCompletedRequest(betterproto.Message):
-    port_id: "__common__.PortIdentity" = betterproto.message_field(1)
+    port_id: "___core__.PortIdentity" = betterproto.message_field(1)
     input: bool = betterproto.bool_field(2)
 
 
@@ -246,7 +246,7 @@ class WorkerStateUpdatedRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class LinkWorkersRequest(betterproto.Message):
-    link: "__common__.PhysicalLink" = betterproto.message_field(1)
+    link: "___core__.PhysicalLink" = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -255,7 +255,7 @@ class Ping(betterproto.Message):
 
     i: int = betterproto.int32_field(1)
     end: int = betterproto.int32_field(2)
-    to: "__common__.ActorVirtualIdentity" = betterproto.message_field(3)
+    to: "___core__.ActorVirtualIdentity" = betterproto.message_field(3)
 
 
 @dataclass(eq=False, repr=False)
@@ -264,7 +264,7 @@ class Pong(betterproto.Message):
 
     i: int = betterproto.int32_field(1)
     end: int = betterproto.int32_field(2)
-    to: "__common__.ActorVirtualIdentity" = betterproto.message_field(3)
+    to: "___core__.ActorVirtualIdentity" = betterproto.message_field(3)
 
 
 @dataclass(eq=False, repr=False)
@@ -285,7 +285,7 @@ class Nested(betterproto.Message):
 class MultiCall(betterproto.Message):
     """MultiCall message"""
 
-    seq: List["__common__.ActorVirtualIdentity"] = betterproto.message_field(1)
+    seq: List["___core__.ActorVirtualIdentity"] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -299,7 +299,7 @@ class ErrorCommand(betterproto.Message):
 class Collect(betterproto.Message):
     """Collect message"""
 
-    workers: List["__common__.ActorVirtualIdentity"] = betterproto.message_field(1)
+    workers: List["___core__.ActorVirtualIdentity"] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -313,7 +313,7 @@ class GenerateNumber(betterproto.Message):
 class Chain(betterproto.Message):
     """Chain message"""
 
-    nexts: List["__common__.ActorVirtualIdentity"] = betterproto.message_field(1)
+    nexts: List["___core__.ActorVirtualIdentity"] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -327,19 +327,19 @@ class Recursion(betterproto.Message):
 class AddInputChannelRequest(betterproto.Message):
     """Messages for the commands"""
 
-    channel_id: "__common__.ChannelIdentity" = betterproto.message_field(1)
-    port_id: "__common__.PortIdentity" = betterproto.message_field(2)
+    channel_id: "___core__.ChannelIdentity" = betterproto.message_field(1)
+    port_id: "___core__.PortIdentity" = betterproto.message_field(2)
 
 
 @dataclass(eq=False, repr=False)
 class AddPartitioningRequest(betterproto.Message):
-    tag: "__common__.PhysicalLink" = betterproto.message_field(1)
+    tag: "___core__.PhysicalLink" = betterproto.message_field(1)
     partitioning: "_sendsemantics__.Partitioning" = betterproto.message_field(2)
 
 
 @dataclass(eq=False, repr=False)
 class AssignPortRequest(betterproto.Message):
-    port_id: "__common__.PortIdentity" = betterproto.message_field(1)
+    port_id: "___core__.PortIdentity" = betterproto.message_field(1)
     input: bool = betterproto.bool_field(2)
     schema: Dict[str, str] = betterproto.map_field(
         3, betterproto.TYPE_STRING, betterproto.TYPE_STRING
@@ -348,23 +348,20 @@ class AssignPortRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class FinalizeCheckpointRequest(betterproto.Message):
-    checkpoint_id: "__common__.ChannelMarkerIdentity" = betterproto.message_field(1)
+    checkpoint_id: "___core__.ChannelMarkerIdentity" = betterproto.message_field(1)
     write_to: str = betterproto.string_field(2)
 
 
 @dataclass(eq=False, repr=False)
 class InitializeExecutorRequest(betterproto.Message):
     total_worker_count: int = betterproto.int32_field(1)
-    op_exec_init_info: "betterproto_lib_google_protobuf.Any" = (
-        betterproto.message_field(2)
-    )
+    op_exec_init_info: "___core__.OpExecInitInfo" = betterproto.message_field(2)
     is_source: bool = betterproto.bool_field(3)
-    language: str = betterproto.string_field(4)
 
 
 @dataclass(eq=False, repr=False)
 class UpdateExecutorRequest(betterproto.Message):
-    target_op_id: "__common__.PhysicalOpIdentity" = betterproto.message_field(1)
+    target_op_id: "___core__.PhysicalOpIdentity" = betterproto.message_field(1)
     new_executor: "betterproto_lib_google_protobuf.Any" = betterproto.message_field(2)
     state_transfer_func: "betterproto_lib_google_protobuf.Any" = (
         betterproto.message_field(3)
@@ -373,13 +370,13 @@ class UpdateExecutorRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class PrepareCheckpointRequest(betterproto.Message):
-    checkpoint_id: "__common__.ChannelMarkerIdentity" = betterproto.message_field(1)
+    checkpoint_id: "___core__.ChannelMarkerIdentity" = betterproto.message_field(1)
     estimation_only: bool = betterproto.bool_field(2)
 
 
 @dataclass(eq=False, repr=False)
 class QueryStatisticsRequest(betterproto.Message):
-    filter_by_workers: List["__common__.ActorVirtualIdentity"] = (
+    filter_by_workers: List["___core__.ActorVirtualIdentity"] = (
         betterproto.message_field(1)
     )
 
@@ -1235,6 +1232,7 @@ class ControllerServiceStub(betterproto.ServiceStub):
 
 
 class RpcTesterBase(ServiceBase):
+
     async def send_ping(self, ping: "Ping") -> "IntResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
@@ -1405,6 +1403,7 @@ class RpcTesterBase(ServiceBase):
 
 
 class WorkerServiceBase(ServiceBase):
+
     async def add_input_channel(
         self, add_input_channel_request: "AddInputChannelRequest"
     ) -> "EmptyReturn":
@@ -1711,6 +1710,7 @@ class WorkerServiceBase(ServiceBase):
 
 
 class ControllerServiceBase(ServiceBase):
+
     async def retrieve_workflow_state(
         self, empty_request: "EmptyRequest"
     ) -> "RetrieveWorkflowStateResponse":

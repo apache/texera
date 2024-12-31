@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.core.storage.result
 
-import edu.uci.ics.amber.virtualidentity.WorkflowIdentity
+import edu.uci.ics.amber.core.virtualidentity.WorkflowIdentity
 
 import scala.collection.mutable
 

@@ -10,10 +10,10 @@ import edu.uci.ics.amber.compiler.WorkflowCompiler.{
 import edu.uci.ics.amber.compiler.model.{LogicalPlan, LogicalPlanPojo}
 import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
-import edu.uci.ics.amber.virtualidentity.OperatorIdentity
-import edu.uci.ics.amber.workflow.PhysicalLink
-import edu.uci.ics.amber.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
-import edu.uci.ics.amber.workflowruntimestate.WorkflowFatalError
+import edu.uci.ics.amber.core.virtualidentity.OperatorIdentity
+import edu.uci.ics.amber.core.workflow.PhysicalLink
+import edu.uci.ics.amber.core.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
+import edu.uci.ics.amber.core.workflowruntimestate.WorkflowFatalError
 
 import java.time.Instant
 import scala.collection.mutable
@@ -110,7 +110,6 @@ class WorkflowCompiler(
     logicalPlan.getTopologicalOpIds.asScala.foreach(logicalOpId =>
       Try {
         val logicalOp = logicalPlan.getOperator(logicalOpId)
-        logicalOp.setContext(context)
 
         val subPlan = logicalOp.getPhysicalPlan(context.workflowId, context.executionId)
         subPlan
@@ -166,7 +165,7 @@ class WorkflowCompiler(
     // 1. convert the pojo to logical plan
     val logicalPlan: LogicalPlan = LogicalPlan(logicalPlanPojo)
 
-    // - resolve the file name in each scan source operator
+    // 2. resolve the file name in each scan source operator
     logicalPlan.resolveScanSourceOpFileName(Some(errorList))
 
     // 3. expand the logical plan to the physical plan

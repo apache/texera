@@ -2,18 +2,23 @@ package edu.uci.ics.amber.operator.hashJoin
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import edu.uci.ics.amber.core.executor.OpExecInitInfo
+import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.core.workflow._
 import edu.uci.ics.amber.operator.LogicalOp
-import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, PhysicalOpIdentity, WorkflowIdentity}
-import edu.uci.ics.amber.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{
+  ExecutionIdentity,
+  PhysicalOpIdentity,
+  WorkflowIdentity
+}
+import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
 import edu.uci.ics.amber.operator.hashJoin.HashJoinOpDesc.HASH_JOIN_INTERNAL_KEY_NAME
 import edu.uci.ics.amber.operator.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameOnPort1
 }
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 
 object HashJoinOpDesc {
   val HASH_JOIN_INTERNAL_KEY_NAME = "__internal__hashtable__key__"
@@ -63,7 +68,10 @@ class HashJoinOpDesc[K] extends LogicalOp {
           PhysicalOpIdentity(operatorIdentifier, "build"),
           workflowId,
           executionId,
-          OpExecInitInfo((_, _) => new HashJoinBuildOpExec[K](buildAttributeName))
+          OpExecWithClassName(
+            "edu.uci.ics.amber.operator.hashJoin.HashJoinBuildOpExec",
+            objectMapper.writeValueAsString(this)
+          )
         )
         .withInputPorts(List(buildInputPort))
         .withOutputPorts(List(buildOutputPort))
@@ -92,11 +100,9 @@ class HashJoinOpDesc[K] extends LogicalOp {
           PhysicalOpIdentity(operatorIdentifier, "probe"),
           workflowId,
           executionId,
-          OpExecInitInfo((_, _) =>
-            new HashJoinProbeOpExec[K](
-              probeAttributeName,
-              joinType
-            )
+          OpExecWithClassName(
+            "edu.uci.ics.amber.operator.hashJoin.HashJoinProbeOpExec",
+            objectMapper.writeValueAsString(this)
           )
         )
         .withInputPorts(
@@ -121,7 +127,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
           )
         )
 
-    new PhysicalPlan(
+    PhysicalPlan(
       operators = Set(buildPhysicalOp, probePhysicalOp),
       links = Set(
         PhysicalLink(

@@ -2,7 +2,7 @@ package edu.uci.ics.amber.operator.map
 
 import edu.uci.ics.amber.core.workflow.PhysicalOp
 import edu.uci.ics.amber.operator.{LogicalOp, StateTransferFunc}
-import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 
 import scala.util.{Failure, Success, Try}
 

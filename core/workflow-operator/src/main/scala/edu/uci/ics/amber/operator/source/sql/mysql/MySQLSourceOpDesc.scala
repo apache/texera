@@ -1,12 +1,13 @@
 package edu.uci.ics.amber.operator.source.sql.mysql
 
-import edu.uci.ics.amber.core.executor.OpExecInitInfo
+import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.source.sql.SQLSourceOpDesc
 import edu.uci.ics.amber.operator.source.sql.mysql.MySQLConnUtil.connect
-import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.amber.workflow.OutputPort
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
+import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.core.workflow.OutputPort
 
 import java.sql.{Connection, SQLException}
 
@@ -21,26 +22,9 @@ class MySQLSourceOpDesc extends SQLSourceOpDesc {
         workflowId,
         executionId,
         this.operatorIdentifier,
-        OpExecInitInfo((_, _) =>
-          new MySQLSourceOpExec(
-            host,
-            port,
-            database,
-            table,
-            username,
-            password,
-            limit,
-            offset,
-            progressive,
-            batchByColumn,
-            min,
-            max,
-            interval,
-            keywordSearch.getOrElse(false),
-            keywordSearchByColumn.orNull,
-            keywords.orNull,
-            () => sourceSchema()
-          )
+        OpExecWithClassName(
+          "edu.uci.ics.amber.operator.source.sql.mysql.MySQLSourceOpExec",
+          objectMapper.writeValueAsString(this)
         )
       )
       .withInputPorts(operatorInfo.inputPorts)

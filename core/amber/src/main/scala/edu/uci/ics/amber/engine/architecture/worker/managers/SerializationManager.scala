@@ -1,18 +1,12 @@
 package edu.uci.ics.amber.engine.architecture.worker.managers
 
-import edu.uci.ics.amber.core.executor.OpExecInitInfo.generateJavaOpExec
-import edu.uci.ics.amber.core.executor.{OpExecInitInfo, OperatorExecutor}
+import edu.uci.ics.amber.core.executor._
 import edu.uci.ics.amber.core.tuple.TupleLike
+import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.core.workflow.PortIdentity
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.InitializeExecutorRequest
-import edu.uci.ics.amber.engine.common.{
-  AmberLogging,
-  AmberRuntime,
-  CheckpointState,
-  CheckpointSupport
-}
+import edu.uci.ics.amber.engine.common.{AmberLogging, CheckpointState, CheckpointSupport}
 import edu.uci.ics.amber.util.VirtualIdentityUtils
-import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.amber.workflow.PortIdentity
 
 class SerializationManager(val actorId: ActorVirtualIdentity) extends AmberLogging {
 
@@ -26,14 +20,15 @@ class SerializationManager(val actorId: ActorVirtualIdentity) extends AmberLoggi
   def restoreExecutorState(
       chkpt: CheckpointState
   ): (OperatorExecutor, Iterator[(TupleLike, Option[PortIdentity])]) = {
-    val opExecInitInfo: OpExecInitInfo = AmberRuntime.serde
-      .deserialize(execInitMsg.opExecInitInfo.value.toByteArray, classOf[OpExecInitInfo])
-      .get
-    val executor = generateJavaOpExec(
-      opExecInitInfo,
-      VirtualIdentityUtils.getWorkerIndex(actorId),
-      execInitMsg.totalWorkerCount
-    )
+    val workerIdx = VirtualIdentityUtils.getWorkerIndex(actorId)
+    val workerCount = execInitMsg.totalWorkerCount
+    val executor = execInitMsg.opExecInitInfo match {
+      case OpExecWithClassName(className, descString) =>
+        ExecFactory.newExecFromJavaClassName(className, descString, workerIdx, workerCount)
+      case OpExecWithCode(code, language) => ExecFactory.newExecFromJavaCode(code)
+      case _                              => throw new UnsupportedOperationException("Unsupported OpExec type")
+    }
+
     val iter = executor match {
       case support: CheckpointSupport =>
         support.deserializeState(chkpt)

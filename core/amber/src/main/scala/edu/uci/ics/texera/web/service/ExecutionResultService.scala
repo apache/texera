@@ -5,12 +5,8 @@ import com.fasterxml.jackson.annotation.{JsonTypeInfo, JsonTypeName}
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.storage.StorageConfig
-import edu.uci.ics.amber.core.storage.result.{
-  MongoDocument,
-  OperatorResultMetadata,
-  ResultStorage,
-  WorkflowResultStore
-}
+import edu.uci.ics.amber.core.storage.result.OpResultStorage.MONGODB
+import edu.uci.ics.amber.core.storage.result._
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan}
 import edu.uci.ics.amber.engine.architecture.controller.{ExecutionStateUpdate, FatalError}
@@ -23,8 +19,9 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregat
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.executionruntimestate.ExecutionMetadataStore
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberRuntime}
-import edu.uci.ics.amber.virtualidentity.{OperatorIdentity, WorkflowIdentity}
-import edu.uci.ics.amber.workflow.OutputPort.OutputMode
+import edu.uci.ics.amber.core.virtualidentity.{OperatorIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode
+import edu.uci.ics.amber.core.workflow.PortIdentity
 import edu.uci.ics.texera.web.SubscriptionManager
 import edu.uci.ics.texera.web.model.websocket.event.{
   PaginatedResultEvent,
@@ -89,7 +86,9 @@ object ExecutionResultService {
     }
 
     val storage =
-      ResultStorage.getOpResultStorage(workflowIdentity).get(physicalOps.head.id.logicalOpId)
+      ResultStorage
+        .getOpResultStorage(workflowIdentity)
+        .get(OpResultStorage.createStorageKey(physicalOps.head.id.logicalOpId, PortIdentity()))
     val webUpdate = webOutputMode match {
       case PaginationMode() =>
         val numTuples = storage.getCount
@@ -238,10 +237,12 @@ class ExecutionResultService(
                 oldInfo.tupleCount,
                 info.tupleCount
               )
-              if (StorageConfig.resultStorageMode.toLowerCase == "mongodb") {
+              if (StorageConfig.resultStorageMode == MONGODB) {
+                // using the first port for now. TODO: support multiple ports
+                val storageKey = OpResultStorage.createStorageKey(opId, PortIdentity())
                 val opStorage = ResultStorage
                   .getOpResultStorage(workflowIdentity)
-                  .get(physicalPlan.getPhysicalOpsOfLogicalOp(opId).head.id.logicalOpId)
+                  .get(storageKey)
                 opStorage match {
                   case mongoDocument: MongoDocument[Tuple] =>
                     val tableCatStats = mongoDocument.getCategoricalStats
@@ -277,15 +278,16 @@ class ExecutionResultService(
   def handleResultPagination(request: ResultPaginationRequest): TexeraWebSocketEvent = {
     // calculate from index (pageIndex starts from 1 instead of 0)
     val from = request.pageSize * (request.pageIndex - 1)
-    val opId = OperatorIdentity(request.operatorID)
-    val paginationIterable = {
 
+    // using the first port for now. TODO: support multiple ports
+    val storageKey =
+      OpResultStorage.createStorageKey(OperatorIdentity(request.operatorID), PortIdentity())
+    val paginationIterable = {
       ResultStorage
         .getOpResultStorage(workflowIdentity)
-        .get(opId)
+        .get(storageKey)
         .getRange(from, from + request.pageSize)
         .to(Iterable)
-
     }
     val mappedResults = paginationIterable
       .map(tuple => tuple.asKeyValuePairJson())
@@ -302,7 +304,7 @@ class ExecutionResultService(
         ResultStorage
           .getOpResultStorage(workflowIdentity)
           .getAllKeys
-          .filter(!_.id.startsWith("materialized_"))
+          .filter(!_.startsWith("materialized_"))
           .map(storageKey => {
             val count = ResultStorage
               .getOpResultStorage(workflowIdentity)
@@ -310,20 +312,15 @@ class ExecutionResultService(
               .getCount
               .toInt
 
-            val opId = storageKey
+            val (opId, storagePortId) = OpResultStorage.decodeStorageKey(storageKey)
 
-            // use the first output port's mode
+            // Retrieve the mode of the specified output port
             val mode = physicalPlan
               .getPhysicalOpsOfLogicalOp(opId)
-              .flatMap(physicalOp => physicalOp.outputPorts)
-              .filter({
-                case (portId, (port, links, schema)) =>
-                  !portId.internal
-              })
-              .map({
-                case (portId, (port, links, schema)) => port.mode
-              })
+              .flatMap(_.outputPorts.get(storagePortId))
+              .map(_._1.mode)
               .head
+
             val changeDetector =
               if (mode == OutputMode.SET_SNAPSHOT) {
                 UUID.randomUUID.toString
