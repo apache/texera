@@ -6,7 +6,7 @@ import com.univocity.parsers.csv.{CsvFormat, CsvParser, CsvParserSettings}
 import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.tuple.AttributeTypeUtils.inferSchemaFromRows
-import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
+import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.operator.source.scan.ScanSourceOpDesc
 import edu.uci.ics.amber.util.JSONUtils.objectMapper

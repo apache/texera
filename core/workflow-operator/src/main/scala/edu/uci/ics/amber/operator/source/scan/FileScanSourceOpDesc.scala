@@ -7,7 +7,7 @@ import com.kjetland.jackson.jsonSchema.annotations.{
   JsonSchemaTitle
 }
 import edu.uci.ics.amber.core.executor.OpExecWithClassName
-import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
+import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.operator.metadata.annotations.HideAnnotation
