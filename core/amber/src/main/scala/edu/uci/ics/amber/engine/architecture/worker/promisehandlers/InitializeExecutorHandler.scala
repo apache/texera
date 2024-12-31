@@ -25,7 +25,7 @@ trait InitializeExecutorHandler {
     dp.executor = req.opExecInitInfo match {
       case OpExecWithClassName(className, descString) =>
         ExecFactory.newExecFromJavaClassName(className, descString, workerIdx, workerCount)
-      case OpExecWithCode(code, language) => ExecFactory.newExecFromJavaCode(code)
+      case OpExecWithCode(code, _) => ExecFactory.newExecFromJavaCode(code)
       case OpExecSink(storageKey, workflowIdentity, outputMode) =>
         new ProgressiveSinkOpExec(
           outputMode,
