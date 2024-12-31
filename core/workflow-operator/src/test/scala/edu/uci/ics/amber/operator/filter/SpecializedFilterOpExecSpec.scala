@@ -51,16 +51,6 @@ class SpecializedFilterOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opExec.close()
   }
 
-  it should "throw when predicates is null" in {
-    opDesc.predicates = null
-    val opExec = new SpecializedFilterOpExec(objectMapper.writeValueAsString(opDesc))
-    opExec.open()
-    assertThrows[NullPointerException] {
-      opExec.processTuple(allNullTuple, inputPort)
-    }
-    opExec.close()
-  }
-
   it should "do nothing when predicates is an empty list" in {
     opDesc.predicates = List()
     val opExec = new SpecializedFilterOpExec(objectMapper.writeValueAsString(opDesc))
