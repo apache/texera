@@ -143,6 +143,7 @@ object PhysicalOp {
 // https://stackoverflow.com/questions/40482904/jsonignore-doesnt-work-in-scala-case-class
 @JsonIgnoreProperties(
   Array(
+    "opExecInitInfo", // function type, ignore it
     "derivePartition", // function type, ignore it
     "inputPorts", // may contain very long stacktrace, ignore it
     "outputPorts", // same reason with above
