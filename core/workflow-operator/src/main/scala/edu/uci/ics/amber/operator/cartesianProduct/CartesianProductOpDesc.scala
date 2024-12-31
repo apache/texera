@@ -39,37 +39,29 @@ class CartesianProductOpDesc extends LogicalOp {
           // In this example, the last attribute from the right schema (`dup`) is renamed to `dup#@3`
           // to avoid conflicts.
 
-          // Initialize a schema builder
           val builder = Schema.builder()
-
-          // Retrieve the left and right schemas
           val leftSchema = inputSchemas(operatorInfo.inputPorts.head.id)
           val rightSchema = inputSchemas(operatorInfo.inputPorts.last.id)
-
-          // Extract attribute names for conflict resolution
-          val leftAttributeNames = leftSchema.getAttributeNames.toSet
-          val outputAttributeNames = scala.collection.mutable.Set[String]() ++ leftAttributeNames
-
-          // Add all attributes from the left schema to the builder
+          val leftAttributeNames = leftSchema.getAttributeNames
+          val rightAttributeNames = rightSchema.getAttributeNames
           builder.add(leftSchema)
-
-          // Process attributes from the right schema
-          rightSchema.getAttributes.foreach { attr =>
+          rightSchema.getAttributes.foreach(attr => {
             var newName = attr.getName
-
-            // Resolve duplicate names by appending a suffix
-            while (outputAttributeNames.contains(newName)) {
-              val suffixIndex =
-                """#@(\d+)$""".r.findFirstMatchIn(newName).map(_.group(1).toInt + 1).getOrElse(1)
-              newName = s"${attr.getName}#@$suffixIndex"
+            while (
+              leftAttributeNames.contains(newName) || rightAttributeNames
+                .filterNot(attrName => attrName == attr.getName)
+                .contains(newName)
+            ) {
+              newName = s"$newName#@1"
             }
-
-            // Add the resolved attribute to the builder
-            builder.add(new Attribute(newName, attr.getType))
-            outputAttributeNames.add(newName)
-          }
-
-          // Build the output schema and associate it with the output port
+            if (newName == attr.getName) {
+              // non-duplicate attribute, add to builder as is
+              builder.add(attr)
+            } else {
+              // renamed the duplicate attribute, construct new Attribute
+              builder.add(new Attribute(newName, attr.getType))
+            }
+          })
           val outputSchema = builder.build()
           Map(operatorInfo.outputPorts.head.id -> outputSchema)
         })
