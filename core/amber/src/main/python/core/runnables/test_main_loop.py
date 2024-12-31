@@ -42,15 +42,15 @@ from proto.edu.uci.ics.amber.engine.architecture.worker import (
     WorkerStatistics,
     PortTupleCountMapping,
 )
-from proto.edu.uci.ics.amber.engine.common import (
+from proto.edu.uci.ics.amber.core import (
     ActorVirtualIdentity,
-    ControlPayloadV2,
     PhysicalLink,
     PhysicalOpIdentity,
     OperatorIdentity,
     ChannelIdentity,
     PortIdentity,
 )
+from proto.edu.uci.ics.amber.engine.common import ControlPayloadV2
 from pytexera.udf.examples.count_batch_operator import CountBatchOperator
 from pytexera.udf.examples.echo_operator import EchoOperator
 from google.protobuf.any_pb2 import Any as ProtoAny
