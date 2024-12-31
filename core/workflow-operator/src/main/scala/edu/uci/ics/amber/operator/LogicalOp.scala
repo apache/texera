@@ -358,7 +358,11 @@ abstract class LogicalOp extends PortDescriptor with Serializable {
           .filterNot { case (port, _, _) => port.id.internal } // Exclude internal ports
           .map {
             case (port, _, schemaEither) =>
-              port.id -> schemaEither.toOption.get // Map external port ID to its schema
+              schemaEither match {
+                case Left(error) => throw error
+                case Right(schema) =>
+                  port.id -> schema // Map external port ID to its schema
+              }
           }
       }
       .toMap

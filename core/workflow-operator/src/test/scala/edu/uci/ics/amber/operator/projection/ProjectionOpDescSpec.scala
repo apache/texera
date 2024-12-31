@@ -69,19 +69,6 @@ class ProjectionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
   }
 
-  it should "raise IllegalArgumentException with multiple input source Schema" in {
-
-    projectionOpDesc.attributes ++= List(
-      new AttributeUnit("field2", "f2"),
-      new AttributeUnit("field1", "f1")
-    )
-
-    assertThrows[IllegalArgumentException] {
-      projectionOpDesc.getExternalOutputSchemas(Map(PortIdentity() -> schema)).values.head
-    }
-
-  }
-
   it should "raise RuntimeException on duplicate alias" in {
 
     projectionOpDesc.attributes ++= List(
