@@ -213,7 +213,10 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       rightInput: Array[T]
   ): Unit = {
     val inputSchemas =
-      Map(PortIdentity() -> schema(leftKey, dataType), PortIdentity(1) -> schema(rightKey, dataType))
+      Map(
+        PortIdentity() -> schema(leftKey, dataType),
+        PortIdentity(1) -> schema(rightKey, dataType)
+      )
     opDesc = new IntervalJoinOpDesc(
       leftKey,
       rightKey,

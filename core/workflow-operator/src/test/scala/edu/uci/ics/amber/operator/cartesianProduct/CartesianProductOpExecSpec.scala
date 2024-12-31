@@ -1,6 +1,13 @@
 package edu.uci.ics.amber.operator.cartesianProduct
 
-import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema, SchemaEnforceable, Tuple, TupleLike}
+import edu.uci.ics.amber.core.tuple.{
+  Attribute,
+  AttributeType,
+  Schema,
+  SchemaEnforceable,
+  Tuple,
+  TupleLike
+}
 import edu.uci.ics.amber.core.workflow.PortIdentity
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
@@ -96,7 +103,7 @@ class CartesianProductOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       .add(generate_schema("right", numRightSchemaAttributes - 1))
       .add(duplicateAttribute)
       .build()
-    val inputSchemas = Map(PortIdentity() -> leftSchema, PortIdentity(1)-> rightSchema)
+    val inputSchemas = Map(PortIdentity() -> leftSchema, PortIdentity(1) -> rightSchema)
     val outputSchema = opDesc.getExternalOutputSchemas(inputSchemas).values.head
 
     // verify output schema is as expected & has no duplicates

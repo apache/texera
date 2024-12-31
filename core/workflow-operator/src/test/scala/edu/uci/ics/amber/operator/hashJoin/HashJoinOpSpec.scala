@@ -3,7 +3,14 @@ package edu.uci.ics.amber.operator.hashJoin
 import edu.uci.ics.amber.operator.hashJoin.HashJoinOpDesc.HASH_JOIN_INTERNAL_KEY_NAME
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
-import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema, SchemaEnforceable, Tuple, TupleLike}
+import edu.uci.ics.amber.core.tuple.{
+  Attribute,
+  AttributeType,
+  Schema,
+  SchemaEnforceable,
+  Tuple,
+  TupleLike
+}
 import edu.uci.ics.amber.core.workflow.PortIdentity
 import edu.uci.ics.amber.operator.hashJoin.HashJoinBuildOpExec
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
@@ -47,7 +54,7 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc.buildAttributeName = "build_1"
     opDesc.probeAttributeName = "probe_1"
     opDesc.joinType = JoinType.INNER
-    val inputSchemas = Map(PortIdentity() -> schema("build"), PortIdentity(1)-> schema("probe"))
+    val inputSchemas = Map(PortIdentity() -> schema("build"), PortIdentity(1) -> schema("probe"))
     val outputSchema = opDesc.getExternalOutputSchemas(inputSchemas).values.head
 
     buildOpExec = new HashJoinBuildOpExec[String](objectMapper.writeValueAsString(opDesc))
@@ -103,7 +110,8 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc.buildAttributeName = "same"
     opDesc.probeAttributeName = "same"
     opDesc.joinType = JoinType.INNER
-    val inputSchemas = Map(PortIdentity() -> schema("same", 1), PortIdentity(1)-> schema("same", 2))
+    val inputSchemas =
+      Map(PortIdentity() -> schema("same", 1), PortIdentity(1) -> schema("same", 2))
     val outputSchema = opDesc.getExternalOutputSchemas(inputSchemas).values.head
 
     buildOpExec = new HashJoinBuildOpExec[String](objectMapper.writeValueAsString(opDesc))
@@ -157,7 +165,8 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc.buildAttributeName = "same"
     opDesc.probeAttributeName = "same"
     opDesc.joinType = JoinType.FULL_OUTER
-    val inputSchemas = Map(PortIdentity() -> schema("same",1), PortIdentity(1)-> schema("same",2))
+    val inputSchemas =
+      Map(PortIdentity() -> schema("same", 1), PortIdentity(1) -> schema("same", 2))
     val outputSchema = opDesc.getExternalOutputSchemas(inputSchemas).values.head
 
     buildOpExec = new HashJoinBuildOpExec[String](objectMapper.writeValueAsString(opDesc))

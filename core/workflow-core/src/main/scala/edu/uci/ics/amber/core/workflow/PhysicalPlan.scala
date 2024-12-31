@@ -3,7 +3,11 @@ package edu.uci.ics.amber.core.workflow
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.tuple.Schema
-import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, OperatorIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{
+  ActorVirtualIdentity,
+  OperatorIdentity,
+  PhysicalOpIdentity
+}
 import edu.uci.ics.amber.util.VirtualIdentityUtils
 import org.jgrapht.alg.connectivity.BiconnectivityInspector
 import org.jgrapht.alg.shortestpath.AllDirectedPaths
@@ -297,10 +301,10 @@ case class PhysicalPlan(
           physicalPlan = physicalPlan.addOperator(propagatedPhysicalOp.propagateSchema())
 
           // Add internal links to the physical plan
-          physicalPlan =
-            getUpstreamPhysicalLinks(physicalOp.id).foldLeft(physicalPlan) { (plan, link) =>
+          physicalPlan = getUpstreamPhysicalLinks(physicalOp.id).foldLeft(physicalPlan) {
+            (plan, link) =>
               plan.addLink(link)
-            }
+          }
         }
       })
     physicalPlan
