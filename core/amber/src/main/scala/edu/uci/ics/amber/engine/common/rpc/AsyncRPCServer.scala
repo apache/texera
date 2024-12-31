@@ -63,7 +63,7 @@ class AsyncRPCServer(
           method.invoke(handler, requestArg, contextArg)
         } catch {
           case e: java.lang.reflect.InvocationTargetException =>
-            throw e.getCause // unwrap the actual exception
+            throw Option(e.getCause).getOrElse(e)
           case e: Throwable => throw e
         }
       result
