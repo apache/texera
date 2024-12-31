@@ -172,8 +172,7 @@ class WorkerSpec
       InitializeExecutorRequest(
         1,
         OpExecWithClassName("edu.uci.ics.amber.engine.architecture.worker.DummyOperatorExecutor"),
-        isSource = false,
-        "scala"
+        isSource = false
       ),
       AsyncRPCContext(CONTROLLER, identifier1),
       4
