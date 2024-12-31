@@ -92,19 +92,20 @@ class IntervalJoinOpDesc extends LogicalOp {
       .withOutputPorts(operatorInfo.outputPorts)
       .withPropagateSchema(
         SchemaPropagationFunc(inputSchemas => {
-          val builder: Schema.Builder = Schema.builder()
           val leftTableSchema: Schema = inputSchemas(operatorInfo.inputPorts.head.id)
           val rightTableSchema: Schema = inputSchemas(operatorInfo.inputPorts.last.id)
-          builder.add(leftTableSchema)
-          rightTableSchema.getAttributes
-            .map(attr => {
-              if (leftTableSchema.containsAttribute(attr.getName)) {
-                builder.add(new Attribute(s"${attr.getName}#@1", attr.getType))
-              } else {
-                builder.add(attr.getName, attr.getType)
-              }
-            })
-          val outputSchema = builder.build()
+
+          // Start with the left table schema
+          val outputSchema = rightTableSchema.getAttributes.foldLeft(leftTableSchema) { (currentSchema, attr) =>
+            if (currentSchema.containsAttribute(attr.getName)) {
+              // Add the attribute with a suffix to avoid conflicts
+              currentSchema.add(new Attribute(s"${attr.getName}#@1", attr.getType))
+            } else {
+              // Add the attribute as is
+              currentSchema.add(attr)
+            }
+          }
+
           Map(operatorInfo.outputPorts.head.id -> outputSchema)
         })
       )

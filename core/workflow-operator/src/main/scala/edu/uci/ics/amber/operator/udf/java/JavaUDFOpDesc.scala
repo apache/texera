@@ -72,21 +72,22 @@ class JavaUDFOpDesc extends LogicalOp {
 
     val propagateSchema = (inputSchemas: Map[PortIdentity, Schema]) => {
       val inputSchema = inputSchemas(operatorInfo.inputPorts.head.id)
-      val outputSchemaBuilder = Schema.builder()
-      // keep the same schema from input
-      if (retainInputColumns) outputSchemaBuilder.add(inputSchema)
-      // for any javaUDFType, it can add custom output columns (attributes).
-      if (outputColumns != null) {
-        if (retainInputColumns) { // check if columns are duplicated
+      var outputSchema = if (retainInputColumns) inputSchema else Schema()
 
+      // For any javaUDFType, it can add custom output columns (attributes).
+      if (outputColumns != null) {
+        if (retainInputColumns) {
+          // Check if columns are duplicated
           for (column <- outputColumns) {
             if (inputSchema.containsAttribute(column.getName))
               throw new RuntimeException("Column name " + column.getName + " already exists!")
           }
         }
-        outputSchemaBuilder.add(outputColumns).build()
+        // Add custom output columns
+        outputSchema = outputSchema.add(outputColumns)
       }
-      Map(operatorInfo.outputPorts.head.id -> outputSchemaBuilder.build())
+
+      Map(operatorInfo.outputPorts.head.id -> outputSchema)
     }
 
     if (workers > 1)

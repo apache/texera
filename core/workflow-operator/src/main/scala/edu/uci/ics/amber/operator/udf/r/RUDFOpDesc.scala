@@ -73,21 +73,23 @@ class RUDFOpDesc extends LogicalOp {
 
     val propagateSchema = (inputSchemas: Map[PortIdentity, Schema]) => {
       val inputSchema = inputSchemas(operatorInfo.inputPorts.head.id)
-      val outputSchemaBuilder = Schema.builder()
-      // keep the same schema from input
-      if (retainInputColumns) outputSchemaBuilder.add(inputSchema)
-      // for any javaUDFType, it can add custom output columns (attributes).
-      if (outputColumns != null) {
-        if (retainInputColumns) { // check if columns are duplicated
+      var outputSchema = if (retainInputColumns) inputSchema else Schema()
 
+      // Add custom output columns if provided
+      if (outputColumns != null) {
+        if (retainInputColumns) {
+          // Check for duplicate column names
           for (column <- outputColumns) {
-            if (inputSchema.containsAttribute(column.getName))
-              throw new RuntimeException("Column name " + column.getName + " already exists!")
+            if (inputSchema.containsAttribute(column.getName)) {
+              throw new RuntimeException(s"Column name ${column.getName} already exists!")
+            }
           }
         }
-        outputSchemaBuilder.add(outputColumns).build()
+        // Add output columns to the schema
+        outputSchema = outputSchema.add(outputColumns)
       }
-      Map(operatorInfo.outputPorts.head.id -> outputSchemaBuilder.build())
+
+      Map(operatorInfo.outputPorts.head.id -> outputSchema)
     }
 
     val r_operator_type = if (useTupleAPI) "r-tuple" else "r-table"

@@ -59,11 +59,8 @@ class SentimentAnalysisOpDesc extends MapOpDesc {
           if (resultAttribute == null || resultAttribute.trim.isEmpty)
             return null
           Map(
-            operatorInfo.outputPorts.head.id -> Schema
-              .builder()
-              .add(inputSchemas.values.head)
+            operatorInfo.outputPorts.head.id -> inputSchemas.values.head
               .add(resultAttribute, AttributeType.INTEGER)
-              .build()
           )
         })
       )

@@ -28,17 +28,11 @@ class URLFetcherOpDesc extends SourceOperatorDescriptor {
   var decodingMethod: DecodingMethod = _
 
   override def sourceSchema(): Schema = {
-    Schema
-      .builder()
+    Schema()
       .add(
         "URL content",
-        if (decodingMethod == DecodingMethod.UTF_8) {
-          AttributeType.STRING
-        } else {
-          AttributeType.ANY
-        }
+        if (decodingMethod == DecodingMethod.UTF_8) AttributeType.STRING else AttributeType.ANY
       )
-      .build()
   }
 
   override def getPhysicalOp(

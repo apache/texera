@@ -39,10 +39,7 @@ class HtmlVizOpDesc extends LogicalOp {
       .withOutputPorts(operatorInfo.outputPorts)
       .withPropagateSchema(
         SchemaPropagationFunc(inputSchemas => {
-          val outputSchema = Schema
-            .builder()
-            .add(new Attribute("html-content", AttributeType.STRING))
-            .build()
+          val outputSchema = Schema().add("html-content", AttributeType.STRING)
           Map(operatorInfo.outputPorts.head.id -> outputSchema)
         })
       )

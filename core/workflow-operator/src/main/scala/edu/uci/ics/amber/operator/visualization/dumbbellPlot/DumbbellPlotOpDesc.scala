@@ -62,10 +62,7 @@ class DumbbellPlotOpDesc extends PythonOperatorDescriptor {
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
   ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema
-      .builder()
-      .add(new Attribute("html-content", AttributeType.STRING))
-      .build()
+    val outputSchema = Schema().add("html-content", AttributeType.STRING)
     Map(operatorInfo.outputPorts.head.id -> outputSchema)
   }
 

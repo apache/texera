@@ -39,10 +39,7 @@ class TextInputSourceOpDesc extends SourceOperatorDescriptor with TextSourceOpDe
       )
 
   override def sourceSchema(): Schema =
-    Schema
-      .builder()
-      .add(new Attribute(attributeName, attributeType.getType))
-      .build()
+    Schema().add(attributeName, attributeType.getType)
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(

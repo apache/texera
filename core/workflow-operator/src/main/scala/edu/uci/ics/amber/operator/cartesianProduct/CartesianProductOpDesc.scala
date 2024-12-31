@@ -39,30 +39,23 @@ class CartesianProductOpDesc extends LogicalOp {
           // In this example, the last attribute from the right schema (`dup`) is renamed to `dup#@3`
           // to avoid conflicts.
 
-          val builder = Schema.builder()
           val leftSchema = inputSchemas(operatorInfo.inputPorts.head.id)
           val rightSchema = inputSchemas(operatorInfo.inputPorts.last.id)
-          val leftAttributeNames = leftSchema.getAttributeNames
-          val rightAttributeNames = rightSchema.getAttributeNames
-          builder.add(leftSchema)
-          rightSchema.getAttributes.foreach(attr => {
+          val leftAttributeNames = leftSchema.getAttributeNames.toSet
+          val existingAttributeNames = scala.collection.mutable.Set(leftAttributeNames.toSeq: _*)
+
+          // Add all attributes from the left schema
+          val combinedAttributes = leftSchema.getAttributes ++ rightSchema.getAttributes.map { attr =>
             var newName = attr.getName
-            while (
-              leftAttributeNames.contains(newName) || rightAttributeNames
-                .filterNot(attrName => attrName == attr.getName)
-                .contains(newName)
-            ) {
-              newName = s"$newName#@1"
+            while (existingAttributeNames.contains(newName)) {
+              val suffixIndex = """#@(\d+)$""".r.findFirstMatchIn(newName).map(_.group(1).toInt + 1).getOrElse(1)
+              newName = s"${attr.getName}#@$suffixIndex"
             }
-            if (newName == attr.getName) {
-              // non-duplicate attribute, add to builder as is
-              builder.add(attr)
-            } else {
-              // renamed the duplicate attribute, construct new Attribute
-              builder.add(new Attribute(newName, attr.getType))
-            }
-          })
-          val outputSchema = builder.build()
+            existingAttributeNames.add(newName)
+            if (newName == attr.getName) attr else new Attribute(newName, attr.getType)
+          }
+
+          val outputSchema = Schema(combinedAttributes)
           Map(operatorInfo.outputPorts.head.id -> outputSchema)
         })
       )

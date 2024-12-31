@@ -86,10 +86,10 @@ class RUDFSourceOpDesc extends SourceOperatorDescriptor {
   }
 
   override def sourceSchema(): Schema = {
-    val outputSchemaBuilder = Schema.builder()
-    if (columns.nonEmpty && columns != null) {
-      outputSchemaBuilder.add(columns)
+    if (columns != null && columns.nonEmpty) {
+      Schema().add(columns)
+    } else {
+      Schema()
     }
-    outputSchemaBuilder.build()
   }
 }

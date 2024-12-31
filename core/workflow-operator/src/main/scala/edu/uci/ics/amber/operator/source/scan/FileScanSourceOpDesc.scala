@@ -66,8 +66,10 @@ class FileScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
   }
 
   override def sourceSchema(): Schema = {
-    val builder = Schema.builder()
-    if (outputFileName) builder.add(new Attribute("filename", AttributeType.STRING))
-    builder.add(new Attribute(attributeName, attributeType.getType)).build()
+      var schema = Schema()
+      if (outputFileName) {
+        schema = schema.add("filename", AttributeType.STRING)
+      }
+      schema.add(attributeName, attributeType.getType)
   }
 }
