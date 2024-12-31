@@ -1,16 +1,12 @@
 package edu.uci.ics.amber.operator.machineLearning.Scorer
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.{
-  JsonSchemaInject,
-  JsonSchemaString,
-  JsonSchemaTitle
-}
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaString, JsonSchemaTitle}
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.metadata.annotations.{AutofillAttributeName, HideAnnotation}
-import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort}
+import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 
 class MachineLearningScorerOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(required = true, defaultValue = "false")
@@ -64,7 +60,7 @@ class MachineLearningScorerOpDesc extends PythonOperatorDescriptor {
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
     )
-  override def getOutputSchema(schemas: Array[Schema]): Schema = {
+  override def getOutputSchemas(inputSchemas: Map[PortIdentity, Schema]): Map[PortIdentity, Schema] = {
     val outputSchemaBuilder = Schema.builder()
     if (!isRegression) {
       outputSchemaBuilder.add(new Attribute("Class", AttributeType.STRING))
@@ -79,7 +75,7 @@ class MachineLearningScorerOpDesc extends PythonOperatorDescriptor {
       outputSchemaBuilder.add(new Attribute(metricName, AttributeType.DOUBLE))
     })
 
-    outputSchemaBuilder.build()
+    Map(operatorInfo.outputPorts.head.id -> outputSchemaBuilder.build())
   }
 
 //  private def getClassificationScorerName(scorer: classificationMetricsFnc): String = {

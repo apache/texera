@@ -3,21 +3,23 @@ package edu.uci.ics.amber.operator.udf.python
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.core.tuple.Schema
+import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort}
 
 class PythonTableReducerOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("Output columns")
   var lambdaAttributeUnits: List[LambdaAttributeUnit] = List()
 
-  override def getOutputSchema(schemas: Array[Schema]): Schema = {
+  override def getOutputSchemas(
+      inputSchemas: Map[PortIdentity, Schema]
+  ): Map[PortIdentity, Schema] = {
     Preconditions.checkArgument(lambdaAttributeUnits.nonEmpty)
     val outputSchemaBuilder = Schema.builder()
     for (unit <- lambdaAttributeUnits) {
       outputSchemaBuilder.add(unit.attributeName, unit.attributeType)
     }
-    outputSchemaBuilder.build()
+    Map(operatorInfo.outputPorts.head.id -> outputSchemaBuilder.build())
   }
 
   override def operatorInfo: OperatorInfo =
@@ -30,17 +32,17 @@ class PythonTableReducerOpDesc extends PythonOperatorDescriptor {
     )
 
   override def generatePythonCode(): String = {
-    var outputTable = "{"
-    for (unit <- lambdaAttributeUnits) {
-      outputTable += s"""\"${unit.attributeName}\":${unit.expression},"""
-    }
-    outputTable += "}"
+    val outputTable = lambdaAttributeUnits
+      .map(unit => s"""\"${unit.attributeName}\": ${unit.expression}""")
+      .mkString("{", ", ", "}")
+
     s"""
-from pytexera import *
-class ProcessTableOperator(UDFTableOperator):
-    @overrides
-    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-        yield $outputTable
-"""
+       |from pytexera import *
+       |class ProcessTableOperator(UDFTableOperator):
+       |
+       |    @overrides
+       |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+       |        yield $outputTable
+       |""".stripMargin
   }
 }

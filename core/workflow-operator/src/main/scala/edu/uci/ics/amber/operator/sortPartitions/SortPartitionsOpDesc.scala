@@ -68,9 +68,4 @@ class SortPartitionsOpDesc extends LogicalOp {
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(blocking = true))
     )
-
-  override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    Preconditions.checkArgument(schemas.length == 1)
-    schemas(0)
-  }
 }

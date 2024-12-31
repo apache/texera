@@ -315,7 +315,6 @@ abstract class LogicalOp extends PortDescriptor with Serializable {
 
   def operatorInfo: OperatorInfo
 
-  def getOutputSchema(schemas: Array[Schema]): Schema
 
   private def getOperatorVersion: String = {
     val path = "core/amber/src/main/scala/"
@@ -323,10 +322,7 @@ abstract class LogicalOp extends PortDescriptor with Serializable {
     OPVersion.getVersion(this.getClass.getSimpleName, operatorPath)
   }
 
-  // override if the operator has multiple output ports, schema must be specified for each port
-  def getOutputSchemas(schemas: Array[Schema]): Array[Schema] = {
-    Array.fill(1)(getOutputSchema(schemas))
-  }
+
 
   override def hashCode: Int = HashCodeBuilder.reflectionHashCode(this)
 

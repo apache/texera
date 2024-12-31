@@ -53,19 +53,13 @@ class UnnestStringOpDesc extends FlatMapOpDesc {
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withPropagateSchema(
-        SchemaPropagationFunc(inputSchemas =>
-          Map(
-            operatorInfo.outputPorts.head.id -> getOutputSchema(
-              operatorInfo.inputPorts.map(_.id).map(inputSchemas(_)).toArray
-            )
-          )
+        SchemaPropagationFunc(inputSchemas =>{
+          val outputSchema = if (resultAttribute == null || resultAttribute.trim.isEmpty) null else
+          Schema.builder().add(inputSchemas.values.head).add(resultAttribute, AttributeType.STRING).build()
+          Map(operatorInfo.outputPorts.head.id -> outputSchema)
+        }
+
         )
       )
-  }
-
-  override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    Preconditions.checkArgument(schemas.forall(_ == schemas(0)))
-    if (resultAttribute == null || resultAttribute.trim.isEmpty) return null
-    Schema.builder().add(schemas(0)).add(resultAttribute, AttributeType.STRING).build()
   }
 }

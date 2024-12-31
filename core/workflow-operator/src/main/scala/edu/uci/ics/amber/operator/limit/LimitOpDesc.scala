@@ -49,8 +49,6 @@ class LimitOpDesc extends LogicalOp {
       supportReconfiguration = true
     )
 
-  override def getOutputSchema(schemas: Array[Schema]): Schema = schemas(0)
-
   override def runtimeReconfiguration(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,

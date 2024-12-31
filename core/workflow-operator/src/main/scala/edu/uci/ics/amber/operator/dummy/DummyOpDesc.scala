@@ -48,6 +48,4 @@ class DummyOpDesc extends LogicalOp with PortDescriptor {
       allowPortCustomization = true
     )
   }
-
-  override def getOutputSchema(schemas: Array[Schema]): Schema = schemas(0)
 }

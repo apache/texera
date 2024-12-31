@@ -41,18 +41,12 @@ class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
       executionId: ExecutionIdentity
   ): PhysicalOp = {
     require(workers >= 1, "Need at least 1 worker.")
-
-    val func = SchemaPropagationFunc { _: Map[PortIdentity, Schema] =>
-      val outputSchema = sourceSchema()
-      Map(operatorInfo.outputPorts.head.id -> outputSchema)
-    }
-
     val physicalOp = PhysicalOp
       .sourcePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecWithCode(code, "python"))
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withIsOneToManyOp(true)
-      .withPropagateSchema(func)
+      .withPropagateSchema(SchemaPropagationFunc(_ =>Map(operatorInfo.outputPorts.head.id -> sourceSchema())))
       .withLocationPreference(Option.empty)
 
     if (workers > 1) {

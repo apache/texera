@@ -51,11 +51,6 @@ class RUDFSourceOpDesc extends SourceOperatorDescriptor {
     val rOperatorType = if (useTupleAPI) "r-tuple" else "r-table"
     require(workers >= 1, "Need at least 1 worker.")
 
-    val func = SchemaPropagationFunc { _: Map[PortIdentity, Schema] =>
-      val outputSchema = sourceSchema()
-      Map(operatorInfo.outputPorts.head.id -> outputSchema)
-    }
-
     val physicalOp = PhysicalOp
       .sourcePhysicalOp(
         workflowId,
@@ -66,7 +61,7 @@ class RUDFSourceOpDesc extends SourceOperatorDescriptor {
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withIsOneToManyOp(true)
-      .withPropagateSchema(func)
+      .withPropagateSchema(SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> sourceSchema())))
       .withLocationPreference(None)
 
     if (workers > 1) {

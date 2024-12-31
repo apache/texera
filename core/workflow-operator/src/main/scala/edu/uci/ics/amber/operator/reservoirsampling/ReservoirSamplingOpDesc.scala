@@ -44,9 +44,4 @@ class ReservoirSamplingOpDesc extends LogicalOp {
       outputPorts = List(OutputPort())
     )
   }
-
-  override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    Preconditions.checkArgument(schemas.length == 1)
-    schemas(0)
-  }
 }
