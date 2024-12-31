@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.operator.sortPartitions
 
 import edu.uci.ics.amber.core.tuple._
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 class SortPartitionsOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
@@ -22,15 +23,11 @@ class SortPartitionsOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       )
       .build()
 
-  var opExec: SortPartitionOpExec = _
+  val opDesc: SortPartitionsOpDesc = new SortPartitionsOpDesc()
+  opDesc.sortAttributeName = "field2"
+  var opExec: SortPartitionsOpExec = _
   before {
-    opExec = new SortPartitionOpExec(
-      "field2",
-      0,
-      0,
-      6,
-      1
-    )
+    opExec = new SortPartitionsOpExec(objectMapper.writeValueAsString(opDesc))
   }
 
   it should "open" in {

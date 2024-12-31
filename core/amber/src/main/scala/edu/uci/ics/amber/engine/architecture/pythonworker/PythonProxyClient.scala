@@ -1,27 +1,21 @@
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
-import com.google.protobuf.ByteString
-import com.google.protobuf.any.Any
 import com.twitter.util.{Await, Promise}
 import edu.uci.ics.amber.core.WorkflowRuntimeException
-import edu.uci.ics.amber.core.executor.{OpExecInitInfo, OpExecInitInfoWithCode}
 import edu.uci.ics.amber.core.marker.State
 import edu.uci.ics.amber.core.tuple.{Schema, Tuple}
+import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{
   ActorCommandElement,
   ControlElement,
   DataElement
 }
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
-  ControlInvocation,
-  InitializeExecutorRequest
-}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlInvocation
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ReturnInvocation
+import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.actormessage.{ActorCommand, PythonActorMessage}
 import edu.uci.ics.amber.engine.common.ambermessage._
-import edu.uci.ics.amber.engine.common.{AmberLogging, AmberRuntime}
 import edu.uci.ics.amber.util.ArrowUtils
-import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.arrow.flight._
 import org.apache.arrow.memory.{ArrowBuf, BufferAllocator, RootAllocator}
 import org.apache.arrow.vector.VectorSchemaRoot
@@ -120,21 +114,7 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     var payloadV2 = ControlPayloadV2.defaultInstance
     payloadV2 = payload match {
       case c: ControlInvocation =>
-        val req = c.command match {
-          case InitializeExecutorRequest(worker, info, isSource, _) =>
-            val bytes = info.value.toByteArray
-            val opExecInitInfo: OpExecInitInfo =
-              AmberRuntime.serde.deserialize(bytes, classOf[OpExecInitInfo]).get
-            val (code, language) = opExecInitInfo.asInstanceOf[OpExecInitInfoWithCode].codeGen(0, 0)
-            InitializeExecutorRequest(
-              worker,
-              Any.of("", ByteString.copyFrom(code, "UTF-8")),
-              isSource,
-              language
-            )
-          case other => other
-        }
-        payloadV2.withControlInvocation(c.withCommand(req))
+        payloadV2.withControlInvocation(c)
       case r: ReturnInvocation =>
         payloadV2.withReturnInvocation(r)
       case _ => ???

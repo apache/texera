@@ -2,7 +2,7 @@ package edu.uci.ics.amber.operator.udf.r
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.core.executor.OpExecInitInfo
+import edu.uci.ics.amber.core.executor.OpExecWithCode
 import edu.uci.ics.amber.core.tuple.{Attribute, Schema}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
@@ -49,7 +49,6 @@ class RUDFSourceOpDesc extends SourceOperatorDescriptor {
       executionId: ExecutionIdentity
   ): PhysicalOp = {
     val rOperatorType = if (useTupleAPI) "r-tuple" else "r-table"
-    val exec = OpExecInitInfo(code, rOperatorType)
     require(workers >= 1, "Need at least 1 worker.")
 
     val func = SchemaPropagationFunc { _: Map[PortIdentity, Schema] =>
@@ -58,7 +57,12 @@ class RUDFSourceOpDesc extends SourceOperatorDescriptor {
     }
 
     val physicalOp = PhysicalOp
-      .sourcePhysicalOp(workflowId, executionId, operatorIdentifier, exec)
+      .sourcePhysicalOp(
+        workflowId,
+        executionId,
+        operatorIdentifier,
+        OpExecWithCode(code, rOperatorType)
+      )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withIsOneToManyOp(true)

@@ -6,11 +6,12 @@ import com.kjetland.jackson.jsonSchema.annotations.{
   JsonSchemaInject,
   JsonSchemaTitle
 }
-import edu.uci.ics.amber.core.executor.OpExecInitInfo
+import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.operator.metadata.annotations.UIWidget
 import edu.uci.ics.amber.operator.source.apis.twitter.TwitterSourceOpDesc
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 
 class TwitterSearchSourceOpDesc extends TwitterSourceOpDesc {
@@ -39,15 +40,9 @@ class TwitterSearchSourceOpDesc extends TwitterSourceOpDesc {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _) =>
-          new TwitterSearchSourceOpExec(
-            apiKey,
-            apiSecretKey,
-            stopWhenRateLimited,
-            searchQuery,
-            limit,
-            () => sourceSchema()
-          )
+        OpExecWithClassName(
+          "edu.uci.ics.amber.operator.source.apis.twitter.v2.TwitterSearchSourceOpExec",
+          objectMapper.writeValueAsString(this)
         )
       )
       .withInputPorts(operatorInfo.inputPorts)

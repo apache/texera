@@ -16,6 +16,7 @@ import edu.uci.ics.amber.core.tuple.{
   Tuple,
   TupleLike
 }
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   val left: Int = 0
   val right: Int = 1
@@ -222,14 +223,7 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       timeIntervalType
     )
     val outputSchema = opDesc.getOutputSchema(inputSchemas)
-    val opExec = new IntervalJoinOpExec(
-      leftAttributeName = leftKey,
-      rightAttributeName = rightKey,
-      includeLeftBound = includeLeftBound,
-      includeRightBound = includeRightBound,
-      constant = intervalConstant,
-      timeIntervalType = Some(timeIntervalType)
-    )
+    val opExec = new IntervalJoinOpExec(objectMapper.writeValueAsString(opDesc))
     opExec.open()
     counter = 0
     var leftIndex: Int = 0
@@ -400,15 +394,13 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "work with Double value int [] interval" in {
-    val opExec = new IntervalJoinOpExec(
-      leftAttributeName = "point_1",
-      rightAttributeName = "range_1",
-      includeLeftBound = true,
-      includeRightBound = true,
-      constant = 3,
-      timeIntervalType = Option(TimeIntervalType.DAY)
-    )
-
+    opDesc.leftAttributeName = "point_1"
+    opDesc.rightAttributeName = "range_1"
+    opDesc.includeLeftBound = true
+    opDesc.includeRightBound = true
+    opDesc.constant = 3
+    opDesc.timeIntervalType = Option(TimeIntervalType.DAY)
+    val opExec = new IntervalJoinOpExec(objectMapper.writeValueAsString(opDesc))
     opExec.open()
     counter = 0
     val pointList: Array[Double] = Array(1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 8.1, 9.1, 10.1)

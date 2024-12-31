@@ -2,6 +2,7 @@ package edu.uci.ics.amber.operator.unneststring
 
 import edu.uci.ics.amber.core.tuple._
 import edu.uci.ics.amber.core.workflow.PortIdentity
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 class UnnestStringOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
@@ -32,14 +33,18 @@ class UnnestStringOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "open" in {
-    opExec = new UnnestStringOpExec(attributeName = "field1", delimiter = "-")
+    opDesc.attribute = "field1"
+    opDesc.delimiter = "-"
+    opExec = new UnnestStringOpExec(objectMapper.writeValueAsString(opDesc))
     outputSchema = opDesc.getOutputSchema(Array(tupleSchema))
     opExec.open()
     assert(opExec.flatMapFunc != null)
   }
 
   it should "split value in the given attribute and output the split result in the result attribute, one for each tuple" in {
-    opExec = new UnnestStringOpExec(attributeName = "field1", delimiter = "-")
+    opDesc.attribute = "field1"
+    opDesc.delimiter = "-"
+    opExec = new UnnestStringOpExec(objectMapper.writeValueAsString(opDesc))
     outputSchema = opDesc.getOutputSchema(Array(tupleSchema))
     opExec.open()
     val processedTuple = opExec
@@ -54,7 +59,8 @@ class UnnestStringOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   it should "generate the correct tuple when there is no delimiter in the value" in {
     opDesc.attribute = "field3"
-    opExec = new UnnestStringOpExec(attributeName = "field3", delimiter = "-")
+    opDesc.delimiter = "-"
+    opExec = new UnnestStringOpExec(objectMapper.writeValueAsString(opDesc))
     outputSchema = opDesc.getOutputSchema(Array(tupleSchema))
     opExec.open()
     val processedTuple = opExec
@@ -66,8 +72,9 @@ class UnnestStringOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "only contain split results that are not null" in {
+    opDesc.attribute = "field1"
     opDesc.delimiter = "/"
-    opExec = new UnnestStringOpExec(attributeName = "field1", delimiter = "/")
+    opExec = new UnnestStringOpExec(objectMapper.writeValueAsString(opDesc))
     outputSchema = opDesc.getOutputSchema(Array(tupleSchema))
     val tuple: Tuple = Tuple
       .builder(tupleSchema)
@@ -87,8 +94,9 @@ class UnnestStringOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "split by regex delimiter" in {
+    opDesc.attribute = "field1"
     opDesc.delimiter = "<\\d*>"
-    opExec = new UnnestStringOpExec(attributeName = "field1", delimiter = "<\\d*>")
+    opExec = new UnnestStringOpExec(objectMapper.writeValueAsString(opDesc))
     outputSchema = opDesc.getOutputSchema(Array(tupleSchema))
     val tuple: Tuple = Tuple
       .builder(tupleSchema)

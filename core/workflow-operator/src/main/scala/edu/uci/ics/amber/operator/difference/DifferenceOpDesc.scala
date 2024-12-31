@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.operator.difference
 
 import com.google.common.base.Preconditions
-import edu.uci.ics.amber.core.executor.OpExecInitInfo
+import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.core.workflow.{HashPartition, PhysicalOp}
 import edu.uci.ics.amber.operator.LogicalOp
@@ -20,7 +20,7 @@ class DifferenceOpDesc extends LogicalOp {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _) => new DifferenceOpExec())
+        OpExecWithClassName("edu.uci.ics.amber.operator.difference.DifferenceOpExec")
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
