@@ -238,7 +238,6 @@ message InitializeExecutorRequest {
   int32 totalWorkerCount = 1;
   core.OpExecInitInfo opExecInitInfo = 2;
   bool isSource = 3;
-  string language = 4;
 }
 
 message UpdateExecutorRequest {

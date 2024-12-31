@@ -357,7 +357,6 @@ class InitializeExecutorRequest(betterproto.Message):
     total_worker_count: int = betterproto.int32_field(1)
     op_exec_init_info: "___core__.OpExecInitInfo" = betterproto.message_field(2)
     is_source: bool = betterproto.bool_field(3)
-    language: str = betterproto.string_field(4)
 
 
 @dataclass(eq=False, repr=False)

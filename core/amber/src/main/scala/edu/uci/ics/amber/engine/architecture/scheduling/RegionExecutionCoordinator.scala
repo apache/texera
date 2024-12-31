@@ -132,8 +132,7 @@ class RegionExecutionCoordinator(
                 InitializeExecutorRequest(
                   workerConfigs.length,
                   physicalOp.opExecInitInfo,
-                  physicalOp.isSourceOperator,
-                  "scala"
+                  physicalOp.isSourceOperator
                 ),
                 asyncRPCClient.mkContext(workerId)
               )
