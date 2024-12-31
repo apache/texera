@@ -9,7 +9,6 @@ class DistinctOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     .add(new Attribute("field2", AttributeType.INTEGER))
     .add(new Attribute("field3", AttributeType.BOOLEAN))
 
-
   val tuple: () => Tuple = () =>
     Tuple
       .builder(tupleSchema)

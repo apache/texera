@@ -16,7 +16,6 @@ class IntersectOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     .add(new Attribute("field2", AttributeType.INTEGER))
     .add(new Attribute("field3", AttributeType.BOOLEAN))
 
-
   def physicalOpId(): PhysicalOpIdentity = {
     counter += 1
     PhysicalOpIdentity(OperatorIdentity("" + counter), "" + counter)

@@ -11,7 +11,6 @@ class TypeCastingOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     .add(new Attribute("field3", AttributeType.BOOLEAN))
     .add(new Attribute("field4", AttributeType.LONG))
 
-
   val castToSchema: Schema = Schema()
     .add(new Attribute("field1", AttributeType.STRING))
     .add(new Attribute("field2", AttributeType.STRING))

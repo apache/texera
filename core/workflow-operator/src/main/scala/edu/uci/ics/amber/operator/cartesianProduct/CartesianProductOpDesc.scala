@@ -45,14 +45,16 @@ class CartesianProductOpDesc extends LogicalOp {
           val existingAttributeNames = scala.collection.mutable.Set(leftAttributeNames.toSeq: _*)
 
           // Add all attributes from the left schema
-          val combinedAttributes = leftSchema.getAttributes ++ rightSchema.getAttributes.map { attr =>
-            var newName = attr.getName
-            while (existingAttributeNames.contains(newName)) {
-              val suffixIndex = """#@(\d+)$""".r.findFirstMatchIn(newName).map(_.group(1).toInt + 1).getOrElse(1)
-              newName = s"${attr.getName}#@$suffixIndex"
-            }
-            existingAttributeNames.add(newName)
-            if (newName == attr.getName) attr else new Attribute(newName, attr.getType)
+          val combinedAttributes = leftSchema.getAttributes ++ rightSchema.getAttributes.map {
+            attr =>
+              var newName = attr.getName
+              while (existingAttributeNames.contains(newName)) {
+                val suffixIndex =
+                  """#@(\d+)$""".r.findFirstMatchIn(newName).map(_.group(1).toInt + 1).getOrElse(1)
+                newName = s"${attr.getName}#@$suffixIndex"
+              }
+              existingAttributeNames.add(newName)
+              if (newName == attr.getName) attr else new Attribute(newName, attr.getType)
           }
 
           val outputSchema = Schema(combinedAttributes)

@@ -10,7 +10,6 @@ class SortPartitionsOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     .add(new Attribute("field2", AttributeType.INTEGER))
     .add(new Attribute("field3", AttributeType.BOOLEAN))
 
-
   val tuple: Int => Tuple = i =>
     Tuple
       .builder(tupleSchema)

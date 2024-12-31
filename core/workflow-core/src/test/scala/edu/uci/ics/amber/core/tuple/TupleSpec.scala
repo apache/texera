@@ -112,7 +112,6 @@ class TupleSpec extends AnyFlatSpec {
         .add(timestampAttribute)
         .add(binaryAttribute)
 
-
     val inputTuple = Tuple
       .builder(inputSchema)
       .add(integerAttribute, 922323)

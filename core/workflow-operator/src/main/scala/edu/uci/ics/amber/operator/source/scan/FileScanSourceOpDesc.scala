@@ -66,10 +66,10 @@ class FileScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
   }
 
   override def sourceSchema(): Schema = {
-      var schema = Schema()
-      if (outputFileName) {
-        schema = schema.add("filename", AttributeType.STRING)
-      }
-      schema.add(attributeName, attributeType.getType)
+    var schema = Schema()
+    if (outputFileName) {
+      schema = schema.add("filename", AttributeType.STRING)
+    }
+    schema.add(attributeName, attributeType.getType)
   }
 }

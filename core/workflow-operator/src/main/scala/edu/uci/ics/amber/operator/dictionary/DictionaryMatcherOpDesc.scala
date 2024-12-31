@@ -49,7 +49,8 @@ class DictionaryMatcherOpDesc extends MapOpDesc {
         SchemaPropagationFunc(inputSchemas => {
           if (resultAttribute == null || resultAttribute.trim.isEmpty) return null
           Map(
-            operatorInfo.outputPorts.head.id -> inputSchemas.values.head.add(new Attribute(resultAttribute, AttributeType.BOOLEAN))
+            operatorInfo.outputPorts.head.id -> inputSchemas.values.head
+              .add(new Attribute(resultAttribute, AttributeType.BOOLEAN))
           )
         })
       )

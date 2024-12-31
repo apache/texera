@@ -10,7 +10,6 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     .add(new Attribute("field2", AttributeType.INTEGER))
     .add(new Attribute("field3", AttributeType.BOOLEAN))
 
-
   val tuple: Tuple = Tuple
     .builder(tupleSchema)
     .add(new Attribute("field1", AttributeType.STRING), "hello")
@@ -41,7 +40,6 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       .add(new Attribute("f1", AttributeType.STRING))
       .add(new Attribute("f2", AttributeType.INTEGER))
 
-
     val projectionOpExec = new ProjectionOpExec(objectMapper.writeValueAsString(opDesc))
     projectionOpExec.open()
 
@@ -65,7 +63,6 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val outputSchema = Schema()
       .add(new Attribute("f3", AttributeType.BOOLEAN))
       .add(new Attribute("f1", AttributeType.STRING))
-
 
     val projectionOpExec = new ProjectionOpExec(objectMapper.writeValueAsString(opDesc))
     projectionOpExec.open()
@@ -121,7 +118,6 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val outputSchema = Schema()
       .add(new Attribute("field1", AttributeType.STRING))
       .add(new Attribute("f2", AttributeType.INTEGER))
-
 
     val projectionOpExec = new ProjectionOpExec(objectMapper.writeValueAsString(opDesc))
     projectionOpExec.open()

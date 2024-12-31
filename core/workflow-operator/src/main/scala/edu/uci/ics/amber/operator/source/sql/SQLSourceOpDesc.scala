@@ -134,46 +134,46 @@ abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
       val databaseMetaData = connection.getMetaData
       val columns = databaseMetaData.getColumns(null, null, this.table, null)
       while (columns.next()) {
-          val columnName = columns.getString("COLUMN_NAME")
-          val datatype = columns.getInt("DATA_TYPE")
+        val columnName = columns.getString("COLUMN_NAME")
+        val datatype = columns.getInt("DATA_TYPE")
 
-          // Map JDBC data types to AttributeType
-          val attributeType = datatype match {
-            case Types.TINYINT | // -6 Types.TINYINT
-                 Types.SMALLINT | // 5 Types.SMALLINT
-                 Types.INTEGER => // 4 Types.INTEGER
-              AttributeType.INTEGER
-            case Types.FLOAT | // 6 Types.FLOAT
-                 Types.REAL | // 7 Types.REAL
-                 Types.DOUBLE | // 8 Types.DOUBLE
-                 Types.NUMERIC => // 3 Types.NUMERIC
-              AttributeType.DOUBLE
-            case Types.BIT | // -7 Types.BIT
-                 Types.BOOLEAN => // 16 Types.BOOLEAN
-              AttributeType.BOOLEAN
-            case Types.BINARY => // -2 Types.BINARY
-              AttributeType.BINARY
-            case Types.DATE | // 91 Types.DATE
-                 Types.TIME | // 92 Types.TIME
-                 Types.LONGVARCHAR | // -1 Types.LONGVARCHAR
-                 Types.CHAR | // 1 Types.CHAR
-                 Types.VARCHAR | // 12 Types.VARCHAR
-                 Types.NULL | // 0 Types.NULL
-                 Types.OTHER => // 1111 Types.OTHER
-              AttributeType.STRING
-            case Types.BIGINT => // -5 Types.BIGINT
-              AttributeType.LONG
-            case Types.TIMESTAMP => // 93 Types.TIMESTAMP
-              AttributeType.TIMESTAMP
-            case _ =>
-              throw new RuntimeException(
-                this.getClass.getSimpleName + ": unknown data type: " + datatype
-              )
-          }
-
-          // Add the attribute to the list
-          attributes += new Attribute(columnName, attributeType)
+        // Map JDBC data types to AttributeType
+        val attributeType = datatype match {
+          case Types.TINYINT | // -6 Types.TINYINT
+              Types.SMALLINT | // 5 Types.SMALLINT
+              Types.INTEGER => // 4 Types.INTEGER
+            AttributeType.INTEGER
+          case Types.FLOAT | // 6 Types.FLOAT
+              Types.REAL | // 7 Types.REAL
+              Types.DOUBLE | // 8 Types.DOUBLE
+              Types.NUMERIC => // 3 Types.NUMERIC
+            AttributeType.DOUBLE
+          case Types.BIT | // -7 Types.BIT
+              Types.BOOLEAN => // 16 Types.BOOLEAN
+            AttributeType.BOOLEAN
+          case Types.BINARY => // -2 Types.BINARY
+            AttributeType.BINARY
+          case Types.DATE | // 91 Types.DATE
+              Types.TIME | // 92 Types.TIME
+              Types.LONGVARCHAR | // -1 Types.LONGVARCHAR
+              Types.CHAR | // 1 Types.CHAR
+              Types.VARCHAR | // 12 Types.VARCHAR
+              Types.NULL | // 0 Types.NULL
+              Types.OTHER => // 1111 Types.OTHER
+            AttributeType.STRING
+          case Types.BIGINT => // -5 Types.BIGINT
+            AttributeType.LONG
+          case Types.TIMESTAMP => // 93 Types.TIMESTAMP
+            AttributeType.TIMESTAMP
+          case _ =>
+            throw new RuntimeException(
+              this.getClass.getSimpleName + ": unknown data type: " + datatype
+            )
         }
+
+        // Add the attribute to the list
+        attributes += new Attribute(columnName, attributeType)
+      }
       connection.close()
       Schema(attributes.toList)
     } catch {

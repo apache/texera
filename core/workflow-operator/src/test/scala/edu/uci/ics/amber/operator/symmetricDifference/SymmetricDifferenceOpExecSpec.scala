@@ -15,9 +15,8 @@ class SymmetricDifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   var counter: Int = 0
   val schema: Schema = Schema()
     .add(new Attribute("field1", AttributeType.STRING))
-      .add(new Attribute("field2", AttributeType.INTEGER))
-      .add(new Attribute("field3", AttributeType.BOOLEAN))
-
+    .add(new Attribute("field2", AttributeType.INTEGER))
+    .add(new Attribute("field3", AttributeType.BOOLEAN))
 
   def tuple(): Tuple = {
     counter += 1

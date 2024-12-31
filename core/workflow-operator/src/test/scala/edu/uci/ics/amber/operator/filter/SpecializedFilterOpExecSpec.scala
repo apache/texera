@@ -26,7 +26,6 @@ class SpecializedFilterOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     .add(new Attribute("bool", AttributeType.BOOLEAN))
     .add(new Attribute("long", AttributeType.LONG))
 
-
   val allNullTuple: Tuple = Tuple
     .builder(tupleSchema)
     .add(new Attribute("string", AttributeType.STRING), null)

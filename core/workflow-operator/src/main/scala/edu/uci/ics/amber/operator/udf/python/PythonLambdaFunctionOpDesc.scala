@@ -12,8 +12,8 @@ class PythonLambdaFunctionOpDesc extends PythonOperatorDescriptor {
   var lambdaAttributeUnits: List[LambdaAttributeUnit] = List()
 
   override def getOutputSchemas(
-                                 inputSchemas: Map[PortIdentity, Schema]
-                               ): Map[PortIdentity, Schema] = {
+      inputSchemas: Map[PortIdentity, Schema]
+  ): Map[PortIdentity, Schema] = {
     Preconditions.checkArgument(inputSchemas.size == 1)
     Preconditions.checkArgument(lambdaAttributeUnits.nonEmpty)
 

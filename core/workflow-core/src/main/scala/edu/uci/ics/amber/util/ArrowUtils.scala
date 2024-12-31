@@ -79,10 +79,10 @@ object ArrowUtils extends LazyLogging {
     */
   def toTexeraSchema(arrowSchema: org.apache.arrow.vector.types.pojo.Schema): Schema =
     Schema(
-    arrowSchema.getFields.asScala.map { field =>
-      new Attribute(field.getName, toAttributeType(field.getType))
-    }.toList
-  )
+      arrowSchema.getFields.asScala.map { field =>
+        new Attribute(field.getName, toAttributeType(field.getType))
+      }.toList
+    )
 
   /**
     * Converts an ArrowType into an AttributeType.

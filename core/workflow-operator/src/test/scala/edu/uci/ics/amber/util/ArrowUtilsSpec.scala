@@ -33,7 +33,6 @@ class ArrowUtilsSpec extends AnyFlatSpec {
     .add("test-5", AttributeType.TIMESTAMP)
     .add("test-6", AttributeType.STRING)
 
-
   val arrowSchema: org.apache.arrow.vector.types.pojo.Schema =
     new org.apache.arrow.vector.types.pojo.Schema(
       Array(

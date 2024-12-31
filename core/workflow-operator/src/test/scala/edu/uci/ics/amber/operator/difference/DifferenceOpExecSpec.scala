@@ -13,7 +13,6 @@ class DifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     .add(new Attribute("field2", AttributeType.INTEGER))
     .add(new Attribute("field3", AttributeType.BOOLEAN))
 
-
   def tuple(): Tuple = {
     counter += 1
 

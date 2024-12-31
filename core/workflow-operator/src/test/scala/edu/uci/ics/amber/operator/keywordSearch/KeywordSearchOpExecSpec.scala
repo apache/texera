@@ -12,7 +12,6 @@ class KeywordSearchOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   val schema: Schema = Schema()
     .add(new Attribute("text", AttributeType.STRING))
 
-
   def createTuple(text: String): Tuple = {
     Tuple
       .builder(schema)

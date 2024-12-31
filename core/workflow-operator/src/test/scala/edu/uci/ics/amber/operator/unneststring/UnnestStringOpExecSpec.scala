@@ -11,7 +11,6 @@ class UnnestStringOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     .add(new Attribute("field2", AttributeType.INTEGER))
     .add(new Attribute("field3", AttributeType.STRING))
 
-
   val tuple: Tuple = Tuple
     .builder(tupleSchema)
     .add(new Attribute("field1", AttributeType.STRING), "a-b-c")
