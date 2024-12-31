@@ -90,17 +90,21 @@ class HuggingFaceIrisLogisticRegressionOpDesc extends PythonOperatorDescriptor {
       outputPorts = List(OutputPort())
     )
 
-  override def getOutputSchemas(inputSchemas: Map[PortIdentity, Schema]): Map[PortIdentity, Schema] = {
+  override def getOutputSchemas(
+      inputSchemas: Map[PortIdentity, Schema]
+  ): Map[PortIdentity, Schema] = {
     if (
       predictionClassName == null || predictionClassName.trim.isEmpty ||
       predictionProbabilityName == null || predictionProbabilityName.trim.isEmpty
     )
       throw new RuntimeException("Result attribute name should not be empty")
-    Map(operatorInfo.outputPorts.head.id -> Schema
-      .builder()
-      .add(inputSchemas(operatorInfo.inputPorts.head.id))
-      .add(predictionClassName, AttributeType.STRING)
-      .add(predictionProbabilityName, AttributeType.DOUBLE)
-      .build())
+    Map(
+      operatorInfo.outputPorts.head.id -> Schema
+        .builder()
+        .add(inputSchemas(operatorInfo.inputPorts.head.id))
+        .add(predictionClassName, AttributeType.STRING)
+        .add(predictionProbabilityName, AttributeType.DOUBLE)
+        .build()
+    )
   }
 }

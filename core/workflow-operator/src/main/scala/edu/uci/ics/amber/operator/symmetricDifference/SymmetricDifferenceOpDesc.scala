@@ -2,8 +2,14 @@ package edu.uci.ics.amber.operator.symmetricDifference
 
 import com.google.common.base.Preconditions
 import edu.uci.ics.amber.core.executor.OpExecWithClassName
-import edu.uci.ics.amber.core.tuple.Schema
-import edu.uci.ics.amber.core.workflow.{HashPartition, InputPort, OutputPort, PhysicalOp, PortIdentity, SchemaPropagationFunc}
+import edu.uci.ics.amber.core.workflow.{
+  HashPartition,
+  InputPort,
+  OutputPort,
+  PhysicalOp,
+  PortIdentity,
+  SchemaPropagationFunc
+}
 import edu.uci.ics.amber.operator.LogicalOp
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}

@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.operator.projection
 
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
+import edu.uci.ics.amber.core.workflow.PortIdentity
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 class ProjectionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
@@ -30,7 +31,7 @@ class ProjectionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
       new AttributeUnit("field1", "f1"),
       new AttributeUnit("field2", "f2")
     )
-    val outputSchema = projectionOpDesc.getOutputSchema(Array(schema))
+    val outputSchema = projectionOpDesc.getExternalOutputSchemas(Map(PortIdentity()-> schema)).values.head
     assert(outputSchema.getAttributes.length == 2)
 
   }
@@ -40,7 +41,7 @@ class ProjectionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
       new AttributeUnit("field2", "f2"),
       new AttributeUnit("field1", "f1")
     )
-    val outputSchema = projectionOpDesc.getOutputSchema(Array(schema))
+    val outputSchema = projectionOpDesc.getExternalOutputSchemas(Map(PortIdentity()-> schema)).values.head
     assert(outputSchema.getAttributes.length == 2)
     assert(outputSchema.getIndex("f2") == 0)
     assert(outputSchema.getIndex("f1") == 1)
@@ -53,7 +54,7 @@ class ProjectionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
       new AttributeUnit("field---6", "f6")
     )
     assertThrows[RuntimeException] {
-      projectionOpDesc.getOutputSchema(Array(schema))
+      projectionOpDesc.getExternalOutputSchemas(Map(PortIdentity()-> schema)).values.head
     }
 
   }
@@ -61,7 +62,7 @@ class ProjectionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "raise IllegalArgumentException on empty attributes" in {
 
     assertThrows[IllegalArgumentException] {
-      projectionOpDesc.getOutputSchema(Array(schema))
+      projectionOpDesc.getExternalOutputSchemas(Map(PortIdentity()-> schema)).values.head
     }
 
   }
@@ -74,7 +75,7 @@ class ProjectionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     )
 
     assertThrows[IllegalArgumentException] {
-      projectionOpDesc.getOutputSchema(Array(schema, schema))
+      projectionOpDesc.getExternalOutputSchemas(Map(PortIdentity()-> schema)).values.head
     }
 
   }
@@ -86,7 +87,7 @@ class ProjectionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
       new AttributeUnit("field1", "f")
     )
     assertThrows[RuntimeException] {
-      projectionOpDesc.getOutputSchema(Array(schema))
+      projectionOpDesc.getExternalOutputSchemas(Map(PortIdentity()-> schema)).values.head
     }
   }
 
@@ -95,7 +96,7 @@ class ProjectionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
       new AttributeUnit("field1", "f1"),
       new AttributeUnit("field2", "")
     )
-    val outputSchema = projectionOpDesc.getOutputSchema(Array(schema))
+    val outputSchema = projectionOpDesc.getExternalOutputSchemas(Map(PortIdentity()-> schema)).values.head
     assert(outputSchema.getAttributes.length == 2)
 
   }

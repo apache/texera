@@ -91,10 +91,10 @@ class IntervalJoinOpDesc extends LogicalOp {
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withPropagateSchema(
-        SchemaPropagationFunc(inputSchemas =>{
+        SchemaPropagationFunc(inputSchemas => {
           val builder: Schema.Builder = Schema.builder()
           val leftTableSchema: Schema = inputSchemas(operatorInfo.inputPorts.head.id)
-          val rightTableSchema: Schema =         inputSchemas(operatorInfo.inputPorts.last.id)
+          val rightTableSchema: Schema = inputSchemas(operatorInfo.inputPorts.last.id)
           builder.add(leftTableSchema)
           rightTableSchema.getAttributes
             .map(attr => {
@@ -106,9 +106,7 @@ class IntervalJoinOpDesc extends LogicalOp {
             })
           val outputSchema = builder.build()
           Map(operatorInfo.outputPorts.head.id -> outputSchema)
-        }
-
-        )
+        })
       )
       .withPartitionRequirement(partitionRequirement)
   }

@@ -118,7 +118,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
         .withDerivePartition(_ => HashPartition(List(probeAttributeName)))
         .withParallelizable(true)
         .withPropagateSchema(
-          SchemaPropagationFunc(inputSchemas =>{
+          SchemaPropagationFunc(inputSchemas => {
             val buildSchema = inputSchemas(PortIdentity(internal = true))
             val probeSchema = inputSchemas(PortIdentity(1))
             val builder = Schema.builder()
@@ -143,9 +143,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
               }
             val outputSchema = builder.build()
             Map(PortIdentity() -> outputSchema)
-          }
-
-          )
+          })
         )
 
     PhysicalPlan(

@@ -30,8 +30,7 @@ trait PythonOperatorDescriptor extends LogicalOp {
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withParallelizable(parallelizable())
-      .withPropagateSchema(SchemaPropagationFunc(inputSchemas => getOutputSchemas(inputSchemas))
-      )
+      .withPropagateSchema(SchemaPropagationFunc(inputSchemas => getOutputSchemas(inputSchemas)))
   }
 
   def parallelizable(): Boolean = false
@@ -45,7 +44,6 @@ trait PythonOperatorDescriptor extends LogicalOp {
     * @return a String representation of the executable Python source code.
     */
   def generatePythonCode(): String
-
 
   def getOutputSchemas(inputSchemas: Map[PortIdentity, Schema]): Map[PortIdentity, Schema]
 

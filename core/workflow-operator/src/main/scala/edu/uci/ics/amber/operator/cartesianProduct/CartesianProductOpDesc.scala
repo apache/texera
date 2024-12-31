@@ -59,7 +59,8 @@ class CartesianProductOpDesc extends LogicalOp {
 
             // Resolve duplicate names by appending a suffix
             while (outputAttributeNames.contains(newName)) {
-              val suffixIndex = """#@(\d+)$""".r.findFirstMatchIn(newName).map(_.group(1).toInt + 1).getOrElse(1)
+              val suffixIndex =
+                """#@(\d+)$""".r.findFirstMatchIn(newName).map(_.group(1).toInt + 1).getOrElse(1)
               newName = s"${attr.getName}#@$suffixIndex"
             }
 

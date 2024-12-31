@@ -44,8 +44,8 @@ class BubbleChartOpDesc extends PythonOperatorDescriptor {
   @AutofillAttributeName var colorCategory: String = ""
 
   override def getOutputSchemas(
-                                 inputSchemas: Map[PortIdentity, Schema]
-                               ): Map[PortIdentity, Schema] = {
+      inputSchemas: Map[PortIdentity, Schema]
+  ): Map[PortIdentity, Schema] = {
     val outputSchema = Schema
       .builder()
       .add(new Attribute("html-content", AttributeType.STRING))

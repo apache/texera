@@ -11,10 +11,9 @@ class PythonLambdaFunctionOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("Add/Modify column(s)")
   var lambdaAttributeUnits: List[LambdaAttributeUnit] = List()
 
-
   override def getOutputSchemas(
-                                 inputSchemas: Map[PortIdentity, Schema]
-                               ): Map[PortIdentity, Schema] = {
+      inputSchemas: Map[PortIdentity, Schema]
+  ): Map[PortIdentity, Schema] = {
     Preconditions.checkArgument(inputSchemas.size == 1)
     Preconditions.checkArgument(lambdaAttributeUnits.nonEmpty)
     val inputSchema = inputSchemas.values.head

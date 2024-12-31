@@ -4,7 +4,12 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
-import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PhysicalOp, PortIdentity, SchemaPropagationFunc}
+import edu.uci.ics.amber.core.workflow.{
+  InputPort,
+  OutputPort,
+  PhysicalOp,
+  SchemaPropagationFunc
+}
 import edu.uci.ics.amber.operator.LogicalOp
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
@@ -38,15 +43,13 @@ class HtmlVizOpDesc extends LogicalOp {
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withPropagateSchema(
-        SchemaPropagationFunc(inputSchemas =>
-          {
-            val outputSchema = Schema
-              .builder()
-              .add(new Attribute("html-content", AttributeType.STRING))
-              .build()
-            Map(operatorInfo.outputPorts.head.id -> outputSchema)
-          }
-        )
+        SchemaPropagationFunc(inputSchemas => {
+          val outputSchema = Schema
+            .builder()
+            .add(new Attribute("html-content", AttributeType.STRING))
+            .build()
+          Map(operatorInfo.outputPorts.head.id -> outputSchema)
+        })
       )
   }
 
@@ -58,6 +61,5 @@ class HtmlVizOpDesc extends LogicalOp {
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
-
 
 }

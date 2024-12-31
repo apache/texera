@@ -1,7 +1,6 @@
 package edu.uci.ics.amber.operator.unneststring
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.google.common.base.Preconditions
 import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
@@ -53,13 +52,17 @@ class UnnestStringOpDesc extends FlatMapOpDesc {
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withPropagateSchema(
-        SchemaPropagationFunc(inputSchemas =>{
-          val outputSchema = if (resultAttribute == null || resultAttribute.trim.isEmpty) null else
-          Schema.builder().add(inputSchemas.values.head).add(resultAttribute, AttributeType.STRING).build()
+        SchemaPropagationFunc(inputSchemas => {
+          val outputSchema =
+            if (resultAttribute == null || resultAttribute.trim.isEmpty) null
+            else
+              Schema
+                .builder()
+                .add(inputSchemas.values.head)
+                .add(resultAttribute, AttributeType.STRING)
+                .build()
           Map(operatorInfo.outputPorts.head.id -> outputSchema)
-        }
-
-        )
+        })
       )
   }
 }

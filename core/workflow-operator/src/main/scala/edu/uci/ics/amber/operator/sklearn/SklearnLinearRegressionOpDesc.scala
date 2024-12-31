@@ -60,13 +60,15 @@ class SklearnLinearRegressionOpDesc extends PythonOperatorDescriptor {
     )
 
   override def getOutputSchemas(
-                                 inputSchemas: Map[PortIdentity, Schema]
-                               ): Map[PortIdentity, Schema] = {
-    Map(operatorInfo.outputPorts.head.id -> Schema
-      .builder()
-      .add("model_name", AttributeType.STRING)
-      .add("model", AttributeType.BINARY)
-      .build())
+      inputSchemas: Map[PortIdentity, Schema]
+  ): Map[PortIdentity, Schema] = {
+    Map(
+      operatorInfo.outputPorts.head.id -> Schema
+        .builder()
+        .add("model_name", AttributeType.STRING)
+        .add("model", AttributeType.BINARY)
+        .build()
+    )
   }
 
 }

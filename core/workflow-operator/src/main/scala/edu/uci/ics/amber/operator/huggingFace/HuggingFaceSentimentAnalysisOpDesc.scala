@@ -77,19 +77,23 @@ class HuggingFaceSentimentAnalysisOpDesc extends PythonOperatorDescriptor {
       supportReconfiguration = true
     )
 
-  override def getOutputSchemas(inputSchemas: Map[PortIdentity, Schema]): Map[PortIdentity, Schema] = {
+  override def getOutputSchemas(
+      inputSchemas: Map[PortIdentity, Schema]
+  ): Map[PortIdentity, Schema] = {
     if (
       resultAttributePositive == null || resultAttributePositive.trim.isEmpty ||
       resultAttributeNeutral == null || resultAttributeNeutral.trim.isEmpty ||
       resultAttributeNegative == null || resultAttributeNegative.trim.isEmpty
     )
       return null
-    Map(operatorInfo.outputPorts.head.id -> Schema
-      .builder()
-      .add(inputSchemas(operatorInfo.inputPorts.head.id))
-      .add(resultAttributePositive, AttributeType.DOUBLE)
-      .add(resultAttributeNeutral, AttributeType.DOUBLE)
-      .add(resultAttributeNegative, AttributeType.DOUBLE)
-      .build())
+    Map(
+      operatorInfo.outputPorts.head.id -> Schema
+        .builder()
+        .add(inputSchemas(operatorInfo.inputPorts.head.id))
+        .add(resultAttributePositive, AttributeType.DOUBLE)
+        .add(resultAttributeNeutral, AttributeType.DOUBLE)
+        .add(resultAttributeNegative, AttributeType.DOUBLE)
+        .build()
+    )
   }
 }

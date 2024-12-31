@@ -84,7 +84,8 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
         )
         .withParallelizable(false)
     }
-    physicalOp.withDerivePartition(_ => UnknownPartition())
+    physicalOp
+      .withDerivePartition(_ => UnknownPartition())
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withPropagateSchema(
@@ -105,10 +106,8 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
             }
             outputSchemaBuilder.add(outputColumns).build()
           }
-          Map(operatorInfo.outputPorts.head.id ->  outputSchemaBuilder.build())
-        }
-
-        )
+          Map(operatorInfo.outputPorts.head.id -> outputSchemaBuilder.build())
+        })
       )
   }
 
@@ -128,6 +127,5 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
       ),
       outputPorts = List(OutputPort())
     )
-
 
 }

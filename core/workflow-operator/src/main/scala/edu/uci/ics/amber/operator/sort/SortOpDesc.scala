@@ -40,7 +40,6 @@ class SortOpDesc extends PythonOperatorDescriptor {
        |        yield sorted_df""".stripMargin
   }
 
-
   def getOutputSchemas(inputSchemas: Map[PortIdentity, Schema]): Map[PortIdentity, Schema] = {
     Map(operatorInfo.outputPorts.head.id -> inputSchemas.values.head)
   }

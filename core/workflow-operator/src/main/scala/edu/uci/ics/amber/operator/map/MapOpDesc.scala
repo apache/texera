@@ -4,7 +4,7 @@ import edu.uci.ics.amber.core.workflow.PhysicalOp
 import edu.uci.ics.amber.operator.{LogicalOp, StateTransferFunc}
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{Success, Try}
 
 abstract class MapOpDesc extends LogicalOp {
 

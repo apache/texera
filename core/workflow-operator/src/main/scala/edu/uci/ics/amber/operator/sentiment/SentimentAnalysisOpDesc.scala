@@ -55,13 +55,17 @@ class SentimentAnalysisOpDesc extends MapOpDesc {
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withPropagateSchema(
-        SchemaPropagationFunc(inputSchemas =>{
+        SchemaPropagationFunc(inputSchemas => {
           if (resultAttribute == null || resultAttribute.trim.isEmpty)
             return null
-          Map(operatorInfo.outputPorts.head.id -> Schema.builder().add(inputSchemas.values.head).add(resultAttribute, AttributeType.INTEGER).build())
-        }
-
-        )
+          Map(
+            operatorInfo.outputPorts.head.id -> Schema
+              .builder()
+              .add(inputSchemas.values.head)
+              .add(resultAttribute, AttributeType.INTEGER)
+              .build()
+          )
+        })
       )
   }
 

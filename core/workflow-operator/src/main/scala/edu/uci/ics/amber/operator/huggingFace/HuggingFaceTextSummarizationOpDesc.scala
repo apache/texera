@@ -57,13 +57,17 @@ class HuggingFaceTextSummarizationOpDesc extends PythonOperatorDescriptor {
       outputPorts = List(OutputPort())
     )
 
-  override def getOutputSchemas(inputSchemas: Map[PortIdentity, Schema]): Map[PortIdentity, Schema] = {
+  override def getOutputSchemas(
+      inputSchemas: Map[PortIdentity, Schema]
+  ): Map[PortIdentity, Schema] = {
     if (resultAttribute == null || resultAttribute.trim.isEmpty)
       throw new RuntimeException("Result attribute name should be given")
-    Map(operatorInfo.outputPorts.head.id -> Schema
-      .builder()
-      .add(inputSchemas.values.head)
-      .add(resultAttribute, AttributeType.STRING)
-      .build())
+    Map(
+      operatorInfo.outputPorts.head.id -> Schema
+        .builder()
+        .add(inputSchemas.values.head)
+        .add(resultAttribute, AttributeType.STRING)
+        .build()
+    )
   }
 }

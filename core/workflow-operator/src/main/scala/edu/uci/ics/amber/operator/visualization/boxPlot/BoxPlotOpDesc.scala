@@ -38,8 +38,8 @@ class BoxPlotOpDesc extends PythonOperatorDescriptor {
   var quertiletype: BoxPlotQuartileFunction = _
 
   override def getOutputSchemas(
-                                 inputSchemas: Map[PortIdentity, Schema]
-                               ): Map[PortIdentity, Schema] = {
+      inputSchemas: Map[PortIdentity, Schema]
+  ): Map[PortIdentity, Schema] = {
     val outputSchema = Schema
       .builder()
       .add(new Attribute("html-content", AttributeType.STRING))
