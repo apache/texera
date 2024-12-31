@@ -11,7 +11,7 @@ from core.models.internal_marker import (
 )
 from core.models.marker import EndOfInputChannel, State, StartOfInputChannel, Marker
 from core.models.payload import DataFrame, DataPayload, MarkerFrame
-from proto.edu.uci.ics.amber.engine.common import (
+from proto.edu.uci.ics.amber.core import (
     ActorVirtualIdentity,
     PortIdentity,
     ChannelIdentity,

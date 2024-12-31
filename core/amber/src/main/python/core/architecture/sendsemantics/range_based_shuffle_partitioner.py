@@ -12,7 +12,7 @@ from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
     RangeBasedShufflePartitioning,
     Partitioning,
 )
-from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity
+from proto.edu.uci.ics.amber.core import ActorVirtualIdentity
 
 
 class RangeBasedShufflePartitioner(Partitioner):

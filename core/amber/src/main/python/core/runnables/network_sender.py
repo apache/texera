@@ -9,11 +9,11 @@ from core.models.internal_queue import InternalQueueElement, DataElement, Contro
 from core.proxy import ProxyClient
 from core.util import StoppableQueueBlockingRunnable
 from proto.edu.uci.ics.amber.engine.common import (
-    ActorVirtualIdentity,
     ControlPayloadV2,
     PythonControlMessage,
     PythonDataHeader,
 )
+from proto.edu.uci.ics.amber.core import ActorVirtualIdentity
 
 
 class NetworkSender(StoppableQueueBlockingRunnable):

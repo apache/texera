@@ -10,10 +10,10 @@ from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     ConsoleMessageType,
 )
 from proto.edu.uci.ics.amber.engine.common import (
-    ActorVirtualIdentity,
     ControlPayloadV2,
     PythonControlMessage,
 )
+from proto.edu.uci.ics.amber.core import ActorVirtualIdentity
 
 
 class TestConsoleMessage:

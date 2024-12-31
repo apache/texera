@@ -8,7 +8,7 @@ from typing import List
 
 import betterproto
 
-from ... import common as __common__
+from .... import core as ___core__
 
 
 class WorkerState(betterproto.Enum):
@@ -21,7 +21,7 @@ class WorkerState(betterproto.Enum):
 
 @dataclass(eq=False, repr=False)
 class PortTupleCountMapping(betterproto.Message):
-    port_id: "__common__.PortIdentity" = betterproto.message_field(1)
+    port_id: "___core__.PortIdentity" = betterproto.message_field(1)
     tuple_count: int = betterproto.int64_field(2)
 
 

@@ -10,7 +10,7 @@ from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
     OneToOnePartitioning,
     Partitioning,
 )
-from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity
+from proto.edu.uci.ics.amber.core import ActorVirtualIdentity
 
 
 class OneToOnePartitioner(Partitioner):

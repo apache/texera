@@ -1,7 +1,7 @@
 from typing import Dict
 from collections import defaultdict
 
-from proto.edu.uci.ics.amber.engine.common import PortIdentity
+from proto.edu.uci.ics.amber.core import PortIdentity
 from proto.edu.uci.ics.amber.engine.architecture.worker import (
     WorkerStatistics,
     PortTupleCountMapping,

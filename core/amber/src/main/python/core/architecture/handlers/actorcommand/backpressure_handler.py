@@ -13,9 +13,9 @@ from proto.edu.uci.ics.amber.engine.architecture.rpc import (
 
 from proto.edu.uci.ics.amber.engine.common import (
     Backpressure,
-    ActorVirtualIdentity,
     ControlPayloadV2,
 )
+from proto.edu.uci.ics.amber.core import ActorVirtualIdentity
 
 
 class BackpressureHandler(ActorCommandHandler):

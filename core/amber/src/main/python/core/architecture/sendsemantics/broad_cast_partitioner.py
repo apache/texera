@@ -11,7 +11,7 @@ from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
     Partitioning,
     BroadcastPartitioning,
 )
-from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity
+from proto.edu.uci.ics.amber.core import ActorVirtualIdentity
 
 
 class BroadcastPartitioner(Partitioner):

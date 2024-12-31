@@ -1,7 +1,7 @@
 from threading import Event, Condition
 from typing import Optional, Tuple, Iterator
 
-from proto.edu.uci.ics.amber.engine.common import PortIdentity
+from proto.edu.uci.ics.amber.core import PortIdentity
 
 
 class TupleProcessingManager:
