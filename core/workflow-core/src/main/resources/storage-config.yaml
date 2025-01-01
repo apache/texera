@@ -1,5 +1,5 @@
 storage:
-  result-storage-mode: memory
+  result-storage-mode: iceberg
   mongodb:
     url: "mongodb://localhost:27017"
     database: "texera_storage"
@@ -8,10 +8,9 @@ storage:
     catalog:
       jdbc: # currently we only support storing catalog info via jdbc, i.e. https://iceberg.apache.org/docs/1.7.1/jdbc/
         url: "jdbc:mysql://localhost:3306/texera_iceberg?serverTimezone=UTC"
-        username: "root"
-        password: "123456"
+        username: ""
+        password: ""
     table:
-      format-version: 3
       namespace: "operator-result"
       commit:
         batch-size: 4096 # decide the buffer size of our IcebergTableWriter
@@ -24,5 +23,5 @@ storage:
           max-wait-ms: 10000 # 10s
   jdbc:
     url: "jdbc:mysql://localhost:3306/texera_db?serverTimezone=UTC"
-    username: "root"
-    password: "123456"
+    username: ""
+    password: ""

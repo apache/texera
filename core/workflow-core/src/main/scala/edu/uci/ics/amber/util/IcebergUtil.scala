@@ -81,9 +81,7 @@ object IcebergUtil {
     val tableProperties = Map(
       TableProperties.COMMIT_NUM_RETRIES -> StorageConfig.icebergTableCommitNumRetries.toString,
       TableProperties.COMMIT_MAX_RETRY_WAIT_MS -> StorageConfig.icebergTableCommitMaxRetryWaitMs.toString,
-      TableProperties.COMMIT_MIN_RETRY_WAIT_MS -> StorageConfig.icebergTableCommitMinRetryWaitMs.toString,
-      TableProperties.FORMAT_VERSION -> StorageConfig.icebergTableFormatVersion.toString,
-      "row-lineage" -> true.toString
+      TableProperties.COMMIT_MIN_RETRY_WAIT_MS -> StorageConfig.icebergTableCommitMinRetryWaitMs.toString
     )
     val identifier = TableIdentifier.of(tableNamespace, tableName)
     if (catalog.tableExists(identifier) && overrideIfExists) {
