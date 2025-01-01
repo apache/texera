@@ -99,13 +99,9 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
       result.toArray
     }))
 
-    Schema
-      .builder()
-      .add(
-        sortedFieldNames.indices
-          .map(i => new Attribute(sortedFieldNames(i), attributeTypes(i)))
-      )
-      .build()
+    Schema().add(sortedFieldNames.indices.map { i =>
+      new Attribute(sortedFieldNames(i), attributeTypes(i))
+    })
 
   }
 }

@@ -3,7 +3,7 @@ package edu.uci.ics.amber.operator.source.scan.text
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.amber.core.executor.OpExecWithClassName
-import edu.uci.ics.amber.core.tuple.{Attribute, Schema}
+import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.metadata.annotations.UIWidget
@@ -39,10 +39,7 @@ class TextInputSourceOpDesc extends SourceOperatorDescriptor with TextSourceOpDe
       )
 
   override def sourceSchema(): Schema =
-    Schema
-      .builder()
-      .add(new Attribute(attributeName, attributeType.getType))
-      .build()
+    Schema().add(attributeName, attributeType.getType)
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(

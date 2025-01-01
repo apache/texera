@@ -7,12 +7,10 @@ import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
 class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
-  val tupleSchema: Schema = Schema
-    .builder()
+  val tupleSchema: Schema = Schema()
     .add(new Attribute("field1", AttributeType.STRING))
     .add(new Attribute("field2", AttributeType.INTEGER))
     .add(new Attribute("field3", AttributeType.BOOLEAN))
-    .build()
 
   val tuple: Tuple = Tuple
     .builder(tupleSchema)

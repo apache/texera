@@ -91,22 +91,24 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
       .withPropagateSchema(
         SchemaPropagationFunc(inputSchemas => {
           Preconditions.checkArgument(inputSchemas.size == 2)
-          val inputSchema = inputSchemas(operatorInfo.inputPorts(1).id)
-          val outputSchemaBuilder = Schema.builder()
-          // keep the same schema from input
-          if (retainInputColumns) outputSchemaBuilder.add(inputSchema)
-          // for any pythonUDFType, it can add custom output columns (attributes).
-          if (outputColumns != null) {
-            if (retainInputColumns) { // check if columns are duplicated
 
+          val inputSchema = inputSchemas(operatorInfo.inputPorts(1).id)
+          var outputSchema = if (retainInputColumns) inputSchema else Schema()
+
+          // For any pythonUDFType, add custom output columns (attributes).
+          if (outputColumns != null) {
+            if (retainInputColumns) {
+              // Check if columns are duplicated
               for (column <- outputColumns) {
                 if (inputSchema.containsAttribute(column.getName))
-                  throw new RuntimeException("Column name " + column.getName + " already exists!")
+                  throw new RuntimeException(s"Column name ${column.getName} already exists!")
               }
             }
-            outputSchemaBuilder.add(outputColumns).build()
+            // Add custom output columns
+            outputSchema = outputSchema.add(outputColumns)
           }
-          Map(operatorInfo.outputPorts.head.id -> outputSchemaBuilder.build())
+
+          Map(operatorInfo.outputPorts.head.id -> outputSchema)
         })
       )
   }

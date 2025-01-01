@@ -35,7 +35,7 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
   private val executor = mock[OperatorExecutor]
   private val mockInputPortId = PortIdentity()
 
-  private val schema: Schema = Schema.builder().add("field1", AttributeType.INTEGER).build()
+  private val schema: Schema = Schema().add("field1", AttributeType.INTEGER)
   private val tuples: Array[Tuple] = (0 until 5000)
     .map(i => TupleLike(i).enforceSchema(schema))
     .toArray
@@ -167,7 +167,7 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
   }
 
   "DP Thread" should "write determinant logs to local storage while processing" in {
-    val dp = new DataProcessor(workerId, x => {})
+    val dp = new DataProcessor(workerId, _ => {})
     dp.executor = executor
     val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
     val anotherSenderWorkerId = ActorVirtualIdentity("another")
@@ -183,7 +183,7 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     )
     logStorage.deleteStorage()
     val logManager: ReplayLogManager =
-      ReplayLogManager.createLogManager(logStorage, "tmpLog", x => {})
+      ReplayLogManager.createLogManager(logStorage, "tmpLog", _ => {})
     val dpThread = new DPThread(workerId, dp, logManager, inputQueue)
     dpThread.start()
     tuples.foreach { x =>

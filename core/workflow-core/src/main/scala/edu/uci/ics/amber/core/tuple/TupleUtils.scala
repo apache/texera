@@ -42,13 +42,11 @@ object TupleUtils {
       result.toArray
     }))
 
-    val schema = Schema
-      .builder()
-      .add(
-        sortedFieldNames.indices
-          .map(i => new Attribute(sortedFieldNames(i), attributeTypes(i)))
-      )
-      .build()
+    val schema = Schema(
+      sortedFieldNames.indices
+        .map(i => new Attribute(sortedFieldNames(i), attributeTypes(i)))
+        .toList
+    )
 
     try {
       val fields = scala.collection.mutable.ArrayBuffer.empty[Any]

@@ -58,12 +58,9 @@ class HuggingFaceSpamSMSDetectionOpDesc extends PythonOperatorDescriptor {
       inputSchemas: Map[PortIdentity, Schema]
   ): Map[PortIdentity, Schema] = {
     Map(
-      operatorInfo.outputPorts.head.id -> Schema
-        .builder()
-        .add(inputSchemas.values.head)
+      operatorInfo.outputPorts.head.id -> inputSchemas.values.head
         .add(resultAttributeSpam, AttributeType.BOOLEAN)
         .add(resultAttributeProbability, AttributeType.DOUBLE)
-        .build()
     )
   }
 }

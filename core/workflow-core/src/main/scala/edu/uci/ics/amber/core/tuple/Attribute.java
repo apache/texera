@@ -38,7 +38,7 @@ public class Attribute implements Serializable {
 
     @Override
     public String toString() {
-        return "edu.ics.uci.amber.model.tuple.model.Attribute[name=" + attributeName + ", type=" + attributeType + "]";
+        return "Attribute[name=" + attributeName + ", type=" + attributeType + "]";
     }
 
     @Override

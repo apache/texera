@@ -8,14 +8,10 @@ class DifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   var input2: Int = 1
   var opExec: DifferenceOpExec = _
   var counter: Int = 0
-  val schema: Schema = Schema
-    .builder()
-    .add(
-      new Attribute("field1", AttributeType.STRING),
-      new Attribute("field2", AttributeType.INTEGER),
-      new Attribute("field3", AttributeType.BOOLEAN)
-    )
-    .build()
+  val schema: Schema = Schema()
+    .add(new Attribute("field1", AttributeType.STRING))
+    .add(new Attribute("field2", AttributeType.INTEGER))
+    .add(new Attribute("field3", AttributeType.BOOLEAN))
 
   def tuple(): Tuple = {
     counter += 1

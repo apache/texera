@@ -11,39 +11,36 @@ import scala.util.control.Exception.allCatch
 object AttributeTypeUtils extends Serializable {
 
   /**
-    * this loop check whether the current attribute in the array is the attribute for casting,
-    * if it is, change it to result type
-    * if it's not, remain the same type
-    * we need this loop to keep the order the same as the original
+    * This function checks whether the current attribute in the schema matches the selected attribute for casting.
+    * If it matches, its type is changed to the specified result type.
+    * If it doesn't match, the original type is retained.
+    * The order of attributes in the schema is preserved.
+    *
     * @param schema schema of data
     * @param attribute selected attribute
     * @param resultType casting type
-    * @return schema of data
+    * @return a new schema with the modified attribute type
     */
   def SchemaCasting(
       schema: Schema,
       attribute: String,
       resultType: AttributeType
   ): Schema = {
-    // need a builder to maintain the order of original schema
-    val builder = Schema.builder()
-    val attributes: List[Attribute] = schema.getAttributes
-    // change the schema when meet selected attribute else remain the same
-    for (i <- attributes.indices) {
-      if (attributes.apply(i).getName.equals(attribute)) {
+    val updatedAttributes = schema.getAttributes.map { attr =>
+      if (attr.getName == attribute) {
         resultType match {
           case AttributeType.STRING | AttributeType.INTEGER | AttributeType.DOUBLE |
               AttributeType.LONG | AttributeType.BOOLEAN | AttributeType.TIMESTAMP |
               AttributeType.BINARY =>
-            builder.add(attribute, resultType)
+            new Attribute(attribute, resultType) // Cast to the specified result type
           case AttributeType.ANY | _ =>
-            builder.add(attribute, attributes.apply(i).getType)
+            attr // Retain the original type for unsupported types
         }
       } else {
-        builder.add(attributes.apply(i).getName, attributes.apply(i).getType)
+        attr // Retain attributes that don't match the target
       }
     }
-    builder.build()
+    Schema(updatedAttributes)
   }
 
   /**

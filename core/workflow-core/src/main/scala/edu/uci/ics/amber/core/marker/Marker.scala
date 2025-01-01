@@ -31,13 +31,10 @@ final case class State(tuple: Option[Tuple] = None, passToAllDownstream: Boolean
   def toTuple: Tuple =
     Tuple
       .builder(
-        Schema
-          .builder()
-          .add(data.map {
-            case (name, (attrType, _)) =>
-              new Attribute(name, attrType)
-          })
-          .build()
+        Schema(data.map {
+          case (name, (attrType, _)) =>
+            new Attribute(name, attrType)
+        }.toList)
       )
       .addSequentially(data.values.map(_._2).toArray)
       .build()

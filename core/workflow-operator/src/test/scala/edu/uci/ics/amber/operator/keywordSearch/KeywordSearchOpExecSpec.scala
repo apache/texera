@@ -9,10 +9,8 @@ class KeywordSearchOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   val inputPort: Int = 0
   val opDesc: KeywordSearchOpDesc = new KeywordSearchOpDesc()
 
-  val schema: Schema = Schema
-    .builder()
+  val schema: Schema = Schema()
     .add(new Attribute("text", AttributeType.STRING))
-    .build()
 
   def createTuple(text: String): Tuple = {
     Tuple

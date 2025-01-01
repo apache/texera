@@ -10,13 +10,11 @@ class NetworkInputGatewaySpec extends AnyFlatSpec with MockFactory {
 
   private val fakeReceiverID = ActorVirtualIdentity("testReceiver")
   private val fakeSenderID = ActorVirtualIdentity("testSender")
-  private val channelId = ChannelIdentity(fakeSenderID, fakeReceiverID, false)
+  private val channelId = ChannelIdentity(fakeSenderID, fakeReceiverID, isControl = false)
   private val payloads = (0 until 4).map { i =>
     DataFrame(
       Array(
-        TupleLike(i) enforceSchema (
-          Schema.builder().add("field1", AttributeType.INTEGER).build()
-        )
+        TupleLike(i) enforceSchema Schema().add("field1", AttributeType.INTEGER)
       )
     )
   }.toArray

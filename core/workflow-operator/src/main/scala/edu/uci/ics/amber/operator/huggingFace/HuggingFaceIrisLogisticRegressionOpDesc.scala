@@ -99,12 +99,9 @@ class HuggingFaceIrisLogisticRegressionOpDesc extends PythonOperatorDescriptor {
     )
       throw new RuntimeException("Result attribute name should not be empty")
     Map(
-      operatorInfo.outputPorts.head.id -> Schema
-        .builder()
-        .add(inputSchemas(operatorInfo.inputPorts.head.id))
+      operatorInfo.outputPorts.head.id -> inputSchemas(operatorInfo.inputPorts.head.id)
         .add(predictionClassName, AttributeType.STRING)
         .add(predictionProbabilityName, AttributeType.DOUBLE)
-        .build()
     )
   }
 }

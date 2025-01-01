@@ -1,17 +1,15 @@
 package edu.uci.ics.amber.operator.projection
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.tuple.{Attribute, Schema}
+import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.PhysicalOp.oneToOnePhysicalOp
 import edu.uci.ics.amber.core.workflow._
 import edu.uci.ics.amber.operator.map.MapOpDesc
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
-import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort}
 
 class ProjectionOpDesc extends MapOpDesc {
 
@@ -39,27 +37,21 @@ class ProjectionOpDesc extends MapOpDesc {
       .withOutputPorts(operatorInfo.outputPorts)
       .withDerivePartition(derivePartition())
       .withPropagateSchema(SchemaPropagationFunc(inputSchemas => {
-        Preconditions.checkArgument(attributes.nonEmpty)
+        require(attributes.nonEmpty, "Attributes must not be empty")
+
         val inputSchema = inputSchemas.values.head
         val outputSchema = if (!isDrop) {
-          Schema
-            .builder()
-            .add(attributes.map { attribute =>
-              val originalType = inputSchema.getAttribute(attribute.getOriginalAttribute).getType
-              new Attribute(attribute.getAlias, originalType)
-            })
-            .build()
-        } else {
-          val outputSchemaBuilder = Schema.builder()
-          outputSchemaBuilder.add(inputSchema)
-          for (attribute <- attributes) {
-            outputSchemaBuilder.removeIfExists(attribute.getOriginalAttribute)
+          attributes.foldLeft(Schema()) { (schema, attribute) =>
+            val originalType = inputSchema.getAttribute(attribute.getOriginalAttribute).getType
+            schema.add(attribute.getAlias, originalType)
           }
-          outputSchemaBuilder.build()
+        } else {
+          attributes.foldLeft(inputSchema) { (schema, attribute) =>
+            schema.remove(attribute.getOriginalAttribute)
+          }
         }
-        Map(
-          operatorInfo.outputPorts.head.id -> outputSchema
-        )
+
+        Map(operatorInfo.outputPorts.head.id -> outputSchema)
       }))
   }
 

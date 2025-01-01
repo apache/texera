@@ -67,21 +67,22 @@ class MachineLearningScorerOpDesc extends PythonOperatorDescriptor {
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
   ): Map[PortIdentity, Schema] = {
-    val outputSchemaBuilder = Schema.builder()
-    if (!isRegression) {
-      outputSchemaBuilder.add(new Attribute("Class", AttributeType.STRING))
-    }
-
     val metrics = if (isRegression) {
       regressionMetrics.map(_.getName())
     } else {
       classificationMetrics.map(_.getName())
     }
-    metrics.foreach(metricName => {
-      outputSchemaBuilder.add(new Attribute(metricName, AttributeType.DOUBLE))
-    })
+    val baseSchema = if (!isRegression) {
+      Schema(List(new Attribute("Class", AttributeType.STRING)))
+    } else {
+      Schema(List())
+    }
 
-    Map(operatorInfo.outputPorts.head.id -> outputSchemaBuilder.build())
+    val outputSchema = metrics.foldLeft(baseSchema) { (currentSchema, metricName) =>
+      currentSchema.add(new Attribute(metricName, AttributeType.DOUBLE))
+    }
+
+    Map(operatorInfo.outputPorts.head.id -> outputSchema)
   }
 
 //  private def getClassificationScorerName(scorer: classificationMetricsFnc): String = {

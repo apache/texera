@@ -3,14 +3,13 @@ package edu.uci.ics.amber.operator.sentiment
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject
 import edu.uci.ics.amber.core.executor.OpExecWithClassName
-import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
-import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
-import edu.uci.ics.amber.operator.map.MapOpDesc
-import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
-import edu.uci.ics.amber.util.JSONUtils.objectMapper
+import edu.uci.ics.amber.core.tuple.AttributeType
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort}
+import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PhysicalOp, SchemaPropagationFunc}
+import edu.uci.ics.amber.operator.map.MapOpDesc
+import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
+import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 
 @JsonSchemaInject(json = """
 {
@@ -59,11 +58,8 @@ class SentimentAnalysisOpDesc extends MapOpDesc {
           if (resultAttribute == null || resultAttribute.trim.isEmpty)
             return null
           Map(
-            operatorInfo.outputPorts.head.id -> Schema
-              .builder()
-              .add(inputSchemas.values.head)
+            operatorInfo.outputPorts.head.id -> inputSchemas.values.head
               .add(resultAttribute, AttributeType.INTEGER)
-              .build()
           )
         })
       )

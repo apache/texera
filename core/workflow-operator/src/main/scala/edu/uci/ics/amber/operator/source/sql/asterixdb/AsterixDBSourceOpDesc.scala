@@ -127,23 +127,22 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
 
     updatePort()
 
-    val sb: Schema.Builder = Schema.builder()
-
-    // query dataset's Datatype from Metadata.`Datatype`
+    // Query dataset's Datatype from Metadata.`Datatype`
     val datasetDataType = queryAsterixDB(
       host,
       port,
-      "SELECT DatatypeName FROM Metadata.`Dataset` ds where ds.`DatasetName`='" + table + "';",
+      s"SELECT DatatypeName FROM Metadata.`Dataset` ds where ds.`DatasetName`='$table';",
       format = "JSON"
     ).get.next().asInstanceOf[JSONObject].getString("DatatypeName")
 
-    // query field types from Metadata.`Datatype`
+    // Query field types from Metadata.`Datatype`
     val fields = fetchDataTypeFields(datasetDataType, "", host, port)
 
-    for (key <- fields.keys.toList.sorted) {
-      sb.add(new Attribute(key, attributeTypeFromAsterixDBType(fields(key))))
+    // Collect attributes by sorting field names and mapping them to Attribute instances
+    val attributes = fields.keys.toList.sorted.map { key =>
+      new Attribute(key, attributeTypeFromAsterixDBType(fields(key)))
     }
-    sb.build()
+    Schema(attributes)
   }
 
   private def attributeTypeFromAsterixDBType(inputType: String): AttributeType =

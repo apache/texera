@@ -11,14 +11,10 @@ class IntersectOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   var opExec: IntersectOpExec = _
   var counter: Int = 0
 
-  val tupleSchema: Schema = Schema
-    .builder()
+  val tupleSchema: Schema = Schema()
     .add(new Attribute("field1", AttributeType.STRING))
     .add(new Attribute("field2", AttributeType.INTEGER))
-    .add(
-      new Attribute("field3", AttributeType.BOOLEAN)
-    )
-    .build()
+    .add(new Attribute("field3", AttributeType.BOOLEAN))
 
   def physicalOpId(): PhysicalOpIdentity = {
     counter += 1

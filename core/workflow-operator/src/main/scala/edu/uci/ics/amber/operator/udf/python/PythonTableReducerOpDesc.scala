@@ -15,11 +15,11 @@ class PythonTableReducerOpDesc extends PythonOperatorDescriptor {
       inputSchemas: Map[PortIdentity, Schema]
   ): Map[PortIdentity, Schema] = {
     Preconditions.checkArgument(lambdaAttributeUnits.nonEmpty)
-    val outputSchemaBuilder = Schema.builder()
-    for (unit <- lambdaAttributeUnits) {
-      outputSchemaBuilder.add(unit.attributeName, unit.attributeType)
+    val outputSchema = lambdaAttributeUnits.foldLeft(Schema()) { (schema, unit) =>
+      schema.add(unit.attributeName, unit.attributeType)
     }
-    Map(operatorInfo.outputPorts.head.id -> outputSchemaBuilder.build())
+
+    Map(operatorInfo.outputPorts.head.id -> outputSchema)
   }
 
   override def operatorInfo: OperatorInfo =

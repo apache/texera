@@ -84,18 +84,12 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
     reader.close()
 
     // build schema based on inferred AttributeTypes
-    Schema
-      .builder()
-      .add(
-        firstRow.indices
-          .map((i: Int) =>
-            new Attribute(
-              if (hasHeader) firstRow.apply(i) else "column-" + (i + 1),
-              attributeTypeList.apply(i)
-            )
-          )
+    Schema().add(firstRow.indices.map { i =>
+      new Attribute(
+        if (hasHeader) firstRow(i) else s"column-${i + 1}",
+        attributeTypeList(i)
       )
-      .build()
+    })
 
   }
 

@@ -54,15 +54,12 @@ class AggregateOpDesc extends LogicalOp {
       .withPropagateSchema(
         SchemaPropagationFunc(inputSchemas => {
           val inputSchema = inputSchemas(operatorInfo.inputPorts.head.id)
-          val outputSchema = Schema
-            .builder()
-            .add(groupByKeys.map(key => inputSchema.getAttribute(key)): _*)
-            .add(
+          val outputSchema = Schema(
+            groupByKeys.map(key => inputSchema.getAttribute(key)) ++
               localAggregations.map(agg =>
                 agg.getAggregationAttribute(inputSchema.getAttribute(agg.attribute).getType)
               )
-            )
-            .build()
+          )
           Map(PortIdentity(internal = true) -> outputSchema)
         })
       )

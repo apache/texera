@@ -152,10 +152,13 @@ abstract class SklearnMLOperatorDescriptor[T <: ParamClass] extends PythonOperat
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
   ): Map[PortIdentity, Schema] = {
-    val outputSchemaBuilder = Schema.builder()
-    outputSchemaBuilder.add(new Attribute("Model", AttributeType.BINARY))
-    outputSchemaBuilder.add(new Attribute("Parameters", AttributeType.STRING))
+    val outputSchema = Schema(
+      List(
+        new Attribute("Model", AttributeType.BINARY),
+        new Attribute("Parameters", AttributeType.STRING)
+      )
+    )
 
-    Map(operatorInfo.outputPorts.head.id -> outputSchemaBuilder.build())
+    Map(operatorInfo.outputPorts.head.id -> outputSchema)
   }
 }

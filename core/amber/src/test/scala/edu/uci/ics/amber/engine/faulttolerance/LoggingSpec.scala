@@ -80,12 +80,10 @@ class LoggingSpec
       (0 to 400)
         .map(i =>
           TupleLike(i, i.toString, i.toDouble).enforceSchema(
-            Schema
-              .builder()
+            Schema()
               .add("field1", AttributeType.INTEGER)
               .add("field2", AttributeType.STRING)
               .add("field3", AttributeType.DOUBLE)
-              .build()
           )
         )
         .toArray
