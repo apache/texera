@@ -89,6 +89,12 @@ object StorageConfig {
     .asInstanceOf[Map[String, Any]]("password")
     .asInstanceOf[String]
 
+  val icebergTableFormatVersion: Int = conf("storage")
+    .asInstanceOf[Map[String, Any]]("iceberg")
+    .asInstanceOf[Map[String, Any]]("table")
+    .asInstanceOf[Map[String, Any]]("format-version")
+    .asInstanceOf[Int]
+
   val icebergTableNamespace: String = conf("storage")
     .asInstanceOf[Map[String, Any]]("iceberg")
     .asInstanceOf[Map[String, Any]]("table")
