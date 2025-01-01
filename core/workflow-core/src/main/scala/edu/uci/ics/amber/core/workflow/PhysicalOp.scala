@@ -398,8 +398,18 @@ case class PhysicalOp(
     */
   def propagateSchema(newInputSchema: Option[(PortIdentity, Schema)] = None): PhysicalOp = {
     // Update the input schema if a new one is provided
-    val updatedOp = newInputSchema.foldLeft(this) {
-      case (op, (portId, schema)) => op.withInputSchema(portId, Right(schema))
+    val updatedOp = newInputSchema.foldLeft(this) { (op, schemaEntry) =>
+      val (portId, schema) = schemaEntry
+      op.inputPorts(portId)._3 match {
+        case Left(_) =>
+          op.withInputSchema(portId, Right(schema))
+        case Right(existingSchema) if existingSchema != schema =>
+          throw new IllegalArgumentException(
+            s"Conflict schemas received on port ${portId.id}, $existingSchema != $schema"
+          )
+        case _ =>
+          op
+      }
     }
 
     // Extract input schemas, checking if all are defined
