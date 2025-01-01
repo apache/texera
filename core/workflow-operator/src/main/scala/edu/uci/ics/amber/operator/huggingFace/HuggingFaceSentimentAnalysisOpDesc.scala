@@ -2,7 +2,7 @@ package edu.uci.ics.amber.operator.huggingFace
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
-import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort}
+import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
@@ -77,19 +77,23 @@ class HuggingFaceSentimentAnalysisOpDesc extends PythonOperatorDescriptor {
       supportReconfiguration = true
     )
 
-  override def getOutputSchema(schemas: Array[Schema]): Schema = {
+  override def getOutputSchemas(
+      inputSchemas: Map[PortIdentity, Schema]
+  ): Map[PortIdentity, Schema] = {
     if (
       resultAttributePositive == null || resultAttributePositive.trim.isEmpty ||
       resultAttributeNeutral == null || resultAttributeNeutral.trim.isEmpty ||
       resultAttributeNegative == null || resultAttributeNegative.trim.isEmpty
     )
       return null
-    Schema
-      .builder()
-      .add(schemas(0))
-      .add(resultAttributePositive, AttributeType.DOUBLE)
-      .add(resultAttributeNeutral, AttributeType.DOUBLE)
-      .add(resultAttributeNegative, AttributeType.DOUBLE)
-      .build()
+    Map(
+      operatorInfo.outputPorts.head.id -> Schema
+        .builder()
+        .add(inputSchemas(operatorInfo.inputPorts.head.id))
+        .add(resultAttributePositive, AttributeType.DOUBLE)
+        .add(resultAttributeNeutral, AttributeType.DOUBLE)
+        .add(resultAttributeNegative, AttributeType.DOUBLE)
+        .build()
+    )
   }
 }

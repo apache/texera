@@ -2,12 +2,17 @@ package edu.uci.ics.amber.operator.symmetricDifference
 
 import com.google.common.base.Preconditions
 import edu.uci.ics.amber.core.executor.OpExecWithClassName
-import edu.uci.ics.amber.core.tuple.Schema
-import edu.uci.ics.amber.core.workflow.{HashPartition, PhysicalOp}
+import edu.uci.ics.amber.core.workflow.{
+  HashPartition,
+  InputPort,
+  OutputPort,
+  PhysicalOp,
+  PortIdentity,
+  SchemaPropagationFunc
+}
 import edu.uci.ics.amber.operator.LogicalOp
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 
 class SymmetricDifferenceOpDesc extends LogicalOp {
 
@@ -29,6 +34,11 @@ class SymmetricDifferenceOpDesc extends LogicalOp {
       .withOutputPorts(operatorInfo.outputPorts)
       .withPartitionRequirement(List(Option(HashPartition()), Option(HashPartition())))
       .withDerivePartition(_ => HashPartition(List()))
+      .withPropagateSchema(SchemaPropagationFunc(inputSchemas => {
+        Preconditions.checkArgument(inputSchemas.values.toSet.size == 1)
+        val outputSchema = inputSchemas.values.head
+        operatorInfo.outputPorts.map(port => port.id -> outputSchema).toMap
+      }))
   }
 
   override def operatorInfo: OperatorInfo =
@@ -39,10 +49,5 @@ class SymmetricDifferenceOpDesc extends LogicalOp {
       inputPorts = List(InputPort(PortIdentity(0)), InputPort(PortIdentity(1))),
       outputPorts = List(OutputPort(blocking = true))
     )
-
-  override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    Preconditions.checkArgument(schemas.forall(_ == schemas(0)))
-    schemas(0)
-  }
 
 }

@@ -54,10 +54,4 @@ class TypeCastingOpDesc extends MapOpDesc {
       List(OutputPort())
     )
   }
-
-  override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    typeCastingUnits.foldLeft(schemas.head) { (schema, unit) =>
-      AttributeTypeUtils.SchemaCasting(schema, unit.attribute, unit.resultType)
-    }
-  }
 }

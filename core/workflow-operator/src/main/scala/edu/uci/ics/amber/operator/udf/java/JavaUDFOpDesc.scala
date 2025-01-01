@@ -157,26 +157,6 @@ class JavaUDFOpDesc extends LogicalOp {
     )
   }
 
-  override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    //    Preconditions.checkArgument(schemas.length == 1)
-    val inputSchema = schemas(0)
-    val outputSchemaBuilder = Schema.Builder()
-    // keep the same schema from input
-    if (retainInputColumns) outputSchemaBuilder.add(inputSchema)
-    // for any javaUDFType, it can add custom output columns (attributes).
-    if (outputColumns != null) {
-      if (retainInputColumns) { // check if columns are duplicated
-
-        for (column <- outputColumns) {
-          if (inputSchema.containsAttribute(column.getName))
-            throw new RuntimeException("Column name " + column.getName + " already exists!")
-        }
-      }
-      outputSchemaBuilder.add(outputColumns)
-    }
-    outputSchemaBuilder.build()
-  }
-
   override def runtimeReconfiguration(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,

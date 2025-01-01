@@ -34,7 +34,7 @@ class AggregateOpDesc extends LogicalOp {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalPlan = {
-
+    if (groupByKeys == null) groupByKeys = List()
     // TODO: this is supposed to be blocking but due to limitations of materialization naming on the logical operator
     // we are keeping it not annotated as blocking.
     val inputPort = InputPort(PortIdentity())
@@ -53,12 +53,17 @@ class AggregateOpDesc extends LogicalOp {
       .withOutputPorts(List(outputPort))
       .withPropagateSchema(
         SchemaPropagationFunc(inputSchemas => {
-          aggregations = localAggregations
-          Map(
-            PortIdentity(internal = true) -> getOutputSchema(
-              operatorInfo.inputPorts.map(port => inputSchemas(port.id)).toArray
+          val inputSchema = inputSchemas(operatorInfo.inputPorts.head.id)
+          val outputSchema = Schema
+            .builder()
+            .add(groupByKeys.map(key => inputSchema.getAttribute(key)): _*)
+            .add(
+              localAggregations.map(agg =>
+                agg.getAggregationAttribute(inputSchema.getAttribute(agg.attribute).getType)
+              )
             )
-          )
+            .build()
+          Map(PortIdentity(internal = true) -> outputSchema)
         })
       )
 
@@ -81,9 +86,7 @@ class AggregateOpDesc extends LogicalOp {
       .withOutputPorts(List(finalOutputPort))
       .withPropagateSchema(
         SchemaPropagationFunc(inputSchemas =>
-          Map(operatorInfo.outputPorts.head.id -> {
-            inputSchemas(finalInputPort.id)
-          })
+          Map(operatorInfo.outputPorts.head.id -> inputSchemas(finalInputPort.id))
         )
       )
       .withPartitionRequirement(List(Option(HashPartition(groupByKeys))))
@@ -104,34 +107,7 @@ class AggregateOpDesc extends LogicalOp {
       "Aggregate",
       "Calculate different types of aggregation values",
       OperatorGroupConstants.AGGREGATE_GROUP,
-      inputPorts = List(
-        InputPort(PortIdentity())
-      ),
-      outputPorts = List(
-        OutputPort(PortIdentity())
-      )
+      inputPorts = List(InputPort()),
+      outputPorts = List(OutputPort())
     )
-
-  override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    if (
-      aggregations.exists(agg => agg.resultAttribute == null || agg.resultAttribute.trim.isEmpty)
-    ) {
-      return null
-    }
-    if (groupByKeys == null) groupByKeys = List()
-    Schema
-      .builder()
-      .add(
-        Schema
-          .builder()
-          .add(groupByKeys.map(key => schemas(0).getAttribute(key)): _*)
-          .build()
-      )
-      .add(
-        aggregations.map(agg =>
-          agg.getAggregationAttribute(schemas(0).getAttribute(agg.attribute).getType)
-        )
-      )
-      .build()
-  }
 }

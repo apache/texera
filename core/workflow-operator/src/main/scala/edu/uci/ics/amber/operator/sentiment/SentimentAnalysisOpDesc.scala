@@ -55,9 +55,17 @@ class SentimentAnalysisOpDesc extends MapOpDesc {
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withPropagateSchema(
-        SchemaPropagationFunc(inputSchemas =>
-          Map(operatorInfo.outputPorts.head.id -> getOutputSchema(inputSchemas.values.toArray))
-        )
+        SchemaPropagationFunc(inputSchemas => {
+          if (resultAttribute == null || resultAttribute.trim.isEmpty)
+            return null
+          Map(
+            operatorInfo.outputPorts.head.id -> Schema
+              .builder()
+              .add(inputSchemas.values.head)
+              .add(resultAttribute, AttributeType.INTEGER)
+              .build()
+          )
+        })
       )
   }
 
@@ -71,9 +79,4 @@ class SentimentAnalysisOpDesc extends MapOpDesc {
       supportReconfiguration = true
     )
 
-  override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    if (resultAttribute == null || resultAttribute.trim.isEmpty)
-      return null
-    Schema.builder().add(schemas(0)).add(resultAttribute, AttributeType.INTEGER).build()
-  }
 }

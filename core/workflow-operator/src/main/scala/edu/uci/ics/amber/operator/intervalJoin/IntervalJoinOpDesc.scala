@@ -91,16 +91,22 @@ class IntervalJoinOpDesc extends LogicalOp {
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withPropagateSchema(
-        SchemaPropagationFunc(inputSchemas =>
-          Map(
-            operatorInfo.outputPorts.head.id -> getOutputSchema(
-              Array(
-                inputSchemas(operatorInfo.inputPorts.head.id),
-                inputSchemas(operatorInfo.inputPorts.last.id)
-              )
-            )
-          )
-        )
+        SchemaPropagationFunc(inputSchemas => {
+          val builder: Schema.Builder = Schema.builder()
+          val leftTableSchema: Schema = inputSchemas(operatorInfo.inputPorts.head.id)
+          val rightTableSchema: Schema = inputSchemas(operatorInfo.inputPorts.last.id)
+          builder.add(leftTableSchema)
+          rightTableSchema.getAttributes
+            .map(attr => {
+              if (leftTableSchema.containsAttribute(attr.getName)) {
+                builder.add(new Attribute(s"${attr.getName}#@1", attr.getType))
+              } else {
+                builder.add(attr.getName, attr.getType)
+              }
+            })
+          val outputSchema = builder.build()
+          Map(operatorInfo.outputPorts.head.id -> outputSchema)
+        })
       )
       .withPartitionRequirement(partitionRequirement)
   }
@@ -136,22 +142,6 @@ class IntervalJoinOpDesc extends LogicalOp {
     this.includeLeftBound = includeLeftBound
     this.includeRightBound = includeRightBound
     this.timeIntervalType = Some(timeIntervalType)
-  }
-
-  override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    val builder: Schema.Builder = Schema.builder()
-    val leftTableSchema: Schema = schemas(0)
-    val rightTableSchema: Schema = schemas(1)
-    builder.add(leftTableSchema)
-    rightTableSchema.getAttributes
-      .map(attr => {
-        if (leftTableSchema.containsAttribute(attr.getName)) {
-          builder.add(new Attribute(s"${attr.getName}#@1", attr.getType))
-        } else {
-          builder.add(attr.getName, attr.getType)
-        }
-      })
-    builder.build()
   }
 
 }

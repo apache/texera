@@ -3,7 +3,6 @@ package edu.uci.ics.amber.operator.limit
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.core.executor.OpExecWithClassName
-import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.core.workflow.PhysicalOp
 import edu.uci.ics.amber.operator.{LogicalOp, StateTransferFunc}
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
@@ -48,8 +47,6 @@ class LimitOpDesc extends LogicalOp {
       outputPorts = List(OutputPort()),
       supportReconfiguration = true
     )
-
-  override def getOutputSchema(schemas: Array[Schema]): Schema = schemas(0)
 
   override def runtimeReconfiguration(
       workflowId: WorkflowIdentity,

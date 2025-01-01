@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.operator.dictionary
 
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema, SchemaEnforceable, Tuple}
+import edu.uci.ics.amber.core.workflow.PortIdentity
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
@@ -35,7 +36,7 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc.dictionary = dictionaryScan
     opDesc.resultAttribute = "matched"
     opDesc.matchingType = MatchingType.SCANBASED
-    outputSchema = opDesc.getOutputSchema(Array(tupleSchema))
+    outputSchema = opDesc.getExternalOutputSchemas(Map(PortIdentity() -> tupleSchema)).values.head
   }
 
   it should "open" in {

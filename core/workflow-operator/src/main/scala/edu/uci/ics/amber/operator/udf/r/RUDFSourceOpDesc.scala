@@ -8,7 +8,7 @@ import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.source.SourceOperatorDescriptor
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.amber.core.workflow.{OutputPort, PortIdentity}
+import edu.uci.ics.amber.core.workflow.OutputPort
 
 class RUDFSourceOpDesc extends SourceOperatorDescriptor {
 
@@ -51,11 +51,6 @@ class RUDFSourceOpDesc extends SourceOperatorDescriptor {
     val rOperatorType = if (useTupleAPI) "r-tuple" else "r-table"
     require(workers >= 1, "Need at least 1 worker.")
 
-    val func = SchemaPropagationFunc { _: Map[PortIdentity, Schema] =>
-      val outputSchema = sourceSchema()
-      Map(operatorInfo.outputPorts.head.id -> outputSchema)
-    }
-
     val physicalOp = PhysicalOp
       .sourcePhysicalOp(
         workflowId,
@@ -66,7 +61,9 @@ class RUDFSourceOpDesc extends SourceOperatorDescriptor {
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withIsOneToManyOp(true)
-      .withPropagateSchema(func)
+      .withPropagateSchema(
+        SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> sourceSchema()))
+      )
       .withLocationPreference(None)
 
     if (workers > 1) {
