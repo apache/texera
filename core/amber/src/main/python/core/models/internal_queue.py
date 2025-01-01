@@ -11,7 +11,8 @@ from core.util.customized_queue.linked_blocking_multi_queue import (
     LinkedBlockingMultiQueue,
 )
 from core.util.customized_queue.queue_base import IQueue, QueueElement
-from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, ControlPayloadV2
+from proto.edu.uci.ics.amber.core import ActorVirtualIdentity
+from proto.edu.uci.ics.amber.engine.common import ControlPayloadV2
 
 
 @dataclass

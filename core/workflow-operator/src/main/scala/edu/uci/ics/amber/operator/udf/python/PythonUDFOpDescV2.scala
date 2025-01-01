@@ -3,18 +3,12 @@ package edu.uci.ics.amber.operator.udf.python
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.core.executor.OpExecInitInfo
+import edu.uci.ics.amber.core.executor.OpExecWithCode
 import edu.uci.ics.amber.core.tuple.{Attribute, Schema}
-import edu.uci.ics.amber.core.workflow.{
-  PartitionInfo,
-  PhysicalOp,
-  SchemaPropagationFunc,
-  UnknownPartition
-}
-import edu.uci.ics.amber.operator.{LogicalOp, PortDescription, StateTransferFunc}
-import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
+import edu.uci.ics.amber.core.workflow._
+import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.amber.operator.{LogicalOp, PortDescription, StateTransferFunc}
 
 import scala.util.{Success, Try}
 
@@ -98,37 +92,31 @@ class PythonUDFOpDescV2 extends LogicalOp {
       Map(operatorInfo.outputPorts.head.id -> outputSchemaBuilder.build())
     }
 
-    if (workers > 1)
+    if (workers > 1) {
       PhysicalOp
         .oneToOnePhysicalOp(
           workflowId,
           executionId,
           operatorIdentifier,
-          OpExecInitInfo(code, "python")
+          OpExecWithCode(code, "python")
         )
-        .withDerivePartition(_ => UnknownPartition())
-        .withInputPorts(operatorInfo.inputPorts)
-        .withOutputPorts(operatorInfo.outputPorts)
-        .withPartitionRequirement(partitionRequirement)
-        .withIsOneToManyOp(true)
         .withParallelizable(true)
         .withSuggestedWorkerNum(workers)
-        .withPropagateSchema(SchemaPropagationFunc(propagateSchema))
-    else
+    } else {
       PhysicalOp
         .manyToOnePhysicalOp(
           workflowId,
           executionId,
           operatorIdentifier,
-          OpExecInitInfo(code, "python")
+          OpExecWithCode(code, "python")
         )
-        .withDerivePartition(_ => UnknownPartition())
-        .withInputPorts(operatorInfo.inputPorts)
-        .withOutputPorts(operatorInfo.outputPorts)
-        .withPartitionRequirement(partitionRequirement)
-        .withIsOneToManyOp(true)
         .withParallelizable(false)
-        .withPropagateSchema(SchemaPropagationFunc(propagateSchema))
+    }.withDerivePartition(_ => UnknownPartition())
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
+      .withPartitionRequirement(partitionRequirement)
+      .withIsOneToManyOp(true)
+      .withPropagateSchema(SchemaPropagationFunc(propagateSchema))
   }
 
   override def operatorInfo: OperatorInfo = {
@@ -165,27 +153,6 @@ class PythonUDFOpDescV2 extends LogicalOp {
       allowPortCustomization = true
     )
   }
-
-  override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    //    Preconditions.checkArgument(schemas.length == 1)
-    val inputSchema = schemas(0)
-    val outputSchemaBuilder = Schema.builder()
-    // keep the same schema from input
-    if (retainInputColumns) outputSchemaBuilder.add(inputSchema)
-    // for any pythonUDFType, it can add custom output columns (attributes).
-    if (outputColumns != null) {
-      if (retainInputColumns) { // check if columns are duplicated
-
-        for (column <- outputColumns) {
-          if (inputSchema.containsAttribute(column.getName))
-            throw new RuntimeException("Column name " + column.getName + " already exists!")
-        }
-      }
-      outputSchemaBuilder.add(outputColumns).build()
-    }
-    outputSchemaBuilder.build()
-  }
-
   override def runtimeReconfiguration(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,

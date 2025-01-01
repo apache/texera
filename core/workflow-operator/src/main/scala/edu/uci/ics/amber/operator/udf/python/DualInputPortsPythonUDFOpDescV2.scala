@@ -3,7 +3,7 @@ package edu.uci.ics.amber.operator.udf.python
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.core.executor.OpExecInitInfo
+import edu.uci.ics.amber.core.executor.OpExecWithCode
 import edu.uci.ics.amber.core.tuple.{Attribute, Schema}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc, UnknownPartition}
 import edu.uci.ics.amber.operator.LogicalOp
@@ -64,23 +64,15 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
       executionId: ExecutionIdentity
   ): PhysicalOp = {
     Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.", Array())
-    if (workers > 1) {
+    val physicalOp = if (workers > 1) {
       PhysicalOp
         .oneToOnePhysicalOp(
           workflowId,
           executionId,
           operatorIdentifier,
-          OpExecInitInfo(code, "python")
+          OpExecWithCode(code, "python")
         )
-        .withDerivePartition(_ => UnknownPartition())
         .withParallelizable(true)
-        .withInputPorts(operatorInfo.inputPorts)
-        .withOutputPorts(operatorInfo.outputPorts)
-        .withPropagateSchema(
-          SchemaPropagationFunc(inputSchemas =>
-            Map(operatorInfo.outputPorts.head.id -> getOutputSchema(inputSchemas.values.toArray))
-          )
-        )
         .withSuggestedWorkerNum(workers)
     } else {
       PhysicalOp
@@ -88,22 +80,35 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
           workflowId,
           executionId,
           operatorIdentifier,
-          OpExecInitInfo(code, "python")
+          OpExecWithCode(code, "python")
         )
-        .withDerivePartition(_ => UnknownPartition())
         .withParallelizable(false)
-        .withInputPorts(operatorInfo.inputPorts)
-        .withOutputPorts(operatorInfo.outputPorts)
-        .withPropagateSchema(
-          SchemaPropagationFunc(inputSchemas =>
-            Map(
-              operatorInfo.outputPorts.head.id -> getOutputSchema(
-                operatorInfo.inputPorts.map(_.id).map(inputSchemas(_)).toArray
-              )
-            )
-          )
-        )
     }
+    physicalOp
+      .withDerivePartition(_ => UnknownPartition())
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
+      .withPropagateSchema(
+        SchemaPropagationFunc(inputSchemas => {
+          Preconditions.checkArgument(inputSchemas.size == 2)
+          val inputSchema = inputSchemas(operatorInfo.inputPorts(1).id)
+          val outputSchemaBuilder = Schema.builder()
+          // keep the same schema from input
+          if (retainInputColumns) outputSchemaBuilder.add(inputSchema)
+          // for any pythonUDFType, it can add custom output columns (attributes).
+          if (outputColumns != null) {
+            if (retainInputColumns) { // check if columns are duplicated
+
+              for (column <- outputColumns) {
+                if (inputSchema.containsAttribute(column.getName))
+                  throw new RuntimeException("Column name " + column.getName + " already exists!")
+              }
+            }
+            outputSchemaBuilder.add(outputColumns).build()
+          }
+          Map(operatorInfo.outputPorts.head.id -> outputSchemaBuilder.build())
+        })
+      )
   }
 
   override def operatorInfo: OperatorInfo =
@@ -123,23 +128,4 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
       outputPorts = List(OutputPort())
     )
 
-  override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    Preconditions.checkArgument(schemas.length == 2)
-    val inputSchema = schemas(1)
-    val outputSchemaBuilder = Schema.builder()
-    // keep the same schema from input
-    if (retainInputColumns) outputSchemaBuilder.add(inputSchema)
-    // for any pythonUDFType, it can add custom output columns (attributes).
-    if (outputColumns != null) {
-      if (retainInputColumns) { // check if columns are duplicated
-
-        for (column <- outputColumns) {
-          if (inputSchema.containsAttribute(column.getName))
-            throw new RuntimeException("Column name " + column.getName + " already exists!")
-        }
-      }
-      outputSchemaBuilder.add(outputColumns).build()
-    }
-    outputSchemaBuilder.build()
-  }
 }

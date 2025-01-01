@@ -2,7 +2,7 @@ package edu.uci.ics.amber.operator.huggingFace
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
-import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort}
+import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
@@ -57,13 +57,17 @@ class HuggingFaceTextSummarizationOpDesc extends PythonOperatorDescriptor {
       outputPorts = List(OutputPort())
     )
 
-  override def getOutputSchema(schemas: Array[Schema]): Schema = {
+  override def getOutputSchemas(
+      inputSchemas: Map[PortIdentity, Schema]
+  ): Map[PortIdentity, Schema] = {
     if (resultAttribute == null || resultAttribute.trim.isEmpty)
       throw new RuntimeException("Result attribute name should be given")
-    Schema
-      .builder()
-      .add(schemas(0))
-      .add(resultAttribute, AttributeType.STRING)
-      .build()
+    Map(
+      operatorInfo.outputPorts.head.id -> Schema
+        .builder()
+        .add(inputSchemas.values.head)
+        .add(resultAttribute, AttributeType.STRING)
+        .build()
+    )
   }
 }

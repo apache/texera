@@ -11,7 +11,9 @@ import edu.uci.ics.amber.core.tuple.{
   Tuple,
   TupleLike
 }
+import edu.uci.ics.amber.core.workflow.PortIdentity
 import edu.uci.ics.amber.operator.hashJoin.HashJoinBuildOpExec
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
   val build: Int = 0
   val probe: Int = 1
@@ -51,10 +53,11 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc = new HashJoinOpDesc[String]()
     opDesc.buildAttributeName = "build_1"
     opDesc.probeAttributeName = "probe_1"
-    val inputSchemas = Array(schema("build"), schema("probe"))
-    val outputSchema = opDesc.getOutputSchema(inputSchemas)
+    opDesc.joinType = JoinType.INNER
+    val inputSchemas = Map(PortIdentity() -> schema("build"), PortIdentity(1) -> schema("probe"))
+    val outputSchema = opDesc.getExternalOutputSchemas(inputSchemas).values.head
 
-    buildOpExec = new HashJoinBuildOpExec[String]("build_1")
+    buildOpExec = new HashJoinBuildOpExec[String](objectMapper.writeValueAsString(opDesc))
     buildOpExec.open()
 
     (0 to 7).map(i => {
@@ -67,10 +70,7 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
       buildOpExec.onFinish(build)
     assert(buildOpOutputIterator.hasNext)
 
-    probeOpExec = new HashJoinProbeOpExec[String](
-      "probe_1",
-      JoinType.INNER
-    )
+    probeOpExec = new HashJoinProbeOpExec[String](objectMapper.writeValueAsString(opDesc))
 
     probeOpExec.open()
     while (buildOpOutputIterator.hasNext) {
@@ -80,7 +80,7 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
             buildOpOutputIterator
               .next()
               .asInstanceOf[SchemaEnforceable]
-              .enforceSchema(getInternalHashTableSchema(inputSchemas.head)),
+              .enforceSchema(getInternalHashTableSchema(inputSchemas.head._2)),
             build
           )
           .isEmpty
@@ -109,10 +109,12 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc = new HashJoinOpDesc[String]()
     opDesc.buildAttributeName = "same"
     opDesc.probeAttributeName = "same"
-    val inputSchemas = Array(schema("same", 1), schema("same", 2))
-    val outputSchema = opDesc.getOutputSchema(inputSchemas)
+    opDesc.joinType = JoinType.INNER
+    val inputSchemas =
+      Map(PortIdentity() -> schema("same", 1), PortIdentity(1) -> schema("same", 2))
+    val outputSchema = opDesc.getExternalOutputSchemas(inputSchemas).values.head
 
-    buildOpExec = new HashJoinBuildOpExec[String]("same")
+    buildOpExec = new HashJoinBuildOpExec[String](objectMapper.writeValueAsString(opDesc))
     buildOpExec.open()
 
     (0 to 7).map(i => {
@@ -124,11 +126,7 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
       buildOpExec.onFinish(build)
     assert(buildOpOutputIterator.hasNext)
 
-    probeOpExec = new HashJoinProbeOpExec[String](
-      "same",
-      JoinType.INNER
-    )
-
+    probeOpExec = new HashJoinProbeOpExec[String](objectMapper.writeValueAsString(opDesc))
     probeOpExec.open()
 
     while (buildOpOutputIterator.hasNext) {
@@ -138,7 +136,7 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
             buildOpOutputIterator
               .next()
               .asInstanceOf[SchemaEnforceable]
-              .enforceSchema(getInternalHashTableSchema(inputSchemas.head)),
+              .enforceSchema(getInternalHashTableSchema(inputSchemas.head._2)),
             build
           )
           .isEmpty
@@ -166,10 +164,12 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc = new HashJoinOpDesc[String]()
     opDesc.buildAttributeName = "same"
     opDesc.probeAttributeName = "same"
-    val inputSchemas = Array(schema("same", 1), schema("same", 2))
-    val outputSchema = opDesc.getOutputSchema(inputSchemas)
+    opDesc.joinType = JoinType.FULL_OUTER
+    val inputSchemas =
+      Map(PortIdentity() -> schema("same", 1), PortIdentity(1) -> schema("same", 2))
+    val outputSchema = opDesc.getExternalOutputSchemas(inputSchemas).values.head
 
-    buildOpExec = new HashJoinBuildOpExec[String]("same")
+    buildOpExec = new HashJoinBuildOpExec[String](objectMapper.writeValueAsString(opDesc))
     buildOpExec.open()
 
     (0 to 7).map(i => {
@@ -181,11 +181,7 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
       buildOpExec.onFinish(build)
     assert(buildOpOutputIterator.hasNext)
 
-    probeOpExec = new HashJoinProbeOpExec[String](
-      "same",
-      JoinType.FULL_OUTER
-    )
-
+    probeOpExec = new HashJoinProbeOpExec[String](objectMapper.writeValueAsString(opDesc))
     probeOpExec.open()
 
     while (buildOpOutputIterator.hasNext) {
@@ -195,7 +191,7 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
             buildOpOutputIterator
               .next()
               .asInstanceOf[SchemaEnforceable]
-              .enforceSchema(getInternalHashTableSchema(inputSchemas.head)),
+              .enforceSchema(getInternalHashTableSchema(inputSchemas.head._2)),
             build
           )
           .isEmpty

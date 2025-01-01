@@ -5,7 +5,7 @@ import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode
-import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort}
+import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 class TablesPlotOpDesc extends PythonOperatorDescriptor {
 
   @JsonPropertyDescription("List of columns to include in the table chart")
@@ -80,7 +80,13 @@ class TablesPlotOpDesc extends PythonOperatorDescriptor {
     )
   }
 
-  override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    Schema.builder().add(new Attribute("html-content", AttributeType.STRING)).build()
+  override def getOutputSchemas(
+      inputSchemas: Map[PortIdentity, Schema]
+  ): Map[PortIdentity, Schema] = {
+    val outputSchema = Schema
+      .builder()
+      .add(new Attribute("html-content", AttributeType.STRING))
+      .build()
+    Map(operatorInfo.outputPorts.head.id -> outputSchema)
   }
 }

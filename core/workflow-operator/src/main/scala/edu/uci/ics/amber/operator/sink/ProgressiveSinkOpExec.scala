@@ -1,10 +1,9 @@
-package edu.uci.ics.amber.operator.sink.managed
+package edu.uci.ics.amber.operator.sink
 
 import edu.uci.ics.amber.core.executor.SinkOperatorExecutor
 import edu.uci.ics.amber.core.storage.model.BufferedItemWriter
 import edu.uci.ics.amber.core.storage.result.ResultStorage
 import edu.uci.ics.amber.core.tuple.{Tuple, TupleLike}
-import edu.uci.ics.amber.operator.sink.ProgressiveUtils
 import edu.uci.ics.amber.core.virtualidentity.WorkflowIdentity
 import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode
 import edu.uci.ics.amber.core.workflow.PortIdentity
@@ -16,7 +15,10 @@ class ProgressiveSinkOpExec(
     workflowIdentity: WorkflowIdentity
 ) extends SinkOperatorExecutor {
   val writer: BufferedItemWriter[Tuple] =
-    ResultStorage.getOpResultStorage(workflowIdentity).get(storageKey).writer(workerId.toString)
+    ResultStorage
+      .getOpResultStorage(workflowIdentity)
+      .get(storageKey)
+      .writer(workerId.toString)
 
   override def open(): Unit = {
     writer.open()

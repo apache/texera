@@ -1,6 +1,8 @@
 package edu.uci.ics.amber.operator.dictionary
 
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema, SchemaEnforceable, Tuple}
+import edu.uci.ics.amber.core.workflow.PortIdentity
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -23,23 +25,22 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     .build()
 
   var opExec: DictionaryMatcherOpExec = _
-  var opDesc: DictionaryMatcherOpDesc = _
+  val opDesc: DictionaryMatcherOpDesc = new DictionaryMatcherOpDesc()
   var outputSchema: Schema = _
   val dictionaryScan = "nice a a person"
   val dictionarySubstring = "nice a a person and good"
   val dictionaryConjunction = "a person is nice"
 
   before {
-    opDesc = new DictionaryMatcherOpDesc()
     opDesc.attribute = "field1"
     opDesc.dictionary = dictionaryScan
     opDesc.resultAttribute = "matched"
     opDesc.matchingType = MatchingType.SCANBASED
-    outputSchema = opDesc.getOutputSchema(Array(tupleSchema))
+    outputSchema = opDesc.getExternalOutputSchemas(Map(PortIdentity() -> tupleSchema)).values.head
   }
 
   it should "open" in {
-    opExec = new DictionaryMatcherOpExec(opDesc.attribute, opDesc.dictionary, opDesc.matchingType)
+    opExec = new DictionaryMatcherOpExec(objectMapper.writeValueAsString(opDesc))
     opExec.open()
     assert(opExec.dictionaryEntries != null)
   }
@@ -48,8 +49,8 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     * Test cases that all Matching Types should match the query
     */
   it should "match a tuple if present in the given dictionary entry when matching type is SCANBASED" in {
-    opExec =
-      new DictionaryMatcherOpExec(opDesc.attribute, opDesc.dictionary, MatchingType.SCANBASED)
+    opDesc.matchingType = MatchingType.SCANBASED
+    opExec = new DictionaryMatcherOpExec(objectMapper.writeValueAsString(opDesc))
     opExec.open()
     val processedTuple = opExec.processTuple(tuple, 0).next()
     assert(
@@ -60,6 +61,7 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   it should "match a tuple if present in the given dictionary entry when matching type is SUBSTRING" in {
     opDesc.matchingType = MatchingType.SUBSTRING
+    opExec = new DictionaryMatcherOpExec(objectMapper.writeValueAsString(opDesc))
     opExec.open()
     val processedTuple = opExec.processTuple(tuple, 0).next()
     assert(
@@ -70,6 +72,7 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   it should "match a tuple if present in the given dictionary entry when matching type is CONJUNCTION_INDEXBASED" in {
     opDesc.matchingType = MatchingType.CONJUNCTION_INDEXBASED
+    opExec = new DictionaryMatcherOpExec(objectMapper.writeValueAsString(opDesc))
     opExec.open()
     val processedTuple = opExec.processTuple(tuple, 0).next()
     assert(
@@ -82,8 +85,9 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     * Test cases that SCANBASED and SUBSTRING Matching Types should fail to match a query
     */
   it should "not match a tuple if not present in the given dictionary entry when matching type is SCANBASED and not exact match" in {
-    opExec =
-      new DictionaryMatcherOpExec(opDesc.attribute, dictionaryConjunction, MatchingType.SCANBASED)
+    opDesc.dictionary = dictionaryConjunction
+    opDesc.matchingType = MatchingType.SCANBASED
+    opExec = new DictionaryMatcherOpExec(objectMapper.writeValueAsString(opDesc))
     opExec.open()
     val processedTuple = opExec.processTuple(tuple, 0).next()
     assert(
@@ -98,6 +102,7 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "not match a tuple if the given dictionary entry doesn't contain all the tuple when the matching type is SUBSTRING" in {
     opDesc.dictionary = dictionaryConjunction
     opDesc.matchingType = MatchingType.SUBSTRING
+    opExec = new DictionaryMatcherOpExec(objectMapper.writeValueAsString(opDesc))
     opExec.open()
     val processedTuple = opExec.processTuple(tuple, 0).next()
     assert(
@@ -110,11 +115,9 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "match a tuple if present in the given dictionary entry when matching type is CONJUNCTION_INDEXBASED even with different order" in {
-    opExec = new DictionaryMatcherOpExec(
-      opDesc.attribute,
-      dictionaryConjunction,
-      MatchingType.CONJUNCTION_INDEXBASED
-    )
+    opDesc.dictionary = dictionaryConjunction
+    opDesc.matchingType = MatchingType.CONJUNCTION_INDEXBASED
+    opExec = new DictionaryMatcherOpExec(objectMapper.writeValueAsString(opDesc))
     opExec.open()
     val processedTuple = opExec.processTuple(tuple, 0).next()
     assert(
@@ -130,8 +133,9 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     * Test cases that only SUBSTRING Matching Type should match the query
     */
   it should "not match a tuple if not present in the given dictionary entry when matching type is SCANBASED when the entry contains more text" in {
-    opExec =
-      new DictionaryMatcherOpExec(opDesc.attribute, dictionarySubstring, MatchingType.SCANBASED)
+    opDesc.dictionary = dictionarySubstring
+    opDesc.matchingType = MatchingType.SCANBASED
+    opExec = new DictionaryMatcherOpExec(objectMapper.writeValueAsString(opDesc))
     opExec.open()
     val processedTuple = opExec.processTuple(tuple, 0).next()
     assert(
@@ -146,6 +150,7 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "not match a tuple if not present in the given dictionary entry when matching type is CONJUNCTION_INDEXBASED when the entry contains more text" in {
     opDesc.dictionary = dictionarySubstring
     opDesc.matchingType = MatchingType.CONJUNCTION_INDEXBASED
+    opExec = new DictionaryMatcherOpExec(objectMapper.writeValueAsString(opDesc))
     opExec.open()
     val processedTuple = opExec.processTuple(tuple, 0).next()
     assert(
@@ -158,8 +163,9 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "match a tuple if not present in the given dictionary entry when matching type is SUBSTRING when the entry contains more text" in {
-    opExec =
-      new DictionaryMatcherOpExec(opDesc.attribute, dictionarySubstring, MatchingType.SUBSTRING)
+    opDesc.dictionary = dictionarySubstring
+    opDesc.matchingType = MatchingType.SUBSTRING
+    opExec = new DictionaryMatcherOpExec(objectMapper.writeValueAsString(opDesc))
     opExec.open()
     val processedTuple = opExec.processTuple(tuple, 0).next()
     assert(

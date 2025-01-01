@@ -110,6 +110,8 @@ class WorkflowCompiler(
     logicalPlan.getTopologicalOpIds.asScala.foreach(logicalOpId =>
       Try {
         val logicalOp = logicalPlan.getOperator(logicalOpId)
+        val allUpstreamLinks = logicalPlan
+          .getUpstreamLinks(logicalOp.operatorIdentifier)
 
         val subPlan = logicalOp.getPhysicalPlan(context.workflowId, context.executionId)
         subPlan
@@ -117,8 +119,7 @@ class WorkflowCompiler(
           .map(subPlan.getOperator)
           .foreach({ physicalOp =>
             {
-              val externalLinks = logicalPlan
-                .getUpstreamLinks(logicalOp.operatorIdentifier)
+              val externalLinks = allUpstreamLinks
                 .filter(link => physicalOp.inputPorts.contains(link.toPortId))
                 .flatMap { link =>
                   physicalPlan

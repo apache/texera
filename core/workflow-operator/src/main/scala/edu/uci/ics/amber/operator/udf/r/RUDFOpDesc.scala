@@ -3,7 +3,7 @@ package edu.uci.ics.amber.operator.udf.r
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.core.executor.OpExecInitInfo
+import edu.uci.ics.amber.core.executor.OpExecWithCode
 import edu.uci.ics.amber.core.tuple.{Attribute, Schema}
 import edu.uci.ics.amber.core.workflow.{
   PartitionInfo,
@@ -91,37 +91,32 @@ class RUDFOpDesc extends LogicalOp {
     }
 
     val r_operator_type = if (useTupleAPI) "r-tuple" else "r-table"
-    if (workers > 1)
+    if (workers > 1) {
       PhysicalOp
         .oneToOnePhysicalOp(
           workflowId,
           executionId,
           operatorIdentifier,
-          OpExecInitInfo(code, r_operator_type)
+          OpExecWithCode(code, r_operator_type)
         )
-        .withDerivePartition(_ => UnknownPartition())
-        .withInputPorts(operatorInfo.inputPorts)
-        .withOutputPorts(operatorInfo.outputPorts)
-        .withPartitionRequirement(partitionRequirement)
-        .withIsOneToManyOp(true)
         .withParallelizable(true)
         .withSuggestedWorkerNum(workers)
-        .withPropagateSchema(SchemaPropagationFunc(propagateSchema))
-    else
+    } else {
       PhysicalOp
         .manyToOnePhysicalOp(
           workflowId,
           executionId,
           operatorIdentifier,
-          OpExecInitInfo(code, r_operator_type)
+          OpExecWithCode(code, r_operator_type)
         )
-        .withDerivePartition(_ => UnknownPartition())
-        .withInputPorts(operatorInfo.inputPorts)
-        .withOutputPorts(operatorInfo.outputPorts)
-        .withPartitionRequirement(partitionRequirement)
-        .withIsOneToManyOp(true)
         .withParallelizable(false)
-        .withPropagateSchema(SchemaPropagationFunc(propagateSchema))
+    }.withDerivePartition(_ => UnknownPartition())
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
+      .withPartitionRequirement(partitionRequirement)
+      .withIsOneToManyOp(true)
+      .withPropagateSchema(SchemaPropagationFunc(propagateSchema))
+
   }
 
   override def operatorInfo: OperatorInfo = {
@@ -151,30 +146,8 @@ class RUDFOpDesc extends LogicalOp {
       "User-defined function operator in R script",
       OperatorGroupConstants.R_GROUP,
       inputPortInfo,
-      outputPortInfo,
-      dynamicInputPorts = false,
-      dynamicOutputPorts = false,
-      supportReconfiguration = false,
-      allowPortCustomization = false
+      outputPortInfo
     )
-  }
-
-  override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    val inputSchema = schemas(0)
-    val outputSchemaBuilder = Schema.Builder()
-    // keep the same schema from input
-    if (retainInputColumns) outputSchemaBuilder.add(inputSchema)
-    if (outputColumns != null) {
-      if (retainInputColumns) { // check if columns are duplicated
-
-        for (column <- outputColumns) {
-          if (inputSchema.containsAttribute(column.getName))
-            throw new RuntimeException("Column name " + column.getName + " already exists!")
-        }
-      }
-      outputSchemaBuilder.add(outputColumns)
-    }
-    outputSchemaBuilder.build()
   }
 
   override def runtimeReconfiguration(

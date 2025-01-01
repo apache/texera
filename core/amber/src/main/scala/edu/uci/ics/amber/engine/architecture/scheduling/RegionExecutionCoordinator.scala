@@ -1,7 +1,5 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
-import com.google.protobuf.ByteString
-import com.google.protobuf.any.Any
 import com.twitter.util.Future
 import edu.uci.ics.amber.core.workflow.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.common.{AkkaActorService, ExecutorDeployment}
@@ -25,7 +23,6 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{
   WorkflowAggregatedState
 }
 import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, ResourceConfig}
-import edu.uci.ics.amber.engine.common.AmberRuntime
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.core.workflow.PhysicalLink
@@ -131,16 +128,11 @@ class RegionExecutionCoordinator(
           .flatMap(physicalOp => {
             val workerConfigs = resourceConfig.operatorConfigs(physicalOp.id).workerConfigs
             workerConfigs.map(_.workerId).map { workerId =>
-              val bytes = AmberRuntime.serde.serialize(physicalOp.opExecInitInfo).get
               asyncRPCClient.workerInterface.initializeExecutor(
                 InitializeExecutorRequest(
                   workerConfigs.length,
-                  Any.of(
-                    "edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo",
-                    ByteString.copyFrom(bytes)
-                  ),
-                  physicalOp.isSourceOperator,
-                  "scala"
+                  physicalOp.opExecInitInfo,
+                  physicalOp.isSourceOperator
                 ),
                 asyncRPCClient.mkContext(workerId)
               )

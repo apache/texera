@@ -1,13 +1,13 @@
 package edu.uci.ics.amber.operator.unneststring
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.google.common.base.Preconditions
-import edu.uci.ics.amber.core.executor.OpExecInitInfo
+import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.operator.flatmap.FlatMapOpDesc
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort}
 
@@ -44,24 +44,25 @@ class UnnestStringOpDesc extends FlatMapOpDesc {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _) => new UnnestStringOpExec(attribute, delimiter))
+        OpExecWithClassName(
+          "edu.uci.ics.amber.operator.unneststring.UnnestStringOpExec",
+          objectMapper.writeValueAsString(this)
+        )
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withPropagateSchema(
-        SchemaPropagationFunc(inputSchemas =>
-          Map(
-            operatorInfo.outputPorts.head.id -> getOutputSchema(
-              operatorInfo.inputPorts.map(_.id).map(inputSchemas(_)).toArray
-            )
-          )
-        )
+        SchemaPropagationFunc(inputSchemas => {
+          val outputSchema =
+            if (resultAttribute == null || resultAttribute.trim.isEmpty) null
+            else
+              Schema
+                .builder()
+                .add(inputSchemas.values.head)
+                .add(resultAttribute, AttributeType.STRING)
+                .build()
+          Map(operatorInfo.outputPorts.head.id -> outputSchema)
+        })
       )
-  }
-
-  override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    Preconditions.checkArgument(schemas.forall(_ == schemas(0)))
-    if (resultAttribute == null || resultAttribute.trim.isEmpty) return null
-    Schema.builder().add(schemas(0)).add(resultAttribute, AttributeType.STRING).build()
   }
 }
