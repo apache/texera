@@ -73,26 +73,27 @@ class PythonUDFOpDescV2 extends LogicalOp {
     }
 
     val propagateSchema = (inputSchemas: Map[PortIdentity, Schema]) => {
-      //    Preconditions.checkArgument(schemas.length == 1)
       val inputSchema = inputSchemas(operatorInfo.inputPorts.head.id)
-      val outputSchemaBuilder = Schema.builder()
-      // keep the same schema from input
-      if (retainInputColumns) outputSchemaBuilder.add(inputSchema)
-      // for any pythonUDFType, it can add custom output columns (attributes).
-      if (outputColumns != null) {
-        if (retainInputColumns) { // check if columns are duplicated
+      var outputSchema = if (retainInputColumns) inputSchema else Schema()
 
+      // Add custom output columns if defined
+      if (outputColumns != null) {
+        if (retainInputColumns) {
+          // Check for duplicate column names
           for (column <- outputColumns) {
-            if (inputSchema.containsAttribute(column.getName))
-              throw new RuntimeException("Column name " + column.getName + " already exists!")
+            if (inputSchema.containsAttribute(column.getName)) {
+              throw new RuntimeException(s"Column name ${column.getName} already exists!")
+            }
           }
         }
-        outputSchemaBuilder.add(outputColumns).build()
+        // Add output columns to the schema
+        outputSchema = outputSchema.add(outputColumns)
       }
-      Map(operatorInfo.outputPorts.head.id -> outputSchemaBuilder.build())
+
+      Map(operatorInfo.outputPorts.head.id -> outputSchema)
     }
 
-    if (workers > 1) {
+    val physicalOp = if (workers > 1) {
       PhysicalOp
         .oneToOnePhysicalOp(
           workflowId,
@@ -111,7 +112,10 @@ class PythonUDFOpDescV2 extends LogicalOp {
           OpExecWithCode(code, "python")
         )
         .withParallelizable(false)
-    }.withDerivePartition(_ => UnknownPartition())
+    }
+
+    physicalOp
+      .withDerivePartition(_ => UnknownPartition())
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withPartitionRequirement(partitionRequirement)

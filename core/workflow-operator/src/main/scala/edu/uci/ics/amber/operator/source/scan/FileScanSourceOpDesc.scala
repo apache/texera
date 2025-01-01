@@ -7,7 +7,7 @@ import com.kjetland.jackson.jsonSchema.annotations.{
   JsonSchemaTitle
 }
 import edu.uci.ics.amber.core.executor.OpExecWithClassName
-import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
+import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.operator.metadata.annotations.HideAnnotation
@@ -66,8 +66,10 @@ class FileScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
   }
 
   override def sourceSchema(): Schema = {
-    val builder = Schema.builder()
-    if (outputFileName) builder.add(new Attribute("filename", AttributeType.STRING))
-    builder.add(new Attribute(attributeName, attributeType.getType)).build()
+    var schema = Schema()
+    if (outputFileName) {
+      schema = schema.add("filename", AttributeType.STRING)
+    }
+    schema.add(attributeName, attributeType.getType)
   }
 }

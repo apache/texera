@@ -4,14 +4,13 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
-import edu.uci.ics.amber.core.workflow._
-import edu.uci.ics.amber.operator.LogicalOp
 import edu.uci.ics.amber.core.virtualidentity.{
   ExecutionIdentity,
   PhysicalOpIdentity,
   WorkflowIdentity
 }
-import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
+import edu.uci.ics.amber.core.workflow._
+import edu.uci.ics.amber.operator.LogicalOp
 import edu.uci.ics.amber.operator.hashJoin.HashJoinOpDesc.HASH_JOIN_INTERNAL_KEY_NAME
 import edu.uci.ics.amber.operator.metadata.annotations.{
   AutofillAttributeName,
@@ -79,11 +78,9 @@ class HashJoinOpDesc[K] extends LogicalOp {
         .withPropagateSchema(
           SchemaPropagationFunc(inputSchemas =>
             Map(
-              PortIdentity(internal = true) -> Schema
-                .builder()
-                .add(HASH_JOIN_INTERNAL_KEY_NAME, AttributeType.ANY)
-                .add(inputSchemas(operatorInfo.inputPorts.head.id))
-                .build()
+              PortIdentity(internal = true) -> Schema(
+                List(new Attribute(HASH_JOIN_INTERNAL_KEY_NAME, AttributeType.ANY))
+              ).add(inputSchemas(operatorInfo.inputPorts.head.id))
             )
           )
         )
@@ -121,27 +118,29 @@ class HashJoinOpDesc[K] extends LogicalOp {
           SchemaPropagationFunc(inputSchemas => {
             val buildSchema = inputSchemas(PortIdentity(internal = true))
             val probeSchema = inputSchemas(PortIdentity(1))
-            val builder = Schema.builder()
-            builder.add(buildSchema)
-            builder.removeIfExists(HASH_JOIN_INTERNAL_KEY_NAME)
-            val leftAttributeNames = buildSchema.getAttributeNames
-            val rightAttributeNames =
-              probeSchema.getAttributeNames.filterNot(name => name == probeAttributeName)
 
-            // Create a Map from rightTuple's fields, renaming conflicts
-            rightAttributeNames
-              .foreach { name =>
-                var newName = name
-                while (
-                  leftAttributeNames.contains(newName) || rightAttributeNames
-                    .filter(attrName => name != attrName)
-                    .contains(newName)
-                ) {
-                  newName = s"$newName#@1"
+            // Start with the attributes from the build schema, excluding the hash join internal key
+            val leftAttributes =
+              buildSchema.getAttributes.filterNot(_.getName == HASH_JOIN_INTERNAL_KEY_NAME)
+            val leftAttributeNames = leftAttributes.map(_.getName).toSet
+
+            // Filter and rename attributes from the probe schema to avoid conflicts
+            val rightAttributes = probeSchema.getAttributes
+              .filterNot(_.getName == probeAttributeName)
+              .map { attr =>
+                var newName = attr.getName
+                while (leftAttributeNames.contains(newName)) {
+                  val suffixIndex = """#@(\d+)$""".r
+                    .findFirstMatchIn(newName)
+                    .map(_.group(1).toInt + 1)
+                    .getOrElse(1)
+                  newName = s"${attr.getName}#@$suffixIndex"
                 }
-                builder.add(new Attribute(newName, probeSchema.getAttribute(name).getType))
+                new Attribute(newName, attr.getType)
               }
-            val outputSchema = builder.build()
+
+            // Combine left and right attributes into a new schema
+            val outputSchema = Schema(leftAttributes ++ rightAttributes)
             Map(PortIdentity() -> outputSchema)
           })
         )

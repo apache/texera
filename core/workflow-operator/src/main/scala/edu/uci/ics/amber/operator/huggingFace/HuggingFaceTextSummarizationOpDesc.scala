@@ -63,11 +63,8 @@ class HuggingFaceTextSummarizationOpDesc extends PythonOperatorDescriptor {
     if (resultAttribute == null || resultAttribute.trim.isEmpty)
       throw new RuntimeException("Result attribute name should be given")
     Map(
-      operatorInfo.outputPorts.head.id -> Schema
-        .builder()
-        .add(inputSchemas.values.head)
+      operatorInfo.outputPorts.head.id -> inputSchemas.values.head
         .add(resultAttribute, AttributeType.STRING)
-        .build()
     )
   }
 }

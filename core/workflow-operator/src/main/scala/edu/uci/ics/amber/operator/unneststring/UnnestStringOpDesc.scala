@@ -2,7 +2,7 @@ package edu.uci.ics.amber.operator.unneststring
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import edu.uci.ics.amber.core.executor.OpExecWithClassName
-import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
+import edu.uci.ics.amber.core.tuple.AttributeType
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.operator.flatmap.FlatMapOpDesc
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
@@ -53,14 +53,10 @@ class UnnestStringOpDesc extends FlatMapOpDesc {
       .withOutputPorts(operatorInfo.outputPorts)
       .withPropagateSchema(
         SchemaPropagationFunc(inputSchemas => {
-          val outputSchema =
-            if (resultAttribute == null || resultAttribute.trim.isEmpty) null
-            else
-              Schema
-                .builder()
-                .add(inputSchemas.values.head)
-                .add(resultAttribute, AttributeType.STRING)
-                .build()
+          val outputSchema = Option(resultAttribute)
+            .filter(_.trim.nonEmpty)
+            .map(attr => inputSchemas.values.head.add(attr, AttributeType.STRING))
+            .getOrElse(throw new RuntimeException("Result attribute cannot be empty"))
           Map(operatorInfo.outputPorts.head.id -> outputSchema)
         })
       )

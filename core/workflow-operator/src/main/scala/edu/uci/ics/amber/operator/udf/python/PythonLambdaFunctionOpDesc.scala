@@ -16,31 +16,33 @@ class PythonLambdaFunctionOpDesc extends PythonOperatorDescriptor {
   ): Map[PortIdentity, Schema] = {
     Preconditions.checkArgument(inputSchemas.size == 1)
     Preconditions.checkArgument(lambdaAttributeUnits.nonEmpty)
+
     val inputSchema = inputSchemas.values.head
-    val outputSchemaBuilder = Schema.builder()
-    // keep the same schema from input
-    outputSchemaBuilder.add(inputSchema)
-    // add new attributes
+    var outputSchema = inputSchema
+
+    // Add new attributes
     for (unit <- lambdaAttributeUnits) {
       if (unit.attributeName.equalsIgnoreCase("Add New Column")) {
-        if (inputSchema.containsAttribute(unit.newAttributeName)) {
+        if (outputSchema.containsAttribute(unit.newAttributeName)) {
           throw new RuntimeException(
-            "Column name " + unit.newAttributeName + " already exists!"
+            s"Column name ${unit.newAttributeName} already exists!"
           )
         }
-        if (unit.newAttributeName != null && unit.newAttributeName.nonEmpty)
-          outputSchemaBuilder.add(unit.newAttributeName, unit.attributeType)
+        if (unit.newAttributeName != null && unit.newAttributeName.nonEmpty) {
+          outputSchema = outputSchema.add(unit.newAttributeName, unit.attributeType)
+        }
       }
     }
-    var outputSchema = outputSchemaBuilder.build()
-    // type casting
+
+    // Type casting
     for (unit <- lambdaAttributeUnits) {
-      if (!unit.attributeName.equalsIgnoreCase("Add New Column"))
+      if (!unit.attributeName.equalsIgnoreCase("Add New Column")) {
         outputSchema =
           AttributeTypeUtils.SchemaCasting(outputSchema, unit.attributeName, unit.attributeType)
+      }
     }
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
 
+    Map(operatorInfo.outputPorts.head.id -> outputSchema)
   }
 
   override def operatorInfo: OperatorInfo =

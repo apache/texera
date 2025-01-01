@@ -39,12 +39,12 @@ class CartesianProductOpDesc extends LogicalOp {
           // In this example, the last attribute from the right schema (`dup`) is renamed to `dup#@3`
           // to avoid conflicts.
 
-          val builder = Schema.builder()
+          var outputSchema = Schema()
           val leftSchema = inputSchemas(operatorInfo.inputPorts.head.id)
           val rightSchema = inputSchemas(operatorInfo.inputPorts.last.id)
           val leftAttributeNames = leftSchema.getAttributeNames
           val rightAttributeNames = rightSchema.getAttributeNames
-          builder.add(leftSchema)
+          outputSchema = outputSchema.add(leftSchema)
           rightSchema.getAttributes.foreach(attr => {
             var newName = attr.getName
             while (
@@ -56,13 +56,12 @@ class CartesianProductOpDesc extends LogicalOp {
             }
             if (newName == attr.getName) {
               // non-duplicate attribute, add to builder as is
-              builder.add(attr)
+              outputSchema = outputSchema.add(attr)
             } else {
               // renamed the duplicate attribute, construct new Attribute
-              builder.add(new Attribute(newName, attr.getType))
+              outputSchema = outputSchema.add(new Attribute(newName, attr.getType))
             }
           })
-          val outputSchema = builder.build()
           Map(operatorInfo.outputPorts.head.id -> outputSchema)
         })
       )

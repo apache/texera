@@ -44,11 +44,7 @@ object SpecialPhysicalOpFactory {
             case SET_SNAPSHOT | SINGLE_SNAPSHOT =>
               if (inputSchema.containsAttribute(ProgressiveUtils.insertRetractFlagAttr.getName)) {
                 // with insert/retract delta: remove the flag column
-                Schema
-                  .builder()
-                  .add(inputSchema)
-                  .remove(ProgressiveUtils.insertRetractFlagAttr.getName)
-                  .build()
+                inputSchema.remove(ProgressiveUtils.insertRetractFlagAttr.getName)
               } else {
                 // with insert-only delta: output schema is the same as input schema
                 inputSchema

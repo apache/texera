@@ -6,7 +6,7 @@ import com.univocity.parsers.csv.{CsvFormat, CsvParser, CsvParserSettings}
 import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.tuple.AttributeTypeUtils.inferSchemaFromRows
-import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
+import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.operator.source.scan.ScanSourceOpDesc
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
@@ -94,10 +94,9 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
       if (hasHeader) parser.getContext.headers()
       else (1 to attributeTypeList.length).map(i => "column-" + i).toArray
 
-    Schema
-      .builder()
-      .add(header.indices.map(i => new Attribute(header(i), attributeTypeList(i))))
-      .build()
+    header.indices.foldLeft(Schema()) { (schema, i) =>
+      schema.add(header(i), attributeTypeList(i))
+    }
 
   }
 

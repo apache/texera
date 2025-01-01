@@ -23,11 +23,10 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
   var opDesc: HashJoinOpDesc[String] = _
 
   def getInternalHashTableSchema(buildInputSchema: Schema): Schema = {
-    Schema
-      .builder()
+    Schema()
       .add(HASH_JOIN_INTERNAL_KEY_NAME, AttributeType.ANY)
       .add(buildInputSchema)
-      .build()
+
   }
 
   def tuple(name: String, n: Int = 1, i: Option[Int]): Tuple = {
@@ -39,13 +38,10 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   def schema(name: String, n: Int = 1): Schema = {
-    Schema
-      .builder()
-      .add(
-        new Attribute(name, AttributeType.STRING),
-        new Attribute(name + "_" + n, AttributeType.STRING)
-      )
-      .build()
+    Schema()
+      .add(new Attribute(name, AttributeType.STRING))
+      .add(new Attribute(name + "_" + n, AttributeType.STRING))
+
   }
 
   it should "work with basic two input streams with different buildAttributeName and probeAttributeName" in {

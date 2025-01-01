@@ -25,15 +25,13 @@ class ArrowUtilsSpec extends AnyFlatSpec {
   val timestamp = new ArrowType.Timestamp(TimeUnit.MILLISECOND, "UTC")
   val string: ArrowType.Utf8 = ArrowType.Utf8.INSTANCE
 
-  val texeraSchema: Schema = Schema
-    .builder()
+  val texeraSchema: Schema = Schema()
     .add("test-1", AttributeType.INTEGER)
     .add("test-2", AttributeType.LONG)
     .add("test-3", AttributeType.BOOLEAN)
     .add("test-4", AttributeType.DOUBLE)
     .add("test-5", AttributeType.TIMESTAMP)
     .add("test-6", AttributeType.STRING)
-    .build()
 
   val arrowSchema: org.apache.arrow.vector.types.pojo.Schema =
     new org.apache.arrow.vector.types.pojo.Schema(

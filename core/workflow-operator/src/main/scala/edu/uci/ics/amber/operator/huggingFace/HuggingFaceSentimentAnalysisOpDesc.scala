@@ -87,13 +87,10 @@ class HuggingFaceSentimentAnalysisOpDesc extends PythonOperatorDescriptor {
     )
       return null
     Map(
-      operatorInfo.outputPorts.head.id -> Schema
-        .builder()
-        .add(inputSchemas(operatorInfo.inputPorts.head.id))
+      operatorInfo.outputPorts.head.id -> inputSchemas(operatorInfo.inputPorts.head.id)
         .add(resultAttributePositive, AttributeType.DOUBLE)
         .add(resultAttributeNeutral, AttributeType.DOUBLE)
         .add(resultAttributeNegative, AttributeType.DOUBLE)
-        .build()
     )
   }
 }

@@ -68,11 +68,8 @@ class SklearnPredictionOpDesc extends PythonOperatorDescriptor {
         inputSchema.attributes.find(attr => attr.getName == groundTruthAttribute).get.getType
     }
     Map(
-      operatorInfo.outputPorts.head.id -> Schema
-        .builder()
-        .add(inputSchema)
+      operatorInfo.outputPorts.head.id -> inputSchema
         .add(resultAttribute, resultType)
-        .build()
     )
   }
 }
