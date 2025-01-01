@@ -13,8 +13,7 @@ import scala.jdk.CollectionConverters._
 
 class IcebergUtilSpec extends AnyFlatSpec {
 
-  val texeraSchema: Schema = Schema
-    .builder()
+  val texeraSchema: Schema = Schema()
     .add("test-1", AttributeType.INTEGER)
     .add("test-2", AttributeType.LONG)
     .add("test-3", AttributeType.BOOLEAN)
@@ -22,7 +21,6 @@ class IcebergUtilSpec extends AnyFlatSpec {
     .add("test-5", AttributeType.TIMESTAMP)
     .add("test-6", AttributeType.STRING)
     .add("test-7", AttributeType.BINARY)
-    .build()
 
   val icebergSchema: IcebergSchema = new IcebergSchema(
     List(
