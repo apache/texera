@@ -114,7 +114,8 @@ class PythonUDFOpDescV2 extends LogicalOp {
         .withParallelizable(false)
     }
 
-    physicalOp.withInputPorts(operatorInfo.inputPorts)
+    physicalOp
+      .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withPartitionRequirement(partitionRequirement)
       .withIsOneToManyOp(true)
