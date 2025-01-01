@@ -93,7 +93,7 @@ class PythonUDFOpDescV2 extends LogicalOp {
       Map(operatorInfo.outputPorts.head.id -> outputSchema)
     }
 
-    if (workers > 1) {
+    val physicalOp = if (workers > 1) {
       PhysicalOp
         .oneToOnePhysicalOp(
           workflowId,
@@ -112,7 +112,10 @@ class PythonUDFOpDescV2 extends LogicalOp {
           OpExecWithCode(code, "python")
         )
         .withParallelizable(false)
-    }.withDerivePartition(_ => UnknownPartition())
+    }
+
+    physicalOp
+      .withDerivePartition(_ => UnknownPartition())
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withPartitionRequirement(partitionRequirement)

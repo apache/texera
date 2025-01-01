@@ -69,7 +69,7 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
           logger.warn(
             s"Failed to connect to Flight Server in this attempt, retrying after $UNIT_WAIT_TIME_MS ms... remaining attempts: ${MAX_TRY_COUNT - tryCount}"
           )
-          flightClient.close()
+          if (flightClient != null) flightClient.close()
           Thread.sleep(UNIT_WAIT_TIME_MS)
           tryCount += 1
       }
