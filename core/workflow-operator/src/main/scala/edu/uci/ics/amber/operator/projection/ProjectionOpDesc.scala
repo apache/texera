@@ -41,9 +41,9 @@ class ProjectionOpDesc extends MapOpDesc {
 
         val inputSchema = inputSchemas.values.head
         val outputSchema = if (!isDrop) {
-          attributes.foldLeft(Schema(inputSchema.getAttributes)) { (schema, attribute) =>
+          attributes.foldLeft(Schema()) { (schema, attribute) =>
             val originalType = inputSchema.getAttribute(attribute.getOriginalAttribute).getType
-            schema.add(new Attribute(attribute.getAlias, originalType))
+            schema.add(attribute.getAlias, originalType)
           }
         } else {
           attributes.foldLeft(inputSchema) { (schema, attribute) =>

@@ -80,11 +80,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
             Map(
               PortIdentity(internal = true) -> Schema(
                 List(new Attribute(HASH_JOIN_INTERNAL_KEY_NAME, AttributeType.ANY))
-              ).add(
-                inputSchemas(
-                  operatorInfo.inputPorts.head.id
-                ).getAttributes
-              )
+              ).add(inputSchemas(operatorInfo.inputPorts.head.id))
             )
           )
         )

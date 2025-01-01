@@ -91,8 +91,18 @@ case class Schema @JsonCreator() (
 
   /**
     * Creates a new Schema by adding multiple attributes to the current schema.
+    * Throws an exception if any attribute name already exists in the schema.
     */
   def add(attributesToAdd: Iterable[Attribute]): Schema = {
+    val existingNames = this.getAttributeNames.map(_.toLowerCase).toSet
+    val duplicateNames = attributesToAdd.map(_.getName.toLowerCase).toSet.intersect(existingNames)
+
+    if (duplicateNames.nonEmpty) {
+      throw new RuntimeException(
+        s"Cannot add attributes with duplicate names: ${duplicateNames.mkString(", ")}"
+      )
+    }
+
     val newAttributes = attributes ++ attributesToAdd
     Schema(newAttributes)
   }
@@ -100,6 +110,7 @@ case class Schema @JsonCreator() (
   /**
     * Creates a new Schema by adding multiple attributes.
     * Accepts a variable number of `Attribute` arguments.
+    * Throws an exception if any attribute name already exists in the schema.
     */
   def add(attributes: Attribute*): Schema = {
     this.add(attributes)
@@ -107,17 +118,27 @@ case class Schema @JsonCreator() (
 
   /**
     * Creates a new Schema by adding a single attribute to the current schema.
+    * Throws an exception if the attribute name already exists in the schema.
     */
-  def add(attribute: Attribute): Schema = add(List(attribute))
+  def add(attribute: Attribute): Schema = {
+    if (containsAttribute(attribute.getName)) {
+      throw new RuntimeException(
+        s"Attribute name '${attribute.getName}' already exists in the schema"
+      )
+    }
+    add(List(attribute))
+  }
 
   /**
     * Creates a new Schema by adding an attribute with the specified name and type.
+    * Throws an exception if the attribute name already exists in the schema.
     */
   def add(attributeName: String, attributeType: AttributeType): Schema =
-    add(List(new Attribute(attributeName, attributeType)))
+    add(new Attribute(attributeName, attributeType))
 
   /**
     * Creates a new Schema by merging it with another schema.
+    * Throws an exception if there are duplicate attribute names.
     */
   def add(schema: Schema): Schema = {
     add(schema.attributes)
