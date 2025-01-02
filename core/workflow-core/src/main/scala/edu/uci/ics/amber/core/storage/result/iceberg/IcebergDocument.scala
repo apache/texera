@@ -4,11 +4,12 @@ import edu.uci.ics.amber.core.storage.IcebergCatalogInstance
 import edu.uci.ics.amber.core.storage.model.{BufferedItemWriter, VirtualDocument}
 import edu.uci.ics.amber.core.storage.util.StorageUtil.{withLock, withReadLock, withWriteLock}
 import edu.uci.ics.amber.util.IcebergUtil
-import org.apache.iceberg.{Snapshot, Table}
+import org.apache.iceberg.{Schema, Table}
 import org.apache.iceberg.catalog.{Catalog, TableIdentifier}
 import org.apache.iceberg.data.{IcebergGenerics, Record}
 import org.apache.iceberg.exceptions.NoSuchTableException
 import org.apache.iceberg.io.CloseableIterable
+import org.apache.iceberg.types.Types
 
 import java.net.URI
 import java.util.concurrent.locks.{ReentrantLock, ReentrantReadWriteLock}
@@ -32,7 +33,7 @@ class IcebergDocument[T >: Null <: AnyRef](
     val tableNamespace: String,
     val tableName: String,
     val tableSchema: org.apache.iceberg.Schema,
-    val serde: T => Record,
+    val serde: (org.apache.iceberg.Schema, T) => Record,
     val deserde: (org.apache.iceberg.Schema, Record) => T
 ) extends VirtualDocument[T] {
 
@@ -40,13 +41,21 @@ class IcebergDocument[T >: Null <: AnyRef](
 
   @transient lazy val catalog: Catalog = IcebergCatalogInstance.getInstance()
 
+  // Add the recordId field to the schema
+  private val augmentedSchema: org.apache.iceberg.Schema =
+    IcebergUtil.addFieldToSchema(
+      tableSchema,
+      "_record_id",
+      Types.StringType.get()
+    )
+
   // During construction, create or override the table
   synchronized {
     IcebergUtil.createTable(
       catalog,
       tableNamespace,
       tableName,
-      tableSchema,
+      augmentedSchema,
       overrideIfExists = true
     )
   }
@@ -130,7 +139,7 @@ class IcebergDocument[T >: Null <: AnyRef](
                 }
 
                 lastSnapshotId = currentSnapshotId
-                records.iterator().asScala.map(record => deserde(tableSchema, record))
+                records.iterator().asScala.map(record => deserde(augmentedSchema, record))
 
               case _ => Iterator.empty
             }
@@ -189,7 +198,7 @@ class IcebergDocument[T >: Null <: AnyRef](
       catalog,
       tableNamespace,
       tableName,
-      tableSchema,
+      augmentedSchema,
       serde
     )
   }

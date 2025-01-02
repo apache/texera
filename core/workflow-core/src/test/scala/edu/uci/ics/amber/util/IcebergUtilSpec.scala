@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.util
 
 import edu.uci.ics.amber.core.tuple.{AttributeType, Schema, Tuple}
+import edu.uci.ics.amber.util.IcebergUtil.toIcebergSchema
 import org.apache.iceberg.types.Types
 import org.apache.iceberg.{Schema => IcebergSchema}
 import org.apache.iceberg.data.GenericRecord
@@ -82,7 +83,7 @@ class IcebergUtilSpec extends AnyFlatSpec {
       )
       .build()
 
-    val record = IcebergUtil.toGenericRecord(tuple)
+    val record = IcebergUtil.toGenericRecord(toIcebergSchema(tuple.schema), tuple)
 
     assert(record.getField("test-1") == 42)
     assert(record.getField("test-2") == 123456789L)
@@ -112,7 +113,7 @@ class IcebergUtilSpec extends AnyFlatSpec {
       )
       .build()
 
-    val record = IcebergUtil.toGenericRecord(tuple)
+    val record = IcebergUtil.toGenericRecord(toIcebergSchema(tuple.schema), tuple)
 
     assert(record.getField("test-1") == 42)
     assert(record.getField("test-2") == null)
@@ -142,7 +143,7 @@ class IcebergUtilSpec extends AnyFlatSpec {
       )
       .build()
 
-    val record = IcebergUtil.toGenericRecord(tuple)
+    val record = IcebergUtil.toGenericRecord(toIcebergSchema(tuple.schema), tuple)
 
     assert(record.getField("test-1") == null)
     assert(record.getField("test-2") == null)

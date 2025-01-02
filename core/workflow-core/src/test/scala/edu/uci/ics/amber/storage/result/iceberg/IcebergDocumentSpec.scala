@@ -22,7 +22,7 @@ class IcebergDocumentSpec
 
   var amberSchema: Schema = _
   var icebergSchema: IcebergSchema = _
-  var serde: Tuple => Record = _
+  var serde: (IcebergSchema, Tuple) => Record = _
   var deserde: (IcebergSchema, Record) => Tuple = _
   var catalog: Catalog = _
   val tableNamespace = "test_namespace"
@@ -48,7 +48,7 @@ class IcebergDocumentSpec
     icebergSchema = IcebergUtil.toIcebergSchema(amberSchema)
 
     // Initialize serialization and deserialization functions
-    serde = tuple => IcebergUtil.toGenericRecord(tuple)
+    serde = IcebergUtil.toGenericRecord
     deserde = (schema, record) => IcebergUtil.fromRecord(record, amberSchema)
 
     // Initialize the test database and create the Iceberg catalog

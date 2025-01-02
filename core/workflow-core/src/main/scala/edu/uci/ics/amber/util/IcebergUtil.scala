@@ -158,8 +158,7 @@ object IcebergUtil {
     * @param tuple The custom Amber Tuple.
     * @return An Iceberg GenericRecord.
     */
-  def toGenericRecord(tuple: Tuple): Record = {
-    val icebergSchema = toIcebergSchema(tuple.schema)
+  def toGenericRecord(icebergSchema: IcebergSchema, tuple: Tuple): Record = {
     val record = GenericRecord.create(icebergSchema)
 
     tuple.schema.getAttributes.zipWithIndex.foreach {
@@ -236,4 +235,29 @@ object IcebergUtil {
       case _                      => throw new IllegalArgumentException(s"Unsupported Iceberg type: $icebergType")
     }
   }
+
+  /**
+    * Adds a new field to an existing Iceberg schema.
+    * - If the field already exists, it throws an IllegalArgumentException.
+    *
+    * @param schema The existing Iceberg schema.
+    * @param fieldName The name of the new field.
+    * @param fieldType The type of the new field.
+    * @return The updated Iceberg schema with the new field.
+    */
+  def addFieldToSchema(
+      schema: IcebergSchema,
+      fieldName: String,
+      fieldType: PrimitiveType
+  ): IcebergSchema = {
+    if (schema.findField(fieldName) != null) {
+      throw new IllegalArgumentException(s"Field $fieldName already exists in the schema")
+    }
+
+    val updatedFields = schema.columns().asScala.toSeq :+
+      Types.NestedField.optional(schema.columns().size() + 1, fieldName, fieldType)
+
+    new IcebergSchema(updatedFields.asJava)
+  }
+
 }

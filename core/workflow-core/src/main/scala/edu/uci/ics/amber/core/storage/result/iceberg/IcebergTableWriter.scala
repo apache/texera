@@ -33,13 +33,16 @@ class IcebergTableWriter[T](
     val tableNamespace: String,
     val tableName: String,
     val tableSchema: Schema,
-    val serde: T => Record
+    val serde: (org.apache.iceberg.Schema, T) => Record
 ) extends BufferedItemWriter[T] {
 
   // Buffer to hold items before flushing to the table
   private val buffer = new ArrayBuffer[T]()
   // Incremental filename index, incremented each time a new buffer is flushed
   private var filenameIdx = 0
+  // Incremental record ID, incremented for each record
+  private var recordId = 0
+
   override val bufferSize: Int = StorageConfig.icebergTableCommitBatchSize
 
   // Load the Iceberg table
@@ -51,8 +54,9 @@ class IcebergTableWriter[T](
   /**
     * Open the writer and clear the buffer.
     */
-  override def open(): Unit =
+  override def open(): Unit = {
     buffer.clear()
+  }
 
   /**
     * Add a single item to the buffer.
@@ -70,8 +74,9 @@ class IcebergTableWriter[T](
     * Remove a single item from the buffer.
     * @param item the item to remove from the buffer.
     */
-  override def removeOne(item: T): Unit =
+  override def removeOne(item: T): Unit = {
     buffer -= item
+  }
 
   /**
     * Flush the current buffer to a new Iceberg data file.
@@ -88,10 +93,6 @@ class IcebergTableWriter[T](
       val outputFile: OutputFile = table.io().newOutputFile(filepath)
 
       // Create a Parquet data writer to write a new file
-      // This part introduces the dependency to the Hadoop. In the source code of iceberg-parquet, see the line 160
-      //    https://github.com/apache/iceberg/blob/main/parquet/src/main/java/org/apache/iceberg/parquet/Parquet.java
-      //    although the file is not of type HadoopOutputFile, it still creats a Hadoop Configuration() as the
-      //    placeholder.
       val dataWriter: DataWriter[Record] = Parquet
         .writeData(outputFile)
         .forTable(table)
@@ -102,7 +103,12 @@ class IcebergTableWriter[T](
       // Write each buffered item to the data file
       try {
         buffer.foreach { item =>
-          val record = serde(item)
+          val record = serde(tableSchema, item)
+
+          // Add the _record_id field
+          record.setField("_record_id", s"${writerIdentifier}_${recordId}")
+          recordId += 1
+
           dataWriter.write(record)
         }
       } finally {

@@ -132,7 +132,7 @@ class OpResultStorage extends Serializable with LazyLogging {
         }
       } else {
         val icebergSchema = IcebergUtil.toIcebergSchema(schema)
-        val serde: Tuple => Record = tuple => IcebergUtil.toGenericRecord(tuple)
+        val serde: (IcebergSchema, Tuple) => Record = IcebergUtil.toGenericRecord
         val deserde: (IcebergSchema, Record) => Tuple = (_, record) =>
           IcebergUtil.fromRecord(record, schema)
 
