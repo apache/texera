@@ -3,12 +3,14 @@ package edu.uci.ics.amber.core.storage.result.iceberg
 import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.amber.core.storage.model.BufferedItemWriter
 import edu.uci.ics.amber.util.IcebergUtil
+import edu.uci.ics.amber.util.IcebergUtil.RECORD_ID_FIELD_NAME
 import org.apache.iceberg.{Schema, Table}
 import org.apache.iceberg.catalog.Catalog
 import org.apache.iceberg.data.Record
 import org.apache.iceberg.data.parquet.GenericParquetWriter
 import org.apache.iceberg.io.{DataWriter, OutputFile}
 import org.apache.iceberg.parquet.Parquet
+
 import scala.collection.mutable.ArrayBuffer
 
 /**
@@ -105,8 +107,8 @@ class IcebergTableWriter[T](
         buffer.foreach { item =>
           val record = serde(tableSchema, item)
 
-          // Add the _record_id field
-          record.setField("_record_id", s"${writerIdentifier}_${recordId}")
+          // Add the record id field, the value is unique in the scope of the same table
+          record.setField(RECORD_ID_FIELD_NAME, s"${writerIdentifier}_${recordId}")
           recordId += 1
 
           dataWriter.write(record)

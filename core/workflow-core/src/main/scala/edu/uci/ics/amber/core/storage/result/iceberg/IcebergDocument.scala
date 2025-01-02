@@ -4,7 +4,12 @@ import edu.uci.ics.amber.core.storage.IcebergCatalogInstance
 import edu.uci.ics.amber.core.storage.model.{BufferedItemWriter, VirtualDocument}
 import edu.uci.ics.amber.core.storage.util.StorageUtil.{withLock, withReadLock, withWriteLock}
 import edu.uci.ics.amber.util.IcebergUtil
-import org.apache.iceberg.{Schema, Table}
+import edu.uci.ics.amber.util.IcebergUtil.{
+  RECORD_ID_FIELD_NAME,
+  loadTableMetadata,
+  readDataFileAsIterator
+}
+import org.apache.iceberg.{DataFile, Schema, Snapshot, Table}
 import org.apache.iceberg.catalog.{Catalog, TableIdentifier}
 import org.apache.iceberg.data.{IcebergGenerics, Record}
 import org.apache.iceberg.exceptions.NoSuchTableException
@@ -58,9 +63,7 @@ class IcebergDocument[T >: Null <: AnyRef](
       augmentedSchema,
       overrideIfExists = true
     )
-    table.replaceSortOrder().asc("_record_id").commit()
-    print(table.sortOrders())
-    print(table.properties())
+    table.replaceSortOrder().asc(RECORD_ID_FIELD_NAME).caseSensitive(false).commit()
   }
 
   /**
@@ -118,7 +121,8 @@ class IcebergDocument[T >: Null <: AnyRef](
             table match {
               case Some(t) =>
                 val currentSnapshotId = Option(t.currentSnapshot()).map(_.snapshotId())
-
+                val tableScan = t.newScan()
+                t.newBatchScan()
                 val records: CloseableIterable[Record] = (lastSnapshotId, currentSnapshotId) match {
                   // case1: the read hasn't started yet(because the lastSnapshotId is None)
                   // - create a iterator that will read from the beginning of the table
@@ -142,11 +146,12 @@ class IcebergDocument[T >: Null <: AnyRef](
                 }
 
                 lastSnapshotId = currentSnapshotId
-                records.iterator().asScala.map(record => {
-                  println(record.getField("_record_id"))
-                  deserde(augmentedSchema, record)
-                }
-                )
+                records
+                  .iterator()
+                  .asScala
+                  .map(record => {
+                    deserde(augmentedSchema, record)
+                  })
 
               case _ => Iterator.empty
             }
@@ -177,6 +182,12 @@ class IcebergDocument[T >: Null <: AnyRef](
     * Get records within a specified range [from, until).
     */
   override def getRange(from: Int, until: Int): Iterator[T] = {
+    val dataFileList = getSortedDataFiles().toList
+    dataFileList.foreach({ dataFile =>
+      val recordList: List[Record] =
+        readDataFileAsIterator(dataFile, augmentedSchema, loadTableMetadata()).toList
+      println(recordList)
+    })
     get().slice(from, until)
   }
 
@@ -208,5 +219,34 @@ class IcebergDocument[T >: Null <: AnyRef](
       augmentedSchema,
       serde
     )
+  }
+
+  /**
+    * Private iterator to retrieve data files sorted by their file path.
+    */
+  def getSortedDataFiles(): Iterator[DataFile] = {
+    val table = loadTableMetadata()
+    table
+      .newScan()
+      .planFiles()
+      .iterator()
+      .asScala
+      .map(_.file())
+      .toSeq
+      .sortBy(_.fileSequenceNumber())
+      .iterator
+//    val snapshot: Snapshot = table.currentSnapshot()
+//    snapshot.addedDataFiles(table.io()).asScala
+//      .toSeq
+//      .sortBy(_.fileSequenceNumber())
+//      .iterator
+  }
+
+  private def loadTableMetadata(): Table = {
+    IcebergUtil
+      .loadTableMetadata(catalog, tableNamespace, tableName)
+      .getOrElse(
+        throw new NoSuchTableException(s"Table $tableNamespace.$tableName does not exist")
+      )
   }
 }

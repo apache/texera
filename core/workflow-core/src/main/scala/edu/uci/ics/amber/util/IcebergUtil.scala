@@ -4,12 +4,17 @@ import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.amber.core.storage.result.iceberg.LocalFileIO
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.iceberg.catalog.{Catalog, TableIdentifier}
+import org.apache.iceberg.data.parquet.GenericParquetReaders
 import org.apache.iceberg.types.Types
 import org.apache.iceberg.data.{GenericRecord, Record}
+import org.apache.iceberg.io.{CloseableIterable, InputFile}
 import org.apache.iceberg.jdbc.JdbcCatalog
+import org.apache.iceberg.parquet.Parquet.ReadBuilder
+import org.apache.iceberg.parquet.{Parquet, ParquetReader}
 import org.apache.iceberg.types.Type.PrimitiveType
 import org.apache.iceberg.{
   CatalogProperties,
+  DataFile,
   PartitionSpec,
   Table,
   TableProperties,
@@ -27,6 +32,8 @@ import scala.jdk.CollectionConverters._
   * Util functions to interact with Iceberg Tables
   */
 object IcebergUtil {
+
+  val RECORD_ID_FIELD_NAME = "_record_id"
 
   /**
     * Creates and initializes a JdbcCatalog with the given parameters.
@@ -81,7 +88,8 @@ object IcebergUtil {
     val tableProperties = Map(
       TableProperties.COMMIT_NUM_RETRIES -> StorageConfig.icebergTableCommitNumRetries.toString,
       TableProperties.COMMIT_MAX_RETRY_WAIT_MS -> StorageConfig.icebergTableCommitMaxRetryWaitMs.toString,
-      TableProperties.COMMIT_MIN_RETRY_WAIT_MS -> StorageConfig.icebergTableCommitMinRetryWaitMs.toString
+      TableProperties.COMMIT_MIN_RETRY_WAIT_MS -> StorageConfig.icebergTableCommitMinRetryWaitMs.toString,
+      TableProperties.WRITE_DISTRIBUTION_MODE -> "range"
     )
     val identifier = TableIdentifier.of(tableNamespace, tableName)
     if (catalog.tableExists(identifier) && overrideIfExists) {
@@ -258,6 +266,20 @@ object IcebergUtil {
       Types.NestedField.optional(schema.columns().size() + 1, fieldName, fieldType)
 
     new IcebergSchema(updatedFields.asJava)
+  }
+
+  def readDataFileAsIterator(
+      dataFile: DataFile,
+      schema: IcebergSchema,
+      table: Table
+  ): Iterator[Record] = {
+    val inputFile: InputFile = table.io().newInputFile(dataFile)
+    val closeableIterable: CloseableIterable[Record] =
+      Parquet
+        .read(inputFile)
+        .project(schema)
+        .build()
+    closeableIterable.iterator().asScala
   }
 
 }

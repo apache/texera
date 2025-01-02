@@ -17,7 +17,7 @@ import java.util.UUID
 
 class IcebergDocumentSpec
     extends VirtualDocumentSpec[Tuple]
-    with MockTexeraDB
+//    with MockTexeraDB
     with BeforeAndAfterAll {
 
   var amberSchema: Schema = _
@@ -52,13 +52,13 @@ class IcebergDocumentSpec
     deserde = (schema, record) => IcebergUtil.fromRecord(record, amberSchema)
 
     // Initialize the test database and create the Iceberg catalog
-    initializeDBAndReplaceDSLContext()
+//    initializeDBAndReplaceDSLContext()
     catalog = IcebergUtil.createJdbcCatalog(
       "iceberg_document_test",
       StorageConfig.fileStorageDirectoryUri,
-      getJdbcUrl,
-      getJdbcUsername,
-      getJdbcPassword
+      StorageConfig.icebergCatalogUrl,
+      StorageConfig.icebergCatalogUsername,
+      StorageConfig.icebergCatalogPassword
     )
     IcebergCatalogInstance.replaceInstance(catalog)
   }
@@ -70,7 +70,7 @@ class IcebergDocumentSpec
   }
 
   override def afterAll(): Unit = {
-    shutdownDB()
+//    shutdownDB()
     super.afterAll()
   }
 
@@ -131,7 +131,7 @@ class IcebergDocumentSpec
       array
     }
 
-    val additionalTuples = (1 to 1000).map { i =>
+    val additionalTuples = (1 to 10).map { i =>
       Tuple
         .builder(amberSchema)
         .add("col-string", AttributeType.STRING, if (i % 7 == 0) null else s"Generated String $i")

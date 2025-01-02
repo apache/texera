@@ -7,13 +7,13 @@ storage:
   iceberg:
     catalog:
       jdbc: # currently we only support storing catalog info via jdbc, i.e. https://iceberg.apache.org/docs/1.7.1/jdbc/
-        url: "jdbc:mysql://localhost:3306/texera_iceberg?serverTimezone=UTC"
-        username: ""
-        password: ""
+        url: "jdbc:mysql://0.0.0.0:3306/texera_iceberg?serverTimezone=UTC"
+        username: "root"
+        password: "123456"
     table:
       namespace: "operator-result"
       commit:
-        batch-size: 4096 # decide the buffer size of our IcebergTableWriter
+        batch-size: 2 # decide the buffer size of our IcebergTableWriter
         retry:
           # retry configures the OCC parameter for concurrent write operations in Iceberg
           # Docs about Reliability in Iceberg: https://iceberg.apache.org/docs/1.7.1/reliability/

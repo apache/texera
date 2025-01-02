@@ -127,7 +127,16 @@ libraryDependencies ++= Seq(
     ExclusionRule(organization = "org.slf4j"),
     ExclusionRule(organization = "org.eclipse.jetty"),
     ExclusionRule(organization = "javax.servlet.jsp"),
+  ),
+  "org.apache.hadoop" % "hadoop-mapreduce-client-core" % "3.3.1" excludeAll(
+    ExclusionRule("javax.xml.bind"),
+    ExclusionRule("org.glassfish.jersey"),
+    ExclusionRule(organization = "com.sun.jersey"),
+    ExclusionRule(organization = "org.slf4j"),
+    ExclusionRule(organization = "org.eclipse.jetty"),
+    ExclusionRule(organization = "javax.servlet.jsp"),
   )
+
 )
 
 /////////////////////////////////////////////////////////////////////////////
