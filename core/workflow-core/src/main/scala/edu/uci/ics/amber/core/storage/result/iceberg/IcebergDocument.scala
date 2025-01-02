@@ -51,13 +51,16 @@ class IcebergDocument[T >: Null <: AnyRef](
 
   // During construction, create or override the table
   synchronized {
-    IcebergUtil.createTable(
+    val table = IcebergUtil.createTable(
       catalog,
       tableNamespace,
       tableName,
       augmentedSchema,
       overrideIfExists = true
     )
+    table.replaceSortOrder().asc("_record_id").commit()
+    print(table.sortOrders())
+    print(table.properties())
   }
 
   /**
@@ -139,7 +142,11 @@ class IcebergDocument[T >: Null <: AnyRef](
                 }
 
                 lastSnapshotId = currentSnapshotId
-                records.iterator().asScala.map(record => deserde(augmentedSchema, record))
+                records.iterator().asScala.map(record => {
+                  println(record.getField("_record_id"))
+                  deserde(augmentedSchema, record)
+                }
+                )
 
               case _ => Iterator.empty
             }

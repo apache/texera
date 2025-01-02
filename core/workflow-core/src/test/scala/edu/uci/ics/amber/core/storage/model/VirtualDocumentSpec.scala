@@ -201,28 +201,30 @@ trait VirtualDocumentSpec[T] extends AnyFlatSpec with BeforeAndAfterEach {
     )
   }
 
-//  it should "read all items using ranges correctly" in {
-//    val allItems = generateSampleItems()
-//
-//    // Write items
-//    val writer = document.writer(UUID.randomUUID().toString)
-//    writer.open()
-//    allItems.foreach(writer.putOne)
-//    writer.close()
-//
-//    // Read all items using ranges
-//    val batchSize = 15
-//    val ranges = allItems.indices.grouped(batchSize).toList
-//    val retrievedItems = ranges.flatMap { range =>
-//      document.getRange(range.head, range.lastOption.getOrElse(range.head) + 1).toList
-//    }
-//
-//    // Verify that the retrieved items match the original items
-//    assert(
-//      retrievedItems.toSet == allItems.toSet,
-//      "All items should be retrieved correctly using ranges."
-//    )
-//  }
+  it should "read all items using ranges correctly" in {
+    val allItems = generateSampleItems()
+
+    // Write items
+    val writer = document.writer(UUID.randomUUID().toString)
+    writer.open()
+    allItems.foreach(writer.putOne)
+    writer.close()
+
+    // Read all items using ranges
+    val batchSize = 500
+    val ranges = allItems.indices.grouped(batchSize).toList
+    val retrievedItems = ranges.flatMap { range =>
+      document.getRange(range.head, range.lastOption.getOrElse(range.head) + 1).toList
+    }
+
+    assert(retrievedItems.size == allItems.size)
+
+    // Verify that the retrieved items match the original items
+    assert(
+      retrievedItems.toSet == allItems.toSet,
+      "All items should be retrieved correctly using ranges."
+    )
+  }
 
   /**
     * Generates a sample list of items for testing.
