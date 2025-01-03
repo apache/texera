@@ -9,8 +9,8 @@ import org.apache.iceberg.types.Types
 import org.apache.iceberg.data.{GenericRecord, Record}
 import org.apache.iceberg.io.{CloseableIterable, InputFile}
 import org.apache.iceberg.jdbc.JdbcCatalog
-import org.apache.iceberg.parquet.Parquet.ReadBuilder
-import org.apache.iceberg.parquet.{Parquet, ParquetReader}
+import org.apache.iceberg.parquet.Parquet.{ReadBuilder, read}
+import org.apache.iceberg.parquet.{Parquet, ParquetReader, ParquetValueReader}
 import org.apache.iceberg.types.Type.PrimitiveType
 import org.apache.iceberg.{
   CatalogProperties,
@@ -20,6 +20,8 @@ import org.apache.iceberg.{
   TableProperties,
   Schema => IcebergSchema
 }
+import org.apache.parquet.hadoop.api.ReadSupport
+import org.apache.parquet.schema.MessageType
 
 import java.net.URI
 import java.nio.ByteBuffer
@@ -32,8 +34,6 @@ import scala.jdk.CollectionConverters._
   * Util functions to interact with Iceberg Tables
   */
 object IcebergUtil {
-
-  val RECORD_ID_FIELD_NAME = "_record_id"
 
   /**
     * Creates and initializes a JdbcCatalog with the given parameters.
@@ -274,10 +274,17 @@ object IcebergUtil {
       table: Table
   ): Iterator[Record] = {
     val inputFile: InputFile = table.io().newInputFile(dataFile)
+    val readerFunc
+        : java.util.function.Function[org.apache.parquet.schema.MessageType, ParquetValueReader[
+          _
+        ]] =
+      (messageType: org.apache.parquet.schema.MessageType) =>
+        GenericParquetReaders.buildReader(schema, messageType)
     val closeableIterable: CloseableIterable[Record] =
       Parquet
         .read(inputFile)
         .project(schema)
+        .createReaderFunc(readerFunc)
         .build()
     closeableIterable.iterator().asScala
   }

@@ -3,13 +3,9 @@ package edu.uci.ics.amber.core.storage.result.iceberg
 import edu.uci.ics.amber.core.storage.IcebergCatalogInstance
 import edu.uci.ics.amber.core.storage.model.{BufferedItemWriter, VirtualDocument}
 import edu.uci.ics.amber.core.storage.util.StorageUtil.{withLock, withReadLock, withWriteLock}
+import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.util.IcebergUtil
-import edu.uci.ics.amber.util.IcebergUtil.{
-  RECORD_ID_FIELD_NAME,
-  loadTableMetadata,
-  readDataFileAsIterator
-}
-import org.apache.iceberg.{DataFile, Schema, Snapshot, Table}
+import org.apache.iceberg.{DataFile, FileScanTask, Table}
 import org.apache.iceberg.catalog.{Catalog, TableIdentifier}
 import org.apache.iceberg.data.{IcebergGenerics, Record}
 import org.apache.iceberg.exceptions.NoSuchTableException
@@ -46,24 +42,15 @@ class IcebergDocument[T >: Null <: AnyRef](
 
   @transient lazy val catalog: Catalog = IcebergCatalogInstance.getInstance()
 
-  // Add the recordId field to the schema
-  private val augmentedSchema: org.apache.iceberg.Schema =
-    IcebergUtil.addFieldToSchema(
-      tableSchema,
-      "_record_id",
-      Types.StringType.get()
-    )
-
   // During construction, create or override the table
   synchronized {
-    val table = IcebergUtil.createTable(
+    IcebergUtil.createTable(
       catalog,
       tableNamespace,
       tableName,
-      augmentedSchema,
+      tableSchema,
       overrideIfExists = true
     )
-    table.replaceSortOrder().asc(RECORD_ID_FIELD_NAME).caseSensitive(false).commit()
   }
 
   /**
@@ -150,7 +137,7 @@ class IcebergDocument[T >: Null <: AnyRef](
                   .iterator()
                   .asScala
                   .map(record => {
-                    deserde(augmentedSchema, record)
+                    deserde(tableSchema, record)
                   })
 
               case _ => Iterator.empty
@@ -182,20 +169,14 @@ class IcebergDocument[T >: Null <: AnyRef](
     * Get records within a specified range [from, until).
     */
   override def getRange(from: Int, until: Int): Iterator[T] = {
-    val dataFileList = getSortedDataFiles().toList
-    dataFileList.foreach({ dataFile =>
-      val recordList: List[Record] =
-        readDataFileAsIterator(dataFile, augmentedSchema, loadTableMetadata()).toList
-      println(recordList)
-    })
-    get().slice(from, until)
+    getUsingFileSequenceOrder(from, Some(until))
   }
 
   /**
     * Get records starting after a specified offset.
     */
   override def getAfter(offset: Int): Iterator[T] = {
-    get().drop(offset + 1)
+    getUsingFileSequenceOrder(offset, None)
   }
 
   /**
@@ -216,7 +197,7 @@ class IcebergDocument[T >: Null <: AnyRef](
       catalog,
       tableNamespace,
       tableName,
-      augmentedSchema,
+      tableSchema,
       serde
     )
   }
@@ -231,16 +212,145 @@ class IcebergDocument[T >: Null <: AnyRef](
       .planFiles()
       .iterator()
       .asScala
-      .map(_.file())
+      .map(_.file)
       .toSeq
       .sortBy(_.fileSequenceNumber())
       .iterator
-//    val snapshot: Snapshot = table.currentSnapshot()
-//    snapshot.addedDataFiles(table.io()).asScala
-//      .toSeq
-//      .sortBy(_.fileSequenceNumber())
-//      .iterator
   }
+
+  /**
+    * Util iterator to get T in certain range
+    * from: start from which record inclusively, if 0 means start from the first
+    * until: end at which record exclusively, if None means to the end
+    */
+  private def getUsingFileSequenceOrder(from: Int, until: Option[Int]): Iterator[T] =
+    withReadLock(lock) {
+      new Iterator[T] {
+        private val iteLock = new ReentrantLock()
+        // Load the table instance, initially the table instance may not exist
+        private var table: Option[Table] = loadTableMetadata()
+
+        // Last seen snapshot id(logically it's like a version number). While reading, new snapshots may be created
+        private var lastSnapshotId: Option[Long] = None
+
+        // Counter for how many records have been skipped
+        private var numOfSkippedRecords = 0
+
+        // Counter for how many records have been returned
+        private var numOfReturnedRecords = 0
+
+        // Total number of records to return
+        private val totalRecordsToReturn = until.map(_ - from).getOrElse(Int.MaxValue)
+
+        // Iterator for usable file scan tasks
+        private var usableFileIterator: Iterator[FileScanTask] = seekToUsableFile()
+
+        // Current record iterator for the active file
+        private var currentRecordIterator: Iterator[Record] = Iterator.empty
+
+        // Util function to load the table's metadata
+        private def loadTableMetadata(): Option[Table] = {
+          IcebergUtil.loadTableMetadata(
+            catalog,
+            tableNamespace,
+            tableName
+          )
+        }
+
+        private def seekToUsableFile(): Iterator[FileScanTask] =
+          withLock(iteLock) {
+            if (numOfSkippedRecords > from) {
+              throw new RuntimeException("seek operation should not be called")
+            }
+
+            // Retrieve and sort the file scan tasks by file sequence number
+            val fileScanTasksIterator: Iterator[FileScanTask] = table match {
+              case Some(t) =>
+                val currentSnapshotId = Option(t.currentSnapshot()).map(_.snapshotId())
+                val fileScanTasks = (lastSnapshotId, currentSnapshotId) match {
+                  // Read from the start
+                  case (None, Some(_)) =>
+                    val tasks = t.newScan().planFiles().iterator().asScala
+                    lastSnapshotId = currentSnapshotId
+                    tasks
+
+                  // Read incrementally from the last snapshot
+                  case (Some(lastId), Some(currId)) if lastId != currId =>
+                    val tasks = t
+                      .newIncrementalAppendScan()
+                      .fromSnapshotExclusive(lastId)
+                      .toSnapshot(currId)
+                      .planFiles()
+                      .iterator()
+                      .asScala
+                    lastSnapshotId = currentSnapshotId
+                    tasks
+
+                  // No new data
+                  case (Some(lastId), Some(currId)) if lastId == currId =>
+                    Iterator.empty
+
+                  // Default: No data yet
+                  case _ =>
+                    Iterator.empty
+                }
+                fileScanTasks.toSeq.sortBy(_.file().fileSequenceNumber()).iterator
+
+              case None =>
+                Iterator.empty
+            }
+
+            // Iterate through sorted FileScanTasks and update numOfSkippedRecords
+            val usableTasks = fileScanTasksIterator.dropWhile { task =>
+              val recordCount = task.file().recordCount()
+              if (numOfSkippedRecords + recordCount <= from) {
+                numOfSkippedRecords += recordCount.toInt
+                true
+              } else {
+                false
+              }
+            }
+
+            usableTasks
+          }
+
+        override def hasNext: Boolean = {
+          if (numOfReturnedRecords >= totalRecordsToReturn) {
+            return false
+          }
+
+          if (!usableFileIterator.hasNext) {
+            usableFileIterator = seekToUsableFile()
+          }
+
+          while (!currentRecordIterator.hasNext && usableFileIterator.hasNext) {
+            val nextFile = usableFileIterator.next()
+            currentRecordIterator = IcebergUtil.readDataFileAsIterator(
+              nextFile.file(),
+              tableSchema,
+              table.get
+            )
+
+            // Skip records within the file if necessary
+            val recordsToSkipInFile = from - numOfSkippedRecords
+            if (recordsToSkipInFile > 0) {
+              currentRecordIterator = currentRecordIterator.drop(recordsToSkipInFile)
+              numOfSkippedRecords += recordsToSkipInFile
+            }
+          }
+
+          currentRecordIterator.hasNext
+        }
+
+        override def next(): T = {
+          if (!hasNext) throw new NoSuchElementException("No more records available")
+
+          val record = currentRecordIterator.next()
+          numOfReturnedRecords += 1
+          deserde(tableSchema, record)
+        }
+      }
+    }
 
   private def loadTableMetadata(): Table = {
     IcebergUtil
