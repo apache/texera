@@ -244,30 +244,6 @@ object IcebergUtil {
     }
   }
 
-  /**
-    * Adds a new field to an existing Iceberg schema.
-    * - If the field already exists, it throws an IllegalArgumentException.
-    *
-    * @param schema The existing Iceberg schema.
-    * @param fieldName The name of the new field.
-    * @param fieldType The type of the new field.
-    * @return The updated Iceberg schema with the new field.
-    */
-  def addFieldToSchema(
-      schema: IcebergSchema,
-      fieldName: String,
-      fieldType: PrimitiveType
-  ): IcebergSchema = {
-    if (schema.findField(fieldName) != null) {
-      throw new IllegalArgumentException(s"Field $fieldName already exists in the schema")
-    }
-
-    val updatedFields = schema.columns().asScala.toSeq :+
-      Types.NestedField.optional(schema.columns().size() + 1, fieldName, fieldType)
-
-    new IcebergSchema(updatedFields.asJava)
-  }
-
   def readDataFileAsIterator(
       dataFile: DataFile,
       schema: IcebergSchema,

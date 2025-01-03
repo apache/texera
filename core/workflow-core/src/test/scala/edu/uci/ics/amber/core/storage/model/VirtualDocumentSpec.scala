@@ -211,7 +211,7 @@ trait VirtualDocumentSpec[T] extends AnyFlatSpec with BeforeAndAfterEach {
     writer.close()
 
     // Read all items using ranges
-    val batchSize = 3
+    val batchSize = 1500
     val ranges = allItems.indices.grouped(batchSize).toList
     val retrievedItems = ranges.flatMap { range =>
       document.getRange(range.head, range.lastOption.getOrElse(range.head) + 1).toList

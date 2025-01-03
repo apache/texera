@@ -131,7 +131,7 @@ class IcebergDocumentSpec
       array
     }
 
-    val additionalTuples = (1 to 10).map { i =>
+    val additionalTuples = (1 to 10000).map { i =>
       Tuple
         .builder(amberSchema)
         .add("col-string", AttributeType.STRING, if (i % 7 == 0) null else s"Generated String $i")
