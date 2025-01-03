@@ -226,6 +226,40 @@ trait VirtualDocumentSpec[T] extends AnyFlatSpec with BeforeAndAfterEach {
     )
   }
 
+  it should "retrieve items correctly using getAfter" in {
+    val allItems = generateSampleItems()
+
+    // Write items
+    val writer = document.writer(UUID.randomUUID().toString)
+    writer.open()
+    allItems.foreach(writer.putOne)
+    writer.close()
+
+    // Test getAfter for various offsets
+    val offsets = List(0, allItems.length / 2, allItems.length - 1)
+    offsets.foreach { offset =>
+      val expectedItems = if (offset < allItems.length) {
+        allItems.slice(offset, allItems.length)
+      } else {
+        List.empty[T]
+      }
+
+      val retrievedItems = document.getAfter(offset).toList
+      assert(
+        retrievedItems == expectedItems,
+        s"getAfter($offset) did not return the expected items. Expected: $expectedItems, Got: $retrievedItems"
+      )
+    }
+
+    // Test getAfter for an offset beyond the range
+    val invalidOffset = allItems.length
+    val retrievedItems = document.getAfter(invalidOffset).toList
+    assert(
+      retrievedItems.isEmpty,
+      s"getAfter($invalidOffset) should return an empty list, but got: $retrievedItems"
+    )
+  }
+
   /**
     * Generates a sample list of items for testing.
     * Subclasses should override this to provide their specific sample items.
