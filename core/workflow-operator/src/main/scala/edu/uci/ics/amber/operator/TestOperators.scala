@@ -8,7 +8,6 @@ import edu.uci.ics.amber.operator.aggregate.{
 }
 import edu.uci.ics.amber.operator.hashJoin.HashJoinOpDesc
 import edu.uci.ics.amber.operator.keywordSearch.KeywordSearchOpDesc
-import edu.uci.ics.amber.operator.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.amber.operator.source.scan.csv.CSVScanSourceOpDesc
 import edu.uci.ics.amber.operator.source.scan.json.JSONLScanSourceOpDesc
 import edu.uci.ics.amber.operator.source.sql.asterixdb.AsterixDBSourceOpDesc
@@ -68,7 +67,7 @@ object TestOperators {
     csvHeaderlessOp.fileName = Some(fileName)
     csvHeaderlessOp.customDelimiter = Some(",")
     csvHeaderlessOp.hasHeader = header
-    csvHeaderlessOp.setFileUri(FileResolver.resolve(fileName))
+    csvHeaderlessOp.setResolvedFileName(FileResolver.resolve(fileName))
     csvHeaderlessOp
 
   }
@@ -77,7 +76,7 @@ object TestOperators {
     val jsonlOp = new JSONLScanSourceOpDesc
     jsonlOp.fileName = Some(fileName)
     jsonlOp.flatten = flatten
-    jsonlOp.setFileUri(FileResolver.resolve(fileName))
+    jsonlOp.setResolvedFileName(FileResolver.resolve(fileName))
     jsonlOp
   }
 
@@ -142,10 +141,6 @@ object TestOperators {
     asterixDBOp.table = "ds_tweet"
     asterixDBOp.limit = Some(1000)
     asterixDBOp
-  }
-
-  def sinkOpDesc(): ProgressiveSinkOpDesc = {
-    new ProgressiveSinkOpDesc()
   }
 
   def pythonOpDesc(): PythonUDFOpDescV2 = {

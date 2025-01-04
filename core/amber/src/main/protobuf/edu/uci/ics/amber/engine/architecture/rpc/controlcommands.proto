@@ -1,8 +1,9 @@
 syntax = "proto3";
 package edu.uci.ics.amber.engine.architecture.rpc;
 
-import "edu/uci/ics/amber/virtualidentity.proto";
-import "edu/uci/ics/amber/workflow.proto";
+import "edu/uci/ics/amber/core/virtualidentity.proto";
+import "edu/uci/ics/amber/core/workflow.proto";
+import "edu/uci/ics/amber/core/executor.proto";
 import "edu/uci/ics/amber/engine/architecture/worker/statistics.proto";
 import "edu/uci/ics/amber/engine/architecture/sendsemantics/partitionings.proto";
 import "scalapb/scalapb.proto";
@@ -58,8 +59,8 @@ message EmptyRequest{}
 
 message AsyncRPCContext {
   option (scalapb.message).no_box = true;
-  ActorVirtualIdentity sender = 1 [(scalapb.field).no_box = true];
-  ActorVirtualIdentity receiver = 2 [(scalapb.field).no_box = true];
+  core.ActorVirtualIdentity sender = 1 [(scalapb.field).no_box = true];
+  core.ActorVirtualIdentity receiver = 2 [(scalapb.field).no_box = true];
 }
 
 message ControlInvocation {
@@ -79,25 +80,25 @@ enum ChannelMarkerType {
 // Message for ChannelMarkerPayload
 message ChannelMarkerPayload {
   option (scalapb.message).extends = "edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessagePayload";
-  ChannelMarkerIdentity id = 1 [(scalapb.field).no_box = true];
+  core.ChannelMarkerIdentity id = 1 [(scalapb.field).no_box = true];
   ChannelMarkerType markerType = 2;
-  repeated ChannelIdentity scope = 3;
+  repeated core.ChannelIdentity scope = 3;
   map<string, ControlInvocation> commandMapping = 4;
 }
 
 message PropagateChannelMarkerRequest {
-  repeated PhysicalOpIdentity sourceOpToStartProp = 1;
-  ChannelMarkerIdentity id = 2 [(scalapb.field).no_box = true];
+  repeated core.PhysicalOpIdentity sourceOpToStartProp = 1;
+  core.ChannelMarkerIdentity id = 2 [(scalapb.field).no_box = true];
   ChannelMarkerType markerType = 3;
-  repeated PhysicalOpIdentity scope = 4;
-  repeated PhysicalOpIdentity targetOps = 5;
+  repeated core.PhysicalOpIdentity scope = 4;
+  repeated core.PhysicalOpIdentity targetOps = 5;
   ControlRequest markerCommand = 6;
   string markerMethodName = 7;
 }
 
 message TakeGlobalCheckpointRequest {
   bool estimationOnly = 1;
-  ChannelMarkerIdentity checkpointId = 2 [(scalapb.field).no_box = true];
+  core.ChannelMarkerIdentity checkpointId = 2 [(scalapb.field).no_box = true];
   string destination = 3;
 }
 
@@ -122,7 +123,7 @@ message ModifyLogicRequest {
 }
 
 message RetryWorkflowRequest {
-  repeated ActorVirtualIdentity workers = 1;
+  repeated core.ActorVirtualIdentity workers = 1;
 }
 
 enum ConsoleMessageType{
@@ -147,7 +148,7 @@ message ConsoleMessageTriggeredRequest {
 }
 
 message PortCompletedRequest {
-  PortIdentity portId = 1 [(scalapb.field).no_box = true];
+  core.PortIdentity portId = 1 [(scalapb.field).no_box = true];
   bool input = 2;
 }
 
@@ -156,21 +157,21 @@ message WorkerStateUpdatedRequest {
 }
 
 message LinkWorkersRequest {
-  PhysicalLink link = 1 [(scalapb.field).no_box = true];
+  core.PhysicalLink link = 1 [(scalapb.field).no_box = true];
 }
 
 // Ping message
 message Ping {
   int32 i = 1;
   int32 end = 2;
-  ActorVirtualIdentity to = 3 [(scalapb.field).no_box = true];
+  core.ActorVirtualIdentity to = 3 [(scalapb.field).no_box = true];
 }
 
 // Pong message
 message Pong {
   int32 i = 1;
   int32 end = 2;
-  ActorVirtualIdentity to = 3 [(scalapb.field).no_box = true];
+  core.ActorVirtualIdentity to = 3 [(scalapb.field).no_box = true];
 }
 
 // Pass message
@@ -185,7 +186,7 @@ message Nested {
 
 // MultiCall message
 message MultiCall {
-  repeated ActorVirtualIdentity seq = 1;
+  repeated core.ActorVirtualIdentity seq = 1;
 }
 
 // ErrorCommand message
@@ -194,7 +195,7 @@ message ErrorCommand {
 
 // Collect message
 message Collect {
-  repeated ActorVirtualIdentity workers = 1;
+  repeated core.ActorVirtualIdentity workers = 1;
 }
 
 // GenerateNumber message
@@ -203,7 +204,7 @@ message GenerateNumber {
 
 // Chain message
 message Chain {
-  repeated ActorVirtualIdentity nexts = 1;
+  repeated core.ActorVirtualIdentity nexts = 1;
 }
 
 // Recursion message
@@ -213,44 +214,43 @@ message Recursion {
 
 // Messages for the commands
 message AddInputChannelRequest {
-  ChannelIdentity channelId = 1 [(scalapb.field).no_box = true];
-  PortIdentity portId = 2 [(scalapb.field).no_box = true];
+  core.ChannelIdentity channelId = 1 [(scalapb.field).no_box = true];
+  core.PortIdentity portId = 2 [(scalapb.field).no_box = true];
 }
 
 message AddPartitioningRequest {
-  PhysicalLink tag = 1 [(scalapb.field).no_box = true];
+  core.PhysicalLink tag = 1 [(scalapb.field).no_box = true];
   sendsemantics.Partitioning partitioning = 2 [(scalapb.field).no_box = true];
 }
 
 message AssignPortRequest {
-  PortIdentity portId = 1 [(scalapb.field).no_box = true];
+  core.PortIdentity portId = 1 [(scalapb.field).no_box = true];
   bool input = 2;
   map<string, string> schema = 3;
 }
 
 message FinalizeCheckpointRequest {
-  ChannelMarkerIdentity checkpointId = 1 [(scalapb.field).no_box = true];
+  core.ChannelMarkerIdentity checkpointId = 1 [(scalapb.field).no_box = true];
   string writeTo = 2;
 }
 
 message InitializeExecutorRequest {
   int32 totalWorkerCount = 1;
-  google.protobuf.Any opExecInitInfo = 2 [(scalapb.field).no_box = true];
+  core.OpExecInitInfo opExecInitInfo = 2;
   bool isSource = 3;
-  string language = 4;
 }
 
 message UpdateExecutorRequest {
-  PhysicalOpIdentity targetOpId = 1 [(scalapb.field).no_box = true];
+  core.PhysicalOpIdentity targetOpId = 1 [(scalapb.field).no_box = true];
   google.protobuf.Any newExecutor = 2 [(scalapb.field).no_box = true];
   google.protobuf.Any stateTransferFunc = 3;
 }
 
 message PrepareCheckpointRequest{
-  ChannelMarkerIdentity checkpointId = 1 [(scalapb.field).no_box = true];
+  core.ChannelMarkerIdentity checkpointId = 1 [(scalapb.field).no_box = true];
   bool estimationOnly = 2;
 }
 
 message QueryStatisticsRequest{
-  repeated ActorVirtualIdentity filterByWorkers = 1;
+  repeated core.ActorVirtualIdentity filterByWorkers = 1;
 }

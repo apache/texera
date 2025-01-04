@@ -3,7 +3,7 @@ package edu.uci.ics.amber.engine.architecture.messaginglayer
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners.RangeBasedShufflePartitioner
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning
-import edu.uci.ics.amber.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -16,7 +16,7 @@ class RangeBasedShuffleSpec extends AnyFlatSpec with MockFactory {
   val fakeID5: ActorVirtualIdentity = ActorVirtualIdentity("rec5")
 
   val attr: Attribute = new Attribute("Attr1", AttributeType.INTEGER)
-  val schema: Schema = Schema.builder().add(attr).build()
+  val schema: Schema = Schema().add(attr)
   val partitioning: RangeBasedShufflePartitioning =
     RangeBasedShufflePartitioning(
       400,
@@ -82,7 +82,7 @@ class RangeBasedShuffleSpec extends AnyFlatSpec with MockFactory {
 
     val partitioner2: RangeBasedShufflePartitioner = RangeBasedShufflePartitioner(partitioning2)
     val doubleAttr: Attribute = new Attribute("Attr2", AttributeType.DOUBLE)
-    val doubleSchema: Schema = Schema.builder().add(doubleAttr).build()
+    val doubleSchema: Schema = Schema().add(doubleAttr)
     tuple = Tuple.builder(doubleSchema).add(doubleAttr, -90.5).build()
     idx = partitioner2.getBucketIndex(tuple)
     assert(idx.next() == 1)
@@ -104,7 +104,7 @@ class RangeBasedShuffleSpec extends AnyFlatSpec with MockFactory {
 
     val partitioner3: RangeBasedShufflePartitioner = RangeBasedShufflePartitioner(partitioning3)
     val longAttr: Attribute = new Attribute("Attr3", AttributeType.LONG)
-    val longSchema: Schema = Schema.builder().add(longAttr).build()
+    val longSchema: Schema = Schema().add(longAttr)
     tuple = Tuple.builder(longSchema).add(longAttr, -90L).build()
     idx = partitioner3.getBucketIndex(tuple)
     assert(idx.next() == 1)

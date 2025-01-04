@@ -1,13 +1,10 @@
 package edu.uci.ics.amber.operator.intersect
 
-import com.google.common.base.Preconditions
-import edu.uci.ics.amber.core.executor.OpExecInitInfo
-import edu.uci.ics.amber.core.tuple.Schema
-import edu.uci.ics.amber.core.workflow.{HashPartition, PhysicalOp}
+import edu.uci.ics.amber.core.executor.OpExecWithClassName
+import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.core.workflow._
 import edu.uci.ics.amber.operator.LogicalOp
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.amber.workflow.{InputPort, OutputPort, PortIdentity}
 
 class IntersectOpDesc extends LogicalOp {
 
@@ -20,7 +17,7 @@ class IntersectOpDesc extends LogicalOp {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _) => new IntersectOpExec())
+        OpExecWithClassName("edu.uci.ics.amber.operator.intersect.IntersectOpExec")
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
@@ -36,10 +33,4 @@ class IntersectOpDesc extends LogicalOp {
       inputPorts = List(InputPort(PortIdentity()), InputPort(PortIdentity(1))),
       outputPorts = List(OutputPort(blocking = true))
     )
-
-  override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    Preconditions.checkArgument(schemas.forall(_ == schemas(0)))
-    schemas(0)
-  }
-
 }

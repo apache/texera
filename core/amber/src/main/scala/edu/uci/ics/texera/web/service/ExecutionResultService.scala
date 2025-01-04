@@ -5,13 +5,10 @@ import com.fasterxml.jackson.annotation.{JsonTypeInfo, JsonTypeName}
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.storage.StorageConfig
-import edu.uci.ics.amber.core.storage.result.{
-  MongoDocument,
-  OperatorResultMetadata,
-  ResultStorage,
-  WorkflowResultStore
-}
+import edu.uci.ics.amber.core.storage.result.OpResultStorage.MONGODB
+import edu.uci.ics.amber.core.storage.result._
 import edu.uci.ics.amber.core.tuple.Tuple
+import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan}
 import edu.uci.ics.amber.engine.architecture.controller.{ExecutionStateUpdate, FatalError}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
   COMPLETED,
@@ -19,13 +16,12 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregat
   KILLED,
   RUNNING
 }
-import edu.uci.ics.amber.operator.sink.IncrementalOutputMode.{SET_DELTA, SET_SNAPSHOT}
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.executionruntimestate.ExecutionMetadataStore
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberRuntime}
-import edu.uci.ics.amber.operator.sink.IncrementalOutputMode
-import edu.uci.ics.amber.operator.sink.managed.ProgressiveSinkOpDesc
-import edu.uci.ics.amber.virtualidentity.OperatorIdentity
+import edu.uci.ics.amber.core.virtualidentity.{OperatorIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode
+import edu.uci.ics.amber.core.workflow.PortIdentity
 import edu.uci.ics.texera.web.SubscriptionManager
 import edu.uci.ics.texera.web.model.websocket.event.{
   PaginatedResultEvent,
@@ -33,9 +29,7 @@ import edu.uci.ics.texera.web.model.websocket.event.{
   WebResultUpdateEvent
 }
 import edu.uci.ics.texera.web.model.websocket.request.ResultPaginationRequest
-import edu.uci.ics.texera.web.service.ExecutionResultService.WebResultUpdate
 import edu.uci.ics.texera.web.storage.{ExecutionStateStore, WorkflowStateStore}
-import edu.uci.ics.texera.workflow.LogicalPlan
 
 import java.util.UUID
 import scala.collection.mutable
@@ -43,28 +37,17 @@ import scala.concurrent.duration.DurationInt
 
 object ExecutionResultService {
 
-  val defaultPageSize: Int = 5
-
-  // convert Tuple from engine's format to JSON format
-  def webDataFromTuple(
-      mode: WebOutputMode,
-      table: List[Tuple],
-      chartType: Option[String]
-  ): WebDataUpdate = {
-    val tableInJson = table.map(t => t.asKeyValuePairJson())
-    WebDataUpdate(mode, tableInJson, chartType)
-  }
+  private val defaultPageSize: Int = 5
 
   /**
     * convert Tuple from engine's format to JSON format
     */
   private def tuplesToWebData(
       mode: WebOutputMode,
-      table: List[Tuple],
-      chartType: Option[String]
+      table: List[Tuple]
   ): WebDataUpdate = {
     val tableInJson = table.map(t => t.asKeyValuePairJson())
-    WebDataUpdate(mode, tableInJson, chartType)
+    WebDataUpdate(mode, tableInJson)
   }
 
   /**
@@ -75,44 +58,56 @@ object ExecutionResultService {
     *
     * Produces the WebResultUpdate to send to frontend from a result update from the engine.
     */
-  def convertWebResultUpdate(
-      sink: ProgressiveSinkOpDesc,
+  private def convertWebResultUpdate(
+      workflowIdentity: WorkflowIdentity,
+      physicalOps: List[PhysicalOp],
       oldTupleCount: Int,
       newTupleCount: Int
   ): WebResultUpdate = {
+    val outputMode = physicalOps
+      .flatMap(op => op.outputPorts)
+      .filter({
+        case (portId, (port, links, schema)) => !portId.internal
+      })
+      .map({
+        case (portId, (port, links, schema)) => port.mode
+      })
+      .head
+
     val webOutputMode: WebOutputMode = {
-      (sink.getOutputMode, sink.getChartType) match {
-        // visualization sinks use its corresponding mode
-        case (SET_SNAPSHOT, Some(_)) => SetSnapshotMode()
-        case (SET_DELTA, Some(_))    => SetDeltaMode()
-        // Non-visualization sinks use pagination mode
-        case (_, None) => PaginationMode()
+      outputMode match {
+        // currently, only table outputs are using these modes
+        case OutputMode.SET_DELTA    => SetDeltaMode()
+        case OutputMode.SET_SNAPSHOT => PaginationMode()
+
+        // currently, only visualizations are using single snapshot mode
+        case OutputMode.SINGLE_SNAPSHOT => SetSnapshotMode()
       }
     }
 
     val storage =
-      ResultStorage.getOpResultStorage(sink.getContext.workflowId).get(sink.getUpstreamId.get)
-    val webUpdate = (webOutputMode, sink.getOutputMode) match {
-      case (PaginationMode(), SET_SNAPSHOT) =>
+      ResultStorage
+        .getOpResultStorage(workflowIdentity)
+        .get(OpResultStorage.createStorageKey(physicalOps.head.id.logicalOpId, PortIdentity()))
+    val webUpdate = webOutputMode match {
+      case PaginationMode() =>
         val numTuples = storage.getCount
         val maxPageIndex =
-          Math.ceil(numTuples / ExecutionResultService.defaultPageSize.toDouble).toInt
+          Math.ceil(numTuples / defaultPageSize.toDouble).toInt
         WebPaginationUpdate(
           PaginationMode(),
           newTupleCount,
           (1 to maxPageIndex).toList
         )
-      case (SetSnapshotMode(), SET_SNAPSHOT) =>
-        tuplesToWebData(webOutputMode, storage.get().toList, sink.getChartType)
-      case (SetDeltaMode(), SET_DELTA) =>
+      case SetSnapshotMode() =>
+        tuplesToWebData(webOutputMode, storage.get().toList)
+      case SetDeltaMode() =>
         val deltaList = storage.getAfter(oldTupleCount).toList
-        tuplesToWebData(webOutputMode, deltaList, sink.getChartType)
+        tuplesToWebData(webOutputMode, deltaList)
 
-      // currently not supported mode combinations
-      // (PaginationMode, SET_DELTA) | (DataSnapshotMode, SET_DELTA) | (DataDeltaMode, SET_SNAPSHOT)
       case _ =>
         throw new RuntimeException(
-          "update mode combination not supported: " + (webOutputMode, sink.getOutputMode)
+          "update mode combination not supported: " + (webOutputMode, outputMode)
         )
     }
     webUpdate
@@ -152,8 +147,8 @@ object ExecutionResultService {
       dirtyPageIndices: List[Int]
   ) extends WebResultUpdate
 
-  case class WebDataUpdate(mode: WebOutputMode, table: List[ObjectNode], chartType: Option[String])
-      extends WebResultUpdate
+  case class WebDataUpdate(mode: WebOutputMode, table: List[ObjectNode]) extends WebResultUpdate
+
 }
 
 /**
@@ -164,18 +159,16 @@ object ExecutionResultService {
   *  - send result update event to the frontend
   */
 class ExecutionResultService(
+    workflowIdentity: WorkflowIdentity,
     val workflowStateStore: WorkflowStateStore
 ) extends SubscriptionManager
     with LazyLogging {
-
-  var sinkOperators: mutable.HashMap[OperatorIdentity, ProgressiveSinkOpDesc] =
-    mutable.HashMap[OperatorIdentity, ProgressiveSinkOpDesc]()
   private val resultPullingFrequency = AmberConfig.executionResultPollingInSecs
   private var resultUpdateCancellable: Cancellable = _
 
   def attachToExecution(
       stateStore: ExecutionStateStore,
-      logicalPlan: LogicalPlan,
+      physicalPlan: PhysicalPlan,
       client: AmberClient
   ): Unit = {
 
@@ -195,7 +188,7 @@ class ExecutionResultService(
                   2.seconds,
                   resultPullingFrequency.seconds
                 ) {
-                  onResultUpdate()
+                  onResultUpdate(physicalPlan)
                 }
             }
           } else {
@@ -211,7 +204,7 @@ class ExecutionResultService(
             logger.info("Workflow execution terminated. Stop update results.")
             if (resultUpdateCancellable.cancel() || resultUpdateCancellable.isCancelled) {
               // immediately perform final update
-              onResultUpdate()
+              onResultUpdate(physicalPlan)
             }
           }
         })
@@ -227,7 +220,7 @@ class ExecutionResultService(
 
     addSubscription(
       workflowStateStore.resultStore.registerDiffHandler((oldState, newState) => {
-        val buf = mutable.HashMap[String, WebResultUpdate]()
+        val buf = mutable.HashMap[String, ExecutionResultService.WebResultUpdate]()
         val allTableStats = mutable.Map[String, Map[String, Map[String, Any]]]()
         newState.resultInfo
           .filter(info => {
@@ -239,18 +232,17 @@ class ExecutionResultService(
             case (opId, info) =>
               val oldInfo = oldState.resultInfo.getOrElse(opId, OperatorResultMetadata())
               buf(opId.id) = ExecutionResultService.convertWebResultUpdate(
-                sinkOperators(opId),
+                workflowIdentity,
+                physicalPlan.getPhysicalOpsOfLogicalOp(opId),
                 oldInfo.tupleCount,
                 info.tupleCount
               )
-              if (
-                StorageConfig.resultStorageMode.toLowerCase == "mongodb"
-                && !opId.id.startsWith("sink")
-              ) {
-                val sinkOp = sinkOperators(opId)
+              if (StorageConfig.resultStorageMode == MONGODB) {
+                // using the first port for now. TODO: support multiple ports
+                val storageKey = OpResultStorage.createStorageKey(opId, PortIdentity())
                 val opStorage = ResultStorage
-                  .getOpResultStorage(sinkOp.getContext.workflowId)
-                  .get(sinkOp.getUpstreamId.get)
+                  .getOpResultStorage(workflowIdentity)
+                  .get(storageKey)
                 opStorage match {
                   case mongoDocument: MongoDocument[Tuple] =>
                     val tableCatStats = mongoDocument.getCategoricalStats
@@ -276,40 +268,26 @@ class ExecutionResultService(
       })
     )
 
-    // first clear all the results
-    sinkOperators.clear()
+    // clear all the result metadata
     workflowStateStore.resultStore.updateState { _ =>
       WorkflowResultStore() // empty result store
     }
 
-    // For operators connected to a sink and sinks,
-    // create result service so that the results can be displayed.
-    logicalPlan.getTerminalOperatorIds.map(sink => {
-      logicalPlan.getOperator(sink) match {
-        case sinkOp: ProgressiveSinkOpDesc =>
-          sinkOperators += ((sinkOp.getUpstreamId.get, sinkOp))
-          sinkOperators += ((sink, sinkOp))
-        case other => // skip other non-texera-managed sinks, if any
-      }
-    })
   }
 
   def handleResultPagination(request: ResultPaginationRequest): TexeraWebSocketEvent = {
     // calculate from index (pageIndex starts from 1 instead of 0)
     val from = request.pageSize * (request.pageIndex - 1)
-    val opId = OperatorIdentity(request.operatorID)
-    val paginationIterable = {
 
-      if (sinkOperators.contains(opId)) {
-        val sinkOp = sinkOperators(opId)
-        ResultStorage
-          .getOpResultStorage(sinkOp.getContext.workflowId)
-          .get(sinkOp.getUpstreamId.get)
-          .getRange(from, from + request.pageSize)
-          .to(Iterable)
-      } else {
-        Iterable.empty
-      }
+    // using the first port for now. TODO: support multiple ports
+    val storageKey =
+      OpResultStorage.createStorageKey(OperatorIdentity(request.operatorID), PortIdentity())
+    val paginationIterable = {
+      ResultStorage
+        .getOpResultStorage(workflowIdentity)
+        .get(storageKey)
+        .getRange(from, from + request.pageSize)
+        .to(Iterable)
     }
     val mappedResults = paginationIterable
       .map(tuple => tuple.asKeyValuePairJson())
@@ -320,23 +298,37 @@ class ExecutionResultService(
     PaginatedResultEvent.apply(request, mappedResults, attributes)
   }
 
-  private def onResultUpdate(): Unit = {
+  private def onResultUpdate(physicalPlan: PhysicalPlan): Unit = {
     workflowStateStore.resultStore.updateState { _ =>
-      val newInfo: Map[OperatorIdentity, OperatorResultMetadata] = sinkOperators.map {
+      val newInfo: Map[OperatorIdentity, OperatorResultMetadata] = {
+        ResultStorage
+          .getOpResultStorage(workflowIdentity)
+          .getAllKeys
+          .filter(!_.startsWith("materialized_"))
+          .map(storageKey => {
+            val count = ResultStorage
+              .getOpResultStorage(workflowIdentity)
+              .get(storageKey)
+              .getCount
+              .toInt
 
-        case (id, sink) =>
-          val count = ResultStorage
-            .getOpResultStorage(sink.getContext.workflowId)
-            .get(sink.getUpstreamId.get)
-            .getCount
-            .toInt
-          val mode = sink.getOutputMode
-          val changeDetector =
-            if (mode == IncrementalOutputMode.SET_SNAPSHOT) {
-              UUID.randomUUID.toString
-            } else ""
-          (id, OperatorResultMetadata(count, changeDetector))
-      }.toMap
+            val (opId, storagePortId) = OpResultStorage.decodeStorageKey(storageKey)
+
+            // Retrieve the mode of the specified output port
+            val mode = physicalPlan
+              .getPhysicalOpsOfLogicalOp(opId)
+              .flatMap(_.outputPorts.get(storagePortId))
+              .map(_._1.mode)
+              .head
+
+            val changeDetector =
+              if (mode == OutputMode.SET_SNAPSHOT) {
+                UUID.randomUUID.toString
+              } else ""
+            (opId, OperatorResultMetadata(count, changeDetector))
+          })
+          .toMap
+      }
       WorkflowResultStore(newInfo)
     }
   }

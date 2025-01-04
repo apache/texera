@@ -6,8 +6,8 @@ import edu.uci.ics.amber.compiler.WorkflowCompiler
 import edu.uci.ics.amber.compiler.model.LogicalPlanPojo
 import edu.uci.ics.amber.core.tuple.Attribute
 import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
-import edu.uci.ics.amber.virtualidentity.WorkflowIdentity
-import edu.uci.ics.amber.workflowruntimestate.WorkflowFatalError
+import edu.uci.ics.amber.core.virtualidentity.WorkflowIdentity
+import edu.uci.ics.amber.core.workflowruntimestate.WorkflowFatalError
 import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs.{Consumes, POST, Path, Produces}
 import jakarta.ws.rs.core.MediaType

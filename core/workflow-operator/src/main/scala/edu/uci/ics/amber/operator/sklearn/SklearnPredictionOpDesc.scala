@@ -8,7 +8,7 @@ import edu.uci.ics.amber.operator.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameOnPort1
 }
-import edu.uci.ics.amber.workflow.{InputPort, OutputPort, PortIdentity}
+import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 
 class SklearnPredictionOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "Model Attribute", required = true, defaultValue = "model")
@@ -58,16 +58,18 @@ class SklearnPredictionOpDesc extends PythonOperatorDescriptor {
       outputPorts = List(OutputPort())
     )
 
-  override def getOutputSchema(schemas: Array[Schema]): Schema = {
+  override def getOutputSchemas(
+      inputSchemas: Map[PortIdentity, Schema]
+  ): Map[PortIdentity, Schema] = {
     var resultType = AttributeType.STRING
+    val inputSchema = inputSchemas(operatorInfo.inputPorts(1).id)
     if (groundTruthAttribute != "") {
       resultType =
-        schemas(1).attributes.find(attr => attr.getName == groundTruthAttribute).get.getType
+        inputSchema.attributes.find(attr => attr.getName == groundTruthAttribute).get.getType
     }
-    Schema
-      .builder()
-      .add(schemas(1))
-      .add(resultAttribute, resultType)
-      .build()
+    Map(
+      operatorInfo.outputPorts.head.id -> inputSchema
+        .add(resultAttribute, resultType)
+    )
   }
 }
