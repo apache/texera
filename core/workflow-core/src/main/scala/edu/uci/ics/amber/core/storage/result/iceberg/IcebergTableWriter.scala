@@ -10,6 +10,7 @@ import org.apache.iceberg.data.parquet.GenericParquetWriter
 import org.apache.iceberg.io.{DataWriter, OutputFile}
 import org.apache.iceberg.parquet.Parquet
 
+import java.nio.file.Paths
 import scala.collection.mutable.ArrayBuffer
 
 /**
@@ -88,10 +89,10 @@ class IcebergTableWriter[T](
     if (buffer.nonEmpty) {
 
       // Create a unique file path using the writer's identifier and the filename index
-      val filepath = s"${table.location()}/${writerIdentifier}_${filenameIdx}"
+      val filepath = Paths.get(table.location()).resolve(s"${writerIdentifier}_${filenameIdx}")
       // Increment the filename index by 1
       filenameIdx += 1
-      val outputFile: OutputFile = table.io().newOutputFile(filepath)
+      val outputFile: OutputFile = table.io().newOutputFile(filepath.toString)
 
       // Create a Parquet data writer to write a new file
       val dataWriter: DataWriter[Record] = Parquet

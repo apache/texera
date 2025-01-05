@@ -3,7 +3,7 @@ package edu.uci.ics.amber.core.storage
 import edu.uci.ics.amber.util.PathUtils.corePath
 import org.yaml.snakeyaml.Yaml
 
-import java.net.URI
+import java.nio.file.Path
 import java.util.{Map => JMap}
 import scala.jdk.CollectionConverters._
 
@@ -143,6 +143,6 @@ object StorageConfig {
     .asInstanceOf[String]
 
   // File storage configurations
-  val fileStorageDirectoryUri: URI =
-    corePath.resolve("amber").resolve("user-resources").resolve("workflow-results").toUri
+  val fileStorageDirectoryPath: Path =
+    corePath.resolve("amber").resolve("user-resources").resolve("workflow-results")
 }

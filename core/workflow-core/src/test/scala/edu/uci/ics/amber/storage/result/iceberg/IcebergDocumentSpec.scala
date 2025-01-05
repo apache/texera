@@ -15,10 +15,7 @@ import org.scalatest.BeforeAndAfterAll
 import java.sql.Timestamp
 import java.util.UUID
 
-class IcebergDocumentSpec
-    extends VirtualDocumentSpec[Tuple]
-//    with MockTexeraDB
-    with BeforeAndAfterAll {
+class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfterAll {
 
   var amberSchema: Schema = _
   var icebergSchema: IcebergSchema = _
@@ -51,14 +48,10 @@ class IcebergDocumentSpec
     serde = IcebergUtil.toGenericRecord
     deserde = (schema, record) => IcebergUtil.fromRecord(record, amberSchema)
 
-    // Initialize the test database and create the Iceberg catalog
-//    initializeDBAndReplaceDSLContext()
-    catalog = IcebergUtil.createJdbcCatalog(
+    // Initialize the the Iceberg catalog
+    catalog = IcebergUtil.createFileSystemCatalog(
       "iceberg_document_test",
-      StorageConfig.fileStorageDirectoryUri,
-      StorageConfig.icebergCatalogUrl,
-      StorageConfig.icebergCatalogUsername,
-      StorageConfig.icebergCatalogPassword
+      StorageConfig.fileStorageDirectoryPath
     )
     IcebergCatalogInstance.replaceInstance(catalog)
   }
@@ -70,7 +63,6 @@ class IcebergDocumentSpec
   }
 
   override def afterAll(): Unit = {
-//    shutdownDB()
     super.afterAll()
   }
 

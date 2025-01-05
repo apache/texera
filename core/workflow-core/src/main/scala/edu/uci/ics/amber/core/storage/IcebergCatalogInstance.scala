@@ -24,7 +24,7 @@ object IcebergCatalogInstance {
       case None =>
         val jdbcCatalog = IcebergUtil.createJdbcCatalog(
           "texera-iceberg",
-          StorageConfig.fileStorageDirectoryUri,
+          StorageConfig.fileStorageDirectoryPath,
           StorageConfig.icebergCatalogUrl,
           StorageConfig.icebergCatalogUsername,
           StorageConfig.icebergCatalogPassword

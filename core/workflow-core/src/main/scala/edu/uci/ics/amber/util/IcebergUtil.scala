@@ -3,13 +3,14 @@ package edu.uci.ics.amber.util
 import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.amber.core.storage.result.iceberg.LocalFileIO
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
+import org.apache.hadoop.conf.Configuration
 import org.apache.iceberg.catalog.{Catalog, TableIdentifier}
 import org.apache.iceberg.data.parquet.GenericParquetReaders
 import org.apache.iceberg.types.Types
 import org.apache.iceberg.data.{GenericRecord, Record}
+import org.apache.iceberg.hadoop.HadoopCatalog
 import org.apache.iceberg.io.{CloseableIterable, InputFile}
 import org.apache.iceberg.jdbc.JdbcCatalog
-import org.apache.iceberg.parquet.Parquet.{ReadBuilder, read}
 import org.apache.iceberg.parquet.{Parquet, ParquetReader, ParquetValueReader}
 import org.apache.iceberg.types.Type.PrimitiveType
 import org.apache.iceberg.{
@@ -20,11 +21,10 @@ import org.apache.iceberg.{
   TableProperties,
   Schema => IcebergSchema
 }
-import org.apache.parquet.hadoop.api.ReadSupport
-import org.apache.parquet.schema.MessageType
 
 import java.net.URI
 import java.nio.ByteBuffer
+import java.nio.file.Path
 import java.sql.Timestamp
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -47,7 +47,7 @@ object IcebergUtil {
     */
   def createJdbcCatalog(
       catalogName: String,
-      warehouseUri: URI,
+      warehouse: Path,
       jdbcUri: String,
       jdbcUser: String,
       jdbcPassword: String
@@ -56,13 +56,30 @@ object IcebergUtil {
     catalog.initialize(
       catalogName,
       Map(
-        "warehouse" -> warehouseUri.toString,
+        "warehouse" -> warehouse.toString,
         "uri" -> jdbcUri,
         "jdbc.user" -> jdbcUser,
         "jdbc.password" -> jdbcPassword,
         CatalogProperties.FILE_IO_IMPL -> classOf[LocalFileIO].getName
       ).asJava
     )
+    catalog
+  }
+
+  def createFileSystemCatalog(
+      catalogName: String,
+      warehouse: Path
+  ): HadoopCatalog = {
+    val catalog = new HadoopCatalog()
+    catalog.setConf(new Configuration)
+    catalog.initialize(
+      catalogName,
+      Map(
+        "warehouse" -> warehouse.toString,
+        CatalogProperties.FILE_IO_IMPL -> classOf[LocalFileIO].getName
+      ).asJava
+    )
+
     catalog
   }
 
