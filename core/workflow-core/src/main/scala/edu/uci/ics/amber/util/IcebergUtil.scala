@@ -1,14 +1,13 @@
 package edu.uci.ics.amber.util
 
 import edu.uci.ics.amber.core.storage.StorageConfig
-import edu.uci.ics.amber.core.storage.result.iceberg.LocalFileIO
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.hadoop.conf.Configuration
 import org.apache.iceberg.catalog.{Catalog, TableIdentifier}
 import org.apache.iceberg.data.parquet.GenericParquetReaders
 import org.apache.iceberg.types.Types
 import org.apache.iceberg.data.{GenericRecord, Record}
-import org.apache.iceberg.hadoop.HadoopCatalog
+import org.apache.iceberg.hadoop.{HadoopCatalog, HadoopFileIO}
 import org.apache.iceberg.io.{CloseableIterable, InputFile}
 import org.apache.iceberg.jdbc.JdbcCatalog
 import org.apache.iceberg.parquet.{Parquet, ParquetReader, ParquetValueReader}
@@ -60,7 +59,7 @@ object IcebergUtil {
         "uri" -> jdbcUri,
         "jdbc.user" -> jdbcUser,
         "jdbc.password" -> jdbcPassword,
-        CatalogProperties.FILE_IO_IMPL -> classOf[LocalFileIO].getName
+        CatalogProperties.FILE_IO_IMPL -> classOf[HadoopFileIO].getName
       ).asJava
     )
     catalog
@@ -76,7 +75,7 @@ object IcebergUtil {
       catalogName,
       Map(
         "warehouse" -> warehouse.toString,
-        CatalogProperties.FILE_IO_IMPL -> classOf[LocalFileIO].getName
+        CatalogProperties.FILE_IO_IMPL -> classOf[HadoopFileIO].getName
       ).asJava
     )
 
@@ -105,8 +104,7 @@ object IcebergUtil {
     val tableProperties = Map(
       TableProperties.COMMIT_NUM_RETRIES -> StorageConfig.icebergTableCommitNumRetries.toString,
       TableProperties.COMMIT_MAX_RETRY_WAIT_MS -> StorageConfig.icebergTableCommitMaxRetryWaitMs.toString,
-      TableProperties.COMMIT_MIN_RETRY_WAIT_MS -> StorageConfig.icebergTableCommitMinRetryWaitMs.toString,
-      TableProperties.WRITE_DISTRIBUTION_MODE -> "range"
+      TableProperties.COMMIT_MIN_RETRY_WAIT_MS -> StorageConfig.icebergTableCommitMinRetryWaitMs.toString
     )
     val identifier = TableIdentifier.of(tableNamespace, tableName)
     if (catalog.tableExists(identifier) && overrideIfExists) {
