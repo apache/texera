@@ -2,37 +2,33 @@ package edu.uci.ics.amber.operator.source.scan.arrow
 
 import edu.uci.ics.amber.core.executor.SourceOperatorExecutor
 import edu.uci.ics.amber.core.storage.DocumentFactory
+import edu.uci.ics.amber.core.tuple.TupleLike
+import edu.uci.ics.amber.util.ArrowUtils
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.VectorSchemaRoot
 import org.apache.arrow.vector.ipc.ArrowFileReader
-import edu.uci.ics.amber.core.tuple.{Schema, TupleLike}
-import edu.uci.ics.amber.util.ArrowUtils
 
 import java.net.URI
-import java.nio.file.{Files}
-import java.nio.file.StandardOpenOption
+import java.nio.file.{Files, StandardOpenOption}
 
 class ArrowSourceOpExec(
-    fileUri: String,
-    limit: Option[Int],
-    offset: Option[Int],
-    schemaFunc: () => Schema
+    descString: String
 ) extends SourceOperatorExecutor {
-
+  private val desc: ArrowSourceOpDesc =
+    objectMapper.readValue(descString, classOf[ArrowSourceOpDesc])
   private var reader: Option[ArrowFileReader] = None
   private var root: Option[VectorSchemaRoot] = None
-  private var schema: Option[Schema] = None
   private var allocator: Option[RootAllocator] = None
 
   override def open(): Unit = {
     try {
-      val file = DocumentFactory.newReadonlyDocument(new URI(fileUri)).asFile()
+      val file = DocumentFactory.newReadonlyDocument(new URI(desc.fileName.get)).asFile()
       val alloc = new RootAllocator()
       allocator = Some(alloc)
       val channel = Files.newByteChannel(file.toPath, StandardOpenOption.READ)
       val arrowReader = new ArrowFileReader(channel, alloc)
       val vectorRoot = arrowReader.getVectorSchemaRoot
-      schema = Some(schemaFunc())
       reader = Some(arrowReader)
       root = Some(vectorRoot)
     } catch {
@@ -73,8 +69,8 @@ class ArrowSourceOpExec(
       }
     }
 
-    var tupleIterator = rowIterator.drop(offset.getOrElse(0))
-    if (limit.isDefined) tupleIterator = tupleIterator.take(limit.get)
+    var tupleIterator = rowIterator.drop(desc.offset.getOrElse(0))
+    if (desc.limit.isDefined) tupleIterator = tupleIterator.take(desc.limit.get)
     tupleIterator
   }
 

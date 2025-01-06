@@ -3,6 +3,7 @@ package edu.uci.ics.amber.engine.architecture.rpc;
 
 import "edu/uci/ics/amber/core/virtualidentity.proto";
 import "edu/uci/ics/amber/core/workflow.proto";
+import "edu/uci/ics/amber/core/executor.proto";
 import "edu/uci/ics/amber/engine/architecture/worker/statistics.proto";
 import "edu/uci/ics/amber/engine/architecture/sendsemantics/partitionings.proto";
 import "scalapb/scalapb.proto";
@@ -235,9 +236,8 @@ message FinalizeCheckpointRequest {
 
 message InitializeExecutorRequest {
   int32 totalWorkerCount = 1;
-  google.protobuf.Any opExecInitInfo = 2 [(scalapb.field).no_box = true];
+  core.OpExecInitInfo opExecInitInfo = 2;
   bool isSource = 3;
-  string language = 4;
 }
 
 message UpdateExecutorRequest {

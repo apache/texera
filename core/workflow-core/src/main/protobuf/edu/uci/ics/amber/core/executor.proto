@@ -1,0 +1,44 @@
+syntax = "proto3";
+package edu.uci.ics.amber.core;
+
+
+import "edu/uci/ics/amber/core/virtualidentity.proto";
+import "edu/uci/ics/amber/core/workflow.proto";
+import "scalapb/scalapb.proto";
+
+option (scalapb.options) = {
+  scope: FILE,
+  preserve_unknown_fields: false
+  no_default_values_in_constructor: false
+};
+
+
+message OpExecWithCode {
+  string code = 1;
+  string language = 2;
+}
+
+message OpExecWithClassName {
+  string className = 1;
+  string descString = 2;
+}
+
+message OpExecSink  {
+  string storageKey = 1;
+  WorkflowIdentity workflowIdentity = 2 [(scalapb.field).no_box = true];
+  OutputPort.OutputMode outputMode = 3 [(scalapb.field).no_box = true];
+}
+
+message OpExecSource {
+  string storageKey = 1;
+  WorkflowIdentity workflowIdentity = 2 [(scalapb.field).no_box = true];
+}
+
+message OpExecInitInfo {
+  oneof sealed_value {
+    OpExecWithClassName opExecWithClassName = 1;
+      OpExecWithCode opExecWithCode = 2;
+      OpExecSink opExecSink = 3;
+      OpExecSource opExecSource = 4;
+  }
+}

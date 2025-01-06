@@ -2,11 +2,12 @@ package edu.uci.ics.amber.operator.typecasting
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.core.executor.OpExecInitInfo
+import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.tuple.{AttributeTypeUtils, Schema}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.operator.map.MapOpDesc
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 
@@ -27,7 +28,10 @@ class TypeCastingOpDesc extends MapOpDesc {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _) => new TypeCastingOpExec(typeCastingUnits))
+        OpExecWithClassName(
+          "edu.uci.ics.amber.operator.typecasting.TypeCastingOpExec",
+          objectMapper.writeValueAsString(this)
+        )
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
@@ -49,11 +53,5 @@ class TypeCastingOpDesc extends MapOpDesc {
       List(InputPort()),
       List(OutputPort())
     )
-  }
-
-  override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    typeCastingUnits.foldLeft(schemas.head) { (schema, unit) =>
-      AttributeTypeUtils.SchemaCasting(schema, unit.attribute, unit.resultType)
-    }
   }
 }

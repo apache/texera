@@ -39,11 +39,8 @@ from proto.edu.uci.ics.amber.engine.architecture.rpc import (
 from proto.edu.uci.ics.amber.engine.architecture.worker import (
     WorkerState,
 )
-from proto.edu.uci.ics.amber.engine.common import (
-    ActorVirtualIdentity,
-    ControlPayloadV2,
-    PortIdentity,
-)
+from proto.edu.uci.ics.amber.engine.common import ControlPayloadV2
+from proto.edu.uci.ics.amber.core import ActorVirtualIdentity, PortIdentity
 
 
 class MainLoop(StoppableQueueBlockingRunnable):
