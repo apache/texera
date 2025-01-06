@@ -122,10 +122,10 @@ val excludeJsp = ExclusionRule(organization = "javax.servlet.jsp")
 val excludeXmlBind = ExclusionRule(organization = "javax.xml.bind")
 
 libraryDependencies ++= Seq(
-  "org.apache.iceberg" % "iceberg-api" % "1.7.1" excludeAll(excludeJetty),
-  "org.apache.iceberg" % "iceberg-core" % "1.7.1" excludeAll(excludeJetty),
-  "org.apache.iceberg" % "iceberg-parquet" % "1.7.1" excludeAll(excludeJetty),
-  "org.apache.iceberg" % "iceberg-data" % "1.7.1" excludeAll(excludeJetty),
+  "org.apache.iceberg" % "iceberg-api" % "1.7.1",
+  "org.apache.iceberg" % "iceberg-core" % "1.7.1",
+  "org.apache.iceberg" % "iceberg-parquet" % "1.7.1",
+  "org.apache.iceberg" % "iceberg-data" % "1.7.1",
   "org.apache.hadoop" % "hadoop-common" % "3.3.1" excludeAll(
     excludeXmlBind,
     excludeGlassfishJersey,
