@@ -3,10 +3,16 @@ package edu.uci.ics.amber.engine.architecture.worker
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.serialization.SerializationExtension
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit}
-import com.google.protobuf.ByteString
-import com.google.protobuf.any.{Any => ProtoAny}
 import edu.uci.ics.amber.clustering.SingleNodeListener
-import edu.uci.ics.amber.core.executor.{OpExecInitInfo, OperatorExecutor}
+import edu.uci.ics.amber.core.executor.{OpExecWithClassName, OperatorExecutor}
+import edu.uci.ics.amber.core.tuple._
+import edu.uci.ics.amber.core.virtualidentity.{
+  ActorVirtualIdentity,
+  ChannelIdentity,
+  OperatorIdentity,
+  PhysicalOpIdentity
+}
+import edu.uci.ics.amber.core.workflow.{PhysicalLink, PortIdentity}
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkMessage
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands._
 import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc._
@@ -20,13 +26,6 @@ import edu.uci.ics.amber.engine.common.AmberRuntime
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, DataPayload, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
-import edu.uci.ics.amber.virtualidentity.{
-  ActorVirtualIdentity,
-  ChannelIdentity,
-  OperatorIdentity,
-  PhysicalOpIdentity
-}
-import edu.uci.ics.amber.workflow.{PhysicalLink, PortIdentity}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -35,7 +34,6 @@ import java.util.concurrent.CompletableFuture
 import scala.collection.mutable
 import scala.concurrent.duration.MILLISECONDS
 import scala.util.Random
-import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple, TupleLike}
 class DummyOperatorExecutor extends OperatorExecutor {
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
     Iterator(tuple)
@@ -50,11 +48,11 @@ class WorkerSpec
     with MockFactory {
 
   def mkSchema(fields: Any*): Schema = {
-    val schemaBuilder = Schema.builder()
+    var schema = Schema()
     fields.indices.foreach { i =>
-      schemaBuilder.add(new Attribute("field" + i, AttributeType.ANY))
+      schema = schema.add(new Attribute("field" + i, AttributeType.ANY))
     }
-    schemaBuilder.build()
+    schema
   }
 
   def mkTuple(fields: Any*): Tuple = {
@@ -168,17 +166,14 @@ class WorkerSpec
       AsyncRPCContext(CONTROLLER, identifier1),
       3
     )
-    val opInit = OpExecInitInfo((_, _) => {
-      new DummyOperatorExecutor()
-    })
-    val bytes = AmberRuntime.serde.serialize(opInit).get
-    val protoAny = ProtoAny.of(
-      "edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo",
-      ByteString.copyFrom(bytes)
-    )
+
     val initializeOperatorLogic = AsyncRPCClient.ControlInvocation(
       METHOD_INITIALIZE_EXECUTOR,
-      InitializeExecutorRequest(1, protoAny, isSource = false, "scala"),
+      InitializeExecutorRequest(
+        1,
+        OpExecWithClassName("edu.uci.ics.amber.engine.architecture.worker.DummyOperatorExecutor"),
+        isSource = false
+      ),
       AsyncRPCContext(CONTROLLER, identifier1),
       4
     )

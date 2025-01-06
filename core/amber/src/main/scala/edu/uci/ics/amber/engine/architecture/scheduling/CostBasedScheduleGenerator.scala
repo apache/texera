@@ -2,8 +2,8 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 
 import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberLogging}
-import edu.uci.ics.amber.virtualidentity.{ActorVirtualIdentity, PhysicalOpIdentity}
-import edu.uci.ics.amber.workflow.PhysicalLink
+import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.core.workflow.PhysicalLink
 import org.jgrapht.alg.connectivity.BiconnectivityInspector
 import org.jgrapht.graph.{DirectedAcyclicGraph, DirectedPseudograph}
 
@@ -33,6 +33,9 @@ class CostBasedScheduleGenerator(
       searchTimeNanoSeconds: Long = 0,
       numStatesExplored: Int = 0
   )
+
+  private val costEstimator =
+    new DefaultCostEstimator(workflowContext = workflowContext, actorId = actorId)
 
   def generate(): (Schedule, PhysicalPlan) = {
     val startTime = System.nanoTime()
@@ -281,7 +284,9 @@ class CostBasedScheduleGenerator(
         if (oEarlyStop) schedulableStates.add(currentState)
         // Calculate the current state's cost and update the bestResult if it's lower
         val cost =
-          evaluate(regionDAG.vertexSet().asScala.toSet, regionDAG.edgeSet().asScala.toSet)
+          evaluate(
+            RegionPlan(regionDAG.vertexSet().asScala.toSet, regionDAG.edgeSet().asScala.toSet)
+          )
         if (cost < bestResult.cost) {
           bestResult = SearchResult(currentState, regionDAG, cost)
         }
@@ -334,7 +339,12 @@ class CostBasedScheduleGenerator(
                 physicalPlan.getNonMaterializedBlockingAndDependeeLinks ++ neighborState
               ) match {
                 case Left(regionDAG) =>
-                  evaluate(regionDAG.vertexSet().asScala.toSet, regionDAG.edgeSet().asScala.toSet)
+                  evaluate(
+                    RegionPlan(
+                      regionDAG.vertexSet().asScala.toSet,
+                      regionDAG.edgeSet().asScala.toSet
+                    )
+                  )
                 case Right(_) =>
                   Double.MaxValue
               }
@@ -423,7 +433,9 @@ class CostBasedScheduleGenerator(
       def updateOptimumIfApplicable(regionDAG: DirectedAcyclicGraph[Region, RegionLink]): Unit = {
         // Calculate the current state's cost and update the bestResult if it's lower
         val cost =
-          evaluate(regionDAG.vertexSet().asScala.toSet, regionDAG.edgeSet().asScala.toSet)
+          evaluate(
+            RegionPlan(regionDAG.vertexSet().asScala.toSet, regionDAG.edgeSet().asScala.toSet)
+          )
         if (cost < bestResult.cost) {
           bestResult = SearchResult(currentState, regionDAG, cost)
         }
@@ -453,7 +465,12 @@ class CostBasedScheduleGenerator(
                 physicalPlan.getNonMaterializedBlockingAndDependeeLinks ++ neighborState
               ) match {
                 case Left(regionDAG) =>
-                  evaluate(regionDAG.vertexSet().asScala.toSet, regionDAG.edgeSet().asScala.toSet)
+                  evaluate(
+                    RegionPlan(
+                      regionDAG.vertexSet().asScala.toSet,
+                      regionDAG.edgeSet().asScala.toSet
+                    )
+                  )
                 case Right(_) =>
                   Double.MaxValue
               }
@@ -472,17 +489,16 @@ class CostBasedScheduleGenerator(
   }
 
   /**
-    * The cost function used by the search. Takes in a region graph represented as set of regions and links.
+    * The cost function used by the search. Takes a region plan, generates one or more (to be done in the future)
+    * schedules based on the region plan, and calculates the cost of the schedule(s) using Cost Estimator. Uses the cost
+    * of the best schedule (currently only considers one schedule) as the cost of the region plan.
     *
-    * @param regions     A set of regions created based on a search state.
-    * @param regionLinks A set of links to indicate dependencies between regions, based on the materialization edges.
-    * @return A cost determined by the resource allocator.
+    * @return A cost determined by the cost estimator.
     */
-  private def evaluate(regions: Set[Region], regionLinks: Set[RegionLink]): Double = {
-    // Using number of materialized ports as the cost.
-    // This is independent of the schedule / resource allocator.
-    // In the future we may need to use the ResourceAllocator to get the cost.
-    regions.flatMap(_.materializedPortIds).size
+  private def evaluate(regionPlan: RegionPlan): Double = {
+    val schedule = generateScheduleFromRegionPlan(regionPlan)
+    // In the future we may allow multiple regions in a level and split the resources.
+    schedule.map(level => level.map(region => costEstimator.estimate(region, 1)).sum).sum
   }
 
 }

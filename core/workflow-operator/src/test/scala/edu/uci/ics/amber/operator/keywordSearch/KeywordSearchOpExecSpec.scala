@@ -1,16 +1,16 @@
 package edu.uci.ics.amber.operator.keywordSearch
 
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
 class KeywordSearchOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   val inputPort: Int = 0
+  val opDesc: KeywordSearchOpDesc = new KeywordSearchOpDesc()
 
-  val schema: Schema = Schema
-    .builder()
+  val schema: Schema = Schema()
     .add(new Attribute("text", AttributeType.STRING))
-    .build()
 
   def createTuple(text: String): Tuple = {
     Tuple
@@ -35,7 +35,9 @@ class KeywordSearchOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   )
 
   it should "find exact match with single number" in {
-    val opExec = new KeywordSearchOpExec("text", "3")
+    opDesc.attribute = "text"
+    opDesc.keyword = "3"
+    val opExec = new KeywordSearchOpExec(objectMapper.writeValueAsString(opDesc))
     opExec.open()
     val results = testData.filter(t => opExec.processTuple(t, inputPort).nonEmpty)
     assert(results.length == 1)
@@ -44,7 +46,9 @@ class KeywordSearchOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "find exact phrase match" in {
-    val opExec = new KeywordSearchOpExec("text", "\"3 stars\"")
+    opDesc.attribute = "text"
+    opDesc.keyword = "\"3 stars\""
+    val opExec = new KeywordSearchOpExec(objectMapper.writeValueAsString(opDesc))
     opExec.open()
     val results = testData.filter(t => opExec.processTuple(t, inputPort).nonEmpty)
     assert(results.length == 1)
@@ -53,7 +57,9 @@ class KeywordSearchOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "find all occurrences of Trump" in {
-    val opExec = new KeywordSearchOpExec("text", "Trump")
+    opDesc.attribute = "text"
+    opDesc.keyword = "Trump"
+    val opExec = new KeywordSearchOpExec(objectMapper.writeValueAsString(opDesc))
     opExec.open()
     val results = testData.filter(t => opExec.processTuple(t, inputPort).nonEmpty)
     assert(results.length == 2)
@@ -62,7 +68,9 @@ class KeywordSearchOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "find all occurrences of Biden" in {
-    val opExec = new KeywordSearchOpExec("text", "Biden")
+    opDesc.attribute = "text"
+    opDesc.keyword = "Biden"
+    val opExec = new KeywordSearchOpExec(objectMapper.writeValueAsString(opDesc))
     opExec.open()
     val results = testData.filter(t => opExec.processTuple(t, inputPort).nonEmpty)
     assert(results.length == 1)
@@ -71,7 +79,9 @@ class KeywordSearchOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "find records containing both Trump AND Biden" in {
-    val opExec = new KeywordSearchOpExec("text", "Trump AND Biden")
+    opDesc.attribute = "text"
+    opDesc.keyword = "Trump AND Biden"
+    val opExec = new KeywordSearchOpExec(objectMapper.writeValueAsString(opDesc))
     opExec.open()
     val results = testData.filter(t => opExec.processTuple(t, inputPort).nonEmpty)
     assert(results.length == 1)
@@ -80,7 +90,9 @@ class KeywordSearchOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "find no matches for exact phrase 'Trump AND Biden'" in {
-    val opExec = new KeywordSearchOpExec("text", "\"Trump AND Biden\"")
+    opDesc.attribute = "text"
+    opDesc.keyword = "\"Trump AND Biden\""
+    val opExec = new KeywordSearchOpExec(objectMapper.writeValueAsString(opDesc))
     opExec.open()
     val results = testData.filter(t => opExec.processTuple(t, inputPort).hasNext)
     assert(results.isEmpty)
@@ -88,7 +100,9 @@ class KeywordSearchOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "find no matches for partial word 'ell'" in {
-    val opExec = new KeywordSearchOpExec("text", "ell")
+    opDesc.attribute = "text"
+    opDesc.keyword = "ell"
+    val opExec = new KeywordSearchOpExec(objectMapper.writeValueAsString(opDesc))
     opExec.open()
     val results = testData.filter(t => opExec.processTuple(t, inputPort).hasNext)
     assert(results.isEmpty)
@@ -96,7 +110,9 @@ class KeywordSearchOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "find exact match for word 'the'" in {
-    val opExec = new KeywordSearchOpExec("text", "the")
+    opDesc.attribute = "text"
+    opDesc.keyword = "the"
+    val opExec = new KeywordSearchOpExec(objectMapper.writeValueAsString(opDesc))
     opExec.open()
     val results = testData.filter(t => opExec.processTuple(t, inputPort).hasNext)
     assert(results.length == 1)
@@ -105,7 +121,9 @@ class KeywordSearchOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "find exact match for word 'an'" in {
-    val opExec = new KeywordSearchOpExec("text", "an")
+    opDesc.attribute = "text"
+    opDesc.keyword = "an"
+    val opExec = new KeywordSearchOpExec(objectMapper.writeValueAsString(opDesc))
     opExec.open()
     val results = testData.filter(t => opExec.processTuple(t, inputPort).hasNext)
     assert(results.length == 1)
@@ -114,7 +132,9 @@ class KeywordSearchOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "find exact match for word 'to'" in {
-    val opExec = new KeywordSearchOpExec("text", "to")
+    opDesc.attribute = "text"
+    opDesc.keyword = "to"
+    val opExec = new KeywordSearchOpExec(objectMapper.writeValueAsString(opDesc))
     opExec.open()
     val results = testData.filter(t => opExec.processTuple(t, inputPort).hasNext)
     assert(results.length == 1)
@@ -123,7 +143,9 @@ class KeywordSearchOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "find case-insensitive match for 'twitter'" in {
-    val opExec = new KeywordSearchOpExec("text", "twitter")
+    opDesc.attribute = "text"
+    opDesc.keyword = "twitter"
+    val opExec = new KeywordSearchOpExec(objectMapper.writeValueAsString(opDesc))
     opExec.open()
     val results = testData.filter(t => opExec.processTuple(t, inputPort).hasNext)
     assert(results.length == 1)
@@ -132,7 +154,9 @@ class KeywordSearchOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "find exact match for Korean text '안녕하세요'" in {
-    val opExec = new KeywordSearchOpExec("text", "안녕하세요")
+    opDesc.attribute = "text"
+    opDesc.keyword = "안녕하세요"
+    val opExec = new KeywordSearchOpExec(objectMapper.writeValueAsString(opDesc))
     opExec.open()
     val results = testData.filter(t => opExec.processTuple(t, inputPort).hasNext)
     assert(results.length == 1)
@@ -141,7 +165,9 @@ class KeywordSearchOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "find exact match for Chinese text '你好'" in {
-    val opExec = new KeywordSearchOpExec("text", "你好")
+    opDesc.attribute = "text"
+    opDesc.keyword = "你好"
+    val opExec = new KeywordSearchOpExec(objectMapper.writeValueAsString(opDesc))
     opExec.open()
     val results = testData.filter(t => opExec.processTuple(t, inputPort).hasNext)
     assert(results.length == 1)
@@ -150,7 +176,9 @@ class KeywordSearchOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "find no matches for special character '@'" in {
-    val opExec = new KeywordSearchOpExec("text", "@")
+    opDesc.attribute = "text"
+    opDesc.keyword = "@"
+    val opExec = new KeywordSearchOpExec(objectMapper.writeValueAsString(opDesc))
     opExec.open()
     val results = testData.filter(t => opExec.processTuple(t, inputPort).hasNext)
     assert(results.isEmpty)
@@ -158,7 +186,9 @@ class KeywordSearchOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "find exact match for special characters '_!@,-'" in {
-    val opExec = new KeywordSearchOpExec("text", "_!@,-")
+    opDesc.attribute = "text"
+    opDesc.keyword = "_!@,-"
+    val opExec = new KeywordSearchOpExec(objectMapper.writeValueAsString(opDesc))
     opExec.open()
     val results = testData.filter(t => opExec.processTuple(t, inputPort).hasNext)
     assert(results.isEmpty)

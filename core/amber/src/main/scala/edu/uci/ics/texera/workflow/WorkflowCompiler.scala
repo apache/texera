@@ -2,14 +2,13 @@ package edu.uci.ics.texera.workflow
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.storage.result.{OpResultStorage, ResultStorage}
-import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.common.Utils.objectMapper
 import edu.uci.ics.amber.operator.SpecialPhysicalOpFactory
-import edu.uci.ics.amber.virtualidentity.OperatorIdentity
-import edu.uci.ics.amber.workflow.OutputPort.OutputMode.SINGLE_SNAPSHOT
-import edu.uci.ics.amber.workflow.{PhysicalLink, PortIdentity}
+import edu.uci.ics.amber.core.virtualidentity.OperatorIdentity
+import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode.SINGLE_SNAPSHOT
+import edu.uci.ics.amber.core.workflow.PhysicalLink
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
 
@@ -28,7 +27,7 @@ class WorkflowCompiler(
       errorList: Option[ArrayBuffer[(OperatorIdentity, Throwable)]]
   ): PhysicalPlan = {
     val terminalLogicalOps = logicalPlan.getTerminalOperatorIds
-    val toAddSink = (terminalLogicalOps ++ logicalOpsToViewResult).toSet
+    val toAddSink = (terminalLogicalOps ++ logicalOpsToViewResult.map(OperatorIdentity(_))).toSet
     var physicalPlan = PhysicalPlan(operators = Set.empty, links = Set.empty)
     // create a JSON object that holds pointers to the workflow's results in Mongo
     val resultsJSON = objectMapper.createObjectNode()
@@ -37,7 +36,6 @@ class WorkflowCompiler(
     logicalPlan.getTopologicalOpIds.asScala.foreach(logicalOpId =>
       Try {
         val logicalOp = logicalPlan.getOperator(logicalOpId)
-        logicalOp.setContext(context)
 
         val subPlan = logicalOp.getPhysicalPlan(context.workflowId, context.executionId)
         subPlan
@@ -71,62 +69,59 @@ class WorkflowCompiler(
         // assign the sinks to toAddSink operators' external output ports
         subPlan
           .topologicalIterator()
-          .map(subPlan.getOperator)
-          .flatMap { physicalOp =>
-            physicalOp.outputPorts.map(outputPort => (physicalOp, outputPort))
-          }
-          .filter({
-            case (physicalOp, (_, (outputPort, _, _))) =>
-              toAddSink.contains(physicalOp.id.logicalOpId) && !outputPort.id.internal
-          })
-          .foreach({
-            case (physicalOp, (_, (outputPort, _, schema))) =>
-              val storage = ResultStorage.getOpResultStorage(context.workflowId)
-              val storageKey = physicalOp.id.logicalOpId
+          .filter(opId => toAddSink.contains(opId.logicalOpId))
+          .map(physicalPlan.getOperator)
+          .foreach { physicalOp =>
+            physicalOp.outputPorts
+              .filterNot(_._1.internal)
+              .foreach {
+                case (outputPortId, (outputPort, _, schema)) =>
+                  val storage = ResultStorage.getOpResultStorage(context.workflowId)
+                  val storageKey =
+                    OpResultStorage.createStorageKey(physicalOp.id.logicalOpId, outputPortId)
 
-              // due to the size limit of single document in mongoDB (16MB)
-              // for sinks visualizing HTMLs which could possibly be large in size, we always use the memory storage.
-              val storageType = {
-                if (outputPort.mode == SINGLE_SNAPSHOT) OpResultStorage.MEMORY
-                else OpResultStorage.defaultStorageMode
-              }
-              if (!storage.contains(storageKey)) {
-                // get the schema for result storage in certain mode
-                val sinkStorageSchema: Option[Schema] =
-                  if (storageType == OpResultStorage.MONGODB) {
-                    // use the output schema on the first output port as the schema for storage
-                    Some(schema.right.get)
-                  } else {
-                    None
+                  // Determine the storage type, defaulting to memory for large HTML visualizations
+                  val storageType =
+                    if (outputPort.mode == SINGLE_SNAPSHOT) OpResultStorage.MEMORY
+                    else OpResultStorage.defaultStorageMode
+
+                  if (!storage.contains(storageKey)) {
+                    // Create storage if it doesn't exist
+                    val sinkStorageSchema =
+                      schema.getOrElse(throw new IllegalStateException("Schema is missing"))
+                    storage.create(
+                      s"${context.executionId}_",
+                      storageKey,
+                      storageType,
+                      sinkStorageSchema
+                    )
+
+                    // Add sink collection name to the JSON array of sinks
+                    sinksPointers.add(
+                      objectMapper
+                        .createObjectNode()
+                        .put("storageType", storageType)
+                        .put("storageKey", s"${context.executionId}_$storageKey")
+                    )
                   }
-                storage.create(
-                  s"${context.executionId}_",
-                  storageKey,
-                  storageType,
-                  sinkStorageSchema
-                )
-                // add the sink collection name to the JSON array of sinks
-                val storageNode = objectMapper.createObjectNode()
-                storageNode.put("storageType", storageType)
-                storageNode.put("storageKey", s"${context.executionId}_$storageKey")
-                sinksPointers.add(storageNode)
-              }
 
-              val sinkPhysicalOp = SpecialPhysicalOpFactory.newSinkPhysicalOp(
-                context.workflowId,
-                context.executionId,
-                storageKey.id,
-                outputPort.mode
-              )
-              val sinkLink =
-                PhysicalLink(
-                  physicalOp.id,
-                  outputPort.id,
-                  sinkPhysicalOp.id,
-                  PortIdentity(internal = true)
-                )
-              physicalPlan = physicalPlan.addOperator(sinkPhysicalOp).addLink(sinkLink)
-          })
+                  // Create and link the sink operator
+                  val sinkPhysicalOp = SpecialPhysicalOpFactory.newSinkPhysicalOp(
+                    context.workflowId,
+                    context.executionId,
+                    storageKey,
+                    outputPort.mode
+                  )
+                  val sinkLink = PhysicalLink(
+                    physicalOp.id,
+                    outputPort.id,
+                    sinkPhysicalOp.id,
+                    sinkPhysicalOp.outputPorts.head._1
+                  )
+
+                  physicalPlan = physicalPlan.addOperator(sinkPhysicalOp).addLink(sinkLink)
+              }
+          }
       } match {
         case Success(_) =>
 
@@ -165,10 +160,7 @@ class WorkflowCompiler(
     // 2. resolve the file name in each scan source operator
     logicalPlan.resolveScanSourceOpFileName(None)
 
-    // 3. Propagate the schema to get the input & output schemas for each port of each operator
-    logicalPlan.propagateWorkflowSchema(context, None)
-
-    // 4. expand the logical plan to the physical plan, and assign storage
+    // 3. expand the logical plan to the physical plan, and assign storage
     val physicalPlan = expandLogicalPlan(logicalPlan, logicalPlanPojo.opsToViewResult, None)
 
     Workflow(context, logicalPlan, physicalPlan)

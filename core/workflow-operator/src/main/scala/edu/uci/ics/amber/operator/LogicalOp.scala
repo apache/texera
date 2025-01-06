@@ -5,7 +5,13 @@ import com.fasterxml.jackson.annotation._
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.core.executor.OperatorExecutor
 import edu.uci.ics.amber.core.tuple.Schema
-import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan, WorkflowContext}
+import edu.uci.ics.amber.core.virtualidentity.{
+  ExecutionIdentity,
+  OperatorIdentity,
+  WorkflowIdentity
+}
+import edu.uci.ics.amber.core.workflow.WorkflowContext.{DEFAULT_EXECUTION_ID, DEFAULT_WORKFLOW_ID}
+import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan, PortIdentity}
 import edu.uci.ics.amber.operator.aggregate.AggregateOpDesc
 import edu.uci.ics.amber.operator.cartesianProduct.CartesianProductOpDesc
 import edu.uci.ics.amber.operator.dictionary.DictionaryMatcherOpDesc
@@ -37,35 +43,7 @@ import edu.uci.ics.amber.operator.randomksampling.RandomKSamplingOpDesc
 import edu.uci.ics.amber.operator.regex.RegexOpDesc
 import edu.uci.ics.amber.operator.reservoirsampling.ReservoirSamplingOpDesc
 import edu.uci.ics.amber.operator.sentiment.SentimentAnalysisOpDesc
-import edu.uci.ics.amber.operator.sklearn.{
-  SklearnAdaptiveBoostingOpDesc,
-  SklearnBaggingOpDesc,
-  SklearnBernoulliNaiveBayesOpDesc,
-  SklearnComplementNaiveBayesOpDesc,
-  SklearnDecisionTreeOpDesc,
-  SklearnDummyClassifierOpDesc,
-  SklearnExtraTreeOpDesc,
-  SklearnExtraTreesOpDesc,
-  SklearnGaussianNaiveBayesOpDesc,
-  SklearnGradientBoostingOpDesc,
-  SklearnKNNOpDesc,
-  SklearnLinearRegressionOpDesc,
-  SklearnLinearSVMOpDesc,
-  SklearnLogisticRegressionCVOpDesc,
-  SklearnLogisticRegressionOpDesc,
-  SklearnMultiLayerPerceptronOpDesc,
-  SklearnMultinomialNaiveBayesOpDesc,
-  SklearnNearestCentroidOpDesc,
-  SklearnPassiveAggressiveOpDesc,
-  SklearnPerceptronOpDesc,
-  SklearnPredictionOpDesc,
-  SklearnProbabilityCalibrationOpDesc,
-  SklearnRandomForestOpDesc,
-  SklearnRidgeCVOpDesc,
-  SklearnRidgeOpDesc,
-  SklearnSDGOpDesc,
-  SklearnSVMOpDesc
-}
+import edu.uci.ics.amber.operator.sklearn._
 import edu.uci.ics.amber.operator.sort.SortOpDesc
 import edu.uci.ics.amber.operator.sortPartitions.SortPartitionsOpDesc
 import edu.uci.ics.amber.operator.source.apis.reddit.RedditSearchSourceOpDesc
@@ -75,6 +53,7 @@ import edu.uci.ics.amber.operator.source.apis.twitter.v2.{
 }
 import edu.uci.ics.amber.operator.source.fetcher.URLFetcherOpDesc
 import edu.uci.ics.amber.operator.source.scan.FileScanSourceOpDesc
+import edu.uci.ics.amber.operator.source.scan.arrow.ArrowSourceOpDesc
 import edu.uci.ics.amber.operator.source.scan.csv.CSVScanSourceOpDesc
 import edu.uci.ics.amber.operator.source.scan.csvOld.CSVOldScanSourceOpDesc
 import edu.uci.ics.amber.operator.source.scan.json.JSONLScanSourceOpDesc
@@ -121,13 +100,9 @@ import edu.uci.ics.amber.operator.visualization.ternaryPlot.TernaryPlotOpDesc
 import edu.uci.ics.amber.operator.visualization.urlviz.UrlVizOpDesc
 import edu.uci.ics.amber.operator.visualization.waterfallChart.WaterfallChartOpDesc
 import edu.uci.ics.amber.operator.visualization.wordCloud.WordCloudOpDesc
-import edu.uci.ics.amber.operator.source.scan.arrow.ArrowSourceOpDesc
-import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, OperatorIdentity, WorkflowIdentity}
-import edu.uci.ics.amber.workflow.PortIdentity
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
 
 import java.util.UUID
-import scala.collection.mutable
 import scala.util.Try
 
 trait StateTransferFunc
@@ -306,35 +281,25 @@ trait StateTransferFunc
 )
 abstract class LogicalOp extends PortDescriptor with Serializable {
 
-  @JsonIgnore
-  private var context: WorkflowContext = _
-
   @JsonProperty(PropertyNameConstants.OPERATOR_ID)
   private var operatorId: String = getClass.getSimpleName + "-" + UUID.randomUUID.toString
 
   @JsonProperty(PropertyNameConstants.OPERATOR_VERSION)
-  var operatorVersion: String = getOperatorVersion()
-
-  @JsonIgnore
-  val inputPortToSchemaMapping: mutable.Map[PortIdentity, Schema] = mutable.HashMap()
-  @JsonIgnore
-  val outputPortToSchemaMapping: mutable.Map[PortIdentity, Schema] = mutable.HashMap()
+  var operatorVersion: String = getOperatorVersion
 
   def operatorIdentifier: OperatorIdentity = OperatorIdentity(operatorId)
 
   def getPhysicalOp(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
-  ): PhysicalOp = {
-    ???
-  }
+  ): PhysicalOp = ???
 
   // a logical operator corresponds multiple physical operators (a small DAG)
   def getPhysicalPlan(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalPlan = {
-    new PhysicalPlan(
+    PhysicalPlan(
       operators = Set(getPhysicalOp(workflowId, executionId)),
       links = Set.empty
     )
@@ -342,17 +307,10 @@ abstract class LogicalOp extends PortDescriptor with Serializable {
 
   def operatorInfo: OperatorInfo
 
-  def getOutputSchema(schemas: Array[Schema]): Schema
-
-  private def getOperatorVersion(): String = {
+  private def getOperatorVersion: String = {
     val path = "core/amber/src/main/scala/"
     val operatorPath = path + this.getClass.getPackage.getName.replace(".", "/")
     OPVersion.getVersion(this.getClass.getSimpleName, operatorPath)
-  }
-
-  // override if the operator has multiple output ports, schema must be specified for each port
-  def getOutputSchemas(schemas: Array[Schema]): Array[Schema] = {
-    Array.fill(1)(getOutputSchema(schemas))
   }
 
   override def hashCode: Int = HashCodeBuilder.reflectionHashCode(this)
@@ -360,12 +318,6 @@ abstract class LogicalOp extends PortDescriptor with Serializable {
   override def equals(that: Any): Boolean = EqualsBuilder.reflectionEquals(this, that, "context")
 
   override def toString: String = ToStringBuilder.reflectionToString(this)
-
-  def getContext: WorkflowContext = this.context
-
-  def setContext(workflowContext: WorkflowContext): Unit = {
-    this.context = workflowContext
-  }
 
   def setOperatorId(id: String): Unit = {
     operatorId = id
@@ -387,4 +339,32 @@ abstract class LogicalOp extends PortDescriptor with Serializable {
   @JsonPropertyDescription("Add dummy property if needed")
   var dummyPropertyList: List[DummyProperties] = List()
 
+  /**
+    * Propagates the schema from external input ports to external output ports.
+    * This method is primarily used to derive the output schemas for logical operators.
+    *
+    * @param inputSchemas A map containing the schemas of the external input ports.
+    * @return A map of external output port identities to their corresponding schemas.
+    */
+  def getExternalOutputSchemas(
+      inputSchemas: Map[PortIdentity, Schema]
+  ): Map[PortIdentity, Schema] = {
+    this
+      .getPhysicalPlan(DEFAULT_WORKFLOW_ID, DEFAULT_EXECUTION_ID)
+      .propagateSchema(inputSchemas)
+      .operators
+      .flatMap { operator =>
+        operator.outputPorts.values
+          .filterNot { case (port, _, _) => port.id.internal } // Exclude internal ports
+          .map {
+            case (port, _, schemaEither) =>
+              schemaEither match {
+                case Left(error) => throw error
+                case Right(schema) =>
+                  port.id -> schema // Map external port ID to its schema
+              }
+          }
+      }
+      .toMap
+  }
 }

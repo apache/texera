@@ -1,16 +1,15 @@
 package edu.uci.ics.amber.operator.projection
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.core.executor.OpExecInitInfo
+import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.tuple.{Attribute, Schema}
+import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.PhysicalOp.oneToOnePhysicalOp
 import edu.uci.ics.amber.core.workflow._
 import edu.uci.ics.amber.operator.map.MapOpDesc
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 
 class ProjectionOpDesc extends MapOpDesc {
 
@@ -29,17 +28,30 @@ class ProjectionOpDesc extends MapOpDesc {
       workflowId,
       executionId,
       operatorIdentifier,
-      OpExecInitInfo((_, _) => new ProjectionOpExec(attributes, isDrop))
+      OpExecWithClassName(
+        "edu.uci.ics.amber.operator.projection.ProjectionOpExec",
+        objectMapper.writeValueAsString(this)
+      )
     )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withDerivePartition(derivePartition())
       .withPropagateSchema(SchemaPropagationFunc(inputSchemas => {
-        Map(
-          operatorInfo.outputPorts.head.id -> getOutputSchema(
-            Array(inputSchemas(operatorInfo.inputPorts.head.id))
-          )
-        )
+        require(attributes.nonEmpty, "Attributes must not be empty")
+
+        val inputSchema = inputSchemas.values.head
+        val outputSchema = if (!isDrop) {
+          attributes.foldLeft(Schema()) { (schema, attribute) =>
+            val originalType = inputSchema.getAttribute(attribute.getOriginalAttribute).getType
+            schema.add(attribute.getAlias, originalType)
+          }
+        } else {
+          attributes.foldLeft(inputSchema) { (schema, attribute) =>
+            schema.remove(attribute.getOriginalAttribute)
+          }
+        }
+
+        Map(operatorInfo.outputPorts.head.id -> outputSchema)
       }))
   }
 
@@ -66,29 +78,5 @@ class ProjectionOpDesc extends MapOpDesc {
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
     )
-  }
-
-  override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    Preconditions.checkArgument(schemas.length == 1)
-    Preconditions.checkArgument(attributes.nonEmpty)
-    if (!isDrop) {
-      Schema
-        .builder()
-        .add(attributes.map { attribute =>
-          val originalType = schemas.head.getAttribute(attribute.getOriginalAttribute).getType
-          new Attribute(attribute.getAlias, originalType)
-        })
-        .build()
-    } else {
-      val outputSchemaBuilder = Schema.builder()
-      val inputSchema = schemas(0)
-      outputSchemaBuilder.add(inputSchema)
-      for (attribute <- attributes) {
-        outputSchemaBuilder.removeIfExists(attribute.getOriginalAttribute)
-      }
-      outputSchemaBuilder.build()
-
-    }
-
   }
 }

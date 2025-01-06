@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package edu.uci.ics.amber;
+package edu.uci.ics.amber.core;
 
-import "edu/uci/ics/amber/virtualidentity.proto";
+import "edu/uci/ics/amber/core/virtualidentity.proto";
 import "scalapb/scalapb.proto";
 
 option (scalapb.options) = {

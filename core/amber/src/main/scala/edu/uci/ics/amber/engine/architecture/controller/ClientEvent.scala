@@ -4,7 +4,7 @@ import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessagePayload
 import edu.uci.ics.amber.engine.common.executionruntimestate.OperatorMetrics
-import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
 
 trait ClientEvent extends WorkflowFIFOMessagePayload
 

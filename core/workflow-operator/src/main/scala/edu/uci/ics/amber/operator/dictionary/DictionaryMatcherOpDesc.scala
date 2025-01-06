@@ -1,15 +1,15 @@
 package edu.uci.ics.amber.operator.dictionary
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.google.common.base.Preconditions
-import edu.uci.ics.amber.core.executor.OpExecInitInfo
-import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
-import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
+import edu.uci.ics.amber.core.executor.OpExecWithClassName
+import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType}
+import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.operator.map.MapOpDesc
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 
 /**
   * Dictionary matcher operator matches a tuple if the specified column is in the given dictionary.
@@ -39,14 +39,21 @@ class DictionaryMatcherOpDesc extends MapOpDesc {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _) => new DictionaryMatcherOpExec(attribute, dictionary, matchingType))
+        OpExecWithClassName(
+          "edu.uci.ics.amber.operator.dictionary.DictionaryMatcherOpExec",
+          objectMapper.writeValueAsString(this)
+        )
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withPropagateSchema(
-        SchemaPropagationFunc(inputSchemas =>
-          Map(operatorInfo.outputPorts.head.id -> getOutputSchema(inputSchemas.values.toArray))
-        )
+        SchemaPropagationFunc(inputSchemas => {
+          if (resultAttribute == null || resultAttribute.trim.isEmpty) return null
+          Map(
+            operatorInfo.outputPorts.head.id -> inputSchemas.values.head
+              .add(new Attribute(resultAttribute, AttributeType.BOOLEAN))
+          )
+        })
       )
   }
 
@@ -59,10 +66,4 @@ class DictionaryMatcherOpDesc extends MapOpDesc {
       outputPorts = List(OutputPort()),
       supportReconfiguration = true
     )
-
-  override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    Preconditions.checkArgument(schemas.length == 1)
-    if (resultAttribute == null || resultAttribute.trim.isEmpty) return null
-    Schema.builder().add(schemas(0)).add(resultAttribute, AttributeType.BOOLEAN).build()
-  }
 }
