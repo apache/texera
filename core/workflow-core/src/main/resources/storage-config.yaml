@@ -8,7 +8,7 @@ storage:
     table:
       namespace: "operator-result"
       commit:
-        batch-size: 2048 # decide the buffer size of our IcebergTableWriter
+        batch-size: 4096 # decide the buffer size of our IcebergTableWriter
         retry:
           # retry configures the OCC parameter for concurrent write operations in Iceberg
           # Docs about Reliability in Iceberg: https://iceberg.apache.org/docs/1.7.1/reliability/

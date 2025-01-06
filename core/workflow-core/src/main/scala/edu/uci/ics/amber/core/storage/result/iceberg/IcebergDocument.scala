@@ -40,15 +40,13 @@ class IcebergDocument[T >: Null <: AnyRef](
   @transient lazy val catalog: Catalog = IcebergCatalogInstance.getInstance()
 
   // During construction, create or override the table
-  synchronized {
-    IcebergUtil.createTable(
-      catalog,
-      tableNamespace,
-      tableName,
-      tableSchema,
-      overrideIfExists = true
-    )
-  }
+  IcebergUtil.createTable(
+    catalog,
+    tableNamespace,
+    tableName,
+    tableSchema,
+    overrideIfExists = true
+  )
 
   /**
     * Returns the URI of the table location.
