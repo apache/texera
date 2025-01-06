@@ -9,8 +9,7 @@ import org.apache.iceberg.types.Types
 import org.apache.iceberg.data.{GenericRecord, Record}
 import org.apache.iceberg.hadoop.{HadoopCatalog, HadoopFileIO}
 import org.apache.iceberg.io.{CloseableIterable, InputFile}
-import org.apache.iceberg.jdbc.JdbcCatalog
-import org.apache.iceberg.parquet.{Parquet, ParquetReader, ParquetValueReader}
+import org.apache.iceberg.parquet.{Parquet, ParquetValueReader}
 import org.apache.iceberg.types.Type.PrimitiveType
 import org.apache.iceberg.{
   CatalogProperties,
@@ -21,7 +20,6 @@ import org.apache.iceberg.{
   Schema => IcebergSchema
 }
 
-import java.net.URI
 import java.nio.ByteBuffer
 import java.nio.file.Path
 import java.sql.Timestamp
@@ -35,20 +33,20 @@ import scala.jdk.CollectionConverters._
 object IcebergUtil {
 
   /**
-   * Creates and initializes a HadoopCatalog with the given parameters.
-   * - Uses an empty Hadoop `Configuration`, meaning the local file system (or `file:/`) will be used by default
-   * instead of HDFS.
-   * - The `warehouse` parameter specifies the root directory for storing table data.
-   * - Sets the file I/O implementation to `HadoopFileIO`.
-   *
-   * @param catalogName the name of the catalog.
-   * @param warehouse   the root path for the warehouse where the tables are stored.
-   * @return the initialized HadoopCatalog instance.
-   */
+    * Creates and initializes a HadoopCatalog with the given parameters.
+    * - Uses an empty Hadoop `Configuration`, meaning the local file system (or `file:/`) will be used by default
+    * instead of HDFS.
+    * - The `warehouse` parameter specifies the root directory for storing table data.
+    * - Sets the file I/O implementation to `HadoopFileIO`.
+    *
+    * @param catalogName the name of the catalog.
+    * @param warehouse   the root path for the warehouse where the tables are stored.
+    * @return the initialized HadoopCatalog instance.
+    */
   def createHadoopCatalog(
-                           catalogName: String,
-                           warehouse: Path
-                         ): HadoopCatalog = {
+      catalogName: String,
+      warehouse: Path
+  ): HadoopCatalog = {
     val catalog = new HadoopCatalog()
     catalog.setConf(new Configuration) // Empty configuration, defaults to `file:/`
     catalog.initialize(
@@ -239,6 +237,13 @@ object IcebergUtil {
     }
   }
 
+  /**
+    * Util function to create a Record iterator over the given DataFile in Iceberg
+    * @param dataFile the data file
+    * @param schema the schema of the table
+    * @param table the iceberg table
+    * @return an iterator over the records in the data file
+    */
   def readDataFileAsIterator(
       dataFile: DataFile,
       schema: IcebergSchema,

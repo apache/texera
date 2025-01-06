@@ -3,14 +3,11 @@ package edu.uci.ics.amber.core.storage.result.iceberg
 import edu.uci.ics.amber.core.storage.IcebergCatalogInstance
 import edu.uci.ics.amber.core.storage.model.{BufferedItemWriter, VirtualDocument}
 import edu.uci.ics.amber.core.storage.util.StorageUtil.{withLock, withReadLock, withWriteLock}
-import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.util.IcebergUtil
-import org.apache.iceberg.{DataFile, FileScanTask, Table}
+import org.apache.iceberg.{FileScanTask, Table}
 import org.apache.iceberg.catalog.{Catalog, TableIdentifier}
-import org.apache.iceberg.data.{IcebergGenerics, Record}
+import org.apache.iceberg.data.Record
 import org.apache.iceberg.exceptions.NoSuchTableException
-import org.apache.iceberg.io.CloseableIterable
-import org.apache.iceberg.types.Types
 
 import java.net.URI
 import java.util.concurrent.locks.{ReentrantLock, ReentrantReadWriteLock}
@@ -258,12 +255,4 @@ class IcebergDocument[T >: Null <: AnyRef](
         }
       }
     }
-
-  private def loadTableMetadata(): Table = {
-    IcebergUtil
-      .loadTableMetadata(catalog, tableNamespace, tableName)
-      .getOrElse(
-        throw new NoSuchTableException(s"Table $tableNamespace.$tableName does not exist")
-      )
-  }
 }
