@@ -260,6 +260,21 @@ trait VirtualDocumentSpec[T] extends AnyFlatSpec with BeforeAndAfterEach {
     )
   }
 
+  it should "get the count of records correctly" in {
+    val allItems = generateSampleItems()
+
+    // Write items
+    val writer = document.writer(UUID.randomUUID().toString)
+    writer.open()
+    allItems.foreach(writer.putOne)
+    writer.close()
+
+    assert(
+      allItems.length == document.getCount,
+      "getCount should return the same number with allItems"
+    )
+  }
+
   /**
     * Generates a sample list of items for testing.
     * Subclasses should override this to provide their specific sample items.

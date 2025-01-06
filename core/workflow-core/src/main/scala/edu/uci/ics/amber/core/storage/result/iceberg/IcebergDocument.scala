@@ -95,7 +95,12 @@ class IcebergDocument[T >: Null <: AnyRef](
     * Get the total count of records in the table.
     */
   override def getCount: Long = {
-    get().length
+    val table = IcebergUtil
+      .loadTableMetadata(catalog, tableNamespace, tableName)
+      .getOrElse(
+        return 0
+      )
+    table.newScan().planFiles().iterator().asScala.map(f => f.file().recordCount()).sum
   }
 
   /**
