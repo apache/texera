@@ -1,6 +1,8 @@
 package edu.uci.ics.amber.operator.visualization.htmlviz
 
 import edu.uci.ics.amber.core.tuple._
+import edu.uci.ics.amber.core.workflow.PortIdentity
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 class HtmlVizOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
@@ -8,9 +10,10 @@ class HtmlVizOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     new Attribute("field1", AttributeType.STRING),
     new Attribute("field2", AttributeType.STRING)
   )
-  val desc: HtmlVizOpDesc = new HtmlVizOpDesc()
+  val opDesc: HtmlVizOpDesc = new HtmlVizOpDesc()
 
-  val outputSchema: Schema = desc.getOutputSchema(Array(schema))
+  val outputSchema: Schema =
+    opDesc.getExternalOutputSchemas(Map(PortIdentity() -> schema)).values.head
 
   def tuple(): Tuple =
     Tuple
@@ -19,7 +22,8 @@ class HtmlVizOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       .build()
 
   it should "process a target field" in {
-    val htmlVizOpExec = new HtmlVizOpExec("field1")
+    opDesc.htmlContentAttrName = "field1"
+    val htmlVizOpExec = new HtmlVizOpExec(objectMapper.writeValueAsString(opDesc))
     htmlVizOpExec.open()
     val processedTuple: Tuple =
       htmlVizOpExec
@@ -33,8 +37,8 @@ class HtmlVizOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "process another target field" in {
-
-    val htmlVizOpExec = new HtmlVizOpExec("field2")
+    opDesc.htmlContentAttrName = "field2"
+    val htmlVizOpExec = new HtmlVizOpExec(objectMapper.writeValueAsString(opDesc))
     htmlVizOpExec.open()
     val processedTuple: Tuple =
       htmlVizOpExec

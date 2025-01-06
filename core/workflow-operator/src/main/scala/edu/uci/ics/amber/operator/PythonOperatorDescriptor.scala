@@ -1,29 +1,28 @@
 package edu.uci.ics.amber.operator
 
-import edu.uci.ics.amber.core.executor.OpExecInitInfoWithCode
-import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
+import edu.uci.ics.amber.core.executor.OpExecWithCode
+import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.core.workflow.{PhysicalOp, PortIdentity, SchemaPropagationFunc}
 
 trait PythonOperatorDescriptor extends LogicalOp {
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp = {
-    val opExecInitInfo = OpExecInitInfoWithCode((_, _) => (generatePythonCode(), "python"))
-
     val physicalOp = if (asSource()) {
       PhysicalOp.sourcePhysicalOp(
         workflowId,
         executionId,
         operatorIdentifier,
-        opExecInitInfo
+        OpExecWithCode(generatePythonCode(), "python")
       )
     } else {
       PhysicalOp.oneToOnePhysicalOp(
         workflowId,
         executionId,
         operatorIdentifier,
-        opExecInitInfo
+        OpExecWithCode(generatePythonCode(), "python")
       )
     }
 
@@ -31,15 +30,7 @@ trait PythonOperatorDescriptor extends LogicalOp {
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withParallelizable(parallelizable())
-      .withPropagateSchema(
-        SchemaPropagationFunc(inputSchemas =>
-          Map(
-            operatorInfo.outputPorts.head.id -> getOutputSchema(
-              operatorInfo.inputPorts.map(_.id).map(inputSchemas(_)).toArray
-            )
-          )
-        )
-      )
+      .withPropagateSchema(SchemaPropagationFunc(inputSchemas => getOutputSchemas(inputSchemas)))
   }
 
   def parallelizable(): Boolean = false
@@ -53,5 +44,7 @@ trait PythonOperatorDescriptor extends LogicalOp {
     * @return a String representation of the executable Python source code.
     */
   def generatePythonCode(): String
+
+  def getOutputSchemas(inputSchemas: Map[PortIdentity, Schema]): Map[PortIdentity, Schema]
 
 }

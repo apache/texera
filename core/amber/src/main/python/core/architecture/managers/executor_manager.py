@@ -114,7 +114,6 @@ class ExecutorManager:
             class declaration.
         :param is_source: Indicating if the operator is used as a source operator.
         :param language: The language of the operator code.
-        :param output_schema: the raw mapping of output schema, name -> type_str.
         :return:
         """
         if language == "r-tuple":

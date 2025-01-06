@@ -2,13 +2,12 @@ package edu.uci.ics.amber.operator.split
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
-import edu.uci.ics.amber.core.executor.OpExecInitInfo
-import edu.uci.ics.amber.core.tuple.Schema
-import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
+import edu.uci.ics.amber.core.executor.OpExecWithClassName
+import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.core.workflow._
 import edu.uci.ics.amber.operator.LogicalOp
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 
 import scala.util.Random
 class SplitOpDesc extends LogicalOp {
@@ -30,18 +29,20 @@ class SplitOpDesc extends LogicalOp {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _) => new SplitOpExec(k, seed))
+        OpExecWithClassName(
+          "edu.uci.ics.amber.operator.split.SplitOpExec",
+          objectMapper.writeValueAsString(this)
+        )
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withParallelizable(false)
       .withPropagateSchema(
-        SchemaPropagationFunc(inputSchemas =>
-          operatorInfo.outputPorts
-            .map(_.id)
-            .map(id => id -> inputSchemas(operatorInfo.inputPorts.head.id))
-            .toMap
-        )
+        SchemaPropagationFunc(inputSchemas => {
+          Preconditions.checkArgument(inputSchemas.size == 1)
+          val outputSchema = inputSchemas.values.head
+          operatorInfo.outputPorts.map(port => port.id -> outputSchema).toMap
+        })
       )
   }
 
@@ -60,10 +61,4 @@ class SplitOpDesc extends LogicalOp {
     )
   }
 
-  override def getOutputSchema(schemas: Array[Schema]): Schema = throw new NotImplementedError()
-
-  override def getOutputSchemas(schemas: Array[Schema]): Array[Schema] = {
-    Preconditions.checkArgument(schemas.length == 1)
-    Array(schemas(0), schemas(0))
-  }
 }

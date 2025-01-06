@@ -46,7 +46,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
   private val outputPortId = PortIdentity()
   private val outputHandler = mock[Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit]
   private val adaptiveBatchingMonitor = mock[WorkerTimerService]
-  private val schema: Schema = Schema.builder().add("field1", AttributeType.INTEGER).build()
+  private val schema: Schema = Schema().add("field1", AttributeType.INTEGER)
   private val tuples: Array[Tuple] = (0 until 400)
     .map(i => TupleLike(i).enforceSchema(schema))
     .toArray
