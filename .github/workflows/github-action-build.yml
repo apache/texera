@@ -64,7 +64,7 @@ jobs:
       JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
     steps:
       - name: Prepare ENV
-        run: sudo apt-get install libncurses5
+        run: sudo apt update; sudo apt-get install libncurses5
       - name: Checkout Texera
         uses: actions/checkout@v2
       - name: Setup Java
