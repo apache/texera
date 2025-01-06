@@ -6,14 +6,14 @@ import edu.uci.ics.amber.compiler.WorkflowCompiler.{
   collectInputSchemaFromPhysicalPlan,
   convertErrorListToWorkflowFatalErrorMap
 }
+
 import edu.uci.ics.amber.compiler.model.{LogicalPlan, LogicalPlanPojo}
-import edu.uci.ics.amber.compiler.util.SinkInjectionTransformer
 import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
-import edu.uci.ics.amber.virtualidentity.OperatorIdentity
-import edu.uci.ics.amber.workflow.PhysicalLink
-import edu.uci.ics.amber.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
-import edu.uci.ics.amber.workflowruntimestate.WorkflowFatalError
+import edu.uci.ics.amber.core.virtualidentity.OperatorIdentity
+import edu.uci.ics.amber.core.workflow.PhysicalLink
+import edu.uci.ics.amber.core.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
+import edu.uci.ics.amber.core.workflowruntimestate.WorkflowFatalError
 
 import java.time.Instant
 import scala.collection.mutable
@@ -63,7 +63,7 @@ object WorkflowCompiler {
       errorList: ArrayBuffer[(OperatorIdentity, Throwable)] // Mandatory error list
   ): Map[OperatorIdentity, List[Option[Schema]]] = {
     val physicalInputSchemas =
-      physicalPlan.operators.filter(op => !op.isSinkOperator).map { physicalOp =>
+      physicalPlan.operators.map { physicalOp =>
         // Process inputPorts and capture Throwable values in the errorList
         physicalOp.id -> physicalOp.inputPorts.values
           .filterNot(_._1.id.internal)
@@ -110,7 +110,8 @@ class WorkflowCompiler(
     logicalPlan.getTopologicalOpIds.asScala.foreach(logicalOpId =>
       Try {
         val logicalOp = logicalPlan.getOperator(logicalOpId)
-        logicalOp.setContext(context)
+        val allUpstreamLinks = logicalPlan
+          .getUpstreamLinks(logicalOp.operatorIdentifier)
 
         val subPlan = logicalOp.getPhysicalPlan(context.workflowId, context.executionId)
         subPlan
@@ -118,8 +119,7 @@ class WorkflowCompiler(
           .map(subPlan.getOperator)
           .foreach({ physicalOp =>
             {
-              val externalLinks = logicalPlan
-                .getUpstreamLinks(logicalOp.operatorIdentifier)
+              val externalLinks = allUpstreamLinks
                 .filter(link => physicalOp.inputPorts.contains(link.toPortId))
                 .flatMap { link =>
                   physicalPlan
@@ -164,19 +164,14 @@ class WorkflowCompiler(
     val errorList = new ArrayBuffer[(OperatorIdentity, Throwable)]()
     var opIdToInputSchema: Map[OperatorIdentity, List[Option[Schema]]] = Map()
     // 1. convert the pojo to logical plan
-    var logicalPlan: LogicalPlan = LogicalPlan(logicalPlanPojo)
+    val logicalPlan: LogicalPlan = LogicalPlan(logicalPlanPojo)
 
-    // 2. Manipulate logical plan by:
-    // - inject sink
-    logicalPlan = SinkInjectionTransformer.transform(
-      logicalPlanPojo.opsToViewResult,
-      logicalPlan
-    )
-    // - resolve the file name in each scan source operator
+    // 2. resolve the file name in each scan source operator
     logicalPlan.resolveScanSourceOpFileName(Some(errorList))
 
-    // 3. expand the logical plan to the physical plan,
+    // 3. expand the logical plan to the physical plan
     val physicalPlan = expandLogicalPlan(logicalPlan, Some(errorList))
+
     if (errorList.isEmpty) {
       // no error during the expansion, then do:
       // - collect the input schema for each op

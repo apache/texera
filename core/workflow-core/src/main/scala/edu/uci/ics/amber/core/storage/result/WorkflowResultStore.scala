@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.core.storage.result
 
-import edu.uci.ics.amber.virtualidentity.OperatorIdentity
+import edu.uci.ics.amber.core.virtualidentity.OperatorIdentity
 
 case class OperatorResultMetadata(tupleCount: Int = 0, changeDetector: String = "")
 

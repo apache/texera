@@ -2,15 +2,15 @@ package edu.uci.ics.amber.operator.source.scan.json
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.JsonNode
-import edu.uci.ics.amber.core.executor.OpExecInitInfo
+import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.storage.model.DatasetFileDocument
 import edu.uci.ics.amber.core.tuple.AttributeTypeUtils.inferSchemaFromRows
 import edu.uci.ics.amber.core.tuple.{Attribute, Schema}
+import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.operator.source.scan.ScanSourceOpDesc
 import edu.uci.ics.amber.util.JSONUtils.{JSONToMap, objectMapper}
-import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 
 import java.io._
 import java.net.URI
@@ -38,56 +38,30 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp = {
-    val stream = DocumentFactory.newReadonlyDocument(new URI(fileUri.get)).asInputStream()
-    // count lines and partition the task to each worker
-    val reader = new BufferedReader(
-      new InputStreamReader(stream, fileEncoding.getCharset)
-    )
-    val offsetValue = offset.getOrElse(0)
-    var lines = reader.lines().iterator().asScala.drop(offsetValue)
-    if (limit.isDefined) lines = lines.take(limit.get)
-    val count: Int = lines.map(_ => 1).sum
-    reader.close()
 
     PhysicalOp
       .sourcePhysicalOp(
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((idx, workerCount) => {
-          val startOffset: Int = offsetValue + count / workerCount * idx
-          val endOffset: Int =
-            offsetValue + (if (idx != workerCount - 1) count / workerCount * (idx + 1)
-                           else count)
-          new JSONLScanSourceOpExec(
-            fileUri.get,
-            fileEncoding,
-            startOffset,
-            endOffset,
-            flatten,
-            schemaFunc = () => inferSchema()
-          )
-        })
+        OpExecWithClassName(
+          "edu.uci.ics.amber.operator.source.scan.json.JSONLScanSourceOpExec",
+          objectMapper.writeValueAsString(this)
+        )
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withParallelizable(true)
       .withPropagateSchema(
-        SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> inferSchema()))
+        SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> sourceSchema()))
       )
   }
 
-  /**
-    * Infer Texera.Schema based on the top few lines of data.
-    *
-    * @return Texera.Schema build for this operator
-    */
-  @Override
-  def inferSchema(): Schema = {
-    if (fileUri.isEmpty) {
+  override def sourceSchema(): Schema = {
+    if (!fileResolved()) {
       return null
     }
-    val stream = DocumentFactory.newReadonlyDocument(new URI(fileUri.get)).asInputStream()
+    val stream = DocumentFactory.newReadonlyDocument(new URI(fileName.get)).asInputStream()
     val reader = new BufferedReader(new InputStreamReader(stream, fileEncoding.getCharset))
     var fieldNames = Set[String]()
 
@@ -125,13 +99,9 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
       result.toArray
     }))
 
-    Schema
-      .builder()
-      .add(
-        sortedFieldNames.indices
-          .map(i => new Attribute(sortedFieldNames(i), attributeTypes(i)))
-      )
-      .build()
-  }
+    Schema().add(sortedFieldNames.indices.map { i =>
+      new Attribute(sortedFieldNames(i), attributeTypes(i))
+    })
 
+  }
 }

@@ -15,7 +15,7 @@ import edu.uci.ics.amber.operator.metadata.annotations.{
   CommonOpDescAnnotation,
   HideAnnotation
 }
-import edu.uci.ics.amber.workflow.{InputPort, OutputPort, PortIdentity}
+import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 
 abstract class SklearnClassifierOpDesc extends PythonOperatorDescriptor {
 
@@ -106,11 +106,13 @@ abstract class SklearnClassifierOpDesc extends PythonOperatorDescriptor {
       outputPorts = List(OutputPort(blocking = true))
     )
 
-  override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    Schema
-      .builder()
-      .add("model_name", AttributeType.STRING)
-      .add("model", AttributeType.BINARY)
-      .build()
+  override def getOutputSchemas(
+      inputSchemas: Map[PortIdentity, Schema]
+  ): Map[PortIdentity, Schema] = {
+    Map(
+      operatorInfo.outputPorts.head.id -> Schema()
+        .add("model_name", AttributeType.STRING)
+        .add("model", AttributeType.BINARY)
+    )
   }
 }

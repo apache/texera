@@ -1,13 +1,14 @@
 package edu.uci.ics.amber.operator.source.scan.arrow
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
-import edu.uci.ics.amber.core.executor.OpExecInitInfo
+import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.operator.source.scan.ScanSourceOpDesc
-import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.util.ArrowUtils
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 
 import java.io.IOException
 import java.net.URI
@@ -16,6 +17,7 @@ import java.nio.file.StandardOpenOption
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.ipc.ArrowFileReader
 import org.apache.arrow.vector.types.pojo.{Schema => ArrowSchema}
+
 import scala.util.Using
 
 @JsonIgnoreProperties(value = Array("fileEncoding"))
@@ -33,22 +35,16 @@ class ArrowSourceOpDesc extends ScanSourceOpDesc {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _) => createArrowSourceOpExec())
+        OpExecWithClassName(
+          "edu.uci.ics.amber.operator.source.scan.arrow.ArrowSourceOpExec",
+          objectMapper.writeValueAsString(this)
+        )
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withPropagateSchema(
         SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> inferSchema()))
       )
-  }
-
-  private def createArrowSourceOpExec() = {
-    new ArrowSourceOpExec(
-      fileUri.get,
-      limit,
-      offset,
-      schemaFunc = () => sourceSchema()
-    )
   }
 
   /**
@@ -58,7 +54,7 @@ class ArrowSourceOpDesc extends ScanSourceOpDesc {
     */
   @Override
   def inferSchema(): Schema = {
-    val file = DocumentFactory.newReadonlyDocument(new URI(fileUri.get)).asFile()
+    val file = DocumentFactory.newReadonlyDocument(new URI(fileName.get)).asFile()
     val allocator = new RootAllocator()
 
     Using

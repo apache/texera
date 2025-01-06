@@ -1,24 +1,24 @@
 package edu.uci.ics.amber.operator.source.scan.csv
 
 import edu.uci.ics.amber.core.executor.SourceOperatorExecutor
-import edu.uci.ics.amber.core.tuple.{Attribute, AttributeTypeUtils, Schema, TupleLike}
+import edu.uci.ics.amber.core.storage.DocumentFactory
+import edu.uci.ics.amber.core.tuple.{Attribute, AttributeTypeUtils, TupleLike}
 import edu.uci.ics.amber.operator.source.BufferedBlockReader
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import org.tukaani.xz.SeekableFileInputStream
 
-import java.io.File
+import java.net.URI
 import java.util
 import java.util.stream.{IntStream, Stream}
 import scala.collection.compat.immutable.ArraySeq
 
 class ParallelCSVScanSourceOpExec private[csv] (
-    file: File,
-    customDelimiter: Option[String],
-    hasHeader: Boolean,
-    startOffset: Long,
-    endOffset: Long,
-    schemaFunc: () => Schema
+    descString: String,
+    idx: Int = 0,
+    workerCount: Int = 1
 ) extends SourceOperatorExecutor {
-  private var schema: Schema = _
+  val desc: ParallelCSVScanSourceOpDesc =
+    objectMapper.readValue(descString, classOf[ParallelCSVScanSourceOpDesc])
   private var reader: BufferedBlockReader = _
 
   override def produceTuple(): Iterator[TupleLike] =
@@ -42,6 +42,7 @@ class ParallelCSVScanSourceOpExec private[csv] (
             return null
           }
 
+          val schema = desc.sourceSchema()
           // however the null values won't present if omitted in the end, we need to match nulls.
           if (fields.length != schema.getAttributes.size)
             fields = Stream
@@ -68,19 +69,29 @@ class ParallelCSVScanSourceOpExec private[csv] (
     }.filter(tuple => tuple != null)
 
   override def open(): Unit = {
+    // here, the stream requires to be seekable, so datasetFileDesc creates a temp file here
+    // TODO: consider a better way
+    val file = DocumentFactory.newReadonlyDocument(new URI(desc.fileName.get)).asFile()
+    val totalBytes: Long = file.length()
+    // TODO: add support for limit
+    // TODO: add support for offset
+    val startOffset: Long = totalBytes / workerCount * idx
+    val endOffset: Long =
+      if (idx != workerCount - 1) totalBytes / workerCount * (idx + 1) else totalBytes
+
     val stream = new SeekableFileInputStream(file)
-    schema = schemaFunc()
+
     stream.seek(startOffset)
     reader = new BufferedBlockReader(
       stream,
       endOffset - startOffset,
-      customDelimiter.get.charAt(0),
+      desc.customDelimiter.get.charAt(0),
       null
     )
     // skip line if this worker reads from middle of a file
     if (startOffset > 0) reader.readLine
     // skip line if this worker reads the start of a file, and the file has a header line
-    if (startOffset == 0 && hasHeader) reader.readLine
+    if (startOffset == 0 && desc.hasHeader) reader.readLine
   }
 
   override def close(): Unit = reader.close()

@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.operator.intersect
 
-import edu.uci.ics.amber.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
-import edu.uci.ics.amber.workflow.{PhysicalLink, PortIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.core.workflow.{PhysicalLink, PortIdentity}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -11,14 +11,10 @@ class IntersectOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   var opExec: IntersectOpExec = _
   var counter: Int = 0
 
-  val tupleSchema: Schema = Schema
-    .builder()
+  val tupleSchema: Schema = Schema()
     .add(new Attribute("field1", AttributeType.STRING))
     .add(new Attribute("field2", AttributeType.INTEGER))
-    .add(
-      new Attribute("field3", AttributeType.BOOLEAN)
-    )
-    .build()
+    .add(new Attribute("field3", AttributeType.BOOLEAN))
 
   def physicalOpId(): PhysicalOpIdentity = {
     counter += 1

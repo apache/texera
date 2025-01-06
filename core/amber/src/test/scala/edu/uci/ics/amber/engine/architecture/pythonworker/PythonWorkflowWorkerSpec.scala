@@ -21,7 +21,7 @@
 //}
 //import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 //import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
-//import edu.uci.ics.amber.virtualidentity.{
+//import edu.uci.ics.amber.core.virtualidentity.{
 //  ActorVirtualIdentity,
 //  PhysicalLink,
 //  PhysicalLink,

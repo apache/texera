@@ -2,10 +2,10 @@ package edu.uci.ics.amber.operator.source.apis.reddit
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
+import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.source.PythonSourceOperatorDescriptor
-import edu.uci.ics.amber.workflow.OutputPort
+import edu.uci.ics.amber.core.workflow.{OutputPort, PortIdentity}
 
 class RedditSearchSourceOpDesc extends PythonSourceOperatorDescriptor {
   @JsonProperty(required = true)
@@ -112,26 +112,26 @@ class RedditSearchSourceOpDesc extends PythonSourceOperatorDescriptor {
   override def asSource() = true
 
   override def sourceSchema(): Schema =
-    Schema
-      .builder()
-      .add(
-        new Attribute("id", AttributeType.STRING),
-        new Attribute("name", AttributeType.STRING),
-        new Attribute("title", AttributeType.STRING),
-        new Attribute("created_utc", AttributeType.TIMESTAMP),
-        new Attribute("edited", AttributeType.TIMESTAMP),
-        new Attribute("is_self", AttributeType.BOOLEAN),
-        new Attribute("selftext", AttributeType.STRING),
-        new Attribute("over_18", AttributeType.BOOLEAN),
-        new Attribute("is_original_content", AttributeType.BOOLEAN),
-        new Attribute("locked", AttributeType.BOOLEAN),
-        new Attribute("score", AttributeType.INTEGER),
-        new Attribute("upvote_ratio", AttributeType.DOUBLE),
-        new Attribute("num_comments", AttributeType.INTEGER),
-        new Attribute("permalink", AttributeType.STRING),
-        new Attribute("url", AttributeType.STRING),
-        new Attribute("author_name", AttributeType.STRING),
-        new Attribute("subreddit", AttributeType.STRING)
-      )
-      .build()
+    Schema()
+      .add("id", AttributeType.STRING)
+      .add("name", AttributeType.STRING)
+      .add("title", AttributeType.STRING)
+      .add("created_utc", AttributeType.TIMESTAMP)
+      .add("edited", AttributeType.TIMESTAMP)
+      .add("is_self", AttributeType.BOOLEAN)
+      .add("selftext", AttributeType.STRING)
+      .add("over_18", AttributeType.BOOLEAN)
+      .add("is_original_content", AttributeType.BOOLEAN)
+      .add("locked", AttributeType.BOOLEAN)
+      .add("score", AttributeType.INTEGER)
+      .add("upvote_ratio", AttributeType.DOUBLE)
+      .add("num_comments", AttributeType.INTEGER)
+      .add("permalink", AttributeType.STRING)
+      .add("url", AttributeType.STRING)
+      .add("author_name", AttributeType.STRING)
+      .add("subreddit", AttributeType.STRING)
+
+  def getOutputSchemas(inputSchemas: Map[PortIdentity, Schema]): Map[PortIdentity, Schema] = {
+    Map(operatorInfo.outputPorts.head.id -> sourceSchema())
+  }
 }

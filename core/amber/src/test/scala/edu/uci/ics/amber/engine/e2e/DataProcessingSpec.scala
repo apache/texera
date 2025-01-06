@@ -18,8 +18,8 @@ import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
 import edu.uci.ics.amber.operator.TestOperators
 import edu.uci.ics.amber.operator.aggregate.AggregationFunction
-import edu.uci.ics.amber.virtualidentity.OperatorIdentity
-import edu.uci.ics.amber.workflow.PortIdentity
+import edu.uci.ics.amber.core.virtualidentity.OperatorIdentity
+import edu.uci.ics.amber.core.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.LogicalLink
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
@@ -69,16 +69,16 @@ class DataProcessingSpec
       .registerCallback[ExecutionStateUpdate](evt => {
         if (evt.state == COMPLETED) {
           results = workflow.logicalPlan.getTerminalOperatorIds
-            .map(sinkOpId =>
-              (sinkOpId, workflow.logicalPlan.getUpstreamOps(sinkOpId).head.operatorIdentifier)
+            .filter(terminalOpId =>
+              // expecting the first output port only.
+              resultStorage.contains(OpResultStorage.createStorageKey(terminalOpId, PortIdentity()))
             )
-            .filter {
-              case (_, upstreamOpId) => resultStorage.contains(upstreamOpId)
-            }
-            .map {
-              case (sinkOpId, upstreamOpId) =>
-                (sinkOpId, resultStorage.get(upstreamOpId).get().toList)
-            }
+            .map(terminalOpId =>
+              terminalOpId -> resultStorage
+                .get(OpResultStorage.createStorageKey(terminalOpId, PortIdentity()))
+                .get()
+                .toList
+            )
             .toMap
           completion.setDone()
         }
@@ -123,67 +123,43 @@ class DataProcessingSpec
     ("localhost", config.getPort.toString, database, table, username, password)
   }
 
-  "Engine" should "execute headerlessCsv->sink workflow normally" in {
+  "Engine" should "execute headerlessCsv workflow normally" in {
     val headerlessCsvOpDesc = TestOperators.headerlessSmallCsvScanOpDesc()
-    val sink = TestOperators.sinkOpDesc()
     val workflow = buildWorkflow(
-      List(headerlessCsvOpDesc, sink),
-      List(
-        LogicalLink(
-          headerlessCsvOpDesc.operatorIdentifier,
-          PortIdentity(),
-          sink.operatorIdentifier,
-          PortIdentity()
-        )
-      ),
+      List(headerlessCsvOpDesc),
+      List(),
       workflowContext
     )
-    val results = executeWorkflow(workflow)(sink.operatorIdentifier)
+    val results = executeWorkflow(workflow)(headerlessCsvOpDesc.operatorIdentifier)
 
     assert(results.size == 100)
   }
 
-  "Engine" should "execute headerlessMultiLineDataCsv-->sink workflow normally" in {
+  "Engine" should "execute headerlessMultiLineDataCsv workflow normally" in {
     val headerlessCsvOpDesc = TestOperators.headerlessSmallMultiLineDataCsvScanOpDesc()
-    val sink = TestOperators.sinkOpDesc()
     val workflow = buildWorkflow(
-      List(headerlessCsvOpDesc, sink),
-      List(
-        LogicalLink(
-          headerlessCsvOpDesc.operatorIdentifier,
-          PortIdentity(),
-          sink.operatorIdentifier,
-          PortIdentity()
-        )
-      ),
+      List(headerlessCsvOpDesc),
+      List(),
       workflowContext
     )
-    val results = executeWorkflow(workflow)(sink.operatorIdentifier)
+    val results = executeWorkflow(workflow)(headerlessCsvOpDesc.operatorIdentifier)
 
     assert(results.size == 100)
   }
 
-  "Engine" should "execute jsonl->sink workflow normally" in {
+  "Engine" should "execute jsonl workflow normally" in {
     val jsonlOp = TestOperators.smallJSONLScanOpDesc()
-    val sink = TestOperators.sinkOpDesc()
     val workflow = buildWorkflow(
-      List(jsonlOp, sink),
-      List(
-        LogicalLink(
-          jsonlOp.operatorIdentifier,
-          PortIdentity(),
-          sink.operatorIdentifier,
-          PortIdentity()
-        )
-      ),
+      List(jsonlOp),
+      List(),
       workflowContext
     )
-    val results = executeWorkflow(workflow)(sink.operatorIdentifier)
+    val results = executeWorkflow(workflow)(jsonlOp.operatorIdentifier)
 
     assert(results.size == 100)
 
     for (result <- results) {
-      val schema = result.asInstanceOf[Tuple].getSchema
+      val schema = result.getSchema
       assert(schema.getAttribute("id").getType == AttributeType.LONG)
       assert(schema.getAttribute("first_name").getType == AttributeType.STRING)
       assert(schema.getAttribute("flagged").getType == AttributeType.BOOLEAN)
@@ -194,27 +170,19 @@ class DataProcessingSpec
 
   }
 
-  "Engine" should "execute mediumFlattenJsonl->sink workflow normally" in {
+  "Engine" should "execute mediumFlattenJsonl workflow normally" in {
     val jsonlOp = TestOperators.mediumFlattenJSONLScanOpDesc()
-    val sink = TestOperators.sinkOpDesc()
     val workflow = buildWorkflow(
-      List(jsonlOp, sink),
-      List(
-        LogicalLink(
-          jsonlOp.operatorIdentifier,
-          PortIdentity(),
-          sink.operatorIdentifier,
-          PortIdentity()
-        )
-      ),
+      List(jsonlOp),
+      List(),
       workflowContext
     )
-    val results = executeWorkflow(workflow)(sink.operatorIdentifier)
+    val results = executeWorkflow(workflow)(jsonlOp.operatorIdentifier)
 
     assert(results.size == 1000)
 
     for (result <- results) {
-      val schema = result.asInstanceOf[Tuple].getSchema
+      val schema = result.getSchema
       assert(schema.getAttribute("id").getType == AttributeType.LONG)
       assert(schema.getAttribute("first_name").getType == AttributeType.STRING)
       assert(schema.getAttribute("flagged").getType == AttributeType.BOOLEAN)
@@ -225,24 +193,17 @@ class DataProcessingSpec
     }
   }
 
-  "Engine" should "execute headerlessCsv->keyword->sink workflow normally" in {
+  "Engine" should "execute headerlessCsv->keyword workflow normally" in {
     val headerlessCsvOpDesc = TestOperators.headerlessSmallCsvScanOpDesc()
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("column-1", "Asia")
-    val sink = TestOperators.sinkOpDesc()
     val workflow = buildWorkflow(
-      List(headerlessCsvOpDesc, keywordOpDesc, sink),
+      List(headerlessCsvOpDesc, keywordOpDesc),
       List(
         LogicalLink(
           headerlessCsvOpDesc.operatorIdentifier,
           PortIdentity(),
           keywordOpDesc.operatorIdentifier,
           PortIdentity()
-        ),
-        LogicalLink(
-          keywordOpDesc.operatorIdentifier,
-          PortIdentity(),
-          sink.operatorIdentifier,
-          PortIdentity()
         )
       ),
       workflowContext
@@ -250,41 +211,26 @@ class DataProcessingSpec
     executeWorkflow(workflow)
   }
 
-  "Engine" should "execute csv->sink workflow normally" in {
+  "Engine" should "execute csv workflow normally" in {
     val csvOpDesc = TestOperators.smallCsvScanOpDesc()
-    val sink = TestOperators.sinkOpDesc()
     val workflow = buildWorkflow(
-      List(csvOpDesc, sink),
-      List(
-        LogicalLink(
-          csvOpDesc.operatorIdentifier,
-          PortIdentity(),
-          sink.operatorIdentifier,
-          PortIdentity()
-        )
-      ),
+      List(csvOpDesc),
+      List(),
       workflowContext
     )
     executeWorkflow(workflow)
   }
 
-  "Engine" should "execute csv->keyword->sink workflow normally" in {
+  "Engine" should "execute csv->keyword workflow normally" in {
     val csvOpDesc = TestOperators.smallCsvScanOpDesc()
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
-    val sink = TestOperators.sinkOpDesc()
     val workflow = buildWorkflow(
-      List(csvOpDesc, keywordOpDesc, sink),
+      List(csvOpDesc, keywordOpDesc),
       List(
         LogicalLink(
           csvOpDesc.operatorIdentifier,
           PortIdentity(),
           keywordOpDesc.operatorIdentifier,
-          PortIdentity()
-        ),
-        LogicalLink(
-          keywordOpDesc.operatorIdentifier,
-          PortIdentity(),
-          sink.operatorIdentifier,
           PortIdentity()
         )
       ),
@@ -298,9 +244,8 @@ class DataProcessingSpec
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
     val countOpDesc =
       TestOperators.aggregateAndGroupByDesc("Region", AggregationFunction.COUNT, List[String]())
-    val sink = TestOperators.sinkOpDesc()
     val workflow = buildWorkflow(
-      List(csvOpDesc, keywordOpDesc, countOpDesc, sink),
+      List(csvOpDesc, keywordOpDesc, countOpDesc),
       List(
         LogicalLink(
           csvOpDesc.operatorIdentifier,
@@ -313,12 +258,6 @@ class DataProcessingSpec
           PortIdentity(),
           countOpDesc.operatorIdentifier,
           PortIdentity()
-        ),
-        LogicalLink(
-          countOpDesc.operatorIdentifier,
-          PortIdentity(),
-          sink.operatorIdentifier,
-          PortIdentity()
         )
       ),
       workflowContext
@@ -326,7 +265,7 @@ class DataProcessingSpec
     executeWorkflow(workflow)
   }
 
-  "Engine" should "execute csv->keyword->averageAndGroupBy->sink workflow normally" in {
+  "Engine" should "execute csv->keyword->averageAndGroupBy workflow normally" in {
     val csvOpDesc = TestOperators.smallCsvScanOpDesc()
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
     val averageAndGroupByOpDesc =
@@ -335,9 +274,8 @@ class DataProcessingSpec
         AggregationFunction.AVERAGE,
         List[String]("Country")
       )
-    val sink = TestOperators.sinkOpDesc()
     val workflow = buildWorkflow(
-      List(csvOpDesc, keywordOpDesc, averageAndGroupByOpDesc, sink),
+      List(csvOpDesc, keywordOpDesc, averageAndGroupByOpDesc),
       List(
         LogicalLink(
           csvOpDesc.operatorIdentifier,
@@ -350,12 +288,6 @@ class DataProcessingSpec
           PortIdentity(),
           averageAndGroupByOpDesc.operatorIdentifier,
           PortIdentity()
-        ),
-        LogicalLink(
-          averageAndGroupByOpDesc.operatorIdentifier,
-          PortIdentity(),
-          sink.operatorIdentifier,
-          PortIdentity()
         )
       ),
       workflowContext
@@ -363,17 +295,15 @@ class DataProcessingSpec
     executeWorkflow(workflow)
   }
 
-  "Engine" should "execute csv->(csv->)->join->sink workflow normally" in {
+  "Engine" should "execute csv->(csv->)->join workflow normally" in {
     val headerlessCsvOpDesc1 = TestOperators.headerlessSmallCsvScanOpDesc()
     val headerlessCsvOpDesc2 = TestOperators.headerlessSmallCsvScanOpDesc()
     val joinOpDesc = TestOperators.joinOpDesc("column-1", "column-1")
-    val sink = TestOperators.sinkOpDesc()
     val workflow = buildWorkflow(
       List(
         headerlessCsvOpDesc1,
         headerlessCsvOpDesc2,
-        joinOpDesc,
-        sink
+        joinOpDesc
       ),
       List(
         LogicalLink(
@@ -387,12 +317,6 @@ class DataProcessingSpec
           PortIdentity(),
           joinOpDesc.operatorIdentifier,
           PortIdentity(1)
-        ),
-        LogicalLink(
-          joinOpDesc.operatorIdentifier,
-          PortIdentity(),
-          sink.operatorIdentifier,
-          PortIdentity()
         )
       ),
       workflowContext
@@ -401,20 +325,17 @@ class DataProcessingSpec
   }
 
   // TODO: use mock data to perform the test, remove dependency on the real AsterixDB
-  //  "Engine" should "execute asterixdb->sink workflow normally" in {
+  //  "Engine" should "execute asterixdb workflow normally" in {
   //
   //    val asterixDBOp = TestOperators.asterixDBSourceOpDesc()
-  //    val sink = TestOperators.sinkOpDesc()
   //    val (id, workflow) = buildWorkflow(
-  //      List(asterixDBOp, sink),
-  //      List(
-  //        OperatorLink(OperatorPort(asterixDBOp.operatorIdentifier, 0), OperatorPort(sink.operatorIdentifier, 0))
-  //      )
+  //      List(asterixDBOp),
+  //      List()
   //    )
   //    executeWorkflow(id, workflow)
   //  }
 
-  "Engine" should "execute mysql->sink workflow normally" in {
+  "Engine" should "execute mysql workflow normally" in {
     val (host, port, database, table, username, password) = initializeInMemoryMySQLInstance()
     val inMemoryMsSQLSourceOpDesc = TestOperators.inMemoryMySQLSourceOpDesc(
       host,
@@ -425,17 +346,9 @@ class DataProcessingSpec
       password
     )
 
-    val sink = TestOperators.sinkOpDesc()
     val workflow = buildWorkflow(
-      List(inMemoryMsSQLSourceOpDesc, sink),
-      List(
-        LogicalLink(
-          inMemoryMsSQLSourceOpDesc.operatorIdentifier,
-          PortIdentity(),
-          sink.operatorIdentifier,
-          PortIdentity()
-        )
-      ),
+      List(inMemoryMsSQLSourceOpDesc),
+      List(),
       workflowContext
     )
     executeWorkflow(workflow)

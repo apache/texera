@@ -15,7 +15,7 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregat
 import edu.uci.ics.amber.engine.common.AmberRuntime
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.operator.{LogicalOp, TestOperators}
-import edu.uci.ics.amber.workflow.PortIdentity
+import edu.uci.ics.amber.core.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.LogicalLink
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -73,43 +73,28 @@ class PauseSpec
     Await.result(completion)
   }
 
-  "Engine" should "be able to pause csv->sink workflow" in {
+  "Engine" should "be able to pause csv workflow" in {
     val csvOpDesc = TestOperators.mediumCsvScanOpDesc()
-    val sink = TestOperators.sinkOpDesc()
-    logger.info(s"csv-id ${csvOpDesc.operatorIdentifier}, sink-id ${sink.operatorIdentifier}")
+    logger.info(s"csv-id ${csvOpDesc.operatorIdentifier}")
     shouldPause(
-      List(csvOpDesc, sink),
-      List(
-        LogicalLink(
-          csvOpDesc.operatorIdentifier,
-          PortIdentity(),
-          sink.operatorIdentifier,
-          PortIdentity()
-        )
-      )
+      List(csvOpDesc),
+      List()
     )
   }
 
-  "Engine" should "be able to pause csv->keyword->sink workflow" in {
+  "Engine" should "be able to pause csv->keyword workflow" in {
     val csvOpDesc = TestOperators.mediumCsvScanOpDesc()
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
-    val sink = TestOperators.sinkOpDesc()
     logger.info(
-      s"csv-id ${csvOpDesc.operatorIdentifier}, keyword-id ${keywordOpDesc.operatorIdentifier}, sink-id ${sink.operatorIdentifier}"
+      s"csv-id ${csvOpDesc.operatorIdentifier}, keyword-id ${keywordOpDesc.operatorIdentifier}"
     )
     shouldPause(
-      List(csvOpDesc, keywordOpDesc, sink),
+      List(csvOpDesc, keywordOpDesc),
       List(
         LogicalLink(
           csvOpDesc.operatorIdentifier,
           PortIdentity(),
           keywordOpDesc.operatorIdentifier,
-          PortIdentity()
-        ),
-        LogicalLink(
-          keywordOpDesc.operatorIdentifier,
-          PortIdentity(),
-          sink.operatorIdentifier,
           PortIdentity()
         )
       )

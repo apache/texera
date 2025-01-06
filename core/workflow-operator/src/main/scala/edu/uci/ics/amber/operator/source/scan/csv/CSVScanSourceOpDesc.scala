@@ -1,16 +1,16 @@
 package edu.uci.ics.amber.operator.source.scan.csv
 
-import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize
+import com.fasterxml.jackson.annotation.{JsonInclude, JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import com.univocity.parsers.csv.{CsvFormat, CsvParser, CsvParserSettings}
-import edu.uci.ics.amber.core.executor.OpExecInitInfo
+import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.tuple.AttributeTypeUtils.inferSchemaFromRows
-import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
+import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.operator.source.scan.ScanSourceOpDesc
-import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
+import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 
 import java.io.{IOException, InputStreamReader}
 import java.net.URI
@@ -20,7 +20,7 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
   @JsonProperty(defaultValue = ",")
   @JsonSchemaTitle("Delimiter")
   @JsonPropertyDescription("delimiter to separate each line into fields")
-  @JsonDeserialize(contentAs = classOf[java.lang.String])
+  @JsonInclude(JsonInclude.Include.NON_ABSENT)
   var customDelimiter: Option[String] = None
 
   @JsonProperty(defaultValue = "true")
@@ -36,45 +36,32 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
       executionId: ExecutionIdentity
   ): PhysicalOp = {
     // fill in default values
-    if (customDelimiter.isEmpty || customDelimiter.get.isEmpty)
+    if (customDelimiter.isEmpty || customDelimiter.get.isEmpty) {
       customDelimiter = Option(",")
+    }
 
     PhysicalOp
       .sourcePhysicalOp(
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _) =>
-          new CSVScanSourceOpExec(
-            fileUri.get,
-            fileEncoding,
-            limit,
-            offset,
-            customDelimiter,
-            hasHeader,
-            schemaFunc = () => sourceSchema()
-          )
+        OpExecWithClassName(
+          "edu.uci.ics.amber.operator.source.scan.csv.CSVScanSourceOpExec",
+          objectMapper.writeValueAsString(this)
         )
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withPropagateSchema(
-        SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> inferSchema()))
+        SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> sourceSchema()))
       )
   }
 
-  /**
-    * Infer Texera.Schema based on the top few lines of data.
-    *
-    * @return Texera.Schema build for this operator
-    */
-  @Override
-  def inferSchema(): Schema = {
-    if (customDelimiter.isEmpty || fileUri.isEmpty) {
+  override def sourceSchema(): Schema = {
+    if (customDelimiter.isEmpty || !fileResolved()) {
       return null
     }
-
-    val stream = DocumentFactory.newReadonlyDocument(new URI(fileUri.get)).asInputStream()
+    val stream = DocumentFactory.newReadonlyDocument(new URI(fileName.get)).asInputStream()
     val inputReader =
       new InputStreamReader(stream, fileEncoding.getCharset)
 
@@ -107,10 +94,10 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
       if (hasHeader) parser.getContext.headers()
       else (1 to attributeTypeList.length).map(i => "column-" + i).toArray
 
-    Schema
-      .builder()
-      .add(header.indices.map(i => new Attribute(header(i), attributeTypeList(i))))
-      .build()
+    header.indices.foldLeft(Schema()) { (schema, i) =>
+      schema.add(header(i), attributeTypeList(i))
+    }
+
   }
 
 }

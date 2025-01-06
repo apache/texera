@@ -10,7 +10,7 @@ import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.metadata.annotations.{AutofillAttributeName, HideAnnotation}
-import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
+import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 
 class MachineLearningScorerOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(required = true, defaultValue = "false")
@@ -64,22 +64,25 @@ class MachineLearningScorerOpDesc extends PythonOperatorDescriptor {
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
     )
-  override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    val outputSchemaBuilder = Schema.builder()
-    if (!isRegression) {
-      outputSchemaBuilder.add(new Attribute("Class", AttributeType.STRING))
-    }
-
+  override def getOutputSchemas(
+      inputSchemas: Map[PortIdentity, Schema]
+  ): Map[PortIdentity, Schema] = {
     val metrics = if (isRegression) {
       regressionMetrics.map(_.getName())
     } else {
       classificationMetrics.map(_.getName())
     }
-    metrics.foreach(metricName => {
-      outputSchemaBuilder.add(new Attribute(metricName, AttributeType.DOUBLE))
-    })
+    val baseSchema = if (!isRegression) {
+      Schema(List(new Attribute("Class", AttributeType.STRING)))
+    } else {
+      Schema(List())
+    }
 
-    outputSchemaBuilder.build()
+    val outputSchema = metrics.foldLeft(baseSchema) { (currentSchema, metricName) =>
+      currentSchema.add(new Attribute(metricName, AttributeType.DOUBLE))
+    }
+
+    Map(operatorInfo.outputPorts.head.id -> outputSchema)
   }
 
 //  private def getClassificationScorerName(scorer: classificationMetricsFnc): String = {

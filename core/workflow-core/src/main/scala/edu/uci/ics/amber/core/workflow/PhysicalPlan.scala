@@ -2,13 +2,13 @@ package edu.uci.ics.amber.core.workflow
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.util.VirtualIdentityUtils
-import edu.uci.ics.amber.virtualidentity.{
+import edu.uci.ics.amber.core.tuple.Schema
+import edu.uci.ics.amber.core.virtualidentity.{
   ActorVirtualIdentity,
   OperatorIdentity,
   PhysicalOpIdentity
 }
-import edu.uci.ics.amber.workflow.PhysicalLink
+import edu.uci.ics.amber.util.VirtualIdentityUtils
 import org.jgrapht.alg.connectivity.BiconnectivityInspector
 import org.jgrapht.alg.shortestpath.AllDirectedPaths
 import org.jgrapht.graph.DirectedAcyclicGraph
@@ -285,4 +285,28 @@ case class PhysicalPlan(
     chains.filter(s1 => chains.forall(s2 => s1 == s2 || !s1.subsetOf(s2))).toSet
   }
 
+  def propagateSchema(inputSchemas: Map[PortIdentity, Schema]): PhysicalPlan = {
+    var physicalPlan = PhysicalPlan(operators = Set.empty, links = Set.empty)
+    this
+      .topologicalIterator()
+      .map(this.getOperator)
+      .foreach({ physicalOp =>
+        {
+          val propagatedPhysicalOp = physicalOp.inputPorts.keys.foldLeft(physicalOp) {
+            (op, inputPortId) =>
+              op.propagateSchema(inputSchemas.get(inputPortId).map(schema => (inputPortId, schema)))
+          }
+
+          // Add the operator to the physical plan
+          physicalPlan = physicalPlan.addOperator(propagatedPhysicalOp.propagateSchema())
+
+          // Add internal links to the physical plan
+          physicalPlan = getUpstreamPhysicalLinks(physicalOp.id).foldLeft(physicalPlan) {
+            (plan, link) =>
+              plan.addLink(link)
+          }
+        }
+      })
+    physicalPlan
+  }
 }

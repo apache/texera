@@ -5,9 +5,9 @@ import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.clustering.ClusterListener
 import edu.uci.ics.amber.engine.common.Utils.objectMapper
 import edu.uci.ics.amber.error.ErrorUtils.getStackTraceWithAllCauses
-import edu.uci.ics.amber.virtualidentity.WorkflowIdentity
-import edu.uci.ics.amber.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
-import edu.uci.ics.amber.workflowruntimestate.WorkflowFatalError
+import edu.uci.ics.amber.core.virtualidentity.WorkflowIdentity
+import edu.uci.ics.amber.core.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
+import edu.uci.ics.amber.core.workflowruntimestate.WorkflowFatalError
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.websocket.event.{WorkflowErrorEvent, WorkflowStateEvent}
 import edu.uci.ics.texera.web.model.websocket.request._

@@ -8,7 +8,7 @@ import edu.uci.ics.amber.compiler.model.{LogicalLink, LogicalPlanPojo}
 import edu.uci.ics.amber.operator.projection.{AttributeUnit, ProjectionOpDesc}
 import edu.uci.ics.amber.operator.source.scan.csv.CSVScanSourceOpDesc
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
-import edu.uci.ics.amber.workflow.PortIdentity
+import edu.uci.ics.amber.core.workflow.PortIdentity
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.BeforeAndAfterAll
 import com.fasterxml.jackson.databind.node.ObjectNode
@@ -70,7 +70,7 @@ class WorkflowCompilationResourceSpec extends AnyFlatSpec with BeforeAndAfterAll
 
   // utility function to create a filter op
   private def getFilterOpDesc(
-      filterPredicates: java.util.List[FilterPredicate]
+      filterPredicates: List[FilterPredicate]
   ): FilterOpDesc = {
     val filterOpDesc = new SpecializedFilterOpDesc
     filterOpDesc.predicates = filterPredicates
@@ -116,11 +116,11 @@ class WorkflowCompilationResourceSpec extends AnyFlatSpec with BeforeAndAfterAll
 
     // Create the filter predicate for TotalProfit > 10000
     val filterPredicate1 = new FilterPredicate("Total Profit", ComparisonType.GREATER_THAN, "10000")
-    val filterOpDesc1 = getFilterOpDesc(java.util.Arrays.asList(filterPredicate1))
+    val filterOpDesc1 = getFilterOpDesc(List(filterPredicate1))
 
     // Create the filter predicate for Region != "JPN"
     val filterPredicate2 = new FilterPredicate("Region", ComparisonType.NOT_EQUAL_TO, "JPN")
-    val filterOpDesc2 = getFilterOpDesc(java.util.Arrays.asList(filterPredicate2))
+    val filterOpDesc2 = getFilterOpDesc(List(filterPredicate2))
 
     // Add a second limit operation
     val limitOpDesc2 = getLimitOpDesc(5)
