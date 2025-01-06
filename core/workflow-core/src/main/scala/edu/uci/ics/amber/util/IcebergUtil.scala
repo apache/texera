@@ -35,42 +35,22 @@ import scala.jdk.CollectionConverters._
 object IcebergUtil {
 
   /**
-    * Creates and initializes a JdbcCatalog with the given parameters.
-    *
-    * @param catalogName  The name of the catalog.
-    * @param warehouseUri The warehouse directory path.
-    * @param jdbcUri      The JDBC URI for the catalog.
-    * @param jdbcUser     The JDBC username.
-    * @param jdbcPassword The JDBC password.
-    * @return The initialized JdbcCatalog.
-    */
-  def createJdbcCatalog(
-      catalogName: String,
-      warehouse: Path,
-      jdbcUri: String,
-      jdbcUser: String,
-      jdbcPassword: String
-  ): JdbcCatalog = {
-    val catalog = new JdbcCatalog()
-    catalog.initialize(
-      catalogName,
-      Map(
-        "warehouse" -> warehouse.toString,
-        "uri" -> jdbcUri,
-        "jdbc.user" -> jdbcUser,
-        "jdbc.password" -> jdbcPassword,
-        CatalogProperties.FILE_IO_IMPL -> classOf[HadoopFileIO].getName
-      ).asJava
-    )
-    catalog
-  }
-
-  def createFileSystemCatalog(
-      catalogName: String,
-      warehouse: Path
-  ): HadoopCatalog = {
+   * Creates and initializes a HadoopCatalog with the given parameters.
+   * - Uses an empty Hadoop `Configuration`, meaning the local file system (or `file:/`) will be used by default
+   * instead of HDFS.
+   * - The `warehouse` parameter specifies the root directory for storing table data.
+   * - Sets the file I/O implementation to `HadoopFileIO`.
+   *
+   * @param catalogName the name of the catalog.
+   * @param warehouse   the root path for the warehouse where the tables are stored.
+   * @return the initialized HadoopCatalog instance.
+   */
+  def createHadoopCatalog(
+                           catalogName: String,
+                           warehouse: Path
+                         ): HadoopCatalog = {
     val catalog = new HadoopCatalog()
-    catalog.setConf(new Configuration)
+    catalog.setConf(new Configuration) // Empty configuration, defaults to `file:/`
     catalog.initialize(
       catalogName,
       Map(

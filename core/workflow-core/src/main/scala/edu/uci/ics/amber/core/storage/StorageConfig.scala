@@ -16,9 +16,6 @@ object StorageConfig {
     val storageMap = javaConf("storage").asInstanceOf[JMap[String, Any]].asScala.toMap
     val mongodbMap = storageMap("mongodb").asInstanceOf[JMap[String, Any]].asScala.toMap
     val icebergMap = storageMap("iceberg").asInstanceOf[JMap[String, Any]].asScala.toMap
-    val icebergCatalogMap = icebergMap("catalog").asInstanceOf[JMap[String, Any]].asScala.toMap
-    val icebergCatalogJdbcMap =
-      icebergCatalogMap("jdbc").asInstanceOf[JMap[String, Any]].asScala.toMap
     val icebergTableMap = icebergMap("table").asInstanceOf[JMap[String, Any]].asScala.toMap
     val icebergCommitMap = icebergTableMap("commit").asInstanceOf[JMap[String, Any]].asScala.toMap
     val icebergRetryMap = icebergCommitMap("retry").asInstanceOf[JMap[String, Any]].asScala.toMap
@@ -31,10 +28,6 @@ object StorageConfig {
         .updated(
           "iceberg",
           icebergMap
-            .updated(
-              "catalog",
-              icebergCatalogMap.updated("jdbc", icebergCatalogJdbcMap)
-            )
             .updated(
               "table",
               icebergTableMap.updated(
@@ -66,28 +59,6 @@ object StorageConfig {
     .asInstanceOf[Map[String, Any]]("mongodb")
     .asInstanceOf[Map[String, Any]]("commit-batch-size")
     .asInstanceOf[Int]
-
-  // Iceberg catalog configurations
-  val icebergCatalogUrl: String = conf("storage")
-    .asInstanceOf[Map[String, Any]]("iceberg")
-    .asInstanceOf[Map[String, Any]]("catalog")
-    .asInstanceOf[Map[String, Any]]("jdbc")
-    .asInstanceOf[Map[String, Any]]("url")
-    .asInstanceOf[String]
-
-  val icebergCatalogUsername: String = conf("storage")
-    .asInstanceOf[Map[String, Any]]("iceberg")
-    .asInstanceOf[Map[String, Any]]("catalog")
-    .asInstanceOf[Map[String, Any]]("jdbc")
-    .asInstanceOf[Map[String, Any]]("username")
-    .asInstanceOf[String]
-
-  val icebergCatalogPassword: String = conf("storage")
-    .asInstanceOf[Map[String, Any]]("iceberg")
-    .asInstanceOf[Map[String, Any]]("catalog")
-    .asInstanceOf[Map[String, Any]]("jdbc")
-    .asInstanceOf[Map[String, Any]]("password")
-    .asInstanceOf[String]
 
   val icebergTableNamespace: String = conf("storage")
     .asInstanceOf[Map[String, Any]]("iceberg")

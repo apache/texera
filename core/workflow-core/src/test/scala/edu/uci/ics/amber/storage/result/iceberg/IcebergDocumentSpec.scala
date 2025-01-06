@@ -49,7 +49,7 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
     deserde = (schema, record) => IcebergUtil.fromRecord(record, amberSchema)
 
     // Initialize the the Iceberg catalog
-    catalog = IcebergUtil.createFileSystemCatalog(
+    catalog = IcebergUtil.createHadoopCatalog(
       "iceberg_document_test",
       StorageConfig.fileStorageDirectoryPath
     )

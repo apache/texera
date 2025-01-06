@@ -22,15 +22,12 @@ object IcebergCatalogInstance {
     instance match {
       case Some(catalog) => catalog
       case None =>
-        val jdbcCatalog = IcebergUtil.createJdbcCatalog(
-          "texera-iceberg",
-          StorageConfig.fileStorageDirectoryPath,
-          StorageConfig.icebergCatalogUrl,
-          StorageConfig.icebergCatalogUsername,
-          StorageConfig.icebergCatalogPassword
+        val hadoopCatalog = IcebergUtil.createHadoopCatalog(
+          "texera_iceberg",
+          StorageConfig.fileStorageDirectoryPath
         )
-        instance = Some(jdbcCatalog)
-        jdbcCatalog
+        instance = Some(hadoopCatalog)
+        hadoopCatalog
     }
   }
 
