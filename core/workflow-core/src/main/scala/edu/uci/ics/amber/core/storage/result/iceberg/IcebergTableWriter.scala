@@ -87,13 +87,11 @@ class IcebergTableWriter[T](
     */
   private def flushBuffer(): Unit = {
     if (buffer.nonEmpty) {
-
       // Create a unique file path using the writer's identifier and the filename index
       val filepath = Paths.get(table.location()).resolve(s"${writerIdentifier}_${filenameIdx}")
       // Increment the filename index by 1
       filenameIdx += 1
       val outputFile: OutputFile = table.io().newOutputFile(filepath.toString)
-
       // Create a Parquet data writer to write a new file
       val dataWriter: DataWriter[Record] = Parquet
         .writeData(outputFile)
@@ -101,7 +99,6 @@ class IcebergTableWriter[T](
         .createWriterFunc(GenericParquetWriter.buildWriter)
         .overwrite()
         .build()
-
       // Write each buffered item to the data file
       try {
         buffer.foreach { item =>
@@ -110,11 +107,10 @@ class IcebergTableWriter[T](
       } finally {
         dataWriter.close()
       }
-
       // Commit the new file to the table
       val dataFile = dataWriter.toDataFile
       table.newAppend().appendFile(dataFile).commit()
-
+      // Clear the item buffer
       buffer.clear()
     }
   }
