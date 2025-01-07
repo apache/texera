@@ -3,6 +3,7 @@ export interface WorkflowExecutionsEntry {
   vId: number;
   sId: number;
   userName: string;
+  googleAvatar: string;
   name: string;
   startingTime: number;
   completionTime: number;
