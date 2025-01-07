@@ -27,6 +27,10 @@ export class GoogleAuthService {
           window.google.accounts.id.renderButton(parent, { width: 200 });
           window.google.accounts.id.prompt();
         };
+
+        if (typeof window.google !== "undefined") {
+          window.onGoogleLibraryLoad();
+        }
       },
       error: (err: unknown) => {
         console.error(err);
