@@ -26,7 +26,6 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource._
 import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
 import io.dropwizard.auth.Auth
-import org.jooq.impl.DSL._
 import org.jooq.types.{UInteger, ULong}
 
 import java.net.URI
@@ -245,7 +244,7 @@ class WorkflowExecutionsResource {
         OPERATOR_RUNTIME_STATISTICS.DATA_PROCESSING_TIME,
         OPERATOR_RUNTIME_STATISTICS.CONTROL_PROCESSING_TIME,
         OPERATOR_RUNTIME_STATISTICS.IDLE_TIME,
-        OPERATOR_EXECUTIONS.NUM_WORKERS
+        OPERATOR_RUNTIME_STATISTICS.NUM_WORKERS
       )
       .from(OPERATOR_RUNTIME_STATISTICS)
       .join(OPERATOR_EXECUTIONS)

@@ -2,7 +2,6 @@ package edu.uci.ics.texera.web.service
 
 import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.core.workflow.WorkflowContext
 import edu.uci.ics.amber.engine.architecture.controller.{
   ExecutionStatsUpdate,
   FatalError,
@@ -24,10 +23,7 @@ import edu.uci.ics.amber.error.ErrorUtils.{getOperatorFromActorIdOpt, getStackTr
 import edu.uci.ics.amber.core.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
 import edu.uci.ics.amber.core.workflowruntimestate.WorkflowFatalError
 import edu.uci.ics.texera.web.SubscriptionManager
-import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
-  OperatorRuntimeStatistics,
-  OperatorExecutions
-}
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.OperatorRuntimeStatistics
 import edu.uci.ics.texera.web.model.websocket.event.{
   ExecutionDurationUpdateEvent,
   OperatorAggregatedMetrics,
@@ -46,13 +42,11 @@ import java.util.concurrent.Executors
 class ExecutionStatsService(
     client: AmberClient,
     stateStore: ExecutionStateStore,
-    workflowContext: WorkflowContext
+    operatorIdToExecutionId: Map[String, ULong]
 ) extends SubscriptionManager
     with LazyLogging {
   private val metricsPersistThread = Executors.newSingleThreadExecutor()
   private var lastPersistedMetrics: Map[String, OperatorMetrics] = Map()
-  private var insertedOperatorExecutions: Set[String] = Set()
-  private var operatorIdToExecutionId: Map[String, ULong] = Map()
   registerCallbacks()
 
   addSubscription(
@@ -207,36 +201,6 @@ class ExecutionStatsService(
       operatorStatistics: scala.collection.immutable.Map[String, OperatorMetrics]
   ): Unit = {
     try {
-      val executionList: util.ArrayList[OperatorExecutions] =
-        new util.ArrayList[OperatorExecutions]()
-
-      for ((operatorId, stat) <- operatorStatistics) {
-        // Check if the operator execution has already been inserted
-        if (!insertedOperatorExecutions.contains(operatorId)) {
-          // Create and populate the operator execution entry
-          val execution = new OperatorExecutions()
-          execution.setWorkflowExecutionId(UInteger.valueOf(workflowContext.executionId.id))
-          execution.setOperatorId(operatorId)
-          execution.setNumWorkers(UInteger.valueOf(stat.operatorStatistics.numWorkers))
-          executionList.add(execution)
-
-          // Mark this operator as inserted
-          insertedOperatorExecutions += operatorId
-        }
-      }
-
-      // Insert into operator_executions table and retrieve generated IDs
-      if (!executionList.isEmpty) {
-        val insertedExecutionIds =
-          WorkflowExecutionsResource.insertOperatorExecutions(executionList)
-
-        // Update the persistent map with new operatorId to operator_execution_id mappings
-        insertedExecutionIds.forEach {
-          case (operatorId, executionId) =>
-            operatorIdToExecutionId += (operatorId -> executionId)
-        }
-      }
-
       val runtimeStatsList: util.ArrayList[OperatorRuntimeStatistics] =
         new util.ArrayList[OperatorRuntimeStatistics]()
 
@@ -258,6 +222,7 @@ class ExecutionStatsService(
           ULong.valueOf(stat.operatorStatistics.controlProcessingTime)
         )
         runtimeStats.setIdleTime(ULong.valueOf(stat.operatorStatistics.idleTime))
+        runtimeStats.setNumWorkers(UInteger.valueOf(stat.operatorStatistics.numWorkers))
         runtimeStatsList.add(runtimeStats)
       }
 

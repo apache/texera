@@ -18,13 +18,14 @@ import org.jooq.ForeignKey;
 import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
-import org.jooq.Row8;
+import org.jooq.Row9;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
 import org.jooq.impl.TableImpl;
+import org.jooq.types.UInteger;
 import org.jooq.types.ULong;
 
 
@@ -34,7 +35,7 @@ import org.jooq.types.ULong;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class OperatorRuntimeStatistics extends TableImpl<OperatorRuntimeStatisticsRecord> {
 
-    private static final long serialVersionUID = 1143603429;
+    private static final long serialVersionUID = -77666491;
 
     /**
      * The reference instance of <code>texera_db.operator_runtime_statistics</code>
@@ -88,6 +89,11 @@ public class OperatorRuntimeStatistics extends TableImpl<OperatorRuntimeStatisti
      * The column <code>texera_db.operator_runtime_statistics.idle_time</code>.
      */
     public final TableField<OperatorRuntimeStatisticsRecord, ULong> IDLE_TIME = createField(DSL.name("idle_time"), org.jooq.impl.SQLDataType.BIGINTUNSIGNED.nullable(false).defaultValue(org.jooq.impl.DSL.inline("0", org.jooq.impl.SQLDataType.BIGINTUNSIGNED)), this, "");
+
+    /**
+     * The column <code>texera_db.operator_runtime_statistics.num_workers</code>.
+     */
+    public final TableField<OperatorRuntimeStatisticsRecord, UInteger> NUM_WORKERS = createField(DSL.name("num_workers"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
 
     /**
      * Create a <code>texera_db.operator_runtime_statistics</code> table reference
@@ -178,11 +184,11 @@ public class OperatorRuntimeStatistics extends TableImpl<OperatorRuntimeStatisti
     }
 
     // -------------------------------------------------------------------------
-    // Row8 type methods
+    // Row9 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row8<ULong, Timestamp, ULong, ULong, Byte, ULong, ULong, ULong> fieldsRow() {
-        return (Row8) super.fieldsRow();
+    public Row9<ULong, Timestamp, ULong, ULong, Byte, ULong, ULong, ULong, UInteger> fieldsRow() {
+        return (Row9) super.fieldsRow();
     }
 }

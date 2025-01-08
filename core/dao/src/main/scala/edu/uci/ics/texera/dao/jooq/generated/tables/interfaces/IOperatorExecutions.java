@@ -46,16 +46,6 @@ public interface IOperatorExecutions extends Serializable {
      */
     public String getOperatorId();
 
-    /**
-     * Setter for <code>texera_db.operator_executions.num_workers</code>.
-     */
-    public void setNumWorkers(UInteger value);
-
-    /**
-     * Getter for <code>texera_db.operator_executions.num_workers</code>.
-     */
-    public UInteger getNumWorkers();
-
     // -------------------------------------------------------------------------
     // FROM and INTO
     // -------------------------------------------------------------------------

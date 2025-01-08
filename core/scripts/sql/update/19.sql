@@ -6,7 +6,6 @@ CREATE TABLE IF NOT EXISTS operator_executions (
     operator_execution_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, 
     workflow_execution_id INT UNSIGNED NOT NULL, 
     operator_id VARCHAR(100) NOT NULL, 
-    num_workers INT UNSIGNED NOT NULL,
     UNIQUE (workflow_execution_id, operator_id),
     FOREIGN KEY (workflow_execution_id) REFERENCES workflow_executions (eid) ON DELETE CASCADE
 );
@@ -20,12 +19,13 @@ CREATE TABLE IF NOT EXISTS operator_runtime_statistics (
     data_processing_time BIGINT UNSIGNED NOT NULL DEFAULT 0, 
     control_processing_time BIGINT UNSIGNED NOT NULL DEFAULT 0, 
     idle_time BIGINT UNSIGNED NOT NULL DEFAULT 0, 
+    num_workers INT UNSIGNED NOT NULL,
     PRIMARY KEY (operator_execution_id, time),
     FOREIGN KEY (operator_execution_id) REFERENCES operator_executions (operator_execution_id) ON DELETE CASCADE
 );
 
-INSERT IGNORE INTO operator_executions (workflow_execution_id, operator_id, num_workers)
-SELECT DISTINCT execution_id, operator_id, num_workers 
+INSERT IGNORE INTO operator_executions (workflow_execution_id, operator_id)
+SELECT DISTINCT execution_id, operator_id
 FROM workflow_runtime_statistics;
 
 INSERT INTO operator_runtime_statistics (
@@ -36,7 +36,8 @@ INSERT INTO operator_runtime_statistics (
     status, 
     data_processing_time, 
     control_processing_time, 
-    idle_time
+    idle_time,
+    num_workers
 )
 SELECT 
     oe.operator_execution_id, 
@@ -46,6 +47,7 @@ SELECT
     wrs.status, 
     wrs.data_processing_time, 
     wrs.control_processing_time, 
-    wrs.idle_time 
+    wrs.idle_time,
+    wrs.num_workers 
 FROM workflow_runtime_statistics wrs
 JOIN operator_executions oe ON wrs.execution_id = oe.workflow_execution_id AND wrs.operator_id = oe.operator_id;

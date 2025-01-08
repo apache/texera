@@ -13,6 +13,7 @@ import java.util.List;
 import org.jooq.Configuration;
 import org.jooq.Record2;
 import org.jooq.impl.DAOImpl;
+import org.jooq.types.UInteger;
 import org.jooq.types.ULong;
 
 
@@ -151,5 +152,19 @@ public class OperatorRuntimeStatisticsDao extends DAOImpl<OperatorRuntimeStatist
      */
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.OperatorRuntimeStatistics> fetchByIdleTime(ULong... values) {
         return fetch(OperatorRuntimeStatistics.OPERATOR_RUNTIME_STATISTICS.IDLE_TIME, values);
+    }
+
+    /**
+     * Fetch records that have <code>num_workers BETWEEN lowerInclusive AND upperInclusive</code>
+     */
+    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.OperatorRuntimeStatistics> fetchRangeOfNumWorkers(UInteger lowerInclusive, UInteger upperInclusive) {
+        return fetchRange(OperatorRuntimeStatistics.OPERATOR_RUNTIME_STATISTICS.NUM_WORKERS, lowerInclusive, upperInclusive);
+    }
+
+    /**
+     * Fetch records that have <code>num_workers IN (values)</code>
+     */
+    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.OperatorRuntimeStatistics> fetchByNumWorkers(UInteger... values) {
+        return fetch(OperatorRuntimeStatistics.OPERATOR_RUNTIME_STATISTICS.NUM_WORKERS, values);
     }
 }

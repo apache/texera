@@ -18,7 +18,7 @@ import org.jooq.Identity;
 import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
-import org.jooq.Row4;
+import org.jooq.Row3;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
@@ -35,7 +35,7 @@ import org.jooq.types.ULong;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class OperatorExecutions extends TableImpl<OperatorExecutionsRecord> {
 
-    private static final long serialVersionUID = -1272016513;
+    private static final long serialVersionUID = 1254946167;
 
     /**
      * The reference instance of <code>texera_db.operator_executions</code>
@@ -64,11 +64,6 @@ public class OperatorExecutions extends TableImpl<OperatorExecutionsRecord> {
      * The column <code>texera_db.operator_executions.operator_id</code>.
      */
     public final TableField<OperatorExecutionsRecord, String> OPERATOR_ID = createField(DSL.name("operator_id"), org.jooq.impl.SQLDataType.VARCHAR(100).nullable(false), this, "");
-
-    /**
-     * The column <code>texera_db.operator_executions.num_workers</code>.
-     */
-    public final TableField<OperatorExecutionsRecord, UInteger> NUM_WORKERS = createField(DSL.name("num_workers"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
 
     /**
      * Create a <code>texera_db.operator_executions</code> table reference
@@ -164,11 +159,11 @@ public class OperatorExecutions extends TableImpl<OperatorExecutionsRecord> {
     }
 
     // -------------------------------------------------------------------------
-    // Row4 type methods
+    // Row3 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row4<ULong, UInteger, String, UInteger> fieldsRow() {
-        return (Row4) super.fieldsRow();
+    public Row3<ULong, UInteger, String> fieldsRow() {
+        return (Row3) super.fieldsRow();
     }
 }

@@ -16,12 +16,11 @@ import org.jooq.types.ULong;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class OperatorExecutions implements IOperatorExecutions {
 
-    private static final long serialVersionUID = -1900721055;
+    private static final long serialVersionUID = -1568831818;
 
     private ULong    operatorExecutionId;
     private UInteger workflowExecutionId;
     private String   operatorId;
-    private UInteger numWorkers;
 
     public OperatorExecutions() {}
 
@@ -29,19 +28,16 @@ public class OperatorExecutions implements IOperatorExecutions {
         this.operatorExecutionId = value.getOperatorExecutionId();
         this.workflowExecutionId = value.getWorkflowExecutionId();
         this.operatorId = value.getOperatorId();
-        this.numWorkers = value.getNumWorkers();
     }
 
     public OperatorExecutions(
         ULong    operatorExecutionId,
         UInteger workflowExecutionId,
-        String   operatorId,
-        UInteger numWorkers
+        String   operatorId
     ) {
         this.operatorExecutionId = operatorExecutionId;
         this.workflowExecutionId = workflowExecutionId;
         this.operatorId = operatorId;
-        this.numWorkers = numWorkers;
     }
 
     @Override
@@ -75,23 +71,12 @@ public class OperatorExecutions implements IOperatorExecutions {
     }
 
     @Override
-    public UInteger getNumWorkers() {
-        return this.numWorkers;
-    }
-
-    @Override
-    public void setNumWorkers(UInteger numWorkers) {
-        this.numWorkers = numWorkers;
-    }
-
-    @Override
     public String toString() {
         StringBuilder sb = new StringBuilder("OperatorExecutions (");
 
         sb.append(operatorExecutionId);
         sb.append(", ").append(workflowExecutionId);
         sb.append(", ").append(operatorId);
-        sb.append(", ").append(numWorkers);
 
         sb.append(")");
         return sb.toString();
@@ -106,7 +91,6 @@ public class OperatorExecutions implements IOperatorExecutions {
         setOperatorExecutionId(from.getOperatorExecutionId());
         setWorkflowExecutionId(from.getWorkflowExecutionId());
         setOperatorId(from.getOperatorId());
-        setNumWorkers(from.getNumWorkers());
     }
 
     @Override

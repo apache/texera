@@ -7,6 +7,7 @@ package edu.uci.ics.texera.dao.jooq.generated.tables.interfaces;
 import java.io.Serializable;
 import java.sql.Timestamp;
 
+import org.jooq.types.UInteger;
 import org.jooq.types.ULong;
 
 
@@ -95,6 +96,16 @@ public interface IOperatorRuntimeStatistics extends Serializable {
      * Getter for <code>texera_db.operator_runtime_statistics.idle_time</code>.
      */
     public ULong getIdleTime();
+
+    /**
+     * Setter for <code>texera_db.operator_runtime_statistics.num_workers</code>.
+     */
+    public void setNumWorkers(UInteger value);
+
+    /**
+     * Getter for <code>texera_db.operator_runtime_statistics.num_workers</code>.
+     */
+    public UInteger getNumWorkers();
 
     // -------------------------------------------------------------------------
     // FROM and INTO

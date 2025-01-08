@@ -88,18 +88,4 @@ public class OperatorExecutionsDao extends DAOImpl<OperatorExecutionsRecord, edu
     public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.OperatorExecutions> fetchByOperatorId(String... values) {
         return fetch(OperatorExecutions.OPERATOR_EXECUTIONS.OPERATOR_ID, values);
     }
-
-    /**
-     * Fetch records that have <code>num_workers BETWEEN lowerInclusive AND upperInclusive</code>
-     */
-    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.OperatorExecutions> fetchRangeOfNumWorkers(UInteger lowerInclusive, UInteger upperInclusive) {
-        return fetchRange(OperatorExecutions.OPERATOR_EXECUTIONS.NUM_WORKERS, lowerInclusive, upperInclusive);
-    }
-
-    /**
-     * Fetch records that have <code>num_workers IN (values)</code>
-     */
-    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.OperatorExecutions> fetchByNumWorkers(UInteger... values) {
-        return fetch(OperatorExecutions.OPERATOR_EXECUTIONS.NUM_WORKERS, values);
-    }
 }
