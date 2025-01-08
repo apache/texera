@@ -80,12 +80,14 @@ class DefaultCostEstimatorSpec
   private def createOperatorRuntimeStatisticsEntry(
       operatorExecutionId: ULong,
       dataTime: Long,
-      controlTime: Long
+      controlTime: Long,
+      numWorkers: Int
   ): OperatorRuntimeStatistics = {
     val operatorRuntimeStatistics = new OperatorRuntimeStatistics
     operatorRuntimeStatistics.setOperatorExecutionId(operatorExecutionId)
     operatorRuntimeStatistics.setDataProcessingTime(ULong.valueOf(dataTime))
     operatorRuntimeStatistics.setControlProcessingTime(ULong.valueOf(controlTime))
+    operatorRuntimeStatistics.setNumWorkers(UInteger.valueOf(numWorkers))
     operatorRuntimeStatistics
   }
 
@@ -198,10 +200,10 @@ class DefaultCostEstimatorSpec
       insertOperatorExecutionAndGetId(getDSLContext, testOperatorExecutionEntry)
 
     operatorRuntimeStatisticsDao.insert(
-      createOperatorRuntimeStatisticsEntry(operatorExecutionId, 100, 100)
+      createOperatorRuntimeStatisticsEntry(operatorExecutionId, 100, 100, 1)
     )
     operatorRuntimeStatisticsDao.insert(
-      createOperatorRuntimeStatisticsEntry(operatorExecutionId, 300, 300)
+      createOperatorRuntimeStatisticsEntry(operatorExecutionId, 300, 300, 1)
     )
 
     val costEstimator = new DefaultCostEstimator(
@@ -257,13 +259,13 @@ class DefaultCostEstimatorSpec
       insertOperatorExecutionAndGetId(getDSLContext, testOperatorExecutionEntry)
 
     operatorRuntimeStatisticsDao.insert(
-      createOperatorRuntimeStatisticsEntry(operatorExecutionId, 100, 100)
+      createOperatorRuntimeStatisticsEntry(operatorExecutionId, 100, 100, 1)
     )
     operatorRuntimeStatisticsDao.insert(
-      createOperatorRuntimeStatisticsEntry(operatorExecutionId, 1000, 1000)
+      createOperatorRuntimeStatisticsEntry(operatorExecutionId, 1000, 1000, 1)
     )
     operatorRuntimeStatisticsDao.insert(
-      createOperatorRuntimeStatisticsEntry(operatorExecutionId, 300, 300)
+      createOperatorRuntimeStatisticsEntry(operatorExecutionId, 300, 300, 1)
     )
 
     // Should contain two regions, one with CSV->localAgg->globalAgg, another with keyword->sink
