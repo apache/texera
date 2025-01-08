@@ -69,7 +69,7 @@ class MemoryDocument[T >: Null <: AnyRef](key: String)
       results += item
     }
 
-  override def writer(): BufferedItemWriter[T] = this
+  override def writer(writerIdentifier: String): BufferedItemWriter[T] = this
 
   /**
     * The size of the buffer for the buffered writer. This number is not used currently
