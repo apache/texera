@@ -143,11 +143,10 @@
                 nzType="star"></i>
             </td>
             <td nzEllipsis>
-              <nz-avatar
-                [ngStyle]="{ 'background-color': setAvatarColor(row.userName) }"
-                [nzGap]="1"
-                [nzText]="abbreviate(row.userName || 'anonymous', false)"
-                nzSize="default"></nz-avatar>
+              <texera-user-avatar
+                [googleAvatar]="row.googleAvatar"
+                userColor="setAvatarColor(row.userName)"
+                [userName]="abbreviate(row.userName || 'anonymous', false)"></texera-user-avatar>
             </td>
             <td nzEllipsis>
               <label
