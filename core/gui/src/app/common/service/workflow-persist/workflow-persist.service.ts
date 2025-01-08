@@ -47,7 +47,7 @@ export class WorkflowPersistService {
         name: workflow.name,
         description: workflow.description,
         content: JSON.stringify(workflow.content),
-        isPublished: workflow.isPublished,
+        isPublic: workflow.isPublished,
       })
       .pipe(
         filter((updatedWorkflow: Workflow) => updatedWorkflow != null),
