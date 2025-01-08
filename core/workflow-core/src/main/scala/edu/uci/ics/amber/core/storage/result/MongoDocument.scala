@@ -56,7 +56,7 @@ class MongoDocument[T >: Null <: AnyRef](
     * Return a buffered item writer for the MongoDB collection.
     * @return a new instance of MongoDBBufferedItemWriter.
     */
-  override def writer(): BufferedItemWriter[T] = {
+  override def writer(writerIdentifier: String): BufferedItemWriter[T] = {
     new MongoDBBufferedItemWriter[T](
       commitBatchSize,
       id,
