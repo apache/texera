@@ -28,6 +28,7 @@ trait InitializeExecutorHandler {
       case OpExecWithCode(code, _) => ExecFactory.newExecFromJavaCode(code)
       case OpExecSink(storageKey, workflowIdentity, outputMode) =>
         new ProgressiveSinkOpExec(
+          workerIdx,
           outputMode,
           storageKey,
           workflowIdentity

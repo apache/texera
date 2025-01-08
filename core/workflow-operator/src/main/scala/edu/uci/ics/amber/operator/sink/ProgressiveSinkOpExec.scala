@@ -9,6 +9,7 @@ import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode
 import edu.uci.ics.amber.core.workflow.PortIdentity
 
 class ProgressiveSinkOpExec(
+    workerId: Int,
     outputMode: OutputMode,
     storageKey: String,
     workflowIdentity: WorkflowIdentity
@@ -17,7 +18,7 @@ class ProgressiveSinkOpExec(
     ResultStorage
       .getOpResultStorage(workflowIdentity)
       .get(storageKey)
-      .writer()
+      .writer(workerId.toString)
 
   override def open(): Unit = {
     writer.open()

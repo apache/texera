@@ -80,9 +80,9 @@ class WorkflowCompiler(
                   val storageKey =
                     OpResultStorage.createStorageKey(physicalOp.id.logicalOpId, outputPortId)
 
-                  // Determine the storage type, defaulting to memory for large HTML visualizations
+                  // Determine the storage type, defaulting to iceberg for large HTML visualizations
                   val storageType =
-                    if (outputPort.mode == SINGLE_SNAPSHOT) OpResultStorage.MEMORY
+                    if (outputPort.mode == SINGLE_SNAPSHOT) OpResultStorage.ICEBERG
                     else OpResultStorage.defaultStorageMode
 
                   if (!storage.contains(storageKey)) {
