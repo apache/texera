@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS operator_runtime_statistics (
     data_processing_time BIGINT UNSIGNED NOT NULL DEFAULT 0, 
     control_processing_time BIGINT UNSIGNED NOT NULL DEFAULT 0, 
     idle_time BIGINT UNSIGNED NOT NULL DEFAULT 0, 
-    num_workers INT UNSIGNED NOT NULL,
+    num_workers INT UNSIGNED NOT NULL DEFAULT 0,
     PRIMARY KEY (operator_execution_id, time),
     FOREIGN KEY (operator_execution_id) REFERENCES operator_executions (operator_execution_id) ON DELETE CASCADE
 );

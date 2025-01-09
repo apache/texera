@@ -35,7 +35,7 @@ import org.jooq.types.ULong;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class OperatorRuntimeStatistics extends TableImpl<OperatorRuntimeStatisticsRecord> {
 
-    private static final long serialVersionUID = -77666491;
+    private static final long serialVersionUID = -697570718;
 
     /**
      * The reference instance of <code>texera_db.operator_runtime_statistics</code>
@@ -93,7 +93,7 @@ public class OperatorRuntimeStatistics extends TableImpl<OperatorRuntimeStatisti
     /**
      * The column <code>texera_db.operator_runtime_statistics.num_workers</code>.
      */
-    public final TableField<OperatorRuntimeStatisticsRecord, UInteger> NUM_WORKERS = createField(DSL.name("num_workers"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<OperatorRuntimeStatisticsRecord, UInteger> NUM_WORKERS = createField(DSL.name("num_workers"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false).defaultValue(org.jooq.impl.DSL.inline("0", org.jooq.impl.SQLDataType.INTEGERUNSIGNED)), this, "");
 
     /**
      * Create a <code>texera_db.operator_runtime_statistics</code> table reference
