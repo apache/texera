@@ -9,7 +9,8 @@ import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.SqlServer.withTransaction
 import edu.uci.ics.texera.dao.jooq.generated.Tables.{
   WORKFLOW_EXECUTIONS,
-  WORKFLOW_RUNTIME_STATISTICS,
+  OPERATOR_EXECUTIONS,
+  OPERATOR_RUNTIME_STATISTICS,
   WORKFLOW_VERSION
 }
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowRuntimeStatistics
@@ -99,36 +100,33 @@ class DefaultCostEstimator(
       val widAsUInteger = UInteger.valueOf(wid)
       val rawStats = context
         .select(
-          WORKFLOW_RUNTIME_STATISTICS.OPERATOR_ID,
-          WORKFLOW_RUNTIME_STATISTICS.TIME,
-          WORKFLOW_RUNTIME_STATISTICS.DATA_PROCESSING_TIME,
-          WORKFLOW_RUNTIME_STATISTICS.CONTROL_PROCESSING_TIME,
-          WORKFLOW_RUNTIME_STATISTICS.EXECUTION_ID
+          OPERATOR_EXECUTIONS.OPERATOR_ID,
+          OPERATOR_RUNTIME_STATISTICS.DATA_PROCESSING_TIME,
+          OPERATOR_RUNTIME_STATISTICS.CONTROL_PROCESSING_TIME
         )
-        .from(WORKFLOW_RUNTIME_STATISTICS)
+        .from(OPERATOR_EXECUTIONS)
+        .join(OPERATOR_RUNTIME_STATISTICS)
+        .on(
+          OPERATOR_EXECUTIONS.OPERATOR_EXECUTION_ID.eq(
+            OPERATOR_RUNTIME_STATISTICS.OPERATOR_EXECUTION_ID
+          )
+        )
         .where(
-          WORKFLOW_RUNTIME_STATISTICS.WORKFLOW_ID
-            .eq(widAsUInteger)
-            .and(
-              WORKFLOW_RUNTIME_STATISTICS.EXECUTION_ID.eq(
-                context
-                  .select(
-                    WORKFLOW_EXECUTIONS.EID
-                  )
-                  .from(WORKFLOW_EXECUTIONS)
-                  .join(WORKFLOW_VERSION)
-                  .on(WORKFLOW_VERSION.VID.eq(WORKFLOW_EXECUTIONS.VID))
-                  .where(
-                    WORKFLOW_VERSION.WID
-                      .eq(widAsUInteger)
-                      .and(WORKFLOW_EXECUTIONS.STATUS.eq(3.toByte))
-                  )
-                  .orderBy(WORKFLOW_EXECUTIONS.STARTING_TIME.desc())
-                  .limit(1)
+          OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(
+            context
+              .select(WORKFLOW_EXECUTIONS.EID)
+              .from(WORKFLOW_EXECUTIONS)
+              .join(WORKFLOW_VERSION)
+              .on(WORKFLOW_VERSION.VID.eq(WORKFLOW_EXECUTIONS.VID))
+              .where(
+                WORKFLOW_VERSION.WID
+                  .eq(widAsUInteger)
+                  .and(WORKFLOW_EXECUTIONS.STATUS.eq(3.toByte))
               )
-            )
+              .orderBy(WORKFLOW_EXECUTIONS.STARTING_TIME.desc())
+              .limit(1)
+          )
         )
-        .orderBy(WORKFLOW_RUNTIME_STATISTICS.TIME, WORKFLOW_RUNTIME_STATISTICS.OPERATOR_ID)
         .fetchInto(classOf[WorkflowRuntimeStatistics])
         .asScala
         .toList
