@@ -73,8 +73,15 @@ case class Tuple @JsonCreator() (
 
   override def equals(obj: Any): Boolean =
     obj match {
-      case that: Tuple => (this.getFields sameElements that.getFields) && this.schema == that.schema
-      case _           => false
+      case that: Tuple =>
+        this.schema == that.schema &&
+          this.getFields.zip(that.getFields).forall {
+            case (field1: Array[Byte], field2: Array[Byte]) =>
+              field1.sameElements(field2) // for Binary, use sameElements instead of == to compare
+            case (field1, field2) =>
+              field1 == field2
+          }
+      case _ => false
     }
 
   def getPartialTuple(attributeNames: List[String]): Tuple = {
