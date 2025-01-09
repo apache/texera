@@ -23,7 +23,6 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource._
 import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
 import io.dropwizard.auth.Auth
-import org.jooq.impl.DSL._
 import org.jooq.types.{UInteger, ULong}
 
 import java.net.URI

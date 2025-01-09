@@ -20,7 +20,6 @@ import scala.jdk.CollectionConverters.IteratorHasAsScala
   */
 object OpResultStorage {
   val defaultStorageMode: String = StorageConfig.resultStorageMode.toLowerCase
-  val MEMORY: String = "memory"
   val MONGODB: String = "mongodb"
   val ICEBERG = "iceberg"
 
@@ -115,9 +114,7 @@ class OpResultStorage extends Serializable with LazyLogging {
       schema: Schema
   ): VirtualDocument[Tuple] = {
     val storage: VirtualDocument[Tuple] =
-      if (mode == OpResultStorage.MEMORY) {
-        new MemoryDocument[Tuple](key)
-      } else if (mode == OpResultStorage.MONGODB) {
+      if (mode == OpResultStorage.MONGODB) {
         try {
           new MongoDocument[Tuple](
             executionId + key,
@@ -127,22 +124,13 @@ class OpResultStorage extends Serializable with LazyLogging {
         } catch {
           case t: Throwable =>
             logger.warn("Failed to create MongoDB storage", t)
-            logger.info(s"Falling back to memory storage for $key")
-            new MemoryDocument[Tuple](key)
+            logger.info(s"Falling back to Iceberg storage for $key")
+            createIcebergDocument(executionId, key, schema)
         }
+      } else if (mode == OpResultStorage.ICEBERG) {
+        createIcebergDocument(executionId, key, schema)
       } else {
-        val icebergSchema = IcebergUtil.toIcebergSchema(schema)
-        val serde: (IcebergSchema, Tuple) => Record = IcebergUtil.toGenericRecord
-        val deserde: (IcebergSchema, Record) => Tuple = (_, record) =>
-          IcebergUtil.fromRecord(record, schema)
-
-        new IcebergDocument[Tuple](
-          StorageConfig.icebergTableNamespace,
-          executionId + key,
-          icebergSchema,
-          serde,
-          deserde
-        )
+        throw new IllegalArgumentException(s"Unsupported storage mode: $mode")
       }
     cache.put(key, (storage, schema))
     storage
@@ -171,5 +159,24 @@ class OpResultStorage extends Serializable with LazyLogging {
     */
   def getAllKeys: Set[String] = {
     cache.keySet().iterator().asScala.toSet
+  }
+
+  private def createIcebergDocument(
+      executionId: String,
+      key: String,
+      schema: Schema
+  ): IcebergDocument[Tuple] = {
+    val icebergSchema = IcebergUtil.toIcebergSchema(schema)
+    val serde: (IcebergSchema, Tuple) => Record = IcebergUtil.toGenericRecord
+    val deserde: (IcebergSchema, Record) => Tuple = (_, record) =>
+      IcebergUtil.fromRecord(record, schema)
+
+    new IcebergDocument[Tuple](
+      StorageConfig.icebergTableNamespace,
+      executionId + key,
+      icebergSchema,
+      serde,
+      deserde
+    )
   }
 }
