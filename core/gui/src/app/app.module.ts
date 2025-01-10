@@ -240,6 +240,7 @@ registerLocaleData(en);
         tokenGetter: AuthService.getAccessToken,
         skipWhenExpired: false,
         throwNoTokenError: false,
+        disallowedRoutes: ["forum/api/users"],
       },
     }),
     BrowserAnimationsModule,
