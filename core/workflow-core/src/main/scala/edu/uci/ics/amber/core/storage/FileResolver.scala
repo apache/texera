@@ -1,5 +1,11 @@
 package edu.uci.ics.amber.core.storage
 
+import edu.uci.ics.amber.core.virtualidentity.{
+  ExecutionIdentity,
+  OperatorIdentity,
+  WorkflowIdentity
+}
+import edu.uci.ics.amber.core.workflow.PortIdentity
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.SqlServer.withTransaction
 import edu.uci.ics.texera.dao.jooq.generated.tables.Dataset.DATASET
@@ -14,15 +20,74 @@ import java.nio.file.{Files, Paths}
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 import scala.util.{Success, Try}
 
+/**
+  * Enum for defining resource types in VFS URI.
+  */
+object VFSResourceType extends Enumeration {
+  val RESULT: Value = Value("result")
+}
+
+/**
+  * Unified object for resolving both VFS resources and local/dataset files.
+  */
 object FileResolver {
-  val DATASET_FILE_URI_SCHEME = "vfs"
+
+  val DATASET_FILE_URI_SCHEME = "dataset"
+  val VFS_FILE_URI_SCHEME = "vfs"
 
   /**
-    * Attempts to resolve the given fileName using a list of resolver functions.
+    * Resolves a virtual file system (VFS) resource.
     *
-    * @param fileName the name of the file to resolve
-    * @throws FileNotFoundException if the file cannot be resolved by any resolver
-    * @return Either[String, DatasetFileDocument] - the resolved path as a String or a DatasetFileDocument
+    * **Sanity Check:**
+    * - If `resourceType` is `RESULT`, `portIdentity` **must** be provided; otherwise, an exception is thrown.
+    *
+    * @param resourceType The type of the VFS resource (e.g., result).
+    * @param workflowId   The workflow identifier.
+    * @param executionId  The execution identifier.
+    * @param operatorId   The operator identifier.
+    * @param portIdentity Optional port identifier. **Required** if `resourceType` is `RESULT`.
+    * @return A VFS URI in the format:
+    *         `vfs:///wid/{workflowId.id}/eid/{executionId.id}/opid/{operatorId.id}/pid/{portId.id}_{I|E}/{resourceType}`
+    *         or
+    *         `vfs:///wid/{workflowId.id}/eid/{executionId.id}/opid/{operatorId.id}/{resourceType}` if `portIdentity` is not provided.
+    * @throws IllegalArgumentException if `resourceType` is `RESULT` but `portIdentity` is missing.
+    */
+  def resolve(
+      resourceType: VFSResourceType.Value,
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity,
+      operatorId: OperatorIdentity,
+      portIdentity: Option[PortIdentity] = None
+  ): URI = {
+
+    // Sanity check: RESULT must be associated with a port
+    if (resourceType == VFSResourceType.RESULT && portIdentity.isEmpty) {
+      throw new IllegalArgumentException(
+        "PortIdentity must be provided when resourceType is RESULT."
+      )
+    }
+
+    val baseUri =
+      s"$VFS_FILE_URI_SCHEME:///wid/${workflowId.id}/eid/${executionId.id}/opid/${operatorId.id}"
+
+    val uriWithPort = portIdentity match {
+      case Some(port) =>
+        val portType = if (port.internal) "I" else "E" // I = internal, E = external
+        s"$baseUri/pid/${port.id}_$portType"
+      case None =>
+        baseUri
+    }
+
+    // Append the resourceType at the end
+    new URI(s"$uriWithPort/${resourceType.toString.toLowerCase}")
+  }
+
+  /**
+    * Resolves a given fileName to either a file on the local file system or a dataset file.
+    *
+    * @param fileName the name of the file to resolve.
+    * @throws FileNotFoundException if the file cannot be resolved.
+    * @return A URI pointing to the resolved file.
     */
   def resolve(fileName: String): URI = {
     if (isFileResolved(fileName)) {
@@ -58,7 +123,7 @@ object FileResolver {
     * The fileName format should be: /ownerEmail/datasetName/versionName/fileRelativePath
     *   e.g. /bob@texera.com/twitterDataset/v1/california/irvine/tw1.csv
     * The output dataset URI format is: {DATASET_FILE_URI_SCHEME}:///{did}/{versionHash}/file-path
-    *   e.g. vfs:///15/adeq233td/some/dir/file.txt
+    *   e.g. {DATASET_FILE_URI_SCHEME}:///15/adeq233td/some/dir/file.txt
     *
     * @param fileName the name of the file to attempt resolving as a DatasetFileDocument
     * @return Either[String, DatasetFileDocument] - Right(document) if creation succeeds
