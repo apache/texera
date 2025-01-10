@@ -19,7 +19,6 @@ import {
   WorkflowPersistService,
 } from "src/app/common/service/workflow-persist/workflow-persist.service";
 import { firstValueFrom } from "rxjs";
-import { SearchService } from "../../../service/user/search.service";
 import { HubWorkflowDetailComponent } from "../../../../hub/component/workflow/detail/hub-workflow-detail.component";
 import { HubWorkflowService } from "../../../../hub/service/workflow/hub-workflow.service";
 import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
@@ -77,7 +76,6 @@ export class ListItemComponent implements OnInit, OnChanges {
   refresh = new EventEmitter<void>();
 
   constructor(
-    private searchService: SearchService,
     private modalService: NzModalService,
     private workflowPersistService: WorkflowPersistService,
     private datasetService: DatasetService,
@@ -92,7 +90,7 @@ export class ListItemComponent implements OnInit, OnChanges {
     if (this.entry.type === "workflow") {
       if (typeof this.entry.id === "number") {
         this.disableDelete = !this.entry.workflow.isOwner;
-        this.searchService
+        this.workflowPersistService
           .getWorkflowOwners(this.entry.id)
           .pipe(untilDestroyed(this))
           .subscribe((data: number[]) => {

@@ -202,19 +202,4 @@ class DashboardResource {
 
     userIdToInfoMap
   }
-
-  // todo: move this function to WorkflowResource.scala
-  @GET
-  @Path("/workflowUserAccess")
-  def workflowUserAccess(
-      @QueryParam("wid") wid: UInteger
-  ): util.List[UInteger] = {
-    val records = context
-      .select(WORKFLOW_USER_ACCESS.UID)
-      .from(WORKFLOW_USER_ACCESS)
-      .where(WORKFLOW_USER_ACCESS.WID.eq(wid))
-      .fetch()
-
-    records.getValues(WORKFLOW_USER_ACCESS.UID)
-  }
 }

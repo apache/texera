@@ -20,6 +20,7 @@ export const WORKFLOW_UPDATENAME_URL = WORKFLOW_BASE_URL + "/update/name";
 export const WORKFLOW_UPDATEDESCRIPTION_URL = WORKFLOW_BASE_URL + "/update/description";
 export const WORKFLOW_OWNER_URL = WORKFLOW_BASE_URL + "/user-workflow-owners";
 export const WORKFLOW_ID_URL = WORKFLOW_BASE_URL + "/user-workflow-ids";
+export const WORKFLOW_GET_OWNERS_URL = WORKFLOW_BASE_URL + "/workflowUserAccess";
 
 export const DEFAULT_WORKFLOW_NAME = "Untitled workflow";
 export const WORKFLOW_PUBLIC_URL = WORKFLOW_BASE_URL + "/public";
@@ -203,5 +204,9 @@ export class WorkflowPersistService {
    */
   public retrieveWorkflowIDs(): Observable<number[]> {
     return this.http.get<number[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_ID_URL}`);
+  }
+
+  public getWorkflowOwners(wid: number): Observable<number[]> {
+    return this.http.get<number[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_GET_OWNERS_URL}?wid=${wid}`);
   }
 }
