@@ -28,12 +28,75 @@ object VFSResourceType extends Enumeration {
 }
 
 /**
+ * Case class to hold the parsed components of a VFS URI.
+ */
+case class VFSUriComponents(
+                             workflowId: WorkflowIdentity,
+                             executionId: ExecutionIdentity,
+                             operatorId: OperatorIdentity,
+                             portIdentity: Option[PortIdentity],
+                             resourceType: VFSResourceType.Value
+                           )
+
+/**
   * Unified object for resolving both VFS resources and local/dataset files.
   */
 object FileResolver {
 
   val DATASET_FILE_URI_SCHEME = "dataset"
   val VFS_FILE_URI_SCHEME = "vfs"
+
+  /**
+   * Parses a VFS URI by dynamically identifying components based on their labels.
+   *
+   * @param uri The VFS URI to parse.
+   * @return A `VFSUriComponents` object containing the extracted components.
+   * @throws IllegalArgumentException if the URI is invalid or incomplete.
+   */
+  def parseVFSUri(uri: URI): VFSUriComponents = {
+    if (uri.getScheme != VFS_FILE_URI_SCHEME) {
+      throw new IllegalArgumentException(s"Invalid URI scheme: ${uri.getScheme}")
+    }
+
+    val segments = uri.getPath.stripPrefix("/").split("/").toList
+
+    // Helper to safely extract the value following a key
+    def extractValue(key: String): String = {
+      val index = segments.indexOf(key)
+      if (index == -1 || index + 1 >= segments.length) {
+        throw new IllegalArgumentException(s"Missing or invalid value for key: $key in URI: $uri")
+      }
+      segments(index + 1)
+    }
+
+    // Extract workflow, execution, and operator IDs
+    val workflowId = WorkflowIdentity(extractValue("wid").toLong)
+    val executionId = ExecutionIdentity(extractValue("eid").toLong)
+    val operatorId = OperatorIdentity(extractValue("opid"))
+
+    // Extract optional port identity
+    val portIdentity: Option[PortIdentity] = segments.indexOf("pid") match {
+      case -1 => None
+      case idx if idx + 1 < segments.length =>
+        val Array(portIdStr, portType) = segments(idx + 1).split("_")
+        val portId = portIdStr.toInt
+        val isInternal = portType match {
+          case "I" => true
+          case "E" => false
+          case _ => throw new IllegalArgumentException(s"Invalid port type: $portType in URI: $uri")
+        }
+        Some(PortIdentity(portId, isInternal))
+      case _ =>
+        throw new IllegalArgumentException(s"Invalid port information in URI: $uri")
+    }
+
+    // Extract resource type (the last segment)
+    val resourceTypeStr = segments.last.toLowerCase
+    val resourceType = VFSResourceType.values.find(_.toString.toLowerCase == resourceTypeStr)
+      .getOrElse(throw new IllegalArgumentException(s"Unknown resource type: $resourceTypeStr"))
+
+    VFSUriComponents(workflowId, executionId, operatorId, portIdentity, resourceType)
+  }
 
   /**
     * Resolves a virtual file system (VFS) resource.
