@@ -133,7 +133,7 @@ class NetworkGraphOpDesc extends PythonOperatorDescriptor{
          |                    title='<br>$title',
          |                    hovermode='closest',
          |                    annotations=[ dict(
-         |                        showarrow=False,
+         |                        showarrow=True,
          |                        xref="paper", yref="paper") ],
          |                    xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
          |                    yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)))
