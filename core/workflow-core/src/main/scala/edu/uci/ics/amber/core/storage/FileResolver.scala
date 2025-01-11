@@ -1,5 +1,6 @@
 package edu.uci.ics.amber.core.storage
 
+import edu.uci.ics.amber.core.storage.FileResolver.DATASET_FILE_URI_SCHEME
 import edu.uci.ics.amber.core.virtualidentity.{
   ExecutionIdentity,
   OperatorIdentity,
@@ -20,23 +21,18 @@ import java.nio.file.{Files, Paths}
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 import scala.util.{Success, Try}
 
-/**
-  * Enum for defining resource types in VFS URI.
-  */
 object VFSResourceType extends Enumeration {
   val RESULT: Value = Value("result")
+  val MATERIALIZED_RESULT: Value = Value("materializedResult")
 }
 
-/**
- * Case class to hold the parsed components of a VFS URI.
- */
 case class VFSUriComponents(
-                             workflowId: WorkflowIdentity,
-                             executionId: ExecutionIdentity,
-                             operatorId: OperatorIdentity,
-                             portIdentity: Option[PortIdentity],
-                             resourceType: VFSResourceType.Value
-                           )
+    workflowId: WorkflowIdentity,
+    executionId: ExecutionIdentity,
+    operatorId: OperatorIdentity,
+    portIdentity: Option[PortIdentity],
+    resourceType: VFSResourceType.Value
+)
 
 /**
   * Unified object for resolving both VFS resources and local/dataset files.
@@ -47,34 +43,31 @@ object FileResolver {
   val VFS_FILE_URI_SCHEME = "vfs"
 
   /**
-   * Parses a VFS URI by dynamically identifying components based on their labels.
-   *
-   * @param uri The VFS URI to parse.
-   * @return A `VFSUriComponents` object containing the extracted components.
-   * @throws IllegalArgumentException if the URI is invalid or incomplete.
-   */
-  def parseVFSUri(uri: URI): VFSUriComponents = {
+    * Parses a VFS URI and extracts its components, including the `isMaterialized` flag from the query.
+    *
+    * @param uri The VFS URI to parse.
+    * @return A `VFSUriComponents` object with the extracted data.
+    * @throws IllegalArgumentException if the URI is malformed.
+    */
+  def decodeVFSUri(uri: URI): VFSUriComponents = {
     if (uri.getScheme != VFS_FILE_URI_SCHEME) {
       throw new IllegalArgumentException(s"Invalid URI scheme: ${uri.getScheme}")
     }
 
     val segments = uri.getPath.stripPrefix("/").split("/").toList
 
-    // Helper to safely extract the value following a key
     def extractValue(key: String): String = {
       val index = segments.indexOf(key)
       if (index == -1 || index + 1 >= segments.length) {
-        throw new IllegalArgumentException(s"Missing or invalid value for key: $key in URI: $uri")
+        throw new IllegalArgumentException(s"Missing value for key: $key in URI: $uri")
       }
       segments(index + 1)
     }
 
-    // Extract workflow, execution, and operator IDs
     val workflowId = WorkflowIdentity(extractValue("wid").toLong)
     val executionId = ExecutionIdentity(extractValue("eid").toLong)
     val operatorId = OperatorIdentity(extractValue("opid"))
 
-    // Extract optional port identity
     val portIdentity: Option[PortIdentity] = segments.indexOf("pid") match {
       case -1 => None
       case idx if idx + 1 < segments.length =>
@@ -83,36 +76,30 @@ object FileResolver {
         val isInternal = portType match {
           case "I" => true
           case "E" => false
-          case _ => throw new IllegalArgumentException(s"Invalid port type: $portType in URI: $uri")
+          case _   => throw new IllegalArgumentException(s"Invalid port type: $portType in URI: $uri")
         }
         Some(PortIdentity(portId, isInternal))
       case _ =>
         throw new IllegalArgumentException(s"Invalid port information in URI: $uri")
     }
 
-    // Extract resource type (the last segment)
     val resourceTypeStr = segments.last.toLowerCase
-    val resourceType = VFSResourceType.values.find(_.toString.toLowerCase == resourceTypeStr)
+    val resourceType = VFSResourceType.values
+      .find(_.toString.toLowerCase == resourceTypeStr)
       .getOrElse(throw new IllegalArgumentException(s"Unknown resource type: $resourceTypeStr"))
 
     VFSUriComponents(workflowId, executionId, operatorId, portIdentity, resourceType)
   }
 
   /**
-    * Resolves a virtual file system (VFS) resource.
+    * Resolves a VFS resource and appends `isMaterialized` as a query parameter.
     *
-    * **Sanity Check:**
-    * - If `resourceType` is `RESULT`, `portIdentity` **must** be provided; otherwise, an exception is thrown.
-    *
-    * @param resourceType The type of the VFS resource (e.g., result).
-    * @param workflowId   The workflow identifier.
-    * @param executionId  The execution identifier.
-    * @param operatorId   The operator identifier.
-    * @param portIdentity Optional port identifier. **Required** if `resourceType` is `RESULT`.
-    * @return A VFS URI in the format:
-    *         `vfs:///wid/{workflowId.id}/eid/{executionId.id}/opid/{operatorId.id}/pid/{portId.id}_{I|E}/{resourceType}`
-    *         or
-    *         `vfs:///wid/{workflowId.id}/eid/{executionId.id}/opid/{operatorId.id}/{resourceType}` if `portIdentity` is not provided.
+    * @param resourceType   The type of the VFS resource.
+    * @param workflowId     Workflow identifier.
+    * @param executionId    Execution identifier.
+    * @param operatorId     Operator identifier.
+    * @param portIdentity   Optional port identifier. **Required** if `resourceType` is `RESULT`.
+    * @return A VFS URI with the `isMaterialized` query parameter.
     * @throws IllegalArgumentException if `resourceType` is `RESULT` but `portIdentity` is missing.
     */
   def resolve(
@@ -123,10 +110,11 @@ object FileResolver {
       portIdentity: Option[PortIdentity] = None
   ): URI = {
 
-    // Sanity check: RESULT must be associated with a port
-    if (resourceType == VFSResourceType.RESULT && portIdentity.isEmpty) {
+    if (
+      (resourceType == VFSResourceType.RESULT || resourceType == VFSResourceType.MATERIALIZED_RESULT) && portIdentity.isEmpty
+    ) {
       throw new IllegalArgumentException(
-        "PortIdentity must be provided when resourceType is RESULT."
+        "PortIdentity must be provided when resourceType is RESULT or MATERIALIZED_RESULT."
       )
     }
 
@@ -135,13 +123,12 @@ object FileResolver {
 
     val uriWithPort = portIdentity match {
       case Some(port) =>
-        val portType = if (port.internal) "I" else "E" // I = internal, E = external
+        val portType = if (port.internal) "I" else "E"
         s"$baseUri/pid/${port.id}_$portType"
       case None =>
         baseUri
     }
 
-    // Append the resourceType at the end
     new URI(s"$uriWithPort/${resourceType.toString.toLowerCase}")
   }
 
