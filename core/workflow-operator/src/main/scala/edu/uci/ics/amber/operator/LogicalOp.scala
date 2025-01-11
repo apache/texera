@@ -90,6 +90,7 @@ import edu.uci.ics.amber.operator.visualization.hierarchychart.HierarchyChartOpD
 import edu.uci.ics.amber.operator.visualization.histogram.HistogramChartOpDesc
 import edu.uci.ics.amber.operator.visualization.htmlviz.HtmlVizOpDesc
 import edu.uci.ics.amber.operator.visualization.lineChart.LineChartOpDesc
+import edu.uci.ics.amber.operator.visualization.networkGraph.NetworkGraphOpDesc
 import edu.uci.ics.amber.operator.visualization.pieChart.PieChartOpDesc
 import edu.uci.ics.amber.operator.visualization.quiverPlot.QuiverPlotOpDesc
 import edu.uci.ics.amber.operator.visualization.sankeyDiagram.SankeyDiagramOpDesc
