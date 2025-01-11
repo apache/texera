@@ -1,7 +1,6 @@
 import { Injectable } from "@angular/core";
 import { HttpClient } from "@angular/common/http";
 import { UserService } from "../../../../common/service/user/user.service";
-import { AppSettings } from "../../../../common/app-setting";
 
 @Injectable({
   providedIn: "root",
@@ -11,16 +10,22 @@ export class FlarumService {
     private http: HttpClient,
     private userService: UserService
   ) {}
-  public register() {
-    return this.http.put(`${AppSettings.getApiEndpoint()}/discussion/register`, {});
+
+  register() {
+    const user = this.userService.getCurrentUser();
+    return this.http.post(
+      "forum/api/users",
+      {
+        data: {
+          attributes: { username: user!.email.split("@")[0] + user!.uid, email: user!.email, password: user!.googleId },
+        },
+      },
+      { headers: { Authorization: "Token hdebsyxiigyklxgsqivyswwiisohzlnezzzzzzzz;userId=1" } }
+    );
   }
 
   auth() {
-    const currentUser = this.userService.getCurrentUser();
-    return this.http.post(
-      "forum/api/token",
-      { identification: currentUser!.email, password: currentUser!.googleId, remember: "1" },
-      { headers: { "Content-Type": "application/json" }, withCredentials: true }
-    );
+    const user = this.userService.getCurrentUser();
+    return this.http.post("forum/api/token", { identification: user!.email, password: user!.googleId, remember: "1" });
   }
 }
