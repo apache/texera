@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
-import edu.uci.ics.amber.core.storage.result.{OpResultStorage, ResultStorage}
+import edu.uci.ics.amber.core.storage.{DocumentFactory, FileResolver}
+import edu.uci.ics.amber.core.storage.VFSResourceType.{MATERIALIZED_RESULT, RESULT}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.scheduling.ScheduleGenerator.replaceVertex
 import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
@@ -151,17 +152,19 @@ abstract class ScheduleGenerator(
       .removeLink(physicalLink)
 
     // create cache writer and link
-    val storageKey = OpResultStorage.createStorageKey(
+    // create the uri of the materialization storage
+    val storageUri = FileResolver.resolve(
+      MATERIALIZED_RESULT,
+      workflowContext.workflowId,
+      workflowContext.executionId,
       physicalLink.fromOpId.logicalOpId,
-      physicalLink.fromPortId,
-      isMaterialized = true
+      Some(physicalLink.fromPortId)
     )
+
     val fromPortOutputMode =
       physicalPlan.getOperator(physicalLink.fromOpId).outputPorts(physicalLink.fromPortId)._1.mode
     val matWriterPhysicalOp: PhysicalOp = SpecialPhysicalOpFactory.newSinkPhysicalOp(
-      workflowContext.workflowId,
-      workflowContext.executionId,
-      storageKey,
+      storageUri,
       fromPortOutputMode
     )
     val sourceToWriterLink =
@@ -182,19 +185,14 @@ abstract class ScheduleGenerator(
       ._3
       .toOption
       .get
-    ResultStorage
-      .getOpResultStorage(workflowContext.workflowId)
-      .create(
-        key = storageKey,
-        mode = OpResultStorage.defaultStorageMode,
-        schema = schema
-      )
+    // create the document
+    DocumentFactory.createDocument(storageUri, schema)
 
     // create cache reader and link
     val matReaderPhysicalOp: PhysicalOp = SpecialPhysicalOpFactory.newSourcePhysicalOp(
       workflowContext.workflowId,
       workflowContext.executionId,
-      storageKey
+      storageUri
     )
     val readerToDestLink =
       PhysicalLink(

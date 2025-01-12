@@ -1,7 +1,8 @@
 package edu.uci.ics.amber.core.storage.result
 
-import edu.uci.ics.amber.core.virtualidentity.WorkflowIdentity
+import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 
+import java.net.URI
 import scala.collection.mutable
 
 /**
@@ -16,12 +17,19 @@ import scala.collection.mutable
   * TODO: Move the storage mappings to an external, distributed, and persistent location to eliminate the master-node
   *   dependency and enable sink executors to run on other nodes.
   */
-object ResultStorage {
+object ExecutionResourcesMapping {
 
-  private val workflowIdToOpResultMapping: mutable.Map[WorkflowIdentity, OpResultStorage] =
+  private val executionIdToExecutionResourcesMapping: mutable.Map[ExecutionIdentity, List[URI]] =
     mutable.Map.empty
 
-  def getOpResultStorage(workflowIdentity: WorkflowIdentity): OpResultStorage = {
-    workflowIdToOpResultMapping.getOrElseUpdate(workflowIdentity, new OpResultStorage())
+  def getResourceURIs(executionIdentity: ExecutionIdentity): List[URI] = {
+    executionIdToExecutionResourcesMapping.getOrElseUpdate(executionIdentity, List())
+  }
+
+  def addResourceUri(executionIdentity: ExecutionIdentity, uri: URI): Unit = {
+    executionIdToExecutionResourcesMapping.updateWith(executionIdentity) {
+      case Some(existingUris) => Some(uri :: existingUris) // Prepend URI to the existing list
+      case None               => Some(List(uri)) // Create a new list if key doesn't exist
+    }
   }
 }

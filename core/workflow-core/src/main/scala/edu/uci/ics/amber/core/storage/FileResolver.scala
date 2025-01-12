@@ -26,14 +26,6 @@ object VFSResourceType extends Enumeration {
   val MATERIALIZED_RESULT: Value = Value("materializedResult")
 }
 
-case class VFSUriComponents(
-    workflowId: WorkflowIdentity,
-    executionId: ExecutionIdentity,
-    operatorId: OperatorIdentity,
-    portIdentity: Option[PortIdentity],
-    resourceType: VFSResourceType.Value
-)
-
 /**
   * Unified object for resolving both VFS resources and local/dataset files.
   */
@@ -49,7 +41,13 @@ object FileResolver {
     * @return A `VFSUriComponents` object with the extracted data.
     * @throws IllegalArgumentException if the URI is malformed.
     */
-  def decodeVFSUri(uri: URI): VFSUriComponents = {
+  def decodeVFSUri(uri: URI): (
+      WorkflowIdentity,
+      ExecutionIdentity,
+      OperatorIdentity,
+      Option[PortIdentity],
+      VFSResourceType.Value
+  ) = {
     if (uri.getScheme != VFS_FILE_URI_SCHEME) {
       throw new IllegalArgumentException(s"Invalid URI scheme: ${uri.getScheme}")
     }
@@ -88,7 +86,7 @@ object FileResolver {
       .find(_.toString.toLowerCase == resourceTypeStr)
       .getOrElse(throw new IllegalArgumentException(s"Unknown resource type: $resourceTypeStr"))
 
-    VFSUriComponents(workflowId, executionId, operatorId, portIdentity, resourceType)
+    (workflowId, executionId, operatorId, portIdentity, resourceType)
   }
 
   /**

@@ -2,14 +2,15 @@ package edu.uci.ics.amber.operator.source.cache
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.executor.SourceOperatorExecutor
-import edu.uci.ics.amber.core.storage.result.ResultStorage
-import edu.uci.ics.amber.core.tuple.TupleLike
-import edu.uci.ics.amber.core.virtualidentity.WorkflowIdentity
+import edu.uci.ics.amber.core.storage.DocumentFactory
+import edu.uci.ics.amber.core.storage.model.VirtualDocument
+import edu.uci.ics.amber.core.tuple.{Tuple, TupleLike}
 
-class CacheSourceOpExec(storageKey: String, workflowIdentity: WorkflowIdentity)
-    extends SourceOperatorExecutor
-    with LazyLogging {
-  private val storage = ResultStorage.getOpResultStorage(workflowIdentity).get(storageKey)
+import java.net.URI
+
+class CacheSourceOpExec(storageUri: URI) extends SourceOperatorExecutor with LazyLogging {
+  private val storage =
+    DocumentFactory.openDocument(storageUri)._1.asInstanceOf[VirtualDocument[Tuple]]
 
   override def produceTuple(): Iterator[TupleLike] = storage.get()
 

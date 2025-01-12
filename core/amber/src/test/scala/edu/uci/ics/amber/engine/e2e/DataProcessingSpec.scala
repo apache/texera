@@ -7,7 +7,7 @@ import akka.util.Timeout
 import ch.vorburger.mariadb4j.DB
 import com.twitter.util.{Await, Duration, Promise}
 import edu.uci.ics.amber.clustering.SingleNodeListener
-import edu.uci.ics.amber.core.storage.result.{OpResultStorage, ResultStorage}
+import edu.uci.ics.amber.core.storage.result.{OpResultStorage, ExecutionResourcesMapping}
 import edu.uci.ics.amber.core.tuple.{AttributeType, Tuple}
 import edu.uci.ics.amber.core.workflow.WorkflowContext
 import edu.uci.ics.amber.engine.architecture.controller._
@@ -38,7 +38,8 @@ class DataProcessingSpec
 
   var inMemoryMySQLInstance: Option[DB] = None
   val workflowContext: WorkflowContext = new WorkflowContext()
-  val resultStorage: OpResultStorage = ResultStorage.getOpResultStorage(workflowContext.workflowId)
+  val resultStorage: OpResultStorage =
+    ExecutionResourcesMapping.getResourceURIs(workflowContext.workflowId)
 
   override def beforeAll(): Unit = {
     system.actorOf(Props[SingleNodeListener](), "cluster-info")

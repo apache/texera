@@ -58,6 +58,13 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
   override def beforeEach(): Unit = {
     // Generate a unique table name for each test
     tableName = s"test_table_${UUID.randomUUID().toString.replace("-", "")}"
+    IcebergUtil.createTable(
+      catalog,
+      tableNamespace,
+      tableName,
+      icebergSchema,
+      overrideIfExists = true
+    )
     super.beforeEach()
   }
 

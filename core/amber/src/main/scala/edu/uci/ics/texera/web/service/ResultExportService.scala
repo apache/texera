@@ -7,8 +7,10 @@ import com.google.api.services.drive.Drive
 import com.google.api.services.drive.model.{File, FileList, Permission}
 import com.google.api.services.sheets.v4.Sheets
 import com.google.api.services.sheets.v4.model.{Spreadsheet, SpreadsheetProperties, ValueRange}
+import edu.uci.ics.amber.core.storage.{DocumentFactory, FileResolver}
+import edu.uci.ics.amber.core.storage.VFSResourceType.RESULT
 import edu.uci.ics.amber.core.storage.model.VirtualDocument
-import edu.uci.ics.amber.core.storage.result.{OpResultStorage, ResultStorage}
+import edu.uci.ics.amber.core.storage.result.ExecutionResourcesMapping
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.engine.common.Utils.retry
 import edu.uci.ics.amber.util.PathUtils
@@ -22,6 +24,7 @@ import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowVersionRe
 import org.jooq.types.UInteger
 import edu.uci.ics.amber.util.ArrowUtils
 import edu.uci.ics.amber.core.workflow.PortIdentity
+import edu.uci.ics.texera.web.service.WorkflowExecutionService.getLatestExecutionId
 
 import java.io.{PipedInputStream, PipedOutputStream}
 import java.nio.charset.StandardCharsets
@@ -57,6 +60,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
 
   private val cache = new mutable.HashMap[String, String]
 
+  private lazy val executionId = getLatestExecutionId(workflowIdentity)
   def exportResult(
       user: User,
       request: ResultExportRequest
@@ -71,11 +75,18 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
 
     // By now the workflow should finish running
     // Only supports external port 0 for now. TODO: support multiple ports
+    val storageUri = FileResolver.resolve(
+      RESULT,
+      workflowIdentity,
+      executionId.getOrElse(
+        return ResultExportResponse("error", "The workflow contains no results")
+      ),
+      OperatorIdentity(request.operatorId),
+      Some(PortIdentity())
+    )
     val operatorResult: VirtualDocument[Tuple] =
-      ResultStorage
-        .getOpResultStorage(workflowIdentity)
-        .get(OpResultStorage.createStorageKey(OperatorIdentity(request.operatorId), PortIdentity()))
-    if (operatorResult == null) {
+      DocumentFactory.openDocument(storageUri)._1.asInstanceOf[VirtualDocument[Tuple]]
+    if (operatorResult.getCount == 0) {
       return ResultExportResponse("error", "The workflow contains no results")
     }
 

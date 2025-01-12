@@ -22,6 +22,8 @@ object DocumentFactory {
   val MONGODB: String = "mongodb"
   val ICEBERG: String = "iceberg"
 
+  def sanitizeURIPath(uri: URI): String = uri.getPath.stripPrefix("/").replace("/", "_")
+
   def newReadonlyDocument(fileUri: URI): ReadonlyVirtualDocument[_] = {
     fileUri.getScheme match {
       case DATASET_FILE_URI_SCHEME =>
@@ -40,13 +42,11 @@ object DocumentFactory {
   def createDocument(uri: URI, schema: Schema): VirtualDocument[_] = {
     uri.getScheme match {
       case VFS_FILE_URI_SCHEME =>
-        val uriComponents = decodeVFSUri(uri)
+        val (_, _, _, _, resourceType) = decodeVFSUri(uri)
 
-        uriComponents.resourceType match {
+        resourceType match {
           case RESULT | MATERIALIZED_RESULT =>
-            val prefix =
-              if (uriComponents.resourceType == MATERIALIZED_RESULT) "materialized_" else ""
-            val storageKey = prefix + uri.getPath.stripPrefix("/").replace("/", "_")
+            val storageKey = sanitizeURIPath(uri)
 
             StorageConfig.resultStorageMode.toLowerCase match {
               case MONGODB =>
@@ -58,6 +58,13 @@ object DocumentFactory {
 
               case ICEBERG | _ =>
                 val icebergSchema = IcebergUtil.toIcebergSchema(schema)
+                IcebergUtil.createTable(
+                  IcebergCatalogInstance.getInstance(),
+                  StorageConfig.icebergTableNamespace,
+                  storageKey,
+                  icebergSchema,
+                  overrideIfExists = true
+                )
                 val serde: (IcebergSchema, Tuple) => Record = IcebergUtil.toGenericRecord
                 val deserde: (IcebergSchema, Record) => Tuple = (_, record) =>
                   IcebergUtil.fromRecord(record, schema)
@@ -73,13 +80,69 @@ object DocumentFactory {
 
           case _ =>
             throw new IllegalArgumentException(
-              s"Resource type ${uriComponents.resourceType} is not supported"
+              s"Resource type $resourceType is not supported"
             )
         }
 
       case _ =>
         throw new UnsupportedOperationException(
           s"Unsupported URI scheme: ${uri.getScheme} for creating the document"
+        )
+    }
+  }
+
+  def openDocument(uri: URI): (VirtualDocument[_], Schema) = {
+    uri.getScheme match {
+      case VFS_FILE_URI_SCHEME =>
+        val (_, _, _, _, resourceType) = decodeVFSUri(uri)
+
+        resourceType match {
+          case RESULT | MATERIALIZED_RESULT =>
+            val storageKey = sanitizeURIPath(uri)
+
+            StorageConfig.resultStorageMode.toLowerCase match {
+              case ICEBERG =>
+                val table = IcebergUtil
+                  .loadTableMetadata(
+                    IcebergCatalogInstance.getInstance(),
+                    StorageConfig.icebergTableNamespace,
+                    storageKey
+                  )
+                  .getOrElse(
+                    throw new IllegalArgumentException("No storage is found for the given URI")
+                  )
+
+                val amberSchema = IcebergUtil.fromIcebergSchema(table.schema())
+                val serde: (IcebergSchema, Tuple) => Record = IcebergUtil.toGenericRecord
+                val deserde: (IcebergSchema, Record) => Tuple = (_, record) =>
+                  IcebergUtil.fromRecord(record, amberSchema)
+
+                (
+                  new IcebergDocument[Tuple](
+                    StorageConfig.icebergTableNamespace,
+                    storageKey,
+                    table.schema(),
+                    serde,
+                    deserde
+                  ),
+                  amberSchema
+                )
+
+              case _ =>
+                throw new IllegalArgumentException(
+                  s"Storage mode is not supported"
+                )
+            }
+
+          case _ =>
+            throw new IllegalArgumentException(
+              s"Resource type $resourceType is not supported"
+            )
+        }
+
+      case _ =>
+        throw new UnsupportedOperationException(
+          s"Unsupported URI scheme: ${uri.getScheme} for opening the document"
         )
     }
   }
