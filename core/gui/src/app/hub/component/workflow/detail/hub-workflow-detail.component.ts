@@ -55,7 +55,7 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
       this.isHub = true;
     }
     this.currentUser = this.userService.getCurrentUser();
-    if(this.currentUser?.role === Role.ADMIN || this.currentUser?.role === Role.REGULAR){
+    if (this.currentUser?.role === Role.ADMIN || this.currentUser?.role === Role.REGULAR) {
       this.isAdminOrRegularUser = true;
     }
     this.workflowActionService.disableWorkflowModification();
