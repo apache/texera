@@ -51,3 +51,5 @@ SELECT
     wrs.num_workers 
 FROM workflow_runtime_statistics wrs
 JOIN operator_executions oe ON wrs.execution_id = oe.workflow_execution_id AND wrs.operator_id = oe.operator_id;
+
+drop table if exists workflow_runtime_statistics;

@@ -8,12 +8,12 @@ import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.SqlServer.withTransaction
 import edu.uci.ics.texera.dao.jooq.generated.Tables.{
-  WORKFLOW_EXECUTIONS,
   OPERATOR_EXECUTIONS,
   OPERATOR_RUNTIME_STATISTICS,
+  WORKFLOW_EXECUTIONS,
   WORKFLOW_VERSION
 }
-import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowRuntimeStatistics
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource.WorkflowRuntimeStatistics
 import org.jooq.types.UInteger
 
 import scala.jdk.CollectionConverters.ListHasAsScala
@@ -134,9 +134,9 @@ class DefaultCostEstimator(
         None
       } else {
         val cumulatedStats = rawStats.foldLeft(Map.empty[String, Double]) { (acc, stat) =>
-          val opTotalExecutionTime = acc.getOrElse(stat.getOperatorId, 0.0)
-          acc + (stat.getOperatorId -> (opTotalExecutionTime + (stat.getDataProcessingTime
-            .doubleValue() + stat.getControlProcessingTime.doubleValue()) / 1e9))
+          val opTotalExecutionTime = acc.getOrElse(stat.operatorId, 0.0)
+          acc + (stat.operatorId -> (opTotalExecutionTime + (stat.dataProcessingTime
+            .doubleValue() + stat.controlProcessingTime.doubleValue()) / 1e9))
         }
         Some(cumulatedStats)
       }
