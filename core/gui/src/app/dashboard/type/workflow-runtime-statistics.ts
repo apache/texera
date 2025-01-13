@@ -1,4 +1,4 @@
-export interface OperatorRuntimeStatistics {
+export interface WorkflowRuntimeStatistics {
   [key: string]: any;
   operatorId: string;
   inputTupleCount: number;
