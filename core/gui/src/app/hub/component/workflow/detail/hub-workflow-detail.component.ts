@@ -28,7 +28,7 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
   ownerName: string = "";
   workflowDescription: string = "";
   isLogin = this.userService.isLogin();
-  isAdminOrRegularUser: boolean = false;
+  isActivatedUser: boolean = false;
   isLiked: boolean = false;
   likeCount: number = 0;
   cloneCount: number = 0;
@@ -56,7 +56,7 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
     }
     this.currentUser = this.userService.getCurrentUser();
     if (this.currentUser?.role === Role.ADMIN || this.currentUser?.role === Role.REGULAR) {
-      this.isAdminOrRegularUser = true;
+      this.isActivatedUser = true;
     }
     this.workflowActionService.disableWorkflowModification();
   }
