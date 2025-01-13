@@ -15,6 +15,8 @@ import edu.uci.ics.texera.workflow.LogicalLink
 import org.jooq.types.{UInteger, ULong}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.jooq.DSLContext
+import edu.uci.ics.texera.dao.jooq.generated.tables.OperatorExecutions.OPERATOR_EXECUTIONS
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
@@ -68,34 +70,69 @@ class DefaultCostEstimatorSpec
     workflowExecution
   }
 
-  private val headerlessCsvOpStatisticsEntry: WorkflowRuntimeStatistics = {
-    val workflowRuntimeStatistics = new WorkflowRuntimeStatistics
-    workflowRuntimeStatistics.setOperatorId(headerlessCsvOpDesc.operatorIdentifier.id)
-    workflowRuntimeStatistics.setWorkflowId(UInteger.valueOf(1))
-    workflowRuntimeStatistics.setExecutionId(UInteger.valueOf(1))
-    workflowRuntimeStatistics.setDataProcessingTime(ULong.valueOf(100))
-    workflowRuntimeStatistics.setControlProcessingTime(ULong.valueOf(100))
-    workflowRuntimeStatistics
+  private val headerlessCsvOperatorExecutionEntry: OperatorExecutions = {
+    val operatorExecution = new OperatorExecutions
+    operatorExecution.setWorkflowExecutionId(UInteger.valueOf(1))
+    operatorExecution.setOperatorId(headerlessCsvOpDesc.operatorIdentifier.id)
+    operatorExecution
   }
 
-  private val keywordOpDescStatisticsEntry: WorkflowRuntimeStatistics = {
-    val workflowRuntimeStatistics = new WorkflowRuntimeStatistics
-    workflowRuntimeStatistics.setOperatorId(keywordOpDesc.operatorIdentifier.id)
-    workflowRuntimeStatistics.setWorkflowId(UInteger.valueOf(1))
-    workflowRuntimeStatistics.setExecutionId(UInteger.valueOf(1))
-    workflowRuntimeStatistics.setDataProcessingTime(ULong.valueOf(300))
-    workflowRuntimeStatistics.setControlProcessingTime(ULong.valueOf(300))
-    workflowRuntimeStatistics
+  private val keywordOperatorExecutionEntry: OperatorExecutions = {
+    val operatorExecution = new OperatorExecutions
+    operatorExecution.setWorkflowExecutionId(UInteger.valueOf(1))
+    operatorExecution.setOperatorId(keywordOpDesc.operatorIdentifier.id)
+    operatorExecution
   }
 
-  private val groupByOpDescStatisticsEntry: WorkflowRuntimeStatistics = {
-    val workflowRuntimeStatistics = new WorkflowRuntimeStatistics
-    workflowRuntimeStatistics.setOperatorId(groupByOpDesc.operatorIdentifier.id)
-    workflowRuntimeStatistics.setWorkflowId(UInteger.valueOf(1))
-    workflowRuntimeStatistics.setExecutionId(UInteger.valueOf(1))
-    workflowRuntimeStatistics.setDataProcessingTime(ULong.valueOf(1000))
-    workflowRuntimeStatistics.setControlProcessingTime(ULong.valueOf(1000))
-    workflowRuntimeStatistics
+  private val groupByOperatorExecutionEntry: OperatorExecutions = {
+    val operatorExecution = new OperatorExecutions
+    operatorExecution.setWorkflowExecutionId(UInteger.valueOf(1))
+    operatorExecution.setOperatorId(groupByOpDesc.operatorIdentifier.id)
+    operatorExecution
+  }
+
+  private def headerlessCsvOpRuntimeStatisticsEntry(
+      operatorExecutionId: ULong
+  ): OperatorRuntimeStatistics = {
+    val operatorRuntimeStatistics = new OperatorRuntimeStatistics
+    operatorRuntimeStatistics.setOperatorExecutionId(operatorExecutionId)
+    operatorRuntimeStatistics.setDataProcessingTime(ULong.valueOf(100))
+    operatorRuntimeStatistics.setControlProcessingTime(ULong.valueOf(100))
+    operatorRuntimeStatistics
+  }
+
+  private def keywordOpDescRuntimeStatisticsEntry(
+      operatorExecutionId: ULong
+  ): OperatorRuntimeStatistics = {
+    val operatorRuntimeStatistics = new OperatorRuntimeStatistics
+    operatorRuntimeStatistics.setOperatorExecutionId(operatorExecutionId)
+    operatorRuntimeStatistics.setDataProcessingTime(ULong.valueOf(300))
+    operatorRuntimeStatistics.setControlProcessingTime(ULong.valueOf(300))
+    operatorRuntimeStatistics
+  }
+
+  private def groupByOpDescRuntimeStatisticsEntry(
+      operatorExecutionId: ULong
+  ): OperatorRuntimeStatistics = {
+    val operatorRuntimeStatistics = new OperatorRuntimeStatistics
+    operatorRuntimeStatistics.setOperatorExecutionId(operatorExecutionId)
+    operatorRuntimeStatistics.setDataProcessingTime(ULong.valueOf(1000))
+    operatorRuntimeStatistics.setControlProcessingTime(ULong.valueOf(1000))
+    operatorRuntimeStatistics
+  }
+
+  private def insertOperatorExecutionAndGetId(
+      dslContext: DSLContext,
+      operatorExecution: OperatorExecutions
+  ): ULong = {
+    val record = dslContext
+      .insertInto(OPERATOR_EXECUTIONS)
+      .set(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID, operatorExecution.getWorkflowExecutionId)
+      .set(OPERATOR_EXECUTIONS.OPERATOR_ID, operatorExecution.getOperatorId)
+      .returning(OPERATOR_EXECUTIONS.OPERATOR_EXECUTION_ID)
+      .fetchOne()
+
+    record.getOperatorExecutionId
   }
 
   override protected def beforeEach(): Unit = {
@@ -150,15 +187,30 @@ class DefaultCostEstimatorSpec
     val workflowDao = new WorkflowDao(getDSLContext.configuration())
     val workflowExecutionsDao = new WorkflowExecutionsDao(getDSLContext.configuration())
     val workflowVersionDao = new WorkflowVersionDao(getDSLContext.configuration())
-    val workflowRuntimeStatisticsDao =
-      new WorkflowRuntimeStatisticsDao(getDSLContext.configuration())
+    val operatorRuntimeStatisticsDao =
+      new OperatorRuntimeStatisticsDao(getDSLContext.configuration())
 
     userDao.insert(testUser)
     workflowDao.insert(testWorkflowEntry)
     workflowVersionDao.insert(testWorkflowVersionEntry)
     workflowExecutionsDao.insert(testWorkflowExecutionEntry)
-    workflowRuntimeStatisticsDao.insert(headerlessCsvOpStatisticsEntry)
-    workflowRuntimeStatisticsDao.insert(keywordOpDescStatisticsEntry)
+
+    val headerlessCsvOperatorExecutionId = insertOperatorExecutionAndGetId(
+      getDSLContext,
+      headerlessCsvOperatorExecutionEntry
+    )
+    val keywordOperatorExecutionId = insertOperatorExecutionAndGetId(
+      getDSLContext,
+      keywordOperatorExecutionEntry
+    )
+
+    val headerlessCsvOpRuntimeStatistics =
+      headerlessCsvOpRuntimeStatisticsEntry(headerlessCsvOperatorExecutionId)
+    val keywordOpRuntimeStatistics =
+      keywordOpDescRuntimeStatisticsEntry(keywordOperatorExecutionId)
+
+    operatorRuntimeStatisticsDao.insert(headerlessCsvOpRuntimeStatistics)
+    operatorRuntimeStatisticsDao.insert(keywordOpRuntimeStatistics)
 
     val costEstimator = new DefaultCostEstimator(
       workflow.context,
@@ -200,16 +252,37 @@ class DefaultCostEstimatorSpec
     val workflowDao = new WorkflowDao(getDSLContext.configuration())
     val workflowExecutionsDao = new WorkflowExecutionsDao(getDSLContext.configuration())
     val workflowVersionDao = new WorkflowVersionDao(getDSLContext.configuration())
-    val workflowRuntimeStatisticsDao =
-      new WorkflowRuntimeStatisticsDao(getDSLContext.configuration())
+    val operatorRuntimeStatisticsDao =
+      new OperatorRuntimeStatisticsDao(getDSLContext.configuration())
 
     userDao.insert(testUser)
     workflowDao.insert(testWorkflowEntry)
     workflowVersionDao.insert(testWorkflowVersionEntry)
     workflowExecutionsDao.insert(testWorkflowExecutionEntry)
-    workflowRuntimeStatisticsDao.insert(headerlessCsvOpStatisticsEntry)
-    workflowRuntimeStatisticsDao.insert(groupByOpDescStatisticsEntry)
-    workflowRuntimeStatisticsDao.insert(keywordOpDescStatisticsEntry)
+
+    val headerlessCsvOperatorExecutionId = insertOperatorExecutionAndGetId(
+      getDSLContext,
+      headerlessCsvOperatorExecutionEntry
+    )
+    val groupByOperatorExecutionId = insertOperatorExecutionAndGetId(
+      getDSLContext,
+      groupByOperatorExecutionEntry
+    )
+    val keywordOperatorExecutionId = insertOperatorExecutionAndGetId(
+      getDSLContext,
+      keywordOperatorExecutionEntry
+    )
+
+    val headerlessCsvOpRuntimeStatistics =
+      headerlessCsvOpRuntimeStatisticsEntry(headerlessCsvOperatorExecutionId)
+    val groupByOpRuntimeStatistics =
+      groupByOpDescRuntimeStatisticsEntry(groupByOperatorExecutionId)
+    val keywordOpRuntimeStatistics =
+      keywordOpDescRuntimeStatisticsEntry(keywordOperatorExecutionId)
+
+    operatorRuntimeStatisticsDao.insert(headerlessCsvOpRuntimeStatistics)
+    operatorRuntimeStatisticsDao.insert(groupByOpRuntimeStatistics)
+    operatorRuntimeStatisticsDao.insert(keywordOpRuntimeStatistics)
 
     // Should contain two regions, one with CSV->localAgg->globalAgg, another with keyword->sink
     val searchResult = new CostBasedScheduleGenerator(
@@ -230,8 +303,9 @@ class DefaultCostEstimatorSpec
 
     val groupByRegionCost = costEstimator.estimate(groupByRegion, 1)
 
-    val groupByOperatorCost = (groupByOpDescStatisticsEntry.getControlProcessingTime
-      .doubleValue() + groupByOpDescStatisticsEntry.getControlProcessingTime.doubleValue()) / 1e9
+    val groupByOperatorCost = (groupByOpRuntimeStatistics.getControlProcessingTime
+      .doubleValue() + groupByOpRuntimeStatistics.getControlProcessingTime
+      .doubleValue()) / 1e9
 
     // The cost of the first region should be the cost of the GroupBy operator (note the two physical operators for
     // the GroupBy logical operator have the same cost because we use logical operator in the statistics.
@@ -240,8 +314,9 @@ class DefaultCostEstimatorSpec
 
     val keywordRegionCost = costEstimator.estimate(keywordRegion, 1)
 
-    val keywordOperatorCost = (keywordOpDescStatisticsEntry.getControlProcessingTime
-      .doubleValue() + keywordOpDescStatisticsEntry.getControlProcessingTime.doubleValue()) / 1e9
+    val keywordOperatorCost = (keywordOpRuntimeStatistics.getControlProcessingTime
+      .doubleValue() + keywordOpRuntimeStatistics.getControlProcessingTime
+      .doubleValue()) / 1e9
 
     // The cost of the second region should be the cost of the keyword operator, since the sink operator has the same
     // logical operator as the keyword operator.

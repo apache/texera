@@ -9,16 +9,19 @@ import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.dao.jooq.generated.Tables.{
   USER,
   WORKFLOW_EXECUTIONS,
-  WORKFLOW_RUNTIME_STATISTICS,
+  OPERATOR_EXECUTIONS,
+  OPERATOR_RUNTIME_STATISTICS,
   WORKFLOW_VERSION
 }
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
-  WorkflowExecutionsDao,
-  WorkflowRuntimeStatisticsDao
+  OperatorExecutionsDao,
+  OperatorRuntimeStatisticsDao,
+  WorkflowExecutionsDao
 }
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
   WorkflowExecutions,
-  WorkflowRuntimeStatistics
+  OperatorExecutions,
+  OperatorRuntimeStatistics
 }
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource._
 import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
@@ -40,7 +43,10 @@ object WorkflowExecutionsResource {
     .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
     .createDSLContext()
   final private lazy val executionsDao = new WorkflowExecutionsDao(context.configuration)
-  final private lazy val workflowRuntimeStatisticsDao = new WorkflowRuntimeStatisticsDao(
+  final private lazy val operatorExecutionsDao = new OperatorExecutionsDao(
+    context.configuration
+  )
+  final private lazy val operatorRuntimeStatisticsDao = new OperatorRuntimeStatisticsDao(
     context.configuration
   )
 
@@ -87,8 +93,19 @@ object WorkflowExecutionsResource {
     }
   }
 
-  def insertWorkflowRuntimeStatistics(list: util.ArrayList[WorkflowRuntimeStatistics]): Unit = {
-    workflowRuntimeStatisticsDao.insert(list);
+  def insertOperatorExecutions(
+      list: util.ArrayList[OperatorExecutions]
+  ): util.HashMap[String, ULong] = {
+    operatorExecutionsDao.insert(list);
+    val result = new util.HashMap[String, ULong]()
+    list.forEach(execution => {
+      result.put(execution.getOperatorId, execution.getOperatorExecutionId)
+    })
+    result
+  }
+
+  def insertOperatorRuntimeStatistics(list: util.ArrayList[OperatorRuntimeStatistics]): Unit = {
+    operatorRuntimeStatisticsDao.insert(list);
   }
 
   case class WorkflowExecutionEntry(
@@ -105,15 +122,10 @@ object WorkflowExecutionsResource {
       logLocation: String
   )
 
-  case class ExecutionResultEntry(
-      eId: UInteger,
-      result: String
-  )
-
-  case class OperatorRuntimeStatistics(
+  case class WorkflowRuntimeStatistics(
       operatorId: String,
-      inputTupleCount: UInteger,
-      outputTupleCount: UInteger,
+      inputTupleCount: ULong,
+      outputTupleCount: ULong,
       timestamp: Timestamp,
       dataProcessingTime: ULong,
       controlProcessingTime: ULong,
@@ -222,26 +234,36 @@ class WorkflowExecutionsResource {
   def retrieveWorkflowRuntimeStatistics(
       @PathParam("wid") wid: UInteger,
       @PathParam("eid") eid: UInteger
-  ): List[OperatorRuntimeStatistics] = {
+  ): List[WorkflowRuntimeStatistics] = {
     context
       .select(
-        WORKFLOW_RUNTIME_STATISTICS.OPERATOR_ID,
-        WORKFLOW_RUNTIME_STATISTICS.INPUT_TUPLE_CNT,
-        WORKFLOW_RUNTIME_STATISTICS.OUTPUT_TUPLE_CNT,
-        WORKFLOW_RUNTIME_STATISTICS.TIME,
-        WORKFLOW_RUNTIME_STATISTICS.DATA_PROCESSING_TIME,
-        WORKFLOW_RUNTIME_STATISTICS.CONTROL_PROCESSING_TIME,
-        WORKFLOW_RUNTIME_STATISTICS.IDLE_TIME,
-        WORKFLOW_RUNTIME_STATISTICS.NUM_WORKERS
+        OPERATOR_EXECUTIONS.OPERATOR_ID,
+        OPERATOR_RUNTIME_STATISTICS.INPUT_TUPLE_CNT,
+        OPERATOR_RUNTIME_STATISTICS.OUTPUT_TUPLE_CNT,
+        OPERATOR_RUNTIME_STATISTICS.TIME,
+        OPERATOR_RUNTIME_STATISTICS.DATA_PROCESSING_TIME,
+        OPERATOR_RUNTIME_STATISTICS.CONTROL_PROCESSING_TIME,
+        OPERATOR_RUNTIME_STATISTICS.IDLE_TIME,
+        OPERATOR_RUNTIME_STATISTICS.NUM_WORKERS
       )
-      .from(WORKFLOW_RUNTIME_STATISTICS)
+      .from(OPERATOR_RUNTIME_STATISTICS)
+      .join(OPERATOR_EXECUTIONS)
+      .on(
+        OPERATOR_RUNTIME_STATISTICS.OPERATOR_EXECUTION_ID.eq(
+          OPERATOR_EXECUTIONS.OPERATOR_EXECUTION_ID
+        )
+      )
+      .join(WORKFLOW_EXECUTIONS)
+      .on(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(WORKFLOW_EXECUTIONS.EID))
+      .join(WORKFLOW_VERSION)
+      .on(WORKFLOW_EXECUTIONS.VID.eq(WORKFLOW_VERSION.VID))
       .where(
-        WORKFLOW_RUNTIME_STATISTICS.WORKFLOW_ID
+        WORKFLOW_VERSION.WID
           .eq(wid)
-          .and(WORKFLOW_RUNTIME_STATISTICS.EXECUTION_ID.eq(eid))
+          .and(WORKFLOW_EXECUTIONS.EID.eq(eid))
       )
-      .orderBy(WORKFLOW_RUNTIME_STATISTICS.TIME, WORKFLOW_RUNTIME_STATISTICS.OPERATOR_ID)
-      .fetchInto(classOf[OperatorRuntimeStatistics])
+      .orderBy(OPERATOR_RUNTIME_STATISTICS.TIME, OPERATOR_EXECUTIONS.OPERATOR_ID)
+      .fetchInto(classOf[WorkflowRuntimeStatistics])
       .asScala
       .toList
   }
