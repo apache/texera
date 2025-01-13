@@ -40,7 +40,6 @@ import java.io.{IOException, InputStream, OutputStream}
 import java.net.{URI, URLDecoder}
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
-import java.util
 import java.util.Optional
 import java.util.concurrent.locks.ReentrantLock
 import java.util.zip.{ZipEntry, ZipOutputStream}
@@ -55,25 +54,17 @@ import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try, Using}
 
 object DatasetResource {
-  val DATASET_IS_PUBLIC: Byte = 1;
-  val DATASET_IS_PRIVATE: Byte = 0;
-  val FILE_OPERATION_UPLOAD_PREFIX = "file:upload:"
-  val FILE_OPERATION_REMOVE_PREFIX = "file:remove"
+  private val DATASET_IS_PUBLIC: Byte = 1
+  private val DATASET_IS_PRIVATE: Byte = 0
+  private val FILE_OPERATION_UPLOAD_PREFIX = "file:upload:"
+  private val FILE_OPERATION_REMOVE_PREFIX = "file:remove"
 
-  val datasetLocks: scala.collection.concurrent.Map[UInteger, ReentrantLock] =
+  private val datasetLocks: scala.collection.concurrent.Map[UInteger, ReentrantLock] =
     new scala.collection.concurrent.TrieMap[UInteger, ReentrantLock]()
 
   private val context = SqlServer
     .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
     .createDSLContext()
-
-  // error messages
-  val ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE = "User has no read access to this dataset"
-  val ERR_DATASET_NOT_FOUND_MESSAGE = "Dataset not found"
-  val ERR_DATASET_VERSION_NOT_FOUND_MESSAGE = "The version of the dataset not found"
-  val ERR_DATASET_CREATION_FAILED_MESSAGE =
-    "Dataset creation is failed. Please make sure to upload files in order to create the initial version of dataset"
-  val ERR_DATASET_NAME_ALREADY_EXISTS = "A dataset with the same name already exists."
 
   def sanitizePath(input: String): String = {
     // Define the characters you want to remove
@@ -81,19 +72,21 @@ object DatasetResource {
     sanitized
   }
 
-  // this function get the dataset from DB identified by did,
-  // read access will be checked
+  /**
+    * Helper function to get the dataset from DB using did
+    */
   private def getDatasetByID(ctx: DSLContext, did: UInteger): Dataset = {
     val datasetDao = new DatasetDao(ctx.configuration())
     val dataset = datasetDao.fetchOneByDid(did)
     if (dataset == null) {
-      throw new NotFoundException(ERR_DATASET_NOT_FOUND_MESSAGE)
+      throw new NotFoundException(f"Dataset $did not found")
     }
     dataset
   }
 
-  // this function retrieve the version hash identified by dvid and did
-  // read access will be checked
+  /**
+    * Helper function to get the dataset version from DB using dvid
+    */
   private def getDatasetVersionByID(
       ctx: DSLContext,
       dvid: UInteger
@@ -104,26 +97,6 @@ object DatasetResource {
       throw new NotFoundException("Dataset Version not found")
     }
     version
-  }
-
-  // this function retrieve the DashboardDataset(Dataset from DB+more information) identified by did
-  // read access will be checked
-  def getDashboardDataset(ctx: DSLContext, did: UInteger, uid: UInteger): DashboardDataset = {
-    if (!userHasReadAccess(ctx, did, uid)) {
-      throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-    }
-
-    val targetDataset = getDatasetByID(ctx, did)
-    val userAccessPrivilege = getDatasetUserAccessPrivilege(ctx, did, uid)
-
-    DashboardDataset(
-      targetDataset,
-      getOwner(ctx, did).getEmail,
-      userAccessPrivilege,
-      targetDataset.getOwnerUid == uid,
-      List(),
-      calculateLatestDatasetVersionSize(did)
-    )
   }
 
   // the format of dataset version name is: v{#n} - {user provided dataset version name}. e.g. v10 - new version
@@ -146,53 +119,6 @@ object DatasetResource {
     }
 
     res
-  }
-
-  // this function retrieve the latest DatasetVersion from DB
-  // the latest here means the one with latest creation time
-  // read access will be checked
-  private def fetchLatestDatasetVersionInternal(
-      ctx: DSLContext,
-      did: UInteger
-  ): Option[DatasetVersion] = {
-    ctx
-      .selectFrom(DATASET_VERSION)
-      .where(DATASET_VERSION.DID.eq(did))
-      .orderBy(DATASET_VERSION.CREATION_TIME.desc())
-      .limit(1)
-      .fetchOptionalInto(classOf[DatasetVersion])
-      .toScala
-  }
-
-  def getLatestDatasetVersionWithAccessCheck(
-      ctx: DSLContext,
-      did: UInteger,
-      uid: UInteger
-  ): DatasetVersion = {
-    if (!userHasReadAccess(ctx, did, uid)) {
-      throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-    }
-
-    fetchLatestDatasetVersionInternal(ctx, did) match {
-      case Some(latestVersion) => latestVersion
-      case None                => throw new NotFoundException(ERR_DATASET_VERSION_NOT_FOUND_MESSAGE)
-    }
-  }
-
-  private def getFileNodesOfCertainVersion(
-      ownerNode: DatasetFileNode,
-      datasetName: String,
-      ownerName: String
-  ): List[DatasetFileNode] = {
-    ownerNode.children.get
-      .find(_.getName == datasetName)
-      .head
-      .children
-      .get
-      .find(_.getName == ownerName)
-      .head
-      .children
-      .get
   }
 
   // DatasetOperation defines the operations that will be applied when creating a new dataset version
@@ -260,7 +186,7 @@ object DatasetResource {
   }
 
   // create a new dataset version using the form data from frontend
-  def createNewDatasetVersionFromFormData(
+  private def createNewDatasetVersionFromFormData(
       ctx: DSLContext,
       did: UInteger,
       uid: UInteger,
@@ -277,30 +203,6 @@ object DatasetResource {
       userProvidedVersionName,
       datasetOperation
     )
-  }
-
-  // Private method to get user datasets
-  private def getUserDatasets(ctx: DSLContext, uid: UInteger): List[Dataset] = {
-    ctx
-      .selectFrom(DATASET)
-      .where(DATASET.OWNER_UID.eq(uid))
-      .fetchInto(classOf[Dataset])
-      .asScala
-      .toList
-  }
-
-  private def getDatasetVersions(
-      ctx: DSLContext,
-      did: UInteger,
-      uid: UInteger
-  ): List[DatasetVersion] = {
-    val result: java.util.List[DatasetVersion] = ctx
-      .selectFrom(DATASET_VERSION)
-      .where(DATASET_VERSION.DID.eq(did))
-      .orderBy(DATASET_VERSION.CREATION_TIME.desc()) // or .asc() for ascending
-      .fetchInto(classOf[DatasetVersion])
-
-    result.asScala.toList
   }
 
   // apply the dataset operation to create a new dataset version
@@ -376,30 +278,6 @@ object DatasetResource {
     }
   }
 
-  private def retrievePublicDatasets(ctx: DSLContext): util.List[DashboardDataset] = {
-    ctx
-      .select()
-      .from(
-        DATASET
-          .leftJoin(USER)
-          .on(USER.UID.eq(DATASET.OWNER_UID))
-      )
-      .where(DATASET.IS_PUBLIC.eq(DATASET_IS_PUBLIC))
-      .fetch()
-      .map(record => {
-        val dataset = record.into(DATASET).into(classOf[Dataset])
-        val ownerEmail = record.into(USER).getEmail
-        DashboardDataset(
-          isOwner = false,
-          dataset = dataset,
-          accessPrivilege = DatasetUserAccessPrivilege.READ,
-          versions = List(),
-          ownerEmail = ownerEmail,
-          size = calculateLatestDatasetVersionSize(dataset.getDid)
-        )
-      })
-  }
-
   case class DashboardDataset(
       dataset: Dataset,
       ownerEmail: String,
@@ -427,6 +305,62 @@ object DatasetResource {
   case class DatasetNameModification(did: UInteger, name: String)
 
   case class DatasetDescriptionModification(did: UInteger, description: String)
+
+  case class DatasetVersionRootFileNodesResponse(
+      rootFileNodes: DatasetVersionRootFileNodes,
+      size: Long
+  )
+}
+
+@Produces(Array(MediaType.APPLICATION_JSON, "image/jpeg", "application/pdf"))
+@RolesAllowed(Array("REGULAR", "ADMIN"))
+@Path("/dataset")
+class DatasetResource {
+  private val ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE = "User has no read access to this dataset"
+  private val ERR_DATASET_VERSION_NOT_FOUND_MESSAGE = "The version of the dataset not found"
+  private val ERR_DATASET_CREATION_FAILED_MESSAGE =
+    "Dataset creation is failed. Please make sure to upload files in order to create the initial version of dataset"
+
+  /**
+    * Helper function to get the dataset from DB with additional information including user access privilege and owner email
+    */
+  private def getDashboardDataset(
+      ctx: DSLContext,
+      did: UInteger,
+      uid: UInteger
+  ): DashboardDataset = {
+    if (!userHasReadAccess(ctx, did, uid)) {
+      throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+    }
+
+    val targetDataset = getDatasetByID(ctx, did)
+    val userAccessPrivilege = getDatasetUserAccessPrivilege(ctx, did, uid)
+
+    DashboardDataset(
+      targetDataset,
+      getOwner(ctx, did).getEmail,
+      userAccessPrivilege,
+      targetDataset.getOwnerUid == uid,
+      List(),
+      calculateSize(did)
+    )
+  }
+
+  // this function retrieve the latest DatasetVersion from DB
+  // the latest here means the one with latest creation time
+  // read access will be checked
+  private def fetchLatestDatasetVersionInternal(
+      ctx: DSLContext,
+      did: UInteger
+  ): Option[DatasetVersion] = {
+    ctx
+      .selectFrom(DATASET_VERSION)
+      .where(DATASET_VERSION.DID.eq(did))
+      .orderBy(DATASET_VERSION.CREATION_TIME.desc())
+      .limit(1)
+      .fetchOptionalInto(classOf[DatasetVersion])
+      .toScala
+  }
 
   /*
    If versionHash is provided, calculate the size of the specific version of the dataset.
@@ -456,13 +390,9 @@ object DatasetResource {
     }
   }
 
-  def calculateDatasetVersionSize(did: UInteger, dvid: UInteger): Long = {
+  private def calculateDatasetVersionSize(did: UInteger, dvid: UInteger): Long = {
     val versionHash = getDatasetVersionByID(context, dvid).getVersionHash
     calculateSize(did, Some(versionHash))
-  }
-
-  def calculateLatestDatasetVersionSize(did: UInteger): Long = {
-    calculateSize(did)
   }
 
   private def calculateSizeFromPhysicalNodes(nodes: java.util.Set[PhysicalFileNode]): Long = {
@@ -474,17 +404,6 @@ object DatasetResource {
                    })
     }
   }
-
-  case class DatasetVersionRootFileNodesResponse(
-      rootFileNodes: DatasetVersionRootFileNodes,
-      size: Long
-  )
-}
-
-@Produces(Array(MediaType.APPLICATION_JSON, "image/jpeg", "application/pdf"))
-@RolesAllowed(Array("REGULAR", "ADMIN"))
-@Path("/dataset")
-class DatasetResource {
 
   @POST
   @Path("/create")
@@ -500,12 +419,13 @@ class DatasetResource {
 
     withTransaction(context) { ctx =>
       val uid = user.getUid
+      val datasetDao: DatasetDao = new DatasetDao(ctx.configuration())
       val datasetOfUserDao: DatasetUserAccessDao = new DatasetUserAccessDao(ctx.configuration())
 
       // do the name duplication check
-      val existingDatasets = getUserDatasets(ctx, uid)
-      if (existingDatasets.exists(_.getName == datasetName)) {
-        throw new BadRequestException(ERR_DATASET_NAME_ALREADY_EXISTS)
+      val userExistingDatasetNames = datasetDao.fetchByOwnerUid(uid).asScala.map(_.getName)
+      if (userExistingDatasetNames.contains(datasetName)) {
+        throw new BadRequestException("Dataset with the same name already exists")
       }
 
       val dataset: Dataset = new Dataset()
@@ -556,7 +476,7 @@ class DatasetResource {
         DatasetUserAccessPrivilege.WRITE,
         isOwner = true,
         versions = List(),
-        size = calculateLatestDatasetVersionSize(did)
+        size = calculateSize(did)
       )
     }
   }
@@ -722,14 +642,34 @@ class DatasetResource {
               accessPrivilege = datasetAccess.getPrivilege,
               versions = List(),
               ownerEmail = ownerEmail,
-              size = calculateLatestDatasetVersionSize(dataset.getDid)
+              size = calculateSize(dataset.getDid)
             )
           })
           .asScala
       )
 
       // then we fetch the public datasets and merge it as a part of the result if not exist
-      val publicDatasets = retrievePublicDatasets(context)
+      val publicDatasets = ctx
+        .select()
+        .from(
+          DATASET
+            .leftJoin(USER)
+            .on(USER.UID.eq(DATASET.OWNER_UID))
+        )
+        .where(DATASET.IS_PUBLIC.eq(DATASET_IS_PUBLIC))
+        .fetch()
+        .map(record => {
+          val dataset = record.into(DATASET).into(classOf[Dataset])
+          val ownerEmail = record.into(USER).getEmail
+          DashboardDataset(
+            isOwner = false,
+            dataset = dataset,
+            accessPrivilege = DatasetUserAccessPrivilege.READ,
+            versions = List(),
+            ownerEmail = ownerEmail,
+            size = calculateSize(dataset.getDid)
+          )
+        })
       publicDatasets.forEach { publicDataset =>
         if (!accessibleDatasets.exists(_.dataset.getDid == publicDataset.dataset.getDid)) {
           val dashboardDataset = DashboardDataset(
@@ -738,7 +678,7 @@ class DatasetResource {
             ownerEmail = publicDataset.ownerEmail,
             accessPrivilege = DatasetUserAccessPrivilege.READ,
             versions = List(),
-            size = calculateLatestDatasetVersionSize(publicDataset.dataset.getDid)
+            size = calculateSize(publicDataset.dataset.getDid)
           )
           accessibleDatasets = accessibleDatasets :+ dashboardDataset
         }
@@ -784,7 +724,9 @@ class DatasetResource {
         throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
       }
       val dataset = getDatasetByID(ctx, did)
-      val latestVersion = getLatestDatasetVersionWithAccessCheck(ctx, did, uid)
+      val latestVersion = fetchLatestDatasetVersionInternal(ctx, did).getOrElse(
+        throw new NotFoundException(ERR_DATASET_VERSION_NOT_FOUND_MESSAGE)
+      )
       val datasetPath = PathUtils.getDatasetPath(did)
 
       val ownerNode = DatasetFileNode
@@ -804,7 +746,15 @@ class DatasetResource {
 
       DashboardDatasetVersion(
         latestVersion,
-        getFileNodesOfCertainVersion(ownerNode, dataset.getName, latestVersion.getName)
+        ownerNode.children.get
+          .find(_.getName == dataset.getName)
+          .head
+          .children
+          .get
+          .find(_.getName == latestVersion.getName)
+          .head
+          .children
+          .get
       )
     })
   }
@@ -836,7 +786,15 @@ class DatasetResource {
 
       DatasetVersionRootFileNodesResponse(
         DatasetVersionRootFileNodes(
-          getFileNodesOfCertainVersion(ownerFileNode, datasetName, datasetVersion.getName)
+          ownerFileNode.children.get
+            .find(_.getName == datasetName)
+            .head
+            .children
+            .get
+            .find(_.getName == datasetVersion.getName)
+            .head
+            .children
+            .get
         ),
         size
       )
@@ -852,7 +810,7 @@ class DatasetResource {
     val uid = user.getUid
     withTransaction(context)(ctx => {
       val dashboardDataset = getDashboardDataset(ctx, did, uid)
-      val size = DatasetResource.calculateLatestDatasetVersionSize(did)
+      val size = calculateSize(did)
       dashboardDataset.copy(size = size)
     })
   }
@@ -863,7 +821,6 @@ class DatasetResource {
       @QueryParam("path") pathStr: String,
       @Auth user: SessionUser
   ): Response = {
-    val uid = user.getUid
     val decodedPathStr = URLDecoder.decode(pathStr, StandardCharsets.UTF_8.name())
 
     withTransaction(context)(ctx => {
@@ -923,14 +880,13 @@ class DatasetResource {
     if (!userHasReadAccess(context, did, user.getUid)) {
       throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
     }
-    val (dataset, version) = if (dvid.isEmpty) {
-      // dvid is not given, retrieve latest
-      getLatestVersionInfo(did, user)
-    } else {
-      // dvid is given, retrieve certain version
-      withTransaction(context)(ctx =>
-        (getDatasetByID(ctx, did), getDatasetVersionByID(ctx, UInteger.valueOf(dvid.get)))
+    val dataset = getDatasetByID(context, did)
+    val version = if (dvid.isEmpty) {
+      fetchLatestDatasetVersionInternal(context, did).getOrElse(
+        throw new NotFoundException(ERR_DATASET_VERSION_NOT_FOUND_MESSAGE)
       )
+    } else {
+      getDatasetVersionByID(context, UInteger.valueOf(dvid.get))
     }
     val targetDatasetPath = PathUtils.getDatasetPath(dataset.getDid)
     val fileNodes = GitVersionControlLocalFileStorage.retrieveRootFileNodesOfVersion(
@@ -986,18 +942,5 @@ class DatasetResource {
       )
       .`type`("application/zip")
       .build()
-  }
-
-  private def getLatestVersionInfo(did: UInteger, user: SessionUser): (Dataset, DatasetVersion) = {
-    validateUserAccess(did, user.getUid)
-    val dataset = getDatasetByID(context, did)
-    val latestVersion = getLatestDatasetVersionWithAccessCheck(context, did, user.getUid)
-    (dataset, latestVersion)
-  }
-
-  private def validateUserAccess(did: UInteger, uid: UInteger): Unit = {
-    if (!userHasReadAccess(context, did, uid)) {
-      throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-    }
   }
 }
