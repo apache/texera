@@ -5,7 +5,7 @@ import edu.uci.ics.amber.core.workflow.WorkflowContext
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState._
-import edu.uci.ics.amber.engine.common.Utils
+import edu.uci.ics.amber.engine.common.{AmberConfig, Utils}
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.executionruntimestate.ExecutionMetadataStore
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.OperatorExecutions
@@ -108,7 +108,11 @@ class WorkflowExecutionService(
     executionReconfigurationService =
       new ExecutionReconfigurationService(client, executionStateStore, workflow)
     // Create the operatorId to executionId map
-    val operatorIdToExecutionId = createOperatorIdToExecutionIdMap(workflow)
+    val operatorIdToExecutionId: Map[String, ULong] =
+      if (AmberConfig.isUserSystemEnabled)
+        createOperatorIdToExecutionIdMap(workflow)
+      else
+        Map.empty
     executionStatsService =
       new ExecutionStatsService(client, executionStateStore, operatorIdToExecutionId)
     executionRuntimeService = new ExecutionRuntimeService(
