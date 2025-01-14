@@ -88,8 +88,14 @@ class WorkflowService(
     s"workflowId=$workflowId",
     cleanUpTimeout,
     () => {
-      // TODO: ask Shengquan, what level is this doing
-//      ExecutionResourcesMapping.getResourceURIs(workflowId).clear()
+      // clear the storage resources associated with the latest execution
+      WorkflowExecutionService
+        .getLatestExecutionId(workflowId)
+        .foreach(eid => {
+          ExecutionResourcesMapping
+            .getResourceURIs(eid)
+            .foreach(uri => DocumentFactory.openDocument(uri)._1.clear())
+        })
       WorkflowService.workflowServiceMapping.remove(mkWorkflowStateId(workflowId))
       if (executionService.getValue != null) {
         // shutdown client
@@ -237,7 +243,13 @@ class WorkflowService(
     previousExecutionId.foreach(eid => {
       ExecutionResourcesMapping
         .getResourceURIs(eid)
-        .foreach(uri => DocumentFactory.openDocument(uri)._1.clear())
+        .foreach(uri =>
+          try {
+            DocumentFactory.openDocument(uri)._1.clear()
+          } catch { // exception can happen if the resource is already cleared
+            case _: Throwable =>
+          }
+        )
     }) // TODO: change this behavior after enabling cache.
     try {
       val execution = new WorkflowExecutionService(
