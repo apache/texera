@@ -66,12 +66,6 @@ object DatasetResource {
     .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
     .createDSLContext()
 
-  def sanitizePath(input: String): String = {
-    // Define the characters you want to remove
-    val sanitized = StringUtils.replaceEach(input, Array("/", "\\"), Array("", ""))
-    sanitized
-  }
-
   /**
     * fetch the size of a certain dataset version.
     * @param did the target dataset id
@@ -143,9 +137,9 @@ object DatasetResource {
     version
   }
 
-  // this function retrieve the latest DatasetVersion from DB
-  // the latest here means the one with latest creation time
-  // read access will be checked
+  /**
+   * Helper function to get the latest dataset version from the DB
+   */
   private def getLatestDatasetVersion(
       ctx: DSLContext,
       did: UInteger
@@ -157,28 +151,6 @@ object DatasetResource {
       .limit(1)
       .fetchOptionalInto(classOf[DatasetVersion])
       .toScala
-  }
-
-  // the format of dataset version name is: v{#n} - {user provided dataset version name}. e.g. v10 - new version
-  private def generateDatasetVersionName(
-      ctx: DSLContext,
-      did: UInteger,
-      userProvidedVersionName: String
-  ): String = {
-    val numberOfExistingVersions = ctx
-      .selectFrom(DATASET_VERSION)
-      .where(DATASET_VERSION.DID.eq(did))
-      .fetch()
-      .size()
-
-    val sanitizedUserProvidedVersionName = sanitizePath(userProvidedVersionName)
-    val res = if (sanitizedUserProvidedVersionName == "") {
-      "v" + (numberOfExistingVersions + 1).toString
-    } else {
-      "v" + (numberOfExistingVersions + 1).toString + " - " + sanitizedUserProvidedVersionName
-    }
-
-    res
   }
 
   // DatasetOperation defines the operations that will be applied when creating a new dataset version
@@ -229,7 +201,13 @@ object DatasetResource {
     DatasetOperation(filesToAdd.toMap, filesToRemove.toList)
   }
 
-  // add file(s) to a dataset, a new version will be created
+  /**
+   * Create a new dataset version by adding new files
+   * @param did the target dataset id
+   * @param user the user submitting the request
+   * @param filesToAdd the map containing the files to add
+   * @return the created dataset version
+   */
   def createNewDatasetVersionByAddingFiles(
       did: UInteger,
       user: User,
@@ -245,26 +223,6 @@ object DatasetResource {
     )
   }
 
-  // create a new dataset version using the form data from frontend
-  private def createNewDatasetVersionFromFormData(
-      ctx: DSLContext,
-      did: UInteger,
-      uid: UInteger,
-      ownerEmail: String,
-      userProvidedVersionName: String,
-      multiPart: FormDataMultiPart
-  ): Option[DashboardDatasetVersion] = {
-    val datasetOperation = parseUserUploadedFormToDatasetOperations(did, multiPart)
-    applyDatasetOperationToCreateNewVersion(
-      ctx,
-      did,
-      uid,
-      ownerEmail,
-      userProvidedVersionName,
-      datasetOperation
-    )
-  }
-
   // apply the dataset operation to create a new dataset version
   // it returns the created dataset version if creation succeed, else return None
   // concurrency control is performed here: the thread has to have the lock in order to create the new version
@@ -276,6 +234,29 @@ object DatasetResource {
       userProvidedVersionName: String,
       datasetOperation: DatasetOperation
   ): Option[DashboardDatasetVersion] = {
+    // Helper function to generate the dataset version name
+    // the format of dataset version name is: v{#n} - {user provided dataset version name}. e.g. v10 - new version
+    def generateDatasetVersionName(
+                                            ctx: DSLContext,
+                                            did: UInteger,
+                                            userProvidedVersionName: String
+                                          ): String = {
+      val numberOfExistingVersions = ctx
+        .selectFrom(DATASET_VERSION)
+        .where(DATASET_VERSION.DID.eq(did))
+        .fetch()
+        .size()
+
+      val sanitizedUserProvidedVersionName = StringUtils.replaceEach(userProvidedVersionName, Array("/", "\\"), Array("", ""))
+      val res = if (sanitizedUserProvidedVersionName == "") {
+        "v" + (numberOfExistingVersions + 1).toString
+      } else {
+        "v" + (numberOfExistingVersions + 1).toString + " - " + sanitizedUserProvidedVersionName
+      }
+
+      res
+    }
+
     // Acquire or Create the lock for dataset of {did}
     val lock = DatasetResource.datasetLocks.getOrElseUpdate(did, new ReentrantLock())
 
@@ -403,6 +384,28 @@ class DatasetResource {
       targetDataset.getOwnerUid == uid,
       List(),
       calculateDatasetVersionSize(did)
+    )
+  }
+
+  /**
+   * Helper function to create a new dataset version using the given multi-part form.
+   */
+  private def createNewDatasetVersionFromFormData(
+                                                   ctx: DSLContext,
+                                                   did: UInteger,
+                                                   uid: UInteger,
+                                                   ownerEmail: String,
+                                                   userProvidedVersionName: String,
+                                                   multiPart: FormDataMultiPart
+                                                 ): Option[DashboardDatasetVersion] = {
+    val datasetOperation = parseUserUploadedFormToDatasetOperations(did, multiPart)
+    applyDatasetOperationToCreateNewVersion(
+      ctx,
+      did,
+      uid,
+      ownerEmail,
+      userProvidedVersionName,
+      datasetOperation
     )
   }
 
