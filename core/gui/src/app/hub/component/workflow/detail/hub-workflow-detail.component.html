@@ -52,7 +52,7 @@
           nzType="primary"
           class="clone-button"
           title="Copy"
-          [disabled]="!isLogin || !isHub"
+          [disabled]="!isLogin || !isHub || !isActivatedUser"
           (click)="cloneWorkflow()">
           <i
             nz-icon

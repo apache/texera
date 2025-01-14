@@ -7,7 +7,7 @@ import { throttleTime } from "rxjs/operators";
 import { Workflow } from "../../../../common/type/workflow";
 import { isDefined } from "../../../../common/util/predicate";
 import { HubWorkflowService } from "../../../service/workflow/hub-workflow.service";
-import { User } from "src/app/common/type/user";
+import { Role, User } from "src/app/common/type/user";
 import { Location } from "@angular/common";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
@@ -28,6 +28,7 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
   ownerName: string = "";
   workflowDescription: string = "";
   isLogin = this.userService.isLogin();
+  isActivatedUser: boolean = false;
   isLiked: boolean = false;
   likeCount: number = 0;
   cloneCount: number = 0;
@@ -54,6 +55,9 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
       this.isHub = true;
     }
     this.currentUser = this.userService.getCurrentUser();
+    if (this.currentUser?.role === Role.ADMIN || this.currentUser?.role === Role.REGULAR) {
+      this.isActivatedUser = true;
+    }
     this.workflowActionService.disableWorkflowModification();
   }
 
