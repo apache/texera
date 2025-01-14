@@ -26,7 +26,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
   DatasetVersion,
   User
 }
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetAccessResource._
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetAccessResource.{context, _}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{context, _}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.DatasetFileNode
 import io.dropwizard.auth.Auth
@@ -73,6 +73,50 @@ object DatasetResource {
   }
 
   /**
+    * fetch the size of a certain dataset version.
+    * @param did the target dataset id
+    * @param versionHash the hash of the version. If None, fetch the latest version
+    * @return
+    */
+  def calculateDatasetVersionSize(did: UInteger, versionHash: Option[String] = None): Long = {
+
+    /**
+      * Internal util to calculate the size from the physical nodes
+      */
+    def calculateSizeFromPhysicalNodes(nodes: java.util.Set[PhysicalFileNode]): Long = {
+      nodes.asScala.foldLeft(0L) { (totalSize, node) =>
+        totalSize + (if (node.isDirectory) {
+                       calculateSizeFromPhysicalNodes(node.getChildren)
+                     } else {
+                       node.getSize
+                     })
+      }
+    }
+
+    Try {
+      val datasetPath = PathUtils.getDatasetPath(did)
+      val hash = versionHash.getOrElse {
+        getLatestDatasetVersion(context, did)
+          .map(_.getVersionHash)
+          .getOrElse(throw new NoSuchElementException("No versions found for this dataset"))
+      }
+
+      val fileNodes = GitVersionControlLocalFileStorage.retrieveRootFileNodesOfVersion(
+        datasetPath,
+        hash
+      )
+
+      calculateSizeFromPhysicalNodes(fileNodes)
+    } match {
+      case Success(size) => size
+      case Failure(exception) =>
+        val errorMessage = versionHash.map(_ => "dataset version").getOrElse("dataset")
+        println(s"Error calculating $errorMessage size: ${exception.getMessage}")
+        0L
+    }
+  }
+
+  /**
     * Helper function to get the dataset from DB using did
     */
   private def getDatasetByID(ctx: DSLContext, did: UInteger): Dataset = {
@@ -97,6 +141,22 @@ object DatasetResource {
       throw new NotFoundException("Dataset Version not found")
     }
     version
+  }
+
+  // this function retrieve the latest DatasetVersion from DB
+  // the latest here means the one with latest creation time
+  // read access will be checked
+  private def getLatestDatasetVersion(
+      ctx: DSLContext,
+      did: UInteger
+  ): Option[DatasetVersion] = {
+    ctx
+      .selectFrom(DATASET_VERSION)
+      .where(DATASET_VERSION.DID.eq(did))
+      .orderBy(DATASET_VERSION.CREATION_TIME.desc())
+      .limit(1)
+      .fetchOptionalInto(classOf[DatasetVersion])
+      .toScala
   }
 
   // the format of dataset version name is: v{#n} - {user provided dataset version name}. e.g. v10 - new version
@@ -342,67 +402,8 @@ class DatasetResource {
       userAccessPrivilege,
       targetDataset.getOwnerUid == uid,
       List(),
-      calculateSize(did)
+      calculateDatasetVersionSize(did)
     )
-  }
-
-  // this function retrieve the latest DatasetVersion from DB
-  // the latest here means the one with latest creation time
-  // read access will be checked
-  private def fetchLatestDatasetVersionInternal(
-      ctx: DSLContext,
-      did: UInteger
-  ): Option[DatasetVersion] = {
-    ctx
-      .selectFrom(DATASET_VERSION)
-      .where(DATASET_VERSION.DID.eq(did))
-      .orderBy(DATASET_VERSION.CREATION_TIME.desc())
-      .limit(1)
-      .fetchOptionalInto(classOf[DatasetVersion])
-      .toScala
-  }
-
-  /*
-   If versionHash is provided, calculate the size of the specific version of the dataset.
-   Otherwise, calculate the size of the latest version of the dataset.
-   */
-  private def calculateSize(did: UInteger, versionHash: Option[String] = None): Long = {
-    Try {
-      val datasetPath = PathUtils.getDatasetPath(did)
-      val hash = versionHash.getOrElse {
-        fetchLatestDatasetVersionInternal(context, did)
-          .map(_.getVersionHash)
-          .getOrElse(throw new NoSuchElementException("No versions found for this dataset"))
-      }
-
-      val fileNodes = GitVersionControlLocalFileStorage.retrieveRootFileNodesOfVersion(
-        datasetPath,
-        hash
-      )
-
-      calculateSizeFromPhysicalNodes(fileNodes)
-    } match {
-      case Success(size) => size
-      case Failure(exception) =>
-        val errorMessage = versionHash.map(_ => "dataset version").getOrElse("dataset")
-        println(s"Error calculating $errorMessage size: ${exception.getMessage}")
-        0L
-    }
-  }
-
-  private def calculateDatasetVersionSize(did: UInteger, dvid: UInteger): Long = {
-    val versionHash = getDatasetVersionByID(context, dvid).getVersionHash
-    calculateSize(did, Some(versionHash))
-  }
-
-  private def calculateSizeFromPhysicalNodes(nodes: java.util.Set[PhysicalFileNode]): Long = {
-    nodes.asScala.foldLeft(0L) { (totalSize, node) =>
-      totalSize + (if (node.isDirectory) {
-                     calculateSizeFromPhysicalNodes(node.getChildren)
-                   } else {
-                     node.getSize
-                   })
-    }
   }
 
   @POST
@@ -476,7 +477,7 @@ class DatasetResource {
         DatasetUserAccessPrivilege.WRITE,
         isOwner = true,
         versions = List(),
-        size = calculateSize(did)
+        size = calculateDatasetVersionSize(did)
       )
     }
   }
@@ -642,7 +643,7 @@ class DatasetResource {
               accessPrivilege = datasetAccess.getPrivilege,
               versions = List(),
               ownerEmail = ownerEmail,
-              size = calculateSize(dataset.getDid)
+              size = calculateDatasetVersionSize(dataset.getDid)
             )
           })
           .asScala
@@ -667,7 +668,7 @@ class DatasetResource {
             accessPrivilege = DatasetUserAccessPrivilege.READ,
             versions = List(),
             ownerEmail = ownerEmail,
-            size = calculateSize(dataset.getDid)
+            size = calculateDatasetVersionSize(dataset.getDid)
           )
         })
       publicDatasets.forEach { publicDataset =>
@@ -678,7 +679,7 @@ class DatasetResource {
             ownerEmail = publicDataset.ownerEmail,
             accessPrivilege = DatasetUserAccessPrivilege.READ,
             versions = List(),
-            size = calculateSize(publicDataset.dataset.getDid)
+            size = calculateDatasetVersionSize(publicDataset.dataset.getDid)
           )
           accessibleDatasets = accessibleDatasets :+ dashboardDataset
         }
@@ -714,7 +715,7 @@ class DatasetResource {
 
   @GET
   @Path("/{did}/version/latest")
-  def getLatestDatasetVersion(
+  def retrieveLatestDatasetVersion(
       @PathParam("did") did: UInteger,
       @Auth user: SessionUser
   ): DashboardDatasetVersion = {
@@ -724,7 +725,7 @@ class DatasetResource {
         throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
       }
       val dataset = getDatasetByID(ctx, did)
-      val latestVersion = fetchLatestDatasetVersionInternal(ctx, did).getOrElse(
+      val latestVersion = getLatestDatasetVersion(ctx, did).getOrElse(
         throw new NotFoundException(ERR_DATASET_VERSION_NOT_FOUND_MESSAGE)
       )
       val datasetPath = PathUtils.getDatasetPath(did)
@@ -777,7 +778,8 @@ class DatasetResource {
         targetDatasetPath,
         datasetVersion.getVersionHash
       )
-      val size = calculateDatasetVersionSize(did, dvid)
+      val versionHash = getDatasetVersionByID(ctx, dvid).getVersionHash
+      val size = calculateDatasetVersionSize(did, Some(versionHash))
       val ownerFileNode = DatasetFileNode
         .fromPhysicalFileNodes(
           Map((dataset.ownerEmail, datasetName, datasetVersion.getName) -> fileNodes.asScala.toList)
@@ -810,7 +812,7 @@ class DatasetResource {
     val uid = user.getUid
     withTransaction(context)(ctx => {
       val dashboardDataset = getDashboardDataset(ctx, did, uid)
-      val size = calculateSize(did)
+      val size = calculateDatasetVersionSize(did)
       dashboardDataset.copy(size = size)
     })
   }
@@ -882,7 +884,7 @@ class DatasetResource {
     }
     val dataset = getDatasetByID(context, did)
     val version = if (dvid.isEmpty) {
-      fetchLatestDatasetVersionInternal(context, did).getOrElse(
+      getLatestDatasetVersion(context, did).getOrElse(
         throw new NotFoundException(ERR_DATASET_VERSION_NOT_FOUND_MESSAGE)
       )
     } else {
