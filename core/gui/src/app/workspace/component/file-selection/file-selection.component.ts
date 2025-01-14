@@ -38,8 +38,8 @@ export class FileSelectionComponent implements OnInit {
     this.datasetService
       .retrieveAccessibleDatasets()
       .pipe(untilDestroyed(this))
-      .subscribe(response => {
-        this._datasets = response.datasets;
+      .subscribe(datasets => {
+        this._datasets = datasets;
         this.isAccessibleDatasetsLoading = false;
         if (!this.selectedFilePath || this.selectedFilePath == "") {
           return;

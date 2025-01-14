@@ -17,10 +17,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.websocket.request.ResultExportRequest
 import edu.uci.ics.texera.web.model.websocket.response.ResultExportResponse
 import edu.uci.ics.texera.web.resource.GoogleResource
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{
-  createNewDatasetVersionByAddingFiles,
-  sanitizePath
-}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.createNewDatasetVersionByAddingFiles
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowVersionResource
 import org.jooq.types.UInteger
 import edu.uci.ics.amber.util.ArrowUtils
@@ -39,6 +36,7 @@ import scala.jdk.CollectionConverters.SeqHasAsJava
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector._
 import org.apache.arrow.vector.ipc.ArrowFileWriter
+import org.apache.commons.lang3.StringUtils
 
 import java.io.OutputStream
 import java.nio.channels.Channels
@@ -445,8 +443,10 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
       .now()
       .truncatedTo(ChronoUnit.SECONDS)
       .format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"))
-    sanitizePath(
-      s"${request.workflowName}-v$latestVersion-${request.operatorName}-$timestamp.$extension"
+    StringUtils.replaceEach(
+      s"${request.workflowName}-v$latestVersion-${request.operatorName}-$timestamp.$extension",
+      Array("/", "\\"),
+      Array("", "")
     )
   }
 
