@@ -26,7 +26,7 @@ import scala.jdk.CollectionConverters._
   * @param deserde function to deserialize an Iceberg Record into T.
   * @tparam T type of the data items stored in the Iceberg table.
   */
-class IcebergDocument[T >: Null <: AnyRef](
+private[storage] class IcebergDocument[T >: Null <: AnyRef](
     val tableNamespace: String,
     val tableName: String,
     val tableSchema: org.apache.iceberg.Schema,

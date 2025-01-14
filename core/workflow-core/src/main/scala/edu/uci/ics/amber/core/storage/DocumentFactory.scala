@@ -49,14 +49,7 @@ object DocumentFactory {
             val storageKey = sanitizeURIPath(uri)
 
             StorageConfig.resultStorageMode.toLowerCase match {
-              case MONGODB =>
-                new MongoDocument[Tuple](
-                  storageKey,
-                  Tuple.toDocument,
-                  Tuple.fromDocument(schema)
-                )
-
-              case ICEBERG | _ =>
+              case ICEBERG =>
                 val icebergSchema = IcebergUtil.toIcebergSchema(schema)
                 IcebergUtil.createTable(
                   IcebergCatalogInstance.getInstance(),
@@ -75,6 +68,11 @@ object DocumentFactory {
                   icebergSchema,
                   serde,
                   deserde
+                )
+
+              case _ =>
+                throw new IllegalArgumentException(
+                  s"Storage mode '${StorageConfig.resultStorageMode}' is not supported"
                 )
             }
 
@@ -130,7 +128,7 @@ object DocumentFactory {
 
               case _ =>
                 throw new IllegalArgumentException(
-                  s"Storage mode is not supported"
+                  s"Storage mode '${StorageConfig.resultStorageMode}' is not supported"
                 )
             }
 
