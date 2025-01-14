@@ -35,7 +35,7 @@ object FileResolver {
   val VFS_FILE_URI_SCHEME = "vfs"
 
   /**
-    * Parses a VFS URI and extracts its components, including the `isMaterialized` flag from the query.
+    * Parses a VFS URI and extracts its components
     *
     * @param uri The VFS URI to parse.
     * @return A `VFSUriComponents` object with the extracted data.

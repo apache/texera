@@ -103,12 +103,15 @@ object DocumentFactory {
 
   /**
     * Open a document specified by the uri.
-    * The document should be storing the structural data as the document and the schema will be returned
+    * If the document is storing structural data, the schema will also be returned
     * @param uri the uri of the document
     * @return the VirtualDocument, which is the handler of the data; the Schema, which is the schema of the data stored in the document
     */
-  def openDocument(uri: URI): (VirtualDocument[_], Schema) = {
+  def openDocument(uri: URI): (VirtualDocument[_], Option[Schema]) = {
     uri.getScheme match {
+      case DATASET_FILE_URI_SCHEME =>
+        (new DatasetFileDocument(uri), None)
+
       case VFS_FILE_URI_SCHEME =>
         val (_, _, _, _, resourceType) = decodeVFSUri(uri)
 
@@ -141,7 +144,7 @@ object DocumentFactory {
                     serde,
                     deserde
                   ),
-                  amberSchema
+                  Some(amberSchema)
                 )
 
               case _ =>

@@ -84,7 +84,7 @@ object SpecialPhysicalOpFactory {
       .withPropagateSchema(
         SchemaPropagationFunc(_ =>
           Map(outputPort.id -> {
-            DocumentFactory.openDocument(uri)._2
+            DocumentFactory.openDocument(uri)._2.get
           })
         )
       )
