@@ -138,8 +138,8 @@ object DatasetResource {
   }
 
   /**
-   * Helper function to get the latest dataset version from the DB
-   */
+    * Helper function to get the latest dataset version from the DB
+    */
   private def getLatestDatasetVersion(
       ctx: DSLContext,
       did: UInteger
@@ -202,12 +202,12 @@ object DatasetResource {
   }
 
   /**
-   * Create a new dataset version by adding new files
-   * @param did the target dataset id
-   * @param user the user submitting the request
-   * @param filesToAdd the map containing the files to add
-   * @return the created dataset version
-   */
+    * Create a new dataset version by adding new files
+    * @param did the target dataset id
+    * @param user the user submitting the request
+    * @param filesToAdd the map containing the files to add
+    * @return the created dataset version
+    */
   def createNewDatasetVersionByAddingFiles(
       did: UInteger,
       user: User,
@@ -237,17 +237,18 @@ object DatasetResource {
     // Helper function to generate the dataset version name
     // the format of dataset version name is: v{#n} - {user provided dataset version name}. e.g. v10 - new version
     def generateDatasetVersionName(
-                                            ctx: DSLContext,
-                                            did: UInteger,
-                                            userProvidedVersionName: String
-                                          ): String = {
+        ctx: DSLContext,
+        did: UInteger,
+        userProvidedVersionName: String
+    ): String = {
       val numberOfExistingVersions = ctx
         .selectFrom(DATASET_VERSION)
         .where(DATASET_VERSION.DID.eq(did))
         .fetch()
         .size()
 
-      val sanitizedUserProvidedVersionName = StringUtils.replaceEach(userProvidedVersionName, Array("/", "\\"), Array("", ""))
+      val sanitizedUserProvidedVersionName =
+        StringUtils.replaceEach(userProvidedVersionName, Array("/", "\\"), Array("", ""))
       val res = if (sanitizedUserProvidedVersionName == "") {
         "v" + (numberOfExistingVersions + 1).toString
       } else {
@@ -327,15 +328,6 @@ object DatasetResource {
       versions: List[DashboardDatasetVersion],
       size: Long
   )
-
-  case class ListDatasetsResponse(
-      datasets: List[DashboardDataset]
-  )
-
-  case class DatasetVersionRootFileNodes(fileNodes: List[DatasetFileNode])
-
-  case class DatasetVersions(versions: List[DatasetVersion])
-
   case class DashboardDatasetVersion(
       datasetVersion: DatasetVersion,
       fileNodes: List[DatasetFileNode]
@@ -348,7 +340,7 @@ object DatasetResource {
   case class DatasetDescriptionModification(did: UInteger, description: String)
 
   case class DatasetVersionRootFileNodesResponse(
-      rootFileNodes: DatasetVersionRootFileNodes,
+      fileNodes: List[DatasetFileNode],
       size: Long
   )
 }
@@ -388,16 +380,16 @@ class DatasetResource {
   }
 
   /**
-   * Helper function to create a new dataset version using the given multi-part form.
-   */
+    * Helper function to create a new dataset version using the given multi-part form.
+    */
   private def createNewDatasetVersionFromFormData(
-                                                   ctx: DSLContext,
-                                                   did: UInteger,
-                                                   uid: UInteger,
-                                                   ownerEmail: String,
-                                                   userProvidedVersionName: String,
-                                                   multiPart: FormDataMultiPart
-                                                 ): Option[DashboardDatasetVersion] = {
+      ctx: DSLContext,
+      did: UInteger,
+      uid: UInteger,
+      ownerEmail: String,
+      userProvidedVersionName: String,
+      multiPart: FormDataMultiPart
+  ): Option[DashboardDatasetVersion] = {
     val datasetOperation = parseUserUploadedFormToDatasetOperations(did, multiPart)
     applyDatasetOperationToCreateNewVersion(
       ctx,
@@ -619,7 +611,7 @@ class DatasetResource {
   @Path("")
   def listDatasets(
       @Auth user: SessionUser
-  ): ListDatasetsResponse = {
+  ): List[DashboardDataset] = {
     val uid = user.getUid
     withTransaction(context)(ctx => {
       var accessibleDatasets: ListBuffer[DashboardDataset] = ListBuffer()
@@ -688,9 +680,7 @@ class DatasetResource {
         }
       }
 
-      ListDatasetsResponse(
-        accessibleDatasets.toList
-      )
+      accessibleDatasets.toList
     })
   }
 
@@ -699,7 +689,7 @@ class DatasetResource {
   def getDatasetVersionList(
       @PathParam("did") did: UInteger,
       @Auth user: SessionUser
-  ): DatasetVersions = {
+  ): List[DatasetVersion] = {
     val uid = user.getUid
     withTransaction(context)(ctx => {
 
@@ -712,7 +702,7 @@ class DatasetResource {
         .orderBy(DATASET_VERSION.CREATION_TIME.desc()) // or .asc() for ascending
         .fetchInto(classOf[DatasetVersion])
 
-      DatasetVersions(result.asScala.toList)
+      result.asScala.toList
     })
   }
 
@@ -790,17 +780,15 @@ class DatasetResource {
         .head
 
       DatasetVersionRootFileNodesResponse(
-        DatasetVersionRootFileNodes(
-          ownerFileNode.children.get
-            .find(_.getName == datasetName)
-            .head
-            .children
-            .get
-            .find(_.getName == datasetVersion.getName)
-            .head
-            .children
-            .get
-        ),
+        ownerFileNode.children.get
+          .find(_.getName == datasetName)
+          .head
+          .children
+          .get
+          .find(_.getName == datasetVersion.getName)
+          .head
+          .children
+          .get,
         size
       )
     })
