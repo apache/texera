@@ -25,10 +25,10 @@ object DocumentFactory {
   private def sanitizeURIPath(uri: URI): String = uri.getPath.stripPrefix("/").replace("/", "_")
 
   /**
-   * Open a document specified by the uri for read purposes only.
-   * @param fileUri the uri of the document
-   * @return ReadonlyVirtualDocument
-   */
+    * Open a document specified by the uri for read purposes only.
+    * @param fileUri the uri of the document
+    * @return ReadonlyVirtualDocument
+    */
   def openReadonlyDocument(fileUri: URI): ReadonlyVirtualDocument[_] = {
     fileUri.getScheme match {
       case DATASET_FILE_URI_SCHEME =>
@@ -45,12 +45,12 @@ object DocumentFactory {
   }
 
   /**
-   * Create a document for storage specified by the uri.
-   * This document is suitable for storing structural data, i.e. the schema is required to create such document.
-   * @param uri the location of the document
-   * @param schema the schema of the data stored in the document
-   * @return the created document
-   */
+    * Create a document for storage specified by the uri.
+    * This document is suitable for storing structural data, i.e. the schema is required to create such document.
+    * @param uri the location of the document
+    * @param schema the schema of the data stored in the document
+    * @return the created document
+    */
   def createDocument(uri: URI, schema: Schema): VirtualDocument[_] = {
     uri.getScheme match {
       case VFS_FILE_URI_SCHEME =>
@@ -102,11 +102,11 @@ object DocumentFactory {
   }
 
   /**
-   * Open a document specified by the uri.
-   * The document should be storing the structural data as the document and the schema will be returned
-   * @param uri the uri of the document
-   * @return the VirtualDocument, which is the handler of the data; the Schema, which is the schema of the data stored in the document
-   */
+    * Open a document specified by the uri.
+    * The document should be storing the structural data as the document and the schema will be returned
+    * @param uri the uri of the document
+    * @return the VirtualDocument, which is the handler of the data; the Schema, which is the schema of the data stored in the document
+    */
   def openDocument(uri: URI): (VirtualDocument[_], Schema) = {
     uri.getScheme match {
       case VFS_FILE_URI_SCHEME =>
