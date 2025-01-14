@@ -1,5 +1,6 @@
 package edu.uci.ics.amber.operator.visualization.lineChart;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 public enum LineMode {
@@ -10,6 +11,17 @@ public enum LineMode {
 
     LineMode(String mode) {
         this.mode = mode;
+    }
+
+    // Handle custom deserialization for enum
+    @JsonCreator
+    public static LineMode fromString(String value) {
+        for (LineMode mode : LineMode.values()) {
+            if (mode.mode.equalsIgnoreCase(value)) {
+                return mode;
+            }
+        }
+        throw new IllegalArgumentException("Unknown line mode: " + value);
     }
 
     @JsonValue
