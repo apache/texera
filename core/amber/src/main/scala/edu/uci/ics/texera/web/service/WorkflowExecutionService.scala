@@ -5,21 +5,25 @@ import edu.uci.ics.amber.core.workflow.WorkflowContext
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState._
-import edu.uci.ics.amber.engine.common.Utils
+import edu.uci.ics.amber.engine.common.{AmberConfig, Utils}
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.executionruntimestate.ExecutionMetadataStore
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.OperatorExecutions
 import edu.uci.ics.texera.web.model.websocket.event.{
   TexeraWebSocketEvent,
   WorkflowErrorEvent,
   WorkflowStateEvent
 }
 import edu.uci.ics.texera.web.model.websocket.request.WorkflowExecuteRequest
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
 import edu.uci.ics.texera.web.{ComputingUnitMaster, SubscriptionManager, WebsocketInput}
 import edu.uci.ics.texera.workflow.{LogicalPlan, WorkflowCompiler}
+import org.jooq.types.{UInteger, ULong}
 
 import java.net.URI
+import java.util
 import scala.collection.mutable
 
 class WorkflowExecutionService(
@@ -103,7 +107,14 @@ class WorkflowExecutionService(
     )
     executionReconfigurationService =
       new ExecutionReconfigurationService(client, executionStateStore, workflow)
-    executionStatsService = new ExecutionStatsService(client, executionStateStore, workflowContext)
+    // Create the operatorId to executionId map
+    val operatorIdToExecutionId: Map[String, ULong] =
+      if (AmberConfig.isUserSystemEnabled)
+        createOperatorIdToExecutionIdMap(workflow)
+      else
+        Map.empty
+    executionStatsService =
+      new ExecutionStatsService(client, executionStateStore, operatorIdToExecutionId)
     executionRuntimeService = new ExecutionRuntimeService(
       client,
       executionStateStore,
@@ -133,6 +144,27 @@ class WorkflowExecutionService(
           }
         )
       )
+  }
+
+  private def createOperatorIdToExecutionIdMap(workflow: Workflow): Map[String, ULong] = {
+    val executionList: util.ArrayList[OperatorExecutions] = new util.ArrayList[OperatorExecutions]()
+    val operatorIdToExecutionId = scala.collection.mutable.Map[String, ULong]()
+
+    workflow.logicalPlan.operators.foreach { operator =>
+      val operatorId = operator.operatorIdentifier.id
+      val execution = new OperatorExecutions()
+      execution.setWorkflowExecutionId(UInteger.valueOf(workflowContext.executionId.id))
+      execution.setOperatorId(operatorId)
+      executionList.add(execution)
+    }
+
+    val insertedExecutionIds = WorkflowExecutionsResource.insertOperatorExecutions(executionList)
+    insertedExecutionIds.forEach {
+      case (operatorId, executionId) =>
+        operatorIdToExecutionId += (operatorId -> executionId)
+    }
+
+    operatorIdToExecutionId.toMap
   }
 
   override def unsubscribeAll(): Unit = {
