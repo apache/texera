@@ -39,7 +39,7 @@ class JSONLScanSourceOpExec private[json] (
   }
 
   override def open(): Unit = {
-    val stream = DocumentFactory.newReadonlyDocument(new URI(desc.fileName.get)).asInputStream()
+    val stream = DocumentFactory.openReadonlyDocument(new URI(desc.fileName.get)).asInputStream()
     // count lines and partition the task to each worker
     reader = new BufferedReader(
       new InputStreamReader(stream, desc.fileEncoding.getCharset)

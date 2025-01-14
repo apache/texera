@@ -69,6 +69,7 @@ object ExecutionResultService {
     */
   private def convertWebResultUpdate(
       workflowIdentity: WorkflowIdentity,
+      executionId: ExecutionIdentity,
       physicalOps: List[PhysicalOp],
       oldTupleCount: Int,
       newTupleCount: Int
@@ -94,9 +95,6 @@ object ExecutionResultService {
       }
     }
 
-    val executionId = getLatestExecutionId(workflowIdentity).getOrElse(
-      throw new IllegalStateException("No execution is recorded")
-    )
     val storageUri = FileResolver.resolve(
       RESULT,
       workflowIdentity,
@@ -250,6 +248,7 @@ class ExecutionResultService(
               val oldInfo = oldState.resultInfo.getOrElse(opId, OperatorResultMetadata())
               buf(opId.id) = ExecutionResultService.convertWebResultUpdate(
                 workflowIdentity,
+                executionId,
                 physicalPlan.getPhysicalOpsOfLogicalOp(opId),
                 oldInfo.tupleCount,
                 info.tupleCount

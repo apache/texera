@@ -59,8 +59,6 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
   import ResultExportService._
 
   private val cache = new mutable.HashMap[String, String]
-
-  private lazy val executionId = getLatestExecutionId(workflowIdentity)
   def exportResult(
       user: User,
       request: ResultExportRequest
@@ -78,7 +76,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
     val storageUri = FileResolver.resolve(
       RESULT,
       workflowIdentity,
-      executionId.getOrElse(
+      getLatestExecutionId(workflowIdentity).getOrElse(
         return ResultExportResponse("error", "The workflow contains no results")
       ),
       OperatorIdentity(request.operatorId),

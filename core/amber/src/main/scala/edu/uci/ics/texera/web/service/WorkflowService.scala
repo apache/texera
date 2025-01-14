@@ -94,7 +94,13 @@ class WorkflowService(
         .foreach(eid => {
           ExecutionResourcesMapping
             .getResourceURIs(eid)
-            .foreach(uri => DocumentFactory.openDocument(uri)._1.clear())
+            .foreach(uri =>
+              try {
+                DocumentFactory.openDocument(uri)._1.clear()
+              } catch {
+                case _: Throwable => // exception can be raised if the document is already cleared
+              }
+            )
         })
       WorkflowService.workflowServiceMapping.remove(mkWorkflowStateId(workflowId))
       if (executionService.getValue != null) {
@@ -167,7 +173,20 @@ class WorkflowService(
     val workflowContext: WorkflowContext = createWorkflowContext()
     var controllerConf = ControllerConfig.default
 
+    // clean up results from previous run
     val previousExecutionId = WorkflowExecutionService.getLatestExecutionId(workflowId)
+    previousExecutionId.foreach(eid => {
+      ExecutionResourcesMapping
+        .getResourceURIs(eid)
+        .foreach(uri =>
+          try {
+            DocumentFactory.openDocument(uri)._1.clear()
+          } catch { // exception can happen if the resource is already cleared
+            case _: Throwable =>
+          }
+        )
+    }) // TODO: change this behavior after enabling cache.
+
     workflowContext.executionId = ExecutionsMetadataPersistService.insertNewExecution(
       workflowContext.workflowId,
       uidOpt,
@@ -238,19 +257,6 @@ class WorkflowService(
         }
       }
     }
-
-    // clean up results from previous run
-    previousExecutionId.foreach(eid => {
-      ExecutionResourcesMapping
-        .getResourceURIs(eid)
-        .foreach(uri =>
-          try {
-            DocumentFactory.openDocument(uri)._1.clear()
-          } catch { // exception can happen if the resource is already cleared
-            case _: Throwable =>
-          }
-        )
-    }) // TODO: change this behavior after enabling cache.
     try {
       val execution = new WorkflowExecutionService(
         controllerConf,

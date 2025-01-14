@@ -90,14 +90,14 @@ object FileResolver {
   }
 
   /**
-    * Resolves a VFS resource and appends `isMaterialized` as a query parameter.
+    * Resolves a VFS resource to its URI. The URI can be used by the DocumentFactory to create resource or open resource
     *
     * @param resourceType   The type of the VFS resource.
     * @param workflowId     Workflow identifier.
     * @param executionId    Execution identifier.
     * @param operatorId     Operator identifier.
-    * @param portIdentity   Optional port identifier. **Required** if `resourceType` is `RESULT`.
-    * @return A VFS URI with the `isMaterialized` query parameter.
+    * @param portIdentity   Optional port identifier. **Required** if `resourceType` is `RESULT` or `MATERIALIZED_RESULT`.
+    * @return A VFS URI
     * @throws IllegalArgumentException if `resourceType` is `RESULT` but `portIdentity` is missing.
     */
   def resolve(

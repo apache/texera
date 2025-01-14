@@ -61,7 +61,7 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
     if (!fileResolved()) {
       return null
     }
-    val stream = DocumentFactory.newReadonlyDocument(new URI(fileName.get)).asInputStream()
+    val stream = DocumentFactory.openReadonlyDocument(new URI(fileName.get)).asInputStream()
     val reader = new BufferedReader(new InputStreamReader(stream, fileEncoding.getCharset))
     var fieldNames = Set[String]()
 
