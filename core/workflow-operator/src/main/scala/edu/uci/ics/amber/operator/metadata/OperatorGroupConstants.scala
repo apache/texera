@@ -21,6 +21,7 @@ object OperatorGroupConstants {
   final val JAVA_GROUP = "Java"
   final val R_GROUP = "R"
   final val MACHINE_LEARNING_GENERAL_GROUP = "Machine Learning General"
+  final val CONTROL_GROUP = "Control Block"
 
   /**
     * The order of the groups to show up in the frontend operator panel.
@@ -46,6 +47,7 @@ object OperatorGroupConstants {
     GroupInfo(UTILITY_GROUP),
     GroupInfo(API_GROUP),
     GroupInfo(UDF_GROUP, List(GroupInfo(PYTHON_GROUP), GroupInfo(JAVA_GROUP), GroupInfo(R_GROUP))),
-    GroupInfo(VISUALIZATION_GROUP)
+    GroupInfo(VISUALIZATION_GROUP),
+    GroupInfo(CONTROL_GROUP)
   )
 }
