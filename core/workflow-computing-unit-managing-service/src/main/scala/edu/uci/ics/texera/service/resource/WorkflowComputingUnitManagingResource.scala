@@ -10,6 +10,7 @@ import edu.uci.ics.texera.service.resource.WorkflowComputingUnitManagingResource
   DashboardWorkflowComputingUnit,
   WorkflowComputingUnitCreationParams,
   WorkflowComputingUnitTerminationParams,
+  TerminationResponse,
   context
 }
 import edu.uci.ics.texera.service.util.KubernetesClientService
@@ -39,6 +40,8 @@ object WorkflowComputingUnitManagingResource {
       uri: String,
       status: String
   )
+
+  case class TerminationResponse(message: String, uri: String)
 }
 
 @Produces(Array(MediaType.APPLICATION_JSON))
@@ -131,7 +134,7 @@ class WorkflowComputingUnitManagingResource {
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/terminate")
-  def terminateComputingUnit(param: WorkflowComputingUnitTerminationParams): Response = {
+  def terminateComputingUnit(param: WorkflowComputingUnitTerminationParams): TerminationResponse = {
     // Attempt to delete the pod using the provided URI
     val podURI = param.uri
     KubernetesClientService.deletePod(podURI)
@@ -146,7 +149,6 @@ class WorkflowComputingUnitManagingResource {
       cuDao.update(units)
     }
 
-    Response.ok(s"Successfully terminated compute unit with URI $podURI").build()
-
+    TerminationResponse(s"Successfully terminated compute unit with URI $podURI", podURI)
   }
 }
