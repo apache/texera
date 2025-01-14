@@ -7,12 +7,11 @@ import config.WorkflowComputingUnitManagingServiceConf.{
   computeUnitServiceName
 }
 import edu.uci.ics.amber.core.storage.StorageConfig
-import io.kubernetes.client.openapi.apis.{AppsV1Api, CoreV1Api}
+import io.kubernetes.client.openapi.apis.CoreV1Api
 import io.kubernetes.client.openapi.models._
 import io.kubernetes.client.openapi.{ApiClient, Configuration}
 import io.kubernetes.client.util.Config
 
-import java.net.URI
 import java.util
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 

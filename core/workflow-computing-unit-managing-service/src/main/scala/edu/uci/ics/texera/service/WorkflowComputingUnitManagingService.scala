@@ -1,11 +1,10 @@
 package edu.uci.ics.texera.service
 
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import config.WorkflowComputingUnitManagingServiceConf
 import edu.uci.ics.amber.util.PathUtils.workflowComputingUnitManagingServicePath
 import edu.uci.ics.texera.service.resource.WorkflowComputingUnitManagingResource
 import io.dropwizard.core.setup.{Bootstrap, Environment}
-import io.dropwizard.core.{Application, Configuration}
+import io.dropwizard.core.Application
 
 class WorkflowComputingUnitManagingService
     extends Application[WorkflowComputingUnitManagingServiceConfiguration] {

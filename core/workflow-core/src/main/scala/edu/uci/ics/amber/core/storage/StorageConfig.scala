@@ -26,9 +26,12 @@ object StorageConfig {
   // Iceberg specifics
   val icebergTableNamespace: String = conf.getString("storage.iceberg.table.namespace")
   val icebergTableCommitBatchSize: Int = conf.getInt("storage.iceberg.table.commit.batch-size")
-  val icebergTableCommitNumRetries: Int = conf.getInt("storage.iceberg.table.commit.retry.num-retries")
-  val icebergTableCommitMinRetryWaitMs: Int = conf.getInt("storage.iceberg.table.commit.retry.min-wait-ms")
-  val icebergTableCommitMaxRetryWaitMs: Int = conf.getInt("storage.iceberg.table.commit.retry.max-wait-ms")
+  val icebergTableCommitNumRetries: Int =
+    conf.getInt("storage.iceberg.table.commit.retry.num-retries")
+  val icebergTableCommitMinRetryWaitMs: Int =
+    conf.getInt("storage.iceberg.table.commit.retry.min-wait-ms")
+  val icebergTableCommitMaxRetryWaitMs: Int =
+    conf.getInt("storage.iceberg.table.commit.retry.max-wait-ms")
 
   // File storage configurations
   val fileStorageDirectoryPath: Path =

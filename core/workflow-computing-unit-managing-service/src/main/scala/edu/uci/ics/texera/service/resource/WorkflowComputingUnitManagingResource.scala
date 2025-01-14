@@ -14,16 +14,12 @@ import edu.uci.ics.texera.service.resource.WorkflowComputingUnitManagingResource
   context
 }
 import edu.uci.ics.texera.service.util.KubernetesClientService
-import io.kubernetes.client.openapi.models.V1Pod
 import jakarta.ws.rs._
-import jakarta.ws.rs.core.{MediaType, Response}
+import jakarta.ws.rs.core.MediaType
 import org.jooq.DSLContext
 import org.jooq.types.UInteger
 
-import java.net.URI
 import java.sql.Timestamp
-import scala.collection.mutable.ListBuffer
-import scala.jdk.CollectionConverters.{CollectionHasAsScala, IterableHasAsJava}
 
 object WorkflowComputingUnitManagingResource {
 
