@@ -7,6 +7,8 @@ package edu.uci.ics.texera.dao.jooq.generated;
 import edu.uci.ics.texera.dao.jooq.generated.tables.Dataset;
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserAccess;
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetVersion;
+import edu.uci.ics.texera.dao.jooq.generated.tables.OperatorExecutions;
+import edu.uci.ics.texera.dao.jooq.generated.tables.OperatorRuntimeStatistics;
 import edu.uci.ics.texera.dao.jooq.generated.tables.Project;
 import edu.uci.ics.texera.dao.jooq.generated.tables.ProjectUserAccess;
 import edu.uci.ics.texera.dao.jooq.generated.tables.PublicProject;
@@ -16,7 +18,6 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.Workflow;
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowExecutions;
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowOfProject;
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowOfUser;
-import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowRuntimeStatistics;
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowUserAccess;
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowUserActivity;
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowUserClones;
@@ -45,6 +46,16 @@ public class Tables {
      * The table <code>texera_db.dataset_version</code>.
      */
     public static final DatasetVersion DATASET_VERSION = DatasetVersion.DATASET_VERSION;
+
+    /**
+     * The table <code>texera_db.operator_executions</code>.
+     */
+    public static final OperatorExecutions OPERATOR_EXECUTIONS = OperatorExecutions.OPERATOR_EXECUTIONS;
+
+    /**
+     * The table <code>texera_db.operator_runtime_statistics</code>.
+     */
+    public static final OperatorRuntimeStatistics OPERATOR_RUNTIME_STATISTICS = OperatorRuntimeStatistics.OPERATOR_RUNTIME_STATISTICS;
 
     /**
      * The table <code>texera_db.project</code>.
@@ -90,11 +101,6 @@ public class Tables {
      * The table <code>texera_db.workflow_of_user</code>.
      */
     public static final WorkflowOfUser WORKFLOW_OF_USER = WorkflowOfUser.WORKFLOW_OF_USER;
-
-    /**
-     * The table <code>texera_db.workflow_runtime_statistics</code>.
-     */
-    public static final WorkflowRuntimeStatistics WORKFLOW_RUNTIME_STATISTICS = WorkflowRuntimeStatistics.WORKFLOW_RUNTIME_STATISTICS;
 
     /**
      * The table <code>texera_db.workflow_user_access</code>.
