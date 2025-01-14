@@ -6,9 +6,9 @@ import edu.uci.ics.amber.core.storage.model.{
   ReadonlyVirtualDocument,
   VirtualDocument
 }
-import FileResolver.{DATASET_FILE_URI_SCHEME, VFS_FILE_URI_SCHEME, decodeVFSUri}
-import edu.uci.ics.amber.core.storage.VFSResourceType.{RESULT, MATERIALIZED_RESULT}
-import edu.uci.ics.amber.core.storage.result.MongoDocument
+import FileResolver.DATASET_FILE_URI_SCHEME
+import edu.uci.ics.amber.core.storage.VFSResourceType.{MATERIALIZED_RESULT, RESULT}
+import edu.uci.ics.amber.core.storage.VFSURIFactory.{VFS_FILE_URI_SCHEME, decodeVFSUri}
 import edu.uci.ics.amber.core.storage.result.iceberg.IcebergDocument
 import edu.uci.ics.amber.core.tuple.{Schema, Tuple}
 import edu.uci.ics.amber.util.IcebergUtil

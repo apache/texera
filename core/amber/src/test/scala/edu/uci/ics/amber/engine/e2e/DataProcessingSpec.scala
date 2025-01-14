@@ -7,7 +7,7 @@ import akka.util.Timeout
 import ch.vorburger.mariadb4j.DB
 import com.twitter.util.{Await, Duration, Promise}
 import edu.uci.ics.amber.clustering.SingleNodeListener
-import edu.uci.ics.amber.core.storage.{DocumentFactory, FileResolver}
+import edu.uci.ics.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import edu.uci.ics.amber.core.storage.VFSResourceType.RESULT
 import edu.uci.ics.amber.core.storage.model.VirtualDocument
 import edu.uci.ics.amber.core.storage.result.ExecutionResourcesMapping
@@ -71,7 +71,7 @@ class DataProcessingSpec
         if (evt.state == COMPLETED) {
           results = workflow.logicalPlan.getTerminalOperatorIds
             .filter(terminalOpId => {
-              val uri = FileResolver.resolve(
+              val uri = VFSURIFactory.resolve(
                 RESULT,
                 workflowContext.workflowId,
                 workflowContext.executionId,
@@ -84,7 +84,7 @@ class DataProcessingSpec
                 .contains(uri)
             })
             .map(terminalOpId => {
-              val uri = FileResolver.resolve(
+              val uri = VFSURIFactory.resolve(
                 RESULT,
                 workflowContext.workflowId,
                 workflowContext.executionId,

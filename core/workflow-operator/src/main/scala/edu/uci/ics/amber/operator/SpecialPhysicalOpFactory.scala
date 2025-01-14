@@ -1,8 +1,8 @@
 package edu.uci.ics.amber.operator
 
 import edu.uci.ics.amber.core.executor.{OpExecSink, OpExecSource}
+import edu.uci.ics.amber.core.storage.VFSURIFactory
 import edu.uci.ics.amber.core.storage.DocumentFactory
-import edu.uci.ics.amber.core.storage.FileResolver.decodeVFSUri
 import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.core.virtualidentity.{
   ExecutionIdentity,
@@ -25,7 +25,7 @@ object SpecialPhysicalOpFactory {
       uri: URI,
       outputMode: OutputMode
   ): PhysicalOp = {
-    val (workflowIdentity, executionIdentity, opId, portId, _) = decodeVFSUri(uri)
+    val (workflowIdentity, executionIdentity, opId, portId, _) = VFSURIFactory.decodeVFSUri(uri)
     PhysicalOp
       .localPhysicalOp(
         PhysicalOpIdentity(opId, s"sink${portId.get.id}"),
@@ -70,7 +70,7 @@ object SpecialPhysicalOpFactory {
       uri: URI
   ): PhysicalOp = {
 
-    val (_, _, opId, portId, _) = decodeVFSUri(uri)
+    val (_, _, opId, portId, _) = VFSURIFactory.decodeVFSUri(uri)
     val outputPort = OutputPort()
     PhysicalOp
       .sourcePhysicalOp(

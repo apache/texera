@@ -3,9 +3,9 @@ package edu.uci.ics.amber.storage.result.iceberg
 import edu.uci.ics.amber.core.storage.VFSResourceType.RESULT
 import edu.uci.ics.amber.core.storage.{
   DocumentFactory,
-  FileResolver,
   IcebergCatalogInstance,
-  StorageConfig
+  StorageConfig,
+  VFSURIFactory
 }
 import edu.uci.ics.amber.core.storage.model.{VirtualDocument, VirtualDocumentSpec}
 import edu.uci.ics.amber.core.storage.result.iceberg.IcebergDocument
@@ -70,7 +70,7 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
 
   override def beforeEach(): Unit = {
     // Generate a unique table name for each test
-    uri = FileResolver.resolve(
+    uri = VFSURIFactory.resolve(
       RESULT,
       WorkflowIdentity(0),
       ExecutionIdentity(0),

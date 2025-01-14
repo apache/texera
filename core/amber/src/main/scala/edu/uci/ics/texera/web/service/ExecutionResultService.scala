@@ -7,7 +7,7 @@ import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.storage.DocumentFactory.MONGODB
 import edu.uci.ics.amber.core.storage.VFSResourceType.{MATERIALIZED_RESULT, RESULT}
 import edu.uci.ics.amber.core.storage.model.VirtualDocument
-import edu.uci.ics.amber.core.storage.{DocumentFactory, FileResolver, StorageConfig}
+import edu.uci.ics.amber.core.storage.{DocumentFactory, StorageConfig, VFSURIFactory}
 import edu.uci.ics.amber.core.storage.result._
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan}
@@ -95,7 +95,7 @@ object ExecutionResultService {
       }
     }
 
-    val storageUri = FileResolver.resolve(
+    val storageUri = VFSURIFactory.resolve(
       RESULT,
       workflowIdentity,
       executionId,
@@ -255,7 +255,7 @@ class ExecutionResultService(
               )
               if (StorageConfig.resultStorageMode == MONGODB) {
                 // using the first port for now. TODO: support multiple ports
-                val storageUri = FileResolver.resolve(
+                val storageUri = VFSURIFactory.resolve(
                   RESULT,
                   workflowIdentity,
                   executionId,
@@ -302,7 +302,7 @@ class ExecutionResultService(
       throw new IllegalStateException("No execution is recorded")
     )
     // using the first port for now. TODO: support multiple ports
-    val storageUri = FileResolver.resolve(
+    val storageUri = VFSURIFactory.resolve(
       RESULT,
       workflowIdentity,
       latestExecutionId,
@@ -332,13 +332,13 @@ class ExecutionResultService(
         ExecutionResourcesMapping
           .getResourceURIs(executionId)
           .filter(uri => {
-            val (_, _, _, _, resourceType) = FileResolver.decodeVFSUri(uri)
+            val (_, _, _, _, resourceType) = VFSURIFactory.decodeVFSUri(uri)
             resourceType != MATERIALIZED_RESULT
           })
           .map(uri => {
             val count = DocumentFactory.openDocument(uri)._1.getCount.toInt
 
-            val (_, _, opId, storagePortId, _) = FileResolver.decodeVFSUri(uri)
+            val (_, _, opId, storagePortId, _) = VFSURIFactory.decodeVFSUri(uri)
 
             // Retrieve the mode of the specified output port
             val mode = physicalPlan
