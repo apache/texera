@@ -8,7 +8,7 @@ import edu.uci.ics.amber.core.storage.model.{
 }
 import FileResolver.DATASET_FILE_URI_SCHEME
 import edu.uci.ics.amber.core.storage.VFSResourceType.{MATERIALIZED_RESULT, RESULT}
-import edu.uci.ics.amber.core.storage.VFSURIFactory.{VFS_FILE_URI_SCHEME, decodeVFSUri}
+import edu.uci.ics.amber.core.storage.VFSURIFactory.{VFS_FILE_URI_SCHEME, decodeURI}
 import edu.uci.ics.amber.core.storage.result.iceberg.IcebergDocument
 import edu.uci.ics.amber.core.tuple.{Schema, Tuple}
 import edu.uci.ics.amber.util.IcebergUtil
@@ -54,7 +54,7 @@ object DocumentFactory {
   def createDocument(uri: URI, schema: Schema): VirtualDocument[_] = {
     uri.getScheme match {
       case VFS_FILE_URI_SCHEME =>
-        val (_, _, _, _, resourceType) = decodeVFSUri(uri)
+        val (_, _, _, _, resourceType) = decodeURI(uri)
 
         resourceType match {
           case RESULT | MATERIALIZED_RESULT =>
@@ -113,7 +113,7 @@ object DocumentFactory {
         (new DatasetFileDocument(uri), None)
 
       case VFS_FILE_URI_SCHEME =>
-        val (_, _, _, _, resourceType) = decodeVFSUri(uri)
+        val (_, _, _, _, resourceType) = decodeURI(uri)
 
         resourceType match {
           case RESULT | MATERIALIZED_RESULT =>

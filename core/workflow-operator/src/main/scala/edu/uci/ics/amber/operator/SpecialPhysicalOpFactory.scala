@@ -25,7 +25,7 @@ object SpecialPhysicalOpFactory {
       uri: URI,
       outputMode: OutputMode
   ): PhysicalOp = {
-    val (workflowIdentity, executionIdentity, opId, portId, _) = VFSURIFactory.decodeVFSUri(uri)
+    val (workflowIdentity, executionIdentity, opId, portId, _) = VFSURIFactory.decodeURI(uri)
     PhysicalOp
       .localPhysicalOp(
         PhysicalOpIdentity(opId, s"sink${portId.get.id}"),
@@ -70,7 +70,7 @@ object SpecialPhysicalOpFactory {
       uri: URI
   ): PhysicalOp = {
 
-    val (_, _, opId, portId, _) = VFSURIFactory.decodeVFSUri(uri)
+    val (_, _, opId, portId, _) = VFSURIFactory.decodeURI(uri)
     val outputPort = OutputPort()
     PhysicalOp
       .sourcePhysicalOp(

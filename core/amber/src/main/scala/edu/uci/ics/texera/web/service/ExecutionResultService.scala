@@ -329,13 +329,13 @@ class ExecutionResultService(
         ExecutionResourcesMapping
           .getResourceURIs(executionId)
           .filter(uri => {
-            val (_, _, _, _, resourceType) = VFSURIFactory.decodeVFSUri(uri)
+            val (_, _, _, _, resourceType) = VFSURIFactory.decodeURI(uri)
             resourceType != MATERIALIZED_RESULT
           })
           .map(uri => {
             val count = DocumentFactory.openDocument(uri)._1.getCount.toInt
 
-            val (_, _, opId, storagePortId, _) = VFSURIFactory.decodeVFSUri(uri)
+            val (_, _, opId, storagePortId, _) = VFSURIFactory.decodeURI(uri)
 
             // Retrieve the mode of the specified output port
             val mode = physicalPlan

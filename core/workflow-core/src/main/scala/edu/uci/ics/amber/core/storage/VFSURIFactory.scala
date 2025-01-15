@@ -20,7 +20,7 @@ object VFSURIFactory {
     * @return A `VFSUriComponents` object with the extracted data.
     * @throws IllegalArgumentException if the URI is malformed.
     */
-  def decodeVFSUri(uri: URI): (
+  def decodeURI(uri: URI): (
       WorkflowIdentity,
       ExecutionIdentity,
       OperatorIdentity,
@@ -68,6 +68,9 @@ object VFSURIFactory {
     (workflowId, executionId, operatorId, portIdentity, resourceType)
   }
 
+  /**
+    * Create a URI pointing to a result storage
+    */
   def createResultURI(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
@@ -83,6 +86,9 @@ object VFSURIFactory {
     )
   }
 
+  /**
+    * Create a URI pointing to a materialized storage
+    */
   def createMaterializedResultURI(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
@@ -99,7 +105,7 @@ object VFSURIFactory {
   }
 
   /**
-    * Resolves a VFS resource to its URI. The URI can be used by the DocumentFactory to create resource or open resource
+    * Internal helper to create URI pointing to a VFS resource. The URI can be used by the DocumentFactory to create resource or open resource
     *
     * @param resourceType   The type of the VFS resource.
     * @param workflowId     Workflow identifier.
