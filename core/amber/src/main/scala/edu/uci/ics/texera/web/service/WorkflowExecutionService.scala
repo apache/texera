@@ -1,7 +1,9 @@
 package edu.uci.ics.texera.web.service
 
 import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.WorkflowContext
+import edu.uci.ics.amber.core.workflow.WorkflowContext.DEFAULT_EXECUTION_ID
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState._
@@ -25,6 +27,17 @@ import org.jooq.types.{UInteger, ULong}
 import java.net.URI
 import java.util
 import scala.collection.mutable
+
+object WorkflowExecutionService {
+  def getLatestExecutionId(workflowId: WorkflowIdentity): Option[ExecutionIdentity] = {
+    if (!AmberConfig.isUserSystemEnabled) {
+      return Some(DEFAULT_EXECUTION_ID)
+    }
+    WorkflowExecutionsResource
+      .getLatestExecutionID(UInteger.valueOf(workflowId.id))
+      .map(eid => new ExecutionIdentity(eid.longValue()))
+  }
+}
 
 class WorkflowExecutionService(
     controllerConfig: ControllerConfig,
@@ -125,7 +138,12 @@ class WorkflowExecutionService(
     executionConsoleService = new ExecutionConsoleService(client, executionStateStore, wsInput)
 
     logger.info("Starting the workflow execution.")
-    resultService.attachToExecution(executionStateStore, workflow.physicalPlan, client)
+    resultService.attachToExecution(
+      workflowContext.executionId,
+      executionStateStore,
+      workflow.physicalPlan,
+      client
+    )
     executionStateStore.metadataStore.updateState(metadataStore =>
       updateWorkflowState(READY, metadataStore)
         .withFatalErrors(Seq.empty)

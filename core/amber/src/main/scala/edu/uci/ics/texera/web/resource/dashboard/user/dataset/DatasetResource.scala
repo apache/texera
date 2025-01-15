@@ -1,7 +1,6 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.dataset
 
-import edu.uci.ics.amber.core.storage.{FileResolver, StorageConfig}
-import edu.uci.ics.amber.core.storage.model.DatasetFileDocument
+import edu.uci.ics.amber.core.storage.{DocumentFactory, FileResolver, StorageConfig}
 import edu.uci.ics.amber.core.storage.util.dataset.{
   GitVersionControlLocalFileStorage,
   PhysicalFileNode
@@ -283,7 +282,7 @@ object DatasetResource {
           }
 
           datasetOperation.filesToRemove.foreach { fileUri =>
-            new DatasetFileDocument(fileUri).clear()
+            DocumentFactory.openDocument(fileUri)._1.clear()
           }
         }
       )
@@ -820,7 +819,7 @@ class DatasetResource {
       val fileUri = FileResolver.resolve(decodedPathStr)
       val streamingOutput = new StreamingOutput() {
         override def write(output: OutputStream): Unit = {
-          val inputStream = new DatasetFileDocument(fileUri).asInputStream()
+          val inputStream = DocumentFactory.openReadonlyDocument(fileUri).asInputStream()
           try {
             val buffer = new Array[Byte](8192) // buffer size
             var bytesRead = inputStream.read(buffer)

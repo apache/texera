@@ -46,7 +46,7 @@ class CSVOldScanSourceOpExec private[csvOld] (
     implicit object CustomFormat extends DefaultCSVFormat {
       override val delimiter: Char = desc.customDelimiter.get.charAt(0)
     }
-    val filePath = DocumentFactory.newReadonlyDocument(new URI(desc.fileName.get)).asFile().toPath
+    val filePath = DocumentFactory.openReadonlyDocument(new URI(desc.fileName.get)).asFile().toPath
     reader = CSVReader.open(filePath.toString, desc.fileEncoding.getCharset.name())(CustomFormat)
     // skip line if this worker reads the start of a file, and the file has a header line
     val startOffset = desc.offset.getOrElse(0) + (if (desc.hasHeader) 1 else 0)

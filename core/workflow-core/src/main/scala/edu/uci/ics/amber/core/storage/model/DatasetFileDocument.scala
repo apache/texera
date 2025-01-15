@@ -10,7 +10,7 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths}
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
-class DatasetFileDocument(uri: URI) extends VirtualDocument[Nothing] {
+private[storage] class DatasetFileDocument(uri: URI) extends VirtualDocument[Nothing] {
   // Utility function to parse and decode URI segments into individual components
   private def parseUri(uri: URI): (Int, String, Path) = {
     val segments = Paths.get(uri.getPath).iterator().asScala.map(_.toString).toArray

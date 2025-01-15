@@ -29,7 +29,7 @@ import scala.collection.mutable.ArrayBuffer
   * @param serde a function to serialize `T` into an Iceberg `Record`.
   * @tparam T the type of the data items written to the table.
   */
-class IcebergTableWriter[T](
+private[storage] class IcebergTableWriter[T](
     val writerIdentifier: String,
     val catalog: Catalog,
     val tableNamespace: String,

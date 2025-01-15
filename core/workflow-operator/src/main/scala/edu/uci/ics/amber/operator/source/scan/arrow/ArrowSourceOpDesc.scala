@@ -54,7 +54,7 @@ class ArrowSourceOpDesc extends ScanSourceOpDesc {
     */
   @Override
   def inferSchema(): Schema = {
-    val file = DocumentFactory.newReadonlyDocument(new URI(fileName.get)).asFile()
+    val file = DocumentFactory.openReadonlyDocument(new URI(fileName.get)).asFile()
     val allocator = new RootAllocator()
 
     Using

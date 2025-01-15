@@ -71,7 +71,7 @@ class ParallelCSVScanSourceOpExec private[csv] (
   override def open(): Unit = {
     // here, the stream requires to be seekable, so datasetFileDesc creates a temp file here
     // TODO: consider a better way
-    val file = DocumentFactory.newReadonlyDocument(new URI(desc.fileName.get)).asFile()
+    val file = DocumentFactory.openReadonlyDocument(new URI(desc.fileName.get)).asFile()
     val totalBytes: Long = file.length()
     // TODO: add support for limit
     // TODO: add support for offset

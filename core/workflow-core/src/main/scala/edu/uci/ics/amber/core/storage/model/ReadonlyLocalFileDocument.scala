@@ -7,7 +7,8 @@ import java.net.URI
   * ReadonlyLocalFileDocument provides a read-only abstraction over a local file.
   * The data type T is not required, as all iterator-related methods are unsupported
   */
-class ReadonlyLocalFileDocument(uri: URI) extends ReadonlyVirtualDocument[Nothing] {
+private[storage] class ReadonlyLocalFileDocument(uri: URI)
+    extends ReadonlyVirtualDocument[Nothing] {
 
   /**
     * Get the URI of the corresponding document.

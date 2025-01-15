@@ -1,7 +1,8 @@
 package edu.uci.ics.amber.operator
 
 import edu.uci.ics.amber.core.executor.{OpExecSink, OpExecSource}
-import edu.uci.ics.amber.core.storage.result.{OpResultStorage, ResultStorage}
+import edu.uci.ics.amber.core.storage.VFSURIFactory
+import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.tuple.Schema
 import edu.uci.ics.amber.core.virtualidentity.{
   ExecutionIdentity,
@@ -17,20 +18,20 @@ import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode.{
 import edu.uci.ics.amber.core.workflow._
 import edu.uci.ics.amber.operator.sink.ProgressiveUtils
 
+import java.net.URI
+
 object SpecialPhysicalOpFactory {
   def newSinkPhysicalOp(
-      workflowIdentity: WorkflowIdentity,
-      executionIdentity: ExecutionIdentity,
-      storageKey: String,
+      uri: URI,
       outputMode: OutputMode
   ): PhysicalOp = {
-    val (opId, portId) = OpResultStorage.decodeStorageKey(storageKey)
+    val (workflowIdentity, executionIdentity, opId, portId, _) = VFSURIFactory.decodeURI(uri)
     PhysicalOp
       .localPhysicalOp(
-        PhysicalOpIdentity(opId, s"sink${portId.id}"),
+        PhysicalOpIdentity(opId, s"sink${portId.get.id}"),
         workflowIdentity,
         executionIdentity,
-        OpExecSink(storageKey, workflowIdentity, outputMode)
+        OpExecSink(uri.toString, workflowIdentity, outputMode)
       )
       .withInputPorts(List(InputPort(PortIdentity(internal = true))))
       .withOutputPorts(List(OutputPort(PortIdentity(internal = true))))
@@ -66,23 +67,26 @@ object SpecialPhysicalOpFactory {
   def newSourcePhysicalOp(
       workflowIdentity: WorkflowIdentity,
       executionIdentity: ExecutionIdentity,
-      storageKey: String
+      uri: URI
   ): PhysicalOp = {
 
-    val (opId, portId) = OpResultStorage.decodeStorageKey(storageKey)
-    val opResultStorage = ResultStorage.getOpResultStorage(workflowIdentity)
+    val (_, _, opId, portId, _) = VFSURIFactory.decodeURI(uri)
     val outputPort = OutputPort()
     PhysicalOp
       .sourcePhysicalOp(
-        PhysicalOpIdentity(opId, s"source${portId.id}"),
+        PhysicalOpIdentity(opId, s"source${portId.get.id}"),
         workflowIdentity,
         executionIdentity,
-        OpExecSource(storageKey, workflowIdentity)
+        OpExecSource(uri.toString, workflowIdentity)
       )
       .withInputPorts(List.empty)
       .withOutputPorts(List(outputPort))
       .withPropagateSchema(
-        SchemaPropagationFunc(_ => Map(outputPort.id -> opResultStorage.getSchema(storageKey)))
+        SchemaPropagationFunc(_ =>
+          Map(outputPort.id -> {
+            DocumentFactory.openDocument(uri)._2.get
+          })
+        )
       )
       .propagateSchema()
 

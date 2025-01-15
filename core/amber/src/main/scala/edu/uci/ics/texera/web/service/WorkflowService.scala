@@ -3,7 +3,8 @@ package edu.uci.ics.texera.web.service
 import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.WorkflowRuntimeException
-import edu.uci.ics.amber.core.storage.result.ResultStorage
+import edu.uci.ics.amber.core.storage.DocumentFactory
+import edu.uci.ics.amber.core.storage.result.ExecutionResourcesMapping
 import edu.uci.ics.amber.core.workflow.WorkflowContext
 import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
@@ -21,11 +22,13 @@ import edu.uci.ics.amber.core.virtualidentity.{
   ExecutionIdentity,
   WorkflowIdentity
 }
+import edu.uci.ics.amber.core.workflow.WorkflowContext.DEFAULT_EXECUTION_ID
 import edu.uci.ics.amber.core.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
 import edu.uci.ics.amber.core.workflowruntimestate.WorkflowFatalError
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
 import edu.uci.ics.texera.web.model.websocket.request.WorkflowExecuteRequest
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 import edu.uci.ics.texera.web.service.WorkflowService.mkWorkflowStateId
 import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
 import edu.uci.ics.texera.web.storage.{ExecutionStateStore, WorkflowStateStore}
@@ -33,6 +36,7 @@ import edu.uci.ics.texera.web.{SubscriptionManager, WorkflowLifecycleManager}
 import edu.uci.ics.texera.workflow.LogicalPlan
 import io.reactivex.rxjava3.disposables.{CompositeDisposable, Disposable}
 import io.reactivex.rxjava3.subjects.BehaviorSubject
+import org.jooq.types.UInteger
 import play.api.libs.json.Json
 
 import java.net.URI
@@ -72,6 +76,7 @@ class WorkflowService(
     cleanUpTimeout: Int
 ) extends SubscriptionManager
     with LazyLogging {
+
   // state across execution:
   private val errorSubject = BehaviorSubject.create[TexeraWebSocketEvent]().toSerialized
   val stateStore = new WorkflowStateStore()
@@ -83,7 +88,20 @@ class WorkflowService(
     s"workflowId=$workflowId",
     cleanUpTimeout,
     () => {
-      ResultStorage.getOpResultStorage(workflowId).clear()
+      // clear the storage resources associated with the latest execution
+      WorkflowExecutionService
+        .getLatestExecutionId(workflowId)
+        .foreach(eid => {
+          ExecutionResourcesMapping
+            .getResourceURIs(eid)
+            .foreach(uri =>
+              try {
+                DocumentFactory.openDocument(uri)._1.clear()
+              } catch {
+                case _: Throwable => // exception can be raised if the document is already cleared
+              }
+            )
+        })
       WorkflowService.workflowServiceMapping.remove(mkWorkflowStateId(workflowId))
       if (executionService.getValue != null) {
         // shutdown client
@@ -155,6 +173,20 @@ class WorkflowService(
     val workflowContext: WorkflowContext = createWorkflowContext()
     var controllerConf = ControllerConfig.default
 
+    // clean up results from previous run
+    val previousExecutionId = WorkflowExecutionService.getLatestExecutionId(workflowId)
+    previousExecutionId.foreach(eid => {
+      ExecutionResourcesMapping
+        .getResourceURIs(eid)
+        .foreach(uri =>
+          try {
+            DocumentFactory.openDocument(uri)._1.clear()
+          } catch { // exception can happen if the resource is already cleared
+            case _: Throwable =>
+          }
+        )
+    }) // TODO: change this behavior after enabling cache.
+
     workflowContext.executionId = ExecutionsMetadataPersistService.insertNewExecution(
       workflowContext.workflowId,
       uidOpt,
@@ -225,11 +257,6 @@ class WorkflowService(
         }
       }
     }
-
-    // clean up results from previous run
-    ResultStorage
-      .getOpResultStorage(workflowId)
-      .clear() // TODO: change this behavior after enabling cache.
     try {
       val execution = new WorkflowExecutionService(
         controllerConf,

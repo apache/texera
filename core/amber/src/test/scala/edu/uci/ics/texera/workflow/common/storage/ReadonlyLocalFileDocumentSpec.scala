@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.engine.common.storage
 
-import edu.uci.ics.amber.core.storage.model.ReadonlyLocalFileDocument
+import edu.uci.ics.amber.core.storage.DocumentFactory
+import edu.uci.ics.amber.core.storage.model.{ReadonlyLocalFileDocument, ReadonlyVirtualDocument}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -12,7 +13,7 @@ import scala.util.Using
 class ReadonlyLocalFileDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfter {
 
   var tempFile: File = _
-  var fileDocument: ReadonlyLocalFileDocument = _
+  var fileDocument: ReadonlyVirtualDocument[_] = _
 
   val initialContent =
     "Initial Content\nsome more content to make the text longer\nadf\t\ttestteset"
@@ -21,7 +22,7 @@ class ReadonlyLocalFileDocumentSpec extends AnyFlatSpec with Matchers with Befor
     // Create a temporary file with initial content
     tempFile = File.createTempFile("test", ".txt")
     Files.write(tempFile.toPath, initialContent.getBytes)
-    fileDocument = new ReadonlyLocalFileDocument(tempFile.toURI)
+    fileDocument = DocumentFactory.openReadonlyDocument(tempFile.toURI)
   }
 
   after {

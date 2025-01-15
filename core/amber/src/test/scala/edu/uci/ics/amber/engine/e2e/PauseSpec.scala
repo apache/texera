@@ -7,7 +7,6 @@ import akka.util.Timeout
 import com.twitter.util.{Await, Promise}
 import com.typesafe.scalalogging.Logger
 import edu.uci.ics.amber.clustering.SingleNodeListener
-import edu.uci.ics.amber.core.storage.result.OpResultStorage
 import edu.uci.ics.amber.core.workflow.WorkflowContext
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ExecutionStateUpdate}
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest
@@ -45,7 +44,6 @@ class PauseSpec
       operators: List[LogicalOp],
       links: List[LogicalLink]
   ): Unit = {
-    val resultStorage = new OpResultStorage()
     val workflow = TestUtils.buildWorkflow(operators, links, new WorkflowContext())
     val client =
       new AmberClient(

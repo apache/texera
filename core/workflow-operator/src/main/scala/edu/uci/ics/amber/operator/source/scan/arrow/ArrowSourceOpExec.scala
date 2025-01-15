@@ -23,7 +23,7 @@ class ArrowSourceOpExec(
 
   override def open(): Unit = {
     try {
-      val file = DocumentFactory.newReadonlyDocument(new URI(desc.fileName.get)).asFile()
+      val file = DocumentFactory.openReadonlyDocument(new URI(desc.fileName.get)).asFile()
       val alloc = new RootAllocator()
       allocator = Some(alloc)
       val channel = Files.newByteChannel(file.toPath, StandardOpenOption.READ)

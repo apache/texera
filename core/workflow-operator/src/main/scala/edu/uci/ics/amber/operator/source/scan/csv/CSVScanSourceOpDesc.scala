@@ -61,7 +61,7 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
     if (customDelimiter.isEmpty || !fileResolved()) {
       return null
     }
-    val stream = DocumentFactory.newReadonlyDocument(new URI(fileName.get)).asInputStream()
+    val stream = DocumentFactory.openReadonlyDocument(new URI(fileName.get)).asInputStream()
     val inputReader =
       new InputStreamReader(stream, fileEncoding.getCharset)
 

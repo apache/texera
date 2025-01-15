@@ -58,7 +58,7 @@ class CSVScanSourceOpExec private[csv] (descString: String) extends SourceOperat
 
   override def open(): Unit = {
     inputReader = new InputStreamReader(
-      DocumentFactory.newReadonlyDocument(new URI(desc.fileName.get)).asInputStream(),
+      DocumentFactory.openReadonlyDocument(new URI(desc.fileName.get)).asInputStream(),
       desc.fileEncoding.getCharset
     )
 

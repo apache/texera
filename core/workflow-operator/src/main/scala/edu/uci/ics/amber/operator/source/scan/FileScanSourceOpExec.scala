@@ -23,7 +23,7 @@ class FileScanSourceOpExec private[scan] (
   override def produceTuple(): Iterator[TupleLike] = {
     var filenameIt: Iterator[String] = Iterator.empty
     val fileEntries: Iterator[InputStream] = {
-      val is = DocumentFactory.newReadonlyDocument(new URI(desc.fileName.get)).asInputStream()
+      val is = DocumentFactory.openReadonlyDocument(new URI(desc.fileName.get)).asInputStream()
       if (desc.extract) {
         val inputStream: ArchiveInputStream = new ArchiveStreamFactory().createArchiveInputStream(
           new BufferedInputStream(is)
