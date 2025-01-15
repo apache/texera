@@ -2,7 +2,7 @@ package edu.uci.ics.texera.web
 
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.core.storage.result.OpResultStorage
+import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.storage.util.mongo.MongoDatabaseManager
 import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
@@ -179,9 +179,9 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
         val storageType = collection.get("storageType").asText()
         val collectionName = collection.get("storageKey").asText()
         storageType match {
-          case OpResultStorage.ICEBERG =>
+          case DocumentFactory.ICEBERG =>
           // rely on the server-side result cleanup logic.
-          case OpResultStorage.MONGODB =>
+          case DocumentFactory.MONGODB =>
             MongoDatabaseManager.dropCollection(collectionName)
         }
       })

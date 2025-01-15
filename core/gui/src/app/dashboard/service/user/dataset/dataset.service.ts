@@ -82,8 +82,8 @@ export class DatasetService {
     });
   }
 
-  public retrieveAccessibleDatasets(): Observable<{ datasets: DashboardDataset[] }> {
-    return this.http.get<{ datasets: DashboardDataset[] }>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}`);
+  public retrieveAccessibleDatasets(): Observable<DashboardDataset[]> {
+    return this.http.get<DashboardDataset[]>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}`);
   }
   public createDatasetVersion(
     did: number,
@@ -121,11 +121,9 @@ export class DatasetService {
    * @param did
    */
   public retrieveDatasetVersionList(did: number): Observable<DatasetVersion[]> {
-    return this.http
-      .get<{
-        versions: DatasetVersion[];
-      }>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/${DATASET_VERSION_RETRIEVE_LIST_URL}`)
-      .pipe(map(response => response.versions));
+    return this.http.get<DatasetVersion[]>(
+      `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/${DATASET_VERSION_RETRIEVE_LIST_URL}`
+    );
   }
 
   /**
@@ -155,16 +153,9 @@ export class DatasetService {
     did: number,
     dvid: number
   ): Observable<{ fileNodes: DatasetFileNode[]; size: number }> {
-    return this.http
-      .get<DatasetVersionRootFileNodesResponse>(
-        `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/${DATASET_VERSION_BASE_URL}/${dvid}/rootFileNodes`
-      )
-      .pipe(
-        map(response => ({
-          fileNodes: response.rootFileNodes.fileNodes,
-          size: response.size,
-        }))
-      );
+    return this.http.get<{ fileNodes: DatasetFileNode[]; size: number }>(
+      `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/${DATASET_VERSION_BASE_URL}/${dvid}/rootFileNodes`
+    );
   }
 
   public deleteDatasets(dids: number[]): Observable<Response> {
@@ -193,11 +184,4 @@ export class DatasetService {
       {}
     );
   }
-}
-
-interface DatasetVersionRootFileNodesResponse {
-  rootFileNodes: {
-    fileNodes: DatasetFileNode[];
-  };
-  size: number;
 }

@@ -106,8 +106,6 @@ object AmberConfig {
   val cleanupAllExecutionResults: Boolean =
     getConfSource.getBoolean("web-server.clean-all-execution-results-on-server-start")
 
-  // Language server configuration
-  val pythonLanguageServerConfig: Config = getConfSource.getConfig("python-language-server")
   // Python language server configuration
   var aiAssistantConfig: Option[Config] = None
   if (getConfSource.hasPath("ai-assistant-server")) {

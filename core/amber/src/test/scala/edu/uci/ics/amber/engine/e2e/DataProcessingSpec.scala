@@ -7,7 +7,9 @@ import akka.util.Timeout
 import ch.vorburger.mariadb4j.DB
 import com.twitter.util.{Await, Duration, Promise}
 import edu.uci.ics.amber.clustering.SingleNodeListener
-import edu.uci.ics.amber.core.storage.result.{OpResultStorage, ResultStorage}
+import edu.uci.ics.amber.core.storage.{DocumentFactory, VFSURIFactory}
+import edu.uci.ics.amber.core.storage.model.VirtualDocument
+import edu.uci.ics.amber.core.storage.result.ExecutionResourcesMapping
 import edu.uci.ics.amber.core.tuple.{AttributeType, Tuple}
 import edu.uci.ics.amber.core.workflow.WorkflowContext
 import edu.uci.ics.amber.engine.architecture.controller._
@@ -38,7 +40,6 @@ class DataProcessingSpec
 
   var inMemoryMySQLInstance: Option[DB] = None
   val workflowContext: WorkflowContext = new WorkflowContext()
-  val resultStorage: OpResultStorage = ResultStorage.getOpResultStorage(workflowContext.workflowId)
 
   override def beforeAll(): Unit = {
     system.actorOf(Props[SingleNodeListener](), "cluster-info")
@@ -47,7 +48,6 @@ class DataProcessingSpec
 
   override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
-    resultStorage.clear()
   }
 
   def executeWorkflow(workflow: Workflow): Map[OperatorIdentity, List[Tuple]] = {
@@ -69,16 +69,32 @@ class DataProcessingSpec
       .registerCallback[ExecutionStateUpdate](evt => {
         if (evt.state == COMPLETED) {
           results = workflow.logicalPlan.getTerminalOperatorIds
-            .filter(terminalOpId =>
+            .filter(terminalOpId => {
+              val uri = VFSURIFactory.createResultURI(
+                workflowContext.workflowId,
+                workflowContext.executionId,
+                terminalOpId,
+                PortIdentity()
+              )
               // expecting the first output port only.
-              resultStorage.contains(OpResultStorage.createStorageKey(terminalOpId, PortIdentity()))
-            )
-            .map(terminalOpId =>
-              terminalOpId -> resultStorage
-                .get(OpResultStorage.createStorageKey(terminalOpId, PortIdentity()))
+              ExecutionResourcesMapping
+                .getResourceURIs(workflowContext.executionId)
+                .contains(uri)
+            })
+            .map(terminalOpId => {
+              val uri = VFSURIFactory.createResultURI(
+                workflowContext.workflowId,
+                workflowContext.executionId,
+                terminalOpId,
+                PortIdentity()
+              )
+              terminalOpId -> DocumentFactory
+                .openDocument(uri)
+                ._1
+                .asInstanceOf[VirtualDocument[Tuple]]
                 .get()
                 .toList
-            )
+            })
             .toMap
           completion.setDone()
         }
