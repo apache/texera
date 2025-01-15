@@ -1,9 +1,21 @@
 package edu.uci.ics.amber.storage.result.iceberg
 
-import edu.uci.ics.amber.core.storage.{IcebergCatalogInstance, StorageConfig}
-import edu.uci.ics.amber.core.storage.model.VirtualDocumentSpec
+import edu.uci.ics.amber.core.storage.VFSResourceType.RESULT
+import edu.uci.ics.amber.core.storage.{
+  DocumentFactory,
+  IcebergCatalogInstance,
+  StorageConfig,
+  VFSURIFactory
+}
+import edu.uci.ics.amber.core.storage.model.{VirtualDocument, VirtualDocumentSpec}
 import edu.uci.ics.amber.core.storage.result.iceberg.IcebergDocument
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
+import edu.uci.ics.amber.core.virtualidentity.{
+  ExecutionIdentity,
+  OperatorIdentity,
+  WorkflowIdentity
+}
+import edu.uci.ics.amber.core.workflow.PortIdentity
 import edu.uci.ics.amber.util.IcebergUtil
 import org.apache.iceberg.catalog.Catalog
 import org.apache.iceberg.data.Record
@@ -11,6 +23,7 @@ import org.apache.iceberg.{Schema => IcebergSchema}
 import org.apache.iceberg.catalog.TableIdentifier
 import org.scalatest.BeforeAndAfterAll
 
+import java.net.URI
 import java.sql.Timestamp
 import java.util.UUID
 
@@ -22,7 +35,7 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
   var deserde: (IcebergSchema, Record) => Tuple = _
   var catalog: Catalog = _
   val tableNamespace = "test_namespace"
-  var tableName: String = _
+  var uri: URI = _
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -57,7 +70,13 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
 
   override def beforeEach(): Unit = {
     // Generate a unique table name for each test
-    tableName = s"test_table_${UUID.randomUUID().toString.replace("-", "")}"
+    uri = VFSURIFactory.createResultURI(
+      WorkflowIdentity(0),
+      ExecutionIdentity(0),
+      OperatorIdentity(s"test_table_${UUID.randomUUID().toString.replace("-", "")}"),
+      PortIdentity()
+    )
+    DocumentFactory.createDocument(uri, amberSchema)
     super.beforeEach()
   }
 
@@ -65,21 +84,8 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
     super.afterAll()
   }
 
-  // Implementation of getDocument
-  override def getDocument: IcebergDocument[Tuple] = {
-    new IcebergDocument[Tuple](
-      tableNamespace,
-      tableName,
-      icebergSchema,
-      serde,
-      deserde
-    )
-  }
-
-  // Implementation of isDocumentCleared
-  override def isDocumentCleared: Boolean = {
-    val identifier = TableIdentifier.of(tableNamespace, tableName)
-    !catalog.tableExists(identifier)
+  override def getDocument: VirtualDocument[Tuple] = {
+    DocumentFactory.openDocument(uri)._1.asInstanceOf[VirtualDocument[Tuple]]
   }
 
   override def generateSampleItems(): List[Tuple] = {

@@ -21,13 +21,6 @@ trait VirtualDocumentSpec[T] extends AnyFlatSpec with BeforeAndAfterEach {
     */
   def getDocument: VirtualDocument[T]
 
-  /**
-    * Checks if the document has been cleared.
-    * Subclasses should override this to provide their specific check.
-    * @return true if the document is cleared, false otherwise.
-    */
-  def isDocumentCleared: Boolean
-
   // VirtualDocument instance for each test
   var document: VirtualDocument[T] = _
 
@@ -96,7 +89,6 @@ trait VirtualDocumentSpec[T] extends AnyFlatSpec with BeforeAndAfterEach {
     document.clear()
 
     // Check if the document is cleared
-    assert(isDocumentCleared, "The document should be cleared after calling clear.")
     assert(document.get().isEmpty, "The document should have no items after clearing.")
   }
 

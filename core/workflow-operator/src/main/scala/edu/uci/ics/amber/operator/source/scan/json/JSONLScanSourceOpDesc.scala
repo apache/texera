@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.JsonNode
 import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.storage.DocumentFactory
-import edu.uci.ics.amber.core.storage.model.DatasetFileDocument
 import edu.uci.ics.amber.core.tuple.AttributeTypeUtils.inferSchemaFromRows
 import edu.uci.ics.amber.core.tuple.{Attribute, Schema}
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
@@ -24,14 +23,6 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
   var flatten: Boolean = false
 
   fileTypeName = Option("JSONL")
-
-  def createInputStream(filepath: String, fileDesc: DatasetFileDocument): InputStream = {
-    if (filepath != null) {
-      new FileInputStream(filepath)
-    } else {
-      fileDesc.asInputStream()
-    }
-  }
 
   @throws[IOException]
   override def getPhysicalOp(
@@ -61,7 +52,7 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
     if (!fileResolved()) {
       return null
     }
-    val stream = DocumentFactory.newReadonlyDocument(new URI(fileName.get)).asInputStream()
+    val stream = DocumentFactory.openReadonlyDocument(new URI(fileName.get)).asInputStream()
     val reader = new BufferedReader(new InputStreamReader(stream, fileEncoding.getCharset))
     var fieldNames = Set[String]()
 
