@@ -20,6 +20,7 @@ class ParallelCSVScanSourceOpExec private[csv] (
   val desc: ParallelCSVScanSourceOpDesc =
     objectMapper.readValue(descString, classOf[ParallelCSVScanSourceOpDesc])
   private var reader: BufferedBlockReader = _
+  private val schema = desc.sourceSchema()
 
   override def produceTuple(): Iterator[TupleLike] =
     new Iterator[TupleLike]() {
@@ -42,7 +43,6 @@ class ParallelCSVScanSourceOpExec private[csv] (
             return null
           }
 
-          val schema = desc.sourceSchema()
           // however the null values won't present if omitted in the end, we need to match nulls.
           if (fields.length != schema.getAttributes.size)
             fields = Stream
