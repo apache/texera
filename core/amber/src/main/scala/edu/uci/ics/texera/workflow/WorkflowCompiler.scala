@@ -78,12 +78,11 @@ class WorkflowCompiler(
               .filterNot(_._1.internal)
               .foreach {
                 case (outputPortId, (outputPort, _, schema)) =>
-                  val storageUri = VFSURIFactory.resolve(
-                    RESULT,
+                  val storageUri = VFSURIFactory.createResultURI(
                     context.workflowId,
                     context.executionId,
                     physicalOp.id.logicalOpId,
-                    Some(outputPortId)
+                    outputPortId
                   )
 
                   // Determine the storage type, defaulting to iceberg for large HTML visualizations

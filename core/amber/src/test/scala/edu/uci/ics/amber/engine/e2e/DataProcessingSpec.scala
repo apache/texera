@@ -71,12 +71,11 @@ class DataProcessingSpec
         if (evt.state == COMPLETED) {
           results = workflow.logicalPlan.getTerminalOperatorIds
             .filter(terminalOpId => {
-              val uri = VFSURIFactory.resolve(
-                RESULT,
+              val uri = VFSURIFactory.createResultURI(
                 workflowContext.workflowId,
                 workflowContext.executionId,
                 terminalOpId,
-                Some(PortIdentity())
+                PortIdentity()
               )
               // expecting the first output port only.
               ExecutionResourcesMapping
@@ -84,12 +83,11 @@ class DataProcessingSpec
                 .contains(uri)
             })
             .map(terminalOpId => {
-              val uri = VFSURIFactory.resolve(
-                RESULT,
+              val uri = VFSURIFactory.createResultURI(
                 workflowContext.workflowId,
                 workflowContext.executionId,
                 terminalOpId,
-                Some(PortIdentity())
+                PortIdentity()
               )
               terminalOpId -> DocumentFactory
                 .openDocument(uri)

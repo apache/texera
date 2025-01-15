@@ -72,14 +72,13 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
 
     // By now the workflow should finish running
     // Only supports external port 0 for now. TODO: support multiple ports
-    val storageUri = VFSURIFactory.resolve(
-      RESULT,
+    val storageUri = VFSURIFactory.createResultURI(
       workflowIdentity,
       getLatestExecutionId(workflowIdentity).getOrElse(
         return ResultExportResponse("error", "The workflow contains no results")
       ),
       OperatorIdentity(request.operatorId),
-      Some(PortIdentity())
+      PortIdentity()
     )
     val operatorResult: VirtualDocument[Tuple] =
       DocumentFactory.openDocument(storageUri)._1.asInstanceOf[VirtualDocument[Tuple]]

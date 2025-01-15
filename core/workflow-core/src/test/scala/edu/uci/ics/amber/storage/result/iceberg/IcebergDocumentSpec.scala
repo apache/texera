@@ -70,12 +70,11 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
 
   override def beforeEach(): Unit = {
     // Generate a unique table name for each test
-    uri = VFSURIFactory.resolve(
-      RESULT,
+    uri = VFSURIFactory.createResultURI(
       WorkflowIdentity(0),
       ExecutionIdentity(0),
       OperatorIdentity(s"test_table_${UUID.randomUUID().toString.replace("-", "")}"),
-      Some(PortIdentity())
+      PortIdentity()
     )
     DocumentFactory.createDocument(uri, amberSchema)
     super.beforeEach()

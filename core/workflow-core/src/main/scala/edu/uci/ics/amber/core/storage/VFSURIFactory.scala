@@ -1,5 +1,6 @@
 package edu.uci.ics.amber.core.storage
 
+import edu.uci.ics.amber.core.storage.VFSResourceType.{MATERIALIZED_RESULT, RESULT}
 import edu.uci.ics.amber.core.virtualidentity.{
   ExecutionIdentity,
   OperatorIdentity,
@@ -67,6 +68,36 @@ object VFSURIFactory {
     (workflowId, executionId, operatorId, portIdentity, resourceType)
   }
 
+  def createResultURI(
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity,
+      operatorId: OperatorIdentity,
+      portIdentity: PortIdentity
+  ): URI = {
+    createVFSURI(
+      RESULT,
+      workflowId,
+      executionId,
+      operatorId,
+      Some(portIdentity)
+    )
+  }
+
+  def createMaterializedResultURI(
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity,
+      operatorId: OperatorIdentity,
+      portIdentity: PortIdentity
+  ): URI = {
+    createVFSURI(
+      MATERIALIZED_RESULT,
+      workflowId,
+      executionId,
+      operatorId,
+      Some(portIdentity)
+    )
+  }
+
   /**
     * Resolves a VFS resource to its URI. The URI can be used by the DocumentFactory to create resource or open resource
     *
@@ -78,7 +109,7 @@ object VFSURIFactory {
     * @return A VFS URI
     * @throws IllegalArgumentException if `resourceType` is `RESULT` but `portIdentity` is missing.
     */
-  def resolve(
+  private def createVFSURI(
       resourceType: VFSResourceType.Value,
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,

@@ -95,12 +95,11 @@ object ExecutionResultService {
       }
     }
 
-    val storageUri = VFSURIFactory.resolve(
-      RESULT,
+    val storageUri = VFSURIFactory.createResultURI(
       workflowIdentity,
       executionId,
       physicalOps.head.id.logicalOpId,
-      Some(PortIdentity())
+      PortIdentity()
     )
     val storage: VirtualDocument[Tuple] =
       DocumentFactory.openDocument(storageUri)._1.asInstanceOf[VirtualDocument[Tuple]]
@@ -255,12 +254,11 @@ class ExecutionResultService(
               )
               if (StorageConfig.resultStorageMode == MONGODB) {
                 // using the first port for now. TODO: support multiple ports
-                val storageUri = VFSURIFactory.resolve(
-                  RESULT,
+                val storageUri = VFSURIFactory.createResultURI(
                   workflowIdentity,
                   executionId,
                   opId,
-                  Some(PortIdentity())
+                  PortIdentity()
                 )
                 val opStorage = DocumentFactory.openDocument(storageUri)._1
                 opStorage match {
@@ -302,12 +300,11 @@ class ExecutionResultService(
       throw new IllegalStateException("No execution is recorded")
     )
     // using the first port for now. TODO: support multiple ports
-    val storageUri = VFSURIFactory.resolve(
-      RESULT,
+    val storageUri = VFSURIFactory.createResultURI(
       workflowIdentity,
       latestExecutionId,
       OperatorIdentity(request.operatorID),
-      Some(PortIdentity())
+      PortIdentity()
     )
     val paginationIterable = {
       DocumentFactory

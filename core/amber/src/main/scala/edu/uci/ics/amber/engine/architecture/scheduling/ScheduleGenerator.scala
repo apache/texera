@@ -154,12 +154,11 @@ abstract class ScheduleGenerator(
 
     // create cache writer and link
     // create the uri of the materialization storage
-    val storageUri = VFSURIFactory.resolve(
-      MATERIALIZED_RESULT,
+    val storageUri = VFSURIFactory.createMaterializedResultURI(
       workflowContext.workflowId,
       workflowContext.executionId,
       physicalLink.fromOpId.logicalOpId,
-      Some(physicalLink.fromPortId)
+      physicalLink.fromPortId
     )
 
     val fromPortOutputMode =
