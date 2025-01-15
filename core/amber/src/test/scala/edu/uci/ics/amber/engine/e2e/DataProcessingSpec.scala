@@ -8,7 +8,6 @@ import ch.vorburger.mariadb4j.DB
 import com.twitter.util.{Await, Duration, Promise}
 import edu.uci.ics.amber.clustering.SingleNodeListener
 import edu.uci.ics.amber.core.storage.{DocumentFactory, VFSURIFactory}
-import edu.uci.ics.amber.core.storage.VFSResourceType.RESULT
 import edu.uci.ics.amber.core.storage.model.VirtualDocument
 import edu.uci.ics.amber.core.storage.result.ExecutionResourcesMapping
 import edu.uci.ics.amber.core.tuple.{AttributeType, Tuple}

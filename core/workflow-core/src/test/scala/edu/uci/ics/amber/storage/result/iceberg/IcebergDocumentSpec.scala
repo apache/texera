@@ -1,6 +1,5 @@
 package edu.uci.ics.amber.storage.result.iceberg
 
-import edu.uci.ics.amber.core.storage.VFSResourceType.RESULT
 import edu.uci.ics.amber.core.storage.{
   DocumentFactory,
   IcebergCatalogInstance,
@@ -8,7 +7,6 @@ import edu.uci.ics.amber.core.storage.{
   VFSURIFactory
 }
 import edu.uci.ics.amber.core.storage.model.{VirtualDocument, VirtualDocumentSpec}
-import edu.uci.ics.amber.core.storage.result.iceberg.IcebergDocument
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import edu.uci.ics.amber.core.virtualidentity.{
   ExecutionIdentity,
@@ -20,7 +18,6 @@ import edu.uci.ics.amber.util.IcebergUtil
 import org.apache.iceberg.catalog.Catalog
 import org.apache.iceberg.data.Record
 import org.apache.iceberg.{Schema => IcebergSchema}
-import org.apache.iceberg.catalog.TableIdentifier
 import org.scalatest.BeforeAndAfterAll
 
 import java.net.URI

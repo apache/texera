@@ -1,7 +1,6 @@
 package edu.uci.ics.texera.workflow
 
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.core.storage.VFSResourceType.RESULT
 import edu.uci.ics.amber.core.storage.{DocumentFactory, StorageConfig, VFSURIFactory}
 import edu.uci.ics.amber.core.storage.result.ExecutionResourcesMapping
 import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
