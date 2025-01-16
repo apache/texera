@@ -10,24 +10,42 @@
 
 <nz-table
   #basicTable
-  [nzData]="listOfExecutions">
+  nzShowSizeChanger
+  [nzScroll]="{y: '500px'}"
+  [nzData]="listOfExecutions"
+  [nzLoading]="isLoading"
+  [nzLoadingIndicator]="loadingTemplate"
+  [nzTemplateMode]="true"
+  [nzFrontPagination]="false"
+  [nzTotal]="totalWorkflows"
+  [nzPageSize]="pageSize"
+  [nzPageIndex]="currentPageIndex + 1"
+  [nzPageSizeOptions]="[5, 10, 20, 50]"
+  (nzQueryParams)="onQueryParamsChange($event)"
+  class="execution-table">
   <thead>
     <tr>
       <th
-        [nzSortFn]="sortByWorkflowName"
-        [nzSortDirections]="['ascend', 'descend']"
+        [nzShowSort]="true"
+        [nzSortFn]="true"
+        [nzSortDirections]="['ascend', 'descend', null]"
+        (nzSortOrderChange)="onSortChange('workflow_name', $event)"
         nzWidth="16%">
         Workflow (ID)
       </th>
       <th
-        [nzSortFn]="sortByExecutionName"
-        [nzSortDirections]="['ascend', 'descend']"
+        [nzShowSort]="true"
+        [nzSortFn]="true"
+        [nzSortDirections]="['ascend', 'descend', null]"
+        (nzSortOrderChange)="onSortChange('execution_name', $event)"
         nzWidth="16%">
         Execution Name (ID)
       </th>
       <th
-        [nzSortFn]="sortByInitiator"
-        [nzSortDirections]="['ascend', 'descend']"
+        [nzShowSort]="true"
+        [nzSortFn]="true"
+        [nzSortDirections]="['ascend', 'descend', null]"
+        (nzSortOrderChange)="onSortChange('initiator', $event)"
         nzWidth="12%">
         Initiator
       </th>
@@ -42,25 +60,28 @@
           { text: 'KILLED', value: 'KILLED'},
           { text: 'JUST COMPLETED', value: 'JUST COMPLETED'},
           { text: 'UNKNOWN', value: 'UNKNOWN'}]"
-        [nzFilterFn]="filterByStatus"
-        nzWidth="16%">
+        [nzFilterFn]="true"
+        (nzFilterChange)="onFilterChange($event)"
+        nzWidth="13%">
         Status
       </th>
       <th nzWidth="10%">Time Used (hh:mm:ss)</th>
       <th
-        [nzSortFn]="sortByCompletedTime"
-        [nzSortDirections]="['ascend', 'descend']"
-        nzWidth="15%">
+        [nzShowSort]="true"
+        [nzSortFn]="true"
+        [nzSortDirections]="['ascend', 'descend', null]"
+        (nzSortOrderChange)="onSortChange('end_time', $event)"
+        nzWidth="20%">
         End Time
       </th>
-      <th nzWidth="15%">Action</th>
+      <th nzWidth="13%">Action</th>
     </tr>
   </thead>
   <tbody>
     <tr *ngFor="let execution of basicTable.data">
       <td>
         <div *ngIf="execution.access; else normalWorkflowName">
-          <a href="/workflow/{{execution.workflowId}}">
+          <a href="/dashboard/user/workspace/{{execution.workflowId}}">
             {{ maxStringLength(execution.workflowName, 16) }} ({{ execution.workflowId }})
           </a>
         </div>
@@ -126,7 +147,7 @@
             nzType="redo"></i>
         </button>
         <button
-          (click)="clickToViewHistory(execution.workflowId)"
+          (click)="clickToViewHistory(execution.workflowId, execution.workflowName)"
           nz-button
           nz-tooltip="previous execution of the workflow: {{
                       execution.workflowName
@@ -141,3 +162,12 @@
     </tr>
   </tbody>
 </nz-table>
+
+<ng-template #loadingTemplate>
+  <div class="loading-container">
+    <nz-spin
+      nzTip="Loading..."
+      [nzSpinning]="true"
+      nzSize="large"></nz-spin>
+  </div>
+</ng-template>
