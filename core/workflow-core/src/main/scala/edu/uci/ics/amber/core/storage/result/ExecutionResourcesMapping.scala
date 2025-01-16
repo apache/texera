@@ -43,4 +43,14 @@ object ExecutionResourcesMapping {
       case None               => Some(List(uri)) // Create a new list if key doesn't exist
     }
   }
+
+  /**
+    * Remove all resources associated with a given execution ID.
+    *
+    * @param executionIdentity the target execution ID
+    * @return true if the entry was removed, false if it did not exist
+    */
+  def removeExecutionResources(executionIdentity: ExecutionIdentity): Boolean = {
+    executionIdToExecutionResourcesMapping.remove(executionIdentity).isDefined
+  }
 }

@@ -98,6 +98,7 @@ class WorkflowService(
                 case _: Throwable => // exception can be raised if the document is already cleared
               }
             )
+          ExecutionResourcesMapping.removeExecutionResources(eid)
         })
       WorkflowService.workflowServiceMapping.remove(mkWorkflowStateId(workflowId))
       if (executionService.getValue != null) {
@@ -182,6 +183,7 @@ class WorkflowService(
             case _: Throwable =>
           }
         )
+      ExecutionResourcesMapping.removeExecutionResources(eid)
     }) // TODO: change this behavior after enabling cache.
 
     workflowContext.executionId = ExecutionsMetadataPersistService.insertNewExecution(
