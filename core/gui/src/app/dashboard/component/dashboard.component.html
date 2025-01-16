@@ -141,7 +141,7 @@
   <div class="page-container">
     <nz-layout>
       <div
-        *ngIf="displayNavbar"
+        [hidden]="!displayNavbar"
         id="nav">
         <texera-search-bar></texera-search-bar>
         <ng-container *ngIf="isLogin">
