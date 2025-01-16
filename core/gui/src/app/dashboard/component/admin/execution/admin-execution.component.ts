@@ -2,64 +2,32 @@ import { Component, OnDestroy, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { AdminExecutionService } from "../../../service/admin/execution/admin-execution.service";
 import { Execution } from "../../../../common/type/execution";
-import { NzTableFilterFn, NzTableSortFn } from "ng-zorro-antd/table";
+import { NzTableFilterFn, NzTableQueryParams } from "ng-zorro-antd/table";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { WorkflowExecutionHistoryComponent } from "../../user/user-workflow/ngbd-modal-workflow-executions/workflow-execution-history.component";
-import { Workflow } from "../../../../common/type/workflow";
 import { WorkflowWebsocketService } from "../../../../workspace/service/workflow-websocket/workflow-websocket.service";
-import { environment } from "../../../../../environments/environment";
+
+export const NO_SORT = "NO_SORTING";
 
 @UntilDestroy()
 @Component({
   templateUrl: "./admin-execution.component.html",
+  styleUrls: ["./admin-execution.component.scss"],
 })
 export class AdminExecutionComponent implements OnInit, OnDestroy {
-  Executions: ReadonlyArray<Execution> = [];
-  workflowsCount: number = 0;
-  listOfExecutions = [...this.Executions];
-  workflows: Array<Workflow> = [];
-  executionMap: Map<number, Execution> = new Map();
+  listOfExecutions: ReadonlyArray<Execution> = [];
+  isLoading: boolean = true;
+  totalWorkflows: number = 0;
+  pageSize: number = 5;
+  // CurrentPageIndex is 0-indexed, but pageIndex in HTML is 1-indexed.
+  currentPageIndex: number = 0;
+  sortField: string = NO_SORT;
+  sortDirection: string = NO_SORT;
+  filter: string[] = [];
 
-  // Set up an interval to periodically fetch and update execution data.
-  // This interval function fetches the latest execution list and checks for updates.
-  // If some execution's data has changed, it triggers a component refresh.
+  // This interval function fetches the latest execution list.
   // The interval runs every 1 second (1000 milliseconds).
-  timer = setInterval(() => {
-    this.adminExecutionService
-      .getExecutionList()
-      .pipe(untilDestroyed(this))
-      .subscribe(executionList => {
-        this.listOfExecutions.forEach((oldExecution, index) => {
-          const updatedExecution = executionList.find(execution => execution.executionId === oldExecution.executionId);
-          if (updatedExecution && this.dataCheck(this.listOfExecutions[index], updatedExecution)) {
-            this.ngOnInit();
-          } else if (!updatedExecution) {
-            this.ngOnInit();
-
-            // this if statement checks whether the workflow has no executions or the workflow has been deleted.
-            let check_execution = this.executionMap.get(oldExecution.workflowId);
-            if (check_execution && check_execution.executionId === oldExecution.executionId) {
-              this.executionMap.delete(oldExecution.workflowId);
-              this.listOfExecutions = [...this.executionMap.values()];
-            }
-          }
-        });
-
-        executionList.forEach(execution => {
-          if (this.executionMap.has(execution.workflowId)) {
-            let tempExecution = this.executionMap.get(execution.workflowId);
-            if (tempExecution) {
-              if (tempExecution.executionId < execution.executionId) {
-                this.ngOnInit();
-              }
-            }
-          } else if (!this.executionMap.has(execution.workflowId)) {
-            this.ngOnInit();
-          }
-        });
-        this.updateTimeDifferences();
-      });
-  }, 1000); // 1 second interval
+  timer = setInterval(() => this.ngOnInit(), 1000); // 1 second interval
 
   constructor(
     private adminExecutionService: AdminExecutionService,
@@ -68,14 +36,18 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.adminExecutionService
-      .getExecutionList()
+      .getExecutionList(this.pageSize, this.currentPageIndex, this.sortField, this.sortDirection, this.filter)
       .pipe(untilDestroyed(this))
       .subscribe(executionList => {
-        this.Executions = executionList;
-        this.listOfExecutions = [];
-        this.reset();
-        this.workflowsCount = this.listOfExecutions.length;
+        this.listOfExecutions = [...executionList];
+        this.updateTimeStatus();
+        this.isLoading = false;
       });
+
+    this.adminExecutionService
+      .getTotalWorkflows()
+      .pipe(untilDestroyed(this))
+      .subscribe(total => (this.totalWorkflows = total));
   }
 
   ngOnDestroy(): void {
@@ -105,42 +77,7 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
     return false;
   }
 
-  initWorkflows() {
-    for (let i = 0; i < this.listOfExecutions.length; i++) {
-      const execution = this.listOfExecutions[i];
-      let tempWorkflow: Workflow = {
-        content: {
-          operators: [],
-          operatorPositions: {},
-          links: [],
-          commentBoxes: [],
-          settings: { dataTransferBatchSize: environment.defaultDataTransferBatchSize },
-        },
-        name: execution.workflowName,
-        wid: execution.workflowId,
-        description: "",
-        creationTime: 0,
-        lastModifiedTime: 0,
-        isPublished: 0,
-        readonly: false,
-      };
-
-      this.workflows.push(tempWorkflow);
-    }
-  }
-
-  filterExecutions() {
-    for (let i = 0; i < this.Executions.length; i++) {
-      const execution = this.Executions[i];
-      this.executionMap.set(execution.workflowId, execution);
-    }
-    this.listOfExecutions = [...this.executionMap.values()];
-  }
-
-  reset() {
-    this.filterExecutions();
-    this.initWorkflows();
-
+  updateTimeStatus() {
     this.specifyCompletedStatus();
     this.updateTimeDifferences();
   }
@@ -246,18 +183,7 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
     });
   };
 
-  clickToViewHistory(workflowId: number) {
-    let wid!: number;
-    let name!: string;
-    for (let i = 0; i < this.workflows.length; i++) {
-      const workflow = this.workflows[i];
-      if (workflow.wid == workflowId) {
-        wid = workflow.wid;
-        name = workflow.name;
-        break;
-      }
-    }
-
+  clickToViewHistory(wid: number, name: string) {
     this.modalService.create({
       nzContent: WorkflowExecutionHistoryComponent,
       nzData: { wid: wid },
@@ -301,11 +227,50 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
     // socket.closeWebsocket();
   }
 
-  public sortByWorkflowName: NzTableSortFn<Execution> = (a: Execution, b: Execution) =>
-    (b.workflowName || "").localeCompare(a.workflowName);
-  public sortByExecutionName: NzTableSortFn<Execution> = (a: Execution, b: Execution) =>
-    (b.executionName || "").localeCompare(a.executionName);
-  public sortByCompletedTime: NzTableSortFn<Execution> = (a: Execution, b: Execution) => b.endTime - a.endTime;
-  public sortByInitiator: NzTableSortFn<Execution> = (a: Execution, b: Execution) =>
-    (b.userName || "").localeCompare(a.userName);
+  /**
+   * Reorder the executions based on the selected field and order.
+   * The sorting function is implemented in the backend.
+   * @param sortField
+   * @param sortOrder
+   */
+  onSortChange(sortField: string, sortOrder: string | null): void {
+    if (sortField == this.sortField && sortOrder == null) {
+      this.sortField = NO_SORT;
+      this.sortDirection = NO_SORT;
+      this.ngOnInit();
+    } else if (sortOrder != null) {
+      this.sortField = sortField;
+      this.sortDirection = sortOrder === "descend" ? "desc" : "asc";
+      this.ngOnInit();
+    }
+  }
+
+  /**
+   * Function that displays executions in respond to page size and page index changes.
+   * @param params
+   */
+  onQueryParamsChange(params: NzTableQueryParams): void {
+    const { pageSize, pageIndex, sort, filter } = params;
+    if (pageSize != this.pageSize) {
+      this.pageSize = pageSize;
+      // If the user is at the last page, and increment the pageSize, move user to new last page index if necessary.
+      if (Math.ceil(this.totalWorkflows / pageSize) < this.currentPageIndex + 1) {
+        this.currentPageIndex = Math.ceil(this.totalWorkflows / pageSize) - 1;
+      }
+      this.ngOnInit();
+    } else if (pageIndex - 1 != this.currentPageIndex) {
+      this.currentPageIndex = pageIndex - 1;
+      this.ngOnInit();
+    }
+  }
+
+  /**
+   * Filter the executions based on the status user checked.
+   * The filtering function in implemented in the backend.
+   * @param filter
+   */
+  onFilterChange(filter: any[]): void {
+    this.filter = filter.map(item => String(item));
+    this.ngOnInit();
+  }
 }
