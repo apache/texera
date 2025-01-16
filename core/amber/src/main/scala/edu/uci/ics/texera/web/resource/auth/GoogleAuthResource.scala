@@ -37,8 +37,9 @@ class GoogleAuthResource {
 
   @GET
   @Path("/clientid")
-  def getClientId: String = {
-    clientId
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def getClientId: Map[String, String] = {
+    Map("clientId" -> clientId)
   }
 
   @POST

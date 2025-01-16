@@ -140,12 +140,30 @@ import { LandingPageComponent } from "./hub/component/landing-page/landing-page.
 import { BrowseSectionComponent } from "./hub/component/browse-section/browse-section.component";
 import { BreakpointConditionInputComponent } from "./workspace/component/code-editor-dialog/breakpoint-condition-input/breakpoint-condition-input.component";
 import { CodeDebuggerComponent } from "./workspace/component/code-editor-dialog/code-debugger.component";
+import { GoogleAuthService } from "./common/service/user/google-auth.service";
 import { SocialLoginModule, SocialAuthServiceConfig, GoogleSigninButtonModule } from "@abacritt/angularx-social-login";
-import {
-  GoogleLoginProvider,
-} from "@abacritt/angularx-social-login";
+import { GoogleLoginProvider } from "@abacritt/angularx-social-login";
+import { lastValueFrom } from "rxjs";
 
 registerLocaleData(en);
+
+const socialConfigFactory = (googleAuthService: GoogleAuthService) => {
+  return lastValueFrom(googleAuthService.getClientId()).then(response => ({
+    autoLogin: false,
+    lang: "en",
+    providers: [
+      {
+        id: GoogleLoginProvider.PROVIDER_ID,
+        provider: new GoogleLoginProvider(response?.clientId || "", {
+          oneTapEnabled: false,
+        }),
+      },
+    ],
+    onError: err => {
+      console.error(err);
+    },
+  })) as Promise<SocialAuthServiceConfig>;
+};
 
 @NgModule({
   declarations: [
@@ -311,21 +329,8 @@ registerLocaleData(en);
     },
     {
       provide: "SocialAuthServiceConfig",
-      useValue: {
-        autoLogin: false,
-        lang: "en",
-        providers: [
-          {
-            id: GoogleLoginProvider.PROVIDER_ID,
-            provider: new GoogleLoginProvider(
-              "127689596526-if7cekkg5fv1kpva65h0cdth2l2sadts.apps.googleusercontent.com"
-            ),
-          },
-        ],
-        onError: err => {
-          console.error(err);
-        },
-      } as SocialAuthServiceConfig,
+      useFactory: socialConfigFactory,
+      deps: [GoogleAuthService],
     },
   ],
   bootstrap: [AppComponent],

@@ -53,7 +53,6 @@ export class UserService {
   }
 
   public logout(): void {
-    console.log("log out!!!!!")
     this.authService.logout();
     this.changeUser(undefined);
   }
