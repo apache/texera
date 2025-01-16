@@ -1,4 +1,4 @@
-package edu.uci.ics.amber.storage
+package edu.uci.ics.amber.core.storage
 
 import io.lakefs.clients.sdk.{ApiClient, ServerConfiguration, ServerVariable}
 

@@ -6,6 +6,7 @@ import edu.uci.ics.amber.core.virtualidentity.{
   WorkflowIdentity
 }
 import edu.uci.ics.amber.core.workflow.PortIdentity
+import io.lakefs.clients.sdk.model.ObjectStats
 
 import java.net.URI
 
@@ -17,6 +18,15 @@ object VFSResourceType extends Enumeration {
 
 object VFSURIFactory {
   val VFS_FILE_URI_SCHEME = "vfs"
+  val LAKEFS_FILE_URI_SCHEME = "lakefs"
+
+  def createLakeFSObjectURI(repoName: String, commitHash: String, obj: ObjectStats): String = {
+    s"${LAKEFS_FILE_URI_SCHEME}://$repoName/$commitHash/${obj.getPath}"
+  }
+
+  def decodeLakeFSURI(uri: URI): (String, String, String, String) = {
+
+  }
 
   /**
     * Parses a VFS URI and extracts its components

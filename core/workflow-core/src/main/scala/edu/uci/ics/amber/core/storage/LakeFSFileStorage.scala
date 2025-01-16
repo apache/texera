@@ -1,10 +1,10 @@
-package edu.uci.ics.amber.storage
+package edu.uci.ics.amber.core.storage
 
 import io.lakefs.clients.sdk._
 import io.lakefs.clients.sdk.model._
 
-import java.io.{File, FileOutputStream, InputStream, OutputStream}
-import java.nio.file.{Files, Path}
+import java.io.{File, FileOutputStream, InputStream}
+import java.nio.file.Files
 import scala.jdk.CollectionConverters._
 
 /**
@@ -18,6 +18,7 @@ object LakeFSFileStorage {
   private lazy val repoApi: RepositoriesApi = new RepositoriesApi(apiClient)
   private lazy val objectsApi: ObjectsApi = new ObjectsApi(apiClient)
   private lazy val commitsApi: CommitsApi = new CommitsApi(apiClient)
+  private lazy val refsApi: RefsApi = new RefsApi(apiClient)
 
   /**
    * Initializes a new repository in LakeFS.
@@ -31,6 +32,7 @@ object LakeFSFileStorage {
       .name(repoName)
       .storageNamespace(storageNamespace)
       .defaultBranch(defaultBranch)
+      .sampleData(false)
 
     repoApi.createRepository(repo).execute()
   }
@@ -76,12 +78,12 @@ object LakeFSFileStorage {
   /**
    * Executes operations and creates a commit (similar to a transactional commit).
    *
-   * @param repoName Repository name.
-   * @param branch   Branch name.
+   * @param repoName      Repository name.
+   * @param branch        Branch name.
    * @param commitMessage Commit message.
-   * @param operations File operations to perform before committing.
+   * @param operations    File operations to perform before committing.
    */
-  def withCreateVersion(repoName: String, branch: String, commitMessage: String)(operations: => Unit): Unit = {
+  def withCreateVersion(repoName: String, branch: String, commitMessage: String)(operations: => Unit): Commit = {
     operations
     val commit = new CommitCreation()
       .message(commitMessage)
@@ -95,9 +97,8 @@ object LakeFSFileStorage {
    * @param repoName     Repository name.
    * @param commitHash   Commit hash of the version.
    * @param filePath     Path to the file in the repository.
-   * @param outputStream OutputStream to write the content.
    */
-  def retrieveFileContent(repoName: String, commitHash: String, filePath: String, outputStream: OutputStream): File = {
+  def retrieveFileContent(repoName: String, commitHash: String, filePath: String): File = {
     objectsApi.getObject(repoName, commitHash, filePath).execute()
   }
 
@@ -108,5 +109,13 @@ object LakeFSFileStorage {
    */
   def deleteRepo(repoName: String): Unit = {
     repoApi.deleteRepository(repoName).execute()
+  }
+
+  def retrieveVersionsOfRepository(repoName: String, branchName: String): List[Commit] = {
+    refsApi.logCommits(repoName, branchName).execute().getResults.asScala.toList
+  }
+
+  def retrieveObjectsOfVersion(repoName: String, commitHash: String): List[ObjectStats] = {
+    objectsApi.listObjects(repoName, commitHash).execute().getResults.asScala.toList
   }
 }
