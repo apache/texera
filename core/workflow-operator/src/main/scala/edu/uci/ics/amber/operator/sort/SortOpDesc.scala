@@ -2,11 +2,9 @@ package edu.uci.ics.amber.operator.sort
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import edu.uci.ics.amber.core.tuple.Schema
+import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
-import edu.uci.ics.amber.operator.metadata.OperatorInfo
-import edu.uci.ics.amber.operator.metadata.OperatorGroupConstants
-import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
-
+import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 class SortOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(required = true)
   @JsonPropertyDescription("column to perform sorting on")
@@ -42,6 +40,10 @@ class SortOpDesc extends PythonOperatorDescriptor {
        |        yield sorted_df""".stripMargin
   }
 
+  def getOutputSchemas(inputSchemas: Map[PortIdentity, Schema]): Map[PortIdentity, Schema] = {
+    Map(operatorInfo.outputPorts.head.id -> inputSchemas.values.head)
+  }
+
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
       "Sort",
@@ -51,5 +53,4 @@ class SortOpDesc extends PythonOperatorDescriptor {
       outputPorts = List(OutputPort(blocking = true))
     )
 
-  override def getOutputSchema(schemas: Array[Schema]): Schema = schemas(0)
 }

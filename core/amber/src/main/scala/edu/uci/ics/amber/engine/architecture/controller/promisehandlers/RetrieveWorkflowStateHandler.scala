@@ -14,9 +14,10 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{
 }
 import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.METHOD_RETRIEVE_STATE
 import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
-import edu.uci.ics.amber.engine.common.virtualidentity.ChannelMarkerIdentity
+import edu.uci.ics.amber.core.virtualidentity.ChannelMarkerIdentity
 
 import java.time.Instant
+
 trait RetrieveWorkflowStateHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 

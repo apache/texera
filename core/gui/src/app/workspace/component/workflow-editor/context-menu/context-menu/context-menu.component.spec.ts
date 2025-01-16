@@ -13,6 +13,7 @@ import { ReactiveFormsModule } from "@angular/forms";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { ValidationWorkflowService } from "src/app/workspace/service/validation/validation-workflow.service";
+import { NzModalModule, NzModalService } from "ng-zorro-antd/modal"; // Import NzModalModule and NzModalService
 
 describe("ContextMenuComponent", () => {
   let component: ContextMenuComponent;
@@ -41,6 +42,7 @@ describe("ContextMenuComponent", () => {
       "getWorkflowModificationEnabledStream",
       "deleteOperatorsAndLinks",
       "deleteCommentBox",
+      "getWorkflowMetadata", // Add this if used in the component
       "getTexeraGraph",
     ]);
     workflowActionServiceSpy.getJointGraphWrapper.and.returnValue(jointGraphWrapperSpy);
@@ -48,6 +50,7 @@ describe("ContextMenuComponent", () => {
     workflowActionServiceSpy.getTexeraGraph.and.returnValue(texeraGraphSpy);
     workflowActionServiceSpy.deleteOperatorsAndLinks.and.returnValue();
     workflowActionServiceSpy.deleteCommentBox.and.returnValue();
+    workflowActionServiceSpy.getWorkflowMetadata.and.returnValue({ name: "Test Workflow" }); // Mock return value
 
     const workflowResultServiceSpy = jasmine.createSpyObj("WorkflowResultService", [
       "getResultService",
@@ -86,8 +89,15 @@ describe("ContextMenuComponent", () => {
         { provide: WorkflowResultExportService, useValue: workflowResultExportServiceSpy },
         { provide: OperatorMenuService, useValue: operatorMenuService },
         { provide: ValidationWorkflowService, useValue: validationWorkflowServiceSpy },
+        NzModalService, // Provide NzModalService
       ],
-      imports: [HttpClientModule, ReactiveFormsModule, BrowserAnimationsModule, NzDropDownModule],
+      imports: [
+        HttpClientModule,
+        ReactiveFormsModule,
+        BrowserAnimationsModule,
+        NzDropDownModule,
+        NzModalModule, // Import NzModalModule
+      ],
     }).compileComponents();
 
     workflowActionService = TestBed.inject(WorkflowActionService) as jasmine.SpyObj<WorkflowActionService>;
@@ -105,51 +115,6 @@ describe("ContextMenuComponent", () => {
 
   it("should create", () => {
     expect(component).toBeTruthy();
-  });
-
-  it("should return \"download multiple results\" when multiple operators are highlighted", () => {
-    jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.and.returnValue(["operator1", "operator2"]);
-
-    const label = component.writeDownloadLabel();
-    expect(label).toBe("download multiple results");
-  });
-
-  it("should return \"download result as HTML file\" when one operator is highlighted and result snapshot is available", () => {
-    jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.and.returnValue(["operator1"]);
-
-    const resultServiceSpy = jasmine.createSpyObj("ResultService", ["getCurrentResultSnapshot"]);
-    workflowResultService.getResultService.and.returnValue(resultServiceSpy);
-    resultServiceSpy.getCurrentResultSnapshot.and.returnValue({ some: "snapshot" });
-
-    const label = component.writeDownloadLabel();
-    expect(label).toBe("download result as HTML file");
-  });
-
-  it("should return \"download result as CSV file\" when one operator is highlighted and result exists but no snapshot", () => {
-    jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.and.returnValue(["operator1"]);
-
-    workflowResultService.getResultService.and.returnValue(undefined);
-    workflowResultService.hasAnyResult.and.returnValue(true);
-
-    const label = component.writeDownloadLabel();
-    expect(label).toBe("download result as CSV file");
-  });
-
-  it("should return \"download result\" when one operator is highlighted and no result is available", () => {
-    jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.and.returnValue(["operator1"]);
-
-    workflowResultService.getResultService.and.returnValue(undefined);
-    workflowResultService.hasAnyResult.and.returnValue(false);
-
-    const label = component.writeDownloadLabel();
-    expect(label).toBe("download result");
-  });
-
-  it("should return \"download result\" when no operators are highlighted", () => {
-    jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.and.returnValue([]);
-
-    const label = component.writeDownloadLabel();
-    expect(label).toBe("download result");
   });
 
   describe("isSelectedOperatorValid", () => {

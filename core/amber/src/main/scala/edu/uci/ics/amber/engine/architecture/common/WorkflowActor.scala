@@ -4,15 +4,7 @@ import akka.actor.{Actor, ActorRef, Address, Stash}
 import akka.pattern.ask
 import akka.util.Timeout
 import edu.uci.ics.amber.clustering.ClusterListener.GetAvailableNodeAddresses
-import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.{
-  CreditRequest,
-  CreditResponse,
-  GetActorRef,
-  MessageBecomesDeadLetter,
-  NetworkAck,
-  NetworkMessage,
-  RegisterActorRef
-}
+import edu.uci.ics.amber.engine.architecture.common.WorkflowActor._
 import edu.uci.ics.amber.engine.architecture.logreplay.{
   ReplayLogGenerator,
   ReplayLogManager,
@@ -20,15 +12,15 @@ import edu.uci.ics.amber.engine.architecture.logreplay.{
   ReplayOrderEnforcer
 }
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
-  MainThreadDelegateMessage,
-  TriggerSend,
   FaultToleranceConfig,
-  StateRestoreConfig
+  MainThreadDelegateMessage,
+  StateRestoreConfig,
+  TriggerSend
 }
-import edu.uci.ics.amber.engine.common.{AmberLogging, CheckpointState}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import edu.uci.ics.amber.engine.common.{AmberLogging, CheckpointState}
+import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
@@ -37,8 +29,8 @@ object WorkflowActor {
 
   /** Ack for NetworkMessage
     *
-    * @param messageId Long, id of the received network message
-    * @param ackedCredit Long, received size of the message, used to subtract sender's inflight credit
+    * @param messageId    Long, id of the received network message
+    * @param ackedCredit  Long, received size of the message, used to subtract sender's inflight credit
     * @param queuedCredit Long, receiver queue's size
     */
   final case class NetworkAck(messageId: Long, ackedCredit: Long, queuedCredit: Long)

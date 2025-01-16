@@ -1,28 +1,28 @@
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import com.google.common.primitives.Longs
+import com.twitter.util.Promise
+import edu.uci.ics.amber.core.marker.{EndOfInputChannel, StartOfInputChannel, State}
+import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputGateway
 import edu.uci.ics.amber.engine.common.AmberLogging
-import edu.uci.ics.amber.engine.common.ambermessage._
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import org.apache.arrow.flight._
-import org.apache.arrow.memory.{ArrowBuf, BufferAllocator, RootAllocator}
-import org.apache.arrow.util.AutoCloseables
-
-import java.nio.{ByteBuffer, ByteOrder}
-import java.io.IOException
-import java.net.ServerSocket
-import java.util.concurrent.atomic.AtomicInteger
-import scala.collection.mutable
-import com.twitter.util.Promise
 import edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.Value.{
   ControlInvocation => ControlInvocationV2,
   ReturnInvocation => ReturnInvocationV2
 }
-import edu.uci.ics.amber.engine.common.model.{EndOfInputChannel, StartOfInputChannel, State}
-import edu.uci.ics.amber.engine.common.model.tuple.Tuple
+import edu.uci.ics.amber.engine.common.ambermessage._
+import edu.uci.ics.amber.util.ArrowUtils
+import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
+import org.apache.arrow.flight._
+import org.apache.arrow.memory.{ArrowBuf, BufferAllocator, RootAllocator}
+import org.apache.arrow.util.AutoCloseables
 
+import java.io.IOException
+import java.net.ServerSocket
 import java.nio.charset.Charset
+import java.nio.{ByteBuffer, ByteOrder}
+import java.util.concurrent.atomic.AtomicInteger
+import scala.collection.mutable
 
 private class AmberProducer(
     actorId: ActorVirtualIdentity,
@@ -32,6 +32,7 @@ private class AmberProducer(
   var _portNumber: AtomicInteger = new AtomicInteger(0)
 
   def portNumber: AtomicInteger = _portNumber
+
   override def doAction(
       context: FlightProducer.CallContext,
       action: Action,
@@ -130,6 +131,7 @@ class PythonProxyServer(
     with AutoCloseable
     with AmberLogging {
   private lazy val portNumber: AtomicInteger = new AtomicInteger(getFreeLocalPort)
+
   def getPortNumber: AtomicInteger = portNumber
 
   val allocator: BufferAllocator =
@@ -156,7 +158,7 @@ class PythonProxyServer(
     * Get a random free port.
     *
     * @return The port number.
-    * @throws IOException  , might happen when getting a free port.
+    * @throws IOException , might happen when getting a free port.
     */
   @throws[IOException]
   private def getFreeLocalPort: Int = {

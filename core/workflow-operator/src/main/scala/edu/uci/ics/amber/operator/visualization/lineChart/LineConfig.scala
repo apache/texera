@@ -2,7 +2,7 @@ package edu.uci.ics.amber.operator.visualization.lineChart
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import edu.uci.ics.amber.operator.metadata.annotation.AutofillAttributeName
+import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
 
 //type constraint: value can only be numeric
 @JsonSchemaInject(json = """

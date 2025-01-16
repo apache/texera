@@ -6,14 +6,14 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
   PrepareCheckpointRequest
 }
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import edu.uci.ics.amber.engine.architecture.worker.{
   DataProcessorRPCHandlerInitializer,
   WorkflowWorker
 }
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.{CheckpointState, CheckpointSupport, SerializedState}
-import edu.uci.ics.amber.engine.common.virtualidentity.ChannelMarkerIdentity
+import edu.uci.ics.amber.core.virtualidentity.ChannelMarkerIdentity
 
 import java.util.concurrent.CompletableFuture
 import scala.collection.mutable

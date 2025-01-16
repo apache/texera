@@ -3,21 +3,7 @@ package edu.uci.ics.amber.engine.common.rpc
 import com.twitter.util.{Future, Promise}
 import edu.uci.ics.amber.engine.architecture.controller.ClientEvent
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputGateway
-import edu.uci.ics.amber.engine.common.AmberLogging
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  ChannelIdentity,
-  ChannelMarkerIdentity
-}
-import edu.uci.ics.amber.engine.common.virtualidentity.util.CLIENT
-import io.grpc.MethodDescriptor
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
-  AsyncRPCContext,
-  ChannelMarkerPayload,
-  ChannelMarkerType,
-  ControlInvocation,
-  ControlRequest
-}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands._
 import edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerServiceFs2Grpc
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{
   ControlError,
@@ -26,8 +12,16 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{
   WorkerMetricsResponse
 }
 import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceFs2Grpc
+import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.createProxy
+import edu.uci.ics.amber.engine.common.virtualidentity.util.CLIENT
 import edu.uci.ics.amber.error.ErrorUtils.reconstructThrowable
+import edu.uci.ics.amber.core.virtualidentity.{
+  ActorVirtualIdentity,
+  ChannelIdentity,
+  ChannelMarkerIdentity
+}
+import io.grpc.MethodDescriptor
 
 import java.lang.reflect.{InvocationHandler, Method, Proxy}
 import scala.collection.mutable

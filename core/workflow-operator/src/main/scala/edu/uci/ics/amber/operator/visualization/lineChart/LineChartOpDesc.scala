@@ -2,17 +2,16 @@ package edu.uci.ics.amber.operator.visualization.lineChart
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
+import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
-import edu.uci.ics.amber.operator.metadata.OperatorInfo
-import edu.uci.ics.amber.operator.metadata.OperatorGroupConstants
-import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
-import edu.uci.ics.amber.operator.visualization.{VisualizationConstants, VisualizationOperator}
+import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode
+import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 
 import java.util
 import scala.jdk.CollectionConverters.ListHasAsScala
 
-class LineChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
+class LineChartOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "yLabel", required = false, defaultValue = "Y Axis")
   @JsonSchemaTitle("Y Label")
@@ -27,8 +26,13 @@ class LineChartOpDesc extends VisualizationOperator with PythonOperatorDescripto
   @JsonProperty(value = "lines", required = true)
   var lines: util.List[LineConfig] = _
 
-  override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    Schema.builder().add(new Attribute("html-content", AttributeType.STRING)).build()
+  override def getOutputSchemas(
+      inputSchemas: Map[PortIdentity, Schema]
+  ): Map[PortIdentity, Schema] = {
+    val outputSchema = Schema()
+      .add("html-content", AttributeType.STRING)
+    Map(operatorInfo.outputPorts.head.id -> outputSchema)
+    Map(operatorInfo.outputPorts.head.id -> outputSchema)
   }
 
   override def operatorInfo: OperatorInfo =
@@ -37,7 +41,7 @@ class LineChartOpDesc extends VisualizationOperator with PythonOperatorDescripto
       "View the result in line chart",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort())
+      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
   def createPlotlyFigure(): String = {
@@ -104,6 +108,4 @@ class LineChartOpDesc extends VisualizationOperator with PythonOperatorDescripto
     finalCode
   }
 
-  // make the chart type to html visualization so it can be recognized by both backend and frontend.
-  override def chartType(): String = VisualizationConstants.HTML_VIZ
 }

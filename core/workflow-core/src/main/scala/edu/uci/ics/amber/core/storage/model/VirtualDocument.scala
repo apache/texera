@@ -65,9 +65,10 @@ abstract class VirtualDocument[T] extends ReadonlyVirtualDocument[T] {
 
   /**
     * return a writer that buffers the items and performs the flush operation at close time
+    * @param writerIdentifier the id of the writer, maybe required by some implementations
     * @return a buffered item writer
     */
-  def write(): BufferedItemWriter[T] =
+  def writer(writerIdentifier: String): BufferedItemWriter[T] =
     throw new NotImplementedError("write method is not implemented")
 
   /**
@@ -107,5 +108,5 @@ abstract class VirtualDocument[T] extends ReadonlyVirtualDocument[T] {
   /**
     * physically remove the current document
     */
-  def remove(): Unit
+  def clear(): Unit
 }

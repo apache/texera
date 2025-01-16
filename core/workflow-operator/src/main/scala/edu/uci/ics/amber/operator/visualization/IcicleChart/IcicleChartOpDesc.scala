@@ -2,14 +2,13 @@ package edu.uci.ics.amber.operator.visualization.IcicleChart
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
+import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
-import edu.uci.ics.amber.operator.metadata.OperatorInfo
-import edu.uci.ics.amber.operator.metadata.OperatorGroupConstants
-import edu.uci.ics.amber.operator.metadata.annotation.AutofillAttributeName
-import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
-import edu.uci.ics.amber.operator.visualization.{VisualizationConstants, VisualizationOperator}
+import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.amber.operator.visualization.hierarchychart.HierarchySection
+import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode
+import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 
 // type constraint: value can only be numeric
 @JsonSchemaInject(json = """
@@ -21,7 +20,7 @@ import edu.uci.ics.amber.operator.visualization.hierarchychart.HierarchySection
   }
 }
 """)
-class IcicleChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
+class IcicleChartOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(required = true)
   @JsonSchemaTitle("Hierarchy Path")
   @JsonPropertyDescription(
@@ -35,8 +34,13 @@ class IcicleChartOpDesc extends VisualizationOperator with PythonOperatorDescrip
   @AutofillAttributeName
   var value: String = ""
 
-  override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    Schema.builder().add(new Attribute("html-content", AttributeType.STRING)).build()
+  override def getOutputSchemas(
+      inputSchemas: Map[PortIdentity, Schema]
+  ): Map[PortIdentity, Schema] = {
+    val outputSchema = Schema()
+      .add("html-content", AttributeType.STRING)
+    Map(operatorInfo.outputPorts.head.id -> outputSchema)
+    Map(operatorInfo.outputPorts.head.id -> outputSchema)
   }
 
   override def operatorInfo: OperatorInfo =
@@ -45,7 +49,7 @@ class IcicleChartOpDesc extends VisualizationOperator with PythonOperatorDescrip
       "Visualize hierarchical data from root to leaves",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort())
+      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
   private def getIcicleAttributesInPython: String =
@@ -105,6 +109,4 @@ class IcicleChartOpDesc extends VisualizationOperator with PythonOperatorDescrip
     finalCode
   }
 
-  // make the chart type to html visualization so it can be recognized by both backend and frontend.
-  override def chartType(): String = VisualizationConstants.HTML_VIZ
 }

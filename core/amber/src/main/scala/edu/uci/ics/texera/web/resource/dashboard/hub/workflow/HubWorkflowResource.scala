@@ -1,9 +1,10 @@
 package edu.uci.ics.texera.web.resource.dashboard.hub.workflow
 
-import edu.uci.ics.texera.web.SqlServer
-import edu.uci.ics.texera.web.model.jooq.generated.Tables._
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowDao
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{User, Workflow}
+import edu.uci.ics.amber.core.storage.StorageConfig
+import edu.uci.ics.texera.dao.SqlServer
+import edu.uci.ics.texera.dao.jooq.generated.Tables._
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.WorkflowDao
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{User, Workflow}
 import edu.uci.ics.texera.web.resource.dashboard.hub.workflow.HubWorkflowResource.{
   fetchDashboardWorkflowsByWids,
   recordUserActivity
@@ -24,7 +25,9 @@ import javax.ws.rs.core.{Context, MediaType}
 import scala.jdk.CollectionConverters._
 
 object HubWorkflowResource {
-  final private lazy val context = SqlServer.createDSLContext()
+  final private lazy val context = SqlServer
+    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .createDSLContext()
 
   final private val ipv4Pattern: Pattern = Pattern.compile(
     "^([0-9]{1,3}\\.){3}[0-9]{1,3}$"
@@ -84,7 +87,7 @@ object HubWorkflowResource {
       action: String
   ): Unit = {
     val userIp = request.getRemoteAddr()
-//    println(s"User IP from getRemoteAddr: $userIp")
+    //    println(s"User IP from getRemoteAddr: $userIp")
 
     if (ipv4Pattern.matcher(userIp).matches()) {
       context
@@ -108,7 +111,9 @@ object HubWorkflowResource {
 @Produces(Array(MediaType.APPLICATION_JSON))
 @Path("/hub/workflow")
 class HubWorkflowResource {
-  final private lazy val context = SqlServer.createDSLContext()
+  final private lazy val context = SqlServer
+    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .createDSLContext()
   final private lazy val workflowDao = new WorkflowDao(context.configuration)
 
   @GET
@@ -125,7 +130,7 @@ class HubWorkflowResource {
   def getPublishedWorkflowCount: Integer = {
     context.selectCount
       .from(WORKFLOW)
-      .where(WORKFLOW.IS_PUBLISHED.eq(1.toByte))
+      .where(WORKFLOW.IS_PUBLIC.eq(1.toByte))
       .fetchOne(0, classOf[Integer])
   }
 
@@ -169,7 +174,7 @@ class HubWorkflowResource {
     val workflow = workflowDao.ctx
       .selectFrom(WORKFLOW)
       .where(WORKFLOW.WID.eq(wid))
-      .and(WORKFLOW.IS_PUBLISHED.isTrue)
+      .and(WORKFLOW.IS_PUBLIC.isTrue)
       .fetchOne()
     WorkflowWithPrivilege(
       workflow.getName,
@@ -178,7 +183,7 @@ class HubWorkflowResource {
       workflow.getContent,
       workflow.getCreationTime,
       workflow.getLastModifiedTime,
-      workflow.getIsPublished,
+      workflow.getIsPublic,
       readonly = true
     )
   }
@@ -323,7 +328,7 @@ class HubWorkflowResource {
       .from(WORKFLOW_USER_LIKES)
       .join(WORKFLOW)
       .on(WORKFLOW_USER_LIKES.WID.eq(WORKFLOW.WID))
-      .where(WORKFLOW.IS_PUBLISHED.eq(1.toByte))
+      .where(WORKFLOW.IS_PUBLIC.eq(1.toByte))
       .groupBy(WORKFLOW_USER_LIKES.WID)
       .orderBy(DSL.count(WORKFLOW_USER_LIKES.WID).desc())
       .limit(8)
@@ -345,7 +350,7 @@ class HubWorkflowResource {
       .from(WORKFLOW_USER_CLONES)
       .join(WORKFLOW)
       .on(WORKFLOW_USER_CLONES.WID.eq(WORKFLOW.WID))
-      .where(WORKFLOW.IS_PUBLISHED.eq(1.toByte))
+      .where(WORKFLOW.IS_PUBLIC.eq(1.toByte))
       .groupBy(WORKFLOW_USER_CLONES.WID)
       .orderBy(DSL.count(WORKFLOW_USER_CLONES.WID).desc())
       .limit(8)

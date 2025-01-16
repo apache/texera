@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
-import edu.uci.ics.amber.operator.metadata.annotation.{
+import edu.uci.ics.amber.operator.metadata.annotations.{
   AutofillAttributeName,
   BatchByColumn,
   EnablePresets,
@@ -106,20 +106,7 @@ abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
   @BatchByColumn
   var interval = 0L
 
-  /**
-    * Make sure all the required parameters are not empty,
-    * then query the remote PostgreSQL server for the table schema
-    *
-    * @return Tuple.Schema
-    */
-  override def sourceSchema(): Schema = {
-    if (
-      this.host == null || this.port == null || this.database == null
-      || this.table == null || this.username == null || this.password == null
-    )
-      return null
-    querySchema
-  }
+  override def sourceSchema(): Schema = querySchema
 
   // needs to define getters for sub classes to override Jackson Annotations
   def getKeywords: Option[String] = keywords
@@ -131,54 +118,64 @@ abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
     *
     * @return Schema
     */
-  protected def querySchema: Schema = {
+  private def querySchema: Schema = {
+    if (
+      this.host == null || this.port == null || this.database == null
+      || this.table == null || this.username == null || this.password == null
+    ) {
+      return null
+    }
+
     updatePort()
-    val schemaBuilder = Schema.builder()
     try {
+      val attributes = scala.collection.mutable.ListBuffer[Attribute]()
       val connection = establishConn
       connection.setReadOnly(true)
       val databaseMetaData = connection.getMetaData
       val columns = databaseMetaData.getColumns(null, null, this.table, null)
-      while ({
-        columns.next
-      }) {
+      while (columns.next()) {
         val columnName = columns.getString("COLUMN_NAME")
         val datatype = columns.getInt("DATA_TYPE")
-        datatype match {
+
+        // Map JDBC data types to AttributeType
+        val attributeType = datatype match {
           case Types.TINYINT | // -6 Types.TINYINT
               Types.SMALLINT | // 5 Types.SMALLINT
               Types.INTEGER => // 4 Types.INTEGER
-            schemaBuilder.add(new Attribute(columnName, AttributeType.INTEGER))
+            AttributeType.INTEGER
           case Types.FLOAT | // 6 Types.FLOAT
               Types.REAL | // 7 Types.REAL
               Types.DOUBLE | // 8 Types.DOUBLE
               Types.NUMERIC => // 3 Types.NUMERIC
-            schemaBuilder.add(new Attribute(columnName, AttributeType.DOUBLE))
+            AttributeType.DOUBLE
           case Types.BIT | // -7 Types.BIT
               Types.BOOLEAN => // 16 Types.BOOLEAN
-            schemaBuilder.add(new Attribute(columnName, AttributeType.BOOLEAN))
-          case Types.BINARY => //-2 Types.BINARY
-            schemaBuilder.add(new Attribute(columnName, AttributeType.BINARY))
-          case Types.DATE | //91 Types.DATE
-              Types.TIME | //92 Types.TIME
-              Types.LONGVARCHAR | //-1 Types.LONGVARCHAR
-              Types.CHAR | //1 Types.CHAR
-              Types.VARCHAR | //12 Types.VARCHAR
-              Types.NULL | //0 Types.NULL
-              Types.OTHER => //1111 Types.OTHER
-            schemaBuilder.add(new Attribute(columnName, AttributeType.STRING))
-          case Types.BIGINT => //-5 Types.BIGINT
-            schemaBuilder.add(new Attribute(columnName, AttributeType.LONG))
+            AttributeType.BOOLEAN
+          case Types.BINARY => // -2 Types.BINARY
+            AttributeType.BINARY
+          case Types.DATE | // 91 Types.DATE
+              Types.TIME | // 92 Types.TIME
+              Types.LONGVARCHAR | // -1 Types.LONGVARCHAR
+              Types.CHAR | // 1 Types.CHAR
+              Types.VARCHAR | // 12 Types.VARCHAR
+              Types.NULL | // 0 Types.NULL
+              Types.OTHER => // 1111 Types.OTHER
+            AttributeType.STRING
+          case Types.BIGINT => // -5 Types.BIGINT
+            AttributeType.LONG
           case Types.TIMESTAMP => // 93 Types.TIMESTAMP
-            schemaBuilder.add(new Attribute(columnName, AttributeType.TIMESTAMP))
+            AttributeType.TIMESTAMP
           case _ =>
             throw new RuntimeException(
               this.getClass.getSimpleName + ": unknown data type: " + datatype
             )
         }
+
+        // Add the attribute to the list
+        attributes += new Attribute(columnName, attributeType)
       }
       connection.close()
-      schemaBuilder.build()
+      Schema(attributes.toList)
     } catch {
       case e @ (_: SQLException | _: ClassCastException) =>
         throw new RuntimeException(

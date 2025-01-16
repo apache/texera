@@ -3,45 +3,44 @@ package edu.uci.ics.amber.core.tuple
 import com.github.sisyphsu.dateparser.DateParserUtils
 
 import java.sql.Timestamp
+import java.text.NumberFormat
+import java.util.Locale
 import scala.util.Try
 import scala.util.control.Exception.allCatch
 
 object AttributeTypeUtils extends Serializable {
 
   /**
-    * this loop check whether the current attribute in the array is the attribute for casting,
-    * if it is, change it to result type
-    * if it's not, remain the same type
-    * we need this loop to keep the order the same as the original
+    * This function checks whether the current attribute in the schema matches the selected attribute for casting.
+    * If it matches, its type is changed to the specified result type.
+    * If it doesn't match, the original type is retained.
+    * The order of attributes in the schema is preserved.
+    *
     * @param schema schema of data
     * @param attribute selected attribute
     * @param resultType casting type
-    * @return schema of data
+    * @return a new schema with the modified attribute type
     */
   def SchemaCasting(
       schema: Schema,
       attribute: String,
       resultType: AttributeType
   ): Schema = {
-    // need a builder to maintain the order of original schema
-    val builder = Schema.builder()
-    val attributes: List[Attribute] = schema.getAttributes
-    // change the schema when meet selected attribute else remain the same
-    for (i <- attributes.indices) {
-      if (attributes.apply(i).getName.equals(attribute)) {
+    val updatedAttributes = schema.getAttributes.map { attr =>
+      if (attr.getName == attribute) {
         resultType match {
           case AttributeType.STRING | AttributeType.INTEGER | AttributeType.DOUBLE |
               AttributeType.LONG | AttributeType.BOOLEAN | AttributeType.TIMESTAMP |
               AttributeType.BINARY =>
-            builder.add(attribute, resultType)
+            new Attribute(attribute, resultType) // Cast to the specified result type
           case AttributeType.ANY | _ =>
-            builder.add(attribute, attributes.apply(i).getType)
+            attr // Retain the original type for unsupported types
         }
       } else {
-        builder.add(attributes.apply(i).getName, attributes.apply(i).getType)
+        attr // Retain attributes that don't match the target
       }
     }
-    builder.build()
+    Schema(updatedAttributes)
   }
 
   /**
@@ -64,7 +63,7 @@ object AttributeTypeUtils extends Serializable {
     TupleLike(
       tuple.getSchema.getAttributes.map { attr =>
         val targetType = targetTypes.getOrElse(attr.getName, attr.getType)
-        parseField(tuple.getField(attr.getName), targetType)
+        parseField(tuple.getField(attr.getName), targetType, force = true)
       }
     )
 
@@ -90,18 +89,21 @@ object AttributeTypeUtils extends Serializable {
     * parse Field to a corresponding Java object base on the given Schema AttributeType
     * @param field fields value
     * @param attributeType target AttributeType
+    * @param force force to parse the field to the target type if possible
+    *              currently only support for comma-separated numbers
     *
     * @return parsedField in the target AttributeType
     */
   @throws[AttributeTypeException]
   def parseField(
       field: Any,
-      attributeType: AttributeType
+      attributeType: AttributeType,
+      force: Boolean = false
   ): Any = {
     if (field == null) return null
     attributeType match {
-      case AttributeType.INTEGER   => parseInteger(field)
-      case AttributeType.LONG      => parseLong(field)
+      case AttributeType.INTEGER   => parseInteger(field, force)
+      case AttributeType.LONG      => parseLong(field, force)
       case AttributeType.DOUBLE    => parseDouble(field)
       case AttributeType.BOOLEAN   => parseBoolean(field)
       case AttributeType.TIMESTAMP => parseTimestamp(field)
@@ -112,87 +114,147 @@ object AttributeTypeUtils extends Serializable {
   }
 
   @throws[AttributeTypeException]
-  private def parseInteger(fieldValue: Any): Integer = {
-    fieldValue match {
-      case str: String                => str.trim.toInt
-      case int: Integer               => int
-      case long: java.lang.Long       => long.toInt
-      case double: java.lang.Double   => double.toInt
-      case boolean: java.lang.Boolean => if (boolean) 1 else 0
-      // Timestamp and Binary are considered to be illegal here.
-      case _ =>
-        throw new AttributeTypeException(
-          s"not able to parse type ${fieldValue.getClass} to Integer: ${fieldValue.toString}"
-        )
+  private def parseInteger(fieldValue: Any, force: Boolean = false): Integer = {
+    val attempt: Try[Integer] = Try {
+      fieldValue match {
+        case str: String =>
+          if (force) {
+            // Use US locale for comma-separated numbers
+            NumberFormat.getNumberInstance(Locale.US).parse(str.trim).intValue()
+          } else {
+            str.trim.toInt
+          }
+        case int: Integer               => int
+        case long: java.lang.Long       => long.toInt
+        case double: java.lang.Double   => double.toInt
+        case boolean: java.lang.Boolean => if (boolean) 1 else 0
+        // Timestamp and Binary are considered to be illegal here.
+        case _ =>
+          throw new IllegalArgumentException(
+            s"Unsupported type for parsing to Integer: ${fieldValue.getClass.getName}"
+          )
+      }
     }
+
+    attempt.recover {
+      case e: Exception =>
+        throw new AttributeTypeException(
+          s"Failed to parse type ${fieldValue.getClass.getName} to Integer: ${fieldValue.toString}",
+          e
+        )
+    }.get
   }
 
   @throws[AttributeTypeException]
-  private def parseLong(fieldValue: Any): java.lang.Long = {
-    fieldValue match {
-      case str: String                => str.trim.toLong
-      case int: Integer               => int.toLong
-      case long: java.lang.Long       => long
-      case double: java.lang.Double   => double.toLong
-      case boolean: java.lang.Boolean => if (boolean) 1L else 0L
-      case timestamp: Timestamp       => timestamp.toInstant.toEpochMilli
-      // Binary is considered to be illegal here.
-      case _ =>
-        throw new AttributeTypeException(
-          s"not able to parse type ${fieldValue.getClass} to Long: ${fieldValue.toString}"
-        )
+  private def parseLong(fieldValue: Any, force: Boolean = false): java.lang.Long = {
+    val attempt: Try[Long] = Try {
+      fieldValue match {
+        case str: String =>
+          if (force) {
+            // Use US locale for comma-separated numbers
+            NumberFormat.getNumberInstance(Locale.US).parse(str.trim).longValue()
+          } else {
+            str.trim.toLong
+          }
+        case int: Integer               => int.toLong
+        case long: java.lang.Long       => long
+        case double: java.lang.Double   => double.toLong
+        case boolean: java.lang.Boolean => if (boolean) 1L else 0L
+        case timestamp: Timestamp       => timestamp.toInstant.toEpochMilli
+        // Binary is considered to be illegal here.
+        case _ =>
+          throw new IllegalArgumentException(
+            s"Unsupported type for parsing to Long: ${fieldValue.getClass.getName}"
+          )
+      }
     }
+    attempt.recover {
+      case e: Exception =>
+        throw new AttributeTypeException(
+          s"Failed to parse type ${fieldValue.getClass.getName} to Long: ${fieldValue.toString}",
+          e
+        )
+    }.get
   }
 
   @throws[AttributeTypeException]
   def parseTimestamp(fieldValue: Any): Timestamp = {
-    val parseError = new AttributeTypeException(
-      s"not able to parse type ${fieldValue.getClass} to Timestamp: ${fieldValue.toString}"
-    )
-    fieldValue match {
-      case str: String          => new Timestamp(DateParserUtils.parseDate(str.trim).getTime)
-      case long: java.lang.Long => new Timestamp(long)
-      case timestamp: Timestamp => timestamp
-      case date: java.util.Date => new Timestamp(date.getTime)
-      // Integer, Double, Boolean, Binary are considered to be illegal here.
-      case _ =>
-        throw parseError
+    val attempt: Try[Timestamp] = Try {
+      fieldValue match {
+        case str: String          => new Timestamp(DateParserUtils.parseDate(str.trim).getTime)
+        case long: java.lang.Long => new Timestamp(long)
+        case timestamp: Timestamp => timestamp
+        case date: java.util.Date => new Timestamp(date.getTime)
+        // Integer, Double, Boolean, Binary are considered to be illegal here.
+        case _ =>
+          throw new AttributeTypeException(
+            s"Unsupported type for parsing to Timestamp: ${fieldValue.getClass.getName}"
+          )
+      }
     }
+
+    attempt.recover {
+      case e: Exception =>
+        throw new AttributeTypeException(
+          s"Failed to parse type ${fieldValue.getClass.getName} to Timestamp: ${fieldValue.toString}",
+          e
+        )
+    }.get
+
   }
 
   @throws[AttributeTypeException]
   def parseDouble(fieldValue: Any): java.lang.Double = {
-    fieldValue match {
-      case str: String                => str.trim.toDouble
-      case int: Integer               => int.toDouble
-      case long: java.lang.Long       => long.toDouble
-      case double: java.lang.Double   => double
-      case boolean: java.lang.Boolean => if (boolean) 1 else 0
-      // Timestamp and Binary are considered to be illegal here.
-      case _ =>
-        throw new AttributeTypeException(
-          s"not able to parse type ${fieldValue.getClass} to Double: ${fieldValue.toString}"
-        )
+    val attempt: Try[Double] = Try {
+      fieldValue match {
+        case str: String                => str.trim.toDouble
+        case int: Integer               => int.toDouble
+        case long: java.lang.Long       => long.toDouble
+        case double: java.lang.Double   => double
+        case boolean: java.lang.Boolean => if (boolean) 1 else 0
+        // Timestamp and Binary are considered to be illegal here.
+        case _ =>
+          throw new AttributeTypeException(
+            s"Unsupported type for parsing to Double: ${fieldValue.getClass.getName}"
+          )
+      }
     }
+
+    attempt.recover {
+      case e: Exception =>
+        throw new AttributeTypeException(
+          s"Failed to parse type ${fieldValue.getClass.getName} to Double: ${fieldValue.toString}",
+          e
+        )
+    }.get
+
   }
 
   @throws[AttributeTypeException]
   private def parseBoolean(fieldValue: Any): java.lang.Boolean = {
-    val parseError = new AttributeTypeException(
-      s"not able to parse type ${fieldValue.getClass} to Boolean: ${fieldValue.toString}"
-    )
-    fieldValue match {
-      case str: String =>
-        (Try(str.trim.toBoolean) orElse Try(str.trim.toInt == 1))
-          .getOrElse(throw parseError)
-      case int: Integer               => int != 0
-      case long: java.lang.Long       => long != 0
-      case double: java.lang.Double   => double != 0
-      case boolean: java.lang.Boolean => boolean
-      // Timestamp and Binary are considered to be illegal here.
-      case _ =>
-        throw parseError
+    val attempt: Try[Boolean] = Try {
+      fieldValue match {
+        case str: String =>
+          (Try(str.trim.toBoolean) orElse Try(str.trim.toInt == 1)).get
+        case int: Integer               => int != 0
+        case long: java.lang.Long       => long != 0
+        case double: java.lang.Double   => double != 0
+        case boolean: java.lang.Boolean => boolean
+        // Timestamp and Binary are considered to be illegal here.
+        case _ =>
+          throw new AttributeTypeException(
+            s"Unsupported type for parsing to Boolean: ${fieldValue.getClass.getName}"
+          )
+      }
     }
+
+    attempt.recover {
+      case e: Exception =>
+        throw new AttributeTypeException(
+          s"Failed to parse type ${fieldValue.getClass.getName} to Boolean: ${fieldValue.toString}",
+          e
+        )
+    }.get
   }
 
   /**
@@ -306,5 +368,6 @@ object AttributeTypeUtils extends Serializable {
     }
   }
 
-  class AttributeTypeException(msg: String) extends IllegalArgumentException(msg) {}
+  class AttributeTypeException(msg: String, cause: Throwable = null)
+      extends IllegalArgumentException(msg, cause) {}
 }

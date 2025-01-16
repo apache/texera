@@ -2,57 +2,27 @@ package edu.uci.ics.amber.operator.source.sql.asterixdb
 
 import com.github.tototoshi.csv.CSVParser
 import edu.uci.ics.amber.core.tuple.AttributeTypeUtils.parseField
-import edu.uci.ics.amber.core.tuple.{AttributeType, Schema, Tuple, TupleLike}
-import edu.uci.ics.amber.operator.filter.FilterPredicate
-import AsterixDBConnUtil.{queryAsterixDB, updateAsterixDBVersionMapping}
+import edu.uci.ics.amber.core.tuple.{AttributeType, Tuple, TupleLike}
 import edu.uci.ics.amber.operator.source.sql.SQLSourceOpExec
+import edu.uci.ics.amber.operator.source.sql.asterixdb.AsterixDBConnUtil.{
+  queryAsterixDB,
+  updateAsterixDBVersionMapping
+}
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 
 import java.sql._
 import java.time.format.DateTimeFormatter
 import java.time.{ZoneId, ZoneOffset}
-import scala.collection.Iterator
 import scala.util.control.Breaks.{break, breakable}
 import scala.util.{Failure, Success, Try}
 
 class AsterixDBSourceOpExec private[asterixdb] (
-    host: String,
-    port: String,
-    database: String,
-    table: String,
-    limit: Option[Long],
-    offset: Option[Long],
-    progressive: Option[Boolean],
-    batchByColumn: Option[String],
-    min: Option[String],
-    max: Option[String],
-    interval: Long,
-    keywordSearch: Boolean,
-    keywordSearchByColumn: String,
-    keywords: String,
-    geoSearch: Boolean,
-    geoSearchByColumns: List[String],
-    geoSearchBoundingBox: List[String],
-    regexSearch: Boolean,
-    regexSearchByColumn: String,
-    regex: String,
-    filterCondition: Boolean,
-    filterPredicates: List[FilterPredicate],
-    schemaFunc: () => Schema
-) extends SQLSourceOpExec(
-      table,
-      limit,
-      offset,
-      progressive,
-      batchByColumn,
-      min,
-      max,
-      interval,
-      keywordSearch,
-      keywordSearchByColumn,
-      keywords,
-      schemaFunc
-    ) {
+    descString: String
+) extends SQLSourceOpExec(descString) {
 
+  override val desc: AsterixDBSourceOpDesc =
+    objectMapper.readValue(descString, classOf[AsterixDBSourceOpDesc])
+  schema = desc.sourceSchema()
   // format Timestamp. TODO: move to some util package
   private val formatter: DateTimeFormatter =
     DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneId.from(ZoneOffset.UTC))
@@ -62,12 +32,13 @@ class AsterixDBSourceOpExec private[asterixdb] (
 
   override def open(): Unit = {
     // update AsterixDB API version upon open
-    updateAsterixDBVersionMapping(host, port)
+    updateAsterixDBVersionMapping(desc.host, desc.port)
     super.open()
   }
 
   /**
     * A generator of a Tuple, which converted from a CSV row of fields from AsterixDB
+    *
     * @return Iterator[TupleLike]
     */
   override def produceTuple(): Iterator[TupleLike] = {
@@ -130,7 +101,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
                 curQueryString = if (hasNextQuery) generateSqlQuery else None
                 curQueryString match {
                   case Some(query) =>
-                    curResultIterator = queryAsterixDB(host, port, query)
+                    curResultIterator = queryAsterixDB(desc.host, desc.port, query)
                     break()
                   case None =>
                     curResultIterator = None
@@ -167,7 +138,9 @@ class AsterixDBSourceOpExec private[asterixdb] (
           val columnType = attr.getType
 
           var value: String = null
-          Try({ value = values.get(i) })
+          Try({
+            value = values.get(i)
+          })
 
           if (value == null || value.equals("null")) {
             // add the field as null
@@ -201,32 +174,35 @@ class AsterixDBSourceOpExec private[asterixdb] (
   /**
     * add naive support for full text search.
     * input is either
-    *     ['hello', 'world'], {'mode':'any'}
+    * ['hello', 'world'], {'mode':'any'}
     * or
-    *     ['hello', 'world'], {'mode':'all'}
+    * ['hello', 'world'], {'mode':'all'}
+    *
     * @param queryBuilder queryBuilder for concatenation
     * @throws IllegalArgumentException if attribute does not support string based search
     */
   @throws[IllegalArgumentException]
   def addFilterConditions(queryBuilder: StringBuilder): Unit = {
-    if (keywordSearch) {
+    if (desc.keywordSearch.getOrElse(false)) {
       addKeywordSearch(queryBuilder)
     }
 
-    if (regexSearch) {
+    if (desc.regexSearch.getOrElse(false)) {
       addRegexSearch(queryBuilder)
     }
 
-    if (geoSearch) {
+    if (desc.geoSearch.getOrElse(false)) {
       addGeoSearch(queryBuilder)
     }
 
-    if (filterCondition) {
+    if (desc.filterCondition.getOrElse(false)) {
       addGeneralFilterCondition(queryBuilder)
     }
   }
 
   private def addKeywordSearch(queryBuilder: StringBuilder): Unit = {
+    val keywordSearchByColumn = desc.keywordSearchByColumn.orNull
+    val keywords = desc.keywords.orNull
     if (keywordSearchByColumn != null && keywords != null) {
       val columnType = schema.getAttribute(keywordSearchByColumn).getType
       if (columnType == AttributeType.STRING) {
@@ -237,6 +213,8 @@ class AsterixDBSourceOpExec private[asterixdb] (
   }
 
   private def addRegexSearch(queryBuilder: StringBuilder): Unit = {
+    val regexSearchByColumn = desc.regexSearchByColumn.orNull
+    val regex = desc.regex.orNull
     if (regexSearchByColumn != null && regex != null) {
       val regexColumnType = schema.getAttribute(regexSearchByColumn).getType
       if (regexColumnType == AttributeType.STRING) {
@@ -250,17 +228,17 @@ class AsterixDBSourceOpExec private[asterixdb] (
 
   private def addGeoSearch(queryBuilder: StringBuilder): Unit = {
     // geolocation must contain more than 1 points to from a rectangle or polygon
-    if (geoSearchBoundingBox.size > 1 && geoSearchByColumns.nonEmpty) {
+    if (desc.geoSearchBoundingBox.size > 1 && desc.geoSearchByColumns.nonEmpty) {
       val shape = {
-        val points = geoSearchBoundingBox.flatMap(s => s.split(",").map(sub => sub.toDouble))
-        if (geoSearchBoundingBox.size == 2) {
+        val points = desc.geoSearchBoundingBox.flatMap(s => s.split(",").map(sub => sub.toDouble))
+        if (desc.geoSearchBoundingBox.size == 2) {
           "create_rectangle(create_point(%.6f,%.6f), create_point(%.6f,%.6f))".format(points: _*)
         } else {
           "create_polygon([" + points.map(x => "%.6f".format(x)).mkString(",") + "])"
         }
       }
       queryBuilder ++= " AND ("
-      queryBuilder ++= geoSearchByColumns
+      queryBuilder ++= desc.geoSearchByColumns
         .map { attr => s"spatial_intersect($attr, $shape)" }
         .mkString(" OR ")
       queryBuilder ++= " ) "
@@ -268,8 +246,8 @@ class AsterixDBSourceOpExec private[asterixdb] (
   }
 
   private def addGeneralFilterCondition(queryBuilder: StringBuilder): Unit = {
-    if (filterCondition && filterPredicates.nonEmpty) {
-      val filterString = filterPredicates
+    if (desc.filterCondition.getOrElse(false) && desc.filterPredicates.nonEmpty) {
+      val filterString = desc.filterPredicates
         .map(p => s"(${p.attribute} ${p.condition.getName} ${p.value})")
         .mkString(" OR ")
       queryBuilder ++= s" AND ( $filterString ) "
@@ -278,6 +256,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
 
   /**
     * Fetch for a numeric value of the boundary of the batchByColumn.
+    *
     * @param side either "MAX" or "MIN" for boundary
     * @return a numeric value, could be Int, Long or Double
     */
@@ -285,9 +264,9 @@ class AsterixDBSourceOpExec private[asterixdb] (
     batchByAttribute match {
       case Some(attribute) =>
         val resultString = queryAsterixDB(
-          host,
-          port,
-          "SELECT " + side + "(" + attribute.getName + ") FROM " + database + "." + table + ";"
+          desc.host,
+          desc.port,
+          "SELECT " + side + "(" + attribute.getName + ") FROM " + desc.database + "." + desc.table + ";"
         ).get.next().toString.stripLineEnd
         Try(
           parseField(
@@ -307,8 +286,10 @@ class AsterixDBSourceOpExec private[asterixdb] (
 
   override def addBaseSelect(queryBuilder: StringBuilder): Unit = {
     queryBuilder ++= "\n" + s"SELECT ${schema.getAttributeNames.zipWithIndex
-      .map((entry: (String, Int)) => { s"if_missing(${entry._1},null) field_${entry._2}" })
-      .mkString(", ")} FROM $database.$table WHERE 1 = 1 "
+      .map((entry: (String, Int)) => {
+        s"if_missing(${entry._1},null) field_${entry._2}"
+      })
+      .mkString(", ")} FROM $desc.database.$desc.table WHERE 1 = 1 "
   }
 
   override def addLimit(queryBuilder: StringBuilder): Unit = {
@@ -333,7 +314,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
         }
       case None =>
         throw new IllegalArgumentException(
-          "No valid batchByColumn to iterate: " + batchByColumn.getOrElse("")
+          "No valid batchByColumn to iterate: " + desc.batchByColumn.getOrElse("")
         )
     }
   }
@@ -344,7 +325,8 @@ class AsterixDBSourceOpExec private[asterixdb] (
     */
   override protected def loadTableNames(): Unit = {
     // fetch for all tables, it is also equivalent to a health check
-    val tables = queryAsterixDB(host, port, "select `DatasetName` from Metadata.`Dataset`;")
+    val tables =
+      queryAsterixDB(desc.host, desc.port, "select `DatasetName` from Metadata.`Dataset`;")
     tables.get.foreach(table => {
       tableNames.append(table.toString.stripPrefix("\"").stripLineEnd.stripSuffix("\""))
     })

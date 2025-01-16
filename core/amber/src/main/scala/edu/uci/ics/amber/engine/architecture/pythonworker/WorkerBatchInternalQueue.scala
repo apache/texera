@@ -2,16 +2,12 @@ package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue._
 import edu.uci.ics.amber.engine.common.actormessage.ActorCommand
-import edu.uci.ics.amber.engine.common.ambermessage.{
-  ControlPayload,
-  ControlPayloadV2,
-  DataFrame,
-  DataPayload
-}
-import edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity
+import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, DataFrame, DataPayload}
+import edu.uci.ics.amber.core.virtualidentity.ChannelIdentity
 import lbmq.LinkedBlockingMultiQueue
 
 import scala.collection.mutable
+
 object WorkerBatchInternalQueue {
   final val DATA_QUEUE = 1
   final val CONTROL_QUEUE = 0
@@ -24,8 +20,6 @@ object WorkerBatchInternalQueue {
 
   case class ControlElement(cmd: ControlPayload, from: ChannelIdentity) extends InternalQueueElement
 
-  case class ControlElementV2(cmd: ControlPayloadV2, from: ChannelIdentity)
-      extends InternalQueueElement
   case class ActorCommandElement(cmd: ActorCommand) extends InternalQueueElement
 }
 
@@ -64,20 +58,15 @@ trait WorkerBatchInternalQueue {
       // do nothing
     }
   }
-  def enqueueMarker(elem: InternalQueueElement): Unit = {
-    dataQueue.add(elem)
-  }
 
   def enqueueCommand(cmd: ControlPayload, from: ChannelIdentity): Unit = {
     controlQueue.add(ControlElement(cmd, from))
-  }
-  def enqueueCommand(cmd: ControlPayloadV2, from: ChannelIdentity): Unit = {
-    controlQueue.add(ControlElementV2(cmd, from))
   }
 
   def enqueueActorCommand(command: ActorCommand): Unit = {
     controlQueue.add(ActorCommandElement(command))
   }
+
   def getElement: InternalQueueElement = {
     val elem = lbmq.take()
     elem match {

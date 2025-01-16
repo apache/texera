@@ -1,10 +1,9 @@
-import * as JSZip from "jszip";
 import * as Papa from "papaparse";
 import { Injectable } from "@angular/core";
 import { environment } from "../../../../environments/environment";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
-import { EMPTY, expand, finalize, forkJoin, merge, Observable, of } from "rxjs";
+import { BehaviorSubject, EMPTY, expand, finalize, merge, Observable, of } from "rxjs";
 import { PaginatedResultEvent, ResultExportResponse } from "../../types/workflow-websocket.interface";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
@@ -13,16 +12,14 @@ import { filter } from "rxjs/operators";
 import { OperatorResultService, WorkflowResultService } from "../workflow-result/workflow-result.service";
 import { OperatorPaginationResultService } from "../workflow-result/workflow-result.service";
 import { DownloadService } from "../../../dashboard/service/user/download/download.service";
-import { Buffer } from "buffer";
 
 @Injectable({
   providedIn: "root",
 })
 export class WorkflowResultExportService {
   hasResultToExportOnHighlightedOperators: boolean = false;
-  hasResultToExportOnAllOperators: boolean = false;
   exportExecutionResultEnabled: boolean = environment.exportExecutionResultEnabled;
-
+  hasResultToExportOnAllOperators = new BehaviorSubject<boolean>(false);
   constructor(
     private workflowWebsocketService: WorkflowWebsocketService,
     private workflowActionService: WorkflowActionService,
@@ -68,7 +65,7 @@ export class WorkflowResultExportService {
           ).length > 0;
 
       // check if there are any results to export on all operators (either paginated or snapshot)
-      this.hasResultToExportOnAllOperators =
+      let staticHasResultToExportOnAllOperators =
         isNotInExecution(this.executeWorkflowService.getExecutionState().state) &&
         this.workflowActionService
           .getTexeraGraph()
@@ -79,6 +76,9 @@ export class WorkflowResultExportService {
               this.workflowResultService.hasAnyResult(operatorId) ||
               this.workflowResultService.getResultService(operatorId)?.getCurrentResultSnapshot() !== undefined
           ).length > 0;
+
+      // Notify subscribers of changes
+      this.hasResultToExportOnAllOperators.next(staticHasResultToExportOnAllOperators);
     });
   }
 
@@ -86,9 +86,9 @@ export class WorkflowResultExportService {
    * Export the operator results as files.
    * If multiple operatorIds are provided, results are zipped into a single file.
    */
-  exportOperatorsResultAsFile(download_all: boolean = false): void {
+  exportOperatorsResultToLocal(exportAll: boolean = true): void {
     let operatorIds: string[];
-    if (!download_all)
+    if (!exportAll)
       operatorIds = [...this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()];
     else
       operatorIds = this.workflowActionService
@@ -125,99 +125,6 @@ export class WorkflowResultExportService {
   }
 
   /**
-   * Export all binary data as a ZIP file.
-   */
-  exportAllBinaryDataAsZIP(binaryDataColumns: Set<string>, operatorId: string): void {
-    const paginatedResultService = this.workflowResultService.getPaginatedResultService(operatorId);
-
-    if (!paginatedResultService) {
-      return;
-    }
-
-    this.createZipFromPaginatedData(paginatedResultService, binaryDataColumns, operatorId);
-  }
-
-  private createZipFromPaginatedData(
-    paginatedResultService: OperatorPaginationResultService,
-    binaryDataColumns: Set<string>,
-    operatorId: string
-  ): void {
-    const zip = new JSZip();
-    let currentPage = 1;
-    const pageSize = 10;
-
-    paginatedResultService
-      .selectPage(currentPage, pageSize)
-      .pipe(
-        expand((pageData: PaginatedResultEvent) =>
-          pageData.table.length === pageSize ? paginatedResultService.selectPage(++currentPage, pageSize) : EMPTY
-        ),
-        finalize(() => this.finalizeZip(zip, operatorId))
-      )
-      .subscribe({
-        next: (pageData: PaginatedResultEvent) =>
-          this.processPage(pageData, currentPage, pageSize, zip, binaryDataColumns),
-        error: (error: unknown) => {
-          console.error("Error processing paginated data:", error);
-        },
-      });
-  }
-
-  private processPage(
-    pageData: PaginatedResultEvent,
-    currentPage: number,
-    pageSize: number,
-    zip: JSZip,
-    binaryDataColumns: Set<string>
-  ): void {
-    pageData.table.forEach((row, rowIndex) => {
-      const folderName = `row_${(currentPage - 1) * pageSize + rowIndex + 1}`;
-      this.processBinaryDataColumns(row, binaryDataColumns, folderName, zip);
-    });
-  }
-
-  private processBinaryDataColumns(row: any, binaryDataColumns: Set<string>, folderName: string, zip: JSZip): void {
-    binaryDataColumns.forEach(name => {
-      const binaryData = row[name];
-      if (binaryData === null) {
-        return;
-      }
-      const blob = this.base64ToBlob(binaryData);
-      zip.folder(folderName)?.file(name, blob);
-    });
-  }
-
-  private async finalizeZip(zip: JSZip, operatorId: string): Promise<void> {
-    try {
-      const content = await zip.generateAsync({ type: "blob" });
-      const fileName = `binary_data_${operatorId}.zip`;
-      this.downloadService
-        .downloadOperatorsResult(
-          [of([{ filename: fileName, blob: content }])],
-          this.workflowActionService.getWorkflow()
-        )
-        .subscribe({
-          error: (error: unknown) => {
-            console.error("Error exporting binary data:", error);
-          },
-        });
-    } catch (error) {
-      console.error("Error generating ZIP file:", error);
-    }
-  }
-
-  private base64ToBlob(base64: string): Blob {
-    const buffer = Buffer.from(base64.split(",")[1] || base64, "base64");
-    const byteArray = new Uint8Array(buffer);
-
-    for (let i = 0; i < byteArray.length; i++) {
-      byteArray[i] = buffer[i];
-    }
-
-    return new Blob([byteArray]);
-  }
-
-  /**
    * export the workflow execution result according the export type
    */
   exportWorkflowExecutionResult(
@@ -226,9 +133,10 @@ export class WorkflowResultExportService {
     datasetIds: ReadonlyArray<number> = [],
     rowIndex: number,
     columnIndex: number,
-    filename: string
+    filename: string,
+    exportAll: boolean = false
   ): void {
-    if (!environment.exportExecutionResultEnabled || !this.hasResultToExportOnHighlightedOperators) {
+    if (!environment.exportExecutionResultEnabled) {
       return;
     }
 
@@ -237,28 +145,34 @@ export class WorkflowResultExportService {
       return;
     }
 
+    let operatorIds: string[];
+    if (!exportAll)
+      operatorIds = [...this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()];
+    else
+      operatorIds = this.workflowActionService
+        .getTexeraGraph()
+        .getAllOperators()
+        .map(operator => operator.operatorID);
+
     this.notificationService.loading("exporting...");
-    this.workflowActionService
-      .getJointGraphWrapper()
-      .getCurrentHighlightedOperatorIDs()
-      .forEach(operatorId => {
-        if (!this.workflowResultService.hasAnyResult(operatorId)) {
-          return;
-        }
-        const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorId);
-        const operatorName = operator.customDisplayName ?? operator.operatorType;
-        this.workflowWebsocketService.send("ResultExportRequest", {
-          exportType,
-          workflowId,
-          workflowName,
-          operatorId,
-          operatorName,
-          datasetIds,
-          rowIndex,
-          columnIndex,
-          filename,
-        });
+    operatorIds.forEach(operatorId => {
+      if (!this.workflowResultService.hasAnyResult(operatorId)) {
+        return;
+      }
+      const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorId);
+      const operatorName = operator.customDisplayName ?? operator.operatorType;
+      this.workflowWebsocketService.send("ResultExportRequest", {
+        exportType,
+        workflowId,
+        workflowName,
+        operatorId,
+        operatorName,
+        datasetIds,
+        rowIndex,
+        columnIndex,
+        filename,
       });
+    });
   }
 
   /**
@@ -326,5 +240,17 @@ export class WorkflowResultExportService {
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const filename = `result_${operatorId}.csv`;
     return { filename, blob };
+  }
+
+  /**
+   * Reset flags if the user leave workspace
+   */
+  public resetFlags(): void {
+    this.hasResultToExportOnHighlightedOperators = false;
+    this.hasResultToExportOnAllOperators = new BehaviorSubject<boolean>(false);
+  }
+
+  getExportOnAllOperatorsStatusStream(): Observable<boolean> {
+    return this.hasResultToExportOnAllOperators.asObservable();
   }
 }

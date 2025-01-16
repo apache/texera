@@ -1,169 +1,168 @@
 package edu.uci.ics.amber.core.storage.util.mongo
 
-import com.mongodb.client.model.Aggregates._
-import com.mongodb.client.model.{IndexOptions, Indexes}
-import com.mongodb.client.{FindIterable, MongoCollection, MongoCursor}
+import com.mongodb.client.model.{Aggregates, Sorts}
+import com.mongodb.client.{FindIterable, MongoCollection}
 import org.bson.Document
 
-import java.util.concurrent.TimeUnit
-import scala.collection.mutable
-import scala.jdk.CollectionConverters.{SeqHasAsJava, _}
+import java.util.Date
+import scala.jdk.CollectionConverters._
 
 class MongoCollectionManager(collection: MongoCollection[Document]) {
 
-  def insertOne(document: Document): Unit = {
-    collection.insertOne(document)
-  }
-
+  /**
+    * Insert multiple documents into the collection.
+    */
   def insertMany(documents: Iterable[Document]): Unit = {
     collection.insertMany(documents.toSeq.asJava)
   }
 
+  /**
+    * Delete documents matching the condition.
+    */
   def deleteMany(condition: Document): Unit = {
     collection.deleteMany(condition)
   }
 
+  /**
+    * Get the total count of documents in the collection.
+    */
   def getCount: Long = {
     collection.countDocuments()
-  }
-
-  def getColumnNames: Array[String] = {
-    ???
-  }
-
-  def getAllColumnNames: Array[Array[String]] = {
-    var numericFields: Set[String] = Set()
-    var categoricalFields: Set[String] = Set()
-    var dateFields: Set[String] = Set()
-
-    collection
-      .find()
-      .limit(10)
-      .forEach(doc => {
-        val keys = doc.keySet()
-        keys.forEach(key => {
-          doc.get(key) match {
-            case _: java.lang.String                      => categoricalFields += key
-            case _: java.lang.Integer | _: java.lang.Long => numericFields += key
-            case _: java.lang.Float | _: java.lang.Double => numericFields += key
-            case _: java.util.Date                        => dateFields += key
-            case _                                        => None
-          }
-        })
-      })
-
-    Array(numericFields.toArray, categoricalFields.toArray, dateFields.toArray)
-  }
-
-  def getDocuments(condition: Option[Document]): Iterable[Document] = {
-    if (condition.isDefined) {
-      val cursor: MongoCursor[Document] = collection.find(condition.get).cursor()
-      new Iterator[Document] {
-        override def hasNext: Boolean = cursor.hasNext
-        override def next(): Document = cursor.next()
-      }.iterator.to(Iterable)
-    } else {
-      Iterable(collection.find().first())
-    }
-  }
-
-  def createIndex(
-      columnName: String,
-      ascendingFlag: Boolean,
-      timeToLiveInMinutes: Option[Int]
-  ): Unit = {
-    collection.createIndex(
-      Indexes.ascending(columnName),
-      new IndexOptions().expireAfter(timeToLiveInMinutes.get, TimeUnit.MINUTES)
-    )
   }
 
   def accessDocuments: FindIterable[Document] = {
     collection.find()
   }
 
-  def calculateNumericStats(fieldName: String, offset: Long): Option[(Any, Any, Any, Long)] = {
-    val fieldAsNumber =
-      new Document("$convert", new Document("input", "$" + fieldName).append("to", "double"))
-    val projection = new Document(fieldName, fieldAsNumber)
-    val pipeline = java.util.Arrays.asList(
-      new Document("$skip", offset.toInt),
-      new Document("$project", projection),
-      new Document(
-        "$group",
-        new Document("_id", null)
-          .append("minValue", new Document("$min", "$" + fieldName))
-          .append("maxValue", new Document("$max", "$" + fieldName))
-          .append("meanValue", new Document("$avg", "$" + fieldName))
-          .append("count", new Document("$sum", 1))
+  /**
+    * Calculate numeric statistics (min, max, mean) for numeric fields.
+    */
+  def calculateNumericStats(): Map[String, Map[String, Double]] = {
+    val numericFields = detectNumericFields()
+
+    numericFields.flatMap { field =>
+      val fieldAsType =
+        new Document("$convert", new Document("input", "$" + field).append("to", "double"))
+      val projection = new Document(field, fieldAsType)
+      val groupDoc = new Document("_id", null)
+        .append("minValue", new Document("$min", "$" + field))
+        .append("maxValue", new Document("$max", "$" + field))
+        .append("meanValue", new Document("$avg", "$" + field))
+
+      val pipeline = Seq(
+        new Document("$project", projection),
+        new Document("$group", groupDoc)
       )
-    )
-    val result = collection.aggregate(pipeline).iterator()
-    if (result.hasNext) {
-      val doc = result.next()
-      val count = doc.get("count").toString.toLong
-      Some(
-        (doc.get("minValue"), doc.get("maxValue"), doc.get("meanValue"), count)
-      )
-    } else {
-      None
-    }
+
+      val result = collection.aggregate(pipeline.asJava).iterator().asScala.toList
+      if (result.nonEmpty) {
+        val doc = result.head
+        val stats = Map(
+          "min" -> doc.get("minValue").asInstanceOf[Number].doubleValue(),
+          "max" -> doc.get("maxValue").asInstanceOf[Number].doubleValue(),
+          "mean" -> doc.get("meanValue").asInstanceOf[Number].doubleValue()
+        )
+        Some(field -> stats)
+      } else {
+        None
+      }
+    }.toMap
   }
 
-  def calculateDateStats(fieldName: String, offset: Long): Option[(Any, Any, Any)] = {
-    val fieldAsDate =
-      new Document("$convert", new Document("input", "$" + fieldName).append("to", "date"))
-    val projection = new Document(fieldName, fieldAsDate)
+  /**
+    * Calculate date statistics (min, max) for date fields.
+    */
+  def calculateDateStats(): Map[String, Map[String, Date]] = {
+    val dateFields = detectDateFields()
 
-    val pipeline = java.util.Arrays.asList(
-      new Document("$skip", offset.toInt),
-      new Document("$project", projection),
-      new Document(
-        "$group",
-        new Document("_id", null)
-          .append("minValue", new Document("$min", "$" + fieldName))
-          .append("maxValue", new Document("$max", "$" + fieldName))
-          .append("count", new Document("$sum", 1))
+    dateFields.flatMap { field =>
+      val fieldAsType =
+        new Document("$convert", new Document("input", "$" + field).append("to", "date"))
+      val projection = new Document(field, fieldAsType)
+      val groupDoc = new Document("_id", null)
+        .append("minValue", new Document("$min", "$" + field))
+        .append("maxValue", new Document("$max", "$" + field))
+
+      val pipeline = Seq(
+        new Document("$project", projection),
+        new Document("$group", groupDoc)
       )
-    )
 
-    val result = collection.aggregate(pipeline).iterator()
-    if (result.hasNext) {
-      val doc = result.next()
-      Some(
-        (
-          doc.get("minValue"),
-          doc.get("maxValue"),
-          doc.get("count").asInstanceOf[Number].longValue()
+      val result = collection.aggregate(pipeline.asJava).iterator().asScala.toList
+      if (result.nonEmpty) {
+        val doc = result.head
+        val stats = Map(
+          "min" -> doc.get("minValue").asInstanceOf[Date],
+          "max" -> doc.get("maxValue").asInstanceOf[Date]
         )
-      )
-    } else {
-      None
-    }
+        Some(field -> stats)
+      } else {
+        None
+      }
+    }.toMap
   }
 
-  def calculateCategoricalStats(fieldName: String, offset: Long): (Map[String, Int], Boolean) = {
-    val pipeline = java.util.Arrays.asList(
-      new Document("$skip", offset.toInt),
-      group(
-        "$" + fieldName,
-        java.util.Arrays.asList(
-          com.mongodb.client.model.Accumulators.sum("count", 1)
-        )
-      ),
-      sort(com.mongodb.client.model.Sorts.descending("count")),
-      limit(1000)
-    )
+  /**
+    * Calculate categorical statistics (value counts) for categorical fields.
+    */
+  def calculateCategoricalStats(): Map[String, Map[String, Map[String, Integer]]] = {
+    val categoricalFields = detectCategoricalFields()
 
-    val result = collection.aggregate(pipeline).iterator().asScala.toList
-    var stats: mutable.Map[String, Int] = mutable.Map()
+    categoricalFields.flatMap { field =>
+      val pipeline = Seq(
+        Aggregates.group("$" + field, com.mongodb.client.model.Accumulators.sum("count", 1)),
+        Aggregates.sort(Sorts.descending("count")),
+        Aggregates.limit(1000)
+      )
 
-    result.foreach(doc => {
-      stats(doc.getString("_id")) = doc.get("count").asInstanceOf[Number].intValue()
-    })
+      val result = collection.aggregate(pipeline.asJava).iterator().asScala.toList
+      if (result.nonEmpty) {
+        val counts = result.map(doc => doc.getString("_id") -> doc.getInteger("count")).toMap
+        Some(field -> Map("counts" -> counts))
+      } else {
+        None
+      }
+    }.toMap
+  }
 
-    val reachedLimit = result.size >= 1000
+  /**
+    * Detect numeric fields by sampling the first 10 documents.
+    */
+  private def detectNumericFields(): Set[String] = {
+    sampleDocuments().flatMap { doc =>
+      doc.keySet().asScala.filter { key =>
+        doc.get(key) match {
+          case _: java.lang.Integer | _: java.lang.Long | _: java.lang.Float |
+              _: java.lang.Double =>
+            true
+          case _ => false
+        }
+      }
+    }.toSet
+  }
 
-    (stats.toMap, reachedLimit)
+  /**
+    * Detect date fields by sampling the first 10 documents.
+    */
+  private def detectDateFields(): Set[String] = {
+    sampleDocuments().flatMap { doc =>
+      doc.keySet().asScala.filter(key => doc.get(key).isInstanceOf[Date])
+    }.toSet
+  }
+
+  /**
+    * Detect categorical fields by sampling the first 10 documents.
+    */
+  private def detectCategoricalFields(): Set[String] = {
+    sampleDocuments().flatMap { doc =>
+      doc.keySet().asScala.filter(key => doc.get(key).isInstanceOf[String])
+    }.toSet
+  }
+
+  /**
+    * Helper method to sample the first 10 documents.
+    */
+  private def sampleDocuments(): Seq[Document] = {
+    collection.find().limit(10).iterator().asScala.toSeq
   }
 }

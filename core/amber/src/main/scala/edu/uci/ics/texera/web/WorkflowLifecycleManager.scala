@@ -1,14 +1,14 @@
 package edu.uci.ics.texera.web
 
-import java.time.{LocalDateTime, Duration => JDuration}
 import akka.actor.Cancellable
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.RUNNING
 import edu.uci.ics.amber.engine.common.AmberRuntime
+import edu.uci.ics.amber.engine.common.executionruntimestate.ExecutionMetadataStore
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
-import edu.uci.ics.amber.engine.common.workflowruntimestate.ExecutionMetadataStore
 
+import java.time.{LocalDateTime, Duration => JDuration}
 import scala.concurrent.duration.DurationInt
 
 class WorkflowLifecycleManager(id: String, cleanUpTimeout: Int, cleanUpCallback: () => Unit)

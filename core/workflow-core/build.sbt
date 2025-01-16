@@ -99,6 +99,65 @@ libraryDependencies ++= Seq(
   "org.apache.commons" % "commons-jcs3-core" % "3.2"             // Apache Commons JCS
 )
 
+/////////////////////////////////////////////////////////////////////////////
+// Arrow related
+val arrowVersion = "14.0.1"
+val arrowDependencies = Seq(
+  // https://mvnrepository.com/artifact/org.apache.arrow/flight-grpc
+  "org.apache.arrow" % "flight-grpc" % arrowVersion,
+  // https://mvnrepository.com/artifact/org.apache.arrow/flight-core
+  "org.apache.arrow" % "flight-core" % arrowVersion
+)
+
+libraryDependencies ++= arrowDependencies
+
+/////////////////////////////////////////////////////////////////////////////
+// Iceberg-related Dependencies
+/////////////////////////////////////////////////////////////////////////////
+val excludeJersey = ExclusionRule(organization = "com.sun.jersey")
+val excludeGlassfishJersey = ExclusionRule(organization = "org.glassfish.jersey")
+val excludeSlf4j = ExclusionRule(organization = "org.slf4j")
+val excludeJetty = ExclusionRule(organization = "org.eclipse.jetty")
+val excludeJsp = ExclusionRule(organization = "javax.servlet.jsp")
+val excludeXmlBind = ExclusionRule(organization = "javax.xml.bind")
+val excludeJackson = ExclusionRule(organization = "com.fasterxml.jackson.core")
+val excludeJacksonModule = ExclusionRule(organization = "com.fasterxml.jackson.module")
+
+libraryDependencies ++= Seq(
+  "org.apache.iceberg" % "iceberg-api" % "1.7.1",
+  "org.apache.iceberg" % "iceberg-parquet" % "1.7.1" excludeAll(
+    excludeJackson,
+    excludeJacksonModule
+  ),
+  "org.apache.iceberg" % "iceberg-core" % "1.7.1" excludeAll(
+    excludeJackson,
+    excludeJacksonModule
+  ),
+  "org.apache.iceberg" % "iceberg-data" % "1.7.1" excludeAll(
+    excludeJackson,
+    excludeJacksonModule
+  ),
+  "org.apache.hadoop" % "hadoop-common" % "3.3.1" excludeAll(
+    excludeXmlBind,
+    excludeGlassfishJersey,
+    excludeJersey,
+    excludeSlf4j,
+    excludeJetty,
+    excludeJsp,
+    excludeJackson,
+    excludeJacksonModule
+  ),
+  "org.apache.hadoop" % "hadoop-mapreduce-client-core" % "3.3.1" excludeAll(
+    excludeXmlBind,
+    excludeGlassfishJersey,
+    excludeJersey,
+    excludeSlf4j,
+    excludeJetty,
+    excludeJsp,
+    excludeJackson,
+    excludeJacksonModule
+  ),
+)
 
 /////////////////////////////////////////////////////////////////////////////
 // Additional Dependencies
@@ -111,6 +170,6 @@ libraryDependencies ++= Seq(
   "org.jgrapht" % "jgrapht-core" % "1.4.0",                           // JGraphT Core
   "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5",          // Scala Logging
   "org.eclipse.jgit" % "org.eclipse.jgit" % "5.13.0.202109080827-r",  // jgit
-  "org.yaml" % "snakeyaml" % "2.0",                                   // yaml reader
-  "org.apache.commons" % "commons-vfs2" % "2.9.0"                     // for FileResolver throw VFS-related exceptions
+  "org.yaml" % "snakeyaml" % "1.30",                                  // yaml reader (downgrade to 1.30 due to dropwizard 1.3.23 required by amber)
+  "org.apache.commons" % "commons-vfs2" % "2.9.0",                     // for FileResolver throw VFS-related exceptions
 )

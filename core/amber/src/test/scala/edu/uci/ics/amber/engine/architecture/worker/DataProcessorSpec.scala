@@ -1,5 +1,9 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
+import edu.uci.ics.amber.core.executor.OperatorExecutor
+import edu.uci.ics.amber.core.marker.EndOfInputChannel
+import edu.uci.ics.amber.core.tuple.{AttributeType, Schema, Tuple, TupleLike}
+import edu.uci.ics.amber.core.workflow.WorkflowContext.DEFAULT_WORKFLOW_ID
 import edu.uci.ics.amber.engine.architecture.messaginglayer.WorkerTimerService
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, EmptyRequest}
 import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{
@@ -8,21 +12,17 @@ import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc
 }
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.READY
-import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, MarkerFrame, WorkflowFIFOMessage}
-import edu.uci.ics.amber.engine.common.executor.OperatorExecutor
-import edu.uci.ics.amber.engine.common.model.EndOfInputChannel
-import edu.uci.ics.amber.engine.common.model.tuple.{AttributeType, Schema, Tuple, TupleLike}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
-import edu.uci.ics.amber.engine.common.virtualidentity.{
+import edu.uci.ics.amber.util.VirtualIdentityUtils
+import edu.uci.ics.amber.core.virtualidentity.{
   ActorVirtualIdentity,
   ChannelIdentity,
   OperatorIdentity,
   PhysicalOpIdentity
 }
-import edu.uci.ics.amber.engine.common.workflow.PortIdentity
-import edu.uci.ics.amber.engine.common.model.WorkflowContext.DEFAULT_WORKFLOW_ID
+import edu.uci.ics.amber.core.workflow.PortIdentity
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.flatspec.AnyFlatSpec
@@ -46,7 +46,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
   private val outputPortId = PortIdentity()
   private val outputHandler = mock[Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit]
   private val adaptiveBatchingMonitor = mock[WorkerTimerService]
-  private val schema: Schema = Schema.builder().add("field1", AttributeType.INTEGER).build()
+  private val schema: Schema = Schema().add("field1", AttributeType.INTEGER)
   private val tuples: Array[Tuple] = (0 until 400)
     .map(i => TupleLike(i).enforceSchema(schema))
     .toArray

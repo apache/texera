@@ -3,12 +3,11 @@ package edu.uci.ics.amber.operator.source.scan
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import edu.uci.ics.amber.core.storage.FileResolver
 import edu.uci.ics.amber.core.tuple.Schema
-import edu.uci.ics.amber.core.workflow.WorkflowContext
-import edu.uci.ics.amber.operator.metadata.OperatorInfo
-import edu.uci.ics.amber.operator.metadata.OperatorGroupConstants
+import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.source.SourceOperatorDescriptor
-import edu.uci.ics.amber.workflow.OutputPort
+import edu.uci.ics.amber.core.workflow.OutputPort
 import org.apache.commons.lang3.builder.EqualsBuilder
 
 import java.net.URI
@@ -31,10 +30,6 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
   @JsonPropertyDescription("decoding charset to use on input")
   var fileEncoding: FileDecodingMethod = FileDecodingMethod.UTF_8
 
-  // uri of the file
-  @JsonIgnore
-  var fileUri: Option[String] = None
-
   @JsonIgnore
   var fileTypeName: Option[String] = None
 
@@ -50,14 +45,7 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
   @JsonDeserialize(contentAs = classOf[Int])
   var offset: Option[Int] = None
 
-  override def sourceSchema(): Schema = {
-    if (fileUri.isEmpty) return null
-    inferSchema()
-  }
-
-  override def setContext(workflowContext: WorkflowContext): Unit = {
-    super.setContext(workflowContext)
-  }
+  override def sourceSchema(): Schema = null
 
   override def operatorInfo: OperatorInfo = {
     OperatorInfo(
@@ -69,12 +57,12 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
     )
   }
 
-  def inferSchema(): Schema
-
-  def setFileUri(uri: URI): Unit = {
-    fileUri = Some(uri.toASCIIString)
+  def setResolvedFileName(uri: URI): Unit = {
+    fileName = Some(uri.toASCIIString)
   }
 
   override def equals(that: Any): Boolean =
     EqualsBuilder.reflectionEquals(this, that, "context", "fileHandle")
+
+  def fileResolved(): Boolean = fileName.isDefined && FileResolver.isFileResolved(fileName.get)
 }

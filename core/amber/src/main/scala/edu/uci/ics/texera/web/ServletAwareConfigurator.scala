@@ -2,7 +2,7 @@ package edu.uci.ics.texera.web
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.texera.web.auth.JwtAuth.jwtConsumer
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.http.client.utils.URLEncodedUtils
 import org.jooq.types.UInteger
 
@@ -17,7 +17,7 @@ import scala.jdk.CollectionConverters.ListHasAsScala
   * allow it to be accessed by Websocket connections.
   * <pre>
   * See <a href="https://stackoverflow.com/questions/17936440/accessing-httpsession-
-  *   from-httpservletrequest-in-a-web-socket-serverendpoint"></a>
+  * from-httpservletrequest-in-a-web-socket-serverendpoint"></a>
   * </pre>
   */
 class ServletAwareConfigurator extends ServerEndpointConfig.Configurator with LazyLogging {

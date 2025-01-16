@@ -4,9 +4,9 @@ import com.rits.cloning.Cloner
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
 import edu.uci.ics.amber.engine.architecture.scheduling.Region
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
-import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
-import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
-import edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorMetrics
+import edu.uci.ics.amber.engine.common.executionruntimestate.OperatorMetrics
+import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
+import edu.uci.ics.amber.core.workflow.PhysicalLink
 
 import scala.collection.mutable
 
@@ -15,6 +15,7 @@ object Cloning {
   // prevent cloner from cloning scala Nil, which it cannot handle properly
   cloner.dontClone(classOf[WorkerStatistics])
 }
+
 case class RegionExecution(region: Region) {
 
   private val operatorExecutions: mutable.Map[PhysicalOpIdentity, OperatorExecution] =
@@ -30,7 +31,7 @@ case class RegionExecution(region: Region) {
     * An assertion error is thrown if initialization is attempted for an already existing
     * operatorId.
     *
-    * @param physicalOpId The physical operatorId for which to initialize or retrieve the execution.
+    * @param physicalOpId             The physical operatorId for which to initialize or retrieve the execution.
     * @param inheritOperatorExecution An optional `OperatorExecution` to make a copy.
     * @return The `OperatorExecution` associated with the given physical operatorId.
     * @throws AssertionError if the `OperatorExecution` has already been initialized.

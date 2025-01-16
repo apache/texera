@@ -1,5 +1,5 @@
 import { DatePipe, Location } from "@angular/common";
-import { Component, ElementRef, Input, OnInit, ViewChild } from "@angular/core";
+import { Component, ElementRef, Input, OnDestroy, OnInit, ViewChild } from "@angular/core";
 import { environment } from "../../../../environments/environment";
 import { UserService } from "../../../common/service/user/user.service";
 import {
@@ -53,7 +53,7 @@ import { DASHBOARD_USER_WORKFLOW } from "../../../app-routing.constant";
   templateUrl: "menu.component.html",
   styleUrls: ["menu.component.scss"],
 })
-export class MenuComponent implements OnInit {
+export class MenuComponent implements OnInit, OnDestroy {
   public executionState: ExecutionState; // set this to true when the workflow is started
   public ExecutionState = ExecutionState; // make Angular HTML access enum definition
   public emailNotificationEnabled: boolean = environment.workflowEmailNotificationEnabled;
@@ -62,6 +62,7 @@ export class MenuComponent implements OnInit {
   public isSaving: boolean = false;
   public isWorkflowModifiable: boolean = false;
   public workflowId?: number;
+  public isExportDeactivate: boolean = false;
   protected readonly DASHBOARD_USER_WORKFLOW = DASHBOARD_USER_WORKFLOW;
 
   @Input() public writeAccess: boolean = false;
@@ -153,8 +154,20 @@ export class MenuComponent implements OnInit {
         this.applyRunButtonBehavior(this.getRunButtonBehavior());
       });
 
+    // Subscribe to WorkflowResultExportService observable
+    this.workflowResultExportService
+      .getExportOnAllOperatorsStatusStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(hasResultToExport => {
+        this.isExportDeactivate = !this.workflowResultExportService.exportExecutionResultEnabled || !hasResultToExport;
+      });
+
     this.registerWorkflowMetadataDisplayRefresh();
     this.handleWorkflowVersionDisplay();
+  }
+
+  ngOnDestroy(): void {
+    this.workflowResultExportService.resetFlags();
   }
 
   public async onClickOpenShareAccess(): Promise<void> {
@@ -355,13 +368,13 @@ export class MenuComponent implements OnInit {
    * This is the handler for the execution result export button.
    *
    */
-  public onClickExportExecutionResult(exportType: string): void {
+  public onClickExportExecutionResult(): void {
     this.modalService.create({
-      nzTitle: "Export Result and Save to a Dataset",
+      nzTitle: "Export All Operators Result",
       nzContent: ResultExportationComponent,
       nzData: {
-        exportType: exportType,
         workflowName: this.currentWorkflowName,
+        sourceTriggered: "menu",
       },
       nzFooter: null,
     });

@@ -1,5 +1,13 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
+import edu.uci.ics.amber.core.marker.Marker
+import edu.uci.ics.amber.core.tuple.{
+  FinalizeExecutor,
+  FinalizePort,
+  Schema,
+  SchemaEnforceable,
+  TupleLike
+}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager.{
   DPOutputIterator,
   getBatchSize,
@@ -8,16 +16,8 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager.{
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners._
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings._
 import edu.uci.ics.amber.engine.common.AmberLogging
-import edu.uci.ics.amber.engine.common.model.Marker
-import edu.uci.ics.amber.engine.common.model.tuple.{
-  FinalizeExecutor,
-  FinalizePort,
-  Schema,
-  SchemaEnforceable,
-  TupleLike
-}
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
-import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import edu.uci.ics.amber.core.workflow.{PhysicalLink, PortIdentity}
 
 import scala.collection.mutable
 
@@ -82,7 +82,7 @@ object OutputManager {
 
 /** This class is a container of all the transfer partitioners.
   *
-  * @param actorId         ActorVirtualIdentity of self.
+  * @param actorId       ActorVirtualIdentity of self.
   * @param outputGateway DataOutputPort
   */
 class OutputManager(
@@ -101,6 +101,7 @@ class OutputManager(
 
   /**
     * Add down stream operator and its corresponding Partitioner.
+    *
     * @param partitioning Partitioning, describes how and whom to send to.
     */
   def addPartitionerWithPartitioning(
@@ -119,7 +120,8 @@ class OutputManager(
   /**
     * Push one tuple to the downstream, will be batched by each transfer partitioning.
     * Should ONLY be called by DataProcessor.
-    * @param tupleLike TupleLike to be passed.
+    *
+    * @param tupleLike    TupleLike to be passed.
     * @param outputPortId Optionally specifies the output port from which the tuple should be emitted.
     *                     If None, the tuple is broadcast to all output ports.
     */
@@ -190,7 +192,7 @@ class OutputManager(
   }
 
   def getSingleOutputPortIdentity: PortIdentity = {
-    assert(ports.size == 1)
+    assert(ports.size == 1, "expect 1 output port, got " + ports.size)
     ports.head._1
   }
 

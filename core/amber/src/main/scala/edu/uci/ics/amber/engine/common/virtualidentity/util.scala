@@ -1,5 +1,11 @@
 package edu.uci.ics.amber.engine.common.virtualidentity
 
+import edu.uci.ics.amber.core.virtualidentity.{
+  ActorVirtualIdentity,
+  OperatorIdentity,
+  PhysicalOpIdentity
+}
+
 object util {
 
   lazy val CONTROLLER: ActorVirtualIdentity = ActorVirtualIdentity("CONTROLLER")

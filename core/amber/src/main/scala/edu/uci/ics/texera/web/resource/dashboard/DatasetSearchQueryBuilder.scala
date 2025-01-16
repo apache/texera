@@ -1,12 +1,9 @@
 package edu.uci.ics.texera.web.resource.dashboard
 
-import org.jooq.impl.DSL
-import org.jooq.{Condition, GroupField, Record, TableLike}
-import org.jooq.types.UInteger
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{DATASET, DATASET_USER_ACCESS}
-import edu.uci.ics.texera.web.model.jooq.generated.enums.DatasetUserAccessPrivilege
-import edu.uci.ics.texera.web.model.jooq.generated.tables.User.USER
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{Dataset, User}
+import edu.uci.ics.texera.dao.jooq.generated.Tables.{DATASET, DATASET_USER_ACCESS}
+import edu.uci.ics.texera.dao.jooq.generated.enums.DatasetUserAccessPrivilege
+import edu.uci.ics.texera.dao.jooq.generated.tables.User.USER
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{Dataset, User}
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.DashboardClickableFileEntry
 import edu.uci.ics.texera.web.resource.dashboard.FulltextSearchQueryUtils.{
   getContainsFilter,
@@ -16,8 +13,12 @@ import edu.uci.ics.texera.web.resource.dashboard.FulltextSearchQueryUtils.{
 }
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.DashboardDataset
+import org.jooq.impl.DSL
+import org.jooq.types.UInteger
+import org.jooq.{Condition, GroupField, Record, TableLike}
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
+
 object DatasetSearchQueryBuilder extends SearchQueryBuilder {
   override protected val mappedResourceSchema: UnifiedResourceSchema = UnifiedResourceSchema(
     resourceType = DSL.inline(SearchQueryBuilder.DATASET_RESOURCE_TYPE),
@@ -96,9 +97,11 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder {
           )
       )
   }
+
   override protected def getGroupByFields: Seq[GroupField] = {
     Seq(DATASET.DID)
   }
+
   override protected def toEntryImpl(
       uid: UInteger,
       record: Record
@@ -115,7 +118,7 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder {
         ),
       dataset.getOwnerUid == uid,
       List(),
-      DatasetResource.calculateLatestDatasetVersionSize(dataset.getDid)
+      DatasetResource.calculateDatasetVersionSize(dataset.getDid)
     )
     DashboardClickableFileEntry(
       resourceType = SearchQueryBuilder.DATASET_RESOURCE_TYPE,
@@ -123,4 +126,5 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder {
     )
   }
 }
+
 class DatasetSearchQueryBuilder {}

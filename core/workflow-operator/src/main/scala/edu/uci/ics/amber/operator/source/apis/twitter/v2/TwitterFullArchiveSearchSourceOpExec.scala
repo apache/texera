@@ -1,8 +1,9 @@
 package edu.uci.ics.amber.operator.source.apis.twitter.v2
 
 import edu.uci.ics.amber.core.tuple.{Schema, Tuple, TupleLike}
-import TwitterUtils.tweetDataToTuple
 import edu.uci.ics.amber.operator.source.apis.twitter.TwitterSourceOpExec
+import edu.uci.ics.amber.operator.source.apis.twitter.v2.TwitterUtils.tweetDataToTuple
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import io.github.redouane59.twitter.dto.endpoints.AdditionalParameters
 import io.github.redouane59.twitter.dto.tweet.TweetList
 import io.github.redouane59.twitter.dto.tweet.TweetV2.TweetData
@@ -15,18 +16,11 @@ import scala.collection.{Iterator, mutable}
 import scala.jdk.CollectionConverters.ListHasAsScala
 
 class TwitterFullArchiveSearchSourceOpExec(
-    apiKey: String,
-    apiSecretKey: String,
-    stopWhenRateLimited: Boolean,
-    searchQuery: String,
-    limit: Int,
-    fromDateTime: String,
-    toDateTime: String,
-    schemaFunc: () => Schema
-) extends TwitterSourceOpExec(apiKey, apiSecretKey, stopWhenRateLimited) {
-  val outputSchema: Schema = schemaFunc()
-
-  var curLimit: Int = limit
+    descString: String
+) extends TwitterSourceOpExec(descString) {
+  private val desc: TwitterFullArchiveSearchSourceOpDesc =
+    objectMapper.readValue(descString, classOf[TwitterFullArchiveSearchSourceOpDesc])
+  var curLimit: Int = desc.limit
   // nextToken is used to retrieve next page of results, if exists.
   var nextToken: String = _
   // contains tweets from the previous request.
@@ -34,6 +28,7 @@ class TwitterFullArchiveSearchSourceOpExec(
   var userCache: Map[String, UserData] = Map()
   var hasNextRequest: Boolean = curLimit > 0
   var lastQueryTime: Long = 0
+  val schema: Schema = desc.sourceSchema()
 
   override def produceTuple(): Iterator[TupleLike] =
     new Iterator[TupleLike]() {
@@ -43,9 +38,9 @@ class TwitterFullArchiveSearchSourceOpExec(
         // if the current cache is exhausted, query for the next response
         if (tweetCache.isEmpty && hasNextRequest) {
           queryForNextBatch(
-            searchQuery,
-            LocalDateTime.parse(fromDateTime, DateTimeFormatter.ISO_DATE_TIME),
-            LocalDateTime.parse(toDateTime, DateTimeFormatter.ISO_DATE_TIME),
+            desc.searchQuery,
+            LocalDateTime.parse(desc.fromDateTime, DateTimeFormatter.ISO_DATE_TIME),
+            LocalDateTime.parse(desc.toDateTime, DateTimeFormatter.ISO_DATE_TIME),
             curLimit.min(TWITTER_API_BATCH_SIZE_MAX)
           )
         }
@@ -65,7 +60,7 @@ class TwitterFullArchiveSearchSourceOpExec(
 
         val user = userCache.get(tweet.getAuthorId)
 
-        tweetDataToTuple(tweet, user, outputSchema)
+        tweetDataToTuple(tweet, user, schema)
       }
     }
 

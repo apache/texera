@@ -1,16 +1,15 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.project
-import edu.uci.ics.texera.web.SqlServer
+
+import edu.uci.ics.amber.core.storage.StorageConfig
+import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.model.common.AccessEntry
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{PROJECT_USER_ACCESS, USER}
-import edu.uci.ics.texera.web.model.jooq.generated.enums.ProjectUserAccessPrivilege
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  ProjectDao,
-  ProjectUserAccessDao,
-  UserDao
-}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.ProjectUserAccess
+import edu.uci.ics.texera.dao.jooq.generated.Tables.{PROJECT_USER_ACCESS, USER}
+import edu.uci.ics.texera.dao.jooq.generated.enums.ProjectUserAccessPrivilege
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{ProjectDao, ProjectUserAccessDao, UserDao}
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.ProjectUserAccess
 import org.jooq.DSLContext
 import org.jooq.types.UInteger
+
 import java.util
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
@@ -20,14 +19,17 @@ import javax.ws.rs.core.MediaType
 @RolesAllowed(Array("REGULAR", "ADMIN"))
 @Path("/access/project")
 class ProjectAccessResource() {
-  final private val context: DSLContext = SqlServer.createDSLContext
+  final private val context: DSLContext = SqlServer
+    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .createDSLContext()
   final private val userDao = new UserDao(context.configuration())
   final private val projectDao = new ProjectDao(context.configuration)
   final private val projectUserAccessDao = new ProjectUserAccessDao(context.configuration)
 
   /**
     * This method returns the owner of a project
-    * @param pid,  project id
+    *
+    * @param pid ,  project id
     * @return ownerEmail,  the owner's email
     */
   @GET
@@ -38,6 +40,7 @@ class ProjectAccessResource() {
 
   /**
     * Returns information about all current shared access of the given project
+    *
     * @param pid project id
     * @return a List of email/permission pair
     */
@@ -65,6 +68,7 @@ class ProjectAccessResource() {
 
   /**
     * This method shares a project to a user with a specific access type
+    *
     * @param pid       the given project
     * @param email     the email which the access is given to
     * @param privilege the type of Access given to the target user
@@ -88,6 +92,7 @@ class ProjectAccessResource() {
 
   /**
     * Revoke a user's access to a file
+    *
     * @param pid   the id of the file
     * @param email the email of target user whose access is about to be revoked
     * @return A successful resp if granted, failed resp otherwise

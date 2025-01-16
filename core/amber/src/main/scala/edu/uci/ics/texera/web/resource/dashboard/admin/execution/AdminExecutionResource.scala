@@ -1,8 +1,9 @@
 package edu.uci.ics.texera.web.resource.dashboard.admin.execution
 
-import edu.uci.ics.texera.web.SqlServer
+import edu.uci.ics.amber.core.storage.StorageConfig
+import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables._
+import edu.uci.ics.texera.dao.jooq.generated.Tables._
 import edu.uci.ics.texera.web.resource.dashboard.admin.execution.AdminExecutionResource._
 import io.dropwizard.auth.Auth
 import org.jooq.impl.DSL
@@ -18,7 +19,9 @@ import scala.jdk.CollectionConverters._
   */
 
 object AdminExecutionResource {
-  final private lazy val context = SqlServer.createDSLContext()
+  final private lazy val context = SqlServer
+    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .createDSLContext()
 
   case class dashboardExecution(
       workflowName: String,

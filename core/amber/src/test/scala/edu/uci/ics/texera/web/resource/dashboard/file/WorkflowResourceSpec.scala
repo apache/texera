@@ -1,30 +1,30 @@
 package edu.uci.ics.texera.web.resource.dashboard.file
 
-import edu.uci.ics.texera.web.MockTexeraDB
+import edu.uci.ics.texera.dao.MockTexeraDB
 import edu.uci.ics.texera.web.auth.SessionUser
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
-import org.scalatest.flatspec.AnyFlatSpec
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{Project, User, Workflow}
-import org.jooq.types.UInteger
-import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
+import edu.uci.ics.texera.dao.jooq.generated.Tables.{USER, WORKFLOW, WORKFLOW_OF_PROJECT}
+import edu.uci.ics.texera.dao.jooq.generated.enums.UserRole
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.UserDao
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{Project, User, Workflow}
+import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.SearchQueryParams
+import edu.uci.ics.texera.web.resource.dashboard.user.project.ProjectResource
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.{
   DashboardWorkflow,
   WorkflowIDs
 }
+import edu.uci.ics.texera.web.resource.dashboard.{DashboardResource, FulltextSearchQueryUtils}
 import org.jooq.Condition
 import org.jooq.impl.DSL.noCondition
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER, WORKFLOW, WORKFLOW_OF_PROJECT}
-import edu.uci.ics.texera.web.resource.dashboard.{DashboardResource, FulltextSearchQueryUtils}
-import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.SearchQueryParams
-import edu.uci.ics.texera.web.resource.dashboard.user.project.ProjectResource
+import org.jooq.types.UInteger
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
-import java.util.concurrent.TimeUnit
 import java.sql.Timestamp
 import java.text.{ParseException, SimpleDateFormat}
 import java.util
 import java.util.Collections
+import java.util.concurrent.TimeUnit
 
 class WorkflowResourceSpec
     extends AnyFlatSpec
@@ -175,6 +175,7 @@ class WorkflowResourceSpec
     }
     keywordsList
   }
+
   private def assertSameWorkflow(a: Workflow, b: DashboardWorkflow): Unit = {
     assert(a.getName == b.workflow.getName)
   }
@@ -324,6 +325,7 @@ class WorkflowResourceSpec
       assert(DashboardWorkflowEntryList.head.workflow.get.ownerName.equals(user.getName()))
       assertSameWorkflow(workflow, DashboardWorkflowEntryList.head.workflow.get)
     }
+
     test(sessionUser1, testWorkflow1)
     test(sessionUser2, testWorkflow2)
   }

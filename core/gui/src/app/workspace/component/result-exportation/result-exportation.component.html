@@ -1,19 +1,71 @@
 <div class="centered-container">
-  <div
-    *ngIf="exportType === 'data'"
-    class="input-wrapper">
-    <nz-form-item>
-      <nz-form-label nzFor="filenameInput">Filename</nz-form-label>
-      <input
-        id="filenameInput"
-        [(ngModel)]="inputFileName"
-        type="text"
-        nz-input
-        placeholder="Enter filename for binary data" />
-    </nz-form-item>
+  <div class="input-wrapper">
+    <form nz-form>
+      <nz-row *ngIf="exportType !== 'data'">
+        <nz-col [nzSpan]="24">
+          <nz-form-item>
+            <nz-form-label nzFor="exportTypeInput">Export Type</nz-form-label>
+            <nz-form-control>
+              <nz-select
+                id="exportTypeInput"
+                [(ngModel)]="exportType"
+                name="exportType"
+                nzPlaceHolder="Select export type">
+                <nz-option
+                  *ngIf="isTableOutput"
+                  nzValue="arrow"
+                  nzLabel="Binary Format (.arrow)"></nz-option>
+                <nz-option
+                  *ngIf="isTableOutput && !containsBinaryData"
+                  nzValue="csv"
+                  nzLabel="Comma Separated Values (.csv)"></nz-option>
+                <nz-option
+                  *ngIf="isVisualizationOutput"
+                  nzValue="html"
+                  nzLabel="Web Page (.html)"></nz-option>
+              </nz-select>
+            </nz-form-control>
+          </nz-form-item>
+        </nz-col>
+      </nz-row>
+      <nz-row *ngIf="exportType === 'data'">
+        <nz-col [nzSpan]="24">
+          <nz-form-item>
+            <nz-form-label nzFor="filenameInput">Filename</nz-form-label>
+            <nz-form-control>
+              <input
+                id="filenameInput"
+                [(ngModel)]="inputFileName"
+                name="filename"
+                type="text"
+                nz-input
+                placeholder="Enter filename for binary data" />
+            </nz-form-control>
+          </nz-form-item>
+        </nz-col>
+      </nz-row>
+      <nz-row>
+        <nz-col [nzSpan]="24">
+          <nz-form-item>
+            <nz-form-label nzFor="destinationInput">Destination</nz-form-label>
+            <nz-form-control>
+              <nz-select
+                id="destinationInput"
+                [(ngModel)]="destination"
+                name="destination"
+                nzPlaceHolder="Select destination">
+                <nz-option
+                  nzValue="dataset"
+                  nzLabel="Dataset"></nz-option>
+              </nz-select>
+            </nz-form-control>
+          </nz-form-item>
+        </nz-col>
+      </nz-row>
+    </form>
   </div>
-
   <input
+    *ngIf="destination === 'dataset'"
     [(ngModel)]="inputDatasetName"
     (input)="onUserInputDatasetName($event)"
     type="text"
@@ -40,4 +92,11 @@
       </div>
     </nz-auto-option>
   </nz-autocomplete>
+  <button
+    nz-button
+    nzType="default"
+    *ngIf="destination === 'local'"
+    (click)="onClickExportAllResult()">
+    Export
+  </button>
 </div>

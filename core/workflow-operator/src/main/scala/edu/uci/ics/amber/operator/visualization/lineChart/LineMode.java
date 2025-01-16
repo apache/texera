@@ -1,5 +1,6 @@
 package edu.uci.ics.amber.operator.visualization.lineChart;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 public enum LineMode {
@@ -12,14 +13,25 @@ public enum LineMode {
         this.mode = mode;
     }
 
+    // Handle custom deserialization for enum
+    @JsonCreator
+    public static LineMode fromString(String value) {
+        for (LineMode mode : LineMode.values()) {
+            if (mode.mode.equalsIgnoreCase(value)) {
+                return mode;
+            }
+        }
+        throw new IllegalArgumentException("Unknown line mode: " + value);
+    }
+
     @JsonValue
     public String getMode() {
         return mode;
     }
 
-    public String getModeInPlotly(){
+    public String getModeInPlotly() {
         // make the mode string compatible with plotly API.
-        switch(this){
+        switch (this) {
             case DOTS:
                 return "markers";
             case LINE:

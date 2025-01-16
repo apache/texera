@@ -25,10 +25,6 @@ conflictManager := ConflictManager.latestRevision
 // ensuring no parallel execution of multiple tasks
 concurrentRestrictions in Global += Tags.limit(Tags.Test, 1)
 
-// temp fix for the netty dependency issue
-// https://github.com/coursier/coursier/issues/2016
-ThisBuild / useCoursier := false
-
 // add python as an additional source
 Compile / unmanagedSourceDirectories += baseDirectory.value / "src" / "main" / "python"
 
@@ -116,27 +112,17 @@ val excludeHadoopSlf4j = ExclusionRule(organization = "org.slf4j")
 val excludeHadoopJetty = ExclusionRule(organization = "org.eclipse.jetty")
 val excludeHadoopJsp = ExclusionRule(organization = "javax.servlet.jsp")
 val hadoopDependencies = Seq(
-  "org.apache.hadoop" % "hadoop-common" % hadoopVersion excludeAll (excludeHadoopJersey, excludeHadoopSlf4j, excludeHadoopJsp, excludeHadoopJetty)
+  "org.apache.hadoop" % "hadoop-common" % hadoopVersion excludeAll(excludeHadoopJersey, excludeHadoopSlf4j, excludeHadoopJsp, excludeHadoopJetty)
 )
 
 /////////////////////////////////////////////////////////////////////////////
 // Google Service related
 val googleServiceDependencies = Seq(
-  "com.google.oauth-client" % "google-oauth-client-jetty" % "1.34.1" exclude ("com.google.guava", "guava"),
-  "com.google.api-client" % "google-api-client" % "2.2.0" exclude ("com.google.guava", "guava"),
-  "com.google.apis" % "google-api-services-sheets" % "v4-rev612-1.25.0" exclude ("com.google.guava", "guava"),
-  "com.google.apis" % "google-api-services-drive" % "v3-rev197-1.25.0" exclude ("com.google.guava", "guava"),
+  "com.google.oauth-client" % "google-oauth-client-jetty" % "1.34.1" exclude("com.google.guava", "guava"),
+  "com.google.api-client" % "google-api-client" % "2.2.0" exclude("com.google.guava", "guava"),
+  "com.google.apis" % "google-api-services-sheets" % "v4-rev612-1.25.0" exclude("com.google.guava", "guava"),
+  "com.google.apis" % "google-api-services-drive" % "v3-rev197-1.25.0" exclude("com.google.guava", "guava"),
   "com.sun.mail" % "javax.mail" % "1.6.2"
-)
-
-/////////////////////////////////////////////////////////////////////////////
-// Arrow related
-val arrowVersion = "14.0.1"
-val arrowDependencies = Seq(
-  // https://mvnrepository.com/artifact/org.apache.arrow/flight-grpc
-  "org.apache.arrow" % "flight-grpc" % arrowVersion,
-  // https://mvnrepository.com/artifact/org.apache.arrow/flight-core
-  "org.apache.arrow" % "flight-core" % arrowVersion
 )
 
 /////////////////////////////////////////////////////////////////////////////
@@ -152,7 +138,6 @@ libraryDependencies ++= akkaDependencies
 libraryDependencies ++= luceneDependencies
 libraryDependencies ++= dropwizardDependencies
 libraryDependencies ++= mbknorJacksonJsonSchemaDependencies
-libraryDependencies ++= arrowDependencies
 libraryDependencies ++= googleServiceDependencies
 libraryDependencies ++= mongoDbDependencies
 libraryDependencies ++= hadoopDependencies
@@ -165,13 +150,10 @@ PB.protocVersion := "3.19.4"
 
 enablePlugins(Fs2Grpc)
 
-fs2GrpcOutputPath := (Compile / sourceDirectory).value / "scalapb"
-Compile / unmanagedSourceDirectories += (Compile / sourceDirectory).value / "scalapb"
-
 Compile / PB.targets := Seq(
   scalapb.gen(
     singleLineToProtoString = true
-  ) -> (Compile / sourceDirectory).value / "scalapb",
+  ) -> (Compile / sourceManaged).value,
   // let fs2 compile grpc-related proto, skip other protos in fs2 compilation pipeline.
   scalapbCodeGenerators.value(1)
 )
@@ -234,9 +216,6 @@ libraryDependencies += "io.github.redouane59.twitter" % "twittered" % "2.21"
 
 // https://mvnrepository.com/artifact/org.jooq/jooq
 libraryDependencies += "org.jooq" % "jooq" % "3.14.16"
-
-// https://mvnrepository.com/artifact/mysql/mysql-connector-java
-libraryDependencies += "mysql" % "mysql-connector-java" % "8.0.33"
 
 // https://mvnrepository.com/artifact/org.jgrapht/jgrapht-core
 libraryDependencies += "org.jgrapht" % "jgrapht-core" % "1.4.0"

@@ -4,6 +4,7 @@ import akka.actor.{ActorSystem, Address, PoisonPill, Props}
 import akka.pattern._
 import akka.util.Timeout
 import com.twitter.util.{Future, Promise}
+import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlRequest
 import edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerServiceFs2Grpc
@@ -15,9 +16,7 @@ import edu.uci.ics.amber.engine.common.client.ClientActor.{
   InitializeRequest,
   ObservableRequest
 }
-import edu.uci.ics.amber.engine.common.model.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CLIENT
-import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.subjects.PublishSubject
@@ -32,7 +31,6 @@ class AmberClient(
     system: ActorSystem,
     workflowContext: WorkflowContext,
     physicalPlan: PhysicalPlan,
-    opResultStorage: OpResultStorage,
     controllerConfig: ControllerConfig,
     errorHandler: Throwable => Unit
 ) {
@@ -46,7 +44,6 @@ class AmberClient(
     clientActor ? InitializeRequest(
       workflowContext,
       physicalPlan,
-      opResultStorage,
       controllerConfig
     ),
     10.seconds

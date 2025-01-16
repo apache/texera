@@ -23,7 +23,11 @@ trait MockTexeraDB {
     val sqlFile = new File(path.toString)
     val in = new FileInputStream(sqlFile)
     val conn =
-      DriverManager.getConnection(dbInstance.get.getConfiguration.getURL(""), username, password)
+      DriverManager.getConnection(
+        dbInstance.get.getConfiguration.getURL(""),
+        username,
+        password
+      )
     importSQL(conn, in)
     conn.close()
   }
@@ -85,6 +89,9 @@ trait MockTexeraDB {
 
   def initializeDBAndReplaceDSLContext(): Unit = {
     assert(dbInstance.isEmpty && dslContext.isEmpty)
+
+    val driver = new com.mysql.cj.jdbc.Driver()
+    DriverManager.registerDriver(driver)
 
     val config = DBConfigurationBuilder.newBuilder
       .setPort(0) // 0 => automatically detect free port

@@ -1,11 +1,11 @@
 package edu.uci.ics.amber.engine.common.statetransition
 
-import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
+import edu.uci.ics.amber.core.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.statetransition.StateManager.{
   InvalidStateException,
   InvalidTransitionException
 }
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
 
 object StateManager {
 

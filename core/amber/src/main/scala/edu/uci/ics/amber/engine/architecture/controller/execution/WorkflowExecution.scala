@@ -4,8 +4,8 @@ import edu.uci.ics.amber.engine.architecture.controller.execution.ExecutionUtils
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState._
 import edu.uci.ics.amber.engine.architecture.scheduling.{Region, RegionIdentity}
-import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
-import edu.uci.ics.amber.engine.common.workflowruntimestate.OperatorMetrics
+import edu.uci.ics.amber.engine.common.executionruntimestate.OperatorMetrics
+import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
 
 import scala.collection.mutable
 

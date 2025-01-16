@@ -8,11 +8,11 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.WorkerTimerService
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlInvocation
 import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker._
-import edu.uci.ics.amber.engine.common.{CheckpointState, SerializedState}
 import edu.uci.ics.amber.engine.common.actormessage.{ActorCommand, Backpressure}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
-import edu.uci.ics.amber.engine.common.virtualidentity.{ChannelIdentity, ChannelMarkerIdentity}
+import edu.uci.ics.amber.engine.common.{CheckpointState, SerializedState}
+import edu.uci.ics.amber.core.virtualidentity.{ChannelIdentity, ChannelMarkerIdentity}
 
 import java.net.URI
 import java.util.concurrent.LinkedBlockingQueue
@@ -37,13 +37,16 @@ object WorkflowWorker {
   sealed trait DPInputQueueElement
 
   final case class FIFOMessageElement(msg: WorkflowFIFOMessage) extends DPInputQueueElement
+
   final case class TimerBasedControlElement(control: ControlInvocation) extends DPInputQueueElement
+
   final case class ActorCommandElement(cmd: ActorCommand) extends DPInputQueueElement
 
   final case class WorkerReplayInitialization(
       restoreConfOpt: Option[StateRestoreConfig] = None,
       faultToleranceConfOpt: Option[FaultToleranceConfig] = None
   )
+
   final case class StateRestoreConfig(readFrom: URI, replayDestination: ChannelMarkerIdentity)
 
   final case class FaultToleranceConfig(writeTo: URI)

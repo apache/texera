@@ -2,20 +2,15 @@ package edu.uci.ics.amber.operator.aggregate
 
 import edu.uci.ics.amber.core.executor.OperatorExecutor
 import edu.uci.ics.amber.core.tuple.{Tuple, TupleLike}
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 
 import scala.collection.mutable
 
 /**
   * AggregateOpExec performs aggregation operations on input tuples, optionally grouping them by specified keys.
-  *
-  * @param aggregations a list of aggregation operations to apply on the tuples
-  * @param groupByKeys a list of attribute names to group the tuples by
   */
-class AggregateOpExec(
-    aggregations: List[AggregationOperation],
-    groupByKeys: List[String]
-) extends OperatorExecutor {
-
+class AggregateOpExec(descString: String) extends OperatorExecutor {
+  private val desc: AggregateOpDesc = objectMapper.readValue(descString, classOf[AggregateOpDesc])
   private val keyedPartialAggregates = new mutable.HashMap[List[Object], List[Object]]()
   private var distributedAggregations: List[DistributedAggregation[Object]] = _
 
@@ -23,12 +18,13 @@ class AggregateOpExec(
 
     // Initialize distributedAggregations if it's not yet initialized
     if (distributedAggregations == null) {
-      distributedAggregations =
-        aggregations.map(agg => agg.getAggFunc(tuple.getSchema.getAttribute(agg.attribute).getType))
+      distributedAggregations = desc.aggregations.map(agg =>
+        agg.getAggFunc(tuple.getSchema.getAttribute(agg.attribute).getType)
+      )
     }
 
     // Construct the group key
-    val key = groupByKeys.map(tuple.getField[Object])
+    val key = desc.groupByKeys.map(tuple.getField[Object])
 
     // Get or initialize the partial aggregate for the key
     val partialAggregates =

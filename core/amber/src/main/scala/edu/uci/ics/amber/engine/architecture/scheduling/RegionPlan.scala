@@ -1,5 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
-import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
+
+import edu.uci.ics.amber.core.workflow.PhysicalLink
 import org.jgrapht.graph.DirectedAcyclicGraph
 import org.jgrapht.traverse.TopologicalOrderIterator
 

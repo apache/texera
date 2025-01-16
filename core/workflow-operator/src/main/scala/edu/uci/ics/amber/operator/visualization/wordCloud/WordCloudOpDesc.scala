@@ -6,19 +6,14 @@ import com.kjetland.jackson.jsonSchema.annotations.{
   JsonSchemaInt,
   JsonSchemaTitle
 }
-import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
+import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
+import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode
+import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
-import edu.uci.ics.amber.operator.metadata.OperatorInfo
-import edu.uci.ics.amber.operator.metadata.OperatorGroupConstants
-import edu.uci.ics.amber.operator.metadata.annotation.AutofillAttributeName
-import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
-import edu.uci.ics.amber.operator.visualization.{
-  ImageUtility,
-  VisualizationConstants,
-  VisualizationOperator
-}
-
-class WordCloudOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
+import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
+import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.amber.operator.visualization.ImageUtility
+class WordCloudOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(required = true)
   @JsonSchemaTitle("Text column")
   @AutofillAttributeName
@@ -29,8 +24,13 @@ class WordCloudOpDesc extends VisualizationOperator with PythonOperatorDescripto
   @JsonSchemaInject(ints = Array(new JsonSchemaInt(path = "exclusiveMinimum", value = 0)))
   var topN: Integer = 100
 
-  override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    Schema.builder().add(new Attribute("html-content", AttributeType.STRING)).build()
+  override def getOutputSchemas(
+      inputSchemas: Map[PortIdentity, Schema]
+  ): Map[PortIdentity, Schema] = {
+    val outputSchema = Schema()
+      .add("html-content", AttributeType.STRING)
+    Map(operatorInfo.outputPorts.head.id -> outputSchema)
+    Map(operatorInfo.outputPorts.head.id -> outputSchema)
   }
 
   override def operatorInfo: OperatorInfo =
@@ -39,7 +39,7 @@ class WordCloudOpDesc extends VisualizationOperator with PythonOperatorDescripto
       "Generate word cloud for result texts",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort())
+      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
   def manipulateTable(): String = {
@@ -94,6 +94,4 @@ class WordCloudOpDesc extends VisualizationOperator with PythonOperatorDescripto
     print(finalCode)
     finalCode
   }
-
-  override def chartType(): String = VisualizationConstants.HTML_VIZ
 }

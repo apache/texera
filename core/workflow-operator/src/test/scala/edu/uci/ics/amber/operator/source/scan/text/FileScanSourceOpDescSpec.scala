@@ -1,32 +1,30 @@
 package edu.uci.ics.amber.operator.source.scan.text
 
+import edu.uci.ics.amber.core.storage.FileResolver
 import edu.uci.ics.amber.core.tuple.{AttributeType, Schema, SchemaEnforceable, Tuple}
+import edu.uci.ics.amber.operator.TestOperators
 import edu.uci.ics.amber.operator.source.scan.{
   FileAttributeType,
   FileDecodingMethod,
   FileScanSourceOpDesc,
   FileScanSourceOpExec
 }
-import edu.uci.ics.amber.core.storage.FileResolver
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
 class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
-  val parentDir: String = "workflow-operator"
 
-  val TestTextFilePath: String = s"$parentDir/src/test/resources/line_numbers.txt"
-  val TestCRLFTextFilePath: String = s"$parentDir/src/test/resources/line_numbers_crlf.txt"
-  val TestNumbersFilePath: String = s"$parentDir/src/test/resources/numbers.txt"
   var fileScanSourceOpDesc: FileScanSourceOpDesc = _
 
   before {
     fileScanSourceOpDesc = new FileScanSourceOpDesc()
-    fileScanSourceOpDesc.setFileUri(FileResolver.resolve(TestTextFilePath))
+    fileScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(TestOperators.TestTextFilePath))
     fileScanSourceOpDesc.fileEncoding = FileDecodingMethod.UTF_8
   }
 
   it should "infer schema with single column representing each line of text in normal text scan mode" in {
-    val inferredSchema: Schema = fileScanSourceOpDesc.inferSchema()
+    val inferredSchema: Schema = fileScanSourceOpDesc.sourceSchema()
 
     assert(inferredSchema.getAttributes.length == 1)
     assert(inferredSchema.getAttribute("line").getType == AttributeType.STRING)
@@ -34,7 +32,7 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
   it should "infer schema with single column representing entire file in outputAsSingleTuple mode" in {
     fileScanSourceOpDesc.attributeType = FileAttributeType.SINGLE_STRING
-    val inferredSchema: Schema = fileScanSourceOpDesc.inferSchema()
+    val inferredSchema: Schema = fileScanSourceOpDesc.sourceSchema()
 
     assert(inferredSchema.getAttributes.length == 1)
     assert(inferredSchema.getAttribute("line").getType == AttributeType.STRING)
@@ -44,7 +42,7 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     fileScanSourceOpDesc.attributeType = FileAttributeType.STRING
     val customOutputAttributeName: String = "testing"
     fileScanSourceOpDesc.attributeName = customOutputAttributeName
-    val inferredSchema: Schema = fileScanSourceOpDesc.inferSchema()
+    val inferredSchema: Schema = fileScanSourceOpDesc.sourceSchema()
 
     assert(inferredSchema.getAttributes.length == 1)
     assert(inferredSchema.getAttribute("testing").getType == AttributeType.STRING)
@@ -52,7 +50,7 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
   it should "infer schema with integer attribute type" in {
     fileScanSourceOpDesc.attributeType = FileAttributeType.INTEGER
-    val inferredSchema: Schema = fileScanSourceOpDesc.inferSchema()
+    val inferredSchema: Schema = fileScanSourceOpDesc.sourceSchema()
 
     assert(inferredSchema.getAttributes.length == 1)
     assert(inferredSchema.getAttribute("line").getType == AttributeType.INTEGER)
@@ -62,15 +60,7 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     fileScanSourceOpDesc.attributeType = FileAttributeType.STRING
     fileScanSourceOpDesc.fileScanLimit = Option(5)
     val FileScanSourceOpExec =
-      new FileScanSourceOpExec(
-        fileScanSourceOpDesc.fileUri.get,
-        fileScanSourceOpDesc.attributeType,
-        fileScanSourceOpDesc.fileEncoding,
-        fileScanSourceOpDesc.extract,
-        fileScanSourceOpDesc.outputFileName,
-        fileScanSourceOpDesc.fileScanLimit,
-        fileScanSourceOpDesc.fileScanOffset
-      )
+      new FileScanSourceOpExec(objectMapper.writeValueAsString(fileScanSourceOpDesc))
     FileScanSourceOpExec.open()
     val processedTuple: Iterator[Tuple] = FileScanSourceOpExec
       .produceTuple()
@@ -88,19 +78,13 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "read first 5 lines of the input text file with CRLF separators into corresponding output tuples" in {
-    fileScanSourceOpDesc.setFileUri(FileResolver.resolve(TestCRLFTextFilePath))
+    fileScanSourceOpDesc.setResolvedFileName(
+      FileResolver.resolve(TestOperators.TestCRLFTextFilePath)
+    )
     fileScanSourceOpDesc.attributeType = FileAttributeType.STRING
     fileScanSourceOpDesc.fileScanLimit = Option(5)
     val FileScanSourceOpExec =
-      new FileScanSourceOpExec(
-        fileScanSourceOpDesc.fileUri.get,
-        fileScanSourceOpDesc.attributeType,
-        fileScanSourceOpDesc.fileEncoding,
-        fileScanSourceOpDesc.extract,
-        fileScanSourceOpDesc.outputFileName,
-        fileScanSourceOpDesc.fileScanLimit,
-        fileScanSourceOpDesc.fileScanOffset
-      )
+      new FileScanSourceOpExec(objectMapper.writeValueAsString(fileScanSourceOpDesc))
     FileScanSourceOpExec.open()
     val processedTuple: Iterator[Tuple] = FileScanSourceOpExec
       .produceTuple()
@@ -120,15 +104,7 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "read first 5 lines of the input text file into a single output tuple" in {
     fileScanSourceOpDesc.attributeType = FileAttributeType.SINGLE_STRING
     val FileScanSourceOpExec =
-      new FileScanSourceOpExec(
-        fileScanSourceOpDesc.fileUri.get,
-        fileScanSourceOpDesc.attributeType,
-        fileScanSourceOpDesc.fileEncoding,
-        fileScanSourceOpDesc.extract,
-        fileScanSourceOpDesc.outputFileName,
-        fileScanSourceOpDesc.fileScanLimit,
-        fileScanSourceOpDesc.fileScanOffset
-      )
+      new FileScanSourceOpExec(objectMapper.writeValueAsString(fileScanSourceOpDesc))
     FileScanSourceOpExec.open()
     val processedTuple: Iterator[Tuple] = FileScanSourceOpExec
       .produceTuple()
@@ -147,18 +123,13 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "read first 5 lines of the input text into corresponding output INTEGER tuples" in {
-    fileScanSourceOpDesc.setFileUri(FileResolver.resolve(TestNumbersFilePath))
+    fileScanSourceOpDesc.setResolvedFileName(
+      FileResolver.resolve(TestOperators.TestNumbersFilePath)
+    )
     fileScanSourceOpDesc.attributeType = FileAttributeType.INTEGER
     fileScanSourceOpDesc.fileScanLimit = Option(5)
-    val FileScanSourceOpExec = new FileScanSourceOpExec(
-      fileScanSourceOpDesc.fileUri.get,
-      fileScanSourceOpDesc.attributeType,
-      fileScanSourceOpDesc.fileEncoding,
-      fileScanSourceOpDesc.extract,
-      fileScanSourceOpDesc.outputFileName,
-      fileScanSourceOpDesc.fileScanLimit,
-      fileScanSourceOpDesc.fileScanOffset
-    )
+    val FileScanSourceOpExec =
+      new FileScanSourceOpExec(objectMapper.writeValueAsString(fileScanSourceOpDesc))
     FileScanSourceOpExec.open()
     val processedTuple: Iterator[Tuple] = FileScanSourceOpExec
       .produceTuple()
@@ -176,20 +147,14 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "read first 5 lines of the input text file with US_ASCII encoding" in {
-    fileScanSourceOpDesc.setFileUri(FileResolver.resolve(TestCRLFTextFilePath))
+    fileScanSourceOpDesc.setResolvedFileName(
+      FileResolver.resolve(TestOperators.TestCRLFTextFilePath)
+    )
     fileScanSourceOpDesc.fileEncoding = FileDecodingMethod.ASCII
     fileScanSourceOpDesc.attributeType = FileAttributeType.STRING
     fileScanSourceOpDesc.fileScanLimit = Option(5)
     val FileScanSourceOpExec =
-      new FileScanSourceOpExec(
-        fileScanSourceOpDesc.fileUri.get,
-        fileScanSourceOpDesc.attributeType,
-        fileScanSourceOpDesc.fileEncoding,
-        fileScanSourceOpDesc.extract,
-        fileScanSourceOpDesc.outputFileName,
-        fileScanSourceOpDesc.fileScanLimit,
-        fileScanSourceOpDesc.fileScanOffset
-      )
+      new FileScanSourceOpExec(objectMapper.writeValueAsString(fileScanSourceOpDesc))
     FileScanSourceOpExec.open()
     val processedTuple: Iterator[Tuple] = FileScanSourceOpExec
       .produceTuple()

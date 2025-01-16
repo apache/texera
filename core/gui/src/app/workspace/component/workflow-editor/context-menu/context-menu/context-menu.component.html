@@ -120,13 +120,13 @@
   </li>
 
   <li
-    nz-menu-item
     *ngIf="workflowResultExportService.hasResultToExportOnHighlightedOperators"
-    (click)="workflowResultExportService.exportOperatorsResultAsFile()">
+    (click)="onClickExportHighlightedExecutionResult()"
+    nz-menu-item>
     <span
       nz-icon
-      nzType="download"
+      nzType="cloud"
       nzTheme="outline"></span>
-    {{writeDownloadLabel()}}
+    Export result
   </li>
 </ul>

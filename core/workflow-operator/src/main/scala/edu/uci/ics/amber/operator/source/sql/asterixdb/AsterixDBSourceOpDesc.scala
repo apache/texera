@@ -7,21 +7,24 @@ import com.fasterxml.jackson.annotation.{
 }
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import edu.uci.ics.amber.core.executor.OpExecInitInfo
+import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
-import edu.uci.ics.amber.operator.metadata.OperatorInfo
+import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.core.workflow.OutputPort
 import edu.uci.ics.amber.operator.filter.FilterPredicate
-import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.amber.workflow.OutputPort
-import AsterixDBConnUtil.{fetchDataTypeFields, queryAsterixDB}
-import edu.uci.ics.amber.operator.metadata.OperatorGroupConstants
-import edu.uci.ics.amber.operator.metadata.annotation.{
+import edu.uci.ics.amber.operator.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameList,
   UIWidget
 }
+import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.source.sql.SQLSourceOpDesc
+import edu.uci.ics.amber.operator.source.sql.asterixdb.AsterixDBConnUtil.{
+  fetchDataTypeFields,
+  queryAsterixDB
+}
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import kong.unirest.json.JSONObject
 
 @JsonIgnoreProperties(value = Array("username", "password"))
@@ -95,32 +98,9 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
         workflowId,
         executionId,
         this.operatorIdentifier,
-        OpExecInitInfo((_, _) =>
-          new AsterixDBSourceOpExec(
-            host,
-            port,
-            database,
-            table,
-            limit,
-            offset,
-            progressive,
-            batchByColumn,
-            min,
-            max,
-            interval,
-            keywordSearch.getOrElse(false),
-            keywordSearchByColumn.orNull,
-            keywords.orNull,
-            geoSearch.getOrElse(false),
-            geoSearchByColumns,
-            geoSearchBoundingBox,
-            regexSearch.getOrElse(false),
-            regexSearchByColumn.orNull,
-            regex.orNull,
-            filterCondition.getOrElse(false),
-            filterPredicates,
-            () => sourceSchema()
-          )
+        OpExecWithClassName(
+          "edu.uci.ics.amber.operator.source.sql.asterixdb.AsterixDBSourceOpExec",
+          objectMapper.writeValueAsString(this)
         )
       )
       .withInputPorts(operatorInfo.inputPorts)
@@ -128,13 +108,6 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
       .withPropagateSchema(
         SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> sourceSchema()))
       )
-
-  override def sourceSchema(): Schema = {
-    if (this.host == null || this.port == null || this.database == null || this.table == null)
-      return null
-
-    querySchema
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
@@ -147,26 +120,29 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
 
   override def updatePort(): Unit = port = if (port.trim().equals("default")) "19002" else port
 
-  override def querySchema: Schema = {
+  override def sourceSchema(): Schema = {
+    if (this.host == null || this.port == null || this.database == null || this.table == null) {
+      return null
+    }
+
     updatePort()
 
-    val sb: Schema.Builder = Schema.builder()
-
-    // query dataset's Datatype from Metadata.`Datatype`
+    // Query dataset's Datatype from Metadata.`Datatype`
     val datasetDataType = queryAsterixDB(
       host,
       port,
-      "SELECT DatatypeName FROM Metadata.`Dataset` ds where ds.`DatasetName`='" + table + "';",
+      s"SELECT DatatypeName FROM Metadata.`Dataset` ds where ds.`DatasetName`='$table';",
       format = "JSON"
     ).get.next().asInstanceOf[JSONObject].getString("DatatypeName")
 
-    // query field types from Metadata.`Datatype`
+    // Query field types from Metadata.`Datatype`
     val fields = fetchDataTypeFields(datasetDataType, "", host, port)
 
-    for (key <- fields.keys.toList.sorted) {
-      sb.add(new Attribute(key, attributeTypeFromAsterixDBType(fields(key))))
+    // Collect attributes by sorting field names and mapping them to Attribute instances
+    val attributes = fields.keys.toList.sorted.map { key =>
+      new Attribute(key, attributeTypeFromAsterixDBType(fields(key)))
     }
-    sb.build()
+    Schema(attributes)
   }
 
   private def attributeTypeFromAsterixDBType(inputType: String): AttributeType =

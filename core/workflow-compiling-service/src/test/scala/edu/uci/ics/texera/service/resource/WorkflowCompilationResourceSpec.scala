@@ -8,11 +8,17 @@ import edu.uci.ics.amber.compiler.model.{LogicalLink, LogicalPlanPojo}
 import edu.uci.ics.amber.operator.projection.{AttributeUnit, ProjectionOpDesc}
 import edu.uci.ics.amber.operator.source.scan.csv.CSVScanSourceOpDesc
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
-import edu.uci.ics.amber.workflow.PortIdentity
+import edu.uci.ics.amber.core.workflow.PortIdentity
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.BeforeAndAfterAll
 import com.fasterxml.jackson.databind.node.ObjectNode
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType}
+import edu.uci.ics.amber.operator.filter.{
+  ComparisonType,
+  FilterOpDesc,
+  FilterPredicate,
+  SpecializedFilterOpDesc
+}
 import edu.uci.ics.amber.operator.limit.LimitOpDesc
 
 class WorkflowCompilationResourceSpec extends AnyFlatSpec with BeforeAndAfterAll {
@@ -62,6 +68,15 @@ class WorkflowCompilationResourceSpec extends AnyFlatSpec with BeforeAndAfterAll
     limitOpDesc
   }
 
+  // utility function to create a filter op
+  private def getFilterOpDesc(
+      filterPredicates: List[FilterPredicate]
+  ): FilterOpDesc = {
+    val filterOpDesc = new SpecializedFilterOpDesc
+    filterOpDesc.predicates = filterPredicates
+    filterOpDesc
+  }
+
   // utility function to transform a logical plan pojo to json that can be deserialized correctly by the compile endpoint
   private def transformLogicalPlanPojoToJsonString(logicalPlanPojo: LogicalPlanPojo): String = {
     val jsonNode = objectMapper.valueToTree[ObjectNode](logicalPlanPojo)
@@ -92,14 +107,33 @@ class WorkflowCompilationResourceSpec extends AnyFlatSpec with BeforeAndAfterAll
     compilationResponse.asInstanceOf[WorkflowCompilationSuccess]
   }
 
-  it should "compile workflow successfully" in {
-    // construct the LogicalPlan: CSVScan --> Projection --> Limit
+  it should "compile workflow successfully with multiple filter and limit operations" in {
+    // construct the LogicalPlan: CSVScan --> Projection --> Limit --> Filter (TotalProfit > 10000) --> Filter (Region != "JPN") --> Limit
     val localCsvFilePath = "workflow-compiling-service/src/test/resources/country_sales_small.csv"
     val csvSourceOp = getCsvScanOpDesc(localCsvFilePath, header = true)
     val projectionOpDesc = getProjectionOpDesc(List("Region", "Total Profit"))
-    val limitOpDesc = getLimitOpDesc(10)
+    val limitOpDesc1 = getLimitOpDesc(10)
+
+    // Create the filter predicate for TotalProfit > 10000
+    val filterPredicate1 = new FilterPredicate("Total Profit", ComparisonType.GREATER_THAN, "10000")
+    val filterOpDesc1 = getFilterOpDesc(List(filterPredicate1))
+
+    // Create the filter predicate for Region != "JPN"
+    val filterPredicate2 = new FilterPredicate("Region", ComparisonType.NOT_EQUAL_TO, "JPN")
+    val filterOpDesc2 = getFilterOpDesc(List(filterPredicate2))
+
+    // Add a second limit operation
+    val limitOpDesc2 = getLimitOpDesc(5)
+
     val logicalPlanPojo = LogicalPlanPojo(
-      operators = List(csvSourceOp, projectionOpDesc, limitOpDesc),
+      operators = List(
+        csvSourceOp,
+        projectionOpDesc,
+        limitOpDesc1,
+        filterOpDesc1,
+        filterOpDesc2,
+        limitOpDesc2
+      ),
       links = List(
         LogicalLink(
           csvSourceOp.operatorIdentifier,
@@ -110,7 +144,25 @@ class WorkflowCompilationResourceSpec extends AnyFlatSpec with BeforeAndAfterAll
         LogicalLink(
           projectionOpDesc.operatorIdentifier,
           PortIdentity(0),
-          limitOpDesc.operatorIdentifier,
+          limitOpDesc1.operatorIdentifier,
+          PortIdentity(0)
+        ),
+        LogicalLink(
+          limitOpDesc1.operatorIdentifier,
+          PortIdentity(0),
+          filterOpDesc1.operatorIdentifier,
+          PortIdentity(0)
+        ),
+        LogicalLink(
+          filterOpDesc1.operatorIdentifier,
+          PortIdentity(0),
+          filterOpDesc2.operatorIdentifier,
+          PortIdentity(0)
+        ),
+        LogicalLink(
+          filterOpDesc2.operatorIdentifier,
+          PortIdentity(0),
+          limitOpDesc2.operatorIdentifier,
           PortIdentity(0)
         )
       ),
@@ -129,12 +181,12 @@ class WorkflowCompilationResourceSpec extends AnyFlatSpec with BeforeAndAfterAll
 
     assertThat(response.getStatus).isEqualTo(200)
 
-    // verify the schema is correctly propagated
+    // verify the schema is correctly propagated for the final limit operator
     val compilationResult = assertSuccessfulCompilation(response)
-    val limitInputSchema =
-      compilationResult.operatorInputSchemas.get(limitOpDesc.operatorIdentifier.id)
+    val finalLimitInputSchema =
+      compilationResult.operatorInputSchemas.get(limitOpDesc2.operatorIdentifier.id)
     assert(
-      limitInputSchema.get.head.get.equals(
+      finalLimitInputSchema.get.head.get.equals(
         List(
           new Attribute("Region", AttributeType.STRING),
           new Attribute("Total Profit", AttributeType.DOUBLE)

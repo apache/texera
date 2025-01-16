@@ -1,17 +1,17 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import com.softwaremill.macwire.wire
+import edu.uci.ics.amber.core.marker.EndOfInputChannel
+import edu.uci.ics.amber.core.tuple.{AttributeType, Schema, TupleLike}
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
 import edu.uci.ics.amber.engine.common.ambermessage._
-import edu.uci.ics.amber.engine.common.model.EndOfInputChannel
-import edu.uci.ics.amber.engine.common.model.tuple.{AttributeType, Schema, TupleLike}
-import edu.uci.ics.amber.engine.common.virtualidentity.{
+import edu.uci.ics.amber.core.virtualidentity.{
   ActorVirtualIdentity,
   ChannelIdentity,
   OperatorIdentity,
   PhysicalOpIdentity
 }
-import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
+import edu.uci.ics.amber.core.workflow.{PhysicalLink, PortIdentity}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -22,15 +22,13 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
   private val mockDataOutputPort = // scalafix:ok; need it for wiring purpose
     new NetworkOutputGateway(identifier, mockHandler)
   var counter: Int = 0
-  val schema: Schema = Schema
-    .builder()
+  val schema: Schema = Schema()
     .add("field1", AttributeType.INTEGER)
     .add("field2", AttributeType.INTEGER)
     .add("field3", AttributeType.INTEGER)
     .add("field4", AttributeType.INTEGER)
     .add("field5", AttributeType.STRING)
     .add("field6", AttributeType.DOUBLE)
-    .build()
 
   def physicalOpId(): PhysicalOpIdentity = {
     counter += 1

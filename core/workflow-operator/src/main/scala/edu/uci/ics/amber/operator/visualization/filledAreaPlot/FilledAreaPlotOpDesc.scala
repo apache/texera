@@ -2,15 +2,14 @@ package edu.uci.ics.amber.operator.visualization.filledAreaPlot
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
+import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
-import edu.uci.ics.amber.operator.metadata.OperatorInfo
-import edu.uci.ics.amber.operator.metadata.OperatorGroupConstants
-import edu.uci.ics.amber.operator.metadata.annotation.AutofillAttributeName
-import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
-import edu.uci.ics.amber.operator.visualization.{VisualizationConstants, VisualizationOperator}
+import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
+import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
+import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode
 
-class FilledAreaPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
+class FilledAreaPlotOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("X-axis Attribute")
@@ -47,8 +46,13 @@ class FilledAreaPlotOpDesc extends VisualizationOperator with PythonOperatorDesc
   @AutofillAttributeName
   var pattern: String = ""
 
-  override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    Schema.builder().add(new Attribute("html-content", AttributeType.STRING)).build()
+  override def getOutputSchemas(
+      inputSchemas: Map[PortIdentity, Schema]
+  ): Map[PortIdentity, Schema] = {
+    val outputSchema = Schema()
+      .add("html-content", AttributeType.STRING)
+    Map(operatorInfo.outputPorts.head.id -> outputSchema)
+    Map(operatorInfo.outputPorts.head.id -> outputSchema)
   }
 
   override def operatorInfo: OperatorInfo =
@@ -57,7 +61,7 @@ class FilledAreaPlotOpDesc extends VisualizationOperator with PythonOperatorDesc
       "Visualize data in filled area plot",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort())
+      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
 
   def createPlotlyFigure(): String = {
@@ -74,8 +78,8 @@ class FilledAreaPlotOpDesc extends VisualizationOperator with PythonOperatorDesc
     val patternParam = if (pattern.nonEmpty) s""", pattern_shape="$pattern"""" else ""
 
     s"""
-             |            fig = px.area(table, x="$x", y="$y"$colorArg$facetColumnArg$lineGroupArg$patternParam)
-             |""".stripMargin
+       |            fig = px.area(table, x="$x", y="$y"$colorArg$facetColumnArg$lineGroupArg$patternParam)
+       |""".stripMargin
   }
 
   // The function below checks whether there are more than 5 percents of the groups have disjoint sets of x attributes.
@@ -104,7 +108,8 @@ class FilledAreaPlotOpDesc extends VisualizationOperator with PythonOperatorDesc
   }
 
   override def generatePythonCode(): String = {
-    val finalCode = s"""
+    val finalCode =
+      s"""
          |from pytexera import *
          |
          |import plotly
@@ -143,6 +148,4 @@ class FilledAreaPlotOpDesc extends VisualizationOperator with PythonOperatorDesc
     finalCode
   }
 
-  // make the chart type to html visualization so it can be recognized by both backend and frontend.
-  override def chartType(): String = VisualizationConstants.HTML_VIZ
 }

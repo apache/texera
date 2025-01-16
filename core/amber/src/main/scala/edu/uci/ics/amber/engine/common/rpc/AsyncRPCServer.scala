@@ -9,8 +9,8 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
 }
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{ControlReturn, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.AmberLogging
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.error.ErrorUtils.mkControlError
+import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
 
 import java.lang.reflect.Method
 import scala.collection.mutable
@@ -59,7 +59,13 @@ class AsyncRPCServer(
   ): Unit = {
     try {
       val result =
-        method.invoke(handler, requestArg, contextArg)
+        try {
+          method.invoke(handler, requestArg, contextArg)
+        } catch {
+          case e: java.lang.reflect.InvocationTargetException =>
+            throw Option(e.getCause).getOrElse(e)
+          case e: Throwable => throw e
+        }
       result
         .asInstanceOf[Future[ControlReturn]]
         .onSuccess { ret =>

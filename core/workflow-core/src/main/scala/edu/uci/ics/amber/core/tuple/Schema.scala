@@ -4,27 +4,39 @@ import com.fasterxml.jackson.annotation.{JsonCreator, JsonIgnore, JsonProperty}
 import com.google.common.base.Preconditions.checkNotNull
 
 import scala.collection.immutable.ListMap
-import scala.collection.mutable
 
+/**
+  * Represents the schema of a tuple, consisting of a list of attributes.
+  * The schema is immutable, and any modifications result in a new Schema instance.
+  */
 case class Schema @JsonCreator() (
-    @JsonProperty(value = "attributes", required = true) attributes: List[Attribute]
+    @JsonProperty(value = "attributes", required = true) attributes: List[Attribute] = List()
 ) extends Serializable {
 
   checkNotNull(attributes)
 
-  val attributeIndex: Map[String, Int] =
+  // Maps attribute names (case-insensitive) to their indices in the schema.
+  private val attributeIndex: Map[String, Int] =
     attributes.view.map(_.getName.toLowerCase).zipWithIndex.toMap
 
-  def this(attrs: Attribute*) = {
-    this(attrs.toList)
-  }
+  def this(attrs: Attribute*) = this(attrs.toList)
 
+  /**
+    * Returns the list of attributes in the schema.
+    */
   @JsonProperty(value = "attributes")
   def getAttributes: List[Attribute] = attributes
 
+  /**
+    * Returns a list of all attribute names in the schema.
+    */
   @JsonIgnore
   def getAttributeNames: List[String] = attributes.map(_.getName)
 
+  /**
+    * Returns the index of a specified attribute by name.
+    * Throws an exception if the attribute is not found.
+    */
   def getIndex(attributeName: String): Int = {
     if (!containsAttribute(attributeName)) {
       throw new RuntimeException(s"$attributeName is not contained in the schema")
@@ -32,8 +44,14 @@ case class Schema @JsonCreator() (
     attributeIndex(attributeName.toLowerCase)
   }
 
+  /**
+    * Retrieves an attribute by its name.
+    */
   def getAttribute(attributeName: String): Attribute = attributes(getIndex(attributeName))
 
+  /**
+    * Checks whether the schema contains an attribute with the specified name.
+    */
   @JsonIgnore
   def containsAttribute(attributeName: String): Boolean =
     attributeIndex.contains(attributeName.toLowerCase)
@@ -46,157 +64,122 @@ case class Schema @JsonCreator() (
     result
   }
 
-  override def equals(obj: Any): Boolean =
+  override def equals(obj: Any): Boolean = {
     obj match {
-      case that: Schema =>
-        this.attributes == that.attributes && this.attributeIndex == that.attributeIndex
-      case _ => false
+      case that: Schema => this.attributes == that.attributes
+      case _            => false
     }
+  }
 
-  override def toString: String = s"Schema[$attributes]"
+  override def toString: String = s"Schema[${attributes.map(_.toString).mkString(", ")}]"
 
+  /**
+    * Creates a new Schema containing only the specified attributes.
+    */
   def getPartialSchema(attributeNames: List[String]): Schema = {
     Schema(attributeNames.map(name => getAttribute(name)))
   }
 
   /**
-    * This method converts to a Schema into a raw format, where each pair of attribute name and attribute type
-    * are represented as string. This is for serialization between languages.
+    * Converts the schema into a raw format where each attribute name
+    * and attribute type are represented as strings. Useful for serialization across languages.
     */
   def toRawSchema: Map[String, String] =
-    getAttributes.foldLeft(ListMap[String, String]())((list, attr) =>
-      list + (attr.getName -> attr.getType.toString)
+    attributes.foldLeft(ListMap[String, String]())((list, attr) =>
+      list + (attr.getName -> attr.getType.name())
     )
+
+  /**
+    * Creates a new Schema by adding multiple attributes to the current schema.
+    * Throws an exception if any attribute name already exists in the schema.
+    */
+  def add(attributesToAdd: Iterable[Attribute]): Schema = {
+    val existingNames = this.getAttributeNames.map(_.toLowerCase).toSet
+    val duplicateNames = attributesToAdd.map(_.getName.toLowerCase).toSet.intersect(existingNames)
+
+    if (duplicateNames.nonEmpty) {
+      throw new RuntimeException(
+        s"Cannot add attributes with duplicate names: ${duplicateNames.mkString(", ")}"
+      )
+    }
+
+    val newAttributes = attributes ++ attributesToAdd
+    Schema(newAttributes)
+  }
+
+  /**
+    * Creates a new Schema by adding multiple attributes.
+    * Accepts a variable number of `Attribute` arguments.
+    * Throws an exception if any attribute name already exists in the schema.
+    */
+  def add(attributes: Attribute*): Schema = {
+    this.add(attributes)
+  }
+
+  /**
+    * Creates a new Schema by adding a single attribute to the current schema.
+    * Throws an exception if the attribute name already exists in the schema.
+    */
+  def add(attribute: Attribute): Schema = {
+    if (containsAttribute(attribute.getName)) {
+      throw new RuntimeException(
+        s"Attribute name '${attribute.getName}' already exists in the schema"
+      )
+    }
+    add(List(attribute))
+  }
+
+  /**
+    * Creates a new Schema by adding an attribute with the specified name and type.
+    * Throws an exception if the attribute name already exists in the schema.
+    */
+  def add(attributeName: String, attributeType: AttributeType): Schema =
+    add(new Attribute(attributeName, attributeType))
+
+  /**
+    * Creates a new Schema by merging it with another schema.
+    * Throws an exception if there are duplicate attribute names.
+    */
+  def add(schema: Schema): Schema = {
+    add(schema.attributes)
+  }
+
+  /**
+    * Creates a new Schema by removing attributes with the specified names.
+    * Throws an exception if any of the specified attributes do not exist in the schema.
+    */
+  def remove(attributeNames: Iterable[String]): Schema = {
+    val attributesToRemove = attributeNames.map(_.toLowerCase).toSet
+
+    // Check for non-existent attributes
+    val nonExistentAttributes = attributesToRemove.diff(attributes.map(_.getName.toLowerCase).toSet)
+    if (nonExistentAttributes.nonEmpty) {
+      throw new IllegalArgumentException(
+        s"Cannot remove non-existent attributes: ${nonExistentAttributes.mkString(", ")}"
+      )
+    }
+
+    val remainingAttributes =
+      attributes.filterNot(attr => attributesToRemove.contains(attr.getName.toLowerCase))
+    Schema(remainingAttributes)
+  }
+
+  /**
+    * Creates a new Schema by removing a single attribute with the specified name.
+    */
+  def remove(attributeName: String): Schema = remove(List(attributeName))
 }
 
 object Schema {
-  def builder(): Builder = Builder()
 
-  case class Builder(private var attributes: List[Attribute] = List.empty) {
-    private val attributeNames: mutable.Set[String] = mutable.Set.empty
-
-    def add(attribute: Attribute): Builder = {
-      require(attribute != null, "edu.ics.uci.amber.model.tuple.model.Attribute cannot be null")
-      checkAttributeNotExists(attribute.getName)
-      attributes ::= attribute
-      attributeNames += attribute.getName.toLowerCase
-      this
-    }
-
-    def add(attributeName: String, attributeType: AttributeType): Builder = {
-      add(new Attribute(attributeName, attributeType))
-      this
-    }
-
-    def add(attributes: Iterable[Attribute]): Builder = {
-      attributes.foreach(add)
-      this
-    }
-
-    def add(attributes: Attribute*): Builder = {
-      attributes.foreach(add)
-      this
-    }
-
-    def add(schema: Schema): Builder = {
-      checkNotNull(schema)
-      add(schema.getAttributes)
-      this
-    }
-
-    def build(): Schema = Schema(attributes.reverse)
-
-    /**
-      * Removes an attribute from the schema builder if it exists.
-      *
-      * @param attribute , the name of the attribute
-      * @return this Builder object
-      */
-    def removeIfExists(attribute: String): Builder = {
-      checkNotNull(attribute)
-      attributes = attributes.filter((attr: Attribute) => !attr.getName.equalsIgnoreCase(attribute))
-      attributeNames.remove(attribute.toLowerCase)
-      this
-    }
-
-    /**
-      * Removes the attributes from the schema builder if they exist.
-      *
-      * @param attributes , the names of the attributes
-      * @return this Builder object
-      */
-    def removeIfExists(attributes: Iterable[String]): Builder = {
-      checkNotNull(attributes)
-      attributes.foreach((attr: String) => checkNotNull(attr))
-      attributes.foreach((attr: String) => this.removeIfExists(attr))
-      this
-    }
-
-    /**
-      * Removes the attributes from the schema builder if they exist.
-      *
-      * @param attributes , the names of the attributes
-      * @return this Builder object
-      */
-    def removeIfExists(attributes: String*): Builder = {
-      checkNotNull(attributes)
-      this.removeIfExists(attributes)
-      this
-    }
-
-    /**
-      * Removes an attribute from the schema builder.
-      * Fails if the attribute does not exist.
-      *
-      * @param attribute , the name of the attribute
-      * @return this Builder object
-      */
-    def remove(attribute: String): Builder = {
-      checkNotNull(attribute)
-      checkAttributeExists(attribute)
-      removeIfExists(attribute)
-      this
-    }
-
-    /**
-      * Removes the attributes from the schema builder.
-      * Fails if an attributes does not exist.
-      */
-    def remove(attributes: Iterable[String]): Builder = {
-      checkNotNull(attributes)
-      attributes.foreach(attrName => checkNotNull(attrName))
-      attributes.foreach(this.checkAttributeExists)
-      this.removeIfExists(attributes)
-      this
-    }
-
-    /**
-      * Removes the attributes from the schema builder.
-      * Fails if an attributes does not exist.
-      *
-      * @param attributes
-      * @return the builder itself
-      */
-    def remove(attributes: String*): Builder = {
-      checkNotNull(attributes)
-      this.remove(attributes)
-      this
-    }
-
-    private def checkAttributeNotExists(attributeName: String): Unit = {
-      if (attributeNames.contains(attributeName.toLowerCase)) {
-        throw new RuntimeException(
-          s"edu.ics.uci.amber.model.tuple.model.Attribute $attributeName already exists in the schema"
-        )
-      }
-    }
-
-    private def checkAttributeExists(attributeName: String): Unit = {
-      if (!attributeNames.contains(attributeName.toLowerCase)) {
-        throw new RuntimeException(
-          s"edu.ics.uci.amber.model.tuple.model.Attribute $attributeName does not exist in the schema"
-        )
-      }
-    }
+  /**
+    * Creates a Schema instance from a raw map representation.
+    * Each entry in the map contains an attribute name and its type as strings.
+    */
+  def fromRawSchema(raw: Map[String, String]): Schema = {
+    Schema(raw.map {
+      case (name, attrType) =>
+        new Attribute(name, AttributeType.valueOf(attrType))
+    }.toList)
   }
 }

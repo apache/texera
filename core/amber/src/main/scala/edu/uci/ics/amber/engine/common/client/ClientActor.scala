@@ -3,6 +3,7 @@ package edu.uci.ics.amber.engine.common.client
 import akka.actor.{Actor, ActorRef}
 import akka.pattern.StatusReply.Ack
 import com.twitter.util.Promise
+import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.{
   CreditRequest,
   CreditResponse,
@@ -16,8 +17,8 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{
   ControlReturn,
   ReturnInvocation
 }
-import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.AmberLogging
+import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.ambermessage.{
   ControlPayload,
   DataPayload,
@@ -30,12 +31,10 @@ import edu.uci.ics.amber.engine.common.client.ClientActor.{
   InitializeRequest,
   ObservableRequest
 }
-import edu.uci.ics.amber.engine.common.model.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CLIENT, CONTROLLER}
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.error.ErrorUtils.reconstructThrowable
-import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
+import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
 import scala.collection.mutable
 
@@ -44,11 +43,13 @@ private[client] object ClientActor {
   case class InitializeRequest(
       workflowContext: WorkflowContext,
       physicalPlan: PhysicalPlan,
-      opResultStorage: OpResultStorage,
       controllerConfig: ControllerConfig
   )
+
   case class ObservableRequest(pf: PartialFunction[Any, Unit])
+
   case class ClosureRequest[T](closure: () => T)
+
   case class CommandRequest(
       methodName: String,
       command: ControlRequest,
@@ -74,10 +75,10 @@ private[client] class ClientActor extends Actor with AmberLogging {
   }
 
   override def receive: Receive = {
-    case InitializeRequest(workflowContext, physicalPlan, opResultStorage, controllerConfig) =>
+    case InitializeRequest(workflowContext, physicalPlan, controllerConfig) =>
       assert(controller == null)
       controller = context.actorOf(
-        Controller.props(workflowContext, physicalPlan, opResultStorage, controllerConfig)
+        Controller.props(workflowContext, physicalPlan, controllerConfig)
       )
       sender() ! Ack
     case CreditRequest(channelId: ChannelIdentity) =>

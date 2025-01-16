@@ -4,28 +4,28 @@ package edu.uci.ics.amber.engine.common;
 
 import "edu/uci/ics/amber/engine/architecture/rpc/controlcommands.proto";
 import "edu/uci/ics/amber/engine/architecture/rpc/controlreturns.proto";
-import "edu/uci/ics/amber/engine/common/virtualidentity.proto";
+import "edu/uci/ics/amber/core/virtualidentity.proto";
 import "scalapb/scalapb.proto";
 
 option (scalapb.options) = {
-    scope: FILE,
-    preserve_unknown_fields: false
-    no_default_values_in_constructor: true
+  scope: FILE,
+  preserve_unknown_fields: false
+  no_default_values_in_constructor: true
 };
 
 message ControlPayloadV2 {
-    oneof value {
-        architecture.rpc.ControlInvocation control_invocation = 1;
-        architecture.rpc.ReturnInvocation return_invocation = 2;
-    }
+  oneof value {
+    architecture.rpc.ControlInvocation control_invocation = 1;
+    architecture.rpc.ReturnInvocation return_invocation = 2;
+  }
 }
 
 message PythonDataHeader {
-    common.ActorVirtualIdentity tag = 1 [(scalapb.field).no_box = true];
-    string payload_type = 2;
+  core.ActorVirtualIdentity tag = 1 [(scalapb.field).no_box = true];
+  string payload_type = 2;
 }
 
 message PythonControlMessage {
-    common.ActorVirtualIdentity tag = 1 [(scalapb.field).no_box = true];
-    ControlPayloadV2 payload = 2 [(scalapb.field).no_box = true];
+  core.ActorVirtualIdentity tag = 1 [(scalapb.field).no_box = true];
+  ControlPayloadV2 payload = 2 [(scalapb.field).no_box = true];
 }

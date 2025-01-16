@@ -1,43 +1,28 @@
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
-import com.google.protobuf.ByteString
-import com.google.protobuf.any.Any
 import com.twitter.util.{Await, Promise}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
-  OpExecInitInfo,
-  OpExecInitInfoWithCode
-}
+import edu.uci.ics.amber.core.WorkflowRuntimeException
+import edu.uci.ics.amber.core.marker.State
+import edu.uci.ics.amber.core.tuple.{Schema, Tuple}
+import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{
   ActorCommandElement,
   ControlElement,
   DataElement
 }
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
-  ControlInvocation,
-  InitializeExecutorRequest
-}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ControlInvocation
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ReturnInvocation
-import edu.uci.ics.amber.engine.common.{AmberLogging, AmberRuntime}
+import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.actormessage.{ActorCommand, PythonActorMessage}
-import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.ambermessage.{
-  ControlPayload,
-  ControlPayloadV2,
-  DataFrame,
-  DataPayload,
-  MarkerFrame,
-  PythonControlMessage,
-  PythonDataHeader
-}
-import edu.uci.ics.amber.engine.common.model.State
-import edu.uci.ics.amber.engine.common.model.tuple.{Schema, Tuple}
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.ambermessage._
+import edu.uci.ics.amber.util.ArrowUtils
 import org.apache.arrow.flight._
 import org.apache.arrow.memory.{ArrowBuf, BufferAllocator, RootAllocator}
 import org.apache.arrow.vector.VectorSchemaRoot
 
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
+import scala.collection.compat.immutable.ArraySeq
 import scala.collection.mutable
 
 class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtualIdentity)
@@ -84,7 +69,7 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
           logger.warn(
             s"Failed to connect to Flight Server in this attempt, retrying after $UNIT_WAIT_TIME_MS ms... remaining attempts: ${MAX_TRY_COUNT - tryCount}"
           )
-          flightClient.close()
+          if (flightClient != null) flightClient.close()
           Thread.sleep(UNIT_WAIT_TIME_MS)
           tryCount += 1
       }
@@ -96,7 +81,7 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     }
   }
 
-  def mainLoop(): Unit = {
+  private def mainLoop(): Unit = {
     while (running) {
       getElement match {
         case DataElement(dataPayload, channel) =>
@@ -105,14 +90,14 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
           sendControl(channel.fromWorkerId, cmd)
         case ActorCommandElement(cmd) =>
           sendActorCommand(cmd)
-
       }
     }
   }
 
-  def sendData(dataPayload: DataPayload, from: ActorVirtualIdentity): Unit = {
+  private def sendData(dataPayload: DataPayload, from: ActorVirtualIdentity): Unit = {
     dataPayload match {
-      case DataFrame(frame) => writeArrowStream(mutable.Queue(frame: _*), from, "Data")
+      case DataFrame(frame) =>
+        writeArrowStream(mutable.Queue(ArraySeq.unsafeWrapArray(frame): _*), from, "Data")
       case MarkerFrame(marker) =>
         marker match {
           case state: State =>
@@ -122,28 +107,14 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     }
   }
 
-  def sendControl(
+  private def sendControl(
       from: ActorVirtualIdentity,
       payload: ControlPayload
   ): Result = {
     var payloadV2 = ControlPayloadV2.defaultInstance
     payloadV2 = payload match {
       case c: ControlInvocation =>
-        val req = c.command match {
-          case InitializeExecutorRequest(worker, info, isSource, language) =>
-            val bytes = info.value.toByteArray
-            val opExecInitInfo: OpExecInitInfo =
-              AmberRuntime.serde.deserialize(bytes, classOf[OpExecInitInfo]).get
-            val (code, language) = opExecInitInfo.asInstanceOf[OpExecInitInfoWithCode].codeGen(0, 0)
-            InitializeExecutorRequest(
-              worker,
-              Any.of("", ByteString.copyFrom(code, "UTF-8")),
-              isSource,
-              language
-            )
-          case other => other
-        }
-        payloadV2.withControlInvocation(c.withCommand(req))
+        payloadV2.withControlInvocation(c)
       case r: ReturnInvocation =>
         payloadV2.withReturnInvocation(r)
       case _ => ???
@@ -153,7 +124,7 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     sendCreditedAction(action)
   }
 
-  def sendActorCommand(
+  private def sendActorCommand(
       command: ActorCommand
   ): Result = {
     val action: Action = new Action("actor", PythonActorMessage(command).toByteArray)

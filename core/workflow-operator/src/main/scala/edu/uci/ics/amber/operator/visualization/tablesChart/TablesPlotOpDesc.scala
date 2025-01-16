@@ -1,20 +1,16 @@
 package edu.uci.ics.amber.operator.visualization.tablesChart
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
+import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
-import edu.uci.ics.amber.operator.metadata.OperatorInfo
-import edu.uci.ics.amber.operator.metadata.OperatorGroupConstants
-import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
-import edu.uci.ics.amber.operator.visualization.{VisualizationConstants, VisualizationOperator}
-
-class TablesPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
+import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode
+import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
+class TablesPlotOpDesc extends PythonOperatorDescriptor {
 
   @JsonPropertyDescription("List of columns to include in the table chart")
   @JsonProperty(value = "add attribute", required = true)
   var includedColumns: List[TablesConfig] = List()
-
-  override def chartType(): String = VisualizationConstants.HTML_VIZ
 
   private def getAttributes: String =
     includedColumns.map(_.attributeName).mkString("'", "','", "'")
@@ -46,6 +42,7 @@ class TablesPlotOpDesc extends VisualizationOperator with PythonOperatorDescript
        |
        |""".stripMargin
   }
+
   override def generatePythonCode(): String = {
     s"""
        |from pytexera import *
@@ -79,11 +76,16 @@ class TablesPlotOpDesc extends VisualizationOperator with PythonOperatorDescript
       "Visualize data in a table chart.",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort())
+      outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
   }
 
-  override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    Schema.builder().add(new Attribute("html-content", AttributeType.STRING)).build()
+  override def getOutputSchemas(
+      inputSchemas: Map[PortIdentity, Schema]
+  ): Map[PortIdentity, Schema] = {
+    val outputSchema = Schema()
+      .add("html-content", AttributeType.STRING)
+    Map(operatorInfo.outputPorts.head.id -> outputSchema)
+    Map(operatorInfo.outputPorts.head.id -> outputSchema)
   }
 }

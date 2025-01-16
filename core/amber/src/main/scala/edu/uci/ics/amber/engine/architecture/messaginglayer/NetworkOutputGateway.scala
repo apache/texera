@@ -7,15 +7,15 @@ import edu.uci.ics.amber.engine.common.ambermessage.{
   WorkflowFIFOMessage,
   WorkflowFIFOMessagePayload
 }
+import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
+import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
 import java.util.concurrent.atomic.AtomicLong
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
-import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
-
 import scala.collection.mutable
 
 /**
   * NetworkOutput for generating sequence number when sending payloads
+  *
   * @param actorId ActorVirtualIdentity for the sender
   * @param handler actual sending logic
   */

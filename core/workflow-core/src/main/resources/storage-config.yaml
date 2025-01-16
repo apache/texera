@@ -1,9 +1,21 @@
 storage:
-  result-storage-mode: mongodb
+  result-storage-mode: iceberg
   mongodb:
     url: "mongodb://localhost:27017"
     database: "texera_storage"
     commit-batch-size: 1000
+  iceberg:
+    table:
+      namespace: "operator-result"
+      commit:
+        batch-size: 4096 # decide the buffer size of our IcebergTableWriter
+        retry:
+          # retry configures the OCC parameter for concurrent write operations in Iceberg
+          # Docs about Reliability in Iceberg: https://iceberg.apache.org/docs/1.7.1/reliability/
+          # Docs about full parameter list and their meaning: https://iceberg.apache.org/docs/1.7.1/configuration/#write-properties
+          num-retries: 10
+          min-wait-ms: 100   # 0.1s
+          max-wait-ms: 10000 # 10s
   jdbc:
     url: "jdbc:mysql://localhost:3306/texera_db?serverTimezone=UTC"
     username: ""

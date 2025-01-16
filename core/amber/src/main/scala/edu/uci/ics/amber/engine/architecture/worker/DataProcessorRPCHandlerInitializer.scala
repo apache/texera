@@ -10,9 +10,9 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{EmptyReturn, EvaluatedValue}
 import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceFs2Grpc
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers._
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCHandlerInitializer
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.AmberLogging
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCHandlerInitializer
+import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
 
 class DataProcessorRPCHandlerInitializer(val dp: DataProcessor)
     extends AsyncRPCHandlerInitializer(dp.asyncRPCClient, dp.asyncRPCServer)

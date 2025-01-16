@@ -1,14 +1,12 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.project
 
-import edu.uci.ics.texera.web.SqlServer
+import edu.uci.ics.amber.core.storage.StorageConfig
+import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{PROJECT, PUBLIC_PROJECT, USER}
-import edu.uci.ics.texera.web.model.jooq.generated.enums.ProjectUserAccessPrivilege
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  ProjectUserAccessDao,
-  PublicProjectDao
-}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{ProjectUserAccess, PublicProject}
+import edu.uci.ics.texera.dao.jooq.generated.Tables.{PROJECT, PUBLIC_PROJECT, USER}
+import edu.uci.ics.texera.dao.jooq.generated.enums.ProjectUserAccessPrivilege
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{ProjectUserAccessDao, PublicProjectDao}
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{ProjectUserAccess, PublicProject}
 import io.dropwizard.auth.Auth
 import org.jooq.DSLContext
 import org.jooq.types.UInteger
@@ -24,12 +22,16 @@ case class DashboardPublicProject(
     owner: String,
     creationTime: Timestamp
 ) {}
+
 @Path("/public/project")
 class PublicProjectResource {
 
-  final private val context: DSLContext = SqlServer.createDSLContext
+  final private val context: DSLContext = SqlServer
+    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .createDSLContext()
   final private lazy val publicProjectDao = new PublicProjectDao(context.configuration)
   final private val projectUserAccessDao = new ProjectUserAccessDao(context.configuration)
+
   @GET
   @RolesAllowed(Array("ADMIN"))
   @Path("/type/{pid}")

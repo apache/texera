@@ -3,7 +3,7 @@ import { UserService } from "../../common/service/user/user.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { FlarumService } from "../service/user/flarum/flarum.service";
 import { HttpErrorResponse } from "@angular/common/http";
-import { ActivatedRoute, NavigationEnd, Router } from "@angular/router";
+import { NavigationEnd, Router } from "@angular/router";
 import { HubComponent } from "../../hub/component/hub.component";
 
 import {
@@ -47,7 +47,6 @@ export class DashboardComponent implements OnInit {
     private router: Router,
     private flarumService: FlarumService,
     private cdr: ChangeDetectorRef,
-    private route: ActivatedRoute,
     private ngZone: NgZone
   ) {}
 
@@ -57,26 +56,6 @@ export class DashboardComponent implements OnInit {
 
     this.isCollpased = false;
 
-    if (!document.cookie.includes("flarum_remember") && this.isLogin) {
-      this.flarumService
-        .auth()
-        .pipe(untilDestroyed(this))
-        .subscribe({
-          next: (response: any) => {
-            document.cookie = `flarum_remember=${response.token};path=/`;
-          },
-          error: (err: unknown) => {
-            if ((err as HttpErrorResponse).status == 404) {
-              this.displayForum = false;
-            } else {
-              this.flarumService
-                .register()
-                .pipe(untilDestroyed(this))
-                .subscribe(() => this.ngOnInit());
-            }
-          },
-        });
-    }
     this.router.events.pipe(untilDestroyed(this)).subscribe(() => {
       this.checkRoute();
     });
@@ -95,10 +74,33 @@ export class DashboardComponent implements OnInit {
         this.ngZone.run(() => {
           this.isLogin = this.userService.isLogin();
           this.isAdmin = this.userService.isAdmin();
+          this.forumLogin();
           this.cdr.detectChanges();
-          this.router.navigateByUrl(this.route.snapshot.queryParams["returnUrl"] || DASHBOARD_USER_WORKFLOW);
         });
       });
+  }
+
+  forumLogin() {
+    if (!document.cookie.includes("flarum_remember") && this.isLogin) {
+      this.flarumService
+        .auth()
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          next: (response: any) => {
+            document.cookie = `flarum_remember=${response.token};path=/`;
+          },
+          error: (err: unknown) => {
+            if ([404, 500].includes((err as HttpErrorResponse).status)) {
+              this.displayForum = false;
+            } else {
+              this.flarumService
+                .register()
+                .pipe(untilDestroyed(this))
+                .subscribe(() => this.forumLogin());
+            }
+          },
+        });
+    }
   }
 
   checkRoute() {

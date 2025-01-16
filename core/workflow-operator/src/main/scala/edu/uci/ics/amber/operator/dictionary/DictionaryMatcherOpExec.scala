@@ -1,8 +1,8 @@
 package edu.uci.ics.amber.operator.dictionary
 
 import edu.uci.ics.amber.core.tuple.{Tuple, TupleLike}
-import edu.uci.ics.amber.operator.dictionary.DictionaryMatcherOpExec.URL_STOP_WORDS_SET
 import edu.uci.ics.amber.operator.map.MapOpExec
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import org.apache.lucene.analysis.Analyzer
 import org.apache.lucene.analysis.en.EnglishAnalyzer
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute
@@ -11,7 +11,16 @@ import java.io.StringReader
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
-object DictionaryMatcherOpExec {
+class DictionaryMatcherOpExec(
+    descString: String
+) extends MapOpExec {
+  private val desc: DictionaryMatcherOpDesc =
+    objectMapper.readValue(descString, classOf[DictionaryMatcherOpDesc])
+  // this is needed for the matching types Phrase and Conjunction
+  var tokenizedDictionaryEntries: ListBuffer[mutable.Set[String]] = _
+  // this is needed for the simple Scan matching type
+  var dictionaryEntries: List[String] = _
+  var luceneAnalyzer: Analyzer = _
 
   /** An unmodifiable set containing some common URL words that are not usually useful
     * for searching.
@@ -26,27 +35,14 @@ object DictionaryMatcherOpExec {
     "www",
     "html"
   )
-}
-
-class DictionaryMatcherOpExec(
-    attributeName: String,
-    dictionary: String,
-    matchingType: MatchingType
-) extends MapOpExec {
-
-  // this is needed for the matching types Phrase and Conjunction
-  var tokenizedDictionaryEntries: ListBuffer[mutable.Set[String]] = _
-  // this is needed for the simple Scan matching type
-  var dictionaryEntries: List[String] = _
-  var luceneAnalyzer: Analyzer = _
 
   /**
     * first prepare the dictionary by splitting the values using a comma delimiter then tokenize the split values
     */
   override def open(): Unit = {
     // create the dictionary by splitting the values first
-    dictionaryEntries = dictionary.split(",").toList.map(_.toLowerCase)
-    if (matchingType == MatchingType.CONJUNCTION_INDEXBASED) {
+    dictionaryEntries = desc.dictionary.split(",").toList.map(_.toLowerCase)
+    if (desc.matchingType == MatchingType.CONJUNCTION_INDEXBASED) {
       // then tokenize each entry
       this.luceneAnalyzer = new EnglishAnalyzer
       tokenizedDictionaryEntries = ListBuffer[mutable.Set[String]]()
@@ -77,12 +73,12 @@ class DictionaryMatcherOpExec(
     * @return true if the tuple matches a dictionary entry according to the matching criteria; false otherwise.
     */
   private def isTupleInDictionary(tuple: Tuple): Boolean = {
-    val text = tuple.getField(attributeName).asInstanceOf[String].toLowerCase
+    val text = tuple.getField(desc.attribute).asInstanceOf[String].toLowerCase
 
     // Return false if the text is empty, as it cannot match any dictionary entry
     if (text.isEmpty) return false
 
-    matchingType match {
+    desc.matchingType match {
       case MatchingType.SCANBASED =>
         // Directly check if the dictionary contains the text
         dictionaryEntries.contains(text)
@@ -135,7 +131,7 @@ class DictionaryMatcherOpExec(
     */
   private def labelTupleIfMatched(tuple: Tuple): TupleLike = {
     val isMatched =
-      Option(tuple.getField[Any](attributeName)).exists(_ => isTupleInDictionary(tuple))
+      Option(tuple.getField[Any](desc.attribute)).exists(_ => isTupleInDictionary(tuple))
     TupleLike(tuple.getFields ++ Seq(isMatched))
   }
 

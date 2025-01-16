@@ -6,12 +6,13 @@ import com.kjetland.jackson.jsonSchema.annotations.{
   JsonSchemaString,
   JsonSchemaTitle
 }
-import edu.uci.ics.amber.core.executor.OpExecInitInfo
-import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
+import edu.uci.ics.amber.core.executor.OpExecWithClassName
+import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
+import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
-import edu.uci.ics.amber.operator.metadata.annotation.HideAnnotation
+import edu.uci.ics.amber.operator.metadata.annotations.HideAnnotation
 import edu.uci.ics.amber.operator.source.scan.text.TextSourceOpDesc
-import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 
 @JsonIgnoreProperties(value = Array("limit", "offset", "fileEncoding"))
 class FileScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
@@ -52,28 +53,23 @@ class FileScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _) =>
-          new FileScanSourceOpExec(
-            fileUri.get,
-            attributeType,
-            encoding,
-            extract,
-            outputFileName,
-            fileScanLimit,
-            fileScanOffset
-          )
+        OpExecWithClassName(
+          "edu.uci.ics.amber.operator.source.scan.FileScanSourceOpExec",
+          objectMapper.writeValueAsString(this)
         )
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withPropagateSchema(
-        SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> inferSchema()))
+        SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> sourceSchema()))
       )
   }
 
-  override def inferSchema(): Schema = {
-    val builder = Schema.builder()
-    if (outputFileName) builder.add(new Attribute("filename", AttributeType.STRING))
-    builder.add(new Attribute(attributeName, attributeType.getType)).build()
+  override def sourceSchema(): Schema = {
+    var schema = Schema()
+    if (outputFileName) {
+      schema = schema.add("filename", AttributeType.STRING)
+    }
+    schema.add(attributeName, attributeType.getType)
   }
 }

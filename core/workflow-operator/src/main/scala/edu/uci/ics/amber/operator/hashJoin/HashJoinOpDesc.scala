@@ -2,25 +2,22 @@ package edu.uci.ics.amber.operator.hashJoin
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import edu.uci.ics.amber.core.executor.OpExecInitInfo
+import edu.uci.ics.amber.core.executor.OpExecWithClassName
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
-import edu.uci.ics.amber.core.workflow.{
-  HashPartition,
-  OneToOnePartition,
-  PhysicalOp,
-  PhysicalPlan,
-  SchemaPropagationFunc
+import edu.uci.ics.amber.core.virtualidentity.{
+  ExecutionIdentity,
+  PhysicalOpIdentity,
+  WorkflowIdentity
 }
-import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, PhysicalOpIdentity, WorkflowIdentity}
-import edu.uci.ics.amber.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
-import HashJoinOpDesc.HASH_JOIN_INTERNAL_KEY_NAME
+import edu.uci.ics.amber.core.workflow._
 import edu.uci.ics.amber.operator.LogicalOp
-import edu.uci.ics.amber.operator.metadata.OperatorInfo
-import edu.uci.ics.amber.operator.metadata.OperatorGroupConstants
-import edu.uci.ics.amber.operator.metadata.annotation.{
+import edu.uci.ics.amber.operator.hashJoin.HashJoinOpDesc.HASH_JOIN_INTERNAL_KEY_NAME
+import edu.uci.ics.amber.operator.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameOnPort1
 }
+import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 
 object HashJoinOpDesc {
   val HASH_JOIN_INTERNAL_KEY_NAME = "__internal__hashtable__key__"
@@ -70,7 +67,10 @@ class HashJoinOpDesc[K] extends LogicalOp {
           PhysicalOpIdentity(operatorIdentifier, "build"),
           workflowId,
           executionId,
-          OpExecInitInfo((_, _) => new HashJoinBuildOpExec[K](buildAttributeName))
+          OpExecWithClassName(
+            "edu.uci.ics.amber.operator.hashJoin.HashJoinBuildOpExec",
+            objectMapper.writeValueAsString(this)
+          )
         )
         .withInputPorts(List(buildInputPort))
         .withOutputPorts(List(buildOutputPort))
@@ -78,11 +78,9 @@ class HashJoinOpDesc[K] extends LogicalOp {
         .withPropagateSchema(
           SchemaPropagationFunc(inputSchemas =>
             Map(
-              PortIdentity(internal = true) -> Schema
-                .builder()
-                .add(HASH_JOIN_INTERNAL_KEY_NAME, AttributeType.ANY)
-                .add(inputSchemas(operatorInfo.inputPorts.head.id))
-                .build()
+              PortIdentity(internal = true) -> Schema(
+                List(new Attribute(HASH_JOIN_INTERNAL_KEY_NAME, AttributeType.ANY))
+              ).add(inputSchemas(operatorInfo.inputPorts.head.id))
             )
           )
         )
@@ -99,11 +97,9 @@ class HashJoinOpDesc[K] extends LogicalOp {
           PhysicalOpIdentity(operatorIdentifier, "probe"),
           workflowId,
           executionId,
-          OpExecInitInfo((_, _) =>
-            new HashJoinProbeOpExec[K](
-              probeAttributeName,
-              joinType
-            )
+          OpExecWithClassName(
+            "edu.uci.ics.amber.operator.hashJoin.HashJoinProbeOpExec",
+            objectMapper.writeValueAsString(this)
           )
         )
         .withInputPorts(
@@ -119,16 +115,37 @@ class HashJoinOpDesc[K] extends LogicalOp {
         .withDerivePartition(_ => HashPartition(List(probeAttributeName)))
         .withParallelizable(true)
         .withPropagateSchema(
-          SchemaPropagationFunc(inputSchemas =>
-            Map(
-              PortIdentity() -> getOutputSchema(
-                Array(inputSchemas(PortIdentity(internal = true)), inputSchemas(PortIdentity(1)))
-              )
-            )
-          )
+          SchemaPropagationFunc(inputSchemas => {
+            val buildSchema = inputSchemas(PortIdentity(internal = true))
+            val probeSchema = inputSchemas(PortIdentity(1))
+
+            // Start with the attributes from the build schema, excluding the hash join internal key
+            val leftAttributes =
+              buildSchema.getAttributes.filterNot(_.getName == HASH_JOIN_INTERNAL_KEY_NAME)
+            val leftAttributeNames = leftAttributes.map(_.getName).toSet
+
+            // Filter and rename attributes from the probe schema to avoid conflicts
+            val rightAttributes = probeSchema.getAttributes
+              .filterNot(_.getName == probeAttributeName)
+              .map { attr =>
+                var newName = attr.getName
+                while (leftAttributeNames.contains(newName)) {
+                  val suffixIndex = """#@(\d+)$""".r
+                    .findFirstMatchIn(newName)
+                    .map(_.group(1).toInt + 1)
+                    .getOrElse(1)
+                  newName = s"${attr.getName}#@$suffixIndex"
+                }
+                new Attribute(newName, attr.getType)
+              }
+
+            // Combine left and right attributes into a new schema
+            val outputSchema = Schema(leftAttributes ++ rightAttributes)
+            Map(PortIdentity() -> outputSchema)
+          })
         )
 
-    new PhysicalPlan(
+    PhysicalPlan(
       operators = Set(buildPhysicalOp, probePhysicalOp),
       links = Set(
         PhysicalLink(
@@ -152,31 +169,4 @@ class HashJoinOpDesc[K] extends LogicalOp {
       ),
       outputPorts = List(OutputPort())
     )
-
-  // remove the probe attribute in the output
-  override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    val buildSchema = schemas(0)
-    val probeSchema = schemas(1)
-    val builder = Schema.builder()
-    builder.add(buildSchema)
-    builder.removeIfExists(HASH_JOIN_INTERNAL_KEY_NAME)
-    val leftAttributeNames = buildSchema.getAttributeNames
-    val rightAttributeNames =
-      probeSchema.getAttributeNames.filterNot(name => name == probeAttributeName)
-
-    // Create a Map from rightTuple's fields, renaming conflicts
-    rightAttributeNames
-      .foreach { name =>
-        var newName = name
-        while (
-          leftAttributeNames.contains(newName) || rightAttributeNames
-            .filter(attrName => name != attrName)
-            .contains(newName)
-        ) {
-          newName = s"$newName#@1"
-        }
-        builder.add(new Attribute(newName, probeSchema.getAttribute(name).getType))
-      }
-    builder.build()
-  }
 }

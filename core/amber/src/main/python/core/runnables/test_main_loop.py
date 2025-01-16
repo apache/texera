@@ -1,10 +1,10 @@
 import inspect
+import pickle
 from threading import Thread
 
 import pandas
 import pyarrow
 import pytest
-import pickle
 
 from core.models import (
     DataFrame,
@@ -16,6 +16,16 @@ from core.models.internal_queue import DataElement, ControlElement
 from core.models.marker import EndOfInputChannel
 from core.runnables import MainLoop
 from core.util import set_one_of
+from proto.edu.uci.ics.amber.core import (
+    ActorVirtualIdentity,
+    PhysicalLink,
+    PhysicalOpIdentity,
+    OperatorIdentity,
+    ChannelIdentity,
+    PortIdentity,
+    OpExecWithCode,
+    OpExecInitInfo,
+)
 from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     ControlRequest,
     AssignPortRequest,
@@ -42,18 +52,9 @@ from proto.edu.uci.ics.amber.engine.architecture.worker import (
     WorkerStatistics,
     PortTupleCountMapping,
 )
-from proto.edu.uci.ics.amber.engine.common import (
-    ActorVirtualIdentity,
-    ControlPayloadV2,
-    PhysicalLink,
-    PhysicalOpIdentity,
-    OperatorIdentity,
-    ChannelIdentity,
-    PortIdentity,
-)
+from proto.edu.uci.ics.amber.engine.common import ControlPayloadV2
 from pytexera.udf.examples.count_batch_operator import CountBatchOperator
 from pytexera.udf.examples.echo_operator import EchoOperator
-from google.protobuf.any_pb2 import Any as ProtoAny
 
 
 class TestMainLoop:
@@ -270,13 +271,14 @@ class TestMainLoop:
         command_sequence,
         mock_raw_schema,
     ):
-        proto_any = ProtoAny()
+
         operator_code = "from pytexera import *\n" + inspect.getsource(EchoOperator)
-        proto_any.value = operator_code.encode("utf-8")
         command = set_one_of(
             ControlRequest,
             InitializeExecutorRequest(
-                op_exec_init_info=proto_any,
+                op_exec_init_info=set_one_of(
+                    OpExecInitInfo, OpExecWithCode(operator_code, "python")
+                ),
                 is_source=False,
             ),
         )
@@ -299,15 +301,16 @@ class TestMainLoop:
         command_sequence,
         mock_raw_schema,
     ):
-        proto_any = ProtoAny()
+
         operator_code = "from pytexera import *\n" + inspect.getsource(
             CountBatchOperator
         )
-        proto_any.value = operator_code.encode("utf-8")
         command = set_one_of(
             ControlRequest,
             InitializeExecutorRequest(
-                op_exec_init_info=proto_any,
+                op_exec_init_info=set_one_of(
+                    OpExecInitInfo, OpExecWithCode(operator_code, "python")
+                ),
                 is_source=False,
             ),
         )

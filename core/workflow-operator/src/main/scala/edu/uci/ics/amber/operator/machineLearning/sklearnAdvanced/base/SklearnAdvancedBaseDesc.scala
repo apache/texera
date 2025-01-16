@@ -3,17 +3,16 @@ package edu.uci.ics.amber.operator.machineLearning.sklearnAdvanced.base
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
+import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
-import edu.uci.ics.amber.operator.metadata.OperatorInfo
-import edu.uci.ics.amber.operator.metadata.OperatorGroupConstants
-import edu.uci.ics.amber.operator.metadata.annotation.{
+import edu.uci.ics.amber.operator.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameList
 }
-import edu.uci.ics.amber.workflow.{InputPort, OutputPort, PortIdentity}
-
+import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 trait ParamClass {
   def getName: String
+
   def getType: String
 }
 
@@ -50,7 +49,9 @@ abstract class SklearnMLOperatorDescriptor[T <: ParamClass] extends PythonOperat
   }
 
   def getParameter(paraList: List[HyperParameters[T]]): List[String] = {
-    var workflowParam = ""; var portParam = ""; var paramString = ""
+    var workflowParam = "";
+    var portParam = "";
+    var paramString = ""
     for (ele <- paraList) {
       if (ele.parametersSource) {
         workflowParam = workflowParam + String.format("%s = {},", ele.parameter.getName)
@@ -148,9 +149,16 @@ abstract class SklearnMLOperatorDescriptor[T <: ParamClass] extends PythonOperat
     )
   }
 
-  override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    val outputSchemaBuilder = Schema.builder()
-    outputSchemaBuilder.add(new Attribute("Model", AttributeType.BINARY))
-    outputSchemaBuilder.add(new Attribute("Parameters", AttributeType.STRING)).build()
+  override def getOutputSchemas(
+      inputSchemas: Map[PortIdentity, Schema]
+  ): Map[PortIdentity, Schema] = {
+    val outputSchema = Schema(
+      List(
+        new Attribute("Model", AttributeType.BINARY),
+        new Attribute("Parameters", AttributeType.STRING)
+      )
+    )
+
+    Map(operatorInfo.outputPorts.head.id -> outputSchema)
   }
 }

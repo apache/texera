@@ -1,5 +1,7 @@
 package edu.uci.ics.amber.operator.symmetricDifference
 
+import org.scalatest.BeforeAndAfter
+import org.scalatest.flatspec.AnyFlatSpec
 import edu.uci.ics.amber.core.tuple.{
   Attribute,
   AttributeType,
@@ -8,20 +10,14 @@ import edu.uci.ics.amber.core.tuple.{
   Tuple,
   TupleLike
 }
-import org.scalatest.BeforeAndAfter
-import org.scalatest.flatspec.AnyFlatSpec
-
 class SymmetricDifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   var opExec: SymmetricDifferenceOpExec = _
   var counter: Int = 0
-  val schema: Schema = Schema
-    .builder()
-    .add(
-      new Attribute("field1", AttributeType.STRING),
-      new Attribute("field2", AttributeType.INTEGER),
-      new Attribute("field3", AttributeType.BOOLEAN)
-    )
-    .build()
+  val schema: Schema = Schema()
+    .add(new Attribute("field1", AttributeType.STRING))
+    .add(new Attribute("field2", AttributeType.INTEGER))
+    .add(new Attribute("field3", AttributeType.BOOLEAN))
+
   def tuple(): Tuple = {
     counter += 1
 

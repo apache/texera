@@ -1,11 +1,11 @@
 package edu.uci.ics.amber.engine.architecture.worker.managers
 
+import edu.uci.ics.amber.core.executor.{OperatorExecutor, SinkOperatorExecutor}
 import edu.uci.ics.amber.engine.architecture.worker.statistics.{
   PortTupleCountMapping,
   WorkerStatistics
 }
-import edu.uci.ics.amber.engine.common.executor.{OperatorExecutor, SinkOperatorExecutor}
-import edu.uci.ics.amber.engine.common.workflow.PortIdentity
+import edu.uci.ics.amber.core.workflow.PortIdentity
 
 import scala.collection.mutable
 

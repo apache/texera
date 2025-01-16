@@ -1,22 +1,17 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 
-import edu.uci.ics.texera.web.SqlServer
+import edu.uci.ics.amber.core.storage.StorageConfig
+import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.common.AccessEntry
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
-  PROJECT_USER_ACCESS,
-  USER,
-  WORKFLOW_OF_PROJECT,
-  WORKFLOW_USER_ACCESS,
-  WORKFLOW
-}
-import edu.uci.ics.texera.web.model.jooq.generated.enums.WorkflowUserAccessPrivilege
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
+import edu.uci.ics.texera.dao.jooq.generated.Tables._
+import edu.uci.ics.texera.dao.jooq.generated.enums.WorkflowUserAccessPrivilege
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
   UserDao,
   WorkflowOfUserDao,
   WorkflowUserAccessDao
 }
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowUserAccess
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowUserAccess
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.context
 import io.dropwizard.auth.Auth
 import org.jooq.DSLContext
@@ -28,10 +23,13 @@ import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 
 object WorkflowAccessResource {
-  final private val context: DSLContext = SqlServer.createDSLContext
+  final private val context: DSLContext = SqlServer
+    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .createDSLContext()
 
   /**
     * Identifies whether the given user has read-only access over the given workflow
+    *
     * @param wid workflow id
     * @param uid user id, works with workflow id as primary keys in database
     * @return boolean value indicating yes/no
@@ -45,6 +43,7 @@ object WorkflowAccessResource {
 
   /**
     * Identifies whether the given user has write access over the given workflow
+    *
     * @param wid workflow id
     * @param uid user id, works with workflow id as primary keys in database
     * @return boolean value indicating yes/no
@@ -84,7 +83,7 @@ object WorkflowAccessResource {
 
   def isPublic(wid: UInteger): Boolean = {
     context
-      .select(WORKFLOW.IS_PUBLISHED)
+      .select(WORKFLOW.IS_PUBLIC)
       .from(WORKFLOW)
       .where(WORKFLOW.WID.eq(wid))
       .fetchOneInto(classOf[Boolean])
@@ -101,7 +100,8 @@ class WorkflowAccessResource() {
 
   /**
     * This method returns the owner of a workflow
-    * @param wid,  workflow id
+    *
+    * @param wid ,  workflow id
     * @return ownerEmail,  the owner's email
     */
   @GET

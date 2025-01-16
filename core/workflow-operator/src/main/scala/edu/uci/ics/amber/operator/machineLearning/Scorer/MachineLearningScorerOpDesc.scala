@@ -8,10 +8,9 @@ import com.kjetland.jackson.jsonSchema.annotations.{
 }
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
-import edu.uci.ics.amber.operator.metadata.OperatorInfo
-import edu.uci.ics.amber.operator.metadata.OperatorGroupConstants
-import edu.uci.ics.amber.operator.metadata.annotation.{AutofillAttributeName, HideAnnotation}
-import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
+import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.amber.operator.metadata.annotations.{AutofillAttributeName, HideAnnotation}
+import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 
 class MachineLearningScorerOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(required = true, defaultValue = "false")
@@ -65,22 +64,25 @@ class MachineLearningScorerOpDesc extends PythonOperatorDescriptor {
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
     )
-  override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    val outputSchemaBuilder = Schema.builder()
-    if (!isRegression) {
-      outputSchemaBuilder.add(new Attribute("Class", AttributeType.STRING))
-    }
-
+  override def getOutputSchemas(
+      inputSchemas: Map[PortIdentity, Schema]
+  ): Map[PortIdentity, Schema] = {
     val metrics = if (isRegression) {
       regressionMetrics.map(_.getName())
     } else {
       classificationMetrics.map(_.getName())
     }
-    metrics.foreach(metricName => {
-      outputSchemaBuilder.add(new Attribute(metricName, AttributeType.DOUBLE))
-    })
+    val baseSchema = if (!isRegression) {
+      Schema(List(new Attribute("Class", AttributeType.STRING)))
+    } else {
+      Schema(List())
+    }
 
-    outputSchemaBuilder.build()
+    val outputSchema = metrics.foldLeft(baseSchema) { (currentSchema, metricName) =>
+      currentSchema.add(new Attribute(metricName, AttributeType.DOUBLE))
+    }
+
+    Map(operatorInfo.outputPorts.head.id -> outputSchema)
   }
 
 //  private def getClassificationScorerName(scorer: classificationMetricsFnc): String = {
@@ -122,12 +124,12 @@ class MachineLearningScorerOpDesc extends PythonOperatorDescriptor {
          |  for metric in metric_list:
          |    prediction = None
          |    if metric == 'Accuracy':
-         |      result['Accuracy'][0] = accuracy_score(y_true, y_pred)
+         |      result['Accuracy'][0] = round(accuracy_score(y_true, y_pred), 4)
          |    else:
          |      for i, label in enumerate(labels):
          |        if label != 'Overall':
          |          prediction = metrics_func[metric](y_true, y_pred, average=None, labels=[label])
-         |          result[metric][i] = prediction[0]
+         |          result[metric][i] = round(prediction[0], 4)
          |
          |  # if the label is not a string, convert it to string
          |  labels = ['class_' + str(label) if type(label) != str else label for label in labels]
@@ -161,9 +163,7 @@ class MachineLearningScorerOpDesc extends PythonOperatorDescriptor {
          |      else:
          |        # calculate the number of unique labels
          |        labels = list(set(y_true))
-         |        # align the type of y_true and y_pred(str)
-         |        y_true_str = y_true.astype(str)
-         |        result = classification_metrics(y_true_str, y_pred, metric_list, labels)
+         |        result = classification_metrics(y_true, y_pred, metric_list, labels)
          |
          |      yield result
          |""".stripMargin

@@ -53,11 +53,10 @@ jobs:
       - name: Prod build
         run: yarn --cwd core/gui run build:ci
 
-  amber:
+  core:
     strategy:
       matrix:
-        os:
-          - ubuntu-latest
+        os: [ ubuntu-22.04 ]
         java-version: [ 11 ]
     runs-on: ${{ matrix.os }}
     env:
@@ -66,30 +65,6 @@ jobs:
     steps:
       - name: Prepare ENV
         run: sudo apt-get install libncurses5
-      - name: Checkout Texera
-        uses: actions/checkout@v2
-      - name: Setup Java
-        uses: actions/setup-java@v2
-        with:
-          distribution: 'temurin'
-          java-version: ${{ matrix.java-version }}
-      - uses: coursier/cache-action@v6
-        with:
-          extraSbtFiles: '["core/amber/*.sbt", "core/amber/project/**.{scala,sbt}", "core/amber/project/build.properties" ]'
-      - name: Lint with scalafix & scalafmt
-        run: cd core/amber && sbt "scalafixAll --check" && sbt scalafmtCheckAll
-      - name: Compile with sbt
-        run: cd core/amber && sbt clean package
-      - name: Run backend tests
-        run: cd core/amber && sbt -v -J-Xmx2G test
-
-  core:
-    strategy:
-      matrix:
-        os: [ ubuntu-latest ]
-        java-version: [ 11 ]
-    runs-on: ${{ matrix.os }}
-    steps:
       - name: Checkout Texera
         uses: actions/checkout@v2
       - name: Setup Java
