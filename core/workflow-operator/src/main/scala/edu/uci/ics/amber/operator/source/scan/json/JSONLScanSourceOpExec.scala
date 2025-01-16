@@ -21,11 +21,11 @@ class JSONLScanSourceOpExec private[json] (
     objectMapper.readValue(descString, classOf[JSONLScanSourceOpDesc])
   private var rows: Iterator[String] = _
   private var reader: BufferedReader = _
+  private val schema = desc.sourceSchema()
 
   override def produceTuple(): Iterator[TupleLike] = {
     rows.flatMap { line =>
       Try {
-        val schema = desc.sourceSchema()
         val data = JSONToMap(objectMapper.readTree(line), desc.flatten).withDefaultValue(null)
         val fields = schema.getAttributeNames.map { fieldName =>
           parseField(data(fieldName), schema.getAttribute(fieldName).getType)
