@@ -140,6 +140,10 @@ import { LandingPageComponent } from "./hub/component/landing-page/landing-page.
 import { BrowseSectionComponent } from "./hub/component/browse-section/browse-section.component";
 import { BreakpointConditionInputComponent } from "./workspace/component/code-editor-dialog/breakpoint-condition-input/breakpoint-condition-input.component";
 import { CodeDebuggerComponent } from "./workspace/component/code-editor-dialog/code-debugger.component";
+import { SocialLoginModule, SocialAuthServiceConfig, GoogleSigninButtonModule } from "@abacritt/angularx-social-login";
+import {
+  GoogleLoginProvider,
+} from "@abacritt/angularx-social-login";
 
 registerLocaleData(en);
 
@@ -289,6 +293,8 @@ registerLocaleData(en);
     NzTreeViewModule,
     NzNoAnimationModule,
     TreeModule,
+    SocialLoginModule,
+    GoogleSigninButtonModule,
   ],
   providers: [
     provideNzI18n(en_US),
@@ -302,6 +308,24 @@ registerLocaleData(en);
       provide: HTTP_INTERCEPTORS,
       useClass: BlobErrorHttpInterceptor,
       multi: true,
+    },
+    {
+      provide: "SocialAuthServiceConfig",
+      useValue: {
+        autoLogin: false,
+        lang: "en",
+        providers: [
+          {
+            id: GoogleLoginProvider.PROVIDER_ID,
+            provider: new GoogleLoginProvider(
+              "127689596526-if7cekkg5fv1kpva65h0cdth2l2sadts.apps.googleusercontent.com"
+            ),
+          },
+        ],
+        onError: err => {
+          console.error(err);
+        },
+      } as SocialAuthServiceConfig,
     },
   ],
   bootstrap: [AppComponent],
