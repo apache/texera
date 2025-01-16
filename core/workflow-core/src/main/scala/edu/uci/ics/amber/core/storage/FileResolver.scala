@@ -137,11 +137,11 @@ object FileResolver {
   }
 
   /**
-   * Resolves a LakeFS file.
-   *
-   * Expected input: /repoName/commitHash/objectPath (objectPath can have nested directories)
-   * Resolved as: lakefs://repoName/commitHash/objectPath
-   */
+    * Resolves a LakeFS file.
+    *
+    * Expected input: /repoName/commitHash/objectPath (objectPath can have nested directories)
+    * Resolved as: lakefs://repoName/commitHash/objectPath
+    */
   private def lakeFSResolveFunc(fileName: String): URI = {
     // Ensure the URI has the lakefs scheme
     val fullUri = if (isFileResolved(fileName)) {
@@ -159,13 +159,9 @@ object FileResolver {
     val filePath = Paths.get(fullUri.getPath.stripPrefix("/"))
     val pathSegments = (0 until filePath.getNameCount).map(filePath.getName(_).toString).toArray
 
-    if (pathSegments.length < 3) {
-      throw new FileNotFoundException(s"Invalid LakeFS URI format: $fileName")
-    }
-
-    val repoName = pathSegments(0) // repoName
-    val commitHash = pathSegments(1) // commitHash
-    val objectPath = Paths.get(pathSegments.drop(2).head, pathSegments.drop(2).tail: _*).toString
+    val repoName = fullUri.getHost // repoName
+    val commitHash = pathSegments.head // commitHash
+    val objectPath = Paths.get(pathSegments.drop(1).head, pathSegments.drop(1).tail: _*).toString
 
     try {
       // Verify that the object exists in LakeFS

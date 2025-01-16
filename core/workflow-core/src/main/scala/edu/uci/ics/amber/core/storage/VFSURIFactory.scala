@@ -6,7 +6,6 @@ import edu.uci.ics.amber.core.virtualidentity.{
   WorkflowIdentity
 }
 import edu.uci.ics.amber.core.workflow.PortIdentity
-import io.lakefs.clients.sdk.model.ObjectStats
 
 import java.net.URI
 

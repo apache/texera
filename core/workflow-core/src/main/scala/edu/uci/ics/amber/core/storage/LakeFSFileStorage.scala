@@ -8,9 +8,9 @@ import java.nio.file.Files
 import scala.jdk.CollectionConverters._
 
 /**
- * LakeFSFileStorage provides high-level file storage operations using LakeFS,
- * similar to Git operations for version control and file management.
- */
+  * LakeFSFileStorage provides high-level file storage operations using LakeFS,
+  * similar to Git operations for version control and file management.
+  */
 object LakeFSFileStorage {
 
   // Lazy initialization of LakeFS API clients
@@ -21,13 +21,17 @@ object LakeFSFileStorage {
   private lazy val refsApi: RefsApi = new RefsApi(apiClient)
 
   /**
-   * Initializes a new repository in LakeFS.
-   *
-   * @param repoName         Name of the repository.
-   * @param storageNamespace Storage path (e.g., "s3://bucket-name/").
-   * @param defaultBranch    Default branch name, usually "main".
-   */
-  def initRepo(repoName: String, storageNamespace: String, defaultBranch: String = "main"): Repository = {
+    * Initializes a new repository in LakeFS.
+    *
+    * @param repoName         Name of the repository.
+    * @param storageNamespace Storage path (e.g., "s3://bucket-name/").
+    * @param defaultBranch    Default branch name, usually "main".
+    */
+  def initRepo(
+      repoName: String,
+      storageNamespace: String,
+      defaultBranch: String = "main"
+  ): Repository = {
     val repo = new RepositoryCreation()
       .name(repoName)
       .storageNamespace(storageNamespace)
@@ -38,15 +42,20 @@ object LakeFSFileStorage {
   }
 
   /**
-   * Writes a file to the repository (similar to Git add).
-   * Converts the InputStream to a temporary file for upload.
-   *
-   * @param repoName    Repository name.
-   * @param branch      Branch name.
-   * @param filePath    Path in the repository.
-   * @param inputStream File content stream.
-   */
-  def writeFileToRepo(repoName: String, branch: String, filePath: String, inputStream: InputStream): ObjectStats = {
+    * Writes a file to the repository (similar to Git add).
+    * Converts the InputStream to a temporary file for upload.
+    *
+    * @param repoName    Repository name.
+    * @param branch      Branch name.
+    * @param filePath    Path in the repository.
+    * @param inputStream File content stream.
+    */
+  def writeFileToRepo(
+      repoName: String,
+      branch: String,
+      filePath: String,
+      inputStream: InputStream
+  ): ObjectStats = {
     val tempFilePath = Files.createTempFile("lakefs-upload-", ".tmp")
     val tempFileStream = new FileOutputStream(tempFilePath.toFile)
     val buffer = new Array[Byte](1024)
@@ -65,25 +74,27 @@ object LakeFSFileStorage {
   }
 
   /**
-   * Removes a file from the repository (similar to Git rm).
-   *
-   * @param repoName Repository name.
-   * @param branch   Branch name.
-   * @param filePath Path in the repository to delete.
-   */
+    * Removes a file from the repository (similar to Git rm).
+    *
+    * @param repoName Repository name.
+    * @param branch   Branch name.
+    * @param filePath Path in the repository to delete.
+    */
   def removeFileFromRepo(repoName: String, branch: String, filePath: String): Unit = {
     objectsApi.deleteObject(repoName, branch, filePath).execute()
   }
 
   /**
-   * Executes operations and creates a commit (similar to a transactional commit).
-   *
-   * @param repoName      Repository name.
-   * @param branch        Branch name.
-   * @param commitMessage Commit message.
-   * @param operations    File operations to perform before committing.
-   */
-  def withCreateVersion(repoName: String, branch: String, commitMessage: String)(operations: => Unit): Commit = {
+    * Executes operations and creates a commit (similar to a transactional commit).
+    *
+    * @param repoName      Repository name.
+    * @param branch        Branch name.
+    * @param commitMessage Commit message.
+    * @param operations    File operations to perform before committing.
+    */
+  def withCreateVersion(repoName: String, branch: String, commitMessage: String)(
+      operations: => Unit
+  ): Commit = {
     operations
     val commit = new CommitCreation()
       .message(commitMessage)
@@ -92,21 +103,21 @@ object LakeFSFileStorage {
   }
 
   /**
-   * Retrieves file content from a specific commit and path.
-   *
-   * @param repoName     Repository name.
-   * @param commitHash   Commit hash of the version.
-   * @param filePath     Path to the file in the repository.
-   */
+    * Retrieves file content from a specific commit and path.
+    *
+    * @param repoName     Repository name.
+    * @param commitHash   Commit hash of the version.
+    * @param filePath     Path to the file in the repository.
+    */
   def retrieveFileContent(repoName: String, commitHash: String, filePath: String): File = {
     objectsApi.getObject(repoName, commitHash, filePath).execute()
   }
 
   /**
-   * Deletes an entire repository.
-   *
-   * @param repoName Name of the repository to delete.
-   */
+    * Deletes an entire repository.
+    *
+    * @param repoName Name of the repository to delete.
+    */
   def deleteRepo(repoName: String): Unit = {
     repoApi.deleteRepository(repoName).execute()
   }

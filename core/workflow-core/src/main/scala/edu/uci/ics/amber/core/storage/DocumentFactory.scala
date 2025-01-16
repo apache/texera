@@ -29,6 +29,8 @@ object DocumentFactory {
     fileUri.getScheme match {
       case DATASET_FILE_URI_SCHEME => new DatasetFileDocument(fileUri)
       case "file"                  => new ReadonlyLocalFileDocument(fileUri)
+      case LAKEFS_FILE_URI_SCHEME =>
+        new LakeFSFileDocument(fileUri)
       case unsupportedScheme =>
         throw new UnsupportedOperationException(
           s"Unsupported URI scheme: $unsupportedScheme for creating the ReadonlyDocument"

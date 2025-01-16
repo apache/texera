@@ -6,11 +6,11 @@ import java.util
 import scala.jdk.CollectionConverters._
 
 /**
- * LakeFSApiClientInstance is a singleton that manages the LakeFS ApiClient instance.
- * - Provides a single shared ApiClient for all LakeFS operations in the Texera application.
- * - Lazily initializes the client on first access.
- * - Supports replacing the client instance primarily for testing or reconfiguration.
- */
+  * LakeFSApiClientInstance is a singleton that manages the LakeFS ApiClient instance.
+  * - Provides a single shared ApiClient for all LakeFS operations in the Texera application.
+  * - Lazily initializes the client on first access.
+  * - Supports replacing the client instance primarily for testing or reconfiguration.
+  */
 object LakeFSApiClientInstance {
 
   private var instance: Option[ApiClient] = None
@@ -28,10 +28,10 @@ object LakeFSApiClientInstance {
   private val password: String = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
 
   /**
-   * Retrieves the singleton LakeFS ApiClient instance.
-   * - If the client is not initialized, it is lazily created using the configured properties.
-   * @return the ApiClient instance.
-   */
+    * Retrieves the singleton LakeFS ApiClient instance.
+    * - If the client is not initialized, it is lazily created using the configured properties.
+    * @return the ApiClient instance.
+    */
   def getInstance(): ApiClient = {
     instance match {
       case Some(client) => client
@@ -46,11 +46,11 @@ object LakeFSApiClientInstance {
   }
 
   /**
-   * Replaces the existing LakeFS ApiClient instance.
-   * - This method is useful for testing or dynamically updating the client.
-   *
-   * @param apiClient the new ApiClient instance to replace the current one.
-   */
+    * Replaces the existing LakeFS ApiClient instance.
+    * - This method is useful for testing or dynamically updating the client.
+    *
+    * @param apiClient the new ApiClient instance to replace the current one.
+    */
   def replaceInstance(apiClient: ApiClient): Unit = {
     instance = Some(apiClient)
   }

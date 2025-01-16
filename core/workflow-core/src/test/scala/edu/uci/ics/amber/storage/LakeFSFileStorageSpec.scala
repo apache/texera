@@ -44,7 +44,8 @@ class LakeFSFileStorageSpec extends AnyFlatSpec with Matchers with BeforeAndAfte
   }
 
   private def findCommitByMessage(message: String): Option[String] = {
-    LakeFSFileStorage.retrieveVersionsOfRepository(repoName, branchName)
+    LakeFSFileStorage
+      .retrieveVersionsOfRepository(repoName, branchName)
       .find(_.getMessage == message)
       .map(_.getId)
   }
@@ -99,7 +100,8 @@ class LakeFSFileStorageSpec extends AnyFlatSpec with Matchers with BeforeAndAfte
     val deleteCommit = findCommitByMessage("Remove file2.txt").get
 
     // Verify file2.txt is absent in the latest commit
-    val objectsAfterDeletion = LakeFSFileStorage.retrieveObjectsOfVersion(repoName, deleteCommit).map(_.getPath)
+    val objectsAfterDeletion =
+      LakeFSFileStorage.retrieveObjectsOfVersion(repoName, deleteCommit).map(_.getPath)
     objectsAfterDeletion should not contain filePaths(1)
 
     // Verify file1.txt is still present
@@ -109,7 +111,8 @@ class LakeFSFileStorageSpec extends AnyFlatSpec with Matchers with BeforeAndAfte
 
   it should "maintain hierarchical structure in file retrieval" in {
     // Get the latest commit
-    val latestCommit = LakeFSFileStorage.retrieveVersionsOfRepository(repoName, branchName).head.getId
+    val latestCommit =
+      LakeFSFileStorage.retrieveVersionsOfRepository(repoName, branchName).head.getId
 
     // Retrieve all objects
     val objects = LakeFSFileStorage.retrieveObjectsOfVersion(repoName, latestCommit)
