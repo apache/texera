@@ -91,13 +91,11 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
       data.iterator.asInstanceOf[Iterator[Array[Any]]]
     )
 
-    val header: Array[String] = Option(parser.getContext.headers())
-      .getOrElse((1 to attributeTypeList.length).map(i => s"column-$i").toArray)
-//    var header: Array[String] =
-//      if (hasHeader) parser.getContext.headers()
-//      else (1 to attributeTypeList.length).map(i => "column-" + i).toArray
-//
-//    if (header == null) header = (1 to attributeTypeList.length).map(i => "column-" + i).toArray
+    val header: Array[String] =
+      if (hasHeader)
+        Option(parser.getContext.headers())
+          .getOrElse((1 to attributeTypeList.length).map(i => "column-" + i).toArray)
+      else (1 to attributeTypeList.length).map(i => "column-" + i).toArray
 
     header.indices.foldLeft(Schema()) { (schema, i) =>
       schema.add(header(i), attributeTypeList(i))
