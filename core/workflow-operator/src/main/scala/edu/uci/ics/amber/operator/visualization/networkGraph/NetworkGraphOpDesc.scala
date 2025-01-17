@@ -9,7 +9,7 @@ import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo
 import edu.uci.ics.amber.operator.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
 
-class NetworkGraphOpDesc extends PythonOperatorDescriptor{
+class NetworkGraphOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(required = true)
   @JsonSchemaTitle("Source Column")
   @JsonPropertyDescription("Source node for edge in graph")
@@ -27,8 +27,8 @@ class NetworkGraphOpDesc extends PythonOperatorDescriptor{
   var title: String = ""
 
   override def getOutputSchemas(
-                                 inputSchemas: Map[PortIdentity, Schema]
-                               ): Map[PortIdentity, Schema] = {
+      inputSchemas: Map[PortIdentity, Schema]
+  ): Map[PortIdentity, Schema] = {
     val outputSchema = Schema()
       .add("html-content", AttributeType.STRING)
     Map(operatorInfo.outputPorts.head.id -> outputSchema)
