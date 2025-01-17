@@ -161,17 +161,28 @@ export class WorkflowResultExportService {
       }
       const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorId);
       const operatorName = operator.customDisplayName ?? operator.operatorType;
-      this.workflowWebsocketService.send("ResultExportRequest", {
-        exportType,
-        workflowId,
-        workflowName,
-        operatorId,
-        operatorName,
-        datasetIds,
-        rowIndex,
-        columnIndex,
-        filename,
-      });
+
+      this.downloadService
+        .exportWorkflowResult(
+          exportType,
+          workflowId,
+          workflowName,
+          operatorId,
+          operatorName,
+          [...datasetIds],
+          rowIndex,
+          columnIndex,
+          filename
+        )
+        .subscribe({
+          next: (response) => {
+            this.notificationService.info("The result has been exported successfully");
+          },
+          error: (response) => {
+            this.notificationService.error("Error exporting operator results " + response.error.error);
+          },
+        });
+
     });
   }
 
