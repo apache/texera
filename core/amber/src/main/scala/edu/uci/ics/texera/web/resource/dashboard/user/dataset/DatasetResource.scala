@@ -947,7 +947,6 @@ class DatasetResource {
   }
 
   @GET
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/datasetUserAccess")
   def workflowUserAccess(
       @QueryParam("did") did: UInteger
