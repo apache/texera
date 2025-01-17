@@ -88,9 +88,11 @@ class NetworkGraphOpDesc extends PythonOperatorDescriptor{
          |            edge_trace = go.Scatter(
          |                x=[],
          |                y=[],
+         |                name='Edges',
          |                line=dict(width=0.5,color='#888'),
          |                hoverinfo='none',
-         |                mode='lines')
+         |                mode='lines',
+         |                visible='true')
          |
          |            for edge in G.edges():
          |                x0, y0 = G.nodes[edge[0]]['pos']
@@ -101,6 +103,7 @@ class NetworkGraphOpDesc extends PythonOperatorDescriptor{
          |            node_trace = go.Scatter(
          |                x=[],
          |                y=[],
+         |                name='Nodes',
          |                text=[],
          |                mode='markers',
          |                hoverinfo='text',
@@ -110,6 +113,7 @@ class NetworkGraphOpDesc extends PythonOperatorDescriptor{
          |                    reversescale=True,
          |                    color=[],
          |                    size=15,
+         |                    visible=True,
          |                    colorbar=dict(
          |                        thickness=10,
          |                        title='Node Connections',
@@ -132,12 +136,20 @@ class NetworkGraphOpDesc extends PythonOperatorDescriptor{
          |                layout=go.Layout(
          |                    title='<br>$title',
          |                    hovermode='closest',
+         |                    showlegend=False,
+         |                    margin=dict(b=20,l=5,r=5,t=40),
          |                    annotations=[ dict(
+         |                        text='',
          |                        showarrow=False,
          |                        xref="paper", yref="paper") ],
          |                    xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
          |                    yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)))
-         |            fig.update_layout(margin=dict(l=0, r=0, t=0, b=0))
+         |            fig.update_layout(margin=dict(l=0, r=0, t=0, b=0),
+         |                    legend=dict(
+         |                      itemclick=False,
+         |                      itemdoubleclick=False
+         |                    )
+         |            )
          |            html = plotly.io.to_html(fig, include_plotlyjs = 'cdn', auto_play = False)
          |        elif table.empty:
          |            html = self.render_error('Table should not have any empty/null values or fields.')
