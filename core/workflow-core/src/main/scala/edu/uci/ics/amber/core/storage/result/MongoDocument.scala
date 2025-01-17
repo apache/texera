@@ -18,6 +18,7 @@ import java.util.Date
   * @param fromDocument a function that converts a MongoDB Document to an item of type T.
   * @tparam T the type of data items stored in the document.
   */
+@Deprecated
 class MongoDocument[T >: Null <: AnyRef](
     id: String,
     var toDocument: T => Document,

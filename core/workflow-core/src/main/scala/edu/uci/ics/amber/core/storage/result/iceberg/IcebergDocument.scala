@@ -17,8 +17,7 @@ import scala.jdk.CollectionConverters._
   * IcebergDocument is used to read and write a set of T as an Iceberg table.
   * It provides iterator-based read methods and supports multiple writers to write to the same table.
   *
-  * - On construction, the table will be created if it does not exist.
-  * - If the table exists, it will be overridden.
+  * The table must exist when constructing the document
   *
   * @param tableNamespace namespace of the table.
   * @param tableName name of the table.
@@ -27,7 +26,7 @@ import scala.jdk.CollectionConverters._
   * @param deserde function to deserialize an Iceberg Record into T.
   * @tparam T type of the data items stored in the Iceberg table.
   */
-class IcebergDocument[T >: Null <: AnyRef](
+private[storage] class IcebergDocument[T >: Null <: AnyRef](
     val tableNamespace: String,
     val tableName: String,
     val tableSchema: org.apache.iceberg.Schema,
@@ -38,15 +37,6 @@ class IcebergDocument[T >: Null <: AnyRef](
   private val lock = new ReentrantReadWriteLock()
 
   @transient lazy val catalog: Catalog = IcebergCatalogInstance.getInstance()
-
-  // During construction, create or override the table
-  IcebergUtil.createTable(
-    catalog,
-    tableNamespace,
-    tableName,
-    tableSchema,
-    overrideIfExists = true
-  )
 
   /**
     * Returns the URI of the table location.

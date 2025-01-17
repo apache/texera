@@ -2,7 +2,6 @@ package edu.uci.ics.texera.web.service
 
 import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.core.workflow.WorkflowContext
 import edu.uci.ics.amber.engine.architecture.controller.{
   ExecutionStatsUpdate,
   FatalError,
@@ -24,7 +23,7 @@ import edu.uci.ics.amber.error.ErrorUtils.{getOperatorFromActorIdOpt, getStackTr
 import edu.uci.ics.amber.core.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
 import edu.uci.ics.amber.core.workflowruntimestate.WorkflowFatalError
 import edu.uci.ics.texera.web.SubscriptionManager
-import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowRuntimeStatistics
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.OperatorRuntimeStatistics
 import edu.uci.ics.texera.web.model.websocket.event.{
   ExecutionDurationUpdateEvent,
   OperatorAggregatedMetrics,
@@ -43,7 +42,7 @@ import java.util.concurrent.Executors
 class ExecutionStatsService(
     client: AmberClient,
     stateStore: ExecutionStateStore,
-    workflowContext: WorkflowContext
+    operatorIdToExecutionId: Map[String, ULong]
 ) extends SubscriptionManager
     with LazyLogging {
   private val metricsPersistThread = Executors.newSingleThreadExecutor()
@@ -201,31 +200,34 @@ class ExecutionStatsService(
   private def storeRuntimeStatistics(
       operatorStatistics: scala.collection.immutable.Map[String, OperatorMetrics]
   ): Unit = {
-    // Add a try-catch to not produce an error when "workflow_runtime_statistics" table does not exist in MySQL
     try {
-      val list: util.ArrayList[WorkflowRuntimeStatistics] =
-        new util.ArrayList[WorkflowRuntimeStatistics]()
+      val runtimeStatsList: util.ArrayList[OperatorRuntimeStatistics] =
+        new util.ArrayList[OperatorRuntimeStatistics]()
+
       for ((operatorId, stat) <- operatorStatistics) {
-        val execution = new WorkflowRuntimeStatistics()
-        execution.setWorkflowId(UInteger.valueOf(workflowContext.workflowId.id))
-        execution.setExecutionId(UInteger.valueOf(workflowContext.executionId.id))
-        execution.setOperatorId(operatorId)
-        execution.setInputTupleCnt(
-          UInteger.valueOf(stat.operatorStatistics.inputCount.map(_.tupleCount).sum)
+        // Create and populate the operator runtime statistics entry
+        val runtimeStats = new OperatorRuntimeStatistics()
+        runtimeStats.setOperatorExecutionId(operatorIdToExecutionId(operatorId))
+        runtimeStats.setInputTupleCnt(
+          ULong.valueOf(stat.operatorStatistics.inputCount.map(_.tupleCount).sum)
         )
-        execution.setOutputTupleCnt(
-          UInteger.valueOf(stat.operatorStatistics.outputCount.map(_.tupleCount).sum)
+        runtimeStats.setOutputTupleCnt(
+          ULong.valueOf(stat.operatorStatistics.outputCount.map(_.tupleCount).sum)
         )
-        execution.setStatus(maptoStatusCode(stat.operatorState))
-        execution.setDataProcessingTime(ULong.valueOf(stat.operatorStatistics.dataProcessingTime))
-        execution.setControlProcessingTime(
+        runtimeStats.setStatus(maptoStatusCode(stat.operatorState))
+        runtimeStats.setDataProcessingTime(
+          ULong.valueOf(stat.operatorStatistics.dataProcessingTime)
+        )
+        runtimeStats.setControlProcessingTime(
           ULong.valueOf(stat.operatorStatistics.controlProcessingTime)
         )
-        execution.setIdleTime(ULong.valueOf(stat.operatorStatistics.idleTime))
-        execution.setNumWorkers(UInteger.valueOf(stat.operatorStatistics.numWorkers))
-        list.add(execution)
+        runtimeStats.setIdleTime(ULong.valueOf(stat.operatorStatistics.idleTime))
+        runtimeStats.setNumWorkers(UInteger.valueOf(stat.operatorStatistics.numWorkers))
+        runtimeStatsList.add(runtimeStats)
       }
-      WorkflowExecutionsResource.insertWorkflowRuntimeStatistics(list)
+
+      // Insert into operator_runtime_statistics table
+      WorkflowExecutionsResource.insertOperatorRuntimeStatistics(runtimeStatsList)
     } catch {
       case err: Throwable => logger.error("error occurred when storing runtime statistics", err)
     }

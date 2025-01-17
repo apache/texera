@@ -241,6 +241,7 @@ export class UserDatasetExplorerComponent implements OnInit {
         .retrieveDatasetVersionFileTree(this.did, this.selectedVersion.dvid, this.isLogin)
         .pipe(untilDestroyed(this))
         .subscribe(data => {
+          console.log(data);
           this.fileTreeNodeList = data.fileNodes;
           this.currentDatasetVersionSize = data.size;
           let currentNode = this.fileTreeNodeList[0];

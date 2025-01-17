@@ -14,15 +14,24 @@ import java.nio.file.{Files, Paths}
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 import scala.util.{Success, Try}
 
+object VFSResourceType extends Enumeration {
+  val RESULT: Value = Value("result")
+  val MATERIALIZED_RESULT: Value = Value("materializedResult")
+}
+
+/**
+  * Unified object for resolving both VFS resources and local/dataset files.
+  */
 object FileResolver {
-  val DATASET_FILE_URI_SCHEME = "vfs"
+
+  val DATASET_FILE_URI_SCHEME = "dataset"
 
   /**
-    * Attempts to resolve the given fileName using a list of resolver functions.
+    * Resolves a given fileName to either a file on the local file system or a dataset file.
     *
-    * @param fileName the name of the file to resolve
-    * @throws FileNotFoundException if the file cannot be resolved by any resolver
-    * @return Either[String, DatasetFileDocument] - the resolved path as a String or a DatasetFileDocument
+    * @param fileName the name of the file to resolve.
+    * @throws FileNotFoundException if the file cannot be resolved.
+    * @return A URI pointing to the resolved file.
     */
   def resolve(fileName: String): URI = {
     if (isFileResolved(fileName)) {
@@ -58,7 +67,7 @@ object FileResolver {
     * The fileName format should be: /ownerEmail/datasetName/versionName/fileRelativePath
     *   e.g. /bob@texera.com/twitterDataset/v1/california/irvine/tw1.csv
     * The output dataset URI format is: {DATASET_FILE_URI_SCHEME}:///{did}/{versionHash}/file-path
-    *   e.g. vfs:///15/adeq233td/some/dir/file.txt
+    *   e.g. {DATASET_FILE_URI_SCHEME}:///15/adeq233td/some/dir/file.txt
     *
     * @param fileName the name of the file to attempt resolving as a DatasetFileDocument
     * @return Either[String, DatasetFileDocument] - Right(document) if creation succeeds

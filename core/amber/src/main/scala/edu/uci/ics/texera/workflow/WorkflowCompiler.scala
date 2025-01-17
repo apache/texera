@@ -1,7 +1,8 @@
 package edu.uci.ics.texera.workflow
 
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.core.storage.result.{OpResultStorage, ResultStorage}
+import edu.uci.ics.amber.core.storage.{DocumentFactory, StorageConfig, VFSURIFactory}
+import edu.uci.ics.amber.core.storage.result.ExecutionResourcesMapping
 import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.common.Utils.objectMapper
@@ -76,40 +77,43 @@ class WorkflowCompiler(
               .filterNot(_._1.internal)
               .foreach {
                 case (outputPortId, (outputPort, _, schema)) =>
-                  val storage = ResultStorage.getOpResultStorage(context.workflowId)
-                  val storageKey =
-                    OpResultStorage.createStorageKey(physicalOp.id.logicalOpId, outputPortId)
+                  val storageUri = VFSURIFactory.createResultURI(
+                    context.workflowId,
+                    context.executionId,
+                    physicalOp.id.logicalOpId,
+                    outputPortId
+                  )
 
                   // Determine the storage type, defaulting to iceberg for large HTML visualizations
                   val storageType =
-                    if (outputPort.mode == SINGLE_SNAPSHOT) OpResultStorage.ICEBERG
-                    else OpResultStorage.defaultStorageMode
+                    if (outputPort.mode == SINGLE_SNAPSHOT) DocumentFactory.ICEBERG
+                    else StorageConfig.resultStorageMode
 
-                  if (!storage.contains(storageKey)) {
+                  if (
+                    !ExecutionResourcesMapping
+                      .getResourceURIs(context.executionId)
+                      .contains(storageUri)
+                  ) {
                     // Create storage if it doesn't exist
                     val sinkStorageSchema =
                       schema.getOrElse(throw new IllegalStateException("Schema is missing"))
-                    storage.create(
-                      s"${context.executionId}_",
-                      storageKey,
-                      storageType,
-                      sinkStorageSchema
-                    )
+
+                    // create the storage resource and record the URI to the global mapping
+                    DocumentFactory.createDocument(storageUri, sinkStorageSchema)
+                    ExecutionResourcesMapping.addResourceUri(context.executionId, storageUri)
 
                     // Add sink collection name to the JSON array of sinks
                     sinksPointers.add(
                       objectMapper
                         .createObjectNode()
                         .put("storageType", storageType)
-                        .put("storageKey", s"${context.executionId}_$storageKey")
+                        .put("storageKey", storageUri.toString)
                     )
                   }
 
                   // Create and link the sink operator
                   val sinkPhysicalOp = SpecialPhysicalOpFactory.newSinkPhysicalOp(
-                    context.workflowId,
-                    context.executionId,
-                    storageKey,
+                    storageUri,
                     outputPort.mode
                   )
                   val sinkLink = PhysicalLink(

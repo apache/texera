@@ -20,6 +20,7 @@ class ParallelCSVScanSourceOpExec private[csv] (
   val desc: ParallelCSVScanSourceOpDesc =
     objectMapper.readValue(descString, classOf[ParallelCSVScanSourceOpDesc])
   private var reader: BufferedBlockReader = _
+  private val schema = desc.sourceSchema()
 
   override def produceTuple(): Iterator[TupleLike] =
     new Iterator[TupleLike]() {
@@ -42,7 +43,6 @@ class ParallelCSVScanSourceOpExec private[csv] (
             return null
           }
 
-          val schema = desc.sourceSchema()
           // however the null values won't present if omitted in the end, we need to match nulls.
           if (fields.length != schema.getAttributes.size)
             fields = Stream
@@ -71,7 +71,7 @@ class ParallelCSVScanSourceOpExec private[csv] (
   override def open(): Unit = {
     // here, the stream requires to be seekable, so datasetFileDesc creates a temp file here
     // TODO: consider a better way
-    val file = DocumentFactory.newReadonlyDocument(new URI(desc.fileName.get)).asFile()
+    val file = DocumentFactory.openReadonlyDocument(new URI(desc.fileName.get)).asFile()
     val totalBytes: Long = file.length()
     // TODO: add support for limit
     // TODO: add support for offset

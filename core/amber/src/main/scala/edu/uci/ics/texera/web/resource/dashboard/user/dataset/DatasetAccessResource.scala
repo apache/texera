@@ -6,7 +6,6 @@ import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.model.common.AccessEntry
 import edu.uci.ics.texera.dao.jooq.generated.Tables.USER
 import edu.uci.ics.texera.dao.jooq.generated.enums.DatasetUserAccessPrivilege
-import edu.uci.ics.texera.dao.jooq.generated.tables.Dataset.DATASET
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{DatasetDao, DatasetUserAccessDao, UserDao}
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{DatasetUserAccess, User}
@@ -28,34 +27,26 @@ object DatasetAccessResource {
     .createDSLContext()
 
   def userHasReadAccess(ctx: DSLContext, did: UInteger, uid: UInteger): Boolean = {
+    val datasetDao = new DatasetDao(ctx.configuration())
+    val isDatasetPublic = Option(datasetDao.fetchOneByDid(did))
+      .flatMap(dataset => Option(dataset.getIsPublic))
+      .contains(1.toByte)
+
+    isDatasetPublic ||
     userHasWriteAccess(ctx, did, uid) ||
-    datasetIsPublic(ctx, did) ||
     getDatasetUserAccessPrivilege(ctx, did, uid) == DatasetUserAccessPrivilege.READ
   }
 
   def userOwnDataset(ctx: DSLContext, did: UInteger, uid: UInteger): Boolean = {
-    ctx
-      .selectOne()
-      .from(DATASET)
-      .where(DATASET.DID.eq(did))
-      .and(DATASET.OWNER_UID.eq(uid))
-      .fetch()
-      .isNotEmpty
+    val datasetDao = new DatasetDao(ctx.configuration())
+
+    Option(datasetDao.fetchOneByDid(did))
+      .exists(_.getOwnerUid == uid)
   }
 
   def userHasWriteAccess(ctx: DSLContext, did: UInteger, uid: UInteger): Boolean = {
     userOwnDataset(ctx, did, uid) ||
     getDatasetUserAccessPrivilege(ctx, did, uid) == DatasetUserAccessPrivilege.WRITE
-  }
-
-  def datasetIsPublic(ctx: DSLContext, did: UInteger): Boolean = {
-    Option(
-      ctx
-        .select(DATASET.IS_PUBLIC)
-        .from(DATASET)
-        .where(DATASET.DID.eq(did))
-        .fetchOneInto(classOf[Boolean])
-    ).getOrElse(false)
   }
 
   def getDatasetUserAccessPrivilege(
@@ -67,21 +58,23 @@ object DatasetAccessResource {
       ctx
         .select(DATASET_USER_ACCESS.PRIVILEGE)
         .from(DATASET_USER_ACCESS)
-        .where(DATASET_USER_ACCESS.DID.eq(did))
-        .and(DATASET_USER_ACCESS.UID.eq(uid))
-        .fetchOne()
-    )
-      .map(_.getValue(DATASET_USER_ACCESS.PRIVILEGE))
-      .getOrElse(DatasetUserAccessPrivilege.NONE)
+        .where(
+          DATASET_USER_ACCESS.DID
+            .eq(did)
+            .and(DATASET_USER_ACCESS.UID.eq(uid))
+        )
+        .fetchOneInto(classOf[DatasetUserAccessPrivilege])
+    ).getOrElse(DatasetUserAccessPrivilege.NONE)
   }
 
   def getOwner(ctx: DSLContext, did: UInteger): User = {
-    val ownerUid = ctx
-      .select(DATASET.OWNER_UID)
-      .from(DATASET)
-      .where(DATASET.DID.eq(did))
-      .fetchOneInto(classOf[UInteger])
-    new UserDao(ctx.configuration()).fetchOneByUid(ownerUid)
+    val datasetDao = new DatasetDao(ctx.configuration())
+    val userDao = new UserDao(ctx.configuration())
+
+    Option(datasetDao.fetchOneByDid(did))
+      .flatMap(dataset => Option(dataset.getOwnerUid))
+      .map(ownerUid => userDao.fetchOneByUid(ownerUid))
+      .orNull
   }
 }
 
