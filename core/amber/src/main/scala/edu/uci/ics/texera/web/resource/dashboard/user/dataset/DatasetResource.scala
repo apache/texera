@@ -345,7 +345,6 @@ object DatasetResource {
 }
 
 @Produces(Array(MediaType.APPLICATION_JSON, "image/jpeg", "application/pdf"))
-@RolesAllowed(Array("REGULAR", "ADMIN"))
 @Path("/dataset")
 class DatasetResource {
   private val ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE = "User has no read access to this dataset"
@@ -378,6 +377,22 @@ class DatasetResource {
     )
   }
 
+  def getPublicDashboardDataset(ctx: DSLContext, did: UInteger): DashboardDataset = {
+    if (!isDatasetPublic(ctx, did)) {
+      throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+    }
+
+    val targetDataset = getDatasetByID(ctx, did)
+    DashboardDataset(
+      targetDataset,
+      getOwner(ctx, did).getEmail,
+      DatasetUserAccessPrivilege.NONE,
+      false,
+      List(),
+      calculateDatasetVersionSize(did)
+    )
+  }
+
   /**
     * Helper function to create a new dataset version using the given multi-part form.
     */
@@ -401,6 +416,7 @@ class DatasetResource {
   }
 
   @POST
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/create")
   @Consumes(Array(MediaType.MULTIPART_FORM_DATA))
   def createDataset(
@@ -477,6 +493,7 @@ class DatasetResource {
   }
 
   @POST
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/delete")
   def deleteDataset(datasetIDs: DatasetIDs, @Auth user: SessionUser): Response = {
     val uid = user.getUid
@@ -501,6 +518,7 @@ class DatasetResource {
   @POST
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/update/name")
   def updateDatasetName(
       modificator: DatasetNameModification,
@@ -525,6 +543,7 @@ class DatasetResource {
   @POST
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/update/description")
   def updateDatasetDescription(
       modificator: DatasetDescriptionModification,
@@ -548,6 +567,7 @@ class DatasetResource {
   }
 
   @POST
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/{did}/update/publicity")
   def toggleDatasetPublicity(
       @PathParam("did") did: UInteger,
@@ -574,6 +594,7 @@ class DatasetResource {
   }
 
   @POST
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/{did}/version/create")
   @Consumes(Array(MediaType.MULTIPART_FORM_DATA))
   def createDatasetVersion(
@@ -607,6 +628,7 @@ class DatasetResource {
     * @return list of user accessible DashboardDataset objects
     */
   @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("")
   def listDatasets(
       @Auth user: SessionUser
@@ -684,6 +706,7 @@ class DatasetResource {
   }
 
   @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/{did}/version/list")
   def getDatasetVersionList(
       @PathParam("did") did: UInteger,
@@ -706,6 +729,34 @@ class DatasetResource {
   }
 
   @GET
+  @Path("/{did}/publicVersion/list")
+  def getPublicDatasetVersionList(
+      @PathParam("did") did: UInteger
+  ): List[DatasetVersion] = {
+    withTransaction(context)(ctx => {
+
+      //
+      if (!isDatasetPublic(ctx, did)) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+      }
+
+      val result: java.util.List[DatasetVersion] = ctx
+        .selectFrom(DATASET_VERSION)
+        .where(DATASET_VERSION.DID.eq(did))
+        .orderBy(DATASET_VERSION.CREATION_TIME.desc()) // or .asc() for ascending
+        .fetchInto(classOf[DatasetVersion])
+
+      val datasetVersions = result.asScala.toList
+
+      // 打印返回结果
+      println(s"Returning DatasetVersions: $datasetVersions")
+
+      datasetVersions
+    })
+  }
+
+  @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/{did}/version/latest")
   def retrieveLatestDatasetVersion(
       @PathParam("did") did: UInteger,
@@ -753,6 +804,7 @@ class DatasetResource {
   }
 
   @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/{did}/version/{dvid}/rootFileNodes")
   def retrieveDatasetVersionRootFileNodes(
       @PathParam("did") did: UInteger,
@@ -794,6 +846,45 @@ class DatasetResource {
   }
 
   @GET
+  @Path("/{did}/publicVersion/{dvid}/rootFileNodes")
+  def retrievePublicDatasetVersionRootFileNodes(
+      @PathParam("did") did: UInteger,
+      @PathParam("dvid") dvid: UInteger
+  ): DatasetVersionRootFileNodesResponse = {
+    withTransaction(context)(ctx => {
+      val dataset = getPublicDashboardDataset(ctx, did)
+      val targetDatasetPath = PathUtils.getDatasetPath(did)
+      val datasetVersion = getDatasetVersionByID(ctx, dvid)
+      val datasetName = dataset.dataset.getName
+      val fileNodes = GitVersionControlLocalFileStorage.retrieveRootFileNodesOfVersion(
+        targetDatasetPath,
+        datasetVersion.getVersionHash
+      )
+      val versionHash = getDatasetVersionByID(ctx, dvid).getVersionHash
+      val size = calculateDatasetVersionSize(did, Some(versionHash))
+      val ownerFileNode = DatasetFileNode
+        .fromPhysicalFileNodes(
+          Map((dataset.ownerEmail, datasetName, datasetVersion.getName) -> fileNodes.asScala.toList)
+        )
+        .head
+
+      DatasetVersionRootFileNodesResponse(
+        ownerFileNode.children.get
+          .find(_.getName == datasetName)
+          .head
+          .children
+          .get
+          .find(_.getName == datasetVersion.getName)
+          .head
+          .children
+          .get,
+        size
+      )
+    })
+  }
+
+  @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/{did}")
   def getDataset(
       @PathParam("did") did: UInteger,
@@ -808,10 +899,21 @@ class DatasetResource {
   }
 
   @GET
+  @Path("/public/{did}")
+  def getPublicDataset(
+      @PathParam("did") did: UInteger
+  ): DashboardDataset = {
+    withTransaction(context)(ctx => {
+      val dashboardDataset = getPublicDashboardDataset(ctx, did)
+      val size = calculateDatasetVersionSize(did)
+      dashboardDataset.copy(size = size)
+    })
+  }
+
+  @GET
   @Path("/file")
   def retrieveDatasetSingleFile(
-      @QueryParam("path") pathStr: String,
-      @Auth user: SessionUser
+      @QueryParam("path") pathStr: String
   ): Response = {
     val decodedPathStr = URLDecoder.decode(pathStr, StandardCharsets.UTF_8.name())
 
@@ -863,6 +965,7 @@ class DatasetResource {
     * @return A Response containing the dataset version as a ZIP file.
     */
   @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/version-zip")
   def retrieveDatasetVersionZip(
       @QueryParam("did") did: UInteger,
@@ -934,5 +1037,19 @@ class DatasetResource {
       )
       .`type`("application/zip")
       .build()
+  }
+
+  @GET
+  @Path("/datasetUserAccess")
+  def workflowUserAccess(
+      @QueryParam("did") did: UInteger
+  ): java.util.List[UInteger] = {
+    val records = context
+      .select(DATASET_USER_ACCESS.UID)
+      .from(DATASET_USER_ACCESS)
+      .where(DATASET_USER_ACCESS.DID.eq(did))
+      .fetch()
+
+    records.getValues(DATASET_USER_ACCESS.UID)
   }
 }
