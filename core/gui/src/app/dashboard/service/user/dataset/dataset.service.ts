@@ -22,10 +22,6 @@ export const DATASET_DELETE_URL = DATASET_BASE_URL + "/delete";
 export const DATASET_VERSION_BASE_URL = "version";
 export const DATASET_VERSION_RETRIEVE_LIST_URL = DATASET_VERSION_BASE_URL + "/list";
 export const DATASET_VERSION_LATEST_URL = DATASET_VERSION_BASE_URL + "/latest";
-export const DATASET_PUBLIC_VERSION_BASE_URL = "publicVersion";
-export const DATASET_PUBLIC_VERSION_RETRIEVE_LIST_URL = DATASET_PUBLIC_VERSION_BASE_URL + "/list";
-export const DATASET_GET_OWNERS_URL = DATASET_BASE_URL + "/datasetUserAccess";
-
 export const DEFAULT_DATASET_NAME = "Untitled dataset";
 
 @Injectable({
@@ -55,12 +51,8 @@ export class DatasetService {
     return this.http.post<DashboardDataset>(`${AppSettings.getApiEndpoint()}/${DATASET_CREATE_URL}`, formData);
   }
 
-  public getDataset(did: number, isLogin: boolean = true): Observable<DashboardDataset> {
-    const apiUrl = isLogin
-      ? `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}`
-      : `${AppSettings.getApiEndpoint()}/dataset/public/${did}`;
-
-    return this.http.get<DashboardDataset>(apiUrl);
+  public getDataset(did: number): Observable<DashboardDataset> {
+    return this.http.get<DashboardDataset>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}`);
   }
 
   public retrieveDatasetVersionSingleFile(path: string): Observable<Blob> {
@@ -90,8 +82,8 @@ export class DatasetService {
     });
   }
 
-  public retrieveAccessibleDatasets(): Observable<{ datasets: DashboardDataset[] }> {
-    return this.http.get<{ datasets: DashboardDataset[] }>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}`);
+  public retrieveAccessibleDatasets(): Observable<DashboardDataset[]> {
+    return this.http.get<DashboardDataset[]>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}`);
   }
   public createDatasetVersion(
     did: number,
@@ -127,18 +119,11 @@ export class DatasetService {
   /**
    * retrieve a list of versions of a dataset. The list is sorted so that the latest versions are at front.
    * @param did
-   * @param isLogin
    */
-  public retrieveDatasetVersionList(did: number, isLogin: boolean = true): Observable<DatasetVersion[]> {
-    const apiEndpoint = isLogin
-      ? `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/${DATASET_VERSION_RETRIEVE_LIST_URL}`
-      : `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/${DATASET_PUBLIC_VERSION_RETRIEVE_LIST_URL}`;
-
-    return this.http
-      .get<{
-        versions: DatasetVersion[];
-      }>(apiEndpoint)
-      .pipe(map(response => response.versions));
+  public retrieveDatasetVersionList(did: number): Observable<DatasetVersion[]> {
+    return this.http.get<DatasetVersion[]>(
+      `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/${DATASET_VERSION_RETRIEVE_LIST_URL}`
+    );
   }
 
   /**
@@ -163,22 +148,13 @@ export class DatasetService {
    * retrieve a list of nodes that represent the files in the version
    * @param did
    * @param dvid
-   * @param isLogin
    */
   public retrieveDatasetVersionFileTree(
     did: number,
-    dvid: number,
-    isLogin: boolean = true
+    dvid: number
   ): Observable<{ fileNodes: DatasetFileNode[]; size: number }> {
-    const apiUrl = isLogin
-      ? `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/${DATASET_VERSION_BASE_URL}/${dvid}/rootFileNodes`
-      : `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/${DATASET_PUBLIC_VERSION_BASE_URL}/${dvid}/rootFileNodes`;
-
-    return this.http.get<DatasetVersionRootFileNodesResponse>(apiUrl).pipe(
-      map(response => ({
-        fileNodes: response.rootFileNodes.fileNodes,
-        size: response.size,
-      }))
+    return this.http.get<{ fileNodes: DatasetFileNode[]; size: number }>(
+      `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/${DATASET_VERSION_BASE_URL}/${dvid}/rootFileNodes`
     );
   }
 
@@ -208,15 +184,4 @@ export class DatasetService {
       {}
     );
   }
-
-  public getDatasetOwners(did: number): Observable<number[]> {
-    return this.http.get<number[]>(`${AppSettings.getApiEndpoint()}/${DATASET_GET_OWNERS_URL}?did=${did}`);
-  }
-}
-
-interface DatasetVersionRootFileNodesResponse {
-  rootFileNodes: {
-    fileNodes: DatasetFileNode[];
-  };
-  size: number;
 }
