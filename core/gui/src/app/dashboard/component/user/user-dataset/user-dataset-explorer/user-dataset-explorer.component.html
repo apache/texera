@@ -9,7 +9,7 @@
       nzDescription="{{datasetDescription}}"></nz-card-meta>
     <div
       style="padding-top: 30px"
-      *ngIf="!disablePublish">
+      *ngIf="!(userDatasetAccessLevel === 'NONE')">
       <nz-switch
         [ngModel]="datasetIsPublic"
         (ngModelChange)="onPublicStatusChange($event)"
@@ -44,7 +44,7 @@
           <button
             nz-button
             nz-tooltip="Download the file"
-            [disabled]="disableDownload"
+            [disabled]="!isLogin"
             (click)="onClickDownloadCurrentFile()">
             <i
               nz-icon
@@ -164,7 +164,7 @@
             nz-tooltip="Download Dataset"
             (click)="onClickDownloadVersionAsZip()"
             *ngIf="selectedVersion"
-            [disabled]="disableDownload"
+            [disabled]="!isLogin"
             class="spaced-button">
             <i
               nz-icon

@@ -1,5 +1,5 @@
 import { Component, OnInit } from "@angular/core";
-import { ActivatedRoute, NavigationEnd, Router } from "@angular/router";
+import { ActivatedRoute, Router } from "@angular/router";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DatasetService } from "../../../../service/user/dataset/dataset.service";
 import { NzResizeEvent } from "ng-zorro-antd/resizable";
@@ -40,8 +40,6 @@ export class UserDatasetExplorerComponent implements OnInit {
   public isCreatingDataset: boolean = false;
   public versionCreatorBaseVersion: DatasetVersion | undefined;
   public isLogin: boolean = this.userService.isLogin();
-  public disableDownload: boolean = false;
-  public disablePublish: boolean = false;
 
   constructor(
     private route: ActivatedRoute,
@@ -72,10 +70,6 @@ export class UserDatasetExplorerComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    const fullPath = this.router.url;
-    if (fullPath.includes("hub")) {
-      this.applyHubRestrictions();
-    }
     this.route.params
       .pipe(
         switchMap(params => {
@@ -117,13 +111,6 @@ export class UserDatasetExplorerComponent implements OnInit {
           this.siderWidth = this.MAX_SIDER_WIDTH;
         });
     }
-  }
-
-  applyHubRestrictions() {
-    if (!this.isLogin) {
-      this.disableDownload = true;
-    }
-    this.disablePublish = true;
   }
 
   public onCreationFinished(creationID: number) {
@@ -241,7 +228,6 @@ export class UserDatasetExplorerComponent implements OnInit {
         .retrieveDatasetVersionFileTree(this.did, this.selectedVersion.dvid, this.isLogin)
         .pipe(untilDestroyed(this))
         .subscribe(data => {
-          console.log(data);
           this.fileTreeNodeList = data.fileNodes;
           this.currentDatasetVersionSize = data.size;
           let currentNode = this.fileTreeNodeList[0];
