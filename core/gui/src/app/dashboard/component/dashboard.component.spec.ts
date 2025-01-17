@@ -2,9 +2,11 @@ import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { DashboardComponent } from "./dashboard.component";
 import { UserService } from "../../common/service/user/user.service";
 import { SocialAuthService } from "@abacritt/angularx-social-login";
+import { FlarumService } from "../service/user/flarum/flarum.service";
 import { Router } from "@angular/router";
 import { RouterTestingModule } from "@angular/router/testing";
-import { BehaviorSubject } from "rxjs";
+import { HttpClientTestingModule } from "@angular/common/http/testing";
+import { of, BehaviorSubject } from "rxjs";
 import { CUSTOM_ELEMENTS_SCHEMA } from "@angular/core";
 import { DASHBOARD_USER_WORKFLOW } from "../../app-routing.constant";
 
@@ -13,6 +15,7 @@ describe("DashboardComponent", () => {
   let fixture: ComponentFixture<DashboardComponent>;
   let userServiceMock: jasmine.SpyObj<UserService>;
   let socialAuthServiceMock: jasmine.SpyObj<SocialAuthService>;
+  let flarumServiceMock: jasmine.SpyObj<FlarumService>;
   let routerMock: jasmine.SpyObj<Router>;
   let authStateMock: BehaviorSubject<any>;
 
@@ -26,14 +29,17 @@ describe("DashboardComponent", () => {
       authState: authStateMock.asObservable(),
     });
 
+    flarumServiceMock = jasmine.createSpyObj("FlarumService", ["auth", "register"]);
+
     routerMock = jasmine.createSpyObj("Router", ["navigateByUrl"]);
 
     await TestBed.configureTestingModule({
-      imports: [RouterTestingModule],
+      imports: [RouterTestingModule, HttpClientTestingModule],
       declarations: [DashboardComponent],
       providers: [
         { provide: UserService, useValue: userServiceMock },
         { provide: SocialAuthService, useValue: socialAuthServiceMock },
+        { provide: FlarumService, useValue: flarumServiceMock },
         { provide: Router, useValue: routerMock },
       ],
       schemas: [CUSTOM_ELEMENTS_SCHEMA],
