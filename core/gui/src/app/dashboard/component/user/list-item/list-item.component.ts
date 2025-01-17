@@ -115,7 +115,6 @@ export class ListItemComponent implements OnInit, OnChanges {
             this.viewCount = count;
           });
       }
-      // this.entryLink = this.ROUTER_WORKFLOW_BASE_URL + "/" + this.entry.id;
       this.iconType = "project";
     } else if (this.entry.type === "project") {
       this.entryLink = [DASHBOARD_USER_PROJECT, String(this.entry.id)];

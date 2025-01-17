@@ -53,7 +53,7 @@ export class DatasetService {
   public getDataset(did: number, isLogin: boolean = true): Observable<DashboardDataset> {
     const apiUrl = isLogin
       ? `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}`
-      : `${AppSettings.getApiEndpoint()}/dataset/public/${did}`;
+      : `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/public/${did}`;
     return this.http.get<DashboardDataset>(apiUrl);
   }
 
