@@ -8,7 +8,7 @@ import { RouterTestingModule } from "@angular/router/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { of, BehaviorSubject } from "rxjs";
 import { CUSTOM_ELEMENTS_SCHEMA } from "@angular/core";
-import {DASHBOARD_USER_WORKFLOW} from "../../app-routing.constant";
+import { DASHBOARD_USER_WORKFLOW } from "../../app-routing.constant";
 
 describe("DashboardComponent", () => {
   let component: DashboardComponent;
