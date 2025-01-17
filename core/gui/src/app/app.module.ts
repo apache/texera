@@ -141,7 +141,7 @@ import { BrowseSectionComponent } from "./hub/component/browse-section/browse-se
 import { BreakpointConditionInputComponent } from "./workspace/component/code-editor-dialog/breakpoint-condition-input/breakpoint-condition-input.component";
 import { CodeDebuggerComponent } from "./workspace/component/code-editor-dialog/code-debugger.component";
 import { HubDatasetComponent } from "./hub/component/dataset/hub-dataset.component";
-import { HubDatasetResultComponent } from "./hub/component/dataset/hub-dataset-result/hub-dataset-result.component";
+import { HubDatasetSearchComponent } from "./hub/component/dataset/search/hub-dataset-search.component";
 
 registerLocaleData(en);
 
@@ -233,7 +233,7 @@ registerLocaleData(en);
     BreakpointConditionInputComponent,
     CodeDebuggerComponent,
     HubDatasetComponent,
-    HubDatasetResultComponent,
+    HubDatasetSearchComponent,
   ],
   imports: [
     BrowserModule,

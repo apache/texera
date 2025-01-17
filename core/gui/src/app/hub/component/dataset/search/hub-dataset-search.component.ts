@@ -12,10 +12,10 @@ import { DashboardEntry, UserInfo } from "../../../../dashboard/type/dashboard-e
 @UntilDestroy()
 @Component({
   selector: "texera-hub-dataset-result",
-  templateUrl: "./hub-dataset-result.component.html",
-  styleUrls: ["./hub-dataset-result.component.scss"],
+  templateUrl: "./hub-dataset-search.component.html",
+  styleUrls: ["./hub-dataset-search.component.scss"],
 })
-export class HubDatasetResultComponent implements AfterViewInit {
+export class HubDatasetSearchComponent implements AfterViewInit {
   currentUid = this.userService.getCurrentUser()?.uid;
 
   private isLogin = false;

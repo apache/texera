@@ -23,7 +23,7 @@ import { HubWorkflowDetailComponent } from "./hub/component/workflow/detail/hub-
 import { LandingPageComponent } from "./hub/component/landing-page/landing-page.component";
 import { DASHBOARD_USER_WORKFLOW } from "./app-routing.constant";
 import { HubDatasetComponent } from "./hub/component/dataset/hub-dataset.component";
-import { HubDatasetResultComponent } from "./hub/component/dataset/hub-dataset-result/hub-dataset-result.component";
+import { HubDatasetSearchComponent } from "./hub/component/dataset/search/hub-dataset-search.component";
 
 const routes: Routes = [];
 
@@ -63,7 +63,7 @@ if (environment.userSystemEnabled) {
             children: [
               {
                 path: "result",
-                component: HubDatasetResultComponent,
+                component: HubDatasetSearchComponent,
               },
               {
                 path: "result/detail/:did",
