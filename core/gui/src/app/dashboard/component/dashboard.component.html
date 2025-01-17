@@ -147,7 +147,11 @@
         <ng-container *ngIf="isLogin">
           <texera-user-icon></texera-user-icon>
         </ng-container>
-        <texera-google-login [hidden]="isLogin"></texera-google-login>
+        <asl-google-signin-button
+          *ngIf="!isLogin"
+          type="standard"
+          size="large"
+          width="200"></asl-google-signin-button>
       </div>
 
       <nz-content>

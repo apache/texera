@@ -133,7 +133,6 @@ import { SearchBarComponent } from "./dashboard/component/user/search-bar/search
 import { ListItemComponent } from "./dashboard/component/user/list-item/list-item.component";
 import { HubComponent } from "./hub/component/hub.component";
 import { HubWorkflowSearchComponent } from "./hub/component/workflow/search/hub-workflow-search.component";
-import { GoogleLoginComponent } from "./dashboard/component/user/google-login/google-login.component";
 import { HubWorkflowComponent } from "./hub/component/workflow/hub-workflow.component";
 import { HubWorkflowDetailComponent } from "./hub/component/workflow/detail/hub-workflow-detail.component";
 import { LandingPageComponent } from "./hub/component/landing-page/landing-page.component";
@@ -154,9 +153,7 @@ const socialConfigFactory = (googleAuthService: GoogleAuthService) => {
     providers: [
       {
         id: GoogleLoginProvider.PROVIDER_ID,
-        provider: new GoogleLoginProvider(response?.clientId || "", {
-          oneTapEnabled: false,
-        }),
+        provider: new GoogleLoginProvider(response?.clientId || ""),
       },
     ],
     onError: err => {
@@ -247,7 +244,6 @@ const socialConfigFactory = (googleAuthService: GoogleAuthService) => {
     HubWorkflowComponent,
     HubWorkflowSearchComponent,
     HubWorkflowDetailComponent,
-    GoogleLoginComponent,
     LandingPageComponent,
     BrowseSectionComponent,
     BreakpointConditionInputComponent,

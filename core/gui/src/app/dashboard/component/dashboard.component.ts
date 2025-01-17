@@ -3,8 +3,10 @@ import { UserService } from "../../common/service/user/user.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { FlarumService } from "../service/user/flarum/flarum.service";
 import { HttpErrorResponse } from "@angular/common/http";
-import { NavigationEnd, Router } from "@angular/router";
+import { ActivatedRoute, NavigationEnd, Router } from "@angular/router";
 import { HubComponent } from "../../hub/component/hub.component";
+import { SocialAuthService } from "@abacritt/angularx-social-login";
+import { filter, switchMap } from "rxjs/operators";
 
 import {
   DASHBOARD_ADMIN_EXECUTION,
@@ -47,13 +49,12 @@ export class DashboardComponent implements OnInit {
     private router: Router,
     private flarumService: FlarumService,
     private cdr: ChangeDetectorRef,
-    private ngZone: NgZone
+    private ngZone: NgZone,
+    private socialAuthService: SocialAuthService,
+    private route: ActivatedRoute
   ) {}
 
   ngOnInit(): void {
-    this.isLogin = this.userService.isLogin();
-    this.isAdmin = this.userService.isAdmin();
-
     this.isCollpased = false;
 
     this.router.events.pipe(untilDestroyed(this)).subscribe(() => {
@@ -78,6 +79,20 @@ export class DashboardComponent implements OnInit {
           this.cdr.detectChanges();
         });
       });
+
+    if (!this.isLogin) {
+      this.socialAuthService.authState
+        .pipe(
+          filter(res => !!res),
+          switchMap(res => this.userService.googleLogin(res.idToken)),
+          untilDestroyed(this)
+        )
+        .subscribe(() => {
+          this.ngZone.run(() => {
+            this.router.navigateByUrl(this.route.snapshot.queryParams["returnUrl"] || DASHBOARD_USER_WORKFLOW);
+          });
+        });
+    }
   }
 
   forumLogin() {
