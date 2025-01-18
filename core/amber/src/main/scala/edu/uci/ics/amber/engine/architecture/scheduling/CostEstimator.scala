@@ -8,11 +8,12 @@ import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.SqlServer.withTransaction
 import edu.uci.ics.texera.dao.jooq.generated.Tables.{
+  OPERATOR_EXECUTIONS,
+  OPERATOR_RUNTIME_STATISTICS,
   WORKFLOW_EXECUTIONS,
-  WORKFLOW_RUNTIME_STATISTICS,
   WORKFLOW_VERSION
 }
-import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowRuntimeStatistics
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource.WorkflowRuntimeStatistics
 import org.jooq.types.UInteger
 
 import scala.jdk.CollectionConverters.ListHasAsScala
@@ -99,36 +100,38 @@ class DefaultCostEstimator(
       val widAsUInteger = UInteger.valueOf(wid)
       val rawStats = context
         .select(
-          WORKFLOW_RUNTIME_STATISTICS.OPERATOR_ID,
-          WORKFLOW_RUNTIME_STATISTICS.TIME,
-          WORKFLOW_RUNTIME_STATISTICS.DATA_PROCESSING_TIME,
-          WORKFLOW_RUNTIME_STATISTICS.CONTROL_PROCESSING_TIME,
-          WORKFLOW_RUNTIME_STATISTICS.EXECUTION_ID
+          OPERATOR_EXECUTIONS.OPERATOR_ID,
+          OPERATOR_RUNTIME_STATISTICS.INPUT_TUPLE_CNT,
+          OPERATOR_RUNTIME_STATISTICS.OUTPUT_TUPLE_CNT,
+          OPERATOR_RUNTIME_STATISTICS.TIME,
+          OPERATOR_RUNTIME_STATISTICS.DATA_PROCESSING_TIME,
+          OPERATOR_RUNTIME_STATISTICS.CONTROL_PROCESSING_TIME,
+          OPERATOR_RUNTIME_STATISTICS.IDLE_TIME,
+          OPERATOR_RUNTIME_STATISTICS.NUM_WORKERS
         )
-        .from(WORKFLOW_RUNTIME_STATISTICS)
+        .from(OPERATOR_EXECUTIONS)
+        .join(OPERATOR_RUNTIME_STATISTICS)
+        .on(
+          OPERATOR_EXECUTIONS.OPERATOR_EXECUTION_ID.eq(
+            OPERATOR_RUNTIME_STATISTICS.OPERATOR_EXECUTION_ID
+          )
+        )
         .where(
-          WORKFLOW_RUNTIME_STATISTICS.WORKFLOW_ID
-            .eq(widAsUInteger)
-            .and(
-              WORKFLOW_RUNTIME_STATISTICS.EXECUTION_ID.eq(
-                context
-                  .select(
-                    WORKFLOW_EXECUTIONS.EID
-                  )
-                  .from(WORKFLOW_EXECUTIONS)
-                  .join(WORKFLOW_VERSION)
-                  .on(WORKFLOW_VERSION.VID.eq(WORKFLOW_EXECUTIONS.VID))
-                  .where(
-                    WORKFLOW_VERSION.WID
-                      .eq(widAsUInteger)
-                      .and(WORKFLOW_EXECUTIONS.STATUS.eq(3.toByte))
-                  )
-                  .orderBy(WORKFLOW_EXECUTIONS.STARTING_TIME.desc())
-                  .limit(1)
+          OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(
+            context
+              .select(WORKFLOW_EXECUTIONS.EID)
+              .from(WORKFLOW_EXECUTIONS)
+              .join(WORKFLOW_VERSION)
+              .on(WORKFLOW_VERSION.VID.eq(WORKFLOW_EXECUTIONS.VID))
+              .where(
+                WORKFLOW_VERSION.WID
+                  .eq(widAsUInteger)
+                  .and(WORKFLOW_EXECUTIONS.STATUS.eq(3.toByte))
               )
-            )
+              .orderBy(WORKFLOW_EXECUTIONS.STARTING_TIME.desc())
+              .limit(1)
+          )
         )
-        .orderBy(WORKFLOW_RUNTIME_STATISTICS.TIME, WORKFLOW_RUNTIME_STATISTICS.OPERATOR_ID)
         .fetchInto(classOf[WorkflowRuntimeStatistics])
         .asScala
         .toList
@@ -136,9 +139,9 @@ class DefaultCostEstimator(
         None
       } else {
         val cumulatedStats = rawStats.foldLeft(Map.empty[String, Double]) { (acc, stat) =>
-          val opTotalExecutionTime = acc.getOrElse(stat.getOperatorId, 0.0)
-          acc + (stat.getOperatorId -> (opTotalExecutionTime + (stat.getDataProcessingTime
-            .doubleValue() + stat.getControlProcessingTime.doubleValue()) / 1e9))
+          val opTotalExecutionTime = acc.getOrElse(stat.operatorId, 0.0)
+          acc + (stat.operatorId -> (opTotalExecutionTime + (stat.dataProcessingTime
+            .doubleValue() + stat.controlProcessingTime.doubleValue()) / 1e9))
         }
         Some(cumulatedStats)
       }

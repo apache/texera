@@ -3,7 +3,6 @@ package edu.uci.ics.amber.engine.faulttolerance
 import akka.actor.{ActorSystem, Props}
 import akka.serialization.SerializationExtension
 import edu.uci.ics.amber.clustering.SingleNodeListener
-import edu.uci.ics.amber.core.storage.result.OpResultStorage
 import edu.uci.ics.amber.core.workflow.WorkflowContext
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ControllerProcessor}
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessor
@@ -21,7 +20,6 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
 
   var system: ActorSystem = _
 
-  val resultStorage = new OpResultStorage()
   val csvOpDesc = TestOperators.mediumCsvScanOpDesc()
   val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
   val workflow = buildWorkflow(
