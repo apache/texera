@@ -147,7 +147,7 @@
         <ng-container *ngIf="isLogin">
           <texera-user-icon></texera-user-icon>
         </ng-container>
-        <texera-google-login [hidden]="isLogin"></texera-google-login>
+        <texera-google-login [hidden]="isLogin || !googleLogin"></texera-google-login>
       </div>
 
       <nz-content>
