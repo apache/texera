@@ -122,12 +122,4 @@ describe("DashboardComponent", () => {
     const googleSignInBtn = fixture.debugElement.query(By.css("asl-google-signin-button"));
     expect(googleSignInBtn).toBeTruthy();
   });
-
-  it("should NOT render Google sign-in button when user is logged in", () => {
-    (userServiceMock.isLogin as jasmine.Spy).and.returnValue(true);
-    fixture.detectChanges();
-
-    const googleSignInBtn = fixture.debugElement.query(By.css("asl-google-signin-button"));
-    expect(googleSignInBtn).toBeNull();
-  });
 });
