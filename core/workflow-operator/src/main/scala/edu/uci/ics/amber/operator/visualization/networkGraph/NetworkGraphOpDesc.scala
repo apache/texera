@@ -71,7 +71,7 @@ class NetworkGraphOpDesc extends PythonOperatorDescriptor {
          |               '''.format(error_msg)
          |
          |    @overrides
-         |    def process_table(self,table: Table, port: int) -> Iterator[Optional[TableLike]]:
+         |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
          |        if not table.empty:
          |            sources = table['$source']
          |            destinations = table['$destination']
@@ -79,9 +79,9 @@ class NetworkGraphOpDesc extends PythonOperatorDescriptor {
          |            G = nx.Graph()
          |            for node in nodes:
          |                G.add_node(node)
-         |            for i,j in table.iterrows():
-         |                G.add_edges_from([(j['$source'],j['$destination'])])
-         |            pos = nx.spring_layout(G, k=0.5, iterations=50)#generate positions
+         |            for i, j in table.iterrows():
+         |                G.add_edges_from([(j['$source'], j['$destination'])])
+         |            pos = nx.spring_layout(G, k=0.5, iterations=50)
          |            for n, p in pos.items():
          |                G.nodes[n]['pos'] = p
          |
@@ -89,10 +89,11 @@ class NetworkGraphOpDesc extends PythonOperatorDescriptor {
          |                x=[],
          |                y=[],
          |                name='Edges',
-         |                line=dict(width=0.5,color='#888'),
+         |                line=dict(width=0.5, color='#888'),
          |                hoverinfo='none',
          |                mode='lines',
-         |                visible='true')
+         |                visible=True
+         |            )
          |
          |            for edge in G.edges():
          |                x0, y0 = G.nodes[edge[0]]['pos']
@@ -107,20 +108,22 @@ class NetworkGraphOpDesc extends PythonOperatorDescriptor {
          |                text=[],
          |                mode='markers',
          |                hoverinfo='text',
+         |                visible=True,
          |                marker=dict(
          |                    showscale=True,
          |                    colorscale='plasma',
          |                    reversescale=True,
          |                    color=[],
          |                    size=15,
-         |                    visible=True,
          |                    colorbar=dict(
          |                        thickness=10,
          |                        title='Node Connections',
          |                        xanchor='left',
          |                        titleside='right'
          |                    ),
-         |                    line=dict(width=0)))
+         |                    line=dict(width=0)
+         |                )
+         |            )
          |
          |            for node in G.nodes():
          |                x, y = G.nodes[node]['pos']
@@ -128,34 +131,45 @@ class NetworkGraphOpDesc extends PythonOperatorDescriptor {
          |                node_trace['y'] += tuple([y])
          |
          |            for node, adjacencies in enumerate(G.adjacency()):
-         |                node_trace['marker']['color']+=tuple([len(adjacencies[1])])
+         |                node_trace['marker']['color'] += tuple([len(adjacencies[1])])
          |                node_info = str(adjacencies[0]) + ': ' + str(len(adjacencies[1])) + ' connections.'
-         |                node_trace['text']+=tuple([node_info])
+         |                node_trace['text'] += tuple([node_info])
          |
-         |            fig = go.Figure(data=[edge_trace, node_trace],
+         |            fig = go.Figure(
+         |                data=[edge_trace, node_trace],
          |                layout=go.Layout(
          |                    title='<br>$title',
          |                    hovermode='closest',
          |                    showlegend=False,
-         |                    margin=dict(b=20,l=5,r=5,t=40),
-         |                    annotations=[ dict(
-         |                        text='',
-         |                        showarrow=False,
-         |                        xref="paper", yref="paper") ],
+         |                    margin=dict(b=20, l=5, r=5, t=40),
+         |                    annotations=[
+         |                        dict(
+         |                            text='',
+         |                            showarrow=False,
+         |                            xref="paper",
+         |                            yref="paper"
+         |                        )
+         |                    ],
          |                    xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-         |                    yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)))
-         |            fig.update_layout(margin=dict(l=0, r=0, t=0, b=0),
-         |                    legend=dict(
-         |                      itemclick=False,
-         |                      itemdoubleclick=False
-         |                    )
+         |                    yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)
+         |                )
          |            )
-         |            html = plotly.io.to_html(fig, include_plotlyjs = 'cdn', auto_play = False)
-         |        elif table.empty:
+         |            fig.update_layout(
+         |                margin=dict(l=0, r=0, t=0, b=0),
+         |                legend=dict(
+         |                    itemclick=False,
+         |                    itemdoubleclick=False
+         |                )
+         |            )
+         |
+         |            html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
+         |        else:
          |            html = self.render_error('Table should not have any empty/null values or fields.')
-         |        yield {'html-content':html}
+         |
+         |        yield {'html-content': html}
          |
          |""".stripMargin
     finalCode
   }
+
 }
