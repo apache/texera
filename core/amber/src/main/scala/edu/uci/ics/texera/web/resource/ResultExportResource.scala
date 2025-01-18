@@ -9,7 +9,7 @@ import edu.uci.ics.texera.web.service.WorkflowService
 import io.dropwizard.auth.Auth
 
 import javax.ws.rs._
-import javax.ws.rs.core.{Context, MediaType, Response}
+import javax.ws.rs.core.Response
 import scala.jdk.CollectionConverters._
 
 @Path("/export")
@@ -18,9 +18,9 @@ class ResultExportResource extends LazyLogging {
   @POST
   @Path("/result")
   def exportResult(
-                    request: ResultExportRequest,
-                    @Auth user: SessionUser
-                  ): Response = {
+      request: ResultExportRequest,
+      @Auth user: SessionUser
+  ): Response = {
 
     try {
       val workflowState = WorkflowService.getOrCreate(WorkflowIdentity(request.workflowId))
