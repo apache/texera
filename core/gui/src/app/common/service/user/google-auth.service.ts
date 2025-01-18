@@ -9,7 +9,7 @@ import { AppSettings } from "../../app-setting";
 export class GoogleAuthService {
   constructor(private http: HttpClient) {}
 
-  getClientId(): Observable<{ clientId: string }> {
-    return this.http.get<{ clientId: string }>(`${AppSettings.getApiEndpoint()}/auth/google/clientid`);
+  getClientId(): Observable<string> {
+    return this.http.get(`${AppSettings.getApiEndpoint()}/auth/google/clientid`, { responseType: "text" })
   }
 }

@@ -146,17 +146,6 @@ import { lastValueFrom } from "rxjs";
 
 registerLocaleData(en);
 
-const socialConfigFactory = (googleAuthService: GoogleAuthService, userService: UserService) => {
-  return lastValueFrom(googleAuthService.getClientId()).then(response => ({
-    providers: [
-      {
-        id: GoogleLoginProvider.PROVIDER_ID,
-        provider: new GoogleLoginProvider(response?.clientId || "", {oneTapEnabled: !userService.isLogin()}),
-      },
-    ]
-  })) as Promise<SocialAuthServiceConfig>;
-};
-
 @NgModule({
   declarations: [
     AdminGmailComponent,
@@ -320,7 +309,16 @@ const socialConfigFactory = (googleAuthService: GoogleAuthService, userService: 
     },
     {
       provide: "SocialAuthServiceConfig",
-      useFactory: socialConfigFactory,
+      useFactory: (googleAuthService: GoogleAuthService, userService: UserService) => {
+        return lastValueFrom(googleAuthService.getClientId()).then(clientId => ({
+          providers: [
+            {
+              id: GoogleLoginProvider.PROVIDER_ID,
+              provider: new GoogleLoginProvider(clientId, {oneTapEnabled: !userService.isLogin()}),
+            },
+          ]
+        })) as Promise<SocialAuthServiceConfig>;
+      },
       deps: [GoogleAuthService, UserService],
     },
   ],
