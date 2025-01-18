@@ -6,7 +6,6 @@ import { HttpErrorResponse } from "@angular/common/http";
 import { ActivatedRoute, NavigationEnd, Router } from "@angular/router";
 import { HubComponent } from "../../hub/component/hub.component";
 import { SocialAuthService } from "@abacritt/angularx-social-login";
-import { filter, switchMap } from "rxjs/operators";
 
 import {
   DASHBOARD_ADMIN_EXECUTION,
@@ -29,7 +28,7 @@ export class DashboardComponent implements OnInit {
   @ViewChild(HubComponent) hubComponent!: HubComponent;
 
   isAdmin: boolean = this.userService.isAdmin();
-  isLogin = this.userService.isLogin();
+  isLogin: boolean = this.userService.isLogin();
   displayForum: boolean = true;
   displayNavbar: boolean = true;
   isCollpased: boolean = false;
@@ -80,19 +79,16 @@ export class DashboardComponent implements OnInit {
         });
       });
 
-    if (!this.isLogin) {
-      this.socialAuthService.authState
-        .pipe(
-          filter(res => !!res),
-          switchMap(res => this.userService.googleLogin(res.idToken)),
-          untilDestroyed(this)
-        )
+    this.socialAuthService.authState.pipe(untilDestroyed(this)).subscribe(user => {
+      this.userService
+        .googleLogin(user.idToken)
+        .pipe(untilDestroyed(this))
         .subscribe(() => {
           this.ngZone.run(() => {
             this.router.navigateByUrl(this.route.snapshot.queryParams["returnUrl"] || DASHBOARD_USER_WORKFLOW);
           });
         });
-    }
+    });
   }
 
   forumLogin() {

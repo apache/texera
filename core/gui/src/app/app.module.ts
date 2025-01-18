@@ -146,19 +146,14 @@ import { lastValueFrom } from "rxjs";
 
 registerLocaleData(en);
 
-const socialConfigFactory = (googleAuthService: GoogleAuthService) => {
+const socialConfigFactory = (googleAuthService: GoogleAuthService, userService: UserService) => {
   return lastValueFrom(googleAuthService.getClientId()).then(response => ({
-    autoLogin: false,
-    lang: "en",
     providers: [
       {
         id: GoogleLoginProvider.PROVIDER_ID,
-        provider: new GoogleLoginProvider(response?.clientId || ""),
+        provider: new GoogleLoginProvider(response?.clientId || "", {oneTapEnabled: !userService.isLogin()}),
       },
-    ],
-    onError: err => {
-      console.error(err);
-    },
+    ]
   })) as Promise<SocialAuthServiceConfig>;
 };
 
@@ -326,7 +321,7 @@ const socialConfigFactory = (googleAuthService: GoogleAuthService) => {
     {
       provide: "SocialAuthServiceConfig",
       useFactory: socialConfigFactory,
-      deps: [GoogleAuthService],
+      deps: [GoogleAuthService, UserService],
     },
   ],
   bootstrap: [AppComponent],
