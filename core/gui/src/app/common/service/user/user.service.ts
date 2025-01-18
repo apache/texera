@@ -3,7 +3,7 @@ import { Observable, of, ReplaySubject } from "rxjs";
 import { Role, User } from "../../type/user";
 import { AuthService } from "./auth.service";
 import { environment } from "../../../../environments/environment";
-import { catchError, map, shareReplay } from "rxjs/operators";
+import { catchError, map, share } from "rxjs/operators";
 
 /**
  * User Service manages User information. It relies on different
@@ -119,7 +119,7 @@ export class UserService {
         return blobUrl;
       }),
       catchError(() => of(undefined)),
-      shareReplay(1)
+      share()
     );
   }
 
