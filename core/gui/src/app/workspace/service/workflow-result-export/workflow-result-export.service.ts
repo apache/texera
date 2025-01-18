@@ -175,14 +175,16 @@ export class WorkflowResultExportService {
           filename
         )
         .subscribe({
-          next: (response) => {
+          next: _ => {
             this.notificationService.info("The result has been exported successfully");
           },
-          error: (response) => {
-            this.notificationService.error("Error exporting operator results " + response.error.error);
+          error: (res: unknown) => {
+            const errorResponse = res as { error: { error: string } };
+            this.notificationService.error(
+              "An error happened in exporting operator results " + errorResponse.error.error
+            );
           },
         });
-
     });
   }
 
