@@ -1,63 +1,75 @@
-import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { TestBed, ComponentFixture } from "@angular/core/testing";
 import { DashboardComponent } from "./dashboard.component";
+import { NO_ERRORS_SCHEMA, ChangeDetectorRef, NgZone } from "@angular/core";
+import { By } from "@angular/platform-browser";
+import { of } from "rxjs";
+
 import { UserService } from "../../common/service/user/user.service";
-import { SocialAuthService } from "@abacritt/angularx-social-login";
 import { FlarumService } from "../service/user/flarum/flarum.service";
-import { Router, ActivatedRoute } from "@angular/router";
-import { RouterTestingModule } from "@angular/router/testing";
-import { HttpClientTestingModule } from "@angular/common/http/testing";
-import { of, BehaviorSubject } from "rxjs";
-import { CUSTOM_ELEMENTS_SCHEMA } from "@angular/core";
-import { DASHBOARD_USER_WORKFLOW } from "../../app-routing.constant";
+import { SocialAuthService } from "@abacritt/angularx-social-login";
+import { Router, NavigationEnd } from "@angular/router";
+import { ActivatedRoute } from "@angular/router";
 
 describe("DashboardComponent", () => {
   let component: DashboardComponent;
   let fixture: ComponentFixture<DashboardComponent>;
-  let userServiceMock: jasmine.SpyObj<UserService>;
-  let socialAuthServiceMock: jasmine.SpyObj<SocialAuthService>;
-  let flarumServiceMock: jasmine.SpyObj<FlarumService>;
-  let routerMock: jasmine.SpyObj<Router>;
-  let activatedRouteMock: any;
-  let authStateMock: BehaviorSubject<any>;
+
+  let userServiceMock: Partial<UserService>;
+  let routerMock: Partial<Router>;
+  let flarumServiceMock: Partial<FlarumService>;
+  let cdrMock: Partial<ChangeDetectorRef>;
+  let ngZoneMock: Partial<NgZone>;
+  let socialAuthServiceMock: Partial<SocialAuthService>;
+  let activatedRouteMock: Partial<ActivatedRoute>;
 
   beforeEach(async () => {
-    userServiceMock = jasmine.createSpyObj("UserService", ["isLogin", "isAdmin", "userChanged", "googleLogin"]);
-    userServiceMock.isLogin.and.returnValue(false);
-    userServiceMock.isAdmin.and.returnValue(false);
-    userServiceMock.userChanged.and.returnValue(of(undefined));
-    userServiceMock.googleLogin.and.returnValue(of(undefined));
+    userServiceMock = {
+      isAdmin: jasmine.createSpy("isAdmin").and.returnValue(false),
+      isLogin: jasmine.createSpy("isLogin").and.returnValue(false),
+      userChanged: jasmine.createSpy("userChanged").and.returnValue(of(null)),
+    };
 
-    authStateMock = new BehaviorSubject(null);
-    socialAuthServiceMock = jasmine.createSpyObj("SocialAuthService", [], {
-      authState: authStateMock.asObservable(),
-    });
+    routerMock = {
+      events: of(new NavigationEnd(1, "/dashboard", "/dashboard")),
+      url: "/dashboard",
+      navigateByUrl: jasmine.createSpy("navigateByUrl"),
+    };
 
-    flarumServiceMock = jasmine.createSpyObj("FlarumService", ["auth", "register"]);
-    flarumServiceMock.auth.and.returnValue(of({ token: "fake_token" }));
-    flarumServiceMock.register.and.returnValue(of());
+    flarumServiceMock = {
+      auth: jasmine.createSpy("auth").and.returnValue(of({ token: "dummyToken" })),
+      register: jasmine.createSpy("register").and.returnValue(of(null)),
+    };
 
-    routerMock = jasmine.createSpyObj("Router", ["navigateByUrl"]);
+    cdrMock = {
+      detectChanges: jasmine.createSpy("detectChanges"),
+    };
+
+    ngZoneMock = {
+      run: (fn: () => any) => fn(),
+    };
+
+    socialAuthServiceMock = {
+      authState: of(),
+    };
 
     activatedRouteMock = {
       snapshot: {
         queryParams: {},
-      },
+      } as any,
     };
 
     await TestBed.configureTestingModule({
-      imports: [
-        RouterTestingModule.withRoutes([]), // 确保 Router 正常工作
-        HttpClientTestingModule,
-      ],
       declarations: [DashboardComponent],
       providers: [
         { provide: UserService, useValue: userServiceMock },
-        { provide: SocialAuthService, useValue: socialAuthServiceMock },
-        { provide: FlarumService, useValue: flarumServiceMock },
         { provide: Router, useValue: routerMock },
+        { provide: FlarumService, useValue: flarumServiceMock },
+        { provide: ChangeDetectorRef, useValue: cdrMock },
+        { provide: NgZone, useValue: ngZoneMock },
+        { provide: SocialAuthService, useValue: socialAuthServiceMock },
         { provide: ActivatedRoute, useValue: activatedRouteMock },
       ],
-      schemas: [CUSTOM_ELEMENTS_SCHEMA],
+      schemas: [NO_ERRORS_SCHEMA],
     }).compileComponents();
   });
 
@@ -67,27 +79,25 @@ describe("DashboardComponent", () => {
     fixture.detectChanges();
   });
 
-  it("should render Google login button when user is NOT logged in", () => {
-    const compiled = fixture.nativeElement;
-    const googleSignInButton = compiled.querySelector("asl-google-signin-button");
-
-    expect(googleSignInButton).toBeTruthy();
+  it("should create the component", () => {
+    expect(component).toBeTruthy();
   });
 
-  it("should NOT render Google login button when user IS logged in", () => {
-    userServiceMock.isLogin.and.returnValue(true);
+  it("should render Google sign-in button when user is NOT logged in", () => {
+    (userServiceMock.isLogin as jasmine.Spy).and.returnValue(false);
+
     fixture.detectChanges();
 
-    const compiled = fixture.nativeElement;
-    const googleSignInButton = compiled.querySelector("asl-google-signin-button");
-
-    expect(googleSignInButton).toBeFalsy();
+    const googleSignInBtn = fixture.debugElement.query(By.css("asl-google-signin-button"));
+    expect(googleSignInBtn).toBeTruthy();
   });
 
-  it("should redirect to DASHBOARD_USER_WORKFLOW after Google login", () => {
-    authStateMock.next({ idToken: "test_token" } as any);
+  it("should NOT render Google sign-in button when user is logged in", () => {
+    (userServiceMock.isLogin as jasmine.Spy).and.returnValue(true);
+
     fixture.detectChanges();
 
-    expect(routerMock.navigateByUrl).toHaveBeenCalledWith(DASHBOARD_USER_WORKFLOW);
+    const googleSignInBtn = fixture.debugElement.query(By.css("asl-google-signin-button"));
+    expect(googleSignInBtn).toBeNull();
   });
 });

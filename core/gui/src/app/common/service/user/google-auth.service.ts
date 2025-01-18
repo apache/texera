@@ -10,6 +10,6 @@ export class GoogleAuthService {
   constructor(private http: HttpClient) {}
 
   getClientId(): Observable<string> {
-    return this.http.get(`${AppSettings.getApiEndpoint()}/auth/google/clientid`, { responseType: "text" })
+    return this.http.get(`${AppSettings.getApiEndpoint()}/auth/google/clientid`, { responseType: "text" });
   }
 }

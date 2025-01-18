@@ -314,9 +314,9 @@ registerLocaleData(en);
           providers: [
             {
               id: GoogleLoginProvider.PROVIDER_ID,
-              provider: new GoogleLoginProvider(clientId, {oneTapEnabled: !userService.isLogin()}),
+              provider: new GoogleLoginProvider(clientId, { oneTapEnabled: !userService.isLogin() }),
             },
-          ]
+          ],
         })) as Promise<SocialAuthServiceConfig>;
       },
       deps: [GoogleAuthService, UserService],
