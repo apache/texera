@@ -1,14 +1,22 @@
 import { TestBed, ComponentFixture } from "@angular/core/testing";
 import { DashboardComponent } from "./dashboard.component";
-import { NO_ERRORS_SCHEMA, ChangeDetectorRef, NgZone } from "@angular/core";
+import { NO_ERRORS_SCHEMA, ChangeDetectorRef, NgZone, EventEmitter } from "@angular/core";
 import { By } from "@angular/platform-browser";
 import { of } from "rxjs";
 
 import { UserService } from "../../common/service/user/user.service";
 import { FlarumService } from "../service/user/flarum/flarum.service";
 import { SocialAuthService } from "@abacritt/angularx-social-login";
-import { Router, NavigationEnd } from "@angular/router";
-import { ActivatedRoute } from "@angular/router";
+import {
+  Router,
+  NavigationEnd,
+  ActivatedRoute,
+  ActivatedRouteSnapshot,
+  UrlSegment,
+  Params,
+  Data,
+} from "@angular/router";
+import { convertToParamMap } from "@angular/router";
 
 describe("DashboardComponent", () => {
   let component: DashboardComponent;
@@ -21,6 +29,23 @@ describe("DashboardComponent", () => {
   let ngZoneMock: Partial<NgZone>;
   let socialAuthServiceMock: Partial<SocialAuthService>;
   let activatedRouteMock: Partial<ActivatedRoute>;
+
+  const activatedRouteSnapshotMock: Partial<ActivatedRouteSnapshot> = {
+    queryParams: {},
+    url: [] as UrlSegment[],
+    params: {} as Params,
+    fragment: null,
+    data: {} as Data,
+    paramMap: convertToParamMap({}),
+    queryParamMap: convertToParamMap({}),
+    outlet: "",
+    routeConfig: null,
+    root: null as any,
+    parent: null as any,
+    firstChild: null as any,
+    children: [],
+    pathFromRoot: [],
+  };
 
   beforeEach(async () => {
     userServiceMock = {
@@ -45,7 +70,16 @@ describe("DashboardComponent", () => {
     };
 
     ngZoneMock = {
+      hasPendingMicrotasks: false,
+      hasPendingMacrotasks: false,
+      onUnstable: new EventEmitter<any>(),
+      onMicrotaskEmpty: new EventEmitter<any>(),
+      onStable: new EventEmitter<any>(),
+      onError: new EventEmitter<any>(),
       run: (fn: () => any) => fn(),
+      runGuarded: (fn: () => any) => fn(),
+      runOutsideAngular: (fn: () => any) => fn(),
+      runTask: (fn: () => any) => fn(),
     };
 
     socialAuthServiceMock = {
@@ -53,9 +87,7 @@ describe("DashboardComponent", () => {
     };
 
     activatedRouteMock = {
-      snapshot: {
-        queryParams: {},
-      } as any,
+      snapshot: activatedRouteSnapshotMock as ActivatedRouteSnapshot,
     };
 
     await TestBed.configureTestingModule({
@@ -85,7 +117,6 @@ describe("DashboardComponent", () => {
 
   it("should render Google sign-in button when user is NOT logged in", () => {
     (userServiceMock.isLogin as jasmine.Spy).and.returnValue(false);
-
     fixture.detectChanges();
 
     const googleSignInBtn = fixture.debugElement.query(By.css("asl-google-signin-button"));
@@ -94,7 +125,6 @@ describe("DashboardComponent", () => {
 
   it("should NOT render Google sign-in button when user is logged in", () => {
     (userServiceMock.isLogin as jasmine.Spy).and.returnValue(true);
-
     fixture.detectChanges();
 
     const googleSignInBtn = fixture.debugElement.query(By.css("asl-google-signin-button"));
