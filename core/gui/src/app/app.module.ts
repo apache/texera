@@ -132,17 +132,16 @@ import { ReportGenerationService } from "./workspace/service/report-generation/r
 import { SearchBarComponent } from "./dashboard/component/user/search-bar/search-bar.component";
 import { ListItemComponent } from "./dashboard/component/user/list-item/list-item.component";
 import { HubComponent } from "./hub/component/hub.component";
-import { HubWorkflowSearchComponent } from "./hub/component/workflow/search/hub-workflow-search.component";
 import { HubWorkflowDetailComponent } from "./hub/component/workflow/detail/hub-workflow-detail.component";
 import { LandingPageComponent } from "./hub/component/landing-page/landing-page.component";
 import { BrowseSectionComponent } from "./hub/component/browse-section/browse-section.component";
 import { BreakpointConditionInputComponent } from "./workspace/component/code-editor-dialog/breakpoint-condition-input/breakpoint-condition-input.component";
 import { CodeDebuggerComponent } from "./workspace/component/code-editor-dialog/code-debugger.component";
-import { HubDatasetSearchComponent } from "./hub/component/dataset/search/hub-dataset-search.component";
 import { GoogleAuthService } from "./common/service/user/google-auth.service";
 import { SocialLoginModule, SocialAuthServiceConfig, GoogleSigninButtonModule } from "@abacritt/angularx-social-login";
 import { GoogleLoginProvider } from "@abacritt/angularx-social-login";
 import { lastValueFrom } from "rxjs";
+import { HubSearchResultComponent } from "./hub/component/hub-search-result/hub-search-result.component";
 
 registerLocaleData(en);
 
@@ -225,13 +224,12 @@ registerLocaleData(en);
     SearchBarComponent,
     ListItemComponent,
     HubComponent,
-    HubWorkflowSearchComponent,
     HubWorkflowDetailComponent,
     LandingPageComponent,
     BrowseSectionComponent,
     BreakpointConditionInputComponent,
     CodeDebuggerComponent,
-    HubDatasetSearchComponent,
+    HubSearchResultComponent,
   ],
   imports: [
     BrowserModule,

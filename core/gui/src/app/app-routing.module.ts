@@ -17,11 +17,10 @@ import { FlarumComponent } from "./dashboard/component/user/flarum/flarum.compon
 import { AdminGmailComponent } from "./dashboard/component/admin/gmail/admin-gmail.component";
 import { DatasetDetailComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/dataset-detail.component";
 import { UserDatasetComponent } from "./dashboard/component/user/user-dataset/user-dataset.component";
-import { HubWorkflowSearchComponent } from "./hub/component/workflow/search/hub-workflow-search.component";
 import { HubWorkflowDetailComponent } from "./hub/component/workflow/detail/hub-workflow-detail.component";
 import { LandingPageComponent } from "./hub/component/landing-page/landing-page.component";
 import { DASHBOARD_USER_WORKFLOW } from "./app-routing.constant";
-import { HubDatasetSearchComponent } from "./hub/component/dataset/search/hub-dataset-search.component";
+import { HubSearchResultComponent } from "./hub/component/hub-search-result/hub-search-result.component";
 
 const routes: Routes = [];
 
@@ -46,7 +45,7 @@ if (environment.userSystemEnabled) {
             children: [
               {
                 path: "result",
-                component: HubWorkflowSearchComponent,
+                component: HubSearchResultComponent,
               },
               {
                 path: "result/detail/:id",
@@ -59,7 +58,7 @@ if (environment.userSystemEnabled) {
             children: [
               {
                 path: "result",
-                component: HubDatasetSearchComponent,
+                component: HubSearchResultComponent,
               },
               {
                 path: "result/detail/:did",
