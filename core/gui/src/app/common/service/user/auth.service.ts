@@ -61,7 +61,13 @@ export class AuthService {
   public googleAuth(credential: string): Observable<Readonly<{ accessToken: string }>> {
     return this.http.post<Readonly<{ accessToken: string }>>(
       `${AppSettings.getApiEndpoint()}/${AuthService.GOOGLE_LOGIN_ENDPOINT}`,
-      `${credential}`
+      credential,
+      {
+        headers: {
+          "Content-Type": "text/plain",
+          Accept: "application/json",
+        },
+      }
     );
   }
 

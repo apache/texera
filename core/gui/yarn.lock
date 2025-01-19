@@ -5,6 +5,18 @@ __metadata:
   version: 8
   cacheKey: 10c0
 
+"@abacritt/angularx-social-login@npm:2.1.0":
+  version: 2.1.0
+  resolution: "@abacritt/angularx-social-login@npm:2.1.0"
+  dependencies:
+    tslib: "npm:>=2.5.0"
+  peerDependencies:
+    "@angular/common": ">=16.0.0"
+    "@angular/core": ">=16.0.0"
+  checksum: 10c0/b1759db0d79fdbc902180aa1974c5aa8db5372a7c4750127bbf5b1d94aadeb1f7bad27a0ac488e98cbe53a600a438a3900b4974009e4a648df5edf583cc5eb0d
+  languageName: node
+  linkType: hard
+
 "@adobe/css-tools@npm:^4.0.1":
   version: 4.4.0
   resolution: "@adobe/css-tools@npm:4.4.0"
@@ -11066,6 +11078,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "gui@workspace:."
   dependencies:
+    "@abacritt/angularx-social-login": "npm:2.1.0"
     "@ali-hm/angular-tree-component": "npm:12.0.5"
     "@angular-builders/custom-webpack": "npm:16.0.1"
     "@angular-devkit/build-angular": "npm:16.2.12"
@@ -17968,6 +17981,13 @@ __metadata:
   version: 2.6.1
   resolution: "tslib@npm:2.6.1"
   checksum: 10c0/a0382d386f5f1d6e3a39ab22bc56d1e08493da99ab3daf550e63bae6c08fdd6dd4fd20623ef387cad8262ce3fede98439257054fc025f2103cd4603b4509a052
+  languageName: node
+  linkType: hard
+
+"tslib@npm:>=2.5.0":
+  version: 2.8.1
+  resolution: "tslib@npm:2.8.1"
+  checksum: 10c0/9c4759110a19c53f992d9aae23aac5ced636e99887b51b9e61def52611732872ff7668757d4e4c61f19691e36f4da981cd9485e869b4a7408d689f6bf1f14e62
   languageName: node
   linkType: hard
 
