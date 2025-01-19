@@ -15,7 +15,7 @@ import { AdminGuardService } from "./dashboard/service/admin/guard/admin-guard.s
 import { SearchComponent } from "./dashboard/component/user/search/search.component";
 import { FlarumComponent } from "./dashboard/component/user/flarum/flarum.component";
 import { AdminGmailComponent } from "./dashboard/component/admin/gmail/admin-gmail.component";
-import { UserDatasetExplorerComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-explorer.component";
+import { DatasetDetailComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/dataset-detail.component";
 import { UserDatasetComponent } from "./dashboard/component/user/user-dataset/user-dataset.component";
 import { HubWorkflowSearchComponent } from "./hub/component/workflow/search/hub-workflow-search.component";
 import { HubWorkflowComponent } from "./hub/component/workflow/hub-workflow.component";
@@ -67,7 +67,7 @@ if (environment.userSystemEnabled) {
               },
               {
                 path: "result/detail/:did",
-                component: UserDatasetExplorerComponent,
+                component: DatasetDetailComponent,
               },
             ],
           },
@@ -99,11 +99,11 @@ if (environment.userSystemEnabled) {
           },
           {
             path: "dataset/:did",
-            component: UserDatasetExplorerComponent,
+            component: DatasetDetailComponent,
           },
           {
             path: "dataset/create",
-            component: UserDatasetExplorerComponent,
+            component: DatasetDetailComponent,
           },
           {
             path: "quota",

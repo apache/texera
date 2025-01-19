@@ -14,10 +14,10 @@ import { UserService } from "../../../../../common/service/user/user.service";
 
 @UntilDestroy()
 @Component({
-  templateUrl: "./user-dataset-explorer.component.html",
-  styleUrls: ["./user-dataset-explorer.component.scss"],
+  templateUrl: "./dataset-detail.component.html",
+  styleUrls: ["./dataset-detail.component.scss"],
 })
-export class UserDatasetExplorerComponent implements OnInit {
+export class DatasetDetailComponent implements OnInit {
   public did: number | undefined;
   public datasetName: string = "";
   public datasetDescription: string = "";
