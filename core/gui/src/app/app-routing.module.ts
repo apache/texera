@@ -18,11 +18,9 @@ import { AdminGmailComponent } from "./dashboard/component/admin/gmail/admin-gma
 import { DatasetDetailComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/dataset-detail.component";
 import { UserDatasetComponent } from "./dashboard/component/user/user-dataset/user-dataset.component";
 import { HubWorkflowSearchComponent } from "./hub/component/workflow/search/hub-workflow-search.component";
-import { HubWorkflowComponent } from "./hub/component/workflow/hub-workflow.component";
 import { HubWorkflowDetailComponent } from "./hub/component/workflow/detail/hub-workflow-detail.component";
 import { LandingPageComponent } from "./hub/component/landing-page/landing-page.component";
 import { DASHBOARD_USER_WORKFLOW } from "./app-routing.constant";
-import { HubDatasetComponent } from "./hub/component/dataset/hub-dataset.component";
 import { HubDatasetSearchComponent } from "./hub/component/dataset/search/hub-dataset-search.component";
 
 const routes: Routes = [];
@@ -45,7 +43,6 @@ if (environment.userSystemEnabled) {
         children: [
           {
             path: "workflow",
-            component: HubWorkflowComponent,
             children: [
               {
                 path: "result",
@@ -59,7 +56,6 @@ if (environment.userSystemEnabled) {
           },
           {
             path: "dataset",
-            component: HubDatasetComponent,
             children: [
               {
                 path: "result",

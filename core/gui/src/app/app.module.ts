@@ -133,13 +133,11 @@ import { SearchBarComponent } from "./dashboard/component/user/search-bar/search
 import { ListItemComponent } from "./dashboard/component/user/list-item/list-item.component";
 import { HubComponent } from "./hub/component/hub.component";
 import { HubWorkflowSearchComponent } from "./hub/component/workflow/search/hub-workflow-search.component";
-import { HubWorkflowComponent } from "./hub/component/workflow/hub-workflow.component";
 import { HubWorkflowDetailComponent } from "./hub/component/workflow/detail/hub-workflow-detail.component";
 import { LandingPageComponent } from "./hub/component/landing-page/landing-page.component";
 import { BrowseSectionComponent } from "./hub/component/browse-section/browse-section.component";
 import { BreakpointConditionInputComponent } from "./workspace/component/code-editor-dialog/breakpoint-condition-input/breakpoint-condition-input.component";
 import { CodeDebuggerComponent } from "./workspace/component/code-editor-dialog/code-debugger.component";
-import { HubDatasetComponent } from "./hub/component/dataset/hub-dataset.component";
 import { HubDatasetSearchComponent } from "./hub/component/dataset/search/hub-dataset-search.component";
 import { GoogleAuthService } from "./common/service/user/google-auth.service";
 import { SocialLoginModule, SocialAuthServiceConfig, GoogleSigninButtonModule } from "@abacritt/angularx-social-login";
@@ -227,14 +225,12 @@ registerLocaleData(en);
     SearchBarComponent,
     ListItemComponent,
     HubComponent,
-    HubWorkflowComponent,
     HubWorkflowSearchComponent,
     HubWorkflowDetailComponent,
     LandingPageComponent,
     BrowseSectionComponent,
     BreakpointConditionInputComponent,
     CodeDebuggerComponent,
-    HubDatasetComponent,
     HubDatasetSearchComponent,
   ],
   imports: [
