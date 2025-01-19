@@ -948,7 +948,7 @@ class DatasetResource {
 
   @GET
   @Path("/datasetUserAccess")
-  def workflowUserAccess(
+  def datasetUserAccess(
       @QueryParam("did") did: UInteger
   ): java.util.List[UInteger] = {
     val records = context
