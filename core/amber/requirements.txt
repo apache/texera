@@ -27,3 +27,7 @@ cached_property==1.5.2
 psutil==5.9.0
 transformers==4.44.2
 tzlocal==2.1
+pyiceberg==0.8.1
+grpclib==0.4.7
+packaging==24.1
+readerwriterlock==1.0.9

@@ -42,7 +42,7 @@ TO_ARROW_MAPPING = {
     AttributeType.DOUBLE: pa.float64(),
     AttributeType.BOOL: pa.bool_(),
     AttributeType.BINARY: pa.binary(),
-    AttributeType.TIMESTAMP: pa.timestamp("ms", tz="UTC"),
+    AttributeType.TIMESTAMP: pa.timestamp("us"),
 }
 
 FROM_ARROW_MAPPING = {
