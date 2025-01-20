@@ -25,7 +25,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
   DatasetVersion,
   User
 }
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetAccessResource.{context, _}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetAccessResource._
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{context, _}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.DatasetFileNode
 import io.dropwizard.auth.Auth
