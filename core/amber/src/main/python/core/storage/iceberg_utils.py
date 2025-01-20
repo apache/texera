@@ -2,15 +2,13 @@ import pyarrow as pa
 import pyiceberg.table
 from pyiceberg.catalog import Catalog
 from pyiceberg.expressions import AlwaysTrue
-from pyiceberg.manifest import DataFile
+from pyiceberg.io.pyarrow import ArrowScan
 from pyiceberg.partitioning import UNPARTITIONED_PARTITION_SPEC
 from pyiceberg.schema import Schema
 from pyiceberg.table import Table
 from typing import Optional, Iterator
-from pyiceberg.io.pyarrow import ArrowScan
 
-from pyiceberg.typedef import Record
-
+import core
 from core.models import ArrowTableTupleProvider, Tuple
 
 
@@ -78,15 +76,30 @@ def load_table_metadata(
         return None
 
 
-def read_data_file_as_iterator(planfile: pyiceberg.table.FileScanTask, iceberg_table: pyiceberg.table.Table) -> Iterator[Record]:
+def read_data_file_as_arrow_table(planfile: pyiceberg.table.FileScanTask, iceberg_table: pyiceberg.table.Table) -> \
+        pa.Table:
     """Reads a data file and returns an iterator over its records."""
     arrow_table: pa.Table = ArrowScan(
         iceberg_table.metadata, iceberg_table.io, iceberg_table.schema(), AlwaysTrue(), True
     ).to_table([planfile])
+    return arrow_table
+
+
+def amber_tuples_to_arrow_table(iceberg_schema: Schema, tuple_list: Iterator[Tuple]) -> pa.Table:
+    return pa.Table.from_pydict(
+        {
+            name: [t[name] for t in tuple_list]
+            for name in iceberg_schema.names
+        },
+        schema=iceberg_schema,
+    )
+
+
+def arrow_table_to_amber_tuples(iceberg_schema: Schema, arrow_table: pa.Table) -> Iterator[Tuple]:
     tuple_provider = ArrowTableTupleProvider(arrow_table)
     tuples = [
         Tuple({name: field_accessor for name in arrow_table.column_names})
         for field_accessor in tuple_provider
     ]
-    for tuples in tuples:
-        yield tuples
+    for t in tuples:
+        yield Tuple(t, schema=core.models.Schema(iceberg_schema))

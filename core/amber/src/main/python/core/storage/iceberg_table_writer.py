@@ -1,11 +1,9 @@
-from pathlib import Path
-
-from tenacity import retry, wait_exponential, stop_after_attempt
-from typing import List, TypeVar
-
 import pyarrow as pa
 from pyiceberg.catalog import Catalog
+from pyiceberg.schema import Schema
 from pyiceberg.table import Table
+from tenacity import retry, wait_exponential, stop_after_attempt
+from typing import List, TypeVar, Callable, Iterator, Iterable
 
 from core.storage.model.buffered_item_writer import BufferedItemWriter
 
@@ -37,6 +35,7 @@ class IcebergTableWriter(BufferedItemWriter[T]):
             table_namespace: str,
             table_name: str,
             table_schema: pa.Schema,
+            serde: Callable[[Schema, Iterator[T]], pa.Table],
             buffer_size: int = 4096  # Default buffer size TODO: move to config
     ):
         self.writer_identifier = writer_identifier
@@ -44,6 +43,7 @@ class IcebergTableWriter(BufferedItemWriter[T]):
         self.table_namespace = table_namespace
         self.table_name = table_name
         self.table_schema = table_schema
+        self.serde = serde
         self.buffer_size = buffer_size
 
         # Internal state
@@ -76,13 +76,7 @@ class IcebergTableWriter(BufferedItemWriter[T]):
         """Flush the current buffer to a new Iceberg data file."""
         if not self.buffer:
             return
-        df = pa.Table.from_pydict(
-            {
-                name: [t[name] for t in self.buffer]
-                for name in self.table_schema.names
-            },
-            schema=self.table_schema,
-        )
+        df = self.serde(self.table_schema, self.buffer)
 
         def append_to_table_with_retry(pa_df: pa.Table) -> None:
             """Appends a pyarrow dataframe to the table in the catalog using tenacity exponential backoff."""
@@ -96,7 +90,7 @@ class IcebergTableWriter(BufferedItemWriter[T]):
                 # table = catalog.load_table(table_name)  # <---- If a process appends between this line ...
                 self.table.refresh()
                 self.table.append(pa_df)  # <----- and this line, then Tenacity will retry.
-                self.filename_idx+=1
+                self.filename_idx += 1
 
             append_with_retry()
 

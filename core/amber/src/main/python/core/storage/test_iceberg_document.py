@@ -8,6 +8,7 @@ import pytest
 
 from core.models import Schema, Tuple
 from core.storage.iceberg_document import IcebergDocument
+from core.storage.iceberg_utils import amber_tuples_to_arrow_table, arrow_table_to_amber_tuples
 
 
 # Function to generate random binary data
@@ -36,7 +37,13 @@ class TestIcebergDocument:
         operator_uuid = str(uuid.uuid4()).replace("-", "")
         uri = f"wid_0_eid_0_opid_test_table_{operator_uuid}_pid_0_E_result"
         arrow_schema = amber_schema.as_arrow_schema()
-        return IcebergDocument("operator-result", uri, arrow_schema)
+        return IcebergDocument[Tuple](
+            "operator-result",
+            uri,
+            arrow_schema,
+            amber_tuples_to_arrow_table,
+            arrow_table_to_amber_tuples
+        )
 
     @pytest.fixture
     def sample_items(self, amber_schema) -> [Tuple]:

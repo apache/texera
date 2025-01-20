@@ -1,17 +1,18 @@
 from threading import RLock
-from typing import Iterator, Optional
+from typing import Iterator, Optional, Callable, Iterable, List
 from typing import TypeVar
 from urllib.parse import ParseResult, urlparse
 
 from pyiceberg.catalog import Catalog
 from pyiceberg.schema import Schema
 from pyiceberg.table import Table, FileScanTask
+import pyarrow as pa
 from readerwriterlock import rwlock
 
 import core.models
 from core.models import Tuple
 from core.storage.iceberg_catalog_instance import IcebergCatalogInstance
-from core.storage.iceberg_utils import create_table, load_table_metadata, read_data_file_as_iterator
+from core.storage.iceberg_utils import create_table, load_table_metadata, read_data_file_as_arrow_table
 from core.storage.model.virtual_document import VirtualDocument
 from core.storage.iceberg_table_writer import IcebergTableWriter
 
@@ -37,11 +38,15 @@ class IcebergDocument(VirtualDocument[T]):
             table_namespace: str,
             table_name: str,
             table_schema: Schema,
+            serde: Callable[[Schema, Iterator[T]], pa.Table],
+            deserde: Callable[[Schema, pa.Table], Iterator[T]],
             catalog: Optional[Catalog] = None
     ):
         self.table_namespace = table_namespace
         self.table_name = table_name
         self.table_schema = table_schema
+        self.serde = serde
+        self.deserde = deserde
 
         self.lock = rwlock.RWLockFair()
         self.catalog = catalog or self._load_catalog()
@@ -100,7 +105,8 @@ class IcebergDocument(VirtualDocument[T]):
             catalog=self.catalog,
             table_namespace=self.table_namespace,
             table_name=self.table_name,
-            table_schema=self.table_schema
+            table_schema=self.table_schema,
+            serde=self.serde
         )
 
     def _get_using_file_sequence_order(
@@ -114,19 +120,21 @@ class IcebergDocument(VirtualDocument[T]):
                 self.catalog,
                 self.table_namespace,
                 self.table_name,
-                self.table_schema
+                self.table_schema,
+                self.deserde
             )
             return iterator
 
 
 class IcebergIterator(Iterator[T]):
-    def __init__(self, from_index, until, catalog, table_namespace, table_name, table_schema):
+    def __init__(self, from_index, until, catalog, table_namespace, table_name, table_schema, deserde):
         self.from_index = from_index
         self.until = until
         self.catalog = catalog
         self.table_namespace = table_namespace
         self.table_name = table_name
         self.table_schema = table_schema
+        self.deserde = deserde
         self.lock = RLock()
         self.num_of_skipped_records = 0
         self.num_of_returned_records = 0
@@ -191,14 +199,15 @@ class IcebergIterator(Iterator[T]):
 
         while True:
             try:
-                record = Tuple(next(self.current_record_iterator), schema=core.models.Schema(self.table_schema))
+                record = next(self.current_record_iterator)
                 self.num_of_returned_records += 1
                 return record
             except StopIteration:
                 # current_record_iterator is exhausted, need to go to the next file
                 try:
                     next_file = next(self.usable_file_iterator)
-                    self.current_record_iterator = read_data_file_as_iterator(next_file, self.table)
+                    arrow_table = read_data_file_as_arrow_table(next_file, self.table)
+                    self.current_record_iterator = self.deserde(self.table_schema, arrow_table)
                     # Skip records within the file if necessary
                     records_to_skip_in_file = self.from_index - self.num_of_skipped_records
                     if records_to_skip_in_file > 0:
