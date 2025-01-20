@@ -1,20 +1,18 @@
 from threading import RLock
-from typing import Iterator, Optional, Callable, Iterable, List
-from typing import TypeVar
 from urllib.parse import ParseResult, urlparse
 
+import pyarrow as pa
 from pyiceberg.catalog import Catalog
 from pyiceberg.schema import Schema
 from pyiceberg.table import Table, FileScanTask
-import pyarrow as pa
 from readerwriterlock import rwlock
+from typing import Iterator, Optional, Callable, Iterable
+from typing import TypeVar
 
-import core.models
-from core.models import Tuple
 from core.storage.iceberg_catalog_instance import IcebergCatalogInstance
+from core.storage.iceberg_table_writer import IcebergTableWriter
 from core.storage.iceberg_utils import create_table, load_table_metadata, read_data_file_as_arrow_table
 from core.storage.model.virtual_document import VirtualDocument
-from core.storage.iceberg_table_writer import IcebergTableWriter
 
 # Define a type variable
 T = TypeVar('T')
@@ -38,8 +36,8 @@ class IcebergDocument(VirtualDocument[T]):
             table_namespace: str,
             table_name: str,
             table_schema: Schema,
-            serde: Callable[[Schema, Iterator[T]], pa.Table],
-            deserde: Callable[[Schema, pa.Table], Iterator[T]],
+            serde: Callable[[Schema, Iterable[T]], pa.Table],
+            deserde: Callable[[Schema, pa.Table], Iterable[T]],
             catalog: Optional[Catalog] = None
     ):
         self.table_namespace = table_namespace

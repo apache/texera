@@ -6,7 +6,7 @@ from pyiceberg.io.pyarrow import ArrowScan
 from pyiceberg.partitioning import UNPARTITIONED_PARTITION_SPEC
 from pyiceberg.schema import Schema
 from pyiceberg.table import Table
-from typing import Optional, Iterator
+from typing import Optional, Iterable
 
 import core
 from core.models import ArrowTableTupleProvider, Tuple
@@ -85,7 +85,7 @@ def read_data_file_as_arrow_table(planfile: pyiceberg.table.FileScanTask, iceber
     return arrow_table
 
 
-def amber_tuples_to_arrow_table(iceberg_schema: Schema, tuple_list: Iterator[Tuple]) -> pa.Table:
+def amber_tuples_to_arrow_table(iceberg_schema: Schema, tuple_list: Iterable[Tuple]) -> pa.Table:
     return pa.Table.from_pydict(
         {
             name: [t[name] for t in tuple_list]
@@ -95,11 +95,12 @@ def amber_tuples_to_arrow_table(iceberg_schema: Schema, tuple_list: Iterator[Tup
     )
 
 
-def arrow_table_to_amber_tuples(iceberg_schema: Schema, arrow_table: pa.Table) -> Iterator[Tuple]:
+def arrow_table_to_amber_tuples(iceberg_schema: Schema, arrow_table: pa.Table) -> Iterable[Tuple]:
     tuple_provider = ArrowTableTupleProvider(arrow_table)
-    tuples = [
-        Tuple({name: field_accessor for name in arrow_table.column_names})
+    return (
+        Tuple(
+            {name: field_accessor for name in arrow_table.column_names},
+            schema=core.models.Schema(iceberg_schema)
+        )
         for field_accessor in tuple_provider
-    ]
-    for t in tuples:
-        yield Tuple(t, schema=core.models.Schema(iceberg_schema))
+    )

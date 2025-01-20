@@ -30,3 +30,5 @@ tzlocal==2.1
 pyiceberg==0.8.1
 grpclib==0.4.7
 readerwriterlock==1.0.9
+tenacity==9.0.0
+packaging==24.2

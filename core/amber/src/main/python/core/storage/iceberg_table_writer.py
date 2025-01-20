@@ -3,7 +3,7 @@ from pyiceberg.catalog import Catalog
 from pyiceberg.schema import Schema
 from pyiceberg.table import Table
 from tenacity import retry, wait_exponential, stop_after_attempt
-from typing import List, TypeVar, Callable, Iterator, Iterable
+from typing import List, TypeVar, Callable, Iterable
 
 from core.storage.model.buffered_item_writer import BufferedItemWriter
 
@@ -35,7 +35,7 @@ class IcebergTableWriter(BufferedItemWriter[T]):
             table_namespace: str,
             table_name: str,
             table_schema: pa.Schema,
-            serde: Callable[[Schema, Iterator[T]], pa.Table],
+            serde: Callable[[Schema, Iterable[T]], pa.Table],
             buffer_size: int = 4096  # Default buffer size TODO: move to config
     ):
         self.writer_identifier = writer_identifier
