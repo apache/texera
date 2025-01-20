@@ -90,8 +90,11 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
     val attributeTypeList: Array[AttributeType] = inferSchemaFromRows(
       data.iterator.asInstanceOf[Iterator[Array[Any]]]
     )
+
     val header: Array[String] =
-      if (hasHeader) parser.getContext.headers()
+      if (hasHeader)
+        Option(parser.getContext.headers())
+          .getOrElse((1 to attributeTypeList.length).map(i => "column-" + i).toArray)
       else (1 to attributeTypeList.length).map(i => "column-" + i).toArray
 
     header.indices.foldLeft(Schema()) { (schema, i) =>
