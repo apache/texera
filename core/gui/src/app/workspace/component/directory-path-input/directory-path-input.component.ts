@@ -27,8 +27,7 @@ export class DirectoryPathInputComponent extends FieldType<FieldTypeConfig> {
     this.datasetService
       .retrieveAccessibleDatasets()
       .pipe(untilDestroyed(this))
-      .subscribe(response => {
-        const datasets = response.datasets;
+      .subscribe(datasets => {
         const modal = this.modalService.create({
           nzTitle: "Please select one directory from datasets",
           nzContent: DirectorySelectionComponent,

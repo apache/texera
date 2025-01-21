@@ -3,9 +3,9 @@ package edu.uci.ics.amber.operator.cloudmapper
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
+import edu.uci.ics.amber.core.workflow.{OutputPort, PortIdentity}
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.amber.operator.source.PythonSourceOperatorDescriptor
-import edu.uci.ics.amber.workflow.OutputPort
 import edu.uci.ics.texera.workflow.operators.cloudmapper.{ReferenceGenome, ReferenceGenomeEnum}
 import edu.uci.ics.amber.operator.util.OperatorFilePathUtils
 
@@ -205,13 +205,15 @@ class CloudMapperSourceOpDesc extends PythonSourceOperatorDescriptor {
     )
   override def asSource() = true
   override def sourceSchema(): Schema =
-    Schema
-      .builder()
+    Schema()
       .add(
         new Attribute("Sample", AttributeType.STRING),
         new Attribute("features.tsv.gz", AttributeType.BINARY),
         new Attribute("barcodes.tsv.gz", AttributeType.BINARY),
         new Attribute("matrix.mtx.gz", AttributeType.BINARY)
       )
-      .build()
+
+  def getOutputSchemas(inputSchemas: Map[PortIdentity, Schema]): Map[PortIdentity, Schema] = {
+    Map(operatorInfo.outputPorts.head.id -> sourceSchema())
+  }
 }

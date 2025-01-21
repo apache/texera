@@ -152,36 +152,6 @@ object DatasetResource {
       .toScala
   }
 
-  def getLatestDatasetVersionWithAccessCheck(
-      ctx: DSLContext,
-      did: UInteger,
-      uid: UInteger
-  ): DatasetVersion = {
-    if (!userHasReadAccess(ctx, did, uid)) {
-      throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-    }
-
-    fetchLatestDatasetVersionInternal(ctx, did) match {
-      case Some(latestVersion) => latestVersion
-      case None                => throw new NotFoundException(ERR_DATASET_VERSION_NOT_FOUND_MESSAGE)
-    }
-  }
-
-  def getDatasetFile(
-      did: UInteger,
-      dvid: UInteger,
-      fileRelativePath: java.nio.file.Path
-  ): InputStream = {
-    val versionHash = getDatasetVersionByID(context, dvid).getVersionHash
-    val datasetPath = PathUtils.getDatasetPath(did)
-    GitVersionControlLocalFileStorage
-      .retrieveFileContentOfVersionAsInputStream(
-        PathUtils.getDatasetPath(did),
-        versionHash,
-        datasetPath.resolve(fileRelativePath)
-      )
-  }
-
   def getDatasetPath(
       did: UInteger,
       dvid: UInteger

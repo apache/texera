@@ -33,8 +33,8 @@ export class DirectorySelectionComponent {
       this.datasetService
         .retrieveAccessibleDatasets()
         .pipe(untilDestroyed(this))
-        .subscribe(response => {
-          const prevDataset = response.datasets[0];
+        .subscribe(datasets => {
+          const prevDataset = datasets[0];
           this.selectedDataset = this.datasets.find(d => d.dataset.did === prevDataset.dataset.did);
           this.isDatasetSelected = !!this.selectedDataset;
 
