@@ -132,16 +132,16 @@ public class WorkflowDao extends DAOImpl<WorkflowRecord, edu.uci.ics.texera.dao.
     }
 
     /**
-     * Fetch records that have <code>is_published BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>is_public BETWEEN lowerInclusive AND upperInclusive</code>
      */
-    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.Workflow> fetchRangeOfIsPublished(Byte lowerInclusive, Byte upperInclusive) {
-        return fetchRange(Workflow.WORKFLOW.IS_PUBLISHED, lowerInclusive, upperInclusive);
+    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.Workflow> fetchRangeOfIsPublic(Byte lowerInclusive, Byte upperInclusive) {
+        return fetchRange(Workflow.WORKFLOW.IS_PUBLIC, lowerInclusive, upperInclusive);
     }
 
     /**
-     * Fetch records that have <code>is_published IN (values)</code>
+     * Fetch records that have <code>is_public IN (values)</code>
      */
-    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.Workflow> fetchByIsPublished(Byte... values) {
-        return fetch(Workflow.WORKFLOW.IS_PUBLISHED, values);
+    public List<edu.uci.ics.texera.dao.jooq.generated.tables.pojos.Workflow> fetchByIsPublic(Byte... values) {
+        return fetch(Workflow.WORKFLOW.IS_PUBLIC, values);
     }
 }

@@ -27,7 +27,6 @@ import edu.uci.ics.texera.web.resource.dashboard.user.dataset.{
   DatasetAccessResource,
   DatasetResource
 }
-import edu.uci.ics.texera.web.resource.dashboard.user.discussion.UserDiscussionResource
 import edu.uci.ics.texera.web.resource.dashboard.user.project.{
   ProjectAccessResource,
   ProjectResource,
@@ -153,7 +152,6 @@ class TexeraWebApplication
     environment.jersey.register(classOf[GmailResource])
     environment.jersey.register(classOf[AdminExecutionResource])
     environment.jersey.register(classOf[UserQuotaResource])
-    environment.jersey.register(classOf[UserDiscussionResource])
     environment.jersey.register(classOf[AIAssistantResource])
   }
 }

@@ -39,6 +39,7 @@
   [style.height.px]="height"
   (nzResize)="onResize($event)"
   [cdkDragFreeDragPosition]="dragPosition"
+  (cdkDragStarted)="handleStartDrag()"
   (cdkDragEnded)="handleEndDrag($event)">
   <ul
     nz-menu
@@ -64,12 +65,9 @@
   </ul>
   <div
     id="content"
-    *ngIf="width">
-    <h4
-      id="title"
-      cdkDragHandle>
-      Result Panel{{operatorTitle ? ': ' + operatorTitle : ''}}
-    </h4>
+    *ngIf="width"
+    cdkDragHandle>
+    <h4 id="title">Result Panel{{operatorTitle ? ': ' + operatorTitle : ''}}</h4>
     <nz-tabset
       [nzSize]="'small'"
       [nzTabPosition]="'left'">
@@ -82,7 +80,10 @@
       </div>
       <div *ngFor="let config of frameComponentConfigs | keyvalue">
         <nz-tab nzTitle="{{config.key}}">
-          <ng-container *ngComponentOutlet="config.value.component;inputs: config.value.componentInputs"></ng-container>
+          <div #dynamicComponent>
+            <ng-container
+              *ngComponentOutlet="config.value.component;inputs: config.value.componentInputs"></ng-container>
+          </div>
         </nz-tab>
       </div>
     </nz-tabset>

@@ -13,7 +13,7 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{
 }
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.util.VirtualIdentityUtils
-import edu.uci.ics.amber.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
 trait ChannelMarkerHandler {
   this: ControllerAsyncRPCHandlerInitializer =>

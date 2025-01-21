@@ -5,31 +5,24 @@ import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
 import edu.uci.ics.amber.operator.TestOperators
 import edu.uci.ics.amber.operator.split.SplitOpDesc
 import edu.uci.ics.amber.operator.udf.python.{DualInputPortsPythonUDFOpDescV2, PythonUDFOpDescV2}
-import edu.uci.ics.amber.virtualidentity.OperatorIdentity
-import edu.uci.ics.amber.workflow.PortIdentity
+import edu.uci.ics.amber.core.virtualidentity.OperatorIdentity
+import edu.uci.ics.amber.core.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.LogicalLink
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 
 class ExpansionGreedyScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
 
-  "RegionPlanGenerator" should "correctly find regions in headerlessCsv->keyword->sink workflow" in {
+  "RegionPlanGenerator" should "correctly find regions in headerlessCsv->keyword workflow" in {
     val headerlessCsvOpDesc = TestOperators.headerlessSmallCsvScanOpDesc()
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("column-1", "Asia")
-    val sink = TestOperators.sinkOpDesc()
     val workflow = buildWorkflow(
-      List(headerlessCsvOpDesc, keywordOpDesc, sink),
+      List(headerlessCsvOpDesc, keywordOpDesc),
       List(
         LogicalLink(
           headerlessCsvOpDesc.operatorIdentifier,
           PortIdentity(0),
           keywordOpDesc.operatorIdentifier,
-          PortIdentity(0)
-        ),
-        LogicalLink(
-          keywordOpDesc.operatorIdentifier,
-          PortIdentity(0),
-          sink.operatorIdentifier,
           PortIdentity(0)
         )
       ),
@@ -61,17 +54,15 @@ class ExpansionGreedyScheduleGeneratorSpec extends AnyFlatSpec with MockFactory 
     }
   }
 
-  "RegionPlanGenerator" should "correctly find regions in csv->(csv->)->join->sink workflow" in {
+  "RegionPlanGenerator" should "correctly find regions in csv->(csv->)->join workflow" in {
     val headerlessCsvOpDesc1 = TestOperators.headerlessSmallCsvScanOpDesc()
     val headerlessCsvOpDesc2 = TestOperators.headerlessSmallCsvScanOpDesc()
     val joinOpDesc = TestOperators.joinOpDesc("column-1", "column-1")
-    val sink = TestOperators.sinkOpDesc()
     val workflow = buildWorkflow(
       List(
         headerlessCsvOpDesc1,
         headerlessCsvOpDesc2,
-        joinOpDesc,
-        sink
+        joinOpDesc
       ),
       List(
         LogicalLink(
@@ -85,12 +76,6 @@ class ExpansionGreedyScheduleGeneratorSpec extends AnyFlatSpec with MockFactory 
           PortIdentity(),
           joinOpDesc.operatorIdentifier,
           PortIdentity(1)
-        ),
-        LogicalLink(
-          joinOpDesc.operatorIdentifier,
-          PortIdentity(),
-          sink.operatorIdentifier,
-          PortIdentity()
         )
       ),
       new WorkflowContext()
@@ -140,17 +125,15 @@ class ExpansionGreedyScheduleGeneratorSpec extends AnyFlatSpec with MockFactory 
 
   }
 
-  "RegionPlanGenerator" should "correctly find regions in csv->->filter->join->sink workflow" in {
+  "RegionPlanGenerator" should "correctly find regions in csv->->filter->join workflow" in {
     val headerlessCsvOpDesc1 = TestOperators.headerlessSmallCsvScanOpDesc()
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("column-1", "Asia")
     val joinOpDesc = TestOperators.joinOpDesc("column-1", "column-1")
-    val sink = TestOperators.sinkOpDesc()
     val workflow = buildWorkflow(
       List(
         headerlessCsvOpDesc1,
         keywordOpDesc,
-        joinOpDesc,
-        sink
+        joinOpDesc
       ),
       List(
         LogicalLink(
@@ -170,12 +153,6 @@ class ExpansionGreedyScheduleGeneratorSpec extends AnyFlatSpec with MockFactory 
           PortIdentity(),
           joinOpDesc.operatorIdentifier,
           PortIdentity(1)
-        ),
-        LogicalLink(
-          joinOpDesc.operatorIdentifier,
-          PortIdentity(),
-          sink.operatorIdentifier,
-          PortIdentity()
         )
       ),
       new WorkflowContext()
@@ -206,19 +183,17 @@ class ExpansionGreedyScheduleGeneratorSpec extends AnyFlatSpec with MockFactory 
     }
   }
 //
-  "RegionPlanGenerator" should "correctly find regions in buildcsv->probecsv->hashjoin->hashjoin->sink workflow" in {
+  "RegionPlanGenerator" should "correctly find regions in buildcsv->probecsv->hashjoin->hashjoin workflow" in {
     val buildCsv = TestOperators.headerlessSmallCsvScanOpDesc()
     val probeCsv = TestOperators.smallCsvScanOpDesc()
     val hashJoin1 = TestOperators.joinOpDesc("column-1", "Region")
     val hashJoin2 = TestOperators.joinOpDesc("column-2", "Country")
-    val sink = TestOperators.sinkOpDesc()
     val workflow = buildWorkflow(
       List(
         buildCsv,
         probeCsv,
         hashJoin1,
-        hashJoin2,
-        sink
+        hashJoin2
       ),
       List(
         LogicalLink(
@@ -244,12 +219,6 @@ class ExpansionGreedyScheduleGeneratorSpec extends AnyFlatSpec with MockFactory 
           PortIdentity(),
           hashJoin2.operatorIdentifier,
           PortIdentity(1)
-        ),
-        LogicalLink(
-          hashJoin2.operatorIdentifier,
-          PortIdentity(),
-          sink.operatorIdentifier,
-          PortIdentity()
         )
       ),
       new WorkflowContext()
@@ -284,14 +253,12 @@ class ExpansionGreedyScheduleGeneratorSpec extends AnyFlatSpec with MockFactory 
     val split = new SplitOpDesc()
     val training = new PythonUDFOpDescV2()
     val inference = new DualInputPortsPythonUDFOpDescV2()
-    val sink = TestOperators.sinkOpDesc()
     val workflow = buildWorkflow(
       List(
         csv,
         split,
         training,
-        inference,
-        sink
+        inference
       ),
       List(
         LogicalLink(
@@ -317,12 +284,6 @@ class ExpansionGreedyScheduleGeneratorSpec extends AnyFlatSpec with MockFactory 
           PortIdentity(1),
           inference.operatorIdentifier,
           PortIdentity(1)
-        ),
-        LogicalLink(
-          inference.operatorIdentifier,
-          PortIdentity(),
-          sink.operatorIdentifier,
-          PortIdentity()
         )
       ),
       new WorkflowContext()

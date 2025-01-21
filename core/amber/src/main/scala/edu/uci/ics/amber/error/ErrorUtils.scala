@@ -5,7 +5,7 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessage
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ConsoleMessageType.ERROR
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{ControlError, ErrorLanguage}
 import edu.uci.ics.amber.util.VirtualIdentityUtils
-import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
 
 import java.time.Instant
 import scala.util.control.ControlThrowable
@@ -39,8 +39,13 @@ object ErrorUtils {
   }
 
   def mkControlError(err: Throwable): ControlError = {
-    val stacktrace = err.getStackTrace.mkString("\n")
-    ControlError(err.toString, err.getCause.toString, stacktrace, ErrorLanguage.SCALA)
+    // Format each stack trace element with "at " prefix
+    val stacktrace = err.getStackTrace.map(element => s"at ${element}").mkString("\n")
+    if (err.getCause != null) {
+      ControlError(err.toString, err.getCause.toString, stacktrace, ErrorLanguage.SCALA)
+    } else {
+      ControlError(err.toString, "", stacktrace, ErrorLanguage.SCALA)
+    }
   }
 
   def reconstructThrowable(controlError: ControlError): Throwable = {
@@ -52,14 +57,13 @@ object ErrorUtils {
         val causeThrowable = new Throwable(controlError.errorDetails)
         reconstructedThrowable.initCause(causeThrowable)
       }
-      val stackTraceElements = controlError.stackTrace.split("\n").map { line =>
-        // You need to split each line appropriately to extract the class, method, file, and line number
-        val stackTracePattern = """\s*at\s+(.+)\((.+):(\d+)\)""".r
+
+      val stackTracePattern = """\s*at\s+(.+)\((.*)\)""".r
+      val stackTraceElements = controlError.stackTrace.split("\n").flatMap { line =>
         line match {
-          case stackTracePattern(className, fileName, lineNumber) =>
-            new StackTraceElement(className, "", fileName, lineNumber.toInt)
-          case _ =>
-            new StackTraceElement("", "", null, -1) // Handle if stack trace format is invalid
+          case stackTracePattern(className, location) =>
+            Some(new StackTraceElement(className, "", location, -1))
+          case _ => None
         }
       }
       reconstructedThrowable.setStackTrace(stackTraceElements)

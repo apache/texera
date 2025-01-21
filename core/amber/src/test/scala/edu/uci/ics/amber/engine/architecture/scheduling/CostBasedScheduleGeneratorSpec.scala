@@ -4,24 +4,22 @@ import edu.uci.ics.amber.core.workflow.WorkflowContext
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
 import edu.uci.ics.amber.operator.TestOperators
-import edu.uci.ics.amber.workflow.PortIdentity
+import edu.uci.ics.amber.core.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.LogicalLink
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 
 class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
 
-  "CostBasedRegionPlanGenerator" should "finish bottom-up search using different pruning techniques with correct number of states explored in csv->->filter->join->sink workflow" in {
+  "CostBasedRegionPlanGenerator" should "finish bottom-up search using different pruning techniques with correct number of states explored in csv->->filter->join workflow" in {
     val headerlessCsvOpDesc1 = TestOperators.headerlessSmallCsvScanOpDesc()
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("column-1", "Asia")
     val joinOpDesc = TestOperators.joinOpDesc("column-1", "column-1")
-    val sink = TestOperators.sinkOpDesc()
     val workflow = buildWorkflow(
       List(
         headerlessCsvOpDesc1,
         keywordOpDesc,
-        joinOpDesc,
-        sink
+        joinOpDesc
       ),
       List(
         LogicalLink(
@@ -41,12 +39,6 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
           PortIdentity(),
           joinOpDesc.operatorIdentifier,
           PortIdentity(1)
-        ),
-        LogicalLink(
-          joinOpDesc.operatorIdentifier,
-          PortIdentity(),
-          sink.operatorIdentifier,
-          PortIdentity()
         )
       ),
       new WorkflowContext()
@@ -106,17 +98,15 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
 
   }
 
-  "CostBasedRegionPlanGenerator" should "finish top-down search using different pruning techniques with correct number of states explored in csv->->filter->join->sink workflow" in {
+  "CostBasedRegionPlanGenerator" should "finish top-down search using different pruning techniques with correct number of states explored in csv->->filter->join workflow" in {
     val headerlessCsvOpDesc1 = TestOperators.headerlessSmallCsvScanOpDesc()
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("column-1", "Asia")
     val joinOpDesc = TestOperators.joinOpDesc("column-1", "column-1")
-    val sink = TestOperators.sinkOpDesc()
     val workflow = buildWorkflow(
       List(
         headerlessCsvOpDesc1,
         keywordOpDesc,
-        joinOpDesc,
-        sink
+        joinOpDesc
       ),
       List(
         LogicalLink(
@@ -136,12 +126,6 @@ class CostBasedScheduleGeneratorSpec extends AnyFlatSpec with MockFactory {
           PortIdentity(),
           joinOpDesc.operatorIdentifier,
           PortIdentity(1)
-        ),
-        LogicalLink(
-          joinOpDesc.operatorIdentifier,
-          PortIdentity(),
-          sink.operatorIdentifier,
-          PortIdentity()
         )
       ),
       new WorkflowContext()

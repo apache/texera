@@ -3,6 +3,7 @@ package edu.uci.ics.amber.operator.source.scan.text
 import edu.uci.ics.amber.core.tuple.{AttributeType, Schema, SchemaEnforceable, Tuple}
 import edu.uci.ics.amber.operator.TestOperators
 import edu.uci.ics.amber.operator.source.scan.FileAttributeType
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -51,8 +52,11 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
   it should "read first 5 lines of the input text into corresponding output tuples" in {
     val inputString: String = readFileIntoString(TestOperators.TestTextFilePath)
+    textInputSourceOpDesc.attributeType = FileAttributeType.STRING
+    textInputSourceOpDesc.textInput = inputString
+    textInputSourceOpDesc.fileScanLimit = Option(5)
     val textScanSourceOpExec =
-      new TextInputSourceOpExec(FileAttributeType.STRING, inputString, fileScanLimit = Option(5))
+      new TextInputSourceOpExec(objectMapper.writeValueAsString(textInputSourceOpDesc))
     textScanSourceOpExec.open()
     val processedTuple: Iterator[Tuple] = textScanSourceOpExec
       .produceTuple()
@@ -73,8 +77,11 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
   it should "read first 5 lines of the input text with CRLF separators into corresponding output tuples" in {
     val inputString: String = readFileIntoString(TestOperators.TestCRLFTextFilePath)
+    textInputSourceOpDesc.attributeType = FileAttributeType.STRING
+    textInputSourceOpDesc.textInput = inputString
+    textInputSourceOpDesc.fileScanLimit = Option(5)
     val textScanSourceOpExec =
-      new TextInputSourceOpExec(FileAttributeType.STRING, inputString, fileScanLimit = Option(5))
+      new TextInputSourceOpExec(objectMapper.writeValueAsString(textInputSourceOpDesc))
     textScanSourceOpExec.open()
     val processedTuple: Iterator[Tuple] = textScanSourceOpExec
       .produceTuple()
@@ -95,8 +102,10 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
   it should "read first 5 lines of the input text into a single output tuple" in {
     val inputString: String = readFileIntoString(TestOperators.TestTextFilePath)
+    textInputSourceOpDesc.attributeType = FileAttributeType.SINGLE_STRING
+    textInputSourceOpDesc.textInput = inputString
     val textScanSourceOpExec =
-      new TextInputSourceOpExec(FileAttributeType.SINGLE_STRING, inputString)
+      new TextInputSourceOpExec(objectMapper.writeValueAsString(textInputSourceOpDesc))
     textScanSourceOpExec.open()
     val processedTuple: Iterator[Tuple] = textScanSourceOpExec
       .produceTuple()
@@ -119,8 +128,10 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "read first 5 lines of the input text into corresponding output INTEGER tuples" in {
     val inputString: String = readFileIntoString(TestOperators.TestNumbersFilePath)
     textInputSourceOpDesc.attributeType = FileAttributeType.INTEGER
+    textInputSourceOpDesc.textInput = inputString
+    textInputSourceOpDesc.fileScanLimit = Option(5)
     val textScanSourceOpExec =
-      new TextInputSourceOpExec(FileAttributeType.INTEGER, inputString, fileScanLimit = Option(5))
+      new TextInputSourceOpExec(objectMapper.writeValueAsString(textInputSourceOpDesc))
     textScanSourceOpExec.open()
     val processedTuple: Iterator[Tuple] = textScanSourceOpExec
       .produceTuple()

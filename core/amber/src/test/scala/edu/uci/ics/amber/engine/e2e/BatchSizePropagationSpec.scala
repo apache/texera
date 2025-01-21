@@ -4,7 +4,6 @@ import akka.actor.{ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
 import edu.uci.ics.amber.clustering.SingleNodeListener
-import edu.uci.ics.amber.core.storage.result.OpResultStorage
 import edu.uci.ics.amber.core.workflow.{WorkflowContext, WorkflowSettings}
 import edu.uci.ics.amber.engine.architecture.controller._
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings._
@@ -12,7 +11,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
 import edu.uci.ics.amber.operator.TestOperators
 import edu.uci.ics.amber.operator.aggregate.AggregationFunction
-import edu.uci.ics.amber.workflow.PortIdentity
+import edu.uci.ics.amber.core.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.LogicalLink
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
@@ -28,15 +27,12 @@ class BatchSizePropagationSpec
 
   implicit val timeout: Timeout = Timeout(5.seconds)
 
-  val resultStorage = new OpResultStorage()
-
   override def beforeAll(): Unit = {
     system.actorOf(Props[SingleNodeListener](), "cluster-info")
   }
 
   override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
-    resultStorage.clear()
   }
 
   def verifyBatchSizeInPartitioning(
@@ -102,7 +98,7 @@ class BatchSizePropagationSpec
     }
   }
 
-  "Engine" should "propagate the correct batch size for headerlessCsv->sink workflow" in {
+  "Engine" should "propagate the correct batch size for headerlessCsv workflow" in {
     val expectedBatchSize = 1
 
     val customWorkflowSettings = WorkflowSettings(dataTransferBatchSize = expectedBatchSize)
@@ -110,18 +106,10 @@ class BatchSizePropagationSpec
     val context = new WorkflowContext(workflowSettings = customWorkflowSettings)
 
     val headerlessCsvOpDesc = TestOperators.headerlessSmallCsvScanOpDesc()
-    val sink = TestOperators.sinkOpDesc()
 
     val workflow = buildWorkflow(
-      List(headerlessCsvOpDesc, sink),
-      List(
-        LogicalLink(
-          headerlessCsvOpDesc.operatorIdentifier,
-          PortIdentity(),
-          sink.operatorIdentifier,
-          PortIdentity()
-        )
-      ),
+      List(headerlessCsvOpDesc),
+      List(),
       context
     )
 
@@ -131,7 +119,7 @@ class BatchSizePropagationSpec
     verifyBatchSizeInPartitioning(workflowScheduler, 1)
   }
 
-  "Engine" should "propagate the correct batch size for headerlessCsv->keyword->sink workflow" in {
+  "Engine" should "propagate the correct batch size for headerlessCsv->keyword workflow" in {
     val expectedBatchSize = 500
 
     val customWorkflowSettings = WorkflowSettings(dataTransferBatchSize = expectedBatchSize)
@@ -140,21 +128,14 @@ class BatchSizePropagationSpec
 
     val headerlessCsvOpDesc = TestOperators.headerlessSmallCsvScanOpDesc()
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("column-1", "Asia")
-    val sink = TestOperators.sinkOpDesc()
 
     val workflow = buildWorkflow(
-      List(headerlessCsvOpDesc, keywordOpDesc, sink),
+      List(headerlessCsvOpDesc, keywordOpDesc),
       List(
         LogicalLink(
           headerlessCsvOpDesc.operatorIdentifier,
           PortIdentity(),
           keywordOpDesc.operatorIdentifier,
-          PortIdentity()
-        ),
-        LogicalLink(
-          keywordOpDesc.operatorIdentifier,
-          PortIdentity(),
-          sink.operatorIdentifier,
           PortIdentity()
         )
       ),
@@ -167,7 +148,7 @@ class BatchSizePropagationSpec
     verifyBatchSizeInPartitioning(workflowScheduler, 500)
   }
 
-  "Engine" should "propagate the correct batch size for csv->keyword->count->sink workflow" in {
+  "Engine" should "propagate the correct batch size for csv->keyword->count workflow" in {
     val expectedBatchSize = 100
 
     val customWorkflowSettings = WorkflowSettings(dataTransferBatchSize = expectedBatchSize)
@@ -178,10 +159,9 @@ class BatchSizePropagationSpec
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
     val countOpDesc =
       TestOperators.aggregateAndGroupByDesc("Region", AggregationFunction.COUNT, List[String]())
-    val sink = TestOperators.sinkOpDesc()
 
     val workflow = buildWorkflow(
-      List(csvOpDesc, keywordOpDesc, countOpDesc, sink),
+      List(csvOpDesc, keywordOpDesc, countOpDesc),
       List(
         LogicalLink(
           csvOpDesc.operatorIdentifier,
@@ -194,12 +174,6 @@ class BatchSizePropagationSpec
           PortIdentity(),
           countOpDesc.operatorIdentifier,
           PortIdentity()
-        ),
-        LogicalLink(
-          countOpDesc.operatorIdentifier,
-          PortIdentity(),
-          sink.operatorIdentifier,
-          PortIdentity()
         )
       ),
       context
@@ -211,7 +185,7 @@ class BatchSizePropagationSpec
     verifyBatchSizeInPartitioning(workflowScheduler, 100)
   }
 
-  "Engine" should "propagate the correct batch size for csv->keyword->averageAndGroupBy->sink workflow" in {
+  "Engine" should "propagate the correct batch size for csv->keyword->averageAndGroupBy workflow" in {
     val expectedBatchSize = 300
 
     val customWorkflowSettings = WorkflowSettings(dataTransferBatchSize = expectedBatchSize)
@@ -226,10 +200,8 @@ class BatchSizePropagationSpec
         AggregationFunction.AVERAGE,
         List[String]("Country")
       )
-    val sink = TestOperators.sinkOpDesc()
-
     val workflow = buildWorkflow(
-      List(csvOpDesc, keywordOpDesc, averageAndGroupByOpDesc, sink),
+      List(csvOpDesc, keywordOpDesc, averageAndGroupByOpDesc),
       List(
         LogicalLink(
           csvOpDesc.operatorIdentifier,
@@ -242,12 +214,6 @@ class BatchSizePropagationSpec
           PortIdentity(),
           averageAndGroupByOpDesc.operatorIdentifier,
           PortIdentity()
-        ),
-        LogicalLink(
-          averageAndGroupByOpDesc.operatorIdentifier,
-          PortIdentity(),
-          sink.operatorIdentifier,
-          PortIdentity()
         )
       ),
       context
@@ -259,7 +225,7 @@ class BatchSizePropagationSpec
     verifyBatchSizeInPartitioning(workflowScheduler, 300)
   }
 
-  "Engine" should "propagate the correct batch size for csv->(csv->)->join->sink workflow" in {
+  "Engine" should "propagate the correct batch size for csv->(csv->)->join workflow" in {
     val expectedBatchSize = 1
 
     val customWorkflowSettings = WorkflowSettings(dataTransferBatchSize = expectedBatchSize)
@@ -269,14 +235,12 @@ class BatchSizePropagationSpec
     val headerlessCsvOpDesc1 = TestOperators.headerlessSmallCsvScanOpDesc()
     val headerlessCsvOpDesc2 = TestOperators.headerlessSmallCsvScanOpDesc()
     val joinOpDesc = TestOperators.joinOpDesc("column-1", "column-1")
-    val sink = TestOperators.sinkOpDesc()
 
     val workflow = buildWorkflow(
       List(
         headerlessCsvOpDesc1,
         headerlessCsvOpDesc2,
-        joinOpDesc,
-        sink
+        joinOpDesc
       ),
       List(
         LogicalLink(
@@ -290,12 +254,6 @@ class BatchSizePropagationSpec
           PortIdentity(),
           joinOpDesc.operatorIdentifier,
           PortIdentity(1)
-        ),
-        LogicalLink(
-          joinOpDesc.operatorIdentifier,
-          PortIdentity(),
-          sink.operatorIdentifier,
-          PortIdentity()
         )
       ),
       context

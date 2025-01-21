@@ -23,7 +23,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowRecord extends UpdatableRecordImpl<WorkflowRecord> implements Record7<String, String, UInteger, String, Timestamp, Timestamp, Byte>, IWorkflow {
 
-    private static final long serialVersionUID = 1544914961;
+    private static final long serialVersionUID = 1992208375;
 
     /**
      * Setter for <code>texera_db.workflow.name</code>.
@@ -122,18 +122,18 @@ public class WorkflowRecord extends UpdatableRecordImpl<WorkflowRecord> implemen
     }
 
     /**
-     * Setter for <code>texera_db.workflow.is_published</code>.
+     * Setter for <code>texera_db.workflow.is_public</code>.
      */
     @Override
-    public void setIsPublished(Byte value) {
+    public void setIsPublic(Byte value) {
         set(6, value);
     }
 
     /**
-     * Getter for <code>texera_db.workflow.is_published</code>.
+     * Getter for <code>texera_db.workflow.is_public</code>.
      */
     @Override
-    public Byte getIsPublished() {
+    public Byte getIsPublic() {
         return (Byte) get(6);
     }
 
@@ -192,7 +192,7 @@ public class WorkflowRecord extends UpdatableRecordImpl<WorkflowRecord> implemen
 
     @Override
     public Field<Byte> field7() {
-        return Workflow.WORKFLOW.IS_PUBLISHED;
+        return Workflow.WORKFLOW.IS_PUBLIC;
     }
 
     @Override
@@ -227,7 +227,7 @@ public class WorkflowRecord extends UpdatableRecordImpl<WorkflowRecord> implemen
 
     @Override
     public Byte component7() {
-        return getIsPublished();
+        return getIsPublic();
     }
 
     @Override
@@ -262,7 +262,7 @@ public class WorkflowRecord extends UpdatableRecordImpl<WorkflowRecord> implemen
 
     @Override
     public Byte value7() {
-        return getIsPublished();
+        return getIsPublic();
     }
 
     @Override
@@ -303,7 +303,7 @@ public class WorkflowRecord extends UpdatableRecordImpl<WorkflowRecord> implemen
 
     @Override
     public WorkflowRecord value7(Byte value) {
-        setIsPublished(value);
+        setIsPublic(value);
         return this;
     }
 
@@ -331,7 +331,7 @@ public class WorkflowRecord extends UpdatableRecordImpl<WorkflowRecord> implemen
         setContent(from.getContent());
         setCreationTime(from.getCreationTime());
         setLastModifiedTime(from.getLastModifiedTime());
-        setIsPublished(from.getIsPublished());
+        setIsPublic(from.getIsPublic());
     }
 
     @Override
@@ -354,7 +354,7 @@ public class WorkflowRecord extends UpdatableRecordImpl<WorkflowRecord> implemen
     /**
      * Create a detached, initialised WorkflowRecord
      */
-    public WorkflowRecord(String name, String description, UInteger wid, String content, Timestamp creationTime, Timestamp lastModifiedTime, Byte isPublished) {
+    public WorkflowRecord(String name, String description, UInteger wid, String content, Timestamp creationTime, Timestamp lastModifiedTime, Byte isPublic) {
         super(Workflow.WORKFLOW);
 
         set(0, name);
@@ -363,6 +363,6 @@ public class WorkflowRecord extends UpdatableRecordImpl<WorkflowRecord> implemen
         set(3, content);
         set(4, creationTime);
         set(5, lastModifiedTime);
-        set(6, isPublished);
+        set(6, isPublic);
     }
 }

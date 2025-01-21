@@ -2,7 +2,7 @@ package edu.uci.ics.texera.web
 
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.core.storage.result.OpResultStorage
+import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.storage.util.mongo.MongoDatabaseManager
 import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
@@ -15,9 +15,9 @@ import edu.uci.ics.amber.engine.common.Utils.{maptoStatusCode, objectMapper}
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberRuntime, Utils}
-import edu.uci.ics.amber.virtualidentity.ExecutionIdentity
+import edu.uci.ics.amber.core.virtualidentity.ExecutionIdentity
 import edu.uci.ics.texera.web.auth.JwtAuth.setupJwtAuth
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions
 import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
@@ -179,9 +179,9 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
         val storageType = collection.get("storageType").asText()
         val collectionName = collection.get("storageKey").asText()
         storageType match {
-          case OpResultStorage.MEMORY =>
+          case DocumentFactory.ICEBERG =>
           // rely on the server-side result cleanup logic.
-          case OpResultStorage.MONGODB =>
+          case DocumentFactory.MONGODB =>
             MongoDatabaseManager.dropCollection(collectionName)
         }
       })

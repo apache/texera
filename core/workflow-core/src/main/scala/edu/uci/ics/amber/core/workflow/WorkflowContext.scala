@@ -5,7 +5,7 @@ import edu.uci.ics.amber.core.workflow.WorkflowContext.{
   DEFAULT_WORKFLOW_ID,
   DEFAULT_WORKFLOW_SETTINGS
 }
-import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 
 object WorkflowContext {
   val DEFAULT_EXECUTION_ID: ExecutionIdentity = ExecutionIdentity(1L)

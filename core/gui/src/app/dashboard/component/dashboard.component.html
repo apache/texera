@@ -22,7 +22,7 @@
 
       <li
         nz-submenu
-        nzTitle="Community"
+        nzTitle="Hub"
         nzIcon="usergroup-add"
         nzOpen="true">
         <texera-hub [isLogin]="isLogin"></texera-hub>
@@ -164,13 +164,17 @@
   <div class="page-container">
     <nz-layout>
       <div
-        *ngIf="displayNavbar"
+        [hidden]="!displayNavbar"
         id="nav">
         <texera-search-bar></texera-search-bar>
         <ng-container *ngIf="isLogin">
           <texera-user-icon></texera-user-icon>
         </ng-container>
-        <texera-google-login [hidden]="isLogin"></texera-google-login>
+        <asl-google-signin-button
+          *ngIf="!isLogin"
+          type="standard"
+          size="large"
+          width="200"></asl-google-signin-button>
       </div>
 
       <nz-content>
