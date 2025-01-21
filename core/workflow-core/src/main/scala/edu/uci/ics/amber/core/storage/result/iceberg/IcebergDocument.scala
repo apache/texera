@@ -40,9 +40,11 @@ class IcebergDocument[T >: Null <: AnyRef](
   @transient lazy val catalog: Catalog = IcebergCatalogInstance.getInstance()
 
   private lazy val icebergTableManager = new IcebergTableManager(
-    IcebergUtil.loadTableMetadata(IcebergCatalogInstance.getInstance(), tableNamespace, tableName).getOrElse(
-      throw new IllegalStateException(s"Table $tableNamespace.$tableName does not exist")
-    )
+    IcebergUtil
+      .loadTableMetadata(IcebergCatalogInstance.getInstance(), tableNamespace, tableName)
+      .getOrElse(
+        throw new IllegalStateException(s"Table $tableNamespace.$tableName does not exist")
+      )
   )
 
   /**

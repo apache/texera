@@ -13,15 +13,28 @@ import edu.uci.ics.amber.core.storage.result.iceberg.IcebergDocument
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan}
 import edu.uci.ics.amber.engine.architecture.controller.{ExecutionStateUpdate, FatalError}
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{COMPLETED, FAILED, KILLED, RUNNING}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
+  COMPLETED,
+  FAILED,
+  KILLED,
+  RUNNING
+}
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.executionruntimestate.ExecutionMetadataStore
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberRuntime}
-import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, OperatorIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{
+  ExecutionIdentity,
+  OperatorIdentity,
+  WorkflowIdentity
+}
 import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode
 import edu.uci.ics.amber.core.workflow.PortIdentity
 import edu.uci.ics.texera.web.SubscriptionManager
-import edu.uci.ics.texera.web.model.websocket.event.{PaginatedResultEvent, TexeraWebSocketEvent, WebResultUpdateEvent}
+import edu.uci.ics.texera.web.model.websocket.event.{
+  PaginatedResultEvent,
+  TexeraWebSocketEvent,
+  WebResultUpdateEvent
+}
 import edu.uci.ics.texera.web.model.websocket.request.ResultPaginationRequest
 import edu.uci.ics.texera.web.service.WorkflowExecutionService.getLatestExecutionId
 import edu.uci.ics.texera.web.storage.{ExecutionStateStore, WorkflowStateStore}
@@ -238,37 +251,37 @@ class ExecutionResultService(
                 oldInfo.tupleCount,
                 info.tupleCount
               )
-                // using the first port for now. TODO: support multiple ports
-                val storageUri = VFSURIFactory.createResultURI(
-                  workflowIdentity,
-                  executionId,
-                  opId,
-                  PortIdentity()
-                )
-                val opStorage = DocumentFactory.openDocument(storageUri)._1
-                opStorage match {
-                  case mongoDocument: MongoDocument[Tuple] =>
-                    val tableCatStats = mongoDocument.getCategoricalStats
-                    val tableDateStats = mongoDocument.getDateColStats
-                    val tableNumericStats = mongoDocument.getNumericColStats
+              // using the first port for now. TODO: support multiple ports
+              val storageUri = VFSURIFactory.createResultURI(
+                workflowIdentity,
+                executionId,
+                opId,
+                PortIdentity()
+              )
+              val opStorage = DocumentFactory.openDocument(storageUri)._1
+              opStorage match {
+                case mongoDocument: MongoDocument[Tuple] =>
+                  val tableCatStats = mongoDocument.getCategoricalStats
+                  val tableDateStats = mongoDocument.getDateColStats
+                  val tableNumericStats = mongoDocument.getNumericColStats
 
-                    if (
-                      tableNumericStats.nonEmpty || tableCatStats.nonEmpty || tableDateStats.nonEmpty
-                    ) {
-                      allTableStats(opId.id) = tableNumericStats ++ tableCatStats ++ tableDateStats
-                    }
-                  case icebergDocument: IcebergDocument[Tuple] =>
-                    val tableCatStats = icebergDocument.getCategoricalStats
-                    val tableDateStats = icebergDocument.getDateColStats
-                    val tableNumericStats = icebergDocument.getNumericColStats
+                  if (
+                    tableNumericStats.nonEmpty || tableCatStats.nonEmpty || tableDateStats.nonEmpty
+                  ) {
+                    allTableStats(opId.id) = tableNumericStats ++ tableCatStats ++ tableDateStats
+                  }
+                case icebergDocument: IcebergDocument[Tuple] =>
+                  val tableCatStats = icebergDocument.getCategoricalStats
+                  val tableDateStats = icebergDocument.getDateColStats
+                  val tableNumericStats = icebergDocument.getNumericColStats
 
-                    if (
-                      tableNumericStats.nonEmpty || tableCatStats.nonEmpty || tableDateStats.nonEmpty
-                    ) {
-                      allTableStats(opId.id) = tableNumericStats ++ tableCatStats ++ tableDateStats
-                    }
-                  case _ =>
-                }
+                  if (
+                    tableNumericStats.nonEmpty || tableCatStats.nonEmpty || tableDateStats.nonEmpty
+                  ) {
+                    allTableStats(opId.id) = tableNumericStats ++ tableCatStats ++ tableDateStats
+                  }
+                case _ =>
+              }
 
           }
 
