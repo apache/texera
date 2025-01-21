@@ -20,7 +20,7 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.engine.common.{AmberLogging, CheckpointState}
-import edu.uci.ics.amber.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt

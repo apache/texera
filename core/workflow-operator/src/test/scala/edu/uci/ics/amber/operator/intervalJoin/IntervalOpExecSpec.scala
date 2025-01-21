@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.operator.intervalJoin
 
-import edu.uci.ics.amber.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
-import edu.uci.ics.amber.workflow.{PhysicalLink, PortIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.core.workflow.{PhysicalLink, PortIdentity}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -16,6 +16,7 @@ import edu.uci.ics.amber.core.tuple.{
   Tuple,
   TupleLike
 }
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
 class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   val left: Int = 0
   val right: Int = 1
@@ -61,13 +62,10 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   def schema(name: String, attributeType: AttributeType, n: Int = 1): Schema = {
-    Schema
-      .builder()
-      .add(
-        new Attribute(name, attributeType),
-        new Attribute(name + "_" + n, attributeType)
-      )
-      .build()
+    Schema()
+      .add(new Attribute(name, attributeType))
+      .add(new Attribute(name + "_" + n, attributeType))
+
   }
 
   def longTuple(name: String, n: Int = 1, i: Long): Tuple = {
@@ -212,7 +210,10 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       rightInput: Array[T]
   ): Unit = {
     val inputSchemas =
-      Array(schema(leftKey, dataType), schema(rightKey, dataType))
+      Map(
+        PortIdentity() -> schema(leftKey, dataType),
+        PortIdentity(1) -> schema(rightKey, dataType)
+      )
     opDesc = new IntervalJoinOpDesc(
       leftKey,
       rightKey,
@@ -221,15 +222,8 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       includeRightBound,
       timeIntervalType
     )
-    val outputSchema = opDesc.getOutputSchema(inputSchemas)
-    val opExec = new IntervalJoinOpExec(
-      leftAttributeName = leftKey,
-      rightAttributeName = rightKey,
-      includeLeftBound = includeLeftBound,
-      includeRightBound = includeRightBound,
-      constant = intervalConstant,
-      timeIntervalType = Some(timeIntervalType)
-    )
+    val outputSchema = opDesc.getExternalOutputSchemas(inputSchemas).values.head
+    val opExec = new IntervalJoinOpExec(objectMapper.writeValueAsString(opDesc))
     opExec.open()
     counter = 0
     var leftIndex: Int = 0
@@ -400,15 +394,13 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "work with Double value int [] interval" in {
-    val opExec = new IntervalJoinOpExec(
-      leftAttributeName = "point_1",
-      rightAttributeName = "range_1",
-      includeLeftBound = true,
-      includeRightBound = true,
-      constant = 3,
-      timeIntervalType = Option(TimeIntervalType.DAY)
-    )
-
+    opDesc.leftAttributeName = "point_1"
+    opDesc.rightAttributeName = "range_1"
+    opDesc.includeLeftBound = true
+    opDesc.includeRightBound = true
+    opDesc.constant = 3
+    opDesc.timeIntervalType = Option(TimeIntervalType.DAY)
+    val opExec = new IntervalJoinOpExec(objectMapper.writeValueAsString(opDesc))
     opExec.open()
     counter = 0
     val pointList: Array[Double] = Array(1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 8.1, 9.1, 10.1)

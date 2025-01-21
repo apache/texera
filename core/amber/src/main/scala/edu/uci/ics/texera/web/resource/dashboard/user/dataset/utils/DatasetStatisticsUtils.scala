@@ -2,7 +2,7 @@ package edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils
 
 import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.texera.dao.SqlServer
-import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset.DATASET
+import edu.uci.ics.texera.dao.jooq.generated.tables.Dataset.DATASET
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource
 import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource.DatasetQuota
 import org.jooq.types.UInteger
@@ -52,7 +52,7 @@ object DatasetStatisticsUtils {
   def getUserCreatedDatasets(uid: UInteger): List[DatasetQuota] = {
     val datasetList = getUserCreatedDatasetList(uid)
     datasetList.map { dataset =>
-      val size = DatasetResource.calculateLatestDatasetVersionSize(dataset.did)
+      val size = DatasetResource.calculateDatasetVersionSize(dataset.did)
       dataset.copy(size = size)
     }
   }

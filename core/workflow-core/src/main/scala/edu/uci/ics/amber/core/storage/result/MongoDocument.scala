@@ -18,10 +18,11 @@ import java.util.Date
   * @param fromDocument a function that converts a MongoDB Document to an item of type T.
   * @tparam T the type of data items stored in the document.
   */
+@Deprecated
 class MongoDocument[T >: Null <: AnyRef](
     id: String,
     var toDocument: T => Document,
-    var fromDocument: Option[Document => T] = None
+    var fromDocument: Document => T
 ) extends VirtualDocument[T] {
 
   /**
@@ -56,7 +57,7 @@ class MongoDocument[T >: Null <: AnyRef](
     * Return a buffered item writer for the MongoDB collection.
     * @return a new instance of MongoDBBufferedItemWriter.
     */
-  override def writer(): BufferedItemWriter[T] = {
+  override def writer(writerIdentifier: String): BufferedItemWriter[T] = {
     new MongoDBBufferedItemWriter[T](
       commitBatchSize,
       id,
@@ -74,9 +75,7 @@ class MongoDocument[T >: Null <: AnyRef](
       override def hasNext: Boolean = cursor.hasNext
 
       override def next(): T = {
-        val fromDocumentFunc =
-          fromDocument.getOrElse(throw new NotImplementedError("fromDocument is not set"))
-        fromDocumentFunc(cursor.next())
+        fromDocument(cursor.next())
       }
     }.iterator
   }
@@ -133,9 +132,7 @@ class MongoDocument[T >: Null <: AnyRef](
     if (!cursor.hasNext) {
       throw new RuntimeException(f"Index $i out of bounds")
     }
-    val fromDocumentFunc =
-      fromDocument.getOrElse(throw new NotImplementedError("fromDocument is not set"))
-    fromDocumentFunc(cursor.next())
+    fromDocument(cursor.next())
   }
 
   /**
@@ -144,19 +141,6 @@ class MongoDocument[T >: Null <: AnyRef](
     */
   override def getCount: Long = {
     collectionMgr.getCount
-  }
-
-  /**
-    * Set the deserializer, i.e. from Document to T. This method can only be called once.
-    *
-    * @param fromDocument : the deserializer, convert MongoDB's Document to T.
-    * @throws IllegalStateException if setSerde is called more than once.
-    */
-  def setDeserde(fromDocument: Document => T): Unit = {
-    if (this.fromDocument.isDefined) {
-      throw new IllegalStateException("setSerde can only be called once.")
-    }
-    this.fromDocument = Some(fromDocument)
   }
 
   def getNumericColStats: Map[String, Map[String, Double]] =

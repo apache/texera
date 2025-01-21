@@ -140,13 +140,16 @@ import { ClusterAutoCompleteComponent } from "./workspace/component/cluster-auto
 import { NzEmptyModule } from "ng-zorro-antd/empty";
 import { HubComponent } from "./hub/component/hub.component";
 import { HubWorkflowSearchComponent } from "./hub/component/workflow/search/hub-workflow-search.component";
-import { GoogleLoginComponent } from "./dashboard/component/user/google-login/google-login.component";
 import { HubWorkflowComponent } from "./hub/component/workflow/hub-workflow.component";
 import { HubWorkflowDetailComponent } from "./hub/component/workflow/detail/hub-workflow-detail.component";
 import { LandingPageComponent } from "./hub/component/landing-page/landing-page.component";
 import { BrowseSectionComponent } from "./hub/component/browse-section/browse-section.component";
 import { BreakpointConditionInputComponent } from "./workspace/component/code-editor-dialog/breakpoint-condition-input/breakpoint-condition-input.component";
 import { CodeDebuggerComponent } from "./workspace/component/code-editor-dialog/code-debugger.component";
+import { GoogleAuthService } from "./common/service/user/google-auth.service";
+import { SocialLoginModule, SocialAuthServiceConfig, GoogleSigninButtonModule } from "@abacritt/angularx-social-login";
+import { GoogleLoginProvider } from "@abacritt/angularx-social-login";
+import { lastValueFrom } from "rxjs";
 
 registerLocaleData(en);
 
@@ -238,7 +241,6 @@ registerLocaleData(en);
     HubWorkflowComponent,
     HubWorkflowSearchComponent,
     HubWorkflowDetailComponent,
-    GoogleLoginComponent,
     LandingPageComponent,
     BrowseSectionComponent,
     BreakpointConditionInputComponent,
@@ -253,6 +255,7 @@ registerLocaleData(en);
         tokenGetter: AuthService.getAccessToken,
         skipWhenExpired: false,
         throwNoTokenError: false,
+        disallowedRoutes: ["forum/api/users"],
       },
     }),
     BrowserAnimationsModule,
@@ -302,6 +305,8 @@ registerLocaleData(en);
     NzNoAnimationModule,
     TreeModule,
     NzEmptyModule,
+    SocialLoginModule,
+    GoogleSigninButtonModule,
   ],
   providers: [
     provideNzI18n(en_US),
@@ -315,6 +320,20 @@ registerLocaleData(en);
       provide: HTTP_INTERCEPTORS,
       useClass: BlobErrorHttpInterceptor,
       multi: true,
+    },
+    {
+      provide: "SocialAuthServiceConfig",
+      useFactory: (googleAuthService: GoogleAuthService, userService: UserService) => {
+        return lastValueFrom(googleAuthService.getClientId()).then(clientId => ({
+          providers: [
+            {
+              id: GoogleLoginProvider.PROVIDER_ID,
+              provider: new GoogleLoginProvider(clientId, { oneTapEnabled: !userService.isLogin() }),
+            },
+          ],
+        })) as Promise<SocialAuthServiceConfig>;
+      },
+      deps: [GoogleAuthService, UserService],
     },
   ],
   bootstrap: [AppComponent],

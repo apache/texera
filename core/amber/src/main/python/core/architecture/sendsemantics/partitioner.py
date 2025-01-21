@@ -8,7 +8,7 @@ from core.models import Tuple
 from core.models.marker import Marker
 from core.util import get_one_of
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import Partitioning
-from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity
+from proto.edu.uci.ics.amber.core import ActorVirtualIdentity
 
 
 class Partitioner(ABC):

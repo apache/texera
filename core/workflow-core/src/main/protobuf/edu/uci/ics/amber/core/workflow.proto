@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package edu.uci.ics.amber.core;
+
+import "edu/uci/ics/amber/core/virtualidentity.proto";
+import "scalapb/scalapb.proto";
+
+option (scalapb.options) = {
+  scope: FILE,
+  preserve_unknown_fields: false,
+  no_default_values_in_constructor: false
+};
+
+message PortIdentity {
+  int32 id = 1;
+  bool internal = 2;
+}
+
+message InputPort {
+  PortIdentity id = 1 [(scalapb.field).no_box = true];
+  string displayName = 2;
+  bool allowMultiLinks = 3;
+  repeated PortIdentity dependencies = 4;
+}
+
+
+
+message OutputPort {
+  enum OutputMode {
+    // outputs complete result set snapshot for each update
+    SET_SNAPSHOT = 0;
+    // outputs incremental result set delta for each update
+    SET_DELTA = 1;
+    // outputs a single snapshot for the entire execution,
+    // used explicitly to support visualization operators that may exceed the memory limit
+    // TODO: remove this mode after we have a better solution for output size limit
+    SINGLE_SNAPSHOT  = 2;
+  }
+  PortIdentity id = 1 [(scalapb.field).no_box = true];
+  string displayName = 2;
+  bool blocking = 3;
+  OutputMode mode = 4;
+}
+
+
+message PhysicalLink {
+  PhysicalOpIdentity fromOpId = 1 [(scalapb.field).no_box = true];
+  PortIdentity fromPortId = 2 [(scalapb.field).no_box = true];
+  PhysicalOpIdentity toOpId = 3 [(scalapb.field).no_box = true];
+  PortIdentity toPortId = 4 [(scalapb.field).no_box = true];
+}

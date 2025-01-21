@@ -7,23 +7,22 @@ import com.google.api.services.drive.Drive
 import com.google.api.services.drive.model.{File, FileList, Permission}
 import com.google.api.services.sheets.v4.Sheets
 import com.google.api.services.sheets.v4.model.{Spreadsheet, SpreadsheetProperties, ValueRange}
+import edu.uci.ics.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import edu.uci.ics.amber.core.storage.model.VirtualDocument
-import edu.uci.ics.amber.core.storage.result.{OpResultStorage, ResultStorage}
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.engine.common.Utils.retry
 import edu.uci.ics.amber.util.PathUtils
-import edu.uci.ics.amber.virtualidentity.{OperatorIdentity, WorkflowIdentity}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
+import edu.uci.ics.amber.core.virtualidentity.{OperatorIdentity, WorkflowIdentity}
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.websocket.request.ResultExportRequest
 import edu.uci.ics.texera.web.model.websocket.response.ResultExportResponse
 import edu.uci.ics.texera.web.resource.GoogleResource
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{
-  createNewDatasetVersionByAddingFiles,
-  sanitizePath
-}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.createNewDatasetVersionByAddingFiles
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowVersionResource
 import org.jooq.types.UInteger
 import edu.uci.ics.amber.util.ArrowUtils
+import edu.uci.ics.amber.core.workflow.PortIdentity
+import edu.uci.ics.texera.web.service.WorkflowExecutionService.getLatestExecutionId
 
 import java.io.{PipedInputStream, PipedOutputStream}
 import java.nio.charset.StandardCharsets
@@ -38,6 +37,7 @@ import scala.jdk.CollectionConverters.SeqHasAsJava
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector._
 import org.apache.arrow.vector.ipc.ArrowFileWriter
+import org.apache.commons.lang3.StringUtils
 
 import java.io.OutputStream
 import java.nio.channels.Channels
@@ -57,7 +57,6 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
   import ResultExportService._
 
   private val cache = new mutable.HashMap[String, String]
-
   def exportResult(
       user: User,
       request: ResultExportRequest
@@ -71,9 +70,18 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
     }
 
     // By now the workflow should finish running
+    // Only supports external port 0 for now. TODO: support multiple ports
+    val storageUri = VFSURIFactory.createResultURI(
+      workflowIdentity,
+      getLatestExecutionId(workflowIdentity).getOrElse(
+        return ResultExportResponse("error", "The workflow contains no results")
+      ),
+      OperatorIdentity(request.operatorId),
+      PortIdentity()
+    )
     val operatorResult: VirtualDocument[Tuple] =
-      ResultStorage.getOpResultStorage(workflowIdentity).get(OperatorIdentity(request.operatorId))
-    if (operatorResult == null) {
+      DocumentFactory.openDocument(storageUri)._1.asInstanceOf[VirtualDocument[Tuple]]
+    if (operatorResult.getCount == 0) {
       return ResultExportResponse("error", "The workflow contains no results")
     }
 
@@ -190,7 +198,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
     val columnIndex = request.columnIndex
     val filename = request.filename
 
-    if (rowIndex >= results.size || columnIndex >= results.head.getFields.size) {
+    if (rowIndex >= results.size || columnIndex >= results.head.getFields.length) {
       return ResultExportResponse("error", s"Invalid row or column index")
     }
 
@@ -441,8 +449,10 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
       .now()
       .truncatedTo(ChronoUnit.SECONDS)
       .format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"))
-    sanitizePath(
-      s"${request.workflowName}-v$latestVersion-${request.operatorName}-$timestamp.$extension"
+    StringUtils.replaceEach(
+      s"${request.workflowName}-v$latestVersion-${request.operatorName}-$timestamp.$extension",
+      Array("/", "\\"),
+      Array("", "")
     )
   }
 

@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.operator.sentiment;
 
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import edu.stanford.nlp.ling.CoreAnnotations;
 import edu.stanford.nlp.neural.rnn.RNNCoreAnnotations;
 import edu.stanford.nlp.pipeline.Annotation;
@@ -10,6 +11,7 @@ import edu.stanford.nlp.util.CoreMap;
 import edu.uci.ics.amber.core.tuple.Tuple;
 import edu.uci.ics.amber.core.tuple.TupleLike;
 import edu.uci.ics.amber.operator.map.MapOpExec;
+import edu.uci.ics.amber.util.JSONUtils;
 import scala.Function1;
 
 import java.io.Serializable;
@@ -17,13 +19,14 @@ import java.util.*;
 
 public class SentimentAnalysisOpExec extends MapOpExec {
     private final String attributeName;
-    private final edu.uci.ics.amber.operator.sentiment.StanfordCoreNLPWrapper coreNlp;
+    private final StanfordCoreNLPWrapper coreNlp;
 
-    public SentimentAnalysisOpExec(String attributeName) {
-        this.attributeName = attributeName;
+    public SentimentAnalysisOpExec(String descString) throws JsonProcessingException {
+        SentimentAnalysisOpDesc desc = JSONUtils.objectMapper().readValue(descString, SentimentAnalysisOpDesc.class);
+        this.attributeName = desc.attribute();
         Properties props = new Properties();
         props.setProperty("annotators", "tokenize, ssplit, parse, sentiment");
-        coreNlp = new edu.uci.ics.amber.operator.sentiment.StanfordCoreNLPWrapper(props);
+        coreNlp = new StanfordCoreNLPWrapper(props);
         this.setMapFunc((Function1<Tuple, TupleLike> & Serializable) this::sentimentAnalysis);
     }
 

@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package edu.uci.ics.amber.core;
+
+import "google/protobuf/timestamp.proto";
+import "scalapb/scalapb.proto";
+
+option (scalapb.options) = {
+  scope: FILE,
+  preserve_unknown_fields: false
+  no_default_values_in_constructor: false
+};
+
+enum FatalErrorType{
+  COMPILATION_ERROR = 0;
+  EXECUTION_FAILURE = 1;
+}
+
+message WorkflowFatalError {
+  FatalErrorType type = 1;
+  google.protobuf.Timestamp timestamp = 2 [(scalapb.field).no_box = true];
+  string message = 3;
+  string details = 4;
+  string operatorId = 5;
+  string workerId = 6;
+}

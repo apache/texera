@@ -6,12 +6,13 @@ import com.kjetland.jackson.jsonSchema.annotations.{
   JsonSchemaInject,
   JsonSchemaTitle
 }
-import edu.uci.ics.amber.core.executor.OpExecInitInfo
-import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema}
+import edu.uci.ics.amber.core.executor.OpExecWithClassName
+import edu.uci.ics.amber.core.tuple.{AttributeType, Schema}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.operator.metadata.annotations.UIWidget
 import edu.uci.ics.amber.operator.source.apis.twitter.TwitterSourceOpDesc
-import edu.uci.ics.amber.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.util.JSONUtils.objectMapper
+import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 
 class TwitterSearchSourceOpDesc extends TwitterSourceOpDesc {
 
@@ -39,15 +40,9 @@ class TwitterSearchSourceOpDesc extends TwitterSourceOpDesc {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _) =>
-          new TwitterSearchSourceOpExec(
-            apiKey,
-            apiSecretKey,
-            stopWhenRateLimited,
-            searchQuery,
-            limit,
-            () => sourceSchema()
-          )
+        OpExecWithClassName(
+          "edu.uci.ics.amber.operator.source.apis.twitter.v2.TwitterSearchSourceOpExec",
+          objectMapper.writeValueAsString(this)
         )
       )
       .withInputPorts(operatorInfo.inputPorts)
@@ -61,43 +56,39 @@ class TwitterSearchSourceOpDesc extends TwitterSourceOpDesc {
     // twitter schema is hard coded for now. V2 API has changed many fields of the Tweet object.
     // we are also currently depending on redouane59/twittered client library to parse tweet fields.
 
-    Schema
-      .builder()
-      .add(
-        new Attribute("id", AttributeType.STRING),
-        new Attribute("text", AttributeType.STRING),
-        new Attribute("created_at", AttributeType.TIMESTAMP),
-        new Attribute("lang", AttributeType.STRING),
-        new Attribute("tweet_type", AttributeType.STRING),
-        new Attribute("place_id", AttributeType.STRING),
-        new Attribute("place_coordinate", AttributeType.STRING),
-        new Attribute("in_reply_to_status_id", AttributeType.STRING),
-        new Attribute("in_reply_to_user_id", AttributeType.STRING),
-        new Attribute("like_count", AttributeType.LONG),
-        new Attribute("quote_count", AttributeType.LONG),
-        new Attribute("reply_count", AttributeType.LONG),
-        new Attribute("retweet_count", AttributeType.LONG),
-        new Attribute("hashtags", AttributeType.STRING),
-        new Attribute("symbols", AttributeType.STRING),
-        new Attribute("urls", AttributeType.STRING),
-        new Attribute("mentions", AttributeType.STRING),
-        new Attribute("user_id", AttributeType.STRING),
-        new Attribute("user_created_at", AttributeType.TIMESTAMP),
-        new Attribute("user_name", AttributeType.STRING),
-        new Attribute("user_display_name", AttributeType.STRING),
-        new Attribute("user_lang", AttributeType.STRING),
-        new Attribute("user_description", AttributeType.STRING),
-        new Attribute("user_followers_count", AttributeType.LONG),
-        new Attribute("user_following_count", AttributeType.LONG),
-        new Attribute("user_tweet_count", AttributeType.LONG),
-        new Attribute("user_listed_count", AttributeType.LONG),
-        new Attribute("user_location", AttributeType.STRING),
-        new Attribute("user_url", AttributeType.STRING),
-        new Attribute("user_profile_image_url", AttributeType.STRING),
-        new Attribute("user_pinned_tweet_id", AttributeType.STRING),
-        new Attribute("user_protected", AttributeType.BOOLEAN),
-        new Attribute("user_verified", AttributeType.BOOLEAN)
-      )
-      .build()
+    Schema()
+      .add("id", AttributeType.STRING)
+      .add("text", AttributeType.STRING)
+      .add("created_at", AttributeType.TIMESTAMP)
+      .add("lang", AttributeType.STRING)
+      .add("tweet_type", AttributeType.STRING)
+      .add("place_id", AttributeType.STRING)
+      .add("place_coordinate", AttributeType.STRING)
+      .add("in_reply_to_status_id", AttributeType.STRING)
+      .add("in_reply_to_user_id", AttributeType.STRING)
+      .add("like_count", AttributeType.LONG)
+      .add("quote_count", AttributeType.LONG)
+      .add("reply_count", AttributeType.LONG)
+      .add("retweet_count", AttributeType.LONG)
+      .add("hashtags", AttributeType.STRING)
+      .add("symbols", AttributeType.STRING)
+      .add("urls", AttributeType.STRING)
+      .add("mentions", AttributeType.STRING)
+      .add("user_id", AttributeType.STRING)
+      .add("user_created_at", AttributeType.TIMESTAMP)
+      .add("user_name", AttributeType.STRING)
+      .add("user_display_name", AttributeType.STRING)
+      .add("user_lang", AttributeType.STRING)
+      .add("user_description", AttributeType.STRING)
+      .add("user_followers_count", AttributeType.LONG)
+      .add("user_following_count", AttributeType.LONG)
+      .add("user_tweet_count", AttributeType.LONG)
+      .add("user_listed_count", AttributeType.LONG)
+      .add("user_location", AttributeType.STRING)
+      .add("user_url", AttributeType.STRING)
+      .add("user_profile_image_url", AttributeType.STRING)
+      .add("user_pinned_tweet_id", AttributeType.STRING)
+      .add("user_protected", AttributeType.BOOLEAN)
+      .add("user_verified", AttributeType.BOOLEAN)
   }
 }

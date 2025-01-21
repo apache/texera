@@ -10,7 +10,7 @@ import edu.uci.ics.amber.core.workflow.{
   UnknownPartition
 }
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings._
-import edu.uci.ics.amber.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
 case object LinkConfig {
   def toPartitioning(

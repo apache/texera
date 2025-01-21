@@ -12,9 +12,9 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregat
 }
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberLogging}
 import edu.uci.ics.amber.error.ErrorUtils.getStackTraceWithAllCauses
-import edu.uci.ics.amber.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.amber.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
-import edu.uci.ics.amber.workflowruntimestate.WorkflowFatalError
+import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.core.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
+import edu.uci.ics.amber.core.workflowruntimestate.WorkflowFatalError
 import edu.uci.ics.texera.web.SessionState
 import edu.uci.ics.texera.web.model.websocket.response.ClusterStatusUpdateEvent
 import edu.uci.ics.texera.web.service.{WorkflowExecutionService, WorkflowService}

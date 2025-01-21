@@ -10,10 +10,10 @@ import edu.uci.ics.texera.web.model.http.request.auth.{
   UserRegistrationRequest
 }
 import edu.uci.ics.texera.web.model.http.response.TokenIssueResponse
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.USER
-import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
+import edu.uci.ics.texera.dao.jooq.generated.Tables.USER
+import edu.uci.ics.texera.dao.jooq.generated.enums.UserRole
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.UserDao
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.resource.auth.AuthResource._
 import org.jasypt.util.password.StrongPasswordEncryptor
 

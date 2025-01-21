@@ -5,39 +5,44 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.core.tuple.{AttributeTypeUtils, Schema}
 import edu.uci.ics.amber.operator.PythonOperatorDescriptor
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import edu.uci.ics.amber.workflow.{InputPort, OutputPort}
+import edu.uci.ics.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 
 class PythonLambdaFunctionOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("Add/Modify column(s)")
   var lambdaAttributeUnits: List[LambdaAttributeUnit] = List()
 
-  override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    Preconditions.checkArgument(schemas.length == 1)
+  override def getOutputSchemas(
+      inputSchemas: Map[PortIdentity, Schema]
+  ): Map[PortIdentity, Schema] = {
+    Preconditions.checkArgument(inputSchemas.size == 1)
     Preconditions.checkArgument(lambdaAttributeUnits.nonEmpty)
-    val inputSchema = schemas(0)
-    val outputSchemaBuilder = Schema.builder()
-    // keep the same schema from input
-    outputSchemaBuilder.add(inputSchema)
-    // add new attributes
+
+    val inputSchema = inputSchemas.values.head
+    var outputSchema = inputSchema
+
+    // Add new attributes
     for (unit <- lambdaAttributeUnits) {
       if (unit.attributeName.equalsIgnoreCase("Add New Column")) {
-        if (inputSchema.containsAttribute(unit.newAttributeName)) {
+        if (outputSchema.containsAttribute(unit.newAttributeName)) {
           throw new RuntimeException(
-            "Column name " + unit.newAttributeName + " already exists!"
+            s"Column name ${unit.newAttributeName} already exists!"
           )
         }
-        if (unit.newAttributeName != null && unit.newAttributeName.nonEmpty)
-          outputSchemaBuilder.add(unit.newAttributeName, unit.attributeType)
+        if (unit.newAttributeName != null && unit.newAttributeName.nonEmpty) {
+          outputSchema = outputSchema.add(unit.newAttributeName, unit.attributeType)
+        }
       }
     }
-    var outputSchema = outputSchemaBuilder.build()
-    // type casting
+
+    // Type casting
     for (unit <- lambdaAttributeUnits) {
-      if (!unit.attributeName.equalsIgnoreCase("Add New Column"))
+      if (!unit.attributeName.equalsIgnoreCase("Add New Column")) {
         outputSchema =
           AttributeTypeUtils.SchemaCasting(outputSchema, unit.attributeName, unit.attributeType)
+      }
     }
-    outputSchema
+
+    Map(operatorInfo.outputPorts.head.id -> outputSchema)
   }
 
   override def operatorInfo: OperatorInfo =

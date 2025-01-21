@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from core.models.marker import Marker
-from proto.edu.uci.ics.amber.engine.common import ChannelIdentity
+from proto.edu.uci.ics.amber.core import ChannelIdentity
 
 
 @dataclass
