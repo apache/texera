@@ -1,12 +1,13 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.cluster
 
+import edu.uci.ics.texera.dao.jooq.generated.enums.ClusterStatus
+
 import java.sql.Timestamp
 import java.time.Instant
 import org.jooq.impl.DSL.max
-import edu.uci.ics.texera.web.model.jooq.generated.enums.ClusterStatus
-import edu.uci.ics.texera.web.model.jooq.generated.tables.Cluster.CLUSTER
-import edu.uci.ics.texera.web.model.jooq.generated.tables.ClusterActivity.CLUSTER_ACTIVITY
 import org.jooq.DSLContext
+import edu.uci.ics.texera.dao.jooq.generated.tables.Cluster.CLUSTER
+import edu.uci.ics.texera.dao.jooq.generated.tables.ClusterActivity.CLUSTER_ACTIVITY
 
 object ClusterUtils {
 

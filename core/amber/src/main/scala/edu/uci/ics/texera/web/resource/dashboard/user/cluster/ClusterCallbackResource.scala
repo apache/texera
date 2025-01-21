@@ -2,12 +2,13 @@ package edu.uci.ics.texera.web.resource.dashboard.user.cluster
 
 import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.texera.dao.SqlServer
-import edu.uci.ics.texera.web.model.jooq.generated.enums.ClusterStatus
+import edu.uci.ics.texera.dao.jooq.generated.enums.ClusterStatus
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{ClusterActivityDao, ClusterDao}
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.ClusterActivity
+import edu.uci.ics.texera.dao.jooq.generated.tables.Cluster.CLUSTER
 
 import javax.ws.rs.{Consumes, POST, Path}
 import javax.ws.rs.core.{MediaType, Response}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{ClusterActivityDao, ClusterDao}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.ClusterActivity
 import edu.uci.ics.texera.web.resource.dashboard.user.cluster.ClusterUtils.{
   updateClusterActivityEndTime,
   updateClusterStatus
@@ -17,7 +18,6 @@ import edu.uci.ics.texera.web.resource.dashboard.user.cluster.ClusterCallbackRes
   clusterDao,
   context
 }
-import edu.uci.ics.texera.web.model.jooq.generated.tables.Cluster.CLUSTER
 import org.jooq.impl.DSL
 
 import java.sql.Timestamp
