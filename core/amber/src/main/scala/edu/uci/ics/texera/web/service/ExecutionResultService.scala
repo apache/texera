@@ -251,40 +251,40 @@ class ExecutionResultService(
                 oldInfo.tupleCount,
                 info.tupleCount
               )
-              // using the first port for now. TODO: support multiple ports
-              val storageUri = VFSURIFactory.createResultURI(
-                workflowIdentity,
-                executionId,
-                opId,
-                PortIdentity()
-              )
-              val opStorage = DocumentFactory.openDocument(storageUri)._1
-              opStorage match {
-                case mongoDocument: MongoDocument[Tuple] =>
-                  val tableCatStats = mongoDocument.getCategoricalStats
-                  val tableDateStats = mongoDocument.getDateColStats
-                  val tableNumericStats = mongoDocument.getNumericColStats
+              if (StorageConfig.resultStorageMode == MONGODB) {
+                // using the first port for now. TODO: support multiple ports
+                val storageUri = VFSURIFactory.createResultURI(
+                  workflowIdentity,
+                  executionId,
+                  opId,
+                  PortIdentity()
+                )
+                val opStorage = DocumentFactory.openDocument(storageUri)._1
+                opStorage match {
+                  case mongoDocument: MongoDocument[Tuple] =>
+                    val tableCatStats = mongoDocument.getCategoricalStats
+                    val tableDateStats = mongoDocument.getDateColStats
+                    val tableNumericStats = mongoDocument.getNumericColStats
 
-                  if (
-                    tableNumericStats.nonEmpty || tableCatStats.nonEmpty || tableDateStats.nonEmpty
-                  ) {
-                    allTableStats(opId.id) = tableNumericStats ++ tableCatStats ++ tableDateStats
-                  }
-                case icebergDocument: IcebergDocument[Tuple] =>
-                  val tableCatStats = icebergDocument.getCategoricalStats
-                  val tableDateStats = icebergDocument.getDateColStats
-                  val tableNumericStats = icebergDocument.getNumericColStats
+                    if (
+                      tableNumericStats.nonEmpty || tableCatStats.nonEmpty || tableDateStats.nonEmpty
+                    ) {
+                      allTableStats(opId.id) = tableNumericStats ++ tableCatStats ++ tableDateStats
+                    }
+                  case icebergDocument: IcebergDocument[Tuple] =>
+                    val tableCatStats = icebergDocument.getCategoricalStats
+                    val tableDateStats = icebergDocument.getDateColStats
+                    val tableNumericStats = icebergDocument.getNumericColStats
 
-                  if (
-                    tableNumericStats.nonEmpty || tableCatStats.nonEmpty || tableDateStats.nonEmpty
-                  ) {
-                    allTableStats(opId.id) = tableNumericStats ++ tableCatStats ++ tableDateStats
-                  }
-                case _ =>
+                    if (
+                      tableNumericStats.nonEmpty || tableCatStats.nonEmpty || tableDateStats.nonEmpty
+                    ) {
+                      allTableStats(opId.id) = tableNumericStats ++ tableCatStats ++ tableDateStats
+                    }
+                  case _ =>
+                }
               }
-
           }
-
         Iterable(
           WebResultUpdateEvent(
             buf.toMap,
