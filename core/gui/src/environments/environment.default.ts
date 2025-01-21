@@ -36,7 +36,7 @@ export const defaultEnvironment = {
   /**
    * whether google login is enabled
    */
-  googleLogin: false,
+  googleLogin: true,
   /**
    * whether invite only is enabled
    */
