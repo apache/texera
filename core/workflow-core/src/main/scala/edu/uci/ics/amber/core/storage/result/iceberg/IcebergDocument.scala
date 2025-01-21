@@ -12,6 +12,7 @@ import org.apache.iceberg.exceptions.NoSuchTableException
 import java.net.URI
 import java.util.concurrent.locks.{ReentrantLock, ReentrantReadWriteLock}
 import scala.jdk.CollectionConverters._
+import java.util.Date
 
 /**
   * IcebergDocument is used to read and write a set of T as an Iceberg table.
@@ -26,7 +27,7 @@ import scala.jdk.CollectionConverters._
   * @param deserde function to deserialize an Iceberg Record into T.
   * @tparam T type of the data items stored in the Iceberg table.
   */
-private[storage] class IcebergDocument[T >: Null <: AnyRef](
+class IcebergDocument[T >: Null <: AnyRef](
     val tableNamespace: String,
     val tableName: String,
     val tableSchema: org.apache.iceberg.Schema,
@@ -37,6 +38,12 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
   private val lock = new ReentrantReadWriteLock()
 
   @transient lazy val catalog: Catalog = IcebergCatalogInstance.getInstance()
+
+  private lazy val icebergTableManager = new IcebergTableManager(
+    IcebergUtil.loadTableMetadata(IcebergCatalogInstance.getInstance(), tableNamespace, tableName).getOrElse(
+      throw new IllegalStateException(s"Table $tableNamespace.$tableName does not exist")
+    )
+  )
 
   /**
     * Returns the URI of the table location.
@@ -248,4 +255,12 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
         }
       }
     }
+
+  def getNumericColStats: Map[String, Map[String, Double]] =
+    icebergTableManager.calculateNumericStats()
+
+  def getDateColStats: Map[String, Map[String, Date]] = icebergTableManager.calculateDateStats()
+
+  def getCategoricalStats: Map[String, Map[String, Map[String, Integer]]] =
+    icebergTableManager.calculateCategoricalStats()
 }

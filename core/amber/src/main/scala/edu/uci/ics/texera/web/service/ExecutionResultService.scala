@@ -9,31 +9,19 @@ import edu.uci.ics.amber.core.storage.VFSResourceType.MATERIALIZED_RESULT
 import edu.uci.ics.amber.core.storage.model.VirtualDocument
 import edu.uci.ics.amber.core.storage.{DocumentFactory, StorageConfig, VFSURIFactory}
 import edu.uci.ics.amber.core.storage.result._
+import edu.uci.ics.amber.core.storage.result.iceberg.IcebergDocument
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan}
 import edu.uci.ics.amber.engine.architecture.controller.{ExecutionStateUpdate, FatalError}
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
-  COMPLETED,
-  FAILED,
-  KILLED,
-  RUNNING
-}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{COMPLETED, FAILED, KILLED, RUNNING}
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.executionruntimestate.ExecutionMetadataStore
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberRuntime}
-import edu.uci.ics.amber.core.virtualidentity.{
-  ExecutionIdentity,
-  OperatorIdentity,
-  WorkflowIdentity
-}
+import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, OperatorIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode
 import edu.uci.ics.amber.core.workflow.PortIdentity
 import edu.uci.ics.texera.web.SubscriptionManager
-import edu.uci.ics.texera.web.model.websocket.event.{
-  PaginatedResultEvent,
-  TexeraWebSocketEvent,
-  WebResultUpdateEvent
-}
+import edu.uci.ics.texera.web.model.websocket.event.{PaginatedResultEvent, TexeraWebSocketEvent, WebResultUpdateEvent}
 import edu.uci.ics.texera.web.model.websocket.request.ResultPaginationRequest
 import edu.uci.ics.texera.web.service.WorkflowExecutionService.getLatestExecutionId
 import edu.uci.ics.texera.web.storage.{ExecutionStateStore, WorkflowStateStore}
@@ -250,7 +238,6 @@ class ExecutionResultService(
                 oldInfo.tupleCount,
                 info.tupleCount
               )
-              if (StorageConfig.resultStorageMode == MONGODB) {
                 // using the first port for now. TODO: support multiple ports
                 val storageUri = VFSURIFactory.createResultURI(
                   workflowIdentity,
@@ -270,10 +257,21 @@ class ExecutionResultService(
                     ) {
                       allTableStats(opId.id) = tableNumericStats ++ tableCatStats ++ tableDateStats
                     }
+                  case icebergDocument: IcebergDocument[Tuple] =>
+                    val tableCatStats = icebergDocument.getCategoricalStats
+                    val tableDateStats = icebergDocument.getDateColStats
+                    val tableNumericStats = icebergDocument.getNumericColStats
+
+                    if (
+                      tableNumericStats.nonEmpty || tableCatStats.nonEmpty || tableDateStats.nonEmpty
+                    ) {
+                      allTableStats(opId.id) = tableNumericStats ++ tableCatStats ++ tableDateStats
+                    }
                   case _ =>
                 }
-              }
+
           }
+
         Iterable(
           WebResultUpdateEvent(
             buf.toMap,
