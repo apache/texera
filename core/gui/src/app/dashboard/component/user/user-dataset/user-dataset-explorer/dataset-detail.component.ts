@@ -1,5 +1,5 @@
 import { Component, OnInit } from "@angular/core";
-import { ActivatedRoute, NavigationEnd, Router } from "@angular/router";
+import { ActivatedRoute, Router } from "@angular/router";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DatasetService } from "../../../../service/user/dataset/dataset.service";
 import { NzResizeEvent } from "ng-zorro-antd/resizable";
@@ -10,13 +10,14 @@ import { NotificationService } from "../../../../../common/service/notification/
 import { DownloadService } from "../../../../service/user/download/download.service";
 import { formatSize } from "src/app/common/util/size-formatter.util";
 import { DASHBOARD_USER_DATASET } from "../../../../../app-routing.constant";
+import { UserService } from "../../../../../common/service/user/user.service";
 
 @UntilDestroy()
 @Component({
-  templateUrl: "./user-dataset-explorer.component.html",
-  styleUrls: ["./user-dataset-explorer.component.scss"],
+  templateUrl: "./dataset-detail.component.html",
+  styleUrls: ["./dataset-detail.component.scss"],
 })
-export class UserDatasetExplorerComponent implements OnInit {
+export class DatasetDetailComponent implements OnInit {
   public did: number | undefined;
   public datasetName: string = "";
   public datasetDescription: string = "";
@@ -38,14 +39,23 @@ export class UserDatasetExplorerComponent implements OnInit {
   public isCreatingVersion: boolean = false;
   public isCreatingDataset: boolean = false;
   public versionCreatorBaseVersion: DatasetVersion | undefined;
+  public isLogin: boolean = this.userService.isLogin();
 
   constructor(
     private route: ActivatedRoute,
     private router: Router,
     private datasetService: DatasetService,
     private notificationService: NotificationService,
-    private downloadService: DownloadService
-  ) {}
+    private downloadService: DownloadService,
+    private userService: UserService
+  ) {
+    this.userService
+      .userChanged()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        this.isLogin = this.userService.isLogin();
+      });
+  }
 
   // item for control the resizeable sider
   MAX_SIDER_WIDTH = 600;
@@ -153,7 +163,7 @@ export class UserDatasetExplorerComponent implements OnInit {
   retrieveDatasetInfo() {
     if (this.did) {
       this.datasetService
-        .getDataset(this.did)
+        .getDataset(this.did, this.isLogin)
         .pipe(untilDestroyed(this))
         .subscribe(dashboardDataset => {
           const dataset = dashboardDataset.dataset;
@@ -171,7 +181,7 @@ export class UserDatasetExplorerComponent implements OnInit {
   retrieveDatasetVersionList() {
     if (this.did) {
       this.datasetService
-        .retrieveDatasetVersionList(this.did)
+        .retrieveDatasetVersionList(this.did, this.isLogin)
         .pipe(untilDestroyed(this))
         .subscribe(versionNames => {
           this.versions = versionNames;
@@ -215,10 +225,9 @@ export class UserDatasetExplorerComponent implements OnInit {
     this.selectedVersion = version;
     if (this.did && this.selectedVersion.dvid)
       this.datasetService
-        .retrieveDatasetVersionFileTree(this.did, this.selectedVersion.dvid)
+        .retrieveDatasetVersionFileTree(this.did, this.selectedVersion.dvid, this.isLogin)
         .pipe(untilDestroyed(this))
         .subscribe(data => {
-          console.log(data);
           this.fileTreeNodeList = data.fileNodes;
           this.currentDatasetVersionSize = data.size;
           let currentNode = this.fileTreeNodeList[0];

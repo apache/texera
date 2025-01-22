@@ -80,7 +80,7 @@ export class UserDatasetComponent implements AfterViewInit {
    *  - "public": limits the search to public datasets
    *  - "private": limits the search to dataset where the user has direct access rights.
    */
-  async search(forced: Boolean = false, filterScope: "all" | "public" | "private" = "all"): Promise<void> {
+  async search(forced: Boolean = false, filterScope: "all" | "public" | "private" = "private"): Promise<void> {
     const sameList =
       this.masterFilterList !== null &&
       this.filters.masterFilterList.length === this.masterFilterList.length &&

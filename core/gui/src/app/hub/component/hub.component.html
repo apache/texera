@@ -23,6 +23,17 @@
   </li>
   <li
     nz-menu-item
+    nz-tooltip="Search public dataset"
+    nzMatchRouter="true"
+    nzTooltipPlacement="right"
+    [routerLink]="DASHBOARD_HUB_DATASET_RESULT">
+    <span
+      nz-icon
+      nzType="database"></span>
+    <span>Datasets</span>
+  </li>
+  <li
+    nz-menu-item
     nz-tooltip="About"
     nzMatchRouter="true"
     nzTooltipPlacement="right"

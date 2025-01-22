@@ -26,13 +26,15 @@ object DatasetAccessResource {
     .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
     .createDSLContext()
 
-  def userHasReadAccess(ctx: DSLContext, did: UInteger, uid: UInteger): Boolean = {
+  def isDatasetPublic(ctx: DSLContext, did: UInteger): Boolean = {
     val datasetDao = new DatasetDao(ctx.configuration())
-    val isDatasetPublic = Option(datasetDao.fetchOneByDid(did))
+    Option(datasetDao.fetchOneByDid(did))
       .flatMap(dataset => Option(dataset.getIsPublic))
       .contains(1.toByte)
+  }
 
-    isDatasetPublic ||
+  def userHasReadAccess(ctx: DSLContext, did: UInteger, uid: UInteger): Boolean = {
+    isDatasetPublic(ctx, did) ||
     userHasWriteAccess(ctx, did, uid) ||
     getDatasetUserAccessPrivilege(ctx, did, uid) == DatasetUserAccessPrivilege.READ
   }
@@ -92,7 +94,7 @@ class DatasetAccessResource {
   @GET
   @Path("/owner/{did}")
   def getOwnerEmailOfDataset(@PathParam("did") did: UInteger): String = {
-    var email = "";
+    var email = ""
     withTransaction(context) { ctx =>
       val owner = getOwner(ctx, did)
       if (owner != null) {
