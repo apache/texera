@@ -83,6 +83,9 @@ object WorkflowExecutionsResource {
     val executions = context
       .select(WORKFLOW_EXECUTIONS.EID)
       .from(WORKFLOW_EXECUTIONS)
+      .join(WORKFLOW_VERSION)
+      .on(WORKFLOW_EXECUTIONS.VID.eq(WORKFLOW_VERSION.VID))
+      .where(WORKFLOW_VERSION.WID.eq(wid))
       .fetchInto(classOf[UInteger])
       .asScala
       .toList
