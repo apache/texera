@@ -9,6 +9,8 @@ import pytest
 from core.models import Schema, Tuple
 from core.storage.iceberg_document import IcebergDocument
 from core.storage.iceberg_utils import amber_tuples_to_arrow_table, arrow_table_to_amber_tuples
+from core.storage.vfs_uri_factory import VFSURIFactory
+from proto.edu.uci.ics.amber.core import WorkflowIdentity, ExecutionIdentity, OperatorIdentity, PortIdentity
 
 
 # Function to generate random binary data
@@ -35,7 +37,13 @@ class TestIcebergDocument:
     @pytest.fixture
     def iceberg_document(self, amber_schema):
         operator_uuid = str(uuid.uuid4()).replace("-", "")
-        uri = f"wid_0_eid_0_opid_test_table_{operator_uuid}_pid_0_E_result"
+        # uri = f"wid_0_eid_0_opid_test_table_{operator_uuid}_pid_0_E_result"
+        uri = VFSURIFactory.create_result_uri(
+            WorkflowIdentity(id=0),
+            ExecutionIdentity(id=0),
+            OperatorIdentity(id=f"test_table_{operator_uuid}"),
+            PortIdentity(id=0)
+        )
         arrow_schema = amber_schema.as_arrow_schema()
         return IcebergDocument[Tuple](
             "operator-result",
@@ -136,7 +144,7 @@ class TestIcebergDocument:
 
     def test_concurrent_writes_followed_by_read(self, iceberg_document, sample_items):
         all_items = sample_items
-        num_writers = 5
+        num_writers = 10
         # Calculate the batch size and the remainder
         batch_size = len(all_items) // num_writers
         remainder = len(all_items) % num_writers

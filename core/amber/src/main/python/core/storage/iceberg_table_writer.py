@@ -82,7 +82,7 @@ class IcebergTableWriter(BufferedItemWriter[T]):
             """Appends a pyarrow dataframe to the table in the catalog using tenacity exponential backoff."""
 
             @retry(
-                wait=wait_exponential(multiplier=1, min=4, max=32),
+                wait=wait_exponential(multiplier=1, min=1, max=8),
                 stop=stop_after_attempt(10),
                 reraise=True
             )
