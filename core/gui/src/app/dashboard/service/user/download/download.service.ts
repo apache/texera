@@ -10,7 +10,7 @@ import { Workflow } from "../../../../common/type/workflow";
 import { AppSettings } from "../../../../common/app-setting";
 import { HttpClient } from "@angular/common/http";
 
-export const EXPORT_BASE_URL = "export/result";
+export const EXPORT_BASE_URL = "result/export";
 
 interface DownloadableItem {
   blob: Blob;
