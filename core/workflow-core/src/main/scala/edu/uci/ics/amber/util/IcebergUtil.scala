@@ -10,6 +10,7 @@ import org.apache.iceberg.data.{GenericRecord, Record}
 import org.apache.iceberg.hadoop.{HadoopCatalog, HadoopFileIO}
 import org.apache.iceberg.io.{CloseableIterable, InputFile}
 import org.apache.iceberg.parquet.{Parquet, ParquetValueReader}
+import org.apache.iceberg.rest.RESTCatalog
 import org.apache.iceberg.types.Type.PrimitiveType
 import org.apache.iceberg.{
   CatalogProperties,
@@ -57,6 +58,38 @@ object IcebergUtil {
       ).asJava
     )
 
+    catalog
+  }
+
+  /**
+    * Creates and initializes a RESTCatalog with the given parameters.
+    * - Configures the catalog to interact with a REST endpoint.
+    * - The `warehouse` parameter specifies the root directory for storing table data.
+    * - Sets the file I/O implementation to `HadoopFileIO`.
+    * - Authentication support is not implemented yet (see TODO).
+    *
+    * Note: The only tested REST catalog implementation is `tabulario/iceberg-rest`
+    * (https://hub.docker.com/r/tabulario/iceberg-rest).
+    *
+    * TODO: Add authentication support, such as OAuth2, using `OAuth2Properties`.
+    *
+    * @param catalogName the name of the catalog.
+    * @param warehouse   the root path for the warehouse where the tables are stored.
+    * @return the initialized RESTCatalog instance.
+    */
+  def createRestCatalog(
+      catalogName: String,
+      warehouse: Path
+  ): RESTCatalog = {
+    val catalog = new RESTCatalog()
+    catalog.initialize(
+      catalogName,
+      Map(
+        "warehouse" -> warehouse.toString,
+        CatalogProperties.URI -> StorageConfig.icebergCatalogUri,
+        CatalogProperties.FILE_IO_IMPL -> classOf[HadoopFileIO].getName
+      ).asJava
+    )
     catalog
   }
 

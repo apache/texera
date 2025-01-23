@@ -5,6 +5,9 @@ storage:
     database: "texera_storage"
     commit-batch-size: 1000
   iceberg:
+    catalog:
+      type: hadoop # either hadoop or rest
+      uri: http://localhost:8181 # the uri of the rest catalog
     table:
       namespace: "operator-result"
       commit:
