@@ -31,11 +31,6 @@ def create_table(
     :param override_if_exists: Whether to drop and recreate the table if it exists.
     :return: The created Iceberg table.
     """
-    table_properties = {
-        "commit.num-retries": str(5),  # Replace with your configuration values
-        "commit.max-retry-wait-ms": str(5000),  # Example retry wait time
-        "commit.min-retry-wait-ms": str(100)  # Example retry wait time
-    }
 
     identifier = f"{table_namespace}.{table_name}"
 
@@ -47,8 +42,7 @@ def create_table(
     table = catalog.create_table(
         identifier=identifier,
         schema=table_schema,
-        partition_spec=UNPARTITIONED_PARTITION_SPEC,
-        properties=table_properties
+        partition_spec=UNPARTITIONED_PARTITION_SPEC
     )
 
     return table
@@ -89,9 +83,9 @@ def amber_tuples_to_arrow_table(iceberg_schema: Schema, tuple_list: Iterable[Tup
     return pa.Table.from_pydict(
         {
             name: [t[name] for t in tuple_list]
-            for name in iceberg_schema.names
+            for name in iceberg_schema.as_arrow().names
         },
-        schema=iceberg_schema,
+        schema=iceberg_schema.as_arrow(),
     )
 
 
@@ -100,7 +94,7 @@ def arrow_table_to_amber_tuples(iceberg_schema: Schema, arrow_table: pa.Table) -
     return (
         Tuple(
             {name: field_accessor for name in arrow_table.column_names},
-            schema=core.models.Schema(iceberg_schema)
+            schema=core.models.Schema(iceberg_schema.as_arrow())
         )
         for field_accessor in tuple_provider
     )
