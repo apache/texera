@@ -1,8 +1,10 @@
+from pyiceberg.catalog.rest import RestCatalog
 from typing import Optional
 
 from pyiceberg.catalog import Catalog
 from pyiceberg.catalog.sql import SqlCatalog
 
+# replace with actual path
 warehouse_path = "/Users/xzliu/IdeaProjects/texera/core/amber/user-resources/workflow-results"
 
 
@@ -23,12 +25,19 @@ class IcebergCatalogInstance:
         :return: the Iceberg catalog instance.
         """
         if cls._instance is None:
-            cls._instance = SqlCatalog(
+            # cls._instance = SqlCatalog(
+            #     "texera_iceberg",
+            #     **{
+            #         "uri": "postgresql+psycopg2://iceberg_py_test:test@localhost/test_iceberg_catalog_jan16",
+            #         "warehouse": f"file://{warehouse_path}",
+            #         "init_catalog_tables": "true"
+            #     }
+            # )
+            cls._instance = RestCatalog(
                 "texera_iceberg",
                 **{
-                    "uri": "postgresql+psycopg2://iceberg_py_test:test@localhost/test_iceberg_catalog_jan16",
-                    "warehouse": f"file://{warehouse_path}",
-                    "init_catalog_tables": "true"
+                    "uri": "localhost:8181",
+                    "warehouse": f"file://{warehouse_path}"
                 }
             )
         return cls._instance
@@ -41,8 +50,3 @@ class IcebergCatalogInstance:
         :param catalog: the new Iceberg catalog instance to replace the current one.
         """
         cls._instance = catalog
-
-
-if __name__ == '__main__':
-    ins = IcebergCatalogInstance.get_instance()
-    print(ins)
