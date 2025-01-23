@@ -2,8 +2,6 @@ package edu.uci.ics.amber.storage.result.iceberg
 
 import edu.uci.ics.amber.core.storage.{
   DocumentFactory,
-  IcebergCatalogInstance,
-  StorageConfig,
   VFSURIFactory
 }
 import edu.uci.ics.amber.core.storage.model.{VirtualDocument, VirtualDocumentSpec}
@@ -56,13 +54,6 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
     // Initialize serialization and deserialization functions
     serde = IcebergUtil.toGenericRecord
     deserde = (schema, record) => IcebergUtil.fromRecord(record, amberSchema)
-
-    // Initialize the the Iceberg catalog
-    catalog = IcebergUtil.createHadoopCatalog(
-      "iceberg_document_test",
-      StorageConfig.fileStorageDirectoryPath
-    )
-    IcebergCatalogInstance.replaceInstance(catalog)
   }
 
   override def beforeEach(): Unit = {
