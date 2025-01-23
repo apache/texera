@@ -36,7 +36,7 @@ class IcebergCatalogInstance:
             cls._instance = RestCatalog(
                 "texera_iceberg",
                 **{
-                    "uri": "localhost:8181",
+                    "uri": "http://localhost:8181",
                     "warehouse": f"file://{warehouse_path}"
                 }
             )
