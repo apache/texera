@@ -1,15 +1,9 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
 import com.softwaremill.macwire.wire
-import edu.uci.ics.amber.core.executor.OperatorExecutor
+import edu.uci.ics.amber.core.executor.{OperatorExecutor, SourceOperatorExecutor}
 import edu.uci.ics.amber.core.marker.{EndOfInputChannel, StartOfInputChannel, State}
-import edu.uci.ics.amber.core.tuple.{
-  FinalizeExecutor,
-  FinalizePort,
-  SchemaEnforceable,
-  Tuple,
-  TupleLike
-}
+import edu.uci.ics.amber.core.tuple.{FinalizeExecutor, FinalizePort, SchemaEnforceable, Tuple, TupleLike}
 import edu.uci.ics.amber.engine.architecture.common.AmberProcessor
 import edu.uci.ics.amber.engine.architecture.logreplay.ReplayLogManager
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{InputManager, OutputManager, WorkerTimerService}
@@ -19,7 +13,6 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDel
 import edu.uci.ics.amber.engine.architecture.worker.managers.SerializationManager
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{COMPLETED, READY, RUNNING}
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
-import edu.uci.ics.amber.engine.common.SourceOperatorExecutor
 import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
