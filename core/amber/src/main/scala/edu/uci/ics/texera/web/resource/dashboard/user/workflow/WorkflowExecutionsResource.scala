@@ -6,13 +6,8 @@ import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.core.virtualidentity.{ChannelMarkerIdentity, ExecutionIdentity}
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.dao.jooq.generated.Tables.{
-  USER,
-  WORKFLOW_EXECUTIONS,
-  OPERATOR_EXECUTIONS,
-  OPERATOR_RUNTIME_STATISTICS,
-  WORKFLOW_VERSION
-}
+import edu.uci.ics.texera.dao.jooq.generated.Tables.{USER, WORKFLOW_EXECUTIONS, OPERATOR_EXECUTIONS,
+  OPERATOR_RUNTIME_STATISTICS, WORKFLOW_VERSION}
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
   OperatorExecutionsDao,
   OperatorRuntimeStatisticsDao,
@@ -24,13 +19,14 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
   OperatorRuntimeStatistics
 }
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource._
-import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
+import edu.uci.ics.texera.web.service.{ExecutionsMetadataPersistService, WorkflowService}
 import io.dropwizard.auth.Auth
 import org.jooq.types.{UInteger, ULong}
 
 import java.net.URI
 import java.sql.Timestamp
 import java.util
+import java.time.Instant
 import java.util.concurrent.TimeUnit
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
@@ -154,37 +150,20 @@ class WorkflowExecutionsResource {
   @GET
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/{wid}/interactions/{eid}")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def retrieveInteractionHistory(
       @PathParam("wid") wid: UInteger,
       @PathParam("eid") eid: UInteger,
-      @Auth sessionUser: SessionUser
   ): List[String] = {
-    val user = sessionUser.getUser
-    if (!WorkflowAccessResource.hasReadAccess(wid, user.getUid)) {
-      List()
-    } else {
-      ExecutionsMetadataPersistService.tryGetExistingExecution(
-        ExecutionIdentity(eid.longValue())
-      ) match {
-        case Some(value) =>
-          val logLocation = value.getLogLocation
-          if (logLocation != null && logLocation.nonEmpty) {
-            val storage =
-              SequentialRecordStorage.getStorage[ReplayLogRecord](Some(new URI(logLocation)))
-            val result = new mutable.ArrayBuffer[ChannelMarkerIdentity]()
-            storage.getReader("CONTROLLER").mkRecordIterator().foreach {
-              case destination: ReplayDestination =>
-                result.append(destination.id)
-              case _ =>
-            }
-            result.map(_.id).toList
-          } else {
-            List()
-          }
-        case None => List()
-      }
+    val logLocation = WorkflowService.logLocations(eid.intValue())
+    val storage =
+      SequentialRecordStorage.getStorage[ReplayLogRecord](Some(logLocation))
+    val result = new mutable.ArrayBuffer[ChannelMarkerIdentity]()
+    storage.getReader("CONTROLLER").mkRecordIterator().foreach {
+      case destination: ReplayDestination =>
+        result.append(destination.id)
+      case _ =>
     }
+    result.map(_.id).toList
   }
 
   /**
@@ -195,7 +174,6 @@ class WorkflowExecutionsResource {
   @GET
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/{wid}")
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
   def retrieveExecutionsOfWorkflow(
       @PathParam("wid") wid: UInteger,
       @Auth sessionUser: SessionUser
@@ -229,6 +207,11 @@ class WorkflowExecutionsResource {
         .toList
         .reverse
     }
+  }
+
+  def protobufTimestampToSqlTimestamp(protoTimestamp: com.google.protobuf.timestamp.Timestamp): java.sql.Timestamp = {
+    val instant = Instant.ofEpochSecond(protoTimestamp.seconds, protoTimestamp.nanos.toLong)
+    java.sql.Timestamp.from(instant)
   }
 
   @GET

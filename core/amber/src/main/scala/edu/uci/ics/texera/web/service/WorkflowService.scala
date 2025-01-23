@@ -5,25 +5,15 @@ import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.WorkflowRuntimeException
 import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.storage.result.ExecutionResourcesMapping
+import edu.uci.ics.amber.core.virtualidentity.{ChannelMarkerIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.WorkflowContext
-import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
-  COMPLETED,
-  FAILED
-}
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
-  FaultToleranceConfig,
-  StateRestoreConfig
-}
-import edu.uci.ics.amber.engine.common.AmberConfig
-import edu.uci.ics.amber.error.ErrorUtils.{getOperatorFromActorIdOpt, getStackTraceWithAllCauses}
-import edu.uci.ics.amber.core.virtualidentity.{
-  ChannelMarkerIdentity,
-  ExecutionIdentity,
-  WorkflowIdentity
-}
 import edu.uci.ics.amber.core.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
 import edu.uci.ics.amber.core.workflowruntimestate.WorkflowFatalError
+import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{COMPLETED, FAILED}
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{FaultToleranceConfig, StateRestoreConfig}
+import edu.uci.ics.amber.engine.common.AmberConfig
+import edu.uci.ics.amber.error.ErrorUtils.{getOperatorFromActorIdOpt, getStackTraceWithAllCauses}
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
 import edu.uci.ics.texera.web.model.websocket.request.WorkflowExecuteRequest
@@ -39,11 +29,18 @@ import play.api.libs.json.Json
 import java.net.URI
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
+import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters.IterableHasAsScala
 
 object WorkflowService {
   private val workflowServiceMapping = new ConcurrentHashMap[String, WorkflowService]()
   val cleanUpDeadlineInSeconds: Int = AmberConfig.executionStateCleanUpInSecs
+  val logLocations = mutable.HashMap[Int, URI]()
+  val executions = mutable.HashMap[Int, mutable.ArrayBuffer[Int]]()
+  val timstamps = mutable.HashMap[Int, Timestamp]()
+
+
 
   def getAllWorkflowServices: Iterable[WorkflowService] = workflowServiceMapping.values().asScala
 
@@ -78,7 +75,6 @@ class WorkflowService(
   private val errorSubject = BehaviorSubject.create[TexeraWebSocketEvent]().toSerialized
   val stateStore = new WorkflowStateStore()
   var executionService: BehaviorSubject[WorkflowExecutionService] = BehaviorSubject.create()
-
   val resultService: ExecutionResultService = new ExecutionResultService(workflowId, stateStore)
   val exportService: ResultExportService = new ResultExportService(workflowId)
   val lifeCycleManager: WorkflowLifecycleManager = new WorkflowLifecycleManager(
@@ -170,6 +166,7 @@ class WorkflowService(
 
     val workflowContext: WorkflowContext = createWorkflowContext()
     var controllerConf = ControllerConfig.default
+    val intWid = workflowContext.workflowId.id.toInt
 
     // clean up results from previous run
     val previousExecutionId = WorkflowExecutionService.getLatestExecutionId(workflowId)
@@ -192,6 +189,13 @@ class WorkflowService(
       req.executionName,
       convertToJson(req.engineVersion)
     )
+    val inMemCount = workflowContext.executionId.id.toInt
+    if (WorkflowService.executions.contains(intWid)) {
+      WorkflowService.executions(intWid).append(inMemCount)
+    }else{
+      WorkflowService.executions(intWid) = ArrayBuffer[Int](inMemCount)
+    }
+    WorkflowService.timstamps(inMemCount) = Timestamp(Instant.now)
 
     if (AmberConfig.faultToleranceLogRootFolder.isDefined) {
       val writeLocation = AmberConfig.faultToleranceLogRootFolder.get.resolve(
@@ -202,36 +206,29 @@ class WorkflowService(
       )
     }
 
-    if (AmberConfig.isUserSystemEnabled) {
-      // enable only if we have mysql
-      val writeLocation = AmberConfig.faultToleranceLogRootFolder.get.resolve(
-        s"${workflowContext.workflowId}/${workflowContext.executionId}/"
+    // enable only if we have mysql
+    val writeLocation = AmberConfig.faultToleranceLogRootFolder.get.resolve(
+      s"${workflowContext.workflowId}/${workflowContext.executionId}/"
+    )
+    if (AmberConfig.faultToleranceLogRootFolder.isDefined) {
+      controllerConf = controllerConf.copy(faultToleranceConfOpt =
+        Some(FaultToleranceConfig(writeTo = writeLocation))
       )
-      if (AmberConfig.faultToleranceLogRootFolder.isDefined) {
-        ExecutionsMetadataPersistService.tryUpdateExistingExecution(workflowContext.executionId) {
-          execution => execution.setLogLocation(writeLocation.toString)
-        }
-        controllerConf = controllerConf.copy(faultToleranceConfOpt =
-          Some(FaultToleranceConfig(writeTo = writeLocation))
+    }
+    WorkflowService.logLocations(WorkflowService.inMemCount) = writeLocation
+    if (req.replayFromExecution.isDefined) {
+      val replayInfo = req.replayFromExecution.get
+      val logLocation = WorkflowService.logLocations(replayInfo.eid.toInt)
+      val readLocation = logLocation
+      controllerConf = controllerConf.copy(stateRestoreConfOpt =
+          Some(
+            StateRestoreConfig(
+              readFrom = readLocation,
+              replayDestination = ChannelMarkerIdentity(replayInfo.interaction)
+            )
+          )
         )
       }
-      if (req.replayFromExecution.isDefined) {
-        val replayInfo = req.replayFromExecution.get
-        ExecutionsMetadataPersistService
-          .tryGetExistingExecution(ExecutionIdentity(replayInfo.eid))
-          .foreach { execution =>
-            val readLocation = new URI(execution.getLogLocation)
-            controllerConf = controllerConf.copy(stateRestoreConfOpt =
-              Some(
-                StateRestoreConfig(
-                  readFrom = readLocation,
-                  replayDestination = ChannelMarkerIdentity(replayInfo.interaction)
-                )
-              )
-            )
-          }
-      }
-    }
 
     val executionStateStore = new ExecutionStateStore()
     // assign execution id to find the execution from DB in case the constructor fails.

@@ -4,6 +4,7 @@ import edu.uci.ics.amber.core.executor.OperatorExecutor
 import edu.uci.ics.amber.core.tuple.{AttributeType, Tuple, TupleLike}
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
 
+import java.sql.Timestamp
 import scala.collection.mutable.ArrayBuffer
 
 class SortPartitionsOpExec(
@@ -32,6 +33,8 @@ class SortPartitionsOpExec(
         t1.getField[Int](attributeIndex) < t2.getField[Int](attributeIndex)
       case AttributeType.DOUBLE =>
         t1.getField[Double](attributeIndex) < t2.getField[Double](attributeIndex)
+      case AttributeType.TIMESTAMP =>
+        t1.getField[Timestamp](attributeIndex).getTime < t2.getField[Timestamp](attributeIndex).getTime
       case _ =>
         true // unsupported type
     }

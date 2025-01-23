@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.web.service
 
+import akka.actor.Cancellable
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.WorkflowContext
@@ -27,6 +28,7 @@ import org.jooq.types.{UInteger, ULong}
 import java.net.URI
 import java.util
 import scala.collection.mutable
+import scala.concurrent.duration.DurationInt
 
 object WorkflowExecutionService {
   def getLatestExecutionId(workflowId: WorkflowIdentity): Option[ExecutionIdentity] = {
@@ -53,6 +55,8 @@ class WorkflowExecutionService(
     with LazyLogging {
 
   workflowContext.workflowSettings = request.workflowSettings
+  logger.info("Creating a new execution.")
+  private var interactionHandle: Cancellable = _
   val wsInput = new WebsocketInput(errorHandler)
 
   private val emailNotificationService = userEmailOpt.map(email =>
@@ -104,6 +108,9 @@ class WorkflowExecutionService(
   var executionConsoleService: ExecutionConsoleService = _
 
   def executeWorkflow(): Unit = {
+    if (interactionHandle != null && !interactionHandle.isCancelled) {
+      interactionHandle.cancel()
+    }
     try {
       workflow = new WorkflowCompiler(workflowContext)
         .compile(request.logicalPlan)
@@ -133,9 +140,21 @@ class WorkflowExecutionService(
       executionStateStore,
       wsInput,
       executionReconfigurationService,
-      controllerConfig.faultToleranceConfOpt
+      controllerConfig.faultToleranceConfOpt,
+      workflow.physicalPlan
     )
     executionConsoleService = new ExecutionConsoleService(client, executionStateStore, wsInput)
+
+    addSubscription(
+      client
+        .registerCallback[ExecutionStateUpdate](evt => {
+          if (evt.state == COMPLETED || evt.state == FAILED || evt.state == KILLED) {
+            if (interactionHandle != null && !interactionHandle.isCancelled) {
+              interactionHandle.cancel()
+            }
+          }
+        })
+    )
 
     logger.info("Starting the workflow execution.")
     resultService.attachToExecution(
@@ -153,7 +172,31 @@ class WorkflowExecutionService(
     )
     client.controllerInterface
       .startWorkflow(EmptyRequest(), ())
-      .onSuccess(resp =>
+      .onSuccess(resp => {
+        if (this.request.periodicalInteraction > 0) {
+          interactionHandle = AmberRuntime
+            .scheduleRecurringCallThroughActorSystem(
+              this.request.periodicalInteraction.seconds,
+              this.request.periodicalInteraction.seconds
+            ) {
+              client.sendAsync(PauseWorkflow()).map{
+                ret => {
+                  val now = LocalDateTime.now()
+                  val formatter = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")
+                  val timestamp = now.format(formatter)
+                  val checkpointId = ChannelMarkerIdentity(s"Interaction_${timestamp}")
+                  val uri = controllerConfig.faultToleranceConfOpt.get.writeTo.resolve(checkpointId.toString)
+                  client.sendAsync(TakeGlobalCheckpoint(interactionOnly = false, checkpointId, uri)).map{
+                    ret =>
+                      client.sendAsync(ResumeWorkflow()).map(ret =>
+                        executionStateStore.metadataStore.updateState(metadataStore =>
+                        updateWorkflowState(RUNNING, metadataStore)
+                      ))
+                  }
+                }
+              }
+            }
+        }
         executionStateStore.metadataStore.updateState(metadataStore =>
           if (metadataStore.state != FAILED) {
             updateWorkflowState(resp.workflowState, metadataStore)
@@ -161,8 +204,10 @@ class WorkflowExecutionService(
             metadataStore
           }
         )
-      )
+      }
+    )
   }
+
 
   private def createOperatorIdToExecutionIdMap(workflow: Workflow): Map[String, ULong] = {
     val executionList: util.ArrayList[OperatorExecutions] = new util.ArrayList[OperatorExecutions]()
@@ -187,6 +232,9 @@ class WorkflowExecutionService(
 
   override def unsubscribeAll(): Unit = {
     super.unsubscribeAll()
+    if (interactionHandle != null && !interactionHandle.isCancelled) {
+      interactionHandle.cancel()
+    }
     if (client != null) {
       // runtime created
       executionRuntimeService.unsubscribeAll()

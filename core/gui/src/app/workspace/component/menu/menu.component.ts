@@ -77,6 +77,8 @@ export class MenuComponent implements OnInit, OnDestroy {
   public runButtonText = "Run";
   public runIcon = "play-circle";
   public runDisable = false;
+  public periodicalInteractionEnabled = false;
+  public interactionInterval = 5;
 
   public executionDuration = 0;
   private durationUpdateSubscription: Subscription = new Subscription();
@@ -228,7 +230,9 @@ export class MenuComponent implements OnInit, OnDestroy {
           onClick: () =>
             this.executeWorkflowService.executeWorkflowWithEmailNotification(
               this.currentExecutionName,
-              this.emailNotificationEnabled && environment.userSystemEnabled
+              this.emailNotificationEnabled && environment.userSystemEnabled,
+              undefined,
+              this.periodicalInteractionEnabled? this.interactionInterval: -1
             ),
         };
       case ExecutionState.Initializing:
@@ -284,8 +288,8 @@ export class MenuComponent implements OnInit, OnDestroy {
     this.executeWorkflowService.killWorkflow();
   }
 
-  public handleCheckpoint(): void {
-    this.executeWorkflowService.takeGlobalCheckpoint();
+  public handleInteraction(): void {
+    this.executeWorkflowService.takeInteraction();
   }
 
   public onClickClosePanels(): void {

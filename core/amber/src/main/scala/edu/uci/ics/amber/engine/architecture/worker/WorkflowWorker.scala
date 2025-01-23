@@ -76,6 +76,7 @@ class WorkflowWorker(
         () => {
           logger.info("replay completed!")
           context.parent ! ReplayStatusUpdate(actorId, status = false)
+          dp.pauseManager.pause(DebuggerPause)
         }
       )
     }
@@ -156,6 +157,5 @@ class WorkflowWorker(
     inflightMessages.foreach(msg => inputQueue.put(FIFOMessageElement(msg)))
     outputMessages.foreach(transferService.send)
     logger.info("restored all messages done.")
-    context.parent ! ReplayStatusUpdate(actorId, status = false)
   }
 }

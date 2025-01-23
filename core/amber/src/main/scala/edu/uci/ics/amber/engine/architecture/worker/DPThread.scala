@@ -6,6 +6,11 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   DPInputQueueElement,
   MainThreadDelegateMessage
 }
+import com.google.protobuf.timestamp.Timestamp
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ConsoleMessageHandler.ConsoleMessageTriggered
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{DPInputQueueElement, MainThreadDelegateMessage}
+import edu.uci.ics.amber.engine.architecture.logreplay.ReplayLogManager
+import edu.uci.ics.amber.engine.architecture.worker.controlcommands.{ConsoleMessage, ConsoleMessageType}
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{READY, UNINITIALIZED}
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.actormessage.{ActorCommand, Backpressure}
@@ -17,7 +22,12 @@ import edu.uci.ics.amber.engine.common.ambermessage.{
 import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
 import edu.uci.ics.amber.error.ErrorUtils.safely
 import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import edu.uci.ics.amber.engine.common.ambermessage.{ChannelMarkerPayload, ControlPayload, DataPayload, WorkflowFIFOMessage}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
+import edu.uci.ics.amber.error.ErrorUtils.{mkConsoleMessage, safely}
 
+import java.time.Instant
 import java.util.concurrent._
 
 class DPThread(
@@ -101,6 +111,7 @@ class DPThread(
     }
   }
 
+
   @throws[Exception]
   private[this] def runDPThreadMainLogic(): Unit = {
     //
@@ -134,10 +145,18 @@ class DPThread(
       //
       var channelId: ChannelIdentity = null
       var msgOpt: Option[WorkflowFIFOMessage] = None
+      var disableFT = false
       if (
         dp.inputManager.hasUnfinishedInput || dp.outputManager.hasUnfinishedOutput || dp.pauseManager.isPaused
       ) {
-        dp.inputGateway.tryPickControlChannel match {
+        val (channelOpt, ft) =
+          if(!dp.pauseManager.debuggingMode){
+            dp.inputGateway.tryPickControlChannel
+          }else{
+            dp.inputGateway.tryPickChannel
+          }
+        disableFT = ft
+        channelOpt match {
           case Some(channel) =>
             channelId = channel.channelId
             msgOpt = Some(channel.take)
@@ -151,11 +170,13 @@ class DPThread(
         }
       } else {
         // take from input port
-        if (backpressureStatus) {
+        val (channelOpt, ft) = if (backpressureStatus) {
           dp.inputGateway.tryPickControlChannel
         } else {
           dp.inputGateway.tryPickChannel
-        } match {
+        }
+        disableFT = ft
+        channelOpt match {
           case Some(channel) =>
             channelId = channel.channelId
             msgOpt = Some(channel.take)
@@ -169,7 +190,7 @@ class DPThread(
       if (channelId != null) {
         // for logging, skip large data frames.
         val msgToLog = msgOpt.filter(_.payload.isInstanceOf[ControlPayload])
-        logManager.withFaultTolerant(channelId, msgToLog) {
+        logManager.withFaultTolerant(channelId, msgToLog, disableFT) {
           msgOpt match {
             case None =>
               dp.continueDataProcessing(logManager)

@@ -1,5 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
+import com.google.protobuf.timestamp.Timestamp
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.core.executor.{OperatorExecutor, SourceOperatorExecutor}
 import edu.uci.ics.amber.core.marker.{EndOfInputChannel, StartOfInputChannel, State}
@@ -10,6 +11,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{InputManager, Outpu
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType.REQUIRE_ALIGNMENT
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands._
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
+import edu.uci.ics.amber.engine.architecture.worker.controlcommands.{ConsoleMessage, ConsoleMessageType}
 import edu.uci.ics.amber.engine.architecture.worker.managers.SerializationManager
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{COMPLETED, READY, RUNNING}
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
@@ -19,6 +21,23 @@ import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.error.ErrorUtils.{mkConsoleMessage, safely}
 import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.core.workflow.PortIdentity
+import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
+import edu.uci.ics.texera.workflow.common.tuple.Tuple
+
+import java.io.{ByteArrayOutputStream, PrintStream}
+import java.time.Instant
+import java.io.{StringWriter, PrintWriter}
+
+object DataProcessor {
+
+  case class FinalizePort(portId: PortIdentity, input: Boolean) extends SpecialTupleLike {
+    override def getFields: Array[Any] = Array("FinalizePort")
+  }
+  case class FinalizeExecutor() extends SpecialTupleLike {
+    override def getFields: Array[Any] = Array("FinalizeExecutor")
+  }
+
+}
 
 class DataProcessor(
     actorId: ActorVirtualIdentity,
@@ -30,6 +49,7 @@ class DataProcessor(
 
   def initTimerService(adaptiveBatchingMonitor: WorkerTimerService): Unit = {
     this.adaptiveBatchingMonitor = adaptiveBatchingMonitor
+    ThreadLocalPrintStream.init()
   }
 
   @transient var adaptiveBatchingMonitor: WorkerTimerService = _
@@ -53,6 +73,25 @@ class DataProcessor(
   def collectStatistics(): WorkerStatistics =
     statisticsManager.getStatistics(executor)
 
+
+  def capturePrintStatements(codeBlock: => Unit): Array[String] = {
+    val baos = new ByteArrayOutputStream()
+    val ps = new PrintStream(baos)
+
+    ThreadLocalPrintStream.withPrintStream(ps) {
+      codeBlock
+    }
+
+    val capturedOutput = baos.toString("UTF-8")
+
+    if (capturedOutput.isEmpty) {
+      Array.empty[String]
+    } else {
+      capturedOutput.split(System.lineSeparator())
+    }
+  }
+
+
   /**
     * process currentInputTuple through executor logic.
     * this function is only called by the DP thread.
@@ -62,12 +101,25 @@ class DataProcessor(
       val portIdentity: PortIdentity = {
         this.inputGateway.getChannel(inputManager.currentChannelId).getPortId
       }
-      outputManager.outputIterator.setTupleOutput(
-        executor.processTupleMultiPort(
-          tuple,
-          portIdentity.id
+      val prints = capturePrintStatements {
+        outputManager.outputIterator.setTupleOutput(
+          executor.processTupleMultiPort(
+            tuple,
+            portIdentity.id
+          )
         )
-      )
+      }
+      prints.foreach {
+        p =>
+          asyncRPCClient.send(ConsoleMessageTriggered(ConsoleMessage(
+            actorId.name,
+            Timestamp(Instant.now()),
+            ConsoleMessageType.PRINT,
+            "(Operator code)",
+            p,
+            ""
+          )), CONTROLLER)
+      }
 
       statisticsManager.increaseInputTupleCount(portIdentity)
 
@@ -130,7 +182,7 @@ class DataProcessor(
   /** transfer one tuple from iterator to downstream.
     * this function is only called by the DP thread
     */
-  private[this] def outputOneTuple(logManager: ReplayLogManager): Unit = {
+  def outputOneTuple(logManager: ReplayLogManager): Unit = {
     adaptiveBatchingMonitor.startAdaptiveBatching()
     var out: (TupleLike, Option[PortIdentity]) = null
     try {
@@ -256,7 +308,7 @@ class DataProcessor(
       // invoke the control command carried with the epoch marker
       logger.info(s"process marker from $channelId, id = ${marker.id}, cmd = ${command}")
       if (command.isDefined) {
-        asyncRPCServer.receive(command.get, channelId.fromWorkerId)
+        asyncRPCServer.receive(command.get, CONTROLLER)
       }
       // if this worker is not the final destination of the marker, pass it downstream
       val downstreamChannelsInScope = marker.scope.filter(_.fromWorkerId == actorId).toSet

@@ -5,9 +5,9 @@ import edu.uci.ics.amber.core.virtualidentity.ChannelIdentity
 
 trait InputGateway {
 
-  def tryPickControlChannel: Option[AmberFIFOChannel]
+  def tryPickControlChannel: (Option[AmberFIFOChannel], Boolean)
 
-  def tryPickChannel: Option[AmberFIFOChannel]
+  def tryPickChannel: (Option[AmberFIFOChannel], Boolean)
 
   def getAllChannels: Iterable[AmberFIFOChannel]
 

@@ -1,5 +1,6 @@
 package edu.uci.ics.amber.operator.aggregate
 
+import edu.uci.ics.amber.engine.common.{AmberRuntime, MerkleTreeFromByteArray}
 import edu.uci.ics.amber.core.executor.OperatorExecutor
 import edu.uci.ics.amber.core.tuple.{Tuple, TupleLike}
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
@@ -13,7 +14,8 @@ class AggregateOpExec(descString: String) extends OperatorExecutor {
   private val desc: AggregateOpDesc = objectMapper.readValue(descString, classOf[AggregateOpDesc])
   private val keyedPartialAggregates = new mutable.HashMap[List[Object], List[Object]]()
   private var distributedAggregations: List[DistributedAggregation[Object]] = _
-
+  var oldBytes: Array[Byte] = _
+  var count = 0
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
 
     // Initialize distributedAggregations if it's not yet initialized
@@ -36,6 +38,23 @@ class AggregateOpExec(descString: String) extends OperatorExecutor {
     }
 
     keyedPartialAggregates(key) = updatedAggregates
+
+    count += 1
+//    if (count > 500000 && count < 500100) {
+//      val bytes = AmberRuntime.serde.serialize(keyedPartialAggregates).get
+//      println(s"Join state: ${bytes.length}")
+//      if (oldBytes != null) {
+//        val Abytes = MerkleTreeFromByteArray.getDiffInBytes(oldBytes, bytes, 4096)
+//        println(s"MarkleTree Diff: ${Abytes}")
+//      } else {
+//        val Abytes = MerkleTreeFromByteArray.getDiffInBytes(Array[Byte](), bytes, 4096)
+//        println(s"MarkleTree Diff: ${Abytes}")
+//      }
+//      oldBytes = bytes
+//      val bytes2 = AmberRuntime.serde.serialize(key.asInstanceOf[AnyRef]).get
+//      val bytes3 = AmberRuntime.serde.serialize(updatedAggregates).get
+//      println(s"Normal Diff: ${bytes2.length + bytes3.length}")
+//    }
     Iterator.empty
 
   }

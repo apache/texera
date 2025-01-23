@@ -131,4 +131,6 @@ abstract class SequentialRecordStorage[T >: Null <: AnyRef] {
   def containsFolder(folderName: String): Boolean
 
   def listFiles:Seq[String] = Seq()
+
+  def listFolders:Seq[String] = Seq()
 }

@@ -7,6 +7,7 @@ import { WorkflowResultExportService } from "src/app/workspace/service/workflow-
 import { NzModalService } from "ng-zorro-antd/modal";
 import { ResultExportationComponent } from "../../../result-exportation/result-exportation.component";
 import { ValidationWorkflowService } from "src/app/workspace/service/validation/validation-workflow.service";
+import {WorkflowWebsocketService} from "../../../../service/workflow-websocket/workflow-websocket.service";
 
 @UntilDestroy()
 @Component({
@@ -17,6 +18,8 @@ import { ValidationWorkflowService } from "src/app/workspace/service/validation/
 export class ContextMenuComponent {
   public isWorkflowModifiable: boolean = false;
 
+  public downstreamsToIO:string[] = [];
+
   constructor(
     public workflowActionService: WorkflowActionService,
     public operatorMenuService: OperatorMenuService,
@@ -24,6 +27,8 @@ export class ContextMenuComponent {
     private workflowResultService: WorkflowResultService,
     private modalService: NzModalService,
     private validationWorkflowService: ValidationWorkflowService
+    public operatorMenuService: OperatorMenuService,
+    public workflowWebsocketService: WorkflowWebsocketService
   ) {
     this.registerWorkflowModifiableChangedHandler();
   }
@@ -58,6 +63,27 @@ export class ContextMenuComponent {
 
   public onPaste(): void {
     this.operatorMenuService.performPasteOperation();
+  }
+
+  public onSetAsInterestingOperator():void{
+    let highlighted = this.operatorMenuService.effectivelyHighlightedOperators.value[0]
+    let subDAG = this.workflowActionService.getTexeraGraph().getForwardSubDAG(highlighted)
+    this.downstreamsToIO = subDAG.operators.map(v => v.operatorID)
+  }
+
+  public onStepInto(): void{
+    let highlighted = this.operatorMenuService.effectivelyHighlightedOperators.value[0]
+    this.workflowWebsocketService.send("WorkflowStepRequest", {stepType: "StepInto", targetOp: highlighted})
+  }
+
+  public onStepOver():void{
+    let highlighted = this.operatorMenuService.effectivelyHighlightedOperators.value[0]
+    this.workflowWebsocketService.send("WorkflowStepRequest", {stepType: "StepOver", targetOp: highlighted})
+  }
+
+  public onStepOut():void{
+    let highlighted = this.operatorMenuService.effectivelyHighlightedOperators.value[0]
+    this.workflowWebsocketService.send("WorkflowStepRequest", {stepType: "StepOut", targetOp: highlighted})
   }
 
   public onCut(): void {

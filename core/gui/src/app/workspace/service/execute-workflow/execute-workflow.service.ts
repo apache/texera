@@ -171,7 +171,7 @@ export class ExecuteWorkflowService {
     executionName: string,
     emailNotificationEnabled: boolean,
     targetOperatorId?: string
-  ): void {
+  , periodicalInteraction?: number): void {
     const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(
       this.workflowActionService.getTexeraGraph(),
       targetOperatorId
@@ -180,10 +180,6 @@ export class ExecuteWorkflowService {
     this.resetExecutionState();
     this.workflowStatusService.resetStatus();
     this.sendExecutionRequest(executionName, logicalPlan, settings, emailNotificationEnabled);
-  }
-
-  public executeWorkflow(executionName: string, targetOperatorId?: string): void {
-    this.executeWorkflowWithEmailNotification(executionName, false, targetOperatorId);
   }
 
   public executeWorkflowWithReplay(replayExecutionInfo: ReplayExecutionInfo): void {
@@ -205,7 +201,8 @@ export class ExecuteWorkflowService {
     logicalPlan: LogicalPlan,
     workflowSettings: WorkflowSettings,
     emailNotificationEnabled: boolean,
-    replayExecutionInfo: ReplayExecutionInfo | undefined = undefined
+    replayExecutionInfo: ReplayExecutionInfo | undefined = undefined,
+    periodicalInteraction?: number
   ): void {
     const workflowExecuteRequest = {
       executionName: executionName,
@@ -214,6 +211,7 @@ export class ExecuteWorkflowService {
       replayFromExecution: replayExecutionInfo,
       workflowSettings: workflowSettings,
       emailNotificationEnabled: emailNotificationEnabled,
+      periodicalInteraction: periodicalInteraction ?? -1
     };
     // wait for the form debounce to complete, then send
     window.setTimeout(() => {
@@ -249,14 +247,14 @@ export class ExecuteWorkflowService {
     this.workflowWebsocketService.send("WorkflowKillRequest", {});
   }
 
-  public takeGlobalCheckpoint(): void {
+  public takeInteraction(): void {
     if (
       this.currentState.state === ExecutionState.Uninitialized ||
       this.currentState.state === ExecutionState.Completed
     ) {
-      throw new Error("cannot take checkpoint, the current execution state is " + this.currentState.state);
+      throw new Error("cannot take interaction, the current execution state is " + this.currentState.state);
     }
-    this.workflowWebsocketService.send("WorkflowCheckpointRequest", {});
+    this.workflowWebsocketService.send("WorkflowInteractionRequest", {});
   }
 
   public resumeWorkflow(): void {

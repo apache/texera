@@ -98,7 +98,7 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
 //    val uri = new URI("ram:///recovery-logs/tmp/")
 //    Await.result(
 //      client1.controllerInterface.takeGlobalCheckpoint(
-//        TakeGlobalCheckpointRequest(estimationOnly = false, checkpointId, uri.toString),
+//        TakeGlobalCheckpointRequest(interactionOnly = false, checkpointId, uri.toString),
 //        ()
 //      ),
 //      Duration.fromSeconds(30)

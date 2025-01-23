@@ -7,6 +7,7 @@ import scala.collection.mutable
 class ReplayOrderEnforcer(
     logManager: ReplayLogManager,
     channelStepOrder: mutable.Queue[ProcessingStep],
+    additionalStepOrder: mutable.Queue[ProcessingStep],
     startStep: Long,
     private var onComplete: () => Unit
 ) extends OrderEnforcer {
@@ -19,6 +20,8 @@ class ReplayOrderEnforcer(
     if (onComplete != null) {
       onComplete()
       onComplete = null // make sure the onComplete is called only once.
+      additionalStepOrder.foreach(ps => channelStepOrder.enqueue(ps))
+      additionalStepOrder.clear()
     }
   }
 
@@ -27,7 +30,7 @@ class ReplayOrderEnforcer(
     forwardNext()
   }
 
-  var isCompleted: Boolean = channelStepOrder.isEmpty
+  def isCompleted: Boolean = channelStepOrder.isEmpty
 
   triggerOnComplete()
 
@@ -48,8 +51,7 @@ class ReplayOrderEnforcer(
     }
     // To terminate replay:
     // no next log record with step > current step, which means further processing is not logged.
-    if (channelStepOrder.isEmpty) {
-      isCompleted = true
+    if (isCompleted) {
       triggerOnComplete()
     }
     // only proceed if the current channel ID matches the channel ID of the log record

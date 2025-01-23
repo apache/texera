@@ -30,7 +30,8 @@ class DataProcessorRPCHandlerInitializer(val dp: DataProcessor)
     with FlushNetworkBufferHandler
     with RetrieveStateHandler
     with PrepareCheckpointHandler
-    with FinalizeCheckpointHandler {
+    with FinalizeCheckpointHandler
+    with StepHandler {
   val actorId: ActorVirtualIdentity = dp.actorId
 
   override def debugCommand(

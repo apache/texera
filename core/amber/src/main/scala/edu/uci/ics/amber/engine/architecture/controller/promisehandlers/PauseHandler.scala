@@ -11,6 +11,7 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContex
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{EmptyReturn, WorkerMetricsResponse}
 import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
 
+import java.util.UUID
 import scala.collection.mutable
 
 /** pause the entire workflow

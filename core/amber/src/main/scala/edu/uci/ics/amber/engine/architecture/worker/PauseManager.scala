@@ -11,6 +11,7 @@ class PauseManager(val actorId: ActorVirtualIdentity, inputGateway: InputGateway
 
   private val globalPauses = new mutable.HashSet[PauseType]()
   private val specificInputPauses = mutable.MultiDict[PauseType, ChannelIdentity]()
+  var debuggingMode = false
 
   def pause(pauseType: PauseType): Unit = {
     globalPauses.add(pauseType)
@@ -32,6 +33,8 @@ class PauseManager(val actorId: ActorVirtualIdentity, inputGateway: InputGateway
 
     // still globally paused no action, don't need to resume anything
     if (globalPauses.nonEmpty) {
+      // make sure control messages are not blocked.
+      inputGateway.getAllControlChannels.foreach(_.enable(true))
       return
     }
     // global pause is empty, specific input pause is also empty, resume all

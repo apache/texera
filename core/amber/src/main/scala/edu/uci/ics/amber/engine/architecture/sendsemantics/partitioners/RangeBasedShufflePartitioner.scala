@@ -4,6 +4,8 @@ import edu.uci.ics.amber.core.tuple.{AttributeType, Tuple}
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning
 import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
 
+import java.sql.Timestamp
+
 case class RangeBasedShufflePartitioner(partitioning: RangeBasedShufflePartitioning)
     extends Partitioner {
 
@@ -22,6 +24,8 @@ case class RangeBasedShufflePartitioner(partitioning: RangeBasedShufflePartition
         fieldVal = tuple.getField[Int](attribute)
       case AttributeType.DOUBLE =>
         fieldVal = tuple.getField[Double](attribute).toLong
+      case AttributeType.TIMESTAMP =>
+        fieldVal = tuple.getField[Timestamp](attribute).getTime
       case _ =>
         throw new RuntimeException(s"unsupported attribute type: ${attribute.getType}")
     }

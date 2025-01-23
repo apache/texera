@@ -85,7 +85,8 @@ case class OperatorExecution() {
         dataProcessingTime = workerRawStats.map(_.dataProcessingTime).sum,
         controlProcessingTime = workerRawStats.map(_.controlProcessingTime).sum,
         idleTime = workerRawStats.map(_.idleTime).sum
-      )
+      ),
+      workerExecutions.values.asScala.map(_.getInternalState).mkString("\n")
     )
   }
 

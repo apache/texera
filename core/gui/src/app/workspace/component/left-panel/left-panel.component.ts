@@ -44,7 +44,7 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
       component: TimeTravelComponent,
       title: "Time Travel",
       icon: "clock-circle",
-      enabled: environment.userSystemEnabled && environment.timetravelEnabled,
+      enabled: environment.timetravelEnabled,
     },
   ];
 
