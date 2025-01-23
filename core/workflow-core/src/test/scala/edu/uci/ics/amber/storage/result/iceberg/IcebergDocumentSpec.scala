@@ -1,9 +1,6 @@
 package edu.uci.ics.amber.storage.result.iceberg
 
-import edu.uci.ics.amber.core.storage.{
-  DocumentFactory,
-  VFSURIFactory
-}
+import edu.uci.ics.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import edu.uci.ics.amber.core.storage.model.{VirtualDocument, VirtualDocumentSpec}
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import edu.uci.ics.amber.core.virtualidentity.{

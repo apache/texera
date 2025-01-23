@@ -14,11 +14,11 @@ object IcebergCatalogInstance {
   private var instance: Option[Catalog] = None
 
   /**
-   * Retrieves the singleton Iceberg catalog instance.
-   * - If the catalog is not initialized, it is lazily created using the configured properties.
-   *
-   * @return the Iceberg catalog instance.
-   */
+    * Retrieves the singleton Iceberg catalog instance.
+    * - If the catalog is not initialized, it is lazily created using the configured properties.
+    *
+    * @return the Iceberg catalog instance.
+    */
   def getInstance(): Catalog = {
     instance match {
       case Some(catalog) => catalog

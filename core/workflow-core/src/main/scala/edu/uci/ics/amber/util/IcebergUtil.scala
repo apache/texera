@@ -12,7 +12,14 @@ import org.apache.iceberg.io.{CloseableIterable, InputFile}
 import org.apache.iceberg.parquet.{Parquet, ParquetValueReader}
 import org.apache.iceberg.rest.RESTCatalog
 import org.apache.iceberg.types.Type.PrimitiveType
-import org.apache.iceberg.{CatalogProperties, DataFile, PartitionSpec, Table, TableProperties, Schema => IcebergSchema}
+import org.apache.iceberg.{
+  CatalogProperties,
+  DataFile,
+  PartitionSpec,
+  Table,
+  TableProperties,
+  Schema => IcebergSchema
+}
 
 import java.nio.ByteBuffer
 import java.nio.file.Path
@@ -55,25 +62,25 @@ object IcebergUtil {
   }
 
   /**
-   * Creates and initializes a RESTCatalog with the given parameters.
-   * - Configures the catalog to interact with a REST endpoint.
-   * - The `warehouse` parameter specifies the root directory for storing table data.
-   * - Sets the file I/O implementation to `HadoopFileIO`.
-   * - Authentication support is not implemented yet (see TODO).
-   *
-   * Note: The only tested REST catalog implementation is `tabulario/iceberg-rest`
-   * (https://hub.docker.com/r/tabulario/iceberg-rest).
-   *
-   * TODO: Add authentication support, such as OAuth2, using `OAuth2Properties`.
-   *
-   * @param catalogName the name of the catalog.
-   * @param warehouse   the root path for the warehouse where the tables are stored.
-   * @return the initialized RESTCatalog instance.
-   */
+    * Creates and initializes a RESTCatalog with the given parameters.
+    * - Configures the catalog to interact with a REST endpoint.
+    * - The `warehouse` parameter specifies the root directory for storing table data.
+    * - Sets the file I/O implementation to `HadoopFileIO`.
+    * - Authentication support is not implemented yet (see TODO).
+    *
+    * Note: The only tested REST catalog implementation is `tabulario/iceberg-rest`
+    * (https://hub.docker.com/r/tabulario/iceberg-rest).
+    *
+    * TODO: Add authentication support, such as OAuth2, using `OAuth2Properties`.
+    *
+    * @param catalogName the name of the catalog.
+    * @param warehouse   the root path for the warehouse where the tables are stored.
+    * @return the initialized RESTCatalog instance.
+    */
   def createRestCatalog(
-                         catalogName: String,
-                         warehouse: Path
-                       ): RESTCatalog = {
+      catalogName: String,
+      warehouse: Path
+  ): RESTCatalog = {
     val catalog = new RESTCatalog()
     catalog.initialize(
       catalogName,
