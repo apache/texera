@@ -2,7 +2,7 @@ import pyarrow as pa
 import pyiceberg.table
 from pyiceberg.catalog import Catalog
 from pyiceberg.expressions import AlwaysTrue
-from pyiceberg.io.pyarrow import ArrowScan
+from pyiceberg.io.pyarrow import project_table
 from pyiceberg.partitioning import UNPARTITIONED_PARTITION_SPEC
 from pyiceberg.schema import Schema
 from pyiceberg.table import Table
@@ -34,10 +34,10 @@ def create_table(
 
     identifier = f"{table_namespace}.{table_name}"
 
+    # catalog.create_namespace_if_not_exists(table_namespace)
+
     if catalog.table_exists(identifier) and override_if_exists:
         catalog.drop_table(identifier)
-
-    catalog.create_namespace_if_not_exists(table_namespace)
 
     table = catalog.create_table(
         identifier=identifier,
@@ -73,9 +73,10 @@ def load_table_metadata(
 def read_data_file_as_arrow_table(planfile: pyiceberg.table.FileScanTask, iceberg_table: pyiceberg.table.Table) -> \
         pa.Table:
     """Reads a data file and returns an iterator over its records."""
-    arrow_table: pa.Table = ArrowScan(
-        iceberg_table.metadata, iceberg_table.io, iceberg_table.schema(), AlwaysTrue(), True
-    ).to_table([planfile])
+    # arrow_table: pa.Table = ArrowScan(
+    #     iceberg_table.metadata, iceberg_table.io, iceberg_table.schema(), AlwaysTrue(), True
+    # ).to_table([planfile])
+    arrow_table: pa.Table = project_table([planfile], iceberg_table.metadata, iceberg_table.io, AlwaysTrue(), iceberg_table.schema(), True)
     return arrow_table
 
 

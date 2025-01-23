@@ -50,12 +50,10 @@ class IcebergDocument(VirtualDocument[T]):
         self.catalog = catalog or self._load_catalog()
 
         # Create or override the table during initialization
-        create_table(
+        load_table_metadata(
             self.catalog,
             self.table_namespace,
-            self.table_name,
-            self.table_schema,
-            override_if_exists=True
+            self.table_name
         )
 
     def _load_catalog(self) -> Catalog:
