@@ -1,19 +1,20 @@
 from core.architecture.handlers.control.control_handler_base import ControlHandler
-from core.architecture.managers.context import Context
 from core.models import Schema
-from proto.edu.uci.ics.amber.engine.architecture.worker import AssignPortV2
+from proto.edu.uci.ics.amber.engine.architecture.rpc import (
+    EmptyReturn,
+    AssignPortRequest,
+)
 
 
 class AssignPortHandler(ControlHandler):
-    cmd = AssignPortV2
 
-    def __call__(self, context: Context, command: AssignPortV2, *args, **kwargs):
-        if command.input:
-            context.input_manager.add_input_port(
-                command.port_id, Schema(raw_schema=command.schema)
+    async def assign_port(self, req: AssignPortRequest) -> EmptyReturn:
+        if req.input:
+            self.context.input_manager.add_input_port(
+                req.port_id, Schema(raw_schema=req.schema)
             )
         else:
-            context.output_manager.add_output_port(
-                command.port_id, Schema(raw_schema=command.schema)
+            self.context.output_manager.add_output_port(
+                req.port_id, Schema(raw_schema=req.schema)
             )
-        return None
+        return EmptyReturn()

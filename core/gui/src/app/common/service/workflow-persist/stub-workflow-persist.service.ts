@@ -1,9 +1,9 @@
 import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
-import { DashboardWorkflow } from "../../../dashboard/user/type/dashboard-workflow.interface";
+import { DashboardWorkflow } from "../../../dashboard/type/dashboard-workflow.interface";
 import { Workflow } from "../../type/workflow";
-import { SearchFilterParameters, searchTestEntries } from "src/app/dashboard/user/type/search-filter-parameters";
-import { DashboardEntry } from "src/app/dashboard/user/type/dashboard-entry";
+import { SearchFilterParameters, searchTestEntries } from "../../../dashboard/type/search-filter-parameters";
+import { DashboardEntry } from "../../../dashboard/type/dashboard-entry";
 
 export const WORKFLOW_BASE_URL = "workflow";
 export const WORKFLOW_SEARCH_URL = WORKFLOW_BASE_URL + "/search";

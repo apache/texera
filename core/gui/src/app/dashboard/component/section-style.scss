@@ -1,0 +1,198 @@
+/**
+  * grid of the second row which contains the search bar
+  **/
+.section-search-bar {
+  grid-row-start: 2;
+  grid-row-end: 3;
+  margin-left: 10px;
+  gap: 10px;
+  display: flex;
+  padding: 4px 24px;
+  align-items: center;
+
+  .search-input-box {
+    width: 100%;
+  }
+}
+
+/**
+  * Create a 3*1 grid area
+  * The first row contains add and sort button.
+  * The second row contains the search bar.
+  * The third row contains the saved workflow/files list.
+  *
+  * This layout is shared between workflows and files section.
+  *
+  *              ******************
+  *              *                *
+  *              ******************
+  *              *                *
+  *              ******************
+  *              *                *
+  *              *                *
+  *              *                *
+  *              ******************
+  **/
+$section-header-height: 124px;
+$section-search-bar-height: 60px;
+$dashboard-navigation-height: 76px;
+
+.section-container {
+  display: grid;
+  grid-template-rows:
+    $section-header-height
+    $section-search-bar-height
+    calc((100% - #{$section-header-height} - #{$section-search-bar-height}));
+}
+
+/**
+  * grid of the first row which contains title and utility buttons
+  **/
+.section-title {
+  grid-row-start: 1;
+  grid-row-end: 2;
+
+  .page-title {
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+
+  .management-panel {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  // .utility-button-group {
+  //   float: left;
+  // }
+
+  .go-back-button {
+    position: absolute;
+    left: 20px;
+    top: 20px;
+  }
+}
+
+/**
+  * the third grid of the workflow/files list.
+  * including css shared by workflow/file item
+  **/
+.section-list-container {
+  grid-row-start: 3;
+  grid-row-end: 4;
+  overflow: auto;
+  min-height: 100%;
+  height: 100%;
+  // always show the scroll bar for the virtual scroll container
+  ::-webkit-scrollbar {
+    -webkit-appearance: none;
+    width: 7px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    border-radius: 4px;
+    background-color: rgba(0, 0, 0, 0.5);
+    -webkit-box-shadow: 0 0 1px rgba(255, 255, 255, 0.5);
+  }
+
+  .virtual-scroll-container {
+    height: 100%;
+    border: 1px solid #e8e8e8;
+    border-radius: 4px;
+  }
+
+  .metadata-container {
+    span {
+      margin: 0 1rem 0 0;
+    }
+  }
+}
+
+/**
+  * css specifically for each workflow item in the list (not shared by file items)
+  **/
+.workflow-list-item {
+  margin-bottom: 10px;
+  min-height: 70px;
+  padding: 5px 0 5px 0;
+
+  .workflow-item-checkbox {
+    margin: 8px;
+  }
+
+  .workflow-item-meta-title {
+    display: flex;
+    align-items: center;
+
+    .workflow-name {
+      font-size: 20px;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      text-align: center;
+      margin-bottom: 0;
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .workflow-name:hover {
+      cursor: pointer;
+    }
+
+    i {
+      position: relative;
+      font-size: 17px;
+    }
+
+    i.workflow-is-owner-icon {
+      margin-left: 7px;
+    }
+  }
+
+  .workflow-item-meta-description {
+    display: flex;
+    align-items: center;
+    padding: 2px 8px 2px 10px;
+    margin-bottom: 5px;
+
+    .workflow-description {
+      font-size: 13px;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+
+      display: inline-block;
+      min-width: 17ch;
+      border: 0 none;
+      outline: none;
+
+      &:hover {
+        cursor: pointer;
+        box-shadow: 0 0 0 1px rgb(202, 202, 202);
+      }
+    }
+
+    .workflow-editable-description {
+      margin-bottom: 5px;
+      display: inline-block;
+      min-width: 17ch;
+      border: 0 none;
+      outline: none;
+      box-shadow: 0 0 0 2px #007bff;
+    }
+  }
+}
+
+.subsection-grid-container {
+  min-width: 100%;
+  width: 100%;
+  min-height: 100%;
+  height: 100%;
+}
+
+.ant-btn-icon-only {
+  margin-left: 5px;
+  margin-right: 5px;
+}
+
+.metadata-container {
+  span {
+    margin: 0 1rem 0 0; // add space to the right
+  }
+}

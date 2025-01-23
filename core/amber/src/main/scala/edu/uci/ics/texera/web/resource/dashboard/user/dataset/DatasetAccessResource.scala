@@ -1,24 +1,14 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.dataset
 
-import edu.uci.ics.texera.Utils.withTransaction
-import edu.uci.ics.texera.web.SqlServer
+import edu.uci.ics.amber.core.storage.StorageConfig
+import edu.uci.ics.amber.engine.common.Utils.withTransaction
+import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.model.common.AccessEntry
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.USER
-import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
-import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowUserAccess.WORKFLOW_USER_ACCESS
-import edu.uci.ics.texera.web.model.jooq.generated.tables.EnvironmentOfWorkflow.ENVIRONMENT_OF_WORKFLOW
-import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetOfEnvironment.DATASET_OF_ENVIRONMENT
-import edu.uci.ics.texera.web.model.jooq.generated.enums.{
-  DatasetUserAccessPrivilege,
-  WorkflowUserAccessPrivilege
-}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset.DATASET
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  DatasetDao,
-  DatasetUserAccessDao,
-  UserDao
-}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{DatasetUserAccess, User}
+import edu.uci.ics.texera.dao.jooq.generated.Tables.USER
+import edu.uci.ics.texera.dao.jooq.generated.enums.DatasetUserAccessPrivilege
+import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{DatasetDao, DatasetUserAccessDao, UserDao}
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{DatasetUserAccess, User}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetAccessResource.{
   context,
   getOwner
@@ -28,84 +18,37 @@ import org.jooq.types.UInteger
 
 import java.util
 import javax.annotation.security.RolesAllowed
-import javax.ws.rs.{DELETE, GET, PUT, Path, PathParam, Produces}
+import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
 
 object DatasetAccessResource {
-  private lazy val context: DSLContext = SqlServer.createDSLContext()
+  private lazy val context: DSLContext = SqlServer
+    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .createDSLContext()
+
+  def isDatasetPublic(ctx: DSLContext, did: UInteger): Boolean = {
+    val datasetDao = new DatasetDao(ctx.configuration())
+    Option(datasetDao.fetchOneByDid(did))
+      .flatMap(dataset => Option(dataset.getIsPublic))
+      .contains(1.toByte)
+  }
 
   def userHasReadAccess(ctx: DSLContext, did: UInteger, uid: UInteger): Boolean = {
+    isDatasetPublic(ctx, did) ||
     userHasWriteAccess(ctx, did, uid) ||
-    datasetIsPublic(ctx, did) ||
-    getDatasetUserAccessPrivilege(ctx, did, uid) == DatasetUserAccessPrivilege.READ ||
-    userHasWorkflowReadAccessThroughEnvironment(ctx, did, uid)
+    getDatasetUserAccessPrivilege(ctx, did, uid) == DatasetUserAccessPrivilege.READ
   }
 
   def userOwnDataset(ctx: DSLContext, did: UInteger, uid: UInteger): Boolean = {
-    ctx
-      .selectOne()
-      .from(DATASET)
-      .where(DATASET.DID.eq(did))
-      .and(DATASET.OWNER_UID.eq(uid))
-      .fetch()
-      .isNotEmpty
+    val datasetDao = new DatasetDao(ctx.configuration())
+
+    Option(datasetDao.fetchOneByDid(did))
+      .exists(_.getOwnerUid == uid)
   }
 
   def userHasWriteAccess(ctx: DSLContext, did: UInteger, uid: UInteger): Boolean = {
     userOwnDataset(ctx, did, uid) ||
-    getDatasetUserAccessPrivilege(ctx, did, uid) == DatasetUserAccessPrivilege.WRITE ||
-    userHasWorkflowWriteAccessThroughEnvironment(ctx, did, uid)
-  }
-
-  def datasetIsPublic(ctx: DSLContext, did: UInteger): Boolean = {
-    Option(
-      ctx
-        .select(DATASET.IS_PUBLIC)
-        .from(DATASET)
-        .where(DATASET.DID.eq(did))
-        .fetchOneInto(classOf[Boolean])
-    ).getOrElse(false)
-  }
-
-  def userHasWorkflowWriteAccessThroughEnvironment(
-      ctx: DSLContext,
-      did: UInteger,
-      uid: UInteger
-  ): Boolean = {
-    ctx
-      .select()
-      .from(WORKFLOW_USER_ACCESS)
-      .join(ENVIRONMENT_OF_WORKFLOW)
-      .on(ENVIRONMENT_OF_WORKFLOW.WID.eq(WORKFLOW_USER_ACCESS.WID))
-      .join(DATASET_OF_ENVIRONMENT)
-      .on(ENVIRONMENT_OF_WORKFLOW.EID.eq(DATASET_OF_ENVIRONMENT.EID))
-      .where(DATASET_OF_ENVIRONMENT.DID.eq(did))
-      .and(WORKFLOW_USER_ACCESS.UID.eq(uid))
-      .and(WORKFLOW_USER_ACCESS.PRIVILEGE.eq(WorkflowUserAccessPrivilege.WRITE))
-      .fetch()
-      .isNotEmpty
-  }
-
-  def userHasWorkflowReadAccessThroughEnvironment(
-      ctx: DSLContext,
-      did: UInteger,
-      uid: UInteger
-  ): Boolean = {
-    ctx
-      .select()
-      .from(WORKFLOW_USER_ACCESS)
-      .join(ENVIRONMENT_OF_WORKFLOW)
-      .on(ENVIRONMENT_OF_WORKFLOW.WID.eq(WORKFLOW_USER_ACCESS.WID))
-      .join(DATASET_OF_ENVIRONMENT)
-      .on(ENVIRONMENT_OF_WORKFLOW.EID.eq(DATASET_OF_ENVIRONMENT.EID))
-      .where(DATASET_OF_ENVIRONMENT.DID.eq(did))
-      .and(WORKFLOW_USER_ACCESS.UID.eq(uid))
-      .and(
-        WORKFLOW_USER_ACCESS.PRIVILEGE
-          .in(WorkflowUserAccessPrivilege.READ, WorkflowUserAccessPrivilege.WRITE)
-      )
-      .fetch()
-      .isNotEmpty
+    getDatasetUserAccessPrivilege(ctx, did, uid) == DatasetUserAccessPrivilege.WRITE
   }
 
   def getDatasetUserAccessPrivilege(
@@ -117,21 +60,23 @@ object DatasetAccessResource {
       ctx
         .select(DATASET_USER_ACCESS.PRIVILEGE)
         .from(DATASET_USER_ACCESS)
-        .where(DATASET_USER_ACCESS.DID.eq(did))
-        .and(DATASET_USER_ACCESS.UID.eq(uid))
-        .fetchOne()
-    )
-      .map(_.getValue(DATASET_USER_ACCESS.PRIVILEGE))
-      .getOrElse(DatasetUserAccessPrivilege.NONE)
+        .where(
+          DATASET_USER_ACCESS.DID
+            .eq(did)
+            .and(DATASET_USER_ACCESS.UID.eq(uid))
+        )
+        .fetchOneInto(classOf[DatasetUserAccessPrivilege])
+    ).getOrElse(DatasetUserAccessPrivilege.NONE)
   }
 
   def getOwner(ctx: DSLContext, did: UInteger): User = {
-    val ownerUid = ctx
-      .select(DATASET.OWNER_UID)
-      .from(DATASET)
-      .where(DATASET.DID.eq(did))
-      .fetchOneInto(classOf[UInteger])
-    new UserDao(ctx.configuration()).fetchOneByUid(ownerUid)
+    val datasetDao = new DatasetDao(ctx.configuration())
+    val userDao = new UserDao(ctx.configuration())
+
+    Option(datasetDao.fetchOneByDid(did))
+      .flatMap(dataset => Option(dataset.getOwnerUid))
+      .map(ownerUid => userDao.fetchOneByUid(ownerUid))
+      .orNull
   }
 }
 
@@ -149,7 +94,7 @@ class DatasetAccessResource {
   @GET
   @Path("/owner/{did}")
   def getOwnerEmailOfDataset(@PathParam("did") did: UInteger): String = {
-    var email = "";
+    var email = ""
     withTransaction(context) { ctx =>
       val owner = getOwner(ctx, did)
       if (owner != null) {

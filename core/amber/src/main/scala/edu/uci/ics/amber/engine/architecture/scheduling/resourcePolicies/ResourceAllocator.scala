@@ -1,5 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies
 
+import edu.uci.ics.amber.core.workflow.{PartitionInfo, PhysicalPlan, UnknownPartition}
 import edu.uci.ics.amber.engine.architecture.scheduling.Region
 import edu.uci.ics.amber.engine.architecture.scheduling.config.ChannelConfig.generateChannelConfigs
 import edu.uci.ics.amber.engine.architecture.scheduling.config.LinkConfig.toPartitioning
@@ -9,18 +10,19 @@ import edu.uci.ics.amber.engine.architecture.scheduling.config.{
   OperatorConfig,
   ResourceConfig
 }
-import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
-import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
-import edu.uci.ics.texera.workflow.common.workflow.{PartitionInfo, PhysicalPlan, UnknownPartition}
+import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
+import edu.uci.ics.amber.core.workflow.{PhysicalLink, PortIdentity}
 
 import scala.collection.mutable
 
 trait ResourceAllocator {
   def allocate(region: Region): (Region, Double)
 }
+
 class DefaultResourceAllocator(
     physicalPlan: PhysicalPlan,
-    executionClusterInfo: ExecutionClusterInfo
+    executionClusterInfo: ExecutionClusterInfo,
+    dataTransferBatchSize: Int
 ) extends ResourceAllocator {
 
   // a map of a physical link to the partition info of the upstream/downstream of this link
@@ -65,8 +67,10 @@ class DefaultResourceAllocator(
           linkPartitionInfos(physicalLink)
         ),
         toPartitioning(
+          operatorConfigs(physicalLink.fromOpId).workerConfigs.map(_.workerId),
           operatorConfigs(physicalLink.toOpId).workerConfigs.map(_.workerId),
-          linkPartitionInfos(physicalLink)
+          linkPartitionInfos(physicalLink),
+          this.dataTransferBatchSize
         )
       )
     }.toMap
@@ -84,9 +88,9 @@ class DefaultResourceAllocator(
     * This method is invoked once for each region, and only propagate partitioning requirements within
     * the region. For example, suppose we have the following physical Plan:
     *
-    *     A ->
-    *           HJ
-    *     B ->
+    * A ->
+    * HJ
+    * B ->
     * The link A->HJ will be propagated in the first region. The link B->HJ will be propagated in the second region.
     * The output partition info of HJ will be derived after both links are propagated, which is in the second region.
     */

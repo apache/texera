@@ -1,0 +1,73 @@
+#nav {
+  height: 70px;
+  padding: 10px 15px;
+  display: flex;
+  align-items: center;
+  background-color: white;
+  justify-content: space-between;
+}
+
+texera-filters-instructions {
+  margin-right: 10px;
+}
+
+texera-search-bar {
+  flex: 1;
+  max-width: calc(100% - 20px);
+  padding-right: 10px;
+}
+
+texera-user-icon {
+  padding: 0 24px;
+}
+
+button {
+  border: none;
+}
+
+.layout {
+  height: 100vh;
+}
+
+.ant-layout-content {
+  background-color: white;
+  border: 1px solid #f0f0f0;
+}
+
+.ant-menu {
+  overflow-x: hidden;
+  overflow-y: auto;
+  height: calc(100vh - 70px - 48px);
+}
+
+.logo-section {
+  height: 70px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+nz-content {
+  position: relative;
+}
+
+.page-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+#googleButton {
+  float: right;
+  padding: 5px 0;
+}
+
+.hidden {
+  display: none;
+}
+
+#nav {
+  max-width: 100%;
+  max-height: 100%;
+  overflow: hidden;
+}

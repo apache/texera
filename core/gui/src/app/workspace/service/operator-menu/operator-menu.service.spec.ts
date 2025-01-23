@@ -3,6 +3,7 @@ import { OperatorMetadataService } from "../operator-metadata/operator-metadata.
 import { StubOperatorMetadataService } from "../operator-metadata/stub-operator-metadata.service";
 
 import { OperatorMenuService } from "./operator-menu.service";
+import { HttpClientModule } from "@angular/common/http";
 
 describe("OperatorMenuService", () => {
   let service: OperatorMenuService;
@@ -10,6 +11,7 @@ describe("OperatorMenuService", () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [{ provide: OperatorMetadataService, useClass: StubOperatorMetadataService }],
+      imports: [HttpClientModule],
     });
     service = TestBed.inject(OperatorMenuService);
   });

@@ -1,29 +1,32 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
 import com.twitter.util.Future
-import edu.uci.ics.amber.engine.architecture.common.AkkaActorService
-import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
-  ExecutionStatsUpdate,
-  WorkerAssignmentUpdate
-}
+import edu.uci.ics.amber.core.workflow.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.common.{AkkaActorService, ExecutorDeployment}
 import edu.uci.ics.amber.engine.architecture.controller.execution.{
   OperatorExecution,
   WorkflowExecution
 }
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.InitializeExecutorHandler.InitializeExecutor
+import edu.uci.ics.amber.engine.architecture.controller.{
+  ControllerConfig,
+  ExecutionStatsUpdate,
+  WorkerAssignmentUpdate
+}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
+  AssignPortRequest,
+  EmptyRequest,
+  InitializeExecutorRequest,
+  LinkWorkersRequest
+}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{
+  EmptyReturn,
+  WorkflowAggregatedState
+}
 import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, ResourceConfig}
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AssignPortHandler.AssignPort
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenExecutorHandler.OpenExecutor
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
-import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
+import edu.uci.ics.amber.core.workflow.PhysicalLink
 
-import scala.collection.Seq
 class RegionExecutionCoordinator(
     region: Region,
     workflowExecution: WorkflowExecution,
@@ -98,13 +101,15 @@ class RegionExecutionCoordinator(
       .flatMap(_ => sendStarts(region))
       .unit
   }
+
   private def buildOperator(
       actorService: AkkaActorService,
       physicalOp: PhysicalOp,
       operatorConfig: OperatorConfig,
       operatorExecution: OperatorExecution
   ): Unit = {
-    physicalOp.build(
+    ExecutorDeployment.createWorkers(
+      physicalOp,
       actorService,
       operatorExecution,
       operatorConfig,
@@ -112,31 +117,32 @@ class RegionExecutionCoordinator(
       controllerConfig.faultToleranceConfOpt
     )
   }
+
   private def initExecutors(
       operators: Set[PhysicalOp],
       resourceConfig: ResourceConfig
-  ): Future[Seq[Unit]] = {
+  ): Future[Seq[EmptyReturn]] = {
     Future
       .collect(
         operators
           .flatMap(physicalOp => {
             val workerConfigs = resourceConfig.operatorConfigs(physicalOp.id).workerConfigs
             workerConfigs.map(_.workerId).map { workerId =>
-              asyncRPCClient
-                .send(
-                  InitializeExecutor(
-                    workerConfigs.length,
-                    physicalOp.opExecInitInfo,
-                    physicalOp.isSourceOperator
-                  ),
-                  workerId
-                )
+              asyncRPCClient.workerInterface.initializeExecutor(
+                InitializeExecutorRequest(
+                  workerConfigs.length,
+                  physicalOp.opExecInitInfo,
+                  physicalOp.isSourceOperator
+                ),
+                asyncRPCClient.mkContext(workerId)
+              )
             }
           })
           .toSeq
       )
   }
-  private def assignPorts(region: Region): Future[Seq[Unit]] = {
+
+  private def assignPorts(region: Region): Future[Seq[EmptyReturn]] = {
     val resourceConfig = region.resourceConfig.get
     Future.collect(
       region.getOperators
@@ -159,21 +165,28 @@ class RegionExecutionCoordinator(
           case (globalPortId, schema) =>
             resourceConfig.operatorConfigs(globalPortId.opId).workerConfigs.map(_.workerId).map {
               workerId =>
-                asyncRPCClient
-                  .send(AssignPort(globalPortId.portId, globalPortId.input, schema), workerId)
+                asyncRPCClient.workerInterface.assignPort(
+                  AssignPortRequest(globalPortId.portId, globalPortId.input, schema.toRawSchema),
+                  asyncRPCClient.mkContext(workerId)
+                )
             }
         }
         .toSeq
     )
   }
 
-  private def connectChannels(links: Set[PhysicalLink]): Future[Seq[Unit]] = {
+  private def connectChannels(links: Set[PhysicalLink]): Future[Seq[EmptyReturn]] = {
     Future.collect(
-      links.map { link: PhysicalLink => asyncRPCClient.send(LinkWorkers(link), CONTROLLER) }.toSeq
+      links.map { link: PhysicalLink =>
+        asyncRPCClient.controllerInterface.linkWorkers(
+          LinkWorkersRequest(link),
+          asyncRPCClient.mkContext(CONTROLLER)
+        )
+      }.toSeq
     )
   }
 
-  private def openOperators(operators: Set[PhysicalOp]): Future[Seq[Unit]] = {
+  private def openOperators(operators: Set[PhysicalOp]): Future[Seq[EmptyReturn]] = {
     Future
       .collect(
         operators
@@ -182,7 +195,8 @@ class RegionExecutionCoordinator(
             workflowExecution.getRegionExecution(region.id).getOperatorExecution(opId).getWorkerIds
           )
           .map { workerId =>
-            asyncRPCClient.send(OpenExecutor(), workerId)
+            asyncRPCClient.workerInterface
+              .openExecutor(EmptyRequest(), asyncRPCClient.mkContext(workerId))
           }
           .toSeq
       )
@@ -203,15 +217,15 @@ class RegionExecutionCoordinator(
             .getOperatorExecution(opId)
             .getWorkerIds
             .map { workerId =>
-              asyncRPCClient
-                .send(StartWorker(), workerId)
-                .map(state =>
+              asyncRPCClient.workerInterface
+                .startWorker(EmptyRequest(), asyncRPCClient.mkContext(workerId))
+                .map(resp =>
                   // update worker state
                   workflowExecution
                     .getRegionExecution(region.id)
                     .getOperatorExecution(opId)
                     .getWorkerExecution(workerId)
-                    .setState(state)
+                    .setState(resp.state)
                 )
             }
         }

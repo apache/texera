@@ -1,10 +1,11 @@
 package edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners
 
+import edu.uci.ics.amber.core.marker.Marker
+import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputGateway
 import edu.uci.ics.amber.engine.common.AmberConfig
-import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, EndOfUpstream}
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
+import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, MarkerFrame}
+import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -17,7 +18,7 @@ trait Partitioner extends Serializable {
 class NetworkOutputBuffer(
     val to: ActorVirtualIdentity,
     val dataOutputPort: NetworkOutputGateway,
-    val batchSize: Int = AmberConfig.defaultBatchSize
+    val batchSize: Int = AmberConfig.defaultDataTransferBatchSize
 ) {
 
   var buffer = new ArrayBuffer[Tuple]()
@@ -29,9 +30,10 @@ class NetworkOutputBuffer(
     }
   }
 
-  def noMore(): Unit = {
+  def sendMarker(marker: Marker): Unit = {
     flush()
-    dataOutputPort.sendTo(to, EndOfUpstream())
+    dataOutputPort.sendTo(to, MarkerFrame(marker))
+    flush()
   }
 
   def flush(): Unit = {

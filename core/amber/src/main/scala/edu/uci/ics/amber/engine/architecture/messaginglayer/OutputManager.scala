@@ -1,5 +1,13 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
+import edu.uci.ics.amber.core.marker.Marker
+import edu.uci.ics.amber.core.tuple.{
+  FinalizeExecutor,
+  FinalizePort,
+  Schema,
+  SchemaEnforceable,
+  TupleLike
+}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager.{
   DPOutputIterator,
   getBatchSize,
@@ -7,24 +15,19 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager.{
 }
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners._
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings._
-import edu.uci.ics.amber.engine.architecture.worker.DataProcessor.{FinalizeExecutor, FinalizePort}
 import edu.uci.ics.amber.engine.common.AmberLogging
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.tuple.amber.{SchemaEnforceable, TupleLike}
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
-import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
+import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import edu.uci.ics.amber.core.workflow.{PhysicalLink, PortIdentity}
 
 import scala.collection.mutable
 
 object OutputManager {
 
-  final case class FlushNetworkBuffer() extends ControlCommand[Unit]
-
   // create a corresponding partitioner for the given partitioning policy
-  def toPartitioner(partitioning: Partitioning): Partitioner = {
+  def toPartitioner(partitioning: Partitioning, actorId: ActorVirtualIdentity): Partitioner = {
     val partitioner = partitioning match {
-      case oneToOnePartitioning: OneToOnePartitioning => OneToOnePartitioner(oneToOnePartitioning)
+      case oneToOnePartitioning: OneToOnePartitioning =>
+        OneToOnePartitioner(oneToOnePartitioning, actorId)
       case roundRobinPartitioning: RoundRobinPartitioning =>
         RoundRobinPartitioner(roundRobinPartitioning)
       case hashBasedShufflePartitioning: HashBasedShufflePartitioning =>
@@ -79,7 +82,7 @@ object OutputManager {
 
 /** This class is a container of all the transfer partitioners.
   *
-  * @param actorId         ActorVirtualIdentity of self.
+  * @param actorId       ActorVirtualIdentity of self.
   * @param outputGateway DataOutputPort
   */
 class OutputManager(
@@ -98,13 +101,14 @@ class OutputManager(
 
   /**
     * Add down stream operator and its corresponding Partitioner.
+    *
     * @param partitioning Partitioning, describes how and whom to send to.
     */
   def addPartitionerWithPartitioning(
       link: PhysicalLink,
       partitioning: Partitioning
   ): Unit = {
-    val partitioner = toPartitioner(partitioning)
+    val partitioner = toPartitioner(partitioning, actorId)
     partitioners.update(link, partitioner)
     partitioner.allReceivers.foreach(receiver => {
       val buffer = new NetworkOutputBuffer(receiver, outputGateway, getBatchSize(partitioning))
@@ -116,7 +120,8 @@ class OutputManager(
   /**
     * Push one tuple to the downstream, will be batched by each transfer partitioning.
     * Should ONLY be called by DataProcessor.
-    * @param tupleLike TupleLike to be passed.
+    *
+    * @param tupleLike    TupleLike to be passed.
     * @param outputPortId Optionally specifies the output port from which the tuple should be emitted.
     *                     If None, the tuple is broadcast to all output ports.
     */
@@ -161,15 +166,8 @@ class OutputManager(
     buffersToFlush.foreach(_.flush())
   }
 
-  /**
-    * Send the last batch and EOU marker to all down streams
-    */
-  def emitEndOfUpstream(): Unit = {
-    // flush all network buffers of this operator, emit end marker to network
-    networkOutputBuffers.foreach(kv => {
-      kv._2.flush()
-      kv._2.noMore()
-    })
+  def emitMarker(marker: Marker): Unit = {
+    networkOutputBuffers.foreach(kv => kv._2.sendMarker(marker))
   }
 
   def addPort(portId: PortIdentity, schema: Schema): Unit = {
@@ -194,7 +192,7 @@ class OutputManager(
   }
 
   def getSingleOutputPortIdentity: PortIdentity = {
-    assert(ports.size == 1)
+    assert(ports.size == 1, "expect 1 output port, got " + ports.size)
     ports.head._1
   }
 

@@ -1,9 +1,9 @@
 package edu.uci.ics.texera.web.resource.dashboard
 
-import edu.uci.ics.texera.web.SqlServer
-import edu.uci.ics.texera.web.model.jooq.generated.enums.{
+import edu.uci.ics.amber.core.storage.StorageConfig
+import edu.uci.ics.texera.dao.SqlServer
+import edu.uci.ics.texera.dao.jooq.generated.enums.{
   DatasetUserAccessPrivilege,
-  UserFileAccessPrivilege,
   WorkflowUserAccessPrivilege
 }
 import edu.uci.ics.texera.web.resource.dashboard.UnifiedResourceSchema.context
@@ -12,7 +12,6 @@ import org.jooq.types.UInteger
 import org.jooq.{Field, Record}
 
 import java.sql.Timestamp
-import java.lang.Byte
 import scala.collection.mutable
 
 object UnifiedResourceSchema {
@@ -33,7 +32,10 @@ object UnifiedResourceSchema {
   val resourceOwnerIdField: Field[_] = DSL.field(DSL.name(resourceOwnerIdAlias))
   val resourceLastModifiedTimeField: Field[_] = DSL.field(DSL.name(resourceLastModifiedTimeAlias))
 
-  final lazy val context = SqlServer.createDSLContext()
+  final lazy val context = SqlServer
+    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .createDSLContext()
+
   def apply(
       resourceType: Field[String] = DSL.inline(""),
       name: Field[String] = DSL.inline(""),
@@ -51,15 +53,9 @@ object UnifiedResourceSchema {
       pid: Field[UInteger] = DSL.inline(null, classOf[UInteger]),
       projectOwnerId: Field[UInteger] = DSL.inline(null, classOf[UInteger]),
       projectColor: Field[String] = DSL.inline(""),
-      fid: Field[UInteger] = DSL.inline(null, classOf[UInteger]),
-      fileUploadTime: Field[Timestamp] = DSL.inline(null, classOf[Timestamp]),
-      filePath: Field[String] = DSL.inline(""),
-      fileSize: Field[UInteger] = DSL.inline(null, classOf[UInteger]),
-      fileUserAccess: Field[UserFileAccessPrivilege] =
-        DSL.inline(null, classOf[UserFileAccessPrivilege]),
       did: Field[UInteger] = DSL.inline(null, classOf[UInteger]),
       datasetStoragePath: Field[String] = DSL.inline(null, classOf[String]),
-      isDatasetPublic: Field[Byte] = DSL.inline(null, classOf[Byte]),
+      isDatasetPublic: Field[java.lang.Byte] = DSL.inline(null, classOf[java.lang.Byte]),
       datasetUserAccess: Field[DatasetUserAccessPrivilege] =
         DSL.inline(null, classOf[DatasetUserAccessPrivilege])
   ): UnifiedResourceSchema = {
@@ -80,11 +76,6 @@ object UnifiedResourceSchema {
         pid -> pid.as("pid"),
         projectOwnerId -> projectOwnerId.as("owner_uid"),
         projectColor -> projectColor.as("color"),
-        fid -> fid.as("fid"),
-        fileUploadTime -> fileUploadTime.as("upload_time"),
-        filePath -> filePath.as("path"),
-        fileSize -> fileSize.as("size"),
-        fileUserAccess -> fileUserAccess.as("user_file_access"),
         did -> did.as("did"),
         datasetStoragePath -> datasetStoragePath.as("dataset_storage_path"),
         datasetUserAccess -> datasetUserAccess.as("user_dataset_access"),

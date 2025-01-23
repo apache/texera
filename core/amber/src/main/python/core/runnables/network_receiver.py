@@ -2,6 +2,7 @@ from loguru import logger
 from overrides import overrides
 from pyarrow.lib import Table
 from typing import Optional
+from pampy import match
 
 from core.architecture.handlers.actorcommand.actor_handler_base import (
     ActorCommandHandler,
@@ -13,10 +14,11 @@ from core.architecture.handlers.actorcommand.credit_update_handler import (
     CreditUpdateHandler,
 )
 from core.models import (
-    InputDataFrame,
-    EndOfUpstream,
+    DataFrame,
+    MarkerFrame,
 )
 from core.models.internal_queue import DataElement, ControlElement, InternalQueue
+from core.models.marker import EndOfInputChannel, State, StartOfInputChannel
 from core.proxy import ProxyServer
 from core.util import Stoppable, get_one_of
 from core.util.runnable.runnable import Runnable
@@ -62,14 +64,19 @@ class NetworkReceiver(Runnable, Stoppable):
             :return: sender credits
             """
             data_header = PythonDataHeader().parse(command)
-            if not data_header.is_end:
-                shared_queue.put(
-                    DataElement(tag=data_header.tag, payload=InputDataFrame(table))
-                )
-            else:
-                shared_queue.put(
-                    DataElement(tag=data_header.tag, payload=EndOfUpstream())
-                )
+            payload = match(
+                data_header.payload_type,
+                "Data",
+                lambda _: DataFrame(table),
+                "State",
+                lambda _: MarkerFrame(State(table)),
+                "StartOfInputChannel",
+                MarkerFrame(StartOfInputChannel()),
+                "EndOfInputChannel",
+                MarkerFrame(EndOfInputChannel()),
+            )
+
+            shared_queue.put(DataElement(tag=data_header.tag, payload=payload))
             return shared_queue.in_mem_size()
 
         self._proxy_server.register_data_handler(data_handler)

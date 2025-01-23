@@ -1,0 +1,16 @@
+<div
+  class="d-inline-block avatar-wrapper"
+  style="position: relative">
+  <nz-avatar
+    [nzAlt]=""
+    [nzSrc]="(avatarUrl$ | async) || ''"
+    [nzText]="abbreviate(userName || '')"
+    [style.background-color]="userColor"
+    class="texera-user-avatar">
+  </nz-avatar>
+  <span
+    *ngIf="isOwner"
+    class="owner-badge"
+    >★</span
+  >
+</div>

@@ -1,13 +1,15 @@
 import { Component, HostListener, OnDestroy, OnInit, Type } from "@angular/core";
-import { UntilDestroy } from "@ngneat/until-destroy";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzResizeEvent } from "ng-zorro-antd/resizable";
 import { CdkDragDrop, moveItemInArray } from "@angular/cdk/drag-drop";
 import { environment } from "../../../../environments/environment";
 import { OperatorMenuComponent } from "./operator-menu/operator-menu.component";
 import { VersionsListComponent } from "./versions-list/versions-list.component";
-import { WorkflowExecutionHistoryComponent } from "../../../dashboard/user/component/user-workflow/ngbd-modal-workflow-executions/workflow-execution-history.component";
+import { WorkflowExecutionHistoryComponent } from "../../../dashboard/component/user/user-workflow/ngbd-modal-workflow-executions/workflow-execution-history.component";
 import { TimeTravelComponent } from "./time-travel/time-travel.component";
-import { EnvironmentComponent } from "./environment/environment.component";
+import { SettingsComponent } from "./settings/settings.component";
+import { calculateTotalTranslate3d } from "../../../common/util/panel-dock";
+import { PanelService } from "../../service/panel/panel.service";
 @UntilDestroy()
 @Component({
   selector: "texera-left-panel",
@@ -27,6 +29,12 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
     { component: OperatorMenuComponent, title: "Operators", icon: "appstore", enabled: true },
     { component: VersionsListComponent, title: "Versions", icon: "schedule", enabled: environment.userSystemEnabled },
     {
+      component: SettingsComponent,
+      title: "Settings",
+      icon: "setting",
+      enabled: true,
+    },
+    {
       component: WorkflowExecutionHistoryComponent,
       title: "Execution History",
       icon: "history",
@@ -38,19 +46,20 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
       icon: "clock-circle",
       enabled: environment.userSystemEnabled && environment.timetravelEnabled,
     },
-    {
-      component: EnvironmentComponent,
-      title: "Environment",
-      icon: "dashboard",
-      enabled: environment.userSystemEnabled,
-    },
   ];
 
   order = Array.from({ length: this.items.length - 1 }, (_, index) => index + 1);
+  dragPosition = { x: 0, y: 0 };
+  returnPosition = { x: 0, y: 0 };
+  isDocked = true;
 
-  constructor() {
-    this.order = localStorage.getItem("left-panel-order")?.split(",").map(Number) || this.order;
-    this.openFrame(Number(localStorage.getItem("left-panel-index") || "1"));
+  constructor(private panelService: PanelService) {
+    const savedOrder = localStorage.getItem("left-panel-order")?.split(",").map(Number);
+    this.order = savedOrder && new Set(savedOrder).size === new Set(this.order).size ? savedOrder : this.order;
+
+    const savedIndex = Number(localStorage.getItem("left-panel-index"));
+    this.openFrame(savedIndex < this.items.length && this.items[savedIndex].enabled ? savedIndex : 1);
+
     this.width = Number(localStorage.getItem("left-panel-width")) || this.width;
     this.height = Number(localStorage.getItem("left-panel-height")) || this.height;
   }
@@ -58,6 +67,15 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
   ngOnInit(): void {
     const style = localStorage.getItem("left-panel-style");
     if (style) document.getElementById("left-container")!.style.cssText = style;
+    const translates = document.getElementById("left-container")!.style.transform;
+    const [xOffset, yOffset, _] = calculateTotalTranslate3d(translates);
+    this.returnPosition = { x: -xOffset, y: -yOffset };
+    this.isDocked = this.dragPosition.x === this.returnPosition.x && this.dragPosition.y === this.returnPosition.y;
+    this.panelService.closePanelStream.pipe(untilDestroyed(this)).subscribe(() => this.openFrame(0));
+    this.panelService.resetPanelStream.pipe(untilDestroyed(this)).subscribe(() => {
+      this.resetPanelPosition();
+      this.openFrame(1);
+    });
   }
 
   @HostListener("window:beforeunload")
@@ -66,7 +84,11 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
     localStorage.setItem("left-panel-height", String(this.height));
     localStorage.setItem("left-panel-order", String(this.order));
     localStorage.setItem("left-panel-index", String(this.currentIndex));
-    localStorage.setItem("left-panel-style", document.getElementById("left-container")!.style.cssText);
+
+    const leftContainer = document.getElementById("left-container");
+    if (leftContainer) {
+      localStorage.setItem("left-panel-style", leftContainer.style.cssText);
+    }
   }
 
   openFrame(i: number) {
@@ -90,5 +112,14 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
       this.width = width!;
       this.height = height!;
     });
+  }
+
+  resetPanelPosition() {
+    this.dragPosition = { x: this.returnPosition.x, y: this.returnPosition.y };
+    this.isDocked = true;
+  }
+
+  handleDragStart() {
+    this.isDocked = false;
   }
 }

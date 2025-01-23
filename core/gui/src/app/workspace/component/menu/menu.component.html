@@ -1,5 +1,7 @@
 <div id="menu-container">
-  <div id="logo">
+  <div
+    *ngIf="!userSystemEnabled"
+    id="logo">
     <a href="{{userSystemEnabled?'/dashboard/workflow':'/'}}">
       <img
         alt="Texera"
@@ -39,11 +41,28 @@
           *ngIf="displayParticularWorkflowVersion"
           nz-button
           nzType="primary"
-          [disabled]="!workflowVersionService.modificationEnabledBeforeTempWorkflow"
+          [disabled]="!workflowVersionService.canRestoreVersion"
           (click)="revertToVersion()"
           style="width: 160px">
           Restore this version
         </button>
+        <button
+          *ngIf="displayParticularWorkflowVersion"
+          nz-button
+          nzType="default"
+          (click)="cloneVersion()"
+          style="width: 160px; margin-left: 10px">
+          Clone this version
+        </button>
+        <span
+          *ngIf="displayParticularWorkflowVersion && workflowVersionService.selectedDisplayedVersionId.getValue() !== null"
+          title="Current Version"
+          style="margin-left: 10px">
+          <i
+            nz-icon
+            nzType="info-circle"></i>
+          Current Version: {{ workflowVersionService.selectedDisplayedVersionId.getValue() }}
+        </span>
         <span *ngIf="!displayParticularWorkflowVersion"> {{autoSaveState}} </span>
       </div>
 
@@ -57,7 +76,7 @@
       <nz-button-group
         id="user-buttons"
         *ngIf="!displayParticularWorkflowVersion">
-        <a [routerLink]="'/dashboard/workflow'">
+        <a [routerLink]="DASHBOARD_USER_WORKFLOW">
           <button
             *ngIf="userSystemEnabled"
             nz-button
@@ -120,28 +139,36 @@
       <ng-template #utilities>
         <nz-button-group>
           <button
+            (click)="onClickClosePanels()"
+            nz-button
+            title="close panels">
+            <i
+              nz-icon
+              nzType="minus"></i>
+          </button>
+          <button
+            (click)="onClickResetPanels()"
+            nz-button
+            title="reset panels">
+            <i
+              nz-icon
+              nzType="clear"></i>
+          </button>
+          <button
+            (click)="onClickGenerateReport()"
+            nz-button
+            title="generate report">
+            <i
+              nz-icon
+              nzType="printer"></i>
+          </button>
+          <button
             (click)="onClickToggleGrids()"
             nz-button
             title="Toggle Grids">
             <i
               nz-icon
               nzType="border-outer"></i>
-          </button>
-          <button
-            (click)="onClickZoomOut()"
-            nz-button
-            title="zoom out">
-            <i
-              nz-icon
-              nzType="zoom-out"></i>
-          </button>
-          <button
-            (click)="onClickZoomIn()"
-            nz-button
-            title="zoom in">
-            <i
-              nz-icon
-              nzType="zoom-in"></i>
           </button>
           <button
             (click)="onClickRestoreZoomOffsetDefault()"
@@ -170,15 +197,12 @@
               nzType="comment"></i>
           </button>
           <button
-            (click)="onClickExportExecutionResult('csv')"
-            [disabled]="
-        !workflowResultExportService.exportExecutionResultEnabled ||
-        !workflowResultExportService.hasResultToExport
-      "
-            id="downloadExcelOptions"
             nz-button
             nz-dropdown
-            title="export execution result">
+            (click)="onClickExportExecutionResult()"
+            [nzTrigger]="isExportDeactivate ? 'click' : 'hover'"
+            [disabled]="isExportDeactivate"
+            title="">
             <i
               nz-icon
               nzType="cloud-download"></i>
@@ -227,7 +251,7 @@
           </button>
           <button
             *ngIf="(operatorMenu.isMarkForReuse || ! operatorMenu.isReuseResultClickable)"
-            [disabled]="! operatorMenu.isReuseResultClickable"
+            [disabled]="true || ! operatorMenu.isReuseResultClickable"
             (click)="operatorMenu.reuseResultHighlightedOperator()"
             nz-button
             title="reuse result if possible">
@@ -285,6 +309,16 @@
 
       <nz-button-group id="execution-buttons">
         <button
+          nz-button
+          id="share-button"
+          (click)="onClickOpenShareAccess()">
+          <span
+            nz-icon
+            nzType="share-alt"
+            nzTheme="outline"></span>
+          Share
+        </button>
+        <button
           (click)="handleKill()"
           [disabled]="
         executionState === ExecutionState.Uninitialized ||
@@ -302,9 +336,9 @@
         <button
           (click)="onClickRunHandler()"
           nz-popover
-          nzPopoverTitle="Enter Execution Name"
+          nzPopoverTitle="Execution Settings"
           [nzPopoverTrigger]="userSystemEnabled?'hover':null"
-          [nzPopoverContent]="execution_name"
+          [nzPopoverContent]="executionSettings"
           nzPopoverPlacement="bottom"
           [disabled]="runDisable || !workflowWebsocketService.isConnected || displayParticularWorkflowVersion"
           id="run-button"
@@ -327,11 +361,21 @@
             nz-icon
             nzType="database"></i>
         </button>
-        <ng-template #execution_name>
-          <input
-            [(ngModel)]="currentExecutionName"
-            placeholder="Untitled Execution"
-            [disabled]="!isWorkflowModifiable" />
+        <ng-template #executionSettings>
+          <div style="display: flex; flex-direction: column; gap: 10px">
+            <input
+              [(ngModel)]="currentExecutionName"
+              placeholder="Untitled Execution"
+              [disabled]="!isWorkflowModifiable" />
+            <div style="display: flex; align-items: center; gap: 10px">
+              <span>Email Notification</span>
+              <nz-switch
+                [(ngModel)]="emailNotificationEnabled"
+                nzCheckedChildren="On"
+                nzUnCheckedChildren="Off">
+              </nz-switch>
+            </div>
+          </div>
         </ng-template>
         <div style="margin-left: 5px">
           <nz-badge

@@ -32,23 +32,22 @@ import { TEXERA_FORMLY_CONFIG } from "./common/formly/formly-config";
 import { MultiSchemaTypeComponent } from "./common/formly/multischema.type";
 import { NullTypeComponent } from "./common/formly/null.type";
 import { ObjectTypeComponent } from "./common/formly/object.type";
-import { UserFileUploadService } from "./dashboard/user/service/user-file/user-file-upload.service";
-import { UserFileService } from "./dashboard/user/service/user-file/user-file.service";
 import { UserService } from "./common/service/user/user.service";
-import { DashboardComponent } from "./dashboard/user/component/dashboard.component";
-import { UserWorkflowComponent } from "./dashboard/user/component/user-workflow/user-workflow.component";
-import { ShareAccessComponent } from "./dashboard/user/component/share-access/share-access.component";
-import { WorkflowExecutionHistoryComponent } from "./dashboard/user/component/user-workflow/ngbd-modal-workflow-executions/workflow-execution-history.component";
-import { UserFileComponent } from "./dashboard/user/component/user-file/user-file.component";
-import { UserQuotaComponent } from "./dashboard/user/component/user-quota/user-quota.component";
-import { UserIconComponent } from "./dashboard/user/component/user-icon/user-icon.component";
-import { UserAvatarComponent } from "./dashboard/user/component/user-avatar/user-avatar.component";
+import { DashboardComponent } from "./dashboard/component/dashboard.component";
+import { UserWorkflowComponent } from "./dashboard/component/user/user-workflow/user-workflow.component";
+import { ShareAccessComponent } from "./dashboard/component/user/share-access/share-access.component";
+import { WorkflowExecutionHistoryComponent } from "./dashboard/component/user/user-workflow/ngbd-modal-workflow-executions/workflow-execution-history.component";
+import { UserQuotaComponent } from "./dashboard/component/user/user-quota/user-quota.component";
+import { UserIconComponent } from "./dashboard/component/user/user-icon/user-icon.component";
+import { UserAvatarComponent } from "./dashboard/component/user/user-avatar/user-avatar.component";
 import { CodeEditorComponent } from "./workspace/component/code-editor-dialog/code-editor.component";
+import { AnnotationSuggestionComponent } from "./workspace/component/code-editor-dialog/annotation-suggestion.component";
 import { CodeareaCustomTemplateComponent } from "./workspace/component/codearea-custom-template/codearea-custom-template.component";
 import { MiniMapComponent } from "./workspace/component/workflow-editor/mini-map/mini-map.component";
 import { MenuComponent } from "./workspace/component/menu/menu.component";
 import { OperatorLabelComponent } from "./workspace/component/left-panel/operator-menu/operator-label/operator-label.component";
 import { OperatorMenuComponent } from "./workspace/component/left-panel/operator-menu/operator-menu.component";
+import { SettingsComponent } from "./workspace/component/left-panel/settings/settings.component";
 import { PropertyEditorComponent } from "./workspace/component/property-editor/property-editor.component";
 import { TypeCastingDisplayComponent } from "./workspace/component/property-editor/typecasting-display/type-casting-display.component";
 import { ResultPanelComponent } from "./workspace/component/result-panel/result-panel.component";
@@ -68,82 +67,93 @@ import { VersionsListComponent } from "./workspace/component/left-panel/versions
 import { NzPaginationModule } from "ng-zorro-antd/pagination";
 import { JwtModule } from "@auth0/angular-jwt";
 import { AuthService } from "./common/service/user/auth.service";
-import { UserProjectComponent } from "./dashboard/user/component/user-project/user-project.component";
-import { UserProjectSectionComponent } from "./dashboard/user/component/user-project/user-project-section/user-project-section.component";
-import { NgbdModalAddProjectWorkflowComponent } from "./dashboard/user/component/user-project/user-project-section/ngbd-modal-add-project-workflow/ngbd-modal-add-project-workflow.component";
-import { NgbdModalRemoveProjectWorkflowComponent } from "./dashboard/user/component/user-project/user-project-section/ngbd-modal-remove-project-workflow/ngbd-modal-remove-project-workflow.component";
-import { NgbdModalAddProjectFileComponent } from "./dashboard/user/component/user-project/user-project-section/ngbd-modal-add-project-file/ngbd-modal-add-project-file.component";
-import { NgbdModalRemoveProjectFileComponent } from "./dashboard/user/component/user-project/user-project-section/ngbd-modal-remove-project-file/ngbd-modal-remove-project-file.component";
+import { UserProjectComponent } from "./dashboard/component/user/user-project/user-project.component";
+import { UserProjectSectionComponent } from "./dashboard/component/user/user-project/user-project-section/user-project-section.component";
+import { NgbdModalAddProjectWorkflowComponent } from "./dashboard/component/user/user-project/user-project-section/ngbd-modal-add-project-workflow/ngbd-modal-add-project-workflow.component";
+import { NgbdModalRemoveProjectWorkflowComponent } from "./dashboard/component/user/user-project/user-project-section/ngbd-modal-remove-project-workflow/ngbd-modal-remove-project-workflow.component";
 import { PresetWrapperComponent } from "./common/formly/preset-wrapper/preset-wrapper.component";
 import { NzModalCommentBoxComponent } from "./workspace/component/workflow-editor/comment-box-modal/nz-modal-comment-box.component";
 import { NzCommentModule } from "ng-zorro-antd/comment";
-import { AdminUserComponent } from "./dashboard/admin/component/user/admin-user.component";
-import { AdminExecutionComponent } from "./dashboard/admin/component/execution/admin-execution.component";
+import { AdminUserComponent } from "./dashboard/component/admin/user/admin-user.component";
+import { AdminExecutionComponent } from "./dashboard/component/admin/execution/admin-execution.component";
 import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
-import { AdminGuardService } from "./dashboard/admin/service/admin-guard.service";
+import { AdminGuardService } from "./dashboard/service/admin/guard/admin-guard.service";
 import { ContextMenuComponent } from "./workspace/component/workflow-editor/context-menu/context-menu/context-menu.component";
 import { CoeditorUserIconComponent } from "./workspace/component/menu/coeditor-user-icon/coeditor-user-icon.component";
 import { InputAutoCompleteComponent } from "./workspace/component/input-autocomplete/input-autocomplete.component";
 import { CollabWrapperComponent } from "./common/formly/collab-wrapper/collab-wrapper/collab-wrapper.component";
 import { NzSwitchModule } from "ng-zorro-antd/switch";
-import { HomeComponent } from "./home/component/home.component";
+import { AboutComponent } from "./hub/component/about/about.component";
 import { NzLayoutModule } from "ng-zorro-antd/layout";
 import { AuthGuardService } from "./common/service/user/auth-guard.service";
-import { LocalLoginComponent } from "./home/component/login/local-login/local-login.component";
+import { LocalLoginComponent } from "./hub/component/about/local-login/local-login.component";
 import { MarkdownModule } from "ngx-markdown";
-import { FileSaverService } from "./dashboard/user/service/user-file/file-saver.service";
+import { FileSaverService } from "./dashboard/service/user/file/file-saver.service";
 import { DragDropModule } from "@angular/cdk/drag-drop";
-import { UserWorkflowListItemComponent } from "./dashboard/user/component/user-workflow/user-workflow-list-item/user-workflow-list-item.component";
-import { UserProjectListItemComponent } from "./dashboard/user/component/user-project/user-project-list-item/user-project-list-item.component";
-import { SortButtonComponent } from "./dashboard/user/component/sort-button/sort-button.component";
-import { FiltersComponent } from "./dashboard/user/component/filters/filters.component";
-import { FiltersInstructionsComponent } from "./dashboard/user/component/filters-instructions/filters-instructions.component";
-import { UserFileListItemComponent } from "./dashboard/user/component/user-file/user-file-list-item/user-file-list-item.component";
-import { SearchComponent } from "./dashboard/user/component/search/search.component";
-import { SearchResultsComponent } from "./dashboard/user/component/search-results/search-results.component";
+import { UserWorkflowListItemComponent } from "./dashboard/component/user/user-workflow/user-workflow-list-item/user-workflow-list-item.component";
+import { UserProjectListItemComponent } from "./dashboard/component/user/user-project/user-project-list-item/user-project-list-item.component";
+import { SortButtonComponent } from "./dashboard/component/user/sort-button/sort-button.component";
+import { FiltersComponent } from "./dashboard/component/user/filters/filters.component";
+import { FiltersInstructionsComponent } from "./dashboard/component/user/filters-instructions/filters-instructions.component";
+import { SearchComponent } from "./dashboard/component/user/search/search.component";
+import { SearchResultsComponent } from "./dashboard/component/user/search-results/search-results.component";
 import { PortPropertyEditFrameComponent } from "./workspace/component/property-editor/port-property-edit-frame/port-property-edit-frame.component";
-import { GmailComponent } from "./dashboard/admin/component/gmail/gmail.component";
-import { PublicProjectComponent } from "./dashboard/user/component/user-project/public-project/public-project.component";
+import { AdminGmailComponent } from "./dashboard/component/admin/gmail/admin-gmail.component";
+import { PublicProjectComponent } from "./dashboard/component/user/user-project/public-project/public-project.component";
 import { FormlyNgZorroAntdModule } from "@ngx-formly/ng-zorro-antd";
-import { FlarumComponent } from "./dashboard/user/component/flarum/flarum.component";
+import { FlarumComponent } from "./dashboard/component/user/flarum/flarum.component";
 import { NzAlertModule } from "ng-zorro-antd/alert";
 import { LeftPanelComponent } from "./workspace/component/left-panel/left-panel.component";
 import { ErrorFrameComponent } from "./workspace/component/result-panel/error-frame/error-frame.component";
 import { NzResizableModule } from "ng-zorro-antd/resizable";
-import { WorkflowRuntimeStatisticsComponent } from "./dashboard/user/component/user-workflow/ngbd-modal-workflow-executions/workflow-runtime-statistics/workflow-runtime-statistics.component";
+import { WorkflowRuntimeStatisticsComponent } from "./dashboard/component/user/user-workflow/ngbd-modal-workflow-executions/workflow-runtime-statistics/workflow-runtime-statistics.component";
 import { TimeTravelComponent } from "./workspace/component/left-panel/time-travel/time-travel.component";
 import { NzMessageModule } from "ng-zorro-antd/message";
 import { NzModalModule } from "ng-zorro-antd/modal";
 import { OverlayModule } from "@angular/cdk/overlay";
-import { HighlightSearchTermsPipe } from "./dashboard/user/component/user-workflow/user-workflow-list-item/highlight-search-terms.pipe";
+import { HighlightSearchTermsPipe } from "./dashboard/component/user/user-workflow/user-workflow-list-item/highlight-search-terms.pipe";
 import { en_US, provideNzI18n } from "ng-zorro-antd/i18n";
-import { FilesUploaderComponent } from "./dashboard/user/component/files-uploader/files-uploader.component";
-import { UserDatasetComponent } from "./dashboard/user/component/user-dataset/user-dataset.component";
-import { UserDatasetVersionCreatorComponent } from "./dashboard/user/component/user-dataset/user-dataset-explorer/user-dataset-version-creator/user-dataset-version-creator.component";
-import { UserDatasetExplorerComponent } from "./dashboard/user/component/user-dataset/user-dataset-explorer/user-dataset-explorer.component";
-import { UserDatasetVersionFiletreeComponent } from "./dashboard/user/component/user-dataset/user-dataset-explorer/user-dataset-version-filetree/user-dataset-version-filetree.component";
-import { UserDatasetFileRendererComponent } from "./dashboard/user/component/user-dataset/user-dataset-explorer/user-dataset-file-renderer/user-dataset-file-renderer.component";
+import { FilesUploaderComponent } from "./dashboard/component/user/files-uploader/files-uploader.component";
+import { UserDatasetComponent } from "./dashboard/component/user/user-dataset/user-dataset.component";
+import { UserDatasetVersionCreatorComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-version-creator/user-dataset-version-creator.component";
+import { DatasetDetailComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/dataset-detail.component";
+import { UserDatasetVersionFiletreeComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-version-filetree/user-dataset-version-filetree.component";
+import { UserDatasetFileRendererComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-file-renderer/user-dataset-file-renderer.component";
 import { NzSpinModule } from "ng-zorro-antd/spin";
-import { UserDatasetListItemComponent } from "./dashboard/user/component/user-dataset/user-dataset-list-item/user-dataset-list-item.component";
+import { UserDatasetListItemComponent } from "./dashboard/component/user/user-dataset/user-dataset-list-item/user-dataset-list-item.component";
 import { NgxFileDropModule } from "ngx-file-drop";
 import { NzTreeModule } from "ng-zorro-antd/tree";
 import { NzTreeViewModule } from "ng-zorro-antd/tree-view";
 import { NzNoAnimationModule } from "ng-zorro-antd/core/no-animation";
 import { TreeModule } from "@ali-hm/angular-tree-component";
-import { EnvironmentComponent } from "./workspace/component/left-panel/environment/environment.component";
 import { FileSelectionComponent } from "./workspace/component/file-selection/file-selection.component";
 import { ResultExportationComponent } from "./workspace/component/result-exportation/result-exportation.component";
+import { ReportGenerationService } from "./workspace/service/report-generation/report-generation.service";
+import { SearchBarComponent } from "./dashboard/component/user/search-bar/search-bar.component";
+import { ListItemComponent } from "./dashboard/component/user/list-item/list-item.component";
+import { HubComponent } from "./hub/component/hub.component";
+import { HubWorkflowDetailComponent } from "./hub/component/workflow/detail/hub-workflow-detail.component";
+import { LandingPageComponent } from "./hub/component/landing-page/landing-page.component";
+import { BrowseSectionComponent } from "./hub/component/browse-section/browse-section.component";
+import { BreakpointConditionInputComponent } from "./workspace/component/code-editor-dialog/breakpoint-condition-input/breakpoint-condition-input.component";
+import { CodeDebuggerComponent } from "./workspace/component/code-editor-dialog/code-debugger.component";
+import { GoogleAuthService } from "./common/service/user/google-auth.service";
+import { SocialLoginModule, SocialAuthServiceConfig, GoogleSigninButtonModule } from "@abacritt/angularx-social-login";
+import { GoogleLoginProvider } from "@abacritt/angularx-social-login";
+import { lastValueFrom } from "rxjs";
+import { HubSearchResultComponent } from "./hub/component/hub-search-result/hub-search-result.component";
 
 registerLocaleData(en);
 
 @NgModule({
   declarations: [
-    GmailComponent,
+    AdminGmailComponent,
     PublicProjectComponent,
     AppComponent,
     WorkspaceComponent,
     MenuComponent,
     OperatorMenuComponent,
+    SettingsComponent,
     PropertyEditorComponent,
     VersionsListComponent,
     TimeTravelComponent,
@@ -158,7 +168,6 @@ registerLocaleData(en);
     UserAvatarComponent,
     LocalLoginComponent,
     UserWorkflowComponent,
-    UserFileComponent,
     UserQuotaComponent,
     RowModalComponent,
     OperatorLabelComponent,
@@ -171,6 +180,7 @@ registerLocaleData(en);
     VisualizationFrameContentComponent,
     CodeareaCustomTemplateComponent,
     CodeEditorComponent,
+    AnnotationSuggestionComponent,
     TypeCastingDisplayComponent,
     ShareAccessComponent,
     WorkflowExecutionHistoryComponent,
@@ -184,17 +194,14 @@ registerLocaleData(en);
     UserProjectSectionComponent,
     NgbdModalAddProjectWorkflowComponent,
     NgbdModalRemoveProjectWorkflowComponent,
-    NgbdModalAddProjectFileComponent,
-    NgbdModalRemoveProjectFileComponent,
     FilesUploaderComponent,
     UserDatasetComponent,
     UserDatasetVersionCreatorComponent,
-    UserDatasetExplorerComponent,
+    DatasetDetailComponent,
     UserDatasetVersionFiletreeComponent,
     UserDatasetListItemComponent,
     UserDatasetFileRendererComponent,
     NzModalCommentBoxComponent,
-    EnvironmentComponent,
     LeftPanelComponent,
     LocalLoginComponent,
     ContextMenuComponent,
@@ -202,19 +209,27 @@ registerLocaleData(en);
     InputAutoCompleteComponent,
     FileSelectionComponent,
     CollabWrapperComponent,
-    HomeComponent,
+    AboutComponent,
     UserWorkflowListItemComponent,
     UserProjectListItemComponent,
     SortButtonComponent,
     FiltersComponent,
     FiltersInstructionsComponent,
-    UserFileListItemComponent,
     SearchComponent,
     SearchResultsComponent,
     PortPropertyEditFrameComponent,
     WorkflowRuntimeStatisticsComponent,
     FlarumComponent,
     HighlightSearchTermsPipe,
+    SearchBarComponent,
+    ListItemComponent,
+    HubComponent,
+    HubWorkflowDetailComponent,
+    LandingPageComponent,
+    BrowseSectionComponent,
+    BreakpointConditionInputComponent,
+    CodeDebuggerComponent,
+    HubSearchResultComponent,
   ],
   imports: [
     BrowserModule,
@@ -225,6 +240,7 @@ registerLocaleData(en);
         tokenGetter: AuthService.getAccessToken,
         skipWhenExpired: false,
         throwNoTokenError: false,
+        disallowedRoutes: ["forum/api/users"],
       },
     }),
     BrowserAnimationsModule,
@@ -273,6 +289,8 @@ registerLocaleData(en);
     NzTreeViewModule,
     NzNoAnimationModule,
     TreeModule,
+    SocialLoginModule,
+    GoogleSigninButtonModule,
   ],
   providers: [
     provideNzI18n(en_US),
@@ -280,13 +298,26 @@ registerLocaleData(en);
     AdminGuardService,
     DatePipe,
     UserService,
-    UserFileService,
-    UserFileUploadService,
     FileSaverService,
+    ReportGenerationService,
     {
       provide: HTTP_INTERCEPTORS,
       useClass: BlobErrorHttpInterceptor,
       multi: true,
+    },
+    {
+      provide: "SocialAuthServiceConfig",
+      useFactory: (googleAuthService: GoogleAuthService, userService: UserService) => {
+        return lastValueFrom(googleAuthService.getClientId()).then(clientId => ({
+          providers: [
+            {
+              id: GoogleLoginProvider.PROVIDER_ID,
+              provider: new GoogleLoginProvider(clientId, { oneTapEnabled: !userService.isLogin() }),
+            },
+          ],
+        })) as Promise<SocialAuthServiceConfig>;
+      },
+      deps: [GoogleAuthService, UserService],
     },
   ],
   bootstrap: [AppComponent],

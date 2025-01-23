@@ -1,13 +1,18 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 
 import com.flipkart.zjsonpatch.{JsonDiff, JsonPatch}
+import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.amber.engine.common.AmberConfig
-import edu.uci.ics.texera.Utils.objectMapper
-import edu.uci.ics.texera.web.SqlServer
+import edu.uci.ics.amber.engine.common.Utils.objectMapper
+import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.WORKFLOW_VERSION
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{WorkflowDao, WorkflowVersionDao}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{Workflow, WorkflowVersion}
+import edu.uci.ics.texera.dao.jooq.generated.Tables.WORKFLOW_VERSION
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{WorkflowDao, WorkflowVersionDao}
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{Workflow, WorkflowVersion}
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.{
+  DashboardWorkflow,
+  assignNewOperatorIds
+}
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowVersionResource._
 import io.dropwizard.auth.Auth
 import org.jooq.types.UInteger
@@ -24,7 +29,9 @@ import scala.jdk.CollectionConverters.IterableHasAsScala
   */
 
 object WorkflowVersionResource {
-  final private lazy val context = SqlServer.createDSLContext()
+  final private lazy val context = SqlServer
+    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .createDSLContext()
   final private lazy val workflowVersionDao = new WorkflowVersionDao(context.configuration)
   final private lazy val workflowDao = new WorkflowDao(context.configuration)
   // constant to indicate versions should be aggregated if they are within the specified time limit
@@ -36,6 +43,7 @@ object WorkflowVersionResource {
 
   /**
     * This function does the check of the difference between the current workflow and its previous version if it exists and inserts a new version
+    *
     * @param workflow
     * @param insertingNewWorkflow indicates if the workflow didn't exist before
     */
@@ -60,6 +68,7 @@ object WorkflowVersionResource {
 
   /**
     * This function updates the content of the latest version and inserts a new empty version for the current workflow
+    *
     * @param patch to update latest version
     * @param wid
     */
@@ -73,6 +82,7 @@ object WorkflowVersionResource {
 
   /**
     * This function retrieves the latest version of a workflow
+    *
     * @param wid
     * @return vid
     */
@@ -95,6 +105,7 @@ object WorkflowVersionResource {
 
   /**
     * This function inserts a new version for a workflow
+    *
     * @param wid
     */
   def insertNewVersion(wid: UInteger, content: String = "[]"): WorkflowVersion = {
@@ -107,9 +118,10 @@ object WorkflowVersionResource {
 
   /**
     * This function retrieves the content of versions from a specific workflow in a range
+    *
     * @param lowerBound lower bound of the version search range
     * @param UpperBound upper bound of the search range
-    * @param wid workflow id
+    * @param wid        workflow id
     * @return a list of contents as strings
     */
   def isSnapshotInRangeUnimportant(
@@ -133,6 +145,7 @@ object WorkflowVersionResource {
 
   /**
     * This function parses the content of the delta to determine if it is positional only
+    *
     * @param versionContent
     * @return
     */
@@ -158,6 +171,7 @@ object WorkflowVersionResource {
     * insertion to DB because of computing the version's importance especially because the request is
     * async, the versions can quickly become inconsistent if there is delay.
     * * 3. The rules can be changed in the future so we want this logic to be changed flexibly.
+    *
     * @param versions the version from DB sorted from latest to earliest
     * @return
     */
@@ -202,6 +216,7 @@ object WorkflowVersionResource {
 
   /**
     * This function determines whether this version is still within the time range of previous versions
+    *
     * @param latestTime
     * @param currentVersionTimestamp
     * @return
@@ -215,6 +230,7 @@ object WorkflowVersionResource {
 
   /**
     * This function parses the content of the delta to determine if it is positional only
+    *
     * @param versionContent
     * @return
     */
@@ -234,6 +250,7 @@ object WorkflowVersionResource {
 
   /**
     * This function applies all the diff versions to a workflow
+    *
     * @param versions list of computed delta in each version
     * @param workflow beginning workflow ( more recent)
     * @return the (old) workflow is computed after applying all the patches
@@ -258,6 +275,7 @@ object WorkflowVersionResource {
 
   /**
     * This class is to add version importance encoding to the existing `VersionEntry` from DB
+    *
     * @param vId
     * @param creationTime
     * @param content
@@ -342,5 +360,56 @@ class WorkflowVersionResource {
       val res: Workflow = applyPatch(versionEntries.reverse, currentWorkflow)
       res
     }
+  }
+
+  @POST
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Path("/clone/{vid}")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  def cloneVersion(
+      @PathParam("vid") vid: UInteger,
+      @Auth sessionUser: SessionUser,
+      requestBody: java.util.Map[String, Int]
+  ): UInteger = {
+    val displayedVersionId = requestBody.get("displayedVersionId")
+
+    // Fetch the workflow ID (`wid`) associated with the specified version (`vid`)
+    val versionRecord = Option(
+      context
+        .select(WORKFLOW_VERSION.WID)
+        .from(WORKFLOW_VERSION)
+        .where(WORKFLOW_VERSION.VID.eq(vid))
+        .fetchOne()
+    ).getOrElse {
+      throw new NotFoundException(s"Version ID $vid not found.")
+    }
+    val wid = versionRecord.get(WORKFLOW_VERSION.WID)
+    // Use retrieveWorkflowVersion to get the specified version of the workflow
+    val workflowVersion = retrieveWorkflowVersion(wid, vid, sessionUser)
+    // Generate a new name for the cloned workflow
+    val newWorkflowName = s"${workflowVersion.getName}_v${displayedVersionId}_copy"
+    // Create a new workflow based on the retrieved version
+    val workflowResource = new WorkflowResource()
+    val newWorkflow: DashboardWorkflow =
+      try {
+        workflowResource.createWorkflow(
+          new Workflow(
+            newWorkflowName,
+            workflowVersion.getDescription,
+            null,
+            assignNewOperatorIds(workflowVersion.getContent),
+            null,
+            null,
+            0.toByte
+          ),
+          sessionUser
+        )
+      } catch {
+        case e: Exception =>
+          throw new InternalServerErrorException(
+            "An error occurred while creating the cloned workflow."
+          )
+      }
+    newWorkflow.workflow.getWid
   }
 }

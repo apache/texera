@@ -1,5 +1,5 @@
 import { DatePipe, Location } from "@angular/common";
-import { Component, ElementRef, Input, OnInit, ViewChild } from "@angular/core";
+import { Component, ElementRef, Input, OnDestroy, OnInit, ViewChild } from "@angular/core";
 import { environment } from "../../../../environments/environment";
 import { UserService } from "../../../common/service/user/user.service";
 import {
@@ -10,27 +10,28 @@ import { Workflow, WorkflowContent } from "../../../common/type/workflow";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
 import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
-import { JointGraphWrapper } from "../../service/workflow-graph/model/joint-graph-wrapper";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
 import { WorkflowResultExportService } from "../../service/workflow-result-export/workflow-result-export.service";
-import { debounceTime, filter, mergeMap, tap } from "rxjs/operators";
+import { catchError, debounceTime, filter, mergeMap, tap } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
-import { WorkflowVersionService } from "../../../dashboard/user/service/workflow-version/workflow-version.service";
-import { UserProjectService } from "src/app/dashboard/user/service/user-project/user-project.service";
+import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
+import { UserProjectService } from "../../../dashboard/service/user/project/user-project.service";
 import { NzUploadFile } from "ng-zorro-antd/upload";
 import { saveAs } from "file-saver";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { OperatorMenuService } from "../../service/operator-menu/operator-menu.service";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
-import { Subscription, timer } from "rxjs";
+import { firstValueFrom, of, Subscription, timer } from "rxjs";
 import { isDefined } from "../../../common/util/predicate";
-import { FileSelectionComponent } from "../file-selection/file-selection.component";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { ResultExportationComponent } from "../result-exportation/result-exportation.component";
-
+import { ReportGenerationService } from "../../service/report-generation/report-generation.service";
+import { ShareAccessComponent } from "src/app/dashboard/component/user/share-access/share-access.component";
+import { PanelService } from "../../service/panel/panel.service";
+import { DASHBOARD_USER_WORKFLOW } from "../../../app-routing.constant";
 /**
  * MenuComponent is the top level menu bar that shows
  *  the Texera title and workflow execution button
@@ -52,15 +53,19 @@ import { ResultExportationComponent } from "../result-exportation/result-exporta
   templateUrl: "menu.component.html",
   styleUrls: ["menu.component.scss"],
 })
-export class MenuComponent implements OnInit {
+export class MenuComponent implements OnInit, OnDestroy {
   public executionState: ExecutionState; // set this to true when the workflow is started
   public ExecutionState = ExecutionState; // make Angular HTML access enum definition
+  public emailNotificationEnabled: boolean = environment.workflowEmailNotificationEnabled;
   public isWorkflowValid: boolean = true; // this will check whether the workflow error or not
   public isWorkflowEmpty: boolean = false;
   public isSaving: boolean = false;
   public isWorkflowModifiable: boolean = false;
   public workflowId?: number;
+  public isExportDeactivate: boolean = false;
+  protected readonly DASHBOARD_USER_WORKFLOW = DASHBOARD_USER_WORKFLOW;
 
+  @Input() public writeAccess: boolean = false;
   @Input() public pid?: number = undefined;
   @Input() public autoSaveState: string = "";
   @Input() public currentWorkflowName: string = ""; // reset workflowName
@@ -99,7 +104,9 @@ export class MenuComponent implements OnInit {
     private notificationService: NotificationService,
     public operatorMenu: OperatorMenuService,
     public coeditorPresenceService: CoeditorPresenceService,
-    private modalService: NzModalService
+    private modalService: NzModalService,
+    private reportGenerationService: ReportGenerationService,
+    private panelService: PanelService
   ) {
     workflowWebsocketService
       .subscribeToEvent("ExecutionDurationUpdateEvent")
@@ -147,8 +154,37 @@ export class MenuComponent implements OnInit {
         this.applyRunButtonBehavior(this.getRunButtonBehavior());
       });
 
+    // Subscribe to WorkflowResultExportService observable
+    this.workflowResultExportService
+      .getExportOnAllOperatorsStatusStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(hasResultToExport => {
+        this.isExportDeactivate = !this.workflowResultExportService.exportExecutionResultEnabled || !hasResultToExport;
+      });
+
     this.registerWorkflowMetadataDisplayRefresh();
     this.handleWorkflowVersionDisplay();
+  }
+
+  ngOnDestroy(): void {
+    this.workflowResultExportService.resetFlags();
+  }
+
+  public async onClickOpenShareAccess(): Promise<void> {
+    this.modalService.create({
+      nzContent: ShareAccessComponent,
+      nzData: {
+        writeAccess: this.writeAccess,
+        type: "workflow",
+        id: this.workflowId,
+        allOwners: await firstValueFrom(this.workflowPersistService.retrieveOwners()),
+        inWorkspace: true,
+      },
+      nzFooter: null,
+      nzTitle: "Share this workflow with others",
+      nzCentered: true,
+      nzWidth: "800px",
+    });
   }
 
   // apply a behavior to the run button via bound variables
@@ -189,7 +225,11 @@ export class MenuComponent implements OnInit {
           text: "Run",
           icon: "play-circle",
           disable: false,
-          onClick: () => this.executeWorkflowService.executeWorkflow(this.currentExecutionName),
+          onClick: () =>
+            this.executeWorkflowService.executeWorkflowWithEmailNotification(
+              this.currentExecutionName,
+              this.emailNotificationEnabled && environment.userSystemEnabled
+            ),
         };
       case ExecutionState.Initializing:
         return {
@@ -248,20 +288,61 @@ export class MenuComponent implements OnInit {
     this.executeWorkflowService.takeGlobalCheckpoint();
   }
 
-  /**
-   * This method checks whether the zoom ratio reaches minimum. If it is minimum, this method
-   *  will disable the zoom out button on the menu bar.
-   */
-  public isZoomRatioMin(): boolean {
-    return this.workflowActionService.getJointGraphWrapper().isZoomRatioMin();
+  public onClickClosePanels(): void {
+    this.panelService.closePanels();
+  }
+
+  public onClickResetPanels(): void {
+    this.panelService.resetPanels();
   }
 
   /**
-   * This method checks whether the zoom ratio reaches maximum. If it is maximum, this method
-   *  will disable the zoom in button on the menu bar.
+   * get the html to export all results.
    */
-  public isZoomRatioMax(): boolean {
-    return this.workflowActionService.getJointGraphWrapper().isZoomRatioMax();
+  public onClickGenerateReport(): void {
+    // Get notification and set nzDuration to 0 to prevent it from auto-closing
+    this.notificationService.blank("", "The report is being generated...", { nzDuration: 0 });
+
+    const workflowName = this.currentWorkflowName;
+    const WorkflowContent: WorkflowContent = this.workflowActionService.getWorkflowContent();
+
+    // Extract operatorIDs from the parsed payload
+    const operatorIds = WorkflowContent.operators.map((operator: { operatorID: string }) => operator.operatorID);
+
+    // Invokes the method of the report printing service
+    this.reportGenerationService
+      .generateWorkflowSnapshot(workflowName)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: (workflowSnapshotURL: string) => {
+          this.reportGenerationService
+            .getAllOperatorResults(operatorIds)
+            .pipe(untilDestroyed(this))
+            .subscribe({
+              next: (allResults: { operatorId: string; html: string }[]) => {
+                const sortedResults = operatorIds.map(
+                  id => allResults.find(result => result.operatorId === id)?.html || ""
+                );
+                // Generate the final report as HTML after all results are retrieved
+                this.reportGenerationService.generateReportAsHtml(workflowSnapshotURL, sortedResults, workflowName);
+
+                // Close the notification after the report is generated
+                this.notificationService.remove();
+                this.notificationService.success("Report successfully generated.");
+              },
+              error: (error: unknown) => {
+                this.notificationService.error("Error in retrieving operator results: " + (error as Error).message);
+                // Close the notification on error
+                this.notificationService.remove();
+              },
+            });
+        },
+        error: (e: unknown) => {
+          this.notificationService.error((e as Error).message);
+          // Close the notification on error
+          this.notificationService.remove();
+        },
+      });
   }
 
   /**
@@ -270,48 +351,6 @@ export class MenuComponent implements OnInit {
    */
   public onClickToggleGrids(): void {
     this.workflowActionService.getJointGraphWrapper().toggleGrids();
-  }
-
-  /**
-   * This method will decrease the zoom ratio and send the new zoom ratio value
-   *  to the joint graph wrapper to change overall zoom ratio that is used in
-   *  zoom buttons and mouse wheel zoom.
-   *
-   * If the zoom ratio already reaches minimum, this method will not do anything.
-   */
-  public onClickZoomOut(): void {
-    // if zoom is already at minimum, don't zoom out again.
-    if (this.isZoomRatioMin()) {
-      return;
-    }
-
-    // make the ratio small.
-    this.workflowActionService
-      .getJointGraphWrapper()
-      .setZoomProperty(
-        this.workflowActionService.getJointGraphWrapper().getZoomRatio() - JointGraphWrapper.ZOOM_CLICK_DIFF
-      );
-  }
-
-  /**
-   * This method will increase the zoom ratio and send the new zoom ratio value
-   *  to the joint graph wrapper to change overall zoom ratio that is used in
-   *  zoom buttons and mouse wheel zoom.
-   *
-   * If the zoom ratio already reaches maximum, this method will not do anything.
-   */
-  public onClickZoomIn(): void {
-    // if zoom is already reach maximum, don't zoom in again.
-    if (this.isZoomRatioMax()) {
-      return;
-    }
-
-    // make the ratio big.
-    this.workflowActionService
-      .getJointGraphWrapper()
-      .setZoomProperty(
-        this.workflowActionService.getJointGraphWrapper().getZoomRatio() + JointGraphWrapper.ZOOM_CLICK_DIFF
-      );
   }
 
   /**
@@ -329,13 +368,13 @@ export class MenuComponent implements OnInit {
    * This is the handler for the execution result export button.
    *
    */
-  public onClickExportExecutionResult(exportType: string): void {
-    const modal = this.modalService.create({
-      nzTitle: "Export Result and Save to a Dataset",
+  public onClickExportExecutionResult(): void {
+    this.modalService.create({
+      nzTitle: "Export All Operators Result",
       nzContent: ResultExportationComponent,
       nzData: {
-        exportType: exportType,
         workflowName: this.currentWorkflowName,
+        sourceTriggered: "menu",
       },
       nzFooter: null,
     });
@@ -356,7 +395,7 @@ export class MenuComponent implements OnInit {
       .getTexeraGraph()
       .getAllOperators()
       .map(op => op.operatorID);
-    this.workflowActionService.deleteOperatorsAndLinks(allOperatorIDs, []);
+    this.workflowActionService.deleteOperatorsAndLinks(allOperatorIDs);
   }
 
   public onClickImportWorkflow = (file: NzUploadFile): boolean => {
@@ -391,6 +430,7 @@ export class MenuComponent implements OnInit {
           creationTime: undefined,
           lastModifiedTime: undefined,
           readonly: false,
+          isPublished: 0,
         };
 
         this.workflowActionService.enableWorkflowModification();
@@ -411,7 +451,7 @@ export class MenuComponent implements OnInit {
 
   public onClickExportWorkflow(): void {
     const workflowContent: WorkflowContent = this.workflowActionService.getWorkflowContent();
-    const workflowContentJson = JSON.stringify(workflowContent);
+    const workflowContentJson = JSON.stringify(workflowContent, null, 2);
     const fileName = this.currentWorkflowName + ".json";
     saveAs(new Blob([workflowContentJson], { type: "text/plain;charset=utf-8" }), fileName);
   }
@@ -429,7 +469,9 @@ export class MenuComponent implements OnInit {
     this.workflowPersistService
       .persistWorkflow(this.workflowActionService.getWorkflow())
       .pipe(
-        tap((updatedWorkflow: Workflow) => this.workflowActionService.setWorkflowMetadata(updatedWorkflow)),
+        tap((updatedWorkflow: Workflow) => {
+          this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
+        }),
         filter(workflow => isDefined(localPid) && isDefined(workflow.wid)),
         mergeMap(workflow => this.userProjectService.addWorkflowToProject(localPid!, workflow.wid!)),
         untilDestroyed(this)
@@ -506,6 +548,24 @@ export class MenuComponent implements OnInit {
     this.workflowVersionService.revertToVersion();
     // after swapping the workflows to point to the particular version, persist it in DB
     this.persistWorkflow();
+  }
+
+  cloneVersion() {
+    this.workflowVersionService
+      .cloneWorkflowVersion()
+      .pipe(
+        catchError(() => {
+          this.notificationService.error("Failed to clone workflow. Please try again.");
+          return of(null);
+        }),
+        untilDestroyed(this)
+      )
+      .subscribe(new_wid => {
+        if (new_wid) {
+          this.notificationService.success("Workflow cloned successfully! New workflow ID: " + new_wid);
+          this.closeParticularVersionDisplay();
+        }
+      });
   }
 
   private registerWorkflowModifiableChangedHandler(): void {

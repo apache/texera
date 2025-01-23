@@ -6,15 +6,16 @@
   z-index: 4;
 }
 
+#texera-workspace {
+  position: relative;
+}
+
 #result-container {
-  position: fixed;
-  top: calc(100vh - 300px);
+  position: absolute;
+  top: -300px;
   left: 0;
   user-select: none;
   background: white;
-}
-
-.texera-workspace-result-panel-body {
   border-radius: 5px;
   box-shadow:
     0 3px 1px -2px #0003,
@@ -44,12 +45,22 @@ $type-colors: (
 #content {
   overflow-y: auto;
   padding-top: 38px;
+  width: inherit;
+  height: inherit;
 }
 
 #result-buttons {
   position: absolute;
-  top: 0;
+  bottom: 0;
   left: 0;
+  z-index: 4;
+  display: flex;
+}
+
+#panel-button {
+  position: fixed;
+  top: 0;
+  right: 0;
   z-index: 4;
   display: flex;
 }
@@ -74,7 +85,7 @@ $type-colors: (
 }
 
 #title {
-  padding: 5px 41px;
+  padding: 5px 9px;
   border-bottom: 1px solid #e0e0e0;
   position: absolute;
   top: 0;

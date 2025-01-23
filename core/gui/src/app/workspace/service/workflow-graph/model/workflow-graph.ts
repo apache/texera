@@ -8,6 +8,7 @@ import {
   PartitionInfo,
   PortDescription,
   PortProperty,
+  BreakpointInfo,
 } from "../../../types/workflow-common.interface";
 import { isEqual } from "lodash-es";
 import { SharedModel } from "./shared-model";
@@ -15,6 +16,7 @@ import { CoeditorState, User } from "../../../../common/type/user";
 import { createYTypeFromObject, updateYTypeFromObject, YType } from "../../../types/shared-editing.interface";
 import { Awareness } from "y-protocols/awareness";
 import * as Y from "yjs";
+import { isDefined } from "../../../../common/util/predicate";
 
 // define the restricted methods that could change the graph
 type restrictedMethods =
@@ -586,6 +588,20 @@ export class WorkflowGraph {
     return commentBox.toJSON();
   }
 
+  public createOperatorDebugState(operatorId: string) {
+    if (this.sharedModel.debugState.has(operatorId)) {
+      return;
+    }
+    this.sharedModel.debugState.set(operatorId, new Y.Map<BreakpointInfo>());
+  }
+
+  public getOperatorDebugState(operatorId: string): Y.Map<BreakpointInfo> {
+    if (!this.sharedModel.debugState.has(operatorId)) {
+      throw new Error(`operator ${operatorId} does not have a debug state`);
+    }
+    return this.sharedModel.debugState.get(operatorId)!;
+  }
+
   /**
    * Returns an array of all operators in the graph.
    */
@@ -808,11 +824,9 @@ export class WorkflowGraph {
    * @param newProperty new property to set, the new y-object created from this will replace the old structure.
    */
   public setOperatorProperty(operatorID: string, newProperty: object): void {
-    console.log("setting ", operatorID, newProperty);
     if (!this.hasOperator(operatorID)) {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
     }
-    console.log("setting ", operatorID, newProperty);
 
     const previousProperty = this.getSharedOperatorType(operatorID).get(
       "operatorProperties"

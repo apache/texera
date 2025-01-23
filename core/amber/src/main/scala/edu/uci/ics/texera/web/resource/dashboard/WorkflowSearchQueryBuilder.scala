@@ -1,27 +1,14 @@
 package edu.uci.ics.texera.web.resource.dashboard
 
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
-  PROJECT_USER_ACCESS,
-  USER,
-  WORKFLOW,
-  WORKFLOW_OF_PROJECT,
-  WORKFLOW_OF_USER,
-  WORKFLOW_USER_ACCESS
-}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Workflow
+import edu.uci.ics.texera.dao.jooq.generated.Tables._
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.Workflow
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.DashboardClickableFileEntry
-import edu.uci.ics.texera.web.resource.dashboard.FulltextSearchQueryUtils.{
-  getFullTextSearchFilter,
-  getSubstringSearchFilter,
-  getContainsFilter,
-  getDateFilter,
-  getOperatorsFilter
-}
+import edu.uci.ics.texera.web.resource.dashboard.FulltextSearchQueryUtils._
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflow
-import org.jooq.{Condition, GroupField, Record, TableLike}
 import org.jooq.impl.DSL
 import org.jooq.impl.DSL.groupConcatDistinct
 import org.jooq.types.UInteger
+import org.jooq.{Condition, GroupField, Record, TableLike}
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
@@ -45,9 +32,10 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
 
   override protected def constructFromClause(
       uid: UInteger,
-      params: DashboardResource.SearchQueryParams
+      params: DashboardResource.SearchQueryParams,
+      includePublic: Boolean = false
   ): TableLike[_] = {
-    WORKFLOW
+    val baseQuery = WORKFLOW
       .leftJoin(WORKFLOW_USER_ACCESS)
       .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
       .leftJoin(WORKFLOW_OF_USER)
@@ -58,9 +46,21 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
       .on(WORKFLOW_OF_PROJECT.WID.eq(WORKFLOW.WID))
       .leftJoin(PROJECT_USER_ACCESS)
       .on(PROJECT_USER_ACCESS.PID.eq(WORKFLOW_OF_PROJECT.PID))
-      .where(
+
+    var condition: Condition = DSL.trueCondition()
+    if (uid == null) {
+      condition = WORKFLOW.IS_PUBLIC.eq(1.toByte)
+    } else {
+      val privateAccessCondition =
         WORKFLOW_USER_ACCESS.UID.eq(uid).or(PROJECT_USER_ACCESS.UID.eq(uid))
-      )
+      if (includePublic) {
+        condition = privateAccessCondition.or(WORKFLOW.IS_PUBLIC.eq(1.toByte))
+      } else {
+        condition = privateAccessCondition
+      }
+    }
+
+    baseQuery.where(condition)
   }
 
   override protected def constructWhereClause(
@@ -131,7 +131,8 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
           .split(',')
           .map(number => UInteger.valueOf(number))
           .toList
-      }
+      },
+      record.into(USER).getUid
     )
     DashboardClickableFileEntry(SearchQueryBuilder.WORKFLOW_RESOURCE_TYPE, workflow = Some(dw))
   }

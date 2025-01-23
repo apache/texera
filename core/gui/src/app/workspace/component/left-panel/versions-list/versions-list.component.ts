@@ -1,8 +1,8 @@
 import { Component, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
-import { WorkflowVersionService } from "../../../../dashboard/user/service/workflow-version/workflow-version.service";
-import { WorkflowVersionCollapsableEntry } from "../../../../dashboard/user/type/workflow-version-entry";
+import { WorkflowVersionService } from "../../../../dashboard/service/user/workflow-version/workflow-version.service";
+import { WorkflowVersionCollapsableEntry } from "../../../../dashboard/type/workflow-version-entry";
 import { ActivatedRoute } from "@angular/router";
 
 @UntilDestroy()
@@ -14,12 +14,17 @@ import { ActivatedRoute } from "@angular/router";
 export class VersionsListComponent implements OnInit {
   public versionsList: WorkflowVersionCollapsableEntry[] | undefined;
   public versionTableHeaders: string[] = ["Version#", "Timestamp"];
+  public selectedRowIndex: number | null = null;
 
   constructor(
     private workflowActionService: WorkflowActionService,
     public workflowVersionService: WorkflowVersionService,
     public route: ActivatedRoute
   ) {}
+
+  public getDisplayedVersionId(index: number, count: number) {
+    return count - index;
+  }
 
   collapse(index: number, $event: boolean): void {
     if (this.versionsList == undefined) {
@@ -59,12 +64,14 @@ export class VersionsListComponent implements OnInit {
       });
   }
 
-  getVersion(vid: number) {
+  getVersion(vid: number, displayedVersionId: number, index: number) {
+    this.selectedRowIndex = index;
+
     this.workflowVersionService
       .retrieveWorkflowByVersion(<number>this.workflowActionService.getWorkflowMetadata()?.wid, vid)
       .pipe(untilDestroyed(this))
       .subscribe(workflow => {
-        this.workflowVersionService.displayParticularVersion(workflow);
+        this.workflowVersionService.displayParticularVersion(workflow, vid, displayedVersionId);
       });
   }
 }

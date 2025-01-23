@@ -1,0 +1,39 @@
+.annotation-suggestion {
+  position: absolute;
+  background: #222;
+  color: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+}
+
+.annotation-suggestion button {
+  margin-right: 10px;
+}
+
+.annotation-suggestion button.accept-button {
+  background-color: #28a745;
+  color: #000;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.annotation-suggestion button.accept-button:hover {
+  background-color: #218838;
+}
+
+.annotation-suggestion button.decline-button {
+  background-color: #dc3545;
+  color: #000;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.annotation-suggestion button.decline-button:hover {
+  background-color: #c82333;
+}

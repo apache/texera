@@ -1,0 +1,36 @@
+.avatar-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.texera-user-avatar {
+  object-fit: cover;
+  border-radius: 50%;
+  width: 34px;
+  height: 34px;
+  vertical-align: top;
+  font-size: smaller;
+  font-family: roboto, arial, serif;
+  color: white;
+  line-height: 34px;
+  text-align: center;
+}
+
+.texera-user-avatar:hover {
+  box-shadow: #ccc 0 0 10px;
+}
+
+.owner-badge {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  background-color: #a52a2a;
+  border-radius: 50%;
+  width: 12px;
+  height: 12px;
+  text-align: center;
+  font-size: 10px;
+  color: white;
+  transform: translate(50%, -50%);
+  line-height: 10px;
+}

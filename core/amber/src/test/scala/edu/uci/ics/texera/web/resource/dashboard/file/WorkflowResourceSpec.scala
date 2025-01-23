@@ -1,31 +1,30 @@
 package edu.uci.ics.texera.web.resource.dashboard.file
 
-import edu.uci.ics.texera.web.MockTexeraDB
+import edu.uci.ics.texera.dao.MockTexeraDB
 import edu.uci.ics.texera.web.auth.SessionUser
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
-import org.scalatest.flatspec.AnyFlatSpec
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{Project, User, Workflow}
-import org.jooq.types.UInteger
-import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
+import edu.uci.ics.texera.dao.jooq.generated.Tables.{USER, WORKFLOW, WORKFLOW_OF_PROJECT}
+import edu.uci.ics.texera.dao.jooq.generated.enums.UserRole
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.UserDao
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{Project, User, Workflow}
+import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.SearchQueryParams
+import edu.uci.ics.texera.web.resource.dashboard.user.project.ProjectResource
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.{
   DashboardWorkflow,
   WorkflowIDs
 }
+import edu.uci.ics.texera.web.resource.dashboard.{DashboardResource, FulltextSearchQueryUtils}
 import org.jooq.Condition
 import org.jooq.impl.DSL.noCondition
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER, WORKFLOW, WORKFLOW_OF_PROJECT}
-import edu.uci.ics.texera.web.resource.dashboard.{DashboardResource, FulltextSearchQueryUtils}
-import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.SearchQueryParams
-import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource
-import edu.uci.ics.texera.web.resource.dashboard.user.project.ProjectResource
+import org.jooq.types.UInteger
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
-import java.util.concurrent.TimeUnit
 import java.sql.Timestamp
 import java.text.{ParseException, SimpleDateFormat}
 import java.util
 import java.util.Collections
+import java.util.concurrent.TimeUnit
 
 class WorkflowResourceSpec
     extends AnyFlatSpec
@@ -119,10 +118,6 @@ class WorkflowResourceSpec
     new ProjectResource()
   }
 
-  private val fileResource: UserFileResource = {
-    new UserFileResource()
-  }
-
   private val dashboardResource: DashboardResource = {
     new DashboardResource()
   }
@@ -167,12 +162,6 @@ class WorkflowResourceSpec
     projects = projectResource.getProjectList(sessionUser2)
     projects.forEach(project => projectResource.deleteProject(project.pid))
 
-    // delete all files in the database
-    var files = fileResource.getFileList(sessionUser1)
-    files.foreach(file => fileResource.deleteFile(file.file.getFid, sessionUser1))
-
-    files = fileResource.getFileList(sessionUser2)
-    files.foreach(file => fileResource.deleteFile(file.file.getFid, sessionUser2))
   }
 
   override protected def afterAll(): Unit = {
@@ -186,6 +175,7 @@ class WorkflowResourceSpec
     }
     keywordsList
   }
+
   private def assertSameWorkflow(a: Workflow, b: DashboardWorkflow): Unit = {
     assert(a.getName == b.workflow.getName)
   }
@@ -335,6 +325,7 @@ class WorkflowResourceSpec
       assert(DashboardWorkflowEntryList.head.workflow.get.ownerName.equals(user.getName()))
       assertSameWorkflow(workflow, DashboardWorkflowEntryList.head.workflow.get)
     }
+
     test(sessionUser1, testWorkflow1)
     test(sessionUser2, testWorkflow2)
   }
@@ -499,22 +490,13 @@ class WorkflowResourceSpec
     // create different types of resources, project, workflow, and file
     projectResource.createProject(sessionUser1, "test project1")
     workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
-    val fileResource = new UserFileResource()
-    val in = org.apache.commons.io.IOUtils.toInputStream("", "UTF-8")
-    val filename = "test.csv"
-    val response = fileResource.uploadFile(
-      in,
-      filename,
-      sessionUser1
-    )
-    assert(response.getStatusInfo.getStatusCode == 200)
     // search
     val DashboardClickableFileEntryList =
       dashboardResource.searchAllResourcesCall(
         sessionUser1,
         SearchQueryParams(getKeywordsArray("test"))
       )
-    assert(DashboardClickableFileEntryList.results.length == 3)
+    assert(DashboardClickableFileEntryList.results.length == 2)
 
   }
 
@@ -529,38 +511,10 @@ class WorkflowResourceSpec
     assert(DashboardClickableFileEntryList.results.length == 2)
   }
 
-  it should "only return resources that match the given keyword" in {
-    projectResource.createProject(sessionUser1, "test project")
-    workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
-    val in = org.apache.commons.io.IOUtils.toInputStream("", "UTF-8")
-    val uniqueFilename = "unique.csv"
-    val response = fileResource.uploadFile(
-      in,
-      uniqueFilename,
-      sessionUser1
-    )
-    assert(response.getStatusInfo.getStatusCode == 200)
-
-    val DashboardClickableFileEntryList =
-      dashboardResource.searchAllResourcesCall(
-        sessionUser1,
-        SearchQueryParams(getKeywordsArray("unique"))
-      )
-    assert(DashboardClickableFileEntryList.results.length == 1)
-  }
-
   it should "return multiple matching resources from a single resource type" in {
     workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
     projectResource.createProject(sessionUser1, "common project1")
     projectResource.createProject(sessionUser1, "common project2")
-    val in = org.apache.commons.io.IOUtils.toInputStream("", "UTF-8")
-    val uniqueFilename = "test.csv"
-    val response = fileResource.uploadFile(
-      in,
-      uniqueFilename,
-      sessionUser1
-    )
-    assert(response.getStatusInfo.getStatusCode == 200)
     val DashboardClickableFileEntryList =
       dashboardResource.searchAllResourcesCall(
         sessionUser1,
@@ -572,15 +526,6 @@ class WorkflowResourceSpec
   it should "handle multiple keywords correctly" in {
     projectResource.createProject(sessionUser1, "test project1")
     workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
-    val in = org.apache.commons.io.IOUtils.toInputStream("", "UTF-8")
-    val filename = "test.csv"
-    val response = fileResource.uploadFile(
-      in,
-      filename,
-      sessionUser1
-    )
-    assert(response.getStatusInfo.getStatusCode == 200)
-
     val DashboardClickableFileEntryList =
       dashboardResource.searchAllResourcesCall(
         sessionUser1,
@@ -598,28 +543,13 @@ class WorkflowResourceSpec
     projectResource.createProject(sessionUser1, "test project2")
     projectResource.createProject(sessionUser1, "test project3")
     workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
-    val fileResource = new UserFileResource()
-    val in = org.apache.commons.io.IOUtils.toInputStream("", "UTF-8")
-    val filename = "test.csv"
-    var response = fileResource.uploadFile(
-      in,
-      filename,
-      sessionUser1
-    )
-    assert(response.getStatusInfo.getStatusCode == 200)
-    response = fileResource.uploadFile(
-      in,
-      "test.js",
-      sessionUser1
-    )
-    assert(response.getStatusInfo.getStatusCode == 200)
     // search resources with all resourceType
     var DashboardClickableFileEntryList =
       dashboardResource.searchAllResourcesCall(
         sessionUser1,
         SearchQueryParams(getKeywordsArray("test"))
       )
-    assert(DashboardClickableFileEntryList.results.length == 6)
+    assert(DashboardClickableFileEntryList.results.length == 4)
 
     // filter resources by workflow
     DashboardClickableFileEntryList = dashboardResource.searchAllResourcesCall(
@@ -634,14 +564,6 @@ class WorkflowResourceSpec
       SearchQueryParams(resourceType = "project", keywords = getKeywordsArray("test"))
     )
     assert(DashboardClickableFileEntryList.results.length == 3)
-
-    // filter resources by file
-    DashboardClickableFileEntryList = dashboardResource.searchAllResourcesCall(
-      sessionUser1,
-      SearchQueryParams(resourceType = "file", keywords = getKeywordsArray("test"))
-    )
-    assert(DashboardClickableFileEntryList.results.length == 2)
-
   }
 
   it should "return resources that match any of all provided keywords" in {
@@ -651,15 +573,6 @@ class WorkflowResourceSpec
     // Create different types of resources, a project, a workflow, and a file
     projectResource.createProject(sessionUser1, "test project")
     workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
-    val in = org.apache.commons.io.IOUtils.toInputStream("", "UTF-8")
-    val filename = "unique.csv"
-    val response = fileResource.uploadFile(
-      in,
-      filename,
-      sessionUser1
-    )
-    assert(response.getStatusInfo.getStatusCode == 200)
-
     // Perform search with multiple keywords
     val DashboardClickableFileEntryList =
       dashboardResource.searchAllResourcesCall(
@@ -692,14 +605,10 @@ class WorkflowResourceSpec
   it should "paginate results correctly" in {
     // This test is designed to verify that the pagination works correctly
 
-    // Create 1 workflow, 10 projects, 10 files
+    // Create 1 workflow, 10 projects
     workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
     for (i <- 1 to 10) {
       projectResource.createProject(sessionUser1, s"test project $i")
-      val in = org.apache.commons.io.IOUtils.toInputStream("", "UTF-8")
-      val filename = s"test_file$i.csv"
-      val response = fileResource.uploadFile(in, filename, sessionUser1)
-      assert(response.getStatusInfo.getStatusCode == 200)
     }
 
     // Request the first page of results (page size is 10)
@@ -717,23 +626,11 @@ class WorkflowResourceSpec
         SearchQueryParams(count = 10, offset = 10)
       )
 
-    // Assert that the second page has 10 results
-    assert(secondPage.results.length == 10)
-    assert(secondPage.more) // Assert that there are more results to be fetched
-
-    // Request the third page of results
-    val thirdPage =
-      dashboardResource.searchAllResourcesCall(
-        sessionUser1,
-        SearchQueryParams(count = 10, offset = 20)
-      )
-
-    // Assert that the third page has 5 results (since we only have 25 resources)
-    assert(thirdPage.results.length == 1)
-    assert(!thirdPage.more) // Assert that there are no more results to be fetched
+    // Assert that the second page has 1 results
+    assert(secondPage.results.length == 1)
 
     // Assert that the results are unique across all pages
-    val allResults = firstPage.results ++ secondPage.results ++ thirdPage.results
+    val allResults = firstPage.results ++ secondPage.results
     assert(allResults.distinct.length == allResults.length)
   }
 

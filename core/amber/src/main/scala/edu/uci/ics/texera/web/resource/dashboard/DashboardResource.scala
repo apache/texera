@@ -1,30 +1,30 @@
 package edu.uci.ics.texera.web.resource.dashboard
 
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
+import edu.uci.ics.texera.dao.jooq.generated.Tables._
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos._
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource._
-import edu.uci.ics.texera.web.resource.dashboard.SearchQueryBuilder.ALL_RESOURCE_TYPE
+import edu.uci.ics.texera.web.resource.dashboard.SearchQueryBuilder.{ALL_RESOURCE_TYPE, context}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.DashboardDataset
-import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.DashboardFile
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflow
 import io.dropwizard.auth.Auth
+import org.jooq.types.UInteger
 import org.jooq.{Field, OrderField}
 
+import java.util
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
-import org.jooq.types.UInteger
-
-import java.util
-import scala.jdk.CollectionConverters.CollectionHasAsScala
+import scala.jdk.CollectionConverters._
 
 object DashboardResource {
   case class DashboardClickableFileEntry(
       resourceType: String,
       workflow: Option[DashboardWorkflow] = None,
       project: Option[Project] = None,
-      file: Option[DashboardFile] = None,
       dataset: Option[DashboardDataset] = None
   )
+
+  case class UserInfo(userId: UInteger, userName: String, googleAvatar: Option[String])
 
   case class DashboardSearchResult(results: List[DashboardClickableFileEntry], more: Boolean)
 
@@ -66,24 +66,22 @@ object DashboardResource {
 
   def searchAllResources(
       @Auth user: SessionUser,
-      @BeanParam params: SearchQueryParams
+      @BeanParam params: SearchQueryParams,
+      includePublic: Boolean = false
   ): DashboardSearchResult = {
     val uid = user.getUid
     val query = params.resourceType match {
       case SearchQueryBuilder.WORKFLOW_RESOURCE_TYPE =>
-        WorkflowSearchQueryBuilder.constructQuery(uid, params)
-      case SearchQueryBuilder.FILE_RESOURCE_TYPE =>
-        FileSearchQueryBuilder.constructQuery(uid, params)
+        WorkflowSearchQueryBuilder.constructQuery(uid, params, includePublic)
       case SearchQueryBuilder.PROJECT_RESOURCE_TYPE =>
-        ProjectSearchQueryBuilder.constructQuery(uid, params)
+        ProjectSearchQueryBuilder.constructQuery(uid, params, includePublic)
       case SearchQueryBuilder.DATASET_RESOURCE_TYPE =>
-        DatasetSearchQueryBuilder.constructQuery(uid, params)
+        DatasetSearchQueryBuilder.constructQuery(uid, params, includePublic)
       case SearchQueryBuilder.ALL_RESOURCE_TYPE =>
-        val q1 = WorkflowSearchQueryBuilder.constructQuery(uid, params)
-        val q2 = FileSearchQueryBuilder.constructQuery(uid, params)
-        val q3 = ProjectSearchQueryBuilder.constructQuery(uid, params)
-        val q4 = DatasetSearchQueryBuilder.constructQuery(uid, params)
-        q1.unionAll(q2).unionAll(q3).unionAll(q4)
+        val q1 = WorkflowSearchQueryBuilder.constructQuery(uid, params, includePublic)
+        val q3 = ProjectSearchQueryBuilder.constructQuery(uid, params, includePublic)
+        val q4 = DatasetSearchQueryBuilder.constructQuery(uid, params, includePublic)
+        q1.unionAll(q3).unionAll(q4)
       case _ => throw new IllegalArgumentException(s"Unknown resource type: ${params.resourceType}")
     }
 
@@ -98,8 +96,6 @@ object DashboardResource {
         resourceType match {
           case SearchQueryBuilder.WORKFLOW_RESOURCE_TYPE =>
             WorkflowSearchQueryBuilder.toEntry(uid, record)
-          case SearchQueryBuilder.FILE_RESOURCE_TYPE =>
-            FileSearchQueryBuilder.toEntry(uid, record)
           case SearchQueryBuilder.PROJECT_RESOURCE_TYPE =>
             ProjectSearchQueryBuilder.toEntry(uid, record)
           case SearchQueryBuilder.DATASET_RESOURCE_TYPE =>
@@ -162,8 +158,48 @@ class DashboardResource {
   @Path("/search")
   def searchAllResourcesCall(
       @Auth user: SessionUser,
-      @BeanParam params: SearchQueryParams
+      @BeanParam params: SearchQueryParams,
+      @QueryParam("includePublic") includePublic: Boolean = false
   ): DashboardSearchResult = {
-    DashboardResource.searchAllResources(user, params)
+    DashboardResource.searchAllResources(user, params, includePublic = includePublic)
+  }
+
+  @GET
+  @Path("/publicSearch")
+  def searchAllPublicResourceCall(
+      @BeanParam params: SearchQueryParams,
+      @QueryParam("includePublic ") includePublic: Boolean = true
+  ): DashboardSearchResult = {
+    DashboardResource.searchAllResources(
+      new SessionUser(new User()),
+      params,
+      includePublic = includePublic
+    )
+  }
+
+  @GET
+  @Path("/resultsOwnersInfo")
+  def resultsOwnersInfo(
+      @QueryParam("userIds") userIds: util.List[UInteger]
+  ): util.Map[UInteger, UserInfo] = {
+    val scalaUserIds: Set[UInteger] = userIds.asScala.toSet
+
+    val records = context
+      .select(USER.UID, USER.NAME, USER.GOOGLE_AVATAR)
+      .from(USER)
+      .where(USER.UID.in(scalaUserIds.asJava))
+      .fetch()
+
+    val userIdToInfoMap = records.asScala
+      .map { record =>
+        val userId = record.get(USER.UID)
+        val userName = record.get(USER.NAME)
+        val googleAvatar = Option(record.get(USER.GOOGLE_AVATAR))
+        userId -> UserInfo(userId, userName, googleAvatar)
+      }
+      .toMap
+      .asJava
+
+    userIdToInfoMap
   }
 }

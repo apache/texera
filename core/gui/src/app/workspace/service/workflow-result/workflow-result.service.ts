@@ -6,13 +6,15 @@ import {
   WebPaginationUpdate,
   WebResultUpdate,
   WorkflowResultUpdate,
+  WorkflowResultTableStats,
 } from "../../types/execute-workflow.interface";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import { PaginatedResultEvent, WorkflowAvailableResultEvent } from "../../types/workflow-websocket.interface";
-import { map, Observable, of, Subject } from "rxjs";
+import { map, Observable, of, pairwise, ReplaySubject, startWith, Subject, BehaviorSubject } from "rxjs";
 import { v4 as uuid } from "uuid";
 import { IndexableObject } from "../../types/result-table.interface";
 import { isDefined } from "../../../common/util/predicate";
+import { SchemaAttribute } from "../../types/workflow-compiling.interface";
 
 /**
  * WorkflowResultService manages the result data of a workflow execution.
@@ -26,13 +28,20 @@ export class WorkflowResultService {
 
   // event stream of operator result update, undefined indicates the operator result is cleared
   private resultUpdateStream = new Subject<Record<string, WebResultUpdate | undefined>>();
+  private resultTableStats = new ReplaySubject<Record<string, Record<string, Record<string, number>>>>(1);
   private resultInitiateStream = new Subject<string>();
+  private sinkStorageModeSubject = new BehaviorSubject<string>("");
 
   constructor(private wsService: WorkflowWebsocketService) {
-    this.wsService.subscribeToEvent("WebResultUpdateEvent").subscribe(event => this.handleResultUpdate(event.updates));
+    this.wsService.subscribeToEvent("WebResultUpdateEvent").subscribe(event => {
+      this.handleResultUpdate(event.updates);
+      this.handleTableStatsUpdate(event.tableStats);
+      this.handleSinkStorageModeUpdate(event.sinkStorageMode);
+    });
     this.wsService
       .subscribeToEvent("WorkflowAvailableResultEvent")
       .subscribe(event => this.handleCleanResultCache(event));
+    this.resultTableStats.next({});
   }
 
   public hasAnyResult(operatorID: string): boolean {
@@ -49,6 +58,12 @@ export class WorkflowResultService {
 
   public getResultUpdateStream(): Observable<Record<string, WebResultUpdate | undefined>> {
     return this.resultUpdateStream;
+  }
+
+  public getResultTableStats(): Observable<
+    [Record<string, Record<string, Record<string, number>>>, Record<string, Record<string, Record<string, number>>>]
+  > {
+    return this.resultTableStats.pipe(pairwise());
   }
 
   public getResultInitiateStream(): Observable<string> {
@@ -123,6 +138,22 @@ export class WorkflowResultService {
     this.resultUpdateStream.next(event);
   }
 
+  private handleTableStatsUpdate(event: WorkflowResultTableStats): void {
+    Object.keys(event).forEach(operatorID => {
+      const paginatedResultService = this.getOrInitPaginatedResultService(operatorID);
+      paginatedResultService.handleStatsUpdate(event[operatorID]);
+    });
+    this.resultTableStats.next(event);
+  }
+
+  private handleSinkStorageModeUpdate(sinkStorageMode: string): void {
+    this.sinkStorageModeSubject.next(sinkStorageMode);
+  }
+
+  public getSinkStorageMode(): BehaviorSubject<string> {
+    return this.sinkStorageModeSubject;
+  }
+
   private getOrInitPaginatedResultService(operatorID: string): OperatorPaginationResultService {
     let service = this.getPaginatedResultService(operatorID);
     if (!service) {
@@ -141,6 +172,36 @@ export class WorkflowResultService {
       this.resultInitiateStream.next(operatorID);
     }
     return service;
+  }
+
+  public determineOutputTypes(operatorId: string): {
+    isTableOutput: boolean;
+    isVisualizationOutput: boolean;
+    containsBinaryData: boolean;
+  } {
+    const resultService = this.getResultService(operatorId);
+    const paginatedResultService = this.getPaginatedResultService(operatorId);
+
+    return {
+      isTableOutput: this.hasTableOutput(paginatedResultService),
+      containsBinaryData: this.hasBinaryData(paginatedResultService),
+      isVisualizationOutput: this.hasVisualizationOutput(resultService, paginatedResultService),
+    };
+  }
+
+  private hasTableOutput(paginatedResultService?: OperatorPaginationResultService): boolean {
+    return paginatedResultService !== undefined;
+  }
+
+  private hasBinaryData(paginatedResultService?: OperatorPaginationResultService): boolean {
+    return paginatedResultService?.getSchema().some(attribute => attribute.attributeType === "binary") ?? false;
+  }
+
+  private hasVisualizationOutput(
+    resultService?: OperatorResultService,
+    paginatedResultService?: OperatorPaginationResultService
+  ): boolean {
+    return resultService !== undefined && paginatedResultService === undefined;
   }
 }
 
@@ -167,19 +228,31 @@ export class OperatorResultService {
   }
 }
 
-class OperatorPaginationResultService {
+export class OperatorPaginationResultService {
   private pendingRequests: Map<string, Subject<PaginatedResultEvent>> = new Map();
   private resultCache: Map<number, ReadonlyArray<object>> = new Map();
+  private prevStatsCache: Record<string, Record<string, number>> = {};
+  private statsCache: Record<string, Record<string, number>> = {};
   private currentPageIndex: number = 1;
   private currentTotalNumTuples: number = 0;
+  private schema: ReadonlyArray<SchemaAttribute> = [];
 
   constructor(
     public operatorID: string,
     private workflowWebsocketService: WorkflowWebsocketService
   ) {
-    this.workflowWebsocketService
-      .subscribeToEvent("PaginatedResultEvent")
-      .subscribe(event => this.handlePaginationResult(event));
+    this.workflowWebsocketService.subscribeToEvent("PaginatedResultEvent").subscribe(event => {
+      this.schema = event.schema;
+      this.handlePaginationResult(event);
+    });
+  }
+
+  public getStats(): Record<string, Record<string, number>> {
+    return this.statsCache;
+  }
+
+  public getPrevStats(): Record<string, Record<string, number>> {
+    return this.prevStatsCache;
   }
 
   public getCurrentPageIndex(): number {
@@ -190,11 +263,23 @@ class OperatorPaginationResultService {
     return this.currentTotalNumTuples;
   }
 
-  public selectTuple(tupleIndex: number, pageSize: number): Observable<IndexableObject> {
+  public getSchema(): ReadonlyArray<SchemaAttribute> {
+    return this.schema;
+  }
+
+  public selectTuple(
+    tupleIndex: number,
+    pageSize: number
+  ): Observable<{ tuple: IndexableObject; schema: ReadonlyArray<SchemaAttribute> }> {
     // calculate the page index
     // remember that page index starts from 1
     const pageIndex = Math.floor(tupleIndex / pageSize) + 1;
-    return this.selectPage(pageIndex, pageSize).pipe(map(p => p.table[tupleIndex % pageSize]));
+    return this.selectPage(pageIndex, pageSize).pipe(
+      map(p => ({
+        tuple: p.table[tupleIndex % pageSize],
+        schema: this.schema,
+      }))
+    );
   }
 
   public selectPage(pageIndex: number, pageSize: number): Observable<PaginatedResultEvent> {
@@ -208,6 +293,7 @@ class OperatorPaginationResultService {
         operatorID: this.operatorID,
         pageIndex: pageIndex,
         table: pageCache,
+        schema: this.schema,
       });
     } else {
       // fetch result data from server
@@ -237,6 +323,16 @@ class OperatorPaginationResultService {
     update.dirtyPageIndices.forEach(dirtyPage => {
       this.resultCache.delete(dirtyPage);
     });
+  }
+
+  public handleStatsUpdate(statsUpdate: Record<string, Record<string, number>>): void {
+    if (!this.statsCache) {
+      this.statsCache = statsUpdate;
+      this.prevStatsCache = statsUpdate;
+    } else {
+      this.prevStatsCache = this.statsCache;
+      this.statsCache = statsUpdate;
+    }
   }
 
   private handlePaginationResult(res: PaginatedResultEvent): void {

@@ -9,13 +9,44 @@
  */
 import { IndexableObject } from "../../workspace/types/result-table.interface";
 import deepMap from "deep-map";
+import { AttributeType, SchemaAttribute } from "../../workspace/types/workflow-compiling.interface";
 
-export function trimDisplayJsonData(rowData: IndexableObject, maxLen: number): Record<string, unknown> {
-  return deepMap<Record<string, unknown>>(rowData, value => {
-    if (typeof value === "string" && value.length > maxLen) {
+export function formatBinaryData(value: string): string {
+  const length = value.length;
+  // If length is less than 13, show the entire string.
+  if (length < 13) {
+    return `bytes'${value}' (length: ${length})`;
+  }
+  // Otherwise, show the leading and trailing bytes with ellipsis in between.
+  const leadingBytes = value.slice(0, 10);
+  // If the length of the value is less than 10, leadingBytes will take the entire string.
+  const trailingBytes = value.slice(-3);
+  // If the length of the value is less than 3, trailingBytes will take the entire string.
+  return `bytes'${leadingBytes}...${trailingBytes}' (length: ${length})`;
+}
+
+export function trimAndFormatData(value: any, attributeType: AttributeType, maxLen: number): any {
+  if (value === null) {
+    return "NULL";
+  }
+  if (attributeType === "binary") {
+    return formatBinaryData(value);
+  }
+  if (attributeType === "string") {
+    if (value.length > maxLen) {
       return value.substring(0, maxLen) + "...";
-    } else {
-      return value;
     }
+  }
+  return value ?? "";
+}
+
+export function trimDisplayJsonData(
+  rowData: IndexableObject,
+  schema: ReadonlyArray<SchemaAttribute>,
+  maxLen: number
+): Record<string, unknown> {
+  return deepMap<Record<string, unknown>>(rowData, (value, key) => {
+    const attributeType = schema.find(attr => attr.attributeName === key)?.attributeType ?? "string";
+    return trimAndFormatData(value, attributeType, maxLen);
   });
 }

@@ -1,0 +1,72 @@
+<div class="search-container">
+  <div class="search-section">
+    <button
+      class="go-back-button"
+      nz-button
+      nzType="text"
+      nzSize="large"
+      (click)="goBack()">
+      <span
+        nz-icon
+        nzType="arrow-left"
+        nzTheme="outline"></span>
+    </button>
+
+    <div class="filters">
+      <div class="left-controls">
+        <texera-sort-button (sortMethodChange)="sortMethod = $event; search()"></texera-sort-button>
+
+        <button
+          nz-button
+          nzType="default"
+          [ngClass]="{'selected': selectedType === null}"
+          (click)="filterByType(null)">
+          All
+        </button>
+
+        <button
+          nz-button
+          nzType="default"
+          [ngClass]="{'selected': selectedType === 'project'}"
+          (click)="filterByType('project')">
+          <span
+            nz-icon
+            nzType="container"></span>
+          Project
+        </button>
+
+        <button
+          nz-button
+          nzType="default"
+          [ngClass]="{'selected': selectedType === 'workflow'}"
+          (click)="filterByType('workflow')">
+          <span
+            nz-icon
+            nzType="project"></span>
+          Workflow
+        </button>
+
+        <button
+          nz-button
+          nzType="default"
+          [ngClass]="{'selected': selectedType === 'dataset'}"
+          (click)="filterByType('dataset')">
+          <span
+            nz-icon
+            nzType="database"></span>
+          Dataset
+        </button>
+      </div>
+
+      <texera-filters #filters></texera-filters>
+    </div>
+  </div>
+
+  <div class="search-result">
+    <texera-search-results
+      [showResourceTypes]="true"
+      [searchKeywords]="this.filters.getSearchKeywords()"
+      [currentUid]="this.currentUid">
+    </texera-search-results>
+  </div>
+</div>

@@ -9,13 +9,13 @@ class TestSchema:
     @pytest.fixture
     def raw_schema(self):
         return {
-            "field-1": "string",
-            "field-2": "integer",
-            "field-3": "long",
-            "field-4": "double",
-            "field-5": "boolean",
-            "field-6": "timestamp",
-            "field-7": "binary",
+            "field-1": "STRING",
+            "field-2": "INTEGER",
+            "field-3": "LONG",
+            "field-4": "DOUBLE",
+            "field-5": "BOOLEAN",
+            "field-6": "TIMESTAMP",
+            "field-7": "BINARY",
         }
 
     @pytest.fixture

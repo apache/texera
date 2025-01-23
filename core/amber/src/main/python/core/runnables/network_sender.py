@@ -2,18 +2,18 @@ from typing import Optional
 
 from loguru import logger
 from overrides import overrides
-from pyarrow import Table
 
-from core.models import OutputDataFrame, DataPayload, EndOfUpstream, InternalQueue
+from core.models import DataPayload, InternalQueue, DataFrame, MarkerFrame, State
+
 from core.models.internal_queue import InternalQueueElement, DataElement, ControlElement
 from core.proxy import ProxyClient
 from core.util import StoppableQueueBlockingRunnable
 from proto.edu.uci.ics.amber.engine.common import (
-    ActorVirtualIdentity,
     ControlPayloadV2,
     PythonControlMessage,
     PythonDataHeader,
 )
+from proto.edu.uci.ics.amber.core import ActorVirtualIdentity
 
 
 class NetworkSender(StoppableQueueBlockingRunnable):
@@ -50,24 +50,23 @@ class NetworkSender(StoppableQueueBlockingRunnable):
 
         :param to: The target actor's ActorVirtualIdentity
         :param data_payload: The data payload to be sent, can be either DataFrame or
-            EndOfUpstream
+            EndOfInputChannel
         """
 
-        if isinstance(data_payload, OutputDataFrame):
-            # converting from a column-based dictionary is the fastest known method
-            # https://stackoverflow.com/questions/57939092/fastest-way-to-construct-pyarrow-table-row-by-row
-            field_names = data_payload.schema.get_attr_names()
-            table = Table.from_pydict(
-                {name: [t[name] for t in data_payload.frame] for name in field_names},
-                schema=data_payload.schema.as_arrow_schema(),
+        if isinstance(data_payload, DataFrame):
+            data_header = PythonDataHeader(tag=to, payload_type="Data")
+            self._proxy_client.send_data(bytes(data_header), data_payload.frame)
+
+        elif isinstance(data_payload, MarkerFrame):
+            data_header = PythonDataHeader(
+                tag=to, payload_type=data_payload.frame.__class__.__name__
             )
-            data_header = PythonDataHeader(tag=to, is_end=False)
-            self._proxy_client.send_data(bytes(data_header), table)  # returns credits
-
-        elif isinstance(data_payload, EndOfUpstream):
-            data_header = PythonDataHeader(tag=to, is_end=True)
-            self._proxy_client.send_data(bytes(data_header), None)  # returns credits
-
+            table = (
+                data_payload.frame.to_table()
+                if isinstance(data_payload.frame, State)
+                else None
+            )
+            self._proxy_client.send_data(bytes(data_header), table)
         else:
             raise TypeError(f"Unexpected payload {data_payload}")
 

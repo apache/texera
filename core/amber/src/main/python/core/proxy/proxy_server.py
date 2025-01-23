@@ -1,5 +1,4 @@
 import threading
-import time
 from functools import wraps
 from inspect import signature
 from typing import Callable, Dict, Iterator, Optional, Tuple
@@ -298,8 +297,8 @@ class ProxyServer(FlightServerBase):
     def graceful_shutdown(self):
         """Shut down after a delay."""
         logger.debug("Server is shutting down...")
-        time.sleep(0.2)
-        self.shutdown()
+        super().shutdown()
+        logger.debug("Server is shutdown.")
 
     def get_port_number(self):
         return self._port_number

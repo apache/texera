@@ -1,0 +1,42 @@
+server:
+  # modify applicationContextPath if you want the root path to be the name of the application
+  # for example, set it to /twitter, then the url will become texera.ics.uci.edu:port/twitter
+  applicationContextPath: /
+  applicationConnectors:
+    - type: http
+      port: 9090
+  adminConnectors:
+    - type: http
+      port: 9091
+  requestLog:
+    type: classic
+    timeZone: UTC
+    appenders:
+      - type: console
+      - type: file
+        currentLogFilename: ../log/access.log
+        threshold: ALL
+        queueSize: 512
+        discardingThreshold: 0
+        archive: true
+        archivedLogFilenamePattern: ../log/access-%d{yyyy-MM-dd}.log.gz
+        archivedFileCount: 7
+        bufferSize: 8KiB
+        immediateFlush: true
+logging:
+  level: INFO
+  loggers:
+    "io.dropwizard": INFO
+  appenders:
+    - type: console
+      logFormat: "[%date{ISO8601}] [%level] [%logger] [%thread] - %msg %n"
+    - type: file
+      currentLogFilename: ../log/texera-workflow-compiling-service.log
+      threshold: ALL
+      queueSize: 512
+      discardingThreshold: 0
+      archive: false
+      timeZone: UTC
+      logFormat: "[%date{ISO8601}] [%level] [%logger] [%thread] - %msg %n"
+      bufferSize: 8KiB
+      immediateFlush: true

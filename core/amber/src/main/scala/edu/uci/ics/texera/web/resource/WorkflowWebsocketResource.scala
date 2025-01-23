@@ -3,25 +3,17 @@ package edu.uci.ics.texera.web.resource
 import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.clustering.ClusterListener
-import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
+import edu.uci.ics.amber.engine.common.Utils.objectMapper
 import edu.uci.ics.amber.error.ErrorUtils.getStackTraceWithAllCauses
-import edu.uci.ics.texera.Utils.objectMapper
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
-import edu.uci.ics.texera.web.model.websocket.event.{
-  CacheStatusUpdateEvent,
-  WorkflowErrorEvent,
-  WorkflowStateEvent
-}
+import edu.uci.ics.amber.core.virtualidentity.WorkflowIdentity
+import edu.uci.ics.amber.core.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
+import edu.uci.ics.amber.core.workflowruntimestate.WorkflowFatalError
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
+import edu.uci.ics.texera.web.model.websocket.event.{WorkflowErrorEvent, WorkflowStateEvent}
 import edu.uci.ics.texera.web.model.websocket.request._
 import edu.uci.ics.texera.web.model.websocket.response._
-import edu.uci.ics.texera.web.service.{WorkflowCacheChecker, WorkflowService}
-import edu.uci.ics.texera.web.storage.ExecutionStateStore
-import edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{PAUSED, RUNNING}
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError
+import edu.uci.ics.texera.web.service.WorkflowService
 import edu.uci.ics.texera.web.{ServletAwareConfigurator, SessionState}
-import edu.uci.ics.texera.workflow.common.WorkflowContext
-import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler
 
 import java.time.Instant
 import javax.websocket._
@@ -36,7 +28,15 @@ class WorkflowWebsocketResource extends LazyLogging {
 
   @OnOpen
   def myOnOpen(session: Session, config: EndpointConfig): Unit = {
-    SessionState.setState(session.getId, new SessionState(session))
+    val sessionState = new SessionState(session)
+    SessionState.setState(session.getId, sessionState)
+    val wid = session.getRequestParameterMap.get("wid").get(0).toLong
+    // hack to refresh frontend run button state
+    sessionState.send(WorkflowStateEvent("Uninitialized"))
+    val workflowState =
+      WorkflowService.getOrCreate(WorkflowIdentity(wid))
+    sessionState.subscribe(workflowState)
+    sessionState.send(ClusterStatusUpdateEvent(ClusterListener.numWorkerNodesInCluster))
     logger.info("connection open")
   }
 
@@ -48,22 +48,16 @@ class WorkflowWebsocketResource extends LazyLogging {
   @OnMessage
   def myOnMsg(session: Session, message: String): Unit = {
     val request = objectMapper.readValue(message, classOf[TexeraWebSocketRequest])
-    val uidOpt = session.getUserProperties.asScala
+    val userOpt = session.getUserProperties.asScala
       .get(classOf[User].getName)
-      .map(_.asInstanceOf[User].getUid)
+      .map(_.asInstanceOf[User])
+    val uidOpt = userOpt.map(_.getUid)
+
     val sessionState = SessionState.getState(session.getId)
     val workflowStateOpt = sessionState.getCurrentWorkflowState
     val executionStateOpt = workflowStateOpt.flatMap(x => Option(x.executionService.getValue))
     try {
       request match {
-        case registerWorkflowIdRequest: RegisterWorkflowIdRequest =>
-          // hack to refresh frontend run button state
-          sessionState.send(WorkflowStateEvent("Uninitialized"))
-          val workflowState =
-            WorkflowService.getOrCreate(WorkflowIdentity(registerWorkflowIdRequest.workflowId))
-          sessionState.subscribe(workflowState)
-          sessionState.send(ClusterStatusUpdateEvent(ClusterListener.numWorkerNodesInCluster))
-          sessionState.send(RegisterWorkflowIdResponse("workflowId registered"))
         case heartbeat: HeartBeatRequest =>
           sessionState.send(HeartBeatResponse())
         case paginationRequest: ResultPaginationRequest =>
@@ -72,7 +66,7 @@ class WorkflowWebsocketResource extends LazyLogging {
           )
         case resultExportRequest: ResultExportRequest =>
           workflowStateOpt.foreach(state =>
-            sessionState.send(state.exportService.exportResult(uidOpt.get, resultExportRequest))
+            sessionState.send(state.exportService.exportResult(userOpt.get, resultExportRequest))
           )
         case modifyLogicRequest: ModifyLogicRequest =>
           if (workflowStateOpt.isDefined) {
@@ -83,46 +77,11 @@ class WorkflowWebsocketResource extends LazyLogging {
               )
             sessionState.send(modifyLogicResponse)
           }
-        case editingTimeCompilationRequest: EditingTimeCompilationRequest =>
-          val stateStore = if (executionStateOpt.isDefined) {
-            val currentState =
-              executionStateOpt.get.executionStateStore.metadataStore.getState.state
-            if (currentState == RUNNING || currentState == PAUSED) {
-              // disable check if the workflow execution is active.
-              return
-            }
-            executionStateOpt.get.executionStateStore
-          } else {
-            new ExecutionStateStore()
-          }
-          val workflowContext = new WorkflowContext(
-            uidOpt,
-            sessionState.getCurrentWorkflowState.get.workflowId
-          )
-          try {
-            val workflowCompiler =
-              new WorkflowCompiler(workflowContext)
-            val newPlan = workflowCompiler.compileLogicalPlan(
-              editingTimeCompilationRequest.toLogicalPlanPojo,
-              stateStore
-            )
-            val validateResult = WorkflowCacheChecker.handleCacheStatusUpdate(
-              workflowStateOpt.get.lastCompletedLogicalPlan,
-              newPlan,
-              editingTimeCompilationRequest
-            )
-            sessionState.send(CacheStatusUpdateEvent(validateResult))
-          } catch {
-            case t: Throwable => // skip, rethrow this exception will overwrite the compilation errors reported below.
-          } finally {
-            if (stateStore.metadataStore.getState.fatalErrors.nonEmpty) {
-              sessionState.send(WorkflowErrorEvent(stateStore.metadataStore.getState.fatalErrors))
-            }
-          }
         case workflowExecuteRequest: WorkflowExecuteRequest =>
           workflowStateOpt match {
-            case Some(workflow) => workflow.initExecutionService(workflowExecuteRequest, uidOpt)
-            case None           => throw new IllegalStateException("workflow is not initialized")
+            case Some(workflow) =>
+              workflow.initExecutionService(workflowExecuteRequest, userOpt, session.getRequestURI)
+            case None => throw new IllegalStateException("workflow is not initialized")
           }
         case other =>
           workflowStateOpt.map(_.executionService.getValue) match {
@@ -157,5 +116,4 @@ class WorkflowWebsocketResource extends LazyLogging {
     }
 
   }
-
 }

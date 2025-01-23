@@ -1,26 +1,36 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 
+import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.amber.engine.architecture.logreplay.{ReplayDestination, ReplayLogRecord}
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
-import edu.uci.ics.amber.engine.common.virtualidentity.{ChannelMarkerIdentity, ExecutionIdentity}
-import edu.uci.ics.texera.web.SqlServer
+import edu.uci.ics.amber.core.virtualidentity.{ChannelMarkerIdentity, ExecutionIdentity}
+import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
+import edu.uci.ics.texera.dao.jooq.generated.Tables.{
   USER,
   WORKFLOW_EXECUTIONS,
-  WORKFLOW_RUNTIME_STATISTICS,
+  OPERATOR_EXECUTIONS,
+  OPERATOR_RUNTIME_STATISTICS,
   WORKFLOW_VERSION
 }
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowExecutionsDao
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{
+  OperatorExecutionsDao,
+  OperatorRuntimeStatisticsDao,
+  WorkflowExecutionsDao
+}
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.{
+  WorkflowExecutions,
+  OperatorExecutions,
+  OperatorRuntimeStatistics
+}
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource._
 import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
 import io.dropwizard.auth.Auth
-import org.jooq.impl.DSL._
 import org.jooq.types.{UInteger, ULong}
 
 import java.net.URI
 import java.sql.Timestamp
+import java.util
 import java.util.concurrent.TimeUnit
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
@@ -29,8 +39,16 @@ import scala.collection.mutable
 import scala.jdk.CollectionConverters.ListHasAsScala
 
 object WorkflowExecutionsResource {
-  final private lazy val context = SqlServer.createDSLContext()
+  final private lazy val context = SqlServer
+    .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
+    .createDSLContext()
   final private lazy val executionsDao = new WorkflowExecutionsDao(context.configuration)
+  final private lazy val operatorExecutionsDao = new OperatorExecutionsDao(
+    context.configuration
+  )
+  final private lazy val operatorRuntimeStatisticsDao = new OperatorRuntimeStatisticsDao(
+    context.configuration
+  )
 
   def getExecutionById(eId: UInteger): WorkflowExecutions = {
     executionsDao.fetchOneByEid(eId)
@@ -57,6 +75,7 @@ object WorkflowExecutionsResource {
 
   /**
     * This function retrieves the latest execution id of a workflow
+    *
     * @param wid workflow id
     * @return UInteger
     */
@@ -64,6 +83,9 @@ object WorkflowExecutionsResource {
     val executions = context
       .select(WORKFLOW_EXECUTIONS.EID)
       .from(WORKFLOW_EXECUTIONS)
+      .join(WORKFLOW_VERSION)
+      .on(WORKFLOW_EXECUTIONS.VID.eq(WORKFLOW_VERSION.VID))
+      .where(WORKFLOW_VERSION.WID.eq(wid))
       .fetchInto(classOf[UInteger])
       .asScala
       .toList
@@ -74,10 +96,26 @@ object WorkflowExecutionsResource {
     }
   }
 
+  def insertOperatorExecutions(
+      list: util.ArrayList[OperatorExecutions]
+  ): util.HashMap[String, ULong] = {
+    operatorExecutionsDao.insert(list);
+    val result = new util.HashMap[String, ULong]()
+    list.forEach(execution => {
+      result.put(execution.getOperatorId, execution.getOperatorExecutionId)
+    })
+    result
+  }
+
+  def insertOperatorRuntimeStatistics(list: util.ArrayList[OperatorRuntimeStatistics]): Unit = {
+    operatorRuntimeStatisticsDao.insert(list);
+  }
+
   case class WorkflowExecutionEntry(
       eId: UInteger,
       vId: UInteger,
       userName: String,
+      googleAvatar: String,
       status: Byte,
       result: String,
       startingTime: Timestamp,
@@ -87,15 +125,10 @@ object WorkflowExecutionsResource {
       logLocation: String
   )
 
-  case class ExecutionResultEntry(
-      eId: UInteger,
-      result: String
-  )
-
   case class WorkflowRuntimeStatistics(
       operatorId: String,
-      inputTupleCount: UInteger,
-      outputTupleCount: UInteger,
+      inputTupleCount: ULong,
+      outputTupleCount: ULong,
       timestamp: Timestamp,
       dataProcessingTime: ULong,
       controlProcessingTime: ULong,
@@ -109,7 +142,9 @@ case class ExecutionGroupBookmarkRequest(
     eIds: Array[UInteger],
     isBookmarked: Boolean
 )
+
 case class ExecutionGroupDeleteRequest(wid: UInteger, eIds: Array[UInteger])
+
 case class ExecutionRenameRequest(wid: UInteger, eId: UInteger, executionName: String)
 
 @Produces(Array(MediaType.APPLICATION_JSON))
@@ -173,12 +208,8 @@ class WorkflowExecutionsResource {
         .select(
           WORKFLOW_EXECUTIONS.EID,
           WORKFLOW_EXECUTIONS.VID,
-          field(
-            context
-              .select(USER.NAME)
-              .from(USER)
-              .where(WORKFLOW_EXECUTIONS.UID.eq(USER.UID))
-          ),
+          USER.NAME,
+          USER.GOOGLE_AVATAR,
           WORKFLOW_EXECUTIONS.STATUS,
           WORKFLOW_EXECUTIONS.RESULT,
           WORKFLOW_EXECUTIONS.STARTING_TIME,
@@ -190,6 +221,8 @@ class WorkflowExecutionsResource {
         .from(WORKFLOW_EXECUTIONS)
         .join(WORKFLOW_VERSION)
         .on(WORKFLOW_VERSION.VID.eq(WORKFLOW_EXECUTIONS.VID))
+        .join(USER)
+        .on(WORKFLOW_EXECUTIONS.UID.eq(USER.UID))
         .where(WORKFLOW_VERSION.WID.eq(wid))
         .fetchInto(classOf[WorkflowExecutionEntry])
         .asScala
@@ -207,22 +240,32 @@ class WorkflowExecutionsResource {
   ): List[WorkflowRuntimeStatistics] = {
     context
       .select(
-        WORKFLOW_RUNTIME_STATISTICS.OPERATOR_ID,
-        WORKFLOW_RUNTIME_STATISTICS.INPUT_TUPLE_CNT,
-        WORKFLOW_RUNTIME_STATISTICS.OUTPUT_TUPLE_CNT,
-        WORKFLOW_RUNTIME_STATISTICS.TIME,
-        WORKFLOW_RUNTIME_STATISTICS.DATA_PROCESSING_TIME,
-        WORKFLOW_RUNTIME_STATISTICS.CONTROL_PROCESSING_TIME,
-        WORKFLOW_RUNTIME_STATISTICS.IDLE_TIME,
-        WORKFLOW_RUNTIME_STATISTICS.NUM_WORKERS
+        OPERATOR_EXECUTIONS.OPERATOR_ID,
+        OPERATOR_RUNTIME_STATISTICS.INPUT_TUPLE_CNT,
+        OPERATOR_RUNTIME_STATISTICS.OUTPUT_TUPLE_CNT,
+        OPERATOR_RUNTIME_STATISTICS.TIME,
+        OPERATOR_RUNTIME_STATISTICS.DATA_PROCESSING_TIME,
+        OPERATOR_RUNTIME_STATISTICS.CONTROL_PROCESSING_TIME,
+        OPERATOR_RUNTIME_STATISTICS.IDLE_TIME,
+        OPERATOR_RUNTIME_STATISTICS.NUM_WORKERS
       )
-      .from(WORKFLOW_RUNTIME_STATISTICS)
+      .from(OPERATOR_RUNTIME_STATISTICS)
+      .join(OPERATOR_EXECUTIONS)
+      .on(
+        OPERATOR_RUNTIME_STATISTICS.OPERATOR_EXECUTION_ID.eq(
+          OPERATOR_EXECUTIONS.OPERATOR_EXECUTION_ID
+        )
+      )
+      .join(WORKFLOW_EXECUTIONS)
+      .on(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(WORKFLOW_EXECUTIONS.EID))
+      .join(WORKFLOW_VERSION)
+      .on(WORKFLOW_EXECUTIONS.VID.eq(WORKFLOW_VERSION.VID))
       .where(
-        WORKFLOW_RUNTIME_STATISTICS.WORKFLOW_ID
+        WORKFLOW_VERSION.WID
           .eq(wid)
-          .and(WORKFLOW_RUNTIME_STATISTICS.EXECUTION_ID.eq(eid))
+          .and(WORKFLOW_EXECUTIONS.EID.eq(eid))
       )
-      .orderBy(WORKFLOW_RUNTIME_STATISTICS.TIME, WORKFLOW_RUNTIME_STATISTICS.OPERATOR_ID)
+      .orderBy(OPERATOR_RUNTIME_STATISTICS.TIME, OPERATOR_EXECUTIONS.OPERATOR_ID)
       .fetchInto(classOf[WorkflowRuntimeStatistics])
       .asScala
       .toList

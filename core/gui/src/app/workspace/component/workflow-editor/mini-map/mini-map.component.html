@@ -1,19 +1,38 @@
-<button
-  nz-button
-  id="minimap-button"
-  (click)="hidden = !hidden">
-  <span
-    nz-icon
-    nzType="{{hidden ? 'global' : 'minus'}}"></span>
-</button>
-
-<div [hidden]="hidden">
-  <div id="mini-map"></div>
-  <div
-    id="mini-map-navigator"
-    cdkDrag
-    cdkDragBoundary="texera-mini-map"
-    (cdkDragMoved)="onDrag($event)"
-    (cdkDragStarted)="dragging=true"
-    (cdkDragEnded)="dragging=false"></div>
+<div>
+  <button
+    nz-button
+    id="minimap-button"
+    (click)="hidden = !hidden">
+    <span
+      nz-icon
+      nzType="{{hidden ? 'global' : 'minus'}}"></span>
+  </button>
+  <button
+    id="minimap-zoom-out-button"
+    (click)="onClickZoomOut()"
+    nz-button
+    title="zoom out">
+    <i
+      nz-icon
+      nzType="zoom-out"></i>
+  </button>
+  <button
+    id="minimap-zoom-in-button"
+    (click)="onClickZoomIn()"
+    nz-button
+    title="zoom in">
+    <i
+      nz-icon
+      nzType="zoom-in"></i>
+  </button>
+  <div [hidden]="hidden">
+    <div id="mini-map"></div>
+    <div
+      id="mini-map-navigator"
+      cdkDrag
+      cdkDragBoundary="texera-mini-map"
+      (cdkDragMoved)="onDrag($event)"
+      (cdkDragStarted)="dragging=true"
+      (cdkDragEnded)="dragging=false"></div>
+  </div>
 </div>

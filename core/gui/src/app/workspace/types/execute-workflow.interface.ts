@@ -91,10 +91,13 @@ export interface WebDataUpdate
 export type WebResultUpdate = WebPaginationUpdate | WebDataUpdate;
 
 export type WorkflowResultUpdate = Record<string, WebResultUpdate>;
+export type WorkflowResultTableStats = Record<string, Record<string, Record<string, number>>>;
 
 export interface WorkflowResultUpdateEvent
   extends Readonly<{
     updates: WorkflowResultUpdate;
+    tableStats: WorkflowResultTableStats;
+    sinkStorageMode: string;
   }> {}
 
 // user-defined type guards to check the type of the result update

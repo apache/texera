@@ -1,0 +1,18 @@
+<div
+  class="annotation-suggestion"
+  [style.top.px]="top"
+  [style.left.px]="left">
+  <p>Do you agree with the type annotation suggestion?</p>
+  <pre>Adding annotation for code: {{ code }}</pre>
+  <p>Given suggestion: <strong>{{ suggestion }}</strong></p>
+  <button
+    class="accept-button"
+    (click)="onAccept()">
+    Accept
+  </button>
+  <button
+    class="decline-button"
+    (click)="onDecline()">
+    Decline
+  </button>
+</div>

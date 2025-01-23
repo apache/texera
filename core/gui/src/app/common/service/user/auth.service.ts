@@ -61,7 +61,13 @@ export class AuthService {
   public googleAuth(credential: string): Observable<Readonly<{ accessToken: string }>> {
     return this.http.post<Readonly<{ accessToken: string }>>(
       `${AppSettings.getApiEndpoint()}/${AuthService.GOOGLE_LOGIN_ENDPOINT}`,
-      `${credential}`
+      credential,
+      {
+        headers: {
+          "Content-Type": "text/plain",
+          Accept: "application/json",
+        },
+      }
     );
   }
 
@@ -115,7 +121,7 @@ export class AuthService {
       name: this.jwtHelperService.decodeToken(token).sub,
       email: email,
       googleId: this.jwtHelperService.decodeToken(token).googleId,
-      googleAvatar: "https://lh3.googleusercontent.com/a/" + this.jwtHelperService.decodeToken(token).googleAvatar,
+      googleAvatar: this.jwtHelperService.decodeToken(token).googleAvatar,
       role: role,
     };
   }

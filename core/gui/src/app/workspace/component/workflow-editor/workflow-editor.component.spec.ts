@@ -30,12 +30,13 @@ import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { tap } from "rxjs/operators";
 import { UserService } from "src/app/common/service/user/user.service";
 import { StubUserService } from "src/app/common/service/user/stub-user.service";
-import { WorkflowVersionService } from "src/app/dashboard/user/service/workflow-version/workflow-version.service";
+import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
 import { of } from "rxjs";
 import { NzContextMenuService, NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { RouterTestingModule } from "@angular/router/testing";
 import { createYTypeFromObject } from "../../types/shared-editing.interface";
 import * as jQuery from "jquery";
+import { ContextMenuComponent } from "./context-menu/context-menu/context-menu.component";
 
 describe("WorkflowEditorComponent", () => {
   /**
@@ -50,7 +51,7 @@ describe("WorkflowEditorComponent", () => {
 
     beforeEach(waitForAsync(() => {
       TestBed.configureTestingModule({
-        declarations: [WorkflowEditorComponent],
+        declarations: [WorkflowEditorComponent, ContextMenuComponent],
         imports: [RouterTestingModule, HttpClientTestingModule, NzModalModule, NzDropDownModule],
         providers: [
           JointUIService,
@@ -179,6 +180,7 @@ describe("WorkflowEditorComponent", () => {
       fixture = TestBed.createComponent(WorkflowEditorComponent);
       component = fixture.componentInstance;
       workflowActionService = TestBed.inject(WorkflowActionService);
+      workflowActionService.setHighlightingEnabled(true);
       validationWorkflowService = TestBed.inject(ValidationWorkflowService);
       dragDropService = TestBed.inject(DragDropService);
       // detect changes to run ngAfterViewInit and bind Model

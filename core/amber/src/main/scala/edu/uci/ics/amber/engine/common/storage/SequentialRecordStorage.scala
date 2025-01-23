@@ -7,10 +7,11 @@ import edu.uci.ics.amber.engine.architecture.logreplay.{
   ProcessingStep,
   ReplayLogRecord
 }
-import SequentialRecordStorage.{SequentialRecordReader, SequentialRecordWriter}
-import edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.QueryStatistics
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
+import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage.{
+  SequentialRecordReader,
+  SequentialRecordWriter
+}
 
 import java.io.{DataInputStream, DataOutputStream}
 import java.net.URI
@@ -25,10 +26,7 @@ object SequentialRecordStorage {
         kryo.register(classOf[ReplayLogRecord])
         kryo.register(classOf[MessageContent])
         kryo.register(classOf[ProcessingStep])
-        kryo.register(classOf[ControlInvocation])
         kryo.register(classOf[WorkerState])
-        kryo.register(classOf[ReturnInvocation])
-        kryo.register(classOf[QueryStatistics])
         kryo
       }
     }.withRegistrar(r)

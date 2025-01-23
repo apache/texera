@@ -7,7 +7,7 @@ from loguru import logger
 
 from . import state_manager
 from proto.edu.uci.ics.amber.engine.architecture.worker import WorkerState
-from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity
+from proto.edu.uci.ics.amber.core import ActorVirtualIdentity
 from ...models import InternalQueue
 
 
@@ -53,7 +53,6 @@ class PauseManager:
         raise NotImplementedError()
 
     def resume(self, pause_type: PauseType, change_state=True) -> None:
-        logger.debug("resume by " + str(pause_type))
         if pause_type in self._global_pauses:
             self._global_pauses.remove(pause_type)
         # del self._specific_input_pauses[pause_type]

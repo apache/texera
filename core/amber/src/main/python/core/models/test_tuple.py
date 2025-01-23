@@ -3,10 +3,10 @@ import datetime
 import pandas
 import pytest
 from copy import deepcopy
-
+import pyarrow
 from numpy import NaN
 
-from core.models import Tuple
+from core.models import Tuple, ArrowTableTupleProvider
 from core.models.schema.schema import Schema
 
 
@@ -95,16 +95,26 @@ class TestTuple:
         tuple_ = Tuple({"1": field_accessor, "3": field_accessor})
         assert deepcopy(tuple_) == chr_tuple
 
+    def test_retrieve_tuple_from_empty_arrow_table(self):
+        arrow_schema = pyarrow.schema([])
+        arrow_table = arrow_schema.empty_table()
+        tuple_provider = ArrowTableTupleProvider(arrow_table)
+        tuples = [
+            Tuple({name: field_accessor for name in arrow_table.column_names})
+            for field_accessor in tuple_provider
+        ]
+        assert tuples == []
+
     def test_finalize_tuple(self):
         tuple_ = Tuple(
             {"name": "texera", "age": 21, "scores": [85, 94, 100], "height": NaN}
         )
         schema = Schema(
             raw_schema={
-                "name": "string",
-                "age": "integer",
-                "scores": "binary",
-                "height": "double",
+                "name": "STRING",
+                "age": "INTEGER",
+                "scores": "BINARY",
+                "height": "DOUBLE",
             }
         )
         tuple_.finalize(schema)
@@ -114,13 +124,13 @@ class TestTuple:
     def test_hash(self):
         schema = Schema(
             raw_schema={
-                "col-int": "integer",
-                "col-string": "string",
-                "col-bool": "boolean",
-                "col-long": "long",
-                "col-double": "double",
-                "col-timestamp": "timestamp",
-                "col-binary": "binary",
+                "col-int": "INTEGER",
+                "col-string": "STRING",
+                "col-bool": "BOOLEAN",
+                "col-long": "LONG",
+                "col-double": "DOUBLE",
+                "col-timestamp": "TIMESTAMP",
+                "col-binary": "BINARY",
             }
         )
 

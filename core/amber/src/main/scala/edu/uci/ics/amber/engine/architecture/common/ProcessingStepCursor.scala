@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.common
 
 import edu.uci.ics.amber.engine.architecture.common.ProcessingStepCursor.INIT_STEP
-import edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity
+import edu.uci.ics.amber.core.virtualidentity.ChannelIdentity
 
 object ProcessingStepCursor {
   // step value before processing any incoming message

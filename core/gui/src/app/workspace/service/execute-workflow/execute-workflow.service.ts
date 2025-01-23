@@ -1,4 +1,4 @@
-import { Injectable } from "@angular/core";
+import { Injectable, Inject } from "@angular/core";
 import { from, Observable, Subject } from "rxjs";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowGraphReadonly } from "../workflow-graph/model/workflow-graph";
@@ -9,7 +9,6 @@ import {
   LogicalOperator,
   LogicalPlan,
 } from "../../types/execute-workflow.interface";
-import { environment } from "../../../../environments/environment";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import {
   WorkflowFatalError,
@@ -24,8 +23,11 @@ import { Version as version } from "src/environments/version";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { exhaustiveGuard } from "../../../common/util/switch";
 import { WorkflowStatusService } from "../workflow-status/workflow-status.service";
-import { isDefined } from "../../../common/util/predicate";
 import { intersection } from "../../../common/util/set";
+import { WorkflowSettings } from "../../../common/type/workflow";
+import { DOCUMENT } from "@angular/common";
+import { UserService } from "src/app/common/service/user/user.service";
+import { User } from "src/app/common/type/user";
 
 // TODO: change this declaration
 export const FORM_DEBOUNCE_TIME_MS = 150;
@@ -73,7 +75,8 @@ export class ExecuteWorkflowService {
     private workflowActionService: WorkflowActionService,
     private workflowWebsocketService: WorkflowWebsocketService,
     private workflowStatusService: WorkflowStatusService,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    @Inject(DOCUMENT) private document: Document
   ) {
     workflowWebsocketService.websocketEvent().subscribe(event => {
       switch (event.type) {
@@ -164,23 +167,35 @@ export class ExecuteWorkflowService {
     return [];
   }
 
-  public executeWorkflow(executionName: string, targetOperatorId?: string): void {
+  public executeWorkflowWithEmailNotification(
+    executionName: string,
+    emailNotificationEnabled: boolean,
+    targetOperatorId?: string
+  ): void {
     const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(
       this.workflowActionService.getTexeraGraph(),
       targetOperatorId
     );
+    const settings = this.workflowActionService.getWorkflowSettings();
     this.resetExecutionState();
     this.workflowStatusService.resetStatus();
-    this.sendExecutionRequest(executionName, logicalPlan);
+    this.sendExecutionRequest(executionName, logicalPlan, settings, emailNotificationEnabled);
+  }
+
+  public executeWorkflow(executionName: string, targetOperatorId?: string): void {
+    this.executeWorkflowWithEmailNotification(executionName, false, targetOperatorId);
   }
 
   public executeWorkflowWithReplay(replayExecutionInfo: ReplayExecutionInfo): void {
     const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
+    const settings = this.workflowActionService.getWorkflowSettings();
     this.resetExecutionState();
     this.workflowStatusService.resetStatus();
     this.sendExecutionRequest(
       `Replay run of ${replayExecutionInfo.eid} to ${replayExecutionInfo.interaction}`,
       logicalPlan,
+      settings,
+      false,
       replayExecutionInfo
     );
   }
@@ -188,6 +203,8 @@ export class ExecuteWorkflowService {
   public sendExecutionRequest(
     executionName: string,
     logicalPlan: LogicalPlan,
+    workflowSettings: WorkflowSettings,
+    emailNotificationEnabled: boolean,
     replayExecutionInfo: ReplayExecutionInfo | undefined = undefined
   ): void {
     const workflowExecuteRequest = {
@@ -195,6 +212,8 @@ export class ExecuteWorkflowService {
       engineVersion: version.hash,
       logicalPlan: logicalPlan,
       replayFromExecution: replayExecutionInfo,
+      workflowSettings: workflowSettings,
+      emailNotificationEnabled: emailNotificationEnabled,
     };
     // wait for the form debounce to complete, then send
     window.setTimeout(() => {

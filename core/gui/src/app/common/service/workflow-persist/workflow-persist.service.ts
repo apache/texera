@@ -4,11 +4,10 @@ import { Observable, throwError } from "rxjs";
 import { filter, map, catchError } from "rxjs/operators";
 import { AppSettings } from "../../app-setting";
 import { Workflow, WorkflowContent } from "../../type/workflow";
-import { DashboardWorkflow } from "../../../dashboard/user/type/dashboard-workflow.interface";
+import { DashboardWorkflow } from "../../../dashboard/type/dashboard-workflow.interface";
 import { WorkflowUtilService } from "../../../workspace/service/workflow-graph/util/workflow-util.service";
 import { NotificationService } from "../notification/notification.service";
-import { SearchFilterParameters, toQueryStrings } from "src/app/dashboard/user/type/search-filter-parameters";
-import { Environment } from "../../type/environment";
+import { SearchFilterParameters, toQueryStrings } from "../../../dashboard/type/search-filter-parameters";
 
 export const WORKFLOW_BASE_URL = "workflow";
 export const WORKFLOW_PERSIST_URL = WORKFLOW_BASE_URL + "/persist";
@@ -23,6 +22,7 @@ export const WORKFLOW_OWNER_URL = WORKFLOW_BASE_URL + "/user-workflow-owners";
 export const WORKFLOW_ID_URL = WORKFLOW_BASE_URL + "/user-workflow-ids";
 
 export const DEFAULT_WORKFLOW_NAME = "Untitled workflow";
+export const WORKFLOW_PUBLIC_URL = WORKFLOW_BASE_URL + "/public";
 export const WORKFLOW_ENVIRONMENT = "environment";
 @Injectable({
   providedIn: "root",
@@ -47,6 +47,7 @@ export class WorkflowPersistService {
         name: workflow.name,
         description: workflow.description,
         content: JSON.stringify(workflow.content),
+        isPublic: workflow.isPublished,
       })
       .pipe(
         filter((updatedWorkflow: Workflow) => updatedWorkflow != null),
@@ -137,7 +138,7 @@ export class WorkflowPersistService {
   /**
    * updates the name of a given workflow, the user in the session must own the workflow.
    */
-  public updateWorkflowName(wid: number | undefined, name: string): Observable<Response> {
+  public updateWorkflowName(wid: number, name: string): Observable<Response> {
     return this.http
       .post<Response>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_UPDATENAME_URL}`, {
         wid: wid,
@@ -155,7 +156,7 @@ export class WorkflowPersistService {
   /**
    * updates the description of a given workflow
    */
-  public updateWorkflowDescription(wid: number | undefined, description: string): Observable<Response> {
+  public updateWorkflowDescription(wid: number, description: string): Observable<Response> {
     return this.http
       .post<Response>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_UPDATEDESCRIPTION_URL}`, {
         wid: wid,
@@ -168,6 +169,18 @@ export class WorkflowPersistService {
           return throwError(error);
         })
       );
+  }
+
+  public getWorkflowIsPublished(wid: number): Observable<string> {
+    return this.http.get(`${AppSettings.getApiEndpoint()}/${WORKFLOW_BASE_URL}/type/${wid}`, { responseType: "text" });
+  }
+
+  public updateWorkflowIsPublished(wid: number, isPublished: boolean): Observable<void> {
+    if (isPublished) {
+      return this.http.put<void>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_BASE_URL}/public/${wid}`, null);
+    } else {
+      return this.http.put<void>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_BASE_URL}/private/${wid}`, null);
+    }
   }
 
   public setWorkflowPersistFlag(flag: boolean): void {
@@ -190,11 +203,5 @@ export class WorkflowPersistService {
    */
   public retrieveWorkflowIDs(): Observable<number[]> {
     return this.http.get<number[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_ID_URL}`);
-  }
-
-  public retrieveWorkflowEnvironment(wid: number): Observable<Environment> {
-    return this.http.get<Environment>(
-      `${AppSettings.getApiEndpoint()}/${WORKFLOW_BASE_URL}/${wid}/${WORKFLOW_ENVIRONMENT}`
-    );
   }
 }

@@ -5,10 +5,10 @@ from typing import Iterator
 from betterproto import Message
 
 from core.models import Tuple
-from core.models.payload import OutputDataFrame, DataPayload
+from core.models.marker import Marker
 from core.util import get_one_of
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import Partitioning
-from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity
+from proto.edu.uci.ics.amber.core import ActorVirtualIdentity
 
 
 class Partitioner(ABC):
@@ -17,10 +17,14 @@ class Partitioner(ABC):
 
     def add_tuple_to_batch(
         self, tuple_: Tuple
-    ) -> Iterator[typing.Tuple[ActorVirtualIdentity, OutputDataFrame]]:
+    ) -> Iterator[typing.Tuple[ActorVirtualIdentity, typing.List[Tuple]]]:
         pass
 
-    def no_more(self) -> Iterator[typing.Tuple[ActorVirtualIdentity, DataPayload]]:
+    def flush(
+        self, marker: Marker
+    ) -> Iterator[
+        typing.Tuple[ActorVirtualIdentity, typing.Union[Marker, typing.List[Tuple]]]
+    ]:
         pass
 
     def reset(self) -> None:

@@ -1,0 +1,55 @@
+.input-group {
+  display: flex;
+  align-items: center;
+}
+
+.input-group input[nz-input] {
+  flex: 1;
+  margin-right: 8px;
+}
+
+.add-button {
+  margin-left: 8px;
+  white-space: nowrap;
+  padding: 8px 18px;
+  height: 25px;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.access-button-group {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-evenly;
+  align-items: center;
+}
+
+.access-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-evenly;
+  height: 150px;
+  width: 300px;
+  padding: 20px;
+  margin-bottom: 24px;
+  border-radius: 10px;
+}
+
+.button-icon {
+  font-size: 40px;
+}
+
+.button-text > p {
+  font-size: 12px;
+  font-weight: lighter;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.button-text-header {
+  font-size: 25px;
+  font-weight: bold;
+}

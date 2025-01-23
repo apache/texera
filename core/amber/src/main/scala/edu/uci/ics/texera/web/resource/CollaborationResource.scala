@@ -1,12 +1,12 @@
 package edu.uci.ics.texera.web.resource
 
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.texera.Utils
+import edu.uci.ics.amber.engine.common.Utils
 import edu.uci.ics.texera.web.ServletAwareConfigurator
 import edu.uci.ics.texera.web.model.collab.event._
 import edu.uci.ics.texera.web.model.collab.request._
 import edu.uci.ics.texera.web.model.collab.response.HeartBeatResponse
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.resource.CollaborationResource._
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource
 import org.jooq.types.UInteger

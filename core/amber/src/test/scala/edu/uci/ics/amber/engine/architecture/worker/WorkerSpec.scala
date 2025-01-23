@@ -1,36 +1,31 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
 import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.serialization.SerializationExtension
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit}
 import edu.uci.ics.amber.clustering.SingleNodeListener
+import edu.uci.ics.amber.core.executor.{OpExecWithClassName, OperatorExecutor}
+import edu.uci.ics.amber.core.tuple._
+import edu.uci.ics.amber.core.virtualidentity.{
+  ActorVirtualIdentity,
+  ChannelIdentity,
+  OperatorIdentity,
+  PhysicalOpIdentity
+}
+import edu.uci.ics.amber.core.workflow.{PhysicalLink, PortIdentity}
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkMessage
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager.FlushNetworkBuffer
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands._
+import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc._
 import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   MainThreadDelegateMessage,
   WorkerReplayInitialization
 }
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddInputChannelHandler.AddInputChannel
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AssignPortHandler.AssignPort
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.InitializeExecutorHandler.InitializeExecutor
+import edu.uci.ics.amber.engine.common.AmberRuntime
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, DataPayload, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
-import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  ChannelIdentity,
-  OperatorIdentity,
-  PhysicalOpIdentity
-}
-import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
-import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -39,53 +34,43 @@ import java.util.concurrent.CompletableFuture
 import scala.collection.mutable
 import scala.concurrent.duration.MILLISECONDS
 import scala.util.Random
+class DummyOperatorExecutor extends OperatorExecutor {
+  override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
+    Iterator(tuple)
+  }
+}
 
 class WorkerSpec
-    extends TestKit(ActorSystem("WorkerSpec"))
+    extends TestKit(ActorSystem("WorkerSpec", AmberRuntime.akkaConfig))
     with ImplicitSender
     with AnyFlatSpecLike
     with BeforeAndAfterAll
     with MockFactory {
 
   def mkSchema(fields: Any*): Schema = {
-    val schemaBuilder = Schema.builder()
+    var schema = Schema()
     fields.indices.foreach { i =>
-      schemaBuilder.add(new Attribute("field" + i, AttributeType.ANY))
+      schema = schema.add(new Attribute("field" + i, AttributeType.ANY))
     }
-    schemaBuilder.build()
+    schema
   }
+
   def mkTuple(fields: Any*): Tuple = {
     Tuple.builder(mkSchema(fields: _*)).addSequentially(fields.toArray).build()
   }
 
   override def beforeAll(): Unit = {
     system.actorOf(Props[SingleNodeListener](), "cluster-info")
+    AmberRuntime.serde = SerializationExtension(system)
   }
+
   override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
   }
+
   private val identifier1 = ActorVirtualIdentity("Worker:WF1-E1-op-layer-1")
   private val identifier2 = ActorVirtualIdentity("Worker:WF1-E1-op-layer-2")
 
-  private val mockOpExecutor = new OperatorExecutor {
-    override def open(): Unit = println("opened!")
-
-    override def close(): Unit = println("closed!")
-
-    override def processTupleMultiPort(
-        tuple: Tuple,
-        port: Int
-    ): Iterator[(TupleLike, Option[PortIdentity])] = {
-      Iterator((tuple, None))
-    }
-    override def onFinishMultiPort(
-        port: Int
-    ): Iterator[(TupleLike, Option[PortIdentity])] = {
-      Iterator()
-    }
-
-    override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = ???
-  }
   private val operatorIdentity = OperatorIdentity("testOperator")
 
   private val mockPortId = PortIdentity()
@@ -97,7 +82,8 @@ class WorkerSpec
       mockPortId
     )
 
-  private val mockPolicy = OneToOnePartitioning(10, Seq(identifier2))
+  private val mockPolicy =
+    OneToOnePartitioning(10, Seq(ChannelIdentity(identifier1, identifier2, isControl = false)))
 
   def sendControlToWorker(
       worker: ActorRef,
@@ -153,19 +139,43 @@ class WorkerSpec
         )
       }
     )
-    val invocation = ControlInvocation(0, AddPartitioning(mockLink, mockPolicy))
-    val addPort1 = ControlInvocation(1, AssignPort(mockPortId, input = true, mkSchema(1)))
-    val addPort2 = ControlInvocation(2, AssignPort(mockPortId, input = false, mkSchema(1)))
-    val addInputChannel = ControlInvocation(
-      3,
-      AddInputChannel(
+    val invocation = AsyncRPCClient.ControlInvocation(
+      METHOD_ADD_PARTITIONING,
+      AddPartitioningRequest(mockLink, mockPolicy),
+      AsyncRPCContext(CONTROLLER, identifier1),
+      0
+    )
+    val addPort1 = AsyncRPCClient.ControlInvocation(
+      METHOD_ASSIGN_PORT,
+      AssignPortRequest(mockPortId, input = true, mkSchema(1).toRawSchema),
+      AsyncRPCContext(CONTROLLER, identifier1),
+      1
+    )
+    val addPort2 = AsyncRPCClient.ControlInvocation(
+      METHOD_ASSIGN_PORT,
+      AssignPortRequest(mockPortId, input = false, mkSchema(1).toRawSchema),
+      AsyncRPCContext(CONTROLLER, identifier1),
+      2
+    )
+    val addInputChannel = AsyncRPCClient.ControlInvocation(
+      METHOD_ADD_INPUT_CHANNEL,
+      AddInputChannelRequest(
         ChannelIdentity(identifier2, identifier1, isControl = false),
         mockLink.toPortId
-      )
+      ),
+      AsyncRPCContext(CONTROLLER, identifier1),
+      3
     )
-    val initializeOperatorLogic = ControlInvocation(
-      4,
-      InitializeExecutor(1, OpExecInitInfo((_, _) => mockOpExecutor), isSource = false)
+
+    val initializeOperatorLogic = AsyncRPCClient.ControlInvocation(
+      METHOD_INITIALIZE_EXECUTOR,
+      InitializeExecutorRequest(
+        1,
+        OpExecWithClassName("edu.uci.ics.amber.engine.architecture.worker.DummyOperatorExecutor"),
+        isSource = false
+      ),
+      AsyncRPCContext(CONTROLLER, identifier1),
+      4
     )
     sendControlToWorker(
       worker,
@@ -184,9 +194,11 @@ class WorkerSpec
         DataFrame(Array(mkTuple(1)))
       )
     )
-    worker ! ControlInvocation(
-      AsyncRPCClient.IgnoreReplyAndDoNotLog,
-      FlushNetworkBuffer()
+    worker ! AsyncRPCClient.ControlInvocation(
+      METHOD_FLUSH_NETWORK_BUFFER,
+      EmptyRequest(),
+      AsyncRPCContext(CONTROLLER, identifier1),
+      1
     )
     //wait test to finish
     assert(future.get(3000, MILLISECONDS))
@@ -202,6 +214,7 @@ class WorkerSpec
         mkTuple(x)
       }.toArray
     }
+
     val batch1 = mkBatch(0, 400)
     val batch2 = mkBatch(400, 500)
     val batch3 = mkBatch(500, 800)

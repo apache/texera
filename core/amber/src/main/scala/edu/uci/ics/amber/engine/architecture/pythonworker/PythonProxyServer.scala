@@ -1,27 +1,28 @@
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import com.google.common.primitives.Longs
+import com.twitter.util.Promise
+import edu.uci.ics.amber.core.marker.{EndOfInputChannel, StartOfInputChannel, State}
+import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputGateway
 import edu.uci.ics.amber.engine.common.AmberLogging
-import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{
-  controlInvocationToV1,
-  returnInvocationToV1
+import edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.Value.{
+  ControlInvocation => ControlInvocationV2,
+  ReturnInvocation => ReturnInvocationV2
 }
 import edu.uci.ics.amber.engine.common.ambermessage._
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
+import edu.uci.ics.amber.util.ArrowUtils
+import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.arrow.flight._
 import org.apache.arrow.memory.{ArrowBuf, BufferAllocator, RootAllocator}
 import org.apache.arrow.util.AutoCloseables
 
-import java.nio.{ByteBuffer, ByteOrder}
 import java.io.IOException
 import java.net.ServerSocket
+import java.nio.charset.Charset
+import java.nio.{ByteBuffer, ByteOrder}
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
-import com.twitter.util.Promise
-
-import java.nio.charset.Charset
 
 private class AmberProducer(
     actorId: ActorVirtualIdentity,
@@ -31,6 +32,7 @@ private class AmberProducer(
   var _portNumber: AtomicInteger = new AtomicInteger(0)
 
   def portNumber: AtomicInteger = _portNumber
+
   override def doAction(
       context: FlightProducer.CallContext,
       action: Action,
@@ -39,17 +41,17 @@ private class AmberProducer(
     action.getType match {
       case "control" =>
         val pythonControlMessage = PythonControlMessage.parseFrom(action.getBody)
-        pythonControlMessage.payload match {
-          case returnInvocation: ReturnInvocationV2 =>
+        pythonControlMessage.payload.value match {
+          case r: ReturnInvocationV2 =>
             outputPort.sendTo(
               to = pythonControlMessage.tag,
-              payload = returnInvocationToV1(actorId, returnInvocation)
+              payload = r.value
             )
 
-          case controlInvocation: ControlInvocationV2 =>
+          case c: ControlInvocationV2 =>
             outputPort.sendTo(
               to = pythonControlMessage.tag,
-              payload = controlInvocationToV1(controlInvocation)
+              payload = c.value
             )
           case payload =>
             throw new RuntimeException(s"not supported payload $payload")
@@ -83,8 +85,6 @@ private class AmberProducer(
     val dataHeader: PythonDataHeader = PythonDataHeader
       .parseFrom(flightStream.getDescriptor.getCommand)
     val to: ActorVirtualIdentity = dataHeader.tag
-    val isEnd: Boolean = dataHeader.isEnd
-
     val root = flightStream.getRoot
 
     // send back ack with credits on ackStream
@@ -104,21 +104,23 @@ private class AmberProducer(
     // closing the stream will release the dictionaries
     flightStream.takeDictionaryOwnership
 
-    if (isEnd) {
-      // EndOfUpstream
-      assert(root.getRowCount == 0)
-      outputPort.sendTo(to, EndOfUpstream())
-    } else {
-      // normal data batches
-      val queue = mutable.Queue[Tuple]()
-      for (i <- 0 until root.getRowCount)
-        queue.enqueue(ArrowUtils.getTexeraTuple(i, root))
-      outputPort.sendTo(to, DataFrame(queue.toArray))
-
+    dataHeader.payloadType match {
+      case "StartOfInputChannel" =>
+        assert(root.getRowCount == 0)
+        outputPort.sendTo(to, MarkerFrame(StartOfInputChannel()))
+      case "EndOfInputChannel" =>
+        assert(root.getRowCount == 0)
+        outputPort.sendTo(to, MarkerFrame(EndOfInputChannel()))
+      case "State" =>
+        assert(root.getRowCount == 1)
+        outputPort.sendTo(to, MarkerFrame(State(Some(ArrowUtils.getTexeraTuple(0, root)))))
+      case _ => // normal data batches
+        val queue = mutable.Queue[Tuple]()
+        for (i <- 0 until root.getRowCount)
+          queue.enqueue(ArrowUtils.getTexeraTuple(i, root))
+        outputPort.sendTo(to, DataFrame(queue.toArray))
     }
-
   }
-
 }
 
 class PythonProxyServer(
@@ -129,10 +131,11 @@ class PythonProxyServer(
     with AutoCloseable
     with AmberLogging {
   private lazy val portNumber: AtomicInteger = new AtomicInteger(getFreeLocalPort)
+
   def getPortNumber: AtomicInteger = portNumber
 
   val allocator: BufferAllocator =
-    new RootAllocator().newChildAllocator("flight-server", 0, Long.MaxValue);
+    new RootAllocator().newChildAllocator("flight-server", 0, Long.MaxValue)
 
   val producer: FlightProducer = new AmberProducer(actorId, outputPort, promise)
 
@@ -155,7 +158,7 @@ class PythonProxyServer(
     * Get a random free port.
     *
     * @return The port number.
-    * @throws IOException  , might happen when getting a free port.
+    * @throws IOException , might happen when getting a free port.
     */
   @throws[IOException]
   private def getFreeLocalPort: Int = {

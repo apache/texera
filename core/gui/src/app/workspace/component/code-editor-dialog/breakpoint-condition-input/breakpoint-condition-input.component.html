@@ -1,0 +1,13 @@
+<div
+  *ngIf="isVisible"
+  class="condition-input-popup"
+  [ngStyle]="{ top: topPosition, left: leftPosition }">
+  <div class="tooltip-header">Condition on line {{ lineNum }}:</div>
+  <textarea
+    #conditionTextarea
+    [(ngModel)]="condition"
+    class="condition-textarea"
+    rows="2">
+  </textarea>
+  {{ conditionTextarea.focus() }}
+</div>

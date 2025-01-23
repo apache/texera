@@ -1,7 +1,11 @@
-import { Component, inject } from "@angular/core";
+import { Component, inject, OnInit } from "@angular/core";
 import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
-import { UntilDestroy } from "@ngneat/until-destroy";
-import { DatasetVersionFileTreeNode, getFullPathFromFileTreeNode } from "../../../common/type/datasetVersionFileTree";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { DatasetFileNode } from "../../../common/type/datasetVersionFileTree";
+import { DatasetVersion } from "../../../common/type/dataset";
+import { DashboardDataset } from "../../../dashboard/type/dashboard-dataset.interface";
+import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.service";
+import { parseFilePathToDatasetFile } from "../../../common/type/dataset-file";
 
 @UntilDestroy()
 @Component({
@@ -9,53 +13,96 @@ import { DatasetVersionFileTreeNode, getFullPathFromFileTreeNode } from "../../.
   templateUrl: "file-selection.component.html",
   styleUrls: ["file-selection.component.scss"],
 })
-export class FileSelectionComponent {
-  readonly fileTreeNodes: ReadonlyArray<DatasetVersionFileTreeNode> = inject(NZ_MODAL_DATA).fileTreeNodes;
-  suggestedFileTreeNodes: DatasetVersionFileTreeNode[] = [...this.fileTreeNodes];
-  filterText: string = "";
+export class FileSelectionComponent implements OnInit {
+  readonly selectedFilePath: string = inject(NZ_MODAL_DATA).selectedFilePath;
+  private _datasets: ReadonlyArray<DashboardDataset> = [];
 
-  constructor(private modalRef: NzModalRef) {}
+  // indicate whether the accessible datasets have been loaded from the backend
+  isAccessibleDatasetsLoading = true;
 
-  filterFileTreeNodes() {
-    const filterText = this.filterText.trim().toLowerCase();
+  selectedDataset?: DashboardDataset;
+  selectedVersion?: DatasetVersion;
+  datasetVersions?: DatasetVersion[];
+  suggestedFileTreeNodes: DatasetFileNode[] = [];
+  isDatasetSelected: boolean = false;
 
-    if (!filterText) {
-      this.suggestedFileTreeNodes = [...this.fileTreeNodes];
-    } else {
-      const filterNodes = (node: DatasetVersionFileTreeNode): DatasetVersionFileTreeNode | null => {
-        // For 'file' type nodes, check if the node's name matches the filter text.
-        // Directories are not filtered out by name, but their children are filtered recursively.
-        if (node.type === "file" && !node.name.toLowerCase().includes(filterText)) {
-          return null; // Exclude files that don't match the filter.
+  constructor(
+    private modalRef: NzModalRef,
+    private datasetService: DatasetService
+  ) {}
+
+  ngOnInit() {
+    this.isAccessibleDatasetsLoading = true;
+
+    // retrieve all the accessible datasets from the backend
+    this.datasetService
+      .retrieveAccessibleDatasets()
+      .pipe(untilDestroyed(this))
+      .subscribe(datasets => {
+        this._datasets = datasets;
+        this.isAccessibleDatasetsLoading = false;
+        if (!this.selectedFilePath || this.selectedFilePath == "") {
+          return;
         }
+        // if users already select some file, then ONLY show that selected dataset & related version
+        const selectedDatasetFile = parseFilePathToDatasetFile(this.selectedFilePath);
+        this.selectedDataset = this.datasets.find(
+          d => d.ownerEmail === selectedDatasetFile.ownerEmail && d.dataset.name === selectedDatasetFile.datasetName
+        );
+        this.isDatasetSelected = !!this.selectedDataset;
+        if (this.selectedDataset && this.selectedDataset.dataset.did !== undefined) {
+          this.datasetService
+            .retrieveDatasetVersionList(this.selectedDataset.dataset.did)
+            .pipe(untilDestroyed(this))
+            .subscribe(versions => {
+              this.datasetVersions = versions;
+              this.selectedVersion = this.datasetVersions.find(v => v.name === selectedDatasetFile.versionName);
+              this.onVersionChange();
+            });
+        }
+      });
+  }
 
-        // If the node is a directory, recurse into its children, if any.
-        if (node.type === "directory" && node.children) {
-          const filteredChildren = node.children
-            .map(filterNodes)
-            .filter(child => child !== null) as DatasetVersionFileTreeNode[];
-
-          if (filteredChildren.length > 0) {
-            // If any children match, return the current directory node with filtered children.
-            return { ...node, children: filteredChildren };
-          } else {
-            // If no children match, exclude the directory node.
-            return null;
+  onDatasetChange() {
+    this.selectedVersion = undefined;
+    this.suggestedFileTreeNodes = [];
+    this.isDatasetSelected = !!this.selectedDataset;
+    if (this.selectedDataset && this.selectedDataset.dataset.did !== undefined) {
+      this.datasetService
+        .retrieveDatasetVersionList(this.selectedDataset.dataset.did)
+        .pipe(untilDestroyed(this))
+        .subscribe(versions => {
+          this.datasetVersions = versions;
+          if (this.datasetVersions && this.datasetVersions.length > 0) {
+            this.selectedVersion = this.datasetVersions[0];
+            this.onVersionChange();
           }
-        }
-
-        // Return the node if it's a file that matches or a directory with matching descendants.
-        return node;
-      };
-
-      this.suggestedFileTreeNodes = this.fileTreeNodes
-        .map(filterNodes)
-        .filter(node => node !== null) as DatasetVersionFileTreeNode[];
+        });
     }
   }
 
-  onFileTreeNodeSelected(node: DatasetVersionFileTreeNode) {
-    const selectedNodePath = getFullPathFromFileTreeNode(node);
-    this.modalRef.close(selectedNodePath);
+  onVersionChange() {
+    this.suggestedFileTreeNodes = [];
+    if (
+      this.selectedDataset &&
+      this.selectedDataset.dataset.did !== undefined &&
+      this.selectedVersion &&
+      this.selectedVersion.dvid !== undefined
+    ) {
+      this.datasetService
+        .retrieveDatasetVersionFileTree(this.selectedDataset.dataset.did, this.selectedVersion.dvid)
+        .pipe(untilDestroyed(this))
+        .subscribe(data => {
+          this.suggestedFileTreeNodes = data.fileNodes;
+        });
+    }
+  }
+
+  onFileTreeNodeSelected(node: DatasetFileNode) {
+    this.modalRef.close(node);
+  }
+
+  get datasets(): ReadonlyArray<DashboardDataset> {
+    return this._datasets;
   }
 }

@@ -2,54 +2,49 @@ package edu.uci.ics.texera.web.service
 
 import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.architecture.controller.Controller.WorkflowRecoveryStatus
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
+import edu.uci.ics.amber.engine.architecture.controller.{
   ExecutionStatsUpdate,
   FatalError,
-  WorkerAssignmentUpdate
+  WorkerAssignmentUpdate,
+  WorkflowRecoveryStatus
 }
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.FAILED
 import edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping
-import edu.uci.ics.amber.engine.common.AmberConfig
+import edu.uci.ics.amber.engine.common.Utils.maptoStatusCode
 import edu.uci.ics.amber.engine.common.client.AmberClient
+import edu.uci.ics.amber.engine.common.executionruntimestate.{
+  OperatorMetrics,
+  OperatorStatistics,
+  OperatorWorkerMapping
+}
+import edu.uci.ics.amber.engine.common.{AmberConfig, Utils}
 import edu.uci.ics.amber.error.ErrorUtils.{getOperatorFromActorIdOpt, getStackTraceWithAllCauses}
-import edu.uci.ics.texera.Utils
-import edu.uci.ics.texera.Utils.maptoStatusCode
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowRuntimeStatistics
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowRuntimeStatisticsDao
-import edu.uci.ics.texera.web.{SqlServer, SubscriptionManager}
+import edu.uci.ics.amber.core.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
+import edu.uci.ics.amber.core.workflowruntimestate.WorkflowFatalError
+import edu.uci.ics.texera.web.SubscriptionManager
+import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.OperatorRuntimeStatistics
 import edu.uci.ics.texera.web.model.websocket.event.{
   ExecutionDurationUpdateEvent,
   OperatorAggregatedMetrics,
   OperatorStatisticsUpdateEvent,
   WorkerAssignmentUpdateEvent
 }
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
-import edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
-import edu.uci.ics.texera.web.workflowruntimestate.{
-  OperatorMetrics,
-  OperatorStatistics,
-  OperatorWorkerMapping,
-  WorkflowAggregatedState,
-  WorkflowFatalError
-}
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.FAILED
-
-import java.time.Instant
-import edu.uci.ics.texera.workflow.common.WorkflowContext
 import org.jooq.types.{UInteger, ULong}
 
+import java.time.Instant
 import java.util
 import java.util.concurrent.Executors
 
 class ExecutionStatsService(
     client: AmberClient,
     stateStore: ExecutionStateStore,
-    workflowContext: WorkflowContext
+    operatorIdToExecutionId: Map[String, ULong]
 ) extends SubscriptionManager
     with LazyLogging {
-  final private lazy val context = SqlServer.createDSLContext()
-  private val workflowRuntimeStatisticsDao = new WorkflowRuntimeStatisticsDao(context.configuration)
   private val metricsPersistThread = Executors.newSingleThreadExecutor()
   private var lastPersistedMetrics: Map[String, OperatorMetrics] = Map()
   registerCallbacks()
@@ -205,31 +200,34 @@ class ExecutionStatsService(
   private def storeRuntimeStatistics(
       operatorStatistics: scala.collection.immutable.Map[String, OperatorMetrics]
   ): Unit = {
-    // Add a try-catch to not produce an error when "workflow_runtime_statistics" table does not exist in MySQL
     try {
-      val list: util.ArrayList[WorkflowRuntimeStatistics] =
-        new util.ArrayList[WorkflowRuntimeStatistics]()
+      val runtimeStatsList: util.ArrayList[OperatorRuntimeStatistics] =
+        new util.ArrayList[OperatorRuntimeStatistics]()
+
       for ((operatorId, stat) <- operatorStatistics) {
-        val execution = new WorkflowRuntimeStatistics()
-        execution.setWorkflowId(UInteger.valueOf(workflowContext.workflowId.id))
-        execution.setExecutionId(UInteger.valueOf(workflowContext.executionId.id))
-        execution.setOperatorId(operatorId)
-        execution.setInputTupleCnt(
-          UInteger.valueOf(stat.operatorStatistics.inputCount.map(_.tupleCount).sum)
+        // Create and populate the operator runtime statistics entry
+        val runtimeStats = new OperatorRuntimeStatistics()
+        runtimeStats.setOperatorExecutionId(operatorIdToExecutionId(operatorId))
+        runtimeStats.setInputTupleCnt(
+          ULong.valueOf(stat.operatorStatistics.inputCount.map(_.tupleCount).sum)
         )
-        execution.setOutputTupleCnt(
-          UInteger.valueOf(stat.operatorStatistics.outputCount.map(_.tupleCount).sum)
+        runtimeStats.setOutputTupleCnt(
+          ULong.valueOf(stat.operatorStatistics.outputCount.map(_.tupleCount).sum)
         )
-        execution.setStatus(maptoStatusCode(stat.operatorState))
-        execution.setDataProcessingTime(ULong.valueOf(stat.operatorStatistics.dataProcessingTime))
-        execution.setControlProcessingTime(
+        runtimeStats.setStatus(maptoStatusCode(stat.operatorState))
+        runtimeStats.setDataProcessingTime(
+          ULong.valueOf(stat.operatorStatistics.dataProcessingTime)
+        )
+        runtimeStats.setControlProcessingTime(
           ULong.valueOf(stat.operatorStatistics.controlProcessingTime)
         )
-        execution.setIdleTime(ULong.valueOf(stat.operatorStatistics.idleTime))
-        execution.setNumWorkers(UInteger.valueOf(stat.operatorStatistics.numWorkers))
-        list.add(execution)
+        runtimeStats.setIdleTime(ULong.valueOf(stat.operatorStatistics.idleTime))
+        runtimeStats.setNumWorkers(UInteger.valueOf(stat.operatorStatistics.numWorkers))
+        runtimeStatsList.add(runtimeStats)
       }
-      workflowRuntimeStatisticsDao.insert(list)
+
+      // Insert into operator_runtime_statistics table
+      WorkflowExecutionsResource.insertOperatorRuntimeStatistics(runtimeStatsList)
     } catch {
       case err: Throwable => logger.error("error occurred when storing runtime statistics", err)
     }

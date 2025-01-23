@@ -1,17 +1,17 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import com.softwaremill.macwire.wire
+import edu.uci.ics.amber.core.marker.EndOfInputChannel
+import edu.uci.ics.amber.core.tuple.{AttributeType, Schema, TupleLike}
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
 import edu.uci.ics.amber.engine.common.ambermessage._
-import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
-import edu.uci.ics.amber.engine.common.virtualidentity.{
+import edu.uci.ics.amber.core.virtualidentity.{
   ActorVirtualIdentity,
   ChannelIdentity,
   OperatorIdentity,
   PhysicalOpIdentity
 }
-import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
-import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
+import edu.uci.ics.amber.core.workflow.{PhysicalLink, PortIdentity}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -22,15 +22,13 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
   private val mockDataOutputPort = // scalafix:ok; need it for wiring purpose
     new NetworkOutputGateway(identifier, mockHandler)
   var counter: Int = 0
-  val schema: Schema = Schema
-    .builder()
+  val schema: Schema = Schema()
     .add("field1", AttributeType.INTEGER)
     .add("field2", AttributeType.INTEGER)
     .add("field3", AttributeType.INTEGER)
     .add("field4", AttributeType.INTEGER)
     .add("field5", AttributeType.STRING)
     .add("field6", AttributeType.DOUBLE)
-    .build()
 
   def physicalOpId(): PhysicalOpIdentity = {
     counter += 1
@@ -65,10 +63,13 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
       (mockHandler.apply _).expects(
         mkDataMessage(fakeID, identifier, 2, DataFrame(tuples.slice(20, 21)))
       )
-      (mockHandler.apply _).expects(mkDataMessage(fakeID, identifier, 3, EndOfUpstream()))
+      (mockHandler.apply _).expects(
+        mkDataMessage(fakeID, identifier, 3, MarkerFrame(EndOfInputChannel()))
+      )
     }
     val fakeLink = PhysicalLink(physicalOpId(), mockPortId, physicalOpId(), mockPortId)
-    val fakeReceiver = Array[ActorVirtualIdentity](fakeID)
+    val fakeReceiver =
+      Array[ChannelIdentity](ChannelIdentity(identifier, fakeID, isControl = false))
 
     outputManager.addPartitionerWithPartitioning(
       fakeLink,
@@ -77,7 +78,7 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
     tuples.foreach { t =>
       outputManager.passTupleToDownstream(TupleLike(t.getFields), None)
     }
-    outputManager.emitEndOfUpstream()
+    outputManager.emitMarker(EndOfInputChannel())
   }
 
 }

@@ -25,13 +25,13 @@ class AttributeType(Enum):
 
 RAW_TYPE_MAPPING = bidict(
     {
-        "string": AttributeType.STRING,
-        "integer": AttributeType.INT,
-        "long": AttributeType.LONG,
-        "double": AttributeType.DOUBLE,
-        "boolean": AttributeType.BOOL,
-        "timestamp": AttributeType.TIMESTAMP,
-        "binary": AttributeType.BINARY,
+        "STRING": AttributeType.STRING,
+        "INTEGER": AttributeType.INT,
+        "LONG": AttributeType.LONG,
+        "DOUBLE": AttributeType.DOUBLE,
+        "BOOLEAN": AttributeType.BOOL,
+        "TIMESTAMP": AttributeType.TIMESTAMP,
+        "BINARY": AttributeType.BINARY,
     }
 )
 
@@ -65,4 +65,13 @@ TO_PYOBJECT_MAPPING = {
     AttributeType.BOOL: bool,
     AttributeType.BINARY: bytes,
     AttributeType.TIMESTAMP: datetime.datetime,
+}
+
+FROM_PYOBJECT_MAPPING = {
+    str: AttributeType.STRING,
+    int: AttributeType.INT,
+    float: AttributeType.DOUBLE,
+    bool: AttributeType.BOOL,
+    bytes: AttributeType.BINARY,
+    datetime.datetime: AttributeType.TIMESTAMP,
 }

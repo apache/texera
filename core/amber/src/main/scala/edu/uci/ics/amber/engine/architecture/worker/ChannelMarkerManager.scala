@@ -1,13 +1,13 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
 import edu.uci.ics.amber.engine.architecture.messaginglayer.InputGateway
-import edu.uci.ics.amber.engine.common.{AmberLogging, CheckpointState}
-import edu.uci.ics.amber.engine.common.ambermessage.{
-  ChannelMarkerPayload,
-  NoAlignment,
-  RequireAlignment
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerPayload
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType.{
+  NO_ALIGNMENT,
+  REQUIRE_ALIGNMENT
 }
-import edu.uci.ics.amber.engine.common.virtualidentity.{
+import edu.uci.ics.amber.engine.common.{AmberLogging, CheckpointState}
+import edu.uci.ics.amber.core.virtualidentity.{
   ActorVirtualIdentity,
   ChannelIdentity,
   ChannelMarkerIdentity
@@ -34,7 +34,7 @@ class ChannelMarkerManager(val actorId: ActorVirtualIdentity, inputGateway: Inpu
     * it checks if it's the first received marker. Post verification, it cleans up the markers.
     *
     * @return Boolean indicating if the epoch marker is completely received from all senders
-    *          within the scope. Returns true if the marker is aligned, otherwise false.
+    *         within the scope. Returns true if the marker is aligned, otherwise false.
     */
   def isMarkerAligned(
       from: ChannelIdentity,
@@ -49,8 +49,12 @@ class ChannelMarkerManager(val actorId: ActorVirtualIdentity, inputGateway: Inpu
     val markerReceivedFromAllChannels =
       getChannelsWithinScope(marker).subsetOf(markerReceived(markerId))
     val epochMarkerCompleted = marker.markerType match {
-      case RequireAlignment => markerReceivedFromAllChannels
-      case NoAlignment      => markerReceived(markerId).size == 1 // only the first marker triggers
+      case REQUIRE_ALIGNMENT => markerReceivedFromAllChannels
+      case NO_ALIGNMENT      => markerReceived(markerId).size == 1 // only the first marker triggers
+      case _ =>
+        throw new IllegalArgumentException(
+          s"Unsupported marker type: ${marker.markerType}"
+        )
     }
     if (markerReceivedFromAllChannels) {
       markerReceived.remove(markerId) // clean up if all markers are received

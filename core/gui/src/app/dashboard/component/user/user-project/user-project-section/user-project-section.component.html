@@ -1,0 +1,68 @@
+<div>
+  <nz-card>
+    <h2 class="project-title">Project : {{name}}</h2>
+    <div
+      *ngIf="description && description.trim()"
+      class="description-container">
+      <markdown [data]="description"></markdown>
+    </div>
+    <nz-card-meta nzDescription="Created: {{creationTime | date: 'yyyy-MM-dd HH:mm'}}"></nz-card-meta>
+
+    <div
+      *ngIf="color !== null"
+      [ngClass]="{'color-tag' : true, 'light-color' : colorIsBright, 'dark-color' : !colorIsBright}"
+      [ngStyle]="{'color' : colorIsBright ? 'black' : 'white', 'background-color' : '#' + color}"
+      id="left-div">
+      color
+    </div>
+    <div
+      (click)="removeProjectColor()"
+      *ngIf="color !== null"
+      [ngClass]="{'color-tag' : true, 'light-color' : colorIsBright, 'dark-color' : !colorIsBright}"
+      [ngStyle]="{'color' : colorIsBright ? 'black' : 'white', 'background-color' : '#' + color}"
+      id="right-div"
+      nz-tooltip="Remove project color"
+      nzTooltipPlacement="bottom">
+      x
+    </div>
+
+    <button
+      (colorPickerSelect)="updateProjectColor(inputColor)"
+      [(colorPicker)]="inputColor"
+      [(cpToggle)]="colorPickerIsSelected"
+      [cpExtraTemplate]="colorMenuTemplate"
+      [cpOKButtonClass]="'btn btn-primary btn-xs'"
+      title="Save"
+      [cpOKButtonText]="'Save'"
+      [cpOKButton]="false"
+      [cpPresetColors]="['#ff85c0', '#ff8c50', '#bae637', '#36cfc9', '#9254de', '#808080']"
+      [cpSaveClickOutside]="false"
+      nz-button>
+      <i
+        nz-icon
+        nz-tooltip="Set project color"
+        nzTheme="outline"
+        nzTooltipPlacement="bottom"
+        nzType="format-painter"></i>
+    </button>
+    <ng-template #colorMenuTemplate>
+      <div style="display: flex; padding: 0 16px 16px; justify-content: space-between">
+        <button
+          (click)="removeProjectColor()"
+          [disabled]="color === null"
+          class="btn btn-outline-danger btn-xs">
+          Delete
+        </button>
+        <button
+          (click)="updateProjectColor(inputColor)"
+          class="btn btn-primary btn-xs">
+          Save
+        </button>
+      </div>
+    </ng-template>
+  </nz-card>
+
+  <texera-saved-workflow-section
+    [pid]="pid"
+    [accessLevel]="accessLevel"></texera-saved-workflow-section>
+</div>

@@ -2,7 +2,6 @@ package edu.uci.ics.amber.engine.common
 
 import akka.actor.Address
 import com.typesafe.config.{Config, ConfigFactory}
-import edu.uci.ics.texera.Utils
 
 import java.io.File
 import java.net.URI
@@ -40,11 +39,14 @@ object AmberConfig {
     val maxCredit = getConfSource.getLong("flow-control.max-credit-allowed-in-bytes-per-channel")
     if (maxCredit == -1L) Long.MaxValue else maxCredit
   }
+
   val creditPollingIntervalInMs: Int =
     getConfSource.getInt("flow-control.credit-poll-interval-in-ms")
 
   // Network buffering configuration
-  def defaultBatchSize: Int = getConfSource.getInt("network-buffering.default-batch-size")
+  def defaultDataTransferBatchSize: Int =
+    getConfSource.getInt("network-buffering.default-data-transfer-batch-size")
+
   val enableAdaptiveNetworkBuffering: Boolean =
     getConfSource.getBoolean("network-buffering.enable-adaptive-buffering")
   val adaptiveBufferingTimeoutMs: Int =
@@ -73,13 +75,15 @@ object AmberConfig {
   def isFaultToleranceEnabled: Boolean = faultToleranceLogRootFolder.nonEmpty
 
   // Region plan generator
-  val enableCostBasedRegionPlanGenerator: Boolean =
-    getConfSource.getBoolean("region-plan-generator.enable-cost-based-region-plan-generator")
-  val useGlobalSearch: Boolean = getConfSource.getBoolean("region-plan-generator.use-global-search")
+  val enableCostBasedScheduleGenerator: Boolean =
+    getConfSource.getBoolean("schedule-generator.enable-cost-based-schedule-generator")
+  val useGlobalSearch: Boolean = getConfSource.getBoolean("schedule-generator.use-global-search")
+  val useTopDownSearch: Boolean =
+    getConfSource.getBoolean("schedule-generator.use-top-down-search")
+  val searchTimeoutMilliseconds: Int =
+    getConfSource.getInt("schedule-generator.search-timeout-milliseconds")
 
   // Storage configuration
-  val sinkStorageMode: String = getConfSource.getString("storage.mode")
-  val sinkStorageMongoDBConfig: Config = getConfSource.getConfig("storage.mongodb")
   val sinkStorageTTLInSecs: Int = getConfSource.getInt("result-cleanup.ttl-in-seconds")
   val sinkStorageCleanUpCheckIntervalInSecs: Int =
     getConfSource.getInt("result-cleanup.collection-check-interval-in-seconds")
@@ -102,7 +106,9 @@ object AmberConfig {
   val cleanupAllExecutionResults: Boolean =
     getConfSource.getBoolean("web-server.clean-all-execution-results-on-server-start")
 
-  // JDBC configuration
-  val jdbcConfig: Config = getConfSource.getConfig("jdbc")
-
+  // Python language server configuration
+  var aiAssistantConfig: Option[Config] = None
+  if (getConfSource.hasPath("ai-assistant-server")) {
+    aiAssistantConfig = Some(getConfSource.getConfig("ai-assistant-server"))
+  }
 }
