@@ -16,18 +16,29 @@ object IcebergCatalogInstance {
   /**
     * Retrieves the singleton Iceberg catalog instance.
     * - If the catalog is not initialized, it is lazily created using the configured properties.
+    *
     * @return the Iceberg catalog instance.
     */
   def getInstance(): Catalog = {
     instance match {
       case Some(catalog) => catalog
       case None =>
-        val hadoopCatalog = IcebergUtil.createHadoopCatalog(
-          "texera_iceberg",
-          StorageConfig.fileStorageDirectoryPath
-        )
-        instance = Some(hadoopCatalog)
-        hadoopCatalog
+        val catalog = StorageConfig.icebergCatalogType match {
+          case "hadoop" =>
+            IcebergUtil.createHadoopCatalog(
+              "texera_iceberg",
+              StorageConfig.fileStorageDirectoryPath
+            )
+          case "rest" =>
+            IcebergUtil.createRestCatalog(
+              "texera_iceberg",
+              StorageConfig.fileStorageDirectoryPath
+            )
+          case unsupported =>
+            throw new IllegalArgumentException(s"Unsupported catalog type: $unsupported")
+        }
+        instance = Some(catalog)
+        catalog
     }
   }
 
