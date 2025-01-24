@@ -215,7 +215,7 @@ class WorkflowService(
         Some(FaultToleranceConfig(writeTo = writeLocation))
       )
     }
-    WorkflowService.logLocations(WorkflowService.inMemCount) = writeLocation
+    WorkflowService.logLocations(inMemCount) = writeLocation
     if (req.replayFromExecution.isDefined) {
       val replayInfo = req.replayFromExecution.get
       val logLocation = WorkflowService.logLocations(replayInfo.eid.toInt)

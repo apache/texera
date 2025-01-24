@@ -1,6 +1,5 @@
 package edu.uci.ics.amber.operator.aggregate
 
-import edu.uci.ics.amber.engine.common.{AmberRuntime, MerkleTreeFromByteArray}
 import edu.uci.ics.amber.core.executor.OperatorExecutor
 import edu.uci.ics.amber.core.tuple.{Tuple, TupleLike}
 import edu.uci.ics.amber.util.JSONUtils.objectMapper

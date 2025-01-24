@@ -1,6 +1,5 @@
 package edu.uci.ics.amber.operator.hashJoin
 
-import edu.uci.ics.amber.engine.common.{AmberRuntime, MerkleTreeFromByteArray}
 import edu.uci.ics.amber.core.executor.OperatorExecutor
 import edu.uci.ics.amber.core.tuple.{Tuple, TupleLike}
 import edu.uci.ics.amber.util.JSONUtils.objectMapper
@@ -19,21 +18,6 @@ class HashJoinBuildOpExec[K](descString: String) extends OperatorExecutor {
     val key = tuple.getField(desc.buildAttributeName).asInstanceOf[K]
     buildTableHashMap.getOrElseUpdate(key, new ListBuffer[Tuple]()) += tuple
     count +=1
-    if(count > 100000 && count < 100100){
-      val bytes = AmberRuntime.serde.serialize(buildTableHashMap).get
-      println(s"Join state: ${bytes.length}")
-      if (oldBytes != null) {
-        val Abytes = MerkleTreeFromByteArray.getDiffInBytes(oldBytes, bytes, 4096)
-        println(s"MarkleTree Diff: ${Abytes}")
-      } else {
-        val Abytes = MerkleTreeFromByteArray.getDiffInBytes(Array[Byte](), bytes, 4096)
-        println(s"MarkleTree Diff: ${Abytes}")
-      }
-      oldBytes = bytes
-      val bytes2 = AmberRuntime.serde.serialize(key.asInstanceOf[AnyRef]).get
-      val bytes3 = AmberRuntime.serde.serialize(tuple).get
-      println(s"Normal Diff: ${bytes2.length+bytes3.length}")
-    }
     Iterator()
   }
 

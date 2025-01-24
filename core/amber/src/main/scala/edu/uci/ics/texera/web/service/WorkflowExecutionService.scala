@@ -1,22 +1,19 @@
 package edu.uci.ics.texera.web.service
 
 import akka.actor.Cancellable
+import com.github.nscala_time.time.Imports.LocalDateTime
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.WorkflowContext
 import edu.uci.ics.amber.core.workflow.WorkflowContext.DEFAULT_EXECUTION_ID
-import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
+import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ExecutionStateUpdate, Workflow}
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState._
-import edu.uci.ics.amber.engine.common.{AmberConfig, Utils}
+import edu.uci.ics.amber.engine.common.{AmberConfig, AmberRuntime, Utils}
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.executionruntimestate.ExecutionMetadataStore
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.OperatorExecutions
-import edu.uci.ics.texera.web.model.websocket.event.{
-  TexeraWebSocketEvent,
-  WorkflowErrorEvent,
-  WorkflowStateEvent
-}
+import edu.uci.ics.texera.web.model.websocket.event.{TexeraWebSocketEvent, WorkflowErrorEvent, WorkflowStateEvent}
 import edu.uci.ics.texera.web.model.websocket.request.WorkflowExecuteRequest
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
@@ -26,6 +23,7 @@ import edu.uci.ics.texera.workflow.{LogicalPlan, WorkflowCompiler}
 import org.jooq.types.{UInteger, ULong}
 
 import java.net.URI
+import java.time.format.DateTimeFormatter
 import java.util
 import scala.collection.mutable
 import scala.concurrent.duration.DurationInt
@@ -179,7 +177,7 @@ class WorkflowExecutionService(
               this.request.periodicalInteraction.seconds,
               this.request.periodicalInteraction.seconds
             ) {
-              client.sendAsync(PauseWorkflow()).map{
+              client.controllerInterface.pauseWorkflow().map{
                 ret => {
                   val now = LocalDateTime.now()
                   val formatter = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")

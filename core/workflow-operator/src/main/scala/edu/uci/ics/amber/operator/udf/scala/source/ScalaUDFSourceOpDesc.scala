@@ -1,15 +1,14 @@
-package edu.uci.ics.texera.workflow.operators.udf.scala.source
+package edu.uci.ics.amber.operator.udf.scala.source
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, SchemaPropagationFunc}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIdentity}
-import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
-import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
-import edu.uci.ics.texera.workflow.operators.util.OperatorDescriptorUtils
+import edu.uci.ics.amber.core.executor.OpExecWithCode
+import edu.uci.ics.amber.core.tuple.{Attribute, Schema}
+import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.core.workflow._
+import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.amber.operator.source.SourceOperatorDescriptor
+import edu.uci.ics.amber.operator.util.OperatorDescriptorUtils
 
 import scala.jdk.javaapi.CollectionConverters.asScala
 
@@ -48,7 +47,7 @@ class ScalaUDFSourceOpDesc extends SourceOperatorDescriptor {
   // Define the physical operator
   override def getPhysicalOp(workflowId: WorkflowIdentity, executionId: ExecutionIdentity): PhysicalOp = {
     // Initialize the operator execution with the Scala code
-    val exec = OpExecInitInfo(code, "scala")
+    val exec = OpExecWithCode(code, "scala")
 
     // Define schema propagation logic
     val schemaFunc = SchemaPropagationFunc((inputSchemas: Map[PortIdentity, Schema]) => {
@@ -93,10 +92,10 @@ class ScalaUDFSourceOpDesc extends SourceOperatorDescriptor {
 
   // Define the schema for the source output
   override def sourceSchema(): Schema = {
-    val outputSchemaBuilder = Schema.builder()
+    val outputSchemaBuilder = Schema()
     if (columns != null && !columns.isEmpty) {
       outputSchemaBuilder.add(asScala(columns))
     }
-    outputSchemaBuilder.build()
+    outputSchemaBuilder
   }
 }

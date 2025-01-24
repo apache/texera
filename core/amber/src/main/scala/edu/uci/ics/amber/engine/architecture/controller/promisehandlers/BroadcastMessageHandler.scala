@@ -1,9 +1,8 @@
 package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
+import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.BroadcastMessageHandler.BroadcastMessage
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
 
 object BroadcastMessageHandler {
   case class BroadcastMessage(boardcastTo:Iterable[PhysicalOpIdentity], command:ControlCommand[_]) extends ControlCommand[Unit]

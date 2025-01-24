@@ -25,7 +25,7 @@ class ParallelCSVScanSourceOpExec private[csv] (
 
   override def produceTuple(): Iterator[TupleLike] =
     new Iterator[TupleLike]() {
-      override def hasNext: Boolean = tupleCounter < limit.getOrElse(Int.MaxValue) && reader.hasNext
+      override def hasNext: Boolean = tupleCounter < desc.limit.getOrElse(Int.MaxValue) && reader.hasNext
 
       override def next(): TupleLike = {
 

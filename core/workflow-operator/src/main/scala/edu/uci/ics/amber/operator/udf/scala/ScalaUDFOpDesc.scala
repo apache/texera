@@ -1,16 +1,14 @@
-package edu.uci.ics.texera.workflow.operators.udf.scala
+package edu.uci.ics.amber.operator.udf.scala
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, SchemaPropagationFunc}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIdentity}
-import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
-import edu.uci.ics.texera.workflow.common.operators.{LogicalOp, PortDescription, StateTransferFunc}
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
-import edu.uci.ics.texera.workflow.common.workflow.{PartitionInfo, UnknownPartition}
+import edu.uci.ics.amber.core.executor.OpExecWithCode
+import edu.uci.ics.amber.operator.{LogicalOp, PortDescription, StateTransferFunc}
+import edu.uci.ics.amber.core.tuple.{Attribute, Schema}
+import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.core.workflow._
+import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
 import scala.util.{Success, Try}
 
@@ -65,7 +63,7 @@ class ScalaUDFOpDesc extends LogicalOp {
 
     val propagateSchema = (inputSchemas: Map[PortIdentity, Schema]) => {
       val inputSchema = inputSchemas(operatorInfo.inputPorts.head.id)
-      val outputSchemaBuilder = Schema.builder()
+      val outputSchemaBuilder = Schema()
       if (retainInputColumns) outputSchemaBuilder.add(inputSchema)
       if (outputColumns != null) {
         if (retainInputColumns) {
@@ -74,9 +72,9 @@ class ScalaUDFOpDesc extends LogicalOp {
               throw new RuntimeException("Column name " + column.getName + " already exists!")
           }
         }
-        outputSchemaBuilder.add(outputColumns).build()
+        outputSchemaBuilder.add(outputColumns)
       }
-      Map(operatorInfo.outputPorts.head.id -> outputSchemaBuilder.build())
+      Map(operatorInfo.outputPorts.head.id -> outputSchemaBuilder)
     }
 
     if (workers > 1)
@@ -85,7 +83,7 @@ class ScalaUDFOpDesc extends LogicalOp {
           workflowId,
           executionId,
           operatorIdentifier,
-          OpExecInitInfo(code, "scala")
+          OpExecWithCode(code, "scala")
         )
         .withDerivePartition(_ => UnknownPartition())
         .withInputPorts(operatorInfo.inputPorts)
@@ -101,7 +99,7 @@ class ScalaUDFOpDesc extends LogicalOp {
           workflowId,
           executionId,
           operatorIdentifier,
-          OpExecInitInfo(code, "scala")
+          OpExecWithCode(code, "scala")
         )
         .withDerivePartition(_ => UnknownPartition())
         .withInputPorts(operatorInfo.inputPorts)
@@ -145,22 +143,6 @@ class ScalaUDFOpDesc extends LogicalOp {
       supportReconfiguration = true,
       allowPortCustomization = true
     )
-  }
-
-  override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    val inputSchema = schemas(0)
-    val outputSchemaBuilder = Schema.Builder()
-    if (retainInputColumns) outputSchemaBuilder.add(inputSchema)
-    if (outputColumns != null) {
-      if (retainInputColumns) {
-        for (column <- outputColumns) {
-          if (inputSchema.containsAttribute(column.getName))
-            throw new RuntimeException("Column name " + column.getName + " already exists!")
-        }
-      }
-      outputSchemaBuilder.add(outputColumns)
-    }
-    outputSchemaBuilder.build()
   }
 
   override def runtimeReconfiguration(

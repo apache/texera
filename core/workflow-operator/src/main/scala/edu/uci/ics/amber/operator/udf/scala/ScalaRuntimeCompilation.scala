@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.operators.udf.scala
+package edu.uci.ics.amber.operator.udf.scala
 
 import java.io.ByteArrayOutputStream
 import java.net.URI
