@@ -77,7 +77,7 @@ class VFSURIFactory:
             f"{VFSURIFactory.VFS_FILE_URI_SCHEME}:///wid/{workflow_id.id}/eid/{execution_id.id}/opid/{operator_id.id}"
         )
 
-        if port_identity:
+        if port_identity is not None:
             port_type = "I" if port_identity.internal else "E"
             base_uri += f"/pid/{port_identity.id}_{port_type}"
 
