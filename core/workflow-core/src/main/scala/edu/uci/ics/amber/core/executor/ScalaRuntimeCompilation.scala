@@ -1,11 +1,9 @@
-package edu.uci.ics.amber.operator.udf.scala
+package edu.uci.ics.amber.core.executor
 
 import java.io.ByteArrayOutputStream
-import java.net.URI
+import scala.reflect.internal.util.{AbstractFileClassLoader, BatchSourceFile}
 import scala.tools.nsc.{Global, Settings}
-import scala.reflect.internal.util.BatchSourceFile
 import scala.tools.nsc.io.VirtualDirectory
-import scala.reflect.internal.util.AbstractFileClassLoader
 import scala.tools.nsc.reporters.ConsoleReporter
 
 object ScalaRuntimeCompilation {

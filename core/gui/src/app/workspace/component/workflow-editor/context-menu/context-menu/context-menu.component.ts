@@ -26,8 +26,7 @@ export class ContextMenuComponent {
     public workflowResultExportService: WorkflowResultExportService,
     private workflowResultService: WorkflowResultService,
     private modalService: NzModalService,
-    private validationWorkflowService: ValidationWorkflowService
-    public operatorMenuService: OperatorMenuService,
+    private validationWorkflowService: ValidationWorkflowService,
     public workflowWebsocketService: WorkflowWebsocketService
   ) {
     this.registerWorkflowModifiableChangedHandler();
@@ -66,23 +65,23 @@ export class ContextMenuComponent {
   }
 
   public onSetAsInterestingOperator():void{
-    let highlighted = this.operatorMenuService.effectivelyHighlightedOperators.value[0]
+    let highlighted = this.operatorMenuService.highlightedOperators.value[0]
     let subDAG = this.workflowActionService.getTexeraGraph().getForwardSubDAG(highlighted)
     this.downstreamsToIO = subDAG.operators.map(v => v.operatorID)
   }
 
   public onStepInto(): void{
-    let highlighted = this.operatorMenuService.effectivelyHighlightedOperators.value[0]
+    let highlighted = this.operatorMenuService.highlightedOperators.value[0]
     this.workflowWebsocketService.send("WorkflowStepRequest", {stepType: "StepInto", targetOp: highlighted})
   }
 
   public onStepOver():void{
-    let highlighted = this.operatorMenuService.effectivelyHighlightedOperators.value[0]
+    let highlighted = this.operatorMenuService.highlightedOperators.value[0]
     this.workflowWebsocketService.send("WorkflowStepRequest", {stepType: "StepOver", targetOp: highlighted})
   }
 
   public onStepOut():void{
-    let highlighted = this.operatorMenuService.effectivelyHighlightedOperators.value[0]
+    let highlighted = this.operatorMenuService.highlightedOperators.value[0]
     this.workflowWebsocketService.send("WorkflowStepRequest", {stepType: "StepOut", targetOp: highlighted})
   }
 

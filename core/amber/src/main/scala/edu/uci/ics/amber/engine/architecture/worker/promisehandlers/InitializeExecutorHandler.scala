@@ -2,10 +2,7 @@ package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
 import com.twitter.util.Future
 import edu.uci.ics.amber.core.executor._
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
-  AsyncRPCContext,
-  InitializeExecutorRequest
-}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, InitializeExecutorRequest}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
 import edu.uci.ics.amber.operator.sink.ProgressiveSinkOpExec
@@ -27,7 +24,9 @@ trait InitializeExecutorHandler {
     dp.executor = req.opExecInitInfo match {
       case OpExecWithClassName(className, descString) =>
         ExecFactory.newExecFromJavaClassName(className, descString, workerIdx, workerCount)
-      case OpExecWithCode(code, _) => ExecFactory.newExecFromJavaCode(code)
+      case OpExecWithCode(code, "java") => ExecFactory.newExecFromJavaCode(code)
+      case OpExecWithCode(code, "scala") => ExecFactory.newExecFromScalaCode(code)
+      case OpExecWithCode(code, lang) => throw new RuntimeException(s"code in $lang is not supported!")
       case OpExecSink(storageUri, workflowIdentity, outputMode) =>
         new ProgressiveSinkOpExec(
           workerIdx,

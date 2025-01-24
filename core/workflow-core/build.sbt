@@ -173,3 +173,8 @@ libraryDependencies ++= Seq(
   "org.yaml" % "snakeyaml" % "1.30",                                  // yaml reader (downgrade to 1.30 due to dropwizard 1.3.23 required by amber)
   "org.apache.commons" % "commons-vfs2" % "2.9.0",                     // for FileResolver throw VFS-related exceptions
 )
+
+libraryDependencies ++= Seq(
+  "org.scala-lang" % "scala-compiler" % "2.13.12",
+  "org.scala-lang" % "scala-reflect"  % "2.13.12"
+)

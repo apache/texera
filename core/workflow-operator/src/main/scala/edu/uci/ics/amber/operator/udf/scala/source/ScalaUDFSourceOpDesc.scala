@@ -32,30 +32,16 @@ class ScalaUDFSourceOpDesc extends SourceOperatorDescriptor {
   @JsonPropertyDescription("input your code here")
   var code: String = _
 
-  // Worker count to determine parallelism
-  @JsonProperty(required = true, defaultValue = "1")
-  @JsonSchemaTitle("Worker count")
-  @JsonPropertyDescription("Specify how many parallel workers to launch")
-  var workers: Int = 1
-
   // Output columns (attributes) for the source
   @JsonProperty()
   @JsonSchemaTitle("Columns")
   @JsonPropertyDescription("The columns of the source")
-  var columns: java.util.List[Attribute] = new java.util.ArrayList()
+  var columns: List[Attribute] = List()
 
   // Define the physical operator
   override def getPhysicalOp(workflowId: WorkflowIdentity, executionId: ExecutionIdentity): PhysicalOp = {
     // Initialize the operator execution with the Scala code
     val exec = OpExecWithCode(code, "scala")
-
-    // Define schema propagation logic
-    val schemaFunc = SchemaPropagationFunc((inputSchemas: Map[PortIdentity, Schema]) => {
-      val outputSchema = sourceSchema()
-      val javaMap = new java.util.HashMap[PortIdentity, Schema]()
-      javaMap.put(operatorInfo.outputPorts.head.id, outputSchema)
-      OperatorDescriptorUtils.toImmutableMap(javaMap)
-    })
 
     // Initialize the physical operator as a source operator
     var physicalOp = PhysicalOp.sourcePhysicalOp(
@@ -66,14 +52,12 @@ class ScalaUDFSourceOpDesc extends SourceOperatorDescriptor {
       ).withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withIsOneToManyOp(true)
-      .withPropagateSchema(schemaFunc)
+      .withPropagateSchema(
+        SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> sourceSchema()))
+      )
 
     // Set parallelism based on the worker count
-    if (workers > 1) {
-      physicalOp = physicalOp.withParallelizable(true).withSuggestedWorkerNum(workers)
-    } else {
-      physicalOp = physicalOp.withParallelizable(false)
-    }
+    physicalOp = physicalOp.withParallelizable(false)
 
     physicalOp
   }
@@ -92,10 +76,10 @@ class ScalaUDFSourceOpDesc extends SourceOperatorDescriptor {
 
   // Define the schema for the source output
   override def sourceSchema(): Schema = {
-    val outputSchemaBuilder = Schema()
-    if (columns != null && !columns.isEmpty) {
-      outputSchemaBuilder.add(asScala(columns))
+    if (columns != null && columns.nonEmpty) {
+      Schema().add(columns)
+    } else {
+      Schema()
     }
-    outputSchemaBuilder
   }
 }

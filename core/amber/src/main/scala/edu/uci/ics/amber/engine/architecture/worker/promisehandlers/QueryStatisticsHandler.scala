@@ -5,6 +5,7 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContex
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkerMetricsResponse
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerMetrics
+import edu.uci.ics.amber.engine.common.CheckpointSupport
 
 trait QueryStatisticsHandler {
   this: DataProcessorRPCHandlerInitializer =>
@@ -13,7 +14,13 @@ trait QueryStatisticsHandler {
       request: EmptyRequest,
       ctx: AsyncRPCContext
   ): Future[WorkerMetricsResponse] = {
-    WorkerMetricsResponse(WorkerMetrics(dp.stateManager.getCurrentState, dp.collectStatistics(), ""))
+    val internalState = dp.executor match{
+      case c: CheckpointSupport =>
+        c.getState
+      case other =>
+        ""
+    }
+    WorkerMetricsResponse(WorkerMetrics(dp.stateManager.getCurrentState, dp.collectStatistics(), internalState))
   }
 
 }

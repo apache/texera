@@ -3,9 +3,9 @@ package edu.uci.ics.amber.operator.udf.scala
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.core.executor.OpExecWithCode
+import edu.uci.ics.amber.core.executor.{OpExecWithCode, SourceOperatorExecutor}
 import edu.uci.ics.amber.operator.{LogicalOp, PortDescription, StateTransferFunc}
-import edu.uci.ics.amber.core.tuple.{Attribute, Schema}
+import edu.uci.ics.amber.core.tuple.{Attribute, Schema, TupleLike}
 import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow._
 import edu.uci.ics.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
@@ -16,9 +16,9 @@ class ScalaUDFOpDesc extends LogicalOp {
   @JsonProperty(
     required = true,
     defaultValue =
-        "import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor;\n" +
-          "import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike;\n" +
-          "import edu.uci.ics.texera.workflow.common.tuple.Tuple;\n" +
+        "import edu.uci.ics.amber.core.executor.SourceOperatorExecutor;\n" +
+          "import edu.uci.ics.amber.core.tuple.TupleLike;\n" +
+          "import edu.uci.ics.amber.core.tuple.Tuple;\n" +
           "import scala.Function1;\n" +
           "\n" +
           "class ScalaUDFOpExec extends OperatorExecutor {\n" +
@@ -31,11 +31,6 @@ class ScalaUDFOpDesc extends LogicalOp {
   @JsonSchemaTitle("Scala UDF script")
   @JsonPropertyDescription("input your code here")
   var code: String = ""
-
-  @JsonProperty(required = true, defaultValue = "1")
-  @JsonSchemaTitle("Worker count")
-  @JsonPropertyDescription("Specify how many parallel workers to lunch")
-  var workers: Int = Int.box(1)
 
   @JsonProperty(required = true, defaultValue = "true")
   @JsonSchemaTitle("Retain input columns")
@@ -63,51 +58,39 @@ class ScalaUDFOpDesc extends LogicalOp {
 
     val propagateSchema = (inputSchemas: Map[PortIdentity, Schema]) => {
       val inputSchema = inputSchemas(operatorInfo.inputPorts.head.id)
-      val outputSchemaBuilder = Schema()
-      if (retainInputColumns) outputSchemaBuilder.add(inputSchema)
+      var outputSchema = if (retainInputColumns) inputSchema else Schema()
+
+      // Add custom output columns if defined
       if (outputColumns != null) {
         if (retainInputColumns) {
+          // Check for duplicate column names
           for (column <- outputColumns) {
-            if (inputSchema.containsAttribute(column.getName))
-              throw new RuntimeException("Column name " + column.getName + " already exists!")
+            if (inputSchema.containsAttribute(column.getName)) {
+              throw new RuntimeException(s"Column name ${column.getName} already exists!")
+            }
           }
         }
-        outputSchemaBuilder.add(outputColumns)
+        // Add output columns to the schema
+        outputSchema = outputSchema.add(outputColumns)
       }
-      Map(operatorInfo.outputPorts.head.id -> outputSchemaBuilder)
+
+      Map(operatorInfo.outputPorts.head.id -> outputSchema)
     }
 
-    if (workers > 1)
-      PhysicalOp
-        .oneToOnePhysicalOp(
-          workflowId,
-          executionId,
-          operatorIdentifier,
-          OpExecWithCode(code, "scala")
-        )
-        .withDerivePartition(_ => UnknownPartition())
-        .withInputPorts(operatorInfo.inputPorts)
-        .withOutputPorts(operatorInfo.outputPorts)
-        .withPartitionRequirement(partitionRequirement)
-        .withIsOneToManyOp(true)
-        .withParallelizable(true)
-        .withSuggestedWorkerNum(workers)
-        .withPropagateSchema(SchemaPropagationFunc(propagateSchema))
-    else
-      PhysicalOp
-        .manyToOnePhysicalOp(
-          workflowId,
-          executionId,
-          operatorIdentifier,
-          OpExecWithCode(code, "scala")
-        )
-        .withDerivePartition(_ => UnknownPartition())
-        .withInputPorts(operatorInfo.inputPorts)
-        .withOutputPorts(operatorInfo.outputPorts)
-        .withPartitionRequirement(partitionRequirement)
-        .withIsOneToManyOp(true)
-        .withParallelizable(false)
-        .withPropagateSchema(SchemaPropagationFunc(propagateSchema))
+    PhysicalOp
+      .manyToOnePhysicalOp(
+        workflowId,
+        executionId,
+        operatorIdentifier,
+        OpExecWithCode(code, "scala")
+      )
+      .withDerivePartition(_ => UnknownPartition())
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
+      .withPartitionRequirement(partitionRequirement)
+      .withIsOneToManyOp(true)
+      .withParallelizable(false)
+      .withPropagateSchema(SchemaPropagationFunc(propagateSchema))
   }
 
   override def operatorInfo: OperatorInfo = {

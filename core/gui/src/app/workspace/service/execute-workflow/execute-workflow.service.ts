@@ -182,6 +182,10 @@ export class ExecuteWorkflowService {
     this.sendExecutionRequest(executionName, logicalPlan, settings, emailNotificationEnabled);
   }
 
+  public executeWorkflow(executionName: string, targetOperatorId?: string): void {
+    this.executeWorkflowWithEmailNotification(executionName, false, targetOperatorId);
+  }
+
   public executeWorkflowWithReplay(replayExecutionInfo: ReplayExecutionInfo): void {
     const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
     const settings = this.workflowActionService.getWorkflowSettings();

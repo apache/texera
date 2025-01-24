@@ -10,6 +10,14 @@ object ExecFactory {
       .asInstanceOf[OperatorExecutor]
   }
 
+  def newExecFromScalaCode(code: String): OperatorExecutor = {
+    ScalaRuntimeCompilation
+      .compileCode(code)
+      .getDeclaredConstructor()
+      .newInstance()
+      .asInstanceOf[OperatorExecutor]
+  }
+
   def newExecFromJavaClassName[K](
       className: String,
       descString: String = "",

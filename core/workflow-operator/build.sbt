@@ -99,8 +99,3 @@ libraryDependencies ++= Seq(
   "edu.stanford.nlp" % "stanford-corenlp" % "4.5.4" classifier "models",
   "io.github.redouane59.twitter" % "twittered" % "2.21"
 )
-
-libraryDependencies ++= Seq(
-  "org.scala-lang" % "scala-compiler" % "2.13.12",
-  "org.scala-lang" % "scala-reflect"  % "2.13.12"
-)
