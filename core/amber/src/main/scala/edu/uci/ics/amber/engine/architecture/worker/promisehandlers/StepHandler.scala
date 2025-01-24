@@ -1,36 +1,33 @@
 package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
+import com.twitter.util.Future
+import edu.uci.ics.amber.core.executor.SourceOperatorExecutor
 import edu.uci.ics.amber.engine.architecture.logreplay.EmptyReplayLogManagerImpl
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, ContinueProcessingRequest, StopProcessingRequest}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 import edu.uci.ics.amber.engine.architecture.worker.{DataProcessorRPCHandlerInitializer, DebuggerPause}
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StepHandler.{ContinueProcessing, StopProcessing}
-import edu.uci.ics.amber.engine.common.SourceOperatorExecutor
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-
-object StepHandler {
-  final case class ContinueProcessing(stepSize:Option[Int] = None) extends ControlCommand[Unit]
-  final case class StopProcessing() extends ControlCommand[Unit]
-}
 
 trait StepHandler {
   this: DataProcessorRPCHandlerInitializer =>
 
-  registerHandler { (msg: ContinueProcessing, sender) =>
-    logger.info(s"received $msg")
+  override def continueProcessing(request: ContinueProcessingRequest, ctx: AsyncRPCContext): Future[EmptyReturn] = {
+    logger.info(s"received $request")
     dp.pauseManager.debuggingMode = true
     dp.inputGateway.getAllChannels.foreach(c => c.enable(true))
-    if(msg.stepSize.isEmpty){
+    if(request.stepSize == -1){
       dp.pauseManager.resume(DebuggerPause)
     }else{
       if (dp.executor.isInstanceOf[SourceOperatorExecutor]){
         val logManager = new EmptyReplayLogManagerImpl(dp.outputHandler)
-        (0 until msg.stepSize.get).foreach(_ => dp.outputOneTuple(logManager))
+        (0 until request.stepSize.toInt).foreach(_ => dp.outputOneTuple(logManager))
         dp.outputManager.flush()
       }
     }
+    EmptyReturn()
   }
 
-  registerHandler { (msg: StopProcessing, sender) =>
-    logger.info(s"received $msg")
+  override def stopProcessing(request: StopProcessingRequest, ctx: AsyncRPCContext): Future[EmptyReturn] = {
+    logger.info(s"received $request")
     val logManager = new EmptyReplayLogManagerImpl(dp.outputHandler)
     if(!dp.executor.isInstanceOf[SourceOperatorExecutor]){
       while(dp.outputManager.hasUnfinishedOutput){
@@ -40,6 +37,8 @@ trait StepHandler {
     }
     dp.pauseManager.pause(DebuggerPause)
     dp.pauseManager.debuggingMode = false
+    EmptyReturn()
   }
+
 
 }

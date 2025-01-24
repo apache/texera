@@ -1,25 +1,31 @@
 package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
-import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
+import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.BroadcastMessageHandler.BroadcastMessage
-
-object BroadcastMessageHandler {
-  case class BroadcastMessage(boardcastTo:Iterable[PhysicalOpIdentity], command:ControlCommand[_]) extends ControlCommand[Unit]
-}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, BroadcastMessageRequest, ContinueProcessingRequest, StopProcessingRequest}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 
 trait BroadcastMessageHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
-  registerHandler[BroadcastMessage, Unit] { (msg, sender) => {
-    msg.boardcastTo.foreach {
+
+  override def broadcastMessage(request: BroadcastMessageRequest, ctx: AsyncRPCContext): Future[EmptyReturn] = {
+    request.broadcastTo.foreach {
       physicalOp =>
         this.cp.workflowExecution.getAllRegionExecutions.find(x => x.hasOperatorExecution(physicalOp)).foreach {
           x =>
             x.getOperatorExecution(physicalOp).getWorkerIds.foreach {
-              worker => send(msg.command, worker)
+              worker =>
+                request.command match {
+                  case cpr @ ContinueProcessingRequest(step) =>
+                    workerInterface.continueProcessing(cpr, mkContext(worker))
+                  case spr @ StopProcessingRequest() =>
+                    workerInterface.stopProcessing(spr, mkContext(worker))
+                  case other =>
+                    // not supported yet.
+                }
             }
         }
     }
-  }
+    EmptyReturn()
   }
 }

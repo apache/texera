@@ -2,15 +2,14 @@ package edu.uci.ics.texera.web.service
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.ExecutionStateUpdate
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
-  EmptyRequest,
-  TakeGlobalCheckpointRequest
-}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{BroadcastMessageRequest, ContinueProcessingRequest, EmptyRequest, PropagateChannelMarkerRequest, QueryStatisticsRequest, StopProcessingRequest, TakeGlobalCheckpointRequest}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState._
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.FaultToleranceConfig
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StepHandler.{ContinueProcessing, StopProcessing}
 import edu.uci.ics.amber.engine.common.client.AmberClient
-import edu.uci.ics.amber.core.virtualidentity.ChannelMarkerIdentity
+import edu.uci.ics.amber.core.virtualidentity.{ChannelMarkerIdentity, OperatorIdentity}
+import edu.uci.ics.amber.core.workflow.PhysicalPlan
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType.REQUIRE_ALIGNMENT
+import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.METHOD_STOP_PROCESSING
 import edu.uci.ics.texera.web.{SubscriptionManager, WebsocketInput}
 import edu.uci.ics.texera.web.model.websocket.request.{SkipTupleRequest, WorkflowInteractionRequest, WorkflowKillRequest, WorkflowPauseRequest, WorkflowResumeRequest, WorkflowStepRequest}
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
@@ -18,6 +17,7 @@ import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
 
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 class ExecutionRuntimeService(
     client: AmberClient,
@@ -89,7 +89,7 @@ class ExecutionRuntimeService(
     val checkpointId = ChannelMarkerIdentity(s"Interaction_${timestamp}")
     val uri = logConf.get.writeTo.resolve(checkpointId.toString)
     client.controllerInterface.takeGlobalCheckpoint(
-      TakeGlobalCheckpointRequest(interactionOnly = false, checkpointId, uri.toString),
+      TakeGlobalCheckpointRequest(estimationOnly = false, checkpointId, uri.toString),
       ()
     )
   }))
@@ -107,31 +107,33 @@ class ExecutionRuntimeService(
     val timestamp = now.format(formatter)
     req.stepType match{
       case "StepOut" =>
-        client.sendAsync(BroadcastMessage(downstreamsWithoutTarget, ContinueProcessing(None)))
-        client.sendAsMarker(
-          PropagateChannelMarker(
-            Set(physicalOp),
+        client.controllerInterface.broadcastMessage(BroadcastMessageRequest(downstreamsWithoutTarget.toSeq, ContinueProcessingRequest(-1)), ())
+        client.controllerInterface.propagateChannelMarker(
+          PropagateChannelMarkerRequest(
+            Seq(physicalOp),
             ChannelMarkerIdentity(s"debugging-stepout-${timestamp}"),
-            RequireAlignment,
-            subDAG,
-            downstreamsWithoutTarget,
-            StopProcessing()
-            ))
+            REQUIRE_ALIGNMENT,
+            subDAG.operators.map(_.id).toSeq,
+            downstreamsWithoutTarget.toSeq,
+            StopProcessingRequest(),
+            METHOD_STOP_PROCESSING.getBareMethodName
+            ), ())
       case "StepInto" =>
-        client.sendAsync(BroadcastMessage(Iterable(physicalOp), ContinueProcessing(Some(1))))
-        client.sendAsync(ControllerInitiateQueryStatistics(None))
+        client.controllerInterface.broadcastMessage(BroadcastMessageRequest(Seq(physicalOp), ContinueProcessingRequest(1)), ())
+        client.controllerInterface.controllerInitiateQueryStatistics(QueryStatisticsRequest(Seq.empty), ())
       case "StepOver" =>
-        client.sendAsync(BroadcastMessage(Iterable(physicalOp), ContinueProcessing(Some(1))))
-        client.sendAsync(BroadcastMessage(downstreamsWithoutTarget, ContinueProcessing(None)))
-        client.sendAsMarker(
-          PropagateChannelMarker(
-            Set(physicalOp),
+        client.controllerInterface.broadcastMessage(BroadcastMessageRequest(Seq(physicalOp), ContinueProcessingRequest(1)), ())
+        client.controllerInterface.broadcastMessage(BroadcastMessageRequest(downstreamsWithoutTarget.toSeq, ContinueProcessingRequest(-1)), ())
+        client.controllerInterface.propagateChannelMarker(
+          PropagateChannelMarkerRequest(
+            Seq(physicalOp),
             ChannelMarkerIdentity(s"debugging-stepover-${timestamp}"),
-            RequireAlignment,
-            subDAG,
-            downstreamsWithoutTarget,
-            StopProcessing()
-          ))
+            REQUIRE_ALIGNMENT,
+            subDAG.operators.map(_.id).toSeq,
+            downstreamsWithoutTarget.toSeq,
+            StopProcessingRequest(),
+            METHOD_STOP_PROCESSING.getBareMethodName
+          ), ())
       case other =>
         println(s"Invalid step type: $other")
     }

@@ -1,13 +1,12 @@
 package edu.uci.ics.texera.web.service
 
 import akka.actor.Cancellable
-import com.github.nscala_time.time.Imports.LocalDateTime
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{ChannelMarkerIdentity, ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.WorkflowContext
 import edu.uci.ics.amber.core.workflow.WorkflowContext.DEFAULT_EXECUTION_ID
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ExecutionStateUpdate, Workflow}
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.EmptyRequest
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{EmptyRequest, TakeGlobalCheckpointRequest}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState._
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberRuntime, Utils}
 import edu.uci.ics.amber.engine.common.client.AmberClient
@@ -23,6 +22,7 @@ import edu.uci.ics.texera.workflow.{LogicalPlan, WorkflowCompiler}
 import org.jooq.types.{UInteger, ULong}
 
 import java.net.URI
+import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util
 import scala.collection.mutable
@@ -177,16 +177,17 @@ class WorkflowExecutionService(
               this.request.periodicalInteraction.seconds,
               this.request.periodicalInteraction.seconds
             ) {
-              client.controllerInterface.pauseWorkflow().map{
+              client.controllerInterface.pauseWorkflow(EmptyRequest(), ()).map{
                 ret => {
                   val now = LocalDateTime.now()
                   val formatter = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")
                   val timestamp = now.format(formatter)
                   val checkpointId = ChannelMarkerIdentity(s"Interaction_${timestamp}")
                   val uri = controllerConfig.faultToleranceConfOpt.get.writeTo.resolve(checkpointId.toString)
-                  client.sendAsync(TakeGlobalCheckpoint(interactionOnly = false, checkpointId, uri)).map{
+                  client.controllerInterface.takeGlobalCheckpoint(TakeGlobalCheckpointRequest(
+                  estimationOnly= false, checkpointId, uri.toString), ()).map{
                     ret =>
-                      client.sendAsync(ResumeWorkflow()).map(ret =>
+                      client.controllerInterface.resumeWorkflow(EmptyRequest(), ()).map(ret =>
                         executionStateStore.metadataStore.updateState(metadataStore =>
                         updateWorkflowState(RUNNING, metadataStore)
                       ))

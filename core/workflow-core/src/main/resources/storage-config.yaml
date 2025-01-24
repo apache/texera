@@ -21,5 +21,5 @@ storage:
           max-wait-ms: 10000 # 10s
   jdbc:
     url: "jdbc:mysql://localhost:3306/texera_db?serverTimezone=UTC"
-    username: ""
-    password: ""
+    username: "root"
+    password: "5BB970320"

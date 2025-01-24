@@ -1,13 +1,12 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.BroadcastMessageHandler.BroadcastMessage
-import edu.uci.ics.amber.engine.architecture.logreplay.OrderEnforcer
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StepHandler.{ContinueProcessing, StopProcessing}
-import edu.uci.ics.amber.engine.common.AmberLogging
-import edu.uci.ics.amber.engine.common.ambermessage.{ChannelMarkerPayload, WorkflowFIFOMessage}
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import edu.uci.ics.amber.engine.architecture.logreplay.OrderEnforcer
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{ChannelMarkerPayload, ControlInvocation}
+import edu.uci.ics.amber.engine.architecture.rpc.controllerservice.ControllerServiceGrpc.METHOD_BROADCAST_MESSAGE
+import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.{METHOD_CONTINUE_PROCESSING, METHOD_QUERY_STATISTICS, METHOD_STOP_PROCESSING}
+import edu.uci.ics.amber.engine.common.AmberLogging
+import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 
 import scala.collection.mutable
 
@@ -19,6 +18,12 @@ class NetworkInputGateway(val actorId: ActorVirtualIdentity)
   private val inputChannels =
     new mutable.HashMap[ChannelIdentity, AmberFIFOChannel]()
 
+  private val whiteList = Set(
+    METHOD_BROADCAST_MESSAGE.getBareMethodName,
+    METHOD_CONTINUE_PROCESSING.getBareMethodName,
+    METHOD_STOP_PROCESSING.getBareMethodName,
+    METHOD_QUERY_STATISTICS.getBareMethodName)
+
   @transient lazy private val enforcers = mutable.ListBuffer[OrderEnforcer]()
 
   def tryPickControlChannel: (Option[AmberFIFOChannel], Boolean) = {
@@ -28,14 +33,8 @@ class NetworkInputGateway(val actorId: ActorVirtualIdentity)
           channel.peekMessage match {
             case Some(value) =>
               value match{
-                case WorkflowFIFOMessage(_, _, ControlInvocation(_, BroadcastMessage(_, _))) =>
+                case WorkflowFIFOMessage(_, _, ControlInvocation(methodName, _, _, _)) if whiteList.contains(methodName) =>
                   return (Some(channel),true)
-                case WorkflowFIFOMessage(_, _, ControlInvocation(_, ContinueProcessing(_))) =>
-                  return (Some(channel),true)
-                case WorkflowFIFOMessage(_, _, ControlInvocation(_, StopProcessing())) =>
-                  return (Some(channel),true)
-                case WorkflowFIFOMessage(_, _, ControlInvocation(_, QueryStatistics())) =>
-                  return (Some(channel), true)
                 case other =>
                   //do nothing
               }

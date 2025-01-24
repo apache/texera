@@ -4,14 +4,15 @@ import com.google.protobuf.timestamp.Timestamp
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.core.executor.{OperatorExecutor, SourceOperatorExecutor}
 import edu.uci.ics.amber.core.marker.{EndOfInputChannel, StartOfInputChannel, State}
-import edu.uci.ics.amber.core.tuple.{FinalizeExecutor, FinalizePort, SchemaEnforceable, Tuple, TupleLike}
+import edu.uci.ics.amber.core.tuple._
+import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import edu.uci.ics.amber.core.workflow.PortIdentity
 import edu.uci.ics.amber.engine.architecture.common.AmberProcessor
 import edu.uci.ics.amber.engine.architecture.logreplay.ReplayLogManager
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{InputManager, OutputManager, WorkerTimerService}
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerType.REQUIRE_ALIGNMENT
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands._
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
-import edu.uci.ics.amber.engine.architecture.worker.controlcommands.{ConsoleMessage, ConsoleMessageType}
 import edu.uci.ics.amber.engine.architecture.worker.managers.SerializationManager
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{COMPLETED, READY, RUNNING}
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
@@ -19,23 +20,9 @@ import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.error.ErrorUtils.{mkConsoleMessage, safely}
-import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
-import edu.uci.ics.amber.core.workflow.PortIdentity
 
 import java.io.{ByteArrayOutputStream, PrintStream}
 import java.time.Instant
-import java.io.{StringWriter, PrintWriter}
-
-object DataProcessor {
-
-  case class FinalizePort(portId: PortIdentity, input: Boolean) extends SpecialTupleLike {
-    override def getFields: Array[Any] = Array("FinalizePort")
-  }
-  case class FinalizeExecutor() extends SpecialTupleLike {
-    override def getFields: Array[Any] = Array("FinalizeExecutor")
-  }
-
-}
 
 class DataProcessor(
     actorId: ActorVirtualIdentity,
@@ -109,14 +96,14 @@ class DataProcessor(
       }
       prints.foreach {
         p =>
-          asyncRPCClient.send(ConsoleMessageTriggered(ConsoleMessage(
-            actorId.name,
-            Timestamp(Instant.now()),
-            ConsoleMessageType.PRINT,
-            "(Operator code)",
-            p,
-            ""
-          )), CONTROLLER)
+          asyncRPCClient.controllerInterface.consoleMessageTriggered(
+            ConsoleMessageTriggeredRequest(ConsoleMessage(
+              actorId.name,
+              Timestamp(Instant.now()),
+              ConsoleMessageType.PRINT,
+              "(Operator code)",
+              p,
+              "")), asyncRPCClient.mkContext(CONTROLLER))
       }
 
       statisticsManager.increaseInputTupleCount(portIdentity)
