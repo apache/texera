@@ -7,32 +7,17 @@ import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
   TakeGlobalCheckpointRequest
 }
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState._
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.ExecutionStateUpdate
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.BroadcastMessageHandler.BroadcastMessage
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ChannelMarkerHandler.PropagateChannelMarker
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.QueryWorkerStatisticsHandler.ControllerInitiateQueryStatistics
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.TakeGlobalCheckpointHandler.TakeGlobalCheckpoint
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.FaultToleranceConfig
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StepHandler.{ContinueProcessing, StopProcessing}
-import edu.uci.ics.amber.engine.common.ambermessage.RequireAlignment
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.core.virtualidentity.ChannelMarkerIdentity
-import edu.uci.ics.texera.web.model.websocket.request._
-import edu.uci.ics.amber.engine.common.virtualidentity.{ChannelMarkerIdentity, OperatorIdentity}
 import edu.uci.ics.texera.web.{SubscriptionManager, WebsocketInput}
 import edu.uci.ics.texera.web.model.websocket.request.{SkipTupleRequest, WorkflowInteractionRequest, WorkflowKillRequest, WorkflowPauseRequest, WorkflowResumeRequest, WorkflowStepRequest}
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
-import edu.uci.ics.texera.web.{SubscriptionManager, WebsocketInput}
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState._
-import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import java.util.UUID
-import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 class ExecutionRuntimeService(
     client: AmberClient,
