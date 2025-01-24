@@ -21,6 +21,7 @@
   },
   "private": true,
   "dependencies": {
+    "@abacritt/angularx-social-login": "2.1.0",
     "@ali-hm/angular-tree-component": "12.0.5",
     "@angular/animations": "16.2.12",
     "@angular/cdk": "16.2.12",
