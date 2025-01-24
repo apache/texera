@@ -91,6 +91,7 @@ import edu.uci.ics.amber.operator.visualization.hierarchychart.HierarchyChartOpD
 import edu.uci.ics.amber.operator.visualization.histogram.HistogramChartOpDesc
 import edu.uci.ics.amber.operator.visualization.htmlviz.HtmlVizOpDesc
 import edu.uci.ics.amber.operator.visualization.lineChart.LineChartOpDesc
+import edu.uci.ics.amber.operator.visualization.networkGraph.NetworkGraphOpDesc
 import edu.uci.ics.amber.operator.visualization.pieChart.PieChartOpDesc
 import edu.uci.ics.amber.operator.visualization.quiverPlot.QuiverPlotOpDesc
 import edu.uci.ics.amber.operator.visualization.sankeyDiagram.SankeyDiagramOpDesc
@@ -187,6 +188,7 @@ trait StateTransferFunc
     new Type(value = classOf[DumbbellPlotOpDesc], name = "DumbbellPlot"),
     new Type(value = classOf[DummyOpDesc], name = "Dummy"),
     new Type(value = classOf[BoxPlotOpDesc], name = "BoxPlot"),
+    new Type(value = classOf[NetworkGraphOpDesc], name = "NetworkGraph"),
     new Type(value = classOf[HistogramChartOpDesc], name = "Histogram"),
     new Type(value = classOf[ScatterMatrixChartOpDesc], name = "ScatterMatrixChart"),
     new Type(value = classOf[HeatMapOpDesc], name = "HeatMap"),
