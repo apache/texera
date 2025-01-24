@@ -157,11 +157,19 @@ export class WorkflowResultExportService {
     this.notificationService.loading("exporting...");
     operatorIds.forEach(operatorId => {
       if (!this.workflowResultService.hasAnyResult(operatorId)) {
+        console.log(`Operator ${operatorId} has no result to export`);
         return;
       }
       const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorId);
       const operatorName = operator.customDisplayName ?? operator.operatorType;
 
+      /*
+       * This function (and service) was previously used to export result
+       *  into the local file system (downloading). Currently it is used to only
+       *  export to the dataset.
+       *  TODO: refactor this service to have export namespace and download should be
+       *   an export type (export to local file system)
+       */
       this.downloadService
         .exportWorkflowResult(
           exportType,

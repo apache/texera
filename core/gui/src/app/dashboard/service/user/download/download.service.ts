@@ -111,6 +111,10 @@ export class DownloadService {
       filename,
     };
 
+    /*
+     TODO: curently, the response is json because the backend does not return a file and export
+      the result into the database. Next, we will implement download feature (export to local).
+     */
     return this.http.post(`${AppSettings.getApiEndpoint()}/${EXPORT_BASE_URL}`, requestBody, {
       responseType: "json",
       headers: {
