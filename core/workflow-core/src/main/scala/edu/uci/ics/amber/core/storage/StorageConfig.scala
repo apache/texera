@@ -24,6 +24,8 @@ object StorageConfig {
   val jdbcPassword: String = conf.getString("storage.jdbc.password")
 
   // Iceberg specifics
+  val icebergCatalogType: String = conf.getString("storage.iceberg.catalog.type")
+  val icebergCatalogUri: String = conf.getString("storage.iceberg.catalog.uri")
   val icebergTableNamespace: String = conf.getString("storage.iceberg.table.namespace")
   val icebergTableCommitBatchSize: Int = conf.getInt("storage.iceberg.table.commit.batch-size")
   val icebergTableCommitNumRetries: Int =

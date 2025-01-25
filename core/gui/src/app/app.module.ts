@@ -116,7 +116,7 @@ import { en_US, provideNzI18n } from "ng-zorro-antd/i18n";
 import { FilesUploaderComponent } from "./dashboard/component/user/files-uploader/files-uploader.component";
 import { UserDatasetComponent } from "./dashboard/component/user/user-dataset/user-dataset.component";
 import { UserDatasetVersionCreatorComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-version-creator/user-dataset-version-creator.component";
-import { UserDatasetExplorerComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-explorer.component";
+import { DatasetDetailComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/dataset-detail.component";
 import { UserDatasetVersionFiletreeComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-version-filetree/user-dataset-version-filetree.component";
 import { UserDatasetFileRendererComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-file-renderer/user-dataset-file-renderer.component";
 import { NzSpinModule } from "ng-zorro-antd/spin";
@@ -132,8 +132,6 @@ import { ReportGenerationService } from "./workspace/service/report-generation/r
 import { SearchBarComponent } from "./dashboard/component/user/search-bar/search-bar.component";
 import { ListItemComponent } from "./dashboard/component/user/list-item/list-item.component";
 import { HubComponent } from "./hub/component/hub.component";
-import { HubWorkflowSearchComponent } from "./hub/component/workflow/search/hub-workflow-search.component";
-import { HubWorkflowComponent } from "./hub/component/workflow/hub-workflow.component";
 import { HubWorkflowDetailComponent } from "./hub/component/workflow/detail/hub-workflow-detail.component";
 import { LandingPageComponent } from "./hub/component/landing-page/landing-page.component";
 import { BrowseSectionComponent } from "./hub/component/browse-section/browse-section.component";
@@ -145,6 +143,7 @@ import { GoogleAuthService } from "./common/service/user/google-auth.service";
 import { SocialLoginModule, SocialAuthServiceConfig, GoogleSigninButtonModule } from "@abacritt/angularx-social-login";
 import { GoogleLoginProvider } from "@abacritt/angularx-social-login";
 import { lastValueFrom } from "rxjs";
+import { HubSearchResultComponent } from "./hub/component/hub-search-result/hub-search-result.component";
 
 registerLocaleData(en);
 
@@ -200,7 +199,7 @@ registerLocaleData(en);
     FilesUploaderComponent,
     UserDatasetComponent,
     UserDatasetVersionCreatorComponent,
-    UserDatasetExplorerComponent,
+    DatasetDetailComponent,
     UserDatasetVersionFiletreeComponent,
     UserDatasetListItemComponent,
     UserDatasetFileRendererComponent,
@@ -227,13 +226,12 @@ registerLocaleData(en);
     SearchBarComponent,
     ListItemComponent,
     HubComponent,
-    HubWorkflowComponent,
-    HubWorkflowSearchComponent,
     HubWorkflowDetailComponent,
     LandingPageComponent,
     BrowseSectionComponent,
     BreakpointConditionInputComponent,
     CodeDebuggerComponent,
+    HubSearchResultComponent,
     ComputingUnitSelectionComponent,
   ],
   imports: [

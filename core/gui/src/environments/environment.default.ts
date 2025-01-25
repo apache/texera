@@ -44,6 +44,10 @@ export const defaultEnvironment = {
   localLogin: true,
 
   /**
+   * whether google login is enabled
+   */
+  googleLogin: true,
+  /**
    * whether invite only is enabled
    */
   inviteOnly: false,
