@@ -25,7 +25,15 @@ class IcebergCatalogInstance:
         :return: the Iceberg catalog instance.
         """
         if cls._instance is None:
-            # cls._instance = SqlCatalog(
+            cls._instance = SqlCatalog(
+                "texera_iceberg",
+                **{
+                    "uri": "postgresql+psycopg2://iceberg_py_test:test@localhost/test_iceberg_catalog_jan16",
+                    "warehouse": f"file://{warehouse_path}",
+                    "init_catalog_tables": "true"
+                }
+            )
+            # cls._instance = RestCatalog(
             #     "texera_iceberg",
             #     **{
             #         "uri": "postgresql+psycopg2://iceberg_py_test:test@localhost/test_iceberg_catalog_jan16",
@@ -33,13 +41,6 @@ class IcebergCatalogInstance:
             #         "init_catalog_tables": "true"
             #     }
             # )
-            cls._instance = RestCatalog(
-                "texera_iceberg",
-                **{
-                    "uri": "http://localhost:8181",
-                    "warehouse": f"file://{warehouse_path}"
-                }
-            )
         return cls._instance
 
     @classmethod

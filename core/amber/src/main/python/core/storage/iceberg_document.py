@@ -1,4 +1,6 @@
 from threading import RLock
+from typing import Iterator, Optional, Callable, Iterable
+from typing import TypeVar
 from urllib.parse import ParseResult, urlparse
 
 import pyarrow as pa
@@ -6,12 +8,10 @@ from pyiceberg.catalog import Catalog
 from pyiceberg.schema import Schema
 from pyiceberg.table import Table, FileScanTask
 from readerwriterlock import rwlock
-from typing import Iterator, Optional, Callable, Iterable
-from typing import TypeVar
 
 from core.storage.iceberg_catalog_instance import IcebergCatalogInstance
 from core.storage.iceberg_table_writer import IcebergTableWriter
-from core.storage.iceberg_utils import create_table, load_table_metadata, read_data_file_as_arrow_table
+from core.storage.iceberg_utils import load_table_metadata, read_data_file_as_arrow_table
 from core.storage.model.virtual_document import VirtualDocument
 
 # Define a type variable
@@ -157,14 +157,14 @@ class IcebergIterator(Iterator[T]):
                 try:
                     self.table.refresh()
                     # Retrieve the entries from the table
-                    entries = self.table.inspect.entries()
+                    entries = self.table.inspect.metadata_log_entries()
 
                     # Convert to a Pandas DataFrame for easy manipulation
                     entries_df = entries.to_pandas()
 
                     # Sort by file_sequence_number
                     file_sequence_map = {
-                        row["data_file"]["file_path"]: row["file_sequence_number"]
+                        row["file"]: row["latest_sequence_number"]
                         for _, row in entries_df.iterrows()
                     }
 
@@ -182,6 +182,7 @@ class IcebergIterator(Iterator[T]):
                             continue
                         yield task
                 except Exception:
+                    print("Could not read iceberg table:\n", Exception)
                     return iter([])
             else:
                 return iter([])
