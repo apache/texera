@@ -3,7 +3,7 @@ import { Observable, of, ReplaySubject } from "rxjs";
 import { Role, User } from "../../type/user";
 import { AuthService } from "./auth.service";
 import { environment } from "../../../../environments/environment";
-import { catchError, map, share } from "rxjs/operators";
+import { catchError, map, shareReplay } from "rxjs/operators";
 
 /**
  * User Service manages User information. It relies on different
@@ -119,13 +119,13 @@ export class UserService {
         return blobUrl;
       }),
       catchError(() => of(undefined)),
-      share()
+      shareReplay(1)
     );
   }
 
   private fetchBlob(url: string): Observable<Blob> {
     return new Observable(observer => {
-      fetch(url)
+      fetch(url, { referrerPolicy: "no-referrer" })
         .then(response => {
           if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
