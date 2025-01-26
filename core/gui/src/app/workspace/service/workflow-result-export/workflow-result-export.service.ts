@@ -169,6 +169,7 @@ export class WorkflowResultExportService {
        *  export to the dataset.
        *  TODO: refactor this service to have export namespace and download should be
        *   an export type (export to local file system)
+       *  TODO: rowIndex and columnIndex can be used to export a specific cells in the result
        */
       this.downloadService
         .exportWorkflowResult(
