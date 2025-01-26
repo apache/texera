@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, Input, ViewChild } from "@angular/core";
+import { AfterViewInit, Component, Input, OnInit, ViewChild } from "@angular/core";
 import { Router, NavigationEnd } from "@angular/router";
 import { SearchResultsComponent } from "../../../dashboard/component/user/search-results/search-results.component";
 import { FiltersComponent } from "../../../dashboard/component/user/filters/filters.component";
@@ -16,7 +16,7 @@ import { DashboardEntry, UserInfo } from "../../../dashboard/type/dashboard-entr
   templateUrl: "./hub-search-result.component.html",
   styleUrls: ["./hub-search-result.component.scss"],
 })
-export class HubSearchResultComponent implements AfterViewInit {
+export class HubSearchResultComponent implements OnInit, AfterViewInit {
   public searchType: "dataset" | "workflow" = "workflow";
   currentUid = this.userService.getCurrentUser()?.uid;
 
@@ -61,20 +61,15 @@ export class HubSearchResultComponent implements AfterViewInit {
       .subscribe(() => {
         this.currentUid = this.userService.getCurrentUser()?.uid;
       });
+  }
 
-    this.router.events
-      .pipe(
-        filter(event => event instanceof NavigationEnd),
-        untilDestroyed(this)
-      )
-      .subscribe((event: any) => {
-        const url = event.urlAfterRedirects.toLowerCase();
-        if (url.includes("dataset")) {
-          this.searchType = "dataset";
-        } else if (url.includes("workflow")) {
-          this.searchType = "workflow";
-        }
-      });
+  ngOnInit() {
+    const url = this.router.url
+    if (url.includes("dataset")) {
+      this.searchType = "dataset";
+    } else if (url.includes("workflow")) {
+      this.searchType = "workflow";
+    }
   }
 
   ngAfterViewInit() {
