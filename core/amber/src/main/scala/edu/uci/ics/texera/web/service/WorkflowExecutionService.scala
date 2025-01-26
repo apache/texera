@@ -46,7 +46,7 @@ class WorkflowExecutionService(
     request: WorkflowExecuteRequest,
     val executionStateStore: ExecutionStateStore,
     errorHandler: Throwable => Unit,
-    lastCompletedLogicalPlan: Option[LogicalPlan],
+    isReplaying: Boolean,
     userEmailOpt: Option[String],
     sessionUri: URI
 ) extends SubscriptionManager
@@ -117,6 +117,7 @@ class WorkflowExecutionService(
         errorHandler(err)
     }
 
+
     client = ComputingUnitMaster.createAmberRuntime(
       workflowContext,
       workflow.physicalPlan,
@@ -127,19 +128,20 @@ class WorkflowExecutionService(
       new ExecutionReconfigurationService(client, executionStateStore, workflow)
     // Create the operatorId to executionId map
     val operatorIdToExecutionId: Map[String, ULong] =
-      if (AmberConfig.isUserSystemEnabled)
+      if (AmberConfig.isUserSystemEnabled && !isReplaying)
         createOperatorIdToExecutionIdMap(workflow)
       else
         Map.empty
     executionStatsService =
-      new ExecutionStatsService(client, executionStateStore, operatorIdToExecutionId)
+      new ExecutionStatsService(client, executionStateStore, operatorIdToExecutionId, isReplaying)
     executionRuntimeService = new ExecutionRuntimeService(
       client,
       executionStateStore,
       wsInput,
       executionReconfigurationService,
       controllerConfig.faultToleranceConfOpt,
-      workflow.physicalPlan
+      workflow.physicalPlan,
+      isReplaying
     )
     executionConsoleService = new ExecutionConsoleService(client, executionStateStore, wsInput)
 

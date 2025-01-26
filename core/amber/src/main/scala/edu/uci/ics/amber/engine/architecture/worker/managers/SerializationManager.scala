@@ -1,12 +1,17 @@
 package edu.uci.ics.amber.engine.architecture.worker.managers
 
 import edu.uci.ics.amber.core.executor._
+import edu.uci.ics.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import edu.uci.ics.amber.core.tuple.TupleLike
 import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.core.workflow.PortIdentity
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.InitializeExecutorRequest
 import edu.uci.ics.amber.engine.common.{AmberLogging, CheckpointState, CheckpointSupport}
+import edu.uci.ics.amber.operator.sink.ProgressiveSinkOpExec
+import edu.uci.ics.amber.operator.source.cache.CacheSourceOpExec
 import edu.uci.ics.amber.util.VirtualIdentityUtils
+
+import java.net.URI
 
 class SerializationManager(val actorId: ActorVirtualIdentity) extends AmberLogging {
 
@@ -25,7 +30,16 @@ class SerializationManager(val actorId: ActorVirtualIdentity) extends AmberLoggi
     val executor = execInitMsg.opExecInitInfo match {
       case OpExecWithClassName(className, descString) =>
         ExecFactory.newExecFromJavaClassName(className, descString, workerIdx, workerCount)
-      case OpExecWithCode(code, language) => ExecFactory.newExecFromJavaCode(code)
+      case OpExecWithCode(code, "java") => ExecFactory.newExecFromJavaCode(code)
+      case OpExecWithCode(code, "scala") => ExecFactory.newExecFromScalaCode(code)
+      case OpExecSink(storageUri, workflowIdentity, outputMode) =>
+        new ProgressiveSinkOpExec(
+          workerIdx,
+          outputMode,
+          URI.create(storageUri)
+        )
+      case OpExecSource(storageUri, _) =>
+        new CacheSourceOpExec(URI.create(storageUri))
       case _                              => throw new UnsupportedOperationException("Unsupported OpExec type")
     }
 

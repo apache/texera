@@ -1,42 +1,40 @@
-<nz-table
-  id="execution-list"
-  nzSize="small"
-  [nzSimple]="true"
-  [nzFrontPagination]="false"
-  nzTableLayout="auto"
-  *ngIf="executionList"
-  [nzData]="executionList">
-  <thead>
-  <tr>
-    <th nzAlign="center">EID</th>
-    <th nzAlign="center">Starting Time</th>
-    <!-- New column header for timestamp -->
-  </tr>
-  </thead>
-  <tbody>
-  <ng-container *ngFor="let execution of executionList">
-    <!-- Main row for each execution -->
-    <tr (click)="toggleRow(execution.eId)">
-      <td>{{ execution.eId }}</td>
-      <td>{{ execution.startingTime | date:'short' }}</td>
-      <!-- Display timestamp -->
-    </tr>
-    <!-- Collapsible row for interaction history -->
-    <tr *ngIf="expandedRows.has(execution.eId)">
-      <td colspan="2">
-        <!-- Adjust the colspan to match the number of columns -->
-        <div class="interaction-container">
-          <ng-container *ngFor="let interaction of interactionHistories[execution.eId]">
+<!-- execution-timeline.component.html -->
+<div class="executions-container">
+  <!-- Loop over each execution to create its own timeline -->
+  <div class="execution-section" *ngFor="let execution of executionList">
+    <!-- Execution header -->
+    <div class="execution-header" (click)="toggleRow(execution.eId)">
+      <h3 class="execution-title">
+        EID: {{ execution.eId }}
+        <small>({{ execution.startingTime | date: 'short' }})</small>
+      </h3>
+    </div>
+
+    <!-- Only render the timeline if the execution is expanded -->
+    <div class="custom-timeline" *ngIf="expandedRows.has(execution.eId)">
+      <!-- Loop over interactions for this execution -->
+      <div class="timeline-item" *ngFor="let interaction of interactionHistories[execution.eId]">
+        <!-- Dot on the vertical line -->
+        <div class="timeline-dot"></div>
+
+        <!-- The main content for the interaction -->
+        <div class="timeline-content">
+          <div class="timeline-header">
+            <!-- Interaction Title (Could be more descriptive) -->
+            <span>{{ interaction }}</span>
+            <!-- Example button: revert or handle the interaction -->
             <button
-              [disabled]="execution.eId === revertedToInteraction?.eid && interaction === revertedToInteraction?.interaction"
+              [disabled]="
+                execution.eId === revertedToInteraction?.eid &&
+                interaction === revertedToInteraction?.interaction
+              "
               (click)="onInteractionClick(execution.vId, execution.eId, interaction)"
-              class="interaction-item">
-              {{ interaction }}
+            >
+              Revert
             </button>
-          </ng-container>
+          </div>
         </div>
-      </td>
-    </tr>
-  </ng-container>
-  </tbody>
-</nz-table>
+      </div>
+    </div>
+  </div>
+</div>

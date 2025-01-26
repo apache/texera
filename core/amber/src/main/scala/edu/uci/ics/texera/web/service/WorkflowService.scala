@@ -5,7 +5,7 @@ import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.core.WorkflowRuntimeException
 import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.storage.result.ExecutionResourcesMapping
-import edu.uci.ics.amber.core.virtualidentity.{ChannelMarkerIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{ChannelMarkerIdentity, ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.core.workflow.WorkflowContext
 import edu.uci.ics.amber.core.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
 import edu.uci.ics.amber.core.workflowruntimestate.WorkflowFatalError
@@ -182,13 +182,40 @@ class WorkflowService(
         )
       ExecutionResourcesMapping.removeExecutionResources(eid)
     }) // TODO: change this behavior after enabling cache.
-
-    workflowContext.executionId = ExecutionsMetadataPersistService.insertNewExecution(
-      workflowContext.workflowId,
-      uidOpt,
-      req.executionName,
-      convertToJson(req.engineVersion)
-    )
+    if(req.replayFromExecution.isDefined){
+      workflowContext.executionId = ExecutionIdentity(req.replayFromExecution.get.eid)
+      val replayInfo = req.replayFromExecution.get
+      val logLocation = WorkflowService.logLocations(replayInfo.eid.toInt)
+      val readLocation = logLocation
+      controllerConf = controllerConf.copy(stateRestoreConfOpt =
+        Some(
+          StateRestoreConfig(
+            readFrom = readLocation,
+            replayDestination = ChannelMarkerIdentity(replayInfo.interaction)
+          )
+        )
+      )
+    }else{
+      workflowContext.executionId = ExecutionsMetadataPersistService.insertNewExecution(
+        workflowContext.workflowId,
+        uidOpt,
+        req.executionName,
+        convertToJson(req.engineVersion)
+      )
+      val inMemCount = workflowContext.executionId.id.toInt
+      if (AmberConfig.faultToleranceLogRootFolder.isDefined) {
+        val writeLocation = AmberConfig.faultToleranceLogRootFolder.get.resolve(
+          s"${workflowContext.workflowId}/${workflowContext.executionId}/"
+        )
+        controllerConf = controllerConf.copy(faultToleranceConfOpt =
+          Some(FaultToleranceConfig(writeTo = writeLocation))
+        )
+        WorkflowService.logLocations(inMemCount) = writeLocation
+        ExecutionsMetadataPersistService.tryUpdateExistingExecution(workflowContext.executionId) {
+          execution => execution.setLogLocation(writeLocation.toString)
+        }
+      }
+    }
     val inMemCount = workflowContext.executionId.id.toInt
     if (WorkflowService.executions.contains(intWid)) {
       WorkflowService.executions(intWid).append(inMemCount)
@@ -196,32 +223,6 @@ class WorkflowService(
       WorkflowService.executions(intWid) = ArrayBuffer[Int](inMemCount)
     }
     WorkflowService.timstamps(inMemCount) = Timestamp(Instant.now)
-
-    if (AmberConfig.faultToleranceLogRootFolder.isDefined) {
-      val writeLocation = AmberConfig.faultToleranceLogRootFolder.get.resolve(
-        s"${workflowContext.workflowId}/${workflowContext.executionId}/"
-      )
-      controllerConf = controllerConf.copy(faultToleranceConfOpt =
-        Some(FaultToleranceConfig(writeTo = writeLocation))
-      )
-      WorkflowService.logLocations(inMemCount) = writeLocation
-      ExecutionsMetadataPersistService.tryUpdateExistingExecution(workflowContext.executionId){
-        execution => execution.setLogLocation(writeLocation.toString)
-      }
-      if (req.replayFromExecution.isDefined) {
-        val replayInfo = req.replayFromExecution.get
-        val logLocation = WorkflowService.logLocations(replayInfo.eid.toInt)
-        val readLocation = logLocation
-        controllerConf = controllerConf.copy(stateRestoreConfOpt =
-          Some(
-            StateRestoreConfig(
-              readFrom = readLocation,
-              replayDestination = ChannelMarkerIdentity(replayInfo.interaction)
-            )
-          )
-        )
-      }
-    }
 
 
 
@@ -265,7 +266,7 @@ class WorkflowService(
         req,
         executionStateStore,
         errorHandler,
-        lastCompletedLogicalPlan,
+        req.replayFromExecution.isDefined,
         userEmailOpt,
         sessionUri
       )

@@ -42,7 +42,8 @@ import java.util.concurrent.Executors
 class ExecutionStatsService(
     client: AmberClient,
     stateStore: ExecutionStateStore,
-    operatorIdToExecutionId: Map[String, ULong]
+    operatorIdToExecutionId: Map[String, ULong],
+    isReplaying: Boolean
 ) extends SubscriptionManager
     with LazyLogging {
   private val metricsPersistThread = Executors.newSingleThreadExecutor()
@@ -129,7 +130,7 @@ class ExecutionStatsService(
           stateStore.statsStore.updateState { statsStore =>
             statsStore.withOperatorInfo(evt.operatorMetrics)
           }
-          if (AmberConfig.isUserSystemEnabled) {
+          if (AmberConfig.isUserSystemEnabled && !isReplaying) {
             metricsPersistThread.execute(() => {
               storeRuntimeStatistics(computeStatsDiff(evt.operatorMetrics))
               lastPersistedMetrics = evt.operatorMetrics

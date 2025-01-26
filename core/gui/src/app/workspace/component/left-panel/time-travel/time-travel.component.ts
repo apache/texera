@@ -94,7 +94,8 @@ export class TimeTravelComponent implements OnInit, OnDestroy {
     this.retrieveInteractionHistory(wid, eid)
       .pipe(untilDestroyed(this))
       .subscribe(data => {
-        this.interactionHistories[eid] = data; // TODO:add FULL_REPLAY here to support fault tolerance.
+        let data2 = data.map(interaction => interaction.replace(/_/g, " ")); // TODO:add FULL_REPLAY here to support fault tolerance.
+        this.interactionHistories[eid] = data2
       });
   }
 
@@ -115,7 +116,7 @@ export class TimeTravelComponent implements OnInit, OnDestroy {
     if (wid === undefined) {
       return;
     }
-    let replayExecutionInfo = { eid: eid, interaction: interaction };
+    let replayExecutionInfo = { eid: eid, interaction: interaction.replace(/ /g, "_")};
     this.revertedToInteraction = replayExecutionInfo;
     this.notificationService.info(`start replay to interaction ${interaction} at execution ${eid}`);
     this.executeWorkflowService.executeWorkflowWithReplay(replayExecutionInfo);

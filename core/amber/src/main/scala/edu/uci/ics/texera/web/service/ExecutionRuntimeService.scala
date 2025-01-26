@@ -25,7 +25,8 @@ class ExecutionRuntimeService(
     wsInput: WebsocketInput,
     reconfigurationService: ExecutionReconfigurationService,
     logConf: Option[FaultToleranceConfig],
-    physicalPlan: PhysicalPlan
+    physicalPlan: PhysicalPlan,
+    isReplaying:Boolean
 ) extends SubscriptionManager
     with LazyLogging {
 
@@ -83,15 +84,29 @@ class ExecutionRuntimeService(
       logConf.nonEmpty,
       "Fault tolerance log folder is not established. Unable to take a global checkpoint."
     )
-    val now = LocalDateTime.now()
-    val formatter = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")
-    val timestamp = now.format(formatter)
-    val checkpointId = ChannelMarkerIdentity(s"Interaction_${timestamp}")
-    val uri = logConf.get.writeTo.resolve(checkpointId.toString)
-    client.controllerInterface.takeGlobalCheckpoint(
-      TakeGlobalCheckpointRequest(estimationOnly = false, checkpointId, uri.toString),
-      ()
-    )
+    if (!isReplaying) {
+      val now = System.currentTimeMillis()
+      val start = stateStore.statsStore.getState.startTimeStamp
+      // Calculate the difference in milliseconds
+      val diffMs = now - start
+
+      // Convert to total seconds
+      val totalSeconds = diffMs / 1000
+
+      // Extract minutes and seconds
+      val minutes = totalSeconds / 60
+      val seconds = totalSeconds % 60
+
+      // Produce a string like "3:07"
+      val diffString = f"$minutes mins $seconds%02d secs"
+
+      val checkpointId = ChannelMarkerIdentity(s"Inspection at ${diffString}".replace(" ", "_"))
+      val uri = logConf.get.writeTo.resolve(checkpointId.toString)
+      client.controllerInterface.takeGlobalCheckpoint(
+        TakeGlobalCheckpointRequest(estimationOnly = false, checkpointId, uri.toString),
+        ()
+      )
+    }
   }))
 
   // Receive Step
