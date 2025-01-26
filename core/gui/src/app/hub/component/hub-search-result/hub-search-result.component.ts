@@ -7,7 +7,7 @@ import { SortMethod } from "../../../dashboard/type/sort-method";
 import { UserService } from "../../../common/service/user/user.service";
 import { SearchService } from "../../../dashboard/service/user/search.service";
 import { isDefined } from "../../../common/util/predicate";
-import { firstValueFrom, filter } from "rxjs";
+import { firstValueFrom } from "rxjs";
 import { DashboardEntry, UserInfo } from "../../../dashboard/type/dashboard-entry";
 
 @UntilDestroy()
@@ -64,7 +64,7 @@ export class HubSearchResultComponent implements OnInit, AfterViewInit {
   }
 
   ngOnInit() {
-    const url = this.router.url
+    const url = this.router.url;
     if (url.includes("dataset")) {
       this.searchType = "dataset";
     } else if (url.includes("workflow")) {
