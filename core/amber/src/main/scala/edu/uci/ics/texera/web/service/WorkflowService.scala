@@ -204,23 +204,15 @@ class WorkflowService(
       controllerConf = controllerConf.copy(faultToleranceConfOpt =
         Some(FaultToleranceConfig(writeTo = writeLocation))
       )
-    }
-
-    // enable only if we have mysql
-    val writeLocation = AmberConfig.faultToleranceLogRootFolder.get.resolve(
-      s"${workflowContext.workflowId}/${workflowContext.executionId}/"
-    )
-    if (AmberConfig.faultToleranceLogRootFolder.isDefined) {
-      controllerConf = controllerConf.copy(faultToleranceConfOpt =
-        Some(FaultToleranceConfig(writeTo = writeLocation))
-      )
-    }
-    WorkflowService.logLocations(inMemCount) = writeLocation
-    if (req.replayFromExecution.isDefined) {
-      val replayInfo = req.replayFromExecution.get
-      val logLocation = WorkflowService.logLocations(replayInfo.eid.toInt)
-      val readLocation = logLocation
-      controllerConf = controllerConf.copy(stateRestoreConfOpt =
+      WorkflowService.logLocations(inMemCount) = writeLocation
+      ExecutionsMetadataPersistService.tryUpdateExistingExecution(workflowContext.executionId){
+        execution => execution.setLogLocation(writeLocation.toString)
+      }
+      if (req.replayFromExecution.isDefined) {
+        val replayInfo = req.replayFromExecution.get
+        val logLocation = WorkflowService.logLocations(replayInfo.eid.toInt)
+        val readLocation = logLocation
+        controllerConf = controllerConf.copy(stateRestoreConfOpt =
           Some(
             StateRestoreConfig(
               readFrom = readLocation,
@@ -229,6 +221,9 @@ class WorkflowService(
           )
         )
       }
+    }
+
+
 
     val executionStateStore = new ExecutionStateStore()
     // assign execution id to find the execution from DB in case the constructor fails.

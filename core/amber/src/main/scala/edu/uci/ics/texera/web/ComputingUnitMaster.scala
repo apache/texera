@@ -6,10 +6,7 @@ import edu.uci.ics.amber.core.storage.DocumentFactory
 import edu.uci.ics.amber.core.storage.util.mongo.MongoDatabaseManager
 import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
-import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
-  COMPLETED,
-  FAILED
-}
+import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{COMPLETED, FAILED}
 import edu.uci.ics.amber.engine.common.AmberRuntime.scheduleRecurringCallThroughActorSystem
 import edu.uci.ics.amber.engine.common.Utils.{maptoStatusCode, objectMapper}
 import edu.uci.ics.amber.engine.common.client.AmberClient
@@ -18,10 +15,12 @@ import edu.uci.ics.amber.engine.common.{AmberConfig, AmberRuntime, Utils}
 import edu.uci.ics.amber.core.virtualidentity.ExecutionIdentity
 import edu.uci.ics.texera.web.auth.JwtAuth.setupJwtAuth
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions
+import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
 import io.dropwizard.Configuration
+import io.dropwizard.auth.AuthValueFactoryProvider
 import io.dropwizard.setup.{Bootstrap, Environment}
 import io.dropwizard.websockets.WebsocketBundle
 import org.apache.commons.jcs3.access.exception.InvalidArgumentException
@@ -97,7 +96,8 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
   }
 
   override def run(configuration: Configuration, environment: Environment): Unit = {
-
+    // serve backend at /api
+    environment.jersey.setUrlPattern("/api/*")
     val webSocketUpgradeFilter =
       WebSocketUpgradeFilter.configureContext(environment.getApplicationContext)
     webSocketUpgradeFilter.getFactory.getPolicy.setIdleTimeout(Duration.ofHours(1).toMillis)
@@ -109,12 +109,13 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
     // register SessionHandler
     environment.jersey.register(classOf[SessionHandler])
     environment.servlets.setSessionHandler(new SessionHandler)
-
     // register MultiPartFeature
     environment.jersey.register(classOf[MultiPartFeature])
 
     setupJwtAuth(environment)
-
+    environment.jersey.register(
+      new AuthValueFactoryProvider.Binder[SessionUser](classOf[SessionUser])
+    )
     if (AmberConfig.isUserSystemEnabled) {
       val timeToLive: Int = AmberConfig.sinkStorageTTLInSecs
       if (AmberConfig.cleanupAllExecutionResults) {
@@ -140,6 +141,7 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
         recurringCheckExpiredResults(timeToLive)
       }
     }
+    environment.jersey.register(classOf[WorkflowExecutionsResource])
   }
 
   /**

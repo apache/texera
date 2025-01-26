@@ -4,6 +4,11 @@
     "secure": false,
     "changeOrigin": true
   },
+  "/api/executions": {
+    "target": "http://localhost:8085",
+    "secure": false,
+    "changeOrigin": false
+  },
   "/api": {
     "target": "http://localhost:8080",
     "secure": false,

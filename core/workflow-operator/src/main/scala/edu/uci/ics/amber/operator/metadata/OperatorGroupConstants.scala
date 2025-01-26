@@ -47,9 +47,8 @@ object OperatorGroupConstants {
     ),
     GroupInfo(UTILITY_GROUP),
     GroupInfo(API_GROUP),
-    GroupInfo(UDF_GROUP, List(GroupInfo(PYTHON_GROUP), GroupInfo(JAVA_GROUP), GroupInfo(R_GROUP))),
+    GroupInfo(UDF_GROUP, List(GroupInfo(SCALA_GROUP), GroupInfo(PYTHON_GROUP), GroupInfo(JAVA_GROUP), GroupInfo(R_GROUP))),
     GroupInfo(VISUALIZATION_GROUP),
     GroupInfo(CONTROL_GROUP),
-    GroupInfo(VISUALIZATION_GROUP)
   )
 }

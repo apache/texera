@@ -1,7 +1,6 @@
 package edu.uci.ics.amber.operator.udf.scala
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.core.executor.{OpExecWithCode, SourceOperatorExecutor}
 import edu.uci.ics.amber.operator.{LogicalOp, PortDescription, StateTransferFunc}
@@ -48,7 +47,6 @@ class ScalaUDFOpDesc extends LogicalOp {
                               workflowId: WorkflowIdentity,
                               executionId: ExecutionIdentity
                             ): PhysicalOp = {
-    Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.", Array())
     val opInfo = this.operatorInfo
     val partitionRequirement: List[Option[PartitionInfo]] = if (inputPorts != null) {
       inputPorts.map(p => Option(p.partitionRequirement))

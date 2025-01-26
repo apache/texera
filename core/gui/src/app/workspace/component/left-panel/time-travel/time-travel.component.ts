@@ -60,7 +60,7 @@ export class TimeTravelComponent implements OnInit, OnDestroy {
   }
 
   public getWid(): number | undefined {
-    return 0;
+    return this.workflowActionService.getWorkflowMetadata().wid;
   }
 
   toggleRow(eId: number): void {
