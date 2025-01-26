@@ -3,10 +3,14 @@ import { Observable, throwError, of, forkJoin, from } from "rxjs";
 import { map, tap, catchError, switchMap } from "rxjs/operators";
 import { FileSaverService } from "../file/file-saver.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
-import { DatasetService } from "../dataset/dataset.service";
+import { DATASET_BASE_URL, DatasetService } from "../dataset/dataset.service";
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
 import * as JSZip from "jszip";
 import { Workflow } from "../../../../common/type/workflow";
+import { AppSettings } from "../../../../common/app-setting";
+import { HttpClient } from "@angular/common/http";
+
+export const EXPORT_BASE_URL = "result/export";
 
 interface DownloadableItem {
   blob: Blob;
@@ -21,7 +25,8 @@ export class DownloadService {
     private fileSaverService: FileSaverService,
     private notificationService: NotificationService,
     private datasetService: DatasetService,
-    private workflowPersistService: WorkflowPersistService
+    private workflowPersistService: WorkflowPersistService,
+    private http: HttpClient
   ) {}
 
   downloadWorkflow(id: number, name: string): Observable<DownloadableItem> {
@@ -81,6 +86,42 @@ export class DownloadService {
       "Workflows have been downloaded as ZIP",
       "Error downloading workflows as ZIP"
     );
+  }
+
+  public exportWorkflowResult(
+    exportType: string,
+    workflowId: number,
+    workflowName: string,
+    operatorId: string,
+    operatorName: string,
+    datasetIds: number[],
+    rowIndex: number,
+    columnIndex: number,
+    filename: string
+  ): Observable<any> {
+    const requestBody = {
+      exportType,
+      workflowId,
+      workflowName,
+      operatorId,
+      operatorName,
+      datasetIds,
+      rowIndex,
+      columnIndex,
+      filename,
+    };
+
+    /*
+     TODO: curently, the response is json because the backend does not return a file and export
+      the result into the database. Next, we will implement download feature (export to local).
+     */
+    return this.http.post(`${AppSettings.getApiEndpoint()}/${EXPORT_BASE_URL}`, requestBody, {
+      responseType: "json",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+    });
   }
 
   downloadOperatorsResult(

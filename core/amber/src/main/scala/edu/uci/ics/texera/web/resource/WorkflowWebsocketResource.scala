@@ -64,10 +64,6 @@ class WorkflowWebsocketResource extends LazyLogging {
           workflowStateOpt.foreach(state =>
             sessionState.send(state.resultService.handleResultPagination(paginationRequest))
           )
-        case resultExportRequest: ResultExportRequest =>
-          workflowStateOpt.foreach(state =>
-            sessionState.send(state.exportService.exportResult(userOpt.get, resultExportRequest))
-          )
         case modifyLogicRequest: ModifyLogicRequest =>
           if (workflowStateOpt.isDefined) {
             val executionService = workflowStateOpt.get.executionService.getValue

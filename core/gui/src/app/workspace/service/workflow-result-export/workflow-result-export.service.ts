@@ -157,21 +157,43 @@ export class WorkflowResultExportService {
     this.notificationService.loading("exporting...");
     operatorIds.forEach(operatorId => {
       if (!this.workflowResultService.hasAnyResult(operatorId)) {
+        console.log(`Operator ${operatorId} has no result to export`);
         return;
       }
       const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorId);
       const operatorName = operator.customDisplayName ?? operator.operatorType;
-      this.workflowWebsocketService.send("ResultExportRequest", {
-        exportType,
-        workflowId,
-        workflowName,
-        operatorId,
-        operatorName,
-        datasetIds,
-        rowIndex,
-        columnIndex,
-        filename,
-      });
+
+      /*
+       * This function (and service) was previously used to export result
+       *  into the local file system (downloading). Currently it is used to only
+       *  export to the dataset.
+       *  TODO: refactor this service to have export namespace and download should be
+       *   an export type (export to local file system)
+       *  TODO: rowIndex and columnIndex can be used to export a specific cells in the result
+       */
+      this.downloadService
+        .exportWorkflowResult(
+          exportType,
+          workflowId,
+          workflowName,
+          operatorId,
+          operatorName,
+          [...datasetIds],
+          rowIndex,
+          columnIndex,
+          filename
+        )
+        .subscribe({
+          next: _ => {
+            this.notificationService.info("The result has been exported successfully");
+          },
+          error: (res: unknown) => {
+            const errorResponse = res as { error: { error: string } };
+            this.notificationService.error(
+              "An error happened in exporting operator results " + errorResponse.error.error
+            );
+          },
+        });
     });
   }
 

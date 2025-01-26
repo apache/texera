@@ -120,7 +120,8 @@
   </li>
 
   <li
-    *ngIf="workflowResultExportService.hasResultToExportOnHighlightedOperators"
+    *ngIf="workflowResultExportService.hasResultToExportOnHighlightedOperators &&
+           this.workflowResultExportService.exportExecutionResultEnabled"
     (click)="onClickExportHighlightedExecutionResult()"
     nz-menu-item>
     <span
