@@ -125,7 +125,7 @@ export class UserService {
 
   private fetchBlob(url: string): Observable<Blob> {
     return new Observable(observer => {
-      fetch(url)
+      fetch(url, { referrerPolicy: "no-referrer" })
         .then(response => {
           if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
