@@ -1,13 +1,17 @@
 package edu.uci.ics.texera.service.resource
 
-import edu.uci.ics.texera.service.resource.WorkflowComputingUnitMetricResource.WorkflowComputingUnitMetricParam
+import edu.uci.ics.texera.service.resource.WorkflowComputingUnitMetricResource.{WorkflowComputingUnitMetricParam, WorkflowComputingUnitMetrics}
 import edu.uci.ics.texera.service.util.KubernetesMetricService._
 import jakarta.ws.rs._
 import jakarta.ws.rs.core.MediaType
 
 object WorkflowComputingUnitMetricResource {
 
-  case class WorkflowComputingUnitMetricParam(computingUnitName: String, namespace: String)
+  case class WorkflowComputingUnitMetrics (
+    cuid: Int,
+    cpu: Double,
+    memory: Double
+  )
 }
 
 @Produces(Array(MediaType.APPLICATION_JSON))
@@ -17,15 +21,21 @@ class WorkflowComputingUnitMetricResource {
   /**
    * Retrieves the computing unit metrics for a given name in the specified namespace.
    *
-   * @param params  The parameters containing the computingUnitName and namespace
+   * @param computingUnitCUID  The computing units uid for retrieving metrics
    * @return The computing unit metrics for a given name in a specified namespace
    */
   @GET
-  @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/pod-metrics")
-  def getComputingUnitMetric(params: WorkflowComputingUnitMetricParam): Map[String, String] = {
-    getPodMetrics(params.computingUnitName, params.namespace)
+  def getComputingUnitMetric(@QueryParam("computingUnitCUID") computingUnitCUID: Int): WorkflowComputingUnitMetrics = {
+    println(computingUnitCUID)
+    val metrics: Map[String, Any] = getPodMetrics(computingUnitCUID)
+
+    WorkflowComputingUnitMetrics(
+      cuid = computingUnitCUID,
+      cpu = metrics.get("cpu").collect { case value: Double => value }.getOrElse(0.0),
+      memory = metrics.get("memory").collect { case value: Double => value }.getOrElse(0.0)
+    )
   }
 
 }

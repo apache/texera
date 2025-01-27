@@ -1,6 +1,6 @@
 import { Component, Input, OnInit } from "@angular/core";
 import { interval } from "rxjs";
-import { switchMap } from "rxjs/operators";
+import {map, switchMap} from "rxjs/operators";
 import { WorkflowComputingUnitManagingService } from "../../service/workflow-computing-unit/workflow-computing-unit-managing.service";
 import { DashboardWorkflowComputingUnit } from "../../types/workflow-computing-unit";
 import { NotificationService } from "../../../common/service/notification/notification.service";
@@ -68,6 +68,28 @@ export class ComputingUnitSelectionComponent implements OnInit {
     ) {
       this.selectedComputingUnit = null;
     }
+    this.updateComputingUnitMetrics();
+  }
+
+  /**
+   * Update the currently selected computing units metrics
+   */
+  updateComputingUnitMetrics(): void {
+    const cuid = this.selectedComputingUnit?.computingUnit.cuid;
+    if (!cuid) {
+      return // for now
+    }
+    this.computingUnitService.getComputingUnitMetrics(cuid)
+      .pipe(
+        map(metrics => ({
+          cpu: metrics["cpu"],
+          memory: metrics["memory"]
+        }))
+      )
+      .subscribe(({ cpu, memory }) => {
+        console.log(`CPU: ${cpu}`);
+        console.log(`Memory: ${memory}`);
+      });
   }
 
   /**

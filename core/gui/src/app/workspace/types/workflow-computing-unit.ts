@@ -11,3 +11,9 @@ export interface DashboardWorkflowComputingUnit {
   uri: string;
   status: string;
 }
+
+export interface WorkflowComputingUnitMetrics {
+  cuid: number;
+  cpu: number;
+  memory: number;
+}

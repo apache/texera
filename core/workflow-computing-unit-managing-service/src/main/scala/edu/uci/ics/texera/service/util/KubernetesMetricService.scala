@@ -10,38 +10,40 @@ object KubernetesMetricService {
   // Initialize the Kubernetes client
   val client: KubernetesClient = new KubernetesClientBuilder().build()
 
+  private val namespace = WorkflowComputingUnitManagingServiceConf.computeUnitPoolNamespace
+
   /**
    * Retrieves the pod metric for a given name in the specified namespace.
    *
-   * @param namespace The namespace of the pod to be returned
-   * @param targetPodName  The name of the pod to be returned
+   * @param cuid  The computing unit id of the pod
    * @return The Pod metrics for a given name in a specified namespace.
    */
-  def getPodMetrics(targetPodName: String, namespace: String): Map[String, String] = {
+  def getPodMetrics(cuid: Int): Map[String, Any] = {
     val podMetricsList: PodMetricsList = client.top().pods().metrics(namespace)
+    val targetPodName = KubernetesClientService.generatePodName(cuid)
 
     podMetricsList.getItems.asScala.collectFirst {
       case podMetrics if podMetrics.getMetadata.getName == targetPodName =>
         podMetrics.getContainers.asScala.collectFirst {
           case container =>
-            val usageMap = container.getUsage.asScala.map {
+            container.getUsage.asScala.collect {
               case ("cpu", value) =>
                 val cpuInCores = convertCPUToCores(value.getAmount)
                 println(s"CPU Usage: $cpuInCores cores")
-                "cpu" -> f"$cpuInCores cores"
+                "cpu" -> cpuInCores
               case ("memory", value) =>
                 val memoryInMB = convertMemoryToMB(value.getAmount)
                 println(s"Memory Usage: $memoryInMB MB")
-                "memory" -> f"$memoryInMB%.2f MB"
+                "memory" -> memoryInMB
               case (key, value) =>
                 println(s"Other Metric - $key: ${value.getAmount}")
+                // Other metrics may not all be Double
                 key -> value.getAmount
             }.toMap
-            usageMap
-        }.getOrElse(Map.empty)
+        }.getOrElse(Map.empty[String, Double])
     }.getOrElse {
       println(s"No metrics found for pod: $targetPodName in namespace: $namespace")
-      Map.empty
+      Map.empty[String, Double]
     }
   }
 
