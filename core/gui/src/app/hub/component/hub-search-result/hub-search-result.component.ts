@@ -1,22 +1,25 @@
-import { AfterViewInit, Component, Input, ViewChild } from "@angular/core";
+import { AfterViewInit, Component, Input, OnInit, ViewChild } from "@angular/core";
+import { Router } from "@angular/router";
+import { SearchResultsComponent } from "../../../dashboard/component/user/search-results/search-results.component";
+import { FiltersComponent } from "../../../dashboard/component/user/filters/filters.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { SearchResultsComponent } from "../../../../dashboard/component/user/search-results/search-results.component";
-import { FiltersComponent } from "../../../../dashboard/component/user/filters/filters.component";
-import { SortMethod } from "../../../../dashboard/type/sort-method";
-import { UserService } from "../../../../common/service/user/user.service";
-import { SearchService } from "../../../../dashboard/service/user/search.service";
-import { isDefined } from "../../../../common/util/predicate";
+import { SortMethod } from "../../../dashboard/type/sort-method";
+import { UserService } from "../../../common/service/user/user.service";
+import { SearchService } from "../../../dashboard/service/user/search.service";
+import { isDefined } from "../../../common/util/predicate";
 import { firstValueFrom } from "rxjs";
-import { DashboardEntry, UserInfo } from "../../../../dashboard/type/dashboard-entry";
+import { DashboardEntry, UserInfo } from "../../../dashboard/type/dashboard-entry";
 
 @UntilDestroy()
 @Component({
-  selector: "texera-hub-workflow-search",
-  templateUrl: "hub-workflow-search.component.html",
-  styleUrls: ["hub-workflow-search.component.scss"],
+  selector: "texera-hub-search",
+  templateUrl: "./hub-search-result.component.html",
+  styleUrls: ["./hub-search-result.component.scss"],
 })
-export class HubWorkflowSearchComponent implements AfterViewInit {
+export class HubSearchResultComponent implements OnInit, AfterViewInit {
+  public searchType: "dataset" | "workflow" = "workflow";
   currentUid = this.userService.getCurrentUser()?.uid;
+
   private isLogin = false;
   private includePublic = true;
   private _searchResultsComponent?: SearchResultsComponent;
@@ -49,7 +52,8 @@ export class HubWorkflowSearchComponent implements AfterViewInit {
 
   constructor(
     private userService: UserService,
-    private searchService: SearchService
+    private searchService: SearchService,
+    private router: Router
   ) {
     this.userService
       .userChanged()
@@ -57,6 +61,15 @@ export class HubWorkflowSearchComponent implements AfterViewInit {
       .subscribe(() => {
         this.currentUid = this.userService.getCurrentUser()?.uid;
       });
+  }
+
+  ngOnInit() {
+    const url = this.router.url;
+    if (url.includes("dataset")) {
+      this.searchType = "dataset";
+    } else if (url.includes("workflow")) {
+      this.searchType = "workflow";
+    }
   }
 
   ngAfterViewInit() {
@@ -67,10 +80,12 @@ export class HubWorkflowSearchComponent implements AfterViewInit {
   }
 
   /**
-   * Searches workflows with keywords and filters given in the masterFilterList.
+   * Searches dataset or workflow based on the `searchType` determined from the full URL.
    * @returns
+   *
+   * todo: Integrate the search functions from different interfaces into a single method.
    */
-  async search(forced: Boolean = false): Promise<void> {
+  async search(forced: boolean = false): Promise<void> {
     const sameList =
       this.masterFilterList !== null &&
       this.filters.masterFilterList.length === this.masterFilterList.length &&
@@ -93,7 +108,7 @@ export class HubWorkflowSearchComponent implements AfterViewInit {
           filterParams,
           start,
           count,
-          "workflow",
+          this.searchType,
           this.sortMethod,
           this.isLogin,
           this.includePublic
@@ -102,8 +117,9 @@ export class HubWorkflowSearchComponent implements AfterViewInit {
 
       const userIds = new Set<number>();
       results.results.forEach(i => {
-        if (i.workflow && i.workflow.ownerId) {
-          userIds.add(i.workflow.ownerId);
+        const ownerUid = this.searchType === "workflow" ? i.workflow?.ownerId : i.dataset?.dataset?.ownerUid;
+        if (ownerUid !== undefined) {
+          userIds.add(ownerUid);
         }
       });
 
@@ -114,18 +130,24 @@ export class HubWorkflowSearchComponent implements AfterViewInit {
 
       return {
         entries: results.results.map(i => {
-          if (i.workflow) {
-            const entry = new DashboardEntry(i.workflow);
-
-            const userInfo = userIdToInfoMap[i.workflow.ownerId];
-            if (userInfo) {
-              entry.setOwnerName(userInfo.userName);
-              entry.setOwnerGoogleAvatar(userInfo.googleAvatar ?? "");
-            }
-            return entry;
+          let entry;
+          if (this.searchType === "workflow" && i.workflow) {
+            entry = new DashboardEntry(i.workflow);
+          } else if (this.searchType === "dataset" && i.dataset) {
+            entry = new DashboardEntry(i.dataset);
           } else {
             throw new Error("Unexpected type in SearchResult.");
           }
+
+          const ownerUid = this.searchType === "workflow" ? i.workflow?.ownerId : i.dataset?.dataset?.ownerUid;
+
+          if (ownerUid !== undefined) {
+            const userInfo = userIdToInfoMap[ownerUid] || { userName: "", googleAvatar: "" };
+            entry.setOwnerName(userInfo.userName);
+            entry.setOwnerGoogleAvatar(userInfo.googleAvatar ?? "");
+          }
+
+          return entry;
         }),
         more: results.more,
       };

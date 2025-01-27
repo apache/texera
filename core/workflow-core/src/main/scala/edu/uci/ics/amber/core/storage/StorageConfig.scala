@@ -16,6 +16,7 @@ object StorageConfig {
     val storageMap = javaConf("storage").asInstanceOf[JMap[String, Any]].asScala.toMap
     val mongodbMap = storageMap("mongodb").asInstanceOf[JMap[String, Any]].asScala.toMap
     val icebergMap = storageMap("iceberg").asInstanceOf[JMap[String, Any]].asScala.toMap
+    val icebergCatalogMap = icebergMap("catalog").asInstanceOf[JMap[String, Any]].asScala.toMap
     val icebergTableMap = icebergMap("table").asInstanceOf[JMap[String, Any]].asScala.toMap
     val icebergCommitMap = icebergTableMap("commit").asInstanceOf[JMap[String, Any]].asScala.toMap
     val icebergRetryMap = icebergCommitMap("retry").asInstanceOf[JMap[String, Any]].asScala.toMap
@@ -35,6 +36,7 @@ object StorageConfig {
                 icebergCommitMap.updated("retry", icebergRetryMap)
               )
             )
+            .updated("catalog", icebergCatalogMap)
         )
         .updated("jdbc", jdbcMap)
     )
@@ -96,6 +98,19 @@ object StorageConfig {
     .asInstanceOf[Map[String, Any]]("retry")
     .asInstanceOf[Map[String, Any]]("max-wait-ms")
     .asInstanceOf[Int]
+
+  // Iceberg catalog configurations
+  val icebergCatalogType: String = conf("storage")
+    .asInstanceOf[Map[String, Any]]("iceberg")
+    .asInstanceOf[Map[String, Any]]("catalog")
+    .asInstanceOf[Map[String, Any]]("type")
+    .asInstanceOf[String]
+
+  val icebergCatalogUri: String = conf("storage")
+    .asInstanceOf[Map[String, Any]]("iceberg")
+    .asInstanceOf[Map[String, Any]]("catalog")
+    .asInstanceOf[Map[String, Any]]("uri")
+    .asInstanceOf[String]
 
   // JDBC configurations
   val jdbcUrl: String = conf("storage")
