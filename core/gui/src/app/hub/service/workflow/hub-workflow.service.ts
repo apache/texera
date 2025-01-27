@@ -90,4 +90,8 @@ export class HubWorkflowService {
   public getViewCount(wid: number): Observable<number> {
     return this.http.get<number>(`${this.BASE_URL}/viewCount/${wid}`);
   }
+
+  public getWorkflowOwners(wid: number): Observable<number[]> {
+    return this.http.get<number[]>(`${this.BASE_URL}/workflowUserAccess?wid=${wid}`);
+  }
 }
