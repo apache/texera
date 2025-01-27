@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.service.resource
 
-import edu.uci.ics.texera.service.resource.WorkflowComputingUnitMetricResource.{WorkflowComputingUnitMetricParam, WorkflowComputingUnitMetrics}
+import edu.uci.ics.texera.service.resource.WorkflowComputingUnitMetricResource.WorkflowComputingUnitMetrics
 import edu.uci.ics.texera.service.util.KubernetesMetricService._
 import jakarta.ws.rs._
 import jakarta.ws.rs.core.MediaType
