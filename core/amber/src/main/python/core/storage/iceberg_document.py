@@ -156,23 +156,22 @@ class IcebergIterator(Iterator[T]):
             if self.table:
                 try:
                     self.table.refresh()
-                    # Retrieve the entries from the table
-                    entries = self.table.inspect.metadata_log_entries()
-
-                    # Convert to a Pandas DataFrame for easy manipulation
-                    entries_df = entries.to_pandas()
-
-                    # Sort by file_sequence_number
-                    file_sequence_map = {
-                        row["file"]: row["latest_sequence_number"]
-                        for _, row in entries_df.iterrows()
-                    }
+                    # self.table.inspect.entries() does not work with java files, need to implement the logic
+                    # to find file_sequence_number for each data file ourselves
+                    file_sequence_map = {}
+                    current_snapshot = self.table.current_snapshot()
+                    if current_snapshot is None:
+                        return iter([])
+                    for manifest in current_snapshot.manifests(self.table.io):
+                        for entry in manifest.fetch_manifest_entry(io=self.table.io):
+                            file_sequence_map[entry.data_file.file_path] = entry.sequence_number
 
                     # Retrieve and sort the file scan tasks by file sequence number
                     file_scan_tasks = list(self.table.scan().plan_files())
+                    # Sort files by their sequence number. Files without a sequence number will be read last.
                     sorted_file_scan_tasks = sorted(
                         file_scan_tasks,
-                        key=lambda task: file_sequence_map.get(task.file.file_path, float('inf'))  # Use float('inf') for missing files
+                        key=lambda t: file_sequence_map.get(t.file.file_path, float('inf'))
                     )
                     # Skip records in files before the `from_index`
                     for task in sorted_file_scan_tasks:
@@ -182,8 +181,8 @@ class IcebergIterator(Iterator[T]):
                             continue
                         yield task
                 except Exception:
-                    print("Could not read iceberg table:\n", Exception)
-                    return iter([])
+                    print("Could not read iceberg table:\n")
+                    raise Exception
             else:
                 return iter([])
 
