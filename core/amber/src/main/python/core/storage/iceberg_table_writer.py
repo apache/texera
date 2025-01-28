@@ -2,7 +2,7 @@ import pyarrow as pa
 from pyiceberg.catalog import Catalog
 from pyiceberg.schema import Schema
 from pyiceberg.table import Table
-from tenacity import retry, wait_exponential, stop_after_attempt
+from tenacity import retry, stop_after_attempt, wait_random
 from typing import List, TypeVar, Callable, Iterable
 
 from core.storage.model.buffered_item_writer import BufferedItemWriter
@@ -82,12 +82,11 @@ class IcebergTableWriter(BufferedItemWriter[T]):
             """Appends a pyarrow dataframe to the table in the catalog using tenacity exponential backoff."""
 
             @retry(
-                wait=wait_exponential(multiplier=1, min=1, max=8),
+                wait=wait_random(0.001, 0.1),
                 stop=stop_after_attempt(10),
                 reraise=True
             )
             def append_with_retry():
-                # table = catalog.load_table(table_name)  # <---- If a process appends between this line ...
                 self.table.refresh()
                 self.table.append(pa_df)  # <----- and this line, then Tenacity will retry.
                 self.filename_idx += 1
