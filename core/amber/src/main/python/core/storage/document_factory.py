@@ -5,8 +5,12 @@ from typing import Optional
 from core.models import Schema, Tuple
 from core.storage.iceberg_catalog_instance import IcebergCatalogInstance
 from core.storage.iceberg_document import IcebergDocument
-from core.storage.iceberg_utils import create_table, amber_tuples_to_arrow_table, arrow_table_to_amber_tuples, \
-    load_table_metadata
+from core.storage.iceberg_utils import (
+    create_table,
+    amber_tuples_to_arrow_table,
+    arrow_table_to_amber_tuples,
+    load_table_metadata,
+)
 from core.storage.model.virtual_document import VirtualDocument
 from core.storage.vfs_uri_factory import VFSURIFactory, VFSResourceType
 
@@ -25,7 +29,10 @@ class DocumentFactory:
         if parsed_uri.scheme == VFSURIFactory.VFS_FILE_URI_SCHEME:
             _, _, _, _, resource_type = VFSURIFactory.decode_uri(uri)
 
-            if resource_type in {VFSResourceType.RESULT, VFSResourceType.MATERIALIZED_RESULT}:
+            if resource_type in {
+                VFSResourceType.RESULT,
+                VFSResourceType.MATERIALIZED_RESULT,
+            }:
                 storage_key = DocumentFactory.sanitize_uri_path(parsed_uri)
 
                 iceberg_schema = Schema.as_arrow_schema(schema)
@@ -35,7 +42,7 @@ class DocumentFactory:
                     "operator-result",
                     storage_key,
                     iceberg_schema,
-                    override_if_exists=True
+                    override_if_exists=True,
                 )
 
                 return IcebergDocument[Tuple](
@@ -43,12 +50,14 @@ class DocumentFactory:
                     storage_key,
                     iceberg_schema,
                     amber_tuples_to_arrow_table,
-                    arrow_table_to_amber_tuples
+                    arrow_table_to_amber_tuples,
                 )
             else:
                 raise ValueError(f"Resource type {resource_type} is not supported")
         else:
-            raise NotImplementedError(f"Unsupported URI scheme: {parsed_uri.scheme} for creating the document")
+            raise NotImplementedError(
+                f"Unsupported URI scheme: {parsed_uri.scheme} for creating the document"
+            )
 
     @staticmethod
     def open_document(uri: str) -> (VirtualDocument, Optional[Schema]):
@@ -56,13 +65,16 @@ class DocumentFactory:
         if parsed_uri.scheme == "vfs":
             _, _, _, _, resource_type = VFSURIFactory.decode_uri(uri)
 
-            if resource_type in {VFSResourceType.RESULT, VFSResourceType.MATERIALIZED_RESULT}:
+            if resource_type in {
+                VFSResourceType.RESULT,
+                VFSResourceType.MATERIALIZED_RESULT,
+            }:
                 storage_key = DocumentFactory.sanitize_uri_path(parsed_uri)
 
                 table = load_table_metadata(
                     IcebergCatalogInstance.get_instance(),
                     "operator-result",
-                    storage_key
+                    storage_key,
                 )
 
                 if table is None:
@@ -75,10 +87,12 @@ class DocumentFactory:
                     storage_key,
                     table.schema(),
                     amber_tuples_to_arrow_table,
-                    arrow_table_to_amber_tuples
+                    arrow_table_to_amber_tuples,
                 )
                 return document, amber_schema
             else:
                 raise ValueError(f"Resource type {resource_type} is not supported")
         else:
-            raise NotImplementedError(f"Unsupported URI scheme: {parsed_uri.scheme} for opening the document")
+            raise NotImplementedError(
+                f"Unsupported URI scheme: {parsed_uri.scheme} for opening the document"
+            )

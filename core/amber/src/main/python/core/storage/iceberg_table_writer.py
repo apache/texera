@@ -8,7 +8,7 @@ from typing import List, TypeVar, Callable, Iterable
 from core.storage.model.buffered_item_writer import BufferedItemWriter
 
 # Define a type variable for the data type T
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class IcebergTableWriter(BufferedItemWriter[T]):
@@ -16,9 +16,11 @@ class IcebergTableWriter(BufferedItemWriter[T]):
     IcebergTableWriter writes data to the given Iceberg table in an append-only way.
     - Each time the buffer is flushed, a new data file is created with a unique name.
     - The `writer_identifier` is used to prefix the created files.
-    - Iceberg data files are immutable once created. So each flush will create a distinct file.
+    - Iceberg data files are immutable once created. So each flush will create a
+    distinct file.
 
-    **Thread Safety**: This writer is NOT thread-safe, so only one thread should call this writer.
+    **Thread Safety**: This writer is NOT thread-safe, so only one thread should call
+    this writer.
 
     :param writer_identifier: A unique identifier used to prefix the created files.
     :param catalog: The Iceberg catalog to manage table metadata.
@@ -29,14 +31,14 @@ class IcebergTableWriter(BufferedItemWriter[T]):
     """
 
     def __init__(
-            self,
-            writer_identifier: str,
-            catalog: Catalog,
-            table_namespace: str,
-            table_name: str,
-            table_schema: pa.Schema,
-            serde: Callable[[Schema, Iterable[T]], pa.Table],
-            buffer_size: int = 4096  # Default buffer size TODO: move to config
+        self,
+        writer_identifier: str,
+        catalog: Catalog,
+        table_namespace: str,
+        table_name: str,
+        table_schema: pa.Schema,
+        serde: Callable[[Schema, Iterable[T]], pa.Table],
+        buffer_size: int = 4096,  # Default buffer size TODO: move to config
     ):
         self.writer_identifier = writer_identifier
         self.catalog = catalog
@@ -52,7 +54,9 @@ class IcebergTableWriter(BufferedItemWriter[T]):
         self.record_id = 0
 
         # Load the Iceberg table
-        self.table: Table = self.catalog.load_table(f"{self.table_namespace}.{self.table_name}")
+        self.table: Table = self.catalog.load_table(
+            f"{self.table_namespace}.{self.table_name}"
+        )
 
     @property
     def buffer_size(self) -> int:
@@ -79,16 +83,17 @@ class IcebergTableWriter(BufferedItemWriter[T]):
         df = self.serde(self.table_schema, self.buffer)
 
         def append_to_table_with_retry(pa_df: pa.Table) -> None:
-            """Appends a pyarrow dataframe to the table in the catalog using tenacity exponential backoff."""
+            """Appends a pyarrow dataframe to the table in the catalog using tenacity
+            exponential backoff."""
 
             @retry(
-                wait=wait_random(0.001, 0.1),
-                stop=stop_after_attempt(10),
-                reraise=True
+                wait=wait_random(0.001, 0.1), stop=stop_after_attempt(10), reraise=True
             )
             def append_with_retry():
                 self.table.refresh()
-                self.table.append(pa_df)  # <----- and this line, then Tenacity will retry.
+                self.table.append(
+                    pa_df
+                )  # <----- and this line, then Tenacity will retry.
                 self.filename_idx += 1
 
             append_with_retry()

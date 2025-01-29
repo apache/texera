@@ -1,11 +1,9 @@
-from pyiceberg.catalog.rest import RestCatalog
-from typing import Optional
-
 from pyiceberg.catalog import Catalog
 from pyiceberg.catalog.sql import SqlCatalog
+from typing import Optional
 
 # replace with actual path
-warehouse_path = "/Users/xzliu/IdeaProjects/texera/core/amber/user-resources/workflow-results"
+warehouse_path = "../../../../../core/amber/user-resources/workflow-results"
 
 
 class IcebergCatalogInstance:
@@ -15,28 +13,32 @@ class IcebergCatalogInstance:
     - Lazily initializes the catalog on first access.
     - Supports replacing the catalog instance for testing or reconfiguration.
     """
+
     _instance: Optional[Catalog] = None
 
     @classmethod
     def get_instance(cls):
         """
         Retrieves the singleton Iceberg catalog instance.
-        - If the catalog is not initialized, it is lazily created using the configured properties.
+        - If the catalog is not initialized, it is lazily created using the configured
+        properties.
         :return: the Iceberg catalog instance.
         """
         if cls._instance is None:
             cls._instance = SqlCatalog(
                 "texera_iceberg",
                 **{
-                    "uri": "postgresql+psycopg2://iceberg_py_test:test@localhost/test_iceberg_catalog_jan16",
+                    "uri": "postgresql+psycopg2://testdb:testuser@localhost/"
+                    "testpassword",
                     "warehouse": f"file://{warehouse_path}",
-                    "init_catalog_tables": "true"
-                }
+                    "init_catalog_tables": "true",
+                },
             )
             # cls._instance = RestCatalog(
             #     "texera_iceberg",
             #     **{
-            #         "uri": "postgresql+psycopg2://iceberg_py_test:test@localhost/test_iceberg_catalog_jan16",
+            #         "uri": "postgresql+psycopg2://iceberg_py_test:test@localhost/test_
+            #         iceberg_catalog_jan16",
             #         "warehouse": f"file://{warehouse_path}",
             #         "init_catalog_tables": "true"
             #     }

@@ -5,13 +5,15 @@ import io  # For InputStream equivalent
 import os  # For File equivalent
 
 # Define a type variable
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class ReadonlyVirtualDocument(ABC, Generic[T]):
     """
-    ReadonlyVirtualDocument provides an abstraction for read operations over a single resource.
-    This class can be implemented by resources that only need to support read-related functionality.
+    ReadonlyVirtualDocument provides an abstraction for read operations over a single
+    esource.
+    This class can be implemented by resources that only need to support read-related
+    functionality.
 
     :param T: the type of data that can be accessed via an index.
     """
@@ -44,7 +46,8 @@ class ReadonlyVirtualDocument(ABC, Generic[T]):
     @abstractmethod
     def get_range(self, from_index: int, until: int) -> Iterator[T]:
         """
-        Get an iterator of a sequence starting from index `from_index`, until index `until`.
+        Get an iterator of a sequence starting from index `from_index`, until index
+        `until`.
         :param from_index: the starting index (inclusive)
         :param until: the ending index (exclusive)
         :return: an iterator that returns data items of type T

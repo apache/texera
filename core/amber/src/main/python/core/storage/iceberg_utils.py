@@ -13,15 +13,16 @@ from core.models import ArrowTableTupleProvider, Tuple
 
 
 def create_table(
-        catalog: Catalog,
-        table_namespace: str,
-        table_name: str,
-        table_schema: Schema,
-        override_if_exists: bool = False
+    catalog: Catalog,
+    table_namespace: str,
+    table_name: str,
+    table_schema: Schema,
+    override_if_exists: bool = False,
 ) -> Table:
     """
     Creates a new Iceberg table with the specified schema and properties.
-    - Drops the existing table if `override_if_exists` is true and the table already exists.
+    - Drops the existing table if `override_if_exists` is true and the table already
+    exists.
     - Creates an unpartitioned table with custom commit retry properties.
 
     :param catalog: The Iceberg catalog to manage the table.
@@ -42,16 +43,14 @@ def create_table(
     table = catalog.create_table(
         identifier=identifier,
         schema=table_schema,
-        partition_spec=UNPARTITIONED_PARTITION_SPEC
+        partition_spec=UNPARTITIONED_PARTITION_SPEC,
     )
 
     return table
 
 
 def load_table_metadata(
-        catalog: Catalog,
-        table_namespace: str,
-        table_name: str
+    catalog: Catalog, table_namespace: str, table_name: str
 ) -> Optional[Table]:
     """
     Loads metadata for an existing Iceberg table.
@@ -70,17 +69,28 @@ def load_table_metadata(
         return None
 
 
-def read_data_file_as_arrow_table(planfile: pyiceberg.table.FileScanTask, iceberg_table: pyiceberg.table.Table) -> \
-        pa.Table:
+def read_data_file_as_arrow_table(
+    planfile: pyiceberg.table.FileScanTask, iceberg_table: pyiceberg.table.Table
+) -> pa.Table:
     """Reads a data file and returns an iterator over its records."""
     # arrow_table: pa.Table = ArrowScan(
-    #     iceberg_table.metadata, iceberg_table.io, iceberg_table.schema(), AlwaysTrue(), True
+    #     iceberg_table.metadata, iceberg_table.io, iceberg_table.schema(),
+    #     AlwaysTrue(), True
     # ).to_table([planfile])
-    arrow_table: pa.Table = project_table([planfile], iceberg_table.metadata, iceberg_table.io, AlwaysTrue(), iceberg_table.schema(), True)
+    arrow_table: pa.Table = project_table(
+        [planfile],
+        iceberg_table.metadata,
+        iceberg_table.io,
+        AlwaysTrue(),
+        iceberg_table.schema(),
+        True,
+    )
     return arrow_table
 
 
-def amber_tuples_to_arrow_table(iceberg_schema: Schema, tuple_list: Iterable[Tuple]) -> pa.Table:
+def amber_tuples_to_arrow_table(
+    iceberg_schema: Schema, tuple_list: Iterable[Tuple]
+) -> pa.Table:
     return pa.Table.from_pydict(
         {
             name: [t[name] for t in tuple_list]
@@ -90,12 +100,14 @@ def amber_tuples_to_arrow_table(iceberg_schema: Schema, tuple_list: Iterable[Tup
     )
 
 
-def arrow_table_to_amber_tuples(iceberg_schema: Schema, arrow_table: pa.Table) -> Iterable[Tuple]:
+def arrow_table_to_amber_tuples(
+    iceberg_schema: Schema, arrow_table: pa.Table
+) -> Iterable[Tuple]:
     tuple_provider = ArrowTableTupleProvider(arrow_table)
     return (
         Tuple(
             {name: field_accessor for name in arrow_table.column_names},
-            schema=core.models.Schema(iceberg_schema.as_arrow())
+            schema=core.models.Schema(iceberg_schema.as_arrow()),
         )
         for field_accessor in tuple_provider
     )

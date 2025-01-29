@@ -11,17 +11,21 @@ from readerwriterlock import rwlock
 
 from core.storage.iceberg_catalog_instance import IcebergCatalogInstance
 from core.storage.iceberg_table_writer import IcebergTableWriter
-from core.storage.iceberg_utils import load_table_metadata, read_data_file_as_arrow_table
+from core.storage.iceberg_utils import (
+    load_table_metadata,
+    read_data_file_as_arrow_table,
+)
 from core.storage.model.virtual_document import VirtualDocument
 
 # Define a type variable
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class IcebergDocument(VirtualDocument[T]):
     """
     IcebergDocument is used to read and write a set of T as an Iceberg table.
-    It provides iterator-based read methods and supports multiple writers to write to the same table.
+    It provides iterator-based read methods and supports multiple writers to write to
+    the same table.
 
     - On construction, the table will be created if it does not exist.
     - If the table exists, it will be overridden.
@@ -32,13 +36,13 @@ class IcebergDocument(VirtualDocument[T]):
     """
 
     def __init__(
-            self,
-            table_namespace: str,
-            table_name: str,
-            table_schema: Schema,
-            serde: Callable[[Schema, Iterable[T]], pa.Table],
-            deserde: Callable[[Schema, pa.Table], Iterable[T]],
-            catalog: Optional[Catalog] = None
+        self,
+        table_namespace: str,
+        table_name: str,
+        table_schema: Schema,
+        serde: Callable[[Schema, Iterable[T]], pa.Table],
+        deserde: Callable[[Schema, pa.Table], Iterable[T]],
+        catalog: Optional[Catalog] = None,
     ):
         self.table_namespace = table_namespace
         self.table_name = table_name
@@ -50,11 +54,7 @@ class IcebergDocument(VirtualDocument[T]):
         self.catalog = catalog or self._load_catalog()
 
         # Create or override the table during initialization
-        load_table_metadata(
-            self.catalog,
-            self.table_namespace,
-            self.table_name
-        )
+        load_table_metadata(self.catalog, self.table_namespace, self.table_name)
 
     def _load_catalog(self) -> Catalog:
         """Load the Iceberg catalog."""
@@ -65,7 +65,9 @@ class IcebergDocument(VirtualDocument[T]):
         """Returns the URI of the table location."""
         table = load_table_metadata(self.catalog, self.table_namespace, self.table_name)
         if not table:
-            raise Exception(f"table {self.table_namespace}.{self.table_name} doesn't exist.")
+            raise Exception(
+                f"table {self.table_namespace}.{self.table_name} doesn't exist."
+            )
         return urlparse(table.location())
 
     def clear(self):
@@ -102,11 +104,11 @@ class IcebergDocument(VirtualDocument[T]):
             table_namespace=self.table_namespace,
             table_name=self.table_name,
             table_schema=self.table_schema,
-            serde=self.serde
+            serde=self.serde,
         )
 
     def _get_using_file_sequence_order(
-            self, from_index: int, until: Optional[int]
+        self, from_index: int, until: Optional[int]
     ) -> Iterator[T]:
         """Utility to get records within a specified range."""
         with self.lock.gen_rlock():
@@ -117,13 +119,22 @@ class IcebergDocument(VirtualDocument[T]):
                 self.table_namespace,
                 self.table_name,
                 self.table_schema,
-                self.deserde
+                self.deserde,
             )
             return iterator
 
 
 class IcebergIterator(Iterator[T]):
-    def __init__(self, from_index, until, catalog, table_namespace, table_name, table_schema, deserde):
+    def __init__(
+        self,
+        from_index,
+        until,
+        catalog,
+        table_namespace,
+        table_name,
+        table_schema,
+        deserde,
+    ):
         self.from_index = from_index
         self.until = until
         self.catalog = catalog
@@ -134,7 +145,9 @@ class IcebergIterator(Iterator[T]):
         self.lock = RLock()
         self.num_of_skipped_records = 0
         self.num_of_returned_records = 0
-        self.total_records_to_return = self.until - self.from_index if until else float("inf")
+        self.total_records_to_return = (
+            self.until - self.from_index if until else float("inf")
+        )
         self.current_record_iterator = iter([])
         self.table = self._load_table_metadata()
         self.usable_file_iterator = self._seek_to_usable_file()
@@ -156,7 +169,8 @@ class IcebergIterator(Iterator[T]):
             if self.table:
                 try:
                     self.table.refresh()
-                    # self.table.inspect.entries() does not work with java files, need to implement the logic
+                    # self.table.inspect.entries() does not work with java files, need
+                    # to implement the logic
                     # to find file_sequence_number for each data file ourselves
                     file_sequence_map = {}
                     current_snapshot = self.table.current_snapshot()
@@ -164,19 +178,27 @@ class IcebergIterator(Iterator[T]):
                         return iter([])
                     for manifest in current_snapshot.manifests(self.table.io):
                         for entry in manifest.fetch_manifest_entry(io=self.table.io):
-                            file_sequence_map[entry.data_file.file_path] = entry.sequence_number
+                            file_sequence_map[entry.data_file.file_path] = (
+                                entry.sequence_number
+                            )
 
                     # Retrieve and sort the file scan tasks by file sequence number
                     file_scan_tasks = list(self.table.scan().plan_files())
-                    # Sort files by their sequence number. Files without a sequence number will be read last.
+                    # Sort files by their sequence number. Files without a sequence
+                    # number will be read last.
                     sorted_file_scan_tasks = sorted(
                         file_scan_tasks,
-                        key=lambda t: file_sequence_map.get(t.file.file_path, float('inf'))
+                        key=lambda t: file_sequence_map.get(
+                            t.file.file_path, float("inf")
+                        ),
                     )
                     # Skip records in files before the `from_index`
                     for task in sorted_file_scan_tasks:
                         record_count = task.file.record_count
-                        if self.num_of_skipped_records + record_count <= self.from_index:
+                        if (
+                            self.num_of_skipped_records + record_count
+                            <= self.from_index
+                        ):
                             self.num_of_skipped_records += record_count
                             continue
                         yield task
@@ -203,13 +225,16 @@ class IcebergIterator(Iterator[T]):
                 try:
                     next_file = next(self.usable_file_iterator)
                     arrow_table = read_data_file_as_arrow_table(next_file, self.table)
-                    self.current_record_iterator = self.deserde(self.table_schema, arrow_table)
+                    self.current_record_iterator = self.deserde(
+                        self.table_schema, arrow_table
+                    )
                     # Skip records within the file if necessary
-                    records_to_skip_in_file = self.from_index - self.num_of_skipped_records
+                    records_to_skip_in_file = (
+                        self.from_index - self.num_of_skipped_records
+                    )
                     if records_to_skip_in_file > 0:
                         self.current_record_iterator = self._skip_records(
-                            self.current_record_iterator,
-                            records_to_skip_in_file
+                            self.current_record_iterator, records_to_skip_in_file
                         )
                         self.num_of_skipped_records += records_to_skip_in_file
                 except StopIteration:

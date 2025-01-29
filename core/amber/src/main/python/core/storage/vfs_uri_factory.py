@@ -2,7 +2,12 @@ from enum import Enum
 from typing import Optional
 from urllib.parse import urlparse
 
-from proto.edu.uci.ics.amber.core import WorkflowIdentity, ExecutionIdentity, OperatorIdentity, PortIdentity
+from proto.edu.uci.ics.amber.core import (
+    WorkflowIdentity,
+    ExecutionIdentity,
+    OperatorIdentity,
+    PortIdentity,
+)
 
 
 class VFSResourceType(str, Enum):
@@ -14,7 +19,15 @@ class VFSURIFactory:
     VFS_FILE_URI_SCHEME = "vfs"
 
     @staticmethod
-    def decode_uri(uri: str) -> (WorkflowIdentity, ExecutionIdentity, Optional[OperatorIdentity], PortIdentity, VFSResourceType):
+    def decode_uri(
+        uri: str,
+    ) -> (
+        WorkflowIdentity,
+        ExecutionIdentity,
+        Optional[OperatorIdentity],
+        PortIdentity,
+        VFSResourceType,
+    ):
         parsed_uri = urlparse(uri)
 
         if parsed_uri.scheme != VFSURIFactory.VFS_FILE_URI_SCHEME:
@@ -57,24 +70,42 @@ class VFSURIFactory:
     @staticmethod
     def create_result_uri(workflow_id, execution_id, operator_id, port_identity) -> str:
         return VFSURIFactory.create_vfs_uri(
-            VFSResourceType.RESULT, workflow_id, execution_id, operator_id, port_identity
+            VFSResourceType.RESULT,
+            workflow_id,
+            execution_id,
+            operator_id,
+            port_identity,
         )
 
     @staticmethod
-    def create_materialized_result_uri(workflow_id, execution_id, operator_id, port_identity) -> str:
+    def create_materialized_result_uri(
+        workflow_id, execution_id, operator_id, port_identity
+    ) -> str:
         return VFSURIFactory.create_vfs_uri(
-            VFSResourceType.MATERIALIZED_RESULT, workflow_id, execution_id, operator_id, port_identity
+            VFSResourceType.MATERIALIZED_RESULT,
+            workflow_id,
+            execution_id,
+            operator_id,
+            port_identity,
         )
 
     @staticmethod
-    def create_vfs_uri(resource_type, workflow_id, execution_id, operator_id, port_identity=None) -> str:
-        if resource_type in (VFSResourceType.RESULT, VFSResourceType.MATERIALIZED_RESULT) and port_identity is None:
+    def create_vfs_uri(
+        resource_type, workflow_id, execution_id, operator_id, port_identity=None
+    ) -> str:
+        if (
+            resource_type
+            in (VFSResourceType.RESULT, VFSResourceType.MATERIALIZED_RESULT)
+            and port_identity is None
+        ):
             raise ValueError(
-                "PortIdentity must be provided when resourceType is RESULT or MATERIALIZED_RESULT."
+                "PortIdentity must be provided when resourceType is RESULT or "
+                "MATERIALIZED_RESULT."
             )
 
         base_uri = (
-            f"{VFSURIFactory.VFS_FILE_URI_SCHEME}:///wid/{workflow_id.id}/eid/{execution_id.id}/opid/{operator_id.id}"
+            f"{VFSURIFactory.VFS_FILE_URI_SCHEME}:///wid/{workflow_id.id}"
+            f"/eid/{execution_id.id}/opid/{operator_id.id}"
         )
 
         if port_identity is not None:
