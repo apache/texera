@@ -28,21 +28,12 @@ class IcebergCatalogInstance:
             cls._instance = SqlCatalog(
                 "texera_iceberg",
                 **{
-                    "uri": "postgresql+psycopg2://testdb:testuser@localhost/"
-                    "testpassword",
+                    "uri": "postgresql+psycopg2://testuser:testpassword@localhost/"
+                    "testdb",
                     "warehouse": f"file://{warehouse_path}",
                     "init_catalog_tables": "true",
                 },
             )
-            # cls._instance = RestCatalog(
-            #     "texera_iceberg",
-            #     **{
-            #         "uri": "postgresql+psycopg2://iceberg_py_test:test@localhost/test_
-            #         iceberg_catalog_jan16",
-            #         "warehouse": f"file://{warehouse_path}",
-            #         "init_catalog_tables": "true"
-            #     }
-            # )
         return cls._instance
 
     @classmethod
