@@ -35,7 +35,7 @@ def create_table(
 
     identifier = f"{table_namespace}.{table_name}"
 
-    # catalog.create_namespace_if_not_exists(table_namespace)
+    catalog.create_namespace_if_not_exists(table_namespace)
 
     if catalog.table_exists(identifier) and override_if_exists:
         catalog.drop_table(identifier)
