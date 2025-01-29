@@ -27,8 +27,8 @@ class IcebergCatalogInstance:
             cls._instance = SqlCatalog(
                 "texera_iceberg",
                 **{
-                    "uri": "postgresql+psycopg2://texera_iceberg_admin:password@localhost/"
-                    "texera_iceberg_catalog",
+                    "uri": "postgresql+psycopg2://texera_iceberg_admin:"
+                           "password@localhost/texera_iceberg_catalog",
                     "warehouse": f"file://{warehouse_path}",
                     "init_catalog_tables": "true",
                 },
