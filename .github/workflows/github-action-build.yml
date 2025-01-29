@@ -117,11 +117,7 @@ jobs:
         run: sudo systemctl start postgresql
       - name: Create Database and User
         run: |
-          sudo -u postgres psql -c "CREATE DATABASE testdb;"
-          sudo -u postgres psql -c "CREATE USER testuser WITH ENCRYPTED PASSWORD 'testpassword';"
-          sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE testdb TO testuser;"
-          sudo -u postgres psql -c "ALTER DATABASE testdb OWNER TO testuser;"
-          sudo -u postgres psql -d testdb -c "GRANT ALL ON SCHEMA public TO testuser;"
+          cd core/scripts/sql && sudo -u postgres psql -f iceberg_postgres_catalog.sql
       - name: Lint with flake8 and black
         run: |
           cd core/amber/src/main/python && flake8 && black . --check

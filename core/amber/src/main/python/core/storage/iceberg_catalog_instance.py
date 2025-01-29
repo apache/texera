@@ -2,7 +2,6 @@ from pyiceberg.catalog import Catalog
 from pyiceberg.catalog.sql import SqlCatalog
 from typing import Optional
 
-# replace with actual path
 warehouse_path = "../../../../../core/amber/user-resources/workflow-results"
 
 
@@ -28,8 +27,8 @@ class IcebergCatalogInstance:
             cls._instance = SqlCatalog(
                 "texera_iceberg",
                 **{
-                    "uri": "postgresql+psycopg2://testuser:testpassword@localhost/"
-                    "testdb",
+                    "uri": "postgresql+psycopg2://texera_iceberg_admin:password@localhost/"
+                    "texera_iceberg_catalog",
                     "warehouse": f"file://{warehouse_path}",
                     "init_catalog_tables": "true",
                 },
