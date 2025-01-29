@@ -22,7 +22,7 @@ class SplitOpDesc extends LogicalOp {
   @JsonPropertyDescription("percentage of data going to the upper port")
   var k: Int = 80
 
-  @JsonSchemaTitle("Random Shuffle")
+  @JsonSchemaTitle("Auto-Generate Seed")
   @JsonPropertyDescription("Shuffle the data based on a random seed")
   @JsonProperty(defaultValue = "true")
   var random: Boolean = true
