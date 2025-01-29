@@ -24,8 +24,8 @@ class VFSURIFactory:
     ) -> (
         WorkflowIdentity,
         ExecutionIdentity,
-        Optional[OperatorIdentity],
-        PortIdentity,
+        OperatorIdentity,
+        Optional[PortIdentity],
         VFSResourceType,
     ):
         parsed_uri = urlparse(uri)
@@ -46,18 +46,7 @@ class VFSURIFactory:
         execution_id = ExecutionIdentity(int(extract_value("eid")))
         operator_id = OperatorIdentity(extract_value("opid"))
 
-        port_identity = None
-        if "pid" in segments:
-            try:
-                pid_index = segments.index("pid")
-                port_id_str, port_type = segments[pid_index + 1].split("_")
-                port_id = int(port_id_str)
-                if port_type != "I" and port_type != "E":
-                    raise ValueError(f"Invalid port type: {port_type} in URI: {uri}")
-                is_internal = port_type == "I"
-                port_identity = PortIdentity(port_id, is_internal)
-            except (ValueError, IndexError):
-                raise ValueError(f"Invalid port information in URI: {uri}")
+        port_identity = VFSURIFactory._extract_optional_port_identity(segments, uri)
 
         resource_type_str = segments[-1].lower()
         try:
@@ -66,6 +55,22 @@ class VFSURIFactory:
             raise ValueError(f"Unknown resource type: {resource_type_str}")
 
         return workflow_id, execution_id, operator_id, port_identity, resource_type
+
+    @staticmethod
+    def _extract_optional_port_identity(segments, uri):
+        if "pid" in segments:
+            try:
+                pid_index = segments.index("pid")
+                port_id_str, port_type = segments[pid_index + 1].split("_")
+                port_id = int(port_id_str)
+                if port_type != "I" and port_type != "E":
+                    raise ValueError(f"Invalid port type: {port_type} in URI: {uri}")
+                is_internal = port_type == "I"
+                return PortIdentity(port_id, is_internal)
+            except (ValueError, IndexError):
+                raise ValueError(f"Invalid port information in URI: {uri}")
+        else:
+            return None
 
     @staticmethod
     def create_result_uri(workflow_id, execution_id, operator_id, port_identity) -> str:

@@ -170,25 +170,11 @@ class IcebergIterator(Iterator[T]):
                     # self.table.inspect.entries() does not work with java files, need
                     # to implement the logic
                     # to find file_sequence_number for each data file ourselves
-                    file_sequence_map = {}
                     current_snapshot = self.table.current_snapshot()
                     if current_snapshot is None:
                         return iter([])
-                    for manifest in current_snapshot.manifests(self.table.io):
-                        for entry in manifest.fetch_manifest_entry(io=self.table.io):
-                            file_sequence_map[entry.data_file.file_path] = (
-                                entry.sequence_number
-                            )
-
-                    # Retrieve and sort the file scan tasks by file sequence number
-                    file_scan_tasks = list(self.table.scan().plan_files())
-                    # Sort files by their sequence number. Files without a sequence
-                    # number will be read last.
-                    sorted_file_scan_tasks = sorted(
-                        file_scan_tasks,
-                        key=lambda t: file_sequence_map.get(
-                            t.file.file_path, float("inf")
-                        ),
+                    sorted_file_scan_tasks = self._extract_sorted_file_scan_tasks(
+                        current_snapshot
                     )
                     # Skip records in files before the `from_index`
                     for task in sorted_file_scan_tasks:
@@ -205,6 +191,21 @@ class IcebergIterator(Iterator[T]):
                     raise Exception
             else:
                 return iter([])
+
+    def _extract_sorted_file_scan_tasks(self, current_snapshot):
+        file_sequence_map = {}
+        for manifest in current_snapshot.manifests(self.table.io):
+            for entry in manifest.fetch_manifest_entry(io=self.table.io):
+                file_sequence_map[entry.data_file.file_path] = entry.sequence_number
+        # Retrieve and sort the file scan tasks by file sequence number
+        file_scan_tasks = list(self.table.scan().plan_files())
+        # Sort files by their sequence number. Files without a sequence
+        # number will be read last.
+        sorted_file_scan_tasks = sorted(
+            file_scan_tasks,
+            key=lambda t: file_sequence_map.get(t.file.file_path, float("inf")),
+        )
+        return sorted_file_scan_tasks
 
     def __iter__(self) -> Iterator[T]:
         return self

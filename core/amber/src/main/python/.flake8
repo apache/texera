@@ -5,5 +5,5 @@ extend-ignore =
     E203,
 exclude =
     proto,
-max-complexity = 11
+max-complexity = 10
 max-line-length = 88
