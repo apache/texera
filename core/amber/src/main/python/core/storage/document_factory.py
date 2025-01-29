@@ -12,6 +12,7 @@ from core.storage.iceberg_utils import (
     load_table_metadata,
 )
 from core.storage.model.virtual_document import VirtualDocument
+from core.storage.storage_config import StorageConfig
 from core.storage.vfs_uri_factory import VFSURIFactory, VFSResourceType
 
 
@@ -39,14 +40,14 @@ class DocumentFactory:
 
                 create_table(
                     IcebergCatalogInstance.get_instance(),
-                    "operator-result",
+                    StorageConfig.ICEBERG_TABLE_NAMESPACE,
                     storage_key,
                     iceberg_schema,
                     override_if_exists=True,
                 )
 
                 return IcebergDocument[Tuple](
-                    "operator-result",
+                    StorageConfig.ICEBERG_TABLE_NAMESPACE,
                     storage_key,
                     iceberg_schema,
                     amber_tuples_to_arrow_table,
@@ -73,7 +74,7 @@ class DocumentFactory:
 
                 table = load_table_metadata(
                     IcebergCatalogInstance.get_instance(),
-                    "operator-result",
+                    StorageConfig.ICEBERG_TABLE_NAMESPACE,
                     storage_key,
                 )
 
@@ -83,7 +84,7 @@ class DocumentFactory:
                 amber_schema = Schema(table.schema().as_arrow())
 
                 document = IcebergDocument(
-                    "operator-result",
+                    StorageConfig.ICEBERG_TABLE_NAMESPACE,
                     storage_key,
                     table.schema(),
                     amber_tuples_to_arrow_table,

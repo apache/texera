@@ -1,6 +1,7 @@
 import pyarrow as pa
 import pyiceberg.table
 from pyiceberg.catalog import Catalog
+from pyiceberg.catalog.sql import SqlCatalog
 from pyiceberg.expressions import AlwaysTrue
 from pyiceberg.io.pyarrow import project_table
 from pyiceberg.partitioning import UNPARTITIONED_PARTITION_SPEC
@@ -10,6 +11,19 @@ from typing import Optional, Iterable
 
 import core
 from core.models import ArrowTableTupleProvider, Tuple
+
+
+def create_postgres_catalog(
+    catalog_name: str, warehouse_path: str, username: str, password: str
+) -> SqlCatalog:
+    return SqlCatalog(
+        catalog_name,
+        **{
+            "uri": f"postgresql+psycopg2://{username}:"
+            f"{password}@localhost/texera_iceberg_catalog",
+            "warehouse": f"file://{warehouse_path}",
+        },
+    )
 
 
 def create_table(

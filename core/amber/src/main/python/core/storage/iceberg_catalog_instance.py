@@ -1,8 +1,8 @@
 from pyiceberg.catalog import Catalog
-from pyiceberg.catalog.sql import SqlCatalog
 from typing import Optional
 
-warehouse_path = "../../../../../core/amber/user-resources/workflow-results"
+from core.storage.iceberg_utils import create_postgres_catalog
+from core.storage.storage_config import StorageConfig
 
 
 class IcebergCatalogInstance:
@@ -24,14 +24,11 @@ class IcebergCatalogInstance:
         :return: the Iceberg catalog instance.
         """
         if cls._instance is None:
-            cls._instance = SqlCatalog(
+            cls._instance = create_postgres_catalog(
                 "texera_iceberg",
-                **{
-                    "uri": "postgresql+psycopg2://texera_iceberg_admin:"
-                    "password@localhost/texera_iceberg_catalog",
-                    "warehouse": f"file://{warehouse_path}",
-                    "init_catalog_tables": "true",
-                },
+                StorageConfig.ICEBERG_FILE_STORAGE_DIRECTORY_PATH,
+                StorageConfig.ICEBERG_POSTGRES_CATALOG_USERNAME,
+                StorageConfig.ICEBERG_POSTGRES_CATALOG_PASSWORD,
             )
         return cls._instance
 

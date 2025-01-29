@@ -42,7 +42,6 @@ class IcebergDocument(VirtualDocument[T]):
         table_schema: Schema,
         serde: Callable[[Schema, Iterable[T]], pa.Table],
         deserde: Callable[[Schema, pa.Table], Iterable[T]],
-        catalog: Optional[Catalog] = None,
     ):
         self.table_namespace = table_namespace
         self.table_name = table_name
@@ -51,14 +50,13 @@ class IcebergDocument(VirtualDocument[T]):
         self.deserde = deserde
 
         self.lock = rwlock.RWLockFair()
-        self.catalog = catalog or self._load_catalog()
+        self.catalog = self._load_catalog()
 
         # Create or override the table during initialization
         load_table_metadata(self.catalog, self.table_namespace, self.table_name)
 
     def _load_catalog(self) -> Catalog:
         """Load the Iceberg catalog."""
-        # Implement catalog loading logic here, e.g., load from configuration
         return IcebergCatalogInstance.get_instance()
 
     def get_uri(self) -> ParseResult:

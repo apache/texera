@@ -6,6 +6,7 @@ from tenacity import retry, stop_after_attempt, wait_random
 from typing import List, TypeVar, Callable, Iterable
 
 from core.storage.model.buffered_item_writer import BufferedItemWriter
+from core.storage.storage_config import StorageConfig
 
 # Define a type variable for the data type T
 T = TypeVar("T")
@@ -38,7 +39,6 @@ class IcebergTableWriter(BufferedItemWriter[T]):
         table_name: str,
         table_schema: pa.Schema,
         serde: Callable[[Schema, Iterable[T]], pa.Table],
-        buffer_size: int = 4096,  # Default buffer size TODO: move to config
     ):
         self.writer_identifier = writer_identifier
         self.catalog = catalog
@@ -46,7 +46,7 @@ class IcebergTableWriter(BufferedItemWriter[T]):
         self.table_name = table_name
         self.table_schema = table_schema
         self.serde = serde
-        self.buffer_size = buffer_size
+        self.buffer_size = StorageConfig.ICEBERG_TABLE_COMMIT_BATCH_SIZE
 
         # Internal state
         self.buffer: List[T] = []
