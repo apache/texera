@@ -9,9 +9,9 @@ from pyiceberg.schema import Schema
 from pyiceberg.table import Table, FileScanTask
 from readerwriterlock import rwlock
 
-from core.storage.iceberg_catalog_instance import IcebergCatalogInstance
-from core.storage.iceberg_table_writer import IcebergTableWriter
-from core.storage.iceberg_utils import (
+from core.storage.iceberg.iceberg_catalog_instance import IcebergCatalogInstance
+from core.storage.iceberg.iceberg_table_writer import IcebergTableWriter
+from core.storage.iceberg.iceberg_utils import (
     load_table_metadata,
     read_data_file_as_arrow_table,
 )

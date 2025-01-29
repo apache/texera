@@ -21,7 +21,7 @@ StorageConfig.initialize(
     postgres_username="texera_iceberg_admin",
     postgres_password="password",
     table_namespace="operator-port-result",
-    directory_path="../../../../../core/amber/user-resources/workflow-results",
+    directory_path="../../../../../../core/amber/user-resources/workflow-results",
     commit_batch_size=4096,
 )
 

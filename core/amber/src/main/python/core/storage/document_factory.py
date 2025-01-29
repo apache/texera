@@ -3,9 +3,9 @@ from urllib.parse import urlparse
 from typing import Optional
 
 from core.models import Schema, Tuple
-from core.storage.iceberg_catalog_instance import IcebergCatalogInstance
-from core.storage.iceberg_document import IcebergDocument
-from core.storage.iceberg_utils import (
+from core.storage.iceberg.iceberg_catalog_instance import IcebergCatalogInstance
+from core.storage.iceberg.iceberg_document import IcebergDocument
+from core.storage.iceberg.iceberg_utils import (
     create_table,
     amber_tuples_to_arrow_table,
     arrow_table_to_amber_tuples,
