@@ -8,6 +8,7 @@ from core.storage.storage_config import StorageConfig
 class IcebergCatalogInstance:
     """
     IcebergCatalogInstance is a singleton that manages the Iceberg catalog instance.
+    Currently only postgres SQL catalog is supported.
     - Provides a single shared catalog for all Iceberg table-related operations.
     - Lazily initializes the catalog on first access.
     - Supports replacing the catalog instance for testing or reconfiguration.

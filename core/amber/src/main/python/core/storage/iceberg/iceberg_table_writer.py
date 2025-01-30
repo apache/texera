@@ -15,8 +15,7 @@ T = TypeVar("T")
 class IcebergTableWriter(BufferedItemWriter[T]):
     """
     IcebergTableWriter writes data to the given Iceberg table in an append-only way.
-    - Each time the buffer is flushed, a new data file is created with a unique name.
-    - The `writer_identifier` is used to prefix the created files.
+    - Each time the buffer is flushed, a new data file is created using pyarrow
     - Iceberg data files are immutable once created. So each flush will create a
     distinct file.
 
@@ -49,8 +48,6 @@ class IcebergTableWriter(BufferedItemWriter[T]):
 
         # Internal state
         self.buffer: List[T] = []
-        self.filename_idx = 0
-        self.record_id = 0
 
         # Load the Iceberg table
         self.table: Table = self.catalog.load_table(
@@ -69,22 +66,26 @@ class IcebergTableWriter(BufferedItemWriter[T]):
         """Add a single item to the buffer."""
         self.buffer.append(item)
         if len(self.buffer) >= self.buffer_size:
-            self.flush_buffer()
+            self._flush_buffer()
 
     def remove_one(self, item: T) -> None:
         """Remove a single item from the buffer."""
         self.buffer.remove(item)
 
-    def flush_buffer(self) -> None:
-        """Flush the current buffer to a new Iceberg data file."""
+    def _flush_buffer(self) -> None:
+        """
+        Flush the current buffer to a new Iceberg data file. The buffer is first
+        converted to a pyarrow table, and then appended to the iceberg table as a
+        parquet file. Note in the case of concurrent writers, as iceberg uses
+        optimistic concurrency control, we use a random exponential backoff mechanism
+        when commit failure happens because currently pyiceberg does not natively
+        support retry.
+        """
         if not self.buffer:
             return
         df = self.serde(self.table_schema, self.buffer)
 
         def append_to_table_with_retry(pa_df: pa.Table) -> None:
-            """Appends a pyarrow dataframe to the table in the catalog using tenacity
-            random exponential backoff."""
-
             @retry(
                 wait=wait_random_exponential(0.001, 10),
                 stop=stop_after_attempt(10),
@@ -92,10 +93,7 @@ class IcebergTableWriter(BufferedItemWriter[T]):
             )
             def append_with_retry():
                 self.table.refresh()
-                self.table.append(
-                    pa_df
-                )  # <----- and this line, then Tenacity will retry.
-                self.filename_idx += 1
+                self.table.append(pa_df)
 
             append_with_retry()
 
@@ -105,7 +103,7 @@ class IcebergTableWriter(BufferedItemWriter[T]):
     def close(self) -> None:
         """Close the writer, ensuring any remaining buffered items are flushed."""
         if self.buffer:
-            self.flush_buffer()
+            self._flush_buffer()
 
     @buffer_size.setter
     def buffer_size(self, value):

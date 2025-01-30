@@ -11,8 +11,6 @@ class BufferedItemWriter(ABC, Generic[T]):
     performing I/O operations.
     The items are buffered before being written to the underlying storage to
     optimize performance.
-
-    :param T: the type of data items to be written.
     """
 
     @property

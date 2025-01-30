@@ -17,6 +17,10 @@ from core.storage.vfs_uri_factory import VFSURIFactory, VFSResourceType
 
 
 class DocumentFactory:
+    """
+    Factory class to create and open documents.
+    Currently only iceberg documents are supported.
+    """
 
     ICEBERG = "iceberg"
 

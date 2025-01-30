@@ -3,7 +3,7 @@ import pyiceberg.table
 from pyiceberg.catalog import Catalog
 from pyiceberg.catalog.sql import SqlCatalog
 from pyiceberg.expressions import AlwaysTrue
-from pyiceberg.io.pyarrow import project_table
+from pyiceberg.io.pyarrow import ArrowScan
 from pyiceberg.partitioning import UNPARTITIONED_PARTITION_SPEC
 from pyiceberg.schema import Schema
 from pyiceberg.table import Table
@@ -16,6 +16,17 @@ from core.models import ArrowTableTupleProvider, Tuple
 def create_postgres_catalog(
     catalog_name: str, warehouse_path: str, username: str, password: str
 ) -> SqlCatalog:
+    """
+    Creates a Postgres SQL catalog instance by connecting to the database named
+    "texera_iceberg_catalog".
+    - The only requirement of the database is that it already exists. Once pyiceberg
+    can connect to the database, it will handle the initializations.
+    :param catalog_name: the name of the catalog.
+    :param warehouse_path: the root path for the warehouse where the tables are stored.
+    :param username: the username of the postgres database.
+    :param password: the password of the postgres database.
+    :return: a SQLCatalog instance.
+    """
     return SqlCatalog(
         catalog_name,
         **{
@@ -76,7 +87,7 @@ def load_table_metadata(
     :param table_name: The name of the table.
     :return: The table if found, or None if not found.
     """
-    identifier = f"{table_namespace}.{table_name}"  # Construct table identifier
+    identifier = f"{table_namespace}.{table_name}"
     try:
         return catalog.load_table(identifier)
     except Exception:
@@ -86,25 +97,23 @@ def load_table_metadata(
 def read_data_file_as_arrow_table(
     planfile: pyiceberg.table.FileScanTask, iceberg_table: pyiceberg.table.Table
 ) -> pa.Table:
-    """Reads a data file and returns an iterator over its records."""
-    # arrow_table: pa.Table = ArrowScan(
-    #     iceberg_table.metadata, iceberg_table.io, iceberg_table.schema(),
-    #     AlwaysTrue(), True
-    # ).to_table([planfile])
-    arrow_table: pa.Table = project_table(
-        [planfile],
+    """Reads a data file as a pyarrow table and returns an iterator over its records."""
+    arrow_table: pa.Table = ArrowScan(
         iceberg_table.metadata,
         iceberg_table.io,
-        AlwaysTrue(),
         iceberg_table.schema(),
+        AlwaysTrue(),
         True,
-    )
+    ).to_table([planfile])
     return arrow_table
 
 
 def amber_tuples_to_arrow_table(
     iceberg_schema: Schema, tuple_list: Iterable[Tuple]
 ) -> pa.Table:
+    """
+    Converts a list of amber tuples to a pyarrow table for serialization.
+    """
     return pa.Table.from_pydict(
         {
             name: [t[name] for t in tuple_list]
@@ -117,6 +126,9 @@ def amber_tuples_to_arrow_table(
 def arrow_table_to_amber_tuples(
     iceberg_schema: Schema, arrow_table: pa.Table
 ) -> Iterable[Tuple]:
+    """
+    Converts an arrow table to a list of amber tuples for deserialization.
+    """
     tuple_provider = ArrowTableTupleProvider(arrow_table)
     return (
         Tuple(

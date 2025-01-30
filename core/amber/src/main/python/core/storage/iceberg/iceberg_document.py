@@ -33,6 +33,9 @@ class IcebergDocument(VirtualDocument[T]):
     :param table_namespace: Namespace of the table.
     :param table_name: Name of the table.
     :param table_schema: Schema of the table.
+    :param serde: A function to convert a T iterable into a pyarrow Table. Note the
+    conversion is not based on a single T item (unlike Texera's Java IcebergDocument.)
+    :param deserde: A function to convert a pyarrow Table back into a T iterable.
     """
 
     def __init__(
@@ -50,14 +53,7 @@ class IcebergDocument(VirtualDocument[T]):
         self.deserde = deserde
 
         self.lock = rwlock.RWLockFair()
-        self.catalog = self._load_catalog()
-
-        # Create or override the table during initialization
-        load_table_metadata(self.catalog, self.table_namespace, self.table_name)
-
-    def _load_catalog(self) -> Catalog:
-        """Load the Iceberg catalog."""
-        return IcebergCatalogInstance.get_instance()
+        self.catalog = IcebergCatalogInstance.get_instance()
 
     def get_uri(self) -> ParseResult:
         """Returns the URI of the table location."""
@@ -79,9 +75,9 @@ class IcebergDocument(VirtualDocument[T]):
         """Get an iterator for reading all records from the table."""
         return self._get_using_file_sequence_order(0, None)
 
-    def get_range(self, from_index: int, until: int) -> Iterator[T]:
+    def get_range(self, from_index: int, until_index: int) -> Iterator[T]:
         """Get records within a specified range [from, until)."""
-        return self._get_using_file_sequence_order(from_index, until)
+        return self._get_using_file_sequence_order(from_index, until_index)
 
     def get_after(self, offset: int) -> Iterator[T]:
         """Get records starting after a specified offset."""
@@ -95,8 +91,13 @@ class IcebergDocument(VirtualDocument[T]):
         return sum(f.file.record_count for f in table.scan().plan_files())
 
     def writer(self, writer_identifier: str):
-        """Creates a BufferedItemWriter for writing data to the table."""
-        return IcebergTableWriter(
+        """
+        Creates a BufferedItemWriter for writing data to the table.
+        :param writer_identifier: The writer's ID. It should be unique within the same
+        table, as each writer will use it as the prefix of the files they append
+        :return: An IcebergTableWriter
+        """
+        return IcebergTableWriter[T](
             writer_identifier=writer_identifier,
             catalog=self.catalog,
             table_namespace=self.table_namespace,
@@ -106,52 +107,61 @@ class IcebergDocument(VirtualDocument[T]):
         )
 
     def _get_using_file_sequence_order(
-        self, from_index: int, until: Optional[int]
+        self, from_index: int, until_index: Optional[int]
     ) -> Iterator[T]:
         """Utility to get records within a specified range."""
         with self.lock.gen_rlock():
-            iterator = IcebergIterator(
+            return IcebergIterator[T](
                 from_index,
-                until,
+                until_index,
                 self.catalog,
                 self.table_namespace,
                 self.table_name,
                 self.table_schema,
                 self.deserde,
             )
-            return iterator
 
 
 class IcebergIterator(Iterator[T]):
+    """
+    A custom iterator class to read items from an iceberg table based on an index range.
+    """
+
     def __init__(
         self,
-        from_index,
-        until,
-        catalog,
-        table_namespace,
-        table_name,
-        table_schema,
-        deserde,
+        from_index: int,
+        until_index: int,
+        catalog: Catalog,
+        table_namespace: str,
+        table_name: str,
+        table_schema: Schema,
+        deserde: Callable[[Schema, pa.Table], Iterable[T]],
     ):
         self.from_index = from_index
-        self.until = until
+        self.until_index = until_index
         self.catalog = catalog
         self.table_namespace = table_namespace
         self.table_name = table_name
         self.table_schema = table_schema
         self.deserde = deserde
         self.lock = RLock()
+        # Counter for how many records have been skipped
         self.num_of_skipped_records = 0
+        # Counter for how many records have been returned
         self.num_of_returned_records = 0
+        # Total number of records to return, used for termination condition
         self.total_records_to_return = (
-            self.until - self.from_index if until else float("inf")
+            self.until_index - self.from_index if until_index else float("inf")
         )
-        self.current_record_iterator = iter([])
+        # Load the table instance, initially the table instance may not exist
         self.table = self._load_table_metadata()
+        # Iterator for usable file scan tasks
         self.usable_file_iterator = self._seek_to_usable_file()
+        # Current record iterator for the active file
+        self.current_record_iterator = iter([])
 
     def _load_table_metadata(self) -> Optional[Table]:
-        """Load table metadata."""
+        """Util function to load the table's metadata."""
         return load_table_metadata(self.catalog, self.table_namespace, self.table_name)
 
     def _seek_to_usable_file(self) -> Iterator[FileScanTask]:
@@ -160,16 +170,14 @@ class IcebergIterator(Iterator[T]):
             if self.num_of_skipped_records > self.from_index:
                 raise RuntimeError("seek operation should not be called")
 
-            # Refresh table snapshots
+            # Load the table for the first time
             if not self.table:
                 self.table = self._load_table_metadata()
 
+            # If the table still does not exist after loading, end iterator.
             if self.table:
                 try:
                     self.table.refresh()
-                    # self.table.inspect.entries() does not work with java files, need
-                    # to implement the logic
-                    # to find file_sequence_number for each data file ourselves
                     current_snapshot = self.table.current_snapshot()
                     if current_snapshot is None:
                         return iter([])
@@ -193,6 +201,12 @@ class IcebergIterator(Iterator[T]):
                 return iter([])
 
     def _extract_sorted_file_scan_tasks(self, current_snapshot):
+        """
+        As self.table.inspect.entries() does not work with java files, this method
+        implements the logic to find file_sequence_number for each data file ourselves
+        :param current_snapshot: The current snapshot of the table.
+        :return: The file scan tasks of the file sorted by file_sequence_number
+        """
         file_sequence_map = {}
         for manifest in current_snapshot.manifests(self.table.io):
             for entry in manifest.fetch_manifest_entry(io=self.table.io):

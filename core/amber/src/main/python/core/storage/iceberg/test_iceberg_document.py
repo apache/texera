@@ -17,6 +17,7 @@ from proto.edu.uci.ics.amber.core import (
     PortIdentity,
 )
 
+# Hardcoded storage config only for test purposes.
 StorageConfig.initialize(
     postgres_username="texera_iceberg_admin",
     postgres_password="password",
@@ -26,15 +27,11 @@ StorageConfig.initialize(
 )
 
 
-# Function to generate random binary data
-def generate_random_binary(size):
-    return bytearray(random.getrandbits(8) for _ in range(size))
-
-
 class TestIcebergDocument:
 
     @pytest.fixture
     def amber_schema(self):
+        """Sample Amber schema"""
         return Schema(
             raw_schema={
                 "col-string": "STRING",
@@ -49,6 +46,10 @@ class TestIcebergDocument:
 
     @pytest.fixture
     def iceberg_document(self, amber_schema):
+        """
+        Creates an iceberg document of operator port results using the sample schema
+        with a random operator id
+        """
         operator_uuid = str(uuid.uuid4()).replace("-", "")
         uri = VFSURIFactory.create_result_uri(
             WorkflowIdentity(id=0),
@@ -62,6 +63,9 @@ class TestIcebergDocument:
 
     @pytest.fixture
     def sample_items(self, amber_schema) -> [Tuple]:
+        """
+        Generates a list of sample tuples
+        """
         base_tuples = [
             Tuple(
                 {
@@ -101,6 +105,10 @@ class TestIcebergDocument:
             ),
         ]
 
+        # Function to generate random binary data
+        def generate_random_binary(size):
+            return bytearray(random.getrandbits(8) for _ in range(size))
+
         # Generate additional tuples
         additional_tuples = [
             Tuple(
@@ -127,6 +135,9 @@ class TestIcebergDocument:
         return base_tuples + additional_tuples
 
     def test_basic_read_and_write(self, iceberg_document, sample_items):
+        """
+        Create an iceberg document, write sample items, and read it back.
+        """
         writer = iceberg_document.writer(str(uuid.uuid4()))
         writer.open()
         for item in sample_items:
@@ -136,6 +147,9 @@ class TestIcebergDocument:
         assert sample_items == retrieved_items
 
     def test_clear_document(self, iceberg_document, sample_items):
+        """
+        Create an iceberg document, write sample items, and clear the document.
+        """
         writer = iceberg_document.writer(str(uuid.uuid4()))
         writer.open()
         for item in sample_items:
@@ -147,10 +161,16 @@ class TestIcebergDocument:
         assert len(list(iceberg_document.get())) == 0
 
     def test_handle_empty_read(self, iceberg_document):
+        """
+        The iceberg document should handle empty reads gracefully
+        """
         retrieved_items = list(iceberg_document.get())
         assert retrieved_items == []
 
     def test_concurrent_writes_followed_by_read(self, iceberg_document, sample_items):
+        """
+        Tests multiple concurrent writers writing to the same iceberg document
+        """
         all_items = sample_items
         num_writers = 10
         # Calculate the batch size and the remainder
@@ -193,6 +213,9 @@ class TestIcebergDocument:
         ), "All items should be read correctly after concurrent writes."
 
     def test_read_using_range(self, iceberg_document, sample_items):
+        """
+        The iceberg document should read all items using rages correctly.
+        """
         writer = iceberg_document.writer(str(uuid.uuid4()))
         writer.open()
         for item in sample_items:
@@ -221,6 +244,9 @@ class TestIcebergDocument:
         ), "All items should be retrieved correctly using ranges."
 
     def test_get_after(self, iceberg_document, sample_items):
+        """
+        The iceberg document should retrieve items correctly using get_after
+        """
         writer = iceberg_document.writer(str(uuid.uuid4()))
         writer.open()
         for item in sample_items:
@@ -249,6 +275,9 @@ class TestIcebergDocument:
         )
 
     def test_get_counts(self, iceberg_document, sample_items):
+        """
+        The iceberg document should correctly return the count of items.
+        """
         writer = iceberg_document.writer(str(uuid.uuid4()))
         writer.open()
         for item in sample_items:
@@ -257,4 +286,4 @@ class TestIcebergDocument:
 
         assert iceberg_document.get_count() == len(
             sample_items
-        ), "get_count should return the same number with allItems"
+        ), "get_count should return the same number as the length of sample_items"

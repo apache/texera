@@ -1,4 +1,10 @@
 class StorageConfig:
+    """
+    A static class to keep the storage-related configs.
+    This class should be initialized with the configs passed from Java side and
+    is used by all storage-related classes.
+    """
+
     _initialized = False
 
     ICEBERG_POSTGRES_CATALOG_USERNAME = None

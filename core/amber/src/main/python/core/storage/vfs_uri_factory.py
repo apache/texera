@@ -28,6 +28,9 @@ class VFSURIFactory:
         Optional[PortIdentity],
         VFSResourceType,
     ):
+        """
+        Parses a VFS URI and extracts its components.
+        """
         parsed_uri = urlparse(uri)
 
         if parsed_uri.scheme != VFSURIFactory.VFS_FILE_URI_SCHEME:
@@ -74,7 +77,8 @@ class VFSURIFactory:
 
     @staticmethod
     def create_result_uri(workflow_id, execution_id, operator_id, port_identity) -> str:
-        return VFSURIFactory.create_vfs_uri(
+        """Creates a URI pointing to a result storage."""
+        return VFSURIFactory._create_vfs_uri(
             VFSResourceType.RESULT,
             workflow_id,
             execution_id,
@@ -86,7 +90,8 @@ class VFSURIFactory:
     def create_materialized_result_uri(
         workflow_id, execution_id, operator_id, port_identity
     ) -> str:
-        return VFSURIFactory.create_vfs_uri(
+        """Creates a URI pointing to a materialized storage."""
+        return VFSURIFactory._create_vfs_uri(
             VFSResourceType.MATERIALIZED_RESULT,
             workflow_id,
             execution_id,
@@ -95,9 +100,10 @@ class VFSURIFactory:
         )
 
     @staticmethod
-    def create_vfs_uri(
+    def _create_vfs_uri(
         resource_type, workflow_id, execution_id, operator_id, port_identity=None
     ) -> str:
+        """Internal helper to create URI pointing to a VFS resource."""
         if (
             resource_type
             in (VFSResourceType.RESULT, VFSResourceType.MATERIALIZED_RESULT)
