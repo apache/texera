@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.util
 
-import edu.uci.ics.amber.core.storage.{IcebergCatalogInstance, StorageConfig}
+import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.amber.core.storage.result.iceberg.ResultTableStatistics
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.hadoop.conf.Configuration
@@ -116,8 +116,7 @@ object IcebergUtil {
     try {
       Some(catalog.loadTable(identifier))
     } catch {
-      case _: Exception =>
-        None
+      case _: Exception => None
     }
   }
 

@@ -309,7 +309,6 @@ class ExecutionResultService(
       OperatorIdentity(request.operatorID),
       PortIdentity()
     )
-    println(storageUri)
     val paginationIterable = {
       DocumentFactory
         .openDocument(storageUri)
