@@ -267,7 +267,6 @@ object IcebergUtil {
   }
 
   def getTableStatistics(table: Table): Map[String, Map[String, Any]] = {
-    val resultTableStatistics = new ResultTableStatistics(table)
-    resultTableStatistics.getTableStatistics
+    ResultTableStatistics.getTableStatistics(table)
   }
 }

@@ -20,14 +20,14 @@ import scala.collection.mutable
   *
   * @param table The Iceberg table to analyze.
   */
-class ResultTableStatistics(table: Table) {
+object ResultTableStatistics {
 
   /**
     * Computes metadata statistics for all fields in the Iceberg table.
     *
     * @return A `Map` where keys are field names and values are statistics (`min`, `max`, `not_null_count`).
     */
-  def getTableStatistics: Map[String, Map[String, Any]] = {
+  def getTableStatistics(table: Table): Map[String, Map[String, Any]] = {
     val schema = table.schema()
 
     val fieldTypes =
