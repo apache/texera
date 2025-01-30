@@ -15,13 +15,12 @@ import { AdminGuardService } from "./dashboard/service/admin/guard/admin-guard.s
 import { SearchComponent } from "./dashboard/component/user/search/search.component";
 import { FlarumComponent } from "./dashboard/component/user/flarum/flarum.component";
 import { AdminGmailComponent } from "./dashboard/component/admin/gmail/admin-gmail.component";
-import { UserDatasetExplorerComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-explorer.component";
+import { DatasetDetailComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/dataset-detail.component";
 import { UserDatasetComponent } from "./dashboard/component/user/user-dataset/user-dataset.component";
-import { HubWorkflowSearchComponent } from "./hub/component/workflow/search/hub-workflow-search.component";
-import { HubWorkflowComponent } from "./hub/component/workflow/hub-workflow.component";
 import { HubWorkflowDetailComponent } from "./hub/component/workflow/detail/hub-workflow-detail.component";
 import { LandingPageComponent } from "./hub/component/landing-page/landing-page.component";
 import { DASHBOARD_USER_WORKFLOW } from "./app-routing.constant";
+import { HubSearchResultComponent } from "./hub/component/hub-search-result/hub-search-result.component";
 
 const routes: Routes = [];
 
@@ -43,15 +42,27 @@ if (environment.userSystemEnabled) {
         children: [
           {
             path: "workflow",
-            component: HubWorkflowComponent,
             children: [
               {
                 path: "result",
-                component: HubWorkflowSearchComponent,
+                component: HubSearchResultComponent,
               },
               {
                 path: "result/detail/:id",
                 component: HubWorkflowDetailComponent,
+              },
+            ],
+          },
+          {
+            path: "dataset",
+            children: [
+              {
+                path: "result",
+                component: HubSearchResultComponent,
+              },
+              {
+                path: "result/detail/:did",
+                component: DatasetDetailComponent,
               },
             ],
           },
@@ -83,11 +94,11 @@ if (environment.userSystemEnabled) {
           },
           {
             path: "dataset/:did",
-            component: UserDatasetExplorerComponent,
+            component: DatasetDetailComponent,
           },
           {
             path: "dataset/create",
-            component: UserDatasetExplorerComponent,
+            component: DatasetDetailComponent,
           },
           {
             path: "quota",
