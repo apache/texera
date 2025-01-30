@@ -1,3 +1,4 @@
+from itertools import islice
 from threading import RLock
 from typing import Iterator, Optional, Callable, Iterable
 from typing import TypeVar
@@ -256,4 +257,4 @@ class IcebergIterator(Iterator[T]):
 
     @staticmethod
     def _skip_records(iterator, count):
-        return iter(list(iterator)[count:])
+        return islice(iterator, count, None)
