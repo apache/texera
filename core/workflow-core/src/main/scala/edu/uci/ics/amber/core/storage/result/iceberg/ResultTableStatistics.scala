@@ -17,13 +17,12 @@ import scala.collection.mutable
   * - **Numeric fields (Int, Long, Double)**: Computes `min` and `max`.
   * - **Date fields (Timestamp)**: Computes `min` and `max` (converted to `LocalDate`).
   * - **All fields**: Computes `not_null_count` (number of non-null values).
-  *
   */
 object ResultTableStatistics {
 
   /**
     * Computes metadata statistics for all fields in the Iceberg table.
-    * 
+    *
     * @param table The Iceberg table to analyze.
     *
     * @return A `Map` where keys are field names and values are statistics (`min`, `max`, `not_null_count`).
@@ -92,8 +91,7 @@ object ResultTableStatistics {
                 Conversions.fromByteBuffer(fieldType, buffer).asInstanceOf[Number].doubleValue()
               fieldStat("max") = Math.max(fieldStat("max").asInstanceOf[Double], maxValue)
             }
-          }
-          else if (
+          } else if (
             fieldType == Types.TimestampType.withoutZone() || fieldType == Types.TimestampType
               .withZone()
           ) {
