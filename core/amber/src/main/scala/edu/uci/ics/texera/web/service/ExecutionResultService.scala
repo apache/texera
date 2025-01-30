@@ -4,7 +4,7 @@ import akka.actor.Cancellable
 import com.fasterxml.jackson.annotation.{JsonTypeInfo, JsonTypeName}
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.core.storage.DocumentFactory.MONGODB
+import edu.uci.ics.amber.core.storage.DocumentFactory.{ICEBERG, MONGODB}
 import edu.uci.ics.amber.core.storage.VFSResourceType.MATERIALIZED_RESULT
 import edu.uci.ics.amber.core.storage.model.VirtualDocument
 import edu.uci.ics.amber.core.storage.{DocumentFactory, StorageConfig, VFSURIFactory}
@@ -29,6 +29,7 @@ import edu.uci.ics.amber.core.virtualidentity.{
 }
 import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode
 import edu.uci.ics.amber.core.workflow.PortIdentity
+import edu.uci.ics.amber.util.IcebergUtil
 import edu.uci.ics.texera.web.SubscriptionManager
 import edu.uci.ics.texera.web.model.websocket.event.{
   PaginatedResultEvent,
@@ -251,7 +252,7 @@ class ExecutionResultService(
                 oldInfo.tupleCount,
                 info.tupleCount
               )
-              if (StorageConfig.resultStorageMode == MONGODB) {
+              if (StorageConfig.resultStorageMode == ICEBERG) {
                 // using the first port for now. TODO: support multiple ports
                 val storageUri = VFSURIFactory.createResultURI(
                   workflowIdentity,
@@ -272,15 +273,8 @@ class ExecutionResultService(
                       allTableStats(opId.id) = tableNumericStats ++ tableCatStats ++ tableDateStats
                     }
                   case icebergDocument: IcebergDocument[Tuple] =>
-                    val tableCatStats = icebergDocument.getCategoricalStats
-                    val tableDateStats = icebergDocument.getDateColStats
-                    val tableNumericStats = icebergDocument.getNumericColStats
-
-                    if (
-                      tableNumericStats.nonEmpty || tableCatStats.nonEmpty || tableDateStats.nonEmpty
-                    ) {
-                      allTableStats(opId.id) = tableNumericStats ++ tableCatStats ++ tableDateStats
-                    }
+                    allTableStats(opId.id) =
+                      IcebergUtil.getTableStatistics(icebergDocument.getTable)
                   case _ =>
                 }
               }
@@ -315,6 +309,7 @@ class ExecutionResultService(
       OperatorIdentity(request.operatorID),
       PortIdentity()
     )
+    println(storageUri)
     val paginationIterable = {
       DocumentFactory
         .openDocument(storageUri)

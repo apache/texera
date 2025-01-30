@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.util
 
-import edu.uci.ics.amber.core.storage.StorageConfig
+import edu.uci.ics.amber.core.storage.{IcebergCatalogInstance, StorageConfig}
+import edu.uci.ics.amber.core.storage.result.iceberg.ResultTableStatistics
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.hadoop.conf.Configuration
 import org.apache.iceberg.catalog.{Catalog, TableIdentifier}
@@ -115,7 +116,8 @@ object IcebergUtil {
     try {
       Some(catalog.loadTable(identifier))
     } catch {
-      case _: Exception => None
+      case _: Exception =>
+        None
     }
   }
 
@@ -265,4 +267,8 @@ object IcebergUtil {
     closeableIterable.iterator().asScala
   }
 
+  def getTableStatistics(table: Table): Map[String, Map[String, Any]] = {
+    val resultTableStatistics = new ResultTableStatistics(table)
+    resultTableStatistics.getTableStatistics
+  }
 }

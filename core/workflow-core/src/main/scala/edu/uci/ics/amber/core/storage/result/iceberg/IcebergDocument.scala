@@ -12,7 +12,6 @@ import org.apache.iceberg.exceptions.NoSuchTableException
 import java.net.URI
 import java.util.concurrent.locks.{ReentrantLock, ReentrantReadWriteLock}
 import scala.jdk.CollectionConverters._
-import java.util.Date
 
 /**
   * IcebergDocument is used to read and write a set of T as an Iceberg table.
@@ -39,25 +38,12 @@ class IcebergDocument[T >: Null <: AnyRef](
 
   @transient lazy val catalog: Catalog = IcebergCatalogInstance.getInstance()
 
-  private lazy val icebergTableManager = new IcebergTableManager(
-    IcebergUtil
-      .loadTableMetadata(IcebergCatalogInstance.getInstance(), tableNamespace, tableName)
-      .getOrElse(
-        throw new IllegalStateException(s"Table $tableNamespace.$tableName does not exist")
-      )
-  )
-
   /**
     * Returns the URI of the table location.
     * @throws NoSuchTableException if the table does not exist.
     */
   override def getURI: URI = {
-    val table = IcebergUtil
-      .loadTableMetadata(catalog, tableNamespace, tableName)
-      .getOrElse(
-        throw new NoSuchTableException(f"table ${tableNamespace}.${tableName} doesn't exist")
-      )
-    URI.create(table.location())
+    URI.create(getTable.location())
   }
 
   /**
@@ -116,6 +102,14 @@ class IcebergDocument[T >: Null <: AnyRef](
       tableSchema,
       serde
     )
+  }
+
+  def getTable: Table = {
+    IcebergUtil
+      .loadTableMetadata(catalog, tableNamespace, tableName)
+      .getOrElse(
+        throw new NoSuchTableException(f"table ${tableNamespace}.${tableName} doesn't exist")
+      )
   }
 
   /**
@@ -257,12 +251,4 @@ class IcebergDocument[T >: Null <: AnyRef](
         }
       }
     }
-
-  def getNumericColStats: Map[String, Map[String, Double]] =
-    icebergTableManager.calculateNumericStats()
-
-  def getDateColStats: Map[String, Map[String, Date]] = icebergTableManager.calculateDateStats()
-
-  def getCategoricalStats: Map[String, Map[String, Map[String, Integer]]] =
-    icebergTableManager.calculateCategoricalStats()
 }
