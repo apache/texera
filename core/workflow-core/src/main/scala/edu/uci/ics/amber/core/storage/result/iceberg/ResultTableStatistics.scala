@@ -18,12 +18,13 @@ import scala.collection.mutable
   * - **Date fields (Timestamp)**: Computes `min` and `max` (converted to `LocalDate`).
   * - **All fields**: Computes `not_null_count` (number of non-null values).
   *
-  * @param table The Iceberg table to analyze.
   */
 object ResultTableStatistics {
 
   /**
     * Computes metadata statistics for all fields in the Iceberg table.
+    * 
+    * @param table The Iceberg table to analyze.
     *
     * @return A `Map` where keys are field names and values are statistics (`min`, `max`, `not_null_count`).
     */
