@@ -405,6 +405,18 @@ export class MenuComponent implements OnInit {
           throw new Error("Invalid notebook structure.");
         }
 
+        // Print content of notebook (JSON)
+        console.log(`Notebook JSON: ${JSON.stringify(notebookContent)}`);
+
+        // Send Notebook JSON to pod to open in jupyterlab
+        this.sendNotebookToPod(notebookContent);
+
+        // TODO: Send Notebook JSON to ChatGPT to create Workflow + Mapping : Ensure consistent cell IDs in notebooks
+        // this.sendToAIGenerateWorkflow();
+
+        // TODO: Mapping generation needs to be done
+
+        // TODO: Replace below to integrate with a ChatGPT generated Texera Workflow
         // Mock data conversion to a format compatible with Texera workflows
         const workflowContent: WorkflowContent = {
           "settings": {
@@ -1314,6 +1326,42 @@ export class MenuComponent implements OnInit {
     // Assuming you have a service that handles the state of various panels
     this.panelService.openPanel("JupyterNotebookPanel");
   }
+
+  private async sendNotebookToPod(notebookContent: JSON) {
+    const apiUrl = "http://localhost:5000/set_notebook"; // Flask API URL
+
+    const requestBody = {
+      notebookName: "example.ipynb", // TODO: make this into the link used by jupyter-notebook-panel.component.html: e.g) "http://localhost:8888/notebooks/work/example.ipynb?token=mytoken"
+      notebookData: notebookContent,
+    };
+
+    try {
+      const response = await fetch(apiUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      // Ensure the response status is 200 (OK) before proceeding
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Unknown error occurred" }));
+        throw new Error(`Server Error ${response.status}: ${errorData.error || "Failed to execute notebook"}`);
+      }
+
+      const data = await response.json(); // {message: 'Notebook saved successfully', notebookPath: '/home/jovyan/work/example.ipynb'}
+      console.log("Notebook successfully sent to pod:", data);
+      this.notificationService.success("Notebook opened successfully in JupyterLab.");
+      this.openJupyterNotebookPanel(); // Open panel after successful upload
+    } catch (error) {
+      console.error("Error sending notebook to pod:", error);
+      // @ts-ignore
+      this.notificationService.error("Error sending notebook to JupyterLab: " + error.message);
+    }
+  }
+
+
 
 
   public onClickImportWorkflow = (file: NzUploadFile): boolean => {
