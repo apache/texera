@@ -17,7 +17,8 @@ object StorageConfig {
     val mongodbMap = storageMap("mongodb").asInstanceOf[JMap[String, Any]].asScala.toMap
     val icebergMap = storageMap("iceberg").asInstanceOf[JMap[String, Any]].asScala.toMap
     val icebergCatalogMap = icebergMap("catalog").asInstanceOf[JMap[String, Any]].asScala.toMap
-    val icebergPostgresMap = icebergCatalogMap("postgres").asInstanceOf[JMap[String, Any]].asScala.toMap
+    val icebergPostgresMap =
+      icebergCatalogMap("postgres").asInstanceOf[JMap[String, Any]].asScala.toMap
     val icebergTableMap = icebergMap("table").asInstanceOf[JMap[String, Any]].asScala.toMap
     val icebergCommitMap = icebergTableMap("commit").asInstanceOf[JMap[String, Any]].asScala.toMap
     val icebergRetryMap = icebergCommitMap("retry").asInstanceOf[JMap[String, Any]].asScala.toMap

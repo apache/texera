@@ -13,7 +13,14 @@ import org.apache.iceberg.jdbc.JdbcCatalog
 import org.apache.iceberg.parquet.{Parquet, ParquetValueReader}
 import org.apache.iceberg.rest.RESTCatalog
 import org.apache.iceberg.types.Type.PrimitiveType
-import org.apache.iceberg.{CatalogProperties, DataFile, PartitionSpec, Table, TableProperties, Schema => IcebergSchema}
+import org.apache.iceberg.{
+  CatalogProperties,
+  DataFile,
+  PartitionSpec,
+  Table,
+  TableProperties,
+  Schema => IcebergSchema
+}
 
 import java.nio.ByteBuffer
 import java.nio.file.Path
@@ -87,18 +94,17 @@ object IcebergUtil {
     catalog
   }
 
-
   def createPostgresCatalog(
-                             catalogName: String,
-                             warehouse: Path
-                           ): JdbcCatalog = {
+      catalogName: String,
+      warehouse: Path
+  ): JdbcCatalog = {
     val catalog = new JdbcCatalog()
     catalog.initialize(
       catalogName,
       Map(
         "warehouse" -> warehouse.toString,
         CatalogProperties.FILE_IO_IMPL -> classOf[HadoopFileIO].getName,
-        CatalogProperties.URI ->  s"jdbc:postgresql://${StorageConfig.icebergPostgresCatalogUriWithoutScheme}",
+        CatalogProperties.URI -> s"jdbc:postgresql://${StorageConfig.icebergPostgresCatalogUriWithoutScheme}",
         JdbcCatalog.PROPERTY_PREFIX + "user" -> StorageConfig.icebergPostgresCatalogUsername,
         JdbcCatalog.PROPERTY_PREFIX + "password" -> StorageConfig.icebergPostgresCatalogPassword
       ).asJava
