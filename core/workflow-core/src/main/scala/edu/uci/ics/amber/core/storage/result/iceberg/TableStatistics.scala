@@ -11,14 +11,14 @@ import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 
 /**
-  * `ResultTableStatistics` provides methods for extracting metadata statistics for the results
+  * `TableStatistics` provides methods for extracting metadata statistics for the results
   *
   * **Statistics Computed:**
   * - **Numeric fields (Int, Long, Double)**: Computes `min` and `max`.
   * - **Date fields (Timestamp)**: Computes `min` and `max` (converted to `LocalDate`).
   * - **All fields**: Computes `not_null_count` (number of non-null values).
   */
-object ResultTableStatistics {
+case class TableStatistics(table: Table) {
 
   /**
     * Computes metadata statistics for all fields in the Iceberg table.
@@ -27,7 +27,7 @@ object ResultTableStatistics {
     *
     * @return A `Map` where keys are field names and values are statistics (`min`, `max`, `not_null_count`).
     */
-  def getTableStatistics(table: Table): Map[String, Map[String, Any]] = {
+  def getTableStatistics: Map[String, Map[String, Any]] = {
     val schema = table.schema()
 
     val fieldTypes =

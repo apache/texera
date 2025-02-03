@@ -26,7 +26,7 @@ import scala.jdk.CollectionConverters._
   * @param deserde function to deserialize an Iceberg Record into T.
   * @tparam T type of the data items stored in the Iceberg table.
   */
-class IcebergDocument[T >: Null <: AnyRef](
+private[storage] class IcebergDocument[T >: Null <: AnyRef](
     val tableNamespace: String,
     val tableName: String,
     val tableSchema: org.apache.iceberg.Schema,
@@ -43,7 +43,12 @@ class IcebergDocument[T >: Null <: AnyRef](
     * @throws NoSuchTableException if the table does not exist.
     */
   override def getURI: URI = {
-    URI.create(getTable.location())
+    val table = IcebergUtil
+      .loadTableMetadata(catalog, tableNamespace, tableName)
+      .getOrElse(
+        throw new NoSuchTableException(f"table ${tableNamespace}.${tableName} doesn't exist")
+      )
+    URI.create(table.location())
   }
 
   /**
@@ -102,14 +107,6 @@ class IcebergDocument[T >: Null <: AnyRef](
       tableSchema,
       serde
     )
-  }
-
-  def getTable: Table = {
-    IcebergUtil
-      .loadTableMetadata(catalog, tableNamespace, tableName)
-      .getOrElse(
-        throw new NoSuchTableException(f"table ${tableNamespace}.${tableName} doesn't exist")
-      )
   }
 
   /**
@@ -251,4 +248,14 @@ class IcebergDocument[T >: Null <: AnyRef](
         }
       }
     }
+
+  override def getTableStatistics: Map[String, Map[String, Any]] = {
+    val table = IcebergUtil
+      .loadTableMetadata(catalog, tableNamespace, tableName)
+      .getOrElse(
+        throw new NoSuchTableException(f"table ${tableNamespace}.${tableName} doesn't exist")
+      )
+    val tableStatistics = TableStatistics(table)
+    tableStatistics.getTableStatistics
+  }
 }
