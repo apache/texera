@@ -261,22 +261,7 @@ class ExecutionResultService(
                   PortIdentity()
                 )
                 val opStorage = DocumentFactory.openDocument(storageUri)._1
-                opStorage match {
-                  case mongoDocument: MongoDocument[Tuple] =>
-                    val tableCatStats = mongoDocument.getCategoricalStats
-                    val tableDateStats = mongoDocument.getDateColStats
-                    val tableNumericStats = mongoDocument.getNumericColStats
-
-                    if (
-                      tableNumericStats.nonEmpty || tableCatStats.nonEmpty || tableDateStats.nonEmpty
-                    ) {
-                      allTableStats(opId.id) = tableNumericStats ++ tableCatStats ++ tableDateStats
-                    }
-                  case icebergDocument: IcebergDocument[Tuple] =>
-                    allTableStats(opId.id) =
-                      IcebergUtil.getTableStatistics(icebergDocument.getTable)
-                  case _ =>
-                }
+                allTableStats(opId.id) = opStorage.getTableStatistics
               }
           }
         Iterable(
