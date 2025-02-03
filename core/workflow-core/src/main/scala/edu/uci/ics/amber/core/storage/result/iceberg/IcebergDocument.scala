@@ -258,4 +258,5 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
     val tableStatistics = TableStatistics(table)
     tableStatistics.getTableStatistics
   }
+  
 }

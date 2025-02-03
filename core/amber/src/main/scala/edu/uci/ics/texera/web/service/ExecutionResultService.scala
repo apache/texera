@@ -9,7 +9,6 @@ import edu.uci.ics.amber.core.storage.VFSResourceType.MATERIALIZED_RESULT
 import edu.uci.ics.amber.core.storage.model.VirtualDocument
 import edu.uci.ics.amber.core.storage.{DocumentFactory, StorageConfig, VFSURIFactory}
 import edu.uci.ics.amber.core.storage.result._
-import edu.uci.ics.amber.core.storage.result.iceberg.IcebergDocument
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan}
 import edu.uci.ics.amber.engine.architecture.controller.{ExecutionStateUpdate, FatalError}
@@ -29,7 +28,6 @@ import edu.uci.ics.amber.core.virtualidentity.{
 }
 import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode
 import edu.uci.ics.amber.core.workflow.PortIdentity
-import edu.uci.ics.amber.util.IcebergUtil
 import edu.uci.ics.texera.web.SubscriptionManager
 import edu.uci.ics.texera.web.model.websocket.event.{
   PaginatedResultEvent,
