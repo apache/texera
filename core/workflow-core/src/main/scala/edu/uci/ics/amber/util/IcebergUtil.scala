@@ -297,4 +297,5 @@ object IcebergUtil {
         .build()
     closeableIterable.iterator().asScala
   }
+
 }
