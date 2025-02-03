@@ -33,18 +33,6 @@
               nzTheme="outline"></i>
           </button>
         </nz-upload>
-        <nz-upload [nzBeforeUpload]="onUploadJupyterNotebook">
-          <button
-            [disabled]="accessLevel === 'READ'"
-            nz-button
-            title="Upload .ipynb file for AI generated Workflow"
-            nz-tooltip="Upload .ipynb file for AI generated Workflow"
-            nzTooltipPlacement="bottom"
-            type="button">
-            <!-- Replacing open-a-i with a supported icon type -->
-            <i nz-icon nzType="robot" nzTheme="outline"></i>
-          </button>
-        </nz-upload>
         <button
           *ngIf="multiWorkflowsOperationButtonEnabled()"
           (click)="onClickOpenDownloadZip()"
