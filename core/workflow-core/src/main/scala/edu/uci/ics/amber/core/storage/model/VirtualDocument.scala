@@ -114,5 +114,6 @@ abstract class VirtualDocument[T] extends ReadonlyVirtualDocument[T] {
     * Retrieve table statistics if the document supports it.
     * Default implementation returns empty map.
     */
-  def getTableStatistics: Map[String, Map[String, Any]] = Map.empty
+  def getTableStatistics: Map[String, Map[String, Any]] =
+    throw new NotImplementedError("getTableStatistics method is not implemented")
 }

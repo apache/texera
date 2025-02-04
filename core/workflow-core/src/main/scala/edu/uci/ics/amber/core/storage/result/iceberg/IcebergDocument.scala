@@ -255,6 +255,17 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
       }
     }
 
+  /**
+    * Provides methods for extracting metadata statistics for the results
+    *
+    * **Statistics Computed:**
+    * - **Numeric fields (Int, Long, Double)**: Computes `min` and `max`.
+    * - **Date fields (Timestamp)**: Computes `min` and `max` (converted to `LocalDate`).
+    * - **All fields**: Computes `not_null_count` (number of non-null values).
+    *
+    * @return A map where each field name is mapped to a nested map containing its statistics.
+    * @throws NoSuchTableException if the table does not exist in the catalog.
+    */
   override def getTableStatistics: Map[String, Map[String, Any]] = {
     val table = IcebergUtil
       .loadTableMetadata(catalog, tableNamespace, tableName)
@@ -263,11 +274,14 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
       )
 
     val schema = table.schema()
+
+    // Extract field names, IDs, and types from the schema
     val fieldTypes =
       schema.columns().asScala.map(col => col.name() -> (col.fieldId(), col.`type`())).toMap
     val fieldStats = mutable.Map[String, mutable.Map[String, Any]]()
     val dateFormatter: DateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE
 
+    // Initialize statistics for each field
     fieldTypes.foreach {
       case (field, (_, fieldType)) =>
         val initialStats = mutable.Map[String, Any](
@@ -290,8 +304,10 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
         fieldStats(field) = initialStats
     }
 
+    // Scan table files and aggregate statistics
     table.newScan().includeColumnStats().planFiles().iterator().asScala.foreach { file =>
       val fileStats = file.file()
+      // Extract column-level statistics
       val lowerBounds =
         Option(fileStats.lowerBounds()).getOrElse(Map.empty[Integer, ByteBuffer].asJava)
       val upperBounds =
@@ -309,6 +325,7 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
           val nanCount: Long = Option(nanCounts.get(fieldId)).map(_.toLong).getOrElse(0L)
           val fieldStat = fieldStats(field)
 
+          // Process min/max values for numerical types
           if (
             fieldType == Types.IntegerType.get() || fieldType == Types.LongType
               .get() || fieldType == Types.DoubleType.get()
@@ -324,7 +341,9 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
                 Conversions.fromByteBuffer(fieldType, buffer).asInstanceOf[Number].doubleValue()
               fieldStat("max") = Math.max(fieldStat("max").asInstanceOf[Double], maxValue)
             }
-          } else if (
+          }
+          // Process min/max values for timestamp types
+          else if (
             fieldType == Types.TimestampType.withoutZone() || fieldType == Types.TimestampType
               .withZone()
           ) {
@@ -360,6 +379,7 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
                   fieldStat("max")
             }
           }
+          // Update non-null count
           fieldStat("not_null_count") = fieldStat("not_null_count").asInstanceOf[Long] +
             (fileStats.recordCount().toLong - nullCount - nanCount)
       }

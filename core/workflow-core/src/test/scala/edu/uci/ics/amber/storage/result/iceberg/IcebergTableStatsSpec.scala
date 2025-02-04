@@ -4,7 +4,11 @@ import edu.uci.ics.amber.core.storage.model.VirtualDocument
 import edu.uci.ics.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import edu.uci.ics.amber.util.IcebergUtil
 import edu.uci.ics.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
-import edu.uci.ics.amber.core.virtualidentity.{ExecutionIdentity, OperatorIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{
+  ExecutionIdentity,
+  OperatorIdentity,
+  WorkflowIdentity
+}
 import edu.uci.ics.amber.core.workflow.PortIdentity
 import org.apache.iceberg.{Schema => IcebergSchema}
 import org.apache.iceberg.catalog.Catalog
@@ -19,7 +23,7 @@ import java.time.format.DateTimeFormatter
 import java.util.UUID
 import scala.jdk.CollectionConverters._
 
-class IcebergResultStatsSpec extends AnyFlatSpec with BeforeAndAfterAll with Suite {
+class IcebergTableStatsSpec extends AnyFlatSpec with BeforeAndAfterAll with Suite {
 
   var amberSchema: Schema = _
   var icebergSchema: IcebergSchema = _
