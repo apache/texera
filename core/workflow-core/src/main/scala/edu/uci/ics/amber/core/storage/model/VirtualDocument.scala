@@ -1,7 +1,5 @@
 package edu.uci.ics.amber.core.storage.model
 
-import org.apache.iceberg.Table
-
 import java.io.{File, InputStream}
 import java.net.URI
 
@@ -113,8 +111,8 @@ abstract class VirtualDocument[T] extends ReadonlyVirtualDocument[T] {
   def clear(): Unit
 
   /**
-   * Retrieve table statistics if the document supports it.
-   * Default implementation returns empty map.
-   */
+    * Retrieve table statistics if the document supports it.
+    * Default implementation returns empty map.
+    */
   def getTableStatistics: Map[String, Map[String, Any]] = Map.empty
 }
