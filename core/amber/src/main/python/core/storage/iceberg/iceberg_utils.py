@@ -14,7 +14,11 @@ from core.models import ArrowTableTupleProvider, Tuple
 
 
 def create_postgres_catalog(
-    catalog_name: str, warehouse_path: str, username: str, password: str
+    catalog_name: str,
+    warehouse_path: str,
+    uri_without_scheme: str,
+    username: str,
+    password: str,
 ) -> SqlCatalog:
     """
     Creates a Postgres SQL catalog instance by connecting to the database named
@@ -23,6 +27,8 @@ def create_postgres_catalog(
     can connect to the database, it will handle the initializations.
     :param catalog_name: the name of the catalog.
     :param warehouse_path: the root path for the warehouse where the tables are stored.
+    :param uri_without_scheme: the uri of the postgres database but without
+            the scheme prefix since java and python use different schemes.
     :param username: the username of the postgres database.
     :param password: the password of the postgres database.
     :return: a SQLCatalog instance.
@@ -30,8 +36,7 @@ def create_postgres_catalog(
     return SqlCatalog(
         catalog_name,
         **{
-            "uri": f"postgresql+psycopg2://{username}:"
-            f"{password}@localhost/texera_iceberg_catalog",
+            "uri": f"postgresql+psycopg2://{username}:{password}@{uri_without_scheme}",
             "warehouse": f"file://{warehouse_path}",
         },
     )
