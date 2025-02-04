@@ -10,6 +10,8 @@ object KubernetesMetricService {
   // Initialize the Kubernetes client
   val client: KubernetesClient = new KubernetesClientBuilder().build()
 
+  private val MEGABYTES_PER_GIGABYTE = 1024
+  private val NANOCORES_PER_CPU_CORE = 1_000_000_000
   private val namespace = WorkflowComputingUnitManagingServiceConf.computeUnitPoolNamespace
 
   /**
@@ -49,16 +51,11 @@ object KubernetesMetricService {
 
   private def convertMemoryToMB(memoryUsage: String): Double = {
     val memoryUsageInKi = memoryUsage.toDoubleOption.getOrElse(0.0)
-    memoryUsageInKi / 1024
+    memoryUsageInKi / MEGABYTES_PER_GIGABYTE
   }
 
   private def convertCPUToCores(cpuUsage: String): Double = {
     val cpuUsageInNano = cpuUsage.toDoubleOption.getOrElse(0.0)
-    cpuUsageInNano / 1_000_000_000
+    cpuUsageInNano / NANOCORES_PER_CPU_CORE
   }
-
-//  def main(args: Array[String]): Unit = {
-//    val podName: String = "computing-unit-1"
-//    println(getPodMetrics(podName, WorkflowComputingUnitManagingServiceConf.computeUnitPoolNamespace).toString)
-//  }
 }

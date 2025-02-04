@@ -12,7 +12,6 @@ export const COMPUTING_UNIT_METRICS_BASE_URL = "resource-metrics";
 export const COMPUTING_UNIT_CREATE_URL = `${COMPUTING_UNIT_BASE_URL}/create`;
 export const COMPUTING_UNIT_TERMINATE_URL = `${COMPUTING_UNIT_BASE_URL}/terminate`;
 export const COMPUTING_UNIT_LIST_URL = `${COMPUTING_UNIT_BASE_URL}`;
-export const COMPUTING_UNIT_METRIC_URL = `${COMPUTING_UNIT_METRICS_BASE_URL}/pod-metrics`
 
 @Injectable({
   providedIn: "root",
@@ -58,10 +57,10 @@ export class WorkflowComputingUnitManagingService {
 
   /**
    * Get a computing units resource metrics
-   *
+   * @returns an Observable of WorkflowComputingUnitMetrics
+   * @param cuid
    */
   public getComputingUnitMetrics(cuid: number): Observable<WorkflowComputingUnitMetrics> {
-    let params = new HttpParams().set("computingUnitCUID",cuid)
-    return this.http.get<WorkflowComputingUnitMetrics>(`${AppSettings.getApiEndpoint()}/${COMPUTING_UNIT_METRIC_URL}`,  { params });
+    return this.http.get<WorkflowComputingUnitMetrics>(`${AppSettings.getApiEndpoint()}/${COMPUTING_UNIT_BASE_URL}/${cuid}/metrics`)
   }
 }

@@ -1,52 +1,83 @@
-<nz-select
-  nzSize="large"
-  nzShowSearch
-  nzAllowClear
-  [nzDropdownRender]="renderTemplate"
-  nzPlaceHolder="Select a computing unit"
-  [(ngModel)]="selectedComputingUnit"
-  (ngModelChange)="onComputingUnitChange($event)">
-  <nz-option
-    *ngFor="let unit of computingUnits"
-    nzCustomContent
-    [nzLabel]="unit.uri"
-    [nzValue]="unit">
-    <div class="computing-unit-option">
-      <!-- Badge with state -->
-      <nz-badge
-        [nzColor]="getBadgeColor(unit.status)"
-        [nzText]="''">
-        <span
-          nz-icon
-          nzType="desktop"></span>
-      </nz-badge>
-
-      <!-- Name and tooltip -->
-      <span class="unit-details">
-        <span
-          nz-tooltip
-          [nzTooltipTitle]="unit.uri"
-          >{{ unit.computingUnit.name }}</span
-        >
-        <div
-          class="terminate-box"
-          nz-tooltip
-          [nzTooltipTitle]="'Terminate'"
-          (click)="terminateComputingUnit(unit.computingUnit.cuid)"></div>
-      </span>
+<div class="computing-units-selection">
+  <div id="metrics-container-id" class="metrics-container">
+    <div class="metric-item">
+      <span class="metric-label">CPU</span>
+      <nz-progress
+        id="cpu-progress-bar"
+        [nzPercent]="((selectedComputingUnit?.metrics?.cpuUsage || 0) * 100).toFixed(0)"
+        [nzStrokeColor]="'#52c41a'"
+        [nzStatus]="(selectedComputingUnit?.metrics?.cpuUsage || 0) > 1 ? 'exception' : 'active'"
+        nzType="line"
+        [nzStrokeWidth]="8"
+        [nzShowInfo]="false"
+      ></nz-progress>
     </div>
-  </nz-option>
-</nz-select>
 
-<ng-template #renderTemplate>
-  <nz-divider></nz-divider>
-  <div class="dropdown-footer">
-    <button
-      nz-button
-      nzType="primary"
-      nzBlock
-      (click)="startComputingUnit()">
-      Start
-    </button>
+    <div class="metric-item">
+      <span class="metric-label">Memory</span>
+      <nz-progress
+        id="memory-progress-bar"
+        [nzPercent]="((selectedComputingUnit?.metrics?.memoryUsage || 0) / 10).toFixed(0)"
+        [nzStrokeColor]="'#1890ff'"
+        [nzStatus]="(selectedComputingUnit?.metrics?.memoryUsage || 0) > 1000 ? 'exception' : 'active'"
+        nzType="line"
+        [nzStrokeWidth]="8"
+        [nzShowInfo]="false"
+      ></nz-progress>
+    </div>
   </div>
-</ng-template>
+
+  <nz-select
+    id="computing-units-list"
+    nzSize="default"
+    nzShowSearch
+    nzAllowClear
+    [nzDropdownRender]="renderTemplate"
+    nzPlaceHolder="Select a computing unit"
+    [(ngModel)]="selectedComputingUnit"
+    (ngModelChange)="onComputingUnitChange($event)">
+    <nz-option
+      *ngFor="let unit of computingUnits"
+      nzCustomContent
+      [nzLabel]="unit.uri"
+      [nzValue]="unit">
+      <div class="computing-unit-option">
+        <!-- Badge with state -->
+        <nz-badge
+          [nzColor]="getBadgeColor(unit.status)"
+          [nzText]="''">
+          <span
+            nz-icon
+            nzType="desktop"></span>
+        </nz-badge>
+
+        <!-- Name and tooltip -->
+        <span class="unit-details">
+          <span
+            nz-tooltip
+            [nzTooltipTitle]="unit.uri"
+            >{{ unit.computingUnit.name }}</span
+          >
+          <div
+            class="terminate-box"
+            nz-tooltip
+            [nzTooltipTitle]="'Terminate'"
+            (click)="terminateComputingUnit(unit.computingUnit.cuid)"></div>
+        </span>
+      </div>
+    </nz-option>
+  </nz-select>
+
+  <ng-template #renderTemplate>
+    <nz-divider></nz-divider>
+    <div class="dropdown-footer">
+      <button
+        nz-button
+        nzType="primary"
+        nzBlock
+        (click)="startComputingUnit()">
+        Start
+      </button>
+    </div>
+  </ng-template>
+</div>

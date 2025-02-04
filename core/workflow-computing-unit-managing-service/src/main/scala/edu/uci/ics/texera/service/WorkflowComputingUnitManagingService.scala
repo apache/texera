@@ -2,7 +2,7 @@ package edu.uci.ics.texera.service
 
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import edu.uci.ics.amber.util.PathUtils.workflowComputingUnitManagingServicePath
-import edu.uci.ics.texera.service.resource.{WorkflowComputingUnitManagingResource, WorkflowComputingUnitMetricResource}
+import edu.uci.ics.texera.service.resource.WorkflowComputingUnitManagingResource
 import io.dropwizard.core.setup.{Bootstrap, Environment}
 import io.dropwizard.core.Application
 
@@ -22,7 +22,6 @@ class WorkflowComputingUnitManagingService
     // Register http resources
     environment.jersey.setUrlPattern("/api/*")
     environment.jersey().register(new WorkflowComputingUnitManagingResource)
-    environment.jersey().register(new WorkflowComputingUnitMetricResource)
   }
 }
 

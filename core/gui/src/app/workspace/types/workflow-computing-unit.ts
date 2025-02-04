@@ -10,10 +10,10 @@ export interface DashboardWorkflowComputingUnit {
   computingUnit: WorkflowComputingUnit;
   uri: string;
   status: string;
+  metrics: WorkflowComputingUnitMetrics;
 }
 
 export interface WorkflowComputingUnitMetrics {
-  cuid: number;
-  cpu: number;
-  memory: number;
+  cpuUsage: number;
+  memoryUsage: number;
 }

@@ -76,3 +76,18 @@ hr {
 .annotation-highlight {
   background-color: #6a5acd;
 }
+
+// For compute-unit-selection.html
+#computing-units-list > .ant-select-selector {
+  height: 100% !important;
+}
+
+#cpu-progress-bar .ant-progress-inner,
+#memory-progress-bar .ant-progress-inner {
+  vertical-align: super !important;
+}
+
+#cpu-progress-bar *,
+#memory-progress-bar * {
+  line-height: 16px !important;
+}

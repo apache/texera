@@ -4,11 +4,6 @@
     "secure":  false,
     "changeOrigin": true
   },
-  "/api/resource-metrics": {
-    "target": "http://localhost:8888",
-    "secure":  false,
-    "changeOrigin": true
-  },
   "/api": {
     "target": "http://texera.example.com:30080",
     "secure": false,

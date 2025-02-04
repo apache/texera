@@ -6,14 +6,9 @@ import edu.uci.ics.texera.dao.SqlServer.withTransaction
 import edu.uci.ics.texera.dao.jooq.generated.tables.daos.WorkflowComputingUnitDao
 import edu.uci.ics.texera.dao.jooq.generated.tables.WorkflowComputingUnit.WORKFLOW_COMPUTING_UNIT
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit
-import edu.uci.ics.texera.service.resource.WorkflowComputingUnitManagingResource.{
-  DashboardWorkflowComputingUnit,
-  WorkflowComputingUnitCreationParams,
-  WorkflowComputingUnitTerminationParams,
-  TerminationResponse,
-  context
-}
+import edu.uci.ics.texera.service.resource.WorkflowComputingUnitManagingResource.{DashboardWorkflowComputingUnit, TerminationResponse, WorkflowComputingUnitCreationParams, WorkflowComputingUnitMetrics, WorkflowComputingUnitTerminationParams, context}
 import edu.uci.ics.texera.service.util.KubernetesClientService
+import edu.uci.ics.texera.service.util.KubernetesMetricService.getPodMetrics
 import jakarta.ws.rs._
 import jakarta.ws.rs.core.MediaType
 import org.jooq.DSLContext
@@ -31,10 +26,13 @@ object WorkflowComputingUnitManagingResource {
 
   case class WorkflowComputingUnitTerminationParams(uri: String, name: String)
 
+  case class WorkflowComputingUnitMetrics(cpuUsage: Double, memoryUsage: Double)
+
   case class DashboardWorkflowComputingUnit(
       computingUnit: WorkflowComputingUnit,
       uri: String,
-      status: String
+      status: String,
+      metrics: WorkflowComputingUnitMetrics
   )
 
   case class TerminationResponse(message: String, uri: String)
@@ -81,7 +79,8 @@ class WorkflowComputingUnitManagingResource {
         DashboardWorkflowComputingUnit(
           insertedUnit,
           KubernetesClientService.generatePodURI(cuid).toString,
-          pod.getStatus.getPhase
+          pod.getStatus.getPhase,
+          getComputingUnitMetric(cuid.toString)
         )
       }
     }
@@ -112,7 +111,8 @@ class WorkflowComputingUnitManagingResource {
           DashboardWorkflowComputingUnit(
             computingUnit = unit,
             uri = KubernetesClientService.generatePodURI(cuid).toString,
-            status = if (pod != null && pod.getStatus != null) pod.getStatus.getPhase else "Unknown"
+            status = if (pod != null && pod.getStatus != null) pod.getStatus.getPhase else "Unknown",
+            getComputingUnitMetric(cuid.toString)
           )
         })
 
@@ -146,5 +146,17 @@ class WorkflowComputingUnitManagingResource {
     }
 
     TerminationResponse(s"Successfully terminated compute unit with URI $podURI", podURI)
+  }
+
+  @GET
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Path("/{cuid}/metrics")
+  def getComputingUnitMetric(@PathParam("cuid") cuid: String): WorkflowComputingUnitMetrics = {
+    val metrics: Map[String, Any] = getPodMetrics(cuid.toInt)
+
+    WorkflowComputingUnitMetrics(
+      cpuUsage = metrics.get("cpu").collect { case value: Double => value }.getOrElse(0.0),
+      memoryUsage = metrics.get("memory").collect { case value: Double => value }.getOrElse(0.0)
+    )
   }
 }
