@@ -4,7 +4,7 @@ import akka.actor.Cancellable
 import com.fasterxml.jackson.annotation.{JsonTypeInfo, JsonTypeName}
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.core.storage.DocumentFactory.MONGODB
+import edu.uci.ics.amber.core.storage.DocumentFactory.{ICEBERG, MONGODB}
 import edu.uci.ics.amber.core.storage.VFSResourceType.MATERIALIZED_RESULT
 import edu.uci.ics.amber.core.storage.model.VirtualDocument
 import edu.uci.ics.amber.core.storage.{DocumentFactory, StorageConfig, VFSURIFactory}
@@ -250,7 +250,7 @@ class ExecutionResultService(
                 oldInfo.tupleCount,
                 info.tupleCount
               )
-              if (StorageConfig.resultStorageMode == MONGODB) {
+              if (StorageConfig.resultStorageMode == ICEBERG) {
                 // using the first port for now. TODO: support multiple ports
                 val storageUri = VFSURIFactory.createResultURI(
                   workflowIdentity,
@@ -259,19 +259,7 @@ class ExecutionResultService(
                   PortIdentity()
                 )
                 val opStorage = DocumentFactory.openDocument(storageUri)._1
-                opStorage match {
-                  case mongoDocument: MongoDocument[Tuple] =>
-                    val tableCatStats = mongoDocument.getCategoricalStats
-                    val tableDateStats = mongoDocument.getDateColStats
-                    val tableNumericStats = mongoDocument.getNumericColStats
-
-                    if (
-                      tableNumericStats.nonEmpty || tableCatStats.nonEmpty || tableDateStats.nonEmpty
-                    ) {
-                      allTableStats(opId.id) = tableNumericStats ++ tableCatStats ++ tableDateStats
-                    }
-                  case _ =>
-                }
+                allTableStats(opId.id) = opStorage.getTableStatistics
               }
           }
         Iterable(
