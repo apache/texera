@@ -20,8 +20,10 @@ trait StepHandler {
       if (dp.executor.isInstanceOf[SourceOperatorExecutor]){
         val logManager = new EmptyReplayLogManagerImpl(dp.outputHandler)
         (0 until request.stepSize.toInt).foreach(_ => dp.outputOneTuple(logManager))
-        dp.outputManager.flush()
+      }else{
+        dp.pauseManager.resume(DebuggerPause)
       }
+      dp.outputManager.flush()
     }
     EmptyReturn()
   }

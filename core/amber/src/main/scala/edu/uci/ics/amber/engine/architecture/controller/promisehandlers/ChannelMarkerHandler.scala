@@ -1,13 +1,13 @@
 package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
-import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
-import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
-import edu.uci.ics.amber.util.VirtualIdentityUtils
 import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, ControlInvocation, PropagateChannelMarkerRequest, QueryStatisticsRequest}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{AsyncRPCContext, ControlInvocation, PropagateChannelMarkerRequest}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.{ControlReturn, PropagateChannelMarkerResponse}
 import edu.uci.ics.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.METHOD_PAUSE_WORKER
+import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
+import edu.uci.ics.amber.util.VirtualIdentityUtils
 
 trait ChannelMarkerHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
@@ -74,7 +74,6 @@ trait ChannelMarkerHandler {
       if(msg.markerMethodName != METHOD_PAUSE_WORKER.getBareMethodName){
           cp.logManager.markAsReplayDestination(msg.id)
         }
-        controllerInterface.controllerInitiateQueryStatistics(QueryStatisticsRequest(Seq.empty), mkContext(CONTROLLER))
       PropagateChannelMarkerResponse(ret.map(x => (x._1.name, x._2)).toMap)
     }
   }

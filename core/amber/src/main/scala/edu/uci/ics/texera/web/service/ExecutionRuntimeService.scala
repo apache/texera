@@ -123,32 +123,39 @@ class ExecutionRuntimeService(
     req.stepType match{
       case "StepOut" =>
         client.controllerInterface.broadcastMessage(BroadcastMessageRequest(downstreamsWithoutTarget.toSeq, ContinueProcessingRequest(-1)), ())
+        Thread.sleep(1000)
         client.controllerInterface.propagateChannelMarker(
           PropagateChannelMarkerRequest(
             Seq(physicalOp),
             ChannelMarkerIdentity(s"debugging-stepout-${timestamp}"),
             REQUIRE_ALIGNMENT,
             subDAG.operators.map(_.id).toSeq,
-            downstreamsWithoutTarget.toSeq,
+            downstreams.toSeq,
             StopProcessingRequest(),
             METHOD_STOP_PROCESSING.getBareMethodName
-            ), ())
+            ), ()).onSuccess(ret =>
+          client.controllerInterface.controllerInitiateQueryStatistics(QueryStatisticsRequest(Seq.empty), ())
+        )
       case "StepInto" =>
-        client.controllerInterface.broadcastMessage(BroadcastMessageRequest(Seq(physicalOp), ContinueProcessingRequest(1)), ())
-        client.controllerInterface.controllerInitiateQueryStatistics(QueryStatisticsRequest(Seq.empty), ())
+        client.controllerInterface.broadcastMessage(BroadcastMessageRequest(Seq(physicalOp), ContinueProcessingRequest(1)), ()).onSuccess(ret =>
+          client.controllerInterface.controllerInitiateQueryStatistics(QueryStatisticsRequest(Seq.empty), ())
+        )
       case "StepOver" =>
         client.controllerInterface.broadcastMessage(BroadcastMessageRequest(Seq(physicalOp), ContinueProcessingRequest(1)), ())
         client.controllerInterface.broadcastMessage(BroadcastMessageRequest(downstreamsWithoutTarget.toSeq, ContinueProcessingRequest(-1)), ())
+        Thread.sleep(1000)
         client.controllerInterface.propagateChannelMarker(
           PropagateChannelMarkerRequest(
             Seq(physicalOp),
             ChannelMarkerIdentity(s"debugging-stepover-${timestamp}"),
             REQUIRE_ALIGNMENT,
             subDAG.operators.map(_.id).toSeq,
-            downstreamsWithoutTarget.toSeq,
+            downstreams.toSeq,
             StopProcessingRequest(),
             METHOD_STOP_PROCESSING.getBareMethodName
-          ), ())
+          ), ()).onSuccess(ret =>
+          client.controllerInterface.controllerInitiateQueryStatistics(QueryStatisticsRequest(Seq.empty), ())
+        )
       case other =>
         println(s"Invalid step type: $other")
     }

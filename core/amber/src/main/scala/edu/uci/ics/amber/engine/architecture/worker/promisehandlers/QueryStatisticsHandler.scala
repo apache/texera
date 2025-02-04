@@ -20,6 +20,9 @@ trait QueryStatisticsHandler {
       case other =>
         ""
     }
+    if(dp.collectStatistics().inputTupleCount.nonEmpty){
+      logger.info(s"input Count: ${dp.collectStatistics().inputTupleCount.head.tupleCount}")
+    }
     WorkerMetricsResponse(WorkerMetrics(dp.stateManager.getCurrentState, dp.collectStatistics(), internalState))
   }
 
