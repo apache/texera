@@ -6,7 +6,8 @@
     nzTheme="light">
     <ul
       nz-menu
-      nzMode="inline">
+      nzMode="inline"
+      nzSelectable="false">
       <li class="logo-section">
         <img
           *ngIf="isCollpased"
@@ -134,6 +135,16 @@
             </ul>
           </li>
         </ul>
+      <li
+        nz-menu-item
+        nz-tooltip
+        nzTooltipPlacement="right"
+        [routerLink]="DASHBOARD_ABOUT"
+        >
+        <span
+          nz-icon
+          nzType="info-circle"></span>
+        <span>About</span>
       </li>
     </ul>
   </nz-sider>
