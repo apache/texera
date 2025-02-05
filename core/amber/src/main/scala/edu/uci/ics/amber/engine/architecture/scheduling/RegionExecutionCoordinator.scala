@@ -150,23 +150,34 @@ class RegionExecutionCoordinator(
           val inputPortMapping = physicalOp.inputPorts
             .flatMap {
               case (inputPortId, (_, _, Right(schema))) =>
-                Some(GlobalPortIdentity(physicalOp.id, inputPortId, input = true) -> schema)
+                Some(GlobalPortIdentity(physicalOp.id, inputPortId, input = true) -> ("", schema))
               case _ => None
             }
           val outputPortMapping = physicalOp.outputPorts
             .flatMap {
-              case (outputPortId, (_, _, Right(schema))) =>
-                Some(GlobalPortIdentity(physicalOp.id, outputPortId, input = false) -> schema)
+              case (outputPortId, (outputPort, _, Right(schema))) =>
+                Some(
+                  GlobalPortIdentity(
+                    physicalOp.id,
+                    outputPortId,
+                    input = false
+                  ) -> (outputPort.storageUri, schema)
+                )
               case _ => None
             }
           inputPortMapping ++ outputPortMapping
         }
         .flatMap {
-          case (globalPortId, schema) =>
+          case (globalPortId, (storageUri, schema)) =>
             resourceConfig.operatorConfigs(globalPortId.opId).workerConfigs.map(_.workerId).map {
               workerId =>
                 asyncRPCClient.workerInterface.assignPort(
-                  AssignPortRequest(globalPortId.portId, globalPortId.input, schema.toRawSchema),
+                  AssignPortRequest(
+                    globalPortId.portId,
+                    globalPortId.input,
+                    schema.toRawSchema,
+                    storageUri
+                  ),
                   asyncRPCClient.mkContext(workerId)
                 )
             }

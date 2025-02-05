@@ -28,7 +28,7 @@ class ProgressiveSinkOpExec(
   ): Unit = {
     outputMode match {
       case OutputMode.SET_SNAPSHOT | OutputMode.SINGLE_SNAPSHOT => updateSetSnapshot(tuple)
-      case OutputMode.SET_DELTA                                 => writer.putOne(tuple)
+      case OutputMode.SET_DELTA                                 =>
       case _                                                    => throw new UnsupportedOperationException("Unsupported output mode")
     }
   }
@@ -37,7 +37,7 @@ class ProgressiveSinkOpExec(
     val (isInsertion, tupleValue) = ProgressiveUtils.getTupleFlagAndValue(deltaUpdate)
 
     if (isInsertion) {
-      writer.putOne(tupleValue)
+//      writer.putOne(tupleValue)
     } else {
       writer.removeOne(tupleValue)
     }

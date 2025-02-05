@@ -165,6 +165,8 @@ class DataProcessor(
 
     outputTuple match {
       case FinalizeExecutor() =>
+        // TODO: why this has to be the first?
+        outputManager.closeOutputStorageWriters()
         outputManager.emitMarker(EndOfInputChannel())
         // Send Completed signal to worker actor.
         executor.close()
@@ -191,6 +193,7 @@ class DataProcessor(
           statisticsManager.increaseOutputTupleCount(outputPortOpt.get)
         }
         outputManager.passTupleToDownstream(schemaEnforceable, outputPortOpt)
+        outputManager.saveTupleToStorageIfNeeded(schemaEnforceable, outputPortOpt)
 
       case other => // skip for now
     }

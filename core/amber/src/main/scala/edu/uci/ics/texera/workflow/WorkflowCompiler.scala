@@ -67,6 +67,7 @@ class WorkflowCompiler(
             }
           })
 
+        // TODO: move this logic to scheduler and use output ports for assigning storage
         // assign the sinks to toAddSink operators' external output ports
         subPlan
           .topologicalIterator()
@@ -111,6 +112,7 @@ class WorkflowCompiler(
                     )
                   }
 
+                  // TODO: remove
                   // Create and link the sink operator
                   val sinkPhysicalOp = SpecialPhysicalOpFactory.newSinkPhysicalOp(
                     storageUri,
@@ -124,6 +126,11 @@ class WorkflowCompiler(
                   )
 
                   physicalPlan = physicalPlan.addOperator(sinkPhysicalOp).addLink(sinkLink)
+
+                  // TODO: move to scheduler
+                  physicalPlan = physicalPlan.setOperator(
+                    physicalOp.withOutputPortStorage(portId = outputPortId, storageUri = storageUri)
+                  )
               }
           }
       } match {
@@ -164,7 +171,7 @@ class WorkflowCompiler(
     // 2. resolve the file name in each scan source operator
     logicalPlan.resolveScanSourceOpFileName(None)
 
-    // 3. expand the logical plan to the physical plan, and assign storage
+    // 3. expand the logical plan to the physical plan, without assigning storage
     val physicalPlan = expandLogicalPlan(logicalPlan, logicalPlanPojo.opsToViewResult, None)
 
     Workflow(context, logicalPlan, physicalPlan)
