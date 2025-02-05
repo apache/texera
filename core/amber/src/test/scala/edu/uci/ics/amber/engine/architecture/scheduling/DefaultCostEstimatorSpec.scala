@@ -108,7 +108,7 @@ class DefaultCostEstimatorSpec
           PortIdentity(0)
         )
       ),
-      new WorkflowContext(isTestContext = true)
+      new WorkflowContext()
     )
 
     val costEstimator = new DefaultCostEstimator(
@@ -138,7 +138,7 @@ class DefaultCostEstimatorSpec
           PortIdentity(0)
         )
       ),
-      new WorkflowContext(isTestContext = true)
+      new WorkflowContext()
     )
 
     val userDao = new UserDao(getDSLContext.configuration())
@@ -218,7 +218,7 @@ class DefaultCostEstimatorSpec
           PortIdentity(0)
         )
       ),
-      new WorkflowContext(isTestContext = true)
+      new WorkflowContext()
     )
 
     val userDao = new UserDao(getDSLContext.configuration())

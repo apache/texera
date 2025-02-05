@@ -25,7 +25,7 @@ class ExpansionGreedyScheduleGeneratorSpec extends AnyFlatSpec with MockFactory 
           PortIdentity(0)
         )
       ),
-      new WorkflowContext(isTestContext = true)
+      new WorkflowContext()
     )
 
     val (schedule, _) = new ExpansionGreedyScheduleGenerator(
@@ -77,7 +77,7 @@ class ExpansionGreedyScheduleGeneratorSpec extends AnyFlatSpec with MockFactory 
           PortIdentity(1)
         )
       ),
-      new WorkflowContext(isTestContext = true)
+      new WorkflowContext()
     )
 
     val (schedule, _) = new ExpansionGreedyScheduleGenerator(
@@ -154,7 +154,7 @@ class ExpansionGreedyScheduleGeneratorSpec extends AnyFlatSpec with MockFactory 
           PortIdentity(1)
         )
       ),
-      new WorkflowContext(isTestContext = true)
+      new WorkflowContext()
     )
 
     val (schedule, _) = new ExpansionGreedyScheduleGenerator(
@@ -220,7 +220,7 @@ class ExpansionGreedyScheduleGeneratorSpec extends AnyFlatSpec with MockFactory 
           PortIdentity(1)
         )
       ),
-      new WorkflowContext(isTestContext = true)
+      new WorkflowContext()
     )
 
     val (schedule, _) = new ExpansionGreedyScheduleGenerator(
@@ -285,7 +285,7 @@ class ExpansionGreedyScheduleGeneratorSpec extends AnyFlatSpec with MockFactory 
           PortIdentity(1)
         )
       ),
-      new WorkflowContext(isTestContext = true)
+      new WorkflowContext()
     )
 
     val (schedule, _) = new ExpansionGreedyScheduleGenerator(

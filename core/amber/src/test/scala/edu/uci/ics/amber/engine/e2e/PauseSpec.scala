@@ -45,7 +45,7 @@ class PauseSpec
       links: List[LogicalLink]
   ): Unit = {
     val workflow =
-      TestUtils.buildWorkflow(operators, links, new WorkflowContext(isTestContext = true))
+      TestUtils.buildWorkflow(operators, links, new WorkflowContext())
     val client =
       new AmberClient(
         system,

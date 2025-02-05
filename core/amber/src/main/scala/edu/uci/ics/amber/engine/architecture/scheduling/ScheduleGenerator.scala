@@ -3,13 +3,11 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import edu.uci.ics.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.scheduling.ScheduleGenerator.replaceVertex
-import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
-  DefaultResourceAllocator,
-  ExecutionClusterInfo
-}
+import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{DefaultResourceAllocator, ExecutionClusterInfo}
 import edu.uci.ics.amber.operator.SpecialPhysicalOpFactory
 import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.amber.core.workflow.PhysicalLink
+import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 import org.jgrapht.graph.DirectedAcyclicGraph
 import org.jgrapht.traverse.TopologicalOrderIterator
@@ -187,7 +185,7 @@ abstract class ScheduleGenerator(
     // create the document
     DocumentFactory.createDocument(storageUri, schema)
     // insert the operator port execution
-    if (!workflowContext.isTestContext) {
+    if (AmberConfig.isUserSystemEnabled) {
       WorkflowExecutionsResource.insertOperatorPortExecutions(
         workflowContext.executionId.id,
         physicalLink.fromOpId.logicalOpId.id,

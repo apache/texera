@@ -9,6 +9,7 @@ import edu.uci.ics.amber.operator.SpecialPhysicalOpFactory
 import edu.uci.ics.amber.core.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.core.workflow.OutputPort.OutputMode.SINGLE_SNAPSHOT
 import edu.uci.ics.amber.core.workflow.PhysicalLink
+import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
@@ -77,14 +78,14 @@ class WorkflowCompiler(
               .filterNot(_._1.internal)
               .foreach {
                 case (outputPortId, (outputPort, _, schema)) =>
-                  var storageUri = (if (context.isTestContext) {
-                                      None
-                                    } else {
+                  var storageUri = (if (AmberConfig.isUserSystemEnabled) {
                                       WorkflowExecutionsResource.getResultUriByExecutionAndPort(
                                         context.executionId.id,
                                         physicalOp.id.logicalOpId.id,
                                         outputPortId.id
                                       )
+                                    } else {
+                                      None
                                     })
                   if (storageUri.isEmpty) {
                     // Create storage if it doesn't exist
@@ -108,7 +109,7 @@ class WorkflowCompiler(
                     // create the storage resource and record the URI
                     DocumentFactory.createDocument(storageUri.get, sinkStorageSchema)
                     // insert the operator port execution
-                    if (!context.isTestContext) {
+                    if (AmberConfig.isUserSystemEnabled) {
                       WorkflowExecutionsResource.insertOperatorPortExecutions(
                         context.executionId.id,
                         physicalOp.id.logicalOpId.id,

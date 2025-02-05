@@ -38,7 +38,7 @@ class DataProcessingSpec
   implicit val timeout: Timeout = Timeout(5.seconds)
 
   var inMemoryMySQLInstance: Option[DB] = None
-  val workflowContext: WorkflowContext = new WorkflowContext(isTestContext = true)
+  val workflowContext: WorkflowContext = new WorkflowContext()
 
   override def beforeAll(): Unit = {
     system.actorOf(Props[SingleNodeListener](), "cluster-info")
