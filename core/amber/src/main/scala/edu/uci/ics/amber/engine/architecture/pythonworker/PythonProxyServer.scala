@@ -41,13 +41,13 @@ private class AmberProducer(
         pythonControlMessage.payload.value match {
           case r: ReturnInvocationV2 =>
             outputPort.sendTo(
-              to = pythonControlMessage.tag,
+              to = pythonControlMessage.tag.toWorkerId,
               payload = r.value
             )
 
           case c: ControlInvocationV2 =>
             outputPort.sendTo(
-              to = pythonControlMessage.tag,
+              to = pythonControlMessage.tag.toWorkerId,
               payload = c.value
             )
           case payload =>
