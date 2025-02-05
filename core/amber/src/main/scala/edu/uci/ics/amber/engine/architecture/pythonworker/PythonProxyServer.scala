@@ -6,13 +6,10 @@ import edu.uci.ics.amber.core.marker.{EndOfInputChannel, StartOfInputChannel, St
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputGateway
 import edu.uci.ics.amber.engine.common.AmberLogging
-import edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.Value.{
-  ControlInvocation => ControlInvocationV2,
-  ReturnInvocation => ReturnInvocationV2
-}
+import edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.Value.{ControlInvocation => ControlInvocationV2, ReturnInvocation => ReturnInvocationV2}
 import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.util.ArrowUtils
-import edu.uci.ics.amber.core.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import org.apache.arrow.flight._
 import org.apache.arrow.memory.{ArrowBuf, BufferAllocator, RootAllocator}
 import org.apache.arrow.util.AutoCloseables
@@ -84,7 +81,7 @@ private class AmberProducer(
   ): Runnable = { () =>
     val dataHeader: PythonDataHeader = PythonDataHeader
       .parseFrom(flightStream.getDescriptor.getCommand)
-    val to: ActorVirtualIdentity = dataHeader.tag
+    val to: ChannelIdentity = dataHeader.tag
     val root = flightStream.getRoot
 
     // send back ack with credits on ackStream

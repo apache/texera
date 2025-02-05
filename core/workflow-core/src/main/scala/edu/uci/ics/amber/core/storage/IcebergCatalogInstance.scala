@@ -34,6 +34,11 @@ object IcebergCatalogInstance {
               "texera_iceberg",
               StorageConfig.fileStorageDirectoryPath
             )
+          case "postgres" =>
+            IcebergUtil.createPostgresCatalog(
+              "texera_iceberg",
+              StorageConfig.fileStorageDirectoryPath
+            )
           case unsupported =>
             throw new IllegalArgumentException(s"Unsupported catalog type: $unsupported")
         }

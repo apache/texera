@@ -59,6 +59,9 @@ class InputManager:
         self._current_channel_id: Optional[ChannelIdentity] = None
         self.started = False
 
+    def get_all_channel_ids(self):
+        return self._channels.keys()
+
     def add_input_port(self, port_id: PortIdentity, schema: Schema) -> None:
         if port_id.id is None:
             port_id.id = 0
@@ -85,10 +88,10 @@ class InputManager:
         self._ports[port_id].add_channel(channel)
 
     def process_data_payload(
-        self, from_: ActorVirtualIdentity, payload: DataPayload
+        self, from_: ChannelIdentity, payload: DataPayload
     ) -> Iterator[Union[Tuple, InternalMarker]]:
         # special case used to yield for source op
-        if from_ == InputManager.SOURCE_STARTER:
+        if from_.from_worker_id == InputManager.SOURCE_STARTER:
             yield EndOfInputPort()
             yield EndOfOutputPorts()
             return
@@ -97,7 +100,7 @@ class InputManager:
             (
                 channel_id
                 for channel_id, channel in self._channels.items()
-                if channel_id.from_worker_id == from_
+                if channel_id == from_
             ),
             None,
         )

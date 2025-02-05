@@ -1,13 +1,14 @@
 from threading import Event, Condition
 from typing import Optional, Tuple, Iterator
 
-from proto.edu.uci.ics.amber.core import PortIdentity
+from proto.edu.uci.ics.amber.core import PortIdentity, ChannelIdentity
 
 
 class TupleProcessingManager:
     def __init__(self):
         self.current_input_tuple: Optional[Tuple] = None
         self.current_input_port_id: Optional[PortIdentity] = None
+        self.current_input_channel_id: Optional[ChannelIdentity] = None
         self.current_input_tuple_iter: Optional[Iterator[Tuple]] = None
         self.current_output_tuple: Optional[Tuple] = None
         self.context_switch_condition: Condition = Condition()

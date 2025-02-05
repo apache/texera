@@ -35,12 +35,17 @@ from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     PortCompletedRequest,
     EmptyRequest,
     ConsoleMessageTriggeredRequest,
+    ChannelMarkerPayload,
 )
 from proto.edu.uci.ics.amber.engine.architecture.worker import (
     WorkerState,
 )
 from proto.edu.uci.ics.amber.engine.common import ControlPayloadV2
-from proto.edu.uci.ics.amber.core import ActorVirtualIdentity, PortIdentity
+from proto.edu.uci.ics.amber.core import (
+    ActorVirtualIdentity,
+    PortIdentity,
+    ChannelIdentity,
+)
 
 
 class MainLoop(StoppableQueueBlockingRunnable):
@@ -120,23 +125,25 @@ class MainLoop(StoppableQueueBlockingRunnable):
             self._process_data_element,
             ControlElement,
             self._process_control_element,
+            ChannelMarkerPayload,
+            self._process_channel_marker_payload,
         )
 
     def process_control_payload(
-        self, tag: ActorVirtualIdentity, payload: ControlPayloadV2
+        self, tag: ChannelIdentity, payload: ControlPayloadV2
     ) -> None:
         """
         Process the given ControlPayload with the tag.
 
-        :param tag: ActorVirtualIdentity, the sender.
+        :param tag: ChannelIdentity, the sender.
         :param payload: ControlPayloadV2 to be handled.
         """
         start_time = time.time_ns()
         match(
             (tag, get_one_of(payload, sealed=False)),
-            typing.Tuple[ActorVirtualIdentity, ControlInvocation],
+            typing.Tuple[ChannelIdentity, ControlInvocation],
             self._async_rpc_server.receive,
-            typing.Tuple[ActorVirtualIdentity, ReturnInvocation],
+            typing.Tuple[ChannelIdentity, ReturnInvocation],
             self._async_rpc_client.receive,
         )
         end_time = time.time_ns()
@@ -169,7 +176,14 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 for to, batch in self.context.output_manager.tuple_to_batch(
                     output_tuple
                 ):
-                    self._output_queue.put(DataElement(tag=to, payload=batch))
+                    self._output_queue.put(
+                        DataElement(
+                            tag=ChannelIdentity(
+                                ActorVirtualIdentity(self.context.worker_id), to, False
+                            ),
+                            payload=batch,
+                        )
+                    )
 
     def process_input_state(self) -> None:
         self._switch_context()
@@ -177,7 +191,14 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self._switch_context()
         if output_state is not None:
             for to, batch in self.context.output_manager.emit_marker(output_state):
-                self._output_queue.put(DataElement(tag=to, payload=batch))
+                self._output_queue.put(
+                    DataElement(
+                        tag=ChannelIdentity(
+                            ActorVirtualIdentity(self.context.worker_id), to, False
+                        ),
+                        payload=batch,
+                    )
+                )
 
     def process_tuple_with_udf(self) -> Iterator[Optional[Tuple]]:
         """
@@ -241,6 +262,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
         :param sender_change_marker: SenderChangeMarker which contains sender link.
         """
+        self.context.tuple_processing_manager.current_input_channel_id = (
+            sender_change_marker.channel_id
+        )
         self.context.tuple_processing_manager.current_input_port_id = (
             self.context.input_manager.get_port_id(sender_change_marker.channel_id)
         )
@@ -254,7 +278,14 @@ class MainLoop(StoppableQueueBlockingRunnable):
         :param _: StartOfAny Internal Marker
         """
         for to, batch in self.context.output_manager.emit_marker(StartOfInputChannel()):
-            self._output_queue.put(DataElement(tag=to, payload=batch))
+            self._output_queue.put(
+                DataElement(
+                    tag=ChannelIdentity(
+                        ActorVirtualIdentity(self.context.worker_id), to, False
+                    ),
+                    payload=batch,
+                )
+            )
             self._check_and_process_control()
 
     def _process_end_of_output_ports(self, _: EndOfOutputPorts) -> None:
@@ -267,7 +298,14 @@ class MainLoop(StoppableQueueBlockingRunnable):
         :param _: EndOfOutputPorts
         """
         for to, batch in self.context.output_manager.emit_marker(EndOfInputChannel()):
-            self._output_queue.put(DataElement(tag=to, payload=batch))
+            self._output_queue.put(
+                DataElement(
+                    tag=ChannelIdentity(
+                        ActorVirtualIdentity(self.context.worker_id), to, False
+                    ),
+                    payload=batch,
+                )
+            )
             self._check_and_process_control()
 
             self._async_rpc_client.controller_stub().port_completed(
@@ -275,6 +313,69 @@ class MainLoop(StoppableQueueBlockingRunnable):
             )
 
         self.complete()
+
+    def _process_channel_marker_payload(self, marker_payload: ChannelMarkerPayload):
+        marker_id = marker_payload.id
+        command = marker_payload.command_mapping.get(self.context.worker_id)
+        channel_id = self.context.tuple_processing_manager.current_input_channel_id
+        logger.info(
+            f"receive channel marker from {channel_id},"
+            f" id = {marker_id}, cmd = {command}"
+        )
+
+        if (
+            marker_payload.marker_type
+            == ChannelMarkerPayload.marker_type.REQUIRE_ALIGNMENT
+        ):
+            self.pause_manager.pause_input_channel(PauseType.MARKER_PAUSE, [channel_id])
+
+        if self.context.channel_marker_manager.is_marker_aligned(
+            channel_id, marker_payload
+        ):
+            logger.info(
+                f"process channel marker from {channel_id},"
+                f" id = {marker_id}, cmd = {command}"
+            )
+
+            if command is not None:
+                self._async_rpc_server.receive(channel_id, command)
+
+            downstream_channels_in_scope = {
+                scope
+                for scope in marker_payload.scope
+                if scope.from_worker_id == ActorVirtualIdentity(self.context.worker_id)
+            }
+            if downstream_channels_in_scope:
+                for (
+                    active_channel_id
+                ) in self.context.output_manager.get_output_channel_ids():
+                    if active_channel_id in downstream_channels_in_scope:
+                        logger.info(
+                            f"send marker to {active_channel_id},"
+                            f" id = {marker_id}, cmd = {command}"
+                        )
+                        for (
+                            to,
+                            batch,
+                        ) in self.context.output_manager.emit_marker_to_channel(
+                            active_channel_id, marker_payload
+                        ):
+                            self._output_queue.put(
+                                DataElement(
+                                    tag=ChannelIdentity(
+                                        ActorVirtualIdentity(self.context.worker_id),
+                                        to,
+                                        False,
+                                    ),
+                                    payload=batch,
+                                )
+                            )
+
+            if (
+                marker_payload.marker_type
+                == ChannelMarkerPayload.marker_type.REQUIRE_ALIGNMENT
+            ):
+                self.pause_manager.resume(PauseType.MARKER_PAUSE)
 
     def _process_data_element(self, data_element: DataElement) -> None:
         """

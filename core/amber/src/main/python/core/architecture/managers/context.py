@@ -1,5 +1,6 @@
 from proto.edu.uci.ics.amber.engine.architecture.worker import WorkerState
 from .console_message_manager import ConsoleMessageManager
+from .channel_marker_manager import ChannelMarkerManager
 from .debug_manager import DebugManager
 from .exception_manager import ExceptionManager
 from .marker_processing_manager import MarkerProcessingManager
@@ -46,6 +47,9 @@ class Context:
         )
         self.output_manager = OutputManager(worker_id)
         self.input_manager = InputManager()
+        self.channel_marker_manager = ChannelMarkerManager(
+            worker_id, self.input_manager
+        )
         self.console_message_manager = ConsoleMessageManager()
         self.debug_manager = DebugManager(
             self.tuple_processing_manager.context_switch_condition

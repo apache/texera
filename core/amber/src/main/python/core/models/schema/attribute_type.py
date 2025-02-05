@@ -42,16 +42,18 @@ TO_ARROW_MAPPING = {
     AttributeType.DOUBLE: pa.float64(),
     AttributeType.BOOL: pa.bool_(),
     AttributeType.BINARY: pa.binary(),
-    AttributeType.TIMESTAMP: pa.timestamp("ms", tz="UTC"),
+    AttributeType.TIMESTAMP: pa.timestamp("us"),
 }
 
 FROM_ARROW_MAPPING = {
     lib.Type_INT32: AttributeType.INT,
     lib.Type_INT64: AttributeType.LONG,
     lib.Type_STRING: AttributeType.STRING,
+    lib.Type_LARGE_STRING: AttributeType.STRING,
     lib.Type_DOUBLE: AttributeType.DOUBLE,
     lib.Type_BOOL: AttributeType.BOOL,
     lib.Type_BINARY: AttributeType.BINARY,
+    lib.Type_LARGE_BINARY: AttributeType.BINARY,
     lib.Type_TIMESTAMP: AttributeType.TIMESTAMP,
 }
 

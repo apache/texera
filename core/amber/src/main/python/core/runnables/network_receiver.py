@@ -22,6 +22,7 @@ from core.models.marker import EndOfInputChannel, State, StartOfInputChannel
 from core.proxy import ProxyServer
 from core.util import Stoppable, get_one_of
 from core.util.runnable.runnable import Runnable
+from proto.edu.uci.ics.amber.engine.architecture.rpc import ChannelMarkerPayload
 from proto.edu.uci.ics.amber.engine.common import (
     PythonControlMessage,
     PythonDataHeader,
@@ -70,6 +71,8 @@ class NetworkReceiver(Runnable, Stoppable):
                 lambda _: DataFrame(table),
                 "State",
                 lambda _: MarkerFrame(State(table)),
+                "ChannelMarker",
+                lambda _: ChannelMarkerPayload().parse(table[0]["payload"]),
                 "StartOfInputChannel",
                 MarkerFrame(StartOfInputChannel()),
                 "EndOfInputChannel",

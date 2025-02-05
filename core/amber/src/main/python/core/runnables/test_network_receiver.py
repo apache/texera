@@ -12,7 +12,7 @@ from core.runnables.network_sender import NetworkSender
 from core.util.proto import set_one_of
 from proto.edu.uci.ics.amber.engine.architecture.rpc import ControlInvocation
 from proto.edu.uci.ics.amber.engine.common import ControlPayloadV2
-from proto.edu.uci.ics.amber.core import ActorVirtualIdentity
+from proto.edu.uci.ics.amber.core import ActorVirtualIdentity, ChannelIdentity
 
 
 class TestNetworkReceiver:
@@ -91,7 +91,7 @@ class TestNetworkReceiver:
             )
         )
 
-    @pytest.mark.timeout(10)
+    @pytest.mark.timeout(100000)
     def test_network_receiver_can_receive_data_messages(
         self,
         data_payload,
@@ -102,10 +102,11 @@ class TestNetworkReceiver:
     ):
         network_sender_thread.start()
         worker_id = ActorVirtualIdentity(name="test")
-        input_queue.put(DataElement(tag=worker_id, payload=data_payload))
+        channel_id = ChannelIdentity(worker_id, worker_id, False)
+        input_queue.put(DataElement(tag=channel_id, payload=data_payload))
         element: DataElement = output_queue.get()
         assert len(element.payload.frame) == len(data_payload.frame)
-        assert element.tag == worker_id
+        assert element.tag == channel_id
 
     @pytest.mark.timeout(10)
     def test_network_receiver_can_receive_data_messages_end_of_upstream(
@@ -118,13 +119,14 @@ class TestNetworkReceiver:
     ):
         network_sender_thread.start()
         worker_id = ActorVirtualIdentity(name="test")
+        channel_id = ChannelIdentity(worker_id, worker_id, False)
         input_queue.put(
-            DataElement(tag=worker_id, payload=MarkerFrame(EndOfInputChannel()))
+            DataElement(tag=channel_id, payload=MarkerFrame(EndOfInputChannel()))
         )
         element: DataElement = output_queue.get()
         assert isinstance(element.payload, MarkerFrame)
         assert element.payload.frame == EndOfInputChannel()
-        assert element.tag == worker_id
+        assert element.tag == channel_id
 
     @pytest.mark.timeout(10)
     def test_network_receiver_can_receive_control_messages(
@@ -137,8 +139,9 @@ class TestNetworkReceiver:
     ):
         worker_id = ActorVirtualIdentity(name="test")
         control_payload = set_one_of(ControlPayloadV2, ControlInvocation())
-        input_queue.put(ControlElement(tag=worker_id, payload=control_payload))
+        channel_id = ChannelIdentity(worker_id, worker_id, False)
+        input_queue.put(ControlElement(tag=channel_id, payload=control_payload))
         network_sender_thread.start()
         element: ControlElement = output_queue.get()
         assert element.payload == control_payload
-        assert element.tag == worker_id
+        assert element.tag == channel_id

@@ -13,7 +13,7 @@ from proto.edu.uci.ics.amber.engine.common import (
     PythonControlMessage,
     PythonDataHeader,
 )
-from proto.edu.uci.ics.amber.core import ActorVirtualIdentity
+from proto.edu.uci.ics.amber.core import ChannelIdentity
 
 
 class NetworkSender(StoppableQueueBlockingRunnable):
@@ -43,12 +43,12 @@ class NetworkSender(StoppableQueueBlockingRunnable):
             raise TypeError(f"Unexpected entry {next_entry}")
 
     @logger.catch(reraise=True)
-    def _send_data(self, to: ActorVirtualIdentity, data_payload: DataPayload) -> None:
+    def _send_data(self, to: ChannelIdentity, data_payload: DataPayload) -> None:
         """
         Send data payload to the given target actor. This method is to be used
         internally only.
 
-        :param to: The target actor's ActorVirtualIdentity
+        :param to: The target ChannelIdentity
         :param data_payload: The data payload to be sent, can be either DataFrame or
             EndOfInputChannel
         """
@@ -72,13 +72,13 @@ class NetworkSender(StoppableQueueBlockingRunnable):
 
     @logger.catch(reraise=True)
     def _send_control(
-        self, to: ActorVirtualIdentity, control_payload: ControlPayloadV2
+        self, to: ChannelIdentity, control_payload: ControlPayloadV2
     ) -> None:
         """
         Send the control payload to the given target actor. This method is to be used
         internally only.
 
-        :param to: The target actor's ActorVirtualIdentity
+        :param to: The target ChannelIdentity
         :param control_payload: The control payload to be sent, can be either
             ControlInvocation or ReturnInvocation.
         """
