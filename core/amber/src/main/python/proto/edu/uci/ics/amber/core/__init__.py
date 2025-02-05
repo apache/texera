@@ -88,6 +88,7 @@ class OutputPort(betterproto.Message):
     display_name: str = betterproto.string_field(2)
     blocking: bool = betterproto.bool_field(3)
     mode: "OutputPortOutputMode" = betterproto.enum_field(4)
+    storage_uri: str = betterproto.string_field(5)
 
 
 @dataclass(eq=False, repr=False)
