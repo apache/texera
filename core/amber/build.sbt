@@ -49,7 +49,7 @@ val akkaDependencies = Seq(
   "com.softwaremill.macwire" %% "util" % "2.5.8",
   "com.softwaremill.macwire" %% "proxy" % "2.5.8",
   "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
-  "ch.qos.logback" % "logback-classic" % "1.2.10" % Test
+  "ch.qos.logback" % "logback-classic" % "1.2.13" % Test
 )
 
 // dropwizard web framework
