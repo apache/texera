@@ -60,35 +60,34 @@ class InternalQueue(IQueue):
 
     def put(self, item: T) -> None:
         if isinstance(item, InternalQueueElement):
-            queue_id = str(bytes(item.tag))
             if item.tag not in self._queue_ids:
-                self._queue.add_sub_queue(queue_id, 1 if item.tag.is_control else 2)
+                self._queue.add_sub_queue(item.tag, 1 if item.tag.is_control else 2)
                 self._queue_ids.add(item.tag)
-            if isinstance(item, (DataElement, InternalMarker)):
-                self._queue.put(queue_id, item)
+            if isinstance(item, (DataElement, InternalMarker, ChannelMarkerElement)):
+                self._queue.put(item.tag, item)
             elif isinstance(item, ControlElement):
-                self._queue.put(queue_id, item)
+                self._queue.put(item.tag, item)
             else:
                 raise ValueError(f"item {item} is not recognized by internal queue")
         else:
             self._queue.put("SYSTEM", item)
 
     def disable(self, channel_id: ChannelIdentity) -> None:
-        self._queue.disable(str(bytes(channel_id)))
+        self._queue.disable(channel_id)
 
     def enable(self, channel_id: ChannelIdentity) -> None:
-        self._queue.enable(str(bytes(channel_id)))
+        self._queue.enable(channel_id)
 
     def is_control_empty(self) -> bool:
         return all(
-            self.is_empty(str(bytes(queue_id)))
+            self.is_empty(queue_id)
             for queue_id in self._queue_ids
             if queue_id.is_control
         )
 
     def is_data_empty(self) -> bool:
         return all(
-            self.is_empty(str(bytes(queue_id)))
+            self.is_empty(queue_id)
             for queue_id in self._queue_ids
             if not queue_id.is_control
         )
@@ -101,14 +100,14 @@ class InternalQueue(IQueue):
 
     def size_control(self) -> int:
         return sum(
-            self._queue.size(str(bytes(queue_id)))
+            self._queue.size(queue_id)
             for queue_id in self._queue_ids
             if queue_id.is_control
         )
 
     def size_data(self) -> int:
         return sum(
-            self._queue.size(str(bytes(queue_id)))
+            self._queue.size(queue_id)
             for queue_id in self._queue_ids
             if not queue_id.is_control
         )
@@ -121,7 +120,7 @@ class InternalQueue(IQueue):
                 return False
             for queue_id in self._queue_ids:
                 if not queue_id.is_control:
-                    self._queue.enable(str(bytes(queue_id)))
+                    self._queue.enable(queue_id)
             return True
 
     def disable_data(self, disable_type: DisableType) -> None:
@@ -129,18 +128,18 @@ class InternalQueue(IQueue):
             self._queue_state.add(disable_type)
             for queue_id in self._queue_ids:
                 if not queue_id.is_control:
-                    self._queue.disable(str(bytes(queue_id)))
+                    self._queue.disable(queue_id)
 
     def in_mem_size(self) -> int:
         return sum(
-            self._queue.in_mem_size(str(bytes(queue_id)))
+            self._queue.in_mem_size(queue_id)
             for queue_id in self._queue_ids
             if not queue_id.is_control
         )
 
     def is_data_enabled(self) -> bool:
         return any(
-            self._queue.is_enabled(str(bytes(queue_id)))
+            self._queue.is_enabled(queue_id)
             for queue_id in self._queue_ids
             if not queue_id.is_control
         )

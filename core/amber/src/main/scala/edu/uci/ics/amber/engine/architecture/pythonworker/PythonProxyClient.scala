@@ -106,7 +106,7 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
   }
 
   private def sendChannelMarker(markerPayload: ChannelMarkerPayload, from: ChannelIdentity): Unit = {
-    val t = Tuple.builder(Schema().add("payload", AttributeType.STRING)).add("payload", AttributeType.STRING, markerPayload.toProtoString).build()
+    val t = Tuple.builder(Schema().add("payload", AttributeType.BINARY)).add("payload", AttributeType.BINARY, markerPayload.toByteArray).build()
     writeArrowStream(mutable.Queue(t), from, "ChannelMarker")
   }
 

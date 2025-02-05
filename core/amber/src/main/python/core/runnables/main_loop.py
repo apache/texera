@@ -21,7 +21,7 @@ from core.models.internal_marker import (
     EndOfInputPort,
     StartOfInputPort,
 )
-from core.models.internal_queue import DataElement, ControlElement
+from core.models.internal_queue import DataElement, ControlElement, ChannelMarkerElement
 from core.models.marker import State, EndOfInputChannel, StartOfInputChannel
 from core.runnables.data_processor import DataProcessor
 from core.util import StoppableQueueBlockingRunnable, get_one_of
@@ -35,7 +35,7 @@ from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     PortCompletedRequest,
     EmptyRequest,
     ConsoleMessageTriggeredRequest,
-    ChannelMarkerPayload,
+    ChannelMarkerPayload, ChannelMarkerType,
 )
 from proto.edu.uci.ics.amber.engine.architecture.worker import (
     WorkerState,
@@ -125,7 +125,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
             self._process_data_element,
             ControlElement,
             self._process_control_element,
-            ChannelMarkerPayload,
+            ChannelMarkerElement,
             self._process_channel_marker_payload,
         )
 
@@ -314,7 +314,8 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
         self.complete()
 
-    def _process_channel_marker_payload(self, marker_payload: ChannelMarkerPayload):
+    def _process_channel_marker_payload(self, marker_elem: ChannelMarkerElement):
+        marker_payload = marker_elem.payload
         marker_id = marker_payload.id
         command = marker_payload.command_mapping.get(self.context.worker_id)
         channel_id = self.context.tuple_processing_manager.current_input_channel_id
@@ -322,12 +323,11 @@ class MainLoop(StoppableQueueBlockingRunnable):
             f"receive channel marker from {channel_id},"
             f" id = {marker_id}, cmd = {command}"
         )
-
         if (
             marker_payload.marker_type
-            == ChannelMarkerPayload.marker_type.REQUIRE_ALIGNMENT
+            == ChannelMarkerType.REQUIRE_ALIGNMENT
         ):
-            self.pause_manager.pause_input_channel(PauseType.MARKER_PAUSE, [channel_id])
+            self.context.pause_manager.pause_input_channel(PauseType.MARKER_PAUSE, channel_id)
 
         if self.context.channel_marker_manager.is_marker_aligned(
             channel_id, marker_payload
@@ -373,9 +373,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
             if (
                 marker_payload.marker_type
-                == ChannelMarkerPayload.marker_type.REQUIRE_ALIGNMENT
+                == ChannelMarkerType.REQUIRE_ALIGNMENT
             ):
-                self.pause_manager.resume(PauseType.MARKER_PAUSE)
+                self.context.pause_manager.resume(PauseType.MARKER_PAUSE)
 
     def _process_data_element(self, data_element: DataElement) -> None:
         """

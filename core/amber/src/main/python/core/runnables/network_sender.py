@@ -2,12 +2,13 @@ from typing import Optional
 
 from loguru import logger
 from overrides import overrides
-
+import pyarrow as pa
 from core.models import DataPayload, InternalQueue, DataFrame, MarkerFrame, State
 
 from core.models.internal_queue import InternalQueueElement, DataElement, ControlElement
 from core.proxy import ProxyClient
 from core.util import StoppableQueueBlockingRunnable
+from proto.edu.uci.ics.amber.engine.architecture.rpc import ChannelMarkerPayload
 from proto.edu.uci.ics.amber.engine.common import (
     ControlPayloadV2,
     PythonControlMessage,
@@ -56,7 +57,14 @@ class NetworkSender(StoppableQueueBlockingRunnable):
         if isinstance(data_payload, DataFrame):
             data_header = PythonDataHeader(tag=to, payload_type="Data")
             self._proxy_client.send_data(bytes(data_header), data_payload.frame)
-
+        elif isinstance(data_payload, ChannelMarkerPayload):
+            data_header = PythonDataHeader(tag=to, payload_type="ChannelMarker")
+            schema = pa.schema([
+                ('payload', pa.binary())
+            ])
+            data = [pa.array([bytes(data_payload)])]
+            table = pa.Table.from_arrays(data, schema=schema)
+            self._proxy_client.send_data(bytes(data_header), table)
         elif isinstance(data_payload, MarkerFrame):
             data_header = PythonDataHeader(
                 tag=to, payload_type=data_payload.frame.__class__.__name__

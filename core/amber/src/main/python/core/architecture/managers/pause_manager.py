@@ -48,11 +48,10 @@ class PauseManager:
             self._state_manager.transit_to(WorkerState.PAUSED)
 
     def pause_input_channel(
-        self, pause_type: PauseType, inputs: List[ChannelIdentity]
+        self, pause_type: PauseType, channel_id: ChannelIdentity
     ) -> None:
-        for channel_id in inputs:
-            self._specific_input_pauses[pause_type].add(channel_id)
-            self._input_queue.disable(channel_id)
+        self._specific_input_pauses[pause_type].add(channel_id)
+        self._input_queue.disable(channel_id)
 
     def resume(self, pause_type: PauseType, change_state=True) -> None:
         if pause_type in self._global_pauses:

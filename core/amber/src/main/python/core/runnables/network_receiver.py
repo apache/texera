@@ -17,7 +17,7 @@ from core.models import (
     DataFrame,
     MarkerFrame,
 )
-from core.models.internal_queue import DataElement, ControlElement, InternalQueue
+from core.models.internal_queue import DataElement, ControlElement, InternalQueue, ChannelMarkerElement
 from core.models.marker import EndOfInputChannel, State, StartOfInputChannel
 from core.proxy import ProxyServer
 from core.util import Stoppable, get_one_of
@@ -65,6 +65,9 @@ class NetworkReceiver(Runnable, Stoppable):
             :return: sender credits
             """
             data_header = PythonDataHeader().parse(command)
+            # Explicitly set is_control to trigger lazy computation.
+            # If not set, it may be computed at different times, causing hash inconsistencies.
+            data_header.tag.is_control = False
             payload = match(
                 data_header.payload_type,
                 "Data",
@@ -72,14 +75,16 @@ class NetworkReceiver(Runnable, Stoppable):
                 "State",
                 lambda _: MarkerFrame(State(table)),
                 "ChannelMarker",
-                lambda _: ChannelMarkerPayload().parse(table[0]["payload"]),
+                lambda _: ChannelMarkerPayload().parse(table["payload"][0].as_py()),
                 "StartOfInputChannel",
                 MarkerFrame(StartOfInputChannel()),
                 "EndOfInputChannel",
                 MarkerFrame(EndOfInputChannel()),
             )
-
-            shared_queue.put(DataElement(tag=data_header.tag, payload=payload))
+            if isinstance(payload, ChannelMarkerPayload):
+                shared_queue.put(ChannelMarkerElement(tag=data_header.tag, payload=payload))
+            else:
+                shared_queue.put(DataElement(tag=data_header.tag, payload=payload))
             return shared_queue.in_mem_size()
 
         self._proxy_server.register_data_handler(data_handler)

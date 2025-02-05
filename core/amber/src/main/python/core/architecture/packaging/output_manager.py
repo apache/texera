@@ -113,8 +113,8 @@ class OutputManager:
                     (
                         receiver,
                         (
-                            MarkerFrame(payload)
-                            if isinstance(payload, Marker)
+                            payload
+                            if isinstance(payload, ChannelMarkerPayload)
                             else self.tuple_to_frame(payload)
                         ),
                     )

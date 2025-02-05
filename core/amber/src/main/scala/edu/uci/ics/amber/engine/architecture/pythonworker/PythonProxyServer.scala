@@ -4,12 +4,13 @@ import com.google.common.primitives.Longs
 import com.twitter.util.Promise
 import edu.uci.ics.amber.core.marker.{EndOfInputChannel, StartOfInputChannel, State}
 import edu.uci.ics.amber.core.tuple.Tuple
+import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputGateway
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerPayload
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.Value.{ControlInvocation => ControlInvocationV2, ReturnInvocation => ReturnInvocationV2}
 import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.util.ArrowUtils
-import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import org.apache.arrow.flight._
 import org.apache.arrow.memory.{ArrowBuf, BufferAllocator, RootAllocator}
 import org.apache.arrow.util.AutoCloseables
@@ -111,6 +112,9 @@ private class AmberProducer(
       case "State" =>
         assert(root.getRowCount == 1)
         outputPort.sendTo(to, MarkerFrame(State(Some(ArrowUtils.getTexeraTuple(0, root)))))
+      case "ChannelMarker" =>
+        assert(root.getRowCount == 1)
+        outputPort.sendTo(to, ChannelMarkerPayload.parseFrom(ArrowUtils.getTexeraTuple(0, root).getField[Array[Byte]]("payload")))
       case _ => // normal data batches
         val queue = mutable.Queue[Tuple]()
         for (i <- 0 until root.getRowCount)

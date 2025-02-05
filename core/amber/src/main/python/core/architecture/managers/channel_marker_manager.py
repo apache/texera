@@ -2,7 +2,7 @@ from collections import defaultdict
 from typing import Set, Dict
 
 from proto.edu.uci.ics.amber.core import ActorVirtualIdentity, ChannelIdentity
-from proto.edu.uci.ics.amber.engine.architecture.rpc import ChannelMarkerPayload
+from proto.edu.uci.ics.amber.engine.architecture.rpc import ChannelMarkerPayload, ChannelMarkerType
 
 
 class ChannelMarkerManager:
@@ -21,9 +21,9 @@ class ChannelMarkerManager:
             marker
         ).issubset(self.marker_received[marker_id])
 
-        if marker.marker_type == ChannelMarkerPayload.marker_type.REQUIRE_ALIGNMENT:
+        if marker.marker_type == ChannelMarkerType.REQUIRE_ALIGNMENT:
             epoch_marker_completed = marker_received_from_all_channels
-        elif marker.marker_type == ChannelMarkerPayload.marker_type.NO_ALIGNMENT:
+        elif marker.marker_type == ChannelMarkerType.NO_ALIGNMENT:
             epoch_marker_completed = (
                 len(self.marker_received[marker_id]) == 1
             )  # Only the first marker triggers
