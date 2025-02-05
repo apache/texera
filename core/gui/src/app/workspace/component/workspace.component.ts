@@ -16,7 +16,6 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { of } from "rxjs";
 import { isDefined } from "../../common/util/predicate";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
-import { Version } from "../../../environments/version";
 import { WorkflowConsoleService } from "../service/workflow-console/workflow-console.service";
 import { OperatorReuseCacheStatusService } from "../service/workflow-status/operator-reuse-cache-status.service";
 import { CodeEditorService } from "../service/code-editor/code-editor.service";
@@ -39,7 +38,6 @@ export const SAVE_DEBOUNCE_TIME_IN_MS = 5000;
 })
 export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   public pid?: number = undefined;
-  public gitCommitHash: string = Version.raw;
   public writeAccess: boolean = false;
   public isLoading: boolean = false;
   userSystemEnabled = environment.userSystemEnabled;
