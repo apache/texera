@@ -14,12 +14,12 @@ class ProgressiveSinkOpExec(
     outputMode: OutputMode,
     storageURI: URI
 ) extends SinkOperatorExecutor {
-  val (doc, _) = DocumentFactory.openDocument(storageURI)
-  val writer: BufferedItemWriter[Tuple] =
-    doc.writer(workerId.toString).asInstanceOf[BufferedItemWriter[Tuple]]
+//  val (doc, _) = DocumentFactory.openDocument(storageURI)
+//  val writer: BufferedItemWriter[Tuple] =
+//    doc.writer(workerId.toString).asInstanceOf[BufferedItemWriter[Tuple]]
 
   override def open(): Unit = {
-    writer.open()
+//    writer.open()
   }
 
   override def consumeTuple(
@@ -39,7 +39,7 @@ class ProgressiveSinkOpExec(
     if (isInsertion) {
 //      writer.putOne(tupleValue)
     } else {
-      writer.removeOne(tupleValue)
+//      writer.removeOne(tupleValue)
     }
   }
 
@@ -48,7 +48,7 @@ class ProgressiveSinkOpExec(
   }
 
   override def close(): Unit = {
-    writer.close()
+//    writer.close()
   }
 
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = Iterator.empty
