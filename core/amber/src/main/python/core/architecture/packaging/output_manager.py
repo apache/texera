@@ -23,7 +23,11 @@ from core.architecture.sendsemantics.round_robin_partitioner import (
 from core.models import Tuple, Schema, MarkerFrame
 from core.models.marker import Marker
 from core.models.payload import DataPayload, DataFrame
+from core.storage.document_factory import DocumentFactory
+from core.storage.model.buffered_item_writer import BufferedItemWriter
+from core.storage.model.virtual_document import VirtualDocument
 from core.util import get_one_of
+from core.util.virtual_identity import get_worker_index
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
     HashBasedShufflePartitioning,
     OneToOnePartitioning,
@@ -53,21 +57,39 @@ class OutputManager:
             RangeBasedShufflePartitioning: RangeBasedShufflePartitioner,
             BroadcastPartitioning: BroadcastPartitioner,
         }
-        self._ports: typing.Dict[PortIdentity, WorkerPort] = dict()
+        self._ports: typing.Dict[PortIdentity, (WorkerPort, typing.Optional[BufferedItemWriter[Tuple]])] = dict()
         self._channels: typing.Dict[ChannelIdentity, Channel] = dict()
 
-    def add_output_port(self, port_id: PortIdentity, schema: Schema) -> None:
+    def add_output_port(self, port_id: PortIdentity, schema: Schema, storage_uri: str) -> None:
         if port_id.id is None:
             port_id.id = 0
         if port_id.internal is None:
             port_id.internal = False
 
+        optional_writer = None
+        if storage_uri is not "":
+            document: VirtualDocument[Tuple]
+            document, _ = DocumentFactory.open_document(storage_uri)
+            optional_writer = document.writer(get_worker_index(self.worker_id))
+
         # each port can only be added and initialized once.
         if port_id not in self._ports:
-            self._ports[port_id] = WorkerPort(schema)
+            self._ports[port_id] = (WorkerPort(schema), optional_writer)
 
     def get_port(self, port_id=None) -> WorkerPort:
-        return list(self._ports.values())[0]
+        return list(self._ports.values())[0][0]
+
+    def save_tuple_to_storage_if_needed(self, amber_tuple: Tuple, port_id=None) -> None:
+        optional_writer = list(self._ports.values())[0][1]
+        if optional_writer is not None:
+            optional_writer: BufferedItemWriter
+            optional_writer.put_one(amber_tuple)
+
+    def close_output_storage_writers(self) -> None:
+        optional_writer = list(self._ports.values())[0][1]
+        if optional_writer is not None:
+            optional_writer: BufferedItemWriter
+            optional_writer.close()
 
     def add_partitioning(self, tag: PhysicalLink, partitioning: Partitioning) -> None:
         """

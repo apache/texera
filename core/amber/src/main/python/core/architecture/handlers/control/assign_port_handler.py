@@ -15,6 +15,6 @@ class AssignPortHandler(ControlHandler):
             )
         else:
             self.context.output_manager.add_output_port(
-                req.port_id, Schema(raw_schema=req.schema)
+                req.port_id, Schema(raw_schema=req.schema), req.storage_uri
             )
         return EmptyReturn()

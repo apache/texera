@@ -170,6 +170,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
                     output_tuple
                 ):
                     self._output_queue.put(DataElement(tag=to, payload=batch))
+                self.context.output_manager.save_tuple_to_storage_if_needed(output_tuple)
 
     def process_input_state(self) -> None:
         self._switch_context()
@@ -225,6 +226,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self.context.marker_processing_manager.current_input_marker = end_of_input_port
         self.process_input_state()
         self.process_input_tuple()
+        self.context.output_manager.close_output_storage_writers()
         input_port_id = self.context.tuple_processing_manager.current_input_port_id
         if input_port_id is not None:
             self._async_rpc_client.controller_stub().port_completed(
