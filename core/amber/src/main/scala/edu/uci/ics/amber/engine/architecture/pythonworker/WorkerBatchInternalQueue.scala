@@ -20,7 +20,8 @@ object WorkerBatchInternalQueue {
       extends InternalQueueElement
 
   case class ControlElement(cmd: ControlPayload, from: ChannelIdentity) extends InternalQueueElement
-  case class ChannelMarkerElement(cmd: ChannelMarkerPayload, from: ChannelIdentity) extends InternalQueueElement
+  case class ChannelMarkerElement(cmd: ChannelMarkerPayload, from: ChannelIdentity)
+      extends InternalQueueElement
   case class ActorCommandElement(cmd: ActorCommand) extends InternalQueueElement
 }
 

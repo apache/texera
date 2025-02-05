@@ -5,8 +5,16 @@ import edu.uci.ics.amber.core.WorkflowRuntimeException
 import edu.uci.ics.amber.core.marker.State
 import edu.uci.ics.amber.core.tuple.{AttributeType, Schema, Tuple}
 import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
-import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{ActorCommandElement, ChannelMarkerElement, ControlElement, DataElement}
-import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{ChannelMarkerPayload, ControlInvocation}
+import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{
+  ActorCommandElement,
+  ChannelMarkerElement,
+  ControlElement,
+  DataElement
+}
+import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.{
+  ChannelMarkerPayload,
+  ControlInvocation
+}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.ReturnInvocation
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.actormessage.{ActorCommand, PythonActorMessage}
@@ -105,8 +113,14 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     }
   }
 
-  private def sendChannelMarker(markerPayload: ChannelMarkerPayload, from: ChannelIdentity): Unit = {
-    val t = Tuple.builder(Schema().add("payload", AttributeType.BINARY)).add("payload", AttributeType.BINARY, markerPayload.toByteArray).build()
+  private def sendChannelMarker(
+      markerPayload: ChannelMarkerPayload,
+      from: ChannelIdentity
+  ): Unit = {
+    val t = Tuple
+      .builder(Schema().add("payload", AttributeType.BINARY))
+      .add("payload", AttributeType.BINARY, markerPayload.toByteArray)
+      .build()
     writeArrowStream(mutable.Queue(t), from, "ChannelMarker")
   }
 
@@ -154,9 +168,9 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
   }
 
   private def writeArrowStream(
-     tuples: mutable.Queue[Tuple],
-     from: ChannelIdentity,
-     payloadType: String
+      tuples: mutable.Queue[Tuple],
+      from: ChannelIdentity,
+      payloadType: String
   ): Unit = {
 
     val schema = if (tuples.isEmpty) new Schema() else tuples.front.getSchema

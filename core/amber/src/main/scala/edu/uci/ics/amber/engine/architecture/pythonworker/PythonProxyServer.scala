@@ -8,7 +8,10 @@ import edu.uci.ics.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIden
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputGateway
 import edu.uci.ics.amber.engine.architecture.rpc.controlcommands.ChannelMarkerPayload
 import edu.uci.ics.amber.engine.common.AmberLogging
-import edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.Value.{ControlInvocation => ControlInvocationV2, ReturnInvocation => ReturnInvocationV2}
+import edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.Value.{
+  ControlInvocation => ControlInvocationV2,
+  ReturnInvocation => ReturnInvocationV2
+}
 import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.util.ArrowUtils
 import org.apache.arrow.flight._
@@ -114,7 +117,12 @@ private class AmberProducer(
         outputPort.sendTo(to, MarkerFrame(State(Some(ArrowUtils.getTexeraTuple(0, root)))))
       case "ChannelMarker" =>
         assert(root.getRowCount == 1)
-        outputPort.sendTo(to, ChannelMarkerPayload.parseFrom(ArrowUtils.getTexeraTuple(0, root).getField[Array[Byte]]("payload")))
+        outputPort.sendTo(
+          to,
+          ChannelMarkerPayload.parseFrom(
+            ArrowUtils.getTexeraTuple(0, root).getField[Array[Byte]]("payload")
+          )
+        )
       case _ => // normal data batches
         val queue = mutable.Queue[Tuple]()
         for (i <- 0 until root.getRowCount)
