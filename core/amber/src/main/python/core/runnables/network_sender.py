@@ -46,7 +46,6 @@ class NetworkSender(StoppableQueueBlockingRunnable):
         elif isinstance(next_entry, ControlElement):
             self._send_control(next_entry.tag, next_entry.payload)
         elif isinstance(next_entry, ChannelMarkerElement):
-            logger.info(next_entry)
             self._send_channel_marker(next_entry.tag, next_entry.payload)
         else:
             raise TypeError(f"Unexpected entry {next_entry}")
