@@ -17,6 +17,20 @@ class ChannelMarkerManager:
     def is_marker_aligned(
         self, from_channel: ChannelIdentity, marker: ChannelMarkerPayload
     ):
+        """
+        Checks whether a channel marker has been received from all expected
+        input channels, determining whether further processing can proceed.
+
+        Args:
+            from_channel (ChannelIdentity): The channel from which the marker
+                was received.
+            marker (ChannelMarkerPayload): The marker payload containing its
+                type and scope.
+
+        Returns:
+            bool: True if the marker is considered aligned and processing can
+                  continue, False otherwise.
+        """
         marker_id = marker.id
         self.marker_received[marker_id].add(from_channel)
 

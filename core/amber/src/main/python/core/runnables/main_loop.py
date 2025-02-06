@@ -40,6 +40,7 @@ from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     EmptyRequest,
     ConsoleMessageTriggeredRequest,
     ChannelMarkerType,
+    ChannelMarkerPayload,
 )
 from proto.edu.uci.ics.amber.engine.architecture.worker import (
     WorkerState,
@@ -124,9 +125,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
                     2. a DataElement.
         """
         if isinstance(next_entry, InternalQueueElement):
-            self.context.tuple_processing_manager.current_input_channel_id = (
-                next_entry.tag
-            )
+            self.context.current_input_channel_id = next_entry.tag
 
         match(
             next_entry,
@@ -310,10 +309,18 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self.complete()
 
     def _process_channel_marker_payload(self, marker_elem: ChannelMarkerElement):
+        """
+        Processes a received channel marker payload and handles synchronization,
+        command execution, and forwarding to downstream channels if applicable.
+
+        Args:
+            marker_elem (ChannelMarkerElement): The received channel marker
+                element.
+        """
         marker_payload = marker_elem.payload
         marker_id = marker_payload.id
         command = marker_payload.command_mapping.get(self.context.worker_id)
-        channel_id = self.context.tuple_processing_manager.current_input_channel_id
+        channel_id = self.context.current_input_channel_id
         logger.info(
             f"receive channel marker from {channel_id},"
             f" id = {marker_id}, cmd = {command}"
@@ -354,16 +361,19 @@ class MainLoop(StoppableQueueBlockingRunnable):
                         ) in self.context.output_manager.emit_marker_to_channel(
                             active_channel_id, marker_payload
                         ):
-                            self._output_queue.put(
-                                DataElement(
-                                    tag=ChannelIdentity(
-                                        ActorVirtualIdentity(self.context.worker_id),
-                                        to,
-                                        False,
-                                    ),
-                                    payload=batch,
-                                )
+                            tag = ChannelIdentity(
+                                ActorVirtualIdentity(self.context.worker_id),
+                                to,
+                                False,
                             )
+
+                            element = (
+                                ChannelMarkerElement(tag=tag, payload=batch)
+                                if isinstance(batch, ChannelMarkerPayload)
+                                else DataElement(tag=tag, payload=batch)
+                            )
+
+                            self._output_queue.put(element)
 
             if marker_payload.marker_type == ChannelMarkerType.REQUIRE_ALIGNMENT:
                 self.context.pause_manager.resume(PauseType.MARKER_PAUSE)
@@ -378,7 +388,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
         self.context.tuple_processing_manager.current_input_port_id = (
             self.context.input_manager.get_port_id(
-                self.context.tuple_processing_manager.current_input_channel_id
+                self.context.current_input_channel_id
             )
         )
 

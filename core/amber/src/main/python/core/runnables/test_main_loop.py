@@ -12,7 +12,7 @@ from core.models import (
     InternalQueue,
     Tuple,
 )
-from core.models.internal_queue import DataElement, ControlElement
+from core.models.internal_queue import DataElement, ControlElement, ChannelMarkerElement
 from core.models.marker import EndOfInputChannel
 from core.runnables import MainLoop
 from core.util import set_one_of
@@ -41,6 +41,8 @@ from proto.edu.uci.ics.amber.engine.architecture.rpc import (
     PortCompletedRequest,
     AsyncRpcContext,
     WorkerStateResponse,
+    ChannelMarkerType,
+    ChannelMarkerPayload,
 )
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
     OneToOnePartitioning,
@@ -1014,3 +1016,119 @@ class TestMainLoop:
                 )
             ),
         )
+
+    @pytest.mark.timeout(5)
+    def test_main_loop_thread_can_align_ecm(
+        self,
+        mock_link,
+        mock_data_input_channel,
+        mock_data_output_channel,
+        mock_control_output_channel,
+        mock_control_input_channel,
+        input_queue,
+        output_queue,
+        mock_binary_tuple,
+        mock_binary_data_element,
+        main_loop_thread,
+        mock_assign_input_port_binary,
+        mock_assign_output_port_binary,
+        mock_add_input_channel,
+        mock_add_partitioning,
+        mock_initialize_executor,
+        mock_end_of_upstream,
+        mock_query_statistics,
+        command_sequence,
+        reraise,
+    ):
+        main_loop_thread.start()
+
+        # can process AssignPort
+        input_queue.put(mock_assign_input_port_binary)
+        assert output_queue.get() == ControlElement(
+            tag=mock_control_output_channel,
+            payload=ControlPayloadV2(
+                return_invocation=ReturnInvocation(
+                    command_id=command_sequence,
+                    return_value=ControlReturn(empty_return=EmptyReturn()),
+                )
+            ),
+        )
+        input_queue.put(mock_assign_output_port_binary)
+        assert output_queue.get() == ControlElement(
+            tag=mock_control_output_channel,
+            payload=ControlPayloadV2(
+                return_invocation=ReturnInvocation(
+                    command_id=command_sequence,
+                    return_value=ControlReturn(empty_return=EmptyReturn()),
+                )
+            ),
+        )
+
+        # can process AddInputChannel
+        input_queue.put(mock_add_input_channel)
+        assert output_queue.get() == ControlElement(
+            tag=mock_control_output_channel,
+            payload=ControlPayloadV2(
+                return_invocation=ReturnInvocation(
+                    command_id=command_sequence,
+                    return_value=ControlReturn(empty_return=EmptyReturn()),
+                )
+            ),
+        )
+
+        # can process AddPartitioning
+        input_queue.put(mock_add_partitioning)
+        assert output_queue.get() == ControlElement(
+            tag=mock_control_output_channel,
+            payload=ControlPayloadV2(
+                return_invocation=ReturnInvocation(
+                    command_id=command_sequence,
+                    return_value=ControlReturn(empty_return=EmptyReturn()),
+                )
+            ),
+        )
+
+        # can process InitializeExecutor
+        input_queue.put(mock_initialize_executor)
+        assert output_queue.get() == ControlElement(
+            tag=mock_control_output_channel,
+            payload=ControlPayloadV2(
+                return_invocation=ReturnInvocation(
+                    command_id=command_sequence,
+                    return_value=ControlReturn(empty_return=EmptyReturn()),
+                )
+            ),
+        )
+
+        scope = [mock_control_input_channel, mock_data_input_channel]
+        command_mapping = {
+            mock_control_input_channel.to_worker_id.name: ControlInvocation(
+                "NoOperation", EmptyRequest(), AsyncRpcContext(), 98
+            )
+        }
+        test_marker = ChannelMarkerPayload(
+            "test_marker", ChannelMarkerType.REQUIRE_ALIGNMENT, scope, command_mapping
+        )
+        input_queue.put(
+            ChannelMarkerElement(tag=mock_control_input_channel, payload=test_marker)
+        )
+        input_queue.put(mock_binary_data_element)
+        input_queue.put(
+            ChannelMarkerElement(tag=mock_data_input_channel, payload=test_marker)
+        )
+        output_data_element: DataElement = output_queue.get()
+        assert output_data_element.tag == mock_data_output_channel
+        assert isinstance(output_data_element.payload, DataFrame)
+        data_frame: DataFrame = output_data_element.payload
+
+        assert len(data_frame.frame) == 1
+        assert data_frame.frame.to_pylist()[0][
+            "test-1"
+        ] == b"pickle    " + pickle.dumps(mock_binary_tuple["test-1"])
+        output_control_element: ControlElement = output_queue.get()
+        assert output_control_element.payload.return_invocation.command_id == 98
+        assert (
+            output_control_element.payload.return_invocation.return_value
+            == ControlReturn(empty_return=EmptyReturn())
+        )
+        reraise()

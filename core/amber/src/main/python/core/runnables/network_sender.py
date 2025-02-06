@@ -5,7 +5,12 @@ from overrides import overrides
 import pyarrow as pa
 from core.models import DataPayload, InternalQueue, DataFrame, MarkerFrame, State
 
-from core.models.internal_queue import InternalQueueElement, DataElement, ControlElement
+from core.models.internal_queue import (
+    InternalQueueElement,
+    DataElement,
+    ControlElement,
+    ChannelMarkerElement,
+)
 from core.proxy import ProxyClient
 from core.util import StoppableQueueBlockingRunnable
 from proto.edu.uci.ics.amber.engine.architecture.rpc import ChannelMarkerPayload
@@ -40,8 +45,31 @@ class NetworkSender(StoppableQueueBlockingRunnable):
             self._send_data(next_entry.tag, next_entry.payload)
         elif isinstance(next_entry, ControlElement):
             self._send_control(next_entry.tag, next_entry.payload)
+        elif isinstance(next_entry, ChannelMarkerElement):
+            logger.info(next_entry)
+            self._send_channel_marker(next_entry.tag, next_entry.payload)
         else:
             raise TypeError(f"Unexpected entry {next_entry}")
+
+    @logger.catch(reraise=True)
+    def _send_channel_marker(
+        self, to: ChannelIdentity, data_payload: ChannelMarkerPayload
+    ) -> None:
+        """
+        Sends a channel marker payload to the specified channel.
+
+        Args:
+            to (ChannelIdentity): The target channel to which the marker should be sent.
+            data_payload (ChannelMarkerPayload): The channel marker payload to send.
+
+        This function constructs a `PythonDataHeader` with the appropriate metadata,
+        serializes the payload into an Arrow table, and sends it using the proxy client.
+        """
+        data_header = PythonDataHeader(tag=to, payload_type="ChannelMarker")
+        schema = pa.schema([("payload", pa.binary())])
+        data = [pa.array([bytes(data_payload)])]
+        table = pa.Table.from_arrays(data, schema=schema)
+        self._proxy_client.send_data(bytes(data_header), table)
 
     @logger.catch(reraise=True)
     def _send_data(self, to: ChannelIdentity, data_payload: DataPayload) -> None:
@@ -57,12 +85,6 @@ class NetworkSender(StoppableQueueBlockingRunnable):
         if isinstance(data_payload, DataFrame):
             data_header = PythonDataHeader(tag=to, payload_type="Data")
             self._proxy_client.send_data(bytes(data_header), data_payload.frame)
-        elif isinstance(data_payload, ChannelMarkerPayload):
-            data_header = PythonDataHeader(tag=to, payload_type="ChannelMarker")
-            schema = pa.schema([("payload", pa.binary())])
-            data = [pa.array([bytes(data_payload)])]
-            table = pa.Table.from_arrays(data, schema=schema)
-            self._proxy_client.send_data(bytes(data_header), table)
         elif isinstance(data_payload, MarkerFrame):
             data_header = PythonDataHeader(
                 tag=to, payload_type=data_payload.frame.__class__.__name__
