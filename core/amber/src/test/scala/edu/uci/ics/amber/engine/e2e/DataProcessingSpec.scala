@@ -9,6 +9,7 @@ import com.twitter.util.{Await, Duration, Promise}
 import edu.uci.ics.amber.clustering.SingleNodeListener
 import edu.uci.ics.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import edu.uci.ics.amber.core.storage.model.VirtualDocument
+import edu.uci.ics.amber.core.storage.result.ExecutionResourcesMapping
 import edu.uci.ics.amber.core.tuple.{AttributeType, Tuple}
 import edu.uci.ics.amber.core.workflow.WorkflowContext
 import edu.uci.ics.amber.engine.architecture.controller._
@@ -68,6 +69,18 @@ class DataProcessingSpec
       .registerCallback[ExecutionStateUpdate](evt => {
         if (evt.state == COMPLETED) {
           results = workflow.logicalPlan.getTerminalOperatorIds
+            .filter(terminalOpId => {
+              val uri = VFSURIFactory.createResultURI(
+                workflowContext.workflowId,
+                workflowContext.executionId,
+                terminalOpId,
+                PortIdentity()
+              )
+              // expecting the first output port only.
+              ExecutionResourcesMapping
+                .getResourceURIs(workflowContext.executionId)
+                .contains(uri)
+            })
             .map(terminalOpId => {
               val uri = VFSURIFactory.createResultURI(
                 workflowContext.workflowId,

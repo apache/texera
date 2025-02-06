@@ -12,7 +12,7 @@ import edu.uci.ics.amber.core.storage.model.VirtualDocument
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.engine.common.Utils.retry
 import edu.uci.ics.amber.util.PathUtils
-import edu.uci.ics.amber.core.virtualidentity.WorkflowIdentity
+import edu.uci.ics.amber.core.virtualidentity.{OperatorIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.websocket.request.ResultExportRequest
 import edu.uci.ics.texera.web.model.websocket.response.ResultExportResponse
@@ -44,6 +44,7 @@ import org.apache.commons.lang3.StringUtils
 import java.io.OutputStream
 import java.nio.channels.Channels
 import scala.util.Using
+import edu.uci.ics.amber.core.workflow.PortIdentity
 
 object ResultExportService {
   final private val UPLOAD_BATCH_ROW_COUNT = 10000
@@ -74,9 +75,10 @@ class ResultExportService(workflowIdentity: WorkflowIdentity) {
     // By now the workflow should finish running
     // Only supports external port 0 for now. TODO: support multiple ports
     val storageUri = WorkflowExecutionsResource.getResultUriByExecutionAndPort(
-      getLatestExecutionId(workflowIdentity).get.id,
-      request.operatorId,
-      0
+      workflowIdentity,
+      getLatestExecutionId(workflowIdentity).get,
+      OperatorIdentity(request.operatorId),
+      PortIdentity()
     )
     val operatorResult: VirtualDocument[Tuple] =
       DocumentFactory.openDocument(storageUri.get)._1.asInstanceOf[VirtualDocument[Tuple]]

@@ -10,7 +10,6 @@ import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
 import edu.uci.ics.amber.operator.SpecialPhysicalOpFactory
 import edu.uci.ics.amber.core.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.amber.core.workflow.PhysicalLink
-import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 import org.jgrapht.graph.DirectedAcyclicGraph
 import org.jgrapht.traverse.TopologicalOrderIterator
@@ -187,15 +186,12 @@ abstract class ScheduleGenerator(
       .get
     // create the document
     DocumentFactory.createDocument(storageUri, schema)
-    // insert the operator port execution
-    if (AmberConfig.isUserSystemEnabled) {
-      WorkflowExecutionsResource.insertOperatorPortExecutions(
-        workflowContext.executionId.id,
-        physicalLink.fromOpId.logicalOpId.id,
-        physicalLink.fromPortId.id,
-        storageUri
-      )
-    }
+    WorkflowExecutionsResource.insertResultUri(
+      workflowContext.executionId,
+      physicalLink.fromOpId.logicalOpId,
+      physicalLink.fromPortId,
+      storageUri
+    )
 
     // create cache reader and link
     val matReaderPhysicalOp: PhysicalOp = SpecialPhysicalOpFactory.newSourcePhysicalOp(

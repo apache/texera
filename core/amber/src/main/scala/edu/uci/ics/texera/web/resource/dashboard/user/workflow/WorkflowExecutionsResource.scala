@@ -1,20 +1,28 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 
-import edu.uci.ics.amber.core.storage.{DocumentFactory, StorageConfig}
+import edu.uci.ics.amber.core.storage.result.ExecutionResourcesMapping
+import edu.uci.ics.amber.core.storage.{DocumentFactory, StorageConfig, VFSURIFactory}
 import edu.uci.ics.amber.core.tuple.Tuple
 import edu.uci.ics.amber.engine.architecture.logreplay.{ReplayDestination, ReplayLogRecord}
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
-import edu.uci.ics.amber.core.virtualidentity.{ChannelMarkerIdentity, ExecutionIdentity}
+import edu.uci.ics.amber.core.virtualidentity.{
+  ChannelMarkerIdentity,
+  ExecutionIdentity,
+  OperatorIdentity,
+  WorkflowIdentity
+}
+import edu.uci.ics.amber.core.workflow.PortIdentity
+import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.dao.jooq.generated.Tables.{
-  USER,
-  WORKFLOW_EXECUTIONS,
   OPERATOR_EXECUTIONS,
   OPERATOR_PORT_EXECUTIONS,
+  USER,
+  WORKFLOW_EXECUTIONS,
   WORKFLOW_VERSION
 }
-import edu.uci.ics.texera.dao.jooq.generated.tables.daos.{WorkflowExecutionsDao}
+import edu.uci.ics.texera.dao.jooq.generated.tables.daos.WorkflowExecutionsDao
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource._
 import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
@@ -82,13 +90,20 @@ object WorkflowExecutionsResource {
     }
   }
 
-  def insertOperatorPortExecutions(
-      eid: Long,
-      opId: String,
-      portId: Int,
+  def insertResultUri(
+      eid: ExecutionIdentity,
+      opId: OperatorIdentity,
+      portId: PortIdentity,
       uri: URI
   ): Unit = {
-    context.insertInto(OPERATOR_PORT_EXECUTIONS).values(eid, opId, portId, uri.toString).execute()
+    if (AmberConfig.isUserSystemEnabled) {
+      context
+        .insertInto(OPERATOR_PORT_EXECUTIONS)
+        .values(eid.id, opId.id, portId.id, uri.toString)
+        .execute()
+    } else {
+      ExecutionResourcesMapping.addResourceUri(eid, uri)
+    }
   }
 
   def insertOperatorExecutions(
@@ -121,30 +136,61 @@ object WorkflowExecutionsResource {
       .execute()
   }
 
-  def getResultUrisByExecutionId(eid: Long): List[URI] = {
-    context
-      .select(OPERATOR_PORT_EXECUTIONS.RESULT_URI)
-      .from(OPERATOR_PORT_EXECUTIONS)
-      .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(UInteger.valueOf(eid)))
-      .fetchInto(classOf[String])
-      .asScala
-      .toList
-      .map(URI.create)
-  }
-
-  def getResultUriByExecutionAndPort(eid: Long, opId: String, portId: Int): Option[URI] = {
-    Option(
+  def getResultUrisByExecutionId(eid: ExecutionIdentity): List[URI] = {
+    if (AmberConfig.isUserSystemEnabled) {
       context
         .select(OPERATOR_PORT_EXECUTIONS.RESULT_URI)
         .from(OPERATOR_PORT_EXECUTIONS)
-        .where(
-          OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID
-            .eq(UInteger.valueOf(eid))
-            .and(OPERATOR_PORT_EXECUTIONS.OPERATOR_ID.eq(opId))
-            .and(OPERATOR_PORT_EXECUTIONS.PORT_ID.eq(portId))
+        .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(UInteger.valueOf(eid.id)))
+        .fetchInto(classOf[String])
+        .asScala
+        .toList
+        .map(URI.create)
+    } else {
+      ExecutionResourcesMapping.getResourceURIs(eid)
+    }
+  }
+
+  def clearUris(eid: ExecutionIdentity): Unit = {
+    if (AmberConfig.isUserSystemEnabled) {
+      context
+        .delete(OPERATOR_PORT_EXECUTIONS)
+        .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(UInteger.valueOf(eid.id)))
+        .execute()
+    } else {
+      ExecutionResourcesMapping.removeExecutionResources(eid)
+    }
+  }
+
+  def getResultUriByExecutionAndPort(
+      wid: WorkflowIdentity,
+      eid: ExecutionIdentity,
+      opId: OperatorIdentity,
+      portId: PortIdentity
+  ): Option[URI] = {
+    if (AmberConfig.isUserSystemEnabled) {
+      Option(
+        context
+          .select(OPERATOR_PORT_EXECUTIONS.RESULT_URI)
+          .from(OPERATOR_PORT_EXECUTIONS)
+          .where(
+            OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID
+              .eq(UInteger.valueOf(eid.id))
+              .and(OPERATOR_PORT_EXECUTIONS.OPERATOR_ID.eq(opId.id))
+              .and(OPERATOR_PORT_EXECUTIONS.PORT_ID.eq(portId.id))
+          )
+          .fetchOneInto(classOf[String])
+      ).map(URI.create)
+    } else {
+      Option(
+        VFSURIFactory.createResultURI(
+          wid,
+          eid,
+          opId,
+          portId
         )
-        .fetchOneInto(classOf[String])
-    ).map(URI.create)
+      )
+    }
   }
 
   case class WorkflowExecutionEntry(

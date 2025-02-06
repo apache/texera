@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.workflow
 
 import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.core.storage.result.ExecutionResourcesMapping
 import edu.uci.ics.amber.core.storage.{DocumentFactory, StorageConfig, VFSURIFactory}
 import edu.uci.ics.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
@@ -78,16 +79,20 @@ class WorkflowCompiler(
               .filterNot(_._1.internal)
               .foreach {
                 case (outputPortId, (outputPort, _, schema)) =>
-                  var storageUri = (if (AmberConfig.isUserSystemEnabled) {
-                                      WorkflowExecutionsResource.getResultUriByExecutionAndPort(
-                                        context.executionId.id,
-                                        physicalOp.id.logicalOpId.id,
-                                        outputPortId.id
-                                      )
-                                    } else {
-                                      None
-                                    })
-                  if (storageUri.isEmpty) {
+                  var storageUri =
+                    WorkflowExecutionsResource.getResultUriByExecutionAndPort(
+                      context.workflowId,
+                      context.executionId,
+                      physicalOp.id.logicalOpId,
+                      outputPortId
+                    )
+                  if (
+                    (!AmberConfig.isUserSystemEnabled && !ExecutionResourcesMapping
+                      .getResourceURIs(context.executionId)
+                      .contains(
+                        storageUri
+                      )) || (AmberConfig.isUserSystemEnabled && storageUri.isEmpty)
+                  ) {
                     // Create storage if it doesn't exist
                     storageUri = Option(
                       VFSURIFactory.createResultURI(
@@ -108,15 +113,12 @@ class WorkflowCompiler(
 
                     // create the storage resource and record the URI
                     DocumentFactory.createDocument(storageUri.get, sinkStorageSchema)
-                    // insert the operator port execution
-                    if (AmberConfig.isUserSystemEnabled) {
-                      WorkflowExecutionsResource.insertOperatorPortExecutions(
-                        context.executionId.id,
-                        physicalOp.id.logicalOpId.id,
-                        outputPortId.id,
-                        storageUri.get
-                      )
-                    }
+                    WorkflowExecutionsResource.insertResultUri(
+                      context.executionId,
+                      physicalOp.id.logicalOpId,
+                      outputPortId,
+                      storageUri.get
+                    )
 
                     // Add sink collection name to the JSON array of sinks
                     sinksPointers.add(

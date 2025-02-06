@@ -10,7 +10,7 @@ import edu.uci.ics.amber.core.storage.model.VirtualDocument
 import edu.uci.ics.amber.core.storage.{DocumentFactory, StorageConfig, VFSURIFactory}
 import edu.uci.ics.amber.core.storage.result._
 import edu.uci.ics.amber.core.tuple.Tuple
-import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan}
+import edu.uci.ics.amber.core.workflow.{PhysicalOp, PhysicalPlan, PortIdentity}
 import edu.uci.ics.amber.engine.architecture.controller.{ExecutionStateUpdate, FatalError}
 import edu.uci.ics.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
   COMPLETED,
@@ -94,9 +94,10 @@ object ExecutionResultService {
     }
 
     val storageUri = WorkflowExecutionsResource.getResultUriByExecutionAndPort(
-      executionId.id,
-      physicalOps.head.id.logicalOpId.id,
-      0
+      workflowIdentity,
+      executionId,
+      physicalOps.head.id.logicalOpId,
+      PortIdentity()
     )
     val storage: VirtualDocument[Tuple] =
       DocumentFactory.openDocument(storageUri.get)._1.asInstanceOf[VirtualDocument[Tuple]]
@@ -252,7 +253,12 @@ class ExecutionResultService(
               if (StorageConfig.resultStorageMode == ICEBERG) {
                 // using the first port for now. TODO: support multiple ports
                 val storageUri = WorkflowExecutionsResource
-                  .getResultUriByExecutionAndPort(executionId.id, opId.id, 0)
+                  .getResultUriByExecutionAndPort(
+                    workflowIdentity,
+                    executionId,
+                    opId,
+                    PortIdentity()
+                  )
                 val opStorage = DocumentFactory.openDocument(storageUri.get)._1
                 allTableStats(opId.id) = opStorage.getTableStatistics
               }
@@ -281,9 +287,10 @@ class ExecutionResultService(
       throw new IllegalStateException("No execution is recorded")
     )
     val storageUriOption = WorkflowExecutionsResource.getResultUriByExecutionAndPort(
-      latestExecutionId.id,
-      request.operatorID,
-      0
+      workflowIdentity,
+      latestExecutionId,
+      OperatorIdentity(request.operatorID),
+      PortIdentity()
     )
 
     storageUriOption match {
@@ -314,7 +321,7 @@ class ExecutionResultService(
     workflowStateStore.resultStore.updateState { _ =>
       val newInfo: Map[OperatorIdentity, OperatorResultMetadata] = {
         WorkflowExecutionsResource
-          .getResultUrisByExecutionId(executionId.id)
+          .getResultUrisByExecutionId(executionId)
           .filter(uri => {
             val (_, _, _, _, resourceType) = VFSURIFactory.decodeURI(uri)
             resourceType != MATERIALIZED_RESULT
