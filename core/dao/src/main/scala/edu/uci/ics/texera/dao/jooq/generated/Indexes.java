@@ -8,6 +8,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.Dataset;
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserAccess;
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserLikes;
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetVersion;
+import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetViewCount;
 import edu.uci.ics.texera.dao.jooq.generated.tables.OperatorExecutions;
 import edu.uci.ics.texera.dao.jooq.generated.tables.OperatorRuntimeStatistics;
 import edu.uci.ics.texera.dao.jooq.generated.tables.Project;
@@ -50,6 +51,7 @@ public class Indexes {
     public static final Index DATASET_VERSION_DID = Indexes0.DATASET_VERSION_DID;
     public static final Index DATASET_VERSION_IDX_DATASET_VERSION_NAME = Indexes0.DATASET_VERSION_IDX_DATASET_VERSION_NAME;
     public static final Index DATASET_VERSION_PRIMARY = Indexes0.DATASET_VERSION_PRIMARY;
+    public static final Index DATASET_VIEW_COUNT_PRIMARY = Indexes0.DATASET_VIEW_COUNT_PRIMARY;
     public static final Index OPERATOR_EXECUTIONS_PRIMARY = Indexes0.OPERATOR_EXECUTIONS_PRIMARY;
     public static final Index OPERATOR_EXECUTIONS_WORKFLOW_EXECUTION_ID = Indexes0.OPERATOR_EXECUTIONS_WORKFLOW_EXECUTION_ID;
     public static final Index OPERATOR_RUNTIME_STATISTICS_PRIMARY = Indexes0.OPERATOR_RUNTIME_STATISTICS_PRIMARY;
@@ -98,6 +100,7 @@ public class Indexes {
         public static Index DATASET_VERSION_DID = Internal.createIndex("did", DatasetVersion.DATASET_VERSION, new OrderField[] { DatasetVersion.DATASET_VERSION.DID }, false);
         public static Index DATASET_VERSION_IDX_DATASET_VERSION_NAME = Internal.createIndex("idx_dataset_version_name", DatasetVersion.DATASET_VERSION, new OrderField[] { DatasetVersion.DATASET_VERSION.NAME }, false);
         public static Index DATASET_VERSION_PRIMARY = Internal.createIndex("PRIMARY", DatasetVersion.DATASET_VERSION, new OrderField[] { DatasetVersion.DATASET_VERSION.DVID }, true);
+        public static Index DATASET_VIEW_COUNT_PRIMARY = Internal.createIndex("PRIMARY", DatasetViewCount.DATASET_VIEW_COUNT, new OrderField[] { DatasetViewCount.DATASET_VIEW_COUNT.DID }, true);
         public static Index OPERATOR_EXECUTIONS_PRIMARY = Internal.createIndex("PRIMARY", OperatorExecutions.OPERATOR_EXECUTIONS, new OrderField[] { OperatorExecutions.OPERATOR_EXECUTIONS.OPERATOR_EXECUTION_ID }, true);
         public static Index OPERATOR_EXECUTIONS_WORKFLOW_EXECUTION_ID = Internal.createIndex("workflow_execution_id", OperatorExecutions.OPERATOR_EXECUTIONS, new OrderField[] { OperatorExecutions.OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID, OperatorExecutions.OPERATOR_EXECUTIONS.OPERATOR_ID }, true);
         public static Index OPERATOR_RUNTIME_STATISTICS_PRIMARY = Internal.createIndex("PRIMARY", OperatorRuntimeStatistics.OPERATOR_RUNTIME_STATISTICS, new OrderField[] { OperatorRuntimeStatistics.OPERATOR_RUNTIME_STATISTICS.OPERATOR_EXECUTION_ID, OperatorRuntimeStatistics.OPERATOR_RUNTIME_STATISTICS.TIME }, true);

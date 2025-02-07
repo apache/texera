@@ -8,6 +8,7 @@ import edu.uci.ics.texera.dao.jooq.generated.tables.Dataset;
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserAccess;
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserLikes;
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetVersion;
+import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetViewCount;
 import edu.uci.ics.texera.dao.jooq.generated.tables.OperatorExecutions;
 import edu.uci.ics.texera.dao.jooq.generated.tables.OperatorRuntimeStatistics;
 import edu.uci.ics.texera.dao.jooq.generated.tables.Project;
@@ -41,7 +42,7 @@ import org.jooq.impl.SchemaImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class TexeraDb extends SchemaImpl {
 
-    private static final long serialVersionUID = -1009240727;
+    private static final long serialVersionUID = 697817434;
 
     /**
      * The reference instance of <code>texera_db</code>
@@ -67,6 +68,11 @@ public class TexeraDb extends SchemaImpl {
      * The table <code>texera_db.dataset_version</code>.
      */
     public final DatasetVersion DATASET_VERSION = edu.uci.ics.texera.dao.jooq.generated.tables.DatasetVersion.DATASET_VERSION;
+
+    /**
+     * The table <code>texera_db.dataset_view_count</code>.
+     */
+    public final DatasetViewCount DATASET_VIEW_COUNT = edu.uci.ics.texera.dao.jooq.generated.tables.DatasetViewCount.DATASET_VIEW_COUNT;
 
     /**
      * The table <code>texera_db.operator_executions</code>.
@@ -179,6 +185,7 @@ public class TexeraDb extends SchemaImpl {
             DatasetUserAccess.DATASET_USER_ACCESS,
             DatasetUserLikes.DATASET_USER_LIKES,
             DatasetVersion.DATASET_VERSION,
+            DatasetViewCount.DATASET_VIEW_COUNT,
             OperatorExecutions.OPERATOR_EXECUTIONS,
             OperatorRuntimeStatistics.OPERATOR_RUNTIME_STATISTICS,
             Project.PROJECT,
