@@ -90,7 +90,7 @@ object WorkflowExecutionsResource {
     }
   }
 
-  def insertResultUri(
+  def insertOperatorPortResultUri(
       eid: ExecutionIdentity,
       opId: OperatorIdentity,
       portId: PortIdentity,

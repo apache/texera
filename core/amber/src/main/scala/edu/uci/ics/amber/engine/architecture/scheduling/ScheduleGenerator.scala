@@ -186,7 +186,7 @@ abstract class ScheduleGenerator(
       .get
     // create the document
     DocumentFactory.createDocument(storageUri, schema)
-    WorkflowExecutionsResource.insertResultUri(
+    WorkflowExecutionsResource.insertOperatorPortResultUri(
       workflowContext.executionId,
       physicalLink.fromOpId.logicalOpId,
       physicalLink.fromPortId,

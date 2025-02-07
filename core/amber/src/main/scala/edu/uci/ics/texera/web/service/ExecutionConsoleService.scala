@@ -48,13 +48,14 @@ class ExecutionConsoleService(
 
   val bufferSize: Int = AmberConfig.operatorConsoleBufferSize
 
-  private val consoleWriters: mutable.Map[String, BufferedItemWriter[Tuple]] = mutable.Map()
+  private val consoleMessageOpIdToWriterMap: mutable.Map[String, BufferedItemWriter[Tuple]] =
+    mutable.Map()
 
   private val consoleWriterThread: Option[ExecutorService] =
     Option.when(AmberConfig.isUserSystemEnabled)(Executors.newSingleThreadExecutor())
 
   private def getOrCreateWriter(opId: OperatorIdentity): BufferedItemWriter[Tuple] = {
-    consoleWriters.getOrElseUpdate(
+    consoleMessageOpIdToWriterMap.getOrElseUpdate(
       opId.id, {
         val uri = VFSURIFactory
           .createConsoleMessagesURI(workflowContext.workflowId, workflowContext.executionId, opId)

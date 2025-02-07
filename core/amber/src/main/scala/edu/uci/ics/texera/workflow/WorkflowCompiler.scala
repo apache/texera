@@ -113,7 +113,7 @@ class WorkflowCompiler(
 
                     // create the storage resource and record the URI
                     DocumentFactory.createDocument(storageUri.get, sinkStorageSchema)
-                    WorkflowExecutionsResource.insertResultUri(
+                    WorkflowExecutionsResource.insertOperatorPortResultUri(
                       context.executionId,
                       physicalOp.id.logicalOpId,
                       outputPortId,

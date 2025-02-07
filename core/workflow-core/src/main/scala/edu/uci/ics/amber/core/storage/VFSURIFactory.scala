@@ -1,6 +1,5 @@
 package edu.uci.ics.amber.core.storage
 
-import edu.uci.ics.amber.core.storage.VFSResourceType.{MATERIALIZED_RESULT, RESULT}
 import edu.uci.ics.amber.core.virtualidentity.{
   ExecutionIdentity,
   OperatorIdentity,
@@ -9,6 +8,13 @@ import edu.uci.ics.amber.core.virtualidentity.{
 import edu.uci.ics.amber.core.workflow.PortIdentity
 
 import java.net.URI
+
+object VFSResourceType extends Enumeration {
+  val RESULT: Value = Value("result")
+  val MATERIALIZED_RESULT: Value = Value("materializedResult")
+  val RUNTIME_STATISTICS: Value = Value("runtimeStatistics")
+  val CONSOLE_MESSAGES: Value = Value("consoleMessages")
+}
 
 object VFSURIFactory {
   val VFS_FILE_URI_SCHEME = "vfs"
@@ -82,7 +88,7 @@ object VFSURIFactory {
       portIdentity: PortIdentity
   ): URI = {
     createVFSURI(
-      RESULT,
+      VFSResourceType.RESULT,
       workflowId,
       executionId,
       Some(operatorId),
@@ -100,7 +106,7 @@ object VFSURIFactory {
       portIdentity: PortIdentity
   ): URI = {
     createVFSURI(
-      MATERIALIZED_RESULT,
+      VFSResourceType.MATERIALIZED_RESULT,
       workflowId,
       executionId,
       Some(operatorId),
