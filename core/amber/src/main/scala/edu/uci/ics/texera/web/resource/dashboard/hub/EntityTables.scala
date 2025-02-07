@@ -74,7 +74,7 @@ object EntityTables {
   }
 
   // ==================== CLONE TABLE ====================
-  sealed trait CloneTable extends  BaseLCTable
+  sealed trait CloneTable extends BaseLCTable
 
   object CloneTable {
     case object WorkflowCloneTable extends CloneTable {

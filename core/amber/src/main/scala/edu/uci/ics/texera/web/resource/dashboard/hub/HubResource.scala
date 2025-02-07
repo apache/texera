@@ -4,7 +4,15 @@ import edu.uci.ics.amber.core.storage.StorageConfig
 import edu.uci.ics.texera.dao.SqlServer
 import edu.uci.ics.texera.dao.jooq.generated.Tables._
 import edu.uci.ics.texera.dao.jooq.generated.tables.pojos.Workflow
-import HubResource.{fetchDashboardWorkflowsByWids, getUserLCCount, isLikedHelper, recordLikeActivity, recordUserActivity, userRequest, validateEntityType}
+import HubResource.{
+  fetchDashboardWorkflowsByWids,
+  getUserLCCount,
+  isLikedHelper,
+  recordLikeActivity,
+  recordUserActivity,
+  userRequest,
+  validateEntityType
+}
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflow
 import org.jooq.impl.DSL
 import org.jooq.types.UInteger
@@ -21,6 +29,14 @@ import EntityTables._
 object HubResource {
   case class userRequest(entityId: UInteger, userId: UInteger, entityType: String)
 
+  /**
+    * Defines the currently accepted resource types.
+    * Modify this object to update the valid entity types across the system.
+    */
+  private object EntityType {
+    val allowedTypes: Set[String] = Set("workflow", "dataset")
+  }
+
   final private lazy val context = SqlServer
     .getInstance(StorageConfig.jdbcUrl, StorageConfig.jdbcUsername, StorageConfig.jdbcPassword)
     .createDSLContext()
@@ -29,16 +45,28 @@ object HubResource {
     "^([0-9]{1,3}\\.){3}[0-9]{1,3}$"
   )
 
+  /**
+    * Validates whether the provided entity type is allowed.
+    *
+    * @param entityType The entity type to validate.
+    * @throws IllegalArgumentException if the entity type is not in the allowed list.
+    */
   def validateEntityType(entityType: String): Unit = {
-    val allowedTypes = Set("workflow", "dataset")
-
-    if (!allowedTypes.contains(entityType)) {
+    if (!EntityType.allowedTypes.contains(entityType)) {
       throw new IllegalArgumentException(
-        s"Invalid entity type: $entityType. Allowed types: ${allowedTypes.mkString(", ")}."
+        s"Invalid entity type: $entityType. Allowed types: ${EntityType.allowedTypes.mkString(", ")}."
       )
     }
   }
 
+  /**
+    * Checks if a given user has liked a specific entity.
+    *
+    * @param userId The ID of the user.
+    * @param workflowId The ID of the entity.
+    * @param entityType The type of entity being checked (must be validated).
+    * @return `true` if the user has liked the entity, otherwise `false`.
+    */
   def isLikedHelper(userId: UInteger, workflowId: UInteger, entityType: String): Boolean = {
     validateEntityType(entityType)
     val entityTables = LikeTable(entityType)
@@ -55,6 +83,15 @@ object HubResource {
       .fetchOne() != null
   }
 
+  /**
+    * Records a user's activity in the system.
+    *
+    * @param request The HTTP request object to extract the user's IP address.
+    * @param userId The ID of the user performing the action (default is 0 for anonymous users).
+    * @param entityId The ID of the entity associated with the action.
+    * @param entityType The type of entity being acted upon (validated before processing).
+    * @param action The action performed by the user ("like", "unlike", "view", "clone").
+    */
   def recordUserActivity(
       request: HttpServletRequest,
       userId: UInteger = UInteger.valueOf(0),
@@ -80,6 +117,14 @@ object HubResource {
     query.execute()
   }
 
+  /**
+    * Records a user's like or unlike activity for a given entity.
+    *
+    * @param request The HTTP request object to extract the user's IP address.
+    * @param userRequest An object containing entityId, userId, and entityType.
+    * @param isLike A boolean flag indicating whether the action is a like (`true`) or unlike (`false`).
+    * @return `true` if the like/unlike action was recorded successfully, otherwise `false`.
+    */
   def recordLikeActivity(
       request: HttpServletRequest,
       userRequest: userRequest,
@@ -116,6 +161,14 @@ object HubResource {
     }
   }
 
+  /**
+    * Records a user's clone activity for a given entity.
+    *
+    * @param request The HTTP request object to extract the user's IP address.
+    * @param userId The ID of the user performing the clone action.
+    * @param entityId The ID of the entity being cloned.
+    * @param entityType The type of entity being cloned (must be validated).
+    */
   def recordCloneActivity(
       request: HttpServletRequest,
       userId: UInteger,
@@ -145,16 +198,26 @@ object HubResource {
     }
   }
 
+  /**
+    * Retrieves the count of user interactions (likes or clones) for a given entity.
+    *
+    * @param entityId The ID of the entity whose interaction count is being retrieved.
+    * @param entityType The type of entity (must be validated).
+    * @param actionType The type of action to count, either "like" or "clone".
+    * @return The number of times the entity has been liked or cloned.
+    */
   def getUserLCCount(
-    entityId: UInteger,
-    entityType: String,
-    isLike: Boolean
+      entityId: UInteger,
+      entityType: String,
+      actionType: String
   ): Int = {
     validateEntityType(entityType)
 
-    val entityTables =
-      if (isLike) LikeTable(entityType)
-      else CloneTable(entityType)
+    val entityTables = actionType match {
+      case "like"  => LikeTable(entityType)
+      case "clone" => CloneTable(entityType)
+      case _       => throw new IllegalArgumentException(s"Invalid action type: $actionType")
+    }
 
     val (table, idColumn) = (entityTables.table, entityTables.idColumn)
 
@@ -274,7 +337,7 @@ class HubResource {
       @QueryParam("entityId") entityId: UInteger,
       @QueryParam("entityType") entityType: String
   ): Int = {
-    getUserLCCount(entityId, entityType, isLike = true)
+    getUserLCCount(entityId, entityType, "like")
   }
 
   @GET
@@ -284,7 +347,7 @@ class HubResource {
       @QueryParam("entityId") entityId: UInteger,
       @QueryParam("entityType") entityType: String
   ): Int = {
-    getUserLCCount(entityId, entityType, isLike = false)
+    getUserLCCount(entityId, entityType, "clone")
   }
 
   @POST
