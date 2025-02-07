@@ -25,9 +25,20 @@ object StorageConfig {
 
   // Iceberg specifics
   val icebergCatalogType: String = conf.getString("storage.iceberg.catalog.type")
-  val icebergCatalogUri: String = conf.getString("storage.iceberg.catalog.uri")
+  val icebergRESTCatalogUri: String = conf.getString("storage.iceberg.catalog.rest-uri")
+
+  // Iceberg Postgres specifics
+  val icebergPostgresCatalogUriWithoutScheme: String =
+    conf.getString("storage.iceberg.catalog.postgres.uri-without-scheme")
+  val icebergPostgresCatalogUsername: String =
+    conf.getString("storage.iceberg.catalog.postgres.username")
+  val icebergPostgresCatalogPassword: String =
+    conf.getString("storage.iceberg.catalog.postgres.password")
+
+  // Iceberg Table specifics
   val icebergTableNamespace: String = conf.getString("storage.iceberg.table.namespace")
-  val icebergTableCommitBatchSize: Int = conf.getInt("storage.iceberg.table.commit.batch-size")
+  val icebergTableCommitBatchSize: Int =
+    conf.getInt("storage.iceberg.table.commit.batch-size")
   val icebergTableCommitNumRetries: Int =
     conf.getInt("storage.iceberg.table.commit.retry.num-retries")
   val icebergTableCommitMinRetryWaitMs: Int =
