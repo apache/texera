@@ -6,6 +6,7 @@ package edu.uci.ics.texera.dao.jooq.generated;
 
 import edu.uci.ics.texera.dao.jooq.generated.tables.Dataset;
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserAccess;
+import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetUserLikes;
 import edu.uci.ics.texera.dao.jooq.generated.tables.DatasetVersion;
 import edu.uci.ics.texera.dao.jooq.generated.tables.OperatorExecutions;
 import edu.uci.ics.texera.dao.jooq.generated.tables.OperatorRuntimeStatistics;
@@ -41,6 +42,11 @@ public class Tables {
      * The table <code>texera_db.dataset_user_access</code>.
      */
     public static final DatasetUserAccess DATASET_USER_ACCESS = DatasetUserAccess.DATASET_USER_ACCESS;
+
+    /**
+     * The table <code>texera_db.dataset_user_likes</code>.
+     */
+    public static final DatasetUserLikes DATASET_USER_LIKES = DatasetUserLikes.DATASET_USER_LIKES;
 
     /**
      * The table <code>texera_db.dataset_version</code>.
