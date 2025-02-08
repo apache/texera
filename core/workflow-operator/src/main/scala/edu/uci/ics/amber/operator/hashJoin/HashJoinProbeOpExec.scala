@@ -57,7 +57,6 @@ class HashJoinProbeOpExec[K](
     buildTableHashMap.clear()
   }
 
-
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] =
     if (port == 0) {
       // Load build hash map
