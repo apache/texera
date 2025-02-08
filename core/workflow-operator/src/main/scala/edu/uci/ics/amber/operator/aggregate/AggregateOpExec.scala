@@ -21,6 +21,7 @@ class AggregateOpExec(descString: String) extends OperatorExecutor {
 
   override def close(): Unit = {
     keyedPartialAggregates.clear()
+    distributedAggregations = _
   }
 
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {

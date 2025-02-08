@@ -17,6 +17,10 @@ class SplitOpExec(
     random = if (desc.random) new Random() else new Random(desc.seed)
   }
 
+  override def close(): Unit = {
+    random = _
+  }
+
   override def processTupleMultiPort(
       tuple: Tuple,
       port: Int

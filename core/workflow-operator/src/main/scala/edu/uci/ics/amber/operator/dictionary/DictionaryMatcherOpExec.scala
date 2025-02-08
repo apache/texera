@@ -11,11 +11,8 @@ import java.io.StringReader
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
-class DictionaryMatcherOpExec(
-    descString: String
-) extends MapOpExec {
-  private val desc: DictionaryMatcherOpDesc =
-    objectMapper.readValue(descString, classOf[DictionaryMatcherOpDesc])
+class DictionaryMatcherOpExec(descString: String) extends MapOpExec {
+  private val desc: DictionaryMatcherOpDesc = objectMapper.readValue(descString, classOf[DictionaryMatcherOpDesc])
   // this is needed for the matching types Phrase and Conjunction
   var tokenizedDictionaryEntries: ListBuffer[mutable.Set[String]] = _
   // this is needed for the simple Scan matching type
@@ -25,7 +22,7 @@ class DictionaryMatcherOpExec(
   /** An unmodifiable set containing some common URL words that are not usually useful
     * for searching.
     */
-  final val URL_STOP_WORDS_SET = List[String](
+  private final val URL_STOP_WORDS_SET = List[String](
     "http",
     "https",
     "org",
@@ -51,9 +48,9 @@ class DictionaryMatcherOpExec(
   }
 
   override def close(): Unit = {
-    tokenizedDictionaryEntries = null
-    dictionaryEntries = null
-    luceneAnalyzer = null
+    tokenizedDictionaryEntries.clear()
+    dictionaryEntries = _
+    luceneAnalyzer = _
   }
 
   /**
