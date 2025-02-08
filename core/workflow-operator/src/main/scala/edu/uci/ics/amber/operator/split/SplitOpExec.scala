@@ -11,7 +11,11 @@ class SplitOpExec(
     descString: String
 ) extends OperatorExecutor {
   val desc: SplitOpDesc = objectMapper.readValue(descString, classOf[SplitOpDesc])
-  lazy val random: Random = if (desc.random) new Random() else new Random(desc.seed)
+  var random: Random = _
+
+  override def open(): Unit = {
+    random = if (desc.random) new Random() else new Random(desc.seed)
+  }
 
   override def processTupleMultiPort(
       tuple: Tuple,
@@ -24,5 +28,4 @@ class SplitOpExec(
   }
 
   override def processTuple(tuple: Tuple, port: Int): Iterator[Tuple] = ???
-
 }
