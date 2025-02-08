@@ -20,16 +20,17 @@ class IcebergDocumentConsoleMessagesSpec
     with BeforeAndAfterAll {
 
   private val amberSchema: Schema = IcebergTableSchema.consoleMessagesSchema
-  private var uri: URI = _
+  var uri: URI = _
 
-  override def beforeEach(): Unit = {
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+
     uri = VFSURIFactory.createConsoleMessagesURI(
       WorkflowIdentity(0),
       ExecutionIdentity(0),
       OperatorIdentity("test_operator")
     )
     DocumentFactory.createDocument(uri, amberSchema)
-    super.beforeEach()
   }
 
   override def afterAll(): Unit = {
