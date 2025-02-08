@@ -9,6 +9,7 @@ import org.apache.iceberg.types.Types
 import org.apache.iceberg.data.{GenericRecord, Record}
 import org.apache.iceberg.hadoop.{HadoopCatalog, HadoopFileIO}
 import org.apache.iceberg.io.{CloseableIterable, InputFile}
+import org.apache.iceberg.jdbc.JdbcCatalog
 import org.apache.iceberg.parquet.{Parquet, ParquetValueReader}
 import org.apache.iceberg.rest.RESTCatalog
 import org.apache.iceberg.types.Type.PrimitiveType
@@ -86,8 +87,26 @@ object IcebergUtil {
       catalogName,
       Map(
         "warehouse" -> warehouse.toString,
-        CatalogProperties.URI -> StorageConfig.icebergCatalogUri,
+        CatalogProperties.URI -> StorageConfig.icebergRESTCatalogUri,
         CatalogProperties.FILE_IO_IMPL -> classOf[HadoopFileIO].getName
+      ).asJava
+    )
+    catalog
+  }
+
+  def createPostgresCatalog(
+      catalogName: String,
+      warehouse: Path
+  ): JdbcCatalog = {
+    val catalog = new JdbcCatalog()
+    catalog.initialize(
+      catalogName,
+      Map(
+        "warehouse" -> warehouse.toString,
+        CatalogProperties.FILE_IO_IMPL -> classOf[HadoopFileIO].getName,
+        CatalogProperties.URI -> s"jdbc:postgresql://${StorageConfig.icebergPostgresCatalogUriWithoutScheme}",
+        JdbcCatalog.PROPERTY_PREFIX + "user" -> StorageConfig.icebergPostgresCatalogUsername,
+        JdbcCatalog.PROPERTY_PREFIX + "password" -> StorageConfig.icebergPostgresCatalogPassword
       ).asJava
     )
     catalog
