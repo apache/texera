@@ -49,7 +49,9 @@ class DictionaryMatcherOpExec(descString: String) extends MapOpExec {
   }
 
   override def close(): Unit = {
-    tokenizedDictionaryEntries.clear()
+    if (tokenizedDictionaryEntries != null) {
+      tokenizedDictionaryEntries.clear()
+    }
     dictionaryEntries = null
     luceneAnalyzer = null
   }
