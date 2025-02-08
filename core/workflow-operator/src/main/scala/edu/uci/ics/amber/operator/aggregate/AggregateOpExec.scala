@@ -16,12 +16,12 @@ class AggregateOpExec(descString: String) extends OperatorExecutor {
 
   override def open(): Unit = {
     keyedPartialAggregates = new mutable.HashMap[List[Object], List[Object]]()
-    distributedAggregations = _
+    distributedAggregations = null
   }
 
   override def close(): Unit = {
     keyedPartialAggregates.clear()
-    distributedAggregations = _
+    distributedAggregations = null
   }
 
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {

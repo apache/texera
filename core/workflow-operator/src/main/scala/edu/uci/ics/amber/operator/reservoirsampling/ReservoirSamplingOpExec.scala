@@ -22,7 +22,7 @@ class ReservoirSamplingOpExec(descString: String, idx: Int, workerCount: Int)
   }
 
   override def close(): Unit = {
-    reservoir = _
+    reservoir = null
   }
 
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {

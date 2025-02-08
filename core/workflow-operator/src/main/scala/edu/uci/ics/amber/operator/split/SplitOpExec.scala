@@ -18,7 +18,7 @@ class SplitOpExec(
   }
 
   override def close(): Unit = {
-    random = _
+    random = null
   }
 
   override def processTupleMultiPort(
