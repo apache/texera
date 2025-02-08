@@ -7,6 +7,7 @@ class StorageConfig:
 
     _initialized = False
 
+    ICEBERG_POSTGRES_CATALOG_URI_WITHOUT_SCHEME = None
     ICEBERG_POSTGRES_CATALOG_USERNAME = None
     ICEBERG_POSTGRES_CATALOG_PASSWORD = None
     ICEBERG_TABLE_NAMESPACE = None
@@ -16,6 +17,7 @@ class StorageConfig:
     @classmethod
     def initialize(
         cls,
+        postgres_uri_without_scheme,
         postgres_username,
         postgres_password,
         table_namespace,
@@ -27,6 +29,7 @@ class StorageConfig:
                 "Storage config has already been initialized" "and cannot be modified."
             )
 
+        cls.ICEBERG_POSTGRES_CATALOG_URI_WITHOUT_SCHEME = postgres_uri_without_scheme
         cls.ICEBERG_POSTGRES_CATALOG_USERNAME = postgres_username
         cls.ICEBERG_POSTGRES_CATALOG_PASSWORD = postgres_password
         cls.ICEBERG_TABLE_NAMESPACE = table_namespace

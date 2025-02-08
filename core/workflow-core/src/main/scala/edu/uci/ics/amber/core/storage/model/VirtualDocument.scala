@@ -109,4 +109,11 @@ abstract class VirtualDocument[T] extends ReadonlyVirtualDocument[T] {
     * physically remove the current document
     */
   def clear(): Unit
+
+  /**
+    * Retrieve table statistics if the document supports it.
+    * Default implementation returns empty map.
+    */
+  def getTableStatistics: Map[String, Map[String, Any]] =
+    throw new NotImplementedError("getTableStatistics method is not implemented")
 }

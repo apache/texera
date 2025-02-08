@@ -28,6 +28,7 @@ class IcebergCatalogInstance:
             cls._instance = create_postgres_catalog(
                 "texera_iceberg",
                 StorageConfig.ICEBERG_FILE_STORAGE_DIRECTORY_PATH,
+                StorageConfig.ICEBERG_POSTGRES_CATALOG_URI_WITHOUT_SCHEME,
                 StorageConfig.ICEBERG_POSTGRES_CATALOG_USERNAME,
                 StorageConfig.ICEBERG_POSTGRES_CATALOG_PASSWORD,
             )

@@ -62,6 +62,16 @@ nz-content {
   padding: 5px 0;
 }
 
+#git-commit-id {
+  position: absolute;
+  left: 5px;
+  bottom: 5px;
+  font-size: 0.4em;
+  color: gray;
+  z-index: 5;
+  pointer-events: none;
+}
+
 .hidden {
   display: none;
 }
