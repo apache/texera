@@ -382,15 +382,17 @@ export class ListItemComponent implements OnInit, OnChanges {
       return;
     }
 
+    const entryId = this.entry.id!;
+
     if (this.isLiked) {
       this.hubService
-        .postUnlike(userId, userId, this.entry.type)
+        .postUnlike(entryId, userId, this.entry.type)
         .pipe(untilDestroyed(this))
         .subscribe((success: boolean) => {
           if (success) {
             this.isLiked = false;
             this.hubService
-              .getLikeCount(userId, this.entry.type)
+              .getLikeCount(entryId, this.entry.type)
               .pipe(untilDestroyed(this))
               .subscribe((count: number) => {
                 this.likeCount = count;
@@ -399,13 +401,13 @@ export class ListItemComponent implements OnInit, OnChanges {
         });
     } else {
       this.hubService
-        .postLike(userId, userId, this.entry.type)
+        .postLike(entryId, userId, this.entry.type)
         .pipe(untilDestroyed(this))
         .subscribe((success: boolean) => {
           if (success) {
             this.isLiked = true;
             this.hubService
-              .getLikeCount(userId, this.entry.type)
+              .getLikeCount(entryId, this.entry.type)
               .pipe(untilDestroyed(this))
               .subscribe((count: number) => {
                 this.likeCount = count;
